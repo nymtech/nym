@@ -328,6 +328,10 @@ where
                 LpClientError::Crypto(format!("Failed to derive X25519 public key: {e}"))
             })?;
 
+        let gateway_x25519_public = self.gateway_ed25519_public_key.to_x25519().map_err(|e| {
+            LpClientError::Crypto(format!("Failed to derive X25519 public key: {e}"))
+        })?;
+
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|_| LpClientError::Other("System time before UNIX epoch".into()))?
@@ -335,8 +339,8 @@ where
 
         // Step 2: Generate ClientHelloData with fresh salt and both public keys
         let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
-            client_x25519_public.to_bytes(),
-            self.local_ed25519_keypair.public_key().to_bytes(),
+            client_x25519_public,
+            *self.local_ed25519_keypair.public_key(),
             timestamp,
         );
         let salt = client_hello_data.salt;
@@ -381,11 +385,9 @@ where
         let mut state_machine = LpStateMachine::new(
             receiver_index,
             true, // is_initiator
-            (
-                self.local_ed25519_keypair.private_key(),
-                self.local_ed25519_keypair.public_key(),
-            ),
+            self.local_ed25519_keypair.clone(),
             &self.gateway_ed25519_public_key,
+            &gateway_x25519_public,
             &salt,
         )?;
 

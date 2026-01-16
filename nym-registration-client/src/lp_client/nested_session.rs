@@ -129,6 +129,10 @@ impl NestedLpSession {
             LpClientError::Crypto(format!("Failed to derive X25519 public key: {}", e))
         })?;
 
+        let gateway_x25519_public = self.exit_public_key.to_x25519().map_err(|e| {
+            LpClientError::Crypto(format!("Failed to derive X25519 public key: {e}"))
+        })?;
+
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|_| LpClientError::Other("System time before UNIX epoch".into()))?
@@ -136,8 +140,8 @@ impl NestedLpSession {
 
         // Step 2: Generate ClientHello for exit gateway
         let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
-            client_x25519_public.to_bytes(),
-            self.client_keypair.public_key().to_bytes(),
+            client_x25519_public,
+            *self.client_keypair.public_key(),
             timestamp,
         );
         let salt = client_hello_data.salt;
@@ -191,11 +195,9 @@ impl NestedLpSession {
         let mut state_machine = LpStateMachine::new(
             receiver_index,
             true, // is_initiator
-            (
-                self.client_keypair.private_key(),
-                self.client_keypair.public_key(),
-            ),
+            self.client_keypair.clone(),
             &self.exit_public_key,
+            &gateway_x25519_public,
             &salt,
         )?;
 

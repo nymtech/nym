@@ -5,9 +5,10 @@ use super::messages::LpRegistrationRequest;
 use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::{
-    codec::OuterAeadKey, keypair::PublicKey, message::ForwardPacketData, packet::LpHeader,
-    LpMessage, LpPacket, OuterHeader,
+    codec::OuterAeadKey, message::ForwardPacketData, packet::LpHeader, LpMessage, LpPacket,
+    OuterHeader,
 };
 use nym_lp_transport::traits::LpTransport;
 use nym_metrics::{add_histogram_obs, inc};
@@ -289,31 +290,11 @@ where
     async fn handle_client_hello(&mut self, packet: LpPacket) -> Result<(), GatewayError> {
         use nym_lp::packet::LpHeader;
         use nym_lp::state_machine::{LpInput, LpStateMachine};
+        let remote = self.remote_addr;
 
         // Extract ClientHello data
-        let (receiver_index, client_ed25519_pubkey, salt) = match packet.message() {
-            LpMessage::ClientHello(hello_data) => {
-                // Validate timestamp
-                let timestamp = hello_data.extract_timestamp();
-                Self::validate_timestamp(
-                    timestamp,
-                    self.state.lp_config.debug.timestamp_tolerance,
-                )?;
-
-                // Extract client-proposed receiver_index
-                let receiver_index = hello_data.receiver_index;
-
-                let client_ed25519_pubkey = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
-                    &hello_data.client_ed25519_public_key,
-                )
-                .map_err(|e| {
-                    GatewayError::LpProtocolError(
-                        format!("Invalid client Ed25519 public key: {e}",),
-                    )
-                })?;
-
-                (receiver_index, client_ed25519_pubkey, hello_data.salt)
-            }
+        let hello_data = match packet.message() {
+            LpMessage::ClientHello(hello_data) => hello_data,
             other => {
                 inc!("lp_client_hello_failed");
                 return Err(GatewayError::LpProtocolError(format!(
@@ -322,20 +303,23 @@ where
             }
         };
 
-        debug!(
-            "Processing ClientHello from {} (proposed receiver_index={})",
-            self.remote_addr, receiver_index
-        );
+        // Validate timestamp
+        let timestamp = hello_data.extract_timestamp();
+        Self::validate_timestamp(timestamp, self.state.lp_config.debug.timestamp_tolerance)?;
+
+        // Extract client-proposed receiver_index
+        let receiver_index = hello_data.receiver_index;
+
+        // let client_ed25519_pubkey = hello_data.client_ed25519_public_key;
+
+        debug!("Processing ClientHello from {remote} (proposed receiver_index={receiver_index})",);
 
         // Collision check for client-proposed receiver_index
         // Check both handshake_states (in-progress) and session_states (established)
         if self.state.handshake_states.contains_key(&receiver_index)
             || self.state.session_states.contains_key(&receiver_index)
         {
-            warn!(
-                "Receiver index collision: {} from {}",
-                receiver_index, self.remote_addr
-            );
+            warn!("Receiver index collision: {receiver_index} from {remote}",);
             inc!("lp_receiver_index_collision");
 
             // Send Collision response to tell client to retry with new receiver_index
@@ -351,32 +335,23 @@ where
         // Collision check passed - bind this connection to the receiver_index
         // All subsequent packets on this connection must use this receiver_index
         self.bound_receiver_idx = Some(receiver_index);
-        trace!(
-            "Bound connection from {} to receiver_idx={} (via ClientHello)",
-            self.remote_addr,
-            receiver_index
-        );
+        trace!("Bound connection from {remote} to receiver_idx={receiver_index} (via ClientHello)",);
 
         // Create state machine for this handshake using client-proposed receiver_index
         let mut state_machine = LpStateMachine::new(
             receiver_index,
             false, // responder
-            (
-                self.state.local_identity.private_key(),
-                self.state.local_identity.public_key(),
-            ),
-            &client_ed25519_pubkey,
-            &salt,
+            self.state.local_identity.clone(),
+            &hello_data.client_ed25519_public_key,
+            &hello_data.client_lp_public_key,
+            &hello_data.salt,
         )
         .map_err(|e| {
             inc!("lp_client_hello_failed");
             GatewayError::LpHandshakeError(format!("Failed to create state machine: {}", e))
         })?;
 
-        debug!(
-            "Created handshake state for {} (receiver_index={})",
-            self.remote_addr, receiver_index
-        );
+        debug!("Created handshake state for {remote} (receiver_index={receiver_index})",);
 
         // Transition state machine to KKTExchange (responder waits for client's KKT request)
         // For responder, StartHandshake returns None (just transitions state)
@@ -384,8 +359,7 @@ where
         if let Some(Err(e)) = state_machine.process_input(LpInput::StartHandshake) {
             inc!("lp_client_hello_failed");
             return Err(GatewayError::LpHandshakeError(format!(
-                "StartHandshake failed: {}",
-                e
+                "StartHandshake failed: {e}",
             )));
             // Responder (gateway) gets Ok but no packet to send - we just wait for client's next packet
         }
@@ -396,8 +370,7 @@ where
             .insert(receiver_index, super::TimestampedState::new(state_machine));
 
         debug!(
-            "Stored handshake state for {} (receiver_index={}) - waiting for KKT request",
-            self.remote_addr, receiver_index
+            "Stored handshake state for {remote} (receiver_index={receiver_index}) - waiting for KKT request",
         );
 
         // Send Ack to confirm ClientHello received
@@ -897,14 +870,7 @@ where
     #[allow(dead_code)]
     async fn receive_client_hello(
         &mut self,
-    ) -> Result<
-        (
-            PublicKey,
-            nym_crypto::asymmetric::ed25519::PublicKey,
-            [u8; 32],
-        ),
-        GatewayError,
-    > {
+    ) -> Result<(x25519::PublicKey, ed25519::PublicKey, [u8; 32]), GatewayError> {
         // Receive first packet which should be ClientHello (no outer encryption)
         let (raw_bytes, _header) = self.receive_raw_packet().await?;
         let packet = nym_lp::codec::parse_lp_packet(&raw_bytes, None)
@@ -931,22 +897,11 @@ where
                     self.state.lp_config.debug.timestamp_tolerance.as_secs()
                 );
 
-                // Convert bytes to X25519 PublicKey (for Noise protocol)
-                let client_pubkey = PublicKey::from_bytes(&hello_data.client_lp_public_key)
-                    .map_err(|e| {
-                        GatewayError::LpProtocolError(format!("Invalid client public key: {}", e))
-                    })?;
+                // Retrieve X25519 PublicKey (for Noise protocol)
+                let client_pubkey = hello_data.client_lp_public_key;
 
-                // Convert bytes to Ed25519 PublicKey (for PSQ authentication)
-                let client_ed25519_pubkey = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
-                    &hello_data.client_ed25519_public_key,
-                )
-                .map_err(|e| {
-                    GatewayError::LpProtocolError(format!(
-                        "Invalid client Ed25519 public key: {}",
-                        e
-                    ))
-                })?;
+                // Retrieve Ed25519 PublicKey (for PSQ authentication)
+                let client_ed25519_pubkey = hello_data.client_ed25519_public_key;
 
                 // Extract salt for PSK derivation
                 let salt = hello_data.salt;
@@ -1705,8 +1660,13 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
-        let client_key = [7u8; 32];
-        let client_ed25519_key = [8u8; 32];
+        let mut rng = rand::thread_rng();
+        let ed25519 = ed25519::KeyPair::new(&mut rng);
+        let x25519 = ed25519.to_x25519();
+
+        let client_key = *x25519.public_key();
+        let client_ed25519_key = *ed25519.public_key();
+
         let hello_data =
             ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
         let expected_salt = hello_data.salt; // Clone salt before moving hello_data
@@ -1777,8 +1737,8 @@ mod tests {
         let client_x25519_public = client_ed25519_keypair.public_key().to_x25519().unwrap();
 
         let hello_data = ClientHelloData::new_with_fresh_salt(
-            client_x25519_public.to_bytes(),
-            client_ed25519_keypair.public_key().to_bytes(),
+            client_x25519_public,
+            *client_ed25519_keypair.public_key(),
             timestamp,
         );
         let packet = LpPacket::new(
@@ -1838,8 +1798,8 @@ mod tests {
         let client_x25519_public = client_ed25519_keypair.public_key().to_x25519().unwrap();
 
         let mut hello_data = ClientHelloData::new_with_fresh_salt(
-            client_x25519_public.to_bytes(),
-            client_ed25519_keypair.public_key().to_bytes(),
+            client_x25519_public,
+            *client_ed25519_keypair.public_key(),
             timestamp,
         );
 

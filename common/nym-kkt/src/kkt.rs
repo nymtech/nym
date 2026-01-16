@@ -8,7 +8,7 @@
 //!
 //! The underlying KKT protocol is implemented in the `session` module.
 
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use rand::{CryptoRng, RngCore};
 
 use crate::{
@@ -60,7 +60,7 @@ pub fn request_kem_key<R: CryptoRng + RngCore>(
     rng: &mut R,
     ciphersuite: Ciphersuite,
     signing_key: &ed25519::PrivateKey,
-    responder_dh_public_key: &nym_sphinx::PublicKey,
+    responder_dh_public_key: &x25519::PublicKey,
 ) -> Result<(KKTSessionSecret, KKTContext, Vec<u8>), KKTError> {
     // OneWay mode: client only wants responder's KEM key
     // None: client doesn't send their own KEM key
@@ -161,7 +161,7 @@ pub fn handle_kem_request<'a, R>(
     encrypted_request_bytes: &[u8],
     initiator_vk: Option<&ed25519::PublicKey>,
     responder_signing_key: &ed25519::PrivateKey,
-    responder_dh_private_key: &nym_sphinx::PrivateKey,
+    responder_dh_private_key: &x25519::PrivateKey,
     responder_kem_key: &EncapsulationKey<'a>,
 ) -> Result<Vec<u8>, KKTError>
 where
@@ -200,6 +200,13 @@ mod tests {
         key_utils::{generate_keypair_libcrux, hash_encapsulation_key},
     };
 
+    fn random_x25519_key() -> x25519::PrivateKey {
+        let mut bytes = [0u8; 32];
+        let mut rng = rand::rng();
+        rng.fill_bytes(&mut bytes);
+        x25519::PrivateKey::from_secret(bytes)
+    }
+
     #[test]
     fn test_kkt_wrappers_oneway_authenticated() {
         let mut rng = rand::rng();
@@ -213,8 +220,8 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let ed25519_resp = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
-        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
+        let x25519_resp_priv = random_x25519_key();
+        let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         // Generate responder's KEM keypair (X25519 for testing)
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
@@ -282,8 +289,8 @@ mod tests {
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
 
-        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
-        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
+        let x25519_resp_priv = random_x25519_key();
+        let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         let ciphersuite = Ciphersuite::resolve_ciphersuite(
             KEM::X25519,
@@ -343,8 +350,8 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
-        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
+        let x25519_resp_priv = random_x25519_key();
+        let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         // Different keypair for wrong signature
         let mut wrong_secret = [0u8; 32];
@@ -396,8 +403,8 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
-        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
+        let x25519_resp_priv = random_x25519_key();
+        let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);

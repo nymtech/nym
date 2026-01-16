@@ -321,6 +321,8 @@ mod tests {
     use crate::message::{EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use bytes::BytesMut;
+    use nym_crypto::asymmetric::{ed25519, x25519};
+    use rand::thread_rng;
 
     // With unified format, outer header (receiver_idx + counter) is always first
     // and is the only cleartext portion for encrypted packets
@@ -603,11 +605,13 @@ mod tests {
     fn test_serialize_parse_client_hello() {
         use crate::message::ClientHelloData;
 
+        let mut rng = thread_rng();
+        let valid_ed25519 = ed25519::KeyPair::new(&mut rng);
         let mut dst = BytesMut::new();
 
         // Create ClientHelloData
-        let client_key = [42u8; 32];
-        let client_ed25519_key = [43u8; 32];
+        let client_key = x25519::PublicKey::from_byte_array(&[42u8; 32]);
+        let client_ed25519_key = *valid_ed25519.public_key();
         let salt = [99u8; 32];
         let hello_data = ClientHelloData {
             receiver_index: 12345,
@@ -661,8 +665,11 @@ mod tests {
             .as_secs();
 
         // Create ClientHelloData with fresh salt
-        let client_key = [7u8; 32];
-        let client_ed25519_key = [8u8; 32];
+        let mut rng = thread_rng();
+        let valid_ed25519 = ed25519::KeyPair::new(&mut rng);
+
+        let client_key = x25519::PublicKey::from_byte_array(&[7u8; 32]);
+        let client_ed25519_key = *valid_ed25519.public_key();
         let hello_data =
             ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
@@ -746,43 +753,6 @@ mod tests {
             Err(LpError::DeserializationError(_)) => {} // Expected error
             Err(e) => panic!("Expected DeserializationError, got {:?}", e),
             Ok(_) => panic!("Expected error, but got Ok"),
-        }
-    }
-
-    #[test]
-    fn test_client_hello_different_protocol_versions() {
-        use crate::message::ClientHelloData;
-
-        for version in [0u8, 1, 2, 255] {
-            let mut dst = BytesMut::new();
-
-            let hello_data = ClientHelloData {
-                receiver_index: version as u32,
-                client_lp_public_key: [version; 32],
-                client_ed25519_public_key: [version.wrapping_add(2); 32],
-                salt: [version.wrapping_add(1); 32],
-            };
-
-            let packet = LpPacket {
-                header: LpHeader {
-                    protocol_version: 1,
-                    reserved: [0u8; 3],
-                    receiver_idx: version as u32,
-                    counter: version as u64,
-                },
-                message: LpMessage::ClientHello(hello_data.clone()),
-                trailer: [version; TRAILER_LEN],
-            };
-
-            serialize_lp_packet(&packet, &mut dst, None).unwrap();
-            let decoded = parse_lp_packet(&dst, None).unwrap();
-
-            match decoded.message {
-                LpMessage::ClientHello(decoded_data) => {
-                    assert_eq!(decoded_data.client_lp_public_key, [version; 32]);
-                }
-                _ => panic!("Expected ClientHello message for version {}", version),
-            }
         }
     }
 

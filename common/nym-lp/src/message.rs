@@ -4,6 +4,7 @@
 use crate::{BOOTSTRAP_RECEIVER_IDX, LpError};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use nym_crypto::asymmetric::{ed25519, x25519};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
@@ -14,9 +15,9 @@ pub struct ClientHelloData {
     /// Auto-generated randomly by the client
     pub receiver_index: u32,
     /// Client's LP x25519 public key (32 bytes) - derived from Ed25519 key
-    pub client_lp_public_key: [u8; 32],
+    pub client_lp_public_key: x25519::PublicKey,
     /// Client's Ed25519 public key (32 bytes) - for PSQ authentication
-    pub client_ed25519_public_key: [u8; 32],
+    pub client_ed25519_public_key: ed25519::PublicKey,
     /// Salt for PSK derivation (32 bytes: 8-byte timestamp + 24-byte nonce)
     pub salt: [u8; 32],
 }
@@ -46,8 +47,8 @@ impl ClientHelloData {
     /// * `client_lp_public_key` - Client's x25519 public key (derived from Ed25519)
     /// * `client_ed25519_public_key` - Client's Ed25519 public key (for PSQ authentication)
     pub fn new_with_fresh_salt(
-        client_lp_public_key: [u8; 32],
-        client_ed25519_public_key: [u8; 32],
+        client_lp_public_key: x25519::PublicKey,
+        client_ed25519_public_key: ed25519::PublicKey,
         timestamp: u64,
     ) -> Self {
         // Generate salt: timestamp + nonce
@@ -80,8 +81,8 @@ impl ClientHelloData {
 
     pub fn encode(&self, dst: &mut BytesMut) {
         dst.put_u32_le(self.receiver_index);
-        dst.put_slice(&self.client_lp_public_key);
-        dst.put_slice(&self.client_ed25519_public_key);
+        dst.put_slice(self.client_lp_public_key.as_bytes());
+        dst.put_slice(self.client_ed25519_public_key.as_bytes());
         dst.put_slice(&self.salt);
     }
 
@@ -96,10 +97,15 @@ impl ClientHelloData {
 
         // SAFETY: we checked for valid byte lengths
         #[allow(clippy::unwrap_used)]
+        let client_lp_public_key_bytes = b[4..36].try_into().unwrap();
+        let client_ed25519_public_key_bytes = b[36..68].try_into().unwrap();
+
         Ok(ClientHelloData {
             receiver_index: u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
-            client_lp_public_key: b[4..36].try_into().unwrap(),
-            client_ed25519_public_key: b[36..68].try_into().unwrap(),
+            client_lp_public_key: x25519::PublicKey::from_byte_array(client_lp_public_key_bytes),
+            client_ed25519_public_key: ed25519::PublicKey::from_byte_array(
+                client_ed25519_public_key_bytes,
+            )?,
             salt: b[68..].try_into().unwrap(),
         })
     }
@@ -635,8 +641,13 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("System time before UNIX epoch")
             .as_secs();
-        let client_key = [1u8; 32];
-        let client_ed25519_key = [2u8; 32];
+
+        let mut rng = rand::thread_rng();
+        let ed25519 = ed25519::KeyPair::new(&mut rng);
+        let x25519 = ed25519.to_x25519();
+
+        let client_key = *x25519.public_key();
+        let client_ed25519_key = *ed25519.public_key();
         let hello1 =
             ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
         let hello2 =
@@ -657,8 +668,12 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("System time before UNIX epoch")
             .as_secs();
-        let client_key = [2u8; 32];
-        let client_ed25519_key = [3u8; 32];
+        let mut rng = rand::thread_rng();
+        let ed25519 = ed25519::KeyPair::new(&mut rng);
+        let x25519 = ed25519.to_x25519();
+
+        let client_key = *x25519.public_key();
+        let client_ed25519_key = *ed25519.public_key();
         let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
         let timestamp = hello.extract_timestamp();
@@ -677,8 +692,12 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("System time before UNIX epoch")
             .as_secs();
-        let client_key = [3u8; 32];
-        let client_ed25519_key = [4u8; 32];
+        let mut rng = rand::thread_rng();
+        let ed25519 = ed25519::KeyPair::new(&mut rng);
+        let x25519 = ed25519.to_x25519();
+
+        let client_key = *x25519.public_key();
+        let client_ed25519_key = *ed25519.public_key();
         let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
         // First 8 bytes should be non-zero timestamp

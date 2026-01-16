@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
-    use crate::keypair::PublicKey;
     use crate::{
         LpError,
         message::LpMessage,
@@ -9,7 +8,8 @@ mod tests {
         session_manager::SessionManager,
     };
     use bytes::BytesMut;
-    use nym_crypto::asymmetric::ed25519;
+    use nym_crypto::asymmetric::{ed25519, x25519};
+    use std::sync::Arc;
 
     // Function to create a test packet - similar to how it's done in codec.rs tests
     fn create_test_packet(
@@ -53,6 +53,11 @@ mod tests {
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([1u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([2u8; 32], 1);
 
+        let x25519_keypair_a = ed25519_keypair_a.to_x25519();
+        let x25519_keypair_b = ed25519_keypair_b.to_x25519();
+
+        let ed25519_pubkey_a = *ed25519_keypair_a.public_key();
+
         // Derive X25519 keys from Ed25519 (needed for KKT init test)
         let x25519_pub_a = ed25519_keypair_a
             .public_key()
@@ -64,9 +69,9 @@ mod tests {
             .expect("Failed to derive X25519 from Ed25519");
 
         // Convert to LP keypair types
-        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
+        let lp_pub_a = x25519::PublicKey::from_bytes(x25519_pub_a.as_bytes())
             .expect("Failed to create PublicKey from bytes");
-        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
+        let lp_pub_b = x25519::PublicKey::from_bytes(x25519_pub_b.as_bytes())
             .expect("Failed to create PublicKey from bytes");
 
         // Use fixed receiver_index for deterministic test
@@ -79,11 +84,9 @@ mod tests {
         let peer_a_sm = session_manager_1
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_a.private_key(),
-                    ed25519_keypair_a.public_key(),
-                ),
+                Arc::new(ed25519_keypair_a),
                 ed25519_keypair_b.public_key(),
+                x25519_keypair_b.public_key(),
                 true,
                 &salt,
             )
@@ -92,11 +95,9 @@ mod tests {
         let peer_b_sm = session_manager_2
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_b.private_key(),
-                    ed25519_keypair_b.public_key(),
-                ),
-                ed25519_keypair_a.public_key(),
+                Arc::new(ed25519_keypair_b),
+                &ed25519_pubkey_a,
+                x25519_keypair_a.public_key(),
                 false,
                 &salt,
             )
@@ -512,6 +513,11 @@ mod tests {
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([3u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([4u8; 32], 1);
 
+        let x25519_keypair_a = ed25519_keypair_a.to_x25519();
+        let x25519_keypair_b = ed25519_keypair_b.to_x25519();
+
+        let ed25519_pubkey_a = *ed25519_keypair_a.public_key();
+
         // Derive X25519 keys from Ed25519 (same as state machine does internally)
         let x25519_pub_a = ed25519_keypair_a
             .public_key()
@@ -523,9 +529,9 @@ mod tests {
             .expect("Failed to derive X25519 from Ed25519");
 
         // Convert to LP keypair types
-        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
+        let lp_pub_a = x25519::PublicKey::from_bytes(x25519_pub_a.as_bytes())
             .expect("Failed to create PublicKey from bytes");
-        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
+        let lp_pub_b = x25519::PublicKey::from_bytes(x25519_pub_b.as_bytes())
             .expect("Failed to create PublicKey from bytes");
 
         // Use fixed receiver_index for test
@@ -537,11 +543,9 @@ mod tests {
         let peer_a_sm = session_manager_1
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_a.private_key(),
-                    ed25519_keypair_a.public_key(),
-                ),
+                Arc::new(ed25519_keypair_a),
                 ed25519_keypair_b.public_key(),
+                x25519_keypair_b.public_key(),
                 true,
                 &salt,
             )
@@ -549,11 +553,9 @@ mod tests {
         let peer_b_sm = session_manager_2
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_b.private_key(),
-                    ed25519_keypair_b.public_key(),
-                ),
-                ed25519_keypair_a.public_key(),
+                Arc::new(ed25519_keypair_b),
+                &ed25519_pubkey_a,
+                x25519_keypair_a.public_key(),
                 false,
                 &salt,
             )
@@ -720,16 +722,22 @@ mod tests {
         let session_manager = SessionManager::new();
 
         // Generate Ed25519 keypair for PSQ authentication
-        let ed25519_keypair = ed25519::KeyPair::from_secret([5u8; 32], 0);
+        let ed25519_keypair_a = ed25519::KeyPair::from_secret([5u8; 32], 0);
+        let ed25519_keypair_b = ed25519::KeyPair::from_secret([6u8; 32], 0);
+
+        let x25519_keypair_a = ed25519_keypair_a.to_x25519();
+        let x25519_keypair_b = ed25519_keypair_b.to_x25519();
 
         // Derive X25519 key from Ed25519 (same as state machine does internally)
-        let x25519_pub = ed25519_keypair
+        let x25519_pub = ed25519_keypair_a
             .public_key()
             .to_x25519()
             .expect("Failed to derive X25519 from Ed25519");
 
+        let keypair_a = Arc::new(ed25519_keypair_a);
+
         // Convert to LP keypair type (still needed for init_kkt_for_test below if used)
-        let _lp_pub = PublicKey::from_bytes(x25519_pub.as_bytes())
+        let _lp_pub = x25519::PublicKey::from_bytes(x25519_pub.as_bytes())
             .expect("Failed to create PublicKey from bytes");
 
         // Use fixed receiver_index for test
@@ -742,8 +750,9 @@ mod tests {
         let _session = session_manager
             .create_session_state_machine(
                 receiver_index,
-                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-                ed25519_keypair.public_key(),
+                keypair_a.clone(),
+                ed25519_keypair_b.public_key(),
+                x25519_keypair_b.public_key(),
                 true,
                 &salt,
             )
@@ -765,8 +774,9 @@ mod tests {
         let _temp_session = session_manager
             .create_session_state_machine(
                 receiver_index_temp,
-                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-                ed25519_keypair.public_key(),
+                keypair_a.clone(),
+                ed25519_keypair_b.public_key(),
+                x25519_keypair_a.public_key(),
                 true,
                 &salt,
             )
@@ -849,6 +859,12 @@ mod tests {
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([6u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([7u8; 32], 1);
 
+        let x25519_keypair_a = ed25519_keypair_a.to_x25519();
+        let x25519_keypair_b = ed25519_keypair_b.to_x25519();
+
+        let pubkey_a = *ed25519_keypair_a.public_key();
+        let pubkey_b = *ed25519_keypair_b.public_key();
+
         // Use fixed receiver_index for test
         let receiver_index: u32 = 100005;
 
@@ -860,11 +876,9 @@ mod tests {
             session_manager_1
                 .create_session_state_machine(
                     receiver_index,
-                    (
-                        ed25519_keypair_a.private_key(),
-                        ed25519_keypair_a.public_key()
-                    ),
-                    ed25519_keypair_b.public_key(),
+                    Arc::new(ed25519_keypair_a),
+                    &pubkey_b,
+                    x25519_keypair_b.public_key(),
                     true,
                     &salt,
                 ) // Initiator
@@ -874,11 +888,9 @@ mod tests {
             session_manager_2
                 .create_session_state_machine(
                     receiver_index,
-                    (
-                        ed25519_keypair_b.private_key(),
-                        ed25519_keypair_b.public_key()
-                    ),
-                    ed25519_keypair_a.public_key(),
+                    Arc::new(ed25519_keypair_b),
+                    &pubkey_a,
+                    x25519_keypair_a.public_key(),
                     false,
                     &salt,
                 ) // Responder

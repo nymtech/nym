@@ -7,7 +7,8 @@
 //! creation, retrieval, and storage of sessions.
 
 use dashmap::DashMap;
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
+use std::sync::Arc;
 
 use crate::noise_protocol::ReadResult;
 use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
@@ -169,8 +170,9 @@ impl SessionManager {
     pub fn create_session_state_machine(
         &self,
         receiver_index: u32,
-        local_ed25519_keypair: (&ed25519::PrivateKey, &ed25519::PublicKey),
+        local_ed25519_keypair: Arc<ed25519::KeyPair>,
         remote_ed25519_key: &ed25519::PublicKey,
+        remote_x25519_key: &x25519::PublicKey,
         is_initiator: bool,
         salt: &[u8; 32],
     ) -> Result<u32, LpError> {
@@ -179,6 +181,7 @@ impl SessionManager {
             is_initiator,
             local_ed25519_keypair,
             remote_ed25519_key,
+            remote_x25519_key,
             salt,
         )?;
 
@@ -199,7 +202,7 @@ impl SessionManager {
     pub fn init_kkt_for_test(
         &self,
         lp_id: u32,
-        remote_x25519_pub: &crate::keypair::PublicKey,
+        remote_x25519_pub: &x25519::PublicKey,
     ) -> Result<(), LpError> {
         self.with_state_machine(lp_id, |sm| {
             sm.session()?.set_kkt_completed_for_test(remote_x25519_pub);
@@ -217,14 +220,19 @@ mod tests {
     fn test_session_manager_get() {
         let manager = SessionManager::new();
         let ed25519_keypair = ed25519::KeyPair::from_secret([10u8; 32], 0);
+        let ed25519_keypair2 = ed25519::KeyPair::from_secret([16u8; 32], 0);
+
+        let x25519_keypair2 = ed25519_keypair2.to_x25519();
+
         let salt = [47u8; 32];
         let receiver_index: u32 = 1001;
 
         let sm_1_id = manager
             .create_session_state_machine(
                 receiver_index,
-                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-                ed25519_keypair.public_key(),
+                Arc::new(ed25519_keypair),
+                ed25519_keypair2.public_key(),
+                x25519_keypair2.public_key(),
                 true,
                 &salt,
             )
@@ -241,14 +249,19 @@ mod tests {
     fn test_session_manager_remove() {
         let manager = SessionManager::new();
         let ed25519_keypair = ed25519::KeyPair::from_secret([11u8; 32], 0);
+        let ed25519_keypair2 = ed25519::KeyPair::from_secret([16u8; 32], 0);
+
+        let x25519_keypair2 = ed25519_keypair2.to_x25519();
+
         let salt = [48u8; 32];
         let receiver_index: u32 = 2002;
 
         let sm_1_id = manager
             .create_session_state_machine(
                 receiver_index,
-                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-                ed25519_keypair.public_key(),
+                Arc::new(ed25519_keypair),
+                ed25519_keypair2.public_key(),
+                x25519_keypair2.public_key(),
                 true,
                 &salt,
             )
@@ -270,14 +283,20 @@ mod tests {
         let ed25519_keypair_3 = ed25519::KeyPair::from_secret([14u8; 32], 2);
         let salt = [49u8; 32];
 
+        let pubkey1 = *ed25519_keypair_1.public_key();
+        let pubkey2 = *ed25519_keypair_2.public_key();
+        let pubkey3 = *ed25519_keypair_3.public_key();
+
+        let xpubkey1 = *ed25519_keypair_1.to_x25519().public_key();
+        let xpubkey2 = *ed25519_keypair_2.to_x25519().public_key();
+        let xpubkey3 = *ed25519_keypair_3.to_x25519().public_key();
+
         let sm_1 = manager
             .create_session_state_machine(
                 3001,
-                (
-                    ed25519_keypair_1.private_key(),
-                    ed25519_keypair_1.public_key(),
-                ),
-                ed25519_keypair_1.public_key(),
+                Arc::new(ed25519_keypair_1),
+                &pubkey2,
+                &xpubkey2,
                 true,
                 &salt,
             )
@@ -286,11 +305,9 @@ mod tests {
         let sm_2 = manager
             .create_session_state_machine(
                 3002,
-                (
-                    ed25519_keypair_2.private_key(),
-                    ed25519_keypair_2.public_key(),
-                ),
-                ed25519_keypair_2.public_key(),
+                Arc::new(ed25519_keypair_2),
+                &pubkey3,
+                &xpubkey3,
                 true,
                 &salt,
             )
@@ -299,11 +316,9 @@ mod tests {
         let sm_3 = manager
             .create_session_state_machine(
                 3003,
-                (
-                    ed25519_keypair_3.private_key(),
-                    ed25519_keypair_3.public_key(),
-                ),
-                ed25519_keypair_3.public_key(),
+                Arc::new(ed25519_keypair_3),
+                &pubkey1,
+                &xpubkey1,
                 true,
                 &salt,
             )
@@ -324,13 +339,17 @@ mod tests {
     fn test_session_manager_create_session() {
         let manager = SessionManager::new();
         let ed25519_keypair = ed25519::KeyPair::from_secret([15u8; 32], 0);
+        let ed25519_keypair2 = ed25519::KeyPair::from_secret([16u8; 32], 0);
         let salt = [50u8; 32];
         let receiver_index: u32 = 4004;
 
+        let x25519_keypair2 = ed25519_keypair2.to_x25519();
+
         let sm = manager.create_session_state_machine(
             receiver_index,
-            (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-            ed25519_keypair.public_key(),
+            Arc::new(ed25519_keypair),
+            ed25519_keypair2.public_key(),
+            x25519_keypair2.public_key(),
             true,
             &salt,
         );

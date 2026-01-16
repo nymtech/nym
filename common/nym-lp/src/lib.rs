@@ -4,7 +4,6 @@
 pub mod codec;
 pub mod config;
 pub mod error;
-pub mod keypair;
 pub mod kkt_orchestrator;
 pub mod message;
 pub mod noise_protocol;
@@ -30,12 +29,14 @@ pub const NOISE_PSK_INDEX: u8 = 3;
 
 #[cfg(test)]
 pub fn sessions_for_tests() -> (LpSession, LpSession) {
-    use crate::keypair::Keypair;
-    use nym_crypto::asymmetric::ed25519;
+    use nym_crypto::asymmetric::{ed25519, x25519};
+    use std::sync::Arc;
+
+    let mut rng = rand::thread_rng();
 
     // X25519 keypairs for Noise protocol
-    let keypair_1 = Keypair::default();
-    let keypair_2 = Keypair::default();
+    let keypair_1 = Arc::new(x25519::KeyPair::new(&mut rng));
+    let keypair_2 = Arc::new(x25519::KeyPair::new(&mut rng));
 
     // Use a fixed receiver_index for deterministic tests
     let receiver_index: u32 = 12345;
@@ -43,6 +44,8 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     // Ed25519 keypairs for PSQ authentication (placeholders for testing)
     let ed25519_keypair_1 = ed25519::KeyPair::from_secret([1u8; 32], 0);
     let ed25519_keypair_2 = ed25519::KeyPair::from_secret([2u8; 32], 1);
+
+    let ed25519_keypair1_pubkey = *ed25519_keypair_1.public_key();
 
     // Use consistent salt for deterministic tests
     let salt = [1u8; 32];
@@ -52,11 +55,8 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     let initiator_session = LpSession::new(
         receiver_index,
         true,
-        (
-            ed25519_keypair_1.private_key(),
-            ed25519_keypair_1.public_key(),
-        ),
-        keypair_1.private_key(),
+        Arc::new(ed25519_keypair_1),
+        keypair_1.clone(),
         ed25519_keypair_2.public_key(),
         keypair_2.public_key(),
         &salt,
@@ -66,12 +66,9 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     let responder_session = LpSession::new(
         receiver_index,
         false,
-        (
-            ed25519_keypair_2.private_key(),
-            ed25519_keypair_2.public_key(),
-        ),
-        keypair_2.private_key(),
-        ed25519_keypair_1.public_key(),
+        Arc::new(ed25519_keypair_2),
+        keypair_2.clone(),
+        &ed25519_keypair1_pubkey,
         keypair_1.public_key(),
         &salt,
     )
@@ -87,6 +84,7 @@ mod tests {
     use crate::session_manager::SessionManager;
     use crate::{LpError, sessions_for_tests};
     use bytes::BytesMut;
+    use std::sync::Arc;
 
     // Import the new standalone functions
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
@@ -202,6 +200,10 @@ mod tests {
         let ed25519_keypair_local = ed25519::KeyPair::from_secret([8u8; 32], 0);
         let ed25519_keypair_remote = ed25519::KeyPair::from_secret([9u8; 32], 1);
 
+        let ed25519_keypair_local_pubkey = *ed25519_keypair_local.public_key();
+        let x25519_keypair_local_pubkey = ed25519_keypair_local_pubkey.to_x25519().unwrap();
+        let x25519_keypair_remote_pubkey = ed25519_keypair_remote.public_key().to_x25519().unwrap();
+
         // Use fixed receiver_index for deterministic test
         let receiver_index: u32 = 54321;
 
@@ -212,11 +214,9 @@ mod tests {
         let _ = local_manager
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_local.private_key(),
-                    ed25519_keypair_local.public_key(),
-                ),
+                Arc::new(ed25519_keypair_local),
                 ed25519_keypair_remote.public_key(),
+                &x25519_keypair_remote_pubkey,
                 true,
                 &salt,
             )
@@ -225,11 +225,9 @@ mod tests {
         let _ = remote_manager
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_remote.private_key(),
-                    ed25519_keypair_remote.public_key(),
-                ),
-                ed25519_keypair_local.public_key(),
+                Arc::new(ed25519_keypair_remote),
+                &ed25519_keypair_local_pubkey,
+                &x25519_keypair_local_pubkey,
                 false,
                 &salt,
             )

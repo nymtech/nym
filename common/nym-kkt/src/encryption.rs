@@ -1,25 +1,29 @@
-use blake3::Hasher;
-
-use libcrux_chacha20poly1305::{NONCE_LEN, TAG_LEN};
-
-use nym_sphinx::{PrivateKey, PublicKey};
-
-use rand::{CryptoRng, RngCore};
-use zeroize::Zeroize;
+// Copyright 2025-2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::kkt::KKT_INITIAL_FRAME_AAD;
 use crate::{
     ciphersuite::CURVE25519_KEY_LEN, context::KKTContext, error::KKTError, frame::KKTFrame,
 };
+use blake3::Hasher;
+use libcrux_chacha20poly1305::{NONCE_LEN, TAG_LEN};
+use nym_crypto::asymmetric::x25519;
+use rand::{CryptoRng, RngCore};
+use zeroize::Zeroize;
 
 #[derive(Clone, Copy, Zeroize)]
 pub struct KKTSessionSecret([u8; 32]);
 
 impl KKTSessionSecret {
-    pub fn new(remote_public_key: &PublicKey) -> (Self, PublicKey) {
-        // this doesn't use the newer rand crate
-        let ephemeral_private_key = PrivateKey::random();
-        let ephemeral_public_key = PublicKey::from(&ephemeral_private_key);
+    pub fn new<R>(rng: &mut R, remote_public_key: &x25519::PublicKey) -> (Self, x25519::PublicKey)
+    where
+        R: RngCore + CryptoRng,
+    {
+        let mut private_key_bytes = [0u8; x25519::PRIVATE_KEY_SIZE];
+        rng.fill_bytes(&mut private_key_bytes);
+
+        let ephemeral_private_key = x25519::PrivateKey::from_secret(private_key_bytes);
+        let ephemeral_public_key = x25519::PublicKey::from(&ephemeral_private_key);
 
         (
             Self::derive(&ephemeral_private_key, remote_public_key),
@@ -29,21 +33,22 @@ impl KKTSessionSecret {
     pub fn from_bytes(secret: [u8; 32]) -> Self {
         Self(secret)
     }
-    pub fn try_derive(private_key: &PrivateKey, public_key: &[u8]) -> Result<Self, KKTError> {
+
+    fn try_derive(private_key: &x25519::PrivateKey, public_key: &[u8]) -> Result<Self, KKTError> {
         let mut pub_key: [u8; 32] = [0u8; 32];
         pub_key.copy_from_slice(&public_key[0..CURVE25519_KEY_LEN]);
 
         // Todo: check validity of pk...
-        let pk = PublicKey::from(pub_key);
+        let pk = x25519::PublicKey::from(pub_key);
         Ok(Self::derive(private_key, &pk))
     }
 
-    pub fn derive(private_key: &PrivateKey, public_key: &PublicKey) -> Self {
+    pub fn derive(private_key: &x25519::PrivateKey, public_key: &x25519::PublicKey) -> Self {
         let mut shared_secret = private_key.diffie_hellman(public_key);
 
         let mut hasher = Hasher::new();
 
-        hasher.update(shared_secret.as_bytes());
+        hasher.update(&shared_secret);
         shared_secret.zeroize();
 
         Self(hasher.finalize().as_bytes().to_owned())
@@ -55,13 +60,13 @@ impl KKTSessionSecret {
 
 pub fn encrypt_initial_kkt_frame<R>(
     rng: &mut R,
-    remote_public_key: &PublicKey,
+    remote_public_key: &x25519::PublicKey,
     kkt_frame: &KKTFrame,
 ) -> Result<(KKTSessionSecret, Vec<u8>), KKTError>
 where
     R: CryptoRng + RngCore,
 {
-    let (session_secret_key, ephemeral_public_key) = KKTSessionSecret::new(remote_public_key);
+    let (session_secret_key, ephemeral_public_key) = KKTSessionSecret::new(rng, remote_public_key);
 
     let mut encrypted_frame =
         encrypt_kkt_frame(rng, &session_secret_key, kkt_frame, KKT_INITIAL_FRAME_AAD)?;
@@ -76,7 +81,7 @@ where
 }
 
 pub fn decrypt_initial_kkt_frame(
-    responder_private_key: &PrivateKey,
+    responder_private_key: &x25519::PrivateKey,
     encrypted_frame_bytes: &[u8],
 ) -> Result<(KKTSessionSecret, KKTFrame, KKTContext), KKTError> {
     if encrypted_frame_bytes.len() < CURVE25519_KEY_LEN + TAG_LEN + NONCE_LEN {
@@ -185,13 +190,14 @@ mod test {
 
     #[test]
     fn test_keygen() {
-        let responder_x25519_keypair = generate_keypair_x25519();
+        let mut rng = rng();
+        let responder_x25519_keypair = generate_keypair_x25519(&mut rng);
 
         let (session_secret_key, ephemeral_public_key) =
-            KKTSessionSecret::new(&responder_x25519_keypair.1);
+            KKTSessionSecret::new(&mut rng, responder_x25519_keypair.public_key());
 
         let shared_secret = KKTSessionSecret::try_derive(
-            &responder_x25519_keypair.0,
+            responder_x25519_keypair.private_key(),
             ephemeral_public_key.as_bytes().as_slice(),
         )
         .unwrap();

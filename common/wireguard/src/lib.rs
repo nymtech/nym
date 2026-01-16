@@ -35,6 +35,18 @@ pub use peer_controller::{PeerControlRequest, PeerRegistrationData};
 
 pub const CONTROL_CHANNEL_SIZE: usize = 256;
 
+#[derive(Debug, thiserror::Error)]
+pub enum WgApiWrapperError {
+    #[error("WireGuard kernel implementation is not available on this platform")]
+    KernelUnavailable,
+
+    #[error("WireGuard userspace implementation is not available on this platform")]
+    UserspaceUnavailable,
+
+    #[error("WireGuard interface error: {0}")]
+    Interface(#[from] WireguardInterfaceError),
+}
+
 pub struct WgApiWrapper {
     inner: Box<dyn WireguardInterfaceApi + Sync + Send>,
 }
@@ -43,31 +55,48 @@ impl WgApiWrapper {
     /// Create new instance of `WgApiWrapper` choosing internal implementation based on `use_userspace` flag and platform availability.
     ///
     /// Falls back to userspace implementation when kernel implementation is requested but not available.
-    pub fn new(ifname: &str, use_userspace: bool) -> Result<Self, WireguardInterfaceError> {
+    pub fn new(ifname: &str, use_userspace: bool) -> Result<Self, WgApiWrapperError> {
         if use_userspace {
             Self::userspace(ifname)
         } else {
-            Self::kernel(ifname)
-                .transpose()
-                .unwrap_or_else(|| Self::userspace(ifname))
+            Self::kernel(ifname).or_else(|err| {
+                if matches!(err, WgApiWrapperError::KernelUnavailable) {
+                    Self::userspace(ifname)
+                } else {
+                    Err(err)
+                }
+            })
         }
     }
 
     /// Create userspace implementation
-    fn userspace(ifname: &str) -> Result<Self, WireguardInterfaceError> {
-        let api = WGApi::<defguard_wireguard_rs::Userspace>::new(ifname)?;
-        Ok(Self {
-            inner: Box::new(api),
-        })
+    fn userspace(ifname: &str) -> Result<Self, WgApiWrapperError> {
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "freebsd",
+            target_os = "netbsd"
+        ))]
+        {
+            let api = WGApi::<defguard_wireguard_rs::Userspace>::new(ifname)?;
+            Ok(Self {
+                inner: Box::new(api),
+            })
+        }
+
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "freebsd",
+            target_os = "netbsd"
+        )))]
+        {
+            Err(WgApiWrapperError::UserspaceUnavailable)
+        }
     }
 
     /// Create kernel implementation if available.
-    ///
-    /// Returns `None` if kernel implementation is not available.
-    ///
-    /// See platforms where kernel implementation is available:
-    /// <https://github.com/DefGuard/wireguard-rs>
-    fn kernel(_ifname: &str) -> Result<Option<Self>, WireguardInterfaceError> {
+    fn kernel(_ifname: &str) -> Result<Self, WgApiWrapperError> {
         #[cfg(any(
             target_os = "linux",
             target_os = "windows",
@@ -88,7 +117,7 @@ impl WgApiWrapper {
             target_os = "netbsd"
         )))]
         {
-            Ok(None)
+            Err(WgApiWrapperError::KernelUnavailable)
         }
     }
 }

@@ -47,6 +47,10 @@ impl KKTFrame {
         &self.context
     }
 
+    pub fn context(&self) -> Result<KKTContext, KKTError> {
+        KKTContext::try_decode(self.context)
+    }
+
     pub fn signature_ref(&self) -> &[u8] {
         &self.signature
     }

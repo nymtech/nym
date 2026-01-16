@@ -48,6 +48,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
     let mut secret_responder: [u8; 32] = [0u8; 32];
     rng.fill_bytes(&mut secret_responder);
+
     let responder_ed25519_keypair = ed25519::KeyPair::from_secret(secret_responder, 1);
     for kem in [KEM::MlKem768, KEM::XWing, KEM::X25519, KEM::McEliece] {
         for hash_function in [
@@ -104,10 +105,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
             // Anonymous Initiator, OneWay
             {
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Anonymous Initiator: Generate Request",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Anonymous Initiator: Generate Request",),
                     |b| {
                         b.iter(|| anonymous_initiator_process(&mut rng, ciphersuite).unwrap());
                     },
@@ -118,8 +116,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 c.bench_function(
                     &format!(
-                        "{}, {} | Anonymous Initiator: Encode Frame - Request",
-                        kem, hash_function
+                        "{kem}, {hash_function} | Anonymous Initiator: Encode Frame - Request",
                     ),
                     |b| b.iter(|| i_frame.to_bytes()),
                 );
@@ -128,8 +125,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 c.bench_function(
                     &format!(
-                        "{}, {} | Anonymous Initiator: Decode Frame - Request",
-                        kem, hash_function
+                        "{kem}, {hash_function} | Anonymous Initiator: Decode Frame - Request",
                     ),
                     |b| b.iter(|| KKTFrame::from_bytes(&i_frame_bytes).unwrap()),
                 );
@@ -138,8 +134,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 c.bench_function(
                     &format!(
-                        "{}, {} | Anonymous Initiator: Responder Ingest Frame",
-                        kem, hash_function
+                        "{kem}, {hash_function} | Anonymous Initiator: Responder Ingest Frame",
                     ),
                     |b| {
                         b.iter(|| {
@@ -153,8 +148,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 c.bench_function(
                     &format!(
-                        "{}, {} | Anonymous Initiator: Responder Generate Response",
-                        kem, hash_function
+                        "{kem}, {hash_function} | Anonymous Initiator: Responder Generate Response",
                     ),
                     |b| {
                         b.iter(|| {
@@ -178,26 +172,23 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 c.bench_function(
                     &format!(
-                        "{}, {} | Anonymous Initiator: Responder Encode Frame",
-                        kem, hash_function
+                        "{kem}, {hash_function} | Anonymous Initiator: Responder Encode Frame",
                     ),
                     |b| b.iter(|| r_frame.to_bytes()),
                 );
 
-                let r_bytes = r_frame.to_bytes();
-
                 c.bench_function(
                     &format!(
-                        "{}, {} | Anonymous Initiator: Initiator Ingest Response",
-                        kem, hash_function
+                        "{kem}, {hash_function} | Anonymous Initiator: Initiator Ingest Response",
                     ),
                     |b| {
                         b.iter(|| {
                             initiator_ingest_response(
                                 &mut i_context,
+                                &r_frame,
+                                &r_frame.context().unwrap(),
                                 responder_ed25519_keypair.public_key(),
                                 &r_dir_hash,
-                                &r_bytes,
                             )
                             .unwrap()
                         });
@@ -206,9 +197,10 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 let obtained_key = initiator_ingest_response(
                     &mut i_context,
+                    &r_frame,
+                    &r_frame.context().unwrap(),
                     responder_ed25519_keypair.public_key(),
                     &r_dir_hash,
-                    &r_bytes,
                 )
                 .unwrap();
 
@@ -226,10 +218,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 .unwrap();
 
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Initiator OneWay: Generate Request",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Initiator OneWay: Generate Request",),
                     |b| {
                         b.iter(|| {
                             initiator_process(
@@ -245,30 +234,21 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 );
 
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Initiator OneWay: Encode Frame - Request",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Initiator OneWay: Encode Frame - Request",),
                     |b| b.iter(|| i_frame.to_bytes()),
                 );
 
                 let i_frame_bytes = i_frame.to_bytes();
 
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Initiator OneWay: Decode Frame - Request",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Initiator OneWay: Decode Frame - Request",),
                     |b| b.iter(|| KKTFrame::from_bytes(&i_frame_bytes).unwrap()),
                 );
 
                 let (i_frame_r, r_context) = KKTFrame::from_bytes(&i_frame_bytes).unwrap();
 
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Initiator OneWay: Responder Ingest Frame",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Initiator OneWay: Responder Ingest Frame",),
                     |b| {
                         b.iter(|| {
                             responder_ingest_message(
@@ -294,8 +274,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 c.bench_function(
                     &format!(
-                        "{}, {} | Initiator OneWay: Responder Generate Response",
-                        kem, hash_function
+                        "{kem}, {hash_function} | Initiator OneWay: Responder Generate Response",
                     ),
                     |b| {
                         b.iter(|| {
@@ -319,29 +298,24 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 .unwrap();
 
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Initiator OneWay: Responder Encode Frame",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Initiator OneWay: Responder Encode Frame",),
                     |b| {
                         b.iter(|| r_frame.to_bytes());
                     },
                 );
 
-                let r_bytes = r_frame.to_bytes();
-
                 c.bench_function(
                     &format!(
-                        "{}, {} | Initiator OneWay: Initiator Ingest Response",
-                        kem, hash_function
+                        "{kem}, {hash_function} | Initiator OneWay: Initiator Ingest Response",
                     ),
                     |b| {
                         b.iter(|| {
                             initiator_ingest_response(
                                 &mut i_context,
+                                &r_frame,
+                                &r_frame.context().unwrap(),
                                 responder_ed25519_keypair.public_key(),
                                 &r_dir_hash,
-                                &r_bytes,
                             )
                             .unwrap()
                         });
@@ -350,9 +324,10 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 let i_obtained_key = initiator_ingest_response(
                     &mut i_context,
+                    &r_frame,
+                    &r_frame.context().unwrap(),
                     responder_ed25519_keypair.public_key(),
                     &r_dir_hash,
-                    &r_bytes,
                 )
                 .unwrap();
 
@@ -362,10 +337,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
             // Initiator, Mutual
             {
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Initiator Mutual: Generate Request",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Initiator Mutual: Generate Request",),
                     |b| {
                         b.iter(|| {
                             initiator_process(
@@ -390,10 +362,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 .unwrap();
 
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Initiator Mutual: Encode Frame - Request",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Initiator Mutual: Encode Frame - Request",),
                     |b| {
                         b.iter(|| i_frame.to_bytes());
                     },
@@ -402,10 +371,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 let i_frame_bytes = i_frame.to_bytes();
 
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Initiator Mutual: Decode Frame - Request",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Initiator Mutual: Decode Frame - Request",),
                     |b| {
                         b.iter(|| KKTFrame::from_bytes(&i_frame_bytes).unwrap());
                     },
@@ -414,10 +380,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 let (i_frame_r, r_context) = KKTFrame::from_bytes(&i_frame_bytes).unwrap();
 
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Initiator Mutual: Responder Ingest Frame",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Initiator Mutual: Responder Ingest Frame",),
                     |b| {
                         b.iter(|| {
                             responder_ingest_message(
@@ -443,8 +406,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 c.bench_function(
                     &format!(
-                        "{}, {} | Initiator Mutual: Responder Generate Response",
-                        kem, hash_function
+                        "{kem}, {hash_function} | Initiator Mutual: Responder Generate Response",
                     ),
                     |b| {
                         b.iter(|| {
@@ -468,10 +430,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 .unwrap();
 
                 c.bench_function(
-                    &format!(
-                        "{}, {} | Initiator Mutual: Responder Encode Frame",
-                        kem, hash_function
-                    ),
+                    &format!("{kem}, {hash_function} | Initiator Mutual: Responder Encode Frame",),
                     |b| {
                         b.iter(|| {
                             r_frame.to_bytes();
@@ -479,20 +438,18 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                     },
                 );
 
-                let r_bytes = r_frame.to_bytes();
-
                 c.bench_function(
                     &format!(
-                        "{}, {} | Initiator Mutual: Initiator Ingest Response",
-                        kem, hash_function
+                        "{kem}, {hash_function} | Initiator Mutual: Initiator Ingest Response",
                     ),
                     |b| {
                         b.iter(|| {
                             initiator_ingest_response(
                                 &mut i_context,
+                                &r_frame,
+                                &r_frame.context().unwrap(),
                                 responder_ed25519_keypair.public_key(),
                                 &r_dir_hash,
-                                &r_bytes,
                             )
                             .unwrap()
                         });
@@ -501,9 +458,10 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 let obtained_key = initiator_ingest_response(
                     &mut i_context,
+                    &r_frame,
+                    &r_frame.context().unwrap(),
                     responder_ed25519_keypair.public_key(),
                     &r_dir_hash,
-                    &r_bytes,
                 )
                 .unwrap();
 

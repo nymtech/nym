@@ -1222,7 +1222,7 @@ mod tests {
         let address = "127.0.0.1:41264".parse().unwrap();
         let client_ip = "192.168.1.100".parse().unwrap();
 
-        let client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
+        let client = LpRegistrationClient::<TcpStream>::new_with_default_config(
             keypair,
             gateway_key,
             address,

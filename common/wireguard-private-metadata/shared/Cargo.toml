@@ -1,12 +1,13 @@
 [package]
 name = "nym-wireguard-private-metadata-shared"
-version = "1.0.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Common crate for nym-wireguard server, client, and tests"
 
 [dependencies]
 axum = { workspace = true }
@@ -16,7 +17,7 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 utoipa = { workspace = true }
 
-nym-credentials-interface = { path = "../../credentials-interface" }
+nym-credentials-interface = { workspace = true }
 
 [features]
 testing = []

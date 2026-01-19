@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use js_sys::Promise;
+use nym_wasm_client_core::client::base_client::{ClientInput, ClientState};
+use nym_wasm_client_core::client::inbound_messages::InputMessage;
+use nym_wasm_client_core::error::WasmCoreError;
+use nym_wasm_client_core::topology::{Role, WasmFriendlyNymTopology};
+use nym_wasm_client_core::NymTopology;
+use nym_wasm_utils::error::simple_js_error;
+use nym_wasm_utils::{check_promise_result, console_log};
 use std::sync::Arc;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_client_core::client::base_client::{ClientInput, ClientState};
-use wasm_client_core::client::inbound_messages::InputMessage;
-use wasm_client_core::error::WasmCoreError;
-use wasm_client_core::topology::{Role, WasmFriendlyNymTopology};
-use wasm_client_core::NymTopology;
-use wasm_utils::error::simple_js_error;
-use wasm_utils::{check_promise_result, console_log};
 
 #[cfg(feature = "node-tester")]
 use nym_node_tester_wasm::types::{NodeTestMessage, WasmTestMessageExt};

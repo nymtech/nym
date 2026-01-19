@@ -7,7 +7,7 @@ use crate::helpers::{g1_tuple_to_bytes, recover_g1_tuple};
 use serde::{Deserialize, Serialize};
 use subtle::Choice;
 
-pub use bls12_381::{G1Projective, G2Projective, Scalar};
+pub use nym_bls12_381_fork::{G1Projective, G2Projective, Scalar};
 pub type SignerIndex = u64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

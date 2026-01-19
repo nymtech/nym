@@ -9,13 +9,13 @@
 
 use crate::ExtensionStorageError;
 use js_sys::Promise;
+use nym_wasm_storage::RawDbResult;
+use nym_wasm_storage::{Build, Database, VersionChangeEvent, WasmStorage};
+use nym_wasm_utils::check_promise_result;
+use nym_wasm_utils::error::{PromisableResult, PromisableResultError};
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_storage::RawDbResult;
-use wasm_storage::{Build, Database, VersionChangeEvent, WasmStorage};
-use wasm_utils::check_promise_result;
-use wasm_utils::error::{PromisableResult, PromisableResultError};
 use zeroize::Zeroizing;
 
 const STORAGE_NAME: &str = "nym-extension-storage";

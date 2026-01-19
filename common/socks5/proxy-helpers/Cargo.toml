@@ -1,9 +1,13 @@
 [package]
 name = "nym-socks5-proxy-helpers"
-version = "0.1.0"
+version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
+description = "Helpers for the Nym SOCKS client"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,9 +21,9 @@ futures = { workspace = true }
 log = { workspace = true }
 
 # internal
-nym-ordered-buffer = { path = "../ordered-buffer" }
-nym-socks5-requests = { path = "../requests" }
-nym-task = { path = "../../task" }
+nym-ordered-buffer = { workspace = true }
+nym-socks5-requests = { workspace = true }
+nym-task = { workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

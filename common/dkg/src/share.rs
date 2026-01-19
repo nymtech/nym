@@ -5,7 +5,7 @@ use crate::bte::{CHUNK_BYTES, NUM_CHUNKS, SCALAR_SIZE};
 use crate::error::DkgError;
 use crate::interpolation::perform_lagrangian_interpolation_at_origin;
 use crate::NodeIndex;
-use bls12_381::Scalar;
+use nym_bls12_381_fork::Scalar;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // if this type is changed, one must ensure all values can fit in it

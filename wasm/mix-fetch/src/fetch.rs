@@ -12,15 +12,15 @@ use crate::config::{MixFetchConfig, MixFetchConfigOpts, MixFetchDebugOverride};
 use crate::error::MixFetchError;
 use crate::helpers::get_network_requester;
 use js_sys::Promise;
+use nym_wasm_client_core::config::r#override::DebugWasmOverride;
+use nym_wasm_utils::console_log;
+use nym_wasm_utils::error::PromisableResultError;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use tsify::Tsify;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_client_core::config::r#override::DebugWasmOverride;
-use wasm_utils::console_log;
-use wasm_utils::error::PromisableResultError;
 
 pub type RequestId = u64;
 

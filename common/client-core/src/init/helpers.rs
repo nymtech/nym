@@ -23,6 +23,8 @@ use url::Url;
 use crate::init::websockets::connect_async;
 
 use nym_topology::NodeId;
+#[cfg(target_arch = "wasm32")]
+use nym_wasm_utils::websocket::JSWebsocket;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
@@ -31,8 +33,6 @@ use tokio::time::sleep;
 use tokio::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-#[cfg(target_arch = "wasm32")]
-use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::std::Instant;
 #[cfg(target_arch = "wasm32")]

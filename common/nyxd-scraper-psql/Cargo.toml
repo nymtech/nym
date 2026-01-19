@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+publish = false
 
 [dependencies]
 async-trait = { workspace = true }
@@ -21,7 +22,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing.workspace = true
 
-nyxd-scraper-shared = { path = "../nyxd-scraper-shared" }
+nyxd-scraper-shared = { workspace = true }
 
 # temp due to cosmrs redefinitions for serde
 cosmrs = { workspace = true }

@@ -5,15 +5,15 @@ use crate::common_types::SignerIndex;
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::setup::GroupParameters;
 use crate::{ecash_group_parameters, Signature, VerificationKeyAuth};
-use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
-use bls12_381::{
-    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar,
-};
 use core::iter::Sum;
 use core::ops::Mul;
 use ff::Field;
 use group::{Curve, Group};
 use itertools::Itertools;
+use nym_bls12_381_fork::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
+use nym_bls12_381_fork::{
+    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar,
+};
 use std::borrow::Borrow;
 use std::ops::Neg;
 

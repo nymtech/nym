@@ -1,19 +1,23 @@
 [package]
 name = "nym-dkg"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 resolver = "2"
 license.workspace = true
+description = "Nym's Distributed Key Generation functionality"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bitvec = { workspace = true }
 
-# unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
+# unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
-bls12_381 = { workspace = true, default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
-nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common", optional = true }
+nym-bls12_381-fork = { workspace = true, features = ["alloc", "pairings", "experimental", "zeroize"] }
+nym-contracts-common = { workspace = true, optional = true }
 bs58 = { workspace = true }
 
 
@@ -26,7 +30,7 @@ serde_derive = { workspace = true }
 thiserror = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
-nym-pemstore = { path = "../pemstore" }
+nym-pemstore = { workspace = true }
 
 [dependencies.group]
 workspace = true

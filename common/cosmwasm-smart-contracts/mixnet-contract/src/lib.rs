@@ -21,7 +21,6 @@ pub mod types;
 
 pub use config_score::*;
 pub use constants::*;
-pub use contracts_common::types::*;
 pub use cosmwasm_std::{Addr, Coin, Decimal, Fraction};
 pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
@@ -41,6 +40,7 @@ pub use mixnode::{
     NodeRewarding, PagedMixnodeBondsResponse, UnbondedMixnode,
 };
 pub use msg::*;
+pub use nym_contracts_common::types::*;
 pub use nym_node::{NymNode, NymNodeBond, NymNodeDetails, PendingNodeChanges};
 pub use pending_events::{
     EpochEventId, IntervalEventId, NumberOfPendingEventsResponse, PendingEpochEvent,

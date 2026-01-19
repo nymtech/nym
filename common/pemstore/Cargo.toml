@@ -1,7 +1,7 @@
 [package]
 name = "nym-pemstore"
 description = "Store private-public keypairs in PEM format"
-version = "0.3.0"
+version.workspace = true
 edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }

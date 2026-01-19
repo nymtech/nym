@@ -1,8 +1,11 @@
 [package]
 name = "nym-kcp"
 version = "0.1.0"
+description = "KCP protocol implementation for Nym"
 edition = { workspace = true }
+authors = { workspace = true }
 license = { workspace = true }
+repository = { workspace = true }
 
 [lib]
 name = "nym_kcp"

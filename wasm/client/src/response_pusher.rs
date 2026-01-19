@@ -4,13 +4,13 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use js_sys::Uint8Array;
-use wasm_bindgen::JsValue;
-use wasm_bindgen_futures::spawn_local;
-use wasm_client_core::client::base_client::ClientOutput;
-use wasm_client_core::client::received_buffer::{
+use nym_wasm_client_core::client::base_client::ClientOutput;
+use nym_wasm_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
-use wasm_utils::console_error;
+use nym_wasm_utils::console_error;
+use wasm_bindgen::JsValue;
+use wasm_bindgen_futures::spawn_local;
 
 pub(crate) struct ResponsePusher {
     reconstructed_receiver: ReconstructedMessagesReceiver,

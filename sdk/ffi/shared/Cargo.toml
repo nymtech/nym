@@ -1,17 +1,21 @@
 [package]
 name = "nym-ffi-shared"
-version = "0.2.1"
+version.workspace = true
 edition = "2021"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 license.workspace = true
+description = "Common crate for use by Rust SDK FFI crates"
 
 [dependencies]
 # Async runtime
 tokio = { workspace = true, features = ["full"] }
 # Nym clients, addressing, packet format, common tools (logging)
-nym-sdk = { path = "../../rust/nym-sdk/" }
-nym-bin-common = { path = "../../../common/bin-common" }
-nym-crypto = { path = "../../../common/crypto" }
-nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
+nym-sdk = { workspace = true }
+nym-bin-common = { workspace = true }
+nym-crypto = { workspace = true }
+nym-sphinx-anonymous-replies = { workspace = true }
 # static var macro
 lazy_static = { workspace = true }
 # error handling

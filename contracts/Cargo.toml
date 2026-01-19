@@ -57,6 +57,41 @@ schemars = "0.8.16"
 
 thiserror = "2.0.11"
 
+# Common crates from parent workspace (paths relative to contracts/)
+#
+# TODO: Once these crates are published to crates.io, switch from path dependencies
+# to crates.io versions.
+#
+# TODO add a [patch.crates-io] section at the bottom for local development if you need to use a modded version of common import instead e.g.:
+#
+#   [patch.crates-io]
+#   nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
+#
+easy-addr = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/easy_addr" }
+nym-coconut-dkg-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-contracts-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/contracts-common" }
+nym-contracts-common-testing = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/contracts-common-testing" }
+nym-crypto = { version = "1.20.1", path = "../common/crypto", default-features = false }
+nym-ecash-contract-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/ecash-contract" }
+nym-group-contract-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/group-contract" }
+nym-mixnet-contract-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-multisig-contract-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-network-defaults = { version = "1.20.1", path = "../common/network-defaults", default-features = false }
+nym-performance-contract-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/nym-performance-contract" }
+nym-pool-contract-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/nym-pool-contract" }
+nym-vesting-contract-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/vesting-contract" }
+
+# Aliases for crates that some contracts import under different names
+contracts-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common" }
+mixnet-contract-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common" }
+vesting-contract-common = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common" }
+
+# Internal contract workspace members (for cross-contract testing)
+cw3-flex-multisig = { version = "2.0.0", path = "multisig/cw3-flex-multisig" }
+cw4-group = { version = "2.0.0", path = "multisig/cw4-group" }
+nym-mixnet-contract = { version = "1.5.1", path = "mixnet" }
+nym-vesting-contract = { version = "1.4.1", path = "vesting" }
+
 [workspace.lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"

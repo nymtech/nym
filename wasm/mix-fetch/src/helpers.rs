@@ -5,9 +5,9 @@ use crate::error::MixFetchError;
 use crate::error::MixFetchError::NoNetworkRequesters;
 use nym_http_api_client::Client;
 use nym_validator_client::nym_api::NymApiClientExt;
+use nym_wasm_utils::console_log;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use wasm_utils::console_log;
 
 // since this client is temporary (and will be properly integrated into nym-api eventually),
 // we're using hardcoded URL for mainnet

@@ -13,4 +13,4 @@ pub mod tester;
 pub mod types;
 
 #[cfg(target_arch = "wasm32")]
-pub use wasm_client_core::set_panic_hook;
+pub use nym_wasm_client_core::set_panic_hook;

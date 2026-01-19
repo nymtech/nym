@@ -21,7 +21,7 @@ pub(crate) type NodeId = u32;
 macro_rules! log_err {
     ($($t:tt)*) => {{
         #[cfg(target_arch = "wasm32")]
-        {::wasm_utils::console_error!($($t)*)}
+        {::nym_wasm_utils::console_error!($($t)*)}
 
         #[cfg(not(target_arch = "wasm32"))]
         {::log::error!($($t)*)}
@@ -32,7 +32,7 @@ macro_rules! log_err {
 macro_rules! log_warn {
     ($($t:tt)*) => {{
         #[cfg(target_arch = "wasm32")]
-        {::wasm_utils::console_warn!($($t)*)}
+        {::nym_wasm_utils::console_warn!($($t)*)}
 
         #[cfg(not(target_arch = "wasm32"))]
         {::log::warn!($($t)*)}
@@ -43,7 +43,7 @@ macro_rules! log_warn {
 macro_rules! log_info {
     ($($t:tt)*) => {{
         #[cfg(target_arch = "wasm32")]
-        {::wasm_utils::console_log!($($t)*)}
+        {::nym_wasm_utils::console_log!($($t)*)}
 
         #[cfg(not(target_arch = "wasm32"))]
         {::log::info!($($t)*)}

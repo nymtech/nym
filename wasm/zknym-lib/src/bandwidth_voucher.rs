@@ -19,7 +19,7 @@
 // use std::collections::HashMap;
 // use tsify::Tsify;
 // use wasm_bindgen::prelude::wasm_bindgen;
-// use wasm_utils::console_error;
+// use nym_wasm_utils::console_error;
 // use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 //
 // // tiny 'hacks' to just allow passing responses from vpn-api queries

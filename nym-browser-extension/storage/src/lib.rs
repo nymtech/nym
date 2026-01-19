@@ -14,4 +14,4 @@ pub use error::ExtensionStorageError;
 pub use storage::ExtensionStorage;
 
 #[cfg(target_arch = "wasm32")]
-pub use wasm_utils::set_panic_hook;
+pub use nym_wasm_utils::set_panic_hook;

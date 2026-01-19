@@ -6,6 +6,7 @@ description = "Implementation of the Nym Client"
 edition = "2021"
 rust-version = "1.85"
 license.workspace = true
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -42,32 +43,32 @@ tokio-tungstenite = { workspace = true }
 zeroize = { workspace = true }
 
 ## internal
-nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
-nym-bin-common = { path = "../../common/bin-common", features = [
+nym-bandwidth-controller = { workspace = true }
+nym-bin-common = { workspace = true, features = [
     "output_format",
     "clap",
     "basic_tracing",
 ] }
-nym-client-core = { path = "../../common/client-core", features = [
+nym-client-core = { workspace = true, features = [
     "fs-credentials-storage",
     "fs-surb-storage",
     "fs-gateways-storage",
     "cli",
 ] }
-nym-config = { path = "../../common/config" }
-nym-credential-storage = { path = "../../common/credential-storage" }
-nym-credentials = { path = "../../common/credentials" }
-nym-crypto = { path = "../../common/crypto" }
-nym-gateway-requests = { path = "../../common/gateway-requests" }
-nym-network-defaults = { path = "../../common/network-defaults" }
-nym-sphinx = { path = "../../common/nymsphinx" }
-nym-pemstore = { path = "../../common/pemstore" }
-nym-task = { path = "../../common/task" }
-nym-topology = { path = "../../common/topology" }
-nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
+nym-config = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-credentials = { workspace = true }
+nym-crypto = { workspace = true }
+nym-gateway-requests = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-pemstore = { workspace = true }
+nym-task = { workspace = true }
+nym-topology = { workspace = true }
+nym-validator-client = { workspace = true, features = [
     "http-client",
 ] }
-nym-client-websocket-requests = { path = "websocket-requests" }
-nym-id = { path = "../../common/nym-id" }
+nym-client-websocket-requests = { workspace = true }
+nym-id = { workspace = true }
 
 [dev-dependencies]

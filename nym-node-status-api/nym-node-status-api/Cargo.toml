@@ -11,6 +11,7 @@ documentation.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+publish = false
 
 [dependencies]
 ammonia = { workspace = true }
@@ -26,22 +27,22 @@ humantime = { workspace = true }
 itertools = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 
-nym-credentials = { path = "../../common/credentials" }
-nym-credential-proxy-lib = { path = "../../common/credential-proxy" }
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
-nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
+nym-credentials = { workspace = true }
+nym-credential-proxy-lib = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
+nym-bin-common = { workspace = true, features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
-nym-http-api-client = { path = "../../common/http-api-client" }
-nym-http-api-common = { path = "../../common/http-api-common", features = ["middleware"] }
-nym-network-defaults = { path = "../../common/network-defaults" }
-nym-serde-helpers = { path = "../../common/serde-helpers" }
-nym-statistics-common = { path = "../../common/statistics" }
-nym-validator-client = { path = "../../common/client-libs/validator-client" }
-nym-task = { path = "../../common/task" }
-nym-node-requests = { path = "../../nym-node/nym-node-requests", features = ["openapi"] }
-nym-ecash-time = { path = "../../common/ecash-time", features = ["expiration"] }
+nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
+nym-http-api-client = { workspace = true }
+nym-http-api-common = { workspace = true, features = ["middleware"] }
+nym-network-defaults = { workspace = true }
+nym-serde-helpers = { workspace = true }
+nym-statistics-common = { workspace = true }
+nym-validator-client = { workspace = true }
+nym-task = { workspace = true }
+nym-node-requests = { workspace = true, features = ["openapi", "client"] }
+nym-ecash-time = { workspace = true, features = ["expiration"] }
 
 rand = { workspace = true }
 rand_chacha = { workspace = true }
@@ -68,7 +69,7 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 utoipauto = { workspace = true }
 zeroize = { workspace = true }
 
-nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
+nym-node-metrics = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

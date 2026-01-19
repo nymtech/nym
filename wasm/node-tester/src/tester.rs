@@ -15,6 +15,21 @@ use js_sys::Promise;
 use nym_node_tester_utils::receiver::SimpleMessageReceiver;
 use nym_node_tester_utils::tester::LegacyMixLayer;
 use nym_node_tester_utils::{NodeTester, PacketSize, PreparedFragment};
+use nym_wasm_client_core::client::base_client::storage::gateways_storage::GatewayDetails;
+use nym_wasm_client_core::client::mix_traffic::transceiver::PacketRouter;
+use nym_wasm_client_core::helpers::{
+    current_network_topology_async, setup_from_topology, EphemeralCredentialStorage,
+};
+use nym_wasm_client_core::nym_task::ShutdownManager;
+use nym_wasm_client_core::storage::ClientStorage;
+use nym_wasm_client_core::topology::WasmFriendlyNymTopology;
+use nym_wasm_client_core::{
+    nym_task, BandwidthController, ClientKeys, ClientStatsSender, GatewayClient,
+    GatewayClientConfig, GatewayConfig, IdentityKey, InitialisationResult, NodeIdentity,
+    NymTopology, QueryReqwestRpcNyxdClient, Recipient,
+};
+use nym_wasm_utils::check_promise_result;
+use nym_wasm_utils::error::PromisableResult;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -25,21 +40,6 @@ use tokio::sync::Mutex as AsyncMutex;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_client_core::client::base_client::storage::gateways_storage::GatewayDetails;
-use wasm_client_core::client::mix_traffic::transceiver::PacketRouter;
-use wasm_client_core::helpers::{
-    current_network_topology_async, setup_from_topology, EphemeralCredentialStorage,
-};
-use wasm_client_core::nym_task::ShutdownManager;
-use wasm_client_core::storage::ClientStorage;
-use wasm_client_core::topology::WasmFriendlyNymTopology;
-use wasm_client_core::{
-    nym_task, BandwidthController, ClientKeys, ClientStatsSender, GatewayClient,
-    GatewayClientConfig, GatewayConfig, IdentityKey, InitialisationResult, NodeIdentity,
-    NymTopology, QueryReqwestRpcNyxdClient, Recipient,
-};
-use wasm_utils::check_promise_result;
-use wasm_utils::error::PromisableResult;
 
 pub const NODE_TESTER_ID: &str = "_nym-node-tester";
 

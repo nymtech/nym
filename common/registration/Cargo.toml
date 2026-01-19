@@ -1,12 +1,13 @@
 [package]
 name = "nym-registration-common"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Struct definitions for NymNode, GatewayData, and AssignedAddresses"
 
 [lints]
 workspace = true
@@ -16,12 +17,12 @@ bincode = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tokio-util.workspace = true
 
-nym-authenticator-requests = { path = "../authenticator-requests" }
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-crypto = { path = "../crypto" }
-nym-ip-packet-requests = { path = "../ip-packet-requests" }
-nym-sphinx = { path = "../nymsphinx" }
-nym-wireguard-types = { path = "../wireguard-types" }
+nym-authenticator-requests = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-crypto = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-wireguard-types = { workspace = true }
 
 [dev-dependencies]
 bincode.workspace = true

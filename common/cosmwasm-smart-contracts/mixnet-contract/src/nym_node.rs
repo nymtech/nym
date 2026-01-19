@@ -3,10 +3,10 @@
 
 use crate::error::MixnetContractError;
 use crate::{EpochEventId, EpochId, Gateway, IntervalEventId, MixNode, NodeId, NodeRewarding};
-use contracts_common::IdentityKey;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, StdError, StdResult};
 use cw_storage_plus::{IntKey, Key, KeyDeserialize, PrimaryKey};
+use nym_contracts_common::IdentityKey;
 use std::fmt::{Display, Formatter};
 
 #[cw_serde]

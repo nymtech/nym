@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::bte::CHUNK_SIZE;
-use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
-use bls12_381::G1Projective;
-use bls12_381::{G2Projective, Scalar};
 use group::GroupEncoding;
+use nym_bls12_381_fork::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
+use nym_bls12_381_fork::G1Projective;
+use nym_bls12_381_fork::{G2Projective, Scalar};
 use sha2::{Digest, Sha256};
 
 #[macro_export]
@@ -116,7 +116,7 @@ pub(crate) fn deserialize_g2(b: &[u8]) -> Option<G2Projective> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bls12_381::G2Affine;
+    use nym_bls12_381_fork::G2Affine;
 
     #[test]
     fn test_hash_to_scalar() {

@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+publish = false
 
 [dependencies]
 tokio = { workspace = true, features = ["net"] }

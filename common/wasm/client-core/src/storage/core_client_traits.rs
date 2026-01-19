@@ -18,7 +18,7 @@ use nym_client_core::client::key_manager::ClientKeys;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_crypto::asymmetric::ed25519;
-use wasm_utils::console_log;
+use nym_wasm_utils::console_log;
 
 // temporary until other variants are properly implemented (probably it should get changed into `ClientStorage`
 // implementing all traits and everything getting combined

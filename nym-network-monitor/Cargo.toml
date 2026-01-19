@@ -7,6 +7,7 @@ homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,15 +31,15 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 tokio-postgres = { workspace = true }
 
 # internal
-nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing"] }
-nym-client-core = { path = "../common/client-core" }
-nym-crypto = { path = "../common/crypto" }
-nym-network-defaults = { path = "../common/network-defaults" }
-nym-gateway-requests = { path = "../common/gateway-requests" }
-nym-sdk = { path = "../sdk/rust/nym-sdk" }
-nym-sphinx = { path = "../common/nymsphinx" }
-nym-topology = { path = "../common/topology" }
-nym-types = { path = "../common/types" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-http-api-client = { path = "../common/http-api-client" }
-nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+nym-client-core = { workspace = true }
+nym-crypto = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-gateway-requests = { workspace = true }
+nym-sdk = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-topology = { workspace = true }
+nym-types = { workspace = true }
+nym-validator-client = { workspace = true }
+nym-http-api-client = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }

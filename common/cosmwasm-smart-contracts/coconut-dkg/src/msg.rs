@@ -6,8 +6,8 @@ use crate::types::{
     ChunkIndex, DealingIndex, EncodedBTEPublicKeyWithProof, EpochId, TimeConfiguration,
 };
 use crate::verification_key::VerificationKeyShare;
-use contracts_common::IdentityKey;
 use cosmwasm_schema::cw_serde;
+use nym_contracts_common::IdentityKey;
 
 #[cfg(feature = "schema")]
 use crate::{

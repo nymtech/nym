@@ -6,9 +6,9 @@ use crate::bte::{evaluate_f, Params, CHUNK_SIZE, G2_GENERATOR_PREPARED, NUM_CHUN
 use crate::error::DkgError;
 use crate::utils::{combine_g1_chunks, combine_scalar_chunks, deserialize_g1, deserialize_g2};
 use crate::{Chunk, ChunkedShare, Share};
-use bls12_381::{G1Affine, G1Projective, G2Prepared, G2Projective, Gt, Scalar};
 use ff::Field;
 use group::{Curve, Group, GroupEncoding};
+use nym_bls12_381_fork::{G1Affine, G1Projective, G2Prepared, G2Projective, Gt, Scalar};
 use rand::CryptoRng;
 use rand_core::RngCore;
 use std::collections::HashMap;
@@ -43,7 +43,7 @@ impl Ciphertexts {
         // which is equivalent to checking whether e(R_j, f) • e(S_i, h) • e(g1, Z_i)^-1 == id
         // and due to bilinear property whether e(R_j, f) • e(S_i, h) • e(g1^-1, Z_i) == id
         for i in 0..self.rr.len() {
-            let miller = bls12_381::multi_miller_loop(&[
+            let miller = nym_bls12_381_fork::multi_miller_loop(&[
                 (&self.rr[i].to_affine(), &f_prepared),
                 (&self.ss[i].to_affine(), &params._h_prepared),
                 (&g1_neg, &G2Prepared::from(self.zz[i].to_affine())),
@@ -294,7 +294,7 @@ pub fn decrypt_share(
         let zz_j = ciphertext.zz[j].to_affine();
         let cc_ij = &ciphertext.ciphertext_chunks[i][j];
 
-        let miller = bls12_381::multi_miller_loop(&[
+        let miller = nym_bls12_381_fork::multi_miller_loop(&[
             (&cc_ij.to_affine(), &G2_GENERATOR_PREPARED),
             (&rr_j.to_affine(), &G2Prepared::from(b_neg)),
             (&dk.a.to_affine(), &G2Prepared::from(zz_j)),

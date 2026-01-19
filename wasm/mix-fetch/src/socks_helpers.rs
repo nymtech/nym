@@ -5,7 +5,7 @@ use nym_service_providers_common::interface::ProviderInterfaceVersion;
 use nym_socks5_requests::{
     ConnectionId, RemoteAddress, SocketData, Socks5ProtocolVersion, Socks5ProviderRequest,
 };
-use wasm_client_core::Recipient;
+use nym_wasm_client_core::Recipient;
 
 pub(crate) const PROVIDER_INTERFACE_VERSION: ProviderInterfaceVersion =
     ProviderInterfaceVersion::new_current();

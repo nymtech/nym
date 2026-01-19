@@ -41,6 +41,7 @@ jobs:
       - name: Bump versions
         run: |
           cargo workspaces version ${{ inputs.version }} \
+            --no-git-commit \
             --no-git-push \
             --no-git-tag \
             --yes

@@ -32,6 +32,12 @@ jobs:
             exit 1
           fi
 
+      - name: Get current version
+        id: current_version
+        run: |
+          VERSION=$(grep -oP '^\s*version\s*=\s*"\K[0-9]+\.[0-9]+\.[0-9]+' Cargo.toml | head -1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Bump versions (local only)
         run: |
           cargo workspaces version ${{ inputs.version }} \
@@ -39,6 +45,10 @@ jobs:
             --no-git-tag \
             --no-git-push \
             --yes
+
+      - name: Update workspace dependencies
+        run: |
+          sed -i 's/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
 
       # Note: Dry run may show cascading dependency errors because packages
       # aren't actually uploaded. Check if the missing dependency has an

@@ -1,6 +1,6 @@
 [package]
 name = "nym-kcp"
-version = "0.1.0"
+version = "1.20.2"
 description = "KCP protocol implementation for Nym"
 edition = { workspace = true }
 authors = { workspace = true }

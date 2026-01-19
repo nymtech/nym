@@ -350,8 +350,11 @@ apply_iptables_rules() {
   iptables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
     iptables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
 
-  iptables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
-    iptables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+  # governed by NYM-EXIT, do not add a broad FORWARD ACCEPT
+  if ! iptables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
+    iptables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
+      iptables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+  fi
 
   iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
     iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
@@ -360,8 +363,11 @@ apply_iptables_rules() {
   ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
     ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
 
-  ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
-    ip6tables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+  # governed by NYM-EXIT, do not add a broad FORWARD ACCEPT
+  if ! ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
+    ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
+      ip6tables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+  fi
 
   ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
     ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
@@ -559,7 +565,7 @@ create_nym_chain() {
     ip6tables -N "$NYM_CHAIN"
   fi
 
-  # remove *all* FORWARD -> NYM-EXIT jumps 
+  # remove *all* FORWARD -> NYM-EXIT jumps
   while read -r rule; do
     spec="${rule#-A FORWARD }"
     iptables -D FORWARD $spec 2>/dev/null || true
@@ -570,11 +576,20 @@ create_nym_chain() {
     ip6tables -D FORWARD $spec 2>/dev/null || true
   done < <(ip6tables -S FORWARD | grep -F " -j $NYM_CHAIN" || true)
 
-  # add the single correct hook
-  iptables  -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
-  ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+  # remove broad ACCEPT rules for wg + tun outbound so NYM-EXIT is authoritative
+  iptables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || true
+  iptables -D FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || true
+  ip6tables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || true
+  ip6tables -D FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || true
 
-  ok "NYM-EXIT chain ready + single FORWARD hook installed"
+  # install the correct hook for both wg + tun
+  iptables  -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+  iptables  -I FORWARD 1 -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+
+  ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+  ip6tables -I FORWARD 1 -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+
+  ok "NYM-EXIT chain ready + FORWARD hooks installed for $WG_INTERFACE and $TUNNEL_INTERFACE"
 }
 
 
@@ -588,15 +603,9 @@ setup_nat_rules() {
     ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
   fi
 
-  if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null; then
-    iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
-  fi
+  # keep reverse RELATED,ESTABLISHED in FORWARD for return traffic.
   if ! iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
     iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
-  fi
-
-  if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null; then
-    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
   fi
   if ! ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
     ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
@@ -606,7 +615,7 @@ setup_nat_rules() {
 configure_exit_dns_and_icmp() {
   info "ensuring dns and icmp are allowed inside nym exit chain"
 
-  # Remove any existing DNS/ICMP rules first to avoid duplicates
+  # remove any existing DNS/ICMP rules first to avoid duplicates
   iptables -D "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null || true
   iptables -D "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null || true
   iptables -D "$NYM_CHAIN" -p icmp --icmp-type echo-request -j ACCEPT 2>/dev/null || true
@@ -615,7 +624,7 @@ configure_exit_dns_and_icmp() {
   ip6tables -D "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null || true
   ip6tables -D "$NYM_CHAIN" -p ipv6-icmp -j ACCEPT 2>/dev/null || true
 
-  # Insert rules at the beginning in correct order: DNS first, then ICMP
+  # insert rules at the beginning in correct order: DNS first, then ICMP
   iptables -I "$NYM_CHAIN" 1 -p udp --dport 53 -j ACCEPT
   iptables -I "$NYM_CHAIN" 2 -p tcp --dport 53 -j ACCEPT
   iptables -I "$NYM_CHAIN" 3 -p icmp --icmp-type echo-request -j ACCEPT
@@ -647,7 +656,7 @@ apply_port_allowlist() {
     ["SMBWindowsFileShare"]="445"
     ["Kpasswd"]="464"
     # this port is opened and rate limited in apply_smtps_465_rate_limit
-    # ["SMTP"]="465" 
+    # ["SMTP"]="465"
     ["RTSP"]="554"
     ["SMTPSubmission"]="587"
     ["LDAPS"]="636"
@@ -722,7 +731,7 @@ apply_port_allowlist() {
     ["MOSH"]="60000-61000"
     ["Mumble"]="64738"
     ["Metadata"]="51830"
-    
+
   )
 
   local port
@@ -768,16 +777,17 @@ EOF
 
     if [[ -n "$ip_range" ]]; then
 
-      # ipv4 reject
-      if ! iptables -C "$NYM_CHAIN" -d "$ip_range" -j REJECT 2>/dev/null; then
-        iptables -A "$NYM_CHAIN" -d "$ip_range" -j REJECT --reject-with icmp-port-unreachable \
+      # insert blocklist BEFORE the allowlist (after DNS/ICMP bootstrap rules)
+      # ipv4 reject (DNS/ICMP occupy positions 1-4)
+      if ! iptables -C "$NYM_CHAIN" -d "$ip_range" -j REJECT --reject-with icmp-port-unreachable 2>/dev/null; then
+        iptables -I "$NYM_CHAIN" 5 -d "$ip_range" -j REJECT --reject-with icmp-port-unreachable \
           || error "warning: failed adding ipv4 reject for $ip_range"
       fi
 
-      # ipv6 reject
+      # ipv6 reject (DNS/ICMP occupy positions 1-3)
       if [[ "$ip_range" == *":"* ]]; then
-        if ! ip6tables -C "$NYM_CHAIN" -d "$ip_range" -j REJECT 2>/dev/null; then
-          ip6tables -A "$NYM_CHAIN" -d "$ip_range" -j REJECT \
+        if ! ip6tables -C "$NYM_CHAIN" -d "$ip_range" -j REJECT --reject-with icmp6-port-unreachable 2>/dev/null; then
+          ip6tables -I "$NYM_CHAIN" 4 -d "$ip_range" -j REJECT --reject-with icmp6-port-unreachable \
             || error "warning: failed adding ipv6 reject for $ip_range"
         fi
       fi
@@ -808,8 +818,11 @@ clear_exit_policy_rules() {
   iptables -F "$NYM_CHAIN" 2>/dev/null || true
   ip6tables -F "$NYM_CHAIN" 2>/dev/null || true
 
+  # remove hooks for BOTH wg + tun
   iptables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null || true
+  iptables -D FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null || true
   ip6tables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null || true
+  ip6tables -D FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null || true
 
   iptables -X "$NYM_CHAIN" 2>/dev/null || true
   ip6tables -X "$NYM_CHAIN" 2>/dev/null || true
@@ -819,19 +832,34 @@ show_exit_policy_status() {
   info "nym exit policy status"
   info "network device: $NETWORK_DEVICE"
   info "wireguard interface: $WG_INTERFACE"
+  info "tunnel interface: $TUNNEL_INTERFACE"
   echo
 
   if ! ip link show "$WG_INTERFACE" >/dev/null 2>&1; then
     error "warning: wireguard interface $WG_INTERFACE not found"
   else
-    info "interface details:"
+    info "wireguard interface details:"
     ip link show "$WG_INTERFACE"
     echo
-    info "ipv4 addresses:"
+    info "wireguard ipv4 addresses:"
     ip -4 addr show dev "$WG_INTERFACE"
     echo
-    info "ipv6 addresses:"
+    info "wireguard ipv6 addresses:"
     ip -6 addr show dev "$WG_INTERFACE"
+  fi
+
+  echo
+  if ! ip link show "$TUNNEL_INTERFACE" >/dev/null 2>&1; then
+    error "warning: tunnel interface $TUNNEL_INTERFACE not found"
+  else
+    info "tunnel interface details:"
+    ip link show "$TUNNEL_INTERFACE"
+    echo
+    info "tunnel ipv4 addresses:"
+    ip -4 addr show dev "$TUNNEL_INTERFACE"
+    echo
+    info "tunnel ipv6 addresses:"
+    ip -6 addr show dev "$TUNNEL_INTERFACE"
   fi
 
   echo
@@ -1100,17 +1128,32 @@ test_forward_chain_hook() {
 
   local failures=0
 
+  # verify BOTH interfaces are hooked to NYM-EXIT (IPv4 + IPv6)
   if iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    ok "ipv4 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
+    ok "ipv4 forward hook ok (wg): -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
   else
-    error "ipv4 forward hook missing or wrong"
+    error "ipv4 forward hook missing or wrong (wg)"
+    ((failures++))
+  fi
+
+  if iptables -C FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
+    ok "ipv4 forward hook ok (tun): -i $TUNNEL_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
+  else
+    error "ipv4 forward hook missing or wrong (tun)"
     ((failures++))
   fi
 
   if ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    ok "ipv6 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
+    ok "ipv6 forward hook ok (wg): -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
   else
-    error "ipv6 forward hook missing or wrong"
+    error "ipv6 forward hook missing or wrong (wg)"
+    ((failures++))
+  fi
+
+  if ip6tables -C FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
+    ok "ipv6 forward hook ok (tun): -i $TUNNEL_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
+  else
+    error "ipv6 forward hook missing or wrong (tun)"
     ((failures++))
   fi
 
@@ -1178,7 +1221,6 @@ exit_policy_run_tests() {
 ###############################################################################
 
 nym_tunnel_setup() {
-  # this mirrors your previous chain of calls but inside one script
   info "running full tunnel setup for ${TUNNEL_INTERFACE} and ${WG_INTERFACE}"
 
   check_tunnel_iptables "$TUNNEL_INTERFACE"

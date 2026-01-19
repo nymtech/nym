@@ -205,7 +205,7 @@ edition = "2024"
 license = "Apache-2.0"
 rust-version = "1.85"
 readme = "README.md"
-version = "1.20.1"
+version = "1.20.2"
 
 [workspace.dependencies]
 addr = "0.15.6"

@@ -104,7 +104,7 @@ where
     /// Uses default config (LpConfig::default()) with sane timeout and TCP parameters.
     /// PSK is derived automatically during handshake inside the state machine.
     /// For custom config, use `new()` directly.
-    pub fn new_with_default_psk(
+    pub fn new_with_default_config(
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
         gateway_ed25519_public_key: ed25519::PublicKey,
         gateway_lp_address: SocketAddr,
@@ -1222,7 +1222,7 @@ mod tests {
         let address = "127.0.0.1:41264".parse().unwrap();
         let client_ip = "192.168.1.100".parse().unwrap();
 
-        let client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
+        let client = LpRegistrationClient::<TcpStream>::new_with_default_config(
             keypair,
             gateway_key,
             address,

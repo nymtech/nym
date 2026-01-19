@@ -5,6 +5,7 @@ use crate::{BOOTSTRAP_RECEIVER_IDX, LpError};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use nym_crypto::asymmetric::{ed25519, x25519};
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
@@ -58,7 +59,6 @@ impl ClientHelloData {
         salt[..8].copy_from_slice(&timestamp.to_le_bytes());
 
         // Last 24 bytes: random nonce
-        use rand::RngCore;
         rand::thread_rng().fill_bytes(&mut salt[8..]);
 
         Self {

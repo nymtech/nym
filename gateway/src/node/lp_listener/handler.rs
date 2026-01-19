@@ -6,6 +6,7 @@ use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_lp::state_machine::{LpAction, LpInput};
 use nym_lp::{
     codec::OuterAeadKey, message::ForwardPacketData, packet::LpHeader, LpMessage, LpPacket,
     OuterHeader,
@@ -387,8 +388,6 @@ where
         receiver_idx: u32,
         packet: LpPacket,
     ) -> Result<(), GatewayError> {
-        use nym_lp::state_machine::{LpAction, LpInput};
-
         debug!(
             "Processing handshake packet from {} (receiver_idx={})",
             self.remote_addr, receiver_idx
@@ -425,7 +424,6 @@ where
                     .session()
                     .ok()
                     .and_then(|s| s.outer_aead_key());
-                drop(state_entry); // Release borrow before send
                 Some((response_packet, outer_key))
             }
             LpAction::HandshakeComplete => {
@@ -445,7 +443,6 @@ where
                 // Move state machine to session_states (already in Transport state)
                 // We keep the state machine (not just session) to enable
                 // subsession/rekeying support during transport phase
-                drop(state_entry); // Release mutable borrow
 
                 let (_receiver_idx, timestamped_state) = self
                     .state
@@ -473,10 +470,12 @@ where
             }
             other => {
                 debug!("Received action during handshake: {:?}", other);
-                drop(state_entry);
                 None
             }
         };
+
+        // Release mutable borrow
+        drop(state_entry);
 
         // Send response packet if needed
         if let Some((packet, outer_key)) = should_send {

@@ -20,9 +20,11 @@ use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use nym_kkt::encryption::KKTSessionSecret;
 use nym_kkt::kkt::decrypt_kkt_response_frame;
 use parking_lot::Mutex;
+use rand::RngCore;
 use snow::Builder;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// PQ shared secret wrapper with automatic memory zeroization.
@@ -236,9 +238,6 @@ pub struct LpSession {
 /// # Returns
 /// A 32-byte array containing fresh salt material
 pub fn generate_fresh_salt() -> [u8; 32] {
-    use rand::RngCore;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     let mut salt = [0u8; 32];
 
     // First 8 bytes: current timestamp as u64 little-endian
@@ -366,8 +365,8 @@ impl LpSession {
     ) -> Result<Self, LpError> {
         // XKpsk3 pattern requires remote static key known upfront (XK)
         // and PSK mixed at position 3. This provides forward secrecy with PSK authentication.
-        let pattern_name = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";
-        let psk_index = 3;
+        let pattern_name = crate::NOISE_PATTERN;
+        let psk_index = crate::NOISE_PSK_INDEX;
 
         let params = pattern_name.parse()?;
         let builder = Builder::new(params);

@@ -25,10 +25,12 @@ jobs:
       - name: Install cargo-workspaces
         run: cargo install cargo-workspaces
 
-      # - name: Configure git
-      #   run: |
-      #     git config user.name "github-actions[bot]"
-      #     git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Validate version format
+        run: |
+          if ! npx semver "${{ inputs.version }}"; then
+            echo "Error: '${{ inputs.version }}' is not valid semver"
+            exit 1
+          fi
 
       - name: Bump versions
         run: |

@@ -138,6 +138,10 @@ pub struct Socks5Args {
 
     #[arg(long, default_value_t = 10)]
     test_count: u64,
+
+    /// stops socks5 test early after this many failed attempts
+    #[arg(long, default_value_t = 3)]
+    failure_count_cutoff: usize,
 }
 
 #[derive(Default, Debug)]
@@ -708,6 +712,7 @@ impl Probe {
                 self.socks5_args.socks5_json_rpc_url_list.clone(),
                 self.socks5_args.mixnet_client_timeout_sec,
                 self.socks5_args.test_count,
+                self.socks5_args.failure_count_cutoff,
             )
             .await
             {
@@ -1671,6 +1676,7 @@ async fn do_socks5_connectivity_test(
     json_rpc_endpoints: Vec<String>,
     mixnet_client_timeout: u64,
     test_run_count: u64,
+    failure_count_cutoff: usize,
 ) -> anyhow::Result<Socks5ProbeResults> {
     info!(
         "Starting SOCKS5 test through Network Requester: {}",
@@ -1771,7 +1777,9 @@ async fn do_socks5_connectivity_test(
 
     let test =
         HttpsConnectivityTest::new(test_run_count, mixnet_client_timeout, json_rpc_endpoints);
-    results.https_connectivity = test.run_tests(socks5_client.socks5_url()).await;
+    results.https_connectivity = test
+        .run_tests(socks5_client.socks5_url(), failure_count_cutoff)
+        .await;
 
     // cleanup
     socks5_client.disconnect().await;

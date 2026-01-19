@@ -22,9 +22,11 @@ impl HttpsConnectivityTest {
         }
     }
 
-    pub async fn run_tests(self, socks5_url: String) -> HttpsConnectivityResult {
-        let mut result = HttpsConnectivityResult::default();
-
+    pub async fn run_tests(
+        self,
+        socks5_url: String,
+        failure_count_cutoff: usize,
+    ) -> HttpsConnectivityResult {
         let proxy = match reqwest::Proxy::all(socks5_url) {
             Ok(p) => p,
             Err(e) => {
@@ -47,56 +49,42 @@ impl HttpsConnectivityTest {
             }
         };
 
-        let mut successful_runs = 0u64;
-        for i in 1..self.test_count + 1 {
+        let mut results = Vec::new();
+
+        for i in 1..=self.test_count {
             info!("Running test {}/{}", i, self.test_count);
             let interim_res = self.perform_https_request(&client).await;
-            if interim_res.https_success
-                && let Some(latency_ms) = interim_res.https_latency_ms
-            {
-                successful_runs += 1;
-                result.https_latency_ms = Some(
-                    result
-                        .https_latency_ms
-                        .map_or(latency_ms, |existing| existing + latency_ms),
+
+            if interim_res.success {
+                info!(
+                    "{}/{} latency: {}ms",
+                    i,
+                    self.test_count,
+                    interim_res.latency_ms.unwrap_or(0)
                 );
-                result.https_success = true;
-                result.https_status_code = interim_res.https_status_code;
-                info!("{}/{} latency: {}ms", i, self.test_count, latency_ms);
-            } else if let Some(new_error) = interim_res.error {
-                result.error = Some(result.error.map_or(new_error.clone(), |existing| {
-                    format!("{},{}", existing, new_error)
-                }))
             }
 
-            // too many failed runs: return early
-            let unsuccessful_runs = i - successful_runs;
-            if successful_runs < 2 && unsuccessful_runs > 2 {
-                // if < 2 runs, we don't have to calculate average before returning
+            results.push(interim_res);
+
+            // early exit
+            let unsuccessful = results.iter().filter(|r| !r.success).count();
+            if unsuccessful > failure_count_cutoff {
                 warn!("Too many failed runs: returning early...");
-                return result;
+                break;
             }
         }
-        result.https_latency_ms = result
-            .https_latency_ms
-            .map(|latency| latency / successful_runs);
-        info!(
-            "AVG latency over {} runs (in ms): {:?}",
-            successful_runs, result.https_latency_ms
-        );
 
-        result
+        let final_result = HttpsConnectivityResult::from_results(results);
+        info!("AVG latency (in ms): {:?}", final_result.https_latency_ms);
+        final_result
     }
 
-    async fn perform_https_request(&self, client: &reqwest::Client) -> HttpsConnectivityResult {
+    async fn perform_https_request(&self, client: &reqwest::Client) -> SingleHttpsTestResult {
         use tokio::time::Instant;
 
-        // TODO dz instead of initializing a mutable default, then mutating fields, use constructors for outcome
         let start = Instant::now();
         let mut error_msg = String::new();
 
-        // TODO dz utilize others as fallback
-        // let endpoint = self.json_rpc_test_endpoints.first().unwrap();
         for endpoint in self.json_rpc_test_endpoints.iter() {
             info!(
                 "Testing against {} with timeout {}s",
@@ -120,17 +108,18 @@ impl HttpsConnectivityTest {
                         // Deserialize body into JsonRpcResponse
                         match response.json::<JsonRpcResponse>().await {
                             Ok(JsonRpcResponse::Ok { .. }) => {
-                                let res = HttpsConnectivityResult::success(
-                                    status.as_u16(),
-                                    elapsed.as_millis() as u64,
-                                    endpoint.to_string(),
-                                );
                                 debug!(
                                     "HTTPS test completed: status={}, latency={}ms",
                                     status.as_u16(),
                                     elapsed.as_millis()
                                 );
-                                return res;
+                                return SingleHttpsTestResult {
+                                    success: true,
+                                    status_code: Some(status.as_u16()),
+                                    latency_ms: Some(elapsed.as_millis() as u64),
+                                    endpoint_used: Some(endpoint.to_string()),
+                                    error: None,
+                                };
                             }
                             Ok(JsonRpcResponse::Err { error, .. }) => {
                                 warn!("JSON-RPC error: {} (code: {})", error.message, error.code);
@@ -153,8 +142,23 @@ impl HttpsConnectivityTest {
             }
         }
 
-        HttpsConnectivityResult::with_error(error_msg)
+        SingleHttpsTestResult {
+            success: false,
+            status_code: None,
+            latency_ms: None,
+            endpoint_used: None,
+            error: Some(error_msg),
+        }
     }
+}
+
+/// single HTTPS test attempt
+struct SingleHttpsTestResult {
+    success: bool,
+    status_code: Option<u16>,
+    latency_ms: Option<u64>,
+    endpoint_used: Option<String>,
+    error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -186,13 +190,43 @@ impl HttpsConnectivityResult {
         }
     }
 
-    pub fn success(status_code: u16, latency: u64, endpoint_used: String) -> Self {
+    fn from_results(results: Vec<SingleHttpsTestResult>) -> Self {
+        let successes: Vec<_> = results.iter().filter(|r| r.success).collect();
+        let errors: Vec<_> = results.iter().filter_map(|r| r.error.as_ref()).collect();
+
+        if successes.is_empty() {
+            return Self::with_error(
+                errors
+                    .into_iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
+        }
+
+        // average latency from successful runs
+        let total_latency: u64 = successes.iter().filter_map(|r| r.latency_ms).sum();
+        let avg_latency = total_latency / successes.len() as u64;
+
+        // use the last successful result for status_code and endpoint
+        let last_success = successes.last().unwrap();
+
         Self {
             https_success: true,
-            https_status_code: Some(status_code),
-            https_latency_ms: Some(latency),
-            endpoint_used: Some(endpoint_used),
-            error: None,
+            https_status_code: last_success.status_code,
+            https_latency_ms: Some(avg_latency),
+            endpoint_used: last_success.endpoint_used.clone(),
+            error: if errors.is_empty() {
+                None
+            } else {
+                Some(
+                    errors
+                        .into_iter()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                )
+            },
         }
     }
 }

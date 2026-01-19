@@ -7,9 +7,11 @@ use crate::config::RegistrationClientConfig;
 use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
+use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_client::IprClientConnect;
 use nym_registration_common::AssignedAddresses;
 use nym_sdk::mixnet::{EventReceiver, MixnetClient, Recipient};
+use rand::rngs::OsRng;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 
@@ -152,8 +154,6 @@ impl RegistrationClient {
     }
 
     async fn register_lp(self) -> Result<RegistrationResult, RegistrationClientError> {
-        use crate::lp_client::{LpRegistrationClient, NestedLpSession};
-
         // Extract and validate LP addresses
         let entry_lp_address = self.config.entry.node.lp_address.ok_or(
             RegistrationClientError::LpRegistrationNotPossible {
@@ -172,8 +172,6 @@ impl RegistrationClient {
 
         // Generate fresh Ed25519 keypairs for LP registration
         // These are ephemeral and used only for the LP handshake protocol
-        use nym_crypto::asymmetric::ed25519;
-        use rand::rngs::OsRng;
         let entry_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
         let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
 
@@ -181,7 +179,7 @@ impl RegistrationClient {
         // This creates the LP session that will be used to forward packets to exit.
         // Uses packet-per-connection model: each handshake packet on new TCP connection.
         tracing::info!("Establishing outer session with entry gateway");
-        let mut entry_client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
+        let mut entry_client = LpRegistrationClient::new_with_default_config(
             entry_lp_keypair.clone(),
             self.config.entry.node.identity,
             entry_lp_address,

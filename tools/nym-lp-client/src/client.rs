@@ -118,7 +118,7 @@ impl SpeedtestClient {
 
         let client_ip = "0.0.0.0".parse()?;
 
-        let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
+        let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
             self.identity_keypair.clone(),
             self.gateway.identity,
             self.gateway.lp_address,
@@ -161,7 +161,7 @@ impl SpeedtestClient {
 
         let client_ip = "0.0.0.0".parse()?;
 
-        let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
+        let mut lp_client = LpRegistrationClient::new_with_default_config(
             self.identity_keypair.clone(),
             self.gateway.identity,
             self.gateway.lp_address,

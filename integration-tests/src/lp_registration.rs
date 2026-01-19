@@ -385,7 +385,7 @@ mod tests {
             let client_key = *client_data.base.x25519_wg_keys.public_key();
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-            let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_psk(
+            let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
                 client_data.base.ed25519_keys,
                 *entry.base.ed25519_keys.public_key(),
                 entry.base.socket_addr,
@@ -476,7 +476,7 @@ mod tests {
             let client_data = Client::mock(&mut client_rng);
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-            let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_psk(
+            let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
                 client_data.base.ed25519_keys,
                 *entry.base.ed25519_keys.public_key(),
                 entry.base.socket_addr,
@@ -536,7 +536,7 @@ mod tests {
             let mut entry = Gateway::mock(&mut entry_rng).await?;
             let mut exit = Gateway::mock(&mut exit_rng).await?;
 
-            let mut entry_client = LpRegistrationClient::<MockIOStream>::new_with_default_psk(
+            let mut entry_client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
                 client_data.base.ed25519_keys.clone(),
                 *entry.base.ed25519_keys.public_key(),
                 entry.base.socket_addr,

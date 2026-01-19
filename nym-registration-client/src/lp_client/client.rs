@@ -104,7 +104,7 @@ where
     /// Uses default config (LpConfig::default()) with sane timeout and TCP parameters.
     /// PSK is derived automatically during handshake inside the state machine.
     /// For custom config, use `new()` directly.
-    pub fn new_with_default_psk(
+    pub fn new_with_default_config(
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
         gateway_ed25519_public_key: ed25519::PublicKey,
         gateway_lp_address: SocketAddr,

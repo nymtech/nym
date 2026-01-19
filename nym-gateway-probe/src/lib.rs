@@ -1109,7 +1109,7 @@ where
     let client_ed25519_keypair = std::sync::Arc::new(ed25519::KeyPair::new(&mut rng));
 
     // Create LP registration client (uses Ed25519 keys directly, derives X25519 internally)
-    let mut client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
+    let mut client = LpRegistrationClient::<TcpStream>::new_with_default_config(
         client_ed25519_keypair,
         gateway_identity,
         gateway_lp_address,
@@ -1272,7 +1272,7 @@ where
     // LpRegistrationClient uses packet-per-connection model - connect() is gone,
     // connection is established automatically during handshake.
     info!("Establishing outer LP session with entry gateway...");
-    let mut entry_client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
+    let mut entry_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
         entry_lp_keypair,
         entry_gateway.identity,
         entry_lp_address,

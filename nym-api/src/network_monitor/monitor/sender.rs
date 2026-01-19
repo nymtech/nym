@@ -14,13 +14,14 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::client::config::GatewayClientConfig;
-use nym_gateway_client::client::{GatewayConfig, GatewayListeners};
+use nym_gateway_client::client::GatewayConfig;
 use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter, SharedSymmetricKey,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
+use nym_topology::EntryDetails;
 use pin_project::pin_project;
 use sqlx::__rt::timeout;
 use std::mem;
@@ -30,14 +31,13 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 use tracing::{debug, error, info, trace, warn};
-use url::Url;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
 pub(crate) struct GatewayPackets {
     /// Network address of the target gateway if wanted to be accessed by the client.
     /// It is a websocket address.
-    pub(crate) clients_address: Option<String>,
+    pub(crate) gateway_details: EntryDetails,
 
     /// Public key of the target gateway.
     pub(crate) pub_key: ed25519::PublicKey,
@@ -48,33 +48,27 @@ pub(crate) struct GatewayPackets {
 
 impl GatewayPackets {
     pub(crate) fn new(
-        clients_address: Option<String>,
+        gateway_details: EntryDetails,
         pub_key: ed25519::PublicKey,
         packets: Vec<MixPacket>,
     ) -> Self {
         GatewayPackets {
-            clients_address,
+            gateway_details,
             pub_key,
             packets,
         }
     }
 
-    pub(crate) fn gateway_config(&self) -> Result<Option<GatewayConfig>, url::ParseError> {
-        match self.clients_address.as_ref() {
-            Some(gateway_listener) => Ok(Some(GatewayConfig {
-                gateway_identity: self.pub_key,
-                gateway_listeners: GatewayListeners {
-                    primary: Url::parse(gateway_listener)?,
-                    fallback: None,
-                },
-            })),
-            None => Ok(None),
-        }
+    pub(crate) fn gateway_config(&self) -> Result<GatewayConfig, url::ParseError> {
+        Ok(GatewayConfig {
+            gateway_identity: self.pub_key,
+            gateway_details: self.gateway_details.clone(),
+        })
     }
 
-    pub(crate) fn empty(clients_address: Option<String>, pub_key: ed25519::PublicKey) -> Self {
+    pub(crate) fn empty(gateway_details: EntryDetails, pub_key: ed25519::PublicKey) -> Self {
         GatewayPackets {
-            clients_address,
+            gateway_details,
             pub_key,
             packets: Vec::new(),
         }
@@ -370,11 +364,7 @@ impl PacketSender {
         let identity = packets.pub_key;
 
         let gateway_config = match packets.gateway_config() {
-            Ok(Some(gateway_config)) => gateway_config,
-            Ok(None) => {
-                warn!("gateway {identity} didn't provide valid entry information");
-                return None;
-            }
+            Ok(gateway_config) => gateway_config,
             Err(e) => {
                 warn!("Error while parsing entry information for gateway {identity} : {e}");
                 return None;

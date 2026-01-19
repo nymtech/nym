@@ -10,6 +10,7 @@ use nym_sphinx_types::Node as SphinxNode;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
+use url::Url;
 
 pub use nym_mixnet_contract_common::LegacyMixLayer;
 
@@ -26,6 +27,35 @@ pub struct EntryDetails {
     pub clients_ws_port: u16,
     pub hostname: Option<String>,
     pub clients_wss_port: Option<u16>,
+}
+
+impl EntryDetails {
+    pub fn ws_entry_address_tls(&self) -> Option<Url> {
+        let hostname = self.hostname.as_ref()?;
+        let wss_port = self.clients_wss_port?;
+
+        Url::parse(&format!("wss://{hostname}:{wss_port}")).ok()
+    }
+
+    pub fn ws_entry_address_no_tls(&self, prefer_ipv6: bool) -> Option<Url> {
+        if let Some(hostname) = self.hostname.as_ref() {
+            return Url::parse(&format!("ws://{hostname}:{}", self.clients_ws_port)).ok();
+        }
+
+        if prefer_ipv6 && let Some(ipv6) = self.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
+            return Url::parse(&format!("ws://{ipv6}:{}", self.clients_ws_port)).ok();
+        }
+
+        let any_ip = self.ip_addresses.first()?;
+        Url::parse(&format!("ws://{any_ip}:{}", self.clients_ws_port)).ok()
+    }
+
+    pub fn ws_entry_address(&self, prefer_ipv6: bool) -> Option<Url> {
+        if let Some(tls) = self.ws_entry_address_tls() {
+            return Some(tls);
+        }
+        self.ws_entry_address_no_tls(prefer_ipv6)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -59,77 +89,14 @@ pub struct RoutingNode {
 }
 
 impl RoutingNode {
-    pub fn ws_entry_address_tls(&self) -> Option<String> {
-        let entry = self.entry.as_ref()?;
-        let hostname = entry.hostname.as_ref()?;
-        let wss_port = entry.clients_wss_port?;
-
-        Some(format!("wss://{hostname}:{wss_port}"))
-    }
-
-    pub fn ws_entry_address_no_tls(&self, prefer_ipv6: bool) -> Option<String> {
-        let entry = self.entry.as_ref()?;
-
-        if let Some(hostname) = entry.hostname.as_ref() {
-            return Some(format!("ws://{hostname}:{}", entry.clients_ws_port));
-        }
-
-        if prefer_ipv6 && let Some(ipv6) = entry.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
-            return Some(format!("ws://{ipv6}:{}", entry.clients_ws_port));
-        }
-
-        let any_ip = entry.ip_addresses.first()?;
-        Some(format!("ws://{any_ip}:{}", entry.clients_ws_port))
-    }
-
-    pub fn ws_entry_address(&self, prefer_ipv6: bool) -> Option<String> {
-        if let Some(tls) = self.ws_entry_address_tls() {
-            return Some(tls);
-        }
-        self.ws_entry_address_no_tls(prefer_ipv6)
-    }
-
-    pub fn ws_entry_address_with_fallback(
-        &self,
-        prefer_ipv6: bool,
-        no_hostname: bool,
-    ) -> (Option<String>, Option<String>) {
-        let Some(entry) = &self.entry else {
-            return (None, None);
-        };
-
-        // Put hostname first if we want it
-        let maybe_hostname = if !no_hostname {
-            entry.hostname.clone()
-        } else {
-            None
-        };
-
-        // Put ipv6 first or keep them as is
-        let ips: Vec<&IpAddr> = if prefer_ipv6 {
-            entry
-                .ip_addresses
-                .iter()
-                .filter(|ip| ip.is_ipv6())
-                .chain(entry.ip_addresses.iter().filter(|ip| ip.is_ipv4()))
-                .collect()
-        } else {
-            entry.ip_addresses.iter().collect()
-        };
-
-        // chain everything and keep the top two as ws addresses
-        let ws_addresses: Vec<_> = maybe_hostname
-            .into_iter()
-            .chain(ips.into_iter().map(|ip| ip.to_string()))
-            .take(2)
-            .map(|host| format!("ws://{host}:{}", entry.clients_ws_port))
-            .collect();
-
-        (ws_addresses.first().cloned(), ws_addresses.get(1).cloned())
-    }
-
     pub fn identity(&self) -> ed25519::PublicKey {
         self.identity_key
+    }
+}
+
+impl std::fmt::Display for EntryDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 

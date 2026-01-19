@@ -3,6 +3,7 @@
 
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_gateway_requests::shared_key::SharedKeyConversionError;
+use serde_json::Error as JsonError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -29,23 +30,11 @@ pub enum BadGateway {
     #[error("could not find any valid shared keys for gateway {gateway_id}")]
     MissingSharedKey { gateway_id: String },
 
-    #[error(
-        "the listening address of gateway {gateway_id} ({raw_listener}) is malformed: {source}"
-    )]
-    MalformedListener {
-        gateway_id: String,
-
-        raw_listener: String,
+    #[error("the listening address ({raw_details}) is malformed: {source}")]
+    MalformedDetailsNoId {
+        raw_details: String,
 
         #[source]
-        source: url::ParseError,
-    },
-
-    #[error("the listening address ({raw_listener}) is malformed: {source}")]
-    MalformedListenerNoId {
-        raw_listener: String,
-
-        #[source]
-        source: url::ParseError,
+        source: JsonError,
     },
 }

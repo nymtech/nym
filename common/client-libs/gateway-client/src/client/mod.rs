@@ -28,13 +28,13 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::ShutdownToken;
+use nym_topology::EntryDetails;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::sync::Arc;
 use tracing::instrument;
 use tracing::*;
 use tungstenite::protocol::Message;
-use url::Url;
 
 #[cfg(unix)]
 use std::os::fd::RawFd;
@@ -53,27 +53,21 @@ pub mod config;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod websockets;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::client::websockets::connect_async_with_fallback;
+use crate::client::websockets::connect_async;
 
 pub struct GatewayConfig {
     pub gateway_identity: ed25519::PublicKey,
 
-    pub gateway_listeners: GatewayListeners,
+    pub gateway_details: EntryDetails,
 }
 
 impl GatewayConfig {
-    pub fn new(gateway_identity: ed25519::PublicKey, gateway_listeners: GatewayListeners) -> Self {
+    pub fn new(gateway_identity: ed25519::PublicKey, gateway_details: EntryDetails) -> Self {
         GatewayConfig {
             gateway_identity,
-            gateway_listeners,
+            gateway_details,
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct GatewayListeners {
-    pub primary: Url,
-    pub fallback: Option<Url>,
 }
 
 #[must_use]
@@ -88,7 +82,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 
     authenticated: bool,
     bandwidth: ClientBandwidth,
-    gateway_addresses: GatewayListeners,
+    gateway_details: EntryDetails,
     gateway_identity: ed25519::PublicKey,
     local_identity: Arc<ed25519::KeyPair>,
     shared_key: Option<Arc<SharedSymmetricKey>>,
@@ -125,7 +119,7 @@ impl<C, St> GatewayClient<C, St> {
             cfg,
             authenticated: false,
             bandwidth: ClientBandwidth::new_empty(),
-            gateway_addresses: gateway_config.gateway_listeners,
+            gateway_details: gateway_config.gateway_details,
             gateway_identity: gateway_config.gateway_identity,
             local_identity,
             shared_key,
@@ -199,19 +193,13 @@ impl<C, St> GatewayClient<C, St> {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
-        if let Some(fallback_url) = &self.gateway_addresses.fallback {
-            debug!(
-                "Attempting to establish connection to gateway at: {}, with fallback at: {fallback_url}",
-                self.gateway_addresses.primary
-            );
-        } else {
-            debug!(
-                "Attempting to establish connection to gateway at: {}",
-                self.gateway_addresses.primary
-            );
-        }
-        let (ws_stream, _) = connect_async_with_fallback(
-            &self.gateway_addresses,
+        debug!(
+            "Attempting to establish connection to gateway at: {:?}",
+            self.gateway_details
+        );
+
+        let (ws_stream, _) = connect_async(
+            &self.gateway_details,
             #[cfg(unix)]
             self.connection_fd_callback.clone(),
         )
@@ -224,7 +212,11 @@ impl<C, St> GatewayClient<C, St> {
 
     #[cfg(target_arch = "wasm32")]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
-        let ws_stream = match JSWebsocket::new(self.gateway_addresses.primary.as_ref()) {
+        let endpoint = self.gateway_details.clone();
+        let uri = endpoint
+            .ws_entry_address(false)
+            .ok_or(GatewayClientError::InvalidEndpoint(endpoint.to_string()))?;
+        let ws_stream = match JSWebsocket::new(uri.as_ref()) {
             Ok(ws_stream) => ws_stream,
             Err(e) => {
                 return Err(GatewayClientError::NetworkErrorWasm(e));
@@ -590,7 +582,7 @@ impl<C, St> GatewayClient<C, St> {
     #[instrument(skip_all,
         fields(
             gateway = %self.gateway_identity,
-            gateway_address = %self.gateway_addresses.primary
+            gateway_address = %self.gateway_details
         )
     )]
     pub async fn perform_initial_authentication(
@@ -1089,7 +1081,7 @@ pub struct InitOnly;
 impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
     pub fn new_init(
-        gateway_listeners: GatewayListeners,
+        gateway_details: EntryDetails,
         gateway_identity: ed25519::PublicKey,
         local_identity: Arc<ed25519::KeyPair>,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
@@ -1108,7 +1100,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             cfg: GatewayClientConfig::default().with_disabled_credentials_mode(true),
             authenticated: false,
             bandwidth: ClientBandwidth::new_empty(),
-            gateway_addresses: gateway_listeners,
+            gateway_details,
             gateway_identity,
             local_identity,
             shared_key: None,
@@ -1140,7 +1132,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             cfg: self.cfg,
             authenticated: self.authenticated,
             bandwidth: self.bandwidth,
-            gateway_addresses: self.gateway_addresses,
+            gateway_details: self.gateway_details,
             gateway_identity: self.gateway_identity,
             local_identity: self.local_identity,
             shared_key: self.shared_key,

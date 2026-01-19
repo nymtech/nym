@@ -18,6 +18,7 @@ reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["serde"] }
+url.workspace = true
 
 # 'serde' feature
 serde_json = { workspace = true, optional = true }

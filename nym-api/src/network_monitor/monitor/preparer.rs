@@ -352,7 +352,7 @@ impl PacketPreparer {
             .collect();
 
         GatewayPackets::new(
-            route.gateway_clients_address(),
+            route.gateway_details().expect("AHHHHHHH"),
             route.gateway_identity(),
             mix_packets,
         )
@@ -422,8 +422,14 @@ impl PacketPreparer {
         // for each test route...
         for test_route in test_routes {
             let route_ext = test_route.test_message_ext(test_nonce);
-            let gateway_address = test_route.gateway_clients_address();
             let gateway_identity = test_route.gateway_identity();
+            let gateway_address = match test_route.gateway_details() {
+                Some(details) => details,
+                None => {
+                    tracing::warn!("skipping gateway {gateway_identity} - missing gateway details");
+                    continue;
+                }
+            };
 
             let mut mix_tester = self.ephemeral_mix_tester(test_route);
 
@@ -453,7 +459,15 @@ impl PacketPreparer {
             for gateway in &gateways_to_test_details {
                 let recipient = self.create_packet_sender(gateway);
                 let gateway_identity = gateway.identity_key;
-                let gateway_address = gateway.ws_entry_address(false);
+                let gateway_details = match &gateway.entry {
+                    Some(details) => details,
+                    None => {
+                        tracing::warn!(
+                            "skipping gateway {gateway_identity} - missing gateway details"
+                        );
+                        continue;
+                    }
+                };
 
                 // the unwrap here is fine as:
                 // 1. the topology is definitely valid (otherwise we wouldn't be here)
@@ -475,7 +489,9 @@ impl PacketPreparer {
                 // or create a new one
                 let gateway_packets = all_gateway_packets
                     .entry(gateway_identity.to_bytes())
-                    .or_insert_with(|| GatewayPackets::empty(gateway_address, gateway_identity));
+                    .or_insert_with(|| {
+                        GatewayPackets::empty(gateway_details.clone(), gateway_identity)
+                    });
                 gateway_packets.push_packets(gateway_mix_packets);
             }
         }

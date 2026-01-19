@@ -10,10 +10,11 @@ use nym_client_core_gateways_storage::{
     GatewayRegistration, GatewaysDetailsStore, RemoteGatewayDetails,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::client::{GatewayListeners, InitGatewayClient};
+use nym_gateway_client::client::InitGatewayClient;
 use nym_gateway_client::SharedSymmetricKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::node::RoutingNode;
+use nym_topology::EntryDetails;
 use nym_validator_client::client::IdentityKey;
 use serde::Serialize;
 use std::fmt::{Debug, Display};
@@ -21,13 +22,12 @@ use std::fmt::{Debug, Display};
 use std::os::fd::RawFd;
 use std::sync::Arc;
 use time::OffsetDateTime;
-use url::Url;
 
 pub enum SelectedGateway {
     Remote {
         gateway_id: ed25519::PublicKey,
 
-        gateway_listeners: GatewayListeners,
+        gateway_details: EntryDetails,
     },
     Custom {
         gateway_id: ed25519::PublicKey,
@@ -39,52 +39,33 @@ impl SelectedGateway {
     pub fn from_topology_node(
         node: RoutingNode,
         must_use_tls: bool,
-        no_hostname: bool,
     ) -> Result<Self, ClientCoreError> {
         // for now, let's use 'old' behaviour, if you want to change it, you can pass it up the enum stack yourself : )
         let prefer_ipv6 = false;
 
-        let (gateway_listener, fallback_listener) = if must_use_tls {
-            // WSS main, no fallback
-            let primary =
-                node.ws_entry_address_tls()
-                    .ok_or(ClientCoreError::UnsupportedWssProtocol {
-                        gateway: node.identity_key.to_base58_string(),
-                    })?;
-            (primary, None)
-        } else {
-            let (maybe_primary, fallback) =
-                node.ws_entry_address_with_fallback(prefer_ipv6, no_hostname);
-            (
-                maybe_primary.ok_or(ClientCoreError::UnsupportedEntry {
-                    id: node.node_id,
-                    identity: node.identity_key.to_base58_string(),
-                })?,
-                fallback,
-            )
-        };
+        let gateway_details = node.entry.ok_or(ClientCoreError::UnsupportedEntry {
+            id: node.node_id,
+            identity: node.identity_key.to_base58_string(),
+        })?;
 
-        let fallback_listener_url = fallback_listener.and_then(|address| {
-            Url::parse(&address)
-                .inspect_err(|err| {
-                    tracing::warn!("Malformed fallback listener, none will be used : {err}")
-                })
-                .ok()
-        });
+        if must_use_tls
+            && (gateway_details.hostname.is_none() || gateway_details.clients_wss_port.is_none())
+        {
+            return Err(ClientCoreError::UnsupportedWssProtocol {
+                gateway: node.identity_key.to_base58_string(),
+            });
+        }
 
-        let gateway_listener_url =
-            Url::parse(&gateway_listener).map_err(|source| ClientCoreError::MalformedListener {
-                gateway_id: node.identity_key.to_base58_string(),
-                raw_listener: gateway_listener,
-                source,
-            })?;
+        if prefer_ipv6 && gateway_details.ip_addresses.iter().all(|i| i.is_ipv4()) {
+            return Err(ClientCoreError::UnsupportedEntry {
+                id: node.node_id,
+                identity: node.identity_key.to_base58_string(),
+            });
+        }
 
         Ok(SelectedGateway::Remote {
             gateway_id: node.identity_key,
-            gateway_listeners: GatewayListeners {
-                primary: gateway_listener_url,
-                fallback: fallback_listener_url,
-            },
+            gateway_details,
         })
     }
 
@@ -174,22 +155,15 @@ impl InitialisationResult {
 #[derive(Clone, Debug)]
 pub enum GatewaySelectionSpecification {
     /// Uniformly choose a random remote gateway.
-    UniformRemote {
-        must_use_tls: bool,
-        no_hostname: bool,
-    },
+    UniformRemote { must_use_tls: bool },
 
     /// Should the new, remote, gateway be selected based on latency.
-    RemoteByLatency {
-        must_use_tls: bool,
-        no_hostname: bool,
-    },
+    RemoteByLatency { must_use_tls: bool },
 
     /// Gateway with this specific identity should be chosen.
     // JS: I don't really like the name of this enum variant but couldn't think of anything better at the time
     Specified {
         must_use_tls: bool,
-        no_hostname: bool,
         identity: IdentityKey,
     },
 
@@ -205,7 +179,6 @@ impl Default for GatewaySelectionSpecification {
     fn default() -> Self {
         GatewaySelectionSpecification::UniformRemote {
             must_use_tls: false,
-            no_hostname: false,
         }
     }
 }
@@ -215,24 +188,16 @@ impl GatewaySelectionSpecification {
         gateway_identity: Option<String>,
         latency_based_selection: Option<bool>,
         must_use_tls: bool,
-        no_hostname: bool,
     ) -> Self {
         if let Some(identity) = gateway_identity {
             GatewaySelectionSpecification::Specified {
                 identity,
                 must_use_tls,
-                no_hostname,
             }
         } else if let Some(true) = latency_based_selection {
-            GatewaySelectionSpecification::RemoteByLatency {
-                must_use_tls,
-                no_hostname,
-            }
+            GatewaySelectionSpecification::RemoteByLatency { must_use_tls }
         } else {
-            GatewaySelectionSpecification::UniformRemote {
-                must_use_tls,
-                no_hostname,
-            }
+            GatewaySelectionSpecification::UniformRemote { must_use_tls }
         }
     }
 }
@@ -354,8 +319,7 @@ pub struct InitResults {
     pub identity_key: String,
     pub encryption_key: String,
     pub gateway_id: String,
-    pub gateway_listener: String,
-    pub fallback_listener: Option<String>,
+    pub gateway_details: EntryDetails,
     pub gateway_registration: OffsetDateTime,
     pub address: Recipient,
 }
@@ -373,13 +337,7 @@ impl InitResults {
             identity_key: address.identity().to_base58_string(),
             encryption_key: address.encryption_key().to_base58_string(),
             gateway_id: gateway.gateway_id.to_base58_string(),
-            gateway_listener: gateway.published_data.listeners.primary.to_string(),
-            fallback_listener: gateway
-                .published_data
-                .listeners
-                .fallback
-                .as_ref()
-                .map(|uri| uri.to_string()),
+            gateway_details: gateway.published_data.details.clone(),
             gateway_registration: registration,
             address,
         }
@@ -393,7 +351,7 @@ impl Display for InitResults {
         writeln!(f, "Identity key: {}", self.identity_key)?;
         writeln!(f, "Encryption: {}", self.encryption_key)?;
         writeln!(f, "Gateway ID: {}", self.gateway_id)?;
-        writeln!(f, "Gateway: {}", self.gateway_listener)?;
+        writeln!(f, "Gateway: {}", self.gateway_details)?;
         write!(f, "Registered at: {}", self.gateway_registration)
     }
 }

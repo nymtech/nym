@@ -5,7 +5,6 @@ use crate::error::ClientCoreError;
 use crate::init::types::RegistrationResult;
 use futures::{SinkExt, StreamExt};
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::client::GatewayListeners;
 use nym_gateway_client::GatewayClient;
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::{IdentityKeyRef, NymApiClientExt};
@@ -22,7 +21,7 @@ use url::Url;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::init::websockets::connect_async;
 
-use nym_topology::NodeId;
+use nym_topology::{EntryDetails, NodeId};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
@@ -56,7 +55,7 @@ const PING_TIMEOUT: Duration = Duration::from_millis(1000);
 pub trait ConnectableGateway {
     fn node_id(&self) -> NodeId;
     fn identity(&self) -> ed25519::PublicKey;
-    fn clients_address(&self, prefer_ipv6: bool) -> Option<String>;
+    fn endpoint_details(&self) -> Option<EntryDetails>;
     fn is_wss(&self) -> bool;
 }
 
@@ -69,8 +68,8 @@ impl ConnectableGateway for RoutingNode {
         self.identity_key
     }
 
-    fn clients_address(&self, prefer_ipv6: bool) -> Option<String> {
-        self.ws_entry_address(prefer_ipv6)
+    fn endpoint_details(&self) -> Option<EntryDetails> {
+        self.entry.clone()
     }
 
     fn is_wss(&self) -> bool {
@@ -192,7 +191,7 @@ pub async fn gateways_for_init(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
+async fn connect(endpoint: &EntryDetails) -> Result<WsConn, ClientCoreError> {
     match tokio::time::timeout(CONN_TIMEOUT, connect_async(endpoint)).await {
         Err(_elapsed) => Err(ClientCoreError::GatewayConnectionTimeout),
         Ok(Err(conn_failure)) => Err(conn_failure),
@@ -201,25 +200,28 @@ async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
-    JSWebsocket::new(endpoint).map_err(|_| ClientCoreError::GatewayJsConnectionFailure)
+async fn connect(endpoint: &EntryDetails) -> Result<WsConn, ClientCoreError> {
+    let uri = endpoint
+        .ws_entry_address(false)
+        .ok_or(ClientCoreError::InvalidEndpoint(endpoint.to_string()))?;
+    JSWebsocket::new(uri.as_ref()).map_err(|_| ClientCoreError::GatewayJsConnectionFailure)
 }
 
 async fn measure_latency<G>(gateway: &G) -> Result<GatewayWithLatency<'_, G>, ClientCoreError>
 where
     G: ConnectableGateway,
 {
-    let Some(addr) = gateway.clients_address(false) else {
+    let Some(endpoint) = gateway.endpoint_details() else {
         return Err(ClientCoreError::UnsupportedEntry {
             id: gateway.node_id(),
             identity: gateway.identity().to_string(),
         });
     };
     trace!(
-        "establishing connection to {} ({addr})...",
+        "establishing connection to {} ({endpoint})...",
         gateway.identity(),
     );
-    let mut stream = connect(&addr).await?;
+    let mut stream = connect(&endpoint).await?;
 
     let mut results = Vec::new();
     for _ in 0..MEASUREMENTS {
@@ -380,12 +382,12 @@ pub(super) fn get_specified_gateway(
 
 pub(super) async fn register_with_gateway(
     gateway_id: ed25519::PublicKey,
-    gateway_listeners: GatewayListeners,
+    gateway_details: EntryDetails,
     our_identity: Arc<ed25519::KeyPair>,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<RegistrationResult, ClientCoreError> {
     let mut gateway_client = GatewayClient::new_init(
-        gateway_listeners,
+        gateway_details.clone(),
         gateway_id,
         our_identity.clone(),
         #[cfg(unix)]

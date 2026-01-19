@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_crypto::asymmetric::ed25519;
+use nym_topology::EntryDetails;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use time::OffsetDateTime;
-use url::Url;
 
 #[derive(Serialize, Deserialize)]
 pub struct GatewayInfo {
@@ -14,8 +14,7 @@ pub struct GatewayInfo {
     pub active: bool,
 
     pub typ: String,
-    pub endpoint: Option<Url>,
-    pub fallback_endpoint: Option<Url>,
+    pub endpoint: Option<EntryDetails>,
 }
 
 impl Display for GatewayInfo {
@@ -30,9 +29,6 @@ impl Display for GatewayInfo {
         )?;
         if let Some(endpoint) = &self.endpoint {
             write!(f, " endpoint: {endpoint}")?;
-        }
-        if let Some(fallback_endpoint) = &self.fallback_endpoint {
-            write!(f, " fallback: {fallback_endpoint}")?;
         }
         Ok(())
     }

@@ -1682,6 +1682,9 @@ async fn do_socks5_connectivity_test(
         "Starting SOCKS5 test through Network Requester: {}",
         network_requester_address
     );
+    if json_rpc_endpoints.is_empty() {
+        bail!("You need to define JSON RPC URLs in order to test SOCKS5")
+    }
 
     let mut results = Socks5ProbeResults::default();
 

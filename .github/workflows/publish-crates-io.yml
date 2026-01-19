@@ -1,0 +1,47 @@
+name: Publish to crates.io
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g., 1.21.0)"
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: arc-ubuntu-22.04-dind
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-workspaces
+        run: cargo install cargo-workspaces
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump versions
+        run: |
+          cargo workspaces version ${{ inputs.version }} \
+            --no-git-push \
+            --no-git-tag \
+            --yes
+
+      - name: Publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo workspaces publish --from-git --no-git-commit
+
+      # - name: Push version commit
+      #   run: |
+      #     git push origin HEAD

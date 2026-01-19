@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to publish (e.g., 1.21.0)"
+        description: "Version to publish (e.g. 1.21.0)"
         required: true
         type: string
 
@@ -25,10 +25,10 @@ jobs:
       - name: Install cargo-workspaces
         run: cargo install cargo-workspaces
 
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      # - name: Configure git
+      #   run: |
+      #     git config user.name "github-actions[bot]"
+      #     git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Bump versions
         run: |

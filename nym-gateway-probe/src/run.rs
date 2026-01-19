@@ -333,6 +333,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
                     test_lp_wg,
                     args.min_gateway_mixnet_performance,
                     *use_mock_ecash,
+                    network,
                 ))
                 .await
             }
@@ -345,6 +346,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
                     only_lp_registration,
                     test_lp_wg,
                     args.min_gateway_mixnet_performance,
+                    network,
                 ))
                 .await
             }
@@ -487,6 +489,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
                 test_lp_wg,
                 args.min_gateway_mixnet_performance,
                 use_mock_ecash,
+                network,
             ))
             .await
         }
@@ -499,6 +502,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
                 only_lp_registration,
                 test_lp_wg,
                 args.min_gateway_mixnet_performance,
+                network,
             ))
             .await
         }

@@ -1,10 +1,13 @@
+use std::time::Duration;
+
 use nym_client_core::client::base_client::ClientState;
 use nym_socks5_client_core::config::Socks5;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::ShutdownTracker;
+use tokio::sync::RwLockReadGuard;
 
-use nym_topology::NymTopology;
+use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError};
 
 use crate::mixnet::client::MixnetClientBuilder;
 use crate::Result;
@@ -84,5 +87,29 @@ impl Socks5MixnetClient {
     /// client.
     pub async fn disconnect(self) {
         self.task_handle.shutdown().await;
+    }
+
+    /// Gets the current route provider if topology is available.
+    /// Returns `None` if topology is empty/not yet fetched.
+    async fn read_current_route_provider(&self) -> Option<RwLockReadGuard<'_, NymRouteProvider>> {
+        self.client_state
+            .topology_accessor
+            .current_route_provider()
+            .await
+    }
+
+    /// Wait for topology to become available, with a timeout.
+    /// Returns `Ok(())` when topology is ready, or `Err` if timeout is reached.
+    pub async fn wait_for_topology(&self, timeout: Duration) -> Result<(), NymTopologyError> {
+        let deadline = tokio::time::Instant::now() + timeout;
+        loop {
+            if self.read_current_route_provider().await.is_some() {
+                return Ok(());
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(NymTopologyError::EmptyNetworkTopology);
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
     }
 }

@@ -385,7 +385,7 @@ impl NymApiDirectory {
             .iter()
             .filter(|(_, n)| n.described.description.ip_packet_router.is_some())
             .choose(&mut rand::thread_rng())
-            .ok_or(anyhow!("no gateways running IPR available"))
+            .context("no gateways running IPR available")
             .map(|(id, _)| *id)
     }
 
@@ -395,7 +395,7 @@ impl NymApiDirectory {
             .iter()
             .filter(|(_, n)| n.described.description.ip_packet_router.is_some())
             .choose(&mut rand::thread_rng())
-            .ok_or(anyhow!("no gateways running NR available"))
+            .context("no gateways running NR available")
             .map(|(id, _)| *id)
     }
 
@@ -405,7 +405,7 @@ impl NymApiDirectory {
             .iter()
             .filter(|(_, n)| n.described.description.declared_role.entry)
             .choose(&mut rand::thread_rng())
-            .ok_or(anyhow!("no entry gateways available"))
+            .context("no entry gateways available")
             .map(|(id, _)| *id)
     }
 

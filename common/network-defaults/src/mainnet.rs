@@ -72,6 +72,7 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     },
 ];
 
+#[cfg(feature = "env")]
 fn serialize_api_urls(urls: &[ApiUrlConst]) -> String {
     serde_json::to_string(urls)
         .inspect_err(|e| tracing::warn!("failed to serialize nym_api_urls for env: {e}"))

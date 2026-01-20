@@ -8,12 +8,23 @@ on:
         required: true
         type: string
 
+env:
+  CI_BOT_AUTHOR: "Nym bot"
+  CI_BOT_EMAIL: "nym-bot@users.noreply.github.com"
+
 jobs:
   publish:
     runs-on: arc-linux-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "${{ env.CI_BOT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_BOT_EMAIL }}"
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
@@ -25,12 +36,12 @@ jobs:
       - name: Install cargo-workspaces
         run: cargo install cargo-workspaces
 
-      - name: Validate version format
-        run: |
-          if ! npx semver "${{ inputs.version }}"; then
-            echo "Error: '${{ inputs.version }}' is not valid semver"
-            exit 1
-          fi
+      # - name: Validate version format
+      #   run: |
+      #     if ! npx semver "${{ inputs.version }}"; then
+      #       echo "Error: '${{ inputs.version }}' is not valid semver"
+      #       exit 1
+      #     fi
 
       - name: Get current version
         id: current_version
@@ -38,23 +49,17 @@ jobs:
           VERSION=$(grep -oP '^\s*version\s*=\s*"\K[0-9]+\.[0-9]+\.[0-9]+' Cargo.toml | head -1)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Bump versions
-        run: |
-          cargo workspaces version ${{ inputs.version }} \
-            --no-git-commit \
-            --no-git-push \
-            --no-git-tag \
-            --yes
-
       - name: Update workspace dependencies
         run: |
           sed -i 's/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
 
+      - name: Bump versions and push
+        run: |
+          cargo workspaces version custom ${{ inputs.version }} \
+            --no-git-tag \
+            --yes
+
       - name: Publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo workspaces publish --from-git --no-git-commit --allow-dirty
-
-      # - name: Push version commit
-      #   run: |
-      #     git push origin HEAD
+        run: cargo workspaces publish --no-git-commit --allow-dirty --publish-interval 600

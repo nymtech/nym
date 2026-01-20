@@ -49,6 +49,10 @@ jobs:
           VERSION=$(grep -oP '^\s*version\s*=\s*"\K[0-9]+\.[0-9]+\.[0-9]+' Cargo.toml | head -1)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Update workspace dependencies
+        run: |
+          sed -i 's/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
+
       - name: Bump versions (local only)
         run: |
           cargo workspaces version custom ${{ inputs.version }} \
@@ -56,10 +60,6 @@ jobs:
             --no-git-tag \
             --no-git-push \
             --yes
-
-      - name: Update workspace dependencies
-        run: |
-          sed -i 's/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
 
       # Dry run may show cascading dependency errors because packages aren't
       # actually uploaded - these are expected and ignored. We check for real
@@ -73,6 +73,6 @@ jobs:
           # Cascading errors mention "crates.io index", real errors mention "Cargo.toml"
           echo "$output" | grep -i "Cargo.toml" && exit 1 || true
 
-      # This is left in so if we see hanging or something, we can debug
-      # - name: Publish (dry run with logging)
-      #   run: cargo workspaces publish --dry-run --allow-dirty
+      # Show the list of packages published
+      - name: Show package versions
+        run: cargo workspaces list --long

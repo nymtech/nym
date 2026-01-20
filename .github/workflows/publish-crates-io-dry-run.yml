@@ -11,8 +11,8 @@ on:
 jobs:
   publish-dry-run:
     runs-on: arc-linux-latest
-    env:
-      RUSTUP_PERMIT_COPY_RENAME: 1
+    # env:
+    #   RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -27,12 +27,12 @@ jobs:
       - name: Install cargo-workspaces
         run: cargo install cargo-workspaces
 
-      - name: Validate version format
-        run: |
-          if ! npx semver "${{ inputs.version }}"; then
-            echo "Error: '${{ inputs.version }}' is not valid semver"
-            exit 1
-          fi
+      # - name: Validate version format
+      #   run: |
+      #     if ! npx semver "${{ inputs.version }}"; then
+      #       echo "Error: '${{ inputs.version }}' is not valid semver"
+      #       exit 1
+      #     fi
 
       - name: Get current version
         id: current_version

@@ -61,11 +61,16 @@ jobs:
         run: |
           sed -i 's/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
 
-      # Note: Dry run may show cascading dependency errors because packages
-      # aren't actually uploaded. Check if the missing dependency has an
-      # "aborting upload due to dry run" message earlier in the output - if so,
-      # it would succeed in a real publish since cargo-workspaces publishes in
-      # dependency order. cargo-workspaces doesn't fail on err, so there isn't
-      # a good way to check this at the moment.
+      # Note: Dry run shows cascading dependency errors because packages aren't
+      # actually uploaded - these are expected and ignored. We check for real
+      # errors like packaging failures, missing metadata, or invalid Cargo.toml.
       - name: Publish (dry run)
-        run: cargo workspaces publish --from-git --dry-run --allow-dirty
+        run: |
+          output=$(cargo workspaces publish --from-git --dry-run --allow-dirty 2>&1) || true
+          echo "$output"
+
+          # Check for real errors (not cascading dependency errors)
+          if echo "$output" | grep -E "error: failed to prepare|error: missing|error: cannot publish" | grep -v "dependency"; then
+            echo "::error::Real publishing errors detected"
+            exit 1
+          fi

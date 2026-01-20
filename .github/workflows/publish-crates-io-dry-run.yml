@@ -64,13 +64,16 @@ jobs:
       # Note: Dry run shows cascading dependency errors because packages aren't
       # actually uploaded - these are expected and ignored. We check for real
       # errors like packaging failures, missing metadata, or invalid Cargo.toml.
-      - name: Publish (dry run)
-        run: |
-          output=$(cargo workspaces publish --dry-run --allow-dirty 2>&1) || true
-          echo "$output"
+      # - name: Publish (dry run)
+      #   run: |
+      #     output=$(cargo workspaces publish --dry-run --allow-dirty 2>&1) || true
+      #     echo "$output"
 
-          # Check for real errors (not cascading dependency errors)
-          if echo "$output" | grep -E "error: failed to prepare|error: missing|error: cannot publish" | grep -v "dependency"; then
-            echo "::error::Real publishing errors detected"
-            exit 1
-          fi
+      #     # Check for real errors (not cascading dependency errors)
+      #     if echo "$output" | grep -E "error: failed to prepare|error: missing|error: cannot publish" | grep -v "dependency"; then
+      #       echo "::error::Real publishing errors detected"
+      #       exit 1
+      #     fi
+
+      - name: Publish (dry run with logging)
+        run: cargo workspaces publish --dry-run --allow-dirty

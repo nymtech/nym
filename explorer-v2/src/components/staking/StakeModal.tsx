@@ -1,6 +1,6 @@
 import { Button, Stack, Typography } from "@mui/material";
-import { CurrencyFormField } from "@nymproject/react/currency/CurrencyFormField.js";
-import { IdentityKeyFormField } from "@nymproject/react/mixnodes/IdentityKeyFormField.js";
+import { CurrencyFormField } from "@nymproject/react/currency/CurrencyFormField";
+import { IdentityKeyFormField } from "@nymproject/react/mixnodes/IdentityKeyFormField";
 import type { DecCoin } from "@nymproject/types";
 import { useCallback, useEffect, useState } from "react";
 import SimpleModal from "../../components/modal/SimpleModal";

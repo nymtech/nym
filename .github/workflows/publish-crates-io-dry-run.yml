@@ -70,10 +70,8 @@ jobs:
           echo "$output"
 
           # Check for real errors (not cascading dependency errors)
-          if echo "$output" | grep -E "error: failed to prepare|error: missing|error: cannot publish" | grep -v "dependency"; then
-            echo "::error::Real publishing errors detected"
-            exit 1
-          fi
+          # Cascading errors mention "crates.io index", real errors mention "Cargo.toml"
+          echo "$output" | grep -i "Cargo.toml" && exit 1 || true
 
       # This is left in so if we see hanging or something, we can debug
       # - name: Publish (dry run with logging)

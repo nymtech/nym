@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@chain-registry/types": "^0.50.36",
-    "@cosmos-kit/keplr-extension": "^2.14.0",
-    "@cosmos-kit/react": "^2.20.1",
+    "@cosmos-kit/keplr-extension": "^2.17.0",
+    "@cosmos-kit/react": "^2.24.0",
     "@emotion/cache": "^11.13.5",
     "@emotion/react": "^11.13.5",
     "@emotion/styled": "^11.13.5",

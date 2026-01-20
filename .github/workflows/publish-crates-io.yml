@@ -76,8 +76,7 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           cargo workspaces publish \
-            --allow-branch ${{ github.ref_name }} \
-            --no-git-tag \
+            --publish-as-is \
             --allow-dirty \
             --publish-interval 600
 

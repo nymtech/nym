@@ -39,7 +39,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Validate version format
         run: |
@@ -56,15 +56,13 @@ jobs:
 
       - name: Update workspace dependencies
         run: |
-          sed -i 's/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
+          sed -i '/path = /s/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
 
       - name: Bump versions (local only)
         run: |
           cargo workspaces version custom ${{ inputs.version }} \
             --allow-branch ${{ github.ref_name }} \
-            --no-git-tag \
-            --no-git-push \
-            --yes
+            --no-git-commit \
 
       # Dry run may show cascading dependency errors because packages aren't
       # actually uploaded - these are expected and ignored. We check for real

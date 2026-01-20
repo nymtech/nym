@@ -8,6 +8,10 @@ on:
         required: true
         type: string
 
+env:
+  CI_BOT_AUTHOR: "Nym bot"
+  CI_BOT_EMAIL: "nym-bot@users.noreply.github.com"
+
 jobs:
   publish-dry-run:
     runs-on: arc-linux-latest
@@ -16,6 +20,11 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "${{ env.CI_BOT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_BOT_EMAIL }}"
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1

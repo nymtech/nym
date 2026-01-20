@@ -62,7 +62,6 @@ jobs:
         run: |
           cargo workspaces version custom ${{ inputs.version }} \
             --no-git-commit \
-            --no-git-tag \
             --yes
 
       # For the first publish, we have to run with this very long cooldown. That is due to the

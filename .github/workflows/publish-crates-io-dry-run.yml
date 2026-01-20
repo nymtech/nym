@@ -43,7 +43,6 @@ jobs:
       - name: Bump versions (local only)
         run: |
           cargo workspaces version ${{ inputs.version }} \
-            --no-git-commit \
             --no-git-tag \
             --no-git-push \
             --yes

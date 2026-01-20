@@ -6,6 +6,9 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+# Exclude build.rs from published crate - it's only used for dev-time sync
+# of env files and requires workspace context
+exclude = ["build.rs"]
 
 [dependencies]
 dotenvy = { workspace = true, optional = true }

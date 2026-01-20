@@ -10,7 +10,9 @@ on:
 
 jobs:
   publish-dry-run:
-    runs-on: arc-ubuntu-22.04 # arc-linux-latest
+    runs-on: arc-linux-latest
+    env:
+      RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6

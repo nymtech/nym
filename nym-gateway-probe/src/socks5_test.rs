@@ -194,7 +194,9 @@ impl HttpsConnectivityResult {
         let successes: Vec<_> = results.iter().filter(|r| r.success).collect();
         let errors: Vec<_> = results.iter().filter_map(|r| r.error.as_ref()).collect();
 
-        if successes.is_empty() {
+        // use the last successful result for status_code and endpoint
+        let Some(last_success) = successes.last() else {
+            // this works as an empty check as well: if there is no last element, array must be empty
             return Self::with_error(
                 errors
                     .into_iter()
@@ -202,14 +204,11 @@ impl HttpsConnectivityResult {
                     .collect::<Vec<_>>()
                     .join(", "),
             );
-        }
+        };
 
         // average latency from successful runs
         let total_latency: u64 = successes.iter().filter_map(|r| r.latency_ms).sum();
         let avg_latency = total_latency / successes.len() as u64;
-
-        // use the last successful result for status_code and endpoint
-        let last_success = successes.last().unwrap();
 
         Self {
             https_success: true,

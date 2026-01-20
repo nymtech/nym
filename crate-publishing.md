@@ -9,14 +9,16 @@ This version is defined in the `[workspace.package]` section of the root monorep
 ## When Developing
 If you add a workspace dependency to the SDK when developing, make sure to add this to the workspace dependencies in the root monorepo `Cargo.toml`.
 
-## Publishing
+## Check local publication
 ```
 # List crates to publish
 cargo workspaces list
 
-# Dry run - check for compilation or other problems
+# Dry run locally - check for compilation or other problems
 cargo workspaces publish --no-git-commit --dry-run
-
-# Publish
-TODO
 ```
+
+## CI
+There are two workflows:
+- `publish-crates-io-dry-run`: run this first! This is a remote dry-run on a runner.
+- `publish-crates-io`: actually push to crates.io

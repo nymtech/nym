@@ -61,7 +61,6 @@ jobs:
       - name: Bump versions
         run: |
           cargo workspaces version custom ${{ inputs.version }} \
-            --allow-branch ${{ github.ref_name }} \
             --no-git-commit \
             --no-git-tag \
             --yes

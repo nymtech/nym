@@ -6,13 +6,11 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
-use dashmap::DashMap;
-use nym_crypto::asymmetric::{ed25519, x25519};
-use std::sync::Arc;
-
 use crate::noise_protocol::ReadResult;
+use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
 use crate::{LpError, LpMessage, LpSession, LpStateMachine};
+use dashmap::DashMap;
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
@@ -167,26 +165,15 @@ impl SessionManager {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn create_session_state_machine(
         &self,
         receiver_index: u32,
-        local_ed25519_keypair: Arc<ed25519::KeyPair>,
-        local_psq_kem_keypair: Option<Arc<x25519::KeyPair>>,
-        remote_ed25519_key: &ed25519::PublicKey,
-        remote_x25519_key: &x25519::PublicKey,
         is_initiator: bool,
+        local_peer: LpLocalPeer,
+        remote_peer: LpRemotePeer,
         salt: &[u8; 32],
     ) -> Result<u32, LpError> {
-        let sm = LpStateMachine::new(
-            receiver_index,
-            is_initiator,
-            local_ed25519_keypair,
-            local_psq_kem_keypair,
-            remote_ed25519_key,
-            remote_x25519_key,
-            salt,
-        )?;
+        let sm = LpStateMachine::new(receiver_index, is_initiator, local_peer, remote_peer, salt)?;
 
         self.state_machines.insert(receiver_index, sm);
         Ok(receiver_index)
@@ -205,7 +192,7 @@ impl SessionManager {
     pub fn init_kkt_for_test(
         &self,
         lp_id: u32,
-        remote_x25519_pub: &x25519::PublicKey,
+        remote_x25519_pub: &nym_crypto::asymmetric::x25519::PublicKey,
     ) -> Result<(), LpError> {
         self.with_state_machine(lp_id, |sm| {
             sm.session()?.set_kkt_completed_for_test(remote_x25519_pub);
@@ -217,29 +204,21 @@ impl SessionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_crypto::asymmetric::ed25519;
+    use crate::peer::{mock_peers, random_peer};
+    use nym_test_utils::helpers::deterministic_rng;
 
     #[test]
     fn test_session_manager_get() {
         let manager = SessionManager::new();
-        let ed25519_keypair = Arc::new(ed25519::KeyPair::from_secret([10u8; 32], 0));
-        let ed25519_keypair2 = Arc::new(ed25519::KeyPair::from_secret([16u8; 32], 0));
-
-        let x25519_keypair2 = Arc::new(ed25519_keypair2.to_x25519());
+        let mut rng = deterministic_rng();
+        let local = random_peer(&mut rng);
+        let peer1 = random_peer(&mut rng);
 
         let salt = [47u8; 32];
         let receiver_index: u32 = 1001;
 
         let sm_1_id = manager
-            .create_session_state_machine(
-                receiver_index,
-                ed25519_keypair,
-                None,
-                ed25519_keypair2.public_key(),
-                x25519_keypair2.public_key(),
-                true,
-                &salt,
-            )
+            .create_session_state_machine(receiver_index, true, local, peer1.as_remote(), &salt)
             .unwrap();
 
         let retrieved = manager.state_machine_exists(sm_1_id);
@@ -252,24 +231,15 @@ mod tests {
     #[test]
     fn test_session_manager_remove() {
         let manager = SessionManager::new();
-        let ed25519_keypair = Arc::new(ed25519::KeyPair::from_secret([11u8; 32], 0));
-        let ed25519_keypair2 = Arc::new(ed25519::KeyPair::from_secret([16u8; 32], 0));
-
-        let x25519_keypair2 = Arc::new(ed25519_keypair2.to_x25519());
+        let mut rng = deterministic_rng();
+        let local = random_peer(&mut rng);
+        let peer1 = random_peer(&mut rng);
 
         let salt = [48u8; 32];
         let receiver_index: u32 = 2002;
 
         let sm_1_id = manager
-            .create_session_state_machine(
-                receiver_index,
-                ed25519_keypair,
-                None,
-                ed25519_keypair2.public_key(),
-                x25519_keypair2.public_key(),
-                true,
-                &salt,
-            )
+            .create_session_state_machine(receiver_index, true, local, peer1.as_remote(), &salt)
             .unwrap();
 
         let removed = manager.remove_state_machine(sm_1_id);
@@ -283,50 +253,24 @@ mod tests {
     #[test]
     fn test_multiple_sessions() {
         let manager = SessionManager::new();
-        let ed25519_keypair_1 = Arc::new(ed25519::KeyPair::from_secret([12u8; 32], 0));
-        let ed25519_keypair_2 = Arc::new(ed25519::KeyPair::from_secret([13u8; 32], 1));
-        let ed25519_keypair_3 = Arc::new(ed25519::KeyPair::from_secret([14u8; 32], 2));
-
-        let x25519_keypair_1 = Arc::new(ed25519_keypair_1.to_x25519());
-        let x25519_keypair_2 = Arc::new(ed25519_keypair_2.to_x25519());
-        let x25519_keypair_3 = Arc::new(ed25519_keypair_3.to_x25519());
+        let mut rng = deterministic_rng();
+        let local = random_peer(&mut rng);
+        let peer1 = random_peer(&mut rng);
+        let peer2 = random_peer(&mut rng);
+        let peer3 = random_peer(&mut rng);
 
         let salt = [49u8; 32];
 
         let sm_1 = manager
-            .create_session_state_machine(
-                3001,
-                ed25519_keypair_1.clone(),
-                None,
-                ed25519_keypair_2.public_key(),
-                x25519_keypair_2.public_key(),
-                true,
-                &salt,
-            )
+            .create_session_state_machine(3001, true, local.clone(), peer1.as_remote(), &salt)
             .unwrap();
 
         let sm_2 = manager
-            .create_session_state_machine(
-                3002,
-                ed25519_keypair_2,
-                None,
-                ed25519_keypair_3.public_key(),
-                x25519_keypair_3.public_key(),
-                true,
-                &salt,
-            )
+            .create_session_state_machine(3002, true, local.clone(), peer2.as_remote(), &salt)
             .unwrap();
 
         let sm_3 = manager
-            .create_session_state_machine(
-                3003,
-                ed25519_keypair_3,
-                None,
-                ed25519_keypair_1.public_key(),
-                x25519_keypair_1.public_key(),
-                true,
-                &salt,
-            )
+            .create_session_state_machine(3003, true, local.clone(), peer3.as_remote(), &salt)
             .unwrap();
 
         assert_eq!(manager.session_count(), 3);
@@ -343,21 +287,16 @@ mod tests {
     #[test]
     fn test_session_manager_create_session() {
         let manager = SessionManager::new();
-        let ed25519_keypair = Arc::new(ed25519::KeyPair::from_secret([15u8; 32], 0));
-        let ed25519_keypair2 = Arc::new(ed25519::KeyPair::from_secret([16u8; 32], 0));
+        let (init, resp) = mock_peers();
 
         let salt = [50u8; 32];
         let receiver_index: u32 = 4004;
 
-        let x25519_keypair2 = ed25519_keypair2.to_x25519();
-
         let sm = manager.create_session_state_machine(
             receiver_index,
-            ed25519_keypair,
-            None,
-            ed25519_keypair2.public_key(),
-            x25519_keypair2.public_key(),
             true,
+            init,
+            resp.as_remote(),
             &salt,
         );
 

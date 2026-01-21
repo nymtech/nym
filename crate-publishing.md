@@ -19,6 +19,7 @@ cargo workspaces publish --no-git-commit --dry-run
 ```
 
 ## CI
-There are two workflows:
-- `publish-crates-io-dry-run`: run this first! This is a remote dry-run on a runner.
-- `publish-crates-io`: actually push to crates.io
+There are several workflows that should be run in the following order:
+- `publish-crates-io-dry-run`: run this first! This is a remote dry-run on a runner. This greps for any errors that would be a problem when we're not dry-running. It doesn't catch all errors, as `dry-run` has a known issue where, assuming that 2 new crates are being uploaded, and crate B relies on crate A, if crate A isn't on crates.io (which it won't be, since you're dry-running publication), then since `cargo workspace publish` only checks for available versions on crates.io, it will error. We don't want the CI to fail in that case.
+- `ci-crates-version-bump`: this bumps the versions of the workspace + dependencies to the passed version, and then commits the change.
+- `ci-crates-publish`: this publishes the crates. So long as you're not uploading more than 5 new crates, pass `60` as the `--interval`. This is to get around [crates.io rate limiting](https://github.com/rust-lang/crates.io/blob/ad7e58e1afd65b9137e58a7bca3e1fb7f5546682/src/rate_limiter.rs#L24).

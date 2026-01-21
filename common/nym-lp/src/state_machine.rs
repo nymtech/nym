@@ -372,8 +372,7 @@ impl LpStateMachine {
                             }
                         }
                         LpMessage::KKTResponse(kkt_response) if session.is_initiator() => {
-                            // Initiator processes KKT response (signature-only mode with None)
-                            match session.process_kkt_response(&kkt_response.0, None) {
+                            match session.process_kkt_response(&kkt_response.0) {
                                 Ok(()) => {
                                     result_action = Some(Ok(LpAction::KKTComplete));
                                     // After successful KKT, move to Handshaking

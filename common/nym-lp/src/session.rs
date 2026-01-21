@@ -18,7 +18,6 @@ use crate::{LpError, LpMessage, LpPacket};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use nym_kkt::encryption::KKTSessionSecret;
-use nym_kkt::kkt::decrypt_kkt_response_frame;
 use parking_lot::Mutex;
 use rand::RngCore;
 use snow::Builder;
@@ -185,6 +184,9 @@ pub struct LpSession {
 
     /// Local KEM key used for PSQ
     local_kem_psq_keys: Option<Arc<x25519::KeyPair>>,
+
+    /// Expected digest of the remote's KEM key
+    remote_kem_key_digest: Vec<u8>,
 
     // PSQ-related keys stored for handshake
     /// Local Ed25519 keys for PSQ authentication
@@ -636,27 +638,14 @@ impl LpSession {
     /// # Arguments
     ///
     /// * `response_bytes` - Raw KKT response message from responder
-    /// * `expected_key_hash` - Optional expected hash of responder's KEM key.
-    ///   - `Some(hash)`: Full KKT validation (signature + hash) - use when directory service available
-    ///   - `None`: Signature-only validation (hash computed from received key) - temporary mode
+    /// * `expected_key_hash` - Expected hash of responder's KEM key.
     ///
     /// # Returns
     ///
     /// * `Ok(())` - KKT exchange completed, KEM key stored
     /// * `Err(LpError)` - Signature verification failed, hash mismatch, or invalid state
     ///
-    /// # Note
-    ///
-    /// When None is passed, the function computes the hash from the received key and validates against
-    /// that (effectively signature-only mode). This allows easy upgrade: just pass Some(directory_hash)
-    /// when directory service becomes available. The full KKT protocol with hash pinning provides
-    /// protection against key substitution attacks.
-    pub fn process_kkt_response(
-        &self,
-        response_bytes: &[u8],
-        expected_key_hash: Option<&[u8]>,
-    ) -> Result<(), LpError> {
-        use nym_kkt::key_utils::hash_encapsulation_key;
+    pub fn process_kkt_response(&self, response_bytes: &[u8]) -> Result<(), LpError> {
         use nym_kkt::kkt::validate_kem_response;
 
         let mut kkt_state = self.kkt_state.lock();
@@ -674,33 +663,12 @@ impl LpSession {
             }
         };
 
-        // Determine hash to validate against
-        let hash_for_validation: Vec<u8>;
-        let hash_ref = match expected_key_hash {
-            Some(hash) => hash,
-            None => {
-                // Signature-only mode: extract key from response and compute its hash
-                // This effectively bypasses hash validation while keeping signature validation
-                let (frame, _) = decrypt_kkt_response_frame(&session_secret, response_bytes)
-                    .map_err(|e| {
-                        LpError::Internal(format!("Failed to decrypt KKT response: {:?}", e))
-                    })?;
-
-                hash_for_validation = hash_encapsulation_key(
-                    &context.ciphersuite().hash_function(),
-                    context.ciphersuite().hash_len(),
-                    frame.body_ref(),
-                );
-                &hash_for_validation
-            }
-        };
-
         // Validate response and extract KEM key
         let kem_pk = validate_kem_response(
             &mut context,
             &session_secret,
             &self.remote_ed25519_public,
-            hash_ref,
+            &self.remote_kem_key_digest,
             response_bytes,
         )
         .map_err(|e| LpError::Internal(format!("KKT response validation failed: {:?}", e)))?;

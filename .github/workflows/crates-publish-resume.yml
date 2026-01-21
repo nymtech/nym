@@ -1,0 +1,58 @@
+name: Resume crates.io publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      resume_after:
+        description: "Last successfully published crate (will start from the next one)"
+        required: true
+        type: string
+      publish_interval:
+        description: "Seconds to wait between publishes"
+        required: false
+        default: "600"
+        type: string
+
+jobs:
+  publish:
+    runs-on: arc-linux-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-workspaces
+        run: cargo install cargo-workspaces
+
+      # Get crates in publish order, skip up to and including resume_after
+      - name: Publish remaining crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          CRATES=$(cargo workspaces plan 2>/dev/null | sed -n '/^${{ inputs.resume_after }}$/,$p' | tail -n +2)
+
+          if [ -z "$CRATES" ]; then
+            echo "Error: No crates found after '${{ inputs.resume_after }}'"
+            echo "Check the crate name matches exactly from 'cargo workspaces plan'"
+            exit 1
+          fi
+
+          echo "Will publish the following crates:"
+          echo "$CRATES"
+          echo ""
+
+          echo "$CRATES" | while read crate; do
+            echo "Publishing $crate..."
+            cargo publish -p "$crate" --allow-dirty
+            echo "Waiting ${{ inputs.publish_interval }}s before next publish..."
+            sleep ${{ inputs.publish_interval }}
+          done
+
+      - name: Show package versions
+        run: cargo workspaces list --long

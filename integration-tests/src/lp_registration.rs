@@ -11,8 +11,8 @@ mod tests {
     use nym_gateway::GatewayError;
     use nym_gateway::node::lp_listener::handler::LpConnectionHandler;
     use nym_gateway::node::lp_listener::{
-        LpDebug, LpHandlerState, MixForwardingReceiver, PeerControlRequest, WireguardGatewayData,
-        mix_forwarding_channels,
+        LpDebug, LpHandlerState, LpLocalPeer, MixForwardingReceiver, PeerControlRequest,
+        WireguardGatewayData, mix_forwarding_channels,
     };
     use nym_gateway::node::{ActiveClientsStore, GatewayStorage, LpConfig};
     use nym_registration_client::{LpClientError, LpRegistrationClient};
@@ -46,7 +46,7 @@ mod tests {
     }
 
     struct Party {
-        ed25519_keys: Arc<ed25519::KeyPair>,
+        peer: LpLocalPeer,
         x25519_wg_keys: Arc<x25519::KeyPair>,
         socket_addr: SocketAddr,
     }
@@ -58,10 +58,15 @@ mod tests {
 
             rng.fill_bytes(&mut ip);
             rng.fill_bytes(&mut port);
+            let ed25519_keys = Arc::new(ed25519::KeyPair::new(rng));
+            let x25519_wg_keys = Arc::new(x25519::KeyPair::new(rng));
+
+            let lp_x25519_keys = Arc::new(ed25519_keys.to_x25519());
 
             Party {
-                ed25519_keys: Arc::new(ed25519::KeyPair::new(rng)),
-                x25519_wg_keys: Arc::new(x25519::KeyPair::new(rng)),
+                peer: LpLocalPeer::new(ed25519_keys, lp_x25519_keys.clone())
+                    .with_kem_psq_key(lp_x25519_keys),
+                x25519_wg_keys,
                 socket_addr: SocketAddr::from((ip, u16::from_le_bytes(port))),
             }
         }
@@ -207,11 +212,7 @@ mod tests {
                 // use in-memory database (no need for persistency)
                 storage,
 
-                // reuse the same identity we just generated
-                local_identity: base.ed25519_keys.clone(),
-
-                // we don't care about metrics - all zeroes are perfectly fine
-                kem_psq_keys: Arc::new(base.ed25519_keys.to_x25519()),
+                local_lp_peer: base.peer.clone(),
 
                 metrics: Default::default(),
 
@@ -388,8 +389,8 @@ mod tests {
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
             let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
-                client_data.base.ed25519_keys,
-                *entry.base.ed25519_keys.public_key(),
+                client_data.base.peer.ed25519().clone(),
+                entry.base.peer.as_remote(),
                 entry.base.socket_addr,
                 client_data.base.socket_addr.ip(),
             );
@@ -438,7 +439,7 @@ mod tests {
 
             // 6. perform registration with entry only
             let wg_keypair = client_data.base.x25519_wg_keys;
-            let gateway_identity = entry.base.ed25519_keys.public_key();
+            let gateway_identity = entry.base.peer.ed25519().public_key();
             let registration_result = client
                 .register(
                     &wg_keypair,
@@ -479,8 +480,8 @@ mod tests {
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
             let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
-                client_data.base.ed25519_keys,
-                *entry.base.ed25519_keys.public_key(),
+                client_data.base.peer.ed25519().clone(),
+                entry.base.peer.as_remote(),
                 entry.base.socket_addr,
                 client_data.base.socket_addr.ip(),
             );
@@ -504,7 +505,7 @@ mod tests {
             // 4. perform registration with entry only
             // but WITHOUT performing the handshake
             let wg_keypair = client_data.base.x25519_wg_keys;
-            let gateway_identity = entry.base.ed25519_keys.public_key();
+            let gateway_identity = entry.base.peer.ed25519().public_key();
             let registration_result = client
                 .register(
                     &wg_keypair,
@@ -539,8 +540,8 @@ mod tests {
             let mut exit = Gateway::mock(&mut exit_rng).await?;
 
             let mut entry_client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
-                client_data.base.ed25519_keys.clone(),
-                *entry.base.ed25519_keys.public_key(),
+                client_data.base.peer.ed25519().clone(),
+                entry.base.peer.as_remote(),
                 entry.base.socket_addr,
                 client_data.base.socket_addr.ip(),
             );
@@ -638,10 +639,9 @@ mod tests {
             // technically we should use different ephemeral keys than we had for the entry
             // but crypto is going to work the same
             let mut nested_session = NestedLpSession::new(
-                exit.base.ed25519_keys.public_key().to_bytes(),
                 exit.base.socket_addr.to_string(),
-                client_data.base.ed25519_keys,
-                *exit.base.ed25519_keys.public_key(),
+                client_data.base.peer.ed25519().clone(),
+                exit.base.peer.as_remote(),
             );
 
             // 13. Perform handshake and registration with exit gateway (all via entry forwarding)
@@ -649,7 +649,7 @@ mod tests {
                 .handshake_and_register(
                     &mut entry_client,
                     &client_data.base.x25519_wg_keys,
-                    exit.base.ed25519_keys.public_key(),
+                    exit.base.peer.ed25519().public_key(),
                     &client_data.ticket_provider,
                     TicketType::V1WireguardExit,
                     client_data.base.socket_addr.ip(),
@@ -661,7 +661,7 @@ mod tests {
             let entry_registration_result = entry_client
                 .register(
                     &client_data.base.x25519_wg_keys,
-                    entry.base.ed25519_keys.public_key(),
+                    entry.base.peer.ed25519().public_key(),
                     &client_data.ticket_provider,
                     TicketType::V1WireguardEntry,
                 )

@@ -46,6 +46,7 @@ pub use nym_gateway_storage::{
     traits::{BandwidthGatewayStorage, InboxGatewayStorage},
     GatewayStorage,
 };
+use nym_lp::peer::LpLocalPeer;
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
 pub(crate) mod client_handling;
@@ -330,11 +331,21 @@ impl GatewayTasksBuilder {
             .as_ref()
             .map(|wg_data| wg_data.inner.peer_tx().clone());
 
+        // We use standard RFC 7748 conversion to derive X25519 keys from Ed25519 identity keys.
+        // This allows callers to provide only Ed25519 keys (which they already have for signing/identity)
+        // without needing to manage separate X25519 keypairs.
+        //
+        // Security: Ed25519→X25519 conversion is cryptographically sound (RFC 7748).
+        // The derived X25519 keys are used for:
+        // - Noise protocol ephemeral DH
+        // - PSQ ECDH baseline security (pre-quantum)
+        let x25519_keys = Arc::new(self.identity_keypair.to_x25519());
+
         let handler_state = lp_listener::LpHandlerState {
             ecash_verifier: self.ecash_manager().await?,
             storage: self.storage.clone(),
-            local_identity: Arc::clone(&self.identity_keypair),
-            kem_psq_keys: Arc::clone(&self.kem_psq_keys),
+            local_lp_peer: LpLocalPeer::new(self.identity_keypair.clone(), x25519_keys)
+                .with_kem_psq_key(self.kem_psq_keys.clone()),
             metrics: self.metrics.clone(),
             active_clients_store,
             wg_peer_controller,

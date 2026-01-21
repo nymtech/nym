@@ -33,8 +33,16 @@ impl LpLocalPeer {
         self
     }
 
+    pub fn ed25519(&self) -> &Arc<ed25519::KeyPair> {
+        &self.ed25519
+    }
+
+    pub fn x25519(&self) -> &Arc<x25519::KeyPair> {
+        &self.x25519
+    }
+
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
-    #[cfg(test)]
+    #[doc(hidden)]
     pub fn as_remote(&self) -> LpRemotePeer {
         let expected_kem_key_digest = match &self.kem_psq {
             None => Vec::new(),
@@ -84,6 +92,14 @@ impl LpRemotePeer {
             x25519_public,
             expected_kem_key_digest: vec![],
         }
+    }
+
+    pub fn ed25519(&self) -> ed25519::PublicKey {
+        self.ed25519_public
+    }
+
+    pub fn x25519(&self) -> x25519::PublicKey {
+        self.x25519_public
     }
 
     #[must_use]

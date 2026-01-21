@@ -346,13 +346,12 @@ pub async fn process_registration(
             }
 
             // Get gateway identity and derive sphinx key
-            let gateway_identity = state.local_identity.public_key().to_bytes();
+            let ed25519_key = state.local_lp_peer.ed25519().public_key();
+            let gateway_identity = ed25519_key.to_bytes();
 
             warn!("TEMPORARY ed25519 -> x25519 conversion");
             #[allow(clippy::expect_used)]
-            let gateway_sphinx_key = state
-                .local_identity
-                .public_key()
+            let gateway_sphinx_key = ed25519_key
                 .to_x25519()
                 .expect("valid ed25519 key should convert to x25519")
                 .to_bytes();

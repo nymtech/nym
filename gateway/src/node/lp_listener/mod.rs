@@ -71,11 +71,14 @@ use crate::error::GatewayError;
 use crate::node::ActiveClientsStore;
 use dashmap::DashMap;
 use nym_config::serde_helpers::de_maybe_port;
-use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway_storage::GatewayStorage;
 use nym_lp::state_machine::LpStateMachine;
+pub use nym_mixnet_client::forwarder::{
+    mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender,
+};
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
+pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
@@ -83,10 +86,7 @@ use tokio::net::TcpListener;
 use tokio::sync::{mpsc, Semaphore};
 use tracing::*;
 
-pub use nym_mixnet_client::forwarder::{
-    mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender,
-};
-pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
+pub use nym_lp::peer::LpLocalPeer;
 
 mod data_handler;
 pub mod handler;
@@ -339,11 +339,8 @@ pub struct LpHandlerState {
     /// Storage backend for persistence
     pub storage: GatewayStorage,
 
-    /// Gateway's identity keypair
-    pub local_identity: Arc<ed25519::KeyPair>,
-
-    /// x25519 (for now, to be changed into MlKem) keypair used for the PSQ derivation
-    pub kem_psq_keys: Arc<x25519::KeyPair>,
+    /// Encapsulates all required key information of a local Lewes Protocol Peer.
+    pub local_lp_peer: LpLocalPeer,
 
     /// Metrics collection
     pub metrics: NymNodeMetrics,

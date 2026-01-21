@@ -5,14 +5,13 @@ use crate::node_describe_cache::NodeDescribeCacheError;
 use futures::future::{maybe_done, MaybeDone};
 use futures::{FutureExt, TryFutureExt};
 use nym_api_requests::models::{
-    AuthenticatorDetails, DeclaredRoles, HostInformation, IpPacketRouterDetails,
+    AuthenticatorDetails, AuxiliaryDetails, DeclaredRoles, HostInformation, IpPacketRouterDetails,
     LewesProtocolDetails, NetworkRequesterDetails, NymNodeData, WebSockets, WireguardDetails,
 };
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_config::defaults::mainnet;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
-use nym_node_requests::api::v1::node::models::AuxiliaryDetails;
 use nym_node_requests::api::Client;
 use pin_project::pin_project;
 use std::future::Future;
@@ -55,6 +54,7 @@ pub(crate) async fn query_for_described_data(
                 // old nym-nodes will not have this field, so use the default instead
                 debug!("could not obtain auxiliary details of node {node_id}: {err} is it running an old version?")
             })
+            .ok_into()
             .unwrap_or_else(|_| AuxiliaryDetails::default()),
         client.get_mixnet_websockets().ok_into().map_err(map_query_err),
         network_requester_future(client).map_err(map_query_err),

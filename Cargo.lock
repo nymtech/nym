@@ -5403,6 +5403,7 @@ name = "nym-api-requests"
 version = "1.20.1"
 dependencies = [
  "bs58",
+ "celes",
  "cosmrs",
  "cosmwasm-std",
  "ecdsa",
@@ -5427,6 +5428,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "strum",
+ "strum_macros",
  "tendermint",
  "tendermint-rpc",
  "thiserror 2.0.17",
@@ -7118,6 +7121,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-http-api-common",
  "nym-ip-packet-router",
+ "nym-kkt",
  "nym-metrics",
  "nym-mixnet-client",
  "nym-network-requester",

@@ -190,6 +190,7 @@ impl LpStateMachine {
     /// * `is_initiator` - Whether this side initiates the handshake
     /// * `local_ed25519_keypair` - Ed25519 keypair for PSQ authentication and X25519 derivation
     ///   (from client identity key or gateway signing key)
+    /// * `local_psq_kem_keypair` - local x25519 (for now, to be changed into MlKem) keypair used for the PSQ derivation
     /// * `remote_ed25519_key` - Peer's Ed25519 public key for PSQ authentication
     /// * `remote_x25519_key` - Peer's x25519 public key for Noise protocol and DHKEM
     /// * `salt` - Fresh salt for PSK derivation (must be unique per session)
@@ -202,6 +203,7 @@ impl LpStateMachine {
         receiver_index: u32,
         is_initiator: bool,
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
+        local_psq_kem_keypair: Option<Arc<x25519::KeyPair>>,
         remote_ed25519_key: &ed25519::PublicKey,
         remote_x25519_key: &x25519::PublicKey,
         salt: &[u8; 32],
@@ -225,6 +227,7 @@ impl LpStateMachine {
             is_initiator,
             local_ed25519_keypair,
             local_x25519,
+            local_psq_kem_keypair,
             remote_ed25519_key,
             remote_x25519_key,
             salt,
@@ -1089,12 +1092,11 @@ mod tests {
     #[test]
     fn test_state_machine_init() {
         // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([16u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([17u8; 32], 1);
+        let ed25519_keypair_init = Arc::new(ed25519::KeyPair::from_secret([16u8; 32], 0));
+        let ed25519_keypair_resp = Arc::new(ed25519::KeyPair::from_secret([17u8; 32], 1));
 
-        let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
-        let x25519_pubkey_init = ed25519_pubkey_init.to_x25519().unwrap();
-        let x25519_pubkey_resp = *ed25519_keypair_resp.to_x25519().public_key();
+        let x25519_keypair_init = Arc::new(ed25519_keypair_init.to_x25519());
+        let x25519_keypair_resp = Arc::new(ed25519_keypair_resp.to_x25519());
 
         // Test salt
         let salt = [51u8; 32];
@@ -1104,9 +1106,10 @@ mod tests {
         let initiator_sm = LpStateMachine::new(
             receiver_index,
             true,
-            Arc::new(ed25519_keypair_init),
+            ed25519_keypair_init.clone(),
+            None,
             ed25519_keypair_resp.public_key(),
-            &x25519_pubkey_resp,
+            x25519_keypair_resp.public_key(),
             &salt,
         );
         assert!(initiator_sm.is_ok());
@@ -1121,9 +1124,10 @@ mod tests {
         let responder_sm = LpStateMachine::new(
             receiver_index,
             false,
-            Arc::new(ed25519_keypair_resp),
-            &ed25519_pubkey_init,
-            &x25519_pubkey_init,
+            ed25519_keypair_resp.clone(),
+            Some(x25519_keypair_resp.clone()),
+            ed25519_keypair_init.public_key(),
+            x25519_keypair_init.public_key(),
             &salt,
         );
         assert!(responder_sm.is_ok());
@@ -1142,12 +1146,11 @@ mod tests {
     #[test]
     fn test_state_machine_simplified_flow() {
         // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([18u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([19u8; 32], 1);
+        let ed25519_keypair_init = Arc::new(ed25519::KeyPair::from_secret([18u8; 32], 0));
+        let ed25519_keypair_resp = Arc::new(ed25519::KeyPair::from_secret([19u8; 32], 1));
 
-        let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
-        let x25519_pubkey_init = ed25519_pubkey_init.to_x25519().unwrap();
-        let x25519_pubkey_resp = *ed25519_keypair_resp.to_x25519().public_key();
+        let x25519_keypair_init = Arc::new(ed25519_keypair_init.to_x25519());
+        let x25519_keypair_resp = Arc::new(ed25519_keypair_resp.to_x25519());
 
         // Test salt
         let salt = [52u8; 32];
@@ -1157,9 +1160,10 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true, // is_initiator
-            Arc::new(ed25519_keypair_init),
+            ed25519_keypair_init.clone(),
+            None,
             ed25519_keypair_resp.public_key(),
-            &x25519_pubkey_resp,
+            x25519_keypair_resp.public_key(),
             &salt,
         )
         .unwrap();
@@ -1167,9 +1171,10 @@ mod tests {
         let mut responder = LpStateMachine::new(
             receiver_index,
             false, // is_initiator
-            Arc::new(ed25519_keypair_resp),
-            &ed25519_pubkey_init,
-            &x25519_pubkey_init,
+            ed25519_keypair_resp,
+            Some(x25519_keypair_resp),
+            ed25519_keypair_init.public_key(),
+            x25519_keypair_init.public_key(),
             &salt,
         )
         .unwrap();
@@ -1350,10 +1355,10 @@ mod tests {
     #[test]
     fn test_kkt_exchange_initiator_flow() {
         // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([20u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([21u8; 32], 1);
+        let ed25519_keypair_init = Arc::new(ed25519::KeyPair::from_secret([20u8; 32], 0));
+        let ed25519_keypair_resp = Arc::new(ed25519::KeyPair::from_secret([21u8; 32], 1));
 
-        let x25519_pubkey_init = *ed25519_keypair_init.to_x25519().public_key();
+        let x25519_keypair_init = Arc::new(ed25519_keypair_init.to_x25519());
 
         let salt = [53u8; 32];
         let receiver_index: u32 = 99901;
@@ -1362,9 +1367,10 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            Arc::new(ed25519_keypair_init),
+            ed25519_keypair_init.clone(),
+            None,
             ed25519_keypair_resp.public_key(),
-            &x25519_pubkey_init,
+            x25519_keypair_init.public_key(),
             &salt,
         )
         .unwrap();
@@ -1381,11 +1387,11 @@ mod tests {
     #[test]
     fn test_kkt_exchange_responder_flow() {
         // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([22u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([23u8; 32], 1);
+        let ed25519_keypair_init = Arc::new(ed25519::KeyPair::from_secret([22u8; 32], 0));
+        let ed25519_keypair_resp = Arc::new(ed25519::KeyPair::from_secret([23u8; 32], 1));
 
-        let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
-        let x25519_pubkey_init = ed25519_pubkey_init.to_x25519().unwrap();
+        let x25519_keypair_init = Arc::new(ed25519_keypair_init.to_x25519());
+        let x25519_keypair_resp = Arc::new(ed25519_keypair_resp.to_x25519());
 
         let salt = [54u8; 32];
         let receiver_index: u32 = 99902;
@@ -1394,9 +1400,10 @@ mod tests {
         let mut responder = LpStateMachine::new(
             receiver_index,
             false,
-            Arc::new(ed25519_keypair_resp),
-            &ed25519_pubkey_init,
-            &x25519_pubkey_init,
+            ed25519_keypair_resp,
+            Some(x25519_keypair_resp),
+            ed25519_keypair_init.public_key(),
+            x25519_keypair_init.public_key(),
             &salt,
         )
         .unwrap();
@@ -1413,12 +1420,11 @@ mod tests {
     #[test]
     fn test_kkt_exchange_full_roundtrip() {
         // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([24u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([25u8; 32], 1);
+        let ed25519_keypair_init = Arc::new(ed25519::KeyPair::from_secret([24u8; 32], 0));
+        let ed25519_keypair_resp = Arc::new(ed25519::KeyPair::from_secret([25u8; 32], 1));
 
-        let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
-        let x25519_pubkey_init = ed25519_pubkey_init.to_x25519().unwrap();
-        let x25519_pubkey_resp = *ed25519_keypair_resp.to_x25519().public_key();
+        let x25519_keypair_init = Arc::new(ed25519_keypair_init.to_x25519());
+        let x25519_keypair_resp = Arc::new(ed25519_keypair_resp.to_x25519());
 
         let salt = [55u8; 32];
         let receiver_index: u32 = 99903;
@@ -1427,9 +1433,10 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            Arc::new(ed25519_keypair_init),
+            ed25519_keypair_init.clone(),
+            None,
             ed25519_keypair_resp.public_key(),
-            &x25519_pubkey_resp,
+            x25519_keypair_resp.public_key(),
             &salt,
         )
         .unwrap();
@@ -1437,9 +1444,10 @@ mod tests {
         let mut responder = LpStateMachine::new(
             receiver_index,
             false,
-            Arc::new(ed25519_keypair_resp),
-            &ed25519_pubkey_init,
-            &x25519_pubkey_init,
+            ed25519_keypair_resp,
+            Some(x25519_keypair_resp),
+            ed25519_keypair_init.public_key(),
+            x25519_keypair_init.public_key(),
             &salt,
         )
         .unwrap();
@@ -1478,10 +1486,10 @@ mod tests {
     #[test]
     fn test_kkt_exchange_close() {
         // Ed25519 keypairs for KKT authentication
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([26u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([27u8; 32], 1);
+        let ed25519_keypair_init = Arc::new(ed25519::KeyPair::from_secret([26u8; 32], 0));
+        let ed25519_keypair_resp = Arc::new(ed25519::KeyPair::from_secret([27u8; 32], 1));
 
-        let x25519_pubkey_resp = *ed25519_keypair_resp.to_x25519().public_key();
+        let x25519_keypair_resp = Arc::new(ed25519_keypair_resp.to_x25519());
 
         let salt = [56u8; 32];
         let receiver_index: u32 = 99904;
@@ -1490,9 +1498,10 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            Arc::new(ed25519_keypair_init),
+            ed25519_keypair_init.clone(),
+            None,
             ed25519_keypair_resp.public_key(),
-            &x25519_pubkey_resp,
+            x25519_keypair_resp.public_key(),
             &salt,
         )
         .unwrap();
@@ -1510,10 +1519,10 @@ mod tests {
     #[test]
     fn test_kkt_exchange_rejects_invalid_inputs() {
         // Ed25519 keypairs for KKT authentication
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([28u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([29u8; 32], 1);
+        let ed25519_keypair_init = Arc::new(ed25519::KeyPair::from_secret([28u8; 32], 0));
+        let ed25519_keypair_resp = Arc::new(ed25519::KeyPair::from_secret([29u8; 32], 1));
 
-        let x25519_pubkey_resp = *ed25519_keypair_resp.to_x25519().public_key();
+        let x25519_keypair_resp = Arc::new(ed25519_keypair_resp.to_x25519());
 
         let salt = [57u8; 32];
         let receiver_index: u32 = 99905;
@@ -1522,9 +1531,10 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            Arc::new(ed25519_keypair_init),
+            ed25519_keypair_init.clone(),
+            None,
             ed25519_keypair_resp.public_key(),
-            &x25519_pubkey_resp,
+            x25519_keypair_resp.public_key(),
             &salt,
         )
         .unwrap();
@@ -1555,13 +1565,11 @@ mod tests {
     fn setup_transport_sessions() -> (LpStateMachine, LpStateMachine) {
         // Use different seeds to get different X25519 keys.
         // The tie-breaker compares X25519 public keys.
-        let ed25519_keypair_a = ed25519::KeyPair::from_secret([30u8; 32], 0);
-        let ed25519_keypair_b = ed25519::KeyPair::from_secret([31u8; 32], 1);
+        let ed25519_keypair_a = Arc::new(ed25519::KeyPair::from_secret([30u8; 32], 0));
+        let ed25519_keypair_b = Arc::new(ed25519::KeyPair::from_secret([31u8; 32], 1));
 
-        let ed25519_pubkey_a = *ed25519_keypair_a.public_key();
-
-        let x25519_pubkey_a = *ed25519_keypair_a.to_x25519().public_key();
-        let x25519_pubkey_b = *ed25519_keypair_b.to_x25519().public_key();
+        let x25519_keypair_a = Arc::new(ed25519_keypair_a.to_x25519());
+        let x25519_keypair_b = Arc::new(ed25519_keypair_b.to_x25519());
 
         let salt = [60u8; 32];
         let receiver_index: u32 = 111111;
@@ -1570,9 +1578,10 @@ mod tests {
         let mut alice = LpStateMachine::new(
             receiver_index,
             true,
-            Arc::new(ed25519_keypair_a),
+            ed25519_keypair_a.clone(),
+            None,
             ed25519_keypair_b.public_key(),
-            &x25519_pubkey_b,
+            x25519_keypair_b.public_key(),
             &salt,
         )
         .unwrap();
@@ -1580,9 +1589,10 @@ mod tests {
         let mut bob = LpStateMachine::new(
             receiver_index,
             false,
-            Arc::new(ed25519_keypair_b),
-            &ed25519_pubkey_a,
-            &x25519_pubkey_a,
+            ed25519_keypair_b,
+            Some(x25519_keypair_b),
+            ed25519_keypair_a.public_key(),
+            x25519_keypair_a.public_key(),
             &salt,
         )
         .unwrap();

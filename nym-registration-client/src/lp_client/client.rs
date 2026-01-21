@@ -386,6 +386,7 @@ where
             receiver_index,
             true, // is_initiator
             self.local_ed25519_keypair.clone(),
+            None, // no need for KEM keys as initiator
             &self.gateway_ed25519_public_key,
             &gateway_x25519_public,
             &salt,

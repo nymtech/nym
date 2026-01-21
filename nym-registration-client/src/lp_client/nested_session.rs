@@ -196,6 +196,7 @@ impl NestedLpSession {
             receiver_index,
             true, // is_initiator
             self.client_keypair.clone(),
+            None, // no need for KEM keys as initiator
             &self.exit_public_key,
             &gateway_x25519_public,
             &salt,

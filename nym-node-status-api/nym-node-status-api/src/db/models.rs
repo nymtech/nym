@@ -8,7 +8,7 @@ use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
-use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, NodeDescription};
+use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
     client::NymNodeDetails, models::NymNodeDescription, nym_api::SkimmedNode,
 };
@@ -226,8 +226,8 @@ use mixnode::MixnodeSummary;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::models::{
-    AuthenticatorDetails, DeclaredRoles, DescribedNodeType, HostInformation, HostKeys,
-    IpPacketRouterDetails, LewesProtocolDetails, NetworkRequesterDetails, NymNodeData,
+    AuthenticatorDetails, AuxiliaryDetails, DeclaredRoles, DescribedNodeType, HostInformation,
+    HostKeys, IpPacketRouterDetails, LewesProtocolDetails, NetworkRequesterDetails, NymNodeData,
     OffsetDateTimeJsonSchemaWrapper, SphinxKey, VersionedNoiseKey, WebSockets, WireguardDetails,
 };
 

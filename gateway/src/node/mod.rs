@@ -16,7 +16,7 @@ use nym_credential_verification::ecash::{
 use nym_credential_verification::upgrade_mode::{
     UpgradeModeCheckConfig, UpgradeModeDetails, UpgradeModeState,
 };
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_router::IpPacketRouter;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
@@ -92,6 +92,9 @@ pub struct GatewayTasksBuilder {
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<ed25519::KeyPair>,
 
+    /// x25519 (for now, to be changed into MlKem) keypair used for the PSQ derivation
+    kem_psq_keys: Arc<x25519::KeyPair>,
+
     storage: GatewayStorage,
 
     mix_packet_sender: MixForwardingSender,
@@ -120,6 +123,7 @@ impl GatewayTasksBuilder {
     pub fn new(
         config: Config,
         identity: Arc<ed25519::KeyPair>,
+        kem_psq_keys: Arc<x25519::KeyPair>,
         storage: GatewayStorage,
         mix_packet_sender: MixForwardingSender,
         metrics_sender: MetricEventsSender,
@@ -137,6 +141,7 @@ impl GatewayTasksBuilder {
             wireguard_data: None,
             user_agent,
             identity_keypair: identity,
+            kem_psq_keys,
             storage,
             mix_packet_sender,
             metrics_sender,
@@ -329,6 +334,7 @@ impl GatewayTasksBuilder {
             ecash_verifier: self.ecash_manager().await?,
             storage: self.storage.clone(),
             local_identity: Arc::clone(&self.identity_keypair),
+            kem_psq_keys: Arc::clone(&self.kem_psq_keys),
             metrics: self.metrics.clone(),
             active_clients_store,
             wg_peer_controller,

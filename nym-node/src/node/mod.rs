@@ -42,6 +42,8 @@ use nym_bin_common::bin_info;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder, UpgradeModeCheckRequestSender};
+use nym_kkt::ciphersuite::{DEFAULT_HASH_LEN, HashFunction};
+use nym_kkt::key_utils::hash_encapsulation_key;
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_requester::{
@@ -50,6 +52,7 @@ use nym_network_requester::{
 };
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::events::MetricEventsSender;
+use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM};
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKey;
@@ -62,6 +65,7 @@ use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::path::Path;
@@ -84,6 +88,7 @@ mod shared_network;
 
 pub struct GatewayTasksData {
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
+    psq_kem_key: Arc<x25519::KeyPair>,
     client_storage: nym_gateway::node::GatewayStorage,
     stats_storage: nym_gateway::node::PersistentStatsStorage,
 }
@@ -105,7 +110,11 @@ impl GatewayTasksData {
         Ok(())
     }
 
-    async fn new(config: &GatewayTasksConfig) -> Result<GatewayTasksData, EntryGatewayError> {
+    async fn new(
+        config: &GatewayTasksConfig,
+        // this argument is temporary while we still derive KEM x25519 out of identity ed25519
+        ed25519_identity: &ed25519::KeyPair,
+    ) -> Result<GatewayTasksData, EntryGatewayError> {
         let client_storage = nym_gateway::node::GatewayStorage::init(
             &config.storage_paths.clients_storage,
             config.debug.message_retrieval_limit,
@@ -120,6 +129,7 @@ impl GatewayTasksData {
 
         Ok(GatewayTasksData {
             mnemonic: Arc::new(config.storage_paths.load_mnemonic_from_file()?),
+            psq_kem_key: Arc::new(ed25519_identity.to_x25519()),
             client_storage,
             stats_storage,
         })
@@ -454,10 +464,14 @@ impl NymNode {
         let current_rotation_id =
             get_current_rotation_id(&config.mixnet.nym_api_urls, &config.mixnet.nyxd_urls).await?;
 
+        let ed25519_identity_keys = load_ed25519_identity_keypair(
+            &config.storage_paths.keys.ed25519_identity_storage_paths(),
+        )?;
+        let entry_gateway =
+            GatewayTasksData::new(&config.gateway_tasks, &ed25519_identity_keys).await?;
+
         Ok(NymNode {
-            ed25519_identity_keys: Arc::new(load_ed25519_identity_keypair(
-                &config.storage_paths.keys.ed25519_identity_storage_paths(),
-            )?),
+            ed25519_identity_keys: Arc::new(ed25519_identity_keys),
             sphinx_key_manager: Some(SphinxKeyManager::try_load_or_regenerate(
                 current_rotation_id,
                 &config.storage_paths.keys.primary_x25519_sphinx_key_file,
@@ -469,7 +483,7 @@ impl NymNode {
             description: load_node_description(&config.storage_paths.description)?,
             metrics: NymNodeMetrics::new(),
             verloc_stats: Default::default(),
-            entry_gateway: GatewayTasksData::new(&config.gateway_tasks).await?,
+            entry_gateway,
             upgrade_mode_state: UpgradeModeState::new(
                 config.gateway_tasks.upgrade_mode.attester_public_key,
             ),
@@ -631,6 +645,7 @@ impl NymNode {
         let mut gateway_tasks_builder = GatewayTasksBuilder::new(
             config.gateway,
             self.ed25519_identity_keys.clone(),
+            self.entry_gateway.psq_kem_key.clone(),
             self.entry_gateway.client_storage.clone(),
             mix_packet_sender,
             metrics_sender,
@@ -760,6 +775,32 @@ impl NymNode {
         Ok(())
     }
 
+    fn compute_kem_key_hashes(&self) -> (LPKEM, HashMap<LPHashFunction, Vec<u8>>) {
+        let kem = LPKEM::X25519;
+        let mut hashes = HashMap::new();
+
+        let kem_key_bytes = self.entry_gateway.psq_kem_key.public_key().as_bytes();
+
+        hashes.insert(
+            LPHashFunction::Blake3,
+            hash_encapsulation_key(&HashFunction::Blake3, DEFAULT_HASH_LEN, kem_key_bytes),
+        );
+        hashes.insert(
+            LPHashFunction::Shake128,
+            hash_encapsulation_key(&HashFunction::SHAKE128, DEFAULT_HASH_LEN, kem_key_bytes),
+        );
+        hashes.insert(
+            LPHashFunction::Shake256,
+            hash_encapsulation_key(&HashFunction::SHAKE256, DEFAULT_HASH_LEN, kem_key_bytes),
+        );
+        hashes.insert(
+            LPHashFunction::Sha256,
+            hash_encapsulation_key(&HashFunction::SHA256, DEFAULT_HASH_LEN, kem_key_bytes),
+        );
+
+        (kem, hashes)
+    }
+
     pub(crate) async fn build_http_server(&self) -> Result<NymNodeHttpServer, NymNodeError> {
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
             location: self.config.host.location,
@@ -833,11 +874,13 @@ impl NymNode {
                 policy: None,
             };
 
-        let lp_details = api_requests::v1::lewes_protocol::models::LewesProtocol {
-            enabled: self.modes().entry,
-            control_port: self.config.gateway_tasks.lp.announced_control_port(),
-            data_port: self.config.gateway_tasks.lp.announced_data_port(),
-        };
+        let (kem, hashes) = self.compute_kem_key_hashes();
+        let lp_details = api_requests::v1::lewes_protocol::models::LewesProtocol::new(
+            self.modes().entry,
+            self.config.gateway_tasks.lp.announced_control_port(),
+            self.config.gateway_tasks.lp.announced_data_port(),
+        )
+        .with_kem_key_hashes(kem, hashes);
 
         let mut config = HttpServerConfig::new()
             .with_landing_page_assets(self.config.http.landing_page_assets_path.as_ref())

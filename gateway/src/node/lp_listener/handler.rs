@@ -343,6 +343,7 @@ where
             receiver_index,
             false, // responder
             self.state.local_identity.clone(),
+            Some(self.state.kem_psq_keys.clone()),
             &hello_data.client_ed25519_public_key,
             &hello_data.client_lp_public_key,
             &hello_data.salt,
@@ -1282,12 +1283,15 @@ mod tests {
         // Create mix forwarding channel (unused in tests but required by struct)
         let (mix_sender, _mix_receiver) = nym_mixnet_client::forwarder::mix_forwarding_channels();
 
+        let id_keys = ed25519::KeyPair::new(&mut OsRng);
+
         LpHandlerState {
             lp_config,
             ecash_verifier: Arc::new(ecash_verifier)
                 as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
             storage,
-            local_identity: Arc::new(ed25519::KeyPair::new(&mut OsRng)),
+            kem_psq_keys: Arc::new(id_keys.to_x25519()),
+            local_identity: Arc::new(id_keys),
             metrics: nym_node_metrics::NymNodeMetrics::default(),
             active_clients_store: ActiveClientsStore::new(),
             wg_peer_controller: None,

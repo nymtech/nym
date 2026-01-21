@@ -167,10 +167,12 @@ impl SessionManager {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_session_state_machine(
         &self,
         receiver_index: u32,
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
+        local_psq_kem_keypair: Option<Arc<x25519::KeyPair>>,
         remote_ed25519_key: &ed25519::PublicKey,
         remote_x25519_key: &x25519::PublicKey,
         is_initiator: bool,
@@ -180,6 +182,7 @@ impl SessionManager {
             receiver_index,
             is_initiator,
             local_ed25519_keypair,
+            local_psq_kem_keypair,
             remote_ed25519_key,
             remote_x25519_key,
             salt,
@@ -219,10 +222,10 @@ mod tests {
     #[test]
     fn test_session_manager_get() {
         let manager = SessionManager::new();
-        let ed25519_keypair = ed25519::KeyPair::from_secret([10u8; 32], 0);
-        let ed25519_keypair2 = ed25519::KeyPair::from_secret([16u8; 32], 0);
+        let ed25519_keypair = Arc::new(ed25519::KeyPair::from_secret([10u8; 32], 0));
+        let ed25519_keypair2 = Arc::new(ed25519::KeyPair::from_secret([16u8; 32], 0));
 
-        let x25519_keypair2 = ed25519_keypair2.to_x25519();
+        let x25519_keypair2 = Arc::new(ed25519_keypair2.to_x25519());
 
         let salt = [47u8; 32];
         let receiver_index: u32 = 1001;
@@ -230,7 +233,8 @@ mod tests {
         let sm_1_id = manager
             .create_session_state_machine(
                 receiver_index,
-                Arc::new(ed25519_keypair),
+                ed25519_keypair,
+                None,
                 ed25519_keypair2.public_key(),
                 x25519_keypair2.public_key(),
                 true,
@@ -248,10 +252,10 @@ mod tests {
     #[test]
     fn test_session_manager_remove() {
         let manager = SessionManager::new();
-        let ed25519_keypair = ed25519::KeyPair::from_secret([11u8; 32], 0);
-        let ed25519_keypair2 = ed25519::KeyPair::from_secret([16u8; 32], 0);
+        let ed25519_keypair = Arc::new(ed25519::KeyPair::from_secret([11u8; 32], 0));
+        let ed25519_keypair2 = Arc::new(ed25519::KeyPair::from_secret([16u8; 32], 0));
 
-        let x25519_keypair2 = ed25519_keypair2.to_x25519();
+        let x25519_keypair2 = Arc::new(ed25519_keypair2.to_x25519());
 
         let salt = [48u8; 32];
         let receiver_index: u32 = 2002;
@@ -259,7 +263,8 @@ mod tests {
         let sm_1_id = manager
             .create_session_state_machine(
                 receiver_index,
-                Arc::new(ed25519_keypair),
+                ed25519_keypair,
+                None,
                 ed25519_keypair2.public_key(),
                 x25519_keypair2.public_key(),
                 true,
@@ -278,25 +283,23 @@ mod tests {
     #[test]
     fn test_multiple_sessions() {
         let manager = SessionManager::new();
-        let ed25519_keypair_1 = ed25519::KeyPair::from_secret([12u8; 32], 0);
-        let ed25519_keypair_2 = ed25519::KeyPair::from_secret([13u8; 32], 1);
-        let ed25519_keypair_3 = ed25519::KeyPair::from_secret([14u8; 32], 2);
+        let ed25519_keypair_1 = Arc::new(ed25519::KeyPair::from_secret([12u8; 32], 0));
+        let ed25519_keypair_2 = Arc::new(ed25519::KeyPair::from_secret([13u8; 32], 1));
+        let ed25519_keypair_3 = Arc::new(ed25519::KeyPair::from_secret([14u8; 32], 2));
+
+        let x25519_keypair_1 = Arc::new(ed25519_keypair_1.to_x25519());
+        let x25519_keypair_2 = Arc::new(ed25519_keypair_2.to_x25519());
+        let x25519_keypair_3 = Arc::new(ed25519_keypair_3.to_x25519());
+
         let salt = [49u8; 32];
-
-        let pubkey1 = *ed25519_keypair_1.public_key();
-        let pubkey2 = *ed25519_keypair_2.public_key();
-        let pubkey3 = *ed25519_keypair_3.public_key();
-
-        let xpubkey1 = *ed25519_keypair_1.to_x25519().public_key();
-        let xpubkey2 = *ed25519_keypair_2.to_x25519().public_key();
-        let xpubkey3 = *ed25519_keypair_3.to_x25519().public_key();
 
         let sm_1 = manager
             .create_session_state_machine(
                 3001,
-                Arc::new(ed25519_keypair_1),
-                &pubkey2,
-                &xpubkey2,
+                ed25519_keypair_1.clone(),
+                None,
+                ed25519_keypair_2.public_key(),
+                x25519_keypair_2.public_key(),
                 true,
                 &salt,
             )
@@ -305,9 +308,10 @@ mod tests {
         let sm_2 = manager
             .create_session_state_machine(
                 3002,
-                Arc::new(ed25519_keypair_2),
-                &pubkey3,
-                &xpubkey3,
+                ed25519_keypair_2,
+                None,
+                ed25519_keypair_3.public_key(),
+                x25519_keypair_3.public_key(),
                 true,
                 &salt,
             )
@@ -316,9 +320,10 @@ mod tests {
         let sm_3 = manager
             .create_session_state_machine(
                 3003,
-                Arc::new(ed25519_keypair_3),
-                &pubkey1,
-                &xpubkey1,
+                ed25519_keypair_3,
+                None,
+                ed25519_keypair_1.public_key(),
+                x25519_keypair_1.public_key(),
                 true,
                 &salt,
             )
@@ -338,8 +343,9 @@ mod tests {
     #[test]
     fn test_session_manager_create_session() {
         let manager = SessionManager::new();
-        let ed25519_keypair = ed25519::KeyPair::from_secret([15u8; 32], 0);
-        let ed25519_keypair2 = ed25519::KeyPair::from_secret([16u8; 32], 0);
+        let ed25519_keypair = Arc::new(ed25519::KeyPair::from_secret([15u8; 32], 0));
+        let ed25519_keypair2 = Arc::new(ed25519::KeyPair::from_secret([16u8; 32], 0));
+
         let salt = [50u8; 32];
         let receiver_index: u32 = 4004;
 
@@ -347,7 +353,8 @@ mod tests {
 
         let sm = manager.create_session_state_machine(
             receiver_index,
-            Arc::new(ed25519_keypair),
+            ed25519_keypair,
+            None,
             ed25519_keypair2.public_key(),
             x25519_keypair2.public_key(),
             true,

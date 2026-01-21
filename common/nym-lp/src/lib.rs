@@ -57,6 +57,7 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
         true,
         Arc::new(ed25519_keypair_1),
         keypair_1.clone(),
+        None,
         ed25519_keypair_2.public_key(),
         keypair_2.public_key(),
         &salt,
@@ -68,6 +69,7 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
         false,
         Arc::new(ed25519_keypair_2),
         keypair_2.clone(),
+        Some(keypair_2.clone()),
         &ed25519_keypair1_pubkey,
         keypair_1.public_key(),
         &salt,
@@ -197,12 +199,11 @@ mod tests {
         let remote_manager = SessionManager::new();
 
         // Generate Ed25519 keypairs for PSQ authentication
-        let ed25519_keypair_local = ed25519::KeyPair::from_secret([8u8; 32], 0);
-        let ed25519_keypair_remote = ed25519::KeyPair::from_secret([9u8; 32], 1);
+        let ed25519_keypair_local = Arc::new(ed25519::KeyPair::from_secret([8u8; 32], 0));
+        let ed25519_keypair_remote = Arc::new(ed25519::KeyPair::from_secret([9u8; 32], 1));
 
-        let ed25519_keypair_local_pubkey = *ed25519_keypair_local.public_key();
-        let x25519_keypair_local_pubkey = ed25519_keypair_local_pubkey.to_x25519().unwrap();
-        let x25519_keypair_remote_pubkey = ed25519_keypair_remote.public_key().to_x25519().unwrap();
+        let x25519_keypair_local = Arc::new(ed25519_keypair_local.to_x25519());
+        let x25519_keypair_remote = Arc::new(ed25519_keypair_remote.to_x25519());
 
         // Use fixed receiver_index for deterministic test
         let receiver_index: u32 = 54321;
@@ -214,9 +215,10 @@ mod tests {
         let _ = local_manager
             .create_session_state_machine(
                 receiver_index,
-                Arc::new(ed25519_keypair_local),
+                ed25519_keypair_local.clone(),
+                None,
                 ed25519_keypair_remote.public_key(),
-                &x25519_keypair_remote_pubkey,
+                x25519_keypair_remote.public_key(),
                 true,
                 &salt,
             )
@@ -225,9 +227,10 @@ mod tests {
         let _ = remote_manager
             .create_session_state_machine(
                 receiver_index,
-                Arc::new(ed25519_keypair_remote),
-                &ed25519_keypair_local_pubkey,
-                &x25519_keypair_local_pubkey,
+                ed25519_keypair_remote.clone(),
+                Some(x25519_keypair_remote),
+                ed25519_keypair_local.public_key(),
+                x25519_keypair_local.public_key(),
                 false,
                 &salt,
             )

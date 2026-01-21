@@ -211,6 +211,8 @@ mod tests {
                 local_identity: base.ed25519_keys.clone(),
 
                 // we don't care about metrics - all zeroes are perfectly fine
+                kem_psq_keys: Arc::new(base.ed25519_keys.to_x25519()),
+
                 metrics: Default::default(),
 
                 // no clients at the beginning

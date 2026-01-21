@@ -71,7 +71,7 @@ use crate::error::GatewayError;
 use crate::node::ActiveClientsStore;
 use dashmap::DashMap;
 use nym_config::serde_helpers::de_maybe_port;
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway_storage::GatewayStorage;
 use nym_lp::state_machine::LpStateMachine;
 use nym_node_metrics::NymNodeMetrics;
@@ -341,6 +341,9 @@ pub struct LpHandlerState {
 
     /// Gateway's identity keypair
     pub local_identity: Arc<ed25519::KeyPair>,
+
+    /// x25519 (for now, to be changed into MlKem) keypair used for the PSQ derivation
+    pub kem_psq_keys: Arc<x25519::KeyPair>,
 
     /// Metrics collection
     pub metrics: NymNodeMetrics,

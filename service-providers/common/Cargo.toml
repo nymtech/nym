@@ -20,10 +20,3 @@ thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"]}
 serde_json = { workspace = true }
 
-[dev-dependencies]
-# for the control requests example
-anyhow = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-
-nym-sdk = { workspace = true }
-nym-socks5-requests = { workspace = true }

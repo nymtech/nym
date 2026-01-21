@@ -1,91 +1,98 @@
-name: Publish to crates.io
+# DEPRECATED: This workflow has been split into:
+# - crates-version-bump.yml (bump versions and commit)
+# - crates-publish.yml (publish all crates)
+# - crates-publish-resume.yml (resume from a specific crate)
+#
+# Keeping this file commented out for reference.
 
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to publish (e.g. 1.21.0)"
-        required: true
-        type: string
-
-env:
-  CI_BOT_AUTHOR: "Nym bot"
-  CI_BOT_EMAIL: "nym-bot@users.noreply.github.com"
-
-jobs:
-  publish:
-    runs-on: arc-linux-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v6
-
-      - name: Configure git identity
-        run: |
-          git config --global user.name "${{ env.CI_BOT_AUTHOR }}"
-          git config --global user.email "${{ env.CI_BOT_EMAIL }}"
-
-      - name: Install rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
-      - name: Install cargo-workspaces
-        run: cargo install cargo-workspaces
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Validate version format
-        run: |
-          if ! npx semver "${{ inputs.version }}"; then
-            echo "Error: '${{ inputs.version }}' is not valid semver"
-            exit 1
-          fi
-
-      - name: Get current version
-        id: current_version
-        run: |
-          VERSION=$(grep -oP '^\s*version\s*=\s*"\K[0-9]+\.[0-9]+\.[0-9]+' Cargo.toml | head -1)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Update workspace dependencies
-        run: |
-          sed -i '/path = /s/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
-
-      - name: Bump versions
-        run: |
-          cargo workspaces version custom ${{ inputs.version }} \
-            --no-git-commit \
-            --yes
-
-      # For the first publish, we have to run with this very long cooldown. That is due to the
-      # crates.io rate limiting. Once the initial publication is done, then this interval can
-      # be reduced to 60 seconds.
-      # See https://github.com/rust-lang/crates.io/blob/ad7e58e1afd65b9137e58a7bca3e1fb7f5546682/src/rate_limiter.rs#L228 for code comments about this.
-      #
-      # We need `--allow-dirty` as we have uncommitted version changes to files.
-      # The reason to not have `version` make a commit is to avoid having a situation in which publication fails, but a version bump commit has already been made to the branch.
-      - name: Publish
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          cargo workspaces publish \
-            --publish-as-is \
-            --allow-dirty \
-            --publish-interval 600
-
-      - name: Commit and push version bump
-        run: |
-          git add -A
-          git commit -m "crates release: bump version to ${{ inputs.version }}"
-          git push
-
-      # Show the list of packages published
-      - name: Show package versions
-        run: cargo workspaces list --long
+# name: Publish to crates.io
+#
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       version:
+#         description: "Version to publish (e.g. 1.21.0)"
+#         required: true
+#         type: string
+#
+# env:
+#   CI_BOT_AUTHOR: "Nym bot"
+#   CI_BOT_EMAIL: "nym-bot@users.noreply.github.com"
+#
+# jobs:
+#   publish:
+#     runs-on: arc-linux-latest
+#     permissions:
+#       contents: write
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v6
+#
+#       - name: Configure git identity
+#         run: |
+#           git config --global user.name "${{ env.CI_BOT_AUTHOR }}"
+#           git config --global user.email "${{ env.CI_BOT_EMAIL }}"
+#
+#       - name: Install rust toolchain
+#         uses: actions-rs/toolchain@v1
+#         with:
+#           profile: minimal
+#           toolchain: stable
+#           override: true
+#
+#       - name: Install cargo-workspaces
+#         run: cargo install cargo-workspaces
+#
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: "20"
+#
+#       - name: Validate version format
+#         run: |
+#           if ! npx semver "${{ inputs.version }}"; then
+#             echo "Error: '${{ inputs.version }}' is not valid semver"
+#             exit 1
+#           fi
+#
+#       - name: Get current version
+#         id: current_version
+#         run: |
+#           VERSION=$(grep -oP '^\s*version\s*=\s*"\K[0-9]+\.[0-9]+\.[0-9]+' Cargo.toml | head -1)
+#           echo "version=$VERSION" >> $GITHUB_OUTPUT
+#
+#       - name: Update workspace dependencies
+#         run: |
+#           sed -i '/path = /s/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
+#
+#       - name: Bump versions
+#         run: |
+#           cargo workspaces version custom ${{ inputs.version }} \
+#             --no-git-commit \
+#             --yes
+#
+#       # For the first publish, we have to run with this very long cooldown. That is due to the
+#       # crates.io rate limiting. Once the initial publication is done, then this interval can
+#       # be reduced to 60 seconds.
+#       # See https://github.com/rust-lang/crates.io/blob/ad7e58e1afd65b9137e58a7bca3e1fb7f5546682/src/rate_limiter.rs#L228 for code comments about this.
+#       #
+#       # We need `--allow-dirty` as we have uncommitted version changes to files.
+#       # The reason to not have `version` make a commit is to avoid having a situation in which publication fails, but a version bump commit has already been made to the branch.
+#       - name: Publish
+#         env:
+#           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+#         run: |
+#           cargo workspaces publish \
+#             --publish-as-is \
+#             --allow-dirty \
+#             --publish-interval 600
+#
+#       - name: Commit and push version bump
+#         run: |
+#           git add -A
+#           git commit -m "crates release: bump version to ${{ inputs.version }}"
+#           git push
+#
+#       # Show the list of packages published
+#       - name: Show package versions
+#         run: cargo workspaces list --long

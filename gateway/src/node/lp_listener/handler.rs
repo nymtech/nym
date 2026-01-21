@@ -424,6 +424,7 @@ where
                     .session()
                     .ok()
                     .and_then(|s| s.outer_aead_key());
+                drop(state_entry); // Release borrow before send
                 Some((response_packet, outer_key))
             }
             LpAction::HandshakeComplete => {
@@ -443,6 +444,7 @@ where
                 // Move state machine to session_states (already in Transport state)
                 // We keep the state machine (not just session) to enable
                 // subsession/rekeying support during transport phase
+                drop(state_entry); // Release mutable borrow
 
                 let (_receiver_idx, timestamped_state) = self
                     .state
@@ -470,12 +472,10 @@ where
             }
             other => {
                 debug!("Received action during handshake: {:?}", other);
+                drop(state_entry);
                 None
             }
         };
-
-        // Release mutable borrow
-        drop(state_entry);
 
         // Send response packet if needed
         if let Some((packet, outer_key)) = should_send {

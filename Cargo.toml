@@ -381,7 +381,7 @@ url = "2.5"
 utoipa = "5.2"
 utoipa-swagger-ui = "8.1"
 utoipauto = "0.2"
-uuid = "*"
+uuid = "1.19.0"
 vergen = { version = "=8.3.1", default-features = false }
 vergen-gitcl = { version = "1.0.8", default-features = false }
 walkdir = "2"

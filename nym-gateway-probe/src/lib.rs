@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::types::Entry;
-use anyhow::bail;
+use anyhow::{Context, bail};
 use base64::{Engine as _, engine::general_purpose};
 use bytes::BytesMut;
 use clap::Args;
@@ -62,6 +62,7 @@ mod types;
 use crate::bandwidth_helpers::{acquire_bandwidth, import_bandwidth};
 use crate::nodes::{DirectoryNode, NymApiDirectory};
 pub use mode::TestMode;
+use nym_lp::peer::LpRemotePeer;
 use nym_node_status_client::models::AttachedTicketMaterials;
 pub use types::{IpPingReplies, ProbeOutcome, ProbeResult};
 
@@ -1108,10 +1109,16 @@ where
     let mut rng = rand::thread_rng();
     let client_ed25519_keypair = std::sync::Arc::new(ed25519::KeyPair::new(&mut rng));
 
+    // Step 0: Derive X25519 keys from Ed25519 for the gateways
+    let gateway_x25519_key = gateway_identity
+        .to_x25519()
+        .context("failed to convert entry ed25519 key to x25519")?;
+    let peer = LpRemotePeer::new(gateway_identity, gateway_x25519_key);
+
     // Create LP registration client (uses Ed25519 keys directly, derives X25519 internally)
     let mut client = LpRegistrationClient::<TcpStream>::new_with_default_config(
         client_ed25519_keypair,
-        gateway_identity,
+        peer,
         gateway_lp_address,
         gateway_ip,
     );
@@ -1264,9 +1271,23 @@ where
     let entry_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
     let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
 
+    // Step 0: Derive X25519 keys from Ed25519 for the gateways
+    let entry_x25519_public = entry_gateway
+        .identity
+        .to_x25519()
+        .context("failed to convert entry ed25519 key to x25519")?;
+
+    let exit_x25519_public = exit_gateway
+        .identity
+        .to_x25519()
+        .context("failed to convert exit ed25519 key to x25519")?;
+
     // Generate WireGuard keypairs for VPN registration
     let entry_wg_keypair = x25519::KeyPair::new(&mut rng);
     let exit_wg_keypair = x25519::KeyPair::new(&mut rng);
+
+    let entry_peer = LpRemotePeer::new(entry_gateway.identity, entry_x25519_public);
+    let exit_peer = LpRemotePeer::new(exit_gateway.identity, exit_x25519_public);
 
     // STEP 1: Establish outer LP session with entry gateway
     // LpRegistrationClient uses packet-per-connection model - connect() is gone,
@@ -1274,7 +1295,7 @@ where
     info!("Establishing outer LP session with entry gateway...");
     let mut entry_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
         entry_lp_keypair,
-        entry_gateway.identity,
+        entry_peer,
         entry_lp_address,
         entry_ip,
     );
@@ -1288,13 +1309,8 @@ where
 
     // STEP 2: Use nested session to register with exit gateway via forwarding
     info!("Registering with exit gateway via entry forwarding...");
-    let mut nested_session = NestedLpSession::new(
-        exit_gateway.identity.to_bytes(),
-        exit_lp_address.to_string(),
-        exit_lp_keypair,
-        ed25519::PublicKey::from_bytes(&exit_gateway.identity.to_bytes())
-            .map_err(|e| anyhow::anyhow!("Invalid exit gateway identity: {}", e))?,
-    );
+    let mut nested_session =
+        NestedLpSession::new(exit_lp_address.to_string(), exit_lp_keypair, exit_peer);
 
     // Convert exit gateway identity to ed25519 public key for registration
     let exit_gateway_pubkey = ed25519::PublicKey::from_bytes(&exit_gateway.identity.to_bytes())

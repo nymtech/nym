@@ -7585,17 +7585,13 @@ dependencies = [
 name = "nym-service-providers-common"
 version = "1.20.4"
 dependencies = [
- "anyhow",
  "async-trait",
  "log",
  "nym-bin-common",
- "nym-sdk",
- "nym-socks5-requests",
  "nym-sphinx-anonymous-replies",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
- "tokio",
 ]
 
 [[package]]

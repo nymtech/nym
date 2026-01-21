@@ -38,6 +38,7 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 criterion = { version = "0.5", features = ["html_reports"] }
 rand_chacha = "0.3"
 nym-crypto = { path = "../crypto", features = ["rand"] }
+nym-test-utils = { workspace = true }
 
 
 [[bench]]

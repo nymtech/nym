@@ -13,6 +13,7 @@
 //! State machine ensures protocol steps execute in correct order. Invalid transitions
 //! return LpError, preventing protocol violations.
 
+use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::{
     LpError,
     message::{LpMessage, SubsessionKK1Data, SubsessionKK2Data, SubsessionReadyData},
@@ -220,18 +221,16 @@ impl LpStateMachine {
         // Convert Ed25519 keys to X25519 for Noise protocol
         let local_x25519 = Arc::new(local_ed25519_keypair.to_x25519());
 
+        let mut local_peer = LpLocalPeer::new(local_ed25519_keypair, local_x25519);
+        if let Some(local_psq_kem) = local_psq_kem_keypair {
+            local_peer = local_peer.with_kem_psq_key(local_psq_kem);
+        }
+
+        let remote_peer = LpRemotePeer::new(*remote_ed25519_key, *remote_x25519_key);
+
         // Create the session with both Ed25519 (for PSQ auth) and derived X25519 keys (for Noise)
         // receiver_index is client-proposed, passed through directly
-        let session = LpSession::new(
-            receiver_index,
-            is_initiator,
-            local_ed25519_keypair,
-            local_x25519,
-            local_psq_kem_keypair,
-            remote_ed25519_key,
-            remote_x25519_key,
-            salt,
-        )?;
+        let session = LpSession::new(receiver_index, is_initiator, local_peer, remote_peer, salt)?;
 
         Ok(LpStateMachine {
             state: LpState::ReadyToHandshake {
@@ -1085,6 +1084,7 @@ impl LpStateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::peer::mock_peers;
     use bytes::Bytes;
     use nym_crypto::asymmetric::ed25519;
 
@@ -1419,11 +1419,7 @@ mod tests {
     #[test]
     fn test_kkt_exchange_full_roundtrip() {
         // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = Arc::new(ed25519::KeyPair::from_secret([24u8; 32], 0));
-        let ed25519_keypair_resp = Arc::new(ed25519::KeyPair::from_secret([25u8; 32], 1));
-
-        let x25519_keypair_init = Arc::new(ed25519_keypair_init.to_x25519());
-        let x25519_keypair_resp = Arc::new(ed25519_keypair_resp.to_x25519());
+        let (init, resp) = mock_peers();
 
         let salt = [55u8; 32];
         let receiver_index: u32 = 99903;
@@ -1432,10 +1428,10 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            ed25519_keypair_init.clone(),
+            init.ed25519.clone(),
             None,
-            ed25519_keypair_resp.public_key(),
-            x25519_keypair_resp.public_key(),
+            resp.ed25519.public_key(),
+            resp.x25519.public_key(),
             &salt,
         )
         .unwrap();
@@ -1443,10 +1439,10 @@ mod tests {
         let mut responder = LpStateMachine::new(
             receiver_index,
             false,
-            ed25519_keypair_resp,
-            Some(x25519_keypair_resp),
-            ed25519_keypair_init.public_key(),
-            x25519_keypair_init.public_key(),
+            resp.ed25519.clone(),
+            resp.kem_psq.clone(),
+            init.ed25519.public_key(),
+            init.x25519.public_key(),
             &salt,
         )
         .unwrap();
@@ -1477,6 +1473,8 @@ mod tests {
 
         // Step 4: Initiator receives KKT response, completes KKT
         let init_action = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
+
+        println!("action: {:?}", init_action);
         assert!(matches!(init_action, Some(Ok(LpAction::KKTComplete))));
         // After KKT complete, initiator moves to Handshaking
         assert!(matches!(initiator.state, LpState::Handshaking { .. }));

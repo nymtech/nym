@@ -19,6 +19,7 @@ use crate::{LpError, LpMessage, LpPacket};
 use nym_crypto::asymmetric::x25519;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use nym_kkt::encryption::KKTSessionSecret;
+use nym_kkt::kkt::validate_kem_response;
 use parking_lot::Mutex;
 use rand::RngCore;
 use snow::Builder;
@@ -627,8 +628,6 @@ impl LpSession {
     /// * `Err(LpError)` - Signature verification failed, hash mismatch, or invalid state
     ///
     pub fn process_kkt_response(&self, response_bytes: &[u8]) -> Result<(), LpError> {
-        use nym_kkt::kkt::validate_kem_response;
-
         let mut kkt_state = self.kkt_state.lock();
 
         // Extract context from waiting state

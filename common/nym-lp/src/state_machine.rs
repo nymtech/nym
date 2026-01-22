@@ -1370,7 +1370,6 @@ mod tests {
         // Step 4: Initiator receives KKT response, completes KKT
         let init_action = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
 
-        println!("action: {:?}", init_action);
         assert!(matches!(init_action, Some(Ok(LpAction::KKTComplete))));
         // After KKT complete, initiator moves to Handshaking
         assert!(matches!(initiator.state, LpState::Handshaking { .. }));

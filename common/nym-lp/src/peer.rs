@@ -113,16 +113,7 @@ impl LpRemotePeer {
 pub fn mock_peer() -> LpLocalPeer {
     // use deterministic rng
     let mut rng = nym_test_utils::helpers::deterministic_rng();
-
-    let ed25519 = Arc::new(ed25519::KeyPair::new(&mut rng));
-    let x25519 = Arc::new(ed25519.to_x25519());
-    let kem_psq = Some(x25519.clone());
-
-    LpLocalPeer {
-        ed25519,
-        x25519,
-        kem_psq,
-    }
+    random_peer(&mut rng)
 }
 
 #[cfg(test)]

@@ -728,35 +728,54 @@ impl LpSession {
 
         let mut kkt_state = self.kkt_state.lock();
 
-        let (session_secret, request_frame, remote_context) =
-            decrypt_initial_kkt_frame(self.local_peer.x25519().private_key(), request_bytes)
-                .unwrap();
-
-        let (mut context, _) =
-            responder_ingest_message(&remote_context, None, None, &request_frame).unwrap();
-
-        let response_frame = responder_process(
-            &mut context,
-            request_frame.session_id(),
-            self.local_peer.ed25519().private_key(),
-            responder_kem_pk,
-        )
-        .unwrap();
-
-        let response_bytes =
-            encrypt_kkt_frame(&mut rng, &session_secret, &response_frame, KKT_RESPONSE_AAD)
-                .unwrap();
-
-        // Handle request and create signed response
-        // let response_bytes = handle_kem_request(
-        //     &mut rng,
-        //     request_bytes,
-        //     Some(&self.remote_ed25519_public), // Verify initiator signature
-        //     self.local_ed25519.private_key(),  // Sign response
-        //     self.local_x25519.private_key(),
-        //     responder_kem_pk,
-        // )
-        // .map_err(|e| LpError::Internal(format!("KKT request handling failed: {:?}", e)))?;
+        let response_bytes = match decrypt_initial_kkt_frame(
+            self.local_peer.x25519().private_key(),
+            request_bytes,
+        ) {
+            Ok((session_secret, request_frame, remote_context)) => {
+                match responder_ingest_message(&remote_context, None, None, &request_frame) {
+                    Ok((mut context, _)) => match responder_process(
+                        &mut context,
+                        request_frame.session_id(),
+                        self.local_peer.ed25519().private_key(),
+                        responder_kem_pk,
+                    ) {
+                        Ok(response_frame) => match encrypt_kkt_frame(
+                            &mut rng,
+                            &session_secret,
+                            &response_frame,
+                            KKT_RESPONSE_AAD,
+                        ) {
+                            Ok(response_bytes) => response_bytes,
+                            Err(e) => {
+                                return Err(LpError::Internal(format!(
+                                    "KKT response encryption failure : {:?}",
+                                    e
+                                )));
+                            }
+                        },
+                        Err(e) => {
+                            return Err(LpError::Internal(format!(
+                                "KKT response generation failure : {:?}",
+                                e
+                            )));
+                        }
+                    },
+                    Err(e) => {
+                        return Err(LpError::Internal(format!(
+                            "KKT request handling failure: {:?}",
+                            e
+                        )));
+                    }
+                }
+            }
+            Err(e) => {
+                return Err(LpError::Internal(format!(
+                    "KKT request decryption failure: {:?}",
+                    e
+                )));
+            }
+        };
 
         // Mark KKT as processed
         // Responder doesn't store the kem_pk since they already have their own KEM keypair

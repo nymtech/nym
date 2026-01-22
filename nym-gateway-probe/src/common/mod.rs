@@ -13,5 +13,5 @@ pub(crate) mod netstack;
 pub(crate) mod nodes;
 pub(crate) mod probe_tests;
 pub(crate) mod socks5_test;
-pub(crate) mod types;
+pub mod types;
 pub(crate) mod wireguard;

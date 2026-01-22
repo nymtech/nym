@@ -126,29 +126,14 @@ impl DVpnGateway {
     pub fn can_route_entry(&self) -> bool {
         self.last_probe
             .as_ref()
-            .map(|probe| match &probe.outcome.as_entry {
-                directory_gw_probe_outcome::Entry::Tested(entry_test_result) => {
-                    entry_test_result.can_route
-                }
-                directory_gw_probe_outcome::Entry::NotTested
-                | directory_gw_probe_outcome::Entry::EntryFailure => false,
-            })
+            .map(DirectoryGwProbe::can_route_entry)
             .unwrap_or(false)
     }
 
     pub fn can_route_exit(&self) -> bool {
         self.last_probe
             .as_ref()
-            .map(|probe| {
-                probe
-                    .outcome
-                    .as_exit
-                    .as_ref()
-                    .map(|outcome| {
-                        outcome.can_route_ip_external_v4 && outcome.can_route_ip_external_v6
-                    })
-                    .unwrap_or(false)
-            })
+            .map(|probe| probe.can_route_exit().unwrap_or(false))
             .unwrap_or(false)
     }
 }
@@ -164,80 +149,214 @@ pub struct LastProbeResult {
     outcome: ProbeOutcome,
 }
 
+use nym_gateway_probe::types::ProbeResult as ProbeResultLatest;
+
+impl From<ProbeResultLatest> for LastProbeResult {
+    fn from(value: ProbeResultLatest) -> Self {
+        Self {
+            node: value.node.into(),
+            used_entry: value.used_entry.into(),
+            outcome: value.outcome.into(),
+        }
+    }
+}
+
+impl LastProbeResult {
+    pub(crate) fn deserialize_with_fallback(value: serde_json::Value) -> anyhow::Result<Self> {
+        // first try matching latest struct from GW probe crate
+        let probe_result = match serde_json::from_value::<ProbeResultLatest>(value.clone()) {
+            Ok(probe_result) => probe_result.into(),
+            // as a fallback, try parsing struct from this crate
+            Err(_) => match serde_json::from_value::<Self>(value) {
+                Ok(probe_result) => probe_result,
+                Err(e) => {
+                    error!("Failed to deserialize probe result: {e}");
+                    return Err(e.into());
+                }
+            },
+        };
+
+        Ok(probe_result)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct DirectoryGwProbe {
     last_updated_utc: String,
     outcome: ProbeOutcome,
 }
 
+impl DirectoryGwProbe {
+    pub fn from_outcome(outcome: ProbeOutcome, last_updated_utc: String) -> Self {
+        Self {
+            last_updated_utc,
+            outcome,
+        }
+    }
+
+    pub fn can_route_entry(&self) -> bool {
+        match &self.outcome.as_entry {
+            Entry::Tested(entry_test_result) => entry_test_result.can_route,
+            Entry::NotTested | Entry::EntryFailure => false,
+        }
+    }
+
+    pub fn can_route_exit(&self) -> Option<bool> {
+        self.outcome
+            .as_exit
+            .as_ref()
+            .map(|outcome| outcome.can_route_ip_external_v4 && outcome.can_route_ip_external_v6)
+    }
+}
+
+/// this structure is parsed on VPN API so it has some fields which must not be changed
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct ProbeOutcome {
-    as_entry: directory_gw_probe_outcome::Entry,
-    as_exit: Option<directory_gw_probe_outcome::Exit>,
-    wg: Option<wg_outcome_versions::ProbeOutcomeV1>,
+    pub as_entry: Entry,
+    pub as_exit: Option<Exit>,
+    pub wg: Option<WgProbeResults>,
 }
 
-pub mod directory_gw_probe_outcome {
-    use super::*;
+use nym_gateway_probe::types::ProbeOutcome as ProbeOutcomeLatest;
 
-    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-    #[serde(untagged)]
-    #[allow(clippy::enum_variant_names)]
-    pub enum Entry {
-        Tested(EntryTestResult),
-        NotTested,
-        EntryFailure,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-    pub struct EntryTestResult {
-        pub can_connect: bool,
-        pub can_route: bool,
-    }
-
-    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub struct Exit {
-        pub can_connect: bool,
-        pub can_route_ip_v4: bool,
-        pub can_route_ip_external_v4: bool,
-        pub can_route_ip_v6: bool,
-        pub can_route_ip_external_v6: bool,
+impl From<ProbeOutcomeLatest> for ProbeOutcome {
+    fn from(value: ProbeOutcomeLatest) -> Self {
+        Self {
+            as_entry: value.as_entry.into(),
+            as_exit: value.as_exit.map(From::from),
+            wg: value.wg.map(From::from),
+        }
     }
 }
 
-pub mod wg_outcome_versions {
-    use super::*;
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+#[allow(clippy::enum_variant_names)]
+pub enum Entry {
+    Tested(EntryTestResult),
+    NotTested,
+    EntryFailure,
+}
 
-    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub struct ProbeOutcomeV1 {
-        pub can_register: bool,
-        pub can_handshake: Option<bool>,
-        pub can_resolve_dns: Option<bool>,
-        pub ping_hosts_performance: Option<f32>,
-        pub ping_ips_performance: Option<f32>,
+use nym_gateway_probe::types::Entry as EntryLatest;
 
-        pub can_query_metadata_v4: Option<bool>,
-        pub can_handshake_v4: bool,
-        pub can_resolve_dns_v4: bool,
-        pub ping_hosts_performance_v4: f32,
-        pub ping_ips_performance_v4: f32,
+impl From<EntryLatest> for Entry {
+    fn from(value: EntryLatest) -> Self {
+        match value {
+            EntryLatest::Tested(entry_test_result) => Self::Tested(entry_test_result.into()),
+            EntryLatest::NotTested => Self::NotTested,
+            EntryLatest::EntryFailure => Self::EntryFailure,
+        }
+    }
+}
 
-        pub can_handshake_v6: bool,
-        pub can_resolve_dns_v6: bool,
-        pub ping_hosts_performance_v6: f32,
-        pub ping_ips_performance_v6: f32,
+use nym_gateway_probe::types::EntryTestResult as EntryTestResultLatest;
 
-        pub download_duration_sec_v4: u64,
-        pub download_duration_milliseconds_v4: Option<u64>,
-        pub downloaded_file_size_bytes_v4: Option<u64>,
-        pub downloaded_file_v4: String,
-        pub download_error_v4: String,
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct EntryTestResult {
+    pub can_connect: bool,
+    pub can_route: bool,
+}
 
-        pub download_duration_sec_v6: u64,
-        pub download_duration_milliseconds_v6: Option<u64>,
-        pub downloaded_file_size_bytes_v6: Option<u64>,
-        pub downloaded_file_v6: String,
-        pub download_error_v6: String,
+impl From<EntryTestResultLatest> for EntryTestResult {
+    fn from(value: EntryTestResultLatest) -> Self {
+        Self {
+            can_connect: value.can_connect,
+            can_route: value.can_route,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct Exit {
+    pub can_connect: bool,
+    pub can_route_ip_v4: bool,
+    pub can_route_ip_external_v4: bool,
+    pub can_route_ip_v6: bool,
+    pub can_route_ip_external_v6: bool,
+}
+
+use nym_gateway_probe::types::Exit as ExitLatest;
+
+impl From<ExitLatest> for Exit {
+    fn from(value: ExitLatest) -> Self {
+        Self {
+            can_connect: value.can_connect,
+            can_route_ip_v4: value.can_route_ip_v4,
+            can_route_ip_external_v4: value.can_route_ip_external_v4,
+            can_route_ip_v6: value.can_route_ip_v6,
+            can_route_ip_external_v6: value.can_route_ip_external_v6,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct WgProbeResults {
+    // mandatory fields
+    pub can_register: bool,
+    pub can_handshake: Option<bool>,
+    pub can_resolve_dns: Option<bool>,
+    pub ping_hosts_performance: Option<f32>,
+    pub ping_ips_performance: Option<f32>,
+
+    pub can_query_metadata_v4: Option<bool>,
+    pub can_handshake_v4: bool,
+    pub can_resolve_dns_v4: bool,
+    pub ping_hosts_performance_v4: f32,
+    pub ping_ips_performance_v4: f32,
+
+    pub can_handshake_v6: bool,
+    pub can_resolve_dns_v6: bool,
+    pub ping_hosts_performance_v6: f32,
+    pub ping_ips_performance_v6: f32,
+
+    pub download_duration_sec_v4: u64,
+    pub download_duration_milliseconds_v4: Option<u64>,
+    pub downloaded_file_size_bytes_v4: Option<u64>,
+    pub downloaded_file_v4: String,
+    pub download_error_v4: String,
+
+    pub download_duration_sec_v6: u64,
+    pub download_duration_milliseconds_v6: Option<u64>,
+    pub downloaded_file_size_bytes_v6: Option<u64>,
+    pub downloaded_file_v6: String,
+    pub download_error_v6: String,
+}
+
+use nym_gateway_probe::types::WgProbeResults as WgProbeResultsLatest;
+
+impl From<WgProbeResultsLatest> for WgProbeResults {
+    fn from(value: WgProbeResultsLatest) -> Self {
+        Self {
+            can_register: value.can_register,
+            can_handshake: Some(value.can_handshake_v4),
+            can_resolve_dns: Some(value.can_resolve_dns_v4),
+            ping_hosts_performance: Some(value.ping_hosts_performance_v4),
+            ping_ips_performance: Some(value.ping_ips_performance_v4),
+
+            can_query_metadata_v4: Some(value.can_query_metadata_v4),
+            can_handshake_v4: value.can_handshake_v4,
+            can_resolve_dns_v4: value.can_resolve_dns_v4,
+            ping_hosts_performance_v4: value.ping_hosts_performance_v4,
+            ping_ips_performance_v4: value.ping_ips_performance_v4,
+
+            can_handshake_v6: value.can_handshake_v6,
+            can_resolve_dns_v6: value.can_resolve_dns_v6,
+            ping_hosts_performance_v6: value.ping_hosts_performance_v6,
+            ping_ips_performance_v6: value.ping_ips_performance_v6,
+
+            download_duration_sec_v4: value.download_duration_sec_v4,
+            download_duration_milliseconds_v4: Some(value.download_duration_milliseconds_v4),
+            downloaded_file_size_bytes_v4: Some(value.downloaded_file_size_bytes_v4),
+            downloaded_file_v4: value.downloaded_file_v4,
+            download_error_v4: value.download_error_v4,
+
+            download_duration_sec_v6: value.download_duration_sec_v6,
+            download_duration_milliseconds_v6: Some(value.download_duration_milliseconds_v6),
+            downloaded_file_size_bytes_v6: Some(value.downloaded_file_size_bytes_v6),
+            downloaded_file_v6: value.downloaded_file_v6,
+            download_error_v6: value.download_error_v6,
+        }
     }
 }
 
@@ -279,7 +398,7 @@ impl DVpnGateway {
 
         let (last_probe_result, performance_v2) = match gateway.last_probe_result {
             Some(ref value) => {
-                let mut parsed = serde_json::from_value::<LastProbeResult>(value.clone())
+                let mut parsed = LastProbeResult::deserialize_with_fallback(value.clone())
                     .inspect_err(|err| {
                         error!("Failed to deserialize probe result: {err}");
                     })?;
@@ -356,10 +475,8 @@ impl DVpnGateway {
                     }
                 }),
             },
-            last_probe: last_probe_result.map(|res| DirectoryGwProbe {
-                last_updated_utc: last_updated_utc.to_string(),
-                outcome: res.outcome,
-            }),
+            last_probe: last_probe_result
+                .map(|res| DirectoryGwProbe::from_outcome(res.outcome, last_updated_utc)),
             ip_addresses: skimmed_node.ip_addresses.clone(),
             mix_port: skimmed_node.mix_port,
             role: skimmed_node.role.clone(),
@@ -485,6 +602,7 @@ fn to_percent(performance: u8) -> String {
 
 #[cfg(test)]
 mod test {
+
     use super::*;
     use std::str::FromStr;
 
@@ -759,9 +877,6 @@ mod test {
 
     #[test]
     fn test_weighted_score_calculation() {
-        use crate::http::models::directory_gw_probe_outcome::EntryTestResult;
-        use crate::http::models::wg_outcome_versions::ProbeOutcomeV1;
-
         // Helper function to create a test gateway
         fn create_test_gateway(performance: u8) -> Gateway {
             Gateway {
@@ -798,12 +913,12 @@ mod test {
                 node: "test_node".to_string(),
                 used_entry: "test_entry".to_string(),
                 outcome: ProbeOutcome {
-                    as_entry: directory_gw_probe_outcome::Entry::Tested(EntryTestResult {
+                    as_entry: Entry::Tested(EntryTestResult {
                         can_connect: true,
                         can_route: true,
                     }),
                     as_exit: None,
-                    wg: Some(ProbeOutcomeV1 {
+                    wg: Some(WgProbeResults {
                         can_register: true,
                         can_handshake: Some(true),
                         can_resolve_dns: Some(true),
@@ -879,6 +994,414 @@ mod test {
             ScoreValue::High,
             "Edge case just above 0.75 threshold should be High"
         );
+    }
+
+    /// Smoke test to ensure conversion from nym_gateway_probe crate's ProbeResult
+    /// to this crate's ProbeResult doesn't silently drop or default fields when
+    /// nym_gateway_probe types change.
+    ///
+    /// All values are set to non-default (booleans=true, numbers non-zero, strings non-empty)
+    /// to catch cases where new fields might be left as default after conversion.
+    #[test]
+    fn conversion_from_gw_probe_latest() {
+        use nym_gateway_probe::types::{
+            Entry as EntryLatest, EntryTestResult as EntryTestResultLatest, Exit as ExitLatest,
+            ProbeOutcome as ProbeOutcomeLatest, ProbeResult as ProbeResultLatest,
+            WgProbeResults as WgProbeResultsLatest,
+        };
+
+        // Build a ProbeResultLatest with ALL non-default values
+        let wg_latest = WgProbeResultsLatest {
+            can_register: true,
+            can_query_metadata_v4: true,
+            can_handshake_v4: true,
+            can_resolve_dns_v4: true,
+            ping_hosts_performance_v4: 0.95,
+            ping_ips_performance_v4: 0.92,
+            can_handshake_v6: true,
+            can_resolve_dns_v6: true,
+            ping_hosts_performance_v6: 0.88,
+            ping_ips_performance_v6: 0.85,
+            download_duration_sec_v4: 5,
+            download_duration_milliseconds_v4: 5123,
+            downloaded_file_size_bytes_v4: 10485760,
+            downloaded_file_v4: "test-file-v4.bin".to_string(),
+            download_error_v4: "none-v4".to_string(),
+            download_duration_sec_v6: 6,
+            download_duration_milliseconds_v6: 6234,
+            downloaded_file_size_bytes_v6: 20971520,
+            downloaded_file_v6: "test-file-v6.bin".to_string(),
+            download_error_v6: "none-v6".to_string(),
+        };
+        let probe_latest = ProbeResultLatest {
+            node: "test-node-identity-key".to_string(),
+            used_entry: "test-entry-node".to_string(),
+            outcome: ProbeOutcomeLatest {
+                as_entry: EntryLatest::Tested(EntryTestResultLatest {
+                    can_connect: true,
+                    can_route: true,
+                }),
+                as_exit: Some(ExitLatest {
+                    can_connect: true,
+                    can_route_ip_v4: true,
+                    can_route_ip_external_v4: true,
+                    can_route_ip_v6: true,
+                    can_route_ip_external_v6: true,
+                }),
+                // TODO socks5 and lp fields
+                socks5: None,
+                lp: None,
+                wg: Some(wg_latest.clone()),
+            },
+        };
+
+        // convert to this crate's LastProbeResult
+        let result: LastProbeResult = probe_latest.clone().into();
+
+        assert_eq!(result.node, probe_latest.node);
+        assert_eq!(result.used_entry, probe_latest.used_entry);
+
+        match &result.outcome.as_entry {
+            Entry::Tested(entry) => {
+                assert!(entry.can_connect);
+                assert!(entry.can_route);
+            }
+            other => panic!("Expected Entry::Tested, got {:?}", other),
+        }
+
+        // Exit conversion
+        let exit = result
+            .outcome
+            .as_exit
+            .as_ref()
+            .expect("as_exit should be Some");
+        assert!(exit.can_connect);
+        assert!(exit.can_route_ip_v4);
+        assert!(exit.can_route_ip_external_v4,);
+        assert!(exit.can_route_ip_v6);
+        assert!(exit.can_route_ip_external_v6,);
+
+        // WgProbeResults conversion
+        let wg = result.outcome.wg.as_ref().expect("wg should be Some");
+        assert!(wg.can_register);
+        assert_eq!(wg.can_query_metadata_v4, Some(true),);
+        assert!(wg.can_handshake_v4);
+        assert!(wg.can_resolve_dns_v4,);
+        assert_eq!(
+            wg.ping_hosts_performance_v4,
+            wg_latest.ping_hosts_performance_v4
+        );
+        assert_eq!(
+            wg.ping_ips_performance_v4,
+            wg_latest.ping_ips_performance_v4
+        );
+        assert!(wg.can_handshake_v6);
+        assert!(wg.can_resolve_dns_v6);
+        assert_eq!(
+            wg.ping_hosts_performance_v6,
+            wg_latest.ping_hosts_performance_v6
+        );
+        assert_eq!(
+            wg.ping_ips_performance_v6,
+            wg_latest.ping_ips_performance_v6
+        );
+        assert_eq!(
+            wg.download_duration_sec_v4,
+            wg_latest.download_duration_sec_v4
+        );
+        assert_eq!(
+            wg.download_duration_milliseconds_v4,
+            Some(wg_latest.download_duration_milliseconds_v4),
+        );
+        assert_eq!(
+            wg.downloaded_file_size_bytes_v4,
+            Some(wg_latest.downloaded_file_size_bytes_v4),
+        );
+        assert_eq!(wg.downloaded_file_v4, wg_latest.downloaded_file_v4);
+        assert_eq!(wg.download_error_v4, wg_latest.download_error_v4);
+        assert_eq!(
+            wg.download_duration_sec_v6,
+            wg_latest.download_duration_sec_v6
+        );
+        assert_eq!(
+            wg.download_duration_milliseconds_v6,
+            Some(wg_latest.download_duration_milliseconds_v6)
+        );
+        assert_eq!(
+            wg.downloaded_file_size_bytes_v6,
+            Some(wg_latest.downloaded_file_size_bytes_v6)
+        );
+        assert_eq!(wg.downloaded_file_v6, wg_latest.downloaded_file_v6);
+        assert_eq!(wg.download_error_v6, wg_latest.download_error_v6);
+
+        // fields that map from v4 values
+        assert_eq!(wg.can_handshake, Some(true));
+        assert_eq!(wg.can_resolve_dns, Some(true));
+        assert_eq!(
+            wg.ping_hosts_performance,
+            Some(wg_latest.ping_hosts_performance_v4)
+        );
+        assert_eq!(
+            wg.ping_ips_performance,
+            Some(wg_latest.ping_ips_performance_v4)
+        );
+    }
+
+    #[test]
+    fn conversion_entry_variants() {
+        use nym_gateway_probe::types::Entry as EntryLatest;
+
+        let not_tested: Entry = EntryLatest::NotTested.into();
+        assert!(matches!(not_tested, Entry::NotTested));
+
+        let failure: Entry = EntryLatest::EntryFailure.into();
+        assert!(matches!(failure, Entry::EntryFailure));
+    }
+
+    /// Backwards compatibility: this crate's struct may be present in DB of
+    /// some gateways even after the new nym_gateway_probe format is published.
+    /// DB entry needs to stay deserializable into a valid struct.
+    #[test]
+    fn deserialize_this_crate_format() {
+        // JSON that matches this crate's ProbeResult format (not nym_gateway_probe)
+        let old_format_json = serde_json::json!({
+            "node": "old-node-key",
+            "used_entry": "old-entry-key",
+            "outcome": {
+                "as_entry": {
+                    "can_connect": true,
+                    "can_route": false
+                },
+                "as_exit": null,
+                "wg": null
+            }
+        });
+
+        let result = LastProbeResult::deserialize_with_fallback(old_format_json)
+            .expect("Should deserialize old format");
+
+        assert_eq!(result.node, "old-node-key");
+        assert_eq!(result.used_entry, "old-entry-key");
+        match &result.outcome.as_entry {
+            Entry::Tested(entry) => {
+                assert!(entry.can_connect);
+                assert!(!entry.can_route);
+            }
+            other => panic!("Expected Entry::Tested, got {:?}", other),
+        }
+        assert!(result.outcome.as_exit.is_none());
+        assert!(result.outcome.wg.is_none());
+    }
+
+    /// Test that the latest nym_gateway_probe format deserializes correctly
+    #[test]
+    fn deserialize_latest_gw_probe_format() {
+        // JSON that matches nym_gateway_probe::types::ProbeResult format
+        let latest_format_json = serde_json::json!({
+            "node": "new-node-key",
+            "used_entry": "new-entry-key",
+            "outcome": {
+                "as_entry": {
+                    "can_connect": true,
+                    "can_route": true
+                },
+                "as_exit": {
+                    "can_connect": true,
+                    "can_route_ip_v4": true,
+                    "can_route_ip_external_v4": true,
+                    "can_route_ip_v6": false,
+                    "can_route_ip_external_v6": false
+                },
+                "socks5": null,
+                "lp": null,
+                "wg": {
+                    "can_register": true,
+                    "can_query_metadata_v4": true,
+                    "can_handshake_v4": true,
+                    "can_resolve_dns_v4": true,
+                    "ping_hosts_performance_v4": 0.9,
+                    "ping_ips_performance_v4": 0.85,
+                    "can_handshake_v6": false,
+                    "can_resolve_dns_v6": false,
+                    "ping_hosts_performance_v6": 0.0,
+                    "ping_ips_performance_v6": 0.0,
+                    "download_duration_sec_v4": 3,
+                    "download_duration_milliseconds_v4": 3456,
+                    "downloaded_file_size_bytes_v4": 5242880,
+                    "downloaded_file_v4": "5mb.bin",
+                    "download_error_v4": "",
+                    "download_duration_sec_v6": 0,
+                    "download_duration_milliseconds_v6": 0,
+                    "downloaded_file_size_bytes_v6": 0,
+                    "downloaded_file_v6": "",
+                    "download_error_v6": "ipv6 not supported"
+                }
+            }
+        });
+
+        let result = LastProbeResult::deserialize_with_fallback(latest_format_json)
+            .expect("Should deserialize latest format");
+
+        assert_eq!(result.node, "new-node-key");
+        assert_eq!(result.used_entry, "new-entry-key");
+
+        let exit = result.outcome.as_exit.as_ref().expect("should have exit");
+        assert!(exit.can_route_ip_external_v4);
+        assert!(!exit.can_route_ip_external_v6);
+
+        let wg = result.outcome.wg.as_ref().expect("should have wg");
+        assert!(wg.can_register);
+        assert_eq!(wg.download_duration_milliseconds_v4, Some(3456));
+        assert_eq!(wg.download_error_v6, "ipv6 not supported");
+    }
+
+    /// Serialize LastProbeResult to JSON and back to ensure serde attributes
+    /// work correctly and no data is lost.
+    #[test]
+    fn round_trip_serialization() {
+        let original = LastProbeResult {
+            node: "round-trip-node".to_string(),
+            used_entry: "round-trip-entry".to_string(),
+            outcome: ProbeOutcome {
+                as_entry: Entry::Tested(EntryTestResult {
+                    can_connect: true,
+                    can_route: true,
+                }),
+                as_exit: Some(Exit {
+                    can_connect: true,
+                    can_route_ip_v4: true,
+                    can_route_ip_external_v4: true,
+                    can_route_ip_v6: true,
+                    can_route_ip_external_v6: true,
+                }),
+                wg: Some(WgProbeResults {
+                    can_register: true,
+                    can_handshake: Some(true),
+                    can_resolve_dns: Some(true),
+                    ping_hosts_performance: Some(0.95),
+                    ping_ips_performance: Some(0.92),
+                    can_query_metadata_v4: Some(true),
+                    can_handshake_v4: true,
+                    can_resolve_dns_v4: true,
+                    ping_hosts_performance_v4: 0.95,
+                    ping_ips_performance_v4: 0.92,
+                    can_handshake_v6: true,
+                    can_resolve_dns_v6: true,
+                    ping_hosts_performance_v6: 0.88,
+                    ping_ips_performance_v6: 0.85,
+                    download_duration_sec_v4: 5,
+                    download_duration_milliseconds_v4: Some(5123),
+                    downloaded_file_size_bytes_v4: Some(10485760),
+                    downloaded_file_v4: "test-file-v4.bin".to_string(),
+                    download_error_v4: "none-v4".to_string(),
+                    download_duration_sec_v6: 6,
+                    download_duration_milliseconds_v6: Some(6234),
+                    downloaded_file_size_bytes_v6: Some(20971520),
+                    downloaded_file_v6: "test-file-v6.bin".to_string(),
+                    download_error_v6: "none-v6".to_string(),
+                }),
+            },
+        };
+
+        // Serialize to JSON
+        let json_string =
+            serde_json::to_string(&original).expect("Should serialize LastProbeResult to JSON");
+
+        // Deserialize back
+        let deserialized: LastProbeResult =
+            serde_json::from_str(&json_string).expect("Should deserialize JSON to LastProbeResult");
+
+        // Verify top-level fields
+        assert_eq!(deserialized.node, original.node);
+        assert_eq!(deserialized.used_entry, original.used_entry);
+
+        // Verify Entry
+        match (&original.outcome.as_entry, &deserialized.outcome.as_entry) {
+            (Entry::Tested(orig), Entry::Tested(deser)) => {
+                assert_eq!(orig.can_connect, deser.can_connect);
+                assert_eq!(orig.can_route, deser.can_route);
+            }
+            _ => panic!("Entry mismatch after round-trip"),
+        }
+
+        // Verify Exit
+        let orig_exit = original.outcome.as_exit.as_ref().unwrap();
+        let deser_exit = deserialized.outcome.as_exit.as_ref().unwrap();
+        assert_eq!(orig_exit.can_connect, deser_exit.can_connect);
+        assert_eq!(orig_exit.can_route_ip_v4, deser_exit.can_route_ip_v4);
+        assert_eq!(
+            orig_exit.can_route_ip_external_v4,
+            deser_exit.can_route_ip_external_v4
+        );
+        assert_eq!(orig_exit.can_route_ip_v6, deser_exit.can_route_ip_v6);
+        assert_eq!(
+            orig_exit.can_route_ip_external_v6,
+            deser_exit.can_route_ip_external_v6
+        );
+
+        // Verify WgProbeResults
+        let orig_wg = original.outcome.wg.as_ref().unwrap();
+        let deser_wg = deserialized.outcome.wg.as_ref().unwrap();
+        assert_eq!(orig_wg.can_register, deser_wg.can_register);
+        assert_eq!(orig_wg.can_handshake, deser_wg.can_handshake);
+        assert_eq!(orig_wg.can_resolve_dns, deser_wg.can_resolve_dns);
+        assert_eq!(
+            orig_wg.ping_hosts_performance,
+            deser_wg.ping_hosts_performance
+        );
+        assert_eq!(orig_wg.ping_ips_performance, deser_wg.ping_ips_performance);
+        assert_eq!(
+            orig_wg.can_query_metadata_v4,
+            deser_wg.can_query_metadata_v4
+        );
+        assert_eq!(orig_wg.can_handshake_v4, deser_wg.can_handshake_v4);
+        assert_eq!(orig_wg.can_resolve_dns_v4, deser_wg.can_resolve_dns_v4);
+        assert_eq!(
+            orig_wg.ping_hosts_performance_v4,
+            deser_wg.ping_hosts_performance_v4
+        );
+        assert_eq!(
+            orig_wg.ping_ips_performance_v4,
+            deser_wg.ping_ips_performance_v4
+        );
+        assert_eq!(orig_wg.can_handshake_v6, deser_wg.can_handshake_v6);
+        assert_eq!(orig_wg.can_resolve_dns_v6, deser_wg.can_resolve_dns_v6);
+        assert_eq!(
+            orig_wg.ping_hosts_performance_v6,
+            deser_wg.ping_hosts_performance_v6
+        );
+        assert_eq!(
+            orig_wg.ping_ips_performance_v6,
+            deser_wg.ping_ips_performance_v6
+        );
+        assert_eq!(
+            orig_wg.download_duration_sec_v4,
+            deser_wg.download_duration_sec_v4
+        );
+        assert_eq!(
+            orig_wg.download_duration_milliseconds_v4,
+            deser_wg.download_duration_milliseconds_v4
+        );
+        assert_eq!(
+            orig_wg.downloaded_file_size_bytes_v4,
+            deser_wg.downloaded_file_size_bytes_v4
+        );
+        assert_eq!(orig_wg.downloaded_file_v4, deser_wg.downloaded_file_v4);
+        assert_eq!(orig_wg.download_error_v4, deser_wg.download_error_v4);
+        assert_eq!(
+            orig_wg.download_duration_sec_v6,
+            deser_wg.download_duration_sec_v6
+        );
+        assert_eq!(
+            orig_wg.download_duration_milliseconds_v6,
+            deser_wg.download_duration_milliseconds_v6
+        );
+        assert_eq!(
+            orig_wg.downloaded_file_size_bytes_v6,
+            deser_wg.downloaded_file_size_bytes_v6
+        );
+        assert_eq!(orig_wg.downloaded_file_v6, deser_wg.downloaded_file_v6);
+        assert_eq!(orig_wg.download_error_v6, deser_wg.download_error_v6);
     }
 }
 

@@ -104,6 +104,8 @@ pub struct ProbeOutcome {
     pub as_entry: Entry,
     pub as_exit: Option<Exit>,
     pub wg: Option<WgProbeResults>,
+    pub socks5: Option<Socks5ProbeResults>,
+    // TODO dz lp
 }
 
 use nym_gateway_probe::types::ProbeOutcome as ProbeOutcomeLatest;
@@ -114,6 +116,7 @@ impl From<ProbeOutcomeLatest> for ProbeOutcome {
             as_entry: value.as_entry.into(),
             as_exit: value.as_exit.map(From::from),
             wg: value.wg.map(From::from),
+            socks5: value.socks5.map(From::from),
         }
     }
 }
@@ -350,5 +353,57 @@ pub(super) fn calculate_load(probe_outcome: &LastProbeResult) -> ScoreValue {
         ScoreValue::Medium
     } else {
         ScoreValue::High
+    }
+}
+
+use nym_gateway_probe::types::Socks5ProbeResults as Socks5ProbeResultsLatest;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Socks5ProbeResults {
+    /// whether we could establish a SOCKS5 proxy connection
+    pub can_connect_socks5: bool,
+
+    /// HTTPS connectivity test
+    pub https_connectivity: HttpsConnectivityResult,
+}
+
+impl From<Socks5ProbeResultsLatest> for Socks5ProbeResults {
+    fn from(value: Socks5ProbeResultsLatest) -> Self {
+        Self {
+            can_connect_socks5: value.can_connect_socks5,
+            https_connectivity: value.https_connectivity.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct HttpsConnectivityResult {
+    /// successfully completed HTTPS request
+    https_success: bool,
+
+    /// HTTPS status code received
+    https_status_code: Option<u16>,
+
+    /// average HTTPS request latency in milliseconds
+    https_latency_ms: Option<u64>,
+
+    /// among multiple endpoints available, list the one actually used
+    endpoint_used: Option<String>,
+
+    /// error message(s) (if any)
+    error: Option<String>,
+}
+
+use nym_gateway_probe::types::HttpsConnectivityResult as HttpsConnectivityResultLatest;
+
+impl From<HttpsConnectivityResultLatest> for HttpsConnectivityResult {
+    fn from(value: HttpsConnectivityResultLatest) -> Self {
+        Self {
+            https_success: value.https_success(),
+            https_status_code: value.https_status_code().cloned(),
+            https_latency_ms: value.https_latency_ms().cloned(),
+            endpoint_used: value.endpoint_used().cloned(),
+            error: value.error().cloned(),
+        }
     }
 }

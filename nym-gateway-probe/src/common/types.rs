@@ -142,7 +142,7 @@ impl Exit {
 }
 
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Socks5ProbeResults {
     /// whether we could establish a SOCKS5 proxy connection
     can_connect_socks5: bool,
@@ -170,6 +170,29 @@ impl Socks5ProbeResults {
         Self {
             can_connect_socks5: true,
             https_connectivity: HttpsConnectivityResult::with_errors(vec![error.into()]),
+        }
+    }
+}
+
+impl Socks5ProbeResults {
+    pub fn with_http_result(https_connectivity: HttpsConnectivityResult) -> Self {
+        Self {
+            can_connect_socks5: true,
+            https_connectivity,
+        }
+    }
+
+    pub fn error_before_connecting(error: impl Into<String>) -> Self {
+        Self {
+            can_connect_socks5: false,
+            https_connectivity: HttpsConnectivityResult::with_error(error.into()),
+        }
+    }
+
+    pub fn error_after_connecting(error: impl Into<String>) -> Self {
+        Self {
+            can_connect_socks5: true,
+            https_connectivity: HttpsConnectivityResult::with_error(error.into()),
         }
     }
 }

@@ -1,5 +1,5 @@
+# This is in case, for whatever reason, a publication run fails, and we need to restart halfway down the list, of unbumped/unpublished crates.
 name: Resume crates.io publish
-# This is in case, for whatever reason, a publication run fails, and we need to restart halfway down the list, but don't want to have to wait.
 
 on:
   workflow_dispatch:

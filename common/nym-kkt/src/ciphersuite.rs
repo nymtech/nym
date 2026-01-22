@@ -1,14 +1,15 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Display;
-
 use libcrux_kem::{Algorithm, MlKem768PublicKey};
 use nym_crypto::asymmetric::ed25519;
+use std::fmt::Display;
 
 use crate::error::KKTError;
 
-pub const HASH_LEN_256: usize = 32;
+pub const DEFAULT_HASH_LEN: usize = 32;
+const _: () = assert!(DEFAULT_HASH_LEN <= u8::MAX as usize);
+
 pub const CIPHERSUITE_ENCODING_LEN: usize = 4;
 
 pub const CURVE25519_KEY_LEN: usize = 32;
@@ -20,6 +21,7 @@ pub enum HashFunction {
     SHAKE256,
     SHA256,
 }
+
 impl Display for HashFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
@@ -172,7 +174,7 @@ impl Ciphersuite {
                     l
                 }
             }
-            None => HASH_LEN_256 as u8,
+            None => DEFAULT_HASH_LEN as u8,
         };
         Ok(Self {
             hash_function,
@@ -219,7 +221,7 @@ impl Ciphersuite {
                 HashFunction::SHA256 => 3,
             },
             match self.hash_length as usize {
-                HASH_LEN_256 => 0u8,
+                DEFAULT_HASH_LEN => 0u8,
                 _ => self.hash_length,
             },
             match self.signature_scheme {

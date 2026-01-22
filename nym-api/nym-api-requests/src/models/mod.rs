@@ -31,7 +31,7 @@ pub use schema_helpers::*;
 
 pub use nym_mixnet_contract_common::{EpochId, KeyRotationId, KeyRotationState};
 pub use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
-pub use nym_noise_keys::VersionedNoiseKey;
+pub use nym_noise_keys::VersionedNoiseKeyV1;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct RequestError {

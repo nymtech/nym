@@ -8,6 +8,7 @@ pub mod error;
 pub mod message;
 pub mod noise_protocol;
 pub mod packet;
+pub mod peer;
 pub mod psk;
 pub mod replay;
 pub mod session;
@@ -29,50 +30,20 @@ pub const NOISE_PSK_INDEX: u8 = 3;
 
 #[cfg(test)]
 pub fn sessions_for_tests() -> (LpSession, LpSession) {
-    use nym_crypto::asymmetric::{ed25519, x25519};
-    use std::sync::Arc;
-
-    let mut rng = rand::thread_rng();
-
-    // X25519 keypairs for Noise protocol
-    let keypair_1 = Arc::new(x25519::KeyPair::new(&mut rng));
-    let keypair_2 = Arc::new(x25519::KeyPair::new(&mut rng));
+    let (init, resp) = crate::peer::mock_peers();
 
     // Use a fixed receiver_index for deterministic tests
     let receiver_index: u32 = 12345;
 
-    // Ed25519 keypairs for PSQ authentication (placeholders for testing)
-    let ed25519_keypair_1 = ed25519::KeyPair::from_secret([1u8; 32], 0);
-    let ed25519_keypair_2 = ed25519::KeyPair::from_secret([2u8; 32], 1);
-
-    let ed25519_keypair1_pubkey = *ed25519_keypair_1.public_key();
-
     // Use consistent salt for deterministic tests
     let salt = [1u8; 32];
 
-    // PSQ will always derive the PSK during handshake using X25519 as DHKEM
+    let initiator_session =
+        LpSession::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
+            .expect("Test session creation failed");
 
-    let initiator_session = LpSession::new(
-        receiver_index,
-        true,
-        Arc::new(ed25519_keypair_1),
-        keypair_1.clone(),
-        ed25519_keypair_2.public_key(),
-        keypair_2.public_key(),
-        &salt,
-    )
-    .expect("Test session creation failed");
-
-    let responder_session = LpSession::new(
-        receiver_index,
-        false,
-        Arc::new(ed25519_keypair_2),
-        keypair_2.clone(),
-        &ed25519_keypair1_pubkey,
-        keypair_1.public_key(),
-        &salt,
-    )
-    .expect("Test session creation failed");
+    let responder_session = LpSession::new(receiver_index, false, resp, init.as_remote(), &salt)
+        .expect("Test session creation failed");
 
     (initiator_session, responder_session)
 }
@@ -84,10 +55,10 @@ mod tests {
     use crate::session_manager::SessionManager;
     use crate::{LpError, sessions_for_tests};
     use bytes::BytesMut;
-    use std::sync::Arc;
 
     // Import the new standalone functions
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
+    use crate::peer::mock_peers;
 
     #[test]
     fn test_replay_protection_integration() {
@@ -190,19 +161,12 @@ mod tests {
 
     #[test]
     fn test_session_manager_integration() {
-        use nym_crypto::asymmetric::ed25519;
-
         // Create session manager
         let local_manager = SessionManager::new();
         let remote_manager = SessionManager::new();
 
         // Generate Ed25519 keypairs for PSQ authentication
-        let ed25519_keypair_local = ed25519::KeyPair::from_secret([8u8; 32], 0);
-        let ed25519_keypair_remote = ed25519::KeyPair::from_secret([9u8; 32], 1);
-
-        let ed25519_keypair_local_pubkey = *ed25519_keypair_local.public_key();
-        let x25519_keypair_local_pubkey = ed25519_keypair_local_pubkey.to_x25519().unwrap();
-        let x25519_keypair_remote_pubkey = ed25519_keypair_remote.public_key().to_x25519().unwrap();
+        let (init, resp) = mock_peers();
 
         // Use fixed receiver_index for deterministic test
         let receiver_index: u32 = 54321;
@@ -214,23 +178,15 @@ mod tests {
         let _ = local_manager
             .create_session_state_machine(
                 receiver_index,
-                Arc::new(ed25519_keypair_local),
-                ed25519_keypair_remote.public_key(),
-                &x25519_keypair_remote_pubkey,
                 true,
+                init.clone(),
+                resp.as_remote(),
                 &salt,
             )
             .unwrap();
 
         let _ = remote_manager
-            .create_session_state_machine(
-                receiver_index,
-                Arc::new(ed25519_keypair_remote),
-                &ed25519_keypair_local_pubkey,
-                &x25519_keypair_local_pubkey,
-                false,
-                &salt,
-            )
+            .create_session_state_machine(receiver_index, false, resp, init.as_remote(), &salt)
             .unwrap();
         // === Packet 1 (Counter 0 - Should succeed) ===
         let packet1 = LpPacket {

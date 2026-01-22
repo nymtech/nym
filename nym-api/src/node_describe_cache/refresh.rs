@@ -3,7 +3,7 @@
 
 use crate::node_describe_cache::query_helpers::query_for_described_data;
 use crate::node_describe_cache::NodeDescribeCacheError;
-use nym_api_requests::models::{DescribedNodeType, NymNodeDescription};
+use nym_api_requests::models::{DescribedNodeTypeV2, NymNodeDescriptionV2};
 use nym_bin_common::bin_info;
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_crypto::asymmetric::ed25519;
@@ -18,7 +18,7 @@ pub(crate) struct RefreshData {
     host: String,
     node_id: NodeId,
     expected_identity: ed25519::PublicKey,
-    node_type: DescribedNodeType,
+    node_type: DescribedNodeTypeV2,
 
     port: Option<u16>,
 }
@@ -30,7 +30,7 @@ impl<'a> TryFrom<&'a NymNodeDetails> for RefreshData {
         Ok(RefreshData::new(
             &node.bond_information.node.host,
             node.bond_information.identity().parse()?,
-            DescribedNodeType::NymNode,
+            DescribedNodeTypeV2::NymNode,
             node.node_id(),
             node.bond_information.node.custom_http_port,
         ))
@@ -41,7 +41,7 @@ impl RefreshData {
     pub fn new(
         host: impl Into<String>,
         expected_identity: ed25519::PublicKey,
-        node_type: DescribedNodeType,
+        node_type: DescribedNodeTypeV2,
         node_id: NodeId,
         port: Option<u16>,
     ) -> Self {
@@ -58,7 +58,7 @@ impl RefreshData {
         self.node_id
     }
 
-    pub(crate) async fn try_refresh(self, allow_all_ips: bool) -> Option<NymNodeDescription> {
+    pub(crate) async fn try_refresh(self, allow_all_ips: bool) -> Option<NymNodeDescriptionV2> {
         match try_get_description(self, allow_all_ips).await {
             Ok(description) => Some(description),
             Err(err) => {
@@ -124,7 +124,7 @@ async fn try_get_client(
 async fn try_get_description(
     data: RefreshData,
     allow_all_ips: bool,
-) -> Result<NymNodeDescription, NodeDescribeCacheError> {
+) -> Result<NymNodeDescriptionV2, NodeDescribeCacheError> {
     let client = try_get_client(&data.host, data.node_id, data.port).await?;
 
     let map_query_err = |err| NodeDescribeCacheError::ApiFailure {
@@ -158,7 +158,7 @@ async fn try_get_description(
     let node_info = query_for_described_data(&client, data.node_id).await?;
     let description = node_info.into_node_description(host_info.data);
 
-    Ok(NymNodeDescription {
+    Ok(NymNodeDescriptionV2 {
         node_id: data.node_id,
         contract_node_type: data.node_type,
         description,

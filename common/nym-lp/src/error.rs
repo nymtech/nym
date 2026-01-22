@@ -90,4 +90,7 @@ pub enum LpError {
     /// Received an LP packet with an incompatible, legacy, version
     #[error("incompatible LP packet version. got: {got}, lowest supported: {lowest_supported}")]
     IncompatibleLegacyPacketVersion { got: u8, lowest_supported: u8 },
+
+    #[error("attempted to create an LP responder without providing a valid KEM key")]
+    ResponderWithMissingKEMKey,
 }

@@ -132,7 +132,7 @@ mod tests {
     use super::*;
     use crate::api::v1::node::models::{HostKeys, SphinxKey};
     use nym_crypto::asymmetric::{ed25519, x25519};
-    use nym_noise_keys::{NoiseVersion, VersionedNoiseKey};
+    use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
     use rand_chacha::rand_core::SeedableRng;
 
     #[test]
@@ -141,7 +141,7 @@ mod tests {
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
         let x25519_sphinx2 = x25519::KeyPair::new(&mut rng);
-        let x25519_versioned_noise = VersionedNoiseKey {
+        let x25519_versioned_noise = VersionedNoiseKeyV1 {
             supported_version: NoiseVersion::V1,
             x25519_pubkey: *x25519::KeyPair::new(&mut rng).public_key(),
         };
@@ -305,7 +305,7 @@ mod tests {
                     public_key: *x25519_sphinx.public_key(),
                 },
                 pre_announced_x25519_sphinx_key: None,
-                x25519_versioned_noise: Some(VersionedNoiseKey {
+                x25519_versioned_noise: Some(VersionedNoiseKeyV1 {
                     supported_version: NoiseVersion::V1,
                     x25519_pubkey: legacy_info_noise.keys.x25519_noise.unwrap(),
                 }),
@@ -384,7 +384,7 @@ mod tests {
                     public_key: *x25519_sphinx.public_key(),
                 },
                 pre_announced_x25519_sphinx_key: None,
-                x25519_versioned_noise: Some(VersionedNoiseKey {
+                x25519_versioned_noise: Some(VersionedNoiseKeyV1 {
                     supported_version: NoiseVersion::V1,
                     x25519_pubkey: legacy_info_noise.keys.x25519_noise.parse().unwrap(),
                 }),

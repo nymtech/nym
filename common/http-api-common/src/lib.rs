@@ -11,8 +11,10 @@ pub mod response;
 #[cfg(feature = "output")]
 pub use response::*;
 
+pub use ::bincode::Options as BincodeOptions;
+
 // be explicit about those values because bincode uses different defaults in different places
-pub fn make_bincode_serializer() -> impl ::bincode::Options {
+pub fn make_bincode_serializer() -> impl BincodeOptions {
     use ::bincode::Options;
     ::bincode::DefaultOptions::new()
         .with_little_endian()

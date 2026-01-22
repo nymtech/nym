@@ -16,7 +16,7 @@ use nym_credential_verification::ecash::{
 use nym_credential_verification::upgrade_mode::{
     UpgradeModeCheckConfig, UpgradeModeDetails, UpgradeModeState,
 };
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_router::IpPacketRouter;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
@@ -46,6 +46,7 @@ pub use nym_gateway_storage::{
     traits::{BandwidthGatewayStorage, InboxGatewayStorage},
     GatewayStorage,
 };
+use nym_lp::peer::LpLocalPeer;
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
 pub(crate) mod client_handling;
@@ -92,6 +93,9 @@ pub struct GatewayTasksBuilder {
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<ed25519::KeyPair>,
 
+    /// x25519 (for now, to be changed into MlKem) keypair used for the PSQ derivation
+    kem_psq_keys: Arc<x25519::KeyPair>,
+
     storage: GatewayStorage,
 
     mix_packet_sender: MixForwardingSender,
@@ -120,6 +124,7 @@ impl GatewayTasksBuilder {
     pub fn new(
         config: Config,
         identity: Arc<ed25519::KeyPair>,
+        kem_psq_keys: Arc<x25519::KeyPair>,
         storage: GatewayStorage,
         mix_packet_sender: MixForwardingSender,
         metrics_sender: MetricEventsSender,
@@ -137,6 +142,7 @@ impl GatewayTasksBuilder {
             wireguard_data: None,
             user_agent,
             identity_keypair: identity,
+            kem_psq_keys,
             storage,
             mix_packet_sender,
             metrics_sender,
@@ -325,10 +331,21 @@ impl GatewayTasksBuilder {
             .as_ref()
             .map(|wg_data| wg_data.inner.peer_tx().clone());
 
+        // We use standard RFC 7748 conversion to derive X25519 keys from Ed25519 identity keys.
+        // This allows callers to provide only Ed25519 keys (which they already have for signing/identity)
+        // without needing to manage separate X25519 keypairs.
+        //
+        // Security: Ed25519→X25519 conversion is cryptographically sound (RFC 7748).
+        // The derived X25519 keys are used for:
+        // - Noise protocol ephemeral DH
+        // - PSQ ECDH baseline security (pre-quantum)
+        let x25519_keys = Arc::new(self.identity_keypair.to_x25519());
+
         let handler_state = lp_listener::LpHandlerState {
             ecash_verifier: self.ecash_manager().await?,
             storage: self.storage.clone(),
-            local_identity: Arc::clone(&self.identity_keypair),
+            local_lp_peer: LpLocalPeer::new(self.identity_keypair.clone(), x25519_keys)
+                .with_kem_psq_key(self.kem_psq_keys.clone()),
             metrics: self.metrics.clone(),
             active_clients_store,
             wg_peer_controller,

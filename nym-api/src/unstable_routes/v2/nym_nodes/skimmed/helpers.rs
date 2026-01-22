@@ -7,7 +7,7 @@ use crate::unstable_routes::v2::nym_nodes::helpers::NodesParams;
 use crate::unstable_routes::v2::nym_nodes::skimmed::PaginatedSkimmedNodes;
 use axum::extract::{Query, State};
 use nym_api_requests::models::{
-    NodeAnnotation, NymNodeDescription, OffsetDateTimeJsonSchemaWrapper,
+    NodeAnnotation, NymNodeDescriptionV2, OffsetDateTimeJsonSchemaWrapper,
 };
 use nym_api_requests::nym_nodes::{NodeRole, PaginatedCachedNodesResponseV2, SkimmedNode};
 use nym_http_api_common::Output;
@@ -25,7 +25,7 @@ fn build_nym_nodes_response<'a, NI>(
     active_only: bool,
 ) -> Vec<SkimmedNode>
 where
-    NI: Iterator<Item = &'a NymNodeDescription> + 'a,
+    NI: Iterator<Item = &'a NymNodeDescriptionV2> + 'a,
 {
     let mut nodes = Vec::new();
     for nym_node in nym_nodes_subset {
@@ -91,7 +91,7 @@ pub(crate) async fn build_skimmed_nodes_response<'a, NI>(
 ) -> PaginatedSkimmedNodes
 where
     // iterator returning relevant subset of nym-nodes (like mixing nym-nodes, entries, etc.)
-    NI: Iterator<Item = &'a NymNodeDescription> + 'a,
+    NI: Iterator<Item = &'a NymNodeDescriptionV2> + 'a,
 {
     // TODO: implement it
     let _ = query_params.per_page;

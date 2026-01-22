@@ -6,7 +6,7 @@ use nym_mixnet_contract_common::CoinSchema;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
     client::NodeId,
-    models::{AuthenticatorDetails, BinaryBuildInformationOwned, IpPacketRouterDetails},
+    models::{AuthenticatorDetailsV1, BinaryBuildInformationOwned, IpPacketRouterDetailsV1},
     nym_api::SkimmedNode,
     nym_nodes::{BasicEntryInformation, NodeRole},
 };
@@ -100,8 +100,8 @@ pub struct DVpnGateway {
     pub identity_key: String,
     pub name: String,
     pub description: Option<String>,
-    pub ip_packet_router: Option<IpPacketRouterDetails>,
-    pub authenticator: Option<AuthenticatorDetails>,
+    pub ip_packet_router: Option<IpPacketRouterDetailsV1>,
+    pub authenticator: Option<AuthenticatorDetailsV1>,
     pub location: Location,
     pub last_probe: Option<DirectoryGwProbe>,
     #[schema(value_type = Vec<String>)]
@@ -917,10 +917,10 @@ pub(crate) struct ExtendedNymNode {
     pub(crate) original_pledge: u128,
     pub(crate) bonding_address: Option<String>,
     pub(crate) bonded: bool,
-    pub(crate) node_type: nym_validator_client::models::DescribedNodeType,
+    pub(crate) node_type: nym_validator_client::models::DescribedNodeTypeV1,
     pub(crate) ip_address: String,
     pub(crate) accepted_tnc: bool,
-    pub(crate) self_description: nym_validator_client::models::NymNodeData,
+    pub(crate) self_description: nym_validator_client::models::NymNodeDataV2,
     pub(crate) rewarding_details: Option<nym_mixnet_contract_common::NodeRewarding>,
     pub(crate) description: NodeDescription,
     pub(crate) geoip: Option<NodeGeoData>,

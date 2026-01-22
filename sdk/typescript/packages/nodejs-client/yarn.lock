@@ -91,10 +91,10 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@nymproject/nym-client-wasm-node@>=1.2.4-rc.2 || ^1":
-  version "1.2.3"
-  resolved "https://registry.yarnpkg.com/@nymproject/nym-client-wasm-node/-/nym-client-wasm-node-1.2.3.tgz#e75e234714494fafffb86115cdee6759dcede366"
-  integrity sha512-fUGld4MJOgnvyqk5/KIpFePIXn8Nsl/7T/jh9a9WdTWntECnnJ/DBqoO+6NzDkyXaLYhByqR7reO8ZApNR0YCw==
+"@nymproject/nym-client-wasm-node@>=1.4.1-rc.3 || ^1":
+  version "1.4.1"
+  resolved "https://registry.yarnpkg.com/@nymproject/nym-client-wasm-node/-/nym-client-wasm-node-1.4.1.tgz#3467e0b389cfec79cde1f4a75cfb8469752585a2"
+  integrity sha512-+bUIIiZGcv9GPOpKl6Pas2UochIac9EWxT24vmhx+x/Y4B6y4PpFtaVj+TtNwFtCu+/6w2GH0tb7UAJIzpJSQw==
 
 "@rollup/plugin-commonjs@^24.0.1":
   version "24.1.0"
@@ -1819,9 +1819,9 @@ lodash.merge@^4.6.2:
   integrity sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==
 
 lodash@^4.7.0:
-  version "4.17.21"
-  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz#679591c564c3bffaae8454cf0b3df370c3d6911c"
-  integrity sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==
+  version "4.17.23"
+  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.23.tgz#f113b0378386103be4f6893388c73d0bde7f2c5a"
+  integrity sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==
 
 loose-envify@^1.4.0:
   version "1.4.0"

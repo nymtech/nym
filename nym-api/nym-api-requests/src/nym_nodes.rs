@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{DeclaredRoles, NymNodeData, OffsetDateTimeJsonSchemaWrapper};
+use crate::models::{DeclaredRolesV1, NymNodeDataV1, OffsetDateTimeJsonSchemaWrapper};
 use crate::pagination::{PaginatedResponse, Pagination};
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
@@ -9,7 +9,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{EpochId, Interval, NodeId};
-use nym_noise_keys::VersionedNoiseKey;
+use nym_noise_keys::VersionedNoiseKeyV1;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -254,7 +254,7 @@ pub struct SkimmedNode {
 
     // needed for the purposes of sending appropriate test packets
     #[serde(default)]
-    pub supported_roles: DeclaredRoles,
+    pub supported_roles: DeclaredRolesV1,
 
     pub entry: Option<BasicEntryInformation>,
 
@@ -278,7 +278,7 @@ impl SkimmedNode {
 pub struct SemiSkimmedNode {
     pub basic: SkimmedNode,
 
-    pub x25519_noise_versioned_key: Option<VersionedNoiseKey>,
+    pub x25519_noise_versioned_key: Option<VersionedNoiseKeyV1>,
     // pub location:
 }
 
@@ -287,7 +287,7 @@ pub struct FullFatNode {
     pub expanded: SemiSkimmedNode,
 
     // kinda temporary for now to make as few changes as possible for now
-    pub self_described: Option<NymNodeData>,
+    pub self_described: Option<NymNodeDataV1>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, ToSchema)]

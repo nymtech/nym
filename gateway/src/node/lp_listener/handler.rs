@@ -342,9 +342,8 @@ where
         let mut state_machine = LpStateMachine::new(
             receiver_index,
             false, // responder
-            self.state.local_identity.clone(),
-            &hello_data.client_ed25519_public_key,
-            &hello_data.client_lp_public_key,
+            self.state.local_lp_peer.clone(),
+            hello_data.to_remote_peer(),
             &hello_data.salt,
         )
         .map_err(|e| {
@@ -1248,10 +1247,10 @@ mod tests {
     use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
     use nym_lp::message::{ClientHelloData, EncryptedDataPayload, HandshakeData, LpMessage};
     use nym_lp::packet::{LpHeader, LpPacket};
+    use nym_lp::peer::LpLocalPeer;
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
-
     // ==================== Test Helpers ====================
 
     /// Create a minimal test state for handler tests
@@ -1282,12 +1281,17 @@ mod tests {
         // Create mix forwarding channel (unused in tests but required by struct)
         let (mix_sender, _mix_receiver) = nym_mixnet_client::forwarder::mix_forwarding_channels();
 
+        let id_keys = Arc::new(ed25519::KeyPair::new(&mut OsRng));
+        let x_keys = Arc::new(id_keys.to_x25519());
+
+        let lp_peer = LpLocalPeer::new(id_keys, x_keys.clone()).with_kem_psq_key(x_keys);
+
         LpHandlerState {
             lp_config,
             ecash_verifier: Arc::new(ecash_verifier)
                 as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
             storage,
-            local_identity: Arc::new(ed25519::KeyPair::new(&mut OsRng)),
+            local_lp_peer: lp_peer,
             metrics: nym_node_metrics::NymNodeMetrics::default(),
             active_clients_store: ActiveClientsStore::new(),
             wg_peer_controller: None,

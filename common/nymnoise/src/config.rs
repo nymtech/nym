@@ -10,7 +10,7 @@ use std::{
 
 use arc_swap::ArcSwap;
 use nym_crypto::asymmetric::x25519;
-use nym_noise_keys::{NoiseVersion, VersionedNoiseKey};
+use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
 use snow::params::NoiseParams;
 
 use strum_macros::{EnumIter, FromRepr};
@@ -55,7 +55,7 @@ impl NoisePattern {
 
 #[derive(Debug, Default)]
 struct SocketAddrToKey {
-    inner: ArcSwap<HashMap<SocketAddr, VersionedNoiseKey>>,
+    inner: ArcSwap<HashMap<SocketAddr, VersionedNoiseKeyV1>>,
 }
 
 // SW NOTE : Only for phased upgrade. To remove once we decide all nodes have to support Noise
@@ -78,7 +78,7 @@ impl NoiseNetworkView {
         }
     }
 
-    pub fn swap_view(&self, new: HashMap<SocketAddr, VersionedNoiseKey>) {
+    pub fn swap_view(&self, new: HashMap<SocketAddr, VersionedNoiseKeyV1>) {
         let noise_support = new
             .iter()
             .map(|(s_addr, key)| (s_addr.ip(), key.supported_version))
@@ -126,7 +126,7 @@ impl NoiseConfig {
         self
     }
 
-    pub(crate) fn get_noise_key(&self, s_address: &SocketAddr) -> Option<VersionedNoiseKey> {
+    pub(crate) fn get_noise_key(&self, s_address: &SocketAddr) -> Option<VersionedNoiseKeyV1> {
         self.network.keys.inner.load().get(s_address).copied()
     }
 

@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::peer::LpRemotePeer;
 use crate::{BOOTSTRAP_RECEIVER_IDX, LpError};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -108,6 +109,11 @@ impl ClientHelloData {
             )?,
             salt: b[68..].try_into().unwrap(),
         })
+    }
+
+    /// Attempt to construct remote peer information based on the data provided in this packet.
+    pub fn to_remote_peer(&self) -> LpRemotePeer {
+        LpRemotePeer::new(self.client_ed25519_public_key, self.client_lp_public_key)
     }
 }
 

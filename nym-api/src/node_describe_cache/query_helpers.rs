@@ -5,14 +5,14 @@ use crate::node_describe_cache::NodeDescribeCacheError;
 use futures::future::{maybe_done, MaybeDone};
 use futures::{FutureExt, TryFutureExt};
 use nym_api_requests::models::{
-    AuthenticatorDetails, DeclaredRoles, HostInformation, IpPacketRouterDetails,
-    LewesProtocolDetails, NetworkRequesterDetails, NymNodeData, WebSockets, WireguardDetails,
+    AuthenticatorDetailsV2, AuxiliaryDetailsV2, DeclaredRolesV2, HostInformationV2,
+    IpPacketRouterDetailsV2, LewesProtocolDetailsV1, NetworkRequesterDetailsV2, NymNodeDataV2,
+    WebSocketsV2, WireguardDetailsV2,
 };
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_config::defaults::mainnet;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
-use nym_node_requests::api::v1::node::models::AuxiliaryDetails;
 use nym_node_requests::api::Client;
 use pin_project::pin_project;
 use std::future::Future;
@@ -23,14 +23,14 @@ use tracing::debug;
 
 async fn network_requester_future(
     client: &Client,
-) -> Result<Option<NetworkRequesterDetails>, NymNodeApiClientError> {
+) -> Result<Option<NetworkRequesterDetailsV2>, NymNodeApiClientError> {
     let Ok(nr) = client.get_network_requester().await else {
         return Ok(None);
     };
 
     client.get_exit_policy().await.map(|exit_policy| {
         let uses_nym_exit_policy = exit_policy.upstream_source == mainnet::EXIT_POLICY_URL;
-        Some(NetworkRequesterDetails {
+        Some(NetworkRequesterDetailsV2 {
             address: nr.address,
             uses_exit_policy: exit_policy.enabled && uses_nym_exit_policy,
         })
@@ -55,7 +55,8 @@ pub(crate) async fn query_for_described_data(
                 // old nym-nodes will not have this field, so use the default instead
                 debug!("could not obtain auxiliary details of node {node_id}: {err} is it running an old version?")
             })
-            .unwrap_or_else(|_| AuxiliaryDetails::default()),
+            .ok_into()
+            .unwrap_or_else(|_| AuxiliaryDetailsV2::default()),
         client.get_mixnet_websockets().ok_into().map_err(map_query_err),
         network_requester_future(client).map_err(map_query_err),
         // `ok_into` ultimately calls `IpPacketRouter::into` to transform it into `IpPacketRouterDetails`
@@ -112,14 +113,14 @@ impl<F1, F2, F3, F4, F5, F6, F7, F8, F9> Future
     for NodeDescribedInfoMegaFuture<F1, F2, F3, F4, F5, F6, F7, F8, F9>
 where
     F1: Future<Output = Result<BinaryBuildInformationOwned, NodeDescribeCacheError>>,
-    F2: Future<Output = Result<DeclaredRoles, NodeDescribeCacheError>>,
-    F3: Future<Output = AuxiliaryDetails>,
-    F4: Future<Output = Result<WebSockets, NodeDescribeCacheError>>,
-    F5: Future<Output = Result<Option<NetworkRequesterDetails>, NodeDescribeCacheError>>,
-    F6: Future<Output = Option<IpPacketRouterDetails>>,
-    F7: Future<Output = Option<AuthenticatorDetails>>,
-    F8: Future<Output = Option<WireguardDetails>>,
-    F9: Future<Output = Option<LewesProtocolDetails>>,
+    F2: Future<Output = Result<DeclaredRolesV2, NodeDescribeCacheError>>,
+    F3: Future<Output = AuxiliaryDetailsV2>,
+    F4: Future<Output = Result<WebSocketsV2, NodeDescribeCacheError>>,
+    F5: Future<Output = Result<Option<NetworkRequesterDetailsV2>, NodeDescribeCacheError>>,
+    F6: Future<Output = Option<IpPacketRouterDetailsV2>>,
+    F7: Future<Output = Option<AuthenticatorDetailsV2>>,
+    F8: Future<Output = Option<WireguardDetailsV2>>,
+    F9: Future<Output = Option<LewesProtocolDetailsV1>>,
 {
     type Output = Result<UnwrappedResolvedNodeDescribedInfo, NodeDescribeCacheError>;
 
@@ -202,15 +203,15 @@ where
 
 struct ResolvedNodeDescribedInfo {
     build_info: Result<BinaryBuildInformationOwned, NodeDescribeCacheError>,
-    roles: Result<DeclaredRoles, NodeDescribeCacheError>,
+    roles: Result<DeclaredRolesV2, NodeDescribeCacheError>,
     // TODO: in the future make it return a Result as well.
-    auxiliary_details: AuxiliaryDetails,
-    websockets: Result<WebSockets, NodeDescribeCacheError>,
-    network_requester: Result<Option<NetworkRequesterDetails>, NodeDescribeCacheError>,
-    ipr: Option<IpPacketRouterDetails>,
-    authenticator: Option<AuthenticatorDetails>,
-    wireguard: Option<WireguardDetails>,
-    lewes_protocol: Option<LewesProtocolDetails>,
+    auxiliary_details: AuxiliaryDetailsV2,
+    websockets: Result<WebSocketsV2, NodeDescribeCacheError>,
+    network_requester: Result<Option<NetworkRequesterDetailsV2>, NodeDescribeCacheError>,
+    ipr: Option<IpPacketRouterDetailsV2>,
+    authenticator: Option<AuthenticatorDetailsV2>,
+    wireguard: Option<WireguardDetailsV2>,
+    lewes_protocol: Option<LewesProtocolDetailsV1>,
 }
 
 impl ResolvedNodeDescribedInfo {
@@ -232,22 +233,22 @@ impl ResolvedNodeDescribedInfo {
 #[derive(Debug)]
 pub(crate) struct UnwrappedResolvedNodeDescribedInfo {
     pub(crate) build_info: BinaryBuildInformationOwned,
-    pub(crate) roles: DeclaredRoles,
-    pub(crate) auxiliary_details: AuxiliaryDetails,
-    pub(crate) websockets: WebSockets,
-    pub(crate) network_requester: Option<NetworkRequesterDetails>,
-    pub(crate) ipr: Option<IpPacketRouterDetails>,
-    pub(crate) authenticator: Option<AuthenticatorDetails>,
-    pub(crate) wireguard: Option<WireguardDetails>,
-    pub(crate) lewes_protocol: Option<LewesProtocolDetails>,
+    pub(crate) roles: DeclaredRolesV2,
+    pub(crate) auxiliary_details: AuxiliaryDetailsV2,
+    pub(crate) websockets: WebSocketsV2,
+    pub(crate) network_requester: Option<NetworkRequesterDetailsV2>,
+    pub(crate) ipr: Option<IpPacketRouterDetailsV2>,
+    pub(crate) authenticator: Option<AuthenticatorDetailsV2>,
+    pub(crate) wireguard: Option<WireguardDetailsV2>,
+    pub(crate) lewes_protocol: Option<LewesProtocolDetailsV1>,
 }
 
 impl UnwrappedResolvedNodeDescribedInfo {
     pub(crate) fn into_node_description(
         self,
-        host_info: impl Into<HostInformation>,
-    ) -> NymNodeData {
-        NymNodeData {
+        host_info: impl Into<HostInformationV2>,
+    ) -> NymNodeDataV2 {
+        NymNodeDataV2 {
             host_information: host_info.into(),
             last_polled: OffsetDateTime::now_utc().into(),
             build_information: self.build_info,

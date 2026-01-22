@@ -12,6 +12,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpPacket;
 use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
 use nym_lp::message::ForwardPacketData;
+use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
@@ -36,11 +37,11 @@ use tokio::net::TcpStream;
 /// // Connection automatically closes after registration
 /// ```
 pub struct LpRegistrationClient<S = TcpStream> {
-    /// Client's Ed25519 identity keypair (used for PSQ authentication and X25519 derivation).
-    local_ed25519_keypair: Arc<ed25519::KeyPair>,
+    /// Encapsulates all the client keys needed for the Lewes Protocol.
+    lp_local_peer: LpLocalPeer,
 
-    /// Gateway's Ed25519 public key (from directory/discovery).
-    gateway_ed25519_public_key: ed25519::PublicKey,
+    /// Encapsulates all the gateway keys needed for the Lewes Protocol.
+    gateway_lp_peer: LpRemotePeer,
 
     /// Gateway LP listener address (host:port, e.g., "1.1.1.1:41264").
     gateway_lp_address: SocketAddr,
@@ -67,8 +68,8 @@ where
     /// Creates a new LP registration client.
     ///
     /// # Arguments
-    /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair (for PSQ auth and X25519 derivation)
-    /// * `gateway_ed25519_public_key` - Gateway's Ed25519 public key (from directory/discovery)
+    /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair
+    /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
     /// * `gateway_lp_address` - Gateway's LP listener socket address
     /// * `client_ip` - Client IP address for registration
     /// * `config` - Configuration for timeouts and TCP parameters (use `LpConfig::default()`)
@@ -77,14 +78,16 @@ where
     /// This creates the client. Call `perform_handshake()` to establish the LP session.
     pub fn new(
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
-        gateway_ed25519_public_key: ed25519::PublicKey,
+        gateway_lp_peer: LpRemotePeer,
         gateway_lp_address: SocketAddr,
         client_ip: IpAddr,
         config: LpConfig,
     ) -> Self {
+        let local_x25519_keypair = local_ed25519_keypair.to_x25519();
+        let lp_local_peer = LpLocalPeer::new(local_ed25519_keypair, Arc::new(local_x25519_keypair));
         Self {
-            local_ed25519_keypair,
-            gateway_ed25519_public_key,
+            lp_local_peer,
+            gateway_lp_peer,
             gateway_lp_address,
             state_machine: None,
             client_ip,
@@ -97,7 +100,7 @@ where
     ///
     /// # Arguments
     /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair
-    /// * `gateway_ed25519_public_key` - Gateway's Ed25519 public key
+    /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
     /// * `gateway_lp_address` - Gateway's LP listener socket address
     /// * `client_ip` - Client IP address for registration
     ///
@@ -106,13 +109,13 @@ where
     /// For custom config, use `new()` directly.
     pub fn new_with_default_config(
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
-        gateway_ed25519_public_key: ed25519::PublicKey,
+        gateway_lp_peer: LpRemotePeer,
         gateway_lp_address: SocketAddr,
         client_ip: IpAddr,
     ) -> Self {
         Self::new(
             local_ed25519_keypair,
-            gateway_ed25519_public_key,
+            gateway_lp_peer,
             gateway_lp_address,
             client_ip,
             LpConfig::default(),
@@ -318,29 +321,15 @@ where
         // Ensure we have a TCP connection
         self.ensure_connected().await?;
 
-        // Step 1: Derive X25519 keys from Ed25519 for Noise protocol (internal to ClientHello)
-        // The Ed25519 keys are used for PSQ authentication and also converted to X25519
-        let client_x25519_public = self
-            .local_ed25519_keypair
-            .public_key()
-            .to_x25519()
-            .map_err(|e| {
-                LpClientError::Crypto(format!("Failed to derive X25519 public key: {e}"))
-            })?;
-
-        let gateway_x25519_public = self.gateway_ed25519_public_key.to_x25519().map_err(|e| {
-            LpClientError::Crypto(format!("Failed to derive X25519 public key: {e}"))
-        })?;
-
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|_| LpClientError::Other("System time before UNIX epoch".into()))?
             .as_secs();
 
-        // Step 2: Generate ClientHelloData with fresh salt and both public keys
+        // Step 1: Generate ClientHelloData with fresh salt and both public keys
         let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
-            client_x25519_public,
-            *self.local_ed25519_keypair.public_key(),
+            *self.lp_local_peer.x25519().public_key(),
+            *self.lp_local_peer.ed25519().public_key(),
             timestamp,
         );
         let salt = client_hello_data.salt;
@@ -352,7 +341,7 @@ where
             receiver_index
         );
 
-        // Step 3: Send ClientHello and receive Ack (persistent connection)
+        // Step 2: Send ClientHello and receive Ack (persistent connection)
         let client_hello_header = nym_lp::packet::LpHeader::new(
             nym_lp::BOOTSTRAP_RECEIVER_IDX, // session_id not yet established
             0,                              // counter starts at 0
@@ -380,18 +369,17 @@ where
             }
         }
 
-        // Step 4: Create state machine as initiator with Ed25519 keys
+        // Step 3: Create state machine as initiator with Ed25519 keys
         // PSK derivation happens internally in the state machine constructor
         let mut state_machine = LpStateMachine::new(
             receiver_index,
             true, // is_initiator
-            self.local_ed25519_keypair.clone(),
-            &self.gateway_ed25519_public_key,
-            &gateway_x25519_public,
+            self.lp_local_peer.clone(),
+            self.gateway_lp_peer.clone(),
             &salt,
         )?;
 
-        // Step 5: Start handshake - get first packet to send (KKT request)
+        // Step 4: Start handshake - get first packet to send (KKT request)
         let mut pending_packet: Option<nym_lp::LpPacket> = None;
         if let Some(action) = state_machine.process_input(LpInput::StartHandshake) {
             match action? {
@@ -407,7 +395,7 @@ where
             }
         }
 
-        // Step 6: Handshake loop - all packets on persistent connection
+        // Step 5: Handshake loop - all packets on persistent connection
         loop {
             // Send pending packet if we have one
             if let Some(packet) = pending_packet.take() {
@@ -1218,13 +1206,16 @@ mod tests {
     fn test_client_creation() {
         let mut rng = rand::thread_rng();
         let keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
-        let gateway_key = *ed25519::KeyPair::new(&mut rng).public_key();
+        let gateway_ed_keys = ed25519::KeyPair::new(&mut rng);
+        let gateway_x_keys = gateway_ed_keys.to_x25519();
+        let gateway_peer =
+            LpRemotePeer::new(*gateway_ed_keys.public_key(), *gateway_x_keys.public_key());
         let address = "127.0.0.1:41264".parse().unwrap();
         let client_ip = "192.168.1.100".parse().unwrap();
 
         let client = LpRegistrationClient::<TcpStream>::new_with_default_config(
             keypair,
-            gateway_key,
+            gateway_peer,
             address,
             client_ip,
         );

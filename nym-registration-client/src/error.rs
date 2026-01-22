@@ -93,6 +93,9 @@ pub enum RegistrationClientError {
         #[source]
         source: Box<crate::lp_client::LpClientError>,
     },
+
+    #[error("failed to convert ed25519 pubkey into x25519 pubkey")]
+    X25519PubkeyConversionFailure,
 }
 
 impl RegistrationClientError {

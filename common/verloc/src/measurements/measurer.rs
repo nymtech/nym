@@ -9,7 +9,7 @@ use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownToken;
-use nym_validator_client::models::NymNodeDescription;
+use nym_validator_client::models::NymNodeDescriptionV1;
 use nym_validator_client::nym_api::NymApiClientExt;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
@@ -132,7 +132,7 @@ impl VerlocMeasurer {
         MeasurementOutcome::Done
     }
 
-    async fn get_list_of_nodes(&self) -> Option<Vec<NymNodeDescription>> {
+    async fn get_list_of_nodes(&self) -> Option<Vec<NymNodeDescriptionV1>> {
         let mut api_endpoints = self.config.nym_api_urls.clone();
         api_endpoints.shuffle(&mut thread_rng());
         for api_endpoint in api_endpoints {
@@ -145,6 +145,10 @@ impl VerlocMeasurer {
                     continue;
                 }
             };
+
+            // for now allow usage of old endpoint for we don't need LP related data
+            // and the new endpoint might not be immediately deployed
+            #[allow(deprecated)]
             match client.get_all_described_nodes().await {
                 Ok(res) => return Some(res),
                 Err(err) => {

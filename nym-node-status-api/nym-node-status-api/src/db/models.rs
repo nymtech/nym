@@ -8,9 +8,9 @@ use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
-use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, NodeDescription};
+use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
-    client::NymNodeDetails, models::NymNodeDescription, nym_api::SkimmedNode,
+    client::NymNodeDetails, models::NymNodeDescriptionV1, nym_api::SkimmedNode,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -226,9 +226,11 @@ use mixnode::MixnodeSummary;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::models::{
-    AuthenticatorDetails, DeclaredRoles, DescribedNodeType, HostInformation, HostKeys,
-    IpPacketRouterDetails, LewesProtocolDetails, NetworkRequesterDetails, NymNodeData,
-    OffsetDateTimeJsonSchemaWrapper, SphinxKey, VersionedNoiseKey, WebSockets, WireguardDetails,
+    AuthenticatorDetailsV2, AuxiliaryDetailsV2, DeclaredRolesV2, DescribedNodeTypeV2,
+    HostInformationV2, HostKeysV2, IpPacketRouterDetailsV2, LewesProtocolDetailsV1,
+    NetworkRequesterDetailsV2, NymNodeDataV2, NymNodeDescriptionV2,
+    OffsetDateTimeJsonSchemaWrapper, SphinxKeyV1, VersionedNoiseKeyV1, WebSocketsV1,
+    WireguardDetailsV2,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -462,7 +464,7 @@ impl NymNodeInsertRecord {
     pub fn new(
         skimmed_node: SkimmedNode,
         bond_info: Option<&NymNodeDetails>,
-        self_described: Option<&NymNodeDescription>,
+        self_described: Option<&NymNodeDescriptionV1>,
     ) -> anyhow::Result<Self> {
         let now = OffsetDateTime::now_utc().unix_timestamp();
 
@@ -553,33 +555,33 @@ pub struct InsertNodeScraperRecords {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct NymNodeDescriptionDeHelper {
     pub node_id: NodeId,
-    pub contract_node_type: DescribedNodeType,
+    pub contract_node_type: DescribedNodeTypeV2,
     pub description: NymNodeDataDeHelper,
 }
 
 #[allow(deprecated)]
-impl From<NymNodeDescriptionDeHelper> for NymNodeDescription {
+impl From<NymNodeDescriptionDeHelper> for NymNodeDescriptionV2 {
     fn from(helper: NymNodeDescriptionDeHelper) -> Self {
         let current_x25519_sphinx_key = helper
             .description
             .host_information
             .keys
             .current_x25519_sphinx_key
-            .unwrap_or(SphinxKey {
+            .unwrap_or(SphinxKeyV1 {
                 // indicate the legacy case
                 rotation_id: u32::MAX,
                 public_key: helper.description.host_information.keys.x25519,
             });
 
-        NymNodeDescription {
+        NymNodeDescriptionV2 {
             node_id: helper.node_id,
             contract_node_type: helper.contract_node_type,
-            description: NymNodeData {
+            description: NymNodeDataV2 {
                 last_polled: helper.description.last_polled,
-                host_information: HostInformation {
+                host_information: HostInformationV2 {
                     ip_address: helper.description.host_information.ip_address,
                     hostname: helper.description.host_information.hostname,
-                    keys: HostKeys {
+                    keys: HostKeysV2 {
                         ed25519: helper.description.host_information.keys.ed25519,
                         x25519: helper.description.host_information.keys.x25519,
                         current_x25519_sphinx_key,
@@ -609,6 +611,8 @@ impl From<NymNodeDescriptionDeHelper> for NymNodeDescription {
     }
 }
 
+// in this instance, since data is stored as json
+// adding a new field with #[serde(default)] is fine
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct NymNodeDataDeHelper {
     #[serde(default)]
@@ -617,31 +621,31 @@ pub struct NymNodeDataDeHelper {
     pub host_information: HostInformationDeHelper,
 
     #[serde(default)]
-    pub declared_role: DeclaredRoles,
+    pub declared_role: DeclaredRolesV2,
 
     #[serde(default)]
-    pub auxiliary_details: AuxiliaryDetails,
+    pub auxiliary_details: AuxiliaryDetailsV2,
 
     // TODO: do we really care about ALL build info or just the version?
     pub build_information: BinaryBuildInformationOwned,
 
     #[serde(default)]
-    pub network_requester: Option<NetworkRequesterDetails>,
+    pub network_requester: Option<NetworkRequesterDetailsV2>,
 
     #[serde(default)]
-    pub ip_packet_router: Option<IpPacketRouterDetails>,
+    pub ip_packet_router: Option<IpPacketRouterDetailsV2>,
 
     #[serde(default)]
-    pub authenticator: Option<AuthenticatorDetails>,
+    pub authenticator: Option<AuthenticatorDetailsV2>,
 
     #[serde(default)]
-    pub wireguard: Option<WireguardDetails>,
+    pub wireguard: Option<WireguardDetailsV2>,
 
     #[serde(default)]
-    pub lewes_protocol: Option<LewesProtocolDetails>,
+    pub lewes_protocol: Option<LewesProtocolDetailsV1>,
 
     // for now we only care about their ws/wss situation, nothing more
-    pub mixnet_websockets: WebSockets,
+    pub mixnet_websockets: WebSocketsV1,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -661,11 +665,11 @@ pub struct HostKeysDeHelper {
     pub x25519: x25519::PublicKey,
 
     // legacy data will NOT have this information
-    pub current_x25519_sphinx_key: Option<SphinxKey>,
+    pub current_x25519_sphinx_key: Option<SphinxKeyV1>,
 
     #[serde(default)]
-    pub pre_announced_x25519_sphinx_key: Option<SphinxKey>,
+    pub pre_announced_x25519_sphinx_key: Option<SphinxKeyV1>,
 
     #[serde(default)]
-    pub x25519_versioned_noise: Option<VersionedNoiseKey>,
+    pub x25519_versioned_noise: Option<VersionedNoiseKeyV1>,
 }

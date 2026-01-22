@@ -25,6 +25,7 @@ use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
+use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_lp::{LpMessage, LpPacket};
 use nym_lp_transport::traits::LpTransport;
@@ -55,17 +56,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// let gateway_data = nested.handshake_and_register(&mut outer_client, ...).await?;
 /// ```
 pub struct NestedLpSession {
-    /// Exit gateway's Ed25519 identity (32 bytes)
-    exit_identity: [u8; 32],
-
     /// Exit gateway's LP address (e.g., "2.2.2.2:41264")
     exit_address: String,
 
-    /// Client's Ed25519 keypair (for PSQ authentication and X25519 derivation)
-    client_keypair: Arc<ed25519::KeyPair>,
+    /// Encapsulates all the client keys needed for the Lewes Protocol.
+    lp_local_peer: LpLocalPeer,
 
-    /// Exit gateway's Ed25519 public key
-    exit_public_key: ed25519::PublicKey,
+    /// Encapsulates all the exit gateway keys needed for the Lewes Protocol.
+    gateway_lp_peer: LpRemotePeer,
 
     /// LP state machine for exit gateway session (populated after handshake)
     state_machine: Option<LpStateMachine>,
@@ -75,21 +73,21 @@ impl NestedLpSession {
     /// Creates a new nested LP session handler.
     ///
     /// # Arguments
-    /// * `exit_identity` - Exit gateway's Ed25519 identity (32 bytes)
     /// * `exit_address` - Exit gateway's LP address (e.g., "2.2.2.2:41264")
     /// * `client_keypair` - Client's Ed25519 keypair
-    /// * `exit_public_key` - Exit gateway's Ed25519 public key
+    /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
     pub fn new(
-        exit_identity: [u8; 32],
         exit_address: String,
         client_keypair: Arc<ed25519::KeyPair>,
-        exit_public_key: ed25519::PublicKey,
+        gateway_lp_peer: LpRemotePeer,
     ) -> Self {
+        let local_x25519_keypair = client_keypair.to_x25519();
+        let lp_local_peer = LpLocalPeer::new(client_keypair, Arc::new(local_x25519_keypair));
+
         Self {
-            exit_identity,
             exit_address,
-            client_keypair,
-            exit_public_key,
+            lp_local_peer,
+            gateway_lp_peer,
             state_machine: None,
         }
     }
@@ -124,24 +122,15 @@ impl NestedLpSession {
             self.exit_address
         );
 
-        // Step 1: Derive X25519 keys from Ed25519 for Noise protocol
-        let client_x25519_public = self.client_keypair.public_key().to_x25519().map_err(|e| {
-            LpClientError::Crypto(format!("Failed to derive X25519 public key: {}", e))
-        })?;
-
-        let gateway_x25519_public = self.exit_public_key.to_x25519().map_err(|e| {
-            LpClientError::Crypto(format!("Failed to derive X25519 public key: {e}"))
-        })?;
-
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|_| LpClientError::Other("System time before UNIX epoch".into()))?
             .as_secs();
 
-        // Step 2: Generate ClientHello for exit gateway
+        // Step 1: Generate ClientHello for exit gateway
         let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
-            client_x25519_public,
-            *self.client_keypair.public_key(),
+            *self.lp_local_peer.x25519().public_key(),
+            *self.lp_local_peer.ed25519().public_key(),
             timestamp,
         );
         let salt = client_hello_data.salt;
@@ -152,7 +141,7 @@ impl NestedLpSession {
             client_hello_data.extract_timestamp()
         );
 
-        // Step 3: Send ClientHello to exit gateway via forwarding
+        // Step 2: Send ClientHello to exit gateway via forwarding
         let client_hello_header = nym_lp::packet::LpHeader::new(
             nym_lp::BOOTSTRAP_RECEIVER_IDX, // Use constant for bootstrap session
             0,                              // counter starts at 0
@@ -166,7 +155,7 @@ impl NestedLpSession {
         let client_hello_bytes = Self::serialize_packet(&client_hello_packet, None)?;
         let response_bytes = outer_client
             .send_forward_packet(
-                self.exit_identity,
+                self.gateway_lp_peer.ed25519().to_bytes(),
                 self.exit_address.clone(),
                 client_hello_bytes,
             )
@@ -191,17 +180,16 @@ impl NestedLpSession {
             }
         }
 
-        // Step 4: Create state machine for exit gateway handshake
+        // Step 3: Create state machine for exit gateway handshake
         let mut state_machine = LpStateMachine::new(
             receiver_index,
             true, // is_initiator
-            self.client_keypair.clone(),
-            &self.exit_public_key,
-            &gateway_x25519_public,
+            self.lp_local_peer.clone(),
+            self.gateway_lp_peer.clone(),
             &salt,
         )?;
 
-        // Step 5: Get initial packet from StartHandshake
+        // Step 4: Get initial packet from StartHandshake
         let mut pending_packet: Option<LpPacket> = None;
         if let Some(action) = state_machine.process_input(LpInput::StartHandshake) {
             match action? {
@@ -216,7 +204,7 @@ impl NestedLpSession {
             }
         }
 
-        // Step 6: Handshake loop - each packet on new connection via forwarding
+        // Step 5: Handshake loop - each packet on new connection via forwarding
         loop {
             if let Some(packet) = pending_packet.take() {
                 tracing::trace!("Sending handshake packet to exit via forwarding");
@@ -356,7 +344,7 @@ impl NestedLpSession {
                 let packet_bytes = Self::serialize_packet(&packet, outer_key.as_ref())?;
                 outer_client
                     .send_forward_packet(
-                        self.exit_identity,
+                        self.gateway_lp_peer.ed25519().to_bytes(),
                         self.exit_address.clone(),
                         packet_bytes,
                     )
@@ -530,7 +518,7 @@ impl NestedLpSession {
                 let packet_bytes = Self::serialize_packet(&packet, outer_key.as_ref())?;
                 outer_client
                     .send_forward_packet(
-                        self.exit_identity,
+                        self.gateway_lp_peer.ed25519().to_bytes(),
                         self.exit_address.clone(),
                         packet_bytes,
                     )
@@ -743,7 +731,11 @@ impl NestedLpSession {
         let send_key = Self::get_send_key(state_machine);
         let packet_bytes = Self::serialize_packet(packet, send_key.as_ref())?;
         let response_bytes = outer_client
-            .send_forward_packet(self.exit_identity, self.exit_address.clone(), packet_bytes)
+            .send_forward_packet(
+                self.gateway_lp_peer.ed25519().to_bytes(),
+                self.exit_address.clone(),
+                packet_bytes,
+            )
             .await?;
         let recv_key = Self::get_recv_key(state_machine);
         Self::parse_packet(&response_bytes, recv_key.as_ref())

@@ -7,7 +7,7 @@ use nym_node_requests::api::v1::lewes_protocol::models;
 
 pub mod root;
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone)]
 pub struct Config {
     pub details: Option<models::LewesProtocol>,
 }

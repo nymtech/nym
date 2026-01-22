@@ -184,6 +184,7 @@ pub fn handle_request<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::peer::mock_peers;
     use nym_kkt::ciphersuite::{HashFunction, KEM, SignatureScheme};
     use nym_kkt::key_utils::{
         generate_keypair_ed25519, generate_keypair_libcrux, generate_keypair_x25519,
@@ -362,16 +363,8 @@ mod tests {
 
     #[test]
     fn test_hash_mismatch_rejected() {
-        let mut rng = rand09::rng();
-
-        // Generate Ed25519 keypairs for both parties
-        let initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
-        let responder_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(1));
-
-        let responder_x25519 = generate_keypair_x25519(&mut rng);
-
-        let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-        let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
+        let (init, resp) = mock_peers();
+        let responder_kem_key = resp.encapsulate_kem_key().unwrap();
 
         let ciphersuite = Ciphersuite::resolve_ciphersuite(
             KEM::X25519,
@@ -386,16 +379,16 @@ mod tests {
 
         let (session_secret, context, request_data) = create_request(
             ciphersuite,
-            initiator_ed25519_keypair.private_key(),
-            responder_x25519.public_key(),
+            init.ed25519.private_key(),
+            resp.x25519.public_key(),
         )
         .unwrap();
 
         let response_data = handle_request(
             &request_data,
-            Some(initiator_ed25519_keypair.public_key()),
-            responder_ed25519_keypair.private_key(),
-            responder_x25519.private_key(),
+            Some(init.ed25519.public_key()),
+            resp.ed25519.private_key(),
+            resp.x25519.private_key(),
             &responder_kem_key,
         )
         .unwrap();
@@ -404,7 +397,7 @@ mod tests {
         let result = process_response(
             context,
             &session_secret,
-            responder_ed25519_keypair.public_key(),
+            resp.ed25519.public_key(),
             &wrong_hash, // Wrong!
             &response_data,
         );

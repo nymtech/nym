@@ -17,13 +17,13 @@ pub use lp_messages::{
 };
 pub use serialisation::BincodeError;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct NymNode {
     pub identity: NodeIdentity,
     pub ip_address: IpAddr,
     pub ipr_address: Option<Recipient>,
     pub authenticator_address: Option<Recipient>,
-    pub lp_address: Option<SocketAddr>,
+    pub lp_data: Option<LpData>,
     pub version: AuthenticatorVersion,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -33,6 +33,13 @@ pub struct GatewayData {
     pub endpoint: SocketAddr,
     pub private_ipv4: Ipv4Addr,
     pub private_ipv6: Ipv6Addr,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LpData {
+    pub address: SocketAddr,
+    // TODO: modify it into a map once we know more about the PSQv2 structure
+    pub expected_kem_key_hash: Vec<u8>,
 }
 
 #[derive(Clone, Copy, Debug)]

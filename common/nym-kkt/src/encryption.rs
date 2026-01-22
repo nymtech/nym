@@ -181,7 +181,7 @@ mod test {
     use crate::encryption::{decrypt_kkt_frame, encrypt_kkt_frame};
     use crate::frame::{KKT_SESSION_ID_LEN, KKTFrame};
     use crate::{
-        ciphersuite::HASH_LEN_256,
+        ciphersuite::DEFAULT_HASH_LEN,
         encryption::{KKTSessionSecret, decrypt, encrypt},
         key_utils::generate_keypair_x25519,
     };
@@ -209,7 +209,7 @@ mod test {
     fn test_encryption() {
         let mut rng = rng();
 
-        let mut secret_key = [0u8; HASH_LEN_256];
+        let mut secret_key = [0u8; DEFAULT_HASH_LEN];
         rng.fill_bytes(&mut secret_key);
 
         let mut plaintext = vec![0; 100];

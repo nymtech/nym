@@ -7,7 +7,7 @@ use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::ed25519;
 use nym_node_metrics::NymNodeMetrics;
-use nym_noise_keys::VersionedNoiseKey;
+use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_verloc::measurements::SharedVerlocStats;
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -20,7 +20,7 @@ pub mod metrics;
 
 pub(crate) struct StaticNodeInformation {
     pub(crate) ed25519_identity_keys: Arc<ed25519::KeyPair>,
-    pub(crate) x25519_versioned_noise_key: Option<VersionedNoiseKey>,
+    pub(crate) x25519_versioned_noise_key: Option<VersionedNoiseKeyV1>,
     pub(crate) ip_addresses: Vec<IpAddr>,
     pub(crate) hostname: Option<String>,
 }

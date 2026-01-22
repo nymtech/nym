@@ -7504,6 +7504,7 @@ dependencies = [
  "nym-crypto",
  "nym-ip-packet-requests",
  "nym-sphinx",
+ "nym-test-utils",
  "nym-wireguard-types",
  "serde",
  "time",

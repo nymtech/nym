@@ -6,5 +6,6 @@
 //! Re-exports shared message types from nym-registration-common.
 
 pub use nym_registration_common::{
-    LpGatewayData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
+    LpDvpnRegistrationRequest, LpMixnetGatewayData, LpMixnetRegistrationRequest,
+    LpRegistrationData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
 };

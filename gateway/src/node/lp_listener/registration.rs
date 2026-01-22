@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::messages::{
-    LpGatewayData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
+    LpDvpnRegistrationRequest, LpMixnetGatewayData, LpRegistrationData, LpRegistrationRequest,
+    LpRegistrationResponse,
 };
 use super::LpHandlerState;
 use crate::error::GatewayError;
@@ -16,12 +17,11 @@ use nym_credential_verification::{
     ClientBandwidth, CredentialVerifier,
 };
 use nym_credentials_interface::CredentialSpendingData;
-use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::PersistedBandwidth;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_metrics::{add_histogram_obs, inc, inc_by};
-use nym_registration_common::GatewayData;
+use nym_registration_common::{GatewayData, LpMixnetRegistrationRequest};
 use nym_wireguard::PeerControlRequest;
 use std::sync::Arc;
 use time::OffsetDateTime;
@@ -195,12 +195,121 @@ async fn check_existing_registration(
     ))
 }
 
+async fn process_dvpn_registration(
+    request: Box<LpDvpnRegistrationRequest>,
+    state: &LpHandlerState,
+) -> LpRegistrationResponse {
+    // Track dVPN registration attempts
+    inc!("lp_registration_dvpn_attempts");
+
+    // Check for idempotent re-registration (same WG key already registered)
+    // This allows clients to retry registration after network failures
+    // without wasting credentials
+    let wg_key_str = request.wg_public_key.to_string();
+    if let Some(existing_response) = check_existing_registration(&wg_key_str, state).await {
+        info!("LP dVPN re-registration for existing peer {wg_key_str} (idempotent)",);
+        inc!("lp_registration_dvpn_idempotent");
+        return existing_response;
+    }
+
+    // Register as WireGuard peer first to get client_id
+    let (gateway_data, client_id) = match register_wg_peer(
+        request.wg_public_key.inner().as_ref(),
+        request.ticket_type,
+        state,
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(e) => {
+            error!("LP WireGuard peer registration failed: {e}");
+            inc!("lp_registration_dvpn_failed");
+            inc!("lp_errors_wg_peer_registration");
+            return LpRegistrationResponse::error(format!(
+                "WireGuard peer registration failed: {e}",
+            ));
+        }
+    };
+
+    // Verify credential with CredentialVerifier (handles double-spend, storage, etc.)
+    let allocated_bandwidth =
+        match credential_verification(state.ecash_verifier.clone(), request.credential, client_id)
+            .await
+        {
+            Ok(bandwidth) => bandwidth,
+            Err(e) => {
+                // Credential verification failed, remove the peer
+                warn!("LP credential verification failed for client {client_id}: {e}",);
+                inc!("lp_registration_dvpn_failed");
+                if let Err(remove_err) = state
+                    .storage
+                    .remove_wireguard_peer(&request.wg_public_key.to_string())
+                    .await
+                {
+                    error!(
+                        "Failed to remove peer after credential verification failure: {remove_err}"
+                    );
+                }
+                return LpRegistrationResponse::error(format!(
+                    "Credential verification failed: {e}",
+                ));
+            }
+        };
+
+    info!("LP dVPN registration successful (client_id: {client_id})");
+    inc!("lp_registration_dvpn_success");
+    LpRegistrationResponse::success(allocated_bandwidth, gateway_data)
+}
+
+async fn process_mixnet_registration(
+    request: LpMixnetRegistrationRequest,
+    state: &LpHandlerState,
+) -> LpRegistrationResponse {
+    let session_id = rand::random::<u32>();
+
+    // Track mixnet registration attempts
+    inc!("lp_registration_mixnet_attempts");
+
+    // Derive destination address for ActiveClientsStore lookup
+    let client_identity = request.client_ed25519_pubkey;
+    let client_address = client_identity.derive_destination_address();
+
+    info!("LP Mixnet registration for client {client_identity}, session {session_id}");
+
+    warn!("unimplemented: LP mixnet registration initial bandwidth allocation");
+    // (the old implementation was wrong - it wasn't creating correct db entries)
+
+    // Create channels for client message delivery
+    let (mix_sender, _mix_receiver) = mpsc::unbounded();
+    let (is_active_request_sender, _is_active_request_receiver) =
+        mpsc::unbounded::<oneshot::Sender<IsActive>>();
+
+    // Insert client into ActiveClientsStore for SURB reply delivery
+    if !state.active_clients_store.insert_remote(
+        client_address,
+        mix_sender,
+        is_active_request_sender,
+        OffsetDateTime::now_utc(),
+    ) {
+        warn!("LP Mixnet registration failed: client {client_identity} already registered",);
+        inc!("lp_registration_mixnet_failed");
+        return LpRegistrationResponse::error("Client already registered".to_string());
+    }
+
+    // Get gateway identity and derive sphinx key
+    let gateway_identity = *state.local_lp_peer.ed25519().public_key();
+
+    info!("LP Mixnet registration successful (client: {client_identity})",);
+    inc!("lp_registration_mixnet_success");
+
+    LpRegistrationResponse::success_mixnet(0, LpMixnetGatewayData { gateway_identity })
+}
+
 /// Process an LP registration request
 pub async fn process_registration(
     request: LpRegistrationRequest,
     state: &LpHandlerState,
 ) -> LpRegistrationResponse {
-    let session_id = rand::random::<u32>();
     let registration_start = std::time::Instant::now();
 
     // Track total registration attempts
@@ -214,159 +323,9 @@ pub async fn process_registration(
     }
 
     // 2. Process based on mode
-    let result = match request.mode {
-        RegistrationMode::Dvpn => {
-            // Track dVPN registration attempts
-            inc!("lp_registration_dvpn_attempts");
-
-            // Check for idempotent re-registration (same WG key already registered)
-            // This allows clients to retry registration after network failures
-            // without wasting credentials
-            let wg_key_str = request.wg_public_key.to_string();
-            if let Some(existing_response) = check_existing_registration(&wg_key_str, state).await {
-                info!("LP dVPN re-registration for existing peer {wg_key_str} (idempotent)",);
-                inc!("lp_registration_dvpn_idempotent");
-                return existing_response;
-            }
-
-            // Register as WireGuard peer first to get client_id
-            let (gateway_data, client_id) = match register_wg_peer(
-                request.wg_public_key.inner().as_ref(),
-                request.ticket_type,
-                state,
-            )
-            .await
-            {
-                Ok(result) => result,
-                Err(e) => {
-                    error!("LP WireGuard peer registration failed: {e}");
-                    inc!("lp_registration_dvpn_failed");
-                    inc!("lp_errors_wg_peer_registration");
-                    return LpRegistrationResponse::error(format!(
-                        "WireGuard peer registration failed: {e}",
-                    ));
-                }
-            };
-
-            // Verify credential with CredentialVerifier (handles double-spend, storage, etc.)
-            let allocated_bandwidth = match credential_verification(
-                state.ecash_verifier.clone(),
-                request.credential,
-                client_id,
-            )
-            .await
-            {
-                Ok(bandwidth) => bandwidth,
-                Err(e) => {
-                    // Credential verification failed, remove the peer
-                    warn!("LP credential verification failed for client {client_id}: {e}",);
-                    inc!("lp_registration_dvpn_failed");
-                    if let Err(remove_err) = state
-                        .storage
-                        .remove_wireguard_peer(&request.wg_public_key.to_string())
-                        .await
-                    {
-                        error!("Failed to remove peer after credential verification failure: {remove_err}");
-                    }
-                    return LpRegistrationResponse::error(format!(
-                        "Credential verification failed: {e}",
-                    ));
-                }
-            };
-
-            info!("LP dVPN registration successful (client_id: {})", client_id);
-            inc!("lp_registration_dvpn_success");
-            LpRegistrationResponse::success(allocated_bandwidth, gateway_data)
-        }
-        RegistrationMode::Mixnet {
-            client_ed25519_pubkey,
-            client_x25519_pubkey: _,
-        } => {
-            // Track mixnet registration attempts
-            inc!("lp_registration_mixnet_attempts");
-
-            // Parse client's ed25519 public key
-            let client_identity = match ed25519::PublicKey::from_bytes(&client_ed25519_pubkey) {
-                Ok(key) => key,
-                Err(e) => {
-                    warn!("LP Mixnet registration failed: invalid ed25519 key: {e}");
-                    inc!("lp_registration_mixnet_failed");
-                    return LpRegistrationResponse::error(format!(
-                        "Invalid client ed25519 key: {e}",
-                    ));
-                }
-            };
-
-            // Derive destination address for ActiveClientsStore lookup
-            let client_address = client_identity.derive_destination_address();
-
-            // Generate client_id for credential verification (first 8 bytes of ed25519 key)
-            #[allow(clippy::expect_used)]
-            let client_id = i64::from_be_bytes(
-                client_ed25519_pubkey[0..8]
-                    .try_into()
-                    .expect("This cannot fail, since the key is 32 bytes long"),
-            );
-
-            info!("LP Mixnet registration for client {client_identity}, session {session_id}",);
-
-            // Verify credential with CredentialVerifier
-            let allocated_bandwidth = match credential_verification(
-                state.ecash_verifier.clone(),
-                request.credential,
-                client_id,
-            )
-            .await
-            {
-                Ok(bandwidth) => bandwidth,
-                Err(e) => {
-                    warn!("LP Mixnet credential verification failed for client {client_identity}: {e}");
-                    inc!("lp_registration_mixnet_failed");
-                    return LpRegistrationResponse::error(format!(
-                        "Credential verification failed: {e}"
-                    ));
-                }
-            };
-
-            // Create channels for client message delivery
-            let (mix_sender, _mix_receiver) = mpsc::unbounded();
-            let (is_active_request_sender, _is_active_request_receiver) =
-                mpsc::unbounded::<oneshot::Sender<IsActive>>();
-
-            // Insert client into ActiveClientsStore for SURB reply delivery
-            if !state.active_clients_store.insert_remote(
-                client_address,
-                mix_sender,
-                is_active_request_sender,
-                OffsetDateTime::now_utc(),
-            ) {
-                warn!("LP Mixnet registration failed: client {client_identity} already registered",);
-                inc!("lp_registration_mixnet_failed");
-                return LpRegistrationResponse::error("Client already registered".to_string());
-            }
-
-            // Get gateway identity and derive sphinx key
-            let ed25519_key = state.local_lp_peer.ed25519().public_key();
-            let gateway_identity = ed25519_key.to_bytes();
-
-            warn!("TEMPORARY ed25519 -> x25519 conversion");
-            #[allow(clippy::expect_used)]
-            let gateway_sphinx_key = ed25519_key
-                .to_x25519()
-                .expect("valid ed25519 key should convert to x25519")
-                .to_bytes();
-
-            info!("LP Mixnet registration successful (client: {client_identity})",);
-            inc!("lp_registration_mixnet_success");
-
-            LpRegistrationResponse::success_mixnet(
-                allocated_bandwidth,
-                LpGatewayData {
-                    gateway_identity,
-                    gateway_sphinx_key,
-                },
-            )
-        }
+    let result = match request.registration_data {
+        LpRegistrationData::Dvpn { data } => process_dvpn_registration(data, state).await,
+        LpRegistrationData::Mixnet { data } => process_mixnet_registration(data, state).await,
     };
 
     // Track registration duration

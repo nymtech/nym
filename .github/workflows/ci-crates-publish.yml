@@ -8,6 +8,11 @@ on:
         required: false
         default: "600"
         type: string
+      backup_author:
+        description: "Second team member added as owner of the crate"
+        required: false
+        default: "jstuczyn"
+        type: string
 
 jobs:
   publish:
@@ -26,16 +31,56 @@ jobs:
       - name: Install cargo-workspaces
         run: cargo install cargo-workspaces
 
-      # We need `--allow-dirty` in case there are any untracked files.
-      # `--publish-as-is` skips version bumping since that's done separately.
+      # `--publish-as-is` skips version bumping since that's done in a separate CI job.
       - name: Publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           cargo workspaces publish \
             --publish-as-is \
-            --allow-dirty \
             --publish-interval ${{ inputs.publish_interval }}
 
       - name: Show package versions
         run: cargo workspaces list --long
+
+      - name: Add team as crate owners
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          TEAM="github:nymtech:core"
+          echo "Checking and adding $TEAM as owner to workspace crates..."
+
+          cargo workspaces list | while read crate; do
+            echo "Checking $crate..."
+
+            if cargo owner --list "$crate" 2>/dev/null | grep -q "$TEAM"; then
+              echo "  $TEAM already owns $crate, skipping"
+            else
+              echo "  Adding $TEAM as owner of $crate..."
+              cargo owner --add "$TEAM" "$crate"
+              sleep 2
+            fi
+          done
+
+          echo "Done!"
+
+      - name: Add secondary member as crate owner
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          TEAM_MEMBER="${{ inputs.backup_author }}"
+          echo "Checking and adding $TEAM_MEMBER as owner to workspace crates..."
+
+          cargo workspaces list | while read crate; do
+            echo "Checking $crate..."
+
+            if cargo owner --list "$crate" 2>/dev/null | grep -q "$TEAM_MEMBER"; then
+              echo "  $TEAM_MEMBER already owns $crate, skipping"
+            else
+              echo "  Adding $TEAM_MEMBER as owner of $crate..."
+              cargo owner --add "$TEAM_MEMBER" "$crate"
+              sleep 2
+            fi
+          done
+
+          echo "Done!"

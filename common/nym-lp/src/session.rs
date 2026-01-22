@@ -17,7 +17,7 @@ use crate::psk::{
 };
 use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
-use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::asymmetric::x25519;
 use nym_kkt::KKT_RESPONSE_AAD;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use nym_kkt::encryption::{
@@ -593,7 +593,7 @@ impl LpSession {
 
         // georgio this needs to be moved one level up (maybe chosen in LPSession)
         let ciphersuite = match Ciphersuite::resolve_ciphersuite(
-            KEM::MlKem768,
+            KEM::X25519,
             HashFunction::Blake3,
             SignatureScheme::Ed25519,
             None,
@@ -729,7 +729,7 @@ impl LpSession {
         let mut kkt_state = self.kkt_state.lock();
 
         let (session_secret, request_frame, remote_context) =
-            decrypt_initial_kkt_frame(self.local_peer.x25519().private_key(), &request_bytes)
+            decrypt_initial_kkt_frame(self.local_peer.x25519().private_key(), request_bytes)
                 .unwrap();
 
         let (mut context, _) =
@@ -739,7 +739,7 @@ impl LpSession {
             &mut context,
             request_frame.session_id(),
             self.local_peer.ed25519().private_key(),
-            &responder_kem_pk,
+            responder_kem_pk,
         )
         .unwrap();
 

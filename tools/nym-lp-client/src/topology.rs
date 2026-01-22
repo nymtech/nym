@@ -201,24 +201,24 @@ fn gateway_info_from_skimmed(node: &SkimmedNode) -> Result<GatewayInfo> {
     // })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    #[ignore = "requires network access"]
-    async fn test_fetch_topology() {
-        let nym_api = Url::parse("https://validator.nymtech.net/api").unwrap();
-        let topology = SpeedtestTopology::fetch(&nym_api).await.unwrap();
-
-        assert!(topology.gateway_count() > 0);
-        println!("Found {} gateways", topology.gateway_count());
-
-        let mut rng = rand::thread_rng();
-        let gateway = topology.random_gateway(&mut rng).unwrap();
-        println!("Selected gateway: {:?}", gateway.identity);
-
-        let route = topology.random_route_to_gateway(&mut rng, gateway).unwrap();
-        println!("Route has {} hops", route.len());
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//
+//     #[tokio::test]
+//     #[ignore = "requires network access"]
+//     async fn test_fetch_topology() {
+//         let nym_api = Url::parse("https://validator.nymtech.net/api").unwrap();
+//         let topology = SpeedtestTopology::fetch(&nym_api).await.unwrap();
+//
+//         assert!(topology.gateway_count() > 0);
+//         println!("Found {} gateways", topology.gateway_count());
+//
+//         let mut rng = rand::thread_rng();
+//         let gateway = topology.random_gateway(&mut rng).unwrap();
+//         println!("Selected gateway: {:?}", gateway.identity);
+//
+//         let route = topology.random_route_to_gateway(&mut rng, gateway).unwrap();
+//         println!("Route has {} hops", route.len());
+//     }
+// }

@@ -7,17 +7,19 @@ pub mod encryption;
 pub mod error;
 pub mod frame;
 pub mod key_utils;
-pub mod kkt;
+// pub mod kkt;
 pub mod session;
 
 // This must be less than 4 bits
 pub const KKT_VERSION: u8 = 1;
 const _: () = assert!(KKT_VERSION < 1 << 4);
+pub const KKT_RESPONSE_AAD: &[u8] = b"KKT_Response";
+pub(crate) const KKT_INITIAL_FRAME_AAD: &[u8] = b"KKT_INITIAL_FRAME";
 
 #[cfg(test)]
 mod test {
-    use crate::kkt::KKT_RESPONSE_AAD;
     use crate::{
+        KKT_RESPONSE_AAD,
         ciphersuite::{Ciphersuite, EncapsulationKey, HashFunction, KEM},
         encryption::{
             decrypt_initial_kkt_frame, decrypt_kkt_frame, encrypt_initial_kkt_frame,

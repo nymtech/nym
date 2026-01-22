@@ -6,7 +6,7 @@ use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::state_machine::{LpAction, LpInput};
+use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_lp::{
     codec::OuterAeadKey, message::ForwardPacketData, packet::LpHeader, LpMessage, LpPacket,
     OuterHeader,
@@ -558,8 +558,7 @@ where
             }
             LpAction::DeliverData(data) => {
                 // Decrypted application data - process as registration/forwarding
-                self.handle_decrypted_payload(receiver_idx, data.to_vec())
-                    .await
+                self.handle_decrypted_payload(receiver_idx, data).await
             }
             LpAction::SubsessionComplete {
                 packet: ready_packet,
@@ -593,38 +592,41 @@ where
     async fn handle_decrypted_payload(
         &mut self,
         receiver_idx: u32,
-        decrypted_bytes: Vec<u8>,
+        decrypted_data: LpData,
     ) -> Result<(), GatewayError> {
         let remote = self.remote_addr;
 
-        // Try to deserialize as LpRegistrationRequest first (most common case after handshake)
-        if let Ok(request) = LpRegistrationRequest::try_deserialise(&decrypted_bytes) {
-            debug!(
-                "LP registration request from {remote} (receiver_idx={receiver_idx}): mode={:?}",
-                request.mode()
-            );
-            return self
-                .handle_registration_request(receiver_idx, request)
-                .await;
-        }
+        let bytes = decrypted_data.content;
+        match decrypted_data.kind {
+            LpDataKind::Registration => {
+                let request = LpRegistrationRequest::try_deserialise(&bytes).map_err(|err| {
+                    GatewayError::LpProtocolError(format!("malformed LpRegistrationRequest: {err}"))
+                })?;
 
-        // Try to deserialize as ForwardPacketData (entry gateway forwarding to exit)
-        if let Ok(forward_data) = ForwardPacketData::decode(&decrypted_bytes) {
-            debug!(
-                "LP forward request from {remote} (receiver_idx={receiver_idx}) to {}",
-                forward_data.target_lp_address
-            );
-            return self
-                .handle_forwarding_request(receiver_idx, forward_data)
-                .await;
-        }
+                debug!(
+                    "LP registration request from {remote} (receiver_idx={receiver_idx}): mode={:?}",
+                request.mode());
 
-        // Neither registration nor forwarding - unknown payload type
-        warn!("Unknown transport payload type from {remote} (receiver_idx={receiver_idx})");
-        inc!("lp_errors_unknown_payload_type");
-        Err(GatewayError::LpProtocolError(
-            "Unknown transport payload type (not registration or forwarding)".to_string(),
-        ))
+                self.handle_registration_request(receiver_idx, request)
+                    .await
+            }
+            LpDataKind::Forward => {
+                let forward_data = ForwardPacketData::decode(&bytes).map_err(|err| {
+                    GatewayError::LpProtocolError(format!("malformed ForwardPacketData: {err}"))
+                })?;
+
+                self.handle_forwarding_request(receiver_idx, forward_data)
+                    .await
+            }
+            LpDataKind::Opaque => {
+                // Neither registration nor forwarding - unknown payload type
+                warn!("Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes", bytes.len());
+                inc!("lp_errors_unknown_payload_type");
+                Err(GatewayError::LpProtocolError(
+                    "Unknown transport payload type (not registration or forwarding)".to_string(),
+                ))
+            }
+        }
     }
 
     /// Handle subsession completion - promote subsession to new session
@@ -695,6 +697,48 @@ where
         Ok(())
     }
 
+    /// Attempt to wrap and send specified response back to the client
+    async fn send_response_packet(
+        &mut self,
+        receiver_idx: u32,
+        serialised_response: Vec<u8>,
+        response_kind: LpDataKind,
+    ) -> Result<(), GatewayError> {
+        let session_entry = self
+            .state
+            .session_states
+            .get(&receiver_idx)
+            .ok_or_else(|| {
+                GatewayError::LpProtocolError(format!("Session not found: {receiver_idx}"))
+            })?;
+
+        // Access session via state machine for subsession support
+        let session = session_entry
+            .value()
+            .state
+            .session()
+            .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {e}")))?;
+
+        let wrapped_lp_data = LpData::new(response_kind, serialised_response);
+        let data_bytes = wrapped_lp_data.to_vec();
+
+        let encrypted_message = session.encrypt_data(&data_bytes).map_err(|e| {
+            GatewayError::LpProtocolError(format!("Failed to encrypt response: {e}"))
+        })?;
+
+        let response_packet = session.next_packet(encrypted_message).map_err(|e| {
+            GatewayError::LpProtocolError(format!("Failed to create response packet: {e}"))
+        })?;
+
+        let outer_key = session.outer_aead_key();
+        drop(session_entry);
+
+        // Send response (encrypted with outer AEAD)
+        self.send_lp_packet(response_packet, outer_key.as_ref())
+            .await?;
+        Ok(())
+    }
+
     /// Handle registration request on an established session
     async fn handle_registration_request(
         &mut self,
@@ -703,43 +747,11 @@ where
     ) -> Result<(), GatewayError> {
         // Process registration (might modify state)
         let response = process_registration(request, &self.state).await;
+        let response_bytes = response.serialise().map_err(|e| {
+            GatewayError::LpProtocolError(format!("Failed to serialize response: {e}"))
+        })?;
 
-        // Acquire session lock for encryption and get outer AEAD key
-        let (response_packet, outer_key) = {
-            let session_entry = self
-                .state
-                .session_states
-                .get(&receiver_idx)
-                .ok_or_else(|| {
-                    GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
-                })?;
-            // Access session via state machine for subsession support
-            let session = session_entry
-                .value()
-                .state
-                .session()
-                .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {}", e)))?;
-
-            // Serialize and encrypt response
-            let response_bytes = response.serialise().map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to serialize response: {}", e))
-            })?;
-
-            let encrypted_message = session.encrypt_data(&response_bytes).map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to encrypt response: {}", e))
-            })?;
-
-            let packet = session.next_packet(encrypted_message).map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to create response packet: {}", e))
-            })?;
-
-            // Get outer AEAD key for packet encryption
-            let outer_key = session.outer_aead_key();
-            (packet, outer_key)
-        };
-
-        // Send response (encrypted with outer AEAD)
-        self.send_lp_packet(response_packet, outer_key.as_ref())
+        self.send_response_packet(receiver_idx, response_bytes, LpDataKind::Registration)
             .await?;
 
         if response.success {
@@ -763,40 +775,10 @@ where
         receiver_idx: u32,
         forward_data: ForwardPacketData,
     ) -> Result<(), GatewayError> {
-        // Forward the packet to the target gateway
+        // Forward the packet to the target gateway and retrieve its response
         let response_bytes = self.handle_forward_packet(forward_data).await?;
 
-        // Encrypt response for client and get outer AEAD key
-        let (response_packet, outer_key) = {
-            let session_entry = self
-                .state
-                .session_states
-                .get(&receiver_idx)
-                .ok_or_else(|| {
-                    GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
-                })?;
-            // Access session via state machine for subsession support
-            let session = session_entry
-                .value()
-                .state
-                .session()
-                .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {}", e)))?;
-
-            let encrypted_message = session.encrypt_data(&response_bytes).map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to encrypt forward response: {}", e))
-            })?;
-
-            let packet = session.next_packet(encrypted_message).map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to create response packet: {}", e))
-            })?;
-
-            // Get outer AEAD key for packet encryption
-            let outer_key = session.outer_aead_key();
-            (packet, outer_key)
-        };
-
-        // Send encrypted response to client (encrypted with outer AEAD)
-        self.send_lp_packet(response_packet, outer_key.as_ref())
+        self.send_response_packet(receiver_idx, response_bytes, LpDataKind::Forward)
             .await?;
 
         debug!(

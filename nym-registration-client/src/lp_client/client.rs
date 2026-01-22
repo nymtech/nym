@@ -5,6 +5,10 @@
 
 use super::config::LpConfig;
 use super::error::{LpClientError, Result};
+use crate::lp_client::helpers::{
+    convert_forward_data, convert_registration_request, try_convert_forward_response,
+    try_convert_registration_response,
+};
 use bytes::BytesMut;
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
@@ -13,9 +17,9 @@ use nym_lp::LpPacket;
 use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
 use nym_lp::message::ForwardPacketData;
 use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
-use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
+use nym_lp::state_machine::{LpAction, LpData, LpInput, LpStateMachine};
 use nym_lp_transport::traits::LpTransport;
-use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
+use nym_registration_common::{GatewayData, LpRegistrationRequest};
 use nym_wireguard_types::PeerPublicKey;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
@@ -746,14 +750,7 @@ where
         tracing::trace!("Built registration request: {:?}", request);
 
         // 2. Serialize the request
-        let request_bytes = request.serialise().map_err(|e| {
-            LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {e}"))
-        })?;
-
-        tracing::debug!(
-            "Sending registration request ({} bytes)",
-            request_bytes.len()
-        );
+        let input = convert_registration_request(request)?;
 
         // 3. Encrypt and prepare packet via state machine (scoped borrow)
         let (request_packet, send_key, recv_key) = {
@@ -762,7 +759,7 @@ where
             })?;
 
             let action = state_machine
-                .process_input(LpInput::SendData(request_bytes))
+                .process_input(input)
                 .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
                 .map_err(|e| {
                     LpClientError::SendRegistrationRequest(format!(
@@ -821,29 +818,15 @@ where
                 ))
             })?;
 
-        // 7. Extract decrypted data
-        let response_data = match action {
-            LpAction::DeliverData(data) => data,
-            other => {
-                return Err(LpClientError::Transport(format!(
-                    "Unexpected action when receiving registration response: {other:?}"
-                )));
-            }
-        };
-
-        // 8. Deserialize the response
-        let response = LpRegistrationResponse::try_deserialise(&response_data).map_err(|e| {
-            LpClientError::ReceiveRegistrationResponse(format!(
-                "Failed to deserialize registration response: {e}",
-            ))
-        })?;
+        // 6. Extract decrypted data and deserialise the response
+        let response = try_convert_registration_response(action)?;
 
         tracing::debug!(
             "Received registration response: success={}",
             response.success,
         );
 
-        // 9. Validate and extract GatewayData
+        // 7. Validate and extract GatewayData
         if !response.success {
             let error_msg = response
                 .error
@@ -1022,14 +1005,8 @@ where
             target_lp_address: target_address.clone(),
             inner_packet_bytes,
         };
-
         // 2. Serialize the ForwardPacketData
-        let forward_data_bytes = forward_data.to_bytes();
-
-        tracing::trace!(
-            "Serialized ForwardPacketData ({} bytes)",
-            forward_data_bytes.len()
-        );
+        let input = convert_forward_data(forward_data);
 
         // 3. Encrypt and prepare packet via state machine (scoped borrow)
         let (forward_packet, send_key, recv_key) = {
@@ -1038,7 +1015,7 @@ where
             })?;
 
             let action = state_machine
-                .process_input(LpInput::SendData(forward_data_bytes))
+                .process_input(input)
                 .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
                 .map_err(|e| {
                     LpClientError::Transport(format!("Failed to encrypt ForwardPacket: {e}"))
@@ -1094,15 +1071,7 @@ where
             })?;
 
         // 7. Extract decrypted response data
-        let response_data = match action {
-            LpAction::DeliverData(data) => data,
-            other => {
-                return Err(LpClientError::Transport(format!(
-                    "Unexpected action when receiving forward response: {:?}",
-                    other
-                )));
-            }
-        };
+        let response_data = try_convert_forward_response(action)?;
 
         tracing::debug!(
             "Successfully received forward response from {} ({} bytes)",
@@ -1110,7 +1079,7 @@ where
             response_data.len()
         );
 
-        Ok(response_data.to_vec())
+        Ok(response_data)
     }
 
     /// Wrap data in an LP packet for UDP transmission to the data plane (port 51264).
@@ -1148,7 +1117,7 @@ where
 
         // Process data through state machine to create LP packet
         let action = state_machine
-            .process_input(LpInput::SendData(data.to_vec()))
+            .process_input(LpInput::SendData(LpData::new_opaque(data.to_vec())))
             .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
             .map_err(|e| LpClientError::Transport(format!("Failed to encrypt data: {e}")))?;
 

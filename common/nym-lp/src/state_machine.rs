@@ -21,6 +21,8 @@ use crate::{
     packet::LpPacket,
     session::{LpSession, SubsessionHandshake},
 };
+use bytes::{Buf, Bytes};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::mem;
 use tracing::debug;
 
@@ -96,7 +98,7 @@ pub enum LpInput {
     /// Received an LP Packet from the network.
     ReceivePacket(LpPacket),
     /// Application wants to send data (only valid in Transport state).
-    SendData(Vec<u8>), // Using Bytes for efficiency
+    SendData(LpData),
     /// Close the connection.
     Close,
     /// Initiate a subsession handshake (only valid in Transport state).
@@ -110,7 +112,7 @@ pub enum LpAction {
     /// Send an LP Packet over the network.
     SendPacket(LpPacket),
     /// Deliver decrypted application data received from the peer.
-    DeliverData(Vec<u8>),
+    DeliverData(LpData),
     /// Inform the environment that KKT exchange completed successfully.
     KKTComplete,
     /// Inform the environment that the handshake is complete.
@@ -131,6 +133,75 @@ pub enum LpAction {
         subsession: Box<SubsessionHandshake>,
         new_receiver_index: u32,
     },
+}
+
+/// Represent application data being sent in Transport mode
+#[derive(Debug, Clone, PartialEq)]
+pub struct LpData {
+    pub kind: LpDataKind,
+    pub content: Bytes,
+}
+
+impl AsRef<[u8]> for LpData {
+    fn as_ref(&self) -> &[u8] {
+        &self.content
+    }
+}
+
+impl LpData {
+    pub fn new(kind: LpDataKind, content: impl Into<Bytes>) -> Self {
+        Self {
+            kind,
+            content: content.into(),
+        }
+    }
+    pub fn new_opaque(content: impl Into<Bytes>) -> Self {
+        Self::new(LpDataKind::Opaque, content)
+    }
+
+    pub fn new_registration(data: impl Into<Bytes>) -> Self {
+        Self::new(LpDataKind::Registration, data)
+    }
+
+    pub fn new_forward(data: impl Into<Bytes>) -> Self {
+        Self::new(LpDataKind::Forward, data)
+    }
+
+    pub fn to_vec(self) -> Vec<u8> {
+        self.into()
+    }
+}
+
+impl From<LpData> for Vec<u8> {
+    fn from(data: LpData) -> Self {
+        let mut out = Vec::with_capacity(data.content.len() + 1);
+        out.push(data.kind as u8);
+        out.extend_from_slice(data.content.as_ref());
+        out
+    }
+}
+
+impl TryFrom<Vec<u8>> for LpData {
+    type Error = LpError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        let kind = LpDataKind::try_from(value[0]).map_err(|_| {
+            LpError::DeserializationError(format!("unknown data type: {}", value[0]))
+        })?;
+        let mut content = Bytes::from(value);
+        content.advance(1);
+
+        Ok(LpData::new(kind, content))
+    }
+}
+
+/// Represent kind of application data being sent in Transport mode
+#[derive(Clone, Copy, PartialEq, Eq, Debug, IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
+pub enum LpDataKind {
+    Opaque = 0,
+    Registration = 1,
+    Forward = 2,
 }
 
 /// The Lewes Protocol State Machine.
@@ -550,8 +621,17 @@ impl LpStateMachine {
                                             LpState::Transport { session }
                                         } else {
                                             // 4. Deliver data
-                                            result_action = Some(Ok(LpAction::DeliverData(plaintext)));
-                                            LpState::Transport { session }
+                                             match plaintext.try_into() {
+                                                Ok(data) => {
+                                                    result_action = Some(Ok(LpAction::DeliverData(data)));
+                                                    LpState::Transport { session }
+                                                },
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
                                         }
                                     }
                                     Err(e) => {
@@ -585,7 +665,7 @@ impl LpStateMachine {
             }
             (LpState::Transport { session }, LpInput::SendData(data)) => {
                 // Encrypt and send application data
-                match self.prepare_data_packet(&session, &data) {
+                match self.prepare_data_packet(&session, data) {
                     Ok(packet) => result_action = Some(Ok(LpAction::SendPacket(packet))),
                     Err(e) => {
                         // If prepare fails, should we close? Let's report error and stay Transport for now.
@@ -822,8 +902,16 @@ impl LpStateMachine {
                                             result_action = Some(Err(e));
                                             LpState::SubsessionHandshaking { session, subsession }
                                         } else {
-                                            result_action = Some(Ok(LpAction::DeliverData(plaintext)));
-                                            LpState::SubsessionHandshaking { session, subsession }
+                                            match plaintext.try_into() {
+                                                Ok(data) => {
+                                                    result_action = Some(Ok(LpAction::DeliverData(data)));
+                                                    LpState::SubsessionHandshaking { session, subsession }
+                                                }
+                                                Err(err) => {
+                                                    result_action = Some(Err(err));
+                                                    LpState::SubsessionHandshaking { session, subsession }
+                                                }
+                                            }
                                         }
                                     }
                                     Err(e) => {
@@ -889,7 +977,7 @@ impl LpStateMachine {
 
             // Parent can still send data during subsession handshake
             (LpState::SubsessionHandshaking { session, subsession }, LpInput::SendData(data)) => {
-                match self.prepare_data_packet(&session, &data) {
+                match self.prepare_data_packet(&session, data) {
                     Ok(packet) => result_action = Some(Ok(LpAction::SendPacket(packet))),
                     Err(e) => {
                         result_action = Some(Err(e.into()));
@@ -931,8 +1019,16 @@ impl LpStateMachine {
                                 result_action = Some(Err(e));
                                 LpState::ReadOnlyTransport { session }
                             } else {
-                                result_action = Some(Ok(LpAction::DeliverData(plaintext)));
-                                LpState::ReadOnlyTransport { session }
+                                match plaintext.try_into() {
+                                    Ok(data) => {
+                                        result_action = Some(Ok(LpAction::DeliverData(data)));
+                                        LpState::ReadOnlyTransport { session }
+                                    }
+                                    Err(err) => {
+                                        result_action = Some(Err(err));
+                                        LpState::ReadOnlyTransport { session }
+                                    }
+                                }
                             }
                         }
                         Err(e) => {
@@ -1036,9 +1132,9 @@ impl LpStateMachine {
     fn prepare_data_packet(
         &self,
         session: &LpSession,
-        data: &[u8],
+        data: LpData,
     ) -> Result<LpPacket, NoiseError> {
-        let encrypted_message = session.encrypt_data(data)?;
+        let encrypted_message = session.encrypt_data(Vec::<u8>::from(data).as_ref())?;
         session
             .next_packet(encrypted_message)
             .map_err(|e| NoiseError::Other(e.to_string())) // Improve error conversion?
@@ -1049,7 +1145,6 @@ impl LpStateMachine {
 mod tests {
     use super::*;
     use crate::peer::mock_peers;
-    use bytes::Bytes;
 
     #[test]
     fn test_state_machine_init() {
@@ -1232,8 +1327,8 @@ mod tests {
 
         // --- Transport Phase ---
         println!("--- Step 8: Initiator sends data ---");
-        let data_to_send_1 = b"hello responder";
-        let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.to_vec()));
+        let data_to_send_1 = LpData::new_opaque(b"hello responder".to_vec());
+        let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.clone()));
         let data_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_4 {
             packet.clone()
         } else {
@@ -1248,11 +1343,11 @@ mod tests {
         } else {
             panic!("Responder should deliver data");
         };
-        assert_eq!(resp_data_1, Bytes::copy_from_slice(data_to_send_1));
+        assert_eq!(resp_data_1, data_to_send_1);
 
         println!("--- Step 10: Responder sends data ---");
-        let data_to_send_2 = b"hello initiator";
-        let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.to_vec()));
+        let data_to_send_2 = LpData::new_opaque(b"hello initiator".to_vec());
+        let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.clone()));
         let data_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_6 {
             packet.clone()
         } else {
@@ -1263,7 +1358,7 @@ mod tests {
         println!("--- Step 11: Initiator receives data ---");
         let init_actions_5 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
         if let Some(Ok(LpAction::DeliverData(data))) = init_actions_5 {
-            assert_eq!(data, Bytes::copy_from_slice(data_to_send_2));
+            assert_eq!(data, data_to_send_2);
         } else {
             panic!("Initiator should deliver data");
         }
@@ -1413,7 +1508,8 @@ mod tests {
         assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
 
         // Try SendData during KKT exchange (should be rejected)
-        let send_action = initiator.process_input(LpInput::SendData(vec![1, 2, 3]));
+        let send_data = LpData::new_opaque(vec![1, 2, 3]);
+        let send_action = initiator.process_input(LpInput::SendData(send_data));
         assert!(matches!(
             send_action,
             Some(Err(LpError::InvalidStateTransition { .. }))

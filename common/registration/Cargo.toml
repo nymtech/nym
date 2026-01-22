@@ -27,3 +27,4 @@ nym-wireguard-types = { workspace = true }
 [dev-dependencies]
 bincode.workspace = true
 time.workspace = true
+nym-test-utils = { workspace = true }

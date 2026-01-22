@@ -13,7 +13,8 @@ mod lp_messages;
 mod serialisation;
 
 pub use lp_messages::{
-    LpGatewayData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
+    LpDvpnRegistrationRequest, LpMixnetGatewayData, LpMixnetRegistrationRequest,
+    LpRegistrationData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
 };
 pub use serialisation::BincodeError;
 

@@ -535,16 +535,12 @@ where
             })?
             .map_err(|e| GatewayError::LpProtocolError(format!("State machine error: {}", e)))?;
 
+        let lp_session = state_machine.session().map_err(|e| {
+            GatewayError::LpProtocolError(format!("Session unavailable after processing: {}", e))
+        })?;
+
         // Get outer key before releasing borrow
-        let outer_key = state_machine
-            .session()
-            .map_err(|e| {
-                GatewayError::LpProtocolError(format!(
-                    "Session unavailable after processing: {}",
-                    e
-                ))
-            })?
-            .outer_aead_key();
+        let outer_key = lp_session.outer_aead_key();
         drop(state_entry);
 
         match action {
@@ -605,7 +601,7 @@ where
         if let Ok(request) = LpRegistrationRequest::try_deserialise(&decrypted_bytes) {
             debug!(
                 "LP registration request from {remote} (receiver_idx={receiver_idx}): mode={:?}",
-                request.mode
+                request.mode()
             );
             return self
                 .handle_registration_request(receiver_idx, request)

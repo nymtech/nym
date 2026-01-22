@@ -16,7 +16,7 @@ use crate::psk::{
 };
 use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
-use nym_crypto::asymmetric::x25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use nym_kkt::encryption::KKTSessionSecret;
 use nym_kkt::kkt::validate_kem_response;
@@ -284,6 +284,11 @@ impl LpSession {
     /// KEM public key in the KKT response.
     pub fn local_x25519_public(&self) -> x25519::PublicKey {
         *self.local_peer.x25519.public_key()
+    }
+
+    /// Returns the remote ed25519 public key.
+    pub fn remote_ed25519_public(&self) -> ed25519::PublicKey {
+        self.remote_peer.ed25519_public
     }
 
     /// Returns the remote X25519 public key.

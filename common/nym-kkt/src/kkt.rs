@@ -27,9 +27,6 @@ pub use crate::session::{
 use crate::encryption::{KKTSessionSecret, encrypt_initial_kkt_frame};
 use crate::frame::KKTFrame;
 
-pub(crate) const KKT_RESPONSE_AAD: &[u8] = b"KKT_Response";
-pub(crate) const KKT_INITIAL_FRAME_AAD: &[u8] = b"KKT_INITIAL_FRAME";
-
 /// Perform an *Encrypted* request for a KEM public key from a responder (OneWay mode).
 ///
 /// This is the client-side operation that initiates a KKT exchange.

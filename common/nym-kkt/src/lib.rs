@@ -18,7 +18,6 @@ pub(crate) const KKT_INITIAL_FRAME_AAD: &[u8] = b"KKT_INITIAL_FRAME";
 
 #[cfg(test)]
 mod test {
-    // use crate::kkt::KKT_RESPONSE_AAD;
     use crate::{
         KKT_RESPONSE_AAD,
         ciphersuite::{Ciphersuite, EncapsulationKey, HashFunction, KEM},
@@ -498,11 +497,3 @@ mod test {
         }
     }
 }
-
-//     #[test]
-//     fn test_keys() {
-//         let a = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rand::rng());
-//         println!("{:?}", a.private_key().as_bytes());
-//         println!("{:?}", a.public_key().as_bytes());
-//     }
-// }

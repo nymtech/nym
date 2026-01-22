@@ -20,6 +20,7 @@
 
 use super::client::LpRegistrationClient;
 use super::error::{LpClientError, Result};
+use crate::lp_client::helpers::{convert_registration_request, try_convert_registration_response};
 use bytes::BytesMut;
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
@@ -29,7 +30,7 @@ use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_lp::{LpMessage, LpPacket};
 use nym_lp_transport::traits::LpTransport;
-use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
+use nym_registration_common::{GatewayData, LpRegistrationRequest};
 use nym_wireguard_types::PeerPublicKey;
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -318,18 +319,12 @@ impl NestedLpSession {
         tracing::trace!("Built registration request: {:?}", request);
 
         // Step 4: Serialize the request
-        let request_bytes = request.serialise().map_err(|e| {
-            LpClientError::Transport(format!("Failed to serialize registration request: {}", e))
-        })?;
-
-        tracing::debug!(
-            "Sending registration request to exit gateway via forwarding ({} bytes)",
-            request_bytes.len()
-        );
+        let input = convert_registration_request(request)?;
+        tracing::debug!("Sending registration request to exit gateway via forwarding",);
 
         // Step 5: Encrypt and prepare packet via state machine
         let action = state_machine
-            .process_input(LpInput::SendData(request_bytes))
+            .process_input(input)
             .ok_or_else(|| {
                 LpClientError::Transport("State machine returned no action".to_string())
             })?
@@ -374,36 +369,20 @@ impl NestedLpSession {
                 LpClientError::Transport(format!("Failed to decrypt registration response: {}", e))
             })?;
 
-        // Step 9: Extract decrypted data
-        let response_data = match action {
-            LpAction::DeliverData(data) => data,
-            other => {
-                return Err(LpClientError::Transport(format!(
-                    "Unexpected action when receiving registration response: {:?}",
-                    other
-                )));
-            }
-        };
-
-        // Step 10: Deserialize the response
-        let response = LpRegistrationResponse::try_deserialise(&response_data).map_err(|e| {
-            LpClientError::Transport(format!(
-                "Failed to deserialize registration response: {}",
-                e
-            ))
-        })?;
+        // Step 9: Extract decrypted data and deserialise the response
+        let response = try_convert_registration_response(action)?;
 
         tracing::debug!(
             "Received registration response from exit: success={}",
             response.success,
         );
 
-        // Step 11: Validate and extract GatewayData
+        // Step 10: Validate and extract GatewayData
         if !response.success {
             let error_msg = response
                 .error
                 .unwrap_or_else(|| "Unknown error".to_string());
-            tracing::warn!("Exit gateway rejected registration: {}", error_msg);
+            tracing::warn!("Exit gateway rejected registration: {error_msg}");
             return Err(LpClientError::RegistrationRejected { reason: error_msg });
         }
 
@@ -492,18 +471,12 @@ impl NestedLpSession {
         tracing::trace!("Built registration request: {:?}", request);
 
         // Step 5: Serialize the request
-        let request_bytes = request.serialise().map_err(|e| {
-            LpClientError::Transport(format!("Failed to serialize registration request: {}", e))
-        })?;
-
-        tracing::debug!(
-            "Sending registration request to exit gateway via forwarding ({} bytes)",
-            request_bytes.len()
-        );
+        let input = convert_registration_request(request)?;
+        tracing::debug!("Sending registration request to exit gateway via forwarding");
 
         // Step 6: Encrypt and prepare packet via state machine
         let action = state_machine
-            .process_input(LpInput::SendData(request_bytes))
+            .process_input(input)
             .ok_or_else(|| {
                 LpClientError::Transport("State machine returned no action".to_string())
             })?
@@ -548,31 +521,15 @@ impl NestedLpSession {
                 LpClientError::Transport(format!("Failed to decrypt registration response: {}", e))
             })?;
 
-        // Step 10: Extract decrypted data
-        let response_data = match action {
-            LpAction::DeliverData(data) => data,
-            other => {
-                return Err(LpClientError::Transport(format!(
-                    "Unexpected action when receiving registration response: {:?}",
-                    other
-                )));
-            }
-        };
-
-        // Step 11: Deserialize the response
-        let response = LpRegistrationResponse::try_deserialise(&response_data).map_err(|e| {
-            LpClientError::Transport(format!(
-                "Failed to deserialize registration response: {}",
-                e
-            ))
-        })?;
+        // Step 10: Extract decrypted data and deserialise the response
+        let response = try_convert_registration_response(action)?;
 
         tracing::debug!(
             "Received registration response from exit: success={}",
             response.success,
         );
 
-        // Step 12: Validate and extract GatewayData
+        // Step 11: Validate and extract GatewayData
         if !response.success {
             let error_msg = response
                 .error

@@ -529,6 +529,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_basic_lp_exit_registration() -> anyhow::Result<()> {
+            // nym_test_utils::helpers::setup_test_logger();
             // initialise random, but deterministic, keys, addresses, etc. for the parties
             let mut client_rng = u64_seeded_rng(0);
             let mut entry_rng = u64_seeded_rng(1);

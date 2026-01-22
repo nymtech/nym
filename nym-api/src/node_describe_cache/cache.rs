@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::models::{DescribedNodeTypeV1, NymNodeDataV2, NymNodeDescriptionV2};
+use nym_api_requests::models::{DescribedNodeTypeV2, NymNodeDataV2, NymNodeDescriptionV2};
 use nym_mixnet_contract_common::NodeId;
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -35,27 +35,27 @@ impl DescribedNodes {
     pub fn all_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescriptionV2> {
         self.nodes
             .values()
-            .filter(|n| n.contract_node_type == DescribedNodeTypeV1::NymNode)
+            .filter(|n| n.contract_node_type == DescribedNodeTypeV2::NymNode)
     }
 
     pub fn mixing_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescriptionV2> {
         self.nodes
             .values()
-            .filter(|n| n.contract_node_type == DescribedNodeTypeV1::NymNode)
+            .filter(|n| n.contract_node_type == DescribedNodeTypeV2::NymNode)
             .filter(|n| n.description.declared_role.mixnode)
     }
 
     pub fn entry_capable_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescriptionV2> {
         self.nodes
             .values()
-            .filter(|n| n.contract_node_type == DescribedNodeTypeV1::NymNode)
+            .filter(|n| n.contract_node_type == DescribedNodeTypeV2::NymNode)
             .filter(|n| n.description.declared_role.entry)
     }
 
     pub fn exit_capable_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescriptionV2> {
         self.nodes
             .values()
-            .filter(|n| n.contract_node_type == DescribedNodeTypeV1::NymNode)
+            .filter(|n| n.contract_node_type == DescribedNodeTypeV2::NymNode)
             .filter(|n| n.description.declared_role.can_operate_exit_gateway())
     }
 

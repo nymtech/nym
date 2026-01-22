@@ -4,9 +4,9 @@
 use crate::TestedNodeDetails;
 use anyhow::{Context, anyhow, bail};
 use nym_api_requests::models::{
-    AuthenticatorDetailsV1, DeclaredRolesV1, DescribedNodeTypeV1, HostInformationV1,
-    IpPacketRouterDetailsV1, LewesProtocolDetailsV1, NetworkRequesterDetailsV1, NymNodeDataV1,
-    OffsetDateTimeJsonSchemaWrapper, WebSocketsV1, WireguardDetailsV1,
+    AuthenticatorDetailsV2, DeclaredRolesV2, DescribedNodeTypeV2, HostInformationV2,
+    IpPacketRouterDetailsV2, LewesProtocolDetailsV1, NetworkRequesterDetailsV2, NymNodeDataV2,
+    OffsetDateTimeJsonSchemaWrapper, WebSocketsV2, WireguardDetailsV2,
 };
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -16,7 +16,7 @@ use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::v1::node::models::AuxiliaryDetails as NodeAuxiliaryDetails;
 use nym_sdk::mixnet::NodeIdentity;
 use nym_validator_client::client::NymApiClientExt;
-use nym_validator_client::models::NymNodeDescriptionV1;
+use nym_validator_client::models::NymNodeDescriptionV2;
 use rand::prelude::IteratorRandom;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -87,7 +87,7 @@ use url::Url;
 
 #[derive(Clone)]
 pub struct DirectoryNode {
-    described: NymNodeDescriptionV1,
+    described: NymNodeDescriptionV2,
 }
 
 impl DirectoryNode {
@@ -232,18 +232,18 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                 }
 
                 // Convert to our internal types
-                let network_requester: Option<NetworkRequesterDetailsV1> = None; // Not needed for LP testing
-                let ip_packet_router: Option<IpPacketRouterDetailsV1> =
-                    ipr_result.map(|ipr| IpPacketRouterDetailsV1 {
+                let network_requester: Option<NetworkRequesterDetailsV2> = None; // Not needed for LP testing
+                let ip_packet_router: Option<IpPacketRouterDetailsV2> =
+                    ipr_result.map(|ipr| IpPacketRouterDetailsV2 {
                         address: ipr.address,
                     });
-                let authenticator: Option<AuthenticatorDetailsV1> =
-                    authenticator_result.map(|auth| AuthenticatorDetailsV1 {
+                let authenticator: Option<AuthenticatorDetailsV2> =
+                    authenticator_result.map(|auth| AuthenticatorDetailsV2 {
                         address: auth.address,
                     });
                 #[allow(deprecated)]
-                let wireguard: Option<WireguardDetailsV1> =
-                    wireguard_result.map(|wg| WireguardDetailsV1 {
+                let wireguard: Option<WireguardDetailsV2> =
+                    wireguard_result.map(|wg| WireguardDetailsV2 {
                         port: wg.tunnel_port, // Use tunnel_port for deprecated port field
                         tunnel_port: wg.tunnel_port,
                         metadata_port: wg.metadata_port,
@@ -253,14 +253,14 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                 let lp: Option<LewesProtocolDetailsV1> = lp_result.ok().map(Into::into);
 
                 // Construct NymNodeData
-                let node_data = NymNodeDataV1 {
+                let node_data = NymNodeDataV2 {
                     last_polled: OffsetDateTimeJsonSchemaWrapper(OffsetDateTime::now_utc()),
-                    host_information: HostInformationV1 {
+                    host_information: HostInformationV2 {
                         ip_address: host_info.data.ip_address,
                         hostname: host_info.data.hostname,
                         keys: host_info.data.keys.into(),
                     },
-                    declared_role: DeclaredRolesV1 {
+                    declared_role: DeclaredRolesV2 {
                         mixnode: roles.mixnode_enabled,
                         entry: roles.gateway_enabled,
                         exit_nr: roles.network_requester_enabled,
@@ -284,16 +284,16 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                     authenticator,
                     wireguard,
                     lewes_protocol: lp,
-                    mixnet_websockets: WebSocketsV1 {
+                    mixnet_websockets: WebSocketsV2 {
                         ws_port: websockets.ws_port,
                         wss_port: websockets.wss_port,
                     },
                 };
 
                 // Create NymNodeDescription
-                let described = NymNodeDescriptionV1 {
+                let described = NymNodeDescriptionV2 {
                     node_id: 0, // We don't have a node_id from direct query
-                    contract_node_type: DescribedNodeTypeV1::NymNode, // All new nodes are NymNode type
+                    contract_node_type: DescribedNodeTypeV2::NymNode, // All new nodes are NymNode type
                     description: node_data,
                 };
 
@@ -330,7 +330,7 @@ impl NymApiDirectory {
 
         debug!("Fetching all described nodes from nym-api...");
         let described_nodes = api_client
-            .get_all_described_nodes()
+            .get_all_described_nodes_v2()
             .await
             .context("nym api query failure")?;
 

@@ -21,7 +21,6 @@ use crate::{
     packet::LpPacket,
     session::{LpSession, SubsessionHandshake},
 };
-use bytes::BytesMut;
 use std::mem;
 use tracing::debug;
 
@@ -111,7 +110,7 @@ pub enum LpAction {
     /// Send an LP Packet over the network.
     SendPacket(LpPacket),
     /// Deliver decrypted application data received from the peer.
-    DeliverData(BytesMut),
+    DeliverData(Vec<u8>),
     /// Inform the environment that KKT exchange completed successfully.
     KKTComplete,
     /// Inform the environment that the handshake is complete.
@@ -551,7 +550,7 @@ impl LpStateMachine {
                                             LpState::Transport { session }
                                         } else {
                                             // 4. Deliver data
-                                            result_action = Some(Ok(LpAction::DeliverData(BytesMut::from(plaintext.as_slice()))));
+                                            result_action = Some(Ok(LpAction::DeliverData(plaintext)));
                                             LpState::Transport { session }
                                         }
                                     }
@@ -823,7 +822,7 @@ impl LpStateMachine {
                                             result_action = Some(Err(e));
                                             LpState::SubsessionHandshaking { session, subsession }
                                         } else {
-                                            result_action = Some(Ok(LpAction::DeliverData(BytesMut::from(plaintext.as_slice()))));
+                                            result_action = Some(Ok(LpAction::DeliverData(plaintext)));
                                             LpState::SubsessionHandshaking { session, subsession }
                                         }
                                     }
@@ -932,7 +931,7 @@ impl LpStateMachine {
                                 result_action = Some(Err(e));
                                 LpState::ReadOnlyTransport { session }
                             } else {
-                                result_action = Some(Ok(LpAction::DeliverData(BytesMut::from(plaintext.as_slice()))));
+                                result_action = Some(Ok(LpAction::DeliverData(plaintext)));
                                 LpState::ReadOnlyTransport { session }
                             }
                         }

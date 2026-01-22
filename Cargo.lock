@@ -6397,6 +6397,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "utoipa",
  "vergen-gitcl",
  "x25519-dalek",
 ]
@@ -7130,7 +7131,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.0.12"
+version = "4.0.13-probe-integration"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -7151,6 +7152,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-ecash-time",
+ "nym-gateway-probe",
  "nym-http-api-client",
  "nym-http-api-common",
  "nym-mixnet-contract-common",

@@ -37,6 +37,7 @@ tokio = { workspace = true, features = [
 tokio-util.workspace = true
 tracing-subscriber.workspace = true
 url = { workspace = true }
+utoipa = { workspace = true, optional = true }
 x25519-dalek = { workspace = true, features = [
     "reusable_secrets",
     "static_secrets",
@@ -71,6 +72,9 @@ time = { workspace = true }
 
 # TEMP: REMOVE BEFORE PR
 nym-topology = { path = "../common/topology" }
+
+[features]
+utoipa = ["dep:utoipa"]
 
 [build-dependencies]
 anyhow = { workspace = true }

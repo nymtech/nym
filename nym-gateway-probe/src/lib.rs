@@ -60,7 +60,7 @@ pub mod mode;
 mod netstack;
 pub mod nodes;
 mod socks5_test;
-mod types;
+pub mod types;
 
 use crate::bandwidth_helpers::{acquire_bandwidth, import_bandwidth};
 use crate::nodes::{DirectoryNode, NymApiDirectory};

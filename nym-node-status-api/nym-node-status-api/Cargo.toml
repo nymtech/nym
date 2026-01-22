@@ -3,7 +3,8 @@
 
 [package]
 name = "nym-node-status-api"
-version = "4.0.12"
+# TODO dz temporary
+version = "4.0.13-probe-integration"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -33,6 +34,7 @@ nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mix
 nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
+nym-gateway-probe = { path = "../../nym-gateway-probe", features = ["utoipa"] }
 nym-http-api-client = { path = "../../common/http-api-client" }
 nym-http-api-common = { path = "../../common/http-api-common", features = ["middleware"] }
 nym-network-defaults = { path = "../../common/network-defaults" }

@@ -161,6 +161,7 @@ struct SingleHttpsTestResult {
     error: Option<String>,
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HttpsConnectivityResult {
     /// successfully completed HTTPS request

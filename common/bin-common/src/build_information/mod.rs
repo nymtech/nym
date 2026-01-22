@@ -124,6 +124,10 @@ impl BinaryBuildInformation {
     }
 }
 
+// to whoever is thinking of modifying this struct.
+// you MUST NOT change its structure in any way - adding, removing or changing fields
+// otherwise, it will break old clients as bincode serialisation is not backwards compatible
+// even if you put `#[serde(default)]` all over the place
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "bin_info_schema", derive(schemars::JsonSchema))]

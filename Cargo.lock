@@ -5422,6 +5422,7 @@ dependencies = [
  "nym-node-requests",
  "nym-noise-keys",
  "nym-serde-helpers",
+ "nym-test-utils",
  "nym-ticketbooks-merkle",
  "rand_chacha 0.3.1",
  "schemars 0.8.22",

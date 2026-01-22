@@ -54,7 +54,7 @@ nym-ecash-signer-check-types = { workspace = true }
 [dev-dependencies]
 rand_chacha = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
-
+nym-test-utils = { workspace = true }
 
 [features]
 default = []

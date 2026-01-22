@@ -5,7 +5,7 @@ use anyhow::Result;
 use nym_task::ShutdownToken;
 
 use celes::Country;
-use nym_validator_client::models::NymNodeDescription;
+use nym_validator_client::models::NymNodeDescriptionV2;
 use std::collections::HashMap;
 use std::time::Duration;
 use std::{net::IpAddr, sync::Arc};
@@ -28,10 +28,10 @@ struct NodesQuerier {
 }
 
 impl NodesQuerier {
-    async fn current_nymnodes(&self) -> Result<Vec<NymNodeDescription>> {
+    async fn current_nymnodes(&self) -> Result<Vec<NymNodeDescriptionV2>> {
         Ok(self
             .client
-            .get_all_described_nodes()
+            .get_all_described_nodes_v2()
             .await
             .inspect_err(|err| error!("failed to get network nodes: {err}"))?)
     }

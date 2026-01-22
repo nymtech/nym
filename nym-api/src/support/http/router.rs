@@ -6,12 +6,11 @@ use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::mixnet_contract_cache::handlers::{epoch_routes, legacy_nodes_routes};
 use crate::network::handlers::nym_network_routes;
 use crate::node_status_api::handlers::status_routes;
-use crate::nym_nodes::handlers::nym_node_routes;
-use crate::status;
 use crate::support::http::openapi::ApiDoc;
 use crate::support::http::state::AppState;
 use crate::unstable_routes::v1::unstable_routes_v1;
 use crate::unstable_routes::v2::unstable_routes_v2;
+use crate::{nym_nodes, status};
 use anyhow::anyhow;
 use axum::response::Redirect;
 use axum::routing::get;
@@ -61,12 +60,17 @@ impl RouterBuilder {
                     .nest("/status", status_routes(network_monitor))
                     .nest("/network", nym_network_routes())
                     .nest("/api-status", status::handlers::api_status_routes())
-                    .nest("/nym-nodes", nym_node_routes())
+                    .nest("/nym-nodes", nym_nodes::handlers::v1::routes())
                     .nest("/ecash", ecash_routes())
                     .nest("/unstable", unstable_routes_v1())
                     .nest("/legacy", legacy_nodes_routes()), // CORS layer needs to be "outside" of routes
             )
-            .nest("/v2", Router::new().nest("/unstable", unstable_routes_v2()));
+            .nest(
+                "/v2",
+                Router::new()
+                    .nest("/unstable", unstable_routes_v2())
+                    .nest("/nym-nodes", nym_nodes::handlers::v2::routes()),
+            );
 
         Self {
             unfinished_router: default_routes,

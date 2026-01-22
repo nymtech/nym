@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
-use nym_api_requests::models::{ConfigScore, NymNodeDescription};
+use nym_api_requests::models::{ConfigScore, NymNodeDescriptionV2};
 use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::VersionScoreFormulaParams;
 
@@ -19,7 +19,7 @@ fn versions_behind_factor_to_config_score(
 
 pub(crate) fn calculate_config_score(
     config_score_data: &ConfigScoreData,
-    described_data: Option<&NymNodeDescription>,
+    described_data: Option<&NymNodeDescriptionV2>,
 ) -> ConfigScore {
     let Some(described) = described_data else {
         return ConfigScore::unavailable();

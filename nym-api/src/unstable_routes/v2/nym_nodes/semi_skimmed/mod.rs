@@ -7,7 +7,7 @@ use crate::unstable_routes::helpers::refreshed_at;
 use crate::unstable_routes::v2::nym_nodes::helpers::NodesParamsWithRole;
 use axum::extract::{Query, State};
 use nym_api_requests::models::{
-    NodeAnnotation, NymNodeDescription, OffsetDateTimeJsonSchemaWrapper,
+    NodeAnnotation, NymNodeDescriptionV2, OffsetDateTimeJsonSchemaWrapper,
 };
 use nym_api_requests::nym_nodes::{NodeRole, PaginatedCachedNodesResponseV2, SemiSkimmedNode};
 use nym_api_requests::pagination::PaginatedResponse;
@@ -29,7 +29,7 @@ fn build_nym_nodes_response<'a, NI>(
     active_only: bool,
 ) -> Vec<SemiSkimmedNode>
 where
-    NI: Iterator<Item = &'a NymNodeDescription> + 'a,
+    NI: Iterator<Item = &'a NymNodeDescriptionV2> + 'a,
 {
     let mut nodes = Vec::new();
     for nym_node in nym_nodes_subset {

@@ -55,7 +55,7 @@ use nym_node_metrics::events::MetricEventsSender;
 use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM};
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
-use nym_noise_keys::VersionedNoiseKey;
+use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
@@ -921,7 +921,7 @@ impl NymNode {
         let x25519_versioned_noise_key = if self.config.mixnet.debug.unsafe_disable_noise {
             None
         } else {
-            Some(VersionedNoiseKey {
+            Some(VersionedNoiseKeyV1 {
                 supported_version: nym_noise::LATEST_NOISE_VERSION,
                 x25519_pubkey: *self.x25519_noise_keys.public_key(),
             })

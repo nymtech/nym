@@ -655,11 +655,7 @@ impl LpSession {
     /// * `Ok(())` - KKT exchange completed, KEM key stored
     /// * `Err(LpError)` - Signature verification failed, hash mismatch, or invalid state
     ///
-    pub fn process_kkt_response(
-        &self,
-        encrypted_response_bytes: &[u8],
-        expected_key_hash: &[u8],
-    ) -> Result<(), LpError> {
+    pub fn process_kkt_response(&self, encrypted_response_bytes: &[u8]) -> Result<(), LpError> {
         let mut kkt_state = self.kkt_state.lock();
 
         // Extract context from waiting state
@@ -683,7 +679,7 @@ impl LpSession {
                         &response_frame,
                         &remote_context,
                         &self.remote_peer.ed25519_public,
-                        expected_key_hash,
+                        &self.remote_peer.expected_kem_key_digest,
                     ) {
                         Ok(remote_encapsulation_key) => remote_encapsulation_key,
                         Err(e) => {

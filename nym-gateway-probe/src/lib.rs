@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::socks5_test::{HttpsConnectivityResult, HttpsConnectivityTest};
+use crate::socks5_test::HttpsConnectivityTest;
 use crate::types::Entry;
 use anyhow::bail;
 use base64::{Engine as _, engine::general_purpose};
@@ -1686,16 +1686,16 @@ async fn do_socks5_connectivity_test(
         bail!("You need to define JSON RPC URLs in order to test SOCKS5")
     }
 
-    let mut results = Socks5ProbeResults::default();
-
     // parse the network requester address
     let nr_recipient = match network_requester_address.parse::<Recipient>() {
         Ok(addr) => addr,
         Err(e) => {
             error!("Invalid Network Requester address: {}", e);
-            results.https_connectivity =
-                HttpsConnectivityResult::with_error(format!("Invalid NR address: {}", e));
-            return Ok(results);
+
+            return Ok(Socks5ProbeResults::error_before_connecting(format!(
+                "Invalid NR address: {}",
+                e
+            )));
         }
     };
 
@@ -1726,8 +1726,7 @@ async fn do_socks5_connectivity_test(
     // Verify the NR gateway exists in the directory with exit_nr role
     let nr_gateway_id = nr_recipient.gateway();
     if let Err(e) = directory.exit_gateway_nr(&nr_gateway_id) {
-        results.https_connectivity = HttpsConnectivityResult::with_error(e.to_string());
-        return Ok(results);
+        return Ok(Socks5ProbeResults::error_before_connecting(e.to_string()));
     } else {
         info!("✔️ Network Requester gateway found in directory with exit_nr role");
     }
@@ -1751,43 +1750,48 @@ async fn do_socks5_connectivity_test(
                 "Connected via entry gateway: {}",
                 client.nym_address().gateway().to_base58_string()
             );
-            results.can_connect_socks5 = true;
             client
         }
         Err(e) => {
             error!("Failed to establish SOCKS5 connection: {}", e);
-            results.https_connectivity =
-                HttpsConnectivityResult::with_error(format!("SOCKS5 connection failed: {}", e));
-            return Ok(results);
+            return Ok(Socks5ProbeResults::error_before_connecting(format!(
+                "SOCKS5 connection failed: {}",
+                e
+            )));
         }
     };
 
-    info!("Waiting for network topology to be ready...");
     let topology_timeout = Duration::from_secs(60);
+    info!(
+        "Waiting {}s for network topology to be ready...",
+        topology_timeout.as_secs()
+    );
     if let Err(e) = socks5_client.wait_for_topology(topology_timeout).await {
         error!(
             "Topology not available after {}s: {}",
             topology_timeout.as_secs(),
             e
         );
-        results.https_connectivity =
-            HttpsConnectivityResult::with_error(format!("Topology timeout: {}", e));
+
         socks5_client.disconnect().await;
-        return Ok(results);
+        return Ok(Socks5ProbeResults::error_before_connecting(format!(
+            "Topology timeout: {}",
+            e
+        )));
     } else {
         info!("Network topology is ready")
     }
 
     let test =
         HttpsConnectivityTest::new(test_run_count, mixnet_client_timeout, json_rpc_endpoints);
-    results.https_connectivity = test
+    let connectivity_result = test
         .run_tests(socks5_client.socks5_url(), failure_count_cutoff)
         .await;
 
     // cleanup
     socks5_client.disconnect().await;
 
-    Ok(results)
+    Ok(Socks5ProbeResults::with_http_result(connectivity_result))
 }
 
 async fn send_icmp_pings(

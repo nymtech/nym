@@ -71,6 +71,8 @@ fn test_weighted_score_calculation() {
                     downloaded_file_v6: "".to_string(),
                     download_error_v6: "".to_string(),
                 }),
+                // TODO dz test this as well
+                socks5: None,
             },
         }
     }
@@ -425,6 +427,8 @@ fn round_trip_serialization() {
                 downloaded_file_v6: "test-file-v6.bin".to_string(),
                 download_error_v6: "none-v6".to_string(),
             }),
+            // TODO dz test this as well
+            socks5: None,
         },
     };
 

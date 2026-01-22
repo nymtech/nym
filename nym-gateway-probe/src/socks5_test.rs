@@ -162,7 +162,7 @@ struct SingleHttpsTestResult {
 }
 
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpsConnectivityResult {
     /// successfully completed HTTPS request
     https_success: bool,
@@ -230,6 +230,27 @@ impl HttpsConnectivityResult {
             },
         }
     }
+
+    pub fn https_success(&self) -> bool {
+        self.https_success
+    }
+
+    pub fn https_status_code(&self) -> Option<&u16> {
+        self.https_status_code.as_ref()
+    }
+
+    pub fn https_latency_ms(&self) -> Option<&u64> {
+        self.https_latency_ms.as_ref()
+    }
+
+    pub fn endpoint_used(&self) -> Option<&String> {
+        self.endpoint_used.as_ref()
+    }
+
+    pub fn error(&self) -> Option<&String> {
+        self.error.as_ref()
+    }
+
 }
 
 /// https://www.jsonrpc.org/specification

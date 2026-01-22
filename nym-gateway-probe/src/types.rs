@@ -1,7 +1,7 @@
 use nym_connection_monitor::ConnectionStatusEvent;
 use serde::{Deserialize, Serialize};
 
-use crate::socks5_test::HttpsConnectivityResult;
+pub use super::socks5_test::HttpsConnectivityResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProbeResult {
@@ -142,13 +142,36 @@ impl Exit {
 }
 
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Socks5ProbeResults {
     /// whether we could establish a SOCKS5 proxy connection
     pub can_connect_socks5: bool,
 
     /// HTTPS connectivity test
     pub https_connectivity: HttpsConnectivityResult,
+}
+
+impl Socks5ProbeResults {
+    pub fn with_http_result(https_connectivity: HttpsConnectivityResult) -> Self {
+        Self {
+            can_connect_socks5: true,
+            https_connectivity,
+        }
+    }
+
+    pub fn error_before_connecting(error: impl Into<String>) -> Self {
+        Self {
+            can_connect_socks5: false,
+            https_connectivity: HttpsConnectivityResult::with_error(error.into()),
+        }
+    }
+
+    pub fn error_after_connecting(error: impl Into<String>) -> Self {
+        Self {
+            can_connect_socks5: true,
+            https_connectivity: HttpsConnectivityResult::with_error(error.into()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]

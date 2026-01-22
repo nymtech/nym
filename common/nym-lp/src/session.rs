@@ -8,6 +8,7 @@
 
 use crate::codec::OuterAeadKey;
 use crate::message::{EncryptedDataPayload, HandshakeData};
+// noiserm
 use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
 use crate::packet::LpHeader;
 use crate::psk::{
@@ -16,9 +17,16 @@ use crate::psk::{
 use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_kkt::KKT_RESPONSE_AAD;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
-use nym_kkt::encryption::KKTSessionSecret;
-use nym_kkt::kkt::decrypt_kkt_response_frame;
+use nym_kkt::encryption::{
+    KKTSessionSecret, decrypt_initial_kkt_frame, decrypt_kkt_frame, encrypt_initial_kkt_frame,
+    encrypt_kkt_frame,
+};
+use nym_kkt::session::{
+    anonymous_initiator_process, initiator_ingest_response, responder_ingest_message,
+    responder_process,
+};
 use parking_lot::Mutex;
 use rand::RngCore;
 use snow::Builder;
@@ -161,6 +169,7 @@ pub struct LpSession {
     /// Flag indicating if this session acts as the Noise protocol initiator.
     is_initiator: bool,
 
+    // noiserm
     /// Noise protocol state machine
     noise_state: Mutex<NoiseProtocol>,
 
@@ -179,6 +188,7 @@ pub struct LpSession {
     /// Validator for incoming packet counters to prevent replay attacks
     receiving_counter: Mutex<ReceivingKeyCounterValidator>,
 
+    // noiserm
     /// Safety flag: `true` if real PSK was injected via PSQ, `false` if still using dummy PSK.
     /// This prevents transport mode operations from running with the insecure dummy `[0u8; 32]` PSK.
     psk_injected: AtomicBool,
@@ -228,6 +238,7 @@ pub struct LpSession {
     negotiated_version: std::sync::atomic::AtomicU8,
 }
 
+// noiserm
 /// Generates a fresh salt for PSK derivation.
 ///
 /// Salt format: 8 bytes timestamp (u64 LE) + 24 bytes random nonce
@@ -363,37 +374,47 @@ impl LpSession {
         remote_x25519_key: &x25519::PublicKey,
         salt: &[u8; 32],
     ) -> Result<Self, LpError> {
+        // noiserm
         // XKpsk3 pattern requires remote static key known upfront (XK)
         // and PSK mixed at position 3. This provides forward secrecy with PSK authentication.
         let pattern_name = crate::NOISE_PATTERN;
         let psk_index = crate::NOISE_PSK_INDEX;
 
+        // noiserm
         let params = pattern_name.parse()?;
         let builder = Builder::new(params);
 
         let local_key_bytes = local_x25519_keypair.private_key().as_bytes();
+        // noiserm
         let builder = builder.local_private_key(local_key_bytes);
 
         let remote_key_bytes = remote_x25519_key.to_bytes();
+        // noiserm
         let builder = builder.remote_public_key(&remote_key_bytes);
 
+        // noiserm
         // Initialize with dummy PSK - real PSK will be injected via set_psk() during handshake
         // when PSQ runs using X25519 as DHKEM
         let dummy_psk = [0u8; 32];
         let builder = builder.psk(psk_index, &dummy_psk);
 
+        // noiserm
         let initial_state = if is_initiator {
             builder.build_initiator().map_err(LpError::SnowKeyError)?
         } else {
             builder.build_responder().map_err(LpError::SnowKeyError)?
         };
 
+        // noiserm
         let noise_protocol = NoiseProtocol::new(initial_state);
 
         // Initialize KKT state - both roles start at NotStarted
         let kkt_state = KKTState::NotStarted;
 
         // Initialize PSQ state based on role
+        // georgio: why PSQState::ResponderWaiting if responder?
+        // georgio: maybe because we can start straight with PSQ?
+        // georgio: either way, doesn't matter so much because a bad PSQ request will be rejected
         let psq_state = if is_initiator {
             PSQState::NotStarted
         } else {
@@ -403,12 +424,14 @@ impl LpSession {
         Ok(Self {
             id,
             is_initiator,
+            // noiserm
             noise_state: Mutex::new(noise_protocol),
             kkt_state: Mutex::new(kkt_state),
             psq_state: Mutex::new(psq_state),
             psk_handle: Mutex::new(None),
             sending_counter: AtomicU64::new(0),
             receiving_counter: Mutex::new(ReceivingKeyCounterValidator::default()),
+            // noiserm
             psk_injected: AtomicBool::new(false),
             local_ed25519: local_ed25519_keypair.clone(),
             remote_ed25519_public: *remote_ed25519_key,
@@ -503,16 +526,16 @@ impl LpSession {
         self.psk_handle.lock().clone()
     }
 
-    /// Prepares a KKT (KEM Key Transfer) request message.
+    /// Prepares an KKT (KEM Key Transfer) request message.
+    /// Config: Encryption Enabled, One-Way, Anonymous
     ///
-    /// This should be called by the initiator before starting the Noise handshake
-    /// to obtain the responder's KEM public key. The KKT protocol authenticates
-    /// the exchange using Ed25519 signatures.
+    /// This should be called by the initiator before starting PSQ
+    /// to obtain the responder's KEM public key.
     ///
     /// **Protocol Flow:**
-    /// 1. Initiator creates KKT request with Ed25519 signature
-    /// 2. Responder validates signature and responds with KEM public key + signature
-    /// 3. Initiator validates response and stores KEM key for PSQ
+    /// 1. Initiator creates an Encrypted, Anonymous, One-Way, KKT request
+    /// 2. Responder responds with encrypted KEM public key + signature
+    /// 3. Initiator validates response and stores KEM key for PSQ use
     ///
     /// # Returns
     ///
@@ -520,10 +543,7 @@ impl LpSession {
     /// * `Some(Err(LpError))` - Error creating KKT request
     /// * `None` - KKT not applicable (responder, or already completed)
     pub fn prepare_kkt_request(&self) -> Option<Result<LpMessage, LpError>> {
-        use nym_kkt::{
-            ciphersuite::{Ciphersuite, HashFunction, KEM, SignatureScheme},
-            kkt::request_kem_key,
-        };
+        use nym_kkt::ciphersuite::{Ciphersuite, HashFunction, KEM, SignatureScheme};
 
         let mut kkt_state = self.kkt_state.lock();
 
@@ -532,9 +552,9 @@ impl LpSession {
             return None;
         }
 
-        // Use X25519 as KEM for now (can extend to ML-KEM-768 later)
+        // georgio this needs to be moved one level up (maybe chosen in LPSession)
         let ciphersuite = match Ciphersuite::resolve_ciphersuite(
-            KEM::X25519,
+            KEM::MlKem768,
             HashFunction::Blake3,
             SignatureScheme::Ed25519,
             None,
@@ -549,23 +569,26 @@ impl LpSession {
         };
 
         let mut rng = rand09::rng();
-        match request_kem_key(
-            &mut rng,
-            ciphersuite,
-            self.local_ed25519.private_key(),
-            &self.remote_x25519_public,
-        ) {
-            Ok((session_secret, context, request_bytes)) => {
-                // Store context for response validation
-                *kkt_state = KKTState::InitiatorWaiting {
-                    context,
-                    session_secret,
-                };
+        match anonymous_initiator_process(&mut rng, ciphersuite) {
+            Ok((context, kkt_frame)) => {
+                match encrypt_initial_kkt_frame(&mut rng, &self.remote_x25519_public, &kkt_frame) {
+                    Ok((session_secret, encrypted_request_bytes)) => {
+                        // Store context for response validation
+                        *kkt_state = KKTState::InitiatorWaiting {
+                            context,
+                            session_secret,
+                        };
 
-                // Serialize KKT frame to bytes
-                Some(Ok(LpMessage::KKTRequest(crate::message::KKTRequestData(
-                    request_bytes,
-                ))))
+                        // Serialize KKT frame to bytes
+                        Some(Ok(LpMessage::KKTRequest(crate::message::KKTRequestData(
+                            encrypted_request_bytes,
+                        ))))
+                    }
+                    Err(e) => Some(Err(LpError::Internal(format!(
+                        "KKT request encryption failed: {:?}",
+                        e
+                    )))),
+                }
             }
             Err(e) => Some(Err(LpError::Internal(format!(
                 "KKT request creation failed: {:?}",
@@ -576,35 +599,24 @@ impl LpSession {
 
     /// Processes a KKT response from the responder.
     ///
-    /// Validates the responder's signature and stores the authenticated KEM public key
+    /// Decrypts and validates the response and stores the authenticated KEM public key
     /// for use in PSQ encapsulation.
     ///
     /// # Arguments
     ///
     /// * `response_bytes` - Raw KKT response message from responder
-    /// * `expected_key_hash` - Optional expected hash of responder's KEM key.
-    ///   - `Some(hash)`: Full KKT validation (signature + hash) - use when directory service available
-    ///   - `None`: Signature-only validation (hash computed from received key) - temporary mode
+    /// * `expected_key_hash` - Expected hash of responder's KEM key (obtained from directory).
     ///
     /// # Returns
     ///
     /// * `Ok(())` - KKT exchange completed, KEM key stored
     /// * `Err(LpError)` - Signature verification failed, hash mismatch, or invalid state
     ///
-    /// # Note
-    ///
-    /// When None is passed, the function computes the hash from the received key and validates against
-    /// that (effectively signature-only mode). This allows easy upgrade: just pass Some(directory_hash)
-    /// when directory service becomes available. The full KKT protocol with hash pinning provides
-    /// protection against key substitution attacks.
     pub fn process_kkt_response(
         &self,
-        response_bytes: &[u8],
-        expected_key_hash: Option<&[u8]>,
+        encrypted_response_bytes: &[u8],
+        expected_key_hash: &[u8],
     ) -> Result<(), LpError> {
-        use nym_kkt::key_utils::hash_encapsulation_key;
-        use nym_kkt::kkt::validate_kem_response;
-
         let mut kkt_state = self.kkt_state.lock();
 
         // Extract context from waiting state
@@ -620,42 +632,37 @@ impl LpSession {
             }
         };
 
-        // Determine hash to validate against
-        let hash_for_validation: Vec<u8>;
-        let hash_ref = match expected_key_hash {
-            Some(hash) => hash,
-            None => {
-                // Signature-only mode: extract key from response and compute its hash
-                // This effectively bypasses hash validation while keeping signature validation
-                let (frame, _) = decrypt_kkt_response_frame(&session_secret, response_bytes)
-                    .map_err(|e| {
-                        LpError::Internal(format!("Failed to decrypt KKT response: {:?}", e))
-                    })?;
-
-                hash_for_validation = hash_encapsulation_key(
-                    &context.ciphersuite().hash_function(),
-                    context.ciphersuite().hash_len(),
-                    frame.body_ref(),
-                );
-                &hash_for_validation
-            }
-        };
-
-        // Validate response and extract KEM key
-        let kem_pk = validate_kem_response(
-            &mut context,
-            &session_secret,
-            &self.remote_ed25519_public,
-            hash_ref,
-            response_bytes,
-        )
-        .map_err(|e| LpError::Internal(format!("KKT response validation failed: {:?}", e)))?;
+        let remote_encapsulation_key =
+            match decrypt_kkt_frame(&session_secret, encrypted_response_bytes, KKT_RESPONSE_AAD) {
+                Ok((response_frame, remote_context)) => {
+                    match initiator_ingest_response(
+                        &mut context,
+                        &response_frame,
+                        &remote_context,
+                        &self.remote_ed25519_public,
+                        expected_key_hash,
+                    ) {
+                        Ok(remote_encapsulation_key) => remote_encapsulation_key,
+                        Err(e) => {
+                            return Err(LpError::Internal(format!(
+                                "KKT response handling failure: {:?}",
+                                e
+                            )));
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Err(LpError::Internal(format!(
+                        "KKT response decryption failure: {:?}",
+                        e
+                    )));
+                }
+            };
 
         // Store the authenticated KEM key
         *kkt_state = KKTState::Completed {
-            kem_pk: Box::new(kem_pk),
+            kem_pk: Box::new(remote_encapsulation_key),
         };
-
         Ok(())
     }
 
@@ -678,22 +685,38 @@ impl LpSession {
         request_bytes: &[u8],
         responder_kem_pk: &EncapsulationKey,
     ) -> Result<LpMessage, LpError> {
-        use nym_kkt::kkt::handle_kem_request;
-
         let mut rng = rand09::rng();
 
         let mut kkt_state = self.kkt_state.lock();
 
-        // Handle request and create signed response
-        let response_bytes = handle_kem_request(
-            &mut rng,
-            request_bytes,
-            Some(&self.remote_ed25519_public), // Verify initiator signature
-            self.local_ed25519.private_key(),  // Sign response
-            self.local_x25519.private_key(),
-            responder_kem_pk,
+        let (session_secret, request_frame, remote_context) =
+            decrypt_initial_kkt_frame(self.local_x25519.private_key(), &request_bytes).unwrap();
+
+        let (mut context, _) =
+            responder_ingest_message(&remote_context, None, None, &request_frame).unwrap();
+
+        let response_frame = responder_process(
+            &mut context,
+            request_frame.session_id(),
+            self.local_ed25519.private_key(),
+            &responder_kem_pk,
         )
-        .map_err(|e| LpError::Internal(format!("KKT request handling failed: {:?}", e)))?;
+        .unwrap();
+
+        let response_bytes =
+            encrypt_kkt_frame(&mut rng, &session_secret, &response_frame, KKT_RESPONSE_AAD)
+                .unwrap();
+
+        // Handle request and create signed response
+        // let response_bytes = handle_kem_request(
+        //     &mut rng,
+        //     request_bytes,
+        //     Some(&self.remote_ed25519_public), // Verify initiator signature
+        //     self.local_ed25519.private_key(),  // Sign response
+        //     self.local_x25519.private_key(),
+        //     responder_kem_pk,
+        // )
+        // .map_err(|e| LpError::Internal(format!("KKT request handling failed: {:?}", e)))?;
 
         // Mark KKT as processed
         // Responder doesn't store the kem_pk since they already have their own KEM keypair
@@ -762,10 +785,13 @@ impl LpSession {
             // Store PQ shared secret for subsession PSK derivation
             *self.pq_shared_secret.lock() = Some(PqSharedSecret::new(psq_result.pq_shared_secret));
 
+            // georgio start psq v2 here
+
             // Inject PSK into Noise HandshakeState
             if let Err(e) = noise_state.set_psk(3, &psk) {
                 return Some(Err(LpError::NoiseError(e)));
             }
+            // noiserm
             // Mark PSK as injected for safety checks in transport mode
             self.psk_injected.store(true, Ordering::Release);
 
@@ -1316,6 +1342,7 @@ impl SubsessionHandshake {
         Ok(LpSession {
             id: receiver_index,
             is_initiator: self.is_initiator,
+            // noiserm
             noise_state: Mutex::new(noise_state),
             // KKT: subsession inherits from parent, mark as processed
             kkt_state: Mutex::new(KKTState::ResponderProcessed),
@@ -1326,6 +1353,7 @@ impl SubsessionHandshake {
             psk_handle: Mutex::new(None), // Subsession doesn't have its own handle
             sending_counter: AtomicU64::new(0),
             receiving_counter: Mutex::new(ReceivingKeyCounterValidator::new(0)),
+            // noiserm
             psk_injected: AtomicBool::new(true), // PSK was in KKpsk0
             local_ed25519: self.local_ed25519,
             remote_ed25519_public: self.remote_ed25519_public,

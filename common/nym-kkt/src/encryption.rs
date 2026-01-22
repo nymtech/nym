@@ -1,9 +1,9 @@
 // Copyright 2025-2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::kkt::KKT_INITIAL_FRAME_AAD;
 use crate::{
-    ciphersuite::CURVE25519_KEY_LEN, context::KKTContext, error::KKTError, frame::KKTFrame,
+    KKT_INITIAL_FRAME_AAD, ciphersuite::CURVE25519_KEY_LEN, context::KKTContext, error::KKTError,
+    frame::KKTFrame,
 };
 use blake3::Hasher;
 use libcrux_chacha20poly1305::{NONCE_LEN, TAG_LEN};

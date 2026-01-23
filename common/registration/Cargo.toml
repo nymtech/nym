@@ -15,7 +15,6 @@ workspace = true
 [dependencies]
 bincode = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-tokio-util.workspace = true
 
 nym-authenticator-requests = { workspace = true }
 nym-credentials-interface = { workspace = true }
@@ -27,5 +26,4 @@ nym-kkt-ciphersuite = { path = "../nym-kkt-ciphersuite" }
 
 [dev-dependencies]
 bincode.workspace = true
-time.workspace = true
 nym-test-utils = { workspace = true }

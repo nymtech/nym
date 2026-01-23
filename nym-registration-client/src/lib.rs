@@ -21,6 +21,7 @@ mod error;
 mod lp_client;
 mod types;
 
+use crate::lp_client::helpers::to_lp_remote_peer;
 pub use builder::RegistrationClientBuilder;
 pub use builder::config::{
     BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig,
@@ -176,30 +177,10 @@ impl RegistrationClient {
         let entry_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
         let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
 
-        // Step 1: Derive X25519 keys from Ed25519 for the gateways
-        let entry_x25519_public = self
-            .config
-            .entry
-            .node
-            .identity
-            .to_x25519()
-            .map_err(|_| RegistrationClientError::X25519PubkeyConversionFailure)?;
+        let entry_peer = to_lp_remote_peer(self.config.entry.node.identity, entry_lp_data);
+        let exit_peer = to_lp_remote_peer(self.config.exit.node.identity, exit_lp_data);
 
-        let exit_x25519_public = self
-            .config
-            .exit
-            .node
-            .identity
-            .to_x25519()
-            .map_err(|_| RegistrationClientError::X25519PubkeyConversionFailure)?;
-
-        let entry_peer = LpRemotePeer::new(self.config.entry.node.identity, entry_x25519_public)
-            .with_kem_key_digests(entry_lp_data.expected_kem_key_hashes);
-
-        let exit_peer = LpRemotePeer::new(self.config.exit.node.identity, exit_x25519_public)
-            .with_kem_key_digests(exit_lp_data.expected_kem_key_hashes);
-
-        // STEP 2: Establish outer session with entry gateway
+        // STEP 1: Establish outer session with entry gateway
         // This creates the LP session that will be used to forward packets to exit.
         // Uses packet-per-connection model: each handshake packet on new TCP connection.
         tracing::info!("Establishing outer session with entry gateway");
@@ -221,7 +202,7 @@ impl RegistrationClient {
 
         tracing::info!("Outer session with entry gateway established");
 
-        // STEP 3: Use nested session to register with exit gateway via forwarding
+        // STEP 2: Use nested session to register with exit gateway via forwarding
         // This hides the client's IP address from the exit gateway
         tracing::info!("Registering with exit gateway via entry forwarding");
         let mut nested_session =
@@ -245,7 +226,7 @@ impl RegistrationClient {
 
         tracing::info!("Exit gateway registration completed via forwarding");
 
-        // STEP 4: Register with entry gateway (packet-per-connection)
+        // STEP 3: Register with entry gateway (packet-per-connection)
         tracing::info!("Registering with entry gateway");
         let entry_gateway_data = entry_client
             .register(

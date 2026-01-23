@@ -7523,8 +7523,6 @@ dependencies = [
  "nym-test-utils",
  "nym-wireguard-types",
  "serde",
- "time",
- "tokio-util",
 ]
 
 [[package]]

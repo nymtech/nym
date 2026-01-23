@@ -130,7 +130,7 @@ impl CredentialArgs {
 
 #[derive(Args)]
 pub struct Socks5Args {
-    #[arg(long, value_delimiter = ',')]
+    #[arg(long, value_delimiter = ';')]
     socks5_json_rpc_url_list: Vec<String>,
 
     #[arg(long, default_value_t = 30)]

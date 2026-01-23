@@ -40,16 +40,20 @@ pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 #[cfg(feature = "network")]
 pub const NYM_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
-        url: NYM_API,
-        front_hosts: None,
-    },
-    ApiUrlConst {
         url: "https://nym-frontdoor.vercel.app/api/",
         front_hosts: Some(&["vercel.app", "vercel.com"]),
     },
     ApiUrlConst {
+        url: NYM_API,
+        front_hosts: None,
+    },
+    ApiUrlConst {
         url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
         front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
+    },
+    ApiUrlConst {
+        url: "https://cdn1.media-platform.net/api/",
+        front_hosts: None,
     },
 ];
 

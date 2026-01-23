@@ -53,9 +53,18 @@ pub(crate) struct Cli {
     #[clap(long, env = "DATABASE_URL")]
     pub(crate) database_url: String,
 
+    /// SQLx pool acquire timeout in seconds (how long to wait for a connection)
     #[clap(long, default_value = "5", env = "SQLX_BUSY_TIMEOUT_S")]
     #[arg(value_parser = parse_duration_std)]
     pub(crate) sqlx_busy_timeout_s: Duration,
+
+    /// Maximum number of connections in the SQLx pool
+    #[clap(long, default_value_t = 20, env = "SQLX_MAX_CONNECTIONS")]
+    pub(crate) sqlx_max_connections: u32,
+
+    /// Minimum number of connections to keep in the SQLx pool
+    #[clap(long, default_value_t = 5, env = "SQLX_MIN_CONNECTIONS")]
+    pub(crate) sqlx_min_connections: u32,
 
     #[clap(
         long,

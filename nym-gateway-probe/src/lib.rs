@@ -1329,7 +1329,6 @@ where
                 &exit_wg_keypair,
                 credential,
                 TicketType::V1WireguardExit,
-                exit_ip,
             )
             .await
         {
@@ -1347,7 +1346,6 @@ where
                 &exit_gateway_pubkey,
                 bandwidth_controller,
                 TicketType::V1WireguardExit,
-                exit_ip,
             )
             .await
         {

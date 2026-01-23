@@ -7520,6 +7520,7 @@ dependencies = [
  "nym-ip-packet-requests",
  "nym-kkt-ciphersuite",
  "nym-sphinx",
+ "nym-test-utils",
  "nym-wireguard-types",
  "serde",
  "time",

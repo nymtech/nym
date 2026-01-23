@@ -191,7 +191,7 @@ impl LpDataHandler {
         match action {
             LpAction::DeliverData(data) => {
                 // Decrypted application data - forward as Sphinx packet
-                self.forward_sphinx_packet(&data).await?;
+                self.forward_sphinx_packet(&data.content).await?;
                 inc!("lp_data_packets_forwarded");
                 Ok(())
             }

@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::socks5_test::{HttpsConnectivityResult, HttpsConnectivityTest};
+use crate::socks5_test::HttpsConnectivityTest;
 use crate::types::Entry;
 use anyhow::bail;
 use base64::{Engine as _, engine::general_purpose};
@@ -18,6 +18,10 @@ use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_authenticator_requests::{
     AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse, v2, v3,
     v4, v5, v6,
+};
+use nym_client_core::TopologyProvider;
+use nym_client_core::client::topology_control::{
+    NymApiTopologyProvider, NymApiTopologyProviderConfig,
 };
 use nym_client_core::config::ForgetMe;
 use nym_config::defaults::{
@@ -35,10 +39,15 @@ use nym_ip_packet_requests::{
         ControlResponse, DataResponse, InfoLevel, IpPacketResponse, IpPacketResponseData,
     },
 };
-use nym_sdk::mixnet::{
-    CredentialStorage, Ephemeral, KeyStore, MixnetClient, MixnetClientBuilder, MixnetClientStorage,
-    NodeIdentity, Recipient, ReconstructedMessage, Socks5, StoragePaths,
+use nym_sdk::{
+    DebugConfig,
+    mixnet::{
+        CredentialStorage, Ephemeral, KeyStore, MixnetClient, MixnetClientBuilder,
+        MixnetClientStorage, NodeIdentity, Recipient, ReconstructedMessage, Socks5, StoragePaths,
+    },
 };
+use nym_topology::NymTopology;
+use nym_topology::provider_trait::HardcodedTopologyProvider;
 use nym_validator_client::models::NetworkRequesterDetails;
 use rand::rngs::OsRng;
 use std::path::PathBuf;
@@ -130,7 +139,7 @@ impl CredentialArgs {
 
 #[derive(Args)]
 pub struct Socks5Args {
-    #[arg(long, value_delimiter = ',')]
+    #[arg(long, value_delimiter = ';')]
     socks5_json_rpc_url_list: Vec<String>,
 
     #[arg(long, default_value_t = 30)]
@@ -320,44 +329,6 @@ impl Probe {
         self
     }
 
-    pub async fn test_socks5_only(
-        self,
-        directory: NymApiDirectory,
-        gateway_key: Option<String>,
-        network_details: NymNetworkDetails,
-    ) -> anyhow::Result<ProbeResult> {
-        let exit_gateway = match gateway_key {
-            Some(gateway_key) => NodeIdentity::from_base58_string(gateway_key)?,
-            None => directory.random_exit_with_nr()?,
-        };
-        info!("Testing SOCKS5 only on exit gateway {}", exit_gateway);
-        let node_info = directory
-            .exit_gateway_nr(&exit_gateway)?
-            .to_testable_node()?;
-
-        let socks5_outcome = self
-            .test_socks5_if_possible(
-                network_details,
-                &node_info.network_requester_details,
-                &directory,
-            )
-            .await;
-
-        let probe_result = ProbeResult {
-            node: exit_gateway.to_base58_string(),
-            used_entry: exit_gateway.to_base58_string(),
-            outcome: ProbeOutcome {
-                as_entry: Entry::NotTested,
-                as_exit: None,
-                socks5: socks5_outcome,
-                wg: None,
-                lp: None,
-            },
-        };
-
-        Ok(probe_result)
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub async fn probe(
         self,
@@ -395,6 +366,15 @@ impl Probe {
 
         let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
 
+        // Extract topology from the connected client (if successful) to reuse for SOCKS5 test
+        let topology = match &mixnet_client {
+            Ok(client) => client
+                .read_current_route_provider()
+                .await
+                .map(|rp| rp.topology.clone()),
+            Err(_) => None,
+        };
+
         // Convert legacy flags to TestMode
         let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
         let test_mode =
@@ -412,6 +392,7 @@ impl Probe {
             only_wireguard,
             false, // Not using mock ecash in regular probe mode
             network_details,
+            topology,
         )
         .await
     }
@@ -471,6 +452,7 @@ impl Probe {
                     only_wireguard,
                     use_mock_ecash,
                     network_details,
+                    None, // No topology (no mixnet client in localnet mode)
                 )
                 .await;
         }
@@ -519,6 +501,7 @@ impl Probe {
                     only_wireguard,
                     use_mock_ecash,
                     network_details,
+                    None, // No topology (no mixnet client in direct gateway mode)
                 )
                 .await;
         }
@@ -594,6 +577,15 @@ impl Probe {
 
         let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
 
+        // extract topology from the connected client (if any) to reuse for SOCKS5 test
+        let topology = match &mixnet_client {
+            Ok(client) => client
+                .read_current_route_provider()
+                .await
+                .map(|rp| rp.topology.clone()),
+            Err(_) => None,
+        };
+
         // Convert legacy flags to TestMode
         let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
         let test_mode =
@@ -611,6 +603,7 @@ impl Probe {
             only_wireguard,
             use_mock_ecash,
             network_details,
+            topology,
         )
         .await
     }
@@ -703,6 +696,7 @@ impl Probe {
         network_details: NymNetworkDetails,
         network_requester_details: &Option<NetworkRequesterDetails>,
         directory: &NymApiDirectory,
+        topology: Option<NymTopology>,
     ) -> Option<Socks5ProbeResults> {
         if let Some(nr_details) = network_requester_details {
             match do_socks5_connectivity_test(
@@ -713,6 +707,7 @@ impl Probe {
                 self.socks5_args.mixnet_client_timeout_sec,
                 self.socks5_args.test_count,
                 self.socks5_args.failure_count_cutoff,
+                topology,
             )
             .await
             {
@@ -801,6 +796,7 @@ impl Probe {
         only_wireguard: bool,
         use_mock_ecash: bool,
         network_details: NymNetworkDetails,
+        topology: Option<NymTopology>,
     ) -> anyhow::Result<ProbeResult>
     where
         T: MixnetClientStorage + Clone + 'static,
@@ -1072,6 +1068,7 @@ impl Probe {
                 network_details,
                 &node_info.network_requester_details,
                 directory,
+                topology,
             )
             .await;
 
@@ -1668,6 +1665,7 @@ async fn do_ping_exit(
 
 /// Creates a SOCKS5 proxy connection through the mixnet to the exit GW
 /// and performs necessary tests.
+#[allow(clippy::too_many_arguments)]
 #[instrument(level = "info", name = "socks5_test", skip_all)]
 async fn do_socks5_connectivity_test(
     network_requester_address: &str,
@@ -1677,6 +1675,7 @@ async fn do_socks5_connectivity_test(
     mixnet_client_timeout: u64,
     test_run_count: u64,
     failure_count_cutoff: usize,
+    topology: Option<NymTopology>,
 ) -> anyhow::Result<Socks5ProbeResults> {
     info!(
         "Starting SOCKS5 test through Network Requester: {}",
@@ -1686,16 +1685,16 @@ async fn do_socks5_connectivity_test(
         bail!("You need to define JSON RPC URLs in order to test SOCKS5")
     }
 
-    let mut results = Socks5ProbeResults::default();
-
     // parse the network requester address
     let nr_recipient = match network_requester_address.parse::<Recipient>() {
         Ok(addr) => addr,
         Err(e) => {
             error!("Invalid Network Requester address: {}", e);
-            results.https_connectivity =
-                HttpsConnectivityResult::with_error(format!("Invalid NR address: {}", e));
-            return Ok(results);
+
+            return Ok(Socks5ProbeResults::error_before_connecting(format!(
+                "Invalid NR address: {}",
+                e
+            )));
         }
     };
 
@@ -1711,23 +1710,18 @@ async fn do_socks5_connectivity_test(
     // create ephemeral SOCKS5 client
     let socks5_config = Socks5::new(network_requester_address.to_string());
 
-    // Create debug config similar to main probe
-    let mut debug_config = nym_client_core::config::DebugConfig::default();
-    debug_config
-        .traffic
-        .disable_main_poisson_packet_distribution = true;
-    debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
-    debug_config.topology.ignore_egress_epoch_role = true;
     // since we define both entry & exit gateways to be the same tested GW,
     // this shouldn't negatively affect mixnet layers but it will force route
-    // construction in case GW would get filtered out on topology refresh
-    debug_config.topology.minimum_gateway_performance = 0;
+    // construction in case GW would get filtered out of topology
+    let min_gw_performance = Some(0);
+
+    // debug config similar to main probe
+    let debug_config = mixnet_debug_config(min_gw_performance, true);
 
     // Verify the NR gateway exists in the directory with exit_nr role
     let nr_gateway_id = nr_recipient.gateway();
     if let Err(e) = directory.exit_gateway_nr(&nr_gateway_id) {
-        results.https_connectivity = HttpsConnectivityResult::with_error(e.to_string());
-        return Ok(results);
+        return Ok(Socks5ProbeResults::error_before_connecting(e.to_string()));
     } else {
         info!("✔️ Network Requester gateway found in directory with exit_nr role");
     }
@@ -1735,12 +1729,28 @@ async fn do_socks5_connectivity_test(
     // use intended exit as entry as well
     let entry_gateway = nr_gateway_id;
 
+    // use existing topology if available, otherwise fetch it
+    let topology_provider: Box<HardcodedTopologyProvider> = match topology {
+        Some(t) => {
+            info!("✔️ Reusing topology from main mixnet client");
+            Box::new(HardcodedTopologyProvider::new(t))
+        }
+        None => {
+            info!("Fetching topology for SOCKS5 client...");
+            match hardcoded_topology(&network_details, &debug_config).await {
+                Ok(provider) => provider,
+                Err(e) => return Ok(Socks5ProbeResults::error_before_connecting(e)),
+            }
+        }
+    };
+
     let socks5_client_builder = MixnetClientBuilder::new_ephemeral()
         // Specify entry gateway explicitly
         .request_gateway(entry_gateway.to_base58_string())
         .socks5_config(socks5_config)
         .network_details(network_details)
         .debug_config(debug_config)
+        .custom_topology_provider(topology_provider)
         .build()?;
 
     // connect to mixnet via SOCKS5
@@ -1751,43 +1761,68 @@ async fn do_socks5_connectivity_test(
                 "Connected via entry gateway: {}",
                 client.nym_address().gateway().to_base58_string()
             );
-            results.can_connect_socks5 = true;
             client
         }
         Err(e) => {
             error!("Failed to establish SOCKS5 connection: {}", e);
-            results.https_connectivity =
-                HttpsConnectivityResult::with_error(format!("SOCKS5 connection failed: {}", e));
-            return Ok(results);
+            return Ok(Socks5ProbeResults::error_before_connecting(format!(
+                "SOCKS5 connection failed: {}",
+                e
+            )));
         }
     };
 
-    info!("Waiting for network topology to be ready...");
-    let topology_timeout = Duration::from_secs(60);
-    if let Err(e) = socks5_client.wait_for_topology(topology_timeout).await {
-        error!(
-            "Topology not available after {}s: {}",
-            topology_timeout.as_secs(),
-            e
-        );
-        results.https_connectivity =
-            HttpsConnectivityResult::with_error(format!("Topology timeout: {}", e));
-        socks5_client.disconnect().await;
-        return Ok(results);
-    } else {
-        info!("Network topology is ready")
-    }
-
     let test =
         HttpsConnectivityTest::new(test_run_count, mixnet_client_timeout, json_rpc_endpoints);
-    results.https_connectivity = test
+    let result = test
         .run_tests(socks5_client.socks5_url(), failure_count_cutoff)
         .await;
 
-    // cleanup
     socks5_client.disconnect().await;
 
-    Ok(results)
+    Ok(Socks5ProbeResults::with_http_result(result))
+}
+
+async fn hardcoded_topology(
+    network_details: &NymNetworkDetails,
+    debug_config: &DebugConfig,
+) -> Result<Box<HardcodedTopologyProvider>, String> {
+    // get Nym API URLs from network_details
+    let nym_api_urls: Vec<Url> = network_details
+        .nym_api_urls
+        .as_ref()
+        .map(|urls| urls.iter().filter_map(|u| u.url.parse().ok()).collect())
+        .or_else(|| {
+            network_details
+                .endpoints
+                .first()
+                .and_then(|e| e.api_url())
+                .map(|url| vec![url])
+        })
+        .unwrap_or_default();
+
+    if nym_api_urls.is_empty() {
+        return Err(String::from("No nym-api URLs available to fetch topology"));
+    }
+
+    let topology_config = NymApiTopologyProviderConfig {
+        min_mixnode_performance: debug_config.topology.minimum_mixnode_performance,
+        min_gateway_performance: debug_config.topology.minimum_gateway_performance,
+        use_extended_topology: debug_config.topology.use_extended_topology,
+        ignore_egress_epoch_role: debug_config.topology.ignore_egress_epoch_role,
+    };
+
+    let api_client = nym_http_api_client::Client::new_url(nym_api_urls[0].clone(), None)
+        .map_err(|e| e.to_string())?;
+    let mut provider = NymApiTopologyProvider::new(topology_config, nym_api_urls, api_client);
+
+    match provider.get_new_topology().await {
+        Some(topology) => {
+            info!("Fetched network topology");
+            Ok(Box::new(HardcodedTopologyProvider::new(topology)))
+        }
+        None => Err(String::from("Failed to fetch network topology")),
+    }
 }
 
 async fn send_icmp_pings(

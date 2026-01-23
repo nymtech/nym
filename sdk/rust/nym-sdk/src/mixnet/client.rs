@@ -601,7 +601,6 @@ where
         );
 
         let available_gateways = self.available_gateways().await?;
-        debug!("Listing all available gateways in topology:");
         for node in available_gateways.iter() {
             debug!(
                 "node_id={}, identity_key={}",

@@ -23,6 +23,8 @@ nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 
 nym-node-status-client = { path = "../nym-node-status-client" }
 rand = { workspace = true }
+regex = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true, features = [
     "macros",
     "rt-multi-thread",

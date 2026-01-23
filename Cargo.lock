@@ -7245,6 +7245,8 @@ dependencies = [
  "nym-crypto",
  "nym-node-status-client",
  "rand 0.8.5",
+ "regex",
+ "serde_json",
  "tempfile",
  "tokio",
  "tracing",

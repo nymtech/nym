@@ -23,6 +23,7 @@ nym-crypto = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
 nym-sphinx = { workspace = true }
 nym-wireguard-types = { workspace = true }
+nym-kkt-ciphersuite = { path = "../nym-kkt-ciphersuite" }
 
 [dev-dependencies]
 bincode.workspace = true

@@ -1248,6 +1248,17 @@ checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
 name = "classic-mceliece-rust"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62a9b6d27e553269a76625911aa8cf6afaa8659f1b0c85b410cb5f51a87183d9"
+dependencies = [
+ "rand 0.8.5",
+ "sha3",
+ "zeroize",
+]
+
+[[package]]
+name = "classic-mceliece-rust"
 version = "3.2.0"
 source = "git+https://github.com/georgio/classic-mceliece-rust#7bdf0c3c8c727cbc4784e05b0972641ad0791ab9"
 dependencies = [
@@ -4609,6 +4620,7 @@ name = "libcrux-psq"
 version = "0.0.5"
 source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
 dependencies = [
+ "classic-mceliece-rust 3.1.0",
  "libcrux-aesgcm",
  "libcrux-chacha20poly1305",
  "libcrux-ecdh",
@@ -4620,6 +4632,7 @@ dependencies = [
  "libcrux-ml-kem",
  "libcrux-sha2",
  "libcrux-traits",
+ "rand 0.8.5",
  "rand 0.9.2",
  "tls_codec",
 ]
@@ -6791,18 +6804,33 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "blake3",
- "classic-mceliece-rust",
+ "classic-mceliece-rust 3.2.0",
  "criterion",
  "libcrux-chacha20poly1305",
  "libcrux-ecdh",
  "libcrux-kem",
- "libcrux-sha3",
+ "libcrux-ml-kem",
+ "libcrux-psq",
  "num_enum",
  "nym-crypto",
+ "nym-kkt-ciphersuite",
  "rand 0.9.2",
  "rand_chacha 0.9.0",
+ "strum",
  "thiserror 2.0.17",
  "zeroize",
+]
+
+[[package]]
+name = "nym-kkt-ciphersuite"
+version = "1.20.1"
+dependencies = [
+ "blake3",
+ "libcrux-sha3",
+ "num_enum",
+ "strum",
+ "strum_macros",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -6858,6 +6886,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-ip-packet-requests",
  "nym-kcp",
+ "nym-kkt-ciphersuite",
  "nym-lp",
  "nym-registration-client",
  "nym-sphinx",
@@ -7197,6 +7226,7 @@ dependencies = [
  "nym-crypto",
  "nym-exit-policy",
  "nym-http-api-client",
+ "nym-kkt-ciphersuite",
  "nym-noise-keys",
  "nym-upgrade-mode-check",
  "nym-wireguard-types",
@@ -7503,6 +7533,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ip-packet-requests",
+ "nym-kkt-ciphersuite",
  "nym-sphinx",
  "nym-wireguard-types",
  "serde",

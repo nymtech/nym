@@ -3,6 +3,8 @@
 
 use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_kkt::ciphersuite::{HashFunction, KEM};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -60,18 +62,20 @@ impl LpLocalPeer {
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
     #[doc(hidden)]
     pub fn as_remote(&self) -> LpRemotePeer {
-        let expected_kem_key_digest = match &self.mlkem {
-            None => Vec::new(),
-            Some(kem_keys) => nym_kkt::key_utils::hash_key_bytes(
-                &nym_kkt::ciphersuite::HashFunction::Blake3,
-                nym_kkt::ciphersuite::DEFAULT_HASH_LEN,
-                kem_keys.1.as_slice(),
-            ),
+        let expected_kem_key_digests = match &self.mlkem {
+            None => HashMap::new(),
+            Some(kem_keys) => {
+                let hashes = nym_kkt::key_utils::produce_key_digests(kem_keys.1.as_slice());
+
+                let mut digests = HashMap::new();
+                digests.insert(KEM::MlKem768, hashes);
+                digests
+            }
         };
         LpRemotePeer {
             ed25519_public: *self.ed25519.public_key(),
             x25519_public: *self.x25519.public_key(),
-            expected_kem_key_digest,
+            expected_kem_key_digests,
         }
     }
 
@@ -127,8 +131,7 @@ pub struct LpRemotePeer {
     pub(crate) x25519_public: x25519::PublicKey,
 
     /// Expected digest of the remote's KEM key
-    // TODO: this might have to be replaced by a HashMap<HashFunction, Vec<u8>> instead
-    pub(crate) expected_kem_key_digest: Vec<u8>,
+    pub(crate) expected_kem_key_digests: HashMap<KEM, HashMap<HashFunction, Vec<u8>>>,
 }
 
 impl LpRemotePeer {
@@ -136,7 +139,7 @@ impl LpRemotePeer {
         LpRemotePeer {
             ed25519_public,
             x25519_public,
-            expected_kem_key_digest: vec![],
+            expected_kem_key_digests: Default::default(),
         }
     }
 
@@ -149,8 +152,11 @@ impl LpRemotePeer {
     }
 
     #[must_use]
-    pub fn with_kem_key_digest(mut self, expected_kem_key_digest: Vec<u8>) -> Self {
-        self.expected_kem_key_digest = expected_kem_key_digest;
+    pub fn with_kem_key_digests(
+        mut self,
+        expected_kem_key_digests: HashMap<KEM, HashMap<HashFunction, Vec<u8>>>,
+    ) -> Self {
+        self.expected_kem_key_digests = expected_kem_key_digests;
         self
     }
 }

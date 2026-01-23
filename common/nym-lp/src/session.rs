@@ -20,6 +20,7 @@ use crate::{LpError, LpMessage, LpPacket};
 use nym_crypto::asymmetric::x25519;
 use nym_kkt::KKT_RESPONSE_AAD;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
+use nym_kkt::context::KKTContext;
 use nym_kkt::encryption::{
     KKTSessionSecret, decrypt_initial_kkt_frame, decrypt_kkt_frame, encrypt_initial_kkt_frame,
     encrypt_kkt_frame,
@@ -640,6 +641,23 @@ impl LpSession {
         }
     }
 
+    /// Attempt to retrieve expected KEM key hash of the remote
+    /// for [KEM] key type and [HashFunction] specified by own [KKTContext]
+    fn expected_kem_key_hash(&self, context: KKTContext) -> Result<&Vec<u8>, LpError> {
+        let kem = context.ciphersuite().kem();
+        let hash_function = context.ciphersuite().hash_function();
+
+        let digests = self
+            .remote_peer
+            .expected_kem_key_digests
+            .get(&kem)
+            .ok_or(LpError::NoKnownKEMKeyDigests { kem, hash_function })?;
+
+        digests
+            .get(&hash_function)
+            .ok_or(LpError::NoKnownKEMKeyDigests { kem, hash_function })
+    }
+
     /// Processes a KKT response from the responder.
     ///
     /// Decrypts and validates the response and stores the authenticated KEM public key
@@ -674,12 +692,13 @@ impl LpSession {
         let remote_encapsulation_key =
             match decrypt_kkt_frame(&session_secret, encrypted_response_bytes, KKT_RESPONSE_AAD) {
                 Ok((response_frame, remote_context)) => {
+                    let expected_kem_key_digest = self.expected_kem_key_hash(context)?;
                     match initiator_ingest_response(
                         &mut context,
                         &response_frame,
                         &remote_context,
                         &self.remote_peer.ed25519_public,
-                        &self.remote_peer.expected_kem_key_digest,
+                        expected_kem_key_digest,
                     ) {
                         Ok(remote_encapsulation_key) => remote_encapsulation_key,
                         Err(e) => {

@@ -3,6 +3,7 @@
 
 use crate::{noise_protocol::NoiseError, replay::ReplayError};
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
+use nym_kkt::ciphersuite::{HashFunction, KEM};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -93,4 +94,12 @@ pub enum LpError {
 
     #[error("attempted to create an LP responder without providing a valid KEM key")]
     ResponderWithMissingKEMKey,
+
+    #[error(
+        "there are no known digests for remote's KEM key with {kem} KEM and {hash_function} hash function"
+    )]
+    NoKnownKEMKeyDigests {
+        kem: KEM,
+        hash_function: HashFunction,
+    },
 }

@@ -1,9 +1,10 @@
 use crate::ciphersuite::HashFunction;
+use std::collections::HashMap;
 
 use classic_mceliece_rust::keypair_boxed;
 
 use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
-use libcrux_sha3;
+use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, KEMKeyDigests};
 use rand::{CryptoRng, RngCore};
 
 pub fn generate_keypair_ed25519<R>(
@@ -78,26 +79,18 @@ pub fn hash_key_bytes(
     hash_length: usize,
     key_bytes: &[u8],
 ) -> Vec<u8> {
-    let mut hashed_key: Vec<u8> = vec![0u8; hash_length];
-    match hash_function {
-        HashFunction::Blake3 => {
-            let mut hasher = blake3::Hasher::new();
-            hasher.update(key_bytes);
-            hasher.finalize_xof().fill(&mut hashed_key);
-            hasher.reset();
-        }
-        HashFunction::SHAKE256 => {
-            libcrux_sha3::shake256_ema(&mut hashed_key, key_bytes);
-        }
-        HashFunction::SHAKE128 => {
-            libcrux_sha3::shake128_ema(&mut hashed_key, key_bytes);
-        }
-        HashFunction::SHA256 => {
-            libcrux_sha3::sha256_ema(&mut hashed_key, key_bytes);
-        }
-    }
+    hash_function.digest(key_bytes, hash_length)
+}
 
-    hashed_key
+/// attempt to produce digests of the provided key using all known [HashFunction] with a default
+/// hash length where variable output is available
+pub fn produce_key_digests(key_bytes: &[u8]) -> KEMKeyDigests {
+    use strum::IntoEnumIterator;
+    let mut digests = HashMap::new();
+    for hash in HashFunction::iter() {
+        digests.insert(hash, hash.digest(key_bytes, DEFAULT_HASH_LEN));
+    }
+    digests
 }
 
 /// This does NOT run in constant time.

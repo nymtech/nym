@@ -4,6 +4,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix topology fetch failures during epoch transitions by accepting epoch differences of 1 between mixnodes and gateways API calls
+
 ## [2026.1-niolo] (2026-01-13)
 
 - bugfix: mozzarella -> niolo config migration ([#6259])

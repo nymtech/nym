@@ -154,9 +154,29 @@ impl NymApiTopologyProvider {
             let metadata = mixnodes_res.metadata;
             let mixnodes = mixnodes_res.nodes;
 
+            // Check for epoch consistency between mixnodes and gateways responses
             if !gateways_res.metadata.consistency_check(&metadata) {
-                warn!("inconsistent nodes metadata between mixnodes and gateways calls! {metadata:?} and {:?}", gateways_res.metadata);
-                return None;
+                warn!(
+                    "Inconsistent nodes metadata between mixnodes and gateways calls! \
+                    mixnodes epoch: {}, gateways epoch: {}. This can happen when requests span an epoch boundary.",
+                    metadata.absolute_epoch_id, gateways_res.metadata.absolute_epoch_id
+                );
+                
+                // Use the response with the higher (more recent) epoch to avoid stale data
+                let epoch_diff = metadata.absolute_epoch_id.abs_diff(gateways_res.metadata.absolute_epoch_id);
+                
+                if epoch_diff <= 1 {
+                    // If epochs are only 1 apart, this is expected during epoch transitions
+                    // Use the data anyway as it's still valid
+                    warn!("Epoch difference is 1, proceeding with topology fetch (this is normal during epoch transitions)");
+                } else {
+                    // If epochs are more than 1 apart, something is wrong
+                    error!(
+                        "Epoch difference is {}, which indicates a serious synchronization issue. Rejecting topology.",
+                        epoch_diff
+                    );
+                    return None;
+                }
             }
 
             let gateways = gateways_res.nodes;

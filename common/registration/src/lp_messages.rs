@@ -8,7 +8,6 @@ use crate::serialisation::{BincodeError, BincodeOptions, lp_bincode_serializer};
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
-use std::net::IpAddr;
 
 /// Registration request sent by client after LP handshake
 /// Aligned with existing authenticator registration flow
@@ -16,9 +15,6 @@ use std::net::IpAddr;
 pub struct LpRegistrationRequest {
     /// Mode specific registration data
     pub registration_data: LpRegistrationData,
-
-    /// Client's IP address (for tracking/metrics)
-    pub client_ip: IpAddr,
 
     /// Unix timestamp for replay protection
     pub timestamp: u64,
@@ -116,7 +112,6 @@ impl LpRegistrationRequest {
         wg_public_key: nym_wireguard_types::PeerPublicKey,
         credential: CredentialSpendingData,
         ticket_type: TicketType,
-        client_ip: IpAddr,
     ) -> Self {
         Self {
             registration_data: LpRegistrationData::Dvpn {
@@ -126,7 +121,6 @@ impl LpRegistrationRequest {
                     ticket_type,
                 }),
             },
-            client_ip,
             #[allow(clippy::expect_used)]
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

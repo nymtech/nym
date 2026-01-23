@@ -653,7 +653,6 @@ mod tests {
                     exit.base.peer.ed25519().public_key(),
                     &client_data.ticket_provider,
                     TicketType::V1WireguardExit,
-                    client_data.base.socket_addr.ip(),
                 )
                 .timeboxed()
                 .await??;

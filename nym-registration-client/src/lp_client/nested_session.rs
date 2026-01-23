@@ -32,7 +32,6 @@ use nym_lp::{LpMessage, LpPacket};
 use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::{GatewayData, LpRegistrationRequest};
 use nym_wireguard_types::PeerPublicKey;
-use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -294,7 +293,6 @@ impl NestedLpSession {
         wg_keypair: &x25519::KeyPair,
         credential: nym_credentials_interface::CredentialSpendingData,
         ticket_type: TicketType,
-        client_ip: IpAddr,
     ) -> Result<GatewayData>
     where
         S: LpTransport + Unpin,
@@ -313,8 +311,7 @@ impl NestedLpSession {
 
         // Step 3: Build registration request (credential already provided)
         let wg_public_key = PeerPublicKey::new(wg_keypair.public_key().to_bytes().into());
-        let request =
-            LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type, client_ip);
+        let request = LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type);
 
         tracing::trace!("Built registration request: {:?}", request);
 
@@ -435,7 +432,6 @@ impl NestedLpSession {
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
-        client_ip: IpAddr,
     ) -> Result<GatewayData>
     where
         S: LpTransport + Unpin,
@@ -465,8 +461,7 @@ impl NestedLpSession {
 
         // Step 4: Build registration request
         let wg_public_key = PeerPublicKey::new(wg_keypair.public_key().to_bytes().into());
-        let request =
-            LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type, client_ip);
+        let request = LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type);
 
         tracing::trace!("Built registration request: {:?}", request);
 
@@ -589,7 +584,6 @@ impl NestedLpSession {
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
-        client_ip: IpAddr,
         max_retries: u32,
     ) -> Result<GatewayData>
     where
@@ -644,7 +638,6 @@ impl NestedLpSession {
                     wg_keypair,
                     credential.clone(),
                     ticket_type,
-                    client_ip,
                 )
                 .await
             {

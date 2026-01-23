@@ -1,10 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::messages::{
-    LpDvpnRegistrationRequest, LpMixnetGatewayData, LpRegistrationData, LpRegistrationRequest,
-    LpRegistrationResponse,
-};
 use super::LpHandlerState;
 use crate::error::GatewayError;
 use crate::node::client_handling::websocket::message_receiver::IsActive;
@@ -21,7 +17,10 @@ use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::PersistedBandwidth;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_metrics::{add_histogram_obs, inc, inc_by};
-use nym_registration_common::{GatewayData, LpMixnetRegistrationRequest};
+use nym_registration_common::{
+    GatewayData, LpDvpnRegistrationRequest, LpMixnetGatewayData, LpMixnetRegistrationRequest,
+    LpRegistrationData, LpRegistrationRequest, LpRegistrationResponse,
+};
 use nym_wireguard::PeerControlRequest;
 use std::sync::Arc;
 use time::OffsetDateTime;

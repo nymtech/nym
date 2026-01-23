@@ -235,7 +235,6 @@ impl RegistrationClient {
                 &self.config.exit.node.identity,
                 &*self.bandwidth_controller,
                 TicketType::V1WireguardExit,
-                self.config.exit.node.ip_address,
             )
             .await
             .map_err(|source| RegistrationClientError::ExitGatewayRegisterLp {

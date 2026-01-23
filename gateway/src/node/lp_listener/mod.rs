@@ -90,7 +90,6 @@ pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
 
 mod data_handler;
 pub mod handler;
-pub mod messages;
 mod registration;
 
 /// Configuration for LP listener

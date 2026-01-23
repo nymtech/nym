@@ -744,8 +744,7 @@ where
 
         // 1. Build registration request
         let wg_public_key = PeerPublicKey::new(wg_keypair.public_key().to_bytes().into());
-        let request =
-            LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type, self.client_ip);
+        let request = LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type);
 
         tracing::trace!("Built registration request: {:?}", request);
 

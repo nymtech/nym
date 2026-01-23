@@ -25,6 +25,9 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 classic-mceliece-rust = { git = "https://github.com/georgio/classic-mceliece-rust", features = ["mceliece460896f", "zeroize"] }
 
 
+libcrux-psq = { git = "https://github.com/cryspen/libcrux", features = ["classic-mceliece"] }
+libcrux-ml-kem = { git = "https://github.com/cryspen/libcrux"}
+
 [dev-dependencies]
 rand_chacha = "0.9.0"
 anyhow = { workspace = true }

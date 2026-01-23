@@ -48,6 +48,9 @@ pub enum KKTError {
     #[error("{}", info)]
     AEADError { info: &'static str },
 
+    #[error("{}", info)]
+    DecodingError { info: &'static str },
+
     #[error("Generic libcrux error")]
     LibcruxError,
 }

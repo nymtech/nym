@@ -12,7 +12,10 @@ use nym_kkt::{
     ciphersuite::{Ciphersuite, EncapsulationKey, HashFunction, KEM, SignatureScheme},
     context::KKTMode,
     frame::KKTFrame,
-    key_utils::{generate_keypair_libcrux, generate_keypair_mceliece, hash_encapsulation_key},
+    key_utils::{
+        generate_keypair_libcrux, generate_keypair_mceliece, generate_keypair_mlkem,
+        hash_encapsulation_key,
+    },
     session::{
         anonymous_initiator_process, initiator_ingest_response, initiator_process,
         responder_ingest_message, responder_process,
@@ -69,8 +72,8 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
             let (responder_kem_public_key, initiator_kem_public_key) = match kem {
                 KEM::MlKem768 => (
-                    EncapsulationKey::MlKem768(generate_keypair_libcrux(&mut rng, kem).unwrap().1),
-                    EncapsulationKey::MlKem768(generate_keypair_libcrux(&mut rng, kem).unwrap().1),
+                    EncapsulationKey::MlKem768(generate_keypair_mlkem(&mut rng).1),
+                    EncapsulationKey::MlKem768(generate_keypair_mlkem(&mut rng).1),
                 ),
                 KEM::XWing => (
                     EncapsulationKey::XWing(generate_keypair_libcrux(&mut rng, kem).unwrap().1),

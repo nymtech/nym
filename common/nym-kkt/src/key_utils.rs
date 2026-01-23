@@ -2,6 +2,7 @@ use crate::ciphersuite::HashFunction;
 
 use classic_mceliece_rust::keypair_boxed;
 
+use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
 use libcrux_sha3;
 use rand::{CryptoRng, RngCore};
 
@@ -37,9 +38,6 @@ where
     R: RngCore + CryptoRng,
 {
     match kem {
-        crate::ciphersuite::KEM::MlKem768 => {
-            Ok(libcrux_kem::key_gen(libcrux_kem::Algorithm::MlKem768, rng)?)
-        }
         crate::ciphersuite::KEM::XWing => Ok(libcrux_kem::key_gen(
             libcrux_kem::Algorithm::XWingKemDraft06,
             rng,
@@ -52,6 +50,14 @@ where
         }),
     }
 }
+
+pub fn generate_keypair_mlkem<R>(rng: &mut R) -> (MlKem768PrivateKey, MlKem768PublicKey)
+where
+    R: RngCore + CryptoRng,
+{
+    libcrux_ml_kem::mlkem768::rand::generate_key_pair(rng).into_parts()
+}
+
 // (decapsulation_key, encapsulation_key)
 pub fn generate_keypair_mceliece<'a, R>(
     rng: &mut R,

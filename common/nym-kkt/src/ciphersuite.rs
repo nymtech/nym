@@ -1,11 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::KKTError;
 use libcrux_kem::{Algorithm, MlKem768PublicKey};
 use nym_crypto::asymmetric::ed25519;
-use std::fmt::Display;
-
-use crate::error::KKTError;
+use std::fmt::{Debug, Display};
 
 pub const DEFAULT_HASH_LEN: usize = 32;
 const _: () = assert!(DEFAULT_HASH_LEN <= u8::MAX as usize);
@@ -34,17 +33,20 @@ impl Display for HashFunction {
 }
 
 pub enum EncapsulationKey<'a> {
-    MlKem768(libcrux_kem::PublicKey),
+    MlKem768(libcrux_kem::MlKem768PublicKey),
     XWing(libcrux_kem::PublicKey),
     X25519(libcrux_kem::PublicKey),
     McEliece(classic_mceliece_rust::PublicKey<'a>),
 }
-
-pub enum DecapsulationKey<'a> {
-    MlKem768(libcrux_kem::PrivateKey),
-    XWing(libcrux_kem::PrivateKey),
-    X25519(libcrux_kem::PrivateKey),
-    McEliece(classic_mceliece_rust::SecretKey<'a>),
+impl<'a> Debug for EncapsulationKey<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MlKem768(_) => f.debug_tuple("MlKem768").finish(),
+            Self::XWing(_) => f.debug_tuple("XWing").finish(),
+            Self::X25519(_) => f.debug_tuple("X25519").finish(),
+            Self::McEliece(_) => f.debug_tuple("McEliece").finish(),
+        }
+    }
 }
 impl<'a> EncapsulationKey<'a> {
     pub(crate) fn decode(kem: KEM, bytes: &[u8]) -> Result<Self, KKTError> {
@@ -68,10 +70,13 @@ impl<'a> EncapsulationKey<'a> {
                 map_kem_to_libcrux_kem(kem)?,
                 bytes,
             )?)),
-            KEM::MlKem768 => Ok(EncapsulationKey::MlKem768(libcrux_kem::PublicKey::decode(
-                map_kem_to_libcrux_kem(kem)?,
-                bytes,
-            )?)),
+            KEM::MlKem768 => Ok(EncapsulationKey::MlKem768(
+                libcrux_kem::MlKem768PublicKey::try_from(bytes).map_err(|_| {
+                    KKTError::DecodingError {
+                        info: "MlKem Encapsulation Key Decoding Failure",
+                    }
+                })?,
+            )),
             KEM::XWing => Ok(EncapsulationKey::XWing(libcrux_kem::PublicKey::decode(
                 map_kem_to_libcrux_kem(kem)?,
                 bytes,
@@ -81,10 +86,27 @@ impl<'a> EncapsulationKey<'a> {
 
     pub fn encode(&self) -> Vec<u8> {
         match self {
-            EncapsulationKey::XWing(public_key)
-            | EncapsulationKey::MlKem768(public_key)
-            | EncapsulationKey::X25519(public_key) => public_key.encode(),
+            EncapsulationKey::XWing(public_key) | EncapsulationKey::X25519(public_key) => {
+                public_key.encode()
+            }
             EncapsulationKey::McEliece(public_key) => Vec::from(public_key.as_array()),
+            EncapsulationKey::MlKem768(public_key) => Vec::from(public_key.as_slice()),
+        }
+    }
+}
+pub enum DecapsulationKey<'a> {
+    MlKem768(libcrux_kem::MlKem768PrivateKey),
+    XWing(libcrux_kem::PrivateKey),
+    X25519(libcrux_kem::PrivateKey),
+    McEliece(classic_mceliece_rust::SecretKey<'a>),
+}
+impl<'a> Debug for DecapsulationKey<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MlKem768(_) => f.debug_tuple("MlKem768").finish(),
+            Self::XWing(_) => f.debug_tuple("XWing").finish(),
+            Self::X25519(_) => f.debug_tuple("X25519").finish(),
+            Self::McEliece(_) => f.debug_tuple("McEliece").finish(),
         }
     }
 }

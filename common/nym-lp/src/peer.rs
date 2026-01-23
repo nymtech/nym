@@ -1,12 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
 use nym_crypto::asymmetric::{ed25519, x25519};
+use std::fmt::Debug;
 use std::sync::Arc;
 
 /// Representation of a local Lewes Protocol peer
 /// encapsulating all the known information and keys.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LpLocalPeer {
     /// Local Ed25519 keys for PSQ authentication
     pub(crate) ed25519: Arc<ed25519::KeyPair>,
@@ -14,8 +16,11 @@ pub struct LpLocalPeer {
     /// Local x25519 keys (Noise static key)
     pub(crate) x25519: Arc<x25519::KeyPair>,
 
-    /// Local KEM key used for PSQ
+    /// Local KEM key used for PSQ (x25519: to deprecate)
     pub(crate) kem_psq: Option<Arc<x25519::KeyPair>>,
+
+    /// Local MlKem keypair used for PSQ
+    pub(crate) mlkem: Option<(Arc<MlKem768PrivateKey>, Arc<MlKem768PublicKey>)>,
 }
 
 impl LpLocalPeer {
@@ -24,12 +29,23 @@ impl LpLocalPeer {
             ed25519,
             x25519,
             kem_psq: None,
+            mlkem: None,
+            // mceliece: None,
         }
     }
 
-    #[must_use]
+    // #[must_use]
     pub fn with_kem_psq_key(mut self, key: Arc<x25519::KeyPair>) -> Self {
         self.kem_psq = Some(key);
+        self
+    }
+
+    pub fn with_mlkem_keypair(
+        mut self,
+        decapsulation_key: Arc<MlKem768PrivateKey>,
+        encapsulation_key: Arc<MlKem768PublicKey>,
+    ) -> Self {
+        self.mlkem = Some((decapsulation_key, encapsulation_key));
         self
     }
 
@@ -44,12 +60,12 @@ impl LpLocalPeer {
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
     #[doc(hidden)]
     pub fn as_remote(&self) -> LpRemotePeer {
-        let expected_kem_key_digest = match &self.kem_psq {
+        let expected_kem_key_digest = match &self.mlkem {
             None => Vec::new(),
             Some(kem_keys) => nym_kkt::key_utils::hash_key_bytes(
                 &nym_kkt::ciphersuite::HashFunction::Blake3,
                 nym_kkt::ciphersuite::DEFAULT_HASH_LEN,
-                kem_keys.public_key().as_bytes(),
+                kem_keys.1.as_slice(),
             ),
         };
         LpRemotePeer {
@@ -67,6 +83,36 @@ impl LpLocalPeer {
             libcrux_kem::PublicKey::decode(libcrux_kem::Algorithm::X25519, &pk_bytes).ok()?;
 
         Some(nym_kkt::ciphersuite::EncapsulationKey::X25519(libcrux_pk))
+    }
+}
+
+impl Debug for LpLocalPeer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LpLocalPeer")
+            .field("ed25519", &self.ed25519)
+            .field("x25519", &self.x25519)
+            .field("kem_psq", &self.kem_psq)
+            .field(
+                "mlkem",
+                &format!(
+                    "mlkem_public_key: {}",
+                    match &self.mlkem {
+                        Some(keypair) => format!("{:?}", keypair.1.as_slice()),
+                        None => format!("None"),
+                    }
+                ),
+            )
+            // .field(
+            //     "mceliece",
+            //     &format!(
+            //         "mceliece_public_key: {}",
+            //         match &self.mceliece {
+            //             Some(keypair) => format!("{:?}", keypair.1.as_slice()),
+            //             None => format!("None"),
+            //         }
+            //     ),
+            // )
+            .finish()
     }
 }
 
@@ -117,15 +163,21 @@ pub fn mock_peer() -> LpLocalPeer {
 }
 
 #[cfg(test)]
-pub fn random_peer<R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLocalPeer {
+pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLocalPeer {
+    use nym_kkt::key_utils::generate_keypair_mlkem;
+
     let ed25519 = Arc::new(ed25519::KeyPair::new(rng));
     let x25519 = Arc::new(ed25519.to_x25519());
     let kem_psq = Some(x25519.clone());
+
+    let mlkem_keypair = generate_keypair_mlkem(&mut rand09::rng());
 
     LpLocalPeer {
         ed25519,
         x25519,
         kem_psq,
+        mlkem: Some((Arc::new(mlkem_keypair.0), Arc::new(mlkem_keypair.1))),
+        // mceliece: None,
     }
 }
 

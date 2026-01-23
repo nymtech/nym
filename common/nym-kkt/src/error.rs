@@ -1,10 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::context::KKTStatus;
+use nym_kkt_ciphersuite::error::KKTCiphersuiteError;
 use std::fmt::Debug;
 use thiserror::Error;
-
-use crate::context::KKTStatus;
 
 #[derive(Error, Debug)]
 pub enum KKTError {
@@ -12,8 +12,8 @@ pub enum KKTError {
     SigConstructorError,
     #[error("Signature verification error")]
     SigVerifError,
-    #[error("Ciphersuite Decoding Error: {}", info)]
-    CiphersuiteDecodingError { info: String },
+    #[error(transparent)]
+    CiphersuiteDecodingError(#[from] KKTCiphersuiteError),
 
     #[error("KEM mapping failure: {}", info)]
     KEMMapping { info: &'static str },

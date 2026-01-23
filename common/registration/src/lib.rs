@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use nym_authenticator_requests::AuthenticatorVersion;
@@ -15,6 +16,7 @@ mod serialisation;
 pub use lp_messages::{
     LpGatewayData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
 };
+use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
 pub use serialisation::BincodeError;
 
 #[derive(Debug, Clone)]
@@ -35,11 +37,10 @@ pub struct GatewayData {
     pub private_ipv6: Ipv6Addr,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct LpData {
     pub address: SocketAddr,
-    // TODO: modify it into a map once we know more about the PSQv2 structure
-    pub expected_kem_key_hash: Vec<u8>,
+    pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
 }
 
 #[derive(Clone, Copy, Debug)]

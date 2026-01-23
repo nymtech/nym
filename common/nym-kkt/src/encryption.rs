@@ -1,10 +1,7 @@
 // Copyright 2025-2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    KKT_INITIAL_FRAME_AAD, ciphersuite::CURVE25519_KEY_LEN, context::KKTContext, error::KKTError,
-    frame::KKTFrame,
-};
+use crate::{KKT_INITIAL_FRAME_AAD, context::KKTContext, error::KKTError, frame::KKTFrame};
 use blake3::Hasher;
 use libcrux_chacha20poly1305::{NONCE_LEN, TAG_LEN};
 use nym_crypto::asymmetric::x25519;
@@ -36,7 +33,7 @@ impl KKTSessionSecret {
 
     fn try_derive(private_key: &x25519::PrivateKey, public_key: &[u8]) -> Result<Self, KKTError> {
         let mut pub_key: [u8; 32] = [0u8; 32];
-        pub_key.copy_from_slice(&public_key[0..CURVE25519_KEY_LEN]);
+        pub_key.copy_from_slice(&public_key[0..x25519::PUBLIC_KEY_SIZE]);
 
         // Todo: check validity of pk...
         let pk = x25519::PublicKey::from(pub_key);
@@ -71,7 +68,7 @@ where
     let mut encrypted_frame =
         encrypt_kkt_frame(rng, &session_secret_key, kkt_frame, KKT_INITIAL_FRAME_AAD)?;
 
-    let mut output_buffer = Vec::with_capacity(encrypted_frame.len() + CURVE25519_KEY_LEN);
+    let mut output_buffer = Vec::with_capacity(encrypted_frame.len() + x25519::PUBLIC_KEY_SIZE);
     output_buffer.extend_from_slice(ephemeral_public_key.as_bytes());
     output_buffer.append(&mut encrypted_frame);
 
@@ -84,19 +81,19 @@ pub fn decrypt_initial_kkt_frame(
     responder_private_key: &x25519::PrivateKey,
     encrypted_frame_bytes: &[u8],
 ) -> Result<(KKTSessionSecret, KKTFrame, KKTContext), KKTError> {
-    if encrypted_frame_bytes.len() < CURVE25519_KEY_LEN + TAG_LEN + NONCE_LEN {
+    if encrypted_frame_bytes.len() < x25519::PUBLIC_KEY_SIZE + TAG_LEN + NONCE_LEN {
         Err(KKTError::AEADError {
             info: "Encrypted KKT Frame is too short.",
         })
     } else {
         let shared_secret = KKTSessionSecret::try_derive(
             responder_private_key,
-            &encrypted_frame_bytes[0..CURVE25519_KEY_LEN],
+            &encrypted_frame_bytes[0..x25519::PUBLIC_KEY_SIZE],
         )?;
 
         let (kkt_frame, kkt_context) = decrypt_kkt_frame(
             &shared_secret,
-            &encrypted_frame_bytes[CURVE25519_KEY_LEN..],
+            &encrypted_frame_bytes[x25519::PUBLIC_KEY_SIZE..],
             KKT_INITIAL_FRAME_AAD,
         )?;
         Ok((shared_secret, kkt_frame, kkt_context))

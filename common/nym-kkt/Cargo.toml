@@ -10,13 +10,14 @@ publish = false
 blake3 = { workspace = true }
 thiserror = { workspace = true }
 num_enum = { workspace = true }
+strum = { workspace = true }
 
 
 # internal
 nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"] }
+nym-kkt-ciphersuite = { path = "../nym-kkt-ciphersuite", features = ["digests"] }
 
 libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
-libcrux-sha3 = { git = "https://github.com/cryspen/libcrux" }
 libcrux-ecdh = { git = "https://github.com/cryspen/libcrux", features = ["codec"] }
 libcrux-chacha20poly1305 = { git = "https://github.com/cryspen/libcrux" }
 

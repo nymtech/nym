@@ -161,10 +161,12 @@ impl NymApiTopologyProvider {
                     mixnodes epoch: {}, gateways epoch: {}. This can happen when requests span an epoch boundary.",
                     metadata.absolute_epoch_id, gateways_res.metadata.absolute_epoch_id
                 );
-                
+
                 // Use the response with the higher (more recent) epoch to avoid stale data
-                let epoch_diff = metadata.absolute_epoch_id.abs_diff(gateways_res.metadata.absolute_epoch_id);
-                
+                let epoch_diff = metadata
+                    .absolute_epoch_id
+                    .abs_diff(gateways_res.metadata.absolute_epoch_id);
+
                 if epoch_diff <= 1 {
                     // If epochs are only 1 apart, this is expected during epoch transitions
                     // Use the data anyway as it's still valid

@@ -169,7 +169,7 @@ impl DVpnGateway {
                 .ok()
         });
 
-        tracing::info!("🌈 gateway probe result: {:?}", gateway.last_probe_result);
+        tracing::debug!("🌈 gateway probe result: {:?}", gateway.last_probe_result);
 
         let (last_probe_result, performance_v2) = match gateway.last_probe_result {
             Some(ref value) => {
@@ -178,7 +178,7 @@ impl DVpnGateway {
                         error!("Failed to deserialize probe result: {err}");
                     })?;
 
-                tracing::info!("🌈 gateway probe parsed: {:?}", parsed);
+                tracing::trace!("🌈 gateway probe parsed: {:?}", parsed);
                 let mixnet_score = calculate_mixnet_score(&gateway);
                 let score = calculate_score(&gateway, &parsed);
                 let mut load = calculate_load(&parsed);

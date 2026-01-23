@@ -8,7 +8,6 @@ use std::fmt::Display;
 use strum_macros::EnumIter;
 
 pub mod error;
-mod helpers;
 
 pub const DEFAULT_HASH_LEN: usize = 32;
 const _: () = assert!(DEFAULT_HASH_LEN <= u8::MAX as usize);

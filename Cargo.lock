@@ -6871,6 +6871,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-ip-packet-requests",
  "nym-kcp",
+ "nym-kkt-ciphersuite",
  "nym-lp",
  "nym-registration-client",
  "nym-sphinx",

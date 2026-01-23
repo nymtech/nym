@@ -194,10 +194,10 @@ impl RegistrationClient {
             .map_err(|_| RegistrationClientError::X25519PubkeyConversionFailure)?;
 
         let entry_peer = LpRemotePeer::new(self.config.entry.node.identity, entry_x25519_public)
-            .with_kem_key_digest(entry_lp_data.expected_kem_key_hash);
+            .with_kem_key_digests(entry_lp_data.expected_kem_key_hashes);
 
         let exit_peer = LpRemotePeer::new(self.config.exit.node.identity, exit_x25519_public)
-            .with_kem_key_digest(exit_lp_data.expected_kem_key_hash);
+            .with_kem_key_digests(exit_lp_data.expected_kem_key_hashes);
 
         // STEP 2: Establish outer session with entry gateway
         // This creates the LP session that will be used to forward packets to exit.

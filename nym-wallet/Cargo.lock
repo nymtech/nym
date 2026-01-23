@@ -4181,18 +4181,19 @@ dependencies = [
 
 [[package]]
 name = "num_enum"
-version = "0.7.3"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e613fc340b2220f734a8595782c551f1250e969d87d3be1ae0579e8d4065179"
+checksum = "b1207a7e20ad57b847bbddc6776b968420d38292bbfe2089accff5e19e82454c"
 dependencies = [
  "num_enum_derive",
+ "rustversion",
 ]
 
 [[package]]
 name = "num_enum_derive"
-version = "0.7.3"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af1844ef2428cc3e1cb900be36181049ef3d3193c63e43026cfe202983b27a56"
+checksum = "ff32365de1b6743cb203b710788263c44a03de03802daf96092f2da4fe6ba4d7"
 dependencies = [
  "proc-macro-crate 3.3.0",
  "proc-macro2",
@@ -4490,6 +4491,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-kkt-ciphersuite"
+version = "1.20.1"
+dependencies = [
+ "num_enum",
+ "strum",
+ "strum_macros",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-mixnet-contract-common"
 version = "1.20.1"
 dependencies = [
@@ -4535,6 +4546,8 @@ dependencies = [
  "regex",
  "schemars",
  "serde",
+ "serde_json",
+ "tracing",
  "url",
  "utoipa",
 ]
@@ -4550,6 +4563,7 @@ dependencies = [
  "nym-crypto",
  "nym-exit-policy",
  "nym-http-api-client",
+ "nym-kkt-ciphersuite",
  "nym-noise-keys",
  "nym-upgrade-mode-check",
  "nym-wireguard-types",

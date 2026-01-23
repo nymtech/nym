@@ -1,0 +1,26 @@
+[package]
+name = "nym-kkt-ciphersuite"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+version.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+num_enum = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+
+blake3 = { workspace = true, optional = true }
+libcrux-sha3 = { git = "https://github.com/cryspen/libcrux", optional = true }
+
+[features]
+digests = ["blake3", "libcrux-sha3"]
+
+[lints]
+workspace = true

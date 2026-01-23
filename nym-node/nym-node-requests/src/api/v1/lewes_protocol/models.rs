@@ -72,6 +72,28 @@ pub enum LPKEM {
     McEliece,
 }
 
+impl From<LPKEM> for nym_kkt_ciphersuite::KEM {
+    fn from(lpkem: LPKEM) -> Self {
+        match lpkem {
+            LPKEM::MlKem768 => nym_kkt_ciphersuite::KEM::MlKem768,
+            LPKEM::XWing => nym_kkt_ciphersuite::KEM::XWing,
+            LPKEM::X25519 => nym_kkt_ciphersuite::KEM::X25519,
+            LPKEM::McEliece => nym_kkt_ciphersuite::KEM::McEliece,
+        }
+    }
+}
+
+impl From<nym_kkt_ciphersuite::KEM> for LPKEM {
+    fn from(kem: nym_kkt_ciphersuite::KEM) -> Self {
+        match kem {
+            nym_kkt_ciphersuite::KEM::MlKem768 => LPKEM::MlKem768,
+            nym_kkt_ciphersuite::KEM::XWing => LPKEM::XWing,
+            nym_kkt_ciphersuite::KEM::X25519 => LPKEM::X25519,
+            nym_kkt_ciphersuite::KEM::McEliece => LPKEM::McEliece,
+        }
+    }
+}
+
 #[derive(
     Serialize,
     Deserialize,
@@ -94,6 +116,28 @@ pub enum LPHashFunction {
     Shake128,
     Shake256,
     Sha256,
+}
+
+impl From<LPHashFunction> for nym_kkt_ciphersuite::HashFunction {
+    fn from(lp_hash_fnction: LPHashFunction) -> Self {
+        match lp_hash_fnction {
+            LPHashFunction::Blake3 => nym_kkt_ciphersuite::HashFunction::Blake3,
+            LPHashFunction::Shake128 => nym_kkt_ciphersuite::HashFunction::SHAKE128,
+            LPHashFunction::Shake256 => nym_kkt_ciphersuite::HashFunction::SHAKE256,
+            LPHashFunction::Sha256 => nym_kkt_ciphersuite::HashFunction::SHA256,
+        }
+    }
+}
+
+impl From<nym_kkt_ciphersuite::HashFunction> for LPHashFunction {
+    fn from(kem: nym_kkt_ciphersuite::HashFunction) -> Self {
+        match kem {
+            nym_kkt_ciphersuite::HashFunction::Blake3 => LPHashFunction::Blake3,
+            nym_kkt_ciphersuite::HashFunction::SHAKE128 => LPHashFunction::Shake128,
+            nym_kkt_ciphersuite::HashFunction::SHAKE256 => LPHashFunction::Shake256,
+            nym_kkt_ciphersuite::HashFunction::SHA256 => LPHashFunction::Sha256,
+        }
+    }
 }
 
 #[cfg(test)]

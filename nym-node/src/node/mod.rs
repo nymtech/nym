@@ -42,8 +42,7 @@ use nym_bin_common::bin_info;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder, UpgradeModeCheckRequestSender};
-use nym_kkt::ciphersuite::{DEFAULT_HASH_LEN, HashFunction};
-use nym_kkt::key_utils::hash_encapsulation_key;
+use nym_kkt::key_utils::produce_key_digests;
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_requester::{
@@ -777,28 +776,16 @@ impl NymNode {
 
     fn compute_kem_key_hashes(&self) -> (LPKEM, HashMap<LPHashFunction, Vec<u8>>) {
         let kem = LPKEM::X25519;
-        let mut hashes = HashMap::new();
 
         let kem_key_bytes = self.entry_gateway.psq_kem_key.public_key().as_bytes();
 
-        hashes.insert(
-            LPHashFunction::Blake3,
-            hash_encapsulation_key(&HashFunction::Blake3, DEFAULT_HASH_LEN, kem_key_bytes),
-        );
-        hashes.insert(
-            LPHashFunction::Shake128,
-            hash_encapsulation_key(&HashFunction::SHAKE128, DEFAULT_HASH_LEN, kem_key_bytes),
-        );
-        hashes.insert(
-            LPHashFunction::Shake256,
-            hash_encapsulation_key(&HashFunction::SHAKE256, DEFAULT_HASH_LEN, kem_key_bytes),
-        );
-        hashes.insert(
-            LPHashFunction::Sha256,
-            hash_encapsulation_key(&HashFunction::SHA256, DEFAULT_HASH_LEN, kem_key_bytes),
-        );
+        // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
+        let digests = produce_key_digests(kem_key_bytes.as_ref())
+            .into_iter()
+            .map(|(f, d)| (f.into(), d))
+            .collect();
 
-        (kem, hashes)
+        (kem, digests)
     }
 
     pub(crate) async fn build_http_server(&self) -> Result<NymNodeHttpServer, NymNodeError> {

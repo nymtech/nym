@@ -6,7 +6,7 @@ use crate::{KKT_VERSION, ciphersuite::Ciphersuite, error::KKTError, frame::KKT_S
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::fmt::Display;
 
-pub const KKT_CONTEXT_LEN: usize = 7;
+pub const KKT_CONTEXT_LEN: usize = 3 + CIPHERSUITE_ENCODING_LEN;
 
 // bitmask used: 0b1110_0000
 #[derive(Clone, Copy, PartialEq, Debug, IntoPrimitive, TryFromPrimitive)]
@@ -202,13 +202,11 @@ impl KKTContext {
             info: format!("Header - Invalid KKT Mode: {raw_kkt_mode}"),
         })?;
 
-        let ciphersuite_bytes = header_bytes[2..6].try_into().map_err(|_| {
-            KKTError::CiphersuiteDecodingError {
-                info: format!(
-                    "Incorrect Encoding Length: actual: 4 != expected: {CIPHERSUITE_ENCODING_LEN}",
-                ),
-            }
-        })?;
+        // SAFETY: we're taking exactly `CIPHERSUITE_ENCODING_LEN` bytes
+        #[allow(clippy::unwrap_used)]
+        let ciphersuite_bytes = header_bytes[2..2 + CIPHERSUITE_ENCODING_LEN]
+            .try_into()
+            .unwrap();
 
         Ok(KKTContext {
             version: kkt_version,

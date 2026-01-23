@@ -278,6 +278,31 @@ impl<R, S> FreshHandler<R, S> {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        // Log message sizes before sending to client
+        for (idx, packet) in packets.iter().enumerate() {
+            use nym_sphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
+            use nym_sphinx::params::PacketSize;
+            let sphinx_ack_overhead = PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
+            let expected_size = PacketSize::RegularPacket.plaintext_size() - sphinx_ack_overhead;
+
+            debug!(
+                "push_packets_to_client: packet[{}] size={}, expected_regular_size={}, ack_overhead={}",
+                idx,
+                packet.len(),
+                expected_size,
+                sphinx_ack_overhead
+            );
+
+            if packet.len() == PacketSize::RegularPacket.plaintext_size() {
+                warn!(
+                    "push_packets_to_client: WARNING - packet[{}] has full plaintext size ({}), expected {} (after ACK removal)",
+                    idx,
+                    packet.len(),
+                    expected_size
+                );
+            }
+        }
+
         // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
         // be more explicit in the naming?
         let messages: Vec<Result<Message, WsError>> = packets

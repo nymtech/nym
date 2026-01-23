@@ -335,8 +335,35 @@ fn process_final_hop(
     packet_type: PacketType,
     key_rotation: SphinxKeyRotation,
 ) -> Result<MixProcessingResultData, PacketProcessingError> {
+    let payload_size = payload.len();
+    debug!(
+        "process_final_hop: payload_size={}, packet_size={:?}, packet_type={:?}, destination={}",
+        payload_size, packet_size, packet_type, destination
+    );
+
     let (forward_ack, message) =
         split_into_ack_and_message(payload, packet_size, packet_type, key_rotation)?;
+
+    let message_size = message.len();
+    let ack_present = forward_ack.is_some();
+    debug!(
+        "process_final_hop: after split - message_size={}, ack_present={}, payload_size={}",
+        message_size, ack_present, payload_size
+    );
+
+    // Verify expected message size
+    if let PacketSize::RegularPacket = packet_size {
+        use nym_sphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
+        let sphinx_ack_overhead = PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
+        let expected_message_size = packet_size.plaintext_size() - sphinx_ack_overhead;
+        if message_size != expected_message_size {
+            use tracing::warn;
+            warn!(
+                "process_final_hop: MESSAGE SIZE MISMATCH! message_size={}, expected={}, payload_size={}, ack_present={}",
+                message_size, expected_message_size, payload_size, ack_present
+            );
+        }
+    }
 
     Ok(MixProcessingResultData::FinalHop {
         final_hop_data: ProcessedFinalHop {

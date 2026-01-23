@@ -151,6 +151,29 @@ impl ConnectionHandler {
 
         let client = final_hop_data.destination;
         let message = final_hop_data.message;
+        let message_size = message.len();
+
+        // Log message size for debugging
+        use nym_sphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
+        use nym_sphinx_params::PacketSize;
+        let sphinx_ack_overhead = PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
+        let expected_size = PacketSize::RegularPacket.plaintext_size() - sphinx_ack_overhead;
+
+        debug!(
+            "handle_final_hop: client={}, message_size={}, expected_regular_size={}, ack_overhead={}, forward_ack_present={}",
+            client,
+            message_size,
+            expected_size,
+            sphinx_ack_overhead,
+            final_hop_data.forward_ack.is_some()
+        );
+
+        if message_size == PacketSize::RegularPacket.plaintext_size() {
+            warn!(
+                "handle_final_hop: WARNING - message has full plaintext size ({}), expected {} (after ACK removal)",
+                message_size, expected_size
+            );
+        }
 
         // if possible attempt to push message directly to the client
         match self.shared.try_push_message_to_client(client, message) {

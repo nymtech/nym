@@ -28,3 +28,4 @@ nym-kkt-ciphersuite = { path = "../nym-kkt-ciphersuite" }
 [dev-dependencies]
 bincode.workspace = true
 time.workspace = true
+nym-test-utils = { workspace = true }

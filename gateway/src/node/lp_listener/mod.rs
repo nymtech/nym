@@ -78,7 +78,6 @@ pub use nym_mixnet_client::forwarder::{
 };
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
-pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
@@ -87,10 +86,10 @@ use tokio::sync::{mpsc, Semaphore};
 use tracing::*;
 
 pub use nym_lp::peer::LpLocalPeer;
+pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
 
 mod data_handler;
 pub mod handler;
-mod messages;
 mod registration;
 
 /// Configuration for LP listener

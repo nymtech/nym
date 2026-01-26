@@ -3,7 +3,7 @@
 
 use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt::ciphersuite::{HashFunction, KEM};
+use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey, HashFunction, KEM};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -22,7 +22,10 @@ pub struct LpLocalPeer {
     pub(crate) kem_psq: Option<Arc<x25519::KeyPair>>,
 
     /// Local MlKem keypair used for PSQ
-    pub(crate) mlkem: Option<(Arc<MlKem768PrivateKey>, Arc<MlKem768PublicKey>)>,
+    pub(crate) mlkem: Option<(Arc<DecapsulationKey>, Arc<EncapsulationKey>)>,
+
+    /// Local McEliece keypair used for PSQ
+    pub(crate) mceliece: Option<(Arc<DecapsulationKey>, Arc<EncapsulationKey>)>,
 }
 
 impl LpLocalPeer {
@@ -32,7 +35,7 @@ impl LpLocalPeer {
             x25519,
             kem_psq: None,
             mlkem: None,
-            // mceliece: None,
+            mceliece: None,
         }
     }
 
@@ -44,10 +47,25 @@ impl LpLocalPeer {
 
     pub fn with_mlkem_keypair(
         mut self,
-        decapsulation_key: Arc<MlKem768PrivateKey>,
-        encapsulation_key: Arc<MlKem768PublicKey>,
+        decapsulation_key: &MlKem768PrivateKey,
+        encapsulation_key: &MlKem768PublicKey,
     ) -> Self {
-        self.mlkem = Some((decapsulation_key, encapsulation_key));
+        self.mlkem = Some((
+            Arc::new(DecapsulationKey::MlKem768(decapsulation_key.clone())),
+            Arc::new(EncapsulationKey::MlKem768(encapsulation_key.clone())),
+        ));
+        self
+    }
+
+    pub fn with_mceliece_keypair(
+        mut self,
+        decapsulation_key: &MlKem768PrivateKey,
+        encapsulation_key: &MlKem768PublicKey,
+    ) -> Self {
+        self.mlkem = Some((
+            Arc::new(DecapsulationKey::MlKem768(decapsulation_key.clone())),
+            Arc::new(EncapsulationKey::MlKem768(encapsulation_key.clone())),
+        ));
         self
     }
 
@@ -102,7 +120,7 @@ impl Debug for LpLocalPeer {
                 &format!(
                     "mlkem_public_key: {}",
                     match &self.mlkem {
-                        Some(keypair) => format!("{:?}", keypair.1.as_slice()),
+                        Some(keypair) => format!("{:?}", keypair.1.as_ref()),
                         None => format!("None"),
                     }
                 ),
@@ -173,9 +191,10 @@ pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLoc
         ed25519,
         x25519,
         kem_psq,
-        mlkem: Some((Arc::new(mlkem_keypair.0), Arc::new(mlkem_keypair.1))),
-        // mceliece: None,
+        mlkem: None,
+        mceliece: None,
     }
+    .with_mlkem_keypair(&mlkem_keypair.0, &mlkem_keypair.1)
 }
 
 #[cfg(test)]

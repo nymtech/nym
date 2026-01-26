@@ -521,8 +521,9 @@ impl<R, S> FreshHandler<R, S> {
             error!("{incompatible_err}");
             Err(incompatible_err)
         } else {
+            // Return the client's version for backwards compatibility.. temporary solution.
             debug!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
-            Ok(CURRENT_PROTOCOL_VERSION)
+            Ok(client_protocol_version)
         }
     }
 
@@ -742,9 +743,9 @@ impl<R, S> FreshHandler<R, S> {
     }
 
     pub(crate) fn handle_supported_protocol_request(&self) -> ServerResponse {
-        debug!("returning gateway protocol version");
+        use nym_gateway_requests::EMBEDDED_KEY_ROTATION_INFO_VERSION;
         ServerResponse::SupportedProtocol {
-            version: CURRENT_PROTOCOL_VERSION,
+            version: EMBEDDED_KEY_ROTATION_INFO_VERSION,
         }
     }
 

@@ -5,11 +5,15 @@ use anyhow::bail;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway_probe::nodes::{NymApiDirectory, query_gateway_by_ip};
 use nym_gateway_probe::{
     CredentialArgs, NetstackArgs, ProbeResult, TestMode, TestedNode, TestedNodeDetails,
+    TestedNodeLpDetails,
 };
+use nym_kkt_ciphersuite::{HashFunction, KEM};
 use nym_sdk::mixnet::NodeIdentity;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::{path::PathBuf, sync::OnceLock};
@@ -46,32 +50,70 @@ struct CliArgs {
     #[arg(long, global = true)]
     gateway_ip: Option<String>,
 
+    // ##########
+    // ENTRY
+    // ##########
+    /// Ed25519 identity of the entry gateway (base58 encoded)
+    /// When provided, skips HTTP API query - use for localnet testing
+    #[arg(long, global = true)]
+    entry_gateway_identity: Option<String>,
+
+    /// x25519 key of the entry gateway used for KKT exchange (base58 encoded)
+    #[arg(long, global = true, requires = "entry_gateway_identity")]
+    entry_gateway_x25519_key: Option<String>,
+
+    /// expected kem type of the entry gateway used during KKT exchange
+    #[arg(long, global = true, requires = "entry_gateway_x25519_key")]
+    entry_gateway_kem_key_type: Option<String>,
+
+    /// expected hash function used for the entry gateway kem key digest
+    #[arg(long, global = true, requires = "entry_gateway_kem_key_type")]
+    entry_gateway_kem_key_hash_function: Option<String>,
+
+    /// expected entry gateway kem key digest (base58 encoded)
+    #[arg(long, global = true, requires = "entry_gateway_kem_key_hash_function")]
+    entry_gateway_kem_hey_hash_bs58: Option<String>,
+
+    /// LP listener address for entry gateway (e.g., "192.168.66.6:41264")
+    /// Used with --entry-gateway-identity for localnet mode
+    #[arg(long, global = true)]
+    entry_lp_address: Option<SocketAddr>,
+
+    // ##########
+    // EXIT
+    // ##########
     /// The address of the exit gateway for LP forwarding tests (used with --test-lp-wg)
     /// When specified, --gateway-ip becomes the entry gateway and this becomes the exit gateway
     /// Supports formats: IP (192.168.66.5), IP:PORT (192.168.66.5:8080), HOST:PORT (localhost:30004)
     #[arg(long, global = true)]
     exit_gateway_ip: Option<String>,
 
-    /// Ed25519 identity of the entry gateway (base58 encoded)
-    /// When provided, skips HTTP API query - use for localnet testing
-    #[arg(long, global = true)]
-    entry_gateway_identity: Option<String>,
-
     /// Ed25519 identity of the exit gateway (base58 encoded)
     /// When provided, skips HTTP API query - use for localnet testing
     #[arg(long, global = true)]
     exit_gateway_identity: Option<String>,
 
-    /// LP listener address for entry gateway (e.g., "192.168.66.6:41264")
-    /// Used with --entry-gateway-identity for localnet mode
-    #[arg(long, global = true)]
-    entry_lp_address: Option<String>,
+    /// x25519 key of the exit gateway used for KKT exchange (base58 encoded)
+    #[arg(long, global = true, requires = "exit_gateway_identity")]
+    exit_gateway_x25519_key: Option<String>,
+
+    /// expected kem type of the exit gateway used during KKT exchange
+    #[arg(long, global = true, requires = "exit_gateway_x25519_key")]
+    exit_gateway_kem_key_type: Option<String>,
+
+    /// expected hash function used for the exit gateway kem key digest
+    #[arg(long, global = true, requires = "exit_gateway_kem_key_type")]
+    exit_gateway_kem_key_hash_function: Option<String>,
+
+    /// expected exit gateway kem key digest (base58 encoded)
+    #[arg(long, global = true, requires = "exit_gateway_kem_key_hash_function")]
+    exit_gateway_kem_hey_hash_bs58: Option<String>,
 
     /// LP listener address for exit gateway (e.g., "172.18.0.5:41264")
     /// This is the address the entry gateway uses to reach exit (for forwarding)
     /// Used with --exit-gateway-identity for localnet mode
     #[arg(long, global = true)]
-    exit_lp_address: Option<String>,
+    exit_lp_address: Option<SocketAddr>,
 
     /// Default LP control port when deriving LP address from gateway IP
     #[arg(long, global = true, default_value = "41264")]
@@ -224,21 +266,35 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
     // 3. Directory mode: uses nym-api directory service
 
     // Localnet mode: identity provided via CLI, skip HTTP queries entirely
-    if let Some(entry_identity_str) = &args.entry_gateway_identity {
+    if let Some(kem_key_digest) = &args.entry_gateway_kem_hey_hash_bs58 {
         info!("Using localnet mode with CLI-provided gateway identity");
 
-        let entry_identity = NodeIdentity::from_base58_string(entry_identity_str)?;
+        // SAFETY: if kem key digest is provided, all other LP data must also be present
+        // (enforced by clap)
+        let hash_fn: HashFunction = args
+            .entry_gateway_kem_key_hash_function
+            .as_ref()
+            .unwrap()
+            .parse()?;
+        let kem_type: KEM = args.entry_gateway_kem_key_type.as_ref().unwrap().parse()?;
+        let x25519_key: x25519::PublicKey =
+            args.entry_gateway_x25519_key.as_ref().unwrap().parse()?;
+        let identity: ed25519::PublicKey = args.entry_gateway_identity.as_ref().unwrap().parse()?;
+        let digest = bs58::decode(&kem_key_digest).into_vec()?;
+
+        let mut expected_kem_key_hashes = HashMap::new();
+        let mut digests = HashMap::new();
+        digests.insert(hash_fn, digest);
+        expected_kem_key_hashes.insert(kem_type, digests);
 
         // Entry LP address: explicit or derived from gateway_ip + lp_port
-        let entry_lp_addr: SocketAddr = if let Some(lp_addr) = &args.entry_lp_address {
+        let entry_lp_addr: SocketAddr = if let Some(lp_addr) = args.entry_lp_address {
             lp_addr
-                .parse()
-                .map_err(|e| anyhow::anyhow!("Invalid entry-lp-address '{}': {}", lp_addr, e))?
         } else if let Some(gw_ip) = &args.gateway_ip {
             // Derive LP address from gateway IP
             let ip: std::net::IpAddr = gw_ip
                 .parse()
-                .map_err(|e| anyhow::anyhow!("Invalid gateway-ip '{}': {}", gw_ip, e))?;
+                .map_err(|e| anyhow::anyhow!("Invalid gateway-ip '{gw_ip}': {e}"))?;
             SocketAddr::new(ip, args.lp_port)
         } else {
             anyhow::bail!(
@@ -246,20 +302,45 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             );
         };
 
-        let entry_details = TestedNodeDetails::from_cli(entry_identity, entry_lp_addr);
+        let entry_lp_node = TestedNodeLpDetails {
+            address: entry_lp_addr,
+            expected_kem_key_hashes,
+            x25519: x25519_key,
+        };
+        let entry_details = TestedNodeDetails::from_cli(identity, entry_lp_node);
 
         // Parse exit gateway if provided
-        let exit_details = if let Some(exit_identity_str) = &args.exit_gateway_identity {
-            let exit_identity = NodeIdentity::from_base58_string(exit_identity_str)?;
-            let exit_lp_addr: SocketAddr = args
-                .exit_lp_address
+        let exit_details = if let Some(kem_key_digest) = &args.exit_gateway_kem_hey_hash_bs58 {
+            let exit_lp_addr = *args.exit_lp_address.as_ref().ok_or_else(|| {
+                anyhow::anyhow!("--exit-lp-address required with --exit-gateway-identity")
+            })?;
+
+            // SAFETY: if kem key digest is provided, all other LP data must also be present
+            // (enforced by clap)
+            let hash_fn: HashFunction = args
+                .exit_gateway_kem_key_hash_function
                 .as_ref()
-                .ok_or_else(|| {
-                    anyhow::anyhow!("--exit-lp-address required with --exit-gateway-identity")
-                })?
-                .parse()
-                .map_err(|e| anyhow::anyhow!("Invalid exit-lp-address: {}", e))?;
-            Some(TestedNodeDetails::from_cli(exit_identity, exit_lp_addr))
+                .unwrap()
+                .parse()?;
+            let kem_type: KEM = args.exit_gateway_kem_key_type.as_ref().unwrap().parse()?;
+            let x25519_key: x25519::PublicKey =
+                args.exit_gateway_x25519_key.as_ref().unwrap().parse()?;
+            let identity: ed25519::PublicKey =
+                args.exit_gateway_identity.as_ref().unwrap().parse()?;
+            let digest = bs58::decode(&kem_key_digest).into_vec()?;
+
+            let mut expected_kem_key_hashes = HashMap::new();
+            let mut digests = HashMap::new();
+            digests.insert(hash_fn, digest);
+            expected_kem_key_hashes.insert(kem_type, digests);
+
+            let exit_lp_node = TestedNodeLpDetails {
+                address: exit_lp_addr,
+                expected_kem_key_hashes,
+                x25519: x25519_key,
+            };
+
+            Some(TestedNodeDetails::from_cli(identity, exit_lp_node))
         } else {
             None
         };

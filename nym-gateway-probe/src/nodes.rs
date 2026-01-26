@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::TestedNodeDetails;
+use crate::{TestedNodeDetails, TestedNodeLpDetails};
 use anyhow::{Context, anyhow, bail};
 use nym_api_requests::models::{
     AuthenticatorDetailsV2, DeclaredRolesV2, DescribedNodeTypeV2, HostInformationV2,
@@ -19,6 +19,7 @@ use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::NymNodeDescriptionV2;
 use rand::prelude::IteratorRandom;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::{debug, info, warn};
@@ -96,16 +97,14 @@ impl DirectoryNode {
     }
 
     pub fn to_testable_node(&self) -> anyhow::Result<TestedNodeDetails> {
-        let exit_router_address = self
-            .described
-            .description
+        let description = &self.described.description;
+
+        let exit_router_address = description
             .ip_packet_router
             .as_ref()
             .map(|ipr| ipr.address.parse().context("malformed ipr address"))
             .transpose()?;
-        let authenticator_address = self
-            .described
-            .description
+        let authenticator_address = description
             .authenticator
             .as_ref()
             .map(|ipr| {
@@ -114,32 +113,46 @@ impl DirectoryNode {
                     .context("malformed authenticator address")
             })
             .transpose()?;
-        let authenticator_version = AuthenticatorVersion::from(
-            self.described
-                .description
-                .build_information
-                .build_version
-                .as_str(),
-        );
-        let ip_address = self
-            .described
-            .description
+        let authenticator_version =
+            AuthenticatorVersion::from(description.build_information.build_version.as_str());
+        let ip_address = description
             .host_information
             .ip_address
             .first()
-            .copied();
+            .copied()
+            .ok_or_else(|| anyhow!("no ip address known"))?;
 
-        // Derive LP address from gateway IP + default LP control port (41264)
-        // TODO: Update this when LP address is exposed in node description API
-        let lp_address = ip_address.map(|ip| std::net::SocketAddr::new(ip, 41264));
+        let lp_data = match (
+            description.lewes_protocol.clone(),
+            description.host_information.keys.x25519_versioned_noise,
+        ) {
+            (Some(lp_data), Some(noise_key)) => Some(TestedNodeLpDetails {
+                address: SocketAddr::new(ip_address, lp_data.control_port),
+                expected_kem_key_hashes: lp_data
+                    .kem_keys
+                    .into_iter()
+                    .map(|(kem, digests)| {
+                        (
+                            kem.into(),
+                            digests
+                                .into_iter()
+                                .map(|(hash_fn, digest)| (hash_fn.into(), digest))
+                                .collect(),
+                        )
+                    })
+                    .collect(),
+                x25519: noise_key.x25519_pubkey,
+            }),
+            _ => None,
+        };
 
         Ok(TestedNodeDetails {
             identity: self.identity(),
             exit_router_address,
             authenticator_address,
             authenticator_version,
-            ip_address,
-            lp_address,
+            ip_address: Some(ip_address),
+            lp_data,
         })
     }
 }

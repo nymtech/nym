@@ -5,7 +5,7 @@ use crate::error::KKTCiphersuiteError;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Display;
-use strum_macros::EnumIter;
+use strum_macros::{EnumIter, EnumString};
 
 pub mod error;
 
@@ -47,7 +47,10 @@ pub mod xwing {
 
 pub type KEMKeyDigests = HashMap<HashFunction, Vec<u8>>;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive, EnumIter)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive, EnumIter, EnumString,
+)]
+#[strum(ascii_case_insensitive)]
 #[repr(u8)]
 pub enum HashFunction {
     Blake3 = 0,
@@ -180,7 +183,10 @@ impl Display for SignatureScheme {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive, EnumIter, EnumString,
+)]
+#[strum(ascii_case_insensitive)]
 #[repr(u8)]
 pub enum KEM {
     XWing = 0,
@@ -333,5 +339,28 @@ impl Display for Ciphersuite {
             )
             .to_ascii_lowercase(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+    use strum::IntoEnumIterator;
+
+    #[test]
+    fn kem_display_consistency() {
+        for kem in KEM::iter() {
+            let display = format!("{kem}");
+            assert_eq!(kem, KEM::from_str(&display).unwrap());
+        }
+    }
+
+    #[test]
+    fn hash_function_display_consistency() {
+        for hash_fn in HashFunction::iter() {
+            let display = format!("{hash_fn}");
+            assert_eq!(hash_fn, HashFunction::from_str(&display).unwrap());
+        }
     }
 }

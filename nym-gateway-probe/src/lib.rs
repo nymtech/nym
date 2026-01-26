@@ -1,14 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::{
-    net::{IpAddr, Ipv4Addr, Ipv6Addr},
-    sync::Arc,
-    time::Duration,
-};
-
 use crate::types::Entry;
-use anyhow::{Context, bail};
+use anyhow::bail;
 use base64::{Engine as _, engine::general_purpose};
 use bytes::BytesMut;
 use clap::Args;
@@ -39,7 +33,14 @@ use nym_sdk::mixnet::{
     NodeIdentity, Recipient, ReconstructedMessage, StoragePaths,
 };
 use rand::rngs::OsRng;
+use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::{
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    sync::Arc,
+    time::Duration,
+};
 use tokio::net::TcpStream;
 use tokio_util::{codec::Decoder, sync::CancellationToken};
 use tracing::*;
@@ -62,8 +63,11 @@ mod types;
 use crate::bandwidth_helpers::{acquire_bandwidth, import_bandwidth};
 use crate::nodes::{DirectoryNode, NymApiDirectory};
 pub use mode::TestMode;
+use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
 use nym_lp::peer::LpRemotePeer;
 use nym_node_status_client::models::AttachedTicketMaterials;
+use nym_registration_client::{LpRegistrationClient, NestedLpSession};
 pub use types::{IpPingReplies, ProbeOutcome, ProbeResult};
 
 #[derive(Args, Clone)]
@@ -156,17 +160,23 @@ pub struct TestedNodeDetails {
     authenticator_address: Option<Recipient>,
     authenticator_version: AuthenticatorVersion,
     ip_address: Option<IpAddr>,
-    lp_address: Option<std::net::SocketAddr>,
+    lp_data: Option<TestedNodeLpDetails>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TestedNodeLpDetails {
+    pub address: SocketAddr,
+    pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
+    pub x25519: x25519::PublicKey,
 }
 
 impl TestedNodeDetails {
     /// Create from CLI args (localnet mode - no HTTP query needed)
-    /// Only identity and LP address are required; other fields are None/default.
-    pub fn from_cli(identity: NodeIdentity, lp_address: std::net::SocketAddr) -> Self {
+    pub fn from_cli(identity: NodeIdentity, lp_data: TestedNodeLpDetails) -> Self {
         Self {
             identity,
-            ip_address: Some(lp_address.ip()),
-            lp_address: Some(lp_address),
+            ip_address: Some(lp_data.address.ip()),
+            lp_data: Some(lp_data),
             // These are None in localnet mode - only needed for mixnet/authenticator
             exit_router_address: None,
             authenticator_address: None,
@@ -176,7 +186,7 @@ impl TestedNodeDetails {
 
     /// Check if this node has sufficient info for LP testing
     pub fn can_test_lp(&self) -> bool {
-        self.lp_address.is_some()
+        self.lp_data.is_some()
     }
 
     /// Check if this node has sufficient info for mixnet testing
@@ -577,11 +587,8 @@ impl Probe {
         }
 
         // Check if node has LP address
-        let (lp_address, ip_address) = match (node_info.lp_address, node_info.ip_address) {
-            (Some(lp_addr), Some(ip_addr)) => (lp_addr, ip_addr),
-            _ => {
-                bail!("Gateway does not have LP address configured");
-            }
+        let Some(lp_data) = node_info.lp_data else {
+            bail!("Gateway does not have LP data configured");
         };
 
         info!("Testing LP registration for gateway {}", node_info.identity);
@@ -597,15 +604,10 @@ impl Probe {
         );
 
         // Run LP registration probe
-        let lp_outcome = lp_registration_probe(
-            node_info.identity,
-            lp_address,
-            ip_address,
-            &bw_controller,
-            use_mock_ecash,
-        )
-        .await
-        .unwrap_or_default();
+        let lp_outcome =
+            lp_registration_probe(node_info.identity, lp_data, &bw_controller, use_mock_ecash)
+                .await
+                .unwrap_or_default();
 
         // Return result with only LP outcome
         Ok(ProbeResult {
@@ -925,10 +927,8 @@ impl Probe {
         };
 
         // Test LP registration if node has LP address
-        let lp_outcome = if let (Some(lp_address), Some(ip_address)) =
-            (node_info.lp_address, node_info.ip_address)
-        {
-            info!("Node has LP address, testing LP registration...");
+        let lp_outcome = if let Some(lp_data) = node_info.lp_data {
+            info!("Node has LP data, testing LP registration...");
 
             // Prepare bandwidth credential for LP registration
             let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
@@ -941,15 +941,10 @@ impl Probe {
                 client,
             );
 
-            let outcome = lp_registration_probe(
-                node_info.identity,
-                lp_address,
-                ip_address,
-                &bw_controller,
-                use_mock_ecash,
-            )
-            .await
-            .unwrap_or_default();
+            let outcome =
+                lp_registration_probe(node_info.identity, lp_data, &bw_controller, use_mock_ecash)
+                    .await
+                    .unwrap_or_default();
 
             Some(outcome)
         } else {
@@ -1081,10 +1076,13 @@ async fn wg_probe(
     Ok(wg_outcome)
 }
 
+fn to_lp_remote_peer(identity: ed25519::PublicKey, data: TestedNodeLpDetails) -> LpRemotePeer {
+    LpRemotePeer::new(identity, data.x25519).with_kem_key_digests(data.expected_kem_key_hashes)
+}
+
 async fn lp_registration_probe<St>(
     gateway_identity: NodeIdentity,
-    gateway_lp_address: std::net::SocketAddr,
-    gateway_ip: IpAddr,
+    gateway_lp_data: TestedNodeLpDetails,
     bandwidth_controller: &nym_bandwidth_controller::BandwidthController<
         nym_validator_client::nyxd::NyxdClient<nym_validator_client::HttpRpcClient>,
         St,
@@ -1098,10 +1096,10 @@ where
     use nym_crypto::asymmetric::ed25519;
     use nym_registration_client::LpRegistrationClient;
 
-    info!(
-        "Starting LP registration probe for gateway at {}",
-        gateway_lp_address
-    );
+    let lp_address = gateway_lp_data.address;
+    let peer = to_lp_remote_peer(gateway_identity, gateway_lp_data);
+
+    info!("Starting LP registration probe for gateway at {lp_address}",);
 
     let mut lp_outcome = types::LpProbeResults::default();
 
@@ -1110,23 +1108,18 @@ where
     let client_ed25519_keypair = std::sync::Arc::new(ed25519::KeyPair::new(&mut rng));
 
     // Step 0: Derive X25519 keys from Ed25519 for the gateways
-    let gateway_x25519_key = gateway_identity
-        .to_x25519()
-        .context("failed to convert entry ed25519 key to x25519")?;
-    let peer = LpRemotePeer::new(gateway_identity, gateway_x25519_key);
 
     // Create LP registration client (uses Ed25519 keys directly, derives X25519 internally)
     let mut client = LpRegistrationClient::<TcpStream>::new_with_default_config(
         client_ed25519_keypair,
         peer,
-        gateway_lp_address,
-        gateway_ip,
+        lp_address,
     );
 
     // Step 1: Perform handshake (connection is implicit in packet-per-connection model)
     // LpRegistrationClient uses packet-per-connection model - connect() is gone,
     // connection is established during handshake and registration automatically.
-    info!("Performing LP handshake at {}...", gateway_lp_address);
+    info!("Performing LP handshake at {lp_address}...");
     match client.perform_handshake().await {
         Ok(_) => {
             info!("LP handshake completed successfully");
@@ -1245,49 +1238,38 @@ where
     St: nym_sdk::mixnet::CredentialStorage + Clone + Send + Sync + 'static,
     <St as nym_sdk::mixnet::CredentialStorage>::StorageError: Send + Sync,
 {
-    use nym_crypto::asymmetric::{ed25519, x25519};
-    use nym_registration_client::{LpRegistrationClient, NestedLpSession};
+    // Validate that both gateways have required information
+    let entry_lp_data = entry_gateway
+        .lp_data
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("Entry gateway missing LP data"))?;
+
+    let exit_lp_data = exit_gateway
+        .lp_data
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("Exit gateway missing LP data"))?;
+
+    let entry_address = entry_lp_data.address;
+    let exit_address = exit_lp_data.address;
+
+    let entry_ip = entry_address.ip();
+    let exit_ip = exit_address.ip();
 
     info!("Starting LP-based WireGuard probe (entry→exit via forwarding)");
 
     let mut wg_outcome = WgProbeResults::default();
-
-    // Validate that both gateways have required information
-    let entry_lp_address = entry_gateway
-        .lp_address
-        .ok_or_else(|| anyhow::anyhow!("Entry gateway missing LP address"))?;
-    let exit_lp_address = exit_gateway
-        .lp_address
-        .ok_or_else(|| anyhow::anyhow!("Exit gateway missing LP address"))?;
-    let entry_ip = entry_gateway
-        .ip_address
-        .ok_or_else(|| anyhow::anyhow!("Entry gateway missing IP address"))?;
-    let exit_ip = exit_gateway
-        .ip_address
-        .ok_or_else(|| anyhow::anyhow!("Exit gateway missing IP address"))?;
 
     // Generate Ed25519 keypairs for LP protocol
     let mut rng = rand::thread_rng();
     let entry_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
     let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
 
-    // Step 0: Derive X25519 keys from Ed25519 for the gateways
-    let entry_x25519_public = entry_gateway
-        .identity
-        .to_x25519()
-        .context("failed to convert entry ed25519 key to x25519")?;
-
-    let exit_x25519_public = exit_gateway
-        .identity
-        .to_x25519()
-        .context("failed to convert exit ed25519 key to x25519")?;
-
     // Generate WireGuard keypairs for VPN registration
     let entry_wg_keypair = x25519::KeyPair::new(&mut rng);
     let exit_wg_keypair = x25519::KeyPair::new(&mut rng);
 
-    let entry_peer = LpRemotePeer::new(entry_gateway.identity, entry_x25519_public);
-    let exit_peer = LpRemotePeer::new(exit_gateway.identity, exit_x25519_public);
+    let entry_peer = to_lp_remote_peer(entry_gateway.identity, entry_lp_data);
+    let exit_peer = to_lp_remote_peer(exit_gateway.identity, exit_lp_data);
 
     // STEP 1: Establish outer LP session with entry gateway
     // LpRegistrationClient uses packet-per-connection model - connect() is gone,
@@ -1296,8 +1278,7 @@ where
     let mut entry_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
         entry_lp_keypair,
         entry_peer,
-        entry_lp_address,
-        entry_ip,
+        entry_address,
     );
 
     // Perform handshake with entry gateway (connection is implicit)
@@ -1310,7 +1291,7 @@ where
     // STEP 2: Use nested session to register with exit gateway via forwarding
     info!("Registering with exit gateway via entry forwarding...");
     let mut nested_session =
-        NestedLpSession::new(exit_lp_address.to_string(), exit_lp_keypair, exit_peer);
+        NestedLpSession::new(exit_address.to_string(), exit_lp_keypair, exit_peer);
 
     // Convert exit gateway identity to ed25519 public key for registration
     let exit_gateway_pubkey = ed25519::PublicKey::from_bytes(&exit_gateway.identity.to_bytes())

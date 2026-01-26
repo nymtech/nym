@@ -70,14 +70,23 @@ pub(crate) const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 
 impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.
+    /// This forces the use of an independent request executor (via [`Self::non_shared`]).
     pub fn dns_resolver<R: Resolve + 'static>(mut self, resolver: Arc<R>) -> Self {
-        self.reqwest_client_builder = self.reqwest_client_builder.dns_resolver(resolver);
+        self = self.non_shared();
+        // because of the call to non-shared this conditional should always run.
+        if let Some(rb) = self.reqwest_client_builder {
+            self.reqwest_client_builder = Some(rb.dns_resolver(resolver));
+        }
         self.use_secure_dns = false;
         self
     }
 
-    /// Override the DNS resolver implementation used by the underlying http client.
+    /// Override the DNS resolver implementation used by the underlying http client. If
+    /// [`Self::dns_resolver`] is called directly that will take priority over this, there is no
+    /// need to call both.
+    /// This forces the use of an independent request executor (via [`Self::non_shared`]).
     pub fn no_hickory_dns(mut self) -> Self {
+        self = self.non_shared();
         self.use_secure_dns = false;
         self
     }

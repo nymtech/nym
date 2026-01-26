@@ -136,6 +136,7 @@
 //! ```
 #![warn(missing_docs)]
 
+use http::header::USER_AGENT;
 pub use inventory;
 pub use reqwest;
 pub use reqwest::ClientBuilder as ReqwestClientBuilder;
@@ -147,6 +148,7 @@ pub mod registry;
 use crate::path::RequestPath;
 use async_trait::async_trait;
 use bytes::Bytes;
+use cfg_if::cfg_if;
 use http::HeaderMap;
 use http::header::{ACCEPT, CONTENT_TYPE};
 use itertools::Itertools;
@@ -161,9 +163,7 @@ use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, instrument, warn};
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 #[cfg(feature = "tunneling")]
 mod fronted;
@@ -205,6 +205,24 @@ client_defaults!(
     timeout = DEFAULT_TIMEOUT,
     user_agent = format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION"))
 );
+
+static SHARED_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    tracing::info!("Initializing shared HTTP client");
+    cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            reqwest::ClientBuilder::new().build()
+                .expect("failed to initialize shared http client")
+        } else {
+            let mut builder = default_builder();
+
+            builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+
+            builder
+                .build()
+                .expect("failed to initialize shared http client")
+        }
+    }
+});
 
 /// Collection of URL Path Segments
 pub type PathSegments<'a> = &'a [&'a str];
@@ -325,6 +343,12 @@ pub enum HttpClientError {
         raw: String,
         #[source]
         source: reqwest::Error,
+    },
+
+    #[error("failed to parse header value: {source}")]
+    InvalidHeaderValue {
+        #[source]
+        source: http::Error,
     },
 
     #[error("failed to send request for {url}: {source}")]
@@ -562,8 +586,8 @@ pub struct ClientBuilder {
     urls: Vec<Url>,
 
     timeout: Option<Duration>,
-    custom_user_agent: bool,
-    reqwest_client_builder: reqwest::ClientBuilder,
+    custom_user_agent: Option<HeaderValue>,
+    reqwest_client_builder: Option<reqwest::ClientBuilder>,
     #[allow(dead_code)] // not dead code, just unused in wasm
     use_secure_dns: bool,
 
@@ -572,6 +596,8 @@ pub struct ClientBuilder {
 
     retry_limit: usize,
     serialization: SerializationFormat,
+
+    error: Option<HttpClientError>,
 }
 
 impl ClientBuilder {
@@ -659,24 +685,29 @@ impl ClientBuilder {
 
         let urls = Self::check_urls(urls);
 
-        #[cfg(target_arch = "wasm32")]
-        let reqwest_client_builder = reqwest::ClientBuilder::new();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let reqwest_client_builder = default_builder();
-
         Ok(ClientBuilder {
             urls,
             timeout: None,
-            custom_user_agent: false,
-            reqwest_client_builder,
+            custom_user_agent: None,
+            reqwest_client_builder: None,
             use_secure_dns: true,
             #[cfg(feature = "tunneling")]
             front: None,
 
             retry_limit: 0,
             serialization: SerializationFormat::Json,
+            error: None,
         })
+    }
+
+    /// Configure use of an independent HTTP request executor. This prevents use of beneficial
+    /// features like connection pooling under the hood.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn non_shared(mut self) -> Self {
+        if self.reqwest_client_builder.is_none() {
+            self.reqwest_client_builder = Some(default_builder());
+        }
+        self
     }
 
     /// Add an additional URL to the set usable by this constructed `Client`
@@ -723,7 +754,7 @@ impl ClientBuilder {
 
     /// Provide a pre-configured [`reqwest::ClientBuilder`]
     pub fn with_reqwest_builder(mut self, reqwest_builder: reqwest::ClientBuilder) -> Self {
-        self.reqwest_client_builder = reqwest_builder;
+        self.reqwest_client_builder = Some(reqwest_builder);
         self
     }
 
@@ -733,18 +764,12 @@ impl ClientBuilder {
         V: TryInto<HeaderValue>,
         V::Error: Into<http::Error>,
     {
-        self.custom_user_agent = true;
-        self.reqwest_client_builder = self.reqwest_client_builder.user_agent(value);
-        self
-    }
-
-    /// Override DNS resolution for specific domains to particular IP addresses.
-    ///
-    /// Set the port to `0` to use the conventional port for the given scheme (e.g. 80 for http).
-    /// Ports in the URL itself will always be used instead of the port in the overridden addr.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn resolve_to_addrs(mut self, domain: &str, addrs: &[SocketAddr]) -> ClientBuilder {
-        self.reqwest_client_builder = self.reqwest_client_builder.resolve_to_addrs(domain, addrs);
+        match value.try_into() {
+            Ok(v) => self.custom_user_agent = Some(v),
+            Err(err) => {
+                self.error = Some(HttpClientError::InvalidHeaderValue { source: err.into() })
+            }
+        }
         self
     }
 
@@ -761,30 +786,33 @@ impl ClientBuilder {
 
     /// Returns a Client that uses this ClientBuilder configuration.
     pub fn build(self) -> Result<Client, HttpClientError> {
+        if let Some(err) = self.error {
+            return Err(err);
+        }
+
         #[cfg(target_arch = "wasm32")]
-        let reqwest_client = self.reqwest_client_builder.build()?;
+        let reqwest_client = Some(reqwest::ClientBuilder::new().build()?);
 
-        // TODO: we should probably be propagating the error rather than panicking,
-        // but that'd break bunch of things due to type changes
         #[cfg(not(target_arch = "wasm32"))]
-        let reqwest_client = {
-            let mut builder = self.reqwest_client_builder;
+        let reqwest_client = self
+            .reqwest_client_builder
+            .map(|mut builder| {
+                // unless explicitly disabled use the DoT/DoH enabled resolver
+                if self.use_secure_dns {
+                    builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+                }
 
-            // unless explicitly disabled use the DoT/DoH enabled resolver
-            if self.use_secure_dns {
-                builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
-            }
-
-            builder
-                .build()
-                .map_err(HttpClientError::reqwest_client_build_error)?
-        };
+                builder
+                    .build()
+                    .map_err(HttpClientError::reqwest_client_build_error)
+            })
+            .transpose()?;
 
         let client = Client {
             base_urls: self.urls,
             current_idx: Arc::new(AtomicUsize::new(0)),
             reqwest_client,
-            using_secure_dns: self.use_secure_dns,
+            custom_user_agent: self.custom_user_agent,
 
             #[cfg(feature = "tunneling")]
             front: self.front,
@@ -804,8 +832,8 @@ impl ClientBuilder {
 pub struct Client {
     base_urls: Vec<Url>,
     current_idx: Arc<AtomicUsize>,
-    reqwest_client: reqwest::Client,
-    using_secure_dns: bool,
+    reqwest_client: Option<reqwest::Client>,
+    custom_user_agent: Option<HeaderValue>,
 
     #[cfg(feature = "tunneling")]
     front: Option<fronted::Front>,
@@ -862,8 +890,8 @@ impl Client {
         Client {
             base_urls: vec![new_url],
             current_idx: Arc::new(Default::default()),
-            reqwest_client: self.reqwest_client.clone(),
-            using_secure_dns: self.using_secure_dns,
+            reqwest_client: None,
+            custom_user_agent: None,
 
             #[cfg(feature = "tunneling")]
             front: self.front.clone(),
@@ -1048,11 +1076,20 @@ impl ApiClientCore for Client {
 
         self.apply_hosts_to_req(&mut req);
 
-        let mut rb = RequestBuilder::from_parts(self.reqwest_client.clone(), req);
+        let client = if let Some(client) = &self.reqwest_client {
+            client.clone()
+        } else {
+            SHARED_CLIENT.clone()
+        };
+        let mut rb = RequestBuilder::from_parts(client, req);
 
         rb = rb
             .header(ACCEPT, self.serialization.content_type())
             .header(CONTENT_TYPE, self.serialization.content_type());
+
+        if let Some(user_agent) = &self.custom_user_agent {
+            rb = rb.header(USER_AGENT, user_agent.clone());
+        }
 
         if let Some(body) = body {
             match self.serialization {
@@ -1096,16 +1133,19 @@ impl ApiClientCore for Client {
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
-                Ok(wasmtimer::tokio::timeout(
-                    self.request_timeout,
-                    self.reqwest_client.execute(req),
+                let client = self.reqwest_client.as_ref().unwrap_or(&*SHARED_CLIENT);
+                Ok(
+                    wasmtimer::tokio::timeout(self.request_timeout, client.execute(req))
+                        .await
+                        .map_err(|_timeout| HttpClientError::RequestTimeout)??,
                 )
-                .await
-                .map_err(|_timeout| HttpClientError::RequestTimeout)??)
             };
 
             #[cfg(not(target_arch = "wasm32"))]
-            let response = self.reqwest_client.execute(req).await;
+            let response = {
+                let client = self.reqwest_client.as_ref().unwrap_or(&*SHARED_CLIENT);
+                client.execute(req).await
+            };
 
             match response {
                 Ok(resp) => return Ok(resp),

@@ -59,12 +59,12 @@ impl LpLocalPeer {
 
     pub fn with_mceliece_keypair(
         mut self,
-        decapsulation_key: &MlKem768PrivateKey,
-        encapsulation_key: &MlKem768PublicKey,
+        decapsulation_key: libcrux_psq::classic_mceliece::SecretKey,
+        encapsulation_key: libcrux_psq::classic_mceliece::PublicKey,
     ) -> Self {
-        self.mlkem = Some((
-            Arc::new(DecapsulationKey::MlKem768(decapsulation_key.clone())),
-            Arc::new(EncapsulationKey::MlKem768(encapsulation_key.clone())),
+        self.mceliece = Some((
+            Arc::new(DecapsulationKey::McEliece(decapsulation_key)),
+            Arc::new(EncapsulationKey::McEliece(encapsulation_key)),
         ));
         self
     }
@@ -190,13 +190,14 @@ pub fn mock_peer() -> LpLocalPeer {
 
 #[cfg(test)]
 pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLocalPeer {
-    use nym_kkt::key_utils::generate_keypair_mlkem;
+    use nym_kkt::key_utils::{generate_keypair_mceliece, generate_keypair_mlkem};
 
     let ed25519 = Arc::new(ed25519::KeyPair::new(rng));
     let x25519 = Arc::new(ed25519.to_x25519());
     let kem_psq = Some(x25519.clone());
 
     let mlkem_keypair = generate_keypair_mlkem(&mut rand09::rng());
+    let mceliece_keypair = generate_keypair_mceliece(&mut rand09::rng());
 
     LpLocalPeer {
         ed25519,
@@ -206,6 +207,7 @@ pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLoc
         mceliece: None,
     }
     .with_mlkem_keypair(&mlkem_keypair.0, &mlkem_keypair.1)
+    .with_mceliece_keypair(mceliece_keypair.0, mceliece_keypair.1)
 }
 
 #[cfg(test)]

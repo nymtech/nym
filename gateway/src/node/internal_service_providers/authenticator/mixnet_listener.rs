@@ -846,10 +846,22 @@ impl MixnetListener {
             | AuthenticatorVersion::V1
             | AuthenticatorVersion::V2
             | AuthenticatorVersion::V3
-            | AuthenticatorVersion::V4
-            | AuthenticatorVersion::V5 => {
-                // pre v6 this message hasn't existed
+            | AuthenticatorVersion::V4 => {
+                // pre v5 this message hasn't existed
                 return Err(AuthenticatorError::UnknownVersion);
+            }
+            AuthenticatorVersion::V5 => {
+                // V5 clients shouldn't send this message, but for backward compatibility
+                // with V5 clients connecting to V6 gateways, we allow it and return
+                // a V6-style response (V5 clients won't understand it, but at least we don't error)
+                // This enables V5 clients from mainnet (release/2026.1-kiwi) to work with
+                // V6 gateways (release/2026.2-oscypek) during the transition period
+                v6::response::AuthenticatorResponse::new_upgrade_mode_check(
+                    request_id,
+                    self.upgrade_mode_enabled(),
+                )
+                .to_bytes()
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::V6 => {
                 v6::response::AuthenticatorResponse::new_upgrade_mode_check(

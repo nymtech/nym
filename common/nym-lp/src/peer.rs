@@ -132,7 +132,7 @@ impl Debug for LpLocalPeer {
                     "mlkem_public_key: {}",
                     match &self.mlkem {
                         Some(keypair) => format!("{:?}", keypair.1.as_ref()),
-                        None => format!("None"),
+                        None => "None".to_string(),
                     }
                 ),
             )

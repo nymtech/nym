@@ -306,17 +306,8 @@ impl LpSession {
 
     pub fn local_kem_encapsulation_key(&self, kem: &KEM) -> Option<Arc<EncapsulationKey>> {
         match kem {
-            KEM::MlKem768 => self
-                .local_peer
-                .mlkem
-                .as_ref()
-                .and_then(|x| Some(x.1.clone())),
-            KEM::McEliece => self
-                .local_peer
-                .mceliece
-                .as_ref()
-                .and_then(|x| Some(x.1.clone())),
-            KEM::X25519 => todo!(),
+            KEM::MlKem768 => self.local_peer.mlkem.as_ref().map(|x| x.1.clone()),
+            KEM::McEliece => self.local_peer.mceliece.as_ref().map(|x| x.1.clone()),
             _ => None,
         }
     }

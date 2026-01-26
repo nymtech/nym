@@ -269,6 +269,11 @@ impl Iterator for SocketAddrs {
 }
 
 impl HickoryDnsResolver {
+    /// Returns an instance of the shared resolver.
+    pub fn shared() -> Self {
+        SHARED_RESOLVER.clone()
+    }
+
     /// Attempt to resolve a domain name to a set of ['IpAddr']s
     pub async fn resolve_str(
         &self,
@@ -362,6 +367,7 @@ impl HickoryDnsResolver {
     /// Set (or overwrite) the map of static addresses and mark these domains to be returned
     /// WITHOUT attempting a lookup over the network resolver.
     pub fn preresolve_to_addrs(&self, addrs: HashMap<String, Vec<IpAddr>>) {
+        debug!("setting pre-resolve entries for {:?}", addrs.keys());
         if let Some(cell) = &self.static_base {
             let static_base =
                 cell.get_or_init(|| HickoryDnsResolver::new_static_fallback(self.use_shared));
@@ -372,6 +378,7 @@ impl HickoryDnsResolver {
     /// Set (or overwrite) the map of static addresses and mark these domains to be returned
     /// WITHOUT attempting a lookup over the network resolver.
     pub fn clear_preresolve(&self) {
+        debug!("clearing pre-resolve table");
         if let Some(cell) = &self.static_base {
             if let Some(static_base) = cell.get() {
                 static_base.clear_preresolve()
@@ -527,7 +534,7 @@ fn new_resolver_system() -> Result<TokioResolver, ResolveError> {
 }
 
 fn new_default_static_fallback() -> StaticResolver {
-    StaticResolver::new(constants::default_static_addrs())
+    StaticResolver::new(constants::empty_static_addrs())
 }
 
 /// Do a trial resolution using each nameserver individually to test which are working and which

@@ -131,16 +131,17 @@ impl StaticResolver {
     /// recently (within the configured timeout) looked it up previously in this static table using
     /// a regular resolve.
     pub fn pre_resolve(&self, name: &str) -> Option<Vec<IpAddr>> {
-        debug!("found {name:?} in pre-resolve static table resolver");
-
         self.pre_resolve_timeout?;
 
         self.static_addr_map
             .lock()
             .unwrap()
             .get(name)
-            .filter(|e| e.is_valid())
-            .map(|e| e.addrs.clone())
+            .filter(|entry| entry.is_valid())
+            .map(|entry| {
+                debug!("pre-resolve lookup hit for \"{name:?}\" in static table resolver");
+                entry.addrs.clone()
+            })
     }
 
     #[allow(unused)]
@@ -160,7 +161,7 @@ impl StaticResolver {
     ) -> Option<Entry> {
         let resolved = table.get_mut(name)?;
 
-        debug!("found {name:?} in static table resolver");
+        debug!("lookup hit for \"{name:?}\" in static table resolver");
 
         // We had to look this entry up and a pre-resolve duration is defined, so it will
         // trigger in pre-resolve lookups for the next _timeout_ window if it wasn't already

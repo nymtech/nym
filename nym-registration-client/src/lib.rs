@@ -1,9 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use tokio_util::sync::CancellationToken;
-
 use crate::config::RegistrationClientConfig;
+use crate::lp_client::helpers::to_lp_remote_peer;
 use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
@@ -14,12 +13,7 @@ use nym_sdk::mixnet::{EventReceiver, MixnetClient, Recipient};
 use rand::rngs::OsRng;
 use std::sync::Arc;
 use tokio::net::TcpStream;
-
-mod builder;
-mod config;
-mod error;
-mod lp_client;
-mod types;
+use tokio_util::sync::CancellationToken;
 
 pub use builder::RegistrationClientBuilder;
 pub use builder::config::{
@@ -29,10 +23,15 @@ pub use builder::config::{
 pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
 pub use lp_client::{LpConfig, LpRegistrationClient, NestedLpSession, error::LpClientError};
-use nym_lp::peer::LpRemotePeer;
 pub use types::{
     LpRegistrationResult, MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult,
 };
+
+mod builder;
+mod config;
+mod error;
+mod lp_client;
+mod types;
 
 pub struct RegistrationClient {
     mixnet_client: MixnetClient,
@@ -168,64 +167,46 @@ impl RegistrationClient {
             },
         )?;
 
-        tracing::debug!("Entry gateway LP address: {}", entry_lp_data.address);
-        tracing::debug!("Exit gateway LP address: {}", exit_lp_data.address);
+        let entry_address = entry_lp_data.address;
+        let exit_address = exit_lp_data.address;
+
+        tracing::debug!("Entry gateway LP address: {entry_address}");
+        tracing::debug!("Exit gateway LP address: {exit_address}");
 
         // Generate fresh Ed25519 keypairs for LP registration
         // These are ephemeral and used only for the LP handshake protocol
         let entry_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
         let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
 
-        // Step 1: Derive X25519 keys from Ed25519 for the gateways
-        let entry_x25519_public = self
-            .config
-            .entry
-            .node
-            .identity
-            .to_x25519()
-            .map_err(|_| RegistrationClientError::X25519PubkeyConversionFailure)?;
+        let entry_peer = to_lp_remote_peer(self.config.entry.node.identity, entry_lp_data);
+        let exit_peer = to_lp_remote_peer(self.config.exit.node.identity, exit_lp_data);
 
-        let exit_x25519_public = self
-            .config
-            .exit
-            .node
-            .identity
-            .to_x25519()
-            .map_err(|_| RegistrationClientError::X25519PubkeyConversionFailure)?;
-
-        let entry_peer = LpRemotePeer::new(self.config.entry.node.identity, entry_x25519_public)
-            .with_kem_key_digests(entry_lp_data.expected_kem_key_hashes);
-
-        let exit_peer = LpRemotePeer::new(self.config.exit.node.identity, exit_x25519_public)
-            .with_kem_key_digests(exit_lp_data.expected_kem_key_hashes);
-
-        // STEP 2: Establish outer session with entry gateway
+        // STEP 1: Establish outer session with entry gateway
         // This creates the LP session that will be used to forward packets to exit.
         // Uses packet-per-connection model: each handshake packet on new TCP connection.
         tracing::info!("Establishing outer session with entry gateway");
         let mut entry_client = LpRegistrationClient::new_with_default_config(
             entry_lp_keypair.clone(),
             entry_peer,
-            entry_lp_data.address,
-            self.config.entry.node.ip_address,
+            entry_address,
         );
 
         // Perform handshake with entry gateway (outer session now established)
         entry_client.perform_handshake().await.map_err(|source| {
             RegistrationClientError::EntryGatewayRegisterLp {
                 gateway_id: self.config.entry.node.identity.to_base58_string(),
-                lp_address: entry_lp_data.address,
+                lp_address: entry_address,
                 source: Box::new(source),
             }
         })?;
 
         tracing::info!("Outer session with entry gateway established");
 
-        // STEP 3: Use nested session to register with exit gateway via forwarding
+        // STEP 2: Use nested session to register with exit gateway via forwarding
         // This hides the client's IP address from the exit gateway
         tracing::info!("Registering with exit gateway via entry forwarding");
         let mut nested_session =
-            NestedLpSession::new(exit_lp_data.address.to_string(), exit_lp_keypair, exit_peer);
+            NestedLpSession::new(exit_address.to_string(), exit_lp_keypair, exit_peer);
 
         // Perform handshake and registration with exit gateway (all via entry forwarding)
         let exit_gateway_data = nested_session
@@ -239,13 +220,13 @@ impl RegistrationClient {
             .await
             .map_err(|source| RegistrationClientError::ExitGatewayRegisterLp {
                 gateway_id: self.config.exit.node.identity.to_base58_string(),
-                lp_address: exit_lp_data.address,
+                lp_address: exit_address,
                 source: Box::new(source),
             })?;
 
         tracing::info!("Exit gateway registration completed via forwarding");
 
-        // STEP 4: Register with entry gateway (packet-per-connection)
+        // STEP 3: Register with entry gateway (packet-per-connection)
         tracing::info!("Registering with entry gateway");
         let entry_gateway_data = entry_client
             .register(
@@ -257,7 +238,7 @@ impl RegistrationClient {
             .await
             .map_err(|source| RegistrationClientError::EntryGatewayRegisterLp {
                 gateway_id: self.config.entry.node.identity.to_base58_string(),
-                lp_address: entry_lp_data.address,
+                lp_address: entry_address,
                 source: Box::new(source),
             })?;
 

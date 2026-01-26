@@ -400,7 +400,6 @@ pub(crate) struct NymNode {
     sphinx_key_manager: Option<SphinxKeyManager>,
 
     // to be used when noise is integrated
-    #[allow(dead_code)]
     x25519_noise_keys: Arc<x25519::KeyPair>,
 }
 
@@ -644,6 +643,7 @@ impl NymNode {
         let mut gateway_tasks_builder = GatewayTasksBuilder::new(
             config.gateway,
             self.ed25519_identity_keys.clone(),
+            self.x25519_noise_keys.clone(),
             self.entry_gateway.psq_kem_key.clone(),
             self.entry_gateway.client_storage.clone(),
             mix_packet_sender,

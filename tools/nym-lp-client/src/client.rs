@@ -117,8 +117,6 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let client_ip = "0.0.0.0".parse()?;
-
         let gw_peer = LpRemotePeer::new(self.gateway.identity, self.gateway.identity.to_x25519()?)
             .with_kem_key_digests(self.gateway.kem_key_hashes.clone());
 
@@ -126,7 +124,6 @@ impl SpeedtestClient {
             self.identity_keypair.clone(),
             gw_peer,
             self.gateway.lp_address,
-            client_ip,
         );
 
         let start = Instant::now();
@@ -163,8 +160,6 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let client_ip = "0.0.0.0".parse()?;
-
         let gw_peer = LpRemotePeer::new(self.gateway.identity, self.gateway.identity.to_x25519()?)
             .with_kem_key_digests(self.gateway.kem_key_hashes.clone());
 
@@ -172,7 +167,6 @@ impl SpeedtestClient {
             self.identity_keypair.clone(),
             gw_peer,
             self.gateway.lp_address,
-            client_ip,
         );
 
         let start = Instant::now();

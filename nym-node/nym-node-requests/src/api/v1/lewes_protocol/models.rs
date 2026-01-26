@@ -122,8 +122,8 @@ impl From<LPHashFunction> for nym_kkt_ciphersuite::HashFunction {
     fn from(lp_hash_fnction: LPHashFunction) -> Self {
         match lp_hash_fnction {
             LPHashFunction::Blake3 => nym_kkt_ciphersuite::HashFunction::Blake3,
-            LPHashFunction::Shake128 => nym_kkt_ciphersuite::HashFunction::SHAKE128,
-            LPHashFunction::Shake256 => nym_kkt_ciphersuite::HashFunction::SHAKE256,
+            LPHashFunction::Shake128 => nym_kkt_ciphersuite::HashFunction::Shake128,
+            LPHashFunction::Shake256 => nym_kkt_ciphersuite::HashFunction::Shake256,
             LPHashFunction::Sha256 => nym_kkt_ciphersuite::HashFunction::SHA256,
         }
     }
@@ -133,8 +133,8 @@ impl From<nym_kkt_ciphersuite::HashFunction> for LPHashFunction {
     fn from(kem: nym_kkt_ciphersuite::HashFunction) -> Self {
         match kem {
             nym_kkt_ciphersuite::HashFunction::Blake3 => LPHashFunction::Blake3,
-            nym_kkt_ciphersuite::HashFunction::SHAKE128 => LPHashFunction::Shake128,
-            nym_kkt_ciphersuite::HashFunction::SHAKE256 => LPHashFunction::Shake256,
+            nym_kkt_ciphersuite::HashFunction::Shake128 => LPHashFunction::Shake128,
+            nym_kkt_ciphersuite::HashFunction::Shake256 => LPHashFunction::Shake256,
             nym_kkt_ciphersuite::HashFunction::SHA256 => LPHashFunction::Sha256,
         }
     }

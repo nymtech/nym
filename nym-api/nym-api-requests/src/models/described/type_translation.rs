@@ -441,8 +441,8 @@ impl From<LPHashFunction> for HashFunction {
     fn from(value: LPHashFunction) -> Self {
         match value {
             LPHashFunction::Blake3 => HashFunction::Blake3,
-            LPHashFunction::Shake128 => HashFunction::SHAKE128,
-            LPHashFunction::Shake256 => HashFunction::SHAKE256,
+            LPHashFunction::Shake128 => HashFunction::Shake128,
+            LPHashFunction::Shake256 => HashFunction::Shake256,
             LPHashFunction::Sha256 => HashFunction::SHA256,
         }
     }

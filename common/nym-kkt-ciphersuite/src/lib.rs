@@ -54,8 +54,8 @@ pub type KEMKeyDigests = HashMap<HashFunction, Vec<u8>>;
 #[repr(u8)]
 pub enum HashFunction {
     Blake3 = 0,
-    SHAKE256 = 1,
-    SHAKE128 = 2,
+    Shake256 = 1,
+    Shake128 = 2,
     SHA256 = 3,
 }
 
@@ -70,8 +70,8 @@ impl HashFunction {
                 hasher.finalize_xof().fill(&mut out);
                 hasher.reset();
             }
-            HashFunction::SHAKE256 => libcrux_sha3::shake256_ema(&mut out, data.as_ref()),
-            HashFunction::SHAKE128 => libcrux_sha3::shake128_ema(&mut out, data.as_ref()),
+            HashFunction::Shake256 => libcrux_sha3::shake256_ema(&mut out, data.as_ref()),
+            HashFunction::Shake128 => libcrux_sha3::shake128_ema(&mut out, data.as_ref()),
             HashFunction::SHA256 => libcrux_sha3::sha256_ema(&mut out, data.as_ref()),
         }
 
@@ -83,8 +83,8 @@ impl Display for HashFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             HashFunction::Blake3 => "blake3",
-            HashFunction::SHAKE128 => "shake128",
-            HashFunction::SHAKE256 => "shake256",
+            HashFunction::Shake128 => "shake128",
+            HashFunction::Shake256 => "shake256",
             HashFunction::SHA256 => "sha256",
         })
     }

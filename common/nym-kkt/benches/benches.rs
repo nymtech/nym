@@ -54,8 +54,8 @@ pub fn kkt_benchmark(c: &mut Criterion) {
         for hash_function in [
             HashFunction::Blake3,
             HashFunction::SHA256,
-            HashFunction::SHAKE128,
-            HashFunction::SHAKE256,
+            HashFunction::Shake128,
+            HashFunction::Shake256,
         ] {
             let ciphersuite = Ciphersuite::resolve_ciphersuite(
                 kem,

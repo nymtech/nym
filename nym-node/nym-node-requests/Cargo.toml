@@ -31,7 +31,7 @@ nym-exit-policy = { workspace = true }
 nym-noise-keys = { workspace = true }
 nym-wireguard-types = { workspace = true }
 nym-upgrade-mode-check = { workspace = true, features = ["openapi"] }
-nym-kkt-ciphersuite = { path = "../../common/nym-kkt-ciphersuite" }
+nym-kkt-ciphersuite = { workspace = true }
 
 # feature-specific dependencies:
 

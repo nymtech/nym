@@ -65,7 +65,7 @@ nym-node-status-client = { path = "../nym-node-status-api/nym-node-status-client
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-registration-client = { path = "../nym-registration-client" }
 nym-lp = { path = "../common/nym-lp" }
-nym-kkt-ciphersuite = { path = "../common/nym-kkt-ciphersuite" }
+nym-kkt-ciphersuite = { workspace = true }
 
 nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-network-defaults = { path = "../common/network-defaults" }

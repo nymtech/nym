@@ -28,7 +28,7 @@ url = { workspace = true }
 # Nym crates
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 nym-crypto = { path = "../../common/crypto" }
-nym-kkt-ciphersuite = { path = "../../common/nym-kkt-ciphersuite" }
+nym-kkt-ciphersuite = { workspace = true }
 nym-http-api-client = { path = "../../common/http-api-client" }
 nym-kcp = { path = "../../common/nym-kcp" }
 nym-lp = { path = "../../common/nym-lp" }

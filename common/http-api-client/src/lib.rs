@@ -148,6 +148,7 @@ pub mod registry;
 use crate::path::RequestPath;
 use async_trait::async_trait;
 use bytes::Bytes;
+use cfg_if::cfg_if;
 use http::HeaderMap;
 use http::header::{ACCEPT, CONTENT_TYPE};
 use itertools::Itertools;
@@ -207,13 +208,20 @@ client_defaults!(
 
 static SHARED_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
     tracing::info!("Initializing shared HTTP client");
-    let mut builder = default_builder();
+    cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            reqwest::ClientBuilder::new().build()
+                .expect("failed to initialize shared http client")
+        } else {
+            let mut builder = default_builder();
 
-    builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+            builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
 
-    builder
-        .build()
-        .expect("failed to initialize shared http client")
+            builder
+                .build()
+                .expect("failed to initialize shared http client")
+        }
+    }
 });
 
 /// Collection of URL Path Segments
@@ -677,9 +685,6 @@ impl ClientBuilder {
 
         let urls = Self::check_urls(urls);
 
-        #[cfg(target_arch = "wasm32")]
-        let reqwest_client_builder = reqwest::ClientBuilder::new();
-
         Ok(ClientBuilder {
             urls,
             timeout: None,
@@ -697,6 +702,7 @@ impl ClientBuilder {
 
     /// Configure use of an independent HTTP request executor. This prevents use of beneficial
     /// features like connection pooling under the hood.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn non_shared(mut self) -> Self {
         if self.reqwest_client_builder.is_none() {
             self.reqwest_client_builder = Some(default_builder());
@@ -785,7 +791,7 @@ impl ClientBuilder {
         }
 
         #[cfg(target_arch = "wasm32")]
-        let reqwest_client = self.reqwest_client_builder.build()?;
+        let reqwest_client = Some(reqwest::ClientBuilder::new().build()?);
 
         #[cfg(not(target_arch = "wasm32"))]
         let reqwest_client = self
@@ -1127,21 +1133,18 @@ impl ApiClientCore for Client {
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
-                Ok(wasmtimer::tokio::timeout(
-                    self.request_timeout,
-                    self.reqwest_client.execute(req),
+                let client = self.reqwest_client.as_ref().unwrap_or(&*SHARED_CLIENT);
+                Ok(
+                    wasmtimer::tokio::timeout(self.request_timeout, client.execute(req))
+                        .await
+                        .map_err(|_timeout| HttpClientError::RequestTimeout)??,
                 )
-                .await
-                .map_err(|_timeout| HttpClientError::RequestTimeout)??)
             };
 
             #[cfg(not(target_arch = "wasm32"))]
             let response = {
-                if let Some(client) = &self.reqwest_client {
-                    client.execute(req).await
-                } else {
-                    SHARED_CLIENT.execute(req).await
-                }
+                let client = self.reqwest_client.as_ref().unwrap_or(&*SHARED_CLIENT);
+                client.execute(req).await
             };
 
             match response {

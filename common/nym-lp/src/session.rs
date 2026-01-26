@@ -19,7 +19,7 @@ use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::KKT_RESPONSE_AAD;
-use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
+use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey, KEM};
 use nym_kkt::context::KKTContext;
 use nym_kkt::encryption::{
     KKTSessionSecret, decrypt_initial_kkt_frame, decrypt_kkt_frame, encrypt_initial_kkt_frame,
@@ -32,6 +32,7 @@ use nym_kkt::session::{
 use parking_lot::Mutex;
 use rand::RngCore;
 use snow::Builder;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -301,6 +302,23 @@ impl LpSession {
     /// Returns the remote ed25519 public key.
     pub fn remote_ed25519_public(&self) -> ed25519::PublicKey {
         self.remote_peer.ed25519_public
+    }
+
+    pub fn local_kem_encapsulation_key(&self, kem: &KEM) -> Option<Arc<EncapsulationKey>> {
+        match kem {
+            KEM::MlKem768 => self
+                .local_peer
+                .mlkem
+                .as_ref()
+                .and_then(|x| Some(x.1.clone())),
+            KEM::McEliece => self
+                .local_peer
+                .mceliece
+                .as_ref()
+                .and_then(|x| Some(x.1.clone())),
+            KEM::X25519 => todo!(),
+            _ => None,
+        }
     }
 
     /// Returns the remote X25519 public key.
@@ -597,7 +615,7 @@ impl LpSession {
 
         // georgio this needs to be moved one level up (maybe chosen in LPSession)
         let ciphersuite = match Ciphersuite::resolve_ciphersuite(
-            KEM::X25519,
+            KEM::MlKem768,
             HashFunction::Blake3,
             SignatureScheme::Ed25519,
             None,
@@ -741,11 +759,7 @@ impl LpSession {
     ///
     /// * `Ok(LpMessage::KKTResponse)` - Signed KKT response ready to send
     /// * `Err(LpError)` - Signature verification failed or invalid request
-    pub fn process_kkt_request(
-        &self,
-        request_bytes: &[u8],
-        responder_kem_pk: &EncapsulationKey,
-    ) -> Result<LpMessage, LpError> {
+    pub fn process_kkt_request(&self, request_bytes: &[u8]) -> Result<LpMessage, LpError> {
         let mut rng = rand09::rng();
 
         let mut kkt_state = self.kkt_state.lock();
@@ -756,33 +770,46 @@ impl LpSession {
         ) {
             Ok((session_secret, request_frame, remote_context)) => {
                 match responder_ingest_message(&remote_context, None, None, &request_frame) {
-                    Ok((mut context, _)) => match responder_process(
-                        &mut context,
-                        request_frame.session_id(),
-                        self.local_peer.ed25519().private_key(),
-                        responder_kem_pk,
-                    ) {
-                        Ok(response_frame) => match encrypt_kkt_frame(
-                            &mut rng,
-                            &session_secret,
-                            &response_frame,
-                            KKT_RESPONSE_AAD,
+                    Ok((mut context, _)) => {
+                        let local_kem_key: Arc<EncapsulationKey> =
+                            match self.local_kem_encapsulation_key(&context.ciphersuite().kem()) {
+                                Some(key) => key.clone(),
+                                None => {
+                                    return Err(LpError::Internal(format!(
+                                        "KEM key for algorithm ({:?}) is not available.",
+                                        &context.ciphersuite().kem()
+                                    )));
+                                }
+                            };
+
+                        match responder_process(
+                            &mut context,
+                            request_frame.session_id(),
+                            self.local_peer.ed25519().private_key(),
+                            &local_kem_key,
                         ) {
-                            Ok(response_bytes) => response_bytes,
+                            Ok(response_frame) => match encrypt_kkt_frame(
+                                &mut rng,
+                                &session_secret,
+                                &response_frame,
+                                KKT_RESPONSE_AAD,
+                            ) {
+                                Ok(response_bytes) => response_bytes,
+                                Err(e) => {
+                                    return Err(LpError::Internal(format!(
+                                        "KKT response encryption failure : {:?}",
+                                        e
+                                    )));
+                                }
+                            },
                             Err(e) => {
                                 return Err(LpError::Internal(format!(
-                                    "KKT response encryption failure : {:?}",
+                                    "KKT response generation failure : {:?}",
                                     e
                                 )));
                             }
-                        },
-                        Err(e) => {
-                            return Err(LpError::Internal(format!(
-                                "KKT response generation failure : {:?}",
-                                e
-                            )));
                         }
-                    },
+                    }
                     Err(e) => {
                         return Err(LpError::Internal(format!(
                             "KKT request handling failure: {:?}",

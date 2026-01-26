@@ -360,22 +360,7 @@ impl LpStateMachine {
                     // Packet message is already parsed, match on it directly
                     match &packet.message {
                         LpMessage::KKTRequest(kkt_request) if !session.is_initiator() => {
-                            // Responder processes KKT request
-                            // Convert X25519 public key to KEM format for KKT response
-                            use nym_kkt::ciphersuite::EncapsulationKey;
-
-                            // Get local X25519 public key by deriving from private key
-                            let local_x25519_public = session.local_x25519_public();
-
-                            // Convert to libcrux KEM public key
-                            match libcrux_kem::PublicKey::decode(
-                                libcrux_kem::Algorithm::X25519,
-                                local_x25519_public.as_bytes(),
-                            ) {
-                                Ok(libcrux_public_key) => {
-                                    let responder_kem_pk = EncapsulationKey::X25519(libcrux_public_key);
-
-                                    match session.process_kkt_request(&kkt_request.0, &responder_kem_pk) {
+                                    match session.process_kkt_request(&kkt_request.0) {
                                         Ok(kkt_response_message) => {
                                             match session.next_packet(kkt_response_message) {
                                                 Ok(response_packet) => {
@@ -396,14 +381,8 @@ impl LpStateMachine {
                                             LpState::Closed { reason }
                                         }
                                     }
-                                }
-                                Err(e) => {
-                                    let reason = format!("Failed to convert X25519 to KEM: {:?}", e);
-                                    let err = LpError::Internal(reason.clone());
-                                    result_action = Some(Err(err));
-                                    LpState::Closed { reason }
-                                }
-                            }
+                                
+                           
                         }
                         LpMessage::KKTResponse(kkt_response) if session.is_initiator() => {
                             match session.process_kkt_response(&kkt_response.0) {

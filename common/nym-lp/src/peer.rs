@@ -52,7 +52,9 @@ impl LpLocalPeer {
     ) -> Self {
         self.mlkem = Some((
             Arc::new(DecapsulationKey::MlKem768(decapsulation_key.clone())),
-            Arc::new(EncapsulationKey::MlKem768(encapsulation_key.clone())),
+            Arc::new(EncapsulationKey::MlKem768(
+                libcrux_kem::PublicKey::MlKem768(encapsulation_key.clone()),
+            )),
         ));
         self
     }

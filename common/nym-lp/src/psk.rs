@@ -48,7 +48,9 @@
 
 use crate::LpError;
 use libcrux_psq::v1::cred::{Authenticator, Ed25519};
+use libcrux_psq::v1::impls::MlKem768 as PsqMlKem768;
 use libcrux_psq::v1::impls::X25519 as PsqX25519;
+use libcrux_psq::v1::impls::XWingKemDraft06 as PsqXwing;
 use libcrux_psq::v1::psk_registration::{Initiator, InitiatorMsg, Responder};
 use libcrux_psq::v1::traits::{Ciphertext as PsqCiphertext, PSQ};
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -290,64 +292,83 @@ pub fn psq_initiator_create_message(
     // Step 1: Classical ECDH for baseline security
     let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
 
-    // Step 2: PSQ v1 with Ed25519 authentication
-    // Extract X25519 KEM key from EncapsulationKey
-    let kem_pk = match remote_kem_public {
-        EncapsulationKey::X25519(pk) => pk,
-        _ => {
-            return Err(LpError::KKTError(
-                "Only X25519 KEM is currently supported for PSQ".to_string(),
-            ));
-        }
-    };
-
     // Convert nym Ed25519 keys to libcrux format
     type Ed25519VerificationKey = <Ed25519 as Authenticator>::VerificationKey;
     let ed25519_sk_bytes = client_ed25519_sk.to_bytes();
     let ed25519_pk_bytes = client_ed25519_pk.to_bytes();
     let ed25519_verification_key = Ed25519VerificationKey::from_bytes(ed25519_pk_bytes);
 
-    // Use PSQ v1 API with Ed25519 authentication
-    let mut rng = rand09::rng();
-    let (state, initiator_msg) = Initiator::send_initial_message::<Ed25519, PsqX25519>(
-        session_context,
-        Duration::from_secs(3600), // 1 hour expiry
-        kem_pk,
-        &ed25519_sk_bytes,
-        &ed25519_verification_key,
-        &mut rng,
-    )
-    .map_err(|e| {
+    let init_msg_err = |e: libcrux_psq::v1::Error| {
         tracing::error!(
             "PSQ initiator failed - KEM encapsulation or signing error: {:?}",
             e
         );
         LpError::Internal(format!("PSQ v1 send_initial_message failed: {:?}", e))
-    })?;
+    };
 
-    // Extract PSQ shared secret (unregistered PSK) - this is K_pq
-    let psq_psk = state.unregistered_psk();
+    let serialisation_err =
+        |e| LpError::Internal(format!("InitiatorMsg serialization failed: {:?}", e));
 
-    // pq_shared_secret is the raw K_pq from KEM encapsulation.
-    // Store it for subsession derivation before it's combined with ECDH.
-    let pq_shared_secret: [u8; 32] = *psq_psk;
+    let ctx = session_context;
+    let sk = &ed25519_sk_bytes;
+    let vk = &ed25519_verification_key;
+    let exp = Duration::from_secs(3600); // 1 hour expiry
+
+    // Step 2: PSQ v1 with Ed25519 authentication
+    // Use PSQ v1 API with Ed25519 authentication
+    let mut rng = rand09::rng();
+
+    // psq_psk - this is K_pq
+    let (pq_shared_secret, payload) = match remote_kem_public {
+        EncapsulationKey::X25519(kem_pk) => {
+            let (state, initiator_msg) = Initiator::send_initial_message::<Ed25519, PsqX25519>(
+                ctx, exp, kem_pk, sk, vk, &mut rng,
+            )
+            .map_err(init_msg_err)?;
+
+            let msg_bytes = initiator_msg
+                .tls_serialize_detached()
+                .map_err(serialisation_err)?;
+            (*state.unregistered_psk(), msg_bytes)
+        }
+        EncapsulationKey::MlKem768(kem_pk) => {
+            let (state, initiator_msg) = Initiator::send_initial_message::<Ed25519, PsqMlKem768>(
+                ctx, exp, kem_pk, sk, vk, &mut rng,
+            )
+            .map_err(init_msg_err)?;
+
+            let msg_bytes = initiator_msg
+                .tls_serialize_detached()
+                .map_err(serialisation_err)?;
+            (*state.unregistered_psk(), msg_bytes)
+        }
+        EncapsulationKey::XWing(kem_pk) => {
+            let (state, initiator_msg) = Initiator::send_initial_message::<Ed25519, PsqXwing>(
+                ctx, exp, kem_pk, sk, vk, &mut rng,
+            )
+            .map_err(init_msg_err)?;
+
+            let msg_bytes = initiator_msg
+                .tls_serialize_detached()
+                .map_err(serialisation_err)?;
+            (*state.unregistered_psk(), msg_bytes)
+        }
+        EncapsulationKey::McEliece(pk) => {
+            todo!("unsupported mceliece for PSQ")
+        }
+    };
 
     // Step 3: Combine ECDH + PSQ via Blake3 KDF
-    let mut combined = Vec::with_capacity(64 + psq_psk.len());
+    let mut combined = Vec::with_capacity(64 + pq_shared_secret.len());
     combined.extend_from_slice(&ecdh_secret);
-    combined.extend_from_slice(psq_psk); // psq_psk is already a &[u8; 32]
+    combined.extend_from_slice(&pq_shared_secret); // psq_psk is already a &[u8; 32]
     combined.extend_from_slice(salt);
 
     let final_psk = nym_crypto::kdf::derive_key_blake3(PSK_PSQ_CONTEXT, &combined, &[]);
 
-    // Serialize InitiatorMsg with TLS encoding for transport
-    let msg_bytes = initiator_msg
-        .tls_serialize_detached()
-        .map_err(|e| LpError::Internal(format!("InitiatorMsg serialization failed: {:?}", e)))?;
-
     Ok(PsqInitiatorResult {
         psk: final_psk,
-        payload: msg_bytes,
+        payload,
         pq_shared_secret,
     })
 }

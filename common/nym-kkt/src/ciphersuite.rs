@@ -8,7 +8,7 @@ use std::fmt::Debug;
 pub use nym_kkt_ciphersuite::*;
 
 pub enum EncapsulationKey {
-    MlKem768(libcrux_kem::MlKem768PublicKey),
+    MlKem768(libcrux_kem::PublicKey),
     XWing(libcrux_kem::PublicKey),
     X25519(libcrux_kem::PublicKey),
     McEliece(libcrux_psq::classic_mceliece::PublicKey),
@@ -45,13 +45,10 @@ impl EncapsulationKey {
                 map_kem_to_libcrux_kem(kem)?,
                 bytes,
             )?)),
-            KEM::MlKem768 => Ok(EncapsulationKey::MlKem768(
-                libcrux_kem::MlKem768PublicKey::try_from(bytes).map_err(|_| {
-                    KKTError::DecodingError {
-                        info: "MlKem Encapsulation Key Decoding Failure",
-                    }
-                })?,
-            )),
+            KEM::MlKem768 => Ok(EncapsulationKey::MlKem768(libcrux_kem::PublicKey::decode(
+                map_kem_to_libcrux_kem(kem)?,
+                bytes,
+            )?)),
             KEM::XWing => Ok(EncapsulationKey::XWing(libcrux_kem::PublicKey::decode(
                 map_kem_to_libcrux_kem(kem)?,
                 bytes,
@@ -68,7 +65,7 @@ impl EncapsulationKey {
                 let bytes_ref: &[u8] = public_key.as_ref();
                 Vec::from(bytes_ref)
             }
-            EncapsulationKey::MlKem768(public_key) => Vec::from(public_key.as_slice()),
+            EncapsulationKey::MlKem768(public_key) => Vec::from(public_key.encode()),
         }
     }
 }

@@ -244,6 +244,7 @@ fn mode_to_flags(mode: TestMode) -> (bool, bool, bool) {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
     let args = CliArgs::parse();
     if !args.no_log {

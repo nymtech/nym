@@ -1,9 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use tokio_util::sync::CancellationToken;
-
 use crate::config::RegistrationClientConfig;
+use crate::lp_client::helpers::to_lp_remote_peer;
 use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
@@ -14,14 +13,8 @@ use nym_sdk::mixnet::{EventReceiver, MixnetClient, Recipient};
 use rand::rngs::OsRng;
 use std::sync::Arc;
 use tokio::net::TcpStream;
+use tokio_util::sync::CancellationToken;
 
-mod builder;
-mod config;
-mod error;
-mod lp_client;
-mod types;
-
-use crate::lp_client::helpers::to_lp_remote_peer;
 pub use builder::RegistrationClientBuilder;
 pub use builder::config::{
     BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig,
@@ -30,10 +23,15 @@ pub use builder::config::{
 pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
 pub use lp_client::{LpConfig, LpRegistrationClient, NestedLpSession, error::LpClientError};
-use nym_lp::peer::LpRemotePeer;
 pub use types::{
     LpRegistrationResult, MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult,
 };
+
+mod builder;
+mod config;
+mod error;
+mod lp_client;
+mod types;
 
 pub struct RegistrationClient {
     mixnet_client: MixnetClient,
@@ -169,8 +167,11 @@ impl RegistrationClient {
             },
         )?;
 
-        tracing::debug!("Entry gateway LP address: {}", entry_lp_data.address);
-        tracing::debug!("Exit gateway LP address: {}", exit_lp_data.address);
+        let entry_address = entry_lp_data.address;
+        let exit_address = exit_lp_data.address;
+
+        tracing::debug!("Entry gateway LP address: {entry_address}");
+        tracing::debug!("Exit gateway LP address: {exit_address}");
 
         // Generate fresh Ed25519 keypairs for LP registration
         // These are ephemeral and used only for the LP handshake protocol
@@ -187,15 +188,14 @@ impl RegistrationClient {
         let mut entry_client = LpRegistrationClient::new_with_default_config(
             entry_lp_keypair.clone(),
             entry_peer,
-            entry_lp_data.address,
-            self.config.entry.node.ip_address,
+            entry_address,
         );
 
         // Perform handshake with entry gateway (outer session now established)
         entry_client.perform_handshake().await.map_err(|source| {
             RegistrationClientError::EntryGatewayRegisterLp {
                 gateway_id: self.config.entry.node.identity.to_base58_string(),
-                lp_address: entry_lp_data.address,
+                lp_address: entry_address,
                 source: Box::new(source),
             }
         })?;
@@ -206,7 +206,7 @@ impl RegistrationClient {
         // This hides the client's IP address from the exit gateway
         tracing::info!("Registering with exit gateway via entry forwarding");
         let mut nested_session =
-            NestedLpSession::new(exit_lp_data.address.to_string(), exit_lp_keypair, exit_peer);
+            NestedLpSession::new(exit_address.to_string(), exit_lp_keypair, exit_peer);
 
         // Perform handshake and registration with exit gateway (all via entry forwarding)
         let exit_gateway_data = nested_session
@@ -220,7 +220,7 @@ impl RegistrationClient {
             .await
             .map_err(|source| RegistrationClientError::ExitGatewayRegisterLp {
                 gateway_id: self.config.exit.node.identity.to_base58_string(),
-                lp_address: exit_lp_data.address,
+                lp_address: exit_address,
                 source: Box::new(source),
             })?;
 
@@ -238,7 +238,7 @@ impl RegistrationClient {
             .await
             .map_err(|source| RegistrationClientError::EntryGatewayRegisterLp {
                 gateway_id: self.config.entry.node.identity.to_base58_string(),
-                lp_address: entry_lp_data.address,
+                lp_address: entry_address,
                 source: Box::new(source),
             })?;
 

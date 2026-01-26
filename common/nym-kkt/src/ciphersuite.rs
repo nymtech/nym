@@ -3,18 +3,17 @@
 
 use crate::error::KKTError;
 use libcrux_kem::Algorithm;
-
 use std::fmt::Debug;
 
 pub use nym_kkt_ciphersuite::*;
 
-pub enum EncapsulationKey<'a> {
+pub enum EncapsulationKey {
     MlKem768(libcrux_kem::MlKem768PublicKey),
     XWing(libcrux_kem::PublicKey),
     X25519(libcrux_kem::PublicKey),
-    McEliece(classic_mceliece_rust::PublicKey<'a>),
+    McEliece(libcrux_psq::classic_mceliece::PublicKey),
 }
-impl<'a> Debug for EncapsulationKey<'a> {
+impl Debug for EncapsulationKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MlKem768(_) => f.debug_tuple("MlKem768").finish(),
@@ -24,7 +23,7 @@ impl<'a> Debug for EncapsulationKey<'a> {
         }
     }
 }
-impl<'a> EncapsulationKey<'a> {
+impl EncapsulationKey {
     pub(crate) fn decode(kem: KEM, bytes: &[u8]) -> Result<Self, KKTError> {
         match kem {
             KEM::McEliece => {
@@ -38,7 +37,7 @@ impl<'a> EncapsulationKey<'a> {
                     // Size must be correct due to KKTFrame::from_bytes(message_bytes)?
                     public_key_bytes.clone_from_slice(bytes);
                     Ok(EncapsulationKey::McEliece(
-                        classic_mceliece_rust::PublicKey::from(public_key_bytes),
+                        libcrux_psq::classic_mceliece::PublicKey::from(public_key_bytes),
                     ))
                 }
             }
@@ -65,18 +64,21 @@ impl<'a> EncapsulationKey<'a> {
             EncapsulationKey::XWing(public_key) | EncapsulationKey::X25519(public_key) => {
                 public_key.encode()
             }
-            EncapsulationKey::McEliece(public_key) => Vec::from(public_key.as_array()),
+            EncapsulationKey::McEliece(public_key) => {
+                let bytes_ref: &[u8] = public_key.as_ref();
+                Vec::from(bytes_ref)
+            }
             EncapsulationKey::MlKem768(public_key) => Vec::from(public_key.as_slice()),
         }
     }
 }
-pub enum DecapsulationKey<'a> {
+pub enum DecapsulationKey {
     MlKem768(libcrux_kem::MlKem768PrivateKey),
     XWing(libcrux_kem::PrivateKey),
     X25519(libcrux_kem::PrivateKey),
-    McEliece(classic_mceliece_rust::SecretKey<'a>),
+    McEliece(libcrux_psq::classic_mceliece::SecretKey),
 }
-impl<'a> Debug for DecapsulationKey<'a> {
+impl Debug for DecapsulationKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MlKem768(_) => f.debug_tuple("MlKem768").finish(),

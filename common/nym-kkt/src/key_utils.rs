@@ -1,8 +1,6 @@
 use crate::ciphersuite::HashFunction;
 use std::collections::HashMap;
 
-use classic_mceliece_rust::keypair_boxed;
-
 use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
 use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, KEMKeyDigests};
 use rand::{CryptoRng, RngCore};
@@ -60,18 +58,19 @@ where
 }
 
 // (decapsulation_key, encapsulation_key)
-pub fn generate_keypair_mceliece<'a, R>(
+pub fn generate_keypair_mceliece<R>(
     rng: &mut R,
 ) -> (
-    classic_mceliece_rust::SecretKey<'a>,
-    classic_mceliece_rust::PublicKey<'a>,
+    libcrux_psq::classic_mceliece::SecretKey,
+    libcrux_psq::classic_mceliece::PublicKey,
 )
 where
     // this is annoying because mceliece lib uses rand 0.8.5...
     R: RngCore + CryptoRng,
 {
-    let (encapsulation_key, decapsulation_key) = keypair_boxed(rng);
-    (decapsulation_key, encapsulation_key)
+    let kp = libcrux_psq::classic_mceliece::KeyPair::generate_key_pair(rng);
+
+    (kp.sk, kp.pk)
 }
 
 pub fn hash_key_bytes(

@@ -90,7 +90,7 @@ pub enum KKTState {
     /// KKT exchange completed (initiator received and validated KEM key).
     Completed {
         /// Responder's KEM public key for PSQ encapsulation
-        kem_pk: Box<EncapsulationKey<'static>>,
+        kem_pk: Box<EncapsulationKey>,
     },
 
     /// Responder processed a KKT request and sent response.
@@ -538,9 +538,7 @@ impl LpSession {
 
     // TODO: missing Zeroize
     /// Convert local KEM PSQ keys to typed EncapsulationKey / EncapsulationKey
-    pub fn encapsulated_kem_keys(
-        &self,
-    ) -> Result<(DecapsulationKey<'_>, EncapsulationKey<'_>), LpError> {
+    pub fn encapsulated_kem_keys(&self) -> Result<(DecapsulationKey, EncapsulationKey), LpError> {
         let kem_keys = self
             .local_peer
             .kem_psq

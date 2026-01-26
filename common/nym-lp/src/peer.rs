@@ -62,13 +62,14 @@ impl LpLocalPeer {
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
     #[doc(hidden)]
     pub fn as_remote(&self) -> LpRemotePeer {
-        let expected_kem_key_digests = match &self.mlkem {
+        let expected_kem_key_digests = match &self.kem_psq {
             None => HashMap::new(),
             Some(kem_keys) => {
-                let hashes = nym_kkt::key_utils::produce_key_digests(kem_keys.1.as_slice());
+                let hashes =
+                    nym_kkt::key_utils::produce_key_digests(kem_keys.public_key().as_bytes());
 
                 let mut digests = HashMap::new();
-                digests.insert(KEM::MlKem768, hashes);
+                digests.insert(KEM::X25519, hashes);
                 digests
             }
         };
@@ -81,7 +82,7 @@ impl LpLocalPeer {
 
     // this is only exposed in tests as ideally we should be storing the proper types to begin with
     #[cfg(test)]
-    pub fn encapsulate_kem_key(&self) -> Option<nym_kkt::ciphersuite::EncapsulationKey<'_>> {
+    pub fn encapsulate_kem_key(&self) -> Option<nym_kkt::ciphersuite::EncapsulationKey> {
         let pk_bytes = self.kem_psq.as_ref()?.public_key().to_bytes();
         let libcrux_pk =
             libcrux_kem::PublicKey::decode(libcrux_kem::Algorithm::X25519, &pk_bytes).ok()?;
@@ -106,16 +107,6 @@ impl Debug for LpLocalPeer {
                     }
                 ),
             )
-            // .field(
-            //     "mceliece",
-            //     &format!(
-            //         "mceliece_public_key: {}",
-            //         match &self.mceliece {
-            //             Some(keypair) => format!("{:?}", keypair.1.as_slice()),
-            //             None => format!("None"),
-            //         }
-            //     ),
-            // )
             .finish()
     }
 }

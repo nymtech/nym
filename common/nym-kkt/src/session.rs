@@ -10,12 +10,12 @@ use crate::{
     key_utils::validate_encapsulation_key,
 };
 
-pub fn initiator_process<'a, R>(
+pub fn initiator_process<R>(
     rng: &mut R,
     mode: KKTMode,
     ciphersuite: Ciphersuite,
     signing_key: &ed25519::PrivateKey,
-    own_encapsulation_key: Option<&EncapsulationKey<'a>>,
+    own_encapsulation_key: Option<&EncapsulationKey>,
 ) -> Result<(KKTContext, KKTFrame), KKTError>
 where
     R: CryptoRng + RngCore,
@@ -72,13 +72,13 @@ where
     Ok((context, KKTFrame::new(context_bytes, &[], session_id, &[])))
 }
 
-pub fn initiator_ingest_response<'a>(
+pub fn initiator_ingest_response(
     own_context: &mut KKTContext,
     remote_frame: &KKTFrame,
     remote_context: &KKTContext,
     remote_verification_key: &ed25519::PublicKey,
     expected_hash: &[u8],
-) -> Result<EncapsulationKey<'a>, KKTError> {
+) -> Result<EncapsulationKey, KKTError> {
     check_compatibility(own_context, remote_context)?;
     match remote_context.status() {
         KKTStatus::Ok => {
@@ -124,12 +124,12 @@ pub fn initiator_ingest_response<'a>(
 
 // todo: figure out how to handle errors using status codes
 
-pub fn responder_ingest_message<'a>(
+pub fn responder_ingest_message(
     remote_context: &KKTContext,
     remote_verification_key: Option<&ed25519::PublicKey>,
     expected_hash: Option<&[u8]>,
     remote_frame: &KKTFrame,
-) -> Result<(KKTContext, Option<EncapsulationKey<'a>>), KKTError> {
+) -> Result<(KKTContext, Option<EncapsulationKey>), KKTError> {
     let own_context = remote_context.derive_responder_header()?;
 
     match remote_context.role() {
@@ -200,11 +200,11 @@ pub fn responder_ingest_message<'a>(
     }
 }
 
-pub fn responder_process<'a>(
+pub fn responder_process(
     own_context: &mut KKTContext,
     session_id: KKTSessionId,
     signing_key: &ed25519::PrivateKey,
-    encapsulation_key: &EncapsulationKey<'a>,
+    encapsulation_key: &EncapsulationKey,
 ) -> Result<KKTFrame, KKTError> {
     let body = encapsulation_key.encode();
 

@@ -98,13 +98,13 @@ pub fn request_kem_key<R: CryptoRng + RngCore>(
 /// )?;
 /// // Use gateway_kem_key for PSQ
 /// ```
-pub fn validate_kem_response<'a>(
+pub fn validate_kem_response(
     context: &mut KKTContext,
     session_secret: &KKTSessionSecret,
     responder_vk: &ed25519::PublicKey,
     expected_key_hash: &[u8],
     encrypted_response_bytes: &[u8],
-) -> Result<EncapsulationKey<'a>, KKTError> {
+) -> Result<EncapsulationKey, KKTError> {
     let (responder_frame, responder_context) =
         decrypt_kkt_response_frame(session_secret, encrypted_response_bytes)?;
 
@@ -159,7 +159,7 @@ pub fn handle_kem_request<'a, R>(
     initiator_vk: Option<&ed25519::PublicKey>,
     responder_signing_key: &ed25519::PrivateKey,
     responder_dh_private_key: &x25519::PrivateKey,
-    responder_kem_key: &EncapsulationKey<'a>,
+    responder_kem_key: &EncapsulationKey,
 ) -> Result<Vec<u8>, KKTError>
 where
     R: RngCore + CryptoRng,

@@ -3,7 +3,7 @@
 
 //! LP (Lewes Protocol) registration message types shared between client and gateway.
 
-use crate::GatewayData;
+use crate::WireguardConfiguration;
 use crate::serialisation::{BincodeError, BincodeOptions, lp_bincode_serializer};
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::ed25519;
@@ -94,7 +94,7 @@ pub struct LpRegistrationResponse {
 
     /// Gateway configuration data for dVPN mode (WireGuard)
     /// This matches what WireguardRegistrationResult expects
-    pub gateway_data: Option<GatewayData>,
+    pub gateway_data: Option<WireguardConfiguration>,
 
     /// Gateway data for mixnet mode
     ///
@@ -152,7 +152,7 @@ impl LpRegistrationRequest {
 
 impl LpRegistrationResponse {
     /// Create a success response with GatewayData (for dVPN mode)
-    pub fn success(allocated_bandwidth: i64, gateway_data: GatewayData) -> Self {
+    pub fn success(allocated_bandwidth: i64, gateway_data: WireguardConfiguration) -> Self {
         Self {
             success: true,
             error: None,
@@ -202,10 +202,10 @@ mod tests {
     use std::net::Ipv4Addr;
     // ==================== Helper Functions ====================
 
-    fn create_test_gateway_data() -> GatewayData {
+    fn create_test_gateway_data() -> WireguardConfiguration {
         use std::net::Ipv6Addr;
 
-        GatewayData {
+        WireguardConfiguration {
             public_key: nym_crypto::asymmetric::x25519::PublicKey::from(
                 nym_sphinx::PublicKey::from([1u8; 32]),
             ),

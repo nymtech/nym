@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_registration_common::NymNode;
+use nym_registration_common::NymNodeInformation;
 use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
@@ -25,7 +25,7 @@ const MIXNET_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Clone)]
 pub struct NymNodeWithKeys {
-    pub node: NymNode,
+    pub node: NymNodeInformation,
     pub keys: Arc<x25519::KeyPair>,
 }
 

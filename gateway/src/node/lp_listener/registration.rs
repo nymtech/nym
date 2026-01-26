@@ -18,8 +18,8 @@ use nym_gateway_storage::models::PersistedBandwidth;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_metrics::{add_histogram_obs, inc, inc_by};
 use nym_registration_common::{
-    GatewayData, LpDvpnRegistrationRequest, LpMixnetGatewayData, LpMixnetRegistrationRequest,
-    LpRegistrationData, LpRegistrationRequest, LpRegistrationResponse,
+    LpDvpnRegistrationRequest, LpMixnetGatewayData, LpMixnetRegistrationRequest,
+    LpRegistrationData, LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
 };
 use nym_wireguard::PeerControlRequest;
 use std::sync::Arc;
@@ -185,7 +185,7 @@ async fn check_existing_registration(
 
     Some(LpRegistrationResponse::success(
         bandwidth,
-        GatewayData {
+        WireguardConfiguration {
             public_key: *wg_data.keypair().public_key(),
             endpoint: wg_data.config().bind_address,
             private_ipv4,
@@ -350,7 +350,7 @@ async fn register_wg_peer(
     public_key_bytes: &[u8],
     ticket_type: nym_credentials_interface::TicketType,
     state: &LpHandlerState,
-) -> Result<(GatewayData, i64), GatewayError> {
+) -> Result<(WireguardConfiguration, i64), GatewayError> {
     let Some(wg_controller) = &state.wg_peer_controller else {
         return Err(GatewayError::ServiceProviderNotRunning {
             service: "WireGuard".to_string(),
@@ -467,7 +467,7 @@ async fn register_wg_peer(
 
     // Create GatewayData response (matching authenticator response format)
     Ok((
-        GatewayData {
+        WireguardConfiguration {
             public_key: gateway_pubkey,
             endpoint: gateway_endpoint,
             private_ipv4: client_ipv4,

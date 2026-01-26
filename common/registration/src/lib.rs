@@ -21,17 +21,17 @@ mod lp_messages;
 mod serialisation;
 
 #[derive(Debug, Clone)]
-pub struct NymNode {
+pub struct NymNodeInformation {
     pub identity: ed25519::PublicKey,
     pub ip_address: IpAddr,
     pub ipr_address: Option<Recipient>,
     pub authenticator_address: Option<Recipient>,
-    pub lp_data: Option<GatewayLpData>,
+    pub lp_data: Option<NymNodeLPInformation>,
     pub version: AuthenticatorVersion,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GatewayData {
+pub struct WireguardConfiguration {
     #[serde(with = "bs58_x25519_pubkey")]
     pub public_key: x25519::PublicKey,
     pub endpoint: SocketAddr,
@@ -40,7 +40,7 @@ pub struct GatewayData {
 }
 
 #[derive(Clone, Debug)]
-pub struct GatewayLpData {
+pub struct NymNodeLPInformation {
     pub address: SocketAddr,
     pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
     pub x25519: x25519::PublicKey,

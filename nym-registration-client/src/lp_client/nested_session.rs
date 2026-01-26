@@ -30,7 +30,7 @@ use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_lp::{LpMessage, LpPacket};
 use nym_lp_transport::traits::LpTransport;
-use nym_registration_common::{GatewayData, LpRegistrationRequest};
+use nym_registration_common::{LpRegistrationRequest, WireguardConfiguration};
 use nym_wireguard_types::PeerPublicKey;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -293,7 +293,7 @@ impl NestedLpSession {
         wg_keypair: &x25519::KeyPair,
         credential: nym_credentials_interface::CredentialSpendingData,
         ticket_type: TicketType,
-    ) -> Result<GatewayData>
+    ) -> Result<WireguardConfiguration>
     where
         S: LpTransport + Unpin,
     {
@@ -432,7 +432,7 @@ impl NestedLpSession {
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
-    ) -> Result<GatewayData>
+    ) -> Result<WireguardConfiguration>
     where
         S: LpTransport + Unpin,
     {
@@ -585,7 +585,7 @@ impl NestedLpSession {
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
         max_retries: u32,
-    ) -> Result<GatewayData>
+    ) -> Result<WireguardConfiguration>
     where
         S: LpTransport + Unpin,
     {

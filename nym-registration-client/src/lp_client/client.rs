@@ -19,7 +19,7 @@ use nym_lp::message::ForwardPacketData;
 use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpAction, LpData, LpInput, LpStateMachine};
 use nym_lp_transport::traits::LpTransport;
-use nym_registration_common::{GatewayData, LpRegistrationRequest};
+use nym_registration_common::{LpRegistrationRequest, WireguardConfiguration};
 use nym_wireguard_types::PeerPublicKey;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -684,7 +684,7 @@ where
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
-    ) -> Result<GatewayData> {
+    ) -> Result<WireguardConfiguration> {
         tracing::debug!("Acquiring bandwidth credential for registration");
 
         // Get bandwidth credential from controller
@@ -726,7 +726,7 @@ where
         wg_keypair: &x25519::KeyPair,
         credential: CredentialSpendingData,
         ticket_type: TicketType,
-    ) -> Result<GatewayData> {
+    ) -> Result<WireguardConfiguration> {
         tracing::debug!("Sending registration request (persistent connection)");
 
         // 1. Build registration request
@@ -872,7 +872,7 @@ where
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
         max_retries: u32,
-    ) -> Result<GatewayData> {
+    ) -> Result<WireguardConfiguration> {
         tracing::debug!("Starting resilient registration (max_retries={max_retries})",);
 
         // Acquire credential ONCE before any attempts

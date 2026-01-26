@@ -6,7 +6,9 @@ use nym_crypto::asymmetric::ed25519;
 use nym_lp::message::ForwardPacketData;
 use nym_lp::peer::LpRemotePeer;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
-use nym_registration_common::{GatewayLpData, LpRegistrationRequest, LpRegistrationResponse};
+use nym_registration_common::{
+    LpRegistrationRequest, LpRegistrationResponse, NymNodeLPInformation,
+};
 
 pub(crate) fn convert_registration_request(
     request: LpRegistrationRequest,
@@ -84,6 +86,9 @@ pub(crate) fn try_convert_forward_response(action: LpAction) -> Result<Vec<u8>, 
     Ok(response_data.content.into())
 }
 
-pub(crate) fn to_lp_remote_peer(identity: ed25519::PublicKey, data: GatewayLpData) -> LpRemotePeer {
+pub(crate) fn to_lp_remote_peer(
+    identity: ed25519::PublicKey,
+    data: NymNodeLPInformation,
+) -> LpRemotePeer {
     LpRemotePeer::new(identity, data.x25519).with_kem_key_digests(data.expected_kem_key_hashes)
 }

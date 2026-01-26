@@ -80,17 +80,28 @@ impl LpLocalPeer {
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
     #[doc(hidden)]
     pub fn as_remote(&self) -> LpRemotePeer {
-        let expected_kem_key_digests = match &self.kem_psq {
-            None => HashMap::new(),
-            Some(kem_keys) => {
-                let hashes =
-                    nym_kkt::key_utils::produce_key_digests(kem_keys.public_key().as_bytes());
+        let mut expected_kem_key_digests = HashMap::new();
 
-                let mut digests = HashMap::new();
-                digests.insert(KEM::X25519, hashes);
-                digests
-            }
-        };
+        if let Some(x25519_key) = &self.kem_psq {
+            expected_kem_key_digests.insert(
+                KEM::X25519,
+                nym_kkt::key_utils::produce_key_digests(x25519_key.public_key().as_bytes()),
+            );
+        }
+        if let Some(mlkem_key) = &self.mlkem {
+            expected_kem_key_digests.insert(
+                KEM::MlKem768,
+                nym_kkt::key_utils::produce_key_digests(&mlkem_key.1.encode()),
+            );
+        }
+
+        if let Some(mceliece_key) = &self.mceliece {
+            expected_kem_key_digests.insert(
+                KEM::McEliece,
+                nym_kkt::key_utils::produce_key_digests(&mceliece_key.1.encode()),
+            );
+        }
+
         LpRemotePeer {
             ed25519_public: *self.ed25519.public_key(),
             x25519_public: *self.x25519.public_key(),

@@ -90,5 +90,8 @@ pub(crate) fn to_lp_remote_peer(
     identity: ed25519::PublicKey,
     data: NymNodeLPInformation,
 ) -> LpRemotePeer {
-    LpRemotePeer::new(identity, data.x25519).with_kem_key_digests(data.expected_kem_key_hashes)
+    LpRemotePeer::new(identity, data.x25519).with_key_digests(
+        data.expected_kem_key_hashes,
+        data.expected_signing_key_hashes,
+    )
 }

@@ -244,6 +244,9 @@ fn mode_to_flags(mode: TestMode) -> (bool, bool, bool) {
     }
 }
 
+#[allow(clippy::todo)]
+#[allow(unreachable_code, unused)]
+// ^^^^ // NOTE: to be changed by @SW
 #[allow(clippy::unwrap_used)]
 pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
     let args = CliArgs::parse();
@@ -306,6 +309,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         let entry_lp_node = TestedNodeLpDetails {
             address: entry_lp_addr,
             expected_kem_key_hashes,
+            expected_signing_key_hashes: todo!(),
             x25519: x25519_key,
         };
         let entry_details = TestedNodeDetails::from_cli(identity, entry_lp_node);
@@ -338,6 +342,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             let exit_lp_node = TestedNodeLpDetails {
                 address: exit_lp_addr,
                 expected_kem_key_hashes,
+                expected_signing_key_hashes: Default::default(),
                 x25519: x25519_key,
             };
 

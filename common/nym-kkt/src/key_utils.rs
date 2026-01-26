@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use classic_mceliece_rust::keypair_boxed;
 
-use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, KEMKeyDigests};
+use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, KeyDigests};
 use rand::{CryptoRng, RngCore};
 
 pub fn generate_keypair_ed25519<R>(
@@ -78,7 +78,7 @@ pub fn hash_key_bytes(
 
 /// attempt to produce digests of the provided key using all known [HashFunction] with a default
 /// hash length where variable output is available
-pub fn produce_key_digests(key_bytes: &[u8]) -> KEMKeyDigests {
+pub fn produce_key_digests(key_bytes: &[u8]) -> KeyDigests {
     use strum::IntoEnumIterator;
     let mut digests = HashMap::new();
     for hash in HashFunction::iter() {

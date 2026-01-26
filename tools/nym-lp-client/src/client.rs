@@ -118,7 +118,10 @@ impl SpeedtestClient {
         );
 
         let gw_peer = LpRemotePeer::new(self.gateway.identity, self.gateway.identity.to_x25519()?)
-            .with_kem_key_digests(self.gateway.kem_key_hashes.clone());
+            .with_key_digests(
+                self.gateway.kem_key_hashes.clone(),
+                self.gateway.signing_key_hashes.clone(),
+            );
 
         let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
             self.identity_keypair.clone(),
@@ -161,7 +164,10 @@ impl SpeedtestClient {
         );
 
         let gw_peer = LpRemotePeer::new(self.gateway.identity, self.gateway.identity.to_x25519()?)
-            .with_kem_key_digests(self.gateway.kem_key_hashes.clone());
+            .with_key_digests(
+                self.gateway.kem_key_hashes.clone(),
+                self.gateway.signing_key_hashes.clone(),
+            );
 
         let mut lp_client = LpRegistrationClient::new_with_default_config(
             self.identity_keypair.clone(),

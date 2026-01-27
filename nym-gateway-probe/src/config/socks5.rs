@@ -1,5 +1,7 @@
 use clap::Args;
 
+use crate::common::socks5_test::JsonRpcClient;
+
 #[derive(Args)]
 pub struct Socks5Args {
     #[arg(long, value_delimiter = ';')]
@@ -14,4 +16,17 @@ pub struct Socks5Args {
     /// stops socks5 test early after this many failed attempts
     #[arg(long, default_value_t = 3)]
     pub failure_count_cutoff: usize,
+}
+
+impl Socks5Args {
+    pub async fn validate_socks5_endpoints(&self) -> anyhow::Result<()> {
+        let client = JsonRpcClient::new(
+            self.mixnet_client_timeout_sec,
+            None,
+            self.socks5_json_rpc_url_list.clone(),
+        )?;
+        client.ensure_endpoint_works().await?;
+
+        Ok(())
+    }
 }

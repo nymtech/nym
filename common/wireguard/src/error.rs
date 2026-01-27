@@ -20,6 +20,9 @@ pub enum Error {
 
     #[error("{0}")]
     SystemTime(#[from] std::time::SystemTimeError),
+
+    #[error("IP pool error: {0}")]
+    IpPool(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

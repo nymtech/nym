@@ -1,0 +1,10 @@
+nym_binary_dir: /root/nym-binaries
+nym_binary_path: "{{ nym_binary_dir }}/nym-node"
+nym_backup_dir: "{{ nym_binary_dir }}/bak"
+nym_backup_path: "{{ nym_backup_dir }}/nym-node"
+nym_service_name: nym-node
+
+# nym_version: "v2025.21-mozzarella"
+# Optional: set this to pin a specific release tag in (e.g. v2025.21-mozzarella)
+# otherwise the GitHub “latest” release is used
+

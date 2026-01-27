@@ -332,3 +332,13 @@ wscat -c wss://<HOSTNAME>:<WSS_PORT>
 ```
 
 - Check Swagger API of your node using the hostname: `https://<HOSTNAME>/api/v1/swagger/#/`
+
+## Troubleshooting
+
+In some cases Nginx may cache expired certificates, old configurations and other snippets creating confussion in a proper routing of your server. To purge this cache you can run:
+```sh
+apt purge nginx nginx-common
+apt install nginx
+service nginx reload && service nginx restart
+```
+This will pickup only the current configuration.

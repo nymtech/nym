@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO wasm_execute_contract (\n            sender,\n            contract_address,\n            message_type,\n            raw_contract_message,\n            funds,\n            executed_at,\n            height,\n            hash,\n            message_index,\n            memo,\n            fee\n        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        {
+          "Custom": {
+            "name": "coin[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "coin",
+                  "kind": {
+                    "Composite": [
+                      [
+                        "denom",
+                        "Text"
+                      ],
+                      [
+                        "amount",
+                        "Text"
+                      ]
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Timestamp",
+        "Int8",
+        "Text",
+        "Int8",
+        "Text",
+        {
+          "Custom": {
+            "name": "coin[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "coin",
+                  "kind": {
+                    "Composite": [
+                      [
+                        "denom",
+                        "Text"
+                      ],
+                      [
+                        "amount",
+                        "Text"
+                      ]
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4b16ddeda8e6e3571836b09e63ad1e764a35477f06dcdc2fcb1420334f07e38d"
+}

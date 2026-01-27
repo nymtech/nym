@@ -6,7 +6,7 @@ use futures::future::{maybe_done, MaybeDone};
 use futures::{FutureExt, TryFutureExt};
 use nym_api_requests::models::{
     AuthenticatorDetails, DeclaredRoles, HostInformation, IpPacketRouterDetails,
-    NetworkRequesterDetails, NymNodeData, WebSockets, WireguardDetails,
+    LewesProtocolDetails, NetworkRequesterDetails, NymNodeData, WebSockets, WireguardDetails,
 };
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_config::defaults::mainnet;
@@ -61,7 +61,11 @@ pub(crate) async fn query_for_described_data(
         // `ok_into` ultimately calls `IpPacketRouter::into` to transform it into `IpPacketRouterDetails`
         client.get_ip_packet_router().ok_into().map(Result::ok),
         client.get_authenticator().ok_into().map(Result::ok),
-        client.get_wireguard().ok_into().map(Result::ok)
+        client.get_wireguard().ok_into().map(Result::ok),
+        client.get_lewes_protocol().inspect_err(|err| {
+            // old nym-nodes will not have this field, so use the default instead
+            debug!("could not obtain lewes protocol information of node {node_id}: {err} is it running an old version?")
+        }).ok_into().map(Result::ok)
     )
         .await
 }
@@ -72,7 +76,7 @@ pub(crate) async fn query_for_described_data(
 // (note: I've just mostly copied code from `futures-util::generate` macro where
 // they derive code for `join2`, `join3`, etc.)
 #[pin_project]
-struct NodeDescribedInfoMegaFuture<F1, F2, F3, F4, F5, F6, F7, F8>
+struct NodeDescribedInfoMegaFuture<F1, F2, F3, F4, F5, F6, F7, F8, F9>
 where
     F1: Future,
     F2: Future,
@@ -82,6 +86,7 @@ where
     F6: Future,
     F7: Future,
     F8: Future,
+    F9: Future,
 {
     #[pin]
     build_info: MaybeDone<F1>,
@@ -99,10 +104,12 @@ where
     authenticator: MaybeDone<F7>,
     #[pin]
     wireguard: MaybeDone<F8>,
+    #[pin]
+    lewes_protocol: MaybeDone<F9>,
 }
 
-impl<F1, F2, F3, F4, F5, F6, F7, F8> Future
-    for NodeDescribedInfoMegaFuture<F1, F2, F3, F4, F5, F6, F7, F8>
+impl<F1, F2, F3, F4, F5, F6, F7, F8, F9> Future
+    for NodeDescribedInfoMegaFuture<F1, F2, F3, F4, F5, F6, F7, F8, F9>
 where
     F1: Future<Output = Result<BinaryBuildInformationOwned, NodeDescribeCacheError>>,
     F2: Future<Output = Result<DeclaredRoles, NodeDescribeCacheError>>,
@@ -112,6 +119,7 @@ where
     F6: Future<Output = Option<IpPacketRouterDetails>>,
     F7: Future<Output = Option<AuthenticatorDetails>>,
     F8: Future<Output = Option<WireguardDetails>>,
+    F9: Future<Output = Option<LewesProtocolDetails>>,
 {
     type Output = Result<UnwrappedResolvedNodeDescribedInfo, NodeDescribeCacheError>;
 
@@ -129,6 +137,7 @@ where
         all_done &= futures.ipr.as_mut().poll(cx).is_ready();
         all_done &= futures.authenticator.as_mut().poll(cx).is_ready();
         all_done &= futures.wireguard.as_mut().poll(cx).is_ready();
+        all_done &= futures.lewes_protocol.as_mut().poll(cx).is_ready();
 
         if all_done {
             Poll::Ready(
@@ -141,6 +150,7 @@ where
                     ipr: futures.ipr.take_output().unwrap(),
                     authenticator: futures.authenticator.take_output().unwrap(),
                     wireguard: futures.wireguard.take_output().unwrap(),
+                    lewes_protocol: futures.lewes_protocol.take_output().unwrap(),
                 }
                 .try_unwrap(),
             )
@@ -150,7 +160,8 @@ where
     }
 }
 
-impl<F1, F2, F3, F4, F5, F6, F7, F8> NodeDescribedInfoMegaFuture<F1, F2, F3, F4, F5, F6, F7, F8>
+impl<F1, F2, F3, F4, F5, F6, F7, F8, F9>
+    NodeDescribedInfoMegaFuture<F1, F2, F3, F4, F5, F6, F7, F8, F9>
 where
     F1: Future,
     F2: Future,
@@ -160,6 +171,7 @@ where
     F6: Future,
     F7: Future,
     F8: Future,
+    F9: Future,
 {
     // okay. the fact I have to bypass clippy here means it wasn't a good idea to create this abomination after all
     #[allow(clippy::too_many_arguments)]
@@ -172,6 +184,7 @@ where
         ipr: F6,
         authenticator: F7,
         wireguard: F8,
+        lewes_protocol: F9,
     ) -> Self {
         NodeDescribedInfoMegaFuture {
             build_info: maybe_done(build_info),
@@ -182,6 +195,7 @@ where
             ipr: maybe_done(ipr),
             authenticator: maybe_done(authenticator),
             wireguard: maybe_done(wireguard),
+            lewes_protocol: maybe_done(lewes_protocol),
         }
     }
 }
@@ -196,6 +210,7 @@ struct ResolvedNodeDescribedInfo {
     ipr: Option<IpPacketRouterDetails>,
     authenticator: Option<AuthenticatorDetails>,
     wireguard: Option<WireguardDetails>,
+    lewes_protocol: Option<LewesProtocolDetails>,
 }
 
 impl ResolvedNodeDescribedInfo {
@@ -209,6 +224,7 @@ impl ResolvedNodeDescribedInfo {
             ipr: self.ipr,
             authenticator: self.authenticator,
             wireguard: self.wireguard,
+            lewes_protocol: self.lewes_protocol,
         })
     }
 }
@@ -223,6 +239,7 @@ pub(crate) struct UnwrappedResolvedNodeDescribedInfo {
     pub(crate) ipr: Option<IpPacketRouterDetails>,
     pub(crate) authenticator: Option<AuthenticatorDetails>,
     pub(crate) wireguard: Option<WireguardDetails>,
+    pub(crate) lewes_protocol: Option<LewesProtocolDetails>,
 }
 
 impl UnwrappedResolvedNodeDescribedInfo {
@@ -238,6 +255,7 @@ impl UnwrappedResolvedNodeDescribedInfo {
             ip_packet_router: self.ipr,
             authenticator: self.authenticator,
             wireguard: self.wireguard,
+            lewes_protocol: self.lewes_protocol,
             mixnet_websockets: self.websockets,
             auxiliary_details: self.auxiliary_details,
             declared_role: self.roles,

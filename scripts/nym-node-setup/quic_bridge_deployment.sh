@@ -356,9 +356,14 @@ run_bridge_cfg_generate() {
     NODE_CFG="$HOME_DIR/.nym/nym-nodes/default-nym-node/config/config.toml"
   fi
 
-  echo -n "Path to your nym-node config.toml [default: $NODE_CFG]: "
-  read -r input
-  [[ -n "$input" ]] && NODE_CFG="$input"
+  if [[ "${NONINTERACTIVE:-0}" == "1" ]]; then
+    # Noninteractive: just use the detected/default path
+    info "NONINTERACTIVE=1: using nym-node config at: $NODE_CFG"
+  else
+    echo -n "Path to your nym-node config.toml [default: $NODE_CFG]: "
+    read -r input
+    [[ -n "$input" ]] && NODE_CFG="$input"
+  fi
 
   if [[ ! -f "$NODE_CFG" ]]; then
     err "nym-node config not found: $NODE_CFG"
@@ -403,6 +408,7 @@ run_bridge_cfg_generate() {
 
   export LAST_BACKUP_FILE="$BACKUP_FILE"
 }
+
 
 # Systemd service
 create_bridge_service() {

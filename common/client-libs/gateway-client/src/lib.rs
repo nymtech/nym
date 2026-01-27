@@ -7,9 +7,7 @@ use tracing::{error, warn};
 use tungstenite::{protocol::Message, Error as WsError};
 
 pub use client::{config::GatewayClientConfig, GatewayClient, GatewayConfig};
-pub use nym_gateway_requests::shared_key::{
-    LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey,
-};
+pub use nym_gateway_requests::shared_key::SharedSymmetricKey;
 pub use packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
     PacketRouter,
@@ -47,7 +45,7 @@ pub(crate) fn cleanup_socket_messages(
 
 pub(crate) fn try_decrypt_binary_message(
     bin_msg: Vec<u8>,
-    shared_keys: &SharedGatewayKey,
+    shared_keys: &SharedSymmetricKey,
 ) -> Option<Vec<u8>> {
     match BinaryResponse::try_from_encrypted_tagged_bytes(bin_msg, shared_keys) {
         Ok(bin_response) => match bin_response {

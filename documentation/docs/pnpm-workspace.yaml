@@ -1,0 +1,9 @@
+packages:
+  - "."
+
+ignoredBuiltDependencies:
+  - core-js
+  - protobufjs
+  - sharp
+  - tiny-secp256k1
+  - unrs-resolver

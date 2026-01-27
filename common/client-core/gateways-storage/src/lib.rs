@@ -6,7 +6,6 @@
 
 use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_requests::SharedSymmetricKey;
 use std::error::Error;
 
 pub mod backend;
@@ -60,10 +59,11 @@ pub trait GatewaysDetailsStore {
         details: &GatewayRegistration,
     ) -> Result<(), Self::StorageError>;
 
-    async fn upgrade_stored_remote_gateway_key(
+    /// Update the gateway details
+    async fn update_gateway_published_data(
         &self,
-        gateway_id: ed25519::PublicKey,
-        updated_key: &SharedSymmetricKey,
+        gateway_id: &ed25519::PublicKey,
+        published_data: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError>;
 
     /// Remove given gateway details from the underlying store.

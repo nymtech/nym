@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n                rgd.gateway_id_bs58,\n                derived_aes256_gcm_siv_key,\n                gateway_listener,\n                fallback_listener\n            FROM\n                remote_gateway_details AS rgd\n            INNER JOIN\n                remote_gateway_shared_keys AS rgsk\n            ON\n                rgd.gateway_id_bs58 = rgsk.gateway_id_bs58\n            WHERE\n                rgd.gateway_id_bs58 = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "gateway_id_bs58",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "derived_aes256_gcm_siv_key",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "gateway_listener",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "fallback_listener",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "4b739e12ea8d917cb17580337caeabb05f0e3ddbec04fdfa111d0fc86ba75505"
+}

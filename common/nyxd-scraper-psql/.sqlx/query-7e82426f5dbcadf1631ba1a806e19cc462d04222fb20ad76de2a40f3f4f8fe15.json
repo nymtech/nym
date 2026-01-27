@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT height\n                FROM block\n                WHERE timestamp < $1\n                ORDER BY timestamp DESC\n                LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "height",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamp"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7e82426f5dbcadf1631ba1a806e19cc462d04222fb20ad76de2a40f3f4f8fe15"
+}

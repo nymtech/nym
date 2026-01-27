@@ -7,7 +7,7 @@ use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
         CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
-        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519::KeyPair,
+        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519,
     },
 };
 
@@ -17,6 +17,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
 
+use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
@@ -25,7 +26,7 @@ const MIXNET_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Clone)]
 pub struct NymNodeWithKeys {
     pub node: NymNode,
-    pub keys: Arc<KeyPair>,
+    pub keys: Arc<x25519::KeyPair>,
 }
 
 #[derive(TypedBuilder)]
@@ -36,7 +37,7 @@ pub struct BuilderConfig {
     pub mixnet_client_config: MixnetClientConfig,
     #[builder(default = MIXNET_CLIENT_STARTUP_TIMEOUT)]
     pub mixnet_client_startup_timeout: Duration,
-    pub two_hops: bool,
+    pub mode: RegistrationMode,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     pub network_env: NymNetworkDetails,
@@ -48,7 +49,7 @@ pub struct BuilderConfig {
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct MixnetClientConfig {
     /// Disable Poission process rate limiting of outbound traffic.
-    pub disable_poisson_rate: bool,
+    pub disable_real_traffic_poisson_process: bool,
 
     /// Disable constant rate background loop cover traffic
     pub disable_background_cover_traffic: bool,
@@ -58,14 +59,25 @@ pub struct MixnetClientConfig {
 
     /// The minimum performance of gateways to use.
     pub min_gateway_performance: Option<u8>,
-}
 
+    /// Setting optionally the poisson rate for cover traffic stream
+    pub loop_cover_traffic_average_delay: Option<Duration>,
+
+    /// Average packet delay in milliseconds.
+    pub average_packet_delay: Option<Duration>,
+
+    /// Average message sending delay in milliseconds.
+    pub message_sending_average_delay: Option<Duration>,
+}
 impl BuilderConfig {
     pub fn mixnet_client_debug_config(&self) -> DebugConfig {
-        if self.two_hops {
-            two_hop_debug_config(&self.mixnet_client_config)
-        } else {
-            mixnet_debug_config(&self.mixnet_client_config)
+        match self.mode {
+            // Mixnet mode uses 5-hop configuration
+            RegistrationMode::Mixnet => mixnet_debug_config(&self.mixnet_client_config),
+            // Wireguard and LP both use 2-hop configuration
+            RegistrationMode::Wireguard | RegistrationMode::Lp => {
+                two_hop_debug_config(&self.mixnet_client_config)
+            }
         }
     }
 
@@ -107,18 +119,19 @@ impl BuilderConfig {
         <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
     {
         let debug_config = self.mixnet_client_debug_config();
-        let remember_me = if self.two_hops {
-            RememberMe::new_vpn()
-        } else {
-            RememberMe::new_mixnet()
+        let remember_me = match self.mode {
+            RegistrationMode::Mixnet => RememberMe::new_mixnet(),
+            RegistrationMode::Wireguard | RegistrationMode::Lp => RememberMe::new_vpn(),
         };
 
+        let identity = self.entry_node.node.identity.to_string();
         let builder = builder
             .with_user_agent(self.user_agent)
-            .request_gateway(self.entry_node.node.identity.to_string())
+            .request_gateway(identity.clone())
             .network_details(self.network_env)
             .debug_config(debug_config)
             .credentials_mode(true)
+            .no_hostname(true)
             .with_remember_me(remember_me)
             .custom_topology_provider(self.custom_topology_provider);
 
@@ -127,9 +140,13 @@ impl BuilderConfig {
 
         builder
             .build()
+            .inspect(|_| tracing::debug!("successfully built reg client for {}", identity))
+            .inspect_err(|e| tracing::debug!("failed to build reg client for {}: {e}", identity))
             .map_err(|err| RegistrationClientError::BuildMixnetClient(Box::new(err)))?
             .connect_to_mixnet()
             .await
+            .inspect(|_| tracing::debug!("successfully connected reg client for {}", identity))
+            .inspect_err(|e| tracing::debug!("failed to connect reg client for {}: {e}", identity))
             .map_err(|err| RegistrationClientError::ConnectToMixnet(Box::new(err)))
     }
 }
@@ -164,13 +181,6 @@ fn mixnet_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig
     let mut debug_config = DebugConfig::default();
     debug_config.traffic.average_packet_delay = VPN_AVERAGE_PACKET_DELAY;
 
-    debug_config
-        .traffic
-        .disable_main_poisson_packet_distribution = mixnet_client_config.disable_poisson_rate;
-
-    debug_config.cover_traffic.disable_loop_cover_traffic_stream =
-        mixnet_client_config.disable_background_cover_traffic;
-
     if let Some(min_mixnode_performance) = mixnet_client_config.min_mixnode_performance {
         debug_config.topology.minimum_mixnode_performance = min_mixnode_performance;
     }
@@ -178,6 +188,35 @@ fn mixnet_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig
     if let Some(min_gateway_performance) = mixnet_client_config.min_gateway_performance {
         debug_config.topology.minimum_gateway_performance = min_gateway_performance;
     }
+    if let Some(avg_packet_ms) = mixnet_client_config.average_packet_delay {
+        debug_config.traffic.average_packet_delay = avg_packet_ms;
+        debug_config.acknowledgements.average_ack_delay = avg_packet_ms;
+    }
+
+    // Disable real-traffic Poisson if explicitly disabled OR delay is 0ms
+    debug_config
+        .traffic
+        .disable_main_poisson_packet_distribution = mixnet_client_config
+        .disable_real_traffic_poisson_process
+        || mixnet_client_config
+            .message_sending_average_delay
+            .is_some_and(|d| d.is_zero());
+
+    if let Some(delay) = mixnet_client_config.message_sending_average_delay {
+        debug_config.traffic.message_sending_average_delay = delay;
+    }
+
+    // Disable loop cover traffic if explicitly disabled OR delay is 0ms
+    debug_config.cover_traffic.disable_loop_cover_traffic_stream = mixnet_client_config
+        .disable_background_cover_traffic
+        || mixnet_client_config
+            .loop_cover_traffic_average_delay
+            .is_some_and(|d| d.is_zero());
+
+    if let Some(delay) = mixnet_client_config.loop_cover_traffic_average_delay {
+        debug_config.cover_traffic.loop_cover_traffic_average_delay = delay;
+    }
+
     log_mixnet_client_config(&debug_config);
     debug_config
 }
@@ -206,6 +245,32 @@ fn log_mixnet_client_config(debug_config: &DebugConfig) {
         "mixnet client minimum gateway performance: {}",
         debug_config.topology.minimum_gateway_performance,
     );
+    if !debug_config.cover_traffic.disable_loop_cover_traffic_stream {
+        tracing::info!(
+            "mixnet client loop cover traffic average delay: {} ms",
+            debug_config
+                .cover_traffic
+                .loop_cover_traffic_average_delay
+                .as_millis()
+        );
+    }
+
+    tracing::info!(
+        "mixnet client average packet delay: {} ms",
+        debug_config.traffic.average_packet_delay.as_millis()
+    );
+    if !debug_config
+        .traffic
+        .disable_main_poisson_packet_distribution
+    {
+        tracing::info!(
+            "mixnet client message sending average delay: {} ms",
+            debug_config
+                .traffic
+                .message_sending_average_delay
+                .as_millis()
+        );
+    }
 }
 
 fn true_to_disabled(val: bool) -> &'static str {
@@ -219,7 +284,7 @@ mod tests {
     #[test]
     fn test_mixnet_client_config_default_values() {
         let config = MixnetClientConfig::default();
-        assert!(!config.disable_poisson_rate);
+        assert!(!config.disable_real_traffic_poisson_process);
         assert!(!config.disable_background_cover_traffic);
         assert_eq!(config.min_mixnode_performance, None);
         assert_eq!(config.min_gateway_performance, None);

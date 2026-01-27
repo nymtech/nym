@@ -222,8 +222,12 @@ impl SharedState {
             RwLockReadGuard::try_map(guard, |data| data.get(&epoch_id).map(|d| &d.master_key))
         {
             trace!("we already had cached api clients for epoch {epoch_id}");
+            nym_metrics::inc!("ecash_verification_key_cache_hits");
             return Ok(mapped);
         }
+
+        // Cache miss - need to fetch and set epoch data
+        nym_metrics::inc!("ecash_verification_key_cache_misses");
 
         let write_guard = self.set_epoch_data(epoch_id).await?;
         let guard = write_guard.downgrade();

@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    ActiveGateway, BadGateway, GatewayDetails, GatewayRegistration, GatewayType,
-    GatewaysDetailsStore, StorageError,
+    ActiveGateway, BadGateway, GatewayDetails, GatewayPublishedData, GatewayRegistration,
+    GatewayType, GatewaysDetailsStore, StorageError,
 };
 use async_trait::async_trait;
 use manager::StorageManager;
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_requests::SharedSymmetricKey;
 use std::path::Path;
 
 pub mod error;
 mod manager;
-mod models;
 
 #[derive(Clone)]
 pub struct OnDiskGatewaysDetails {
@@ -134,16 +132,15 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
         Ok(())
     }
 
-    async fn upgrade_stored_remote_gateway_key(
+    async fn update_gateway_published_data(
         &self,
-        gateway_id: ed25519::PublicKey,
-        updated_key: &SharedSymmetricKey,
+        gateway_id: &ed25519::PublicKey,
+        published_data: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError> {
         self.manager
-            .update_remote_gateway_key(
+            .update_remote_gateway_published_data(
                 &gateway_id.to_base58_string(),
-                None,
-                Some(updated_key.as_bytes()),
+                &published_data.into(),
             )
             .await?;
         Ok(())

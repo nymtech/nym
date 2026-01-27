@@ -53,8 +53,8 @@ base64 = "0.13"
 zeroize = { version = "1.5", features = ["zeroize_derive", "serde"] }
 plist = "1.6.0"
 
-cosmwasm-std = "2.2.1"
-cosmrs = { version = "0.21.0" }
+cosmwasm-std = "=2.2.2"
+cosmrs = { version = "0.22.0" }
 
 nym-node-requests = { path = "../../nym-node/nym-node-requests" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }

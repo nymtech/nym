@@ -16,6 +16,9 @@ use std::path::PathBuf;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientCoreError {
+    #[error("could not perform the state migration: {0}")]
+    UnsupportedMigration(String),
+
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
@@ -42,6 +45,9 @@ pub enum ClientCoreError {
 
     #[error("Invalid URL: {0}")]
     InvalidUrl(String),
+
+    #[error("node doesn't advertise ip addresses : {0}")]
+    MissingIpAddress(String),
 
     #[cfg(not(target_arch = "wasm32"))]
     #[error("resolution failed: {0}")]
@@ -162,6 +168,9 @@ pub enum ClientCoreError {
 
     #[error("custom selection of gateway was expected")]
     CustomGatewaySelectionExpected,
+
+    #[error("custom selection of gateway was unexpected")]
+    UnexpectedCustomGatewaySelection,
 
     #[error("the persisted gateway details were set for a custom setup")]
     UnexpectedPersistedCustomGatewayDetails,

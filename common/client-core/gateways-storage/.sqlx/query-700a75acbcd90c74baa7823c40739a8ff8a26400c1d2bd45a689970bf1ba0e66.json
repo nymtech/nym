@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO remote_gateway_shared_keys(gateway_id_bs58, derived_aes256_gcm_siv_key)\n                VALUES (?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "700a75acbcd90c74baa7823c40739a8ff8a26400c1d2bd45a689970bf1ba0e66"
+}

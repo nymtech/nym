@@ -567,7 +567,7 @@ impl ZkNymTicketHandlerDebugV10 {
     pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.8;
     pub const DEFAULT_MINIMUM_REDEMPTION_TICKETS: usize = 100;
 
-    // use min(4/5 of max validity, validity - 1), but making sure it's no greater than 1 day
+    // use min(4/5 of max validity, validity - 1), but making sure it's no lower than 1 day
     // ASSUMPTION: our validity period is AT LEAST 2 days
     //
     // this could have been a constant, but it's more readable as a function
@@ -583,7 +583,7 @@ impl ZkNymTicketHandlerDebugV10 {
         };
 
         assert!(
-            target_secs > 86400,
+            target_secs >= 86400,
             "the maximum time between redemption can't be lower than 1 day!"
         );
         Duration::from_secs(target_secs as u64)

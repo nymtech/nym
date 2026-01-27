@@ -17,7 +17,7 @@ jobs:
     env:
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: rlespinasse/github-slug-action@v3.x
 
       - uses: actions/setup-node@v4
@@ -27,10 +27,10 @@ jobs:
       - name: Setup yarn
         run: npm install -g yarn
 
-      - name: Install Rust stable
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh

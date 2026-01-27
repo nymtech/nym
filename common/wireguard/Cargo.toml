@@ -15,6 +15,8 @@ base64 = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
 futures = { workspace = true }
 ip_network = { workspace = true }
+ipnetwork = { workspace = true }
+rand = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 tokio-stream = { workspace = true }
@@ -25,6 +27,8 @@ nym-credential-verification = { path = "../credential-verification" }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-gateway-storage = { path = "../gateway-storage" }
 nym-gateway-requests = { path = "../gateway-requests" }
+nym-ip-packet-requests = { path = "../ip-packet-requests" }
+nym-metrics = { path = "../nym-metrics" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }

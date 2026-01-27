@@ -5,7 +5,6 @@ use crate::node::internal_service_providers::authenticator::error::Authenticator
 use futures::channel::oneshot;
 use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
-use nym_credential_verification::ecash::EcashManager;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::ShutdownTracker;
 use nym_wireguard::WireguardGatewayData;
@@ -40,7 +39,7 @@ pub struct Authenticator {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
-    ecash_verifier: Arc<EcashManager>,
+    ecash_verifier: Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
     used_private_network_ips: Vec<IpAddr>,
     shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
@@ -52,7 +51,9 @@ impl Authenticator {
         upgrade_mode_state: UpgradeModeDetails,
         wireguard_gateway_data: WireguardGatewayData,
         used_private_network_ips: Vec<IpAddr>,
-        ecash_verifier: Arc<EcashManager>,
+        ecash_verifier: Arc<
+            dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync,
+        >,
         shutdown: ShutdownTracker,
     ) -> Self {
         Self {

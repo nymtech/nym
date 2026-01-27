@@ -150,6 +150,10 @@ impl OutputParams {
     pub fn get_output(&self) -> Output {
         self.output.unwrap_or_default()
     }
+
+    pub fn to_response<T: Serialize>(self, data: T) -> FormattedResponse<T> {
+        self.get_output().to_response(data)
+    }
 }
 
 impl Output {

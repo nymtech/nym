@@ -11,7 +11,7 @@ use crate::node::internal_service_providers::{
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use futures::channel::oneshot;
 use nym_credential_verification::ecash::{
-    credential_sender::CredentialHandlerConfig, EcashManager,
+    credential_sender::CredentialHandlerConfig, EcashManager, MockEcashManager,
 };
 use nym_credential_verification::upgrade_mode::{
     UpgradeModeCheckConfig, UpgradeModeDetails, UpgradeModeState,
@@ -32,11 +32,13 @@ use rand::thread_rng;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::Semaphore;
 use tracing::*;
 use zeroize::Zeroizing;
 
 pub use crate::node::upgrade_mode::watcher::UpgradeModeWatcher;
 pub use client_handling::active_clients::ActiveClientsStore;
+pub use lp_listener::LpConfig;
 pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
@@ -48,6 +50,7 @@ pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgen
 
 pub(crate) mod client_handling;
 pub(crate) mod internal_service_providers;
+pub mod lp_listener;
 mod stale_data_cleaner;
 pub mod upgrade_mode;
 
@@ -104,7 +107,8 @@ pub struct GatewayTasksBuilder {
     shutdown_tracker: ShutdownTracker,
 
     // populated and cached as necessary
-    ecash_manager: Option<Arc<EcashManager>>,
+    ecash_manager:
+        Option<Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>>,
 
     wireguard_peers: Option<Vec<defguard_wireguard_rs::host::Peer>>,
 
@@ -211,7 +215,23 @@ impl GatewayTasksBuilder {
         Ok(nyxd_client)
     }
 
-    async fn build_ecash_manager(&self) -> Result<Arc<EcashManager>, GatewayError> {
+    async fn build_ecash_manager(
+        &self,
+    ) -> Result<
+        Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
+        GatewayError,
+    > {
+        // Check if we should use mock ecash for testing
+        if self.config.lp.debug.use_mock_ecash {
+            warn!("Using MockEcashManager for LP testing (credentials NOT verified)");
+            let mock_manager = MockEcashManager::new(Box::new(self.storage.clone()));
+            return Ok(Arc::new(mock_manager)
+                as Arc<
+                    dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync,
+                >);
+        }
+
+        // Production path: use real EcashManager with blockchain verification
         let handler_config = CredentialHandlerConfig {
             revocation_bandwidth_penalty: self
                 .config
@@ -244,10 +264,18 @@ impl GatewayTasksBuilder {
             "EcashCredentialHandler",
         );
 
-        Ok(Arc::new(ecash_manager))
+        Ok(Arc::new(ecash_manager)
+            as Arc<
+                dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync,
+            >)
     }
 
-    async fn ecash_manager(&mut self) -> Result<Arc<EcashManager>, GatewayError> {
+    async fn ecash_manager(
+        &mut self,
+    ) -> Result<
+        Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
+        GatewayError,
+    > {
         match self.ecash_manager.clone() {
             Some(cached) => Ok(cached),
             None => {
@@ -283,6 +311,39 @@ impl GatewayTasksBuilder {
             self.config.gateway.websocket_bind_address,
             self.config.debug.maximum_open_connections,
             shared_state,
+            self.shutdown_tracker.clone(),
+        ))
+    }
+
+    pub async fn build_lp_listener(
+        &mut self,
+        active_clients_store: ActiveClientsStore,
+    ) -> Result<lp_listener::LpListener, GatewayError> {
+        // Get WireGuard peer controller if available
+        let wg_peer_controller = self
+            .wireguard_data
+            .as_ref()
+            .map(|wg_data| wg_data.inner.peer_tx().clone());
+
+        let handler_state = lp_listener::LpHandlerState {
+            ecash_verifier: self.ecash_manager().await?,
+            storage: self.storage.clone(),
+            local_identity: Arc::clone(&self.identity_keypair),
+            metrics: self.metrics.clone(),
+            active_clients_store,
+            wg_peer_controller,
+            wireguard_data: self.wireguard_data.as_ref().map(|wd| wd.inner.clone()),
+            lp_config: self.config.lp,
+            outbound_mix_sender: self.mix_packet_sender.clone(),
+            handshake_states: Arc::new(dashmap::DashMap::new()),
+            session_states: Arc::new(dashmap::DashMap::new()),
+            forward_semaphore: Arc::new(Semaphore::new(
+                self.config.lp.debug.max_concurrent_forwards,
+            )),
+        };
+
+        Ok(lp_listener::LpListener::new(
+            handler_state,
             self.shutdown_tracker.clone(),
         ))
     }
@@ -562,6 +623,7 @@ impl GatewayTasksBuilder {
             wireguard_data.inner.config().announced_metadata_port,
         );
 
+        let use_userspace = wireguard_data.use_userspace;
         let wg_handle = nym_wireguard::start_wireguard(
             ecash_manager,
             self.metrics.clone(),
@@ -569,6 +631,7 @@ impl GatewayTasksBuilder {
             self.upgrade_mode_state.upgrade_mode_status(),
             self.shutdown_tracker.clone_shutdown_token(),
             wireguard_data,
+            use_userspace,
         )
         .await?;
 

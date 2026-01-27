@@ -1,0 +1,69 @@
+# stop service before touching the binary
+- name: Stop nym-node service
+  systemd:
+    name: "{{ nym_service_name }}"
+    state: stopped
+  when: not ansible_check_mode
+
+# check if the current binary exists
+- name: Check existing nym-node binary
+  stat:
+    path: "{{ nym_binary_path }}"
+  register: nym_node_bin
+
+# capture current nym-node version (if present)
+- name: Capture current nym-node version (if present)
+  command:
+    argv:
+      - "{{ nym_binary_path }}"
+      - --version
+  register: nym_current_version_cmd
+  failed_when: false
+  changed_when: false
+  when:
+    - nym_node_bin.stat.exists
+    - not ansible_check_mode
+
+# show full current version output instead of trying to parse it
+# show full current version output, line by line
+- name: Show current nym-node version info
+  debug:
+    msg: >-
+      {{
+        [
+          "Current nym-node --version rc: " ~ (nym_current_version_cmd.rc | default('unset') | string),
+          "Current nym-node --version output:"
+        ]
+        + (nym_current_version_cmd.stdout_lines | default([]))
+      }}
+  when:
+    - nym_node_bin.stat.exists
+    - not ansible_check_mode
+
+# ensure backup directory exists
+- name: Ensure backup directory exists
+  file:
+    path: "{{ nym_backup_dir }}"
+    state: directory
+    mode: "0755"
+  when: not ansible_check_mode
+
+# backup existing nym-node binary
+- name: Backup existing nym-node binary
+  copy:
+    src: "{{ nym_binary_path }}"
+    dest: "{{ nym_backup_path }}"
+    remote_src: true
+    mode: "0755"
+  when:
+    - not ansible_check_mode
+    - nym_node_bin.stat.exists
+
+# remove current nym-node binary
+- name: Remove current nym-node binary
+  file:
+    path: "{{ nym_binary_path }}"
+    state: absent
+  when:
+    - not ansible_check_mode
+    - nym_node_bin.stat.exists

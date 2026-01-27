@@ -26,6 +26,7 @@ impl From<&PeerControlRequest> for PeerControlRequestTypeV2 {
     fn from(req: &PeerControlRequest) -> Self {
         match req {
             PeerControlRequest::AddPeer { .. } => PeerControlRequestTypeV2::AddPeer,
+            PeerControlRequest::RegisterPeer { .. } => PeerControlRequestTypeV2::AddPeer,
             PeerControlRequest::RemovePeer { .. } => PeerControlRequestTypeV2::RemovePeer,
             PeerControlRequest::QueryPeer { .. } => PeerControlRequestTypeV2::QueryPeer,
             PeerControlRequest::GetClientBandwidthByKey { .. } => {
@@ -104,6 +105,15 @@ impl MockPeerControllerV2 {
 
         match request {
             PeerControlRequest::AddPeer { response_tx, .. } => {
+                response_tx
+                    .send(
+                        *response
+                            .downcast()
+                            .expect("registered response has mismatched type"),
+                    )
+                    .unwrap();
+            }
+            PeerControlRequest::RegisterPeer { response_tx, .. } => {
                 response_tx
                     .send(
                         *response

@@ -10,6 +10,8 @@ pub mod crypto_hash;
 pub mod hkdf;
 #[cfg(feature = "hashing")]
 pub mod hmac;
+#[cfg(feature = "hashing")]
+pub mod kdf;
 #[cfg(all(feature = "asymmetric", feature = "hashing", feature = "stream_cipher"))]
 pub mod shared_key;
 pub mod symmetric;

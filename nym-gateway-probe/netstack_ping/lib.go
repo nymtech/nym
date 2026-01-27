@@ -135,6 +135,277 @@ func wgFreePtr(ptr unsafe.Pointer) {
 	C.free(ptr)
 }
 
+// TwoHopNetstackRequest contains configuration for two-hop WireGuard tunneling.
+// Traffic flows: Client -> Entry WG Tunnel -> UDP Forwarder -> Exit WG Tunnel -> Internet
+type TwoHopNetstackRequest struct {
+	// Entry tunnel configuration (connects to entry gateway)
+	EntryWgIp       string `json:"entry_wg_ip"`
+	EntryPrivateKey string `json:"entry_private_key"`
+	EntryPublicKey  string `json:"entry_public_key"`
+	EntryEndpoint   string `json:"entry_endpoint"`
+	EntryAwgArgs    string `json:"entry_awg_args"`
+
+	// Exit tunnel configuration (connects via forwarder through entry)
+	ExitWgIp       string `json:"exit_wg_ip"`
+	ExitPrivateKey string `json:"exit_private_key"`
+	ExitPublicKey  string `json:"exit_public_key"`
+	ExitEndpoint   string `json:"exit_endpoint"` // Actual exit gateway endpoint (forwarded via entry)
+	ExitAwgArgs    string `json:"exit_awg_args"`
+
+	// Test parameters (same as single-hop)
+	Dns                string   `json:"dns"`
+	IpVersion          uint8    `json:"ip_version"`
+	PingHosts          []string `json:"ping_hosts"`
+	PingIps            []string `json:"ping_ips"`
+	NumPing            uint8    `json:"num_ping"`
+	SendTimeoutSec     uint64   `json:"send_timeout_sec"`
+	RecvTimeoutSec     uint64   `json:"recv_timeout_sec"`
+	DownloadTimeoutSec uint64   `json:"download_timeout_sec"`
+}
+
+// Default port that exit WG tunnel uses to send traffic to the forwarder.
+// The forwarder only accepts packets from this port on loopback.
+const DEFAULT_EXIT_WG_CLIENT_PORT uint16 = 54001
+
+// Entry tunnel MTU (outer tunnel)
+const ENTRY_MTU = 1420
+
+// Exit tunnel MTU (must be smaller due to double encapsulation)
+const EXIT_MTU = 1340
+
+//export wgPingTwoHop
+func wgPingTwoHop(cReq *C.char) *C.char {
+	reqStr := C.GoString(cReq)
+
+	var req TwoHopNetstackRequest
+	err := json.Unmarshal([]byte(reqStr), &req)
+	if err != nil {
+		log.Printf("Failed to parse two-hop request: %s", err)
+		return jsonError(err)
+	}
+
+	response, err := pingTwoHop(req)
+	if err != nil {
+		log.Printf("Failed to ping (two-hop): %s", err)
+		return jsonError(err)
+	}
+
+	return jsonResponse(response)
+}
+
+func pingTwoHop(req TwoHopNetstackRequest) (NetstackResponse, error) {
+	log.Printf("=== Two-Hop WireGuard Probe ===")
+	log.Printf("Entry endpoint: %s", req.EntryEndpoint)
+	log.Printf("Entry WG IP: %s", req.EntryWgIp)
+	log.Printf("Exit endpoint: %s (via entry forwarding)", req.ExitEndpoint)
+	log.Printf("Exit WG IP: %s", req.ExitWgIp)
+	log.Printf("IP version: %d", req.IpVersion)
+
+	response := NetstackResponse{false, false, 0, 0, 0, 0, false, "", 0, 0, 0, ""}
+
+	// Parse the exit endpoint to determine IP version for forwarder
+	exitEndpoint, err := netip.ParseAddrPort(req.ExitEndpoint)
+	if err != nil {
+		return response, fmt.Errorf("failed to parse exit endpoint: %w", err)
+	}
+
+	// ============================================
+	// STEP 1: Create entry tunnel (netstack)
+	// ============================================
+	log.Printf("Creating entry tunnel (MTU=%d)...", ENTRY_MTU)
+
+	entryTun, entryTnet, err := netstack.CreateNetTUN(
+		[]netip.Addr{netip.MustParseAddr(req.EntryWgIp)},
+		[]netip.Addr{netip.MustParseAddr(req.Dns)},
+		ENTRY_MTU)
+	if err != nil {
+		return response, fmt.Errorf("failed to create entry tunnel: %w", err)
+	}
+
+	entryLogger := device.NewLogger(device.LogLevelError, "entry: ")
+	entryDev := device.NewDevice(entryTun, conn.NewDefaultBind(), entryLogger)
+	defer entryDev.Close()
+
+	// Configure entry device
+	var entryIpc strings.Builder
+	entryIpc.WriteString("private_key=")
+	entryIpc.WriteString(req.EntryPrivateKey)
+	if req.EntryAwgArgs != "" {
+		awg := strings.ReplaceAll(req.EntryAwgArgs, "\\n", "\n")
+		entryIpc.WriteString(fmt.Sprintf("\n%s", awg))
+	}
+	entryIpc.WriteString("\npublic_key=")
+	entryIpc.WriteString(req.EntryPublicKey)
+	entryIpc.WriteString("\nendpoint=")
+	entryIpc.WriteString(req.EntryEndpoint)
+	// Entry tunnel routes all traffic (the exit endpoint IP goes through it)
+	entryIpc.WriteString("\nallowed_ip=0.0.0.0/0")
+	entryIpc.WriteString("\nallowed_ip=::/0\n")
+
+	if err := entryDev.IpcSet(entryIpc.String()); err != nil {
+		return response, fmt.Errorf("failed to configure entry device: %w", err)
+	}
+
+	if err := entryDev.Up(); err != nil {
+		return response, fmt.Errorf("failed to bring up entry device: %w", err)
+	}
+	log.Printf("Entry tunnel up")
+
+	// ============================================
+	// STEP 2: Create UDP forwarder
+	// ============================================
+	log.Printf("Creating UDP forwarder (exit endpoint: %s)...", exitEndpoint.String())
+
+	forwarderConfig := UDPForwarderConfig{
+		ListenPort: 0, // Dynamic port assignment
+		ClientPort: DEFAULT_EXIT_WG_CLIENT_PORT,
+		Endpoint:   exitEndpoint,
+	}
+
+	forwarder, err := NewUDPForwarder(forwarderConfig, entryTnet, entryLogger)
+	if err != nil {
+		return response, fmt.Errorf("failed to create UDP forwarder: %w", err)
+	}
+	defer forwarder.Close()
+
+	forwarderAddr := forwarder.GetListenAddr()
+	log.Printf("UDP forwarder listening on: %s", forwarderAddr.String())
+
+	// ============================================
+	// STEP 3: Create exit tunnel (netstack)
+	// ============================================
+	log.Printf("Creating exit tunnel (MTU=%d)...", EXIT_MTU)
+
+	exitTun, exitTnet, err := netstack.CreateNetTUN(
+		[]netip.Addr{netip.MustParseAddr(req.ExitWgIp)},
+		[]netip.Addr{netip.MustParseAddr(req.Dns)},
+		EXIT_MTU)
+	if err != nil {
+		return response, fmt.Errorf("failed to create exit tunnel: %w", err)
+	}
+
+	exitLogger := device.NewLogger(device.LogLevelError, "exit: ")
+	exitDev := device.NewDevice(exitTun, conn.NewDefaultBind(), exitLogger)
+	defer exitDev.Close()
+
+	// Configure exit device - endpoint is the forwarder, NOT the actual exit gateway
+	var exitIpc strings.Builder
+	exitIpc.WriteString("private_key=")
+	exitIpc.WriteString(req.ExitPrivateKey)
+	// Set listen_port so the forwarder knows which port to accept packets from
+	exitIpc.WriteString(fmt.Sprintf("\nlisten_port=%d", DEFAULT_EXIT_WG_CLIENT_PORT))
+	if req.ExitAwgArgs != "" {
+		awg := strings.ReplaceAll(req.ExitAwgArgs, "\\n", "\n")
+		exitIpc.WriteString(fmt.Sprintf("\n%s", awg))
+	}
+	exitIpc.WriteString("\npublic_key=")
+	exitIpc.WriteString(req.ExitPublicKey)
+	// IMPORTANT: endpoint is the local forwarder, not the actual exit gateway!
+	exitIpc.WriteString("\nendpoint=")
+	exitIpc.WriteString(forwarderAddr.String())
+	if req.IpVersion == 4 {
+		exitIpc.WriteString("\nallowed_ip=0.0.0.0/0\n")
+	} else {
+		exitIpc.WriteString("\nallowed_ip=::/0\n")
+	}
+
+	if err := exitDev.IpcSet(exitIpc.String()); err != nil {
+		return response, fmt.Errorf("failed to configure exit device: %w", err)
+	}
+
+	if err := exitDev.Up(); err != nil {
+		return response, fmt.Errorf("failed to bring up exit device: %w", err)
+	}
+	log.Printf("Exit tunnel up (via forwarder)")
+
+	// If we got here, both tunnels and forwarder are set up
+	response.CanHandshake = true
+	log.Printf("Two-hop tunnel setup complete!")
+
+	// ============================================
+	// STEP 4: Run tests through exit tunnel
+	// ============================================
+	log.Printf("Running tests through exit tunnel...")
+
+	// Ping hosts (DNS resolution test)
+	for _, host := range req.PingHosts {
+		consecutiveFailures := 0
+		maxConsecutiveFailures := 3
+
+		for i := uint8(0); i < req.NumPing; i++ {
+			log.Printf("Pinging %s seq=%d (via two-hop)", host, i)
+			response.SentHosts += 1
+			rt, err := sendPing(host, i, req.SendTimeoutSec, req.RecvTimeoutSec, exitTnet, req.IpVersion)
+			if err != nil {
+				log.Printf("Failed to send ping: %v", err)
+				consecutiveFailures++
+				if consecutiveFailures >= maxConsecutiveFailures {
+					log.Printf("Too many consecutive failures (%d), stopping ping attempts for %s", consecutiveFailures, host)
+					break
+				}
+				continue
+			}
+			consecutiveFailures = 0
+			response.ReceivedHosts += 1
+			response.CanResolveDns = true
+			log.Printf("Ping latency: %v", rt)
+		}
+	}
+
+	// Ping IPs (direct connectivity test)
+	for _, ip := range req.PingIps {
+		consecutiveFailures := 0
+		maxConsecutiveFailures := 3
+
+		for i := uint8(0); i < req.NumPing; i++ {
+			log.Printf("Pinging %s seq=%d (via two-hop)", ip, i)
+			response.SentIps += 1
+			rt, err := sendPing(ip, i, req.SendTimeoutSec, req.RecvTimeoutSec, exitTnet, req.IpVersion)
+			if err != nil {
+				log.Printf("Failed to send ping: %v", err)
+				consecutiveFailures++
+				if consecutiveFailures >= maxConsecutiveFailures {
+					log.Printf("Too many consecutive failures (%d), stopping ping attempts for %s", consecutiveFailures, ip)
+					break
+				}
+			} else {
+				consecutiveFailures = 0
+				response.ReceivedIps += 1
+				log.Printf("Ping latency: %v", rt)
+			}
+
+			if i < req.NumPing-1 {
+				time.Sleep(5 * time.Second)
+			}
+		}
+	}
+
+	// Download test
+	var urlsToTry []string
+	if req.IpVersion == 4 {
+		urlsToTry = fileUrls
+	} else {
+		urlsToTry = fileUrlsV6
+	}
+
+	fileContent, downloadDuration, usedURL, err := downloadFileWithRetry(urlsToTry, req.DownloadTimeoutSec, exitTnet)
+	if err != nil {
+		log.Printf("Failed to download file from any URL: %v", err)
+		response.DownloadError = err.Error()
+	} else {
+		log.Printf("Downloaded file content length: %.2f MB", float64(len(fileContent))/1024/1024)
+		log.Printf("Download duration: %v", downloadDuration)
+		response.DownloadedFileSizeBytes = uint64(len(fileContent))
+	}
+
+	response.DownloadDurationSec = uint64(downloadDuration.Seconds())
+	response.DownloadDurationMilliseconds = uint64(downloadDuration.Milliseconds())
+	response.DownloadedFile = usedURL
+
+	log.Printf("=== Two-Hop Probe Complete ===")
+	return response, nil
+}
+
 func ping(req NetstackRequestGo) (NetstackResponse, error) {
 	fmt.Printf("Endpoint: %s\n", req.Endpoint)
 	fmt.Printf("WireGuard IP: %s\n", req.WgIp)

@@ -12,6 +12,7 @@ use nym_http_api_common::middleware::logging;
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::{Bridges, Gateway};
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
+use nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol;
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
@@ -52,6 +53,7 @@ impl HttpServerConfig {
                     network_requester: Default::default(),
                     ip_packet_router: Default::default(),
                     authenticator: Default::default(),
+                    lewes_protocol: Default::default(),
                 },
             },
         }
@@ -123,10 +125,17 @@ impl HttpServerConfig {
         self
     }
 
+    #[must_use]
     pub fn with_bridge_client_params_file(mut self, path: &Path) -> Self {
         self.api.v1_config.bridges.details = Some(Bridges {
             client_params_path: path.to_string_lossy().to_string(),
         });
+        self
+    }
+
+    #[must_use]
+    pub fn with_lewes_protocol(mut self, lewes_protocol: LewesProtocol) -> Self {
+        self.api.v1_config.lewes_protocol.details = Some(lewes_protocol);
         self
     }
 }

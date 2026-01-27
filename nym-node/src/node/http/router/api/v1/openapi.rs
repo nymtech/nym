@@ -36,6 +36,7 @@ use utoipa_swagger_ui::SwaggerUi;
         crate::node::http::router::api::v1::gateway::client_interfaces::mixnet_websockets,
         crate::node::http::router::api::v1::gateway::client_interfaces::wireguard_details,
         crate::node::http::router::api::v1::gateway::root::root_gateway,
+        crate::node::http::router::api::v1::lewes_protocol::root::root_lewes_protocol,
 
     ),
     components(
@@ -75,6 +76,7 @@ use utoipa_swagger_ui::SwaggerUi;
             api_requests::v1::network_requester::exit_policy::models::PortRange,
             api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy,
             api_requests::v1::ip_packet_router::models::IpPacketRouter,
+            api_requests::v1::lewes_protocol::models::LewesProtocol,
         ),
     ),
     modifiers(&SecurityAddon),

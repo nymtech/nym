@@ -15,6 +15,8 @@ pub struct Config {
 
     pub upgrade_mode_watcher: UpgradeModeWatcher,
 
+    pub lp: crate::node::lp_listener::LpConfig,
+
     pub debug: Debug,
 }
 
@@ -24,6 +26,7 @@ impl Config {
         network_requester: impl Into<NetworkRequester>,
         ip_packet_router: impl Into<IpPacketRouter>,
         upgrade_mode_watcher: impl Into<UpgradeModeWatcher>,
+        lp: impl Into<crate::node::lp_listener::LpConfig>,
         debug: impl Into<Debug>,
     ) -> Self {
         Config {
@@ -31,6 +34,7 @@ impl Config {
             network_requester: network_requester.into(),
             ip_packet_router: ip_packet_router.into(),
             upgrade_mode_watcher: upgrade_mode_watcher.into(),
+            lp: lp.into(),
             debug: debug.into(),
         }
     }

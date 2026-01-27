@@ -14,10 +14,10 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::client::config::GatewayClientConfig;
-use nym_gateway_client::client::GatewayConfig;
+use nym_gateway_client::client::{GatewayConfig, GatewayListeners};
 use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::{
-    AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter, SharedGatewayKey,
+    AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter, SharedSymmetricKey,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
@@ -30,6 +30,7 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 use tracing::{debug, error, info, trace, warn};
+use url::Url;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
@@ -58,14 +59,17 @@ impl GatewayPackets {
         }
     }
 
-    pub(crate) fn gateway_config(&self) -> Option<GatewayConfig> {
-        self.clients_address
-            .clone()
-            .map(|gateway_listener| GatewayConfig {
+    pub(crate) fn gateway_config(&self) -> Result<Option<GatewayConfig>, url::ParseError> {
+        match self.clients_address.as_ref() {
+            Some(gateway_listener) => Ok(Some(GatewayConfig {
                 gateway_identity: self.pub_key,
-                gateway_owner: None,
-                gateway_listener,
-            })
+                gateway_listeners: GatewayListeners {
+                    primary: Url::parse(gateway_listener)?,
+                    fallback: None,
+                },
+            })),
+            None => Ok(None),
+        }
     }
 
     pub(crate) fn empty(clients_address: Option<String>, pub_key: ed25519::PublicKey) -> Self {
@@ -96,7 +100,7 @@ struct FreshGatewayClientData {
     gateway_response_timeout: Duration,
     bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
     disabled_credentials_mode: bool,
-    gateways_key_cache: DashMap<ed25519::PublicKey, Arc<SharedGatewayKey>>,
+    gateways_key_cache: DashMap<ed25519::PublicKey, Arc<SharedSymmetricKey>>,
 }
 
 impl FreshGatewayClientData {
@@ -267,7 +271,7 @@ impl PacketSender {
         connection_timeout: Duration,
         bandwidth_claim_timeout: Duration,
         client: &mut GatewayClientHandle,
-    ) -> Option<Arc<SharedGatewayKey>> {
+    ) -> Option<Arc<SharedSymmetricKey>> {
         let gateway_identity = client.gateway_identity();
 
         // 1. attempt to authenticate
@@ -365,9 +369,16 @@ impl PacketSender {
     ) -> Option<GatewayClientHandle> {
         let identity = packets.pub_key;
 
-        let Some(gateway_config) = packets.gateway_config() else {
-            warn!("gateway {identity} didn't provide valid entry information");
-            return None;
+        let gateway_config = match packets.gateway_config() {
+            Ok(Some(gateway_config)) => gateway_config,
+            Ok(None) => {
+                warn!("gateway {identity} didn't provide valid entry information");
+                return None;
+            }
+            Err(e) => {
+                warn!("Error while parsing entry information for gateway {identity} : {e}");
+                return None;
+            }
         };
 
         let (mut client, gateway_channels) =

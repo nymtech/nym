@@ -1,0 +1,15 @@
+[Unit]
+Description=Nym Node
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User={{ ansible_user }}
+LimitNOFILE=65536
+ExecStart=/root/nym-binaries/nym-node run --mode {{ mode }} --accept-operator-terms-and-conditions --wireguard-enabled {{ (wireguard_enabled | default(false) | bool) | ternary('true','false') }}
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

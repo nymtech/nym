@@ -15,6 +15,7 @@ client_defaults!(
 
 #[cfg(unix)]
 #[tokio::main]
+#[allow(clippy::exit)] // Intentional exit on error for CLI tool
 async fn main() -> anyhow::Result<()> {
     match run::run().await {
         Ok(ref result) => {
@@ -31,6 +32,7 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(not(unix))]
 #[tokio::main]
+#[allow(clippy::exit)] // Intentional exit for unsupported platform
 async fn main() -> anyhow::Result<()> {
     eprintln!("This tool is only supported on Unix systems");
     std::process::exit(1)

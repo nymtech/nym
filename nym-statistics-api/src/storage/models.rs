@@ -2,7 +2,9 @@ use std::net::IpAddr;
 
 use axum_extra::headers::UserAgent;
 use celes::Country;
-use nym_statistics_common::report::vpn_client::{VpnClientStatsReport, VpnClientStatsReportV2};
+use nym_statistics_common::report::vpn_client::{
+    ActiveDeviceReport, VpnClientStatsReport, VpnClientStatsReportV2,
+};
 use time::{Date, OffsetDateTime};
 
 pub type StatsId = String;
@@ -50,6 +52,24 @@ impl DailyActiveDeviceDto {
             os_version: stats_report.static_information.os_version.clone(),
             os_arch: stats_report.static_information.os_arch.clone(),
             app_version: stats_report.static_information.app_version.clone(),
+            user_agent: user_agent.to_string(),
+            from_mixnet,
+        }
+    }
+
+    pub(crate) fn from_active_device_report(
+        received_at: OffsetDateTime,
+        report: &ActiveDeviceReport,
+        user_agent: UserAgent,
+        from_mixnet: bool,
+    ) -> Self {
+        Self {
+            day: received_at.date(),
+            stats_id: report.stats_id.clone(),
+            os_type: report.static_information.os_type.clone(),
+            os_version: report.static_information.os_version.clone(),
+            os_arch: report.static_information.os_arch.clone(),
+            app_version: report.static_information.app_version.clone(),
             user_agent: user_agent.to_string(),
             from_mixnet,
         }
@@ -129,6 +149,7 @@ pub(crate) struct StatsReportV2Dto {
     pub(crate) session_duration_min: i32,
     pub(crate) disconnection_time_ms: i32,
     pub(crate) exit_id: String,
+    pub(crate) exit_cc: Option<String>,
     pub(crate) follow_up_id: Option<String>,
     pub(crate) error: Option<String>,
 }
@@ -161,6 +182,7 @@ impl StatsReportV2Dto {
             session_duration_min: stats_report.session_report.session_duration_min,
             disconnection_time_ms: stats_report.session_report.disconnection_time_ms,
             exit_id: stats_report.session_report.exit_id.clone(),
+            exit_cc: stats_report.session_report.exit_cc.clone(),
             follow_up_id: stats_report.session_report.follow_up_id.clone(),
             error: stats_report.session_report.error.clone(),
         }

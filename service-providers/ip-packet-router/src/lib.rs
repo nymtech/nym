@@ -17,6 +17,7 @@ pub(crate) mod non_linux_dummy;
 mod clients;
 mod constants;
 mod ip_packet_router;
+mod kcp_session_manager;
 mod mixnet_client;
 mod mixnet_listener;
 mod tun_listener;

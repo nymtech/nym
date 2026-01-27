@@ -18,7 +18,7 @@ jobs:
       release_tag: ${{ github.ref_name }}
       
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install system dependencies
         run: |
@@ -33,10 +33,10 @@ jobs:
           node-version: 21
           cache: 'yarn'
       
-      - name: Install Rust stable
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
       
       - name: Install project dependencies
         shell: bash
@@ -97,7 +97,7 @@ jobs:
           fi
       
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nym-wallet-appimage.tar.gz
           path: |

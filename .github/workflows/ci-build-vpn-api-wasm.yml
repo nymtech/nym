@@ -15,13 +15,13 @@ jobs:
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy

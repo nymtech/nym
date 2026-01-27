@@ -5,7 +5,7 @@
 
 use crate::client::base_client::storage::helpers::{
     has_gateway_details, load_active_gateway_details, load_client_keys, load_gateway_details,
-    store_gateway_details,
+    store_gateway_details, update_stored_published_data_gateway,
 };
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
@@ -16,8 +16,8 @@ use crate::init::helpers::{
 use crate::init::types::{
     GatewaySelectionSpecification, GatewaySetup, InitialisationResult, SelectedGateway,
 };
-use nym_client_core_gateways_storage::GatewaysDetailsStore;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewayRegistration};
+use nym_client_core_gateways_storage::{GatewayPublishedData, GatewaysDetailsStore};
 use nym_gateway_client::client::InitGatewayClient;
 use nym_topology::node::RoutingNode;
 use rand::rngs::OsRng;
@@ -71,21 +71,28 @@ where
     let mut rng = OsRng;
 
     let selected_gateway = match selection_specification {
-        GatewaySelectionSpecification::UniformRemote { must_use_tls } => {
+        GatewaySelectionSpecification::UniformRemote {
+            must_use_tls,
+            no_hostname,
+        } => {
             let gateway = uniformly_random_gateway(&mut rng, &available_gateways, must_use_tls)?;
-            SelectedGateway::from_topology_node(gateway, must_use_tls)?
+            SelectedGateway::from_topology_node(gateway, must_use_tls, no_hostname)?
         }
-        GatewaySelectionSpecification::RemoteByLatency { must_use_tls } => {
+        GatewaySelectionSpecification::RemoteByLatency {
+            must_use_tls,
+            no_hostname,
+        } => {
             let gateway =
                 choose_gateway_by_latency(&mut rng, &available_gateways, must_use_tls).await?;
-            SelectedGateway::from_topology_node(gateway, must_use_tls)?
+            SelectedGateway::from_topology_node(gateway, must_use_tls, no_hostname)?
         }
         GatewaySelectionSpecification::Specified {
             must_use_tls,
+            no_hostname,
             identity,
         } => {
             let gateway = get_specified_gateway(&identity, &available_gateways, must_use_tls)?;
-            SelectedGateway::from_topology_node(gateway, must_use_tls)?
+            SelectedGateway::from_topology_node(gateway, must_use_tls, no_hostname)?
         }
         GatewaySelectionSpecification::Custom {
             gateway_identity,
@@ -105,15 +112,15 @@ where
     let (gateway_details, authenticated_ephemeral_client) = match selected_gateway {
         SelectedGateway::Remote {
             gateway_id,
-            gateway_owner_address,
-            gateway_listener,
+
+            gateway_listeners,
         } => {
             // if we're using a 'normal' gateway setup, do register
             let our_identity = client_keys.identity_keypair();
 
             let registration = helpers::register_with_gateway(
                 gateway_id,
-                gateway_listener.clone(),
+                gateway_listeners.clone(),
                 our_identity,
                 #[cfg(unix)]
                 connection_fd_callback,
@@ -123,8 +130,7 @@ where
                 GatewayDetails::new_remote(
                     gateway_id,
                     registration.shared_keys,
-                    gateway_owner_address,
-                    gateway_listener,
+                    GatewayPublishedData::new(gateway_listeners),
                 ),
                 Some(registration.authenticated_ephemeral_client),
             )
@@ -148,6 +154,46 @@ where
         client_keys,
         authenticated_ephemeral_client,
     })
+}
+
+pub async fn refresh_gateway_published_data<D>(
+    details_store: &D,
+    registration: GatewayRegistration,
+    available_gateways: Vec<RoutingNode>,
+    must_use_tls: bool,
+    no_hostname: bool,
+) -> Result<(), ClientCoreError>
+where
+    D: GatewaysDetailsStore,
+    D::StorageError: Send + Sync + 'static,
+{
+    let gateway_id = registration.gateway_id().to_base58_string();
+    tracing::trace!("Updating gateway details : {gateway_id}");
+
+    let gateway = get_specified_gateway(&gateway_id, &available_gateways, must_use_tls)?;
+    let selected_gateway = SelectedGateway::from_topology_node(gateway, must_use_tls, no_hostname)?;
+
+    let new_gateway_listeners = match selected_gateway {
+        SelectedGateway::Remote {
+            gateway_listeners, ..
+        } => gateway_listeners,
+        SelectedGateway::Custom { .. } => {
+            // this should not happen, as `from_topology_node` returns a Remote
+            Err(ClientCoreError::UnexpectedCustomGatewaySelection)?
+        }
+    };
+
+    let new_published_data = GatewayPublishedData::new(new_gateway_listeners);
+
+    // update gateway details
+    update_stored_published_data_gateway(
+        details_store,
+        &registration.gateway_id(),
+        &new_published_data,
+    )
+    .await?;
+
+    Ok(())
 }
 
 async fn use_loaded_gateway_details<K, D>(

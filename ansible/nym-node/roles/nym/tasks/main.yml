@@ -1,0 +1,12 @@
+---
+- name: Install Nym binaries
+  import_tasks: install.yml
+
+- name: Configure Nym node
+  import_tasks: config.yml
+
+- name: Configure firewall for Nym
+  import_tasks: firewall.yml
+
+- name: Configure and start Nym service
+  import_tasks: service.yml

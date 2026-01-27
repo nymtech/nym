@@ -16,12 +16,12 @@ jobs:
       CARGO_TERM_COLOR: always
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
 
       - name: Generate the schema
         run: make contract-schema

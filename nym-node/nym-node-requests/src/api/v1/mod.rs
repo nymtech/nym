@@ -5,6 +5,7 @@ pub mod authenticator;
 pub mod gateway;
 pub mod health;
 pub mod ip_packet_router;
+pub mod lewes_protocol;
 pub mod metrics;
 pub mod mixnode;
 pub mod network;

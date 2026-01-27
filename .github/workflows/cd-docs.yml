@@ -10,7 +10,7 @@ jobs:
       run:
         working-directory: documentation/docs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler git python3 && sudo apt-get update --fix-missing
       - name: Install pip3
@@ -21,16 +21,16 @@ jobs:
         run: sudo apt-get install -y rsync
       - uses: rlespinasse/github-slug-action@v3.x
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.1.0
+        uses: pnpm/action-setup@v4.2.0
         with:
           version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install Rust stable
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
       - name: Build all binaries
         uses: actions-rs/cargo@v1
         with:

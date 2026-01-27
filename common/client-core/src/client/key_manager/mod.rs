@@ -6,7 +6,7 @@ use nym_crypto::{
     asymmetric::{ed25519, x25519},
     hkdf::{DerivationMaterial, InvalidLength},
 };
-use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_sphinx::acknowledgements::AckKey;
 use rand::{CryptoRng, RngCore};
 use std::sync::Arc;
@@ -106,7 +106,5 @@ fn _assert_keys_zeroize_on_drop() {
     _assert_zeroize_on_drop::<ed25519::KeyPair>();
     _assert_zeroize_on_drop::<x25519::KeyPair>();
     _assert_zeroize_on_drop::<AckKey>();
-    _assert_zeroize_on_drop::<LegacySharedKeys>();
     _assert_zeroize_on_drop::<SharedSymmetricKey>();
-    _assert_zeroize_on_drop::<SharedGatewayKey>();
 }

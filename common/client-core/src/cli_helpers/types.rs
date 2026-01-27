@@ -15,6 +15,7 @@ pub struct GatewayInfo {
 
     pub typ: String,
     pub endpoint: Option<Url>,
+    pub fallback_endpoint: Option<Url>,
 }
 
 impl Display for GatewayInfo {
@@ -29,6 +30,9 @@ impl Display for GatewayInfo {
         )?;
         if let Some(endpoint) = &self.endpoint {
             write!(f, " endpoint: {endpoint}")?;
+        }
+        if let Some(fallback_endpoint) = &self.fallback_endpoint {
+            write!(f, " fallback: {fallback_endpoint}")?;
         }
         Ok(())
     }

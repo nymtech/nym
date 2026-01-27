@@ -1,0 +1,8 @@
+- name: Prepare for nym-node upgrade (backup, stop service)
+  include_tasks: prepare.yml
+
+- name: Fetch and install latest nym-node binary
+  include_tasks: fetch_latest.yml
+
+- name: Verify new nym-node and finalize (restart or rollback)
+  include_tasks: finalize.yml

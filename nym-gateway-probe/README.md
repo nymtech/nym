@@ -17,67 +17,127 @@ sudo apt install libdbus-1-dev libmnl-dev libnftnl-dev protobuf-compiler llvm-de
 Build required libraries and executables
 
 ```sh
-# build the prober
 cargo build -p nym-gateway-probe
 ```
 
+## Test Modes
+
+The probe supports different test modes via the `--mode` flag:
+
+| Mode | Description |
+|------|-------------|
+| `mixnet` | Traditional mixnet testing - entry/exit pings + WireGuard via authenticator (default) |
+| `single-hop` | LP registration + WireGuard on single gateway (no mixnet) |
+| `two-hop` | Entry LP + Exit LP (nested forwarding) + WireGuard tunnel |
+| `lp-only` | LP registration only - test handshake, skip WireGuard |
+
 ## Usage
 
-```sh
-Usage: nym-gateway-probe [OPTIONS]
+### Standard Mode (via nym-api)
 
-Options:
-  -c, --config-env-file <CONFIG_ENV_FILE>
-          Path pointing to an env file describing the network
-  -g, --entry-gateway <ENTRY_GATEWAY>
-          The specific gateway specified by ID
-  -n, --node <NODE>
-          Identity of the node to test
-      --min-gateway-mixnet-performance <MIN_GATEWAY_MIXNET_PERFORMANCE>
-          
-      --min-gateway-vpn-performance <MIN_GATEWAY_VPN_PERFORMANCE>
-          
-      --only-wireguard
-          
-  -i, --ignore-egress-epoch-role
-          Disable logging during probe
-      --no-log
-          
-  -a, --amnezia-args <AMNEZIA_ARGS>
-          Arguments to be appended to the wireguard config enabling amnezia-wg configuration
-      
-      --netstack-download-timeout-sec <NETSTACK_DOWNLOAD_TIMEOUT_SEC>
-          [default: 180]
-      --netstack-v4-dns <NETSTACK_V4_DNS>
-          [default: 1.1.1.1]
-      --netstack-v6-dns <NETSTACK_V6_DNS>
-          [default: 2606:4700:4700::1111]
-      --netstack-num-ping <NETSTACK_NUM_PING>
-          [default: 5]
-      --netstack-send-timeout-sec <NETSTACK_SEND_TIMEOUT_SEC>
-          [default: 3]
-      --netstack-recv-timeout-sec <NETSTACK_RECV_TIMEOUT_SEC>
-          [default: 3]
-      --netstack-ping-hosts-v4 <NETSTACK_PING_HOSTS_V4>
-          [default: nymtech.net]
-      --netstack-ping-ips-v4 <NETSTACK_PING_IPS_V4>
-          [default: 1.1.1.1]
-      --netstack-ping-hosts-v6 <NETSTACK_PING_HOSTS_V6>
-          [default: ipv6.google.com]
-      --netstack-ping-ips-v6 <NETSTACK_PING_IPS_V6>
-          [default: 2001:4860:4860::8888 2606:4700:4700::1111 2620:fe::fe]
-  -h, --help
-          Print help
-  -V, --version
-          Print version
-```
-
-Examples
+Test gateways registered in nym-api directory:
 
 ```sh
-# Run a basic probe against the node with id "qj3GgGYg..."
+# Test a specific gateway (mixnet mode)
 nym-gateway-probe -g "qj3GgGYgGZZ3HkFrtD1GU9UJ5oNXME9eD2xtmPLqYYw"
 
-# Run a probe against the node with id "qj3GgGYg..." using amnezia with junk packets enabled.
-nym-gateway-probe -g "qj3GgGYgGZZ3HkFrtD1GU9UJ5oNXME9eD2xtmPLqYYw" -a "jc=4\njmin=40\njmax=70\n"
+# Test with amnezia WireGuard
+nym-gateway-probe -g "qj3GgGYg..." -a "jc=4\njmin=40\njmax=70\n"
+
+# WireGuard only (skip entry/exit ping tests)
+nym-gateway-probe -g "qj3GgGYg..." --only-wireguard
+```
+
+### Localnet Mode (run-local)
+
+Test gateways directly by IP/identity without nym-api:
+
+```sh
+# Single-hop: LP registration + WireGuard on one gateway
+nym-gateway-probe run-local \
+  --entry-gateway-identity "8yGm5h2KgNwrPgRRxjT2DhXQFCnADkHVyE5FYS4LHWLC" \
+  --entry-lp-address "192.168.66.6:41264" \
+  --mode single-hop \
+  --use-mock-ecash
+
+# Two-hop: Entry + Exit LP forwarding + WireGuard
+nym-gateway-probe run-local \
+  --entry-gateway-identity "$ENTRY_ID" \
+  --entry-lp-address "192.168.66.6:41264" \
+  --exit-gateway-identity "$EXIT_ID" \
+  --exit-lp-address "192.168.66.7:41264" \
+  --mode two-hop \
+  --use-mock-ecash
+
+# LP-only: Test handshake and registration only
+nym-gateway-probe run-local \
+  --entry-gateway-identity "$GATEWAY_ID" \
+  --entry-lp-address "localhost:41264" \
+  --mode lp-only \
+  --use-mock-ecash
+```
+
+**Note:** `--use-mock-ecash` requires gateways started with `--lp-use-mock-ecash`.
+
+### Split Network Configuration
+
+For docker/container setups where entry and exit are on different networks:
+
+```sh
+# Entry reachable from host, exit only reachable from entry's internal network
+nym-gateway-probe run-local \
+  --entry-gateway-identity "$ENTRY_ID" \
+  --entry-lp-address "192.168.66.6:41264" \     # Host → Entry
+  --exit-gateway-identity "$EXIT_ID" \
+  --exit-lp-address "172.18.0.5:41264" \        # Entry → Exit (internal)
+  --mode two-hop \
+  --use-mock-ecash
+```
+
+## CLI Reference
+
+```
+Usage: nym-gateway-probe [OPTIONS] [COMMAND]
+
+Commands:
+  run-local  Run probe in localnet mode (direct IP, no nym-api)
+
+Options:
+  -c, --config-env-file <PATH>     Path to env file describing the network
+  -g, --entry-gateway <ID>         Entry gateway identity (base58)
+  -n, --node <ID>                  Node to test (defaults to entry gateway)
+      --gateway-ip <IP>            Query gateway directly by IP (skip nym-api)
+      --exit-gateway-ip <IP>       Exit gateway IP for two-hop testing
+      --mode <MODE>                Test mode: mixnet, single-hop, two-hop, lp-only
+      --only-wireguard             Skip ping tests, only test WireGuard
+      --only-lp-registration       Test LP registration only (legacy flag)
+      --test-lp-wg                 Test LP + WireGuard (legacy flag)
+  -a, --amnezia-args <ARGS>        Amnezia WireGuard config arguments
+      --no-log                     Disable logging
+  -h, --help                       Print help
+  -V, --version                    Print version
+
+Localnet Options (run-local):
+      --entry-gateway-identity <ID>    Entry gateway Ed25519 identity
+      --entry-lp-address <HOST:PORT>   Entry gateway LP listener address
+      --exit-gateway-identity <ID>     Exit gateway Ed25519 identity
+      --exit-lp-address <HOST:PORT>    Exit gateway LP listener address
+      --use-mock-ecash                 Use mock credentials (dev only)
+```
+
+## Output
+
+The probe outputs JSON with test results:
+
+```json
+{
+  "node": "gateway-identity",
+  "used_entry": "entry-gateway-identity",
+  "outcome": {
+    "as_entry": { "can_connect": true, "can_route": true },
+    "as_exit": { "can_connect": true, "can_route_ip_v4": true, "can_route_ip_v6": true },
+    "wg": { "can_register": true, "can_handshake_v4": true, "can_handshake_v6": true },
+    "lp": { "can_connect": true, "can_handshake": true, "can_register": true }
+  }
+}
 ```

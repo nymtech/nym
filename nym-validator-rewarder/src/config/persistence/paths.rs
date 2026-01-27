@@ -46,6 +46,7 @@ impl ValidatorRewarderPaths {
 impl Default for ValidatorRewarderPaths {
     fn default() -> Self {
         ValidatorRewarderPaths {
+            // validator rewarder uses sqlite
             nyxd_scraper: default_data_directory().join(DEFAULT_SCRAPER_DB_FILENAME),
             reward_history: default_data_directory().join(DEFAULT_REWARD_HISTORY_DB_FILENAME),
             private_ed25519_identity_key_file: default_data_directory()

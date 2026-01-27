@@ -8,6 +8,7 @@ use nym_credentials::ecash::utils::{EcashTime, cred_exp_date, ecash_today};
 use nym_credentials_interface::{Bandwidth, ClientTicket, TicketType};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use std::sync::Arc;
+use std::time::Instant;
 use time::{Date, OffsetDateTime};
 use tracing::*;
 
@@ -20,6 +21,10 @@ mod client_bandwidth;
 pub mod ecash;
 pub mod error;
 pub mod upgrade_mode;
+
+// Histogram buckets for ecash verification duration (in seconds)
+const ECASH_VERIFICATION_DURATION_BUCKETS: &[f64] =
+    &[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0];
 
 pub struct CredentialVerifier {
     credential: CredentialSpendingRequest,
@@ -64,6 +69,7 @@ impl CredentialVerifier {
             .await?;
         if spent {
             trace!("the credential has already been spent before at this gateway");
+            nym_metrics::inc!("ecash_verification_failures_double_spending");
             return Err(Error::BandwidthCredentialAlreadySpent);
         }
         Ok(())
@@ -105,6 +111,9 @@ impl CredentialVerifier {
     }
 
     pub async fn verify(&mut self) -> Result<i64> {
+        let start = Instant::now();
+        nym_metrics::inc!("ecash_verification_attempts");
+
         let received_at = OffsetDateTime::now_utc();
         let spend_date = ecash_today();
 
@@ -113,15 +122,39 @@ impl CredentialVerifier {
         let credential_type = TicketType::try_from_encoded(self.credential.data.payment.t_type)?;
 
         if self.credential.data.payment.spend_value != 1 {
+            nym_metrics::inc!("ecash_verification_failures_multiple_tickets");
             return Err(Error::MultipleTickets);
         }
 
-        self.check_credential_spending_date(spend_date.ecash_date())?;
+        if let Err(e) = self.check_credential_spending_date(spend_date.ecash_date()) {
+            nym_metrics::inc!("ecash_verification_failures_invalid_spend_date");
+            return Err(e);
+        }
+
         self.check_local_db_for_double_spending(&serial_number)
             .await?;
 
         // TODO: do we HAVE TO do it?
-        self.cryptographically_verify_ticket().await?;
+        let verify_result = self.cryptographically_verify_ticket().await;
+
+        // Track verification duration
+        let duration = start.elapsed().as_secs_f64();
+        nym_metrics::add_histogram_obs!(
+            "ecash_verification_duration_seconds",
+            duration,
+            ECASH_VERIFICATION_DURATION_BUCKETS
+        );
+
+        // Track epoch ID - use dynamic metric name via registry
+        let epoch_id = self.credential.data.epoch_id;
+        let epoch_metric = format!(
+            "nym_credential_verification_ecash_epoch_{}_verifications",
+            epoch_id
+        );
+        nym_metrics::metrics_registry().maybe_register_and_inc(&epoch_metric, None);
+
+        // Check verification result after timing
+        verify_result?;
 
         let ticket_id = self.store_received_ticket(received_at).await?;
         self.async_verify_ticket(ticket_id);
@@ -134,6 +167,8 @@ impl CredentialVerifier {
         self.bandwidth_storage_manager
             .increase_bandwidth(bandwidth, cred_exp_date())
             .await?;
+
+        nym_metrics::inc!("ecash_verification_success");
 
         Ok(self
             .bandwidth_storage_manager

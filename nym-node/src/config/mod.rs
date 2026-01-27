@@ -958,6 +958,12 @@ pub struct Wireguard {
     /// The maximum value for IPv6 is 128
     pub private_network_prefix_v6: u8,
 
+    /// Use userspace implementation of WireGuard (wireguard-go) instead of kernel module.
+    /// Useful in containerized environments without kernel WireGuard support.
+    /// default: `false`
+    #[serde(default)]
+    pub use_userspace: bool,
+
     /// Paths for wireguard keys, client registries, etc.
     pub storage_paths: persistence::WireguardPaths,
 }
@@ -973,6 +979,7 @@ impl Wireguard {
             announced_metadata_port: WG_METADATA_PORT,
             private_network_prefix_v4: WG_TUN_DEVICE_NETMASK_V4,
             private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
+            use_userspace: false,
             storage_paths: persistence::WireguardPaths::new(data_dir),
         }
     }

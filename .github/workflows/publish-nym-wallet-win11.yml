@@ -27,12 +27,12 @@ jobs:
       release_tag: ${{ github.ref_name }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Install Rust stable
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
 
       - name: Setup MSBuild.exe
         uses: microsoft/setup-msbuild@v2
@@ -128,7 +128,7 @@ jobs:
           find . -name "*.msi" -type f
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nym-wallet.msi
           path: |

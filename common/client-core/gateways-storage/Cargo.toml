@@ -9,7 +9,6 @@ rust-version.workspace = true
 
 [dependencies]
 async-trait.workspace = true
-cosmrs.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 time.workspace = true
@@ -20,6 +19,7 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 nym-crypto = { path = "../../crypto", features = ["asymmetric"] }
 nym-gateway-requests = { path = "../../gateway-requests" }
+nym-gateway-client = { path = "../../client-libs/gateway-client" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true

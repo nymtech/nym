@@ -487,6 +487,25 @@ configure_dns_and_icmp_wg() {
   ok "dns and icmp configuration completed"
 }
 
+apply_smtps_465_rate_limit() {
+  info "adding SMTPS tcp/465 rules with rate limiting to ${NYM_CHAIN}"
+
+  # IPv4
+  iptables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+  iptables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -m hashlimit \
+    --hashlimit-upto 30/min --hashlimit-burst 60 --hashlimit-mode srcip --hashlimit-name smtps465v4 -j ACCEPT
+  iptables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -j REJECT --reject-with tcp-reset
+
+  # IPv6
+  ip6tables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+  ip6tables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -m hashlimit \
+    --hashlimit-upto 30/min --hashlimit-burst 60 --hashlimit-mode srcip --hashlimit-name smtps465v6 -j ACCEPT
+  ip6tables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -j REJECT --reject-with tcp-reset
+
+  ok "SMTPS tcp/465 installed: NEW <= 30/min burst 60 per srcip; overflow rejected; ESTABLISHED allowed"
+}
+
+
 ###############################################################################
 # part 2: wireguard exit policy manager
 ###############################################################################
@@ -527,6 +546,7 @@ exit_policy_install_deps() {
 create_nym_chain() {
   info "creating nym exit policy chain $NYM_CHAIN"
 
+  # create/flush chain
   if iptables -S "$NYM_CHAIN" >/dev/null 2>&1; then
     iptables -F "$NYM_CHAIN"
   else
@@ -539,14 +559,24 @@ create_nym_chain() {
     ip6tables -N "$NYM_CHAIN"
   fi
 
-  if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
-  fi
+  # remove *all* FORWARD -> NYM-EXIT jumps 
+  while read -r rule; do
+    spec="${rule#-A FORWARD }"
+    iptables -D FORWARD $spec 2>/dev/null || true
+  done < <(iptables -S FORWARD | grep -F " -j $NYM_CHAIN" || true)
 
-  if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
-  fi
+  while read -r rule; do
+    spec="${rule#-A FORWARD }"
+    ip6tables -D FORWARD $spec 2>/dev/null || true
+  done < <(ip6tables -S FORWARD | grep -F " -j $NYM_CHAIN" || true)
+
+  # add the single correct hook
+  iptables  -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+  ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+
+  ok "NYM-EXIT chain ready + single FORWARD hook installed"
 }
+
 
 setup_nat_rules() {
   info "setting up nat and forwarding rules for $WG_INTERFACE via $NETWORK_DEVICE"
@@ -616,7 +646,10 @@ apply_port_allowlist() {
     ["HTTPS"]="443"
     ["SMBWindowsFileShare"]="445"
     ["Kpasswd"]="464"
+    # this port is opened and rate limited in apply_smtps_465_rate_limit
+    # ["SMTP"]="465" 
     ["RTSP"]="554"
+    ["SMTPSubmission"]="587"
     ["LDAPS"]="636"
     ["SILC"]="706"
     ["KerberosAdmin"]="749"
@@ -679,14 +712,17 @@ apply_port_allowlist() {
     ["MoneroRPC"]="18089"
     ["GoogleVoice"]="19294"
     ["EnsimControlPanel"]="19638"
+    ["Session"]="22021"
     ["DarkFiTor"]="25551"
     ["Minecraft"]="25565"
     ["DarkFi"]="26661"
     ["Steam"]="27000-27050"
+    ["WhatsAppRange"]="3478-3484"
     ["ElectrumSSL"]="50002"
     ["MOSH"]="60000-61000"
     ["Mumble"]="64738"
     ["Metadata"]="51830"
+    
   )
 
   local port
@@ -1002,6 +1038,7 @@ test_port_range_rules() {
     "8232-8233:tcp:zcash"
     "8332-8333:tcp:bitcoin"
     "18080-18081:tcp:monero"
+    "3478-3484:tcp:whatsapp"
   )
 
   local failures=0
@@ -1173,6 +1210,7 @@ exit_policy_install() {
   create_nym_chain
   setup_nat_rules
   apply_port_allowlist
+  apply_smtps_465_rate_limit
   apply_spamhaus_blocklist
   add_default_reject_rule
   save_iptables_rules

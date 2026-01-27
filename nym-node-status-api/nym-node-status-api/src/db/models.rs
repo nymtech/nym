@@ -227,8 +227,8 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::models::{
     AuthenticatorDetails, DeclaredRoles, DescribedNodeType, HostInformation, HostKeys,
-    IpPacketRouterDetails, NetworkRequesterDetails, NymNodeData, OffsetDateTimeJsonSchemaWrapper,
-    SphinxKey, VersionedNoiseKey, WebSockets, WireguardDetails,
+    IpPacketRouterDetails, LewesProtocolDetails, NetworkRequesterDetails, NymNodeData,
+    OffsetDateTimeJsonSchemaWrapper, SphinxKey, VersionedNoiseKey, WebSockets, WireguardDetails,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -602,6 +602,7 @@ impl From<NymNodeDescriptionDeHelper> for NymNodeDescription {
                 ip_packet_router: helper.description.ip_packet_router,
                 authenticator: helper.description.authenticator,
                 wireguard: helper.description.wireguard,
+                lewes_protocol: helper.description.lewes_protocol,
                 mixnet_websockets: helper.description.mixnet_websockets,
             },
         }
@@ -635,6 +636,9 @@ pub struct NymNodeDataDeHelper {
 
     #[serde(default)]
     pub wireguard: Option<WireguardDetails>,
+
+    #[serde(default)]
+    pub lewes_protocol: Option<LewesProtocolDetails>,
 
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,

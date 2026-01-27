@@ -803,3 +803,44 @@ ssh root@<IPv4> -i ~/.ssh/your_ssh_key
 </Steps>
 
 Now your VM is almost ready for `nym-node` [setup](../../nym-node/setup). Before you proceed, ssh in and [configure all prerequisities](../vps-setup#vps-configuration) needed for `nym-node` installation and operation.
+
+## Removing Virtual Machines
+
+If you setup your VM in a wrong way, or you simply don't use it anymore, you can remove it.
+
+<Callout type="warning" emoji="⚠️">
+**These commands will erase everything on the VM, make sure to backup everything you may need in the future bewfore executing this!**
+</Callout>
+
+<Steps>
+###### 1. SSH to the host server
+
+###### 2. List all VMs
+```sh
+virsh list --all
+```
+
+###### 3. Shut down and remove VM
+- To remove a VM run this sequence
+```sh
+# shutdown
+virsh shutdown <VM_NAME>
+sleep 10
+
+# destroy
+virsh destroy <VM_NAME>
+
+# undefine and purge storage
+virsh undefine <VM_NAME> --remove-all-storage
+
+# ensure the storage is deleted
+rm /var/lib/libvirt/images/<VM_NAME>.img 
+```
+
+###### 4. List all VMs again
+
+- The list should not contain the VM that you just deleted:
+```sh
+virsh list --all
+```
+</ Steps>

@@ -26,7 +26,6 @@ use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::client::base_client::storage::gateways_storage::GatewayDetails;
-use wasm_client_core::client::base_client::storage::GatewaysDetailsStore;
 use wasm_client_core::client::mix_traffic::transceiver::PacketRouter;
 use wasm_client_core::helpers::{
     current_network_topology_async, setup_from_topology, EphemeralCredentialStorage,
@@ -200,8 +199,7 @@ impl NymNodeTesterBuilder {
             } else {
                 let cfg = GatewayConfig::new(
                     gateway_info.gateway_id,
-                    gateway_info.gateway_owner_address.map(|a| a.to_string()),
-                    gateway_info.gateway_listener.to_string(),
+                    gateway_info.published_data.listeners,
                 );
                 GatewayClient::new(
                     GatewayClientConfig::new_default().with_disabled_credentials_mode(true),
@@ -215,13 +213,8 @@ impl NymNodeTesterBuilder {
                 )
             };
 
-        let auth_res = gateway_client.perform_initial_authentication().await?;
-        if auth_res.requires_key_upgrade {
-            let updated_key = gateway_client.upgrade_key_authenticated().await?;
-            client_store
-                .upgrade_stored_remote_gateway_key(gateway_identity, &updated_key)
-                .await?;
-        }
+        let _auth_res = gateway_client.perform_initial_authentication().await?;
+
         gateway_client.claim_initial_bandwidth().await?;
         gateway_client.start_listening_for_mixnet_messages()?;
 

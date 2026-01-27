@@ -1,0 +1,9 @@
+---
+- name: "Upgrade Nym node"
+  hosts: all    # or a specific host/group or limit via -l on CLI (ansible-playbook playbooks/upgrade.yml -l mynode1)
+  become: true
+  serial: 1
+  
+  roles:
+    - base
+    - upgrade

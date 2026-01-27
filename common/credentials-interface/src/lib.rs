@@ -3,6 +3,7 @@
 
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use thiserror::Error;
 use time::{Date, OffsetDateTime};
 
@@ -73,7 +74,7 @@ pub struct CredentialSigningData {
     pub ticketbook_type: TicketType,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 pub struct CredentialSpendingData {
     pub payment: Payment,
 
@@ -84,6 +85,20 @@ pub struct CredentialSpendingData {
     // pub value: u64,
     /// The (DKG) epoch id under which the credential has been issued so that the verifier could use correct verification key for validation.
     pub epoch_id: u64,
+}
+
+impl Debug for CredentialSpendingData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // we're redacting the payment not since it contains secret,
+        // but because it's producing a lot of noise in the output and
+        // we are not really interested in coordinates of each of the attached curve points
+        f.debug_struct("CredentialSpendingData")
+            .field("payment", &"[REDACTED]")
+            .field("pay_info", &self.pay_info)
+            .field("spend_date", &self.spend_date)
+            .field("epoch_id", &self.epoch_id)
+            .finish()
+    }
 }
 
 impl CredentialSpendingData {

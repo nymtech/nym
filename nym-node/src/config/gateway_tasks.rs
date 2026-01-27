@@ -47,6 +47,9 @@ pub struct GatewayTasksConfig {
     pub upgrade_mode: UpgradeModeWatcher,
 
     #[serde(default)]
+    pub lp: nym_gateway::node::LpConfig,
+
+    #[serde(default)]
     pub debug: Debug,
 }
 
@@ -133,7 +136,7 @@ impl ZkNymTicketHandlerDebug {
     pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.7;
     pub const DEFAULT_MINIMUM_REDEMPTION_TICKETS: usize = 100;
 
-    // use min(4/5 of max validity, validity - 1), but making sure it's no greater than 1 day
+    // use min(4/5 of max validity, validity - 1), but making sure it's no lower than 1 day
     // ASSUMPTION: our validity period is AT LEAST 2 days
     //
     // this could have been a constant, but it's more readable as a function
@@ -149,7 +152,7 @@ impl ZkNymTicketHandlerDebug {
         };
 
         assert!(
-            target_secs > 86400,
+            target_secs >= 86400,
             "the maximum time between redemption can't be lower than 1 day!"
         );
         Duration::from_secs(target_secs as u64)
@@ -225,6 +228,7 @@ impl GatewayTasksConfig {
             announce_ws_port: None,
             announce_wss_port: None,
             upgrade_mode: UpgradeModeWatcher::new()?,
+            lp: Default::default(),
             debug: Default::default(),
         })
     }

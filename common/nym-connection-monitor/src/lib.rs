@@ -7,7 +7,7 @@ use nym_sdk::mixnet::{MixnetClientSender, Recipient};
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 
-// Import these here for for all modules to use, to keep the version consistent
+// Import these here for all modules to use, to keep the version consistent
 pub(crate) use nym_ip_packet_requests::v8 as nym_ip_packet_requests_current;
 
 mod error;

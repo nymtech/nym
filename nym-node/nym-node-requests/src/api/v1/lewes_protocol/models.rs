@@ -22,25 +22,27 @@ pub struct LewesProtocol {
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
     pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, Vec<u8>>>,
+
+    /// Digests of the signing keys available to this node alongside hashing algorithms used
+    /// for their computation.
+    pub signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, Vec<u8>>>,
 }
 
 impl LewesProtocol {
-    pub fn new(enabled: bool, control_port: u16, data_port: u16) -> Self {
+    pub fn new(
+        enabled: bool,
+        control_port: u16,
+        data_port: u16,
+        kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, Vec<u8>>>,
+        signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, Vec<u8>>>,
+    ) -> Self {
         LewesProtocol {
             enabled,
             control_port,
             data_port,
-            kem_keys: Default::default(),
+            kem_keys,
+            signing_keys,
         }
-    }
-
-    pub fn with_kem_key_hashes(
-        mut self,
-        kem: LPKEM,
-        hashes: HashMap<LPHashFunction, Vec<u8>>,
-    ) -> Self {
-        self.kem_keys.insert(kem, hashes);
-        self
     }
 }
 
@@ -140,9 +142,47 @@ impl From<nym_kkt_ciphersuite::HashFunction> for LPHashFunction {
     }
 }
 
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    JsonSchema,
+    Hash,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Display,
+    EnumString,
+    EnumIter,
+)]
+#[strum(serialize_all = "lowercase")]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub enum LPSignatureScheme {
+    Ed25519,
+}
+
+impl From<LPSignatureScheme> for nym_kkt_ciphersuite::SignatureScheme {
+    fn from(lp_hash_fnction: LPSignatureScheme) -> Self {
+        match lp_hash_fnction {
+            LPSignatureScheme::Ed25519 => nym_kkt_ciphersuite::SignatureScheme::Ed25519,
+        }
+    }
+}
+
+impl From<nym_kkt_ciphersuite::SignatureScheme> for LPSignatureScheme {
+    fn from(kem: nym_kkt_ciphersuite::SignatureScheme) -> Self {
+        match kem {
+            nym_kkt_ciphersuite::SignatureScheme::Ed25519 => LPSignatureScheme::Ed25519,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_kkt_ciphersuite::SignatureScheme;
 
     #[test]
     fn kem_display() {
@@ -158,5 +198,10 @@ mod tests {
         assert_eq!(LPHashFunction::Shake128.to_string(), "shake128");
         assert_eq!(LPHashFunction::Shake256.to_string(), "shake256");
         assert_eq!(LPHashFunction::Sha256.to_string(), "sha256");
+    }
+
+    #[test]
+    fn signature_scheme_display() {
+        assert_eq!(SignatureScheme::Ed25519.to_string(), "ed25519");
     }
 }

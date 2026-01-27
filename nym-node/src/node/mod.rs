@@ -51,7 +51,9 @@ use nym_network_requester::{
 };
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::events::MetricEventsSender;
-use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM};
+use nym_node_requests::api::v1::lewes_protocol::models::{
+    LPHashFunction, LPKEM, LPSignatureScheme,
+};
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKeyV1;
@@ -774,7 +776,7 @@ impl NymNode {
         Ok(())
     }
 
-    fn compute_kem_key_hashes(&self) -> (LPKEM, HashMap<LPHashFunction, Vec<u8>>) {
+    fn compute_kem_key_hashes(&self) -> HashMap<LPKEM, HashMap<LPHashFunction, Vec<u8>>> {
         let kem = LPKEM::X25519;
 
         let kem_key_bytes = self.entry_gateway.psq_kem_key.public_key().as_bytes();
@@ -785,7 +787,27 @@ impl NymNode {
             .map(|(f, d)| (f.into(), d))
             .collect();
 
-        (kem, digests)
+        let mut hashes = HashMap::new();
+        hashes.insert(kem, digests);
+        hashes
+    }
+
+    fn compute_signing_key_hashes(
+        &self,
+    ) -> HashMap<LPSignatureScheme, HashMap<LPHashFunction, Vec<u8>>> {
+        let scheme = LPSignatureScheme::Ed25519;
+
+        let kem_key_bytes = self.ed25519_identity_keys.public_key().as_bytes();
+
+        // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
+        let digests = produce_key_digests(kem_key_bytes.as_ref())
+            .into_iter()
+            .map(|(f, d)| (f.into(), d))
+            .collect();
+
+        let mut hashes = HashMap::new();
+        hashes.insert(scheme, digests);
+        hashes
     }
 
     pub(crate) async fn build_http_server(&self) -> Result<NymNodeHttpServer, NymNodeError> {
@@ -861,13 +883,13 @@ impl NymNode {
                 policy: None,
             };
 
-        let (kem, hashes) = self.compute_kem_key_hashes();
         let lp_details = api_requests::v1::lewes_protocol::models::LewesProtocol::new(
             self.modes().entry,
             self.config.gateway_tasks.lp.announced_control_port(),
             self.config.gateway_tasks.lp.announced_data_port(),
-        )
-        .with_kem_key_hashes(kem, hashes);
+            self.compute_kem_key_hashes(),
+            self.compute_signing_key_hashes(),
+        );
 
         let mut config = HttpServerConfig::new()
             .with_landing_page_assets(self.config.http.landing_page_assets_path.as_ref())

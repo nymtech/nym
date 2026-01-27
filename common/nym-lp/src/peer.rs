@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt::ciphersuite::{HashFunction, KEM};
+use nym_kkt::ciphersuite::{KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -49,18 +49,26 @@ impl LpLocalPeer {
         let expected_kem_key_digests = match &self.kem_psq {
             None => HashMap::new(),
             Some(kem_keys) => {
-                let hashes =
-                    nym_kkt::key_utils::produce_key_digests(kem_keys.public_key().as_bytes());
-
                 let mut digests = HashMap::new();
-                digests.insert(KEM::X25519, hashes);
+                digests.insert(
+                    KEM::X25519,
+                    nym_kkt::key_utils::produce_key_digests(kem_keys.public_key().as_bytes()),
+                );
                 digests
             }
         };
+
+        let mut expected_signing_key_digests = HashMap::new();
+        expected_signing_key_digests.insert(
+            SignatureScheme::Ed25519,
+            nym_kkt::key_utils::produce_key_digests(self.ed25519.public_key().as_bytes()),
+        );
+
         LpRemotePeer {
             ed25519_public: *self.ed25519.public_key(),
             x25519_public: *self.x25519.public_key(),
             expected_kem_key_digests,
+            expected_signing_key_digests,
         }
     }
 
@@ -85,8 +93,11 @@ pub struct LpRemotePeer {
     /// Remote X25519 public key (Noise static key)
     pub(crate) x25519_public: x25519::PublicKey,
 
-    /// Expected digest of the remote's KEM key
-    pub(crate) expected_kem_key_digests: HashMap<KEM, HashMap<HashFunction, Vec<u8>>>,
+    /// Expected digests of the remote's KEM key
+    pub(crate) expected_kem_key_digests: HashMap<KEM, KEMKeyDigests>,
+
+    /// Expected digests of the remote's signing key
+    pub(crate) expected_signing_key_digests: HashMap<SignatureScheme, SigningKeyDigests>,
 }
 
 impl LpRemotePeer {
@@ -95,6 +106,7 @@ impl LpRemotePeer {
             ed25519_public,
             x25519_public,
             expected_kem_key_digests: Default::default(),
+            expected_signing_key_digests: Default::default(),
         }
     }
 
@@ -107,11 +119,13 @@ impl LpRemotePeer {
     }
 
     #[must_use]
-    pub fn with_kem_key_digests(
+    pub fn with_key_digests(
         mut self,
-        expected_kem_key_digests: HashMap<KEM, HashMap<HashFunction, Vec<u8>>>,
+        expected_kem_key_digests: HashMap<KEM, KEMKeyDigests>,
+        expected_signing_key_digests: HashMap<SignatureScheme, SigningKeyDigests>,
     ) -> Self {
         self.expected_kem_key_digests = expected_kem_key_digests;
+        self.expected_signing_key_digests = expected_signing_key_digests;
         self
     }
 }

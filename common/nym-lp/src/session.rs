@@ -606,7 +606,7 @@ impl LpSession {
 
         // georgio this needs to be moved one level up (maybe chosen in LPSession)
         let ciphersuite = match Ciphersuite::resolve_ciphersuite(
-            KEM::McEliece,
+            KEM::MlKem768,
             HashFunction::Blake3,
             SignatureScheme::Ed25519,
             None,

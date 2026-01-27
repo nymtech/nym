@@ -578,6 +578,17 @@ pub trait ApiClientCore {
         let req = self.create_request(method, path, params, json_body)?;
         self.send(req).await
     }
+
+    /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
+    ///
+    /// Takes an optional URL argument. If this is none, the current host will be updated automatically.
+    /// If a url is provided first check that the CURRENT host matches the hostname in the URL before
+    /// triggering a rotation. This is meant to prevent parallel requests that fail from rotating the host
+    /// multiple times.
+    fn maybe_rotate_hosts(&self, offending_url: Option<Url>);
+
+    #[cfg(feature = "tunneling")]
+    fn maybe_enable_fronting(&self, context: impl std::fmt::Debug);
 }
 
 /// A `ClientBuilder` can be used to create a [`Client`] with custom configuration applied consistently
@@ -1161,20 +1172,10 @@ impl ApiClientCore for Client {
 
                     if is_network_err {
                         // if we have multiple urls, update to the next
-                        self.update_host(Some(url.clone()));
+                        self.maybe_rotate_hosts(Some(url.clone()));
 
                         #[cfg(feature = "tunneling")]
-                        if let Some(ref front) = self.front {
-                            // If fronting is set to be enabled on error, enable domain fronting as we
-                            // have encountered an error.
-                            let was_enabled = front.is_enabled();
-                            front.retry_enable();
-                            if !was_enabled && front.is_enabled() {
-                                tracing::info!(
-                                    "Domain fronting activated after connection failure: {err}",
-                                );
-                            }
-                        }
+                        self.maybe_enable_fronting((&url, &err));
                     }
 
                     if attempts < self.retry_limit {
@@ -1195,6 +1196,23 @@ impl ApiClientCore for Client {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    fn maybe_rotate_hosts(&self, offending: Option<Url>) {
+        self.update_host(offending);
+    }
+
+    #[cfg(feature = "tunneling")]
+    fn maybe_enable_fronting(&self, context: impl std::fmt::Debug) {
+        if let Some(ref front) = self.front {
+            // If fronting is set to be enabled on error, enable domain fronting as we
+            // have encountered an error.
+            let was_enabled = front.is_enabled();
+            front.retry_enable();
+            if !was_enabled && front.is_enabled() {
+                tracing::info!("Domain fronting activated after connection failure: {context:?}",);
             }
         }
     }
@@ -1367,7 +1385,25 @@ pub trait ApiClient: ApiClientCore {
         let res = self
             .send_request(reqwest::Method::GET, path, params, None::<&()>)
             .await?;
-        parse_response(res, false).await
+
+        let url = Url::from(res.url());
+        parse_response(res, false).await.inspect_err(|e| {
+            if matches!(
+                // if we encounter a read error while we attempt to parse it could be caused by censorship and we should
+                // rotate hosts / enable fronting.
+                e,
+                HttpClientError::ResponseReadFailure {
+                    url: _,
+                    headers: _,
+                    status: _,
+                    source: _,
+                }
+            ) {
+                self.maybe_rotate_hosts(Some(url.clone()));
+                #[cfg(feature = "tunneling")]
+                self.maybe_enable_fronting((url, e));
+            }
+        })
     }
 
     /// 'post' json data to the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple

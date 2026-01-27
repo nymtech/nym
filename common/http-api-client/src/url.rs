@@ -123,6 +123,16 @@ impl From<reqwest::Url> for Url {
     }
 }
 
+impl From<&reqwest::Url> for Url {
+    fn from(url: &url::Url) -> Self {
+        Self {
+            url: url.clone(),
+            fronts: None,
+            current_front: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
 impl AsRef<url::Url> for Url {
     fn as_ref(&self) -> &url::Url {
         &self.url

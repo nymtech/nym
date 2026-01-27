@@ -174,29 +174,6 @@ impl Socks5ProbeResults {
     }
 }
 
-impl Socks5ProbeResults {
-    pub fn with_http_result(https_connectivity: HttpsConnectivityResult) -> Self {
-        Self {
-            can_connect_socks5: true,
-            https_connectivity,
-        }
-    }
-
-    pub fn error_before_connecting(error: impl Into<String>) -> Self {
-        Self {
-            can_connect_socks5: false,
-            https_connectivity: HttpsConnectivityResult::with_error(error.into()),
-        }
-    }
-
-    pub fn error_after_connecting(error: impl Into<String>) -> Self {
-        Self {
-            can_connect_socks5: true,
-            https_connectivity: HttpsConnectivityResult::with_error(error.into()),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct IpPingReplies {
     pub ipr_tun_ip_v4: bool,

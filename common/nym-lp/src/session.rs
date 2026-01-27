@@ -11,7 +11,7 @@ use crate::message::{EncryptedDataPayload, HandshakeData};
 // noiserm
 use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
 use crate::packet::LpHeader;
-use crate::peer::{LpLocalPeer, LpRemotePeer, Placeholder};
+use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psk::{
     derive_subsession_psk, psq_initiator_create_message, psq_responder_process_message,
 };
@@ -397,10 +397,7 @@ impl LpSession {
         let params = pattern_name.parse()?;
         let builder = Builder::new(params);
 
-        let local_key_bytes = local_peer
-            .x25519
-            .PLACEHOLDER_UNIMPLEMENTED_private_key()
-            .as_ref();
+        let local_key_bytes = local_peer.x25519.sk().as_ref();
         // noiserm
         let builder = builder.local_private_key(local_key_bytes);
 
@@ -759,17 +756,14 @@ impl LpSession {
 
         let mut kkt_state = self.kkt_state.lock();
 
-        let response_bytes = match decrypt_initial_kkt_frame(
-            self.local_peer
-                .x25519()
-                .PLACEHOLDER_UNIMPLEMENTED_private_key(),
-            request_bytes,
-        ) {
-            Ok((session_secret, request_frame, remote_context)) => {
-                match responder_ingest_message(&remote_context, None, None, &request_frame) {
-                    Ok((mut context, _)) => {
-                        let local_kem_key: Arc<EncapsulationKey> =
-                            match self.local_kem_encapsulation_key(&context.ciphersuite().kem()) {
+        let response_bytes =
+            match decrypt_initial_kkt_frame(self.local_peer.x25519().sk(), request_bytes) {
+                Ok((session_secret, request_frame, remote_context)) => {
+                    match responder_ingest_message(&remote_context, None, None, &request_frame) {
+                        Ok((mut context, _)) => {
+                            let local_kem_key: Arc<EncapsulationKey> = match self
+                                .local_kem_encapsulation_key(&context.ciphersuite().kem())
+                            {
                                 Some(key) => key.clone(),
                                 None => {
                                     return Err(LpError::Internal(format!(
@@ -779,49 +773,49 @@ impl LpSession {
                                 }
                             };
 
-                        match responder_process(
-                            &mut context,
-                            request_frame.session_id(),
-                            self.local_peer.ed25519().private_key(),
-                            &local_kem_key,
-                        ) {
-                            Ok(response_frame) => match encrypt_kkt_frame(
-                                &mut rng,
-                                &session_secret,
-                                &response_frame,
-                                KKT_RESPONSE_AAD,
+                            match responder_process(
+                                &mut context,
+                                request_frame.session_id(),
+                                self.local_peer.ed25519().private_key(),
+                                &local_kem_key,
                             ) {
-                                Ok(response_bytes) => response_bytes,
+                                Ok(response_frame) => match encrypt_kkt_frame(
+                                    &mut rng,
+                                    &session_secret,
+                                    &response_frame,
+                                    KKT_RESPONSE_AAD,
+                                ) {
+                                    Ok(response_bytes) => response_bytes,
+                                    Err(e) => {
+                                        return Err(LpError::Internal(format!(
+                                            "KKT response encryption failure : {:?}",
+                                            e
+                                        )));
+                                    }
+                                },
                                 Err(e) => {
                                     return Err(LpError::Internal(format!(
-                                        "KKT response encryption failure : {:?}",
+                                        "KKT response generation failure : {:?}",
                                         e
                                     )));
                                 }
-                            },
-                            Err(e) => {
-                                return Err(LpError::Internal(format!(
-                                    "KKT response generation failure : {:?}",
-                                    e
-                                )));
                             }
                         }
-                    }
-                    Err(e) => {
-                        return Err(LpError::Internal(format!(
-                            "KKT request handling failure: {:?}",
-                            e
-                        )));
+                        Err(e) => {
+                            return Err(LpError::Internal(format!(
+                                "KKT request handling failure: {:?}",
+                                e
+                            )));
+                        }
                     }
                 }
-            }
-            Err(e) => {
-                return Err(LpError::Internal(format!(
-                    "KKT request decryption failure: {:?}",
-                    e
-                )));
-            }
-        };
+                Err(e) => {
+                    return Err(LpError::Internal(format!(
+                        "KKT request decryption failure: {:?}",
+                        e
+                    )));
+                }
+            };
 
         // Mark KKT as processed
         // Responder doesn't store the kem_pk since they already have their own KEM keypair
@@ -870,9 +864,7 @@ impl LpSession {
             let session_context = self.id.to_le_bytes();
 
             let psq_result = match psq_initiator_create_message(
-                self.local_peer
-                    .x25519
-                    .PLACEHOLDER_UNIMPLEMENTED_private_key(),
+                self.local_peer.x25519.sk(),
                 &self.remote_peer.x25519_public,
                 remote_kem,
                 self.local_peer.ed25519.private_key(),
@@ -1018,9 +1010,7 @@ impl LpSession {
                     let session_context = self.id.to_le_bytes();
 
                     let psq_result = match psq_responder_process_message(
-                        self.local_peer
-                            .x25519
-                            .PLACEHOLDER_UNIMPLEMENTED_private_key(),
+                        self.local_peer.x25519.sk(),
                         &self.remote_peer.x25519_public,
                         (&dec_key, &enc_key),
                         &self.remote_peer.ed25519_public,
@@ -1279,11 +1269,7 @@ impl LpSession {
         let pattern_name = "Noise_KKpsk0_25519_ChaChaPoly_SHA256";
         let params = pattern_name.parse()?;
 
-        let local_key_bytes = self
-            .local_peer
-            .x25519
-            .PLACEHOLDER_UNIMPLEMENTED_private_key()
-            .as_ref();
+        let local_key_bytes = self.local_peer.x25519.sk().as_ref();
         let remote_key_bytes = self.remote_x25519_public().as_ref();
 
         let builder = Builder::new(params)

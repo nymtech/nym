@@ -29,16 +29,6 @@ pub struct LpLocalPeer {
     pub(crate) mceliece: Option<(Arc<DecapsulationKey>, Arc<EncapsulationKey>)>,
 }
 
-pub(crate) trait Placeholder {
-    fn PLACEHOLDER_UNIMPLEMENTED_private_key(&self) -> &DHPrivateKey;
-}
-
-impl Placeholder for DHKeyPair {
-    fn PLACEHOLDER_UNIMPLEMENTED_private_key(&self) -> &DHPrivateKey {
-        unimplemented!("need to ask libcrux to expose it")
-    }
-}
-
 impl LpLocalPeer {
     pub fn new(ed25519: Arc<ed25519::KeyPair>, x25519: Arc<x25519::KeyPair>) -> Self {
         // TODO: make nicer conversion (without cloning) + error handling

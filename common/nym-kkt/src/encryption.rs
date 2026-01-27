@@ -48,15 +48,18 @@ impl KKTSessionSecret {
     }
 
     pub fn derive(private_key: &DHPrivateKey, public_key: &DHPublicKey) -> Self {
-        unimplemented!("unexposed in libcrux")
-        // let mut shared_secret = private_key.diffie_hellman(public_key);
-        //
-        // let mut hasher = Hasher::new();
-        //
-        // hasher.update(&shared_secret);
+        let mut shared_secret = private_key
+            .diffie_hellman(public_key)
+            .expect("TODO: error handling");
+
+        let mut hasher = Hasher::new();
+
+        hasher.update(shared_secret.as_ref());
+
+        // TODO: zeroize
         // shared_secret.zeroize();
-        //
-        // Self(hasher.finalize().as_bytes().to_owned())
+
+        Self(hasher.finalize().as_bytes().to_owned())
     }
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0

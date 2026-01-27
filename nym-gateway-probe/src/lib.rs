@@ -1164,7 +1164,7 @@ where
         );
 
         match client
-            .register_with_credential(&wg_keypair, credential, ticket_type)
+            .register_with_credential(&mut rng, &wg_keypair, credential, ticket_type)
             .await
         {
             Ok(data) => data,
@@ -1179,6 +1179,7 @@ where
         info!("Using real bandwidth controller for LP registration");
         match client
             .register(
+                &mut rng,
                 &wg_keypair,
                 &gateway_ed25519_pubkey,
                 bandwidth_controller,
@@ -1307,6 +1308,7 @@ where
         match nested_session
             .handshake_and_register_with_credential(
                 &mut entry_client,
+                &mut rng,
                 &exit_wg_keypair,
                 credential,
                 TicketType::V1WireguardExit,
@@ -1323,6 +1325,7 @@ where
         match nested_session
             .handshake_and_register(
                 &mut entry_client,
+                &mut rng,
                 &exit_wg_keypair,
                 &exit_gateway_pubkey,
                 bandwidth_controller,
@@ -1353,7 +1356,12 @@ where
             TicketType::V1WireguardEntry,
         );
         match entry_client
-            .register_with_credential(&entry_wg_keypair, credential, TicketType::V1WireguardEntry)
+            .register_with_credential(
+                &mut rng,
+                &entry_wg_keypair,
+                credential,
+                TicketType::V1WireguardEntry,
+            )
             .await
         {
             Ok(data) => data,
@@ -1365,6 +1373,7 @@ where
     } else {
         match entry_client
             .register(
+                &mut rng,
                 &entry_wg_keypair,
                 &entry_gateway_pubkey,
                 bandwidth_controller,

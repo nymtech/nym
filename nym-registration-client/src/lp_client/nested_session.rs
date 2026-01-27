@@ -32,6 +32,7 @@ use nym_lp::{LpMessage, LpPacket};
 use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::{LpRegistrationRequest, WireguardConfiguration};
 use nym_wireguard_types::PeerPublicKey;
+use rand::{CryptoRng, RngCore};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -287,15 +288,17 @@ impl NestedLpSession {
     ///
     /// # Returns
     /// * `Ok(GatewayData)` - Exit gateway configuration data on successful registration
-    pub async fn handshake_and_register_with_credential<S>(
+    pub async fn handshake_and_register_with_credential<S, R>(
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,
+        rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         credential: nym_credentials_interface::CredentialSpendingData,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
         S: LpTransport + Unpin,
+        R: RngCore + CryptoRng,
     {
         // Step 1: Perform handshake with exit gateway via forwarding
         self.perform_handshake(outer_client).await?;
@@ -311,7 +314,7 @@ impl NestedLpSession {
 
         // Step 3: Build registration request (credential already provided)
         let wg_public_key = PeerPublicKey::new(wg_keypair.public_key().to_bytes().into());
-        let request = LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type);
+        let request = LpRegistrationRequest::new_dvpn(rng, wg_public_key, credential, ticket_type);
 
         tracing::trace!("Built registration request: {:?}", request);
 
@@ -425,9 +428,10 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Response decryption/deserialization fails
     /// - Gateway rejects the registration
-    pub async fn handshake_and_register<S>(
+    pub async fn handshake_and_register<S, R>(
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,
+        rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
@@ -435,6 +439,7 @@ impl NestedLpSession {
     ) -> Result<WireguardConfiguration>
     where
         S: LpTransport + Unpin,
+        R: RngCore + CryptoRng,
     {
         // Step 1: Perform handshake with exit gateway via forwarding
         self.perform_handshake(outer_client).await?;
@@ -461,7 +466,7 @@ impl NestedLpSession {
 
         // Step 4: Build registration request
         let wg_public_key = PeerPublicKey::new(wg_keypair.public_key().to_bytes().into());
-        let request = LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type);
+        let request = LpRegistrationRequest::new_dvpn(rng, wg_public_key, credential, ticket_type);
 
         tracing::trace!("Built registration request: {:?}", request);
 
@@ -577,8 +582,9 @@ impl NestedLpSession {
     /// # Errors
     /// Returns an error if all retry attempts fail.
     #[allow(clippy::too_many_arguments)]
-    pub async fn handshake_and_register_with_retry<S>(
+    pub async fn handshake_and_register_with_retry<S, R>(
         &mut self,
+        rng: &mut R,
         outer_client: &mut LpRegistrationClient<S>,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
@@ -588,6 +594,7 @@ impl NestedLpSession {
     ) -> Result<WireguardConfiguration>
     where
         S: LpTransport + Unpin,
+        R: RngCore + CryptoRng,
     {
         tracing::debug!(
             "Starting resilient exit registration (max_retries={})",
@@ -635,6 +642,7 @@ impl NestedLpSession {
             match self
                 .handshake_and_register_with_credential(
                     outer_client,
+                    rng,
                     wg_keypair,
                     credential.clone(),
                     ticket_type,

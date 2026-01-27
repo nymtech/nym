@@ -23,6 +23,7 @@ pub use builder::config::{
 pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
 pub use lp_client::{LpConfig, LpRegistrationClient, NestedLpSession, error::LpClientError};
+use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 pub use types::{
     LpRegistrationResult, MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult,
 };
@@ -153,7 +154,14 @@ impl RegistrationClient {
         )))
     }
 
-    async fn register_lp(self) -> Result<RegistrationResult, RegistrationClientError> {
+    // create dedicated method taking RNG instance for tests
+    async fn register_lp_with_rng<R>(
+        self,
+        rng: &mut R,
+    ) -> Result<RegistrationResult, RegistrationClientError>
+    where
+        R: RngCore + CryptoRng,
+    {
         // Extract and validate LP data
         let entry_lp_data = self.config.entry.node.lp_data.ok_or(
             RegistrationClientError::LpRegistrationNotPossible {
@@ -210,8 +218,9 @@ impl RegistrationClient {
 
         // Perform handshake and registration with exit gateway (all via entry forwarding)
         let exit_gateway_data = nested_session
-            .handshake_and_register::<TcpStream>(
+            .handshake_and_register::<TcpStream, _>(
                 &mut entry_client,
+                rng,
                 &self.config.exit.keys,
                 &self.config.exit.node.identity,
                 &*self.bandwidth_controller,
@@ -230,6 +239,7 @@ impl RegistrationClient {
         tracing::info!("Registering with entry gateway");
         let entry_gateway_data = entry_client
             .register(
+                rng,
                 &self.config.entry.keys,
                 &self.config.entry.node.identity,
                 &*self.bandwidth_controller,
@@ -255,6 +265,12 @@ impl RegistrationClient {
             exit_gateway_data,
             bw_controller: self.bandwidth_controller,
         })))
+    }
+
+    async fn register_lp(self) -> Result<RegistrationResult, RegistrationClientError> {
+        let mut rng = rand::thread_rng();
+
+        self.register_lp_with_rng(&mut rng).await
     }
 
     pub async fn register(self) -> Result<RegistrationResult, RegistrationClientError> {

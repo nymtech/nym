@@ -49,6 +49,95 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.2-oscypek`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.2-oscypek)
+- [`nym-node`](nodes/nym-node.mdx) version `1.24.0`
+
+```sh
+
+```
+
+### Operators Updates & Tools
+
+<Callout type="warning" emoji="⚠️">
+**This release comes with breaking changes - please carefully follow the [steps below](#oscypek-special-update)!**
+
+Secondly, the outcome of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), is added to the [network tunnel manager (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) and operators are required to rerun the tool on their servers as [documented here](update-nym-exit-policy).
+</ Callout>
+
+#### `oscypek` special update
+
+This release brings changes which would lead into a *foreign constraint bug* if operators just switched binaries and restarted the node. The fix is to do a little `sqlite` tweak on the node database.
+
+To simplify this, we made ***a build in command, which operators must run after getting the new binary, but beofre restarting the node.**
+
+These are the steps to follow:
+
+<Steps />
+###### 1. Get `oscypek` binary
+- SSH to your machine as root
+- Navigate to the destination where you have `nym-node` binary
+- Get the latest binary and provide it with permissions to run
+```sh
+curl -L "https://github.com/nymtech/nym/releases/download/nym-binaries-v2026.2-oscypek/nym-node" -o nym-node && \
+chmod +x nym-node
+```
+
+###### 2. Run `debug` command
+
+```sh
+./nym-node debug reset-providers-gateway-dbs --id <ID>
+```
+
+###### 3. Restart your node
+- Restart the `nym-node.service`
+```sh
+systemctl restart nym-node
+```
+- Additionaly look for starus or serivice journal
+```sh
+service nym-node status
+# or
+journalctl -u nym-node -f --all
+```
+</ Steps>
+
+#### Update Nym exit policy
+
+As a result of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), we updated [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh). Every operator is required to download and re-run the current version of NTM on the servers hosting Nym nodes. 
+
+These are the steps for the exit policy update, using NTM.
+
+<Steps>
+###### 1. Get the new NTM
+- Download the updated NTM and make executable
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh
+```
+
+###### 2. Update exit policy
+- To be sure that your routing is clean, run this command:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+</ Steps>
+
+### Features
+
+
+### Bugfix
+
+
+### Refactors & Maintenance
+
+
+
+
+
+
+
 ## `v2026.1-niolo`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.1-niolo)
@@ -120,7 +209,7 @@ Please, let us know how that worked for you.
 
 - [`gateway-probe` fixes for run-local](https://github.com/nymtech/nym/pull/6212)
 
-- [Upgrade mode: VPN adjustments](https://github.com/nymtech/nym/pull/6189): This PR further builds up on [\#6174](https://github.com/nymtech/nym/pull/6174) to include changes required by the VPN-client to fully support the upgrade mode, what is relevant here is that this PR modifies the credential storage to allow it to storage an opaque `emergency credential` that lets it be shared between sessions (if it is still valid)  ]
+- [Upgrade mode: VPN adjustments](https://github.com/nymtech/nym/pull/6189): This PR further builds up on [\#6174](https://github.com/nymtech/nym/pull/6174) to include changes required by the VPN-client to fully support the upgrade mode, what is relevant here is that this PR modifies the credential storage to allow it to storage an opaque `emergency credential` that lets it be shared between sessions (if it is still valid) 
 
 - [Add weighted scoring to NS API](https://github.com/nymtech/nym/pull/6144)
 

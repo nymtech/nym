@@ -577,4 +577,21 @@ impl BandwidthGatewayStorage for GatewayStorage {
             .await?;
         Ok(())
     }
+
+    /// Update the stored PSK of the wireguard peer.
+    ///
+    /// # Arguments
+    ///
+    /// * `public_key`: the unique public key of the wireguard peer.
+    /// * `psk`: the PSK of the wireguard peer.
+    async fn update_peer_psk(
+        &self,
+        public_key: &str,
+        psk: Option<&str>,
+    ) -> Result<(), GatewayStorageError> {
+        self.wireguard_peer_manager
+            .update_peer_psk(public_key, psk)
+            .await?;
+        Ok(())
+    }
 }

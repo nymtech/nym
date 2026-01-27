@@ -6,6 +6,7 @@
 use crate::WireguardConfiguration;
 use crate::serialisation::{BincodeError, BincodeOptions, lp_bincode_serializer};
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
+use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 
@@ -50,6 +51,9 @@ pub struct LpDvpnRegistrationRequest {
 
     /// Ticket type for bandwidth allocation
     pub ticket_type: TicketType,
+
+    /// Preshared key to be used for the connection
+    pub psk: [u8; 32],
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,17 +112,25 @@ pub struct LpRegistrationResponse {
 
 impl LpRegistrationRequest {
     /// Create a new dVPN registration request
-    pub fn new_dvpn(
+    pub fn new_dvpn<R>(
+        rng: &mut R,
         wg_public_key: nym_wireguard_types::PeerPublicKey,
         credential: CredentialSpendingData,
         ticket_type: TicketType,
-    ) -> Self {
+    ) -> Self
+    where
+        R: RngCore + CryptoRng,
+    {
+        let mut psk = [0u8; 32];
+        rng.fill_bytes(&mut psk);
+
         Self {
             registration_data: LpRegistrationData::Dvpn {
                 data: Box::new(LpDvpnRegistrationRequest {
                     wg_public_key,
                     credential,
                     ticket_type,
+                    psk,
                 }),
             },
             #[allow(clippy::expect_used)]

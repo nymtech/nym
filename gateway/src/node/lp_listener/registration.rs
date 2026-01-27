@@ -22,6 +22,7 @@ use nym_registration_common::{
     LpRegistrationData, LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
 };
 use nym_wireguard::PeerControlRequest;
+use nym_wireguard_types::PeerPublicKey;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tracing::*;
@@ -194,6 +195,20 @@ async fn check_existing_registration(
     ))
 }
 
+/// In the case of an already registered WG peer, update its PSK.
+async fn update_peer_psk(
+    peer: PeerPublicKey,
+    psk: Key,
+    state: &LpHandlerState,
+) -> Result<(), GatewayError> {
+    let encoded_psk = psk.to_lower_hex();
+    state
+        .storage
+        .update_peer_psk(&peer.to_string(), Some(&encoded_psk))
+        .await?;
+    Ok(())
+}
+
 async fn process_dvpn_registration(
     request: Box<LpDvpnRegistrationRequest>,
     state: &LpHandlerState,
@@ -206,6 +221,13 @@ async fn process_dvpn_registration(
     // without wasting credentials
     let wg_key_str = request.wg_public_key.to_string();
     if let Some(existing_response) = check_existing_registration(&wg_key_str, state).await {
+        // TODO: this flow will be changed in subsequent PRs as it's wasting credentials regardless
+        if let Err(err) = update_peer_psk(request.wg_public_key, Key::new(request.psk), state).await
+        {
+            return LpRegistrationResponse::error(format!(
+                "WireGuard peer PSK update failed: {err}"
+            ));
+        }
         info!("LP dVPN re-registration for existing peer {wg_key_str} (idempotent)",);
         inc!("lp_registration_dvpn_idempotent");
         return existing_response;
@@ -215,6 +237,7 @@ async fn process_dvpn_registration(
     let (gateway_data, client_id) = match register_wg_peer(
         request.wg_public_key.inner().as_ref(),
         request.ticket_type,
+        Key::new(request.psk),
         state,
     )
     .await
@@ -349,6 +372,7 @@ pub async fn process_registration(
 async fn register_wg_peer(
     public_key_bytes: &[u8],
     ticket_type: nym_credentials_interface::TicketType,
+    psk: Key,
     state: &LpHandlerState,
 ) -> Result<(WireguardConfiguration, i64), GatewayError> {
     let Some(wg_controller) = &state.wg_peer_controller else {
@@ -374,8 +398,10 @@ async fn register_wg_peer(
     let peer_key = Key::new(key_bytes);
 
     // Allocate IPs from centralized pool managed by PeerController
-    let registration_data = nym_wireguard::PeerRegistrationData::new(peer_key.clone());
+    let registration_data =
+        nym_wireguard::PeerRegistrationData::new(peer_key.clone()).with_preshared_key(psk);
 
+    let psk = registration_data.preshared_key.clone();
     // Request IP allocation from PeerController
     let (tx, rx) = oneshot::channel();
     wg_controller
@@ -415,6 +441,7 @@ async fn register_wg_peer(
         format!("{client_ipv6}/128").parse()?,
     ];
     peer.persistent_keepalive_interval = Some(25);
+    peer.preshared_key = psk;
 
     // Store peer in database FIRST (before adding to controller)
     // This ensures bandwidth storage exists when controller's generate_bandwidth_manager() is called

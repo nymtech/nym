@@ -441,6 +441,7 @@ mod tests {
             let gateway_identity = entry.base.peer.ed25519().public_key();
             let registration_result = client
                 .register(
+                    &mut client_rng,
                     &wg_keypair,
                     gateway_identity,
                     &client_data.ticket_provider,
@@ -506,6 +507,7 @@ mod tests {
             let gateway_identity = entry.base.peer.ed25519().public_key();
             let registration_result = client
                 .register(
+                    &mut client_rng,
                     &wg_keypair,
                     gateway_identity,
                     &client_data.ticket_provider,
@@ -646,6 +648,7 @@ mod tests {
             let exit_registration_result = nested_session
                 .handshake_and_register(
                     &mut entry_client,
+                    &mut client_rng,
                     &client_data.base.x25519_wg_keys,
                     exit.base.peer.ed25519().public_key(),
                     &client_data.ticket_provider,
@@ -657,6 +660,7 @@ mod tests {
             // 14. complete registration with the entry
             let entry_registration_result = entry_client
                 .register(
+                    &mut client_rng,
                     &client_data.base.x25519_wg_keys,
                     entry.base.peer.ed25519().public_key(),
                     &client_data.ticket_provider,

@@ -587,6 +587,8 @@ pub trait ApiClientCore {
     /// multiple times.
     fn maybe_rotate_hosts(&self, offending_url: Option<Url>);
 
+    /// If the fronting policy for the client is set to `OnRetry` this function will enable the
+    /// fronting if not already enabled.
     #[cfg(feature = "tunneling")]
     fn maybe_enable_fronting(&self, context: impl std::fmt::Debug);
 }

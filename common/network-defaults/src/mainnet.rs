@@ -51,6 +51,10 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
         url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
         front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
     },
+    ApiUrlConst {
+        url: "https://cdn1.media-platform.net/api/",
+        front_hosts: None,
+    },
 ];
 
 pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";

@@ -392,7 +392,6 @@ mod tests {
                 client_data.base.peer.ed25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
-                client_data.base.socket_addr.ip(),
             );
 
             // 1. establish mock connection between client and gateway and retrieve gateway's handle
@@ -483,7 +482,6 @@ mod tests {
                 client_data.base.peer.ed25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
-                client_data.base.socket_addr.ip(),
             );
 
             // 1. establish mock connection between client and gateway and retrieve gateway's handle
@@ -544,7 +542,6 @@ mod tests {
                 client_data.base.peer.ed25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
-                client_data.base.socket_addr.ip(),
             );
 
             // START: ENTRY SETUP

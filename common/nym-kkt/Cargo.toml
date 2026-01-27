@@ -15,7 +15,7 @@ strum = { workspace = true }
 
 # internal
 nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"] }
-nym-kkt-ciphersuite = { path = "../nym-kkt-ciphersuite", features = ["digests"] }
+nym-kkt-ciphersuite = { workspace = true, features = ["digests"] }
 
 libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
 libcrux-ecdh = { git = "https://github.com/cryspen/libcrux", features = ["codec"] }

@@ -8,6 +8,7 @@ use celes::Country;
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_kkt_ciphersuite::{HashFunction, KEM};
 use nym_network_defaults::{WG_METADATA_PORT, WG_TUNNEL_PORT};
 use nym_noise_keys::VersionedNoiseKeyV1;
 use schemars::JsonSchema;
@@ -421,6 +422,28 @@ impl From<nym_node_requests::api::v1::lewes_protocol::models::LPHashFunction> fo
             nym_node_requests::api::v1::lewes_protocol::models::LPHashFunction::Sha256 => {
                 LPHashFunction::Sha256
             }
+        }
+    }
+}
+
+impl From<LPKEM> for KEM {
+    fn from(value: LPKEM) -> Self {
+        match value {
+            LPKEM::MlKem768 => KEM::MlKem768,
+            LPKEM::XWing => KEM::XWing,
+            LPKEM::X25519 => KEM::X25519,
+            LPKEM::McEliece => KEM::McEliece,
+        }
+    }
+}
+
+impl From<LPHashFunction> for HashFunction {
+    fn from(value: LPHashFunction) -> Self {
+        match value {
+            LPHashFunction::Blake3 => HashFunction::Blake3,
+            LPHashFunction::Shake128 => HashFunction::Shake128,
+            LPHashFunction::Shake256 => HashFunction::Shake256,
+            LPHashFunction::Sha256 => HashFunction::SHA256,
         }
     }
 }

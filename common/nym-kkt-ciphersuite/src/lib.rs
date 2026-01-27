@@ -5,7 +5,7 @@ use crate::error::KKTCiphersuiteError;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Display;
-use strum_macros::EnumIter;
+use strum_macros::{EnumIter, EnumString};
 
 pub mod error;
 
@@ -47,12 +47,15 @@ pub mod xwing {
 
 pub type KEMKeyDigests = HashMap<HashFunction, Vec<u8>>;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive, EnumIter)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive, EnumIter, EnumString,
+)]
+#[strum(ascii_case_insensitive)]
 #[repr(u8)]
 pub enum HashFunction {
     Blake3 = 0,
-    SHAKE256 = 1,
-    SHAKE128 = 2,
+    Shake256 = 1,
+    Shake128 = 2,
     SHA256 = 3,
 }
 
@@ -67,8 +70,8 @@ impl HashFunction {
                 hasher.finalize_xof().fill(&mut out);
                 hasher.reset();
             }
-            HashFunction::SHAKE256 => libcrux_sha3::shake256_ema(&mut out, data.as_ref()),
-            HashFunction::SHAKE128 => libcrux_sha3::shake128_ema(&mut out, data.as_ref()),
+            HashFunction::Shake256 => libcrux_sha3::shake256_ema(&mut out, data.as_ref()),
+            HashFunction::Shake128 => libcrux_sha3::shake128_ema(&mut out, data.as_ref()),
             HashFunction::SHA256 => libcrux_sha3::sha256_ema(&mut out, data.as_ref()),
         }
 
@@ -80,8 +83,8 @@ impl Display for HashFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             HashFunction::Blake3 => "blake3",
-            HashFunction::SHAKE128 => "shake128",
-            HashFunction::SHAKE256 => "shake256",
+            HashFunction::Shake128 => "shake128",
+            HashFunction::Shake256 => "shake256",
             HashFunction::SHA256 => "sha256",
         })
     }
@@ -180,7 +183,10 @@ impl Display for SignatureScheme {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive, EnumIter, EnumString,
+)]
+#[strum(ascii_case_insensitive)]
 #[repr(u8)]
 pub enum KEM {
     XWing = 0,
@@ -333,5 +339,28 @@ impl Display for Ciphersuite {
             )
             .to_ascii_lowercase(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+    use strum::IntoEnumIterator;
+
+    #[test]
+    fn kem_display_consistency() {
+        for kem in KEM::iter() {
+            let display = format!("{kem}");
+            assert_eq!(kem, KEM::from_str(&display).unwrap());
+        }
+    }
+
+    #[test]
+    fn hash_function_display_consistency() {
+        for hash_fn in HashFunction::iter() {
+            let display = format!("{hash_fn}");
+            assert_eq!(hash_fn, HashFunction::from_str(&display).unwrap());
+        }
     }
 }

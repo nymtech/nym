@@ -4,7 +4,7 @@
 use nym_authenticator_requests::client_message::QueryMessageImpl;
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_crypto::asymmetric::x25519::KeyPair;
-use nym_registration_common::GatewayData;
+use nym_registration_common::WireguardConfiguration;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
@@ -261,7 +261,7 @@ impl AuthenticatorClient {
         &mut self,
         controller: &dyn BandwidthTicketProvider,
         ticketbook_type: TicketType,
-    ) -> std::result::Result<GatewayData, RegistrationError> {
+    ) -> std::result::Result<WireguardConfiguration, RegistrationError> {
         debug!("Registering with the wg gateway...");
         let pub_key = self.peer_public_key();
 
@@ -348,7 +348,7 @@ impl AuthenticatorClient {
             &self.ip_addr, &registered_data
         );
 
-        let gateway_data = GatewayData {
+        let gateway_data = WireguardConfiguration {
             public_key: registered_data.pub_key().inner().into(),
             endpoint: SocketAddr::new(self.ip_addr, registered_data.wg_port()),
             private_ipv4: registered_data.private_ips().ipv4,

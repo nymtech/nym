@@ -19,9 +19,9 @@ use nym_lp::message::ForwardPacketData;
 use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpAction, LpData, LpInput, LpStateMachine};
 use nym_lp_transport::traits::LpTransport;
-use nym_registration_common::{GatewayData, LpRegistrationRequest};
+use nym_registration_common::{LpRegistrationRequest, WireguardConfiguration};
 use nym_wireguard_types::PeerPublicKey;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -54,9 +54,6 @@ pub struct LpRegistrationClient<S = TcpStream> {
     /// Created during handshake initiation. Persists across packet-per-connection calls.
     state_machine: Option<LpStateMachine>,
 
-    /// Client's IP address for registration metadata.
-    client_ip: IpAddr,
-
     /// Configuration for timeouts and TCP parameters.
     config: LpConfig,
 
@@ -75,7 +72,6 @@ where
     /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair
     /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
     /// * `gateway_lp_address` - Gateway's LP listener socket address
-    /// * `client_ip` - Client IP address for registration
     /// * `config` - Configuration for timeouts and TCP parameters (use `LpConfig::default()`)
     ///
     /// # Note
@@ -84,7 +80,6 @@ where
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
         gateway_lp_peer: LpRemotePeer,
         gateway_lp_address: SocketAddr,
-        client_ip: IpAddr,
         config: LpConfig,
     ) -> Self {
         let local_x25519_keypair = local_ed25519_keypair.to_x25519();
@@ -94,7 +89,6 @@ where
             gateway_lp_peer,
             gateway_lp_address,
             state_machine: None,
-            client_ip,
             config,
             stream: None,
         }
@@ -115,13 +109,11 @@ where
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
         gateway_lp_peer: LpRemotePeer,
         gateway_lp_address: SocketAddr,
-        client_ip: IpAddr,
     ) -> Self {
         Self::new(
             local_ed25519_keypair,
             gateway_lp_peer,
             gateway_lp_address,
-            client_ip,
             LpConfig::default(),
         )
     }
@@ -138,11 +130,6 @@ where
     /// Returns the gateway LP address this client is configured for.
     pub fn gateway_address(&self) -> SocketAddr {
         self.gateway_lp_address
-    }
-
-    /// Returns the client's IP address.
-    pub fn client_ip(&self) -> IpAddr {
-        self.client_ip
     }
 
     /// Returns reference to the established connection between the client and the gateway.
@@ -697,7 +684,7 @@ where
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
-    ) -> Result<GatewayData> {
+    ) -> Result<WireguardConfiguration> {
         tracing::debug!("Acquiring bandwidth credential for registration");
 
         // Get bandwidth credential from controller
@@ -739,7 +726,7 @@ where
         wg_keypair: &x25519::KeyPair,
         credential: CredentialSpendingData,
         ticket_type: TicketType,
-    ) -> Result<GatewayData> {
+    ) -> Result<WireguardConfiguration> {
         tracing::debug!("Sending registration request (persistent connection)");
 
         // 1. Build registration request
@@ -885,7 +872,7 @@ where
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
         max_retries: u32,
-    ) -> Result<GatewayData> {
+    ) -> Result<WireguardConfiguration> {
         tracing::debug!("Starting resilient registration (max_retries={max_retries})",);
 
         // Acquire credential ONCE before any attempts
@@ -1179,17 +1166,14 @@ mod tests {
         let gateway_peer =
             LpRemotePeer::new(*gateway_ed_keys.public_key(), *gateway_x_keys.public_key());
         let address = "127.0.0.1:41264".parse().unwrap();
-        let client_ip = "192.168.1.100".parse().unwrap();
 
         let client = LpRegistrationClient::<TcpStream>::new_with_default_config(
             keypair,
             gateway_peer,
             address,
-            client_ip,
         );
 
         assert!(!client.is_handshake_complete());
         assert_eq!(client.gateway_address(), address);
-        assert_eq!(client.client_ip(), client_ip);
     }
 }

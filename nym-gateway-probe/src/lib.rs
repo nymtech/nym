@@ -61,6 +61,7 @@ use crate::{
     icmp::{check_for_icmp_beacon_reply, icmp_identifier, send_ping_v4, send_ping_v6},
     types::{Exit, Socks5ProbeResults},
 };
+pub(crate) use socks5_test::JsonRpcClient;
 
 mod bandwidth_helpers;
 mod common;
@@ -151,6 +152,19 @@ pub struct Socks5Args {
     /// stops socks5 test early after this many failed attempts
     #[arg(long, default_value_t = 3)]
     failure_count_cutoff: usize,
+}
+
+impl Socks5Args {
+    pub async fn validate_socks5_endpoints(&self) -> anyhow::Result<()> {
+        let client = JsonRpcClient::new(
+            self.mixnet_client_timeout_sec,
+            None,
+            self.socks5_json_rpc_url_list.clone(),
+        )?;
+        client.ensure_endpoints_work().await?;
+
+        Ok(())
+    }
 }
 
 #[derive(Default, Debug)]
@@ -1772,12 +1786,25 @@ async fn do_socks5_connectivity_test(
         }
     };
 
-    let test =
-        HttpsConnectivityTest::new(test_run_count, mixnet_client_timeout, json_rpc_endpoints);
-    let result = test
-        .run_tests(socks5_client.socks5_url(), failure_count_cutoff)
-        .await;
+    let test = match HttpsConnectivityTest::new(
+        test_run_count,
+        mixnet_client_timeout,
+        failure_count_cutoff,
+        json_rpc_endpoints,
+        socks5_client.socks5_url(),
+    ) {
+        Ok(test) => test,
+        Err(err) => {
+            socks5_client.disconnect().await;
 
+            error!("{err}");
+            return Ok(Socks5ProbeResults::error_after_connecting(
+                "Failed to create client",
+            ));
+        }
+    };
+
+    let result = test.run_tests().await;
     socks5_client.disconnect().await;
 
     Ok(Socks5ProbeResults::with_http_result(result))

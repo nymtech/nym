@@ -155,14 +155,14 @@ impl Socks5ProbeResults {
     pub fn error_before_connecting(error: impl Into<String>) -> Self {
         Self {
             can_connect_socks5: false,
-            https_connectivity: HttpsConnectivityResult::with_error(error.into()),
+            https_connectivity: HttpsConnectivityResult::with_errors(vec![error.into()]),
         }
     }
 
     pub fn error_after_connecting(error: impl Into<String>) -> Self {
         Self {
             can_connect_socks5: true,
-            https_connectivity: HttpsConnectivityResult::with_error(error.into()),
+            https_connectivity: HttpsConnectivityResult::with_errors(vec![error.into()]),
         }
     }
 }

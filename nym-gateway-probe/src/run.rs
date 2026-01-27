@@ -222,6 +222,8 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         .map(|ep| ep.nyxd_url())
         .ok_or(anyhow::anyhow!("missing nyxd url"))?;
 
+    args.socks5_args.validate_socks5_endpoints().await?;
+
     // Three resolution modes in priority order:
     // 1. Localnet mode: --entry-gateway-identity provided (no HTTP query)
     // 2. Direct IP mode: --gateway-ip provided (queries HTTP API)

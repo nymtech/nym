@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
+use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey, HashFunction, KEM};
 use std::collections::HashMap;
@@ -16,7 +17,7 @@ pub struct LpLocalPeer {
     pub(crate) ed25519: Arc<ed25519::KeyPair>,
 
     /// Local x25519 keys (Noise static key)
-    pub(crate) x25519: Arc<x25519::KeyPair>,
+    pub(crate) x25519: Arc<DHKeyPair>,
 
     /// Local KEM key used for PSQ (x25519: to deprecate)
     pub(crate) kem_psq: Option<Arc<x25519::KeyPair>>,
@@ -28,11 +29,26 @@ pub struct LpLocalPeer {
     pub(crate) mceliece: Option<(Arc<DecapsulationKey>, Arc<EncapsulationKey>)>,
 }
 
+pub(crate) trait Placeholder {
+    fn PLACEHOLDER_UNIMPLEMENTED_private_key(&self) -> &DHPrivateKey;
+}
+
+impl Placeholder for DHKeyPair {
+    fn PLACEHOLDER_UNIMPLEMENTED_private_key(&self) -> &DHPrivateKey {
+        unimplemented!("need to ask libcrux to expose it")
+    }
+}
+
 impl LpLocalPeer {
     pub fn new(ed25519: Arc<ed25519::KeyPair>, x25519: Arc<x25519::KeyPair>) -> Self {
+        // TODO: make nicer conversion (without cloning) + error handling
+        let initiator_libcrux_x25519_private_key =
+            DHPrivateKey::from_bytes(x25519.private_key().as_bytes()).unwrap();
+        let initiator_x25519_keypair = DHKeyPair::from(initiator_libcrux_x25519_private_key);
+
         LpLocalPeer {
             ed25519,
-            x25519,
+            x25519: Arc::new(initiator_x25519_keypair),
             kem_psq: None,
             mlkem: None,
             mceliece: None,
@@ -73,7 +89,7 @@ impl LpLocalPeer {
         &self.ed25519
     }
 
-    pub fn x25519(&self) -> &Arc<x25519::KeyPair> {
+    pub fn x25519(&self) -> &Arc<DHKeyPair> {
         &self.x25519
     }
 
@@ -104,7 +120,7 @@ impl LpLocalPeer {
 
         LpRemotePeer {
             ed25519_public: *self.ed25519.public_key(),
-            x25519_public: *self.x25519.public_key(),
+            x25519_public: self.x25519.pk.clone(),
             expected_kem_key_digests,
         }
     }
@@ -124,7 +140,7 @@ impl Debug for LpLocalPeer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LpLocalPeer")
             .field("ed25519", &self.ed25519)
-            .field("x25519", &self.x25519)
+            .field("x25519", &self.x25519.pk)
             .field("kem_psq", &self.kem_psq)
             .field(
                 "mlkem",
@@ -148,7 +164,7 @@ pub struct LpRemotePeer {
     pub(crate) ed25519_public: ed25519::PublicKey,
 
     /// Remote X25519 public key (Noise static key)
-    pub(crate) x25519_public: x25519::PublicKey,
+    pub(crate) x25519_public: DHPublicKey,
 
     /// Expected digest of the remote's KEM key
     pub(crate) expected_kem_key_digests: HashMap<KEM, HashMap<HashFunction, Vec<u8>>>,
@@ -156,9 +172,11 @@ pub struct LpRemotePeer {
 
 impl LpRemotePeer {
     pub fn new(ed25519_public: ed25519::PublicKey, x25519_public: x25519::PublicKey) -> Self {
+        // TODO: make nicer conversion (without cloning) + error handling
+        let responder_x25519_public_key = DHPublicKey::from_bytes(x25519_public.as_bytes());
         LpRemotePeer {
             ed25519_public,
-            x25519_public,
+            x25519_public: responder_x25519_public_key,
             expected_kem_key_digests: Default::default(),
         }
     }
@@ -167,8 +185,8 @@ impl LpRemotePeer {
         self.ed25519_public
     }
 
-    pub fn x25519(&self) -> x25519::PublicKey {
-        self.x25519_public
+    pub fn x25519(&self) -> &DHPublicKey {
+        &self.x25519_public
     }
 
     #[must_use]
@@ -193,8 +211,19 @@ pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLoc
     use nym_kkt::key_utils::{generate_keypair_mceliece, generate_keypair_mlkem};
 
     let ed25519 = Arc::new(ed25519::KeyPair::new(rng));
-    let x25519 = Arc::new(ed25519.to_x25519());
-    let kem_psq = Some(x25519.clone());
+
+    let mut sk = [0u8; 32];
+    rng.fill_bytes(&mut sk);
+
+    // clamp
+    sk[0] &= 248u8;
+    sk[31] &= 127u8;
+    sk[31] |= 64u8;
+
+    let x25519 = Arc::new(DHKeyPair::from(DHPrivateKey::from_bytes(&sk).unwrap()));
+
+    // temp
+    let kem_psq = Some(Arc::new(ed25519.to_x25519()));
 
     let mlkem_keypair = generate_keypair_mlkem(&mut rand09::rng());
     let mceliece_keypair = generate_keypair_mceliece(&mut rand09::rng());

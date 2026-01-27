@@ -71,22 +71,24 @@ pub fn initiator_process(
     buffer.resize(msg_len, 0);
     buffer
 }
-pub fn build_initiator(
-    ciphersuite: &Ciphersuite,
-    session_context: &[u8],
-    inner_aad: &[u8],
-    outer_aad: &[u8],
-    local_x25519_private_key: &x25519::PrivateKey,
-    remote_x25519_public: &x25519::PublicKey,
-    remote_kem_public: &EncapsulationKey,
-) -> RegistrationInitiator {
+pub fn build_initiator<'a>(
+    ciphersuite: &'a Ciphersuite,
+    session_context: &'a [u8],
+    inner_aad: &'a [u8],
+    outer_aad: &'a [u8],
+    // we'll have to use that type on the "outside" instead of the nym_crypto::x25519
+    local_x25519_keys: &'a DHKeyPair,
+    remote_x25519_public: &'a DHPublicKey,
+    remote_kem_public: &'a EncapsulationKey,
+) -> RegistrationInitiator<'a, rand09::rngs::ThreadRng> {
     //georgio: handle errors
-    let initiator_libcrux_x25519_private_key =
-        DHPrivateKey::from_bytes(local_x25519_private_key.as_bytes()).unwrap();
 
-    let initiator_x25519_keypair = DHKeyPair::from(initiator_libcrux_x25519_private_key);
-
-    let responder_x25519_public_key = DHPublicKey::from_bytes(remote_x25519_public.as_bytes());
+    // JS: those will have to go on the outside
+    // let initiator_libcrux_x25519_private_key =
+    //     DHPrivateKey::from_bytes(local_x25519_private_key.as_bytes()).unwrap();
+    // let initiator_x25519_keypair = DHKeyPair::from(initiator_libcrux_x25519_private_key);
+    //
+    // let responder_x25519_public_key = DHPublicKey::from_bytes(remote_x25519_public.as_bytes());
 
     let initiator_cbuilder = match ciphersuite.kem() {
         nym_kkt::ciphersuite::KEM::MlKem768 => match remote_kem_public {
@@ -110,12 +112,12 @@ pub fn build_initiator(
         _ => panic!("undefined"),
     };
     let initiator_ciphersuite = initiator_cbuilder
-        .longterm_x25519_keys(&initiator_x25519_keypair)
-        .peer_longterm_x25519_pk(&responder_x25519_public_key)
+        .longterm_x25519_keys(local_x25519_keys)
+        .peer_longterm_x25519_pk(remote_x25519_public)
         .build_initiator_ciphersuite()
         .unwrap();
 
-    let mut initiator = PrincipalBuilder::new(rand09::rng())
+    let initiator = PrincipalBuilder::new(rand09::rng())
         .outer_aad(outer_aad)
         .inner_aad(inner_aad)
         .context(session_context)
@@ -124,23 +126,16 @@ pub fn build_initiator(
     initiator
 }
 
-pub fn build_responder<'a, R>(
+pub fn build_responder<'a>(
     ciphersuite: &Ciphersuite,
     session_context: &[u8],
     inner_aad: &[u8],
     outer_aad: &[u8],
-    local_x25519_private_key: &x25519::PrivateKey,
-    local_kem_decapsulation_key: &DecapsulationKey,
-    local_kem_encapsulation_key: &EncapsulationKey,
-) -> Responder<'a, R>
-where
-    R: rand09::CryptoRng,
-{
-    let responder_libcrux_x25519_private_key =
-        DHPrivateKey::from_bytes(local_x25519_private_key.as_bytes()).unwrap();
-
-    let responder_x25519_keypair = DHKeyPair::from(responder_libcrux_x25519_private_key);
-
+    // we'll have to use that type on the "outside" instead of the nym_crypto::x25519
+    local_x25519_keys: &'a DHKeyPair,
+    local_kem_decapsulation_key: &'a DecapsulationKey,
+    local_kem_encapsulation_key: &'a EncapsulationKey,
+) -> Responder<'a, rand09::rngs::ThreadRng> {
     let responder_cbuilder = match ciphersuite.kem() {
         nym_kkt::ciphersuite::KEM::MlKem768 => {
             match (local_kem_decapsulation_key, local_kem_encapsulation_key) {
@@ -175,7 +170,7 @@ where
         _ => panic!("undefined"),
     };
     let responder_ciphersuite = responder_cbuilder
-        .longterm_x25519_keys(&responder_x25519_keypair)
+        .longterm_x25519_keys(local_x25519_keys)
         .build_responder_ciphersuite()
         .unwrap();
 

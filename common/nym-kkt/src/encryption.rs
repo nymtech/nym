@@ -4,23 +4,30 @@
 use crate::{KKT_INITIAL_FRAME_AAD, context::KKTContext, error::KKTError, frame::KKTFrame};
 use blake3::Hasher;
 use libcrux_chacha20poly1305::{NONCE_LEN, TAG_LEN};
+use libcrux_psq::handshake::types::{DHPrivateKey, DHPublicKey};
 use nym_crypto::asymmetric::x25519;
 use rand::{CryptoRng, RngCore};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 #[derive(Clone, Copy, Zeroize)]
 pub struct KKTSessionSecret([u8; 32]);
 
 impl KKTSessionSecret {
-    pub fn new<R>(rng: &mut R, remote_public_key: &x25519::PublicKey) -> (Self, x25519::PublicKey)
+    pub fn new<R>(rng: &mut R, remote_public_key: &DHPublicKey) -> (Self, DHPublicKey)
     where
         R: RngCore + CryptoRng,
     {
-        let mut private_key_bytes = [0u8; x25519::PRIVATE_KEY_SIZE];
-        rng.fill_bytes(&mut private_key_bytes);
+        let mut private_key_bytes = Zeroizing::new([0u8; x25519::PRIVATE_KEY_SIZE]);
+        rng.fill_bytes(private_key_bytes.as_mut());
+        // clamp
+        private_key_bytes[0] &= 248u8;
+        private_key_bytes[31] &= 127u8;
+        private_key_bytes[31] |= 64u8;
 
-        let ephemeral_private_key = x25519::PrivateKey::from_secret(private_key_bytes);
-        let ephemeral_public_key = x25519::PublicKey::from(&ephemeral_private_key);
+        // SAFETY: bytes got correctly clamped
+        #[allow(clippy::unwrap_used)]
+        let ephemeral_private_key = DHPrivateKey::from_bytes(&private_key_bytes).unwrap();
+        let ephemeral_public_key = ephemeral_private_key.to_public();
 
         (
             Self::derive(&ephemeral_private_key, remote_public_key),
@@ -31,24 +38,25 @@ impl KKTSessionSecret {
         Self(secret)
     }
 
-    fn try_derive(private_key: &x25519::PrivateKey, public_key: &[u8]) -> Result<Self, KKTError> {
+    fn try_derive(private_key: &DHPrivateKey, public_key: &[u8]) -> Result<Self, KKTError> {
         let mut pub_key: [u8; 32] = [0u8; 32];
         pub_key.copy_from_slice(&public_key[0..x25519::PUBLIC_KEY_SIZE]);
 
         // Todo: check validity of pk...
-        let pk = x25519::PublicKey::from(pub_key);
+        let pk = DHPublicKey::from_bytes(&pub_key);
         Ok(Self::derive(private_key, &pk))
     }
 
-    pub fn derive(private_key: &x25519::PrivateKey, public_key: &x25519::PublicKey) -> Self {
-        let mut shared_secret = private_key.diffie_hellman(public_key);
-
-        let mut hasher = Hasher::new();
-
-        hasher.update(&shared_secret);
-        shared_secret.zeroize();
-
-        Self(hasher.finalize().as_bytes().to_owned())
+    pub fn derive(private_key: &DHPrivateKey, public_key: &DHPublicKey) -> Self {
+        unimplemented!("unexposed in libcrux")
+        // let mut shared_secret = private_key.diffie_hellman(public_key);
+        //
+        // let mut hasher = Hasher::new();
+        //
+        // hasher.update(&shared_secret);
+        // shared_secret.zeroize();
+        //
+        // Self(hasher.finalize().as_bytes().to_owned())
     }
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0
@@ -57,7 +65,7 @@ impl KKTSessionSecret {
 
 pub fn encrypt_initial_kkt_frame<R>(
     rng: &mut R,
-    remote_public_key: &x25519::PublicKey,
+    remote_public_key: &DHPublicKey,
     kkt_frame: &KKTFrame,
 ) -> Result<(KKTSessionSecret, Vec<u8>), KKTError>
 where
@@ -69,7 +77,7 @@ where
         encrypt_kkt_frame(rng, &session_secret_key, kkt_frame, KKT_INITIAL_FRAME_AAD)?;
 
     let mut output_buffer = Vec::with_capacity(encrypted_frame.len() + x25519::PUBLIC_KEY_SIZE);
-    output_buffer.extend_from_slice(ephemeral_public_key.as_bytes());
+    output_buffer.extend_from_slice(ephemeral_public_key.as_ref());
     output_buffer.append(&mut encrypted_frame);
 
     // [     32     |  12   | ciphertext | 16];
@@ -78,7 +86,7 @@ where
 }
 
 pub fn decrypt_initial_kkt_frame(
-    responder_private_key: &x25519::PrivateKey,
+    responder_private_key: &DHPrivateKey,
     encrypted_frame_bytes: &[u8],
 ) -> Result<(KKTSessionSecret, KKTFrame, KKTContext), KKTError> {
     if encrypted_frame_bytes.len() < x25519::PUBLIC_KEY_SIZE + TAG_LEN + NONCE_LEN {

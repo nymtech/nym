@@ -11,12 +11,13 @@ use crate::message::{EncryptedDataPayload, HandshakeData};
 // noiserm
 use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
 use crate::packet::LpHeader;
-use crate::peer::{LpLocalPeer, LpRemotePeer};
+use crate::peer::{LpLocalPeer, LpRemotePeer, Placeholder};
 use crate::psk::{
     derive_subsession_psk, psq_initiator_create_message, psq_responder_process_message,
 };
 use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
+use libcrux_psq::handshake::types::DHPublicKey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::KKT_RESPONSE_AAD;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey, KEM};
@@ -295,8 +296,8 @@ impl LpSession {
     ///
     /// This is used for KKT protocol when the responder needs to send their
     /// KEM public key in the KKT response.
-    pub fn local_x25519_public(&self) -> x25519::PublicKey {
-        *self.local_peer.x25519.public_key()
+    pub fn local_x25519_public(&self) -> &DHPublicKey {
+        &self.local_peer.x25519.pk
     }
 
     /// Returns the remote ed25519 public key.
@@ -316,7 +317,7 @@ impl LpSession {
     ///
     /// Used for tie-breaking in simultaneous subsession initiation.
     /// Lower key loses and becomes responder.
-    pub fn remote_x25519_public(&self) -> &x25519::PublicKey {
+    pub fn remote_x25519_public(&self) -> &DHPublicKey {
         &self.remote_peer.x25519_public
     }
 
@@ -396,11 +397,14 @@ impl LpSession {
         let params = pattern_name.parse()?;
         let builder = Builder::new(params);
 
-        let local_key_bytes = local_peer.x25519.private_key().as_bytes();
+        let local_key_bytes = local_peer
+            .x25519
+            .PLACEHOLDER_UNIMPLEMENTED_private_key()
+            .as_ref();
         // noiserm
         let builder = builder.local_private_key(local_key_bytes);
 
-        let remote_key_bytes = remote_peer.x25519_public.to_bytes();
+        let remote_key_bytes = remote_peer.x25519_public.as_ref();
         // noiserm
         let builder = builder.remote_public_key(&remote_key_bytes);
 
@@ -756,7 +760,9 @@ impl LpSession {
         let mut kkt_state = self.kkt_state.lock();
 
         let response_bytes = match decrypt_initial_kkt_frame(
-            self.local_peer.x25519().private_key(),
+            self.local_peer
+                .x25519()
+                .PLACEHOLDER_UNIMPLEMENTED_private_key(),
             request_bytes,
         ) {
             Ok((session_secret, request_frame, remote_context)) => {
@@ -864,7 +870,9 @@ impl LpSession {
             let session_context = self.id.to_le_bytes();
 
             let psq_result = match psq_initiator_create_message(
-                self.local_peer.x25519.private_key(),
+                self.local_peer
+                    .x25519
+                    .PLACEHOLDER_UNIMPLEMENTED_private_key(),
                 &self.remote_peer.x25519_public,
                 remote_kem,
                 self.local_peer.ed25519.private_key(),
@@ -1010,7 +1018,9 @@ impl LpSession {
                     let session_context = self.id.to_le_bytes();
 
                     let psq_result = match psq_responder_process_message(
-                        self.local_peer.x25519.private_key(),
+                        self.local_peer
+                            .x25519
+                            .PLACEHOLDER_UNIMPLEMENTED_private_key(),
                         &self.remote_peer.x25519_public,
                         (&dec_key, &enc_key),
                         &self.remote_peer.ed25519_public,
@@ -1269,8 +1279,12 @@ impl LpSession {
         let pattern_name = "Noise_KKpsk0_25519_ChaChaPoly_SHA256";
         let params = pattern_name.parse()?;
 
-        let local_key_bytes = self.local_peer.x25519.private_key().to_bytes();
-        let remote_key_bytes = self.remote_x25519_public().to_bytes();
+        let local_key_bytes = self
+            .local_peer
+            .x25519
+            .PLACEHOLDER_UNIMPLEMENTED_private_key()
+            .as_ref();
+        let remote_key_bytes = self.remote_x25519_public().as_ref();
 
         let builder = Builder::new(params)
             .local_private_key(&local_key_bytes)

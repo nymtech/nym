@@ -360,20 +360,13 @@ impl LpStateMachine {
                     // Packet message is already parsed, match on it directly
                     match &packet.message {
                         LpMessage::KKTRequest(kkt_request) if !session.is_initiator() => {
-                                    match session.process_kkt_request(&kkt_request.0) {
-                                        Ok(kkt_response_message) => {
-                                            match session.next_packet(kkt_response_message) {
-                                                Ok(response_packet) => {
-                                                    result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-                                                    // After KKT exchange, move to Handshaking
-                                                    LpState::Handshaking { session }
-                                                }
-                                                Err(e) => {
-                                                    let reason = e.to_string();
-                                                    result_action = Some(Err(e));
-                                                    LpState::Closed { reason }
-                                                }
-                                            }
+                            match session.process_kkt_request(&kkt_request.0) {
+                                Ok(kkt_response_message) => {
+                                    match session.next_packet(kkt_response_message) {
+                                        Ok(response_packet) => {
+                                            result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                            // After KKT exchange, move to Handshaking
+                                            LpState::Handshaking { session }
                                         }
                                         Err(e) => {
                                             let reason = e.to_string();
@@ -381,8 +374,13 @@ impl LpStateMachine {
                                             LpState::Closed { reason }
                                         }
                                     }
-                                
-                           
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
                         }
                         LpMessage::KKTResponse(kkt_response) if session.is_initiator() => {
                             match session.process_kkt_response(&kkt_response.0) {
@@ -600,11 +598,11 @@ impl LpStateMachine {
                                             LpState::Transport { session }
                                         } else {
                                             // 4. Deliver data
-                                             match plaintext.try_into() {
+                                            match plaintext.try_into() {
                                                 Ok(data) => {
                                                     result_action = Some(Ok(LpAction::DeliverData(data)));
                                                     LpState::Transport { session }
-                                                },
+                                                }
                                                 Err(e) => {
                                                     let reason = e.to_string();
                                                     result_action = Some(Err(e));
@@ -760,7 +758,7 @@ impl LpStateMachine {
                             let local_key = session.local_x25519_public();
                             let remote_key = session.remote_x25519_public();
 
-                            if local_key.as_bytes() < remote_key.as_bytes() {
+                            if local_key.as_ref() < remote_key.as_ref() {
                                 // We LOSE - become responder
                                 // Use the same index as our initiator subsession, which should
                                 // match the winner's index if subsession counters are in sync.

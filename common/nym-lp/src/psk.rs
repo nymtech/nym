@@ -47,6 +47,7 @@
 //! - **No cleanup needed**: No state was mutated
 
 use crate::LpError;
+use libcrux_psq::handshake::types::{DHPrivateKey, DHPublicKey};
 use libcrux_psq::v1::cred::{Authenticator, Ed25519};
 use libcrux_psq::v1::impls::X25519 as PsqX25519;
 use libcrux_psq::v1::psk_registration::{Initiator, InitiatorMsg, Responder};
@@ -137,12 +138,14 @@ pub struct PsqResponderResult {
 /// ```
 pub fn derive_psk_with_psq_initiator(
     local_x25519_private: &x25519::PrivateKey,
-    remote_x25519_public: &x25519::PublicKey,
+    remote_x25519_public: &DHPublicKey,
     remote_kem_public: &EncapsulationKey,
     salt: &[u8; 32],
 ) -> Result<([u8; 32], Vec<u8>), LpError> {
     // Step 1: Classical ECDH for baseline security
-    let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+    // let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+
+    let ecdh_secret: [u8; 32] = unimplemented!("unexposed by libcrux");
 
     // Step 2: PSQ encapsulation for post-quantum security
     // KEM algorithm migration path:
@@ -219,14 +222,16 @@ pub fn derive_psk_with_psq_initiator(
 /// )?;
 /// ```
 pub fn derive_psk_with_psq_responder(
-    local_x25519_private: &x25519::PrivateKey,
-    remote_x25519_public: &x25519::PublicKey,
+    local_x25519_private: &DHPrivateKey,
+    remote_x25519_public: &DHPublicKey,
     local_kem_keypair: (&DecapsulationKey, &EncapsulationKey),
     ciphertext: &[u8],
     salt: &[u8; 32],
 ) -> Result<[u8; 32], LpError> {
     // Step 1: Classical ECDH for baseline security
-    let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+    // let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+
+    let ecdh_secret: [u8; 32] = unimplemented!("unexposed by libcrux");
 
     // Step 2: Extract X25519 keypair from DecapsulationKey/EncapsulationKey
     let (kem_sk, kem_pk) = match (local_kem_keypair.0, local_kem_keypair.1) {
@@ -279,8 +284,8 @@ pub fn derive_psk_with_psq_responder(
 /// # Returns
 /// `PsqInitiatorResult` containing PSK, payload, and raw PQ shared secret
 pub fn psq_initiator_create_message(
-    local_x25519_private: &x25519::PrivateKey,
-    remote_x25519_public: &x25519::PublicKey,
+    local_x25519_private: &DHPrivateKey,
+    remote_x25519_public: &DHPublicKey,
     remote_kem_public: &EncapsulationKey,
     client_ed25519_sk: &ed25519::PrivateKey,
     client_ed25519_pk: &ed25519::PublicKey,
@@ -288,7 +293,9 @@ pub fn psq_initiator_create_message(
     session_context: &[u8],
 ) -> Result<PsqInitiatorResult, LpError> {
     // Step 1: Classical ECDH for baseline security
-    let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+    // let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+
+    let ecdh_secret: [u8; 32] = unimplemented!("unexposed by libcrux");
 
     // Step 2: PSQ v1 with Ed25519 authentication
     // Extract X25519 KEM key from EncapsulationKey
@@ -374,8 +381,8 @@ pub fn psq_initiator_create_message(
 /// # Returns
 /// `PsqResponderResult` containing PSK, PSK handle, and raw PQ shared secret
 pub fn psq_responder_process_message(
-    local_x25519_private: &x25519::PrivateKey,
-    remote_x25519_public: &x25519::PublicKey,
+    local_x25519_private: &DHPrivateKey,
+    remote_x25519_public: &DHPublicKey,
     local_kem_keypair: (&DecapsulationKey, &EncapsulationKey),
     initiator_ed25519_pk: &ed25519::PublicKey,
     psq_payload: &[u8],
@@ -383,7 +390,8 @@ pub fn psq_responder_process_message(
     session_context: &[u8],
 ) -> Result<PsqResponderResult, LpError> {
     // Step 1: Classical ECDH for baseline security
-    let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+    // let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+    let ecdh_secret: [u8; 32] = unimplemented!("unexposed by libcrux");
 
     // Step 2: Extract X25519 keypair from DecapsulationKey/EncapsulationKey
     let (kem_sk, kem_pk) = match (local_kem_keypair.0, local_kem_keypair.1) {

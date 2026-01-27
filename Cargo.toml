@@ -390,6 +390,17 @@ zeroize = "1.7.0"
 
 prometheus = { version = "0.14.0" }
 
+
+# libcrux
+libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
+libcrux-ecdh = { git = "https://github.com/cryspen/libcrux" }
+libcrux-chacha20poly1305 = { git = "https://github.com/cryspen/libcrux" }
+libcrux-psq = { git = "https://github.com/cryspen/libcrux" }
+libcrux-ml-kem = { git = "https://github.com/cryspen/libcrux" }
+libcrux-sha3 = { git = "https://github.com/cryspen/libcrux" }
+libcrux-traits = { git = "https://github.com/cryspen/libcrux" }
+
+
 # Workspace dep definitions required by crates.io publication - we need a workspace version since `cargo workspaces` doesn't work with path imports from crate manifests
 nym-api-requests = { version = "1.20.1", path = "nym-api/nym-api-requests" }
 nym-authenticator-requests = { version = "1.20.1", path = "common/authenticator-requests" }

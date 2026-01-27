@@ -6870,7 +6870,6 @@ dependencies = [
  "dashmap",
  "libcrux-kem",
  "libcrux-psq",
- "libcrux-traits",
  "num_enum",
  "nym-crypto",
  "nym-kkt",

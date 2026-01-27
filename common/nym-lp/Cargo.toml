@@ -24,11 +24,8 @@ nym-kkt = { path = "../nym-kkt" }
 nym-lp-common = { path = "../nym-lp-common" }
 
 # libcrux dependencies for PSQ (Post-Quantum PSK derivation)
-libcrux-psq = { git = "https://github.com/cryspen/libcrux", features = [
-    "test-utils",
-] }
-libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
-libcrux-traits = { git = "https://github.com/cryspen/libcrux" }
+libcrux-psq = { workspace = true, features = ["test-utils"] }
+libcrux-kem = { workspace = true }
 tls_codec = { workspace = true }
 num_enum = { workspace = true }
 chacha20poly1305 = { workspace = true }

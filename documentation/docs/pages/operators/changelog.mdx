@@ -74,7 +74,7 @@ To simplify this, we made ***a build in command, which operators must run after 
 
 These are the steps to follow:
 
-<Steps />
+<Steps>
 ###### 1. Get `oscypek` binary
 - SSH to your machine as root
 - Navigate to the destination where you have `nym-node` binary
@@ -85,7 +85,6 @@ chmod +x nym-node
 ```
 
 ###### 2. Run `debug` command
-
 ```sh
 ./nym-node debug reset-providers-gateway-dbs --id <ID>
 ```
@@ -126,16 +125,49 @@ chmod +x network-tunnel-manager.sh
 
 ### Features
 
+- [Deriving `Serialize` for `GatewayData`](https://github.com/nymtech/nym/pull/6314): Deriving `Serialize` for gateway data, that will be used by the diagnostic tool in the `vpn-client` repo
+
+- [DNS static table pre-resolve](https://github.com/nymtech/nym/pull/6297): This PR adds pre-resolve stage that returns addres if we have used static table previously. This ensures that we don't continually suffer the penalty of a lookup timeout, while also allowing for the possibility of going back to the default internal secure resolver if one or more nameservers becomes usable again at a future time.
+
+- [Add `Copy+Clone` to `nym_api_provider::Config`](https://github.com/nymtech/nym/pull/6296): Add `Copy+Clone` to `nym_client_core::client::topology_control::nym_api_provider::Config`
+
+- [LP Registration + Telescoping + Gateway Probe Localnet Mode](https://github.com/nymtech/nym/pull/6286):  Combines LP registration protocol implementation, adds telescoping/nested sessions support, adds localnet mode for `gateway-probe` testing, integrates KKT & PSQ cryptographic primitives 
+
+- [Minor DNS improvements](https://github.com/nymtech/nym/pull/6283): Increase timeouts back to 10 seconds for overall lookup and 5 seconds per query, gnore unreliable test, remove JIT resolution in http client as it is at best not useful, and at worst increasing timeout
+
+- [HTTP client without default features](https://github.com/nymtech/nym/pull/6281): Fix compile issue caused when using the http client using `default-features=false`
+
+- [DNS: reduce number of attempts](https://github.com/nymtech/nym/pull/6278): Reduce number of retry attempts performed by hickory to `0`, define `new_resolver` as infallible, use `ResolverOpts` to build builder
+
+- [Fallback gateway listener and remove legacy key support](https://github.com/nymtech/nym/pull/6249)
+
+- [Fix assertion](https://github.com/nymtech/nym/pull/6238)
+
+- [Initial changes to support extra configurable parameters and to print…](https://github.com/nymtech/nym/pull/6237): This branch adds support for the additional configurable parameters introduced in  `nicolas/sdk-param-support-debug` in the nym vpn client branch and also debugging messages to verify that it works
+
+- [Data Observatory](https://github.com/nymtech/nym/pull/6172): This PR adds the Data Observatory that is:
+    - chain scraper
+    - parses Cosmos SDK messages
+    - parses Cosmwasm messages
+    - stores data in pgsql
 
 ### Bugfix
 
+- [Downgrade gateway protocol to clients proposed version](https://github.com/nymtech/nym/pull/6377)
+
+- [Ack fix](https://github.com/nymtech/nym/pull/6364)
+
+- [Sqlite transaction escalation was causing errors ](https://github.com/nymtech/nym/pull/6299): Getting tickets from credential storage requires a transaction doing a read and then a write. Running registration in parallel was causing sqlite to return errors, because it can't escalate two transactions, only one.
+
+- [Use proper mixing delay instead of poisson delay in cover traffic](https://github.com/nymtech/nym/pull/6269): Currently the secondary cover traffic loop uses its Poisson process delays instead of a proper mixing delay, this PR fixes that
 
 ### Refactors & Maintenance
 
+- [Update nix to `v0.30.1`](https://github.com/nymtech/nym/pull/6316)
 
+- [Rremove repetitive words in comment](https://github.com/nymtech/nym/pull/6313)
 
-
-
+- [Clippy fixes and use fixed rust version from `REQUIRED_RUSTC_VERSION`](https://github.com/nymtech/nym/pull/6295)
 
 
 ## `v2026.1-niolo`

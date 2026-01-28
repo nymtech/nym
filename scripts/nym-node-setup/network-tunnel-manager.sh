@@ -651,6 +651,7 @@ apply_port_allowlist() {
     ["NTP"]="123"
     ["IMAP"]="143"
     ["IMAP3"]="220"
+    ["SSHAlternative1"]="223"
     ["LDAP"]="389"
     ["HTTPS"]="443"
     ["SMBWindowsFileShare"]="445"
@@ -688,10 +689,13 @@ apply_port_allowlist() {
     ["GNUnet"]="2086-2087"
     ["NBX"]="2095-2096"
     ["Zephyr"]="2102-2104"
+    ["SSHAlternative2"]="2222"
     ["XboxLive"]="3074"
     ["MySQL"]="3306"
+    ["SteamGaming"]="3478"
     ["SVN"]="3690"
     ["RWHOIS"]="4321"
+    ["Gaming"]="4379–4380"
     ["Virtuozzo"]="4643"
     ["RTPVOIP"]="5000-5005"
     ["MMCC"]="5050"
@@ -727,6 +731,7 @@ apply_port_allowlist() {
     ["DarkFi"]="26661"
     ["Steam"]="27000-27050"
     ["WhatsAppRange"]="3478-3484"
+    ["DiscordVoiceChat"]="50000–65535"
     ["ElectrumSSL"]="50002"
     ["MOSH"]="60000-61000"
     ["Mumble"]="64738"
@@ -1067,6 +1072,8 @@ test_port_range_rules() {
     "8332-8333:tcp:bitcoin"
     "18080-18081:tcp:monero"
     "3478-3484:tcp:whatsapp"
+    "50000–65535:tcp:discord"
+    "4379–4380:tcp:steam"
   )
 
   local failures=0

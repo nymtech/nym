@@ -5,11 +5,16 @@
 mod tests {
     use anyhow::Context;
     use nym_bandwidth_controller::mock::MockBandwidthController;
+    use nym_credential_verification::UpgradeModeState;
     use nym_credential_verification::ecash::MockEcashManager;
+    use nym_credential_verification::upgrade_mode::{
+        UpgradeModeCheckConfig, UpgradeModeCheckRequestSender, UpgradeModeDetails,
+    };
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::{ed25519, x25519};
     use nym_gateway::GatewayError;
     use nym_gateway::node::lp_listener::handler::LpConnectionHandler;
+    use nym_gateway::node::lp_listener::peer_manager::PeerManager;
     use nym_gateway::node::lp_listener::{
         LpDebug, LpHandlerState, LpLocalPeer, MixForwardingReceiver, PeerControlRequest,
         WireguardGatewayData, mix_forwarding_channels,
@@ -174,6 +179,17 @@ mod tests {
             Ok(GatewayStorage::from_connection_pool(conn_pool, 100).await?)
         }
 
+        const DUMMY_ATTESTER_ED25519_PRIVATE_KEY: [u8; 32] = [
+            108, 49, 193, 21, 126, 161, 249, 85, 242, 207, 74, 195, 238, 6, 64, 149, 201, 140, 248,
+            163, 122, 170, 79, 198, 87, 85, 36, 29, 243, 92, 64, 161,
+        ];
+
+        pub(crate) fn dummy_attester_public_key() -> ed25519::PublicKey {
+            let private_key =
+                ed25519::PrivateKey::from_bytes(&Self::DUMMY_ATTESTER_ED25519_PRIVATE_KEY).unwrap();
+            private_key.public_key()
+        }
+
         async fn mock(rng: &mut (impl RngCore + CryptoRng)) -> anyhow::Result<Self> {
             let base = Party::generate(rng);
 
@@ -199,11 +215,27 @@ mod tests {
             // create wireguard data
             let (wireguard_data, peer_request_rx) = Self::wireguard_data(&base);
 
+            let (um_recheck_tx, um_recheck_rx) = futures::channel::mpsc::unbounded();
+
+            // TODO: use it if we ever want to test UM
+            let _ = um_recheck_rx;
+
             // mock the wg peer controller
             let (mock_peer_controller, peer_controller_state) =
                 mock_peer_controller(peer_request_rx);
 
+            let upgrade_mode_state = UpgradeModeState::new(Self::dummy_attester_public_key());
+            let upgrade_mode_details = UpgradeModeDetails::new(
+                UpgradeModeCheckConfig {
+                    // essentially we never want to trigger this in our tests
+                    min_staleness_recheck: Duration::from_nanos(1),
+                },
+                UpgradeModeCheckRequestSender::new(um_recheck_tx),
+                upgrade_mode_state.clone(),
+            );
+
             // registering particular responses for peer controller is up to given test
+            let peer_manager = Arc::new(PeerManager::new(wireguard_data));
 
             let lp_state = LpHandlerState {
                 // use mock instance of ecash verifier
@@ -220,9 +252,8 @@ mod tests {
                 active_clients_store: ActiveClientsStore::new(),
 
                 // handles required for wg registration
-                wg_peer_controller: Some(wireguard_data.peer_tx().clone()),
-
-                wireguard_data: Some(wireguard_data),
+                upgrade_mode: upgrade_mode_details,
+                peer_manager,
 
                 // use default lp config (with enabled flag)
                 lp_config,
@@ -237,6 +268,7 @@ mod tests {
                 session_states: Arc::new(Default::default()),
 
                 // sensible default value for tests
+                registrations_in_progress: Default::default(),
                 forward_semaphore,
             };
 
@@ -376,6 +408,7 @@ mod tests {
     mod using_lp_registration_client {
         use super::*;
         use nym_registration_client::NestedLpSession;
+        use nym_wireguard::DefguardPeer;
 
         #[tokio::test]
         async fn test_basic_lp_entry_registration() -> anyhow::Result<()> {
@@ -430,6 +463,16 @@ mod tests {
                 )
                 .await;
 
+            // 3) peer query - check for prior registrations
+            let query_res = Ok::<_, nym_wireguard::Error>(Option::<DefguardPeer>::None);
+            let key = client_key.to_wg_key();
+            entry
+                .register_peer_controller_response(
+                    PeerControlRequestType::QueryPeer { key },
+                    query_res,
+                )
+                .await;
+
             // 4. spawn peer controller to be able to handle dvpn registration requests
             entry.spawn_peer_controller();
 
@@ -440,7 +483,7 @@ mod tests {
             let wg_keypair = client_data.base.x25519_wg_keys;
             let gateway_identity = entry.base.peer.ed25519().public_key();
             let registration_result = client
-                .register(
+                .register_dvpn(
                     &mut client_rng,
                     &wg_keypair,
                     gateway_identity,
@@ -506,7 +549,7 @@ mod tests {
             let wg_keypair = client_data.base.x25519_wg_keys;
             let gateway_identity = entry.base.peer.ed25519().public_key();
             let registration_result = client
-                .register(
+                .register_dvpn(
                     &mut client_rng,
                     &wg_keypair,
                     gateway_identity,
@@ -520,7 +563,10 @@ mod tests {
             let LpClientError::Transport(err) = registration_result else {
                 panic!("unexpected error");
             };
-            assert_eq!(err, "Cannot register: handshake not completed");
+            assert_eq!(
+                err,
+                "State machine not available - has the handshake been completed?"
+            );
 
             // 5. stop the gateway task and finish the test
             entry.stop_tasks().await?;
@@ -590,6 +636,16 @@ mod tests {
                 )
                 .await;
 
+            // 3) peer query - check for prior registrations
+            let query_res = Ok::<_, nym_wireguard::Error>(Option::<DefguardPeer>::None);
+            let key = client_key.to_wg_key();
+            entry
+                .register_peer_controller_response(
+                    PeerControlRequestType::QueryPeer { key },
+                    query_res,
+                )
+                .await;
+
             // 5. spawn peer controller to be able to handle dvpn registration requests
             entry.spawn_peer_controller();
 
@@ -630,6 +686,15 @@ mod tests {
             )
             .await;
 
+            // 3) peer query - check for prior registrations
+            let query_res = Ok::<_, nym_wireguard::Error>(Option::<DefguardPeer>::None);
+            let key = client_key.to_wg_key();
+            exit.register_peer_controller_response(
+                PeerControlRequestType::QueryPeer { key },
+                query_res,
+            )
+            .await;
+
             // 11. spawn peer controller to be able to handle dvpn registration requests
             exit.spawn_peer_controller();
 
@@ -646,7 +711,7 @@ mod tests {
 
             // 13. Perform handshake and registration with exit gateway (all via entry forwarding)
             let exit_registration_result = nested_session
-                .handshake_and_register(
+                .handshake_and_register_dvpn(
                     &mut entry_client,
                     &mut client_rng,
                     &client_data.base.x25519_wg_keys,
@@ -659,7 +724,7 @@ mod tests {
 
             // 14. complete registration with the entry
             let entry_registration_result = entry_client
-                .register(
+                .register_dvpn(
                     &mut client_rng,
                     &client_data.base.x25519_wg_keys,
                     entry.base.peer.ed25519().public_key(),

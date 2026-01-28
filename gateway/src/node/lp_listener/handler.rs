@@ -1,8 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::registration::process_registration;
-use super::LpHandlerState;
+use super::{LpHandlerState, ReceiverIndex};
 use crate::error::GatewayError;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
@@ -12,7 +11,7 @@ use nym_lp::{
 };
 use nym_lp_transport::traits::LpTransport;
 use nym_metrics::{add_histogram_obs, inc};
-use nym_registration_common::LpRegistrationRequest;
+use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -742,11 +741,11 @@ where
     /// Handle registration request on an established session
     async fn handle_registration_request(
         &mut self,
-        receiver_idx: u32,
+        receiver_idx: ReceiverIndex,
         request: LpRegistrationRequest,
     ) -> Result<(), GatewayError> {
         // Process registration (might modify state)
-        let response = process_registration(request, &self.state).await;
+        let response = self.state.process_registration(receiver_idx, request).await;
         let response_bytes = response.serialise().map_err(|e| {
             GatewayError::LpProtocolError(format!("Failed to serialize response: {e}"))
         })?;
@@ -754,13 +753,23 @@ where
         self.send_response_packet(receiver_idx, response_bytes, LpDataKind::Registration)
             .await?;
 
-        if response.success {
-            info!("LP registration successful for {})", self.remote_addr);
-        } else {
-            warn!(
-                "LP registration failed for {}: {:?}",
-                self.remote_addr, response.error
-            );
+        match response.status {
+            RegistrationStatus::Completed => {
+                info!("LP registration successful for {}", self.remote_addr);
+            }
+            RegistrationStatus::Failed => {
+                warn!(
+                    "LP registration failed for {}: {:?}",
+                    self.remote_addr,
+                    response.error_message()
+                );
+            }
+            RegistrationStatus::PendingMoreData => {
+                info!(
+                    "we required more deta from {} to complete registration",
+                    self.remote_addr
+                );
+            }
         }
 
         Ok(())
@@ -1219,22 +1228,47 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::node::lp_listener::peer_manager::PeerManager;
     use crate::node::lp_listener::{LpConfig, LpDebug};
     use crate::node::ActiveClientsStore;
     use bytes::BytesMut;
+    use nym_credential_verification::upgrade_mode::{
+        UpgradeModeCheckConfig, UpgradeModeCheckRequestSender, UpgradeModeDetails,
+    };
+    use nym_credential_verification::UpgradeModeState;
     use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
     use nym_lp::message::{ClientHelloData, EncryptedDataPayload, HandshakeData, LpMessage};
     use nym_lp::packet::{LpHeader, LpPacket};
     use nym_lp::peer::LpLocalPeer;
+    use nym_wireguard::{PeerControlRequest, WireguardConfig, WireguardGatewayData};
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
+    use tokio::sync::mpsc::Receiver;
     // ==================== Test Helpers ====================
 
     /// Create a minimal test state for handler tests
     async fn create_minimal_test_state() -> LpHandlerState {
         use nym_crypto::asymmetric::ed25519;
         use rand::rngs::OsRng;
+
+        fn wireguard_data(
+            keys: Arc<x25519::KeyPair>,
+        ) -> (WireguardGatewayData, Receiver<PeerControlRequest>) {
+            // some sensible default values (ports don't matter anyway)
+            let cfg = WireguardConfig {
+                bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 51822),
+                private_ipv4: Ipv4Addr::new(10, 1, 0, 1),
+                private_ipv6: Ipv6Addr::new(0xfc01, 0, 0, 0, 0, 0, 0, 0x1), // fc01::1,
+                announced_tunnel_port: 51822,
+                announced_metadata_port: 51830,
+                private_network_prefix_v4: 16,
+                private_network_prefix_v6: 112,
+            };
+
+            WireguardGatewayData::new(cfg, keys)
+        }
 
         // Create in-memory storage for testing
         let storage = nym_gateway_storage::GatewayStorage::init(":memory:", 100)
@@ -1262,6 +1296,20 @@ mod tests {
         let id_keys = Arc::new(ed25519::KeyPair::new(&mut OsRng));
         let x_keys = Arc::new(id_keys.to_x25519());
 
+        let (wireguard_data, _) = wireguard_data(x_keys.clone());
+
+        let (um_recheck_tx, um_recheck_rx) = futures::channel::mpsc::unbounded();
+
+        let upgrade_mode_state = UpgradeModeState::new(*id_keys.public_key());
+        let upgrade_mode_details = UpgradeModeDetails::new(
+            UpgradeModeCheckConfig {
+                // essentially we never want to trigger this in our tests
+                min_staleness_recheck: Duration::from_nanos(1),
+            },
+            UpgradeModeCheckRequestSender::new(um_recheck_tx),
+            upgrade_mode_state.clone(),
+        );
+
         let lp_peer = LpLocalPeer::new(id_keys, x_keys.clone()).with_kem_psq_key(x_keys);
 
         LpHandlerState {
@@ -1272,12 +1320,13 @@ mod tests {
             local_lp_peer: lp_peer,
             metrics: nym_node_metrics::NymNodeMetrics::default(),
             active_clients_store: ActiveClientsStore::new(),
-            wg_peer_controller: None,
-            wireguard_data: None,
+            upgrade_mode: upgrade_mode_details,
             outbound_mix_sender: mix_sender,
             handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),
+            registrations_in_progress: Default::default(),
             forward_semaphore,
+            peer_manager: Arc::new(PeerManager::new(wireguard_data)),
         }
     }
 

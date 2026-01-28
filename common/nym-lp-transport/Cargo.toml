@@ -12,8 +12,9 @@ readme.workspace = true
 publish = false
 
 [dependencies]
-tokio = { workspace = true, features = ["net"] }
+tokio = { workspace = true, features = ["net", "io-util"] }
 nym-test-utils = { path = "../test-utils", optional = true }
+tracing = { workspace = true }
 
 [features]
 io-mocks = ["nym-test-utils"]

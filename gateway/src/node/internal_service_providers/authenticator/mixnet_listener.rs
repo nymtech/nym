@@ -53,14 +53,14 @@ const DEFAULT_REGISTRATION_TIMEOUT_CHECK: Duration = Duration::from_secs(60); //
 const DEFAULT_WG_CLIENT_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024 * 1024;
 
 pub(crate) struct RegisteredAndFree {
-    registration_in_progres: PendingRegistrations,
+    registration_in_progress: PendingRegistrations,
     free_private_network_ips: PrivateIPs,
 }
 
 impl RegisteredAndFree {
     pub(crate) fn new(free_private_network_ips: PrivateIPs) -> Self {
         RegisteredAndFree {
-            registration_in_progres: Default::default(),
+            registration_in_progress: Default::default(),
             free_private_network_ips,
         }
     }
@@ -134,7 +134,7 @@ impl MixnetListener {
     async fn remove_stale_registrations(&self) -> Result<(), AuthenticatorError> {
         let mut registered_and_free = self.registered_and_free.write().await;
         let registered_values: Vec<_> = registered_and_free
-            .registration_in_progres
+            .registration_in_progress
             .values()
             .cloned()
             .collect();
@@ -149,7 +149,7 @@ impl MixnetListener {
 
             let Some(timestamp) = ip else {
                 registered_and_free
-                    .registration_in_progres
+                    .registration_in_progress
                     .remove(&reg.gateway_data.pub_key());
                 tracing::debug!(
                     "Removed stale registration of {}",
@@ -165,7 +165,7 @@ impl MixnetListener {
             if duration > DEFAULT_REGISTRATION_TIMEOUT_CHECK {
                 *ip = None;
                 registered_and_free
-                    .registration_in_progres
+                    .registration_in_progress
                     .remove(&reg.gateway_data.pub_key());
                 tracing::debug!(
                     "Removed stale registration of {}",
@@ -187,7 +187,7 @@ impl MixnetListener {
         let nonce: u64 = fastrand::u64(..);
         let mut registered_and_free = self.registered_and_free.write().await;
         if let Some(registration_data) = registered_and_free
-            .registration_in_progres
+            .registration_in_progress
             .get(&remote_public)
         {
             let gateway_data = registration_data.gateway_data.clone();
@@ -404,7 +404,7 @@ impl MixnetListener {
             wg_port: self.config.authenticator.tunnel_announced_port,
         };
         registered_and_free
-            .registration_in_progres
+            .registration_in_progress
             .insert(remote_public, registration_data.clone());
         let bytes = match AuthenticatorVersion::from(protocol) {
             AuthenticatorVersion::V1 => {
@@ -541,7 +541,7 @@ impl MixnetListener {
     ) -> AuthenticatorHandleResult {
         let mut registered_and_free = self.registered_and_free.write().await;
         let registration_data = registered_and_free
-            .registration_in_progres
+            .registration_in_progress
             .get(&final_message.gateway_client_pub_key())
             .ok_or(AuthenticatorError::RegistrationNotInProgress)?
             .clone();
@@ -596,7 +596,7 @@ impl MixnetListener {
         }
 
         registered_and_free
-            .registration_in_progres
+            .registration_in_progress
             .remove(&final_message.gateway_client_pub_key());
 
         let bytes = match AuthenticatorVersion::from(protocol) {

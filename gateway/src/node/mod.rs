@@ -36,6 +36,7 @@ use tokio::sync::Semaphore;
 use tracing::*;
 use zeroize::Zeroizing;
 
+use crate::node::lp_listener::peer_manager::PeerManager;
 pub use crate::node::upgrade_mode::watcher::UpgradeModeWatcher;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use lp_listener::LpConfig;
@@ -328,13 +329,18 @@ impl GatewayTasksBuilder {
 
     pub async fn build_lp_listener(
         &mut self,
+        upgrade_mode_common_state: UpgradeModeDetails,
         active_clients_store: ActiveClientsStore,
     ) -> Result<lp_listener::LpListener, GatewayError> {
         // Get WireGuard peer controller if available
-        let wg_peer_controller = self
-            .wireguard_data
-            .as_ref()
-            .map(|wg_data| wg_data.inner.peer_tx().clone());
+        let Some(wireguard_data) = &self.wireguard_data else {
+            return Err(GatewayError::InternalWireguardError(
+                "wireguard not set".to_string(),
+            ));
+        };
+
+        // TODO: combine this `PeerManager` with the one used within the authenticator
+        let peer_manager = Arc::new(PeerManager::new(wireguard_data.inner.clone()));
 
         let handler_state = lp_listener::LpHandlerState {
             ecash_verifier: self.ecash_manager().await?,
@@ -346,12 +352,13 @@ impl GatewayTasksBuilder {
             .with_kem_psq_key(self.kem_psq_keys.clone()),
             metrics: self.metrics.clone(),
             active_clients_store,
-            wg_peer_controller,
-            wireguard_data: self.wireguard_data.as_ref().map(|wd| wd.inner.clone()),
+            upgrade_mode: upgrade_mode_common_state,
+            peer_manager,
             lp_config: self.config.lp,
             outbound_mix_sender: self.mix_packet_sender.clone(),
             handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),
+            registrations_in_progress: Default::default(),
             forward_semaphore: Arc::new(Semaphore::new(
                 self.config.lp.debug.max_concurrent_forwards,
             )),

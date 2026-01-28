@@ -704,7 +704,10 @@ impl NymNode {
                 self.config.gateway_tasks.lp.data_bind_address,
             );
             let mut lp_listener = gateway_tasks_builder
-                .build_lp_listener(active_clients_store.clone())
+                .build_lp_listener(
+                    upgrade_mode_common_state.clone(),
+                    active_clients_store.clone(),
+                )
                 .await?;
             self.shutdown_tracker()
                 .try_spawn_named(async move { lp_listener.run().await }, "LpListener");

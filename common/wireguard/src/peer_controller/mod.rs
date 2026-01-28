@@ -27,12 +27,12 @@ use nym_wireguard_types::{
 };
 use std::{collections::HashMap, sync::Arc};
 use std::{
-    net::{IpAddr, SocketAddr},
+    net::IpAddr,
     time::{Duration, SystemTime},
 };
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 pub use nym_ip_packet_requests::IpPair;
 
@@ -43,35 +43,30 @@ pub mod mock;
 #[derive(Debug, Clone)]
 pub struct PeerRegistrationData {
     pub public_key: Key,
-    pub preshared_key: Option<Key>,
-    pub endpoint: Option<SocketAddr>,
-    pub persistent_keepalive_interval: Option<u16>,
+    pub preshared_key: Key,
+    // pub endpoint: Option<SocketAddr>,
+    // pub persistent_keepalive_interval: Option<u16>,
 }
 
 impl PeerRegistrationData {
-    pub fn new(public_key: Key) -> Self {
+    pub fn new(public_key: Key, psk: Key) -> Self {
         Self {
             public_key,
-            preshared_key: None,
-            endpoint: None,
-            persistent_keepalive_interval: None,
+            preshared_key: psk,
+            // endpoint: None,
+            // persistent_keepalive_interval: None,
         }
     }
-
-    pub fn with_preshared_key(mut self, key: Key) -> Self {
-        self.preshared_key = Some(key);
-        self
-    }
-
-    pub fn with_endpoint(mut self, endpoint: SocketAddr) -> Self {
-        self.endpoint = Some(endpoint);
-        self
-    }
-
-    pub fn with_keepalive(mut self, interval: u16) -> Self {
-        self.persistent_keepalive_interval = Some(interval);
-        self
-    }
+    //
+    // pub fn with_endpoint(mut self, endpoint: SocketAddr) -> Self {
+    //     self.endpoint = Some(endpoint);
+    //     self
+    // }
+    //
+    // pub fn with_keepalive(mut self, interval: u16) -> Self {
+    //     self.persistent_keepalive_interval = Some(interval);
+    //     self
+    // }
 }
 
 pub enum PeerControlRequest {
@@ -211,6 +206,11 @@ impl PeerController {
             .remove_wireguard_peer(&key.to_string())
             .await?;
         self.bw_storage_managers.remove(key);
+
+        warn!("MISSING CALL TO IP POOL RELEASE");
+        // need to figure out what addresses to release
+        // self.ip_pool.release()
+
         let ret = self.wg_api.remove_peer(key);
         if ret.is_err() {
             nym_metrics::inc!("wg_peer_removal_failed");
@@ -308,7 +308,7 @@ impl PeerController {
             .map_err(|e| Error::IpPool(e.to_string()))?;
 
         nym_metrics::inc!("wg_ip_allocation_success");
-        tracing::debug!("Allocated IP pair: {}", ip_pair);
+        tracing::debug!("Allocated IP pair: {ip_pair}");
 
         Ok(ip_pair)
     }

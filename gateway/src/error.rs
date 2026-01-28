@@ -1,7 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
+use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_gateway_stats_storage::error::StatsStorageError;
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
@@ -11,8 +13,6 @@ use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::ValidatorClientError;
 use std::net::IpAddr;
 use thiserror::Error;
-
-pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 
 #[derive(Debug, Error)]
 pub enum GatewayError {
@@ -155,6 +155,9 @@ pub enum GatewayError {
 
     #[error("Invalid SystemTime: {0}")]
     InvalidSystemTime(#[from] std::time::SystemTimeError),
+
+    #[error(transparent)]
+    UpgradeModeEnable(#[from] UpgradeModeEnableError),
 }
 
 impl From<ClientCoreError> for GatewayError {

@@ -152,7 +152,7 @@ impl Authenticator {
                 }
             })
             .collect();
-        let mixnet_listener = crate::node::internal_service_providers::authenticator::mixnet_listener::MixnetListener::new(
+        let mixnet_listener = mixnet_listener::MixnetListener::new(
             self.config,
             free_private_network_ips,
             self.wireguard_gateway_data,

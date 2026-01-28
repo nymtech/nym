@@ -36,6 +36,7 @@ mod config;
 pub(crate) mod error;
 pub(crate) mod helpers;
 mod nested_session;
+mod state_machine_helpers;
 
 pub use client::LpRegistrationClient;
 pub use config::LpConfig;

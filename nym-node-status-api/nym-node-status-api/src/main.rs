@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
 
     let client_config = nym_validator_client::nyxd::Config::try_from_nym_network_details(&network)?;
     tracing::info!("Network: {}", network.network_name);
-    
+
     let nyxd_client = NyxdClient::connect(client_config.clone(), args.nyxd_addr.as_str())
         .map_err(|err| anyhow::anyhow!("Couldn't connect: {}", err))?;
 

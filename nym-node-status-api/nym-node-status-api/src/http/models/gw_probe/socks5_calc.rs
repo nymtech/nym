@@ -38,10 +38,6 @@ pub(crate) fn calculate_socks5_percentiles(gateways: &Vec<Gateway>) -> HashMap<S
     score_from_sorted_latencies(parsed_gateways)
 }
 
-const fn div_ceil(n: usize, d: usize) -> usize {
-    n / d + ((n % d) != 0) as usize
-}
-
 /// Assigns a score to each gateway based on their relative latency compared to
 /// the whole set. Higher score = lower latency.
 ///
@@ -64,9 +60,9 @@ pub fn score_from_sorted_latencies(gateways: Vec<(String, u64)>) -> HashMap<Stri
     let nonzero_count = gateways.len().saturating_sub(first_nonzero_idx);
 
     // x / 2 = 0.5x
-    let high_end_idx = div_ceil(nonzero_count, 2);
+    let high_end_idx = nonzero_count.div_ceil(2);
     // 3x / 4 = 0.75x
-    let medium_end_idx = div_ceil(nonzero_count.saturating_mul(3), 4);
+    let medium_end_idx = nonzero_count.saturating_mul(3).div_ceil(4);
     // `Low` gets assigned to everything else
 
     let mut result = HashMap::with_capacity(gateways.len());
@@ -108,42 +104,6 @@ pub fn score_from_sorted_latencies(gateways: Vec<(String, u64)>) -> HashMap<Stri
 }
 
 #[cfg(test)]
-mod ceiling_division_tests {
-    use super::*;
-
-    #[test]
-    fn exact_division() {
-        assert_eq!(div_ceil(10, 5), 2);
-        assert_eq!(div_ceil(12, 4), 3);
-        assert_eq!(div_ceil(100, 10), 10);
-    }
-
-    #[test]
-    fn rounds_up() {
-        assert_eq!(div_ceil(11, 5), 3);
-        assert_eq!(div_ceil(7, 3), 3);
-        assert_eq!(div_ceil(13, 4), 4);
-    }
-
-    #[test]
-    fn zero_numerator() {
-        assert_eq!(div_ceil(0, 5), 0);
-        assert_eq!(div_ceil(0, 1), 0);
-    }
-
-    #[test]
-    fn division_by_one() {
-        assert_eq!(div_ceil(7, 1), 7);
-        assert_eq!(div_ceil(0, 1), 0);
-        assert_eq!(div_ceil(100, 1), 100);
-    }
-
-    #[test]
-    fn remainder_of_one() {
-        assert_eq!(div_ceil(6, 5), 2);
-        assert_eq!(div_ceil(4, 3), 2);
-    }
-}
 mod socks5_score_calc_tests {
     // clippy complains despite imports being used
     #[allow(unused_imports)]

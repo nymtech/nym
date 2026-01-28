@@ -4,34 +4,28 @@
 use crate::{KKT_INITIAL_FRAME_AAD, context::KKTContext, error::KKTError, frame::KKTFrame};
 use blake3::Hasher;
 use libcrux_chacha20poly1305::{NONCE_LEN, TAG_LEN};
-use libcrux_psq::handshake::types::{DHPrivateKey, DHPublicKey};
-use nym_crypto::asymmetric::x25519;
+use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
+use nym_kkt_ciphersuite::x25519;
 use rand::{CryptoRng, RngCore};
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::Zeroize;
 
 #[derive(Clone, Copy, Zeroize)]
 pub struct KKTSessionSecret([u8; 32]);
 
 impl KKTSessionSecret {
+    // We just return the ephemeral public key to send because this is a use-once session secret.
+    // The responder needs the returned ephemeral public key and their long term private key
+    // to compute the shared secret.
+    // We don't zeroize this, but it's ok because this key will just encrypt a public KEM key.
     pub fn new<R>(rng: &mut R, remote_public_key: &DHPublicKey) -> (Self, DHPublicKey)
     where
         R: RngCore + CryptoRng,
     {
-        let mut private_key_bytes = Zeroizing::new([0u8; x25519::PRIVATE_KEY_SIZE]);
-        rng.fill_bytes(private_key_bytes.as_mut());
-        // clamp
-        private_key_bytes[0] &= 248u8;
-        private_key_bytes[31] &= 127u8;
-        private_key_bytes[31] |= 64u8;
-
-        // SAFETY: bytes got correctly clamped
-        #[allow(clippy::unwrap_used)]
-        let ephemeral_private_key = DHPrivateKey::from_bytes(&private_key_bytes).unwrap();
-        let ephemeral_public_key = ephemeral_private_key.to_public();
+        let ephemeral_keypair = DHKeyPair::new(rng);
 
         (
-            Self::derive(&ephemeral_private_key, remote_public_key),
-            ephemeral_public_key,
+            Self::derive(ephemeral_keypair.sk(), remote_public_key),
+            ephemeral_keypair.pk,
         )
     }
     pub fn from_bytes(secret: [u8; 32]) -> Self {
@@ -40,7 +34,7 @@ impl KKTSessionSecret {
 
     fn try_derive(private_key: &DHPrivateKey, public_key: &[u8]) -> Result<Self, KKTError> {
         let mut pub_key: [u8; 32] = [0u8; 32];
-        pub_key.copy_from_slice(&public_key[0..x25519::PUBLIC_KEY_SIZE]);
+        pub_key.copy_from_slice(&public_key[0..x25519::PUBLIC_KEY_LENGTH]);
 
         // Todo: check validity of pk...
         let pk = DHPublicKey::from_bytes(&pub_key);
@@ -48,7 +42,7 @@ impl KKTSessionSecret {
     }
 
     pub fn derive(private_key: &DHPrivateKey, public_key: &DHPublicKey) -> Self {
-        let mut shared_secret = private_key
+        let shared_secret = private_key
             .diffie_hellman(public_key)
             .expect("TODO: error handling");
 
@@ -79,7 +73,7 @@ where
     let mut encrypted_frame =
         encrypt_kkt_frame(rng, &session_secret_key, kkt_frame, KKT_INITIAL_FRAME_AAD)?;
 
-    let mut output_buffer = Vec::with_capacity(encrypted_frame.len() + x25519::PUBLIC_KEY_SIZE);
+    let mut output_buffer = Vec::with_capacity(encrypted_frame.len() + x25519::PUBLIC_KEY_LENGTH);
     output_buffer.extend_from_slice(ephemeral_public_key.as_ref());
     output_buffer.append(&mut encrypted_frame);
 
@@ -92,19 +86,19 @@ pub fn decrypt_initial_kkt_frame(
     responder_private_key: &DHPrivateKey,
     encrypted_frame_bytes: &[u8],
 ) -> Result<(KKTSessionSecret, KKTFrame, KKTContext), KKTError> {
-    if encrypted_frame_bytes.len() < x25519::PUBLIC_KEY_SIZE + TAG_LEN + NONCE_LEN {
+    if encrypted_frame_bytes.len() < x25519::PUBLIC_KEY_LENGTH + TAG_LEN + NONCE_LEN {
         Err(KKTError::AEADError {
             info: "Encrypted KKT Frame is too short.",
         })
     } else {
         let shared_secret = KKTSessionSecret::try_derive(
             responder_private_key,
-            &encrypted_frame_bytes[0..x25519::PUBLIC_KEY_SIZE],
+            &encrypted_frame_bytes[0..x25519::PUBLIC_KEY_LENGTH],
         )?;
 
         let (kkt_frame, kkt_context) = decrypt_kkt_frame(
             &shared_secret,
-            &encrypted_frame_bytes[x25519::PUBLIC_KEY_SIZE..],
+            &encrypted_frame_bytes[x25519::PUBLIC_KEY_LENGTH..],
             KKT_INITIAL_FRAME_AAD,
         )?;
         Ok((shared_secret, kkt_frame, kkt_context))
@@ -202,11 +196,11 @@ mod test {
         let responder_x25519_keypair = generate_keypair_x25519(&mut rng);
 
         let (session_secret_key, ephemeral_public_key) =
-            KKTSessionSecret::new(&mut rng, responder_x25519_keypair.public_key());
+            KKTSessionSecret::new(&mut rng, &responder_x25519_keypair.pk);
 
         let shared_secret = KKTSessionSecret::try_derive(
-            responder_x25519_keypair.private_key(),
-            ephemeral_public_key.as_bytes().as_slice(),
+            responder_x25519_keypair.sk(),
+            ephemeral_public_key.as_ref(),
         )
         .unwrap();
 

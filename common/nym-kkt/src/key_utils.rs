@@ -2,6 +2,7 @@ use crate::ciphersuite::HashFunction;
 use std::collections::HashMap;
 
 use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
+use libcrux_psq::handshake::types::DHKeyPair;
 use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, KEMKeyDigests};
 use rand::{CryptoRng, RngCore};
 
@@ -17,15 +18,11 @@ where
     nym_crypto::asymmetric::ed25519::KeyPair::from_secret(secret_initiator, index.unwrap_or(0))
 }
 
-pub fn generate_keypair_x25519<R>(rng: &mut R) -> nym_crypto::asymmetric::x25519::KeyPair
+pub fn generate_keypair_x25519<R>(rng: &mut R) -> DHKeyPair
 where
     R: RngCore + CryptoRng,
 {
-    let mut secret_initiator: [u8; 32] = [0u8; 32];
-    rng.fill_bytes(&mut secret_initiator);
-
-    let private_key = nym_crypto::asymmetric::x25519::PrivateKey::from_secret(secret_initiator);
-    private_key.into()
+    DHKeyPair::new(rng)
 }
 
 // (decapsulation_key, encapsulation_key)

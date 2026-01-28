@@ -309,18 +309,14 @@ mod test {
 
                     // encryption - initiator frame
 
-                    let (i_session_secret, i_bytes) = encrypt_initial_kkt_frame(
-                        &mut rng,
-                        responder_x25519_keypair.public_key(),
-                        &i_frame,
-                    )
-                    .unwrap();
+                    let (i_session_secret, i_bytes) =
+                        encrypt_initial_kkt_frame(&mut rng, &responder_x25519_keypair.pk, &i_frame)
+                            .unwrap();
 
                     // decryption - initiator frame
 
                     let (r_session_secret, i_frame_r, i_context_r) =
-                        decrypt_initial_kkt_frame(responder_x25519_keypair.private_key(), &i_bytes)
-                            .unwrap();
+                        decrypt_initial_kkt_frame(responder_x25519_keypair.sk(), &i_bytes).unwrap();
 
                     let (mut r_context, _) =
                         responder_ingest_message(&i_context_r, None, None, &i_frame_r).unwrap();
@@ -367,18 +363,14 @@ mod test {
 
                     // encryption - initiator frame
 
-                    let (i_session_secret, i_bytes) = encrypt_initial_kkt_frame(
-                        &mut rng,
-                        responder_x25519_keypair.public_key(),
-                        &i_frame,
-                    )
-                    .unwrap();
+                    let (i_session_secret, i_bytes) =
+                        encrypt_initial_kkt_frame(&mut rng, &responder_x25519_keypair.pk, &i_frame)
+                            .unwrap();
 
                     // decryption - initiator frame
 
                     let (r_session_secret, i_frame_r, r_context) =
-                        decrypt_initial_kkt_frame(responder_x25519_keypair.private_key(), &i_bytes)
-                            .unwrap();
+                        decrypt_initial_kkt_frame(responder_x25519_keypair.sk(), &i_bytes).unwrap();
 
                     let (mut r_context, r_obtained_key) = responder_ingest_message(
                         &r_context,
@@ -433,18 +425,14 @@ mod test {
 
                     // encryption - initiator frame
 
-                    let (i_session_secret, i_bytes) = encrypt_initial_kkt_frame(
-                        &mut rng,
-                        responder_x25519_keypair.public_key(),
-                        &i_frame,
-                    )
-                    .unwrap();
+                    let (i_session_secret, i_bytes) =
+                        encrypt_initial_kkt_frame(&mut rng, &responder_x25519_keypair.pk, &i_frame)
+                            .unwrap();
 
                     // decryption - initiator frame
 
                     let (r_session_secret, i_frame_r, i_context_r) =
-                        decrypt_initial_kkt_frame(responder_x25519_keypair.private_key(), &i_bytes)
-                            .unwrap();
+                        decrypt_initial_kkt_frame(responder_x25519_keypair.sk(), &i_bytes).unwrap();
 
                     let (mut r_context, r_obtained_key) = responder_ingest_message(
                         &i_context_r,

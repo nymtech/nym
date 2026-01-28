@@ -2,7 +2,7 @@ use std::net::IpAddr;
 
 use crate::{
     http::models::gw_probe::{
-        DirectoryGwProbe, LastProbeResult, ScoreValue, calculate_load, calculate_score,
+        DvpnGwProbe, DvpnProbeOutcome, LastProbeResult, ScoreValue, calculate_load, calculate_score,
     },
     monitor::ExplorerPrettyBond,
 };
@@ -100,7 +100,7 @@ pub struct DVpnGateway {
     pub ip_packet_router: Option<IpPacketRouterDetailsV1>,
     pub authenticator: Option<AuthenticatorDetailsV1>,
     pub location: Location,
-    pub last_probe: Option<DirectoryGwProbe>,
+    pub last_probe: Option<DvpnGwProbe>,
     #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
     pub mix_port: u16,
@@ -123,7 +123,7 @@ impl DVpnGateway {
     pub fn can_route_entry(&self) -> bool {
         self.last_probe
             .as_ref()
-            .map(DirectoryGwProbe::can_route_entry)
+            .map(DvpnGwProbe::can_route_entry)
             .unwrap_or(false)
     }
 
@@ -137,7 +137,11 @@ impl DVpnGateway {
 
 impl DVpnGateway {
     #[instrument(level = tracing::Level::INFO, name = "dvpn_gw_new", skip_all, fields(gateway_key = gateway.gateway_identity_key, node_id = skimmed_node.node_id))]
-    pub(crate) fn new(gateway: Gateway, skimmed_node: &SkimmedNode) -> anyhow::Result<Self> {
+    pub(crate) fn new(
+        gateway: Gateway,
+        skimmed_node: &SkimmedNode,
+        socks5_score: Option<&ScoreValue>,
+    ) -> anyhow::Result<Self> {
         let location = gateway
             .explorer_pretty_bond
             .clone()
@@ -182,6 +186,9 @@ impl DVpnGateway {
                 let mixnet_score = calculate_mixnet_score(&gateway);
                 let score = calculate_score(&gateway, &parsed);
                 let mut load = calculate_load(&parsed);
+                let socks5_score = socks5_score.unwrap_or(&ScoreValue::Offline).to_owned();
+                let dvpn_probe_result =
+                    DvpnProbeOutcome::from_raw_probe_outcome(parsed.outcome(), socks5_score);
 
                 // clamp the load value to offline, when the score is offline
                 if score == ScoreValue::Offline {
@@ -197,7 +204,7 @@ impl DVpnGateway {
                     // the network monitor's measure is a good proxy for node uptime, it can be improved in the future
                     uptime_percentage_last_24_hours: network_monitor_performance_mixnet_mode,
                 };
-                (Some(parsed), Some(performance_v2))
+                (Some(dvpn_probe_result), Some(performance_v2))
             }
             None => (None, None),
         };
@@ -234,9 +241,8 @@ impl DVpnGateway {
                     }
                 }),
             },
-            last_probe: last_probe_result.map(|res| {
-                DirectoryGwProbe::from_outcome(res.outcome().to_owned(), last_updated_utc)
-            }),
+            last_probe: last_probe_result
+                .map(|res| DvpnGwProbe::from_outcome(res, last_updated_utc)),
             ip_addresses: skimmed_node.ip_addresses.clone(),
             mix_port: skimmed_node.mix_port,
             role: skimmed_node.role.clone(),

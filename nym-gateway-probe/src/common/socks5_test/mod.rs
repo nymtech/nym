@@ -89,17 +89,17 @@ pub struct HttpsConnectivityResult {
     endpoint_used: Option<String>,
 
     /// error message(s) (if any)
-    error: Option<Vec<String>>,
+    errors: Option<Vec<String>>,
 }
 
 impl HttpsConnectivityResult {
-    pub fn with_errors(error: Vec<String>) -> Self {
+    pub fn with_errors(errors: Vec<String>) -> Self {
         Self {
             https_success: false,
             https_status_code: None,
             https_latency_ms: None,
             endpoint_used: None,
-            error: Some(error),
+            errors: Some(errors),
         }
     }
 
@@ -136,7 +136,7 @@ impl HttpsConnectivityResult {
             https_latency_ms: Some(avg_latency),
             endpoint_used: last_success.endpoint_used.clone(),
             // even in case of success, some errors were possible
-            error: if errors.is_empty() {
+            errors: if errors.is_empty() {
                 None
             } else {
                 Some(errors)
@@ -158,5 +158,9 @@ impl HttpsConnectivityResult {
 
     pub fn endpoint_used(&self) -> Option<&String> {
         self.endpoint_used.as_ref()
+    }
+
+    pub fn errors(&self) -> Option<&Vec<String>> {
+        self.errors.as_ref()
     }
 }

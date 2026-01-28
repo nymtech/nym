@@ -4,13 +4,10 @@ use strum::EnumString;
 use tracing::error;
 use utoipa::ToSchema;
 
+pub(crate) mod socks5_calc;
 #[cfg(test)]
 mod test;
 
-/// based on
-/// https://github.com/nymtech/nym-vpn-client/blob/nym-vpn-core-v1.10.0/nym-vpn-core/crates/nym-gateway-probe/src/types.rs
-/// TODO: long term types should be moved into this repo because nym-vpn-client
-/// could pull it as a dependency and we'd have a single source of truth
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct LastProbeResult {
     node: String,
@@ -64,19 +61,20 @@ impl LastProbeResult {
         Ok(probe_result)
     }
 
-    pub(crate) fn outcome(&self) -> &ProbeOutcome {
-        &self.outcome
+    pub(crate) fn outcome(self) -> ProbeOutcome {
+        self.outcome
     }
 }
 
+/// gateway probe output returned on the API
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-pub struct DirectoryGwProbe {
+pub struct DvpnGwProbe {
     last_updated_utc: String,
-    outcome: ProbeOutcome,
+    outcome: DvpnProbeOutcome,
 }
 
-impl DirectoryGwProbe {
-    pub fn from_outcome(outcome: ProbeOutcome, last_updated_utc: String) -> Self {
+impl DvpnGwProbe {
+    pub fn from_outcome(outcome: DvpnProbeOutcome, last_updated_utc: String) -> Self {
         Self {
             last_updated_utc,
             outcome,
@@ -100,12 +98,45 @@ impl DirectoryGwProbe {
 
 /// this structure is parsed on VPN API so it has some fields which must not be changed
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct DvpnProbeOutcome {
+    pub as_entry: Entry,
+    pub as_exit: Option<Exit>,
+    pub wg: Option<WgProbeResults>,
+    pub socks5: Option<Socks5>,
+}
+
+impl DvpnProbeOutcome {
+    pub fn from_raw_probe_outcome(outcome: ProbeOutcome, score: ScoreValue) -> Self {
+        let errors = outcome
+            .socks5
+            .clone()
+            .and_then(|s| s.https_connectivity.errors);
+        let can_proxy_https = outcome
+            .socks5
+            .map(|s| s.https_connectivity.https_success)
+            .unwrap_or_else(|| match score {
+                ScoreValue::Offline => false,
+                ScoreValue::Low | ScoreValue::Medium | ScoreValue::High => true,
+            });
+        Self {
+            as_entry: outcome.as_entry.clone(),
+            as_exit: outcome.as_exit.clone(),
+            wg: outcome.wg.clone(),
+            socks5: Some(Socks5 {
+                can_proxy_https,
+                score,
+                errors,
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct ProbeOutcome {
     pub as_entry: Entry,
     pub as_exit: Option<Exit>,
     pub wg: Option<WgProbeResults>,
     pub socks5: Option<Socks5ProbeResults>,
-    // TODO dz lp
 }
 
 use nym_gateway_probe::types::ProbeOutcome as ProbeOutcomeLatest;
@@ -356,6 +387,13 @@ pub(super) fn calculate_load(probe_outcome: &LastProbeResult) -> ScoreValue {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Socks5 {
+    pub can_proxy_https: bool,
+    pub score: ScoreValue,
+    pub errors: Option<Vec<String>>,
+}
+
 use nym_gateway_probe::types::Socks5ProbeResults as Socks5ProbeResultsLatest;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -370,8 +408,8 @@ pub struct Socks5ProbeResults {
 impl From<Socks5ProbeResultsLatest> for Socks5ProbeResults {
     fn from(value: Socks5ProbeResultsLatest) -> Self {
         Self {
-            can_connect_socks5: value.can_connect_socks5,
-            https_connectivity: value.https_connectivity.into(),
+            can_connect_socks5: value.can_connect_socks5(),
+            https_connectivity: value.https_connectivity().clone().into(),
         }
     }
 }
@@ -391,7 +429,7 @@ pub struct HttpsConnectivityResult {
     endpoint_used: Option<String>,
 
     /// error message(s) (if any)
-    error: Option<String>,
+    errors: Option<Vec<String>>,
 }
 
 use nym_gateway_probe::types::HttpsConnectivityResult as HttpsConnectivityResultLatest;
@@ -403,7 +441,7 @@ impl From<HttpsConnectivityResultLatest> for HttpsConnectivityResult {
             https_status_code: value.https_status_code().cloned(),
             https_latency_ms: value.https_latency_ms().cloned(),
             endpoint_used: value.endpoint_used().cloned(),
-            error: value.error().cloned(),
+            errors: value.errors().cloned(),
         }
     }
 }

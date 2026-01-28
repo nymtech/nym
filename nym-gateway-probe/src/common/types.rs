@@ -172,6 +172,14 @@ impl Socks5ProbeResults {
             https_connectivity: HttpsConnectivityResult::with_errors(vec![error.into()]),
         }
     }
+
+    pub fn can_connect_socks5(&self) -> bool {
+        self.can_connect_socks5
+    }
+
+    pub fn https_connectivity(&self) -> &HttpsConnectivityResult {
+        &self.https_connectivity
+    }
 }
 
 #[derive(Debug, Clone, Default)]

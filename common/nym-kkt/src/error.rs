@@ -51,6 +51,9 @@ pub enum KKTError {
     #[error("{}", info)]
     DecodingError { info: &'static str },
 
+    #[error("{}", info)]
+    UnsupportedAlgorithm { info: &'static str },
+
     #[error("Generic libcrux error")]
     LibcruxError,
 }

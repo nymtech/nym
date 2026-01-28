@@ -8,6 +8,17 @@ pub mod error;
 pub mod frame;
 pub mod key_utils;
 // pub mod kkt;
+/// This module implements a stateless post-quantum re-keying protocol in one round-trip.
+/// We currently support MlKem768 and XWing.
+///
+/// This protocol is safe if it runs under a trusted secure channel.
+///
+/// Bandwidth costs:
+/// Request (MlKem768): 1216 bytes
+/// Response (MlKem768): 1088 bytes
+/// Request (XWing): 1248 bytes
+/// Response (XWing): 1120 bytes
+pub mod rekey;
 pub mod session;
 
 // This must be less than 4 bits

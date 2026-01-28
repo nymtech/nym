@@ -17,16 +17,17 @@ impl KKTSessionSecret {
     // The responder needs the returned ephemeral public key and their long term private key
     // to compute the shared secret.
     // We don't zeroize this, but it's ok because this key will just encrypt a public KEM key.
-    pub fn new<R>(rng: &mut R, remote_public_key: &DHPublicKey) -> (Self, DHPublicKey)
+    pub fn new<R>(
+        rng: &mut R,
+        remote_public_key: &DHPublicKey,
+    ) -> Result<(Self, DHPublicKey), KKTError>
     where
         R: RngCore + CryptoRng,
     {
         let ephemeral_keypair = DHKeyPair::new(rng);
+        let session_secret = Self::derive(ephemeral_keypair.sk(), remote_public_key)?;
 
-        (
-            Self::derive(ephemeral_keypair.sk(), remote_public_key),
-            ephemeral_keypair.pk,
-        )
+        Ok((session_secret, ephemeral_keypair.pk))
     }
     pub fn from_bytes(secret: [u8; 32]) -> Self {
         Self(secret)
@@ -38,13 +39,16 @@ impl KKTSessionSecret {
 
         // Todo: check validity of pk...
         let pk = DHPublicKey::from_bytes(&pub_key);
-        Ok(Self::derive(private_key, &pk))
+        Self::derive(private_key, &pk)
     }
 
-    pub fn derive(private_key: &DHPrivateKey, public_key: &DHPublicKey) -> Self {
-        let shared_secret = private_key
-            .diffie_hellman(public_key)
-            .expect("TODO: error handling");
+    pub fn derive(private_key: &DHPrivateKey, public_key: &DHPublicKey) -> Result<Self, KKTError> {
+        let shared_secret =
+            private_key
+                .diffie_hellman(public_key)
+                .map_err(|_| KKTError::X25519Error {
+                    info: "Key Derivation Error",
+                })?;
 
         let mut hasher = Hasher::new();
 
@@ -53,7 +57,7 @@ impl KKTSessionSecret {
         // TODO: zeroize
         // shared_secret.zeroize();
 
-        Self(hasher.finalize().as_bytes().to_owned())
+        Ok(Self(hasher.finalize().as_bytes().to_owned()))
     }
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0
@@ -68,7 +72,7 @@ pub fn encrypt_initial_kkt_frame<R>(
 where
     R: CryptoRng + RngCore,
 {
-    let (session_secret_key, ephemeral_public_key) = KKTSessionSecret::new(rng, remote_public_key);
+    let (session_secret_key, ephemeral_public_key) = KKTSessionSecret::new(rng, remote_public_key)?;
 
     let mut encrypted_frame =
         encrypt_kkt_frame(rng, &session_secret_key, kkt_frame, KKT_INITIAL_FRAME_AAD)?;
@@ -196,7 +200,7 @@ mod test {
         let responder_x25519_keypair = generate_keypair_x25519(&mut rng);
 
         let (session_secret_key, ephemeral_public_key) =
-            KKTSessionSecret::new(&mut rng, &responder_x25519_keypair.pk);
+            KKTSessionSecret::new(&mut rng, &responder_x25519_keypair.pk).unwrap();
 
         let shared_secret = KKTSessionSecret::try_derive(
             responder_x25519_keypair.sk(),

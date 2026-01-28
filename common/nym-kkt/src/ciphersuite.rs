@@ -27,13 +27,12 @@ impl EncapsulationKey {
     pub(crate) fn decode(kem: KEM, bytes: &[u8]) -> Result<Self, KKTError> {
         match kem {
             KEM::McEliece => {
-                if bytes.len() != classic_mceliece_rust::CRYPTO_PUBLICKEYBYTES {
+                if bytes.len() != mceliece::PUBLIC_KEY_LENGTH {
                     Err(KKTError::KEMError {
                         info: "Received McEliece Encapsulation Key with Invalid Length",
                     })
                 } else {
-                    let mut public_key_bytes =
-                        Box::new([0u8; classic_mceliece_rust::CRYPTO_PUBLICKEYBYTES]);
+                    let mut public_key_bytes = Box::new([0u8; mceliece::PUBLIC_KEY_LENGTH]);
                     // Size must be correct due to KKTFrame::from_bytes(message_bytes)?
                     public_key_bytes.clone_from_slice(bytes);
                     Ok(EncapsulationKey::McEliece(

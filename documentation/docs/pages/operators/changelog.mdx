@@ -70,16 +70,16 @@ cargo Profile:      release
 ### Operators Updates & Tools
 
 <Callout type="warning" emoji="⚠️">
-**This release comes with breaking changes - please carefully follow the [steps below](#oscypek-special-update)!**
+**This release comes with breaking changes - please follow the [steps below](#oscypek-special-update) before upgrading!**
 
-Secondly, the outcome of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), is added to the [network tunnel manager (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) and operators are required to rerun the tool on their servers as [documented here](update-nym-exit-policy).
+Secondly, the outcome of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), is added to the [Network tunnel manager (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) and operators are required to rerun the tool on their servers as [documented here](update-nym-exit-policy).
 </ Callout>
 
 #### `oscypek` special update
 
-This release brings changes which would lead into a *foreign constraint bug* if operators just switched binaries and restarted the node. The fix is to do a little `sqlite` tweak on the node database.
+This release brings changes which would lead into a *foreign constraint bug* if operators just switched binaries and restarted the node. To prevent it we need to do a little `sqlite` tweak on the node database.
 
-To simplify this, we made ***a build in command, which operators must run after getting the new binary, but beofre restarting the node.**
+To simplify this, we made **a build in command, which operators must run after getting the new binary, but beofre restarting the node.**
 
 These are the steps to follow:
 

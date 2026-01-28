@@ -1361,7 +1361,7 @@ impl NymApiClientExt for nym_http_api_client::Client {
 #[cfg(test)]
 mod tests {
     use super::NymApiClientExt;
-    use nym_http_api_client::Url;
+    use nym_http_api_client::{FrontPolicy, Url};
     use std::time::Duration;
 
     #[tokio::test]
@@ -1371,9 +1371,16 @@ mod tests {
             .compact()
             .init();
 
-        let urls = vec![Url::parse("https://validator.nymtech.net/api/")?];
+        let urls = vec![
+            Url::parse("https://validator.nymtech.net/api/")?,
+            Url::new(
+                "https://nym-frontdoor.global.ssl.fastly.net/api/",
+                Some(vec!["https://yelp.global.ssl.fastly.net/api/"]),
+            )?,
+        ];
 
         let client = nym_http_api_client::ClientBuilder::new_with_urls(urls)?
+            .with_fronting(FrontPolicy::OnRetry)
             .with_retries(2)
             .no_hickory_dns()
             .with_timeout(Duration::from_secs(10))
@@ -1383,6 +1390,12 @@ mod tests {
         let page = Some(0);
         let per_page = None;
         let use_bincode = false;
+        let result = client
+            .get_basic_entry_assigned_nodes_v2(no_legacy, page, per_page, use_bincode)
+            .await;
+        assert!(result.is_err());
+        // tracing::info!("{_result:?}");
+
         let _result = client
             .get_basic_entry_assigned_nodes_v2(no_legacy, page, per_page, use_bincode)
             .await?;

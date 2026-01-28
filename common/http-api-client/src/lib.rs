@@ -1177,7 +1177,7 @@ impl ApiClientCore for Client {
                         self.maybe_rotate_hosts(Some(url.clone()));
 
                         #[cfg(feature = "tunneling")]
-                        self.maybe_enable_fronting((&url, &err));
+                        self.maybe_enable_fronting(("network", url.as_str(), &err));
                     }
 
                     if attempts < self.retry_limit {
@@ -1214,7 +1214,7 @@ impl ApiClientCore for Client {
             let was_enabled = front.is_enabled();
             front.retry_enable();
             if !was_enabled && front.is_enabled() {
-                tracing::info!("Domain fronting activated after connection failure: {context:?}",);
+                tracing::debug!("Domain fronting activated after connection error: {context:?}",);
             }
         }
     }
@@ -1370,6 +1370,35 @@ pub trait ApiClient: ApiClientCore {
         self.get_response(path, params).await
     }
 
+    /// Attempt to parse a response object from an HTTP response
+    async fn parse_response<T>(
+        &self,
+        res: Response,
+        allow_empty: bool,
+    ) -> Result<T, HttpClientError>
+    where
+        T: DeserializeOwned,
+    {
+        let url = Url::from(res.url());
+        parse_response(res, allow_empty).await.inspect_err(|e| {
+            if matches!(
+                // if we encounter a read error while we attempt to parse it could be caused by censorship and we should
+                // rotate hosts / enable fronting.
+                e,
+                HttpClientError::ResponseReadFailure {
+                    url: _,
+                    headers: _,
+                    status: _,
+                    source: _,
+                }
+            ) {
+                self.maybe_rotate_hosts(Some(url.clone()));
+                #[cfg(feature = "tunneling")]
+                self.maybe_enable_fronting(("parse/read", url.as_str(), e));
+            }
+        })
+    }
+
     /// 'get' data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
     /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
     /// into the provided type `T` based on the content type header
@@ -1388,24 +1417,7 @@ pub trait ApiClient: ApiClientCore {
             .send_request(reqwest::Method::GET, path, params, None::<&()>)
             .await?;
 
-        let url = Url::from(res.url());
-        parse_response(res, false).await.inspect_err(|e| {
-            if matches!(
-                // if we encounter a read error while we attempt to parse it could be caused by censorship and we should
-                // rotate hosts / enable fronting.
-                e,
-                HttpClientError::ResponseReadFailure {
-                    url: _,
-                    headers: _,
-                    status: _,
-                    source: _,
-                }
-            ) {
-                self.maybe_rotate_hosts(Some(url.clone()));
-                #[cfg(feature = "tunneling")]
-                self.maybe_enable_fronting((url, e));
-            }
-        })
+        self.parse_response(res, false).await
     }
 
     /// 'post' json data to the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
@@ -1427,7 +1439,7 @@ pub trait ApiClient: ApiClientCore {
         let res = self
             .send_request(reqwest::Method::POST, path, params, Some(json_body))
             .await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// 'delete' json data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with
@@ -1447,7 +1459,7 @@ pub trait ApiClient: ApiClientCore {
         let res = self
             .send_request(reqwest::Method::DELETE, path, params, None::<&()>)
             .await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// 'patch' json data at the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
@@ -1469,7 +1481,7 @@ pub trait ApiClient: ApiClientCore {
         let res = self
             .send_request(reqwest::Method::PATCH, path, params, Some(json_body))
             .await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// `get` json data from the provided absolute endpoint, e.g. `"/api/v1/mixnodes?since=12345"`.
@@ -1481,7 +1493,7 @@ pub trait ApiClient: ApiClientCore {
     {
         let req = self.create_request_endpoint(reqwest::Method::GET, endpoint, None::<&()>)?;
         let res = self.send(req).await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// `post` json data to the provided absolute endpoint, e.g. `"/api/v1/mixnodes?since=12345"`.
@@ -1498,7 +1510,7 @@ pub trait ApiClient: ApiClientCore {
     {
         let req = self.create_request_endpoint(reqwest::Method::POST, endpoint, Some(json_body))?;
         let res = self.send(req).await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// `delete` json data from the provided absolute endpoint, e.g.
@@ -1510,7 +1522,7 @@ pub trait ApiClient: ApiClientCore {
     {
         let req = self.create_request_endpoint(reqwest::Method::DELETE, endpoint, None::<&()>)?;
         let res = self.send(req).await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// `patch` json data at the provided absolute endpoint, e.g. `"/api/v1/mixnodes?since=12345"`.
@@ -1528,7 +1540,7 @@ pub trait ApiClient: ApiClientCore {
         let req =
             self.create_request_endpoint(reqwest::Method::PATCH, endpoint, Some(json_body))?;
         let res = self.send(req).await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 }
 

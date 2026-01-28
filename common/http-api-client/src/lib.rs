@@ -195,6 +195,8 @@ use nym_http_api_client_macro::client_defaults;
 /// high and chatty protocols take a while to complete.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
+const NYM_OUTER_SNI_HEADER: &str = "NYM-ORIGINAL-OUTER-SNI";
+
 #[cfg(not(target_arch = "wasm32"))]
 client_defaults!(
     priority = -100;
@@ -1035,6 +1037,13 @@ impl Client {
                     _ = r
                         .headers_mut()
                         .insert(reqwest::header::HOST, actual_host_header);
+
+                    // Set a custom header to capture the outer host (used in the SNI) of the request
+                    let front_host_header: HeaderValue =
+                        front_host.parse().unwrap_or(HeaderValue::from_static(""));
+                    _ = r
+                        .headers_mut()
+                        .insert(NYM_OUTER_SNI_HEADER, front_host_header);
 
                     return (url.as_str(), url.front_str());
                 } else {

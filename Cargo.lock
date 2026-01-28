@@ -8162,7 +8162,6 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "ts-rs",
  "url",
  "wasmtimer",

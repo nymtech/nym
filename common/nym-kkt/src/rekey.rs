@@ -32,19 +32,24 @@ impl RekeyInitiator {
     where
         R: CryptoRng + RngCore,
     {
+        // Generate the Initiator's randomness.
         let mut randomness = [0u8; 32];
         rng.fill_bytes(&mut randomness);
 
-        let mut output_vec: Vec<u8> = randomness.to_vec();
+        // Create the buffer for the request message and copy the randomness bytes into it.
+        let mut request_buffer: Vec<u8> = randomness.to_vec();
 
         let algorithm = match kem {
             KEM::XWing => Algorithm::XWingKemDraft06,
             KEM::MlKem768 => Algorithm::MlKem768,
+            // We don't support McEliece because the keys are massive.
+            // If this is a deal-breaker, users can start a new session with PSQ which can use McEliece.
             KEM::McEliece => {
                 return Err(KKTError::UnsupportedAlgorithm {
                     info: "McEliece is not supported for re-keying",
                 });
             }
+            // We don't support X25519 because it's not post-quantum secure.
             KEM::X25519 => {
                 return Err(KKTError::UnsupportedAlgorithm {
                     info: "X25519 is not supported for re-keying",
@@ -52,16 +57,21 @@ impl RekeyInitiator {
             }
         };
 
+        // Generate the ephemeral KEM keypair based on the algorithm from the function's input.
         let (decapsulation_key, encapsulation_key) = key_gen(algorithm, rng)?;
 
-        output_vec.extend(encapsulation_key.encode());
+        // Append the encoding of the KEM encapsulation key to the initiator's randomness.
+        request_buffer.extend(encapsulation_key.encode());
+
         Ok((
+            // The Initiator should store this until they use `RekeyInitiator::finalize`.
             RekeyInitiator {
                 algorithm,
                 decapsulation_key,
                 randomness,
             },
-            output_vec,
+            // This is to be sent to the responder.
+            request_buffer,
         ))
     }
 
@@ -134,12 +144,13 @@ where
             // If message length is 1248 (32 + 1216) then the algorithm should be MlKem768
             xwing::PUBLIC_KEY_LENGTH => Algorithm::XWingKemDraft06,
             // We don't support McEliece because the keys are massive.
+            // If this is a deal-breaker, users can start a new session with PSQ which can use McEliece.
             mceliece::PUBLIC_KEY_LENGTH => {
                 return Err(KKTError::UnsupportedAlgorithm {
                     info: "McEliece is not supported for re-keying",
                 });
             }
-            // We don't support XWing because it's not post-quantum secure.
+            // We don't support X25519 because it's not post-quantum secure.
             x25519::PUBLIC_KEY_LENGTH => {
                 return Err(KKTError::UnsupportedAlgorithm {
                     info: "McEliece is not supported for re-keying",

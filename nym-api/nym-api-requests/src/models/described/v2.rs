@@ -247,7 +247,7 @@ impl From<NymNodeDescriptionV1> for NymNodeDescriptionV2 {
 
 #[cfg(test)]
 pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
-    use crate::models::{LPHashFunction, LPKEM};
+    use crate::models::{LPHashFunction, LPSignatureScheme, LPKEM};
     use nym_test_utils::helpers::{u64_seeded_rng, RngCore};
 
     let mut rng = u64_seeded_rng(seed);
@@ -257,11 +257,16 @@ pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
     // just reuse the same x25519 key for everything - this is just a data mock
     let x25519 = x25519::KeyPair::new(&mut rng);
 
-    let mut hashes_wrapper = std::collections::HashMap::new();
-    let mut hashes = std::collections::HashMap::new();
+    let mut kem_hashes_wrapper = std::collections::HashMap::new();
+    let mut signing_keys_hashes_wrapper = std::collections::HashMap::new();
+    let mut kem_hashes = std::collections::HashMap::new();
+    let mut signing_keys_hashes = std::collections::HashMap::new();
 
-    hashes.insert(LPHashFunction::Sha256, vec![(seed % 256) as u8; 32]);
-    hashes_wrapper.insert(LPKEM::X25519, hashes);
+    kem_hashes.insert(LPHashFunction::Sha256, vec![(seed % 256) as u8; 32]);
+    kem_hashes_wrapper.insert(LPKEM::X25519, kem_hashes);
+
+    signing_keys_hashes.insert(LPHashFunction::Sha256, vec![(seed % 256) as u8; 32]);
+    signing_keys_hashes_wrapper.insert(LPSignatureScheme::Ed25519, signing_keys_hashes);
 
     NymNodeDescriptionV2 {
         node_id: rng.next_u32(),
@@ -332,7 +337,8 @@ pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
                 enabled: true,
                 control_port: 1234,
                 data_port: 2345,
-                kem_keys: hashes_wrapper,
+                kem_keys: kem_hashes_wrapper,
+                signing_keys: signing_keys_hashes_wrapper,
             }),
             mixnet_websockets: WebSocketsV2 {
                 ws_port: 9000,

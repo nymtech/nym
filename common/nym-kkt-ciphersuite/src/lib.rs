@@ -5,7 +5,7 @@ use crate::error::KKTCiphersuiteError;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Display;
-use strum_macros::{EnumIter, EnumString};
+use strum_macros::{Display, EnumIter, EnumString};
 
 pub mod error;
 
@@ -45,12 +45,26 @@ pub mod xwing {
     pub const PUBLIC_KEY_LENGTH: usize = x25519::PUBLIC_KEY_LENGTH + ml_kem768::PUBLIC_KEY_LENGTH;
 }
 
-pub type KEMKeyDigests = HashMap<HashFunction, Vec<u8>>;
+pub type KEMKeyDigests = KeyDigests;
+pub type SigningKeyDigests = KeyDigests;
+
+pub type KeyDigests = HashMap<HashFunction, Vec<u8>>;
 
 #[derive(
-    Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive, EnumIter, EnumString,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    IntoPrimitive,
+    TryFromPrimitive,
+    EnumIter,
+    EnumString,
+    Display,
 )]
 #[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "lowercase")]
 #[repr(u8)]
 pub enum HashFunction {
     Blake3 = 0,
@@ -76,17 +90,6 @@ impl HashFunction {
         }
 
         out
-    }
-}
-
-impl Display for HashFunction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            HashFunction::Blake3 => "blake3",
-            HashFunction::Shake128 => "shake128",
-            HashFunction::Shake256 => "shake256",
-            HashFunction::SHA256 => "sha256",
-        })
     }
 }
 
@@ -146,7 +149,21 @@ impl HashLength {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    IntoPrimitive,
+    TryFromPrimitive,
+    EnumIter,
+    EnumString,
+    Display,
+)]
+#[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "lowercase")]
 #[repr(u8)]
 pub enum SignatureScheme {
     Ed25519 = 0,
@@ -175,18 +192,21 @@ impl SignatureScheme {
     }
 }
 
-impl Display for SignatureScheme {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            SignatureScheme::Ed25519 => "ed25519",
-        })
-    }
-}
-
 #[derive(
-    Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive, EnumIter, EnumString,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    IntoPrimitive,
+    TryFromPrimitive,
+    EnumIter,
+    EnumString,
+    Display,
 )]
 #[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "lowercase")]
 #[repr(u8)]
 pub enum KEM {
     XWing = 0,
@@ -203,17 +223,6 @@ impl KEM {
             KEM::X25519 => x25519::PUBLIC_KEY_LENGTH,
             KEM::McEliece => mceliece::PUBLIC_KEY_LENGTH,
         }
-    }
-}
-
-impl Display for KEM {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            KEM::MlKem768 => "mlkem768",
-            KEM::XWing => "xwing",
-            KEM::X25519 => "x25519",
-            KEM::McEliece => "mceliece",
-        })
     }
 }
 
@@ -361,6 +370,14 @@ mod tests {
         for hash_fn in HashFunction::iter() {
             let display = format!("{hash_fn}");
             assert_eq!(hash_fn, HashFunction::from_str(&display).unwrap());
+        }
+    }
+
+    #[test]
+    fn signature_scheme_display_consistency() {
+        for scheme in SignatureScheme::iter() {
+            let display = format!("{scheme}");
+            assert_eq!(scheme, SignatureScheme::from_str(&display).unwrap());
         }
     }
 }

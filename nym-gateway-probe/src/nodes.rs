@@ -141,6 +141,19 @@ impl DirectoryNode {
                         )
                     })
                     .collect(),
+                expected_signing_key_hashes: lp_data
+                    .signing_keys
+                    .into_iter()
+                    .map(|(scheme, digests)| {
+                        (
+                            scheme.into(),
+                            digests
+                                .into_iter()
+                                .map(|(hash_fn, digest)| (hash_fn.into(), digest))
+                                .collect(),
+                        )
+                    })
+                    .collect(),
                 x25519: noise_key.x25519_pubkey,
             }),
             _ => None,

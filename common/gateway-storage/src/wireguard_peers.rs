@@ -98,4 +98,29 @@ impl WgPeerManager {
         .await?;
         Ok(())
     }
+
+    /// Update the stored PSK of the wireguard peer.
+    ///
+    /// # Arguments
+    ///
+    /// * `public_key`: the unique public key of the wireguard peer.
+    /// * `psk`: the PSK of the wireguard peer.
+    pub(crate) async fn update_peer_psk(
+        &self,
+        public_key: &str,
+        psk: Option<&str>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                UPDATE wireguard_peer
+                SET psk = ?
+                WHERE public_key = ?
+            "#,
+            psk,
+            public_key,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
 }

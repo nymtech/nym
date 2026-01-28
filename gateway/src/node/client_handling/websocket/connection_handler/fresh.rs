@@ -497,7 +497,7 @@ impl<R, S> FreshHandler<R, S> {
             Err(incompatible_err)
         } else {
             debug!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
-            Ok(CURRENT_PROTOCOL_VERSION)
+            Ok(client_protocol_version)
         }
     }
 

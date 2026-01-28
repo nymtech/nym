@@ -8,7 +8,7 @@ use celes::Country;
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt_ciphersuite::{HashFunction, KEM};
+use nym_kkt_ciphersuite::{HashFunction, SignatureScheme, KEM};
 use nym_network_defaults::{WG_METADATA_PORT, WG_TUNNEL_PORT};
 use nym_noise_keys::VersionedNoiseKeyV1;
 use schemars::JsonSchema;
@@ -212,6 +212,20 @@ pub struct LewesProtocolDetailsV1 {
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
     pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, Vec<u8>>>,
+
+    /// Digests of the signing keys available to this node alongside hashing algorithms used
+    /// for their computation.
+    pub signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, Vec<u8>>>,
+}
+
+/// Convert map of digests from `nym_node_requests` types into `nym-api-requests` types
+fn translate_digests(
+    digests: HashMap<nym_node_requests::api::v1::lewes_protocol::models::LPHashFunction, Vec<u8>>,
+) -> HashMap<LPHashFunction, Vec<u8>> {
+    digests
+        .into_iter()
+        .map(|(hash_fn, digest)| (hash_fn.into(), digest))
+        .collect()
 }
 
 #[derive(
@@ -258,6 +272,26 @@ pub enum LPHashFunction {
     Shake128,
     Shake256,
     Sha256,
+}
+
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    JsonSchema,
+    Hash,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Display,
+    EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "lowercase")]
+pub enum LPSignatureScheme {
+    Ed25519,
 }
 
 impl From<nym_node_requests::api::v1::node::models::HostInformation> for HostInformationV1 {
@@ -382,15 +416,12 @@ impl From<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>
             kem_keys: value
                 .kem_keys
                 .into_iter()
-                .map(|(kem, digests)| {
-                    (
-                        kem.into(),
-                        digests
-                            .into_iter()
-                            .map(|(hash_fn, digest)| (hash_fn.into(), digest))
-                            .collect(),
-                    )
-                })
+                .map(|(kem, digests)| (kem.into(), translate_digests(digests)))
+                .collect(),
+            signing_keys: value
+                .signing_keys
+                .into_iter()
+                .map(|(scheme, digests)| (scheme.into(), translate_digests(digests)))
                 .collect(),
         }
     }
@@ -426,6 +457,18 @@ impl From<nym_node_requests::api::v1::lewes_protocol::models::LPHashFunction> fo
     }
 }
 
+impl From<nym_node_requests::api::v1::lewes_protocol::models::LPSignatureScheme>
+    for LPSignatureScheme
+{
+    fn from(value: nym_node_requests::api::v1::lewes_protocol::models::LPSignatureScheme) -> Self {
+        match value {
+            nym_node_requests::api::v1::lewes_protocol::models::LPSignatureScheme::Ed25519 => {
+                LPSignatureScheme::Ed25519
+            }
+        }
+    }
+}
+
 impl From<LPKEM> for KEM {
     fn from(value: LPKEM) -> Self {
         match value {
@@ -444,6 +487,14 @@ impl From<LPHashFunction> for HashFunction {
             LPHashFunction::Shake128 => HashFunction::Shake128,
             LPHashFunction::Shake256 => HashFunction::Shake256,
             LPHashFunction::Sha256 => HashFunction::SHA256,
+        }
+    }
+}
+
+impl From<LPSignatureScheme> for SignatureScheme {
+    fn from(value: LPSignatureScheme) -> Self {
+        match value {
+            LPSignatureScheme::Ed25519 => SignatureScheme::Ed25519,
         }
     }
 }

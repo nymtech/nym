@@ -64,7 +64,7 @@ use crate::bandwidth_helpers::{acquire_bandwidth, import_bandwidth};
 use crate::nodes::{DirectoryNode, NymApiDirectory};
 pub use mode::TestMode;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
+use nym_kkt_ciphersuite::{KEM, KEMKeyDigests, SignatureScheme};
 use nym_lp::peer::LpRemotePeer;
 use nym_node_status_client::models::AttachedTicketMaterials;
 use nym_registration_client::{LpRegistrationClient, NestedLpSession};
@@ -167,6 +167,7 @@ pub struct TestedNodeDetails {
 pub struct TestedNodeLpDetails {
     pub address: SocketAddr,
     pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
+    pub expected_signing_key_hashes: HashMap<SignatureScheme, KEMKeyDigests>,
     pub x25519: x25519::PublicKey,
 }
 
@@ -1077,7 +1078,10 @@ async fn wg_probe(
 }
 
 fn to_lp_remote_peer(identity: ed25519::PublicKey, data: TestedNodeLpDetails) -> LpRemotePeer {
-    LpRemotePeer::new(identity, data.x25519).with_kem_key_digests(data.expected_kem_key_hashes)
+    LpRemotePeer::new(identity, data.x25519).with_key_digests(
+        data.expected_kem_key_hashes,
+        data.expected_signing_key_hashes,
+    )
 }
 
 async fn lp_registration_probe<St>(
@@ -1164,7 +1168,7 @@ where
         );
 
         match client
-            .register_with_credential(&wg_keypair, credential, ticket_type)
+            .register_with_credential(&mut rng, &wg_keypair, credential, ticket_type)
             .await
         {
             Ok(data) => data,
@@ -1179,6 +1183,7 @@ where
         info!("Using real bandwidth controller for LP registration");
         match client
             .register(
+                &mut rng,
                 &wg_keypair,
                 &gateway_ed25519_pubkey,
                 bandwidth_controller,
@@ -1307,6 +1312,7 @@ where
         match nested_session
             .handshake_and_register_with_credential(
                 &mut entry_client,
+                &mut rng,
                 &exit_wg_keypair,
                 credential,
                 TicketType::V1WireguardExit,
@@ -1323,6 +1329,7 @@ where
         match nested_session
             .handshake_and_register(
                 &mut entry_client,
+                &mut rng,
                 &exit_wg_keypair,
                 &exit_gateway_pubkey,
                 bandwidth_controller,
@@ -1353,7 +1360,12 @@ where
             TicketType::V1WireguardEntry,
         );
         match entry_client
-            .register_with_credential(&entry_wg_keypair, credential, TicketType::V1WireguardEntry)
+            .register_with_credential(
+                &mut rng,
+                &entry_wg_keypair,
+                credential,
+                TicketType::V1WireguardEntry,
+            )
             .await
         {
             Ok(data) => data,
@@ -1365,6 +1377,7 @@ where
     } else {
         match entry_client
             .register(
+                &mut rng,
                 &entry_wg_keypair,
                 &entry_gateway_pubkey,
                 bandwidth_controller,

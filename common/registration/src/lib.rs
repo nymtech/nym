@@ -5,7 +5,7 @@ use nym_authenticator_requests::AuthenticatorVersion;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_requests::IpPair;
-use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
+use nym_kkt_ciphersuite::{KEM, KEMKeyDigests, SignatureScheme};
 use nym_sphinx::addressing::Recipient;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -43,6 +43,7 @@ pub struct WireguardConfiguration {
 pub struct NymNodeLPInformation {
     pub address: SocketAddr,
     pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
+    pub expected_signing_key_hashes: HashMap<SignatureScheme, KEMKeyDigests>,
     pub x25519: x25519::PublicKey,
 }
 

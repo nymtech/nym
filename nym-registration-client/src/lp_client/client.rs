@@ -21,6 +21,7 @@ use nym_lp::state_machine::{LpAction, LpData, LpInput, LpStateMachine};
 use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::{LpRegistrationRequest, WireguardConfiguration};
 use nym_wireguard_types::PeerPublicKey;
+use rand::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -662,6 +663,7 @@ where
     /// for that please use [`Self::register_with_retry`] instead
     ///
     /// # Arguments
+    /// * `rng` - RNG instance for generating PSK
     /// * `wg_keypair` - Client's WireGuard x25519 keypair
     /// * `gateway_identity` - Gateway's ed25519 identity for credential verification
     /// * `bandwidth_controller` - Provider for bandwidth credentials
@@ -678,13 +680,17 @@ where
     /// - Network communication fails
     /// - Gateway rejected the registration
     /// - Response times out (see LpConfig::registration_timeout)
-    pub async fn register(
+    pub async fn register<R>(
         &mut self,
+        rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
-    ) -> Result<WireguardConfiguration> {
+    ) -> Result<WireguardConfiguration>
+    where
+        R: RngCore + CryptoRng,
+    {
         tracing::debug!("Acquiring bandwidth credential for registration");
 
         // Get bandwidth credential from controller
@@ -698,7 +704,7 @@ where
             })?
             .data;
 
-        self.register_with_credential(wg_keypair, credential, ticket_type)
+        self.register_with_credential(rng, wg_keypair, credential, ticket_type)
             .await
     }
 
@@ -708,6 +714,7 @@ where
     /// Uses the persistent TCP connection established during handshake.
     ///
     /// # Arguments
+    /// * `rng` - RNG instance for generating PSK
     /// * `wg_keypair` - Client's WireGuard x25519 keypair
     /// * `credential` - Pre-generated bandwidth credential
     /// * `ticket_type` - Type of bandwidth ticket
@@ -721,17 +728,21 @@ where
     ///
     /// # Panics / Errors
     /// Returns error if handshake not completed or if connection was closed.
-    pub async fn register_with_credential(
+    pub async fn register_with_credential<R>(
         &mut self,
+        rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         credential: CredentialSpendingData,
         ticket_type: TicketType,
-    ) -> Result<WireguardConfiguration> {
+    ) -> Result<WireguardConfiguration>
+    where
+        R: RngCore + CryptoRng,
+    {
         tracing::debug!("Sending registration request (persistent connection)");
 
         // 1. Build registration request
         let wg_public_key = PeerPublicKey::new(wg_keypair.public_key().to_bytes().into());
-        let request = LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type);
+        let request = LpRegistrationRequest::new_dvpn(rng, wg_public_key, credential, ticket_type);
 
         tracing::trace!("Built registration request: {:?}", request);
 
@@ -850,6 +861,7 @@ where
     /// will return the cached result instead of spending a new credential.
     ///
     /// # Arguments
+    /// * `rng` - RNG instance for generating PSK
     /// * `wg_keypair` - Client's WireGuard x25519 keypair (same key used for all retries)
     /// * `gateway_identity` - Gateway's ed25519 identity for credential verification
     /// * `bandwidth_controller` - Provider for bandwidth credentials
@@ -865,14 +877,18 @@ where
     /// # Note
     /// Unlike `register()`, this method handles the full flow including handshake.
     /// Do NOT call `perform_handshake()` before this method.
-    pub async fn register_with_retry(
+    pub async fn register_with_retry<R>(
         &mut self,
+        rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
         max_retries: u32,
-    ) -> Result<WireguardConfiguration> {
+    ) -> Result<WireguardConfiguration>
+    where
+        R: RngCore + CryptoRng,
+    {
         tracing::debug!("Starting resilient registration (max_retries={max_retries})",);
 
         // Acquire credential ONCE before any attempts
@@ -916,7 +932,7 @@ where
             }
 
             match self
-                .register_with_credential(wg_keypair, credential.clone(), ticket_type)
+                .register_with_credential(rng, wg_keypair, credential.clone(), ticket_type)
                 .await
             {
                 Ok(data) => {

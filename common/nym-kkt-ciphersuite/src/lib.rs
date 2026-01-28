@@ -351,6 +351,17 @@ impl Display for Ciphersuite {
     }
 }
 
+impl Default for Ciphersuite {
+    fn default() -> Self {
+        Self::new(
+            KEM::MlKem768,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

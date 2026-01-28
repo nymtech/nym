@@ -161,7 +161,7 @@ impl Socks5Args {
             None,
             self.socks5_json_rpc_url_list.clone(),
         )?;
-        client.ensure_endpoints_work().await?;
+        client.ensure_endpoint_works().await?;
 
         Ok(())
     }

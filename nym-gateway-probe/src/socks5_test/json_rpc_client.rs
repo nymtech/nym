@@ -116,12 +116,21 @@ impl JsonRpcClient {
         }
     }
 
-    pub async fn ensure_endpoints_work(&self) -> anyhow::Result<()> {
+    pub async fn ensure_endpoint_works(&self) -> anyhow::Result<()> {
+        let mut any_works = false;
         for endpoint in self.test_endpoints.iter() {
-            self.eth_chainid(endpoint).await?;
+            if let Err(err) = self.eth_chainid(endpoint).await {
+                warn!("Endpoint {endpoint} error: {err}");
+            } else {
+                any_works = true;
+            }
         }
 
-        Ok(())
+        if any_works {
+            return Ok(());
+        } else {
+            bail!("None of the endpoints are valid, see logs");
+        };
     }
 }
 

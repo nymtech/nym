@@ -552,16 +552,6 @@ wasm-bindgen-test = "0.3.49"
 wasmtimer = "0.4.1"
 web-sys = "0.3.76"
 
-# temporary workaround until relevant changes are merged upstream
-[patch."https://github.com/cryspen/libcrux"]
-libcrux-kem = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/psq-dkhem-utils" }
-libcrux-ecdh = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/psq-dkhem-utils" }
-libcrux-chacha20poly1305 = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/psq-dkhem-utils" }
-libcrux-psq = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/psq-dkhem-utils" }
-libcrux-ml-kem = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/psq-dkhem-utils" }
-libcrux-sha3 = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/psq-dkhem-utils" }
-libcrux-traits = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/psq-dkhem-utils" }
-
 
 # for local development:
 #[patch.crates-io]

@@ -239,6 +239,18 @@ pub struct ForwardPacketData {
 }
 
 impl ForwardPacketData {
+    pub fn new(
+        target_gateway_identity: ed25519::PublicKey,
+        target_lp_address: String,
+        inner_packet_bytes: Vec<u8>,
+    ) -> Self {
+        ForwardPacketData {
+            target_gateway_identity: target_gateway_identity.to_bytes(),
+            target_lp_address,
+            inner_packet_bytes,
+        }
+    }
+
     fn len(&self) -> usize {
         // 32 bytes target gateway identity
         // +

@@ -10,59 +10,61 @@ use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, NymNodeLPInformation,
 };
 
-pub(crate) fn convert_registration_request(
-    request: LpRegistrationRequest,
-) -> Result<LpInput, LpClientError> {
-    let request_bytes = request.serialise().map_err(|e| {
-        LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {e}"))
-    })?;
-
-    tracing::debug!(
-        "Sending registration request ({} bytes)",
-        request_bytes.len()
-    );
-
-    let data = LpData::new_registration(request_bytes);
-    Ok(LpInput::SendData(data))
+pub(crate) trait LpDataSendExt {
+    fn to_lp_data(&self) -> Result<LpData, LpClientError>;
 }
 
-pub(crate) fn try_convert_registration_response(
-    action: LpAction,
-) -> Result<LpRegistrationResponse, LpClientError> {
-    let response_data = match action {
-        LpAction::DeliverData(data) => data,
-        other => {
+pub(crate) trait LpDataDeliverExt: Sized {
+    fn from_lp_data(data: LpData) -> Result<Self, LpClientError>;
+}
+
+impl LpDataSendExt for LpRegistrationRequest {
+    fn to_lp_data(&self) -> Result<LpData, LpClientError> {
+        let request_bytes = self.serialise().map_err(|e| {
+            LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {e}"))
+        })?;
+
+        tracing::debug!(
+            "Sending registration request ({} bytes)",
+            request_bytes.len()
+        );
+
+        Ok(LpData::new_registration(request_bytes))
+    }
+}
+
+impl LpDataDeliverExt for LpRegistrationResponse {
+    fn from_lp_data(data: LpData) -> Result<Self, LpClientError> {
+        if data.kind != LpDataKind::Registration {
             return Err(LpClientError::Transport(format!(
-                "Unexpected action when receiving registration response: {other:?}"
+                "did not receive a valid registration response. got {:?} instead",
+                data.kind
             )));
         }
-    };
 
-    if response_data.kind != LpDataKind::Registration {
-        return Err(LpClientError::Transport(format!(
-            "did not receive a valid registration response. got {:?} instead",
-            response_data.kind
-        )));
-    }
-
-    let response =
-        LpRegistrationResponse::try_deserialise(&response_data.content).map_err(|e| {
+        let response = LpRegistrationResponse::try_deserialise(&data.content).map_err(|e| {
             LpClientError::Transport(format!("Failed to deserialize registration response: {e}",))
         })?;
 
-    Ok(response)
+        Ok(response)
+    }
 }
 
-pub(crate) fn convert_forward_data(request: ForwardPacketData) -> LpInput {
-    let request_bytes = request.to_bytes();
+impl LpDataSendExt for ForwardPacketData {
+    fn to_lp_data(&self) -> Result<LpData, LpClientError> {
+        let request_bytes = self.to_bytes();
 
-    tracing::trace!(
-        "Sending forward packet data request ({} bytes)",
-        request_bytes.len()
-    );
+        tracing::trace!(
+            "Sending forward packet data request ({} bytes)",
+            request_bytes.len()
+        );
 
-    let data = LpData::new_forward(request_bytes);
-    LpInput::SendData(data)
+        Ok(LpData::new_forward(request_bytes))
+    }
+}
+
+pub(crate) fn convert_forward_data(request: ForwardPacketData) -> Result<LpInput, LpClientError> {
+    Ok(LpInput::SendData(request.to_lp_data()?))
 }
 
 pub(crate) fn try_convert_forward_response(action: LpAction) -> Result<Vec<u8>, LpClientError> {
@@ -78,7 +80,7 @@ pub(crate) fn try_convert_forward_response(action: LpAction) -> Result<Vec<u8>, 
 
     if response_data.kind != LpDataKind::Forward {
         return Err(LpClientError::Transport(format!(
-            "did not receive a valid foreward response. got {:?} instead",
+            "did not receive a valid forward response. got {:?} instead",
             response_data.kind
         )));
     }

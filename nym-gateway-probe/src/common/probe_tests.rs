@@ -8,7 +8,7 @@ use crate::common::types::{
 use crate::common::wireguard::{
     TwoHopWgTunnelConfig, WgTunnelConfig, run_tunnel_tests, run_two_hop_tunnel_tests,
 };
-use crate::common::{bandwidth_helpers, helpers, icmp};
+use crate::common::{helpers, icmp};
 use crate::config::NetstackArgs;
 use anyhow::bail;
 use base64::{Engine, engine::general_purpose};
@@ -19,6 +19,7 @@ use nym_authenticator_requests::{
     AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse, v2, v3,
     v4, v5, v6,
 };
+use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_config::defaults::mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6};
 use nym_connection_monitor::self_ping_and_wait;
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
@@ -147,22 +148,11 @@ pub async fn wg_probe(
     Ok(wg_outcome)
 }
 
-pub async fn lp_registration_probe<St>(
+pub async fn lp_registration_probe(
     gateway_identity: NodeIdentity,
     gateway_lp_data: TestedNodeLpDetails,
-    bandwidth_controller: &nym_bandwidth_controller::BandwidthController<
-        nym_validator_client::nyxd::NyxdClient<nym_validator_client::HttpRpcClient>,
-        St,
-    >,
-    use_mock_ecash: bool,
-) -> anyhow::Result<LpProbeResults>
-where
-    St: nym_sdk::mixnet::CredentialStorage + Clone + Send + Sync + 'static,
-    <St as nym_sdk::mixnet::CredentialStorage>::StorageError: Send + Sync,
-{
-    use nym_crypto::asymmetric::ed25519;
-    use nym_registration_client::LpRegistrationClient;
-
+    bandwidth_controller: &dyn BandwidthTicketProvider,
+) -> anyhow::Result<LpProbeResults> {
     let lp_address = gateway_lp_data.address;
     let peer = helpers::to_lp_remote_peer(gateway_identity, gateway_lp_data);
 
@@ -223,44 +213,22 @@ where
 
     // Register using the new packet-per-connection API (returns GatewayData directly)
     let ticket_type = TicketType::V1WireguardEntry;
-    let gateway_data = if use_mock_ecash {
-        info!("Using mock ecash credential for LP registration");
-        let credential = bandwidth_helpers::create_dummy_credential(
-            &gateway_ed25519_pubkey.to_bytes(),
+    let gateway_data = match client
+        .register_dvpn(
+            &mut rng,
+            &wg_keypair,
+            &gateway_ed25519_pubkey,
+            bandwidth_controller,
             ticket_type,
-        );
-
-        match client
-            .register_with_credential(&mut rng, &wg_keypair, credential, ticket_type)
-            .await
-        {
-            Ok(data) => data,
-            Err(e) => {
-                let error_msg = format!("LP registration failed (mock ecash): {}", e);
-                error!("{}", error_msg);
-                lp_outcome.error = Some(error_msg);
-                return Ok(lp_outcome);
-            }
-        }
-    } else {
-        info!("Using real bandwidth controller for LP registration");
-        match client
-            .register(
-                &mut rng,
-                &wg_keypair,
-                &gateway_ed25519_pubkey,
-                bandwidth_controller,
-                ticket_type,
-            )
-            .await
-        {
-            Ok(data) => data,
-            Err(e) => {
-                let error_msg = format!("LP registration failed: {}", e);
-                error!("{}", error_msg);
-                lp_outcome.error = Some(error_msg);
-                return Ok(lp_outcome);
-            }
+        )
+        .await
+    {
+        Ok(data) => data,
+        Err(e) => {
+            let error_msg = format!("LP registration failed: {}", e);
+            error!("{}", error_msg);
+            lp_outcome.error = Some(error_msg);
+            return Ok(lp_outcome);
         }
     };
 
@@ -291,21 +259,13 @@ where
 // but subsequent DNS/ping tests may timeout. This appears to be related to Apple Container
 // Runtime networking quirks combined with our NAT/iptables configuration. Tracked in
 // beads issue nym-vbdo. Workaround: restart the localnet containers between probe runs.
-pub async fn wg_probe_lp<St>(
+pub async fn wg_probe_lp(
     entry_gateway: &TestedNodeDetails,
     exit_gateway: &TestedNodeDetails,
-    bandwidth_controller: &nym_bandwidth_controller::BandwidthController<
-        nym_validator_client::nyxd::NyxdClient<nym_validator_client::HttpRpcClient>,
-        St,
-    >,
-    use_mock_ecash: bool,
+    bandwidth_controller: &dyn BandwidthTicketProvider,
     awg_args: String,
     netstack_args: NetstackArgs,
-) -> anyhow::Result<WgProbeResults>
-where
-    St: nym_sdk::mixnet::CredentialStorage + Clone + Send + Sync + 'static,
-    <St as nym_sdk::mixnet::CredentialStorage>::StorageError: Send + Sync,
-{
+) -> anyhow::Result<WgProbeResults> {
     // Validate that both gateways have required information
     let entry_lp_data = entry_gateway
         .lp_data
@@ -366,47 +326,24 @@ where
         .map_err(|e| anyhow::anyhow!("Invalid exit gateway identity: {}", e))?;
 
     // Perform handshake and registration with exit gateway via forwarding
-    let exit_gateway_data = if use_mock_ecash {
-        info!("Using mock ecash credential for exit gateway registration");
-        let credential = bandwidth_helpers::create_dummy_credential(
-            &exit_gateway_pubkey.to_bytes(),
+    let exit_gateway_data = match nested_session
+        .handshake_and_register_dvpn(
+            &mut entry_client,
+            &mut rng,
+            &exit_wg_keypair,
+            &exit_gateway_pubkey,
+            bandwidth_controller,
             TicketType::V1WireguardExit,
-        );
-        match nested_session
-            .handshake_and_register_with_credential(
-                &mut entry_client,
-                &mut rng,
-                &exit_wg_keypair,
-                credential,
-                TicketType::V1WireguardExit,
-            )
-            .await
-        {
-            Ok(data) => data,
-            Err(e) => {
-                error!("Failed to register with exit gateway (mock ecash): {}", e);
-                return Ok(wg_outcome);
-            }
-        }
-    } else {
-        match nested_session
-            .handshake_and_register(
-                &mut entry_client,
-                &mut rng,
-                &exit_wg_keypair,
-                &exit_gateway_pubkey,
-                bandwidth_controller,
-                TicketType::V1WireguardExit,
-            )
-            .await
-        {
-            Ok(data) => data,
-            Err(e) => {
-                error!("Failed to register with exit gateway: {}", e);
-                return Ok(wg_outcome);
-            }
+        )
+        .await
+    {
+        Ok(data) => data,
+        Err(e) => {
+            error!("Failed to register with exit gateway: {}", e);
+            return Ok(wg_outcome);
         }
     };
+
     info!("Exit gateway registration successful via forwarding");
 
     // STEP 3: Register with entry gateway
@@ -416,43 +353,20 @@ where
             .map_err(|e| anyhow::anyhow!("Invalid entry gateway identity: {}", e))?;
 
     // Use packet-per-connection register() which returns GatewayData directly
-    let entry_gateway_data = if use_mock_ecash {
-        info!("Using mock ecash credential for entry gateway registration");
-        let credential = bandwidth_helpers::create_dummy_credential(
-            &entry_gateway_pubkey.to_bytes(),
+    let entry_gateway_data = match entry_client
+        .register_dvpn(
+            &mut rng,
+            &entry_wg_keypair,
+            &entry_gateway_pubkey,
+            bandwidth_controller,
             TicketType::V1WireguardEntry,
-        );
-        match entry_client
-            .register_with_credential(
-                &mut rng,
-                &entry_wg_keypair,
-                credential,
-                TicketType::V1WireguardEntry,
-            )
-            .await
-        {
-            Ok(data) => data,
-            Err(e) => {
-                error!("Failed to register with entry gateway (mock ecash): {}", e);
-                return Ok(wg_outcome);
-            }
-        }
-    } else {
-        match entry_client
-            .register(
-                &mut rng,
-                &entry_wg_keypair,
-                &entry_gateway_pubkey,
-                bandwidth_controller,
-                TicketType::V1WireguardEntry,
-            )
-            .await
-        {
-            Ok(data) => data,
-            Err(e) => {
-                error!("Failed to register with entry gateway: {}", e);
-                return Ok(wg_outcome);
-            }
+        )
+        .await
+    {
+        Ok(data) => data,
+        Err(e) => {
+            error!("Failed to register with entry gateway: {}", e);
+            return Ok(wg_outcome);
         }
     };
     info!("Entry gateway registration successful");

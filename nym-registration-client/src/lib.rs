@@ -218,7 +218,7 @@ impl RegistrationClient {
 
         // Perform handshake and registration with exit gateway (all via entry forwarding)
         let exit_gateway_data = nested_session
-            .handshake_and_register::<TcpStream, _>(
+            .handshake_and_register_dvpn::<TcpStream, _>(
                 &mut entry_client,
                 rng,
                 &self.config.exit.keys,
@@ -238,7 +238,7 @@ impl RegistrationClient {
         // STEP 3: Register with entry gateway (packet-per-connection)
         tracing::info!("Registering with entry gateway");
         let entry_gateway_data = entry_client
-            .register(
+            .register_dvpn(
                 rng,
                 &self.config.entry.keys,
                 &self.config.entry.node.identity,

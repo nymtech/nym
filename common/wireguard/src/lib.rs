@@ -28,6 +28,7 @@ pub mod peer_controller;
 pub mod peer_handle;
 pub mod peer_storage_manager;
 
+pub use defguard_wireguard_rs::host::Peer as DefguardPeer;
 pub use error::Error;
 pub use ip_pool::{IpPool, IpPoolError};
 pub use nym_wireguard_types::Config as WireguardConfig;

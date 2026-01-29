@@ -24,7 +24,9 @@ use url::Url;
 mod common;
 pub mod config;
 
-use crate::common::bandwidth_helpers::{acquire_bandwidth, import_bandwidth};
+use crate::common::bandwidth_helpers::{
+    acquire_bandwidth, build_bandwidth_controller, import_bandwidth,
+};
 pub use crate::common::nodes::{
     DirectoryNode, NymApiDirectory, TestedNode, TestedNodeDetails, TestedNodeLpDetails,
     query_gateway_by_ip,
@@ -435,16 +437,14 @@ impl Probe {
             &NymNetworkDetails::new_from_env(),
         )?;
         let client = nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
-        let bw_controller = nym_bandwidth_controller::BandwidthController::new(
-            storage.credential_store().clone(),
-            client,
-        );
+
+        let bw_controller =
+            build_bandwidth_controller(client, storage.credential_store().clone(), use_mock_ecash);
 
         // Run LP registration probe
-        let lp_outcome =
-            lp_registration_probe(node_info.identity, lp_data, &bw_controller, use_mock_ecash)
-                .await
-                .unwrap_or_default();
+        let lp_outcome = lp_registration_probe(node_info.identity, lp_data, &bw_controller)
+            .await
+            .unwrap_or_default();
 
         // Return result with only LP outcome
         Ok(ProbeResult {
@@ -644,9 +644,11 @@ impl Probe {
             )?;
             let client =
                 nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
-            let bw_controller = nym_bandwidth_controller::BandwidthController::new(
-                storage.credential_store().clone(),
+
+            let bw_controller = build_bandwidth_controller(
                 client,
+                storage.credential_store().clone(),
+                use_mock_ecash,
             );
 
             // Determine entry and exit gateways
@@ -691,7 +693,6 @@ impl Probe {
                 &entry_gateway,
                 &exit_gateway,
                 &bw_controller,
-                use_mock_ecash,
                 self.amnezia_args.clone(),
                 self.netstack_args.clone(),
             )
@@ -773,15 +774,15 @@ impl Probe {
             )?;
             let client =
                 nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
-            let bw_controller = nym_bandwidth_controller::BandwidthController::new(
-                storage.credential_store().clone(),
+            let bw_controller = build_bandwidth_controller(
                 client,
+                storage.credential_store().clone(),
+                use_mock_ecash,
             );
 
-            let outcome =
-                lp_registration_probe(node_info.identity, lp_data, &bw_controller, use_mock_ecash)
-                    .await
-                    .unwrap_or_default();
+            let outcome = lp_registration_probe(node_info.identity, lp_data, &bw_controller)
+                .await
+                .unwrap_or_default();
 
             Some(outcome)
         } else {

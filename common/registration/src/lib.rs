@@ -11,10 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
-pub use lp_messages::{
-    LpDvpnRegistrationRequest, LpMixnetGatewayData, LpMixnetRegistrationRequest,
-    LpRegistrationData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
-};
+pub use lp_messages::*;
 pub use serialisation::BincodeError;
 
 mod lp_messages;
@@ -30,7 +27,7 @@ pub struct NymNodeInformation {
     pub version: AuthenticatorVersion,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WireguardConfiguration {
     #[serde(with = "bs58_x25519_pubkey")]
     pub public_key: x25519::PublicKey,

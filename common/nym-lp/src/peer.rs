@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ClientHelloData;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::ciphersuite::{KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests};
 use std::collections::HashMap;
@@ -27,6 +28,14 @@ impl LpLocalPeer {
             x25519,
             kem_psq: None,
         }
+    }
+
+    pub fn build_client_hello_data(&self, timestamp: u64) -> ClientHelloData {
+        ClientHelloData::new_with_fresh_salt(
+            *self.x25519().public_key(),
+            *self.ed25519().public_key(),
+            timestamp,
+        )
     }
 
     #[must_use]

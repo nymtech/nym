@@ -26,6 +26,7 @@ use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationRequestData, LpRegistrationResponse, RegistrationMode,
     RegistrationStatus, WireguardConfiguration,
 };
+use nym_wireguard::peer_controller::IpPair;
 use nym_wireguard::WireguardConfig;
 use nym_wireguard_types::PeerPublicKey;
 use std::collections::HashMap;
@@ -69,6 +70,15 @@ pub struct PendingRegistrationState {
     peer_key: PeerPublicKey,
     ticket_type: TicketType,
     wireguard_config: WireguardConfiguration,
+}
+
+impl PendingRegistrationState {
+    pub(crate) fn allocated_ip_pair(&self) -> IpPair {
+        IpPair::new(
+            self.wireguard_config.private_ipv4,
+            self.wireguard_config.private_ipv6,
+        )
+    }
 }
 
 #[derive(Clone, Default)]
@@ -416,12 +426,8 @@ impl LpHandlerState {
         // Allocate IPs from centralized pool managed by PeerController
         let defguard_key = Key::new(peer_key.to_bytes());
 
-        let registration_data = nym_wireguard::PeerRegistrationData::new(defguard_key.clone(), psk);
-
-        let psk = registration_data.preshared_key.clone();
-
         // Request IP allocation from PeerController
-        let ip_pair = self.peer_manager.register_peer(registration_data).await?;
+        let ip_pair = self.peer_manager.allocate_peer_ip_pair().await?;
 
         let client_ipv4 = ip_pair.ipv4;
         let client_ipv6 = ip_pair.ipv6;

@@ -104,7 +104,7 @@ impl From<&PeerControlRequest> for PeerControlRequestType {
             PeerControlRequest::AddPeer { peer, .. } => PeerControlRequestType::AddPeer {
                 public_key: (&peer.public_key).into(),
             },
-            PeerControlRequest::RegisterPeer {
+            PeerControlRequest::AllocatePeerIpPair {
                 registration_data, ..
             } => PeerControlRequestType::RegisterPeer {
                 public_key: (&registration_data.public_key).into(),
@@ -265,7 +265,7 @@ impl MockPeerController {
                 }
                 response_tx.send_downcasted(response.content)
             }
-            PeerControlRequest::RegisterPeer { response_tx, .. } => {
+            PeerControlRequest::AllocatePeerIpPair { response_tx, .. } => {
                 let key = typ.peer_key_unchecked();
                 let peer = peers_guard.peers.entry(key).or_default();
                 if response.success {

@@ -577,6 +577,7 @@ impl LpListener {
     ///
     /// The task automatically stops when the shutdown signal is received.
     fn spawn_state_cleanup_task(&self) -> tokio::task::JoinHandle<()> {
+        let peer_manager = Arc::clone(&self.handler_state.peer_manager);
         let handshake_states = Arc::clone(&self.handler_state.handshake_states);
         let session_states = Arc::clone(&self.handler_state.session_states);
         let pending_registrations = self.handler_state.registrations_in_progress.clone();
@@ -597,6 +598,7 @@ impl LpListener {
 
         self.shutdown.try_spawn_named(
             cleanup_task::cleanup_loop(
+                peer_manager,
                 handshake_states,
                 session_states,
                 pending_registrations,
@@ -619,15 +621,17 @@ impl LpListener {
 pub(crate) mod cleanup_task {
     use crate::node::lp_listener::registration::RegistrationsInProgress;
     use crate::node::lp_listener::{LpDebug, TimestampedState};
+    use crate::node::wireguard::PeerManager;
     use dashmap::DashMap;
     use nym_lp::state_machine::LpStateBare;
     use nym_lp::LpStateMachine;
     use nym_metrics::inc_by;
     use nym_node_metrics::NymNodeMetrics;
     use std::sync::Arc;
-    use tracing::{debug, info};
+    use tracing::{debug, error, info};
 
     async fn perform_cleanup(
+        peer_manager: &PeerManager,
         handshake_states: &Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         session_states: &Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         registrations_in_progress: &RegistrationsInProgress,
@@ -677,17 +681,29 @@ pub(crate) mod cleanup_task {
         });
 
         // Remove stale registrations (based on time since last activity)
-        registrations_in_progress
-            .lock()
-            .await
-            .retain(|_, timestamped| {
-                if timestamped.age() > pending_registration_ttl {
-                    pending_reg_removed += 1;
-                    false
-                } else {
-                    true
-                }
-            });
+        let mut reg_guard = registrations_in_progress.lock().await;
+        let mut to_remove = Vec::new();
+        for (k, timestamped) in reg_guard.iter() {
+            if timestamped.age() > pending_registration_ttl {
+                pending_reg_removed += 1;
+                to_remove.push(*k)
+            } else {
+                to_remove.push(*k)
+            }
+        }
+
+        for to_remove in to_remove {
+            pending_reg_removed += 1;
+            // SAFETY: we never dropped the guard and the entry existed
+
+            let entry = reg_guard.remove(&to_remove).unwrap();
+            if let Err(err) = peer_manager
+                .release_ip_pair(entry.state.allocated_ip_pair())
+                .await
+            {
+                error!("failed to release allocated ip pair: {err}")
+            }
+        }
 
         if hs_removed > 0 || ss_removed > 0 || demoted_removed > 0 || pending_reg_removed > 0 {
             let duration = start.elapsed();
@@ -723,6 +739,7 @@ pub(crate) mod cleanup_task {
     /// Demoted sessions (ReadOnlyTransport) use shorter TTL since they
     /// only need to drain in-flight packets after subsession promotion.
     pub(crate) async fn cleanup_loop(
+        peer_manager: Arc<PeerManager>,
         handshake_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         registrations_in_progress: RegistrationsInProgress,
@@ -742,7 +759,7 @@ pub(crate) mod cleanup_task {
                     break;
                 }
                 _ = cleanup_interval.tick() => {
-                    perform_cleanup(&handshake_states, &session_states, &registrations_in_progress, cfg).await;
+                    perform_cleanup(&peer_manager, &handshake_states, &session_states, &registrations_in_progress, cfg).await;
                 }
             }
         }

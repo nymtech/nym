@@ -7,9 +7,7 @@ use futures::channel::oneshot;
 use nym_credential_verification::{ClientBandwidth, TicketVerifier};
 use nym_credentials_interface::CredentialSpendingData;
 use nym_wireguard::peer_controller::IpPair;
-use nym_wireguard::{
-    peer_controller::PeerControlRequest, PeerRegistrationData, WireguardGatewayData,
-};
+use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use nym_wireguard_types::PeerPublicKey;
 use tracing::error;
 
@@ -25,15 +23,9 @@ impl PeerManager {
         }
     }
 
-    pub async fn register_peer(
-        &self,
-        registration_data: PeerRegistrationData,
-    ) -> Result<IpPair, GatewayWireguardError> {
+    pub async fn allocate_peer_ip_pair(&self) -> Result<IpPair, GatewayWireguardError> {
         let (response_tx, response_rx) = oneshot::channel();
-        let msg = PeerControlRequest::RegisterPeer {
-            registration_data,
-            response_tx,
-        };
+        let msg = PeerControlRequest::AllocatePeerIpPair { response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
@@ -51,6 +43,25 @@ impl PeerManager {
                 error!("Failed to allocate IPs from pool: {e}");
                 GatewayWireguardError::InternalError(format!("Failed to allocate IPs: {e}"))
             })
+    }
+
+    pub async fn release_ip_pair(&self, ip_pair: IpPair) -> Result<(), GatewayWireguardError> {
+        let (response_tx, response_rx) = oneshot::channel();
+        let msg = PeerControlRequest::ReleaseIpPair {
+            response_tx,
+            ip_pair,
+        };
+        self.wireguard_gateway_data
+            .peer_tx()
+            .send(msg)
+            .await
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
+
+        response_rx.await.map_err(|e| {
+            GatewayWireguardError::InternalError(format!("Failed to release IP allocation: {e}"))
+        })?;
+
+        Ok(())
     }
 
     pub async fn add_peer(&self, peer: Peer) -> Result<(), GatewayWireguardError> {

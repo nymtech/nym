@@ -26,7 +26,7 @@ impl From<&PeerControlRequest> for PeerControlRequestTypeV2 {
     fn from(req: &PeerControlRequest) -> Self {
         match req {
             PeerControlRequest::AddPeer { .. } => PeerControlRequestTypeV2::AddPeer,
-            PeerControlRequest::RegisterPeer { .. } => PeerControlRequestTypeV2::AddPeer,
+            PeerControlRequest::AllocatePeerIpPair { .. } => PeerControlRequestTypeV2::AddPeer,
             PeerControlRequest::RemovePeer { .. } => PeerControlRequestTypeV2::RemovePeer,
             PeerControlRequest::QueryPeer { .. } => PeerControlRequestTypeV2::QueryPeer,
             PeerControlRequest::GetClientBandwidthByKey { .. } => {
@@ -113,7 +113,7 @@ impl MockPeerControllerV2 {
                     )
                     .unwrap();
             }
-            PeerControlRequest::RegisterPeer { response_tx, .. } => {
+            PeerControlRequest::AllocatePeerIpPair { response_tx, .. } => {
                 response_tx
                     .send(
                         *response

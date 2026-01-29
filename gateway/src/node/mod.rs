@@ -493,25 +493,12 @@ impl GatewayTasksBuilder {
         Ok(peers)
     }
 
-    async fn get_wireguard_networks(&mut self) -> Result<Vec<IpAddr>, GatewayError> {
-        if let Some(cached) = self.wireguard_networks.take() {
-            return Ok(cached);
-        }
-
-        let (peers, used_private_network_ips) = self.build_wireguard_peers_and_networks().await?;
-        // cache peers for the other task
-
-        self.wireguard_peers = Some(peers);
-        Ok(used_private_network_ips)
-    }
-
     pub async fn build_wireguard_authenticator(
         &mut self,
         upgrade_mode_common: UpgradeModeDetails,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Result<ServiceProviderBeingBuilt<Authenticator>, GatewayError> {
         let ecash_manager = self.ecash_manager().await?;
-        let used_private_network_ips = self.get_wireguard_networks().await?;
 
         let Some(opts) = &self.authenticator_opts else {
             return Err(GatewayError::UnspecifiedAuthenticatorConfig);
@@ -534,7 +521,6 @@ impl GatewayTasksBuilder {
             opts.config.clone(),
             upgrade_mode_common,
             wireguard_data.inner.clone(),
-            used_private_network_ips,
             ecash_manager,
             self.shutdown_tracker.clone(),
         )

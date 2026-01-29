@@ -3,15 +3,14 @@
 
 use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
 use futures::channel::oneshot;
-use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
+use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::ShutdownTracker;
 use nym_wireguard::WireguardGatewayData;
-use std::{net::IpAddr, path::Path, sync::Arc, time::SystemTime};
+use std::{path::Path, sync::Arc};
 
 pub use config::Config;
-use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 
 pub mod config;
 pub mod error;
@@ -39,7 +38,6 @@ pub struct Authenticator {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
     ecash_verifier: Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
-    used_private_network_ips: Vec<IpAddr>,
     shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
@@ -49,7 +47,6 @@ impl Authenticator {
         config: Config,
         upgrade_mode_state: UpgradeModeDetails,
         wireguard_gateway_data: WireguardGatewayData,
-        used_private_network_ips: Vec<IpAddr>,
         ecash_verifier: Arc<
             dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync,
         >,
@@ -63,7 +60,6 @@ impl Authenticator {
             custom_gateway_transceiver: None,
             ecash_verifier,
             wireguard_gateway_data,
-            used_private_network_ips,
             shutdown,
             on_start: None,
         }
@@ -134,26 +130,8 @@ impl Authenticator {
 
         let self_address = *mixnet_client.nym_address();
 
-        let used_private_network_ips =
-            std::collections::BTreeSet::from_iter(self.used_private_network_ips.iter());
-        let private_ip_network = IpNetwork::new(
-            self.config.authenticator.private_ipv4.into(),
-            self.config.authenticator.private_network_prefix_v4,
-        )?;
-        let now = SystemTime::now();
-        let free_private_network_ips = private_ip_network
-            .iter()
-            .map(|ip: IpAddr| {
-                if used_private_network_ips.contains(&ip) {
-                    (ip.into(), Some(now))
-                } else {
-                    (ip.into(), None)
-                }
-            })
-            .collect();
         let mixnet_listener = mixnet_listener::MixnetListener::new(
             self.config,
-            free_private_network_ips,
             self.wireguard_gateway_data,
             mixnet_client,
             self.upgrade_mode_state,

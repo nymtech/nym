@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use nym_credential_storage::storage::Storage;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
 use crate::{error::BandwidthControllerError, BandwidthController, PreparedCredential};
@@ -55,5 +56,24 @@ where
         let token = String::from_utf8(emergency_credential.data.content)
             .map_err(|_| BandwidthControllerError::MalformedUpgradeModeToken)?;
         Ok(Some(token))
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<T: BandwidthTicketProvider + ?Sized + Send> BandwidthTicketProvider for Box<T> {
+    async fn get_ecash_ticket(
+        &self,
+        ticket_type: TicketType,
+        gateway_id: PublicKey,
+        tickets_to_spend: u32,
+    ) -> Result<PreparedCredential, BandwidthControllerError> {
+        (**self)
+            .get_ecash_ticket(ticket_type, gateway_id, tickets_to_spend)
+            .await
+    }
+
+    async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError> {
+        (**self).get_upgrade_mode_token().await
     }
 }

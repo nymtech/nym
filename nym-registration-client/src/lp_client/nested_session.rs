@@ -564,10 +564,10 @@ impl NestedLpSession {
     /// # Errors
     /// Returns an error if all retry attempts fail.
     #[allow(clippy::too_many_arguments)]
-    pub async fn handshake_and_register_with_retry<S, R>(
+    pub async fn handshake_and_register_dvpn_with_retry<S, R>(
         &mut self,
-        rng: &mut R,
         outer_client: &mut LpRegistrationClient<S>,
+        rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,

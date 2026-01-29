@@ -27,7 +27,7 @@ pub struct NymNodeInformation {
     pub version: AuthenticatorVersion,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WireguardConfiguration {
     #[serde(with = "bs58_x25519_pubkey")]
     pub public_key: x25519::PublicKey,

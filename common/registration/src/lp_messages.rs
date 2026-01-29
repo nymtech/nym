@@ -104,6 +104,14 @@ impl RegistrationStatus {
     pub fn is_successful(&self) -> bool {
         matches!(self, RegistrationStatus::Completed)
     }
+
+    pub fn is_failed(&self) -> bool {
+        matches!(self, RegistrationStatus::Failed)
+    }
+
+    pub fn is_pending(&self) -> bool {
+        matches!(self, RegistrationStatus::PendingMoreData)
+    }
 }
 
 fn current_timestamp() -> u64 {
@@ -210,18 +218,6 @@ impl LpRegistrationResponse {
         }
     }
 
-    //
-    // /// Create a success response for mixnet mode with LpGatewayData
-    // pub fn success_mixnet(allocated_bandwidth: i64, lp_gateway_data: LpMixnetGatewayData) -> Self {
-    //     Self {
-    //         success: true,
-    //         error: None,
-    //         gateway_data: None,
-    //         lp_gateway_data: Some(lp_gateway_data),
-    //         allocated_bandwidth,
-    //     }
-    // }
-    //
     /// Create an error response
     pub fn error(error: impl Into<String>, mode: RegistrationMode) -> Self {
         let response_data = match mode {
@@ -424,7 +420,7 @@ pub mod mixnet {
     ///
     /// Contains the gateway's identity and sphinx key needed for the client
     /// to construct its full nym Recipient address.
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct LpMixnetGatewayData {
         /// Gateway's ed25519 identity public key
         ///
@@ -453,13 +449,12 @@ pub mod mixnet {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_crypto::asymmetric::ed25519;
     use nym_test_utils::helpers::deterministic_rng;
-    use std::net::Ipv4Addr;
+    use std::net::{Ipv4Addr, Ipv6Addr};
     // ==================== Helper Functions ====================
 
     fn create_test_gateway_data() -> WireguardConfiguration {
-        use std::net::Ipv6Addr;
-
         WireguardConfiguration {
             public_key: nym_crypto::asymmetric::x25519::PublicKey::from(
                 nym_sphinx::PublicKey::from([1u8; 32]),
@@ -475,36 +470,59 @@ mod tests {
     // ==================== LpRegistrationResponse Tests ====================
 
     #[test]
-    fn test_lp_registration_response_success() {
-        let gateway_data = create_test_gateway_data();
-        let allocated_bandwidth = 1_000_000_000;
-
-        let response = LpRegistrationResponse::success(allocated_bandwidth, gateway_data.clone());
-
-        assert!(response.success);
-        assert!(response.error.is_none());
-        assert!(response.gateway_data.is_some());
-        assert_eq!(response.allocated_bandwidth, allocated_bandwidth);
-
-        let returned_gw_data = response
-            .gateway_data
-            .expect("Gateway data should be present in success response");
-        assert_eq!(returned_gw_data.public_key, gateway_data.public_key);
-        assert_eq!(returned_gw_data.private_ipv4, gateway_data.private_ipv4);
-        assert_eq!(returned_gw_data.private_ipv6, gateway_data.private_ipv6);
-        assert_eq!(returned_gw_data.endpoint, gateway_data.endpoint);
-    }
-
-    #[test]
     fn test_lp_registration_response_error() {
         let error_msg = String::from("Insufficient bandwidth");
 
-        let response = LpRegistrationResponse::error(error_msg.clone());
+        let response_mixnet =
+            LpRegistrationResponse::error(error_msg.clone(), RegistrationMode::Mixnet);
+        let response_dvpn =
+            LpRegistrationResponse::error(error_msg.clone(), RegistrationMode::Dvpn);
 
-        assert!(!response.success);
-        assert_eq!(response.error, Some(error_msg));
-        assert!(response.gateway_data.is_none());
-        assert_eq!(response.allocated_bandwidth, 0);
+        assert!(response_mixnet.status.is_failed());
+        assert!(response_dvpn.status.is_failed());
+
+        // check mixnet
+        let LpRegistrationResponseData::Mixnet { data } = response_mixnet.response_data else {
+            panic!("unexpected response")
+        };
+
+        let LpMixnetRegistrationResponseMessageContent::RegistrationFailure(failure) = data.content
+        else {
+            panic!("unexpected response")
+        };
+        assert_eq!(failure.error, error_msg);
+
+        // check dvpn
+        let LpRegistrationResponseData::Dvpn { data } = response_dvpn.response_data else {
+            panic!("unexpected response")
+        };
+
+        let LpDvpnRegistrationResponseMessageContent::RegistrationFailure(failure) = data.content
+        else {
+            panic!("unexpected response")
+        };
+        assert_eq!(failure.error, error_msg);
+    }
+
+    #[test]
+    fn test_lp_registration_response_success_dvpn() {
+        let cfg = create_test_gateway_data();
+        let allocated_bandwidth = 500_000_000;
+
+        let response = LpRegistrationResponse::success_dvpn(cfg, allocated_bandwidth);
+        assert!(response.status.is_successful());
+
+        let LpRegistrationResponseData::Dvpn { data } = response.response_data else {
+            panic!("unexpected response")
+        };
+
+        let LpDvpnRegistrationResponseMessageContent::CompletedRegistration(complete) =
+            data.content
+        else {
+            panic!("unexpected response")
+        };
+        assert_eq!(complete.config, cfg);
+        assert_eq!(complete.available_bandwidth, allocated_bandwidth);
     }
 
     #[test]
@@ -517,17 +535,20 @@ mod tests {
         };
         let allocated_bandwidth = 500_000_000;
 
-        let response = LpRegistrationResponse::success_mixnet(allocated_bandwidth, lp_gateway_data);
+        let response =
+            LpRegistrationResponse::success_mixnet(lp_gateway_data.clone(), allocated_bandwidth);
+        assert!(response.status.is_successful());
 
-        assert!(response.success);
-        assert!(response.error.is_none());
-        assert!(response.gateway_data.is_none());
-        assert!(response.lp_gateway_data.is_some());
-        assert_eq!(response.allocated_bandwidth, allocated_bandwidth);
+        let LpRegistrationResponseData::Mixnet { data } = response.response_data else {
+            panic!("unexpected response")
+        };
 
-        let gw_data = response
-            .lp_gateway_data
-            .expect("LpGatewayData should be present");
-        assert_eq!(gw_data.gateway_identity, *valid_key.public_key());
+        let LpMixnetRegistrationResponseMessageContent::CompletedRegistration(complete) =
+            data.content
+        else {
+            panic!("unexpected response")
+        };
+        assert_eq!(complete.config, lp_gateway_data);
+        assert_eq!(complete.available_bandwidth, allocated_bandwidth);
     }
 }

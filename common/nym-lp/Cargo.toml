@@ -16,7 +16,8 @@ dashmap = { workspace = true }
 sha2 = { workspace = true }
 tracing = { workspace = true }
 rand = { workspace = true }
-rand09 = { workspace =  true }
+rand09 = { workspace = true }
+ouroboros = "0.18.5"
 
 nym-crypto = { path = "../crypto", features = ["hashing", "asymmetric"] }
 nym-kkt = { path = "../nym-kkt" }

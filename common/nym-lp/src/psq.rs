@@ -30,7 +30,7 @@ impl Debug for PSQState<'_> {
     }
 }
 
-pub fn initiator_process<'a>(initiator: &'a mut RegistrationInitiator<ThreadRng>) -> Vec<u8> {
+pub fn initiator_process(initiator: &mut RegistrationInitiator<ThreadRng>) -> Vec<u8> {
     let mut buffer = vec![0u8; 4096];
     let msg_len = initiator.write_message(b"", &mut buffer).unwrap();
     buffer.resize(msg_len, 0);

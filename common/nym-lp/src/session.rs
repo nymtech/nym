@@ -8,8 +8,10 @@
 
 use crate::codec::OuterAeadKey;
 use crate::message::{EncryptedDataPayload, HandshakeData, PSQRequestData, PSQResponseData};
+use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::Deref;
+use std::rc::Rc;
 // noiserm
 use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
 use crate::packet::LpHeader;
@@ -45,6 +47,7 @@ use rand::RngCore;
 use snow::Builder;
 
 use crate::state_machine::LpData;
+use ouroboros::self_referencing;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -146,7 +149,22 @@ impl std::fmt::Debug for KKTState {
 /// NotStarted → ResponderWaiting → Completed
 /// ```
 
-pub enum PSQState<'a> {
+pub enum PSQStateBare {
+    /// PSQ handshake not yet started.
+    NotStarted,
+
+    /// Initiator has sent PSQ ciphertext and is waiting for confirmation.
+    /// PSK is already derived, but we don't encrypt outgoing packets yet
+    /// because the responder may not have processed our message yet.
+    InitiatorWaiting,
+
+    /// Responder is ready to receive and decapsulate PSQ ciphertext.
+    ResponderWaiting,
+
+    Completed,
+}
+
+pub enum PSQState<'a, 'b> {
     /// PSQ handshake not yet started.
     NotStarted,
 
@@ -164,10 +182,11 @@ pub enum PSQState<'a> {
     /// The PSK has been derived and registered with the Noise protocol.
     Completed {
         /// The derived post-quantum Session
-        session: Session,
+        session: &'b mut Session,
     },
 }
-impl<'a> std::fmt::Debug for PSQState<'a> {
+
+impl<'a, 'b> std::fmt::Debug for PSQState<'a, 'b> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotStarted => write!(f, "PSQState::NotStarted"),
@@ -177,6 +196,71 @@ impl<'a> std::fmt::Debug for PSQState<'a> {
         }
     }
 }
+
+#[derive(Default)]
+pub struct Output {
+    session: Option<Session>,
+
+    initiator_message: Vec<u8>,
+}
+
+pub struct BasicLpDataWrapper {
+    id: [u8; 4],
+
+    /// Representation of a local Lewes Protocol peer
+    /// encapsulating all the known information and keys.
+    local_peer: LpLocalPeer,
+
+    /// Representation of a remote Lewes Protocol peer
+    /// encapsulating all the known information and keys.
+    remote_peer: LpRemotePeer,
+}
+
+// wrapper around the PSQState and keys to allow for self-references
+#[self_referencing(pub_extras)]
+pub struct PSQStateWithKeys {
+    base: Arc<BasicLpDataWrapper>,
+
+    remote_kem: Box<EncapsulationKey>,
+
+    state_bare: PSQStateBare,
+
+    output: Output,
+
+    #[borrows(base, remote_kem, mut output)]
+    #[not_covariant]
+    psq_state: PSQState<'this, 'this>,
+}
+
+// need to separate them because we need to hold self-reference to remote's encapsulation key
+pub enum HandshakeState {
+    KKT(KKTState),
+    PSQ(PSQStateWithKeys),
+}
+
+impl HandshakeState {
+    pub fn kkt_state(&self) -> Result<&KKTState, LpError> {
+        let HandshakeState::KKT(kkt_state) = self else {
+            return Err(LpError::KKTError("TODO: msg".to_string()));
+        };
+        Ok(&kkt_state)
+    }
+
+    pub fn psq_state(&self) -> Result<&PSQStateWithKeys, LpError> {
+        let HandshakeState::PSQ(psq_state) = self else {
+            return Err(LpError::KKTError("TODO: msg".to_string()));
+        };
+        Ok(&psq_state)
+    }
+
+    pub fn psq_state_mut(&mut self) -> Result<&mut PSQStateWithKeys, LpError> {
+        let HandshakeState::PSQ(psq_state) = self else {
+            return Err(LpError::KKTError("TODO: msg".to_string()));
+        };
+        Ok(psq_state)
+    }
+}
+
 /// A session in the Lewes Protocol, handling connection state with Noise.
 ///
 /// Sessions manage connection state, including LP replay protection and Noise cryptography.
@@ -189,23 +273,25 @@ impl<'a> std::fmt::Debug for PSQState<'a> {
 /// 3. Real PSK injected via `set_psk()` - `psk_injected` flag set to `true`
 /// 4. Handshake completes, transport mode available
 /// 5. Transport operations (`encrypt_data`/`decrypt_data`) check `psk_injected` flag for safety
-pub struct LpSession<'a> {
-    id: [u8; 4],
+pub struct LpSession {
+    base: Arc<BasicLpDataWrapper>,
 
     /// Flag indicating if this session acts as the Noise protocol initiator.
     is_initiator: bool,
 
-    /// KKT (KEM Key Transfer) exchange state
-    kkt_state: KKTState,
+    // the current handshake state
+    handshake_state: HandshakeState,
 
-    /// PSQ (Post-Quantum Secure PSK) handshake state
-    psq_state: PSQState<'a>,
-
+    // /// KKT (KEM Key Transfer) exchange state
+    // kkt_state: KKTState,
+    //
+    // /// PSQ (Post-Quantum Secure PSK) handshake state
+    // psq_state: PSQStateWithKeys,
     /// PSQ session
     psq_session: Mutex<Option<Session>>,
 
     /// Carrier
-    carrier: Mutex<Option<Carrier>>,
+    carrier: Option<Carrier>,
 
     /// Counter for outgoing packets
     sending_counter: AtomicU64,
@@ -217,14 +303,6 @@ pub struct LpSession<'a> {
     /// Safety flag: `true` if real PSK was injected via PSQ, `false` if still using dummy PSK.
     /// This prevents transport mode operations from running with the insecure dummy `[0u8; 32]` PSK.
     psk_injected: AtomicBool,
-
-    /// Representation of a local Lewes Protocol peer
-    /// encapsulating all the known information and keys.
-    local_peer: LpLocalPeer,
-
-    /// Representation of a remote Lewes Protocol peer
-    /// encapsulating all the known information and keys.
-    remote_peer: LpRemotePeer,
 
     /// Monotonically increasing counter for subsession indices.
     /// Each subsession gets a unique index to ensure unique PSK derivation.
@@ -245,31 +323,32 @@ pub struct LpSession<'a> {
     negotiated_version: std::sync::atomic::AtomicU8,
 }
 
-impl<'a> Debug for LpSession<'a> {
+impl Debug for LpSession {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LpSession")
-            .field("id", &self.id)
-            .field("is_initiator", &self.is_initiator)
-            .field("kkt_state", &self.kkt_state)
-            .field("psq_state", &self.psq_state)
-            .field("psq_session", &"<psq_session>")
-            .field("carrier", &self.carrier)
-            .field("sending_counter", &self.sending_counter)
-            .field("receiving_counter", &self.receiving_counter)
-            .field("psk_injected", &self.psk_injected)
-            .field("local_peer", &self.local_peer)
-            .field("remote_peer", &self.remote_peer)
-            .field("subsession_counter", &self.subsession_counter)
-            .field("read_only", &self.read_only)
-            .field("successor_session_id", &self.successor_session_id)
-            .field("negotiated_version", &self.negotiated_version)
-            .finish()
+        todo!()
+        // f.debug_struct("LpSession")
+        //     .field("id", &self.id)
+        //     .field("is_initiator", &self.is_initiator)
+        //     .field("kkt_state", &self.kkt_state)
+        //     .field("psq_state", &self.psq_state)
+        //     .field("psq_session", &"<psq_session>")
+        //     .field("carrier", &self.carrier)
+        //     .field("sending_counter", &self.sending_counter)
+        //     .field("receiving_counter", &self.receiving_counter)
+        //     .field("psk_injected", &self.psk_injected)
+        //     .field("local_peer", &self.psq_state.borrow_local_peer())
+        //     .field("remote_peer", &self.psq_state.borrow_remote_peer())
+        //     .field("subsession_counter", &self.subsession_counter)
+        //     .field("read_only", &self.read_only)
+        //     .field("successor_session_id", &self.successor_session_id)
+        //     .field("negotiated_version", &self.negotiated_version)
+        //     .finish()
     }
 }
 
-impl<'a> LpSession<'a> {
+impl LpSession {
     pub fn id(&self) -> u32 {
-        u32::from_le_bytes(self.id)
+        u32::from_le_bytes(self.base.id)
     }
 
     /// Returns true if this session was created as the initiator.
@@ -299,20 +378,21 @@ impl<'a> LpSession<'a> {
     ///
     /// This is used for KKT protocol when the responder needs to send their
     /// KEM public key in the KKT response.
-    pub fn local_x25519_public(&self) -> &DHPublicKey {
-        &self.local_peer.x25519.pk
+    pub fn local_x25519_public(&self) -> DHPublicKey {
+        self.base.local_peer.x25519.pk
     }
 
     /// Returns the remote ed25519 public key.
     pub fn remote_ed25519_public(&self) -> ed25519::PublicKey {
-        self.remote_peer.ed25519_public
+        self.base.remote_peer.ed25519_public
     }
 
     // can we do this without a clone?
     pub fn local_kem_keys(&self) -> Result<&KemKeyPair, LpError> {
-        let kem = self.local_peer.ciphersuite.kem();
+        let kem = self.base.local_peer.ciphersuite.kem();
 
-        self.local_peer
+        self.base
+            .local_peer
             .kem_key(kem)
             .ok_or_else(|| LpError::ResponderWithMissingKEMKey { kem })
             .map(|keys| keys.deref())
@@ -323,7 +403,7 @@ impl<'a> LpSession<'a> {
     /// Used for tie-breaking in simultaneous subsession initiation.
     /// Lower key loses and becomes responder.
     pub fn remote_x25519_public(&self) -> &DHPublicKey {
-        &self.remote_peer.x25519_public
+        &self.base.remote_peer.x25519_public
     }
 
     // noiserm
@@ -393,20 +473,21 @@ impl<'a> LpSession<'a> {
         // Initialize KKT state - both roles start at NotStarted
         let kkt_state = KKTState::NotStarted;
 
-        // Initialize PSQ state based on role
-        let psq_state = if is_initiator {
-            PSQState::NotStarted
-        } else {
-            let kem = kkt_ciphersuite.kem();
-            let Some(kp) = local_peer.kem_key(kem) else {
-                return Err(LpError::ResponderWithMissingKEMKey { kem });
-            };
-            PSQState::ResponderWaiting {
-                responder: build_responder(&local_peer.x25519, kp),
-            }
-        };
-
         todo!()
+
+        // Initialize PSQ state based on role
+        // let psq_state = if is_initiator {
+        //     PSQState::NotStarted
+        // } else {
+        //     let kem = kkt_ciphersuite.kem();
+        //     let Some(kp) = local_peer.kem_key(kem) else {
+        //         return Err(LpError::ResponderWithMissingKEMKey { kem });
+        //     };
+        //     PSQState::ResponderWaiting {
+        //         // responder: build_responder(&local_peer.x25519, kp),
+        //     }
+        // };
+
         // Ok(Self {
         //     id,
         //     is_initiator,
@@ -508,24 +589,25 @@ impl<'a> LpSession<'a> {
     /// * `None` - KKT not applicable (responder, or already completed)
     pub fn prepare_kkt_request(&mut self) -> Option<Result<LpMessage, LpError>> {
         // Only initiator creates KKT requests, and only when not started
-        if !self.is_initiator || !matches!(self.kkt_state, KKTState::NotStarted) {
+        let kkt_state = self.handshake_state.kkt_state().expect("error handling");
+        if !self.is_initiator || !matches!(kkt_state, KKTState::NotStarted) {
             return None;
         }
 
         let mut rng = rand09::rng();
-        match anonymous_initiator_process(&mut rng, self.local_peer.ciphersuite) {
+        match anonymous_initiator_process(&mut rng, self.base.local_peer.ciphersuite) {
             Ok((context, kkt_frame)) => {
                 match encrypt_initial_kkt_frame(
                     &mut rng,
-                    &self.remote_peer.x25519_public,
+                    &self.base.remote_peer.x25519_public,
                     &kkt_frame,
                 ) {
                     Ok((session_secret, encrypted_request_bytes)) => {
                         // Store context for response validation
-                        self.kkt_state = KKTState::InitiatorWaiting {
+                        self.handshake_state = HandshakeState::KKT(KKTState::InitiatorWaiting {
                             context,
                             session_secret,
-                        };
+                        });
 
                         // Serialize KKT frame to bytes
                         Some(Ok(LpMessage::KKTRequest(crate::message::KKTRequestData(
@@ -552,6 +634,7 @@ impl<'a> LpSession<'a> {
         let hash_function = context.ciphersuite().hash_function();
 
         let digests = self
+            .base
             .remote_peer
             .expected_kem_key_digests
             .get(&kem)
@@ -579,7 +662,9 @@ impl<'a> LpSession<'a> {
     ///
     pub fn process_kkt_response(&mut self, encrypted_response_bytes: &[u8]) -> Result<(), LpError> {
         // Extract context from waiting state
-        let (mut context, session_secret) = match &self.kkt_state {
+        let kkt_state = self.handshake_state.kkt_state()?;
+
+        let (mut context, session_secret) = match &kkt_state {
             KKTState::InitiatorWaiting {
                 context,
                 session_secret,
@@ -599,7 +684,7 @@ impl<'a> LpSession<'a> {
                         &mut context,
                         &response_frame,
                         &remote_context,
-                        &self.remote_peer.ed25519_public,
+                        &self.base.remote_peer.ed25519_public,
                         expected_kem_key_digest,
                     ) {
                         Ok(remote_encapsulation_key) => {
@@ -628,10 +713,20 @@ impl<'a> LpSession<'a> {
             };
 
         // Store the authenticated KEM key
-        self.kkt_state = KKTState::Completed {
-            kem_pk: Box::new(remote_encapsulation_key),
-            carrier: initiator_carrier,
-        };
+        // move immediately to PSQ
+        self.carrier = Some(initiator_carrier);
+
+        let psq_state_with_keys = PSQStateWithKeysBuilder {
+            base: self.base.clone(),
+            remote_kem: Box::new(remote_encapsulation_key),
+            state_bare: PSQStateBare::NotStarted,
+            output: Default::default(),
+            psq_state_builder: |_, _, _| PSQState::NotStarted,
+        }
+        .build();
+
+        self.handshake_state = HandshakeState::PSQ(psq_state_with_keys);
+
         Ok(())
     }
 
@@ -650,10 +745,12 @@ impl<'a> LpSession<'a> {
     /// * `Ok(LpMessage::KKTResponse)` - Signed KKT response ready to send
     /// * `Err(LpError)` - Signature verification failed or invalid request
     pub fn process_kkt_request(&mut self, request_bytes: &[u8]) -> Result<LpMessage, LpError> {
+        self.handshake_state.kkt_state()?;
+
         let mut rng = rand09::rng();
 
         let (session_secret, request_frame, remote_context) =
-            decrypt_initial_kkt_frame(self.local_peer.x25519().sk(), request_bytes)?;
+            decrypt_initial_kkt_frame(self.base.local_peer.x25519().sk(), request_bytes)?;
 
         let (mut context, _) =
             responder_ingest_message(&remote_context, None, None, &request_frame)?;
@@ -664,7 +761,7 @@ impl<'a> LpSession<'a> {
         let response_frame = responder_process(
             &mut context,
             request_frame.session_id(),
-            self.local_peer.ed25519().private_key(),
+            self.base.local_peer.ed25519().private_key(),
             &encoded_encapsulation_key,
         )?;
 
@@ -675,15 +772,15 @@ impl<'a> LpSession<'a> {
             session_secret,
             context.role(),
             &response_frame.session_id(),
-            self.local_x25519_public(),
+            &self.local_x25519_public(),
             &encoded_encapsulation_key,
         )?;
 
         // Mark KKT as processed
         // Responder doesn't store the kem_pk since they already have their own KEM keypair
-        self.kkt_state = KKTState::ResponderProcessed {
+        self.handshake_state = HandshakeState::KKT(KKTState::ResponderProcessed {
             carrier: responder_carrier,
-        };
+        });
 
         Ok(LpMessage::KKTResponse(crate::message::KKTResponseData(
             response_bytes,
@@ -705,37 +802,59 @@ impl<'a> LpSession<'a> {
     ///
     /// * `None` if no message needs to be sent currently (e.g., waiting for peer, or handshake complete).
     /// * `Some(LpError)` if there's an error within the Noise protocol or PSQ.
-    pub fn prepare_handshake_message(&'a mut self) -> Option<Result<LpMessage, LpError>> {
+    pub fn prepare_handshake_message(&mut self) -> Option<Result<LpMessage, LpError>> {
+        let state = self.handshake_state.psq_state_mut().expect("TODO error");
+
         // PSQ always runs for initiator on first message
-        if !self.is_initiator || !matches!(self.psq_state, PSQState::NotStarted) {
+        if !self.is_initiator || !matches!(state.borrow_state_bare(), PSQStateBare::NotStarted) {
             return None;
         }
-        // Extract KEM public key from completed KKT exchange
-        // PSQ requires the authenticated KEM key obtained via KKT protocol
-        let (remote_kem, carrier) = match &self.kkt_state {
-            KKTState::Completed { kem_pk, carrier } => (kem_pk, carrier),
-            _ => {
-                return Some(Err(LpError::KKTError(
-                    "PSQ handshake requires a completed KKT exchange".to_string(),
-                )));
-            }
-        };
+
+        // // Extract KEM public key from completed KKT exchange
+        // // PSQ requires the authenticated KEM key obtained via KKT protocol
+        // let (remote_kem, carrier) = match &self.kkt_state {
+        //     KKTState::Completed { kem_pk, carrier } => (kem_pk, carrier),
+        //     _ => {
+        //         return Some(Err(LpError::KKTError(
+        //             "PSQ handshake requires a completed KKT exchange".to_string(),
+        //         )));
+        //     }
+        // };
+        // self.psq_state.with_mut(|mut fields| {
+        //     *fields.remote_kem = remote_kem.clone();
+        // });
+
+        // haha that's so disgusting
+
+        let mut psq_request = Rc::new(RefCell::new(Vec::new()));
+        let psq_request2 = psq_request.clone();
+
+        state.with_state_bare_mut(|bare_state| *bare_state = PSQStateBare::InitiatorWaiting);
 
         // Generate PSQ payload and PSK using KKT-authenticated KEM key
-        let mut psq_initiator = build_initiator(
-            &self.local_peer.ciphersuite,
-            &self.id,
-            &self.local_peer.x25519,
-            &self.remote_peer.x25519_public,
-            remote_kem,
-        );
+        state.with_mut(|mut fields| {
+            let mut psq_initiator = build_initiator(
+                &fields.base.local_peer.ciphersuite,
+                &fields.base.id.as_ref(),
+                &fields.base.local_peer.x25519,
+                &fields.base.remote_peer.x25519_public,
+                &fields.remote_kem,
+            );
+            let psq_request = initiator_process(&mut psq_initiator);
+            *psq_request2.borrow_mut() = psq_request;
 
-        let psq_request = initiator_process(&mut psq_initiator);
-        let encrypted_psq_request = carrier.encrypt(&psq_request).unwrap();
+            *fields.psq_state = PSQState::InitiatorWaiting {
+                initiator: psq_initiator,
+            };
+        });
 
-        self.psq_state = PSQState::InitiatorWaiting {
-            initiator: psq_initiator,
-        };
+        let psq_request = psq_request.take();
+        let encrypted_psq_request = self
+            .carrier
+            .as_ref()
+            .expect("carrier should have been set i guess")
+            .encrypt(&psq_request)
+            .unwrap();
 
         Some(Ok(LpMessage::PSQRequest(PSQRequestData(
             encrypted_psq_request,
@@ -795,10 +914,10 @@ impl<'a> LpSession<'a> {
         //             let session_context = self.id.to_le_bytes();
         //
         //             let psq_result = match psq_responder_process_message(
-        //                 self.local_peer.x25519.sk(),
-        //                 &self.remote_peer.x25519_public,
+        //                 self.psq_state.borrow_local_peer().x25519.sk(),
+        //                 &self.psq_state.borrow_remote_peer().x25519_public,
         //                 (&dec_key, &enc_key),
-        //                 &self.remote_peer.ed25519_public,
+        //                 &self.psq_state.borrow_remote_peer().ed25519_public,
         //                 psq_payload,
         //                 &self.salt,
         //                 &session_context,
@@ -1067,7 +1186,7 @@ impl<'a> LpSession<'a> {
         let pattern_name = "Noise_KKpsk0_25519_ChaChaPoly_SHA256";
         let params = pattern_name.parse()?;
 
-        let local_key_bytes = self.local_peer.x25519.sk().as_ref();
+        let local_key_bytes = self.base.local_peer.x25519.sk().as_ref();
         let remote_key_bytes = self.remote_x25519_public().as_ref();
 
         let builder = Builder::new(params)
@@ -1085,8 +1204,8 @@ impl<'a> LpSession<'a> {
             index: subsession_index,
             noise_state: Mutex::new(NoiseProtocol::new(handshake_state)),
             is_initiator,
-            local_peer: self.local_peer.clone(),
-            remote_peer: self.remote_peer.clone(),
+            local_peer: self.base.local_peer.clone(),
+            remote_peer: self.base.remote_peer.clone(),
             pq_shared_secret: PqSharedSecret::new(pq_secret),
             subsession_psk,
         })
@@ -1191,7 +1310,7 @@ impl SubsessionHandshake {
     ///
     /// # Errors
     /// Returns error if handshake is not complete
-    pub fn into_session<'a>(self, receiver_index: u32) -> Result<LpSession<'a>, LpError> {
+    pub fn into_session(self, receiver_index: u32) -> Result<LpSession, LpError> {
         if !self.is_complete() {
             return Err(LpError::Internal(
                 "Cannot convert incomplete subsession to session".to_string(),
@@ -1228,8 +1347,8 @@ impl SubsessionHandshake {
         //     receiving_counter: Mutex::new(ReceivingKeyCounterValidator::new(0)),
         //     // noiserm
         //     psk_injected: AtomicBool::new(true), // PSK was in KKpsk0
-        //     local_peer: self.local_peer,
-        //     remote_peer: self.remote_peer,
+        //     local_peer: self.psq_state.borrow_local_peer(),
+        //     remote_peer: self.psq_state.borrow_remote_peer(),
         //     salt,
         //     outer_aead_key: Mutex::new(Some(outer_key)),
         //     pq_shared_secret: Mutex::new(Some(self.pq_shared_secret)),
@@ -1255,11 +1374,11 @@ mod tests {
     }
 
     // Helper function to create a session with real keys for handshake tests
-    fn create_handshake_test_session<'a>(
+    fn create_handshake_test_session(
         kem: KEM,
         receiver_index: u32,
         is_initiator: bool,
-    ) -> LpSession<'a> {
+    ) -> LpSession {
         let (keys_1, keys_2) = mock_peers(kem);
 
         // Create Ed25519 keypairs that correspond to initiator/responder roles

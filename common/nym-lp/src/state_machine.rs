@@ -29,933 +29,38 @@ use tracing::debug;
 
 /// Represents the possible states of the Lewes Protocol connection.
 #[derive(Debug, Default)]
-pub enum LpState<'a> {
+pub enum LpState {
     /// Initial state: Ready to start the handshake.
     /// State machine is created with keys, lp_id is derived, session is ready.
-    ReadyToHandshake { session: Box<LpSession<'a>> },
+    ReadyToHandshake { session: Box<LpSession> },
 
     /// Performing KKT (KEM Key Transfer) exchange before Noise handshake.
     /// Initiator requests responder's KEM public key, responder provides signed key.
-    KKTExchange { session: Box<LpSession<'a>> },
+    KKTExchange { session: Box<LpSession> },
 
     /// Actively performing the Noise handshake.
     /// (We might be able to merge this with ReadyToHandshake if the first step always happens)
-    Handshaking { session: Box<LpSession<'a>> }, // Kept for now, logic might merge later
+    Handshaking { session: Box<LpSession> }, // Kept for now, logic might merge later
 
     /// Handshake complete, ready for data transport.
-    Transport { session: Box<LpSession<'a>> },
+    Transport { session: Box<LpSession> },
 
     /// Performing subsession KK handshake while parent remains active.
     /// Parent can still send/receive; subsession messages tunneled through parent.
     SubsessionHandshaking {
-        session: Box<LpSession<'a>>,
+        session: Box<LpSession>,
         subsession: Box<SubsessionHandshake>,
     },
 
     /// Parent session demoted after subsession promoted.
     /// Can only receive (drain in-flight), cannot send.
-    ReadOnlyTransport { session: Box<LpSession<'a>> },
+    ReadOnlyTransport { session: Box<LpSession> },
 
     /// An error occurred, or the connection was intentionally closed.
     Closed { reason: String },
-
     /// Processing an input event.
     #[default]
     Processing,
-}
-
-impl<'a> LpState<'a> {
-    pub fn process_input(&'a mut self, input: LpInput) -> Option<Result<LpAction, LpError>> {
-        let mut result_action = None;
-        let mut original_state = mem::take(self);
-
-        match (original_state, input) {
-            // --- Handshaking State ---
-            (LpState::Handshaking { mut session }, LpInput::ReceivePacket(packet)) => {
-                // Check if packet lp_id matches our session
-                if packet.header.receiver_idx() != session.id() {
-                    result_action =
-                        Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
-                    // Don't change state, return the original state variant
-                    *self = LpState::Handshaking { session };
-                    return result_action;
-                }
-                // --- Inline handle_handshake_packet logic ---
-                // 1. Check replay protection *before* processing
-                if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-                    result_action = Some(Err(e));
-                    *self = LpState::Handshaking { session };
-                    return result_action;
-                }
-
-                // 2. Process the handshake message
-                if let Err(err) = session.process_handshake_message(&packet.message) {
-                    // Error from process_handshake_message
-                    let reason = err.to_string();
-                    result_action = Some(Err(err));
-                    *self = LpState::Closed { reason };
-                    return result_action;
-                }
-
-                // 3. Mark counter as received *after* successful processing
-                if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-                    let _reason = e.to_string();
-                    result_action = Some(Err(e));
-                    *self = LpState::Handshaking { session };
-                    return result_action;
-                }
-
-                // 4. First check if we need to send a handshake message (before checking completion)
-                let Some(handshake_message) = session.prepare_handshake_message() else {
-                    // 5. No message to send - check if handshake is complete
-                    return if session.is_handshake_complete() {
-                        result_action = Some(Ok(LpAction::HandshakeComplete));
-                        // Transition to Transport
-                        *self = LpState::Transport { session };
-                        result_action
-                    } else {
-                        // Handshake stalled unexpectedly
-                        let err = LpError::NoiseError(NoiseError::Other(
-                            "Handshake stalled unexpectedly".to_string(),
-                        ));
-                        let reason = err.to_string();
-                        result_action = Some(Err(err));
-                        *self = LpState::Closed { reason };
-                        result_action
-                    };
-                };
-
-                let message = match handshake_message {
-                    Err(err) => {
-                        let reason = err.to_string();
-                        result_action = Some(Err(err));
-                        *self = LpState::Closed { reason };
-                        return result_action;
-                    }
-                    Ok(message) => message,
-                };
-
-                let state = match session.next_packet(message) {
-                    Ok(response_packet) => {
-                        result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-                        // Check if handshake became complete after preparing message
-                        if session.is_handshake_complete() {
-                            LpState::Transport { session } // Transition to Transport
-                        } else {
-                            LpState::Handshaking { session } // Remain Handshaking
-                        }
-                    }
-                    Err(e) => {
-                        let reason = e.to_string();
-                        result_action = Some(Err(e));
-                        LpState::Closed { reason }
-                    }
-                };
-
-                *self = state;
-                return result_action;
-                // return (state, result_action);
-
-                // --- End inline handle_handshake_packet logic ---
-            }
-
-            _ => todo!(),
-        };
-
-        // // 2. Match on the owned current_state. Each arm calculates and returns the NEXT state.
-        // let next_state = match (self, input) {
-        //     // --- ReadyToHandshake State ---
-        //     (LpState::ReadyToHandshake { mut session }, LpInput::StartHandshake) => {
-        //         if session.is_initiator() {
-        //             // Initiator starts by requesting KEM key via KKT
-        //             match session.prepare_kkt_request() {
-        //                 Some(Ok(kkt_message)) => {
-        //                     match session.next_packet(kkt_message) {
-        //                         Ok(kkt_packet) => {
-        //                             result_action = Some(Ok(LpAction::SendPacket(kkt_packet)));
-        //                             LpState::KKTExchange { session } // Transition to KKTExchange
-        //                         }
-        //                         Err(e) => {
-        //                             let reason = e.to_string();
-        //                             result_action = Some(Err(e));
-        //                             LpState::Closed { reason }
-        //                         }
-        //                     }
-        //                 }
-        //                 Some(Err(e)) => {
-        //                     let reason = e.to_string();
-        //                     result_action = Some(Err(e));
-        //                     LpState::Closed { reason }
-        //                 }
-        //                 None => {
-        //                     // Should not happen for initiator
-        //                     let err = LpError::Internal(
-        //                         "prepare_kkt_request returned None for initiator".to_string(),
-        //                     );
-        //                     let reason = err.to_string();
-        //                     result_action = Some(Err(err));
-        //                     LpState::Closed { reason }
-        //                 }
-        //             }
-        //         } else {
-        //             // Responder waits for KKT request
-        //             LpState::KKTExchange { session }
-        //             // No action needed yet, result_action remains None.
-        //         }
-        //     }
-        //
-        //     // --- KKTExchange State ---
-        //     (LpState::KKTExchange { mut session }, LpInput::ReceivePacket(packet)) => {
-        //         // Check if packet lp_id matches our session
-        //         if packet.header.receiver_idx() != session.id() {
-        //             result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
-        //             LpState::KKTExchange { session }
-        //         } else {
-        //             use crate::message::LpMessage;
-        //
-        //             // Packet message is already parsed, match on it directly
-        //             match &packet.message {
-        //                 LpMessage::KKTRequest(kkt_request) if !session.is_initiator() => {
-        //                     match session.process_kkt_request(&kkt_request.0) {
-        //                         Ok(kkt_response_message) => {
-        //                             match session.next_packet(kkt_response_message) {
-        //                                 Ok(response_packet) => {
-        //                                     result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-        //                                     // After KKT exchange, move to Handshaking
-        //                                     LpState::Handshaking { session }
-        //                                 }
-        //                                 Err(e) => {
-        //                                     let reason = e.to_string();
-        //                                     result_action = Some(Err(e));
-        //                                     LpState::Closed { reason }
-        //                                 }
-        //                             }
-        //                         }
-        //                         Err(e) => {
-        //                             let reason = e.to_string();
-        //                             result_action = Some(Err(e));
-        //                             LpState::Closed { reason }
-        //                         }
-        //                     }
-        //                 }
-        //                 LpMessage::KKTResponse(kkt_response) if session.is_initiator() => {
-        //                     match session.process_kkt_response(&kkt_response.0) {
-        //                         Ok(()) => {
-        //                             result_action = Some(Ok(LpAction::KKTComplete));
-        //                             // After successful KKT, move to Handshaking
-        //                             LpState::Handshaking { session }
-        //                         }
-        //                         Err(e) => {
-        //                             let reason = e.to_string();
-        //                             result_action = Some(Err(e));
-        //                             LpState::Closed { reason }
-        //                         }
-        //                     }
-        //                 }
-        //                 _ => {
-        //                     // Wrong message type for KKT state
-        //                     let err = LpError::InvalidStateTransition {
-        //                         state: "KKTExchange".to_string(),
-        //                         input: format!("Unexpected message type: {:?}", packet.message),
-        //                     };
-        //                     let reason = err.to_string();
-        //                     result_action = Some(Err(err));
-        //                     LpState::Closed { reason }
-        //                 }
-        //             }
-        //         }
-        //     }
-        //
-        //     // Reject SendData during KKT exchange
-        //     (LpState::KKTExchange { session }, LpInput::SendData(_)) => {
-        //         result_action = Some(Err(LpError::InvalidStateTransition {
-        //             state: "KKTExchange".to_string(),
-        //             input: "SendData".to_string(),
-        //         }));
-        //         LpState::KKTExchange { session }
-        //     }
-        //
-        //     // Reject StartHandshake if already in KKT exchange
-        //     (LpState::KKTExchange { session }, LpInput::StartHandshake) => {
-        //         result_action = Some(Err(LpError::InvalidStateTransition {
-        //             state: "KKTExchange".to_string(),
-        //             input: "StartHandshake".to_string(),
-        //         }));
-        //         LpState::KKTExchange { session }
-        //     }
-        //
-        //     // --- Handshaking State ---
-        //     (LpState::Handshaking { mut session }, LpInput::ReceivePacket(packet)) => {
-        //         // Check if packet lp_id matches our session
-        //         if packet.header.receiver_idx() != session.id() {
-        //             result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
-        //             // Don't change state, return the original state variant
-        //             LpState::Handshaking { session }
-        //         } else {
-        //             // --- Inline handle_handshake_packet logic ---
-        //             // 1. Check replay protection *before* processing
-        //             if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-        //                 let _reason = e.to_string();
-        //                 result_action = Some(Err(e));
-        //                 LpState::Handshaking { session }
-        //                 //  LpState::Closed { reason }
-        //             } else {
-        //                 // 2. Process the handshake message
-        //                 match session.process_handshake_message(&packet.message) {
-        //                     Ok(_) => {
-        //                         // 3. Mark counter as received *after* successful processing
-        //                         if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-        //                             let _reason = e.to_string();
-        //                             result_action = Some(Err(e));
-        //                             //  LpState::Closed { reason }
-        //                             LpState::Handshaking { session }
-        //                         } else {
-        //                             // 4. First check if we need to send a handshake message (before checking completion)
-        //                             match session.prepare_handshake_message() {
-        //                                 Some(Ok(message)) => {
-        //                                     match session.next_packet(message) {
-        //                                         Ok(response_packet) => {
-        //                                             result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-        //                                             // Check if handshake became complete after preparing message
-        //                                             if session.is_handshake_complete() {
-        //                                                 LpState::Transport { session } // Transition to Transport
-        //                                             } else {
-        //                                                 LpState::Handshaking { session } // Remain Handshaking
-        //                                             }
-        //                                         }
-        //                                         Err(e) => {
-        //                                             let reason = e.to_string();
-        //                                             result_action = Some(Err(e));
-        //                                             LpState::Closed { reason }
-        //                                         }
-        //                                     }
-        //                                 }
-        //                                 Some(Err(e)) => {
-        //                                     let reason = e.to_string();
-        //                                     result_action = Some(Err(e));
-        //                                     LpState::Closed { reason }
-        //                                 }
-        //                                 None => {
-        //                                     // 5. No message to send - check if handshake is complete
-        //                                     if session.is_handshake_complete() {
-        //                                         result_action = Some(Ok(LpAction::HandshakeComplete));
-        //                                         LpState::Transport { session } // Transition to Transport
-        //                                     } else {
-        //                                         // Handshake stalled unexpectedly
-        //                                         let err = LpError::NoiseError(NoiseError::Other(
-        //                                             "Handshake stalled unexpectedly".to_string(),
-        //                                         ));
-        //                                         let reason = err.to_string();
-        //                                         result_action = Some(Err(err));
-        //                                         LpState::Closed { reason }
-        //                                     }
-        //                                 }
-        //                             }
-        //                         }
-        //                     }
-        //                     Err(e) => { // Error from process_handshake_message
-        //                         let reason = e.to_string();
-        //                         result_action = Some(Err(e));
-        //                         LpState::Closed { reason }
-        //                     }
-        //                 }
-        //             }
-        //             // --- End inline handle_handshake_packet logic ---
-        //         }
-        //     }
-        //     // Reject SendData during handshake
-        //     (LpState::Handshaking { session }, LpInput::SendData(_)) => { // Keep session if returning to this state
-        //         result_action = Some(Err(LpError::InvalidStateTransition {
-        //             state: "Handshaking".to_string(),
-        //             input: "SendData".to_string(),
-        //         }));
-        //         // Invalid input, remain in Handshaking state
-        //         LpState::Handshaking { session }
-        //     }
-        //     // Reject StartHandshake if already handshaking
-        //     (LpState::Handshaking { session }, LpInput::StartHandshake) => { // Keep session
-        //         result_action = Some(Err(LpError::InvalidStateTransition {
-        //             state: "Handshaking".to_string(),
-        //             input: "StartHandshake".to_string(),
-        //         }));
-        //         // Invalid input, remain in Handshaking state
-        //         LpState::Handshaking { session }
-        //     }
-        //
-        //     // --- Transport State ---
-        //     (LpState::Transport { session }, LpInput::ReceivePacket(packet)) => {
-        //         // Check if packet lp_id matches our session
-        //         if packet.header.receiver_idx() != session.id() {
-        //             result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
-        //             LpState::Transport { session }
-        //         } else {
-        //             // Check message type - handle subsession initiation from peer
-        //             match &packet.message {
-        //                 // Peer initiated subsession - we become responder
-        //                 LpMessage::SubsessionKK1(kk1_data) => {
-        //                     // Create subsession as responder
-        //                     let subsession_index = session.next_subsession_index();
-        //                     match session.create_subsession(subsession_index, false) {
-        //                         Ok(subsession) => {
-        //                             // Process KK1
-        //                             match subsession.process_message(&kk1_data.payload) {
-        //                                 Ok(_) => {
-        //                                     // Prepare KK2 response
-        //                                     match subsession.prepare_message() {
-        //                                         Ok(kk2_payload) => {
-        //                                             let kk2_msg = LpMessage::SubsessionKK2(SubsessionKK2Data { payload: kk2_payload });
-        //                                             match session.next_packet(kk2_msg) {
-        //                                                 Ok(response_packet) => {
-        //                                                     result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-        //                                                     // Stay in SubsessionHandshaking, wait for SubsessionReady
-        //                                                     LpState::SubsessionHandshaking { session, subsession: Box::new(subsession) }
-        //                                                 }
-        //                                                 Err(e) => {
-        //                                                     let reason = e.to_string();
-        //                                                     result_action = Some(Err(e));
-        //                                                     LpState::Closed { reason }
-        //                                                 }
-        //                                             }
-        //                                         }
-        //                                         Err(e) => {
-        //                                             let reason = e.to_string();
-        //                                             result_action = Some(Err(e));
-        //                                             LpState::Closed { reason }
-        //                                         }
-        //                                     }
-        //                                 }
-        //                                 Err(e) => {
-        //                                     let reason = e.to_string();
-        //                                     result_action = Some(Err(e));
-        //                                     LpState::Closed { reason }
-        //                                 }
-        //                             }
-        //                         }
-        //                         Err(e) => {
-        //                             let reason = e.to_string();
-        //                             result_action = Some(Err(e));
-        //                             LpState::Closed { reason }
-        //                         }
-        //                     }
-        //                 }
-        //                 // Normal encrypted data
-        //                 LpMessage::EncryptedData(_) => {
-        //                     // 1. Check replay protection
-        //                     if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-        //                         result_action = Some(Err(e));
-        //                         LpState::Transport { session }
-        //                     } else {
-        //                         // 2. Decrypt data
-        //                         match session.decrypt_data(&packet.message) {
-        //                             Ok(plaintext) => {
-        //                                 // 3. Mark counter as received
-        //                                 if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-        //                                     result_action = Some(Err(e));
-        //                                     LpState::Transport { session }
-        //                                 } else {
-        //                                     // 4. Deliver data
-        //                                     match plaintext.try_into() {
-        //                                         Ok(data) => {
-        //                                             result_action = Some(Ok(LpAction::DeliverData(data)));
-        //                                             LpState::Transport { session }
-        //                                         }
-        //                                         Err(e) => {
-        //                                             let reason = e.to_string();
-        //                                             result_action = Some(Err(e));
-        //                                             LpState::Closed { reason }
-        //                                         }
-        //                                     }
-        //                                 }
-        //                             }
-        //                             Err(e) => {
-        //                                 let reason = e.to_string();
-        //                                 result_action = Some(Err(e.into()));
-        //                                 LpState::Closed { reason }
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //                 // Stale abort in Transport state - race already resolved.
-        //                 // This can happen if abort arrives after loser already returned to Transport
-        //                 // via KK1 processing (loser detected local < remote and became responder).
-        //                 // The winner's abort message arrived late. Silently ignore.
-        //                 LpMessage::SubsessionAbort => {
-        //                     debug!("Ignoring stale SubsessionAbort in Transport state");
-        //                     result_action = None;
-        //                     LpState::Transport { session }
-        //                 }
-        //                 _ => {
-        //                     // Unexpected message type in Transport state
-        //                     let err = LpError::InvalidStateTransition {
-        //                         state: "Transport".to_string(),
-        //                         input: format!("Unexpected message type: {}", packet.message),
-        //                     };
-        //                     result_action = Some(Err(err));
-        //                     LpState::Transport { session }
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     (LpState::Transport { session }, LpInput::SendData(data)) => {
-        //         // Encrypt and send application data
-        //         match session.prepare_data_packet(data) {
-        //             Ok(packet) => result_action = Some(Ok(LpAction::SendPacket(packet))),
-        //             Err(e) => {
-        //                 // If prepare fails, should we close? Let's report error and stay Transport for now.
-        //                 // Alternative: transition to Closed state.
-        //                 result_action = Some(Err(e.into()));
-        //             }
-        //         }
-        //         // Remain in transport state
-        //         LpState::Transport { session }
-        //     }
-        //     // Reject StartHandshake if already in transport
-        //     (LpState::Transport { session }, LpInput::StartHandshake) => { // Keep session
-        //         result_action = Some(Err(LpError::InvalidStateTransition {
-        //             state: "Transport".to_string(),
-        //             input: "StartHandshake".to_string(),
-        //         }));
-        //         // Invalid input, remain in Transport state
-        //         LpState::Transport { session }
-        //     }
-        //
-        //     // --- Transport + InitiateSubsession → SubsessionHandshaking ---
-        //     (LpState::Transport { session }, LpInput::InitiateSubsession) => {
-        //         // Get next subsession index
-        //         let subsession_index = session.next_subsession_index();
-        //
-        //         // Create subsession handshake (this side is initiator)
-        //         match session.create_subsession(subsession_index, true) {
-        //             Ok(subsession) => {
-        //                 // Prepare KK1 message
-        //                 match subsession.prepare_message() {
-        //                     Ok(kk1_payload) => {
-        //                         let kk1_msg = LpMessage::SubsessionKK1(SubsessionKK1Data { payload: kk1_payload });
-        //                         match session.next_packet(kk1_msg) {
-        //                             Ok(packet) => {
-        //                                 // Emit SubsessionInitiated with packet and index
-        //                                 result_action = Some(Ok(LpAction::SubsessionInitiated {
-        //                                     packet,
-        //                                     subsession_index,
-        //                                 }));
-        //                                 LpState::SubsessionHandshaking { session, subsession: Box::new(subsession) }
-        //                             }
-        //                             Err(e) => {
-        //                                 let reason = e.to_string();
-        //                                 result_action = Some(Err(e));
-        //                                 LpState::Closed { reason }
-        //                             }
-        //                         }
-        //                     }
-        //                     Err(e) => {
-        //                         let reason = e.to_string();
-        //                         result_action = Some(Err(e));
-        //                         LpState::Closed { reason }
-        //                     }
-        //                 }
-        //             }
-        //             Err(e) => {
-        //                 let reason = e.to_string();
-        //                 result_action = Some(Err(e));
-        //                 LpState::Closed { reason }
-        //             }
-        //         }
-        //     }
-        //
-        //     // --- SubsessionHandshaking State ---
-        //     (LpState::SubsessionHandshaking { session, subsession }, LpInput::ReceivePacket(packet)) => {
-        //         // Check if packet receiver_idx matches our session
-        //         if packet.header.receiver_idx() != session.id() {
-        //             result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
-        //             LpState::SubsessionHandshaking { session, subsession }
-        //         } else {
-        //             match &packet.message {
-        //                 LpMessage::SubsessionKK1(kk1_data) if !subsession.is_initiator() => {
-        //                     // Responder processes KK1, prepares KK2
-        //                     // Responder stays in SubsessionHandshaking after sending KK2,
-        //                     // waiting for SubsessionReady from initiator before completing
-        //                     match subsession.process_message(&kk1_data.payload) {
-        //                         Ok(_) => {
-        //                             match subsession.prepare_message() {
-        //                                 Ok(kk2_payload) => {
-        //                                     let kk2_msg = LpMessage::SubsessionKK2(SubsessionKK2Data { payload: kk2_payload });
-        //                                     match session.next_packet(kk2_msg) {
-        //                                         Ok(response_packet) => {
-        //                                             result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-        //                                             // Stay in SubsessionHandshaking, wait for SubsessionReady
-        //                                             LpState::SubsessionHandshaking { session, subsession }
-        //                                         }
-        //                                         Err(e) => {
-        //                                             let reason = e.to_string();
-        //                                             result_action = Some(Err(e));
-        //                                             LpState::Closed { reason }
-        //                                         }
-        //                                     }
-        //                                 }
-        //                                 Err(e) => {
-        //                                     let reason = e.to_string();
-        //                                     result_action = Some(Err(e));
-        //                                     LpState::Closed { reason }
-        //                                 }
-        //                             }
-        //                         }
-        //                         Err(e) => {
-        //                             let reason = e.to_string();
-        //                             result_action = Some(Err(e));
-        //                             LpState::Closed { reason }
-        //                         }
-        //                     }
-        //                 }
-        //                 LpMessage::SubsessionKK1(kk1_data) if subsession.is_initiator() => {
-        //                     // Simultaneous initiation race detected.
-        //                     // Both sides called InitiateSubsession and sent KK1 to each other.
-        //                     // Use X25519 public key comparison as deterministic tie-breaker.
-        //                     // Lower key loses and becomes responder.
-        //                     let local_key = session.local_x25519_public();
-        //                     let remote_key = session.remote_x25519_public();
-        //
-        //                     if local_key.as_ref() < remote_key.as_ref() {
-        //                         // We LOSE - become responder
-        //                         // Use the same index as our initiator subsession, which should
-        //                         // match the winner's index if subsession counters are in sync.
-        //                         // This works because both sides independently picked the same index when
-        //                         // they initiated simultaneously (both counters were at the same value).
-        //                         let subsession_index = subsession.index;
-        //                         match session.create_subsession(subsession_index, false) {
-        //                             Ok(new_subsession) => {
-        //                                 match new_subsession.process_message(&kk1_data.payload) {
-        //                                     Ok(_) => {
-        //                                         match new_subsession.prepare_message() {
-        //                                             Ok(kk2_payload) => {
-        //                                                 let kk2_msg = LpMessage::SubsessionKK2(SubsessionKK2Data { payload: kk2_payload });
-        //                                                 match session.next_packet(kk2_msg) {
-        //                                                     Ok(response_packet) => {
-        //                                                         result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-        //                                                         // Replace old initiator subsession with new responder subsession
-        //                                                         LpState::SubsessionHandshaking { session, subsession: Box::new(new_subsession) }
-        //                                                     }
-        //                                                     Err(e) => {
-        //                                                         let reason = e.to_string();
-        //                                                         result_action = Some(Err(e));
-        //                                                         LpState::Closed { reason }
-        //                                                     }
-        //                                                 }
-        //                                             }
-        //                                             Err(e) => {
-        //                                                 let reason = e.to_string();
-        //                                                 result_action = Some(Err(e));
-        //                                                 LpState::Closed { reason }
-        //                                             }
-        //                                         }
-        //                                     }
-        //                                     Err(e) => {
-        //                                         let reason = e.to_string();
-        //                                         result_action = Some(Err(e));
-        //                                         LpState::Closed { reason }
-        //                                     }
-        //                                 }
-        //                             }
-        //                             Err(e) => {
-        //                                 let reason = e.to_string();
-        //                                 result_action = Some(Err(e));
-        //                                 LpState::Closed { reason }
-        //                             }
-        //                         }
-        //                     } else {
-        //                         // We WIN - stay initiator, notify peer they lost
-        //                         // Send SubsessionAbort to explicitly tell peer to become responder
-        //                         let abort_msg = LpMessage::SubsessionAbort;
-        //                         match session.next_packet(abort_msg) {
-        //                             Ok(abort_packet) => {
-        //                                 result_action = Some(Ok(LpAction::SendPacket(abort_packet)));
-        //                                 LpState::SubsessionHandshaking { session, subsession }
-        //                             }
-        //                             Err(e) => {
-        //                                 let reason = e.to_string();
-        //                                 result_action = Some(Err(e));
-        //                                 LpState::Closed { reason }
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //                 LpMessage::SubsessionKK2(kk2_data) if subsession.is_initiator() => {
-        //                     // Initiator processes KK2, completes handshake
-        //                     // Initiator emits SubsessionComplete with SubsessionReady packet
-        //                     // and the subsession for caller to promote via into_session()
-        //                     match subsession.process_message(&kk2_data.payload) {
-        //                         Ok(_) if subsession.is_complete() => {
-        //                             // Generate new receiver_index for subsession
-        //                             let new_receiver_index: u32 = rand::random();
-        //                             session.demote(new_receiver_index);
-        //
-        //                             // Send SubsessionReady with new index
-        //                             let ready_msg = LpMessage::SubsessionReady(SubsessionReadyData {
-        //                                 receiver_index: new_receiver_index,
-        //                             });
-        //                             match session.next_packet(ready_msg) {
-        //                                 Ok(ready_packet) => {
-        //                                     result_action = Some(Ok(LpAction::SubsessionComplete {
-        //                                         packet: Some(ready_packet),
-        //                                         subsession,
-        //                                         new_receiver_index,
-        //                                     }));
-        //                                     LpState::ReadOnlyTransport { session }
-        //                                 }
-        //                                 Err(e) => {
-        //                                     let reason = e.to_string();
-        //                                     result_action = Some(Err(e));
-        //                                     LpState::Closed { reason }
-        //                                 }
-        //                             }
-        //                         }
-        //                         Ok(_) => {
-        //                             // Handshake not complete yet, shouldn't happen for KK
-        //                             let err = LpError::Internal("Subsession handshake incomplete after KK2".to_string());
-        //                             let reason = err.to_string();
-        //                             result_action = Some(Err(err));
-        //                             LpState::Closed { reason }
-        //                         }
-        //                         Err(e) => {
-        //                             let reason = e.to_string();
-        //                             result_action = Some(Err(e));
-        //                             LpState::Closed { reason }
-        //                         }
-        //                     }
-        //                 }
-        //                 LpMessage::EncryptedData(_) => {
-        //                     // Parent still processes normal traffic during subsession handshake
-        //                     // Same as Transport state handling
-        //                     if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-        //                         result_action = Some(Err(e));
-        //                         LpState::SubsessionHandshaking { session, subsession }
-        //                     } else {
-        //                         match session.decrypt_data(&packet.message) {
-        //                             Ok(plaintext) => {
-        //                                 if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-        //                                     result_action = Some(Err(e));
-        //                                     LpState::SubsessionHandshaking { session, subsession }
-        //                                 } else {
-        //                                     match plaintext.try_into() {
-        //                                         Ok(data) => {
-        //                                             result_action = Some(Ok(LpAction::DeliverData(data)));
-        //                                             LpState::SubsessionHandshaking { session, subsession }
-        //                                         }
-        //                                         Err(err) => {
-        //                                             result_action = Some(Err(err));
-        //                                             LpState::SubsessionHandshaking { session, subsession }
-        //                                         }
-        //                                     }
-        //                                 }
-        //                             }
-        //                             Err(e) => {
-        //                                 let reason = e.to_string();
-        //                                 result_action = Some(Err(e.into()));
-        //                                 LpState::Closed { reason }
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //                 LpMessage::SubsessionReady(ready_data) if !subsession.is_initiator() => {
-        //                     // Responder receives SubsessionReady from initiator
-        //                     // Responder completes handshake here, uses initiator's receiver_index
-        //                     // The subsession handshake should already be complete (after KK2)
-        //                     if subsession.is_complete() {
-        //                         let new_receiver_index = ready_data.receiver_index;
-        //                         session.demote(new_receiver_index);
-        //                         result_action = Some(Ok(LpAction::SubsessionComplete {
-        //                             packet: None, // Responder has no packet to send
-        //                             subsession,
-        //                             new_receiver_index,
-        //                         }));
-        //                         LpState::ReadOnlyTransport { session }
-        //                     } else {
-        //                         // Shouldn't happen - handshake should be complete after KK2
-        //                         let err = LpError::Internal(
-        //                             "Received SubsessionReady but handshake not complete".to_string(),
-        //                         );
-        //                         let reason = err.to_string();
-        //                         result_action = Some(Err(err));
-        //                         LpState::Closed { reason }
-        //                     }
-        //                 }
-        //                 LpMessage::SubsessionAbort if subsession.is_initiator() => {
-        //                     // We received abort from peer - we lost the simultaneous initiation race.
-        //                     // Peer has higher X25519 key and is staying as initiator.
-        //                     // Discard our initiator subsession and return to Transport to receive peer's KK1.
-        //                     // Peer's KK1 should already be in flight or queued.
-        //                     result_action = None;
-        //                     LpState::Transport { session }
-        //                 }
-        //                 LpMessage::SubsessionAbort if !subsession.is_initiator() => {
-        //                     // Race was already resolved via KK1 - this abort is stale.
-        //                     // We already became responder when we received KK1 and detected local < remote.
-        //                     // The winner's abort message arrived after we processed their KK1.
-        //                     // Silently ignore it - we're in the correct state.
-        //                     result_action = None;
-        //                     LpState::SubsessionHandshaking { session, subsession }
-        //                 }
-        //                 _ => {
-        //                     // Wrong message type for subsession handshake
-        //                     let err = LpError::InvalidStateTransition {
-        //                         state: "SubsessionHandshaking".to_string(),
-        //                         input: format!("Unexpected message type: {:?}", packet.message),
-        //                     };
-        //                     let reason = err.to_string();
-        //                     result_action = Some(Err(err));
-        //                     LpState::Closed { reason }
-        //                 }
-        //             }
-        //         }
-        //     }
-        //
-        //     // Parent can still send data during subsession handshake
-        //     (LpState::SubsessionHandshaking { session, subsession }, LpInput::SendData(data)) => {
-        //         match session.prepare_data_packet(data) {
-        //             Ok(packet) => result_action = Some(Ok(LpAction::SendPacket(packet))),
-        //             Err(e) => {
-        //                 result_action = Some(Err(e.into()));
-        //             }
-        //         }
-        //         LpState::SubsessionHandshaking { session, subsession }
-        //     }
-        //
-        //     // Reject other inputs during subsession handshake
-        //     (LpState::SubsessionHandshaking { session, subsession }, LpInput::StartHandshake) => {
-        //         result_action = Some(Err(LpError::InvalidStateTransition {
-        //             state: "SubsessionHandshaking".to_string(),
-        //             input: "StartHandshake".to_string(),
-        //         }));
-        //         LpState::SubsessionHandshaking { session, subsession }
-        //     }
-        //
-        //     (LpState::SubsessionHandshaking { session, subsession }, LpInput::InitiateSubsession) => {
-        //         result_action = Some(Err(LpError::InvalidStateTransition {
-        //             state: "SubsessionHandshaking".to_string(),
-        //             input: "InitiateSubsession".to_string(),
-        //         }));
-        //         LpState::SubsessionHandshaking { session, subsession }
-        //     }
-        //
-        //     // --- ReadOnlyTransport State ---
-        //     (LpState::ReadOnlyTransport { session }, LpInput::ReceivePacket(packet)) => {
-        //         // Can still receive and decrypt, but state stays ReadOnlyTransport
-        //         if packet.header.receiver_idx() != session.id() {
-        //             result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
-        //             LpState::ReadOnlyTransport { session }
-        //         } else if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-        //             result_action = Some(Err(e));
-        //             LpState::ReadOnlyTransport { session }
-        //         } else {
-        //             match session.decrypt_data(&packet.message) {
-        //                 Ok(plaintext) => {
-        //                     if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-        //                         result_action = Some(Err(e));
-        //                         LpState::ReadOnlyTransport { session }
-        //                     } else {
-        //                         match plaintext.try_into() {
-        //                             Ok(data) => {
-        //                                 result_action = Some(Ok(LpAction::DeliverData(data)));
-        //                                 LpState::ReadOnlyTransport { session }
-        //                             }
-        //                             Err(err) => {
-        //                                 result_action = Some(Err(err));
-        //                                 LpState::ReadOnlyTransport { session }
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //                 Err(e) => {
-        //                     let reason = e.to_string();
-        //                     result_action = Some(Err(e.into()));
-        //                     LpState::Closed { reason }
-        //                 }
-        //             }
-        //         }
-        //     }
-        //
-        //     // Reject SendData in read-only mode
-        //     (LpState::ReadOnlyTransport { session }, LpInput::SendData(_)) => {
-        //         result_action = Some(Err(LpError::NoiseError(NoiseError::SessionReadOnly)));
-        //         LpState::ReadOnlyTransport { session }
-        //     }
-        //
-        //     // Reject other inputs in read-only mode
-        //     (LpState::ReadOnlyTransport { session }, LpInput::StartHandshake) => {
-        //         result_action = Some(Err(LpError::InvalidStateTransition {
-        //             state: "ReadOnlyTransport".to_string(),
-        //             input: "StartHandshake".to_string(),
-        //         }));
-        //         LpState::ReadOnlyTransport { session }
-        //     }
-        //
-        //     (LpState::ReadOnlyTransport { session }, LpInput::InitiateSubsession) => {
-        //         result_action = Some(Err(LpError::InvalidStateTransition {
-        //             state: "ReadOnlyTransport".to_string(),
-        //             input: "InitiateSubsession".to_string(),
-        //         }));
-        //         LpState::ReadOnlyTransport { session }
-        //     }
-        //
-        //     // --- Close Transition (applies to ReadyToHandshake, KKTExchange, Handshaking, Transport, SubsessionHandshaking, ReadOnlyTransport) ---
-        //     (
-        //         LpState::ReadyToHandshake { .. } // We consume the session here
-        //         | LpState::KKTExchange { .. }
-        //         | LpState::Handshaking { .. }
-        //         | LpState::Transport { .. }
-        //         | LpState::SubsessionHandshaking { .. }
-        //         | LpState::ReadOnlyTransport { .. },
-        //         LpInput::Close,
-        //     ) => {
-        //         result_action = Some(Ok(LpAction::ConnectionClosed));
-        //         // Transition to Closed state
-        //         LpState::Closed { reason: "Closed by user".to_string() }
-        //     }
-        //     // Ignore Close if already Closed
-        //     (closed_state @ LpState::Closed { .. }, LpInput::Close) => {
-        //         // result_action remains None
-        //         // Return the original closed state
-        //         closed_state
-        //     }
-        //     // Ignore StartHandshake if Closed
-        //     // (closed_state @ LpState::Closed { .. }, LpInput::StartHandshake) => {
-        //     //      result_action = Some(Err(LpError::LpSessionClosed));
-        //     //      closed_state
-        //     // }
-        //     // Ignore ReceivePacket if Closed
-        //     (closed_state @ LpState::Closed { .. }, LpInput::ReceivePacket(_)) => {
-        //         result_action = Some(Err(LpError::LpSessionClosed));
-        //         closed_state
-        //     }
-        //     // Ignore SendData if Closed
-        //     (closed_state @ LpState::Closed { .. }, LpInput::SendData(_)) => {
-        //         result_action = Some(Err(LpError::LpSessionClosed));
-        //         closed_state
-        //     }
-        //     // Processing state should not be matched directly if using replace
-        //     (LpState::Processing, _) => {
-        //         // This case should ideally be unreachable if placeholder logic is correct
-        //         let err = LpError::Internal("Reached Processing state unexpectedly".to_string());
-        //         let reason = err.to_string();
-        //         result_action = Some(Err(err));
-        //         LpState::Closed { reason }
-        //     }
-        //
-        //     // --- Default: Invalid input for current state (if any combinations missed) ---
-        //     // Consider if this should transition to Closed state. For now, just report error
-        //     // and transition to Closed as a safety measure.
-        //     (invalid_state, input) => {
-        //         let err = LpError::InvalidStateTransition {
-        //             state: format!("{:?}", invalid_state), // Use owned state for debug info
-        //             input: format!("{:?}", input),
-        //         };
-        //         let reason = err.to_string();
-        //         result_action = Some(Err(err));
-        //         LpState::Closed { reason }
-        //     }
-        // };
-
-        // (next_state, result_action)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -970,7 +75,7 @@ pub enum LpStateBare {
     Processing,
 }
 
-impl<'a> From<&LpState<'a>> for LpStateBare {
+impl From<&LpState> for LpStateBare {
     fn from(state: &LpState) -> Self {
         match state {
             LpState::ReadyToHandshake { .. } => LpStateBare::ReadyToHandshake,
@@ -1101,16 +206,16 @@ pub enum LpDataKind {
 }
 
 /// The Lewes Protocol State Machine.
-pub struct LpStateMachine<'a> {
-    pub state: LpState<'a>,
+pub struct LpStateMachine {
+    pub state: LpState,
 }
 
-impl<'a> LpStateMachine<'a> {
+impl LpStateMachine {
     pub fn bare_state(&self) -> LpStateBare {
         LpStateBare::from(&self.state)
     }
 
-    pub fn session(&self) -> Result<&LpSession<'a>, LpError> {
+    pub fn session(&self) -> Result<&LpSession, LpError> {
         match &self.state {
             LpState::ReadyToHandshake { session }
             | LpState::KKTExchange { session }
@@ -1126,7 +231,7 @@ impl<'a> LpStateMachine<'a> {
     /// Consume the state machine and return the session with ownership.
     /// This is useful when the handshake is complete and you want to transfer
     /// ownership of the session to the caller.
-    pub fn into_session(self) -> Result<LpSession<'a>, LpError> {
+    pub fn into_session(self) -> Result<LpSession, LpError> {
         match self.state {
             LpState::ReadyToHandshake { session }
             | LpState::KKTExchange { session }
@@ -1199,21 +304,821 @@ impl<'a> LpStateMachine<'a> {
     }
 
     /// Processes an input event and returns a list of actions to perform.
-    pub fn process_input(&'a mut self, input: LpInput) -> Option<Result<LpAction, LpError>> {
+    pub fn process_input(&mut self, input: LpInput) -> Option<Result<LpAction, LpError>> {
         // 1. Replace current state with a placeholder, taking ownership of the real current state.
+        let current_state = mem::take(&mut self.state);
 
-        self.state.process_input(input)
-        // let mut current_state = mem::take(&mut self.state);
-        //
-        // let result_action = current_state.process_input(input);
-        // self.state = current_state;
-        //
-        // result_action
-        // // let (next_state, result_action) = current_state.process_input(input);
-        // //
-        // // self.state = next_state;
-        // //
-        // // result_action // Return the determined action (or None)
+        let mut result_action: Option<Result<LpAction, LpError>> = None;
+
+        // 2. Match on the owned current_state. Each arm calculates and returns the NEXT state.
+        let next_state = match (current_state, input) {
+            // --- ReadyToHandshake State ---
+            (LpState::ReadyToHandshake { mut session }, LpInput::StartHandshake) => {
+                if session.is_initiator() {
+                    // Initiator starts by requesting KEM key via KKT
+                    match session.prepare_kkt_request() {
+                        Some(Ok(kkt_message)) => {
+                            match session.next_packet(kkt_message) {
+                                Ok(kkt_packet) => {
+                                    result_action = Some(Ok(LpAction::SendPacket(kkt_packet)));
+                                    LpState::KKTExchange { session } // Transition to KKTExchange
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        Some(Err(e)) => {
+                            let reason = e.to_string();
+                            result_action = Some(Err(e));
+                            LpState::Closed { reason }
+                        }
+                        None => {
+                            // Should not happen for initiator
+                            let err = LpError::Internal(
+                                "prepare_kkt_request returned None for initiator".to_string(),
+                            );
+                            let reason = err.to_string();
+                            result_action = Some(Err(err));
+                            LpState::Closed { reason }
+                        }
+                    }
+                } else {
+                    // Responder waits for KKT request
+                    LpState::KKTExchange { session }
+                    // No action needed yet, result_action remains None.
+                }
+            }
+
+            // --- KKTExchange State ---
+            (LpState::KKTExchange { mut session }, LpInput::ReceivePacket(packet)) => {
+                // Check if packet lp_id matches our session
+                if packet.header.receiver_idx() != session.id() {
+                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
+                    LpState::KKTExchange { session }
+                } else {
+                    use crate::message::LpMessage;
+
+                    // Packet message is already parsed, match on it directly
+                    match &packet.message {
+                        LpMessage::KKTRequest(kkt_request) if !session.is_initiator() => {
+                            match session.process_kkt_request(&kkt_request.0) {
+                                Ok(kkt_response_message) => {
+                                    match session.next_packet(kkt_response_message) {
+                                        Ok(response_packet) => {
+                                            result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                            // After KKT exchange, move to Handshaking
+                                            LpState::Handshaking { session }
+                                        }
+                                        Err(e) => {
+                                            let reason = e.to_string();
+                                            result_action = Some(Err(e));
+                                            LpState::Closed { reason }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        LpMessage::KKTResponse(kkt_response) if session.is_initiator() => {
+                            match session.process_kkt_response(&kkt_response.0) {
+                                Ok(()) => {
+                                    result_action = Some(Ok(LpAction::KKTComplete));
+                                    // After successful KKT, move to Handshaking
+                                    LpState::Handshaking { session }
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        _ => {
+                            // Wrong message type for KKT state
+                            let err = LpError::InvalidStateTransition {
+                                state: "KKTExchange".to_string(),
+                                input: format!("Unexpected message type: {:?}", packet.message),
+                            };
+                            let reason = err.to_string();
+                            result_action = Some(Err(err));
+                            LpState::Closed { reason }
+                        }
+                    }
+                }
+            }
+
+            // Reject SendData during KKT exchange
+            (LpState::KKTExchange { session }, LpInput::SendData(_)) => {
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "KKTExchange".to_string(),
+                    input: "SendData".to_string(),
+                }));
+                LpState::KKTExchange { session }
+            }
+
+            // Reject StartHandshake if already in KKT exchange
+            (LpState::KKTExchange { session }, LpInput::StartHandshake) => {
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "KKTExchange".to_string(),
+                    input: "StartHandshake".to_string(),
+                }));
+                LpState::KKTExchange { session }
+            }
+
+            // --- Handshaking State ---
+            (LpState::Handshaking { mut session }, LpInput::ReceivePacket(packet)) => {
+                // Check if packet lp_id matches our session
+                if packet.header.receiver_idx() != session.id() {
+                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
+                    // Don't change state, return the original state variant
+                    LpState::Handshaking { session }
+                } else {
+                    // --- Inline handle_handshake_packet logic ---
+                    // 1. Check replay protection *before* processing
+                    if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
+                        let _reason = e.to_string();
+                        result_action = Some(Err(e));
+                        LpState::Handshaking { session }
+                        //  LpState::Closed { reason }
+                    } else {
+                        // 2. Process the handshake message
+                        match session.process_handshake_message(&packet.message) {
+                            Ok(_) => {
+                                // 3. Mark counter as received *after* successful processing
+                                if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
+                                    let _reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    //  LpState::Closed { reason }
+                                    LpState::Handshaking { session }
+                                } else {
+                                    // 4. First check if we need to send a handshake message (before checking completion)
+                                    match session.prepare_handshake_message() {
+                                        Some(Ok(message)) => {
+                                            match session.next_packet(message) {
+                                                Ok(response_packet) => {
+                                                    result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                    // Check if handshake became complete after preparing message
+                                                    if session.is_handshake_complete() {
+                                                        LpState::Transport { session } // Transition to Transport
+                                                    } else {
+                                                        LpState::Handshaking { session } // Remain Handshaking
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
+                                        }
+                                        Some(Err(e)) => {
+                                            let reason = e.to_string();
+                                            result_action = Some(Err(e));
+                                            LpState::Closed { reason }
+                                        }
+                                        None => {
+                                            // 5. No message to send - check if handshake is complete
+                                            if session.is_handshake_complete() {
+                                                result_action = Some(Ok(LpAction::HandshakeComplete));
+                                                LpState::Transport { session } // Transition to Transport
+                                            } else {
+                                                // Handshake stalled unexpectedly
+                                                let err = LpError::NoiseError(NoiseError::Other(
+                                                    "Handshake stalled unexpectedly".to_string(),
+                                                ));
+                                                let reason = err.to_string();
+                                                result_action = Some(Err(err));
+                                                LpState::Closed { reason }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Err(e) => { // Error from process_handshake_message
+                                let reason = e.to_string();
+                                result_action = Some(Err(e));
+                                LpState::Closed { reason }
+                            }
+                        }
+                    }
+                    // --- End inline handle_handshake_packet logic ---
+                }
+            }
+            // Reject SendData during handshake
+            (LpState::Handshaking { session }, LpInput::SendData(_)) => { // Keep session if returning to this state
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "Handshaking".to_string(),
+                    input: "SendData".to_string(),
+                }));
+                // Invalid input, remain in Handshaking state
+                LpState::Handshaking { session }
+            }
+            // Reject StartHandshake if already handshaking
+            (LpState::Handshaking { session }, LpInput::StartHandshake) => { // Keep session
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "Handshaking".to_string(),
+                    input: "StartHandshake".to_string(),
+                }));
+                // Invalid input, remain in Handshaking state
+                LpState::Handshaking { session }
+            }
+
+            // --- Transport State ---
+            (LpState::Transport { session }, LpInput::ReceivePacket(packet)) => {
+                // Check if packet lp_id matches our session
+                if packet.header.receiver_idx() != session.id() {
+                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
+                    LpState::Transport { session }
+                } else {
+                    // Check message type - handle subsession initiation from peer
+                    match &packet.message {
+                        // Peer initiated subsession - we become responder
+                        LpMessage::SubsessionKK1(kk1_data) => {
+                            // Create subsession as responder
+                            let subsession_index = session.next_subsession_index();
+                            match session.create_subsession(subsession_index, false) {
+                                Ok(subsession) => {
+                                    // Process KK1
+                                    match subsession.process_message(&kk1_data.payload) {
+                                        Ok(_) => {
+                                            // Prepare KK2 response
+                                            match subsession.prepare_message() {
+                                                Ok(kk2_payload) => {
+                                                    let kk2_msg = LpMessage::SubsessionKK2(SubsessionKK2Data { payload: kk2_payload });
+                                                    match session.next_packet(kk2_msg) {
+                                                        Ok(response_packet) => {
+                                                            result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                            // Stay in SubsessionHandshaking, wait for SubsessionReady
+                                                            LpState::SubsessionHandshaking { session, subsession: Box::new(subsession) }
+                                                        }
+                                                        Err(e) => {
+                                                            let reason = e.to_string();
+                                                            result_action = Some(Err(e));
+                                                            LpState::Closed { reason }
+                                                        }
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            let reason = e.to_string();
+                                            result_action = Some(Err(e));
+                                            LpState::Closed { reason }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        // Normal encrypted data
+                        LpMessage::EncryptedData(_) => {
+                            // 1. Check replay protection
+                            if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
+                                result_action = Some(Err(e));
+                                LpState::Transport { session }
+                            } else {
+                                // 2. Decrypt data
+                                match session.decrypt_data(&packet.message) {
+                                    Ok(plaintext) => {
+                                        // 3. Mark counter as received
+                                        if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
+                                            result_action = Some(Err(e));
+                                            LpState::Transport { session }
+                                        } else {
+                                            // 4. Deliver data
+                                            match plaintext.try_into() {
+                                                Ok(data) => {
+                                                    result_action = Some(Ok(LpAction::DeliverData(data)));
+                                                    LpState::Transport { session }
+                                                }
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let reason = e.to_string();
+                                        result_action = Some(Err(e.into()));
+                                        LpState::Closed { reason }
+                                    }
+                                }
+                            }
+                        }
+                        // Stale abort in Transport state - race already resolved.
+                        // This can happen if abort arrives after loser already returned to Transport
+                        // via KK1 processing (loser detected local < remote and became responder).
+                        // The winner's abort message arrived late. Silently ignore.
+                        LpMessage::SubsessionAbort => {
+                            debug!("Ignoring stale SubsessionAbort in Transport state");
+                            result_action = None;
+                            LpState::Transport { session }
+                        }
+                        _ => {
+                            // Unexpected message type in Transport state
+                            let err = LpError::InvalidStateTransition {
+                                state: "Transport".to_string(),
+                                input: format!("Unexpected message type: {}", packet.message),
+                            };
+                            result_action = Some(Err(err));
+                            LpState::Transport { session }
+                        }
+                    }
+                }
+            }
+            (LpState::Transport { session }, LpInput::SendData(data)) => {
+                // Encrypt and send application data
+                match self.prepare_data_packet(&session, data) {
+                    Ok(packet) => result_action = Some(Ok(LpAction::SendPacket(packet))),
+                    Err(e) => {
+                        // If prepare fails, should we close? Let's report error and stay Transport for now.
+                        // Alternative: transition to Closed state.
+                        result_action = Some(Err(e.into()));
+                    }
+                }
+                // Remain in transport state
+                LpState::Transport { session }
+            }
+            // Reject StartHandshake if already in transport
+            (LpState::Transport { session }, LpInput::StartHandshake) => { // Keep session
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "Transport".to_string(),
+                    input: "StartHandshake".to_string(),
+                }));
+                // Invalid input, remain in Transport state
+                LpState::Transport { session }
+            }
+
+            // --- Transport + InitiateSubsession → SubsessionHandshaking ---
+            (LpState::Transport { session }, LpInput::InitiateSubsession) => {
+                // Get next subsession index
+                let subsession_index = session.next_subsession_index();
+
+                // Create subsession handshake (this side is initiator)
+                match session.create_subsession(subsession_index, true) {
+                    Ok(subsession) => {
+                        // Prepare KK1 message
+                        match subsession.prepare_message() {
+                            Ok(kk1_payload) => {
+                                let kk1_msg = LpMessage::SubsessionKK1(SubsessionKK1Data { payload: kk1_payload });
+                                match session.next_packet(kk1_msg) {
+                                    Ok(packet) => {
+                                        // Emit SubsessionInitiated with packet and index
+                                        result_action = Some(Ok(LpAction::SubsessionInitiated {
+                                            packet,
+                                            subsession_index,
+                                        }));
+                                        LpState::SubsessionHandshaking { session, subsession: Box::new(subsession) }
+                                    }
+                                    Err(e) => {
+                                        let reason = e.to_string();
+                                        result_action = Some(Err(e));
+                                        LpState::Closed { reason }
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                let reason = e.to_string();
+                                result_action = Some(Err(e));
+                                LpState::Closed { reason }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        let reason = e.to_string();
+                        result_action = Some(Err(e));
+                        LpState::Closed { reason }
+                    }
+                }
+            }
+
+            // --- SubsessionHandshaking State ---
+            (LpState::SubsessionHandshaking { session, subsession }, LpInput::ReceivePacket(packet)) => {
+                // Check if packet receiver_idx matches our session
+                if packet.header.receiver_idx() != session.id() {
+                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
+                    LpState::SubsessionHandshaking { session, subsession }
+                } else {
+                    match &packet.message {
+                        LpMessage::SubsessionKK1(kk1_data) if !subsession.is_initiator() => {
+                            // Responder processes KK1, prepares KK2
+                            // Responder stays in SubsessionHandshaking after sending KK2,
+                            // waiting for SubsessionReady from initiator before completing
+                            match subsession.process_message(&kk1_data.payload) {
+                                Ok(_) => {
+                                    match subsession.prepare_message() {
+                                        Ok(kk2_payload) => {
+                                            let kk2_msg = LpMessage::SubsessionKK2(SubsessionKK2Data { payload: kk2_payload });
+                                            match session.next_packet(kk2_msg) {
+                                                Ok(response_packet) => {
+                                                    result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                    // Stay in SubsessionHandshaking, wait for SubsessionReady
+                                                    LpState::SubsessionHandshaking { session, subsession }
+                                                }
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            let reason = e.to_string();
+                                            result_action = Some(Err(e));
+                                            LpState::Closed { reason }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        LpMessage::SubsessionKK1(kk1_data) if subsession.is_initiator() => {
+                            // Simultaneous initiation race detected.
+                            // Both sides called InitiateSubsession and sent KK1 to each other.
+                            // Use X25519 public key comparison as deterministic tie-breaker.
+                            // Lower key loses and becomes responder.
+                            let local_key = session.local_x25519_public();
+                            let remote_key = session.remote_x25519_public();
+
+                            if local_key.as_ref() < remote_key.as_ref() {
+                                // We LOSE - become responder
+                                // Use the same index as our initiator subsession, which should
+                                // match the winner's index if subsession counters are in sync.
+                                // This works because both sides independently picked the same index when
+                                // they initiated simultaneously (both counters were at the same value).
+                                let subsession_index = subsession.index;
+                                match session.create_subsession(subsession_index, false) {
+                                    Ok(new_subsession) => {
+                                        match new_subsession.process_message(&kk1_data.payload) {
+                                            Ok(_) => {
+                                                match new_subsession.prepare_message() {
+                                                    Ok(kk2_payload) => {
+                                                        let kk2_msg = LpMessage::SubsessionKK2(SubsessionKK2Data { payload: kk2_payload });
+                                                        match session.next_packet(kk2_msg) {
+                                                            Ok(response_packet) => {
+                                                                result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                                // Replace old initiator subsession with new responder subsession
+                                                                LpState::SubsessionHandshaking { session, subsession: Box::new(new_subsession) }
+                                                            }
+                                                            Err(e) => {
+                                                                let reason = e.to_string();
+                                                                result_action = Some(Err(e));
+                                                                LpState::Closed { reason }
+                                                            }
+                                                        }
+                                                    }
+                                                    Err(e) => {
+                                                        let reason = e.to_string();
+                                                        result_action = Some(Err(e));
+                                                        LpState::Closed { reason }
+                                                    }
+                                                }
+                                            }
+                                            Err(e) => {
+                                                let reason = e.to_string();
+                                                result_action = Some(Err(e));
+                                                LpState::Closed { reason }
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let reason = e.to_string();
+                                        result_action = Some(Err(e));
+                                        LpState::Closed { reason }
+                                    }
+                                }
+                            } else {
+                                // We WIN - stay initiator, notify peer they lost
+                                // Send SubsessionAbort to explicitly tell peer to become responder
+                                let abort_msg = LpMessage::SubsessionAbort;
+                                match session.next_packet(abort_msg) {
+                                    Ok(abort_packet) => {
+                                        result_action = Some(Ok(LpAction::SendPacket(abort_packet)));
+                                        LpState::SubsessionHandshaking { session, subsession }
+                                    }
+                                    Err(e) => {
+                                        let reason = e.to_string();
+                                        result_action = Some(Err(e));
+                                        LpState::Closed { reason }
+                                    }
+                                }
+                            }
+                        }
+                        LpMessage::SubsessionKK2(kk2_data) if subsession.is_initiator() => {
+                            // Initiator processes KK2, completes handshake
+                            // Initiator emits SubsessionComplete with SubsessionReady packet
+                            // and the subsession for caller to promote via into_session()
+                            match subsession.process_message(&kk2_data.payload) {
+                                Ok(_) if subsession.is_complete() => {
+                                    // Generate new receiver_index for subsession
+                                    let new_receiver_index: u32 = rand::random();
+                                    session.demote(new_receiver_index);
+
+                                    // Send SubsessionReady with new index
+                                    let ready_msg = LpMessage::SubsessionReady(SubsessionReadyData {
+                                        receiver_index: new_receiver_index,
+                                    });
+                                    match session.next_packet(ready_msg) {
+                                        Ok(ready_packet) => {
+                                            result_action = Some(Ok(LpAction::SubsessionComplete {
+                                                packet: Some(ready_packet),
+                                                subsession,
+                                                new_receiver_index,
+                                            }));
+                                            LpState::ReadOnlyTransport { session }
+                                        }
+                                        Err(e) => {
+                                            let reason = e.to_string();
+                                            result_action = Some(Err(e));
+                                            LpState::Closed { reason }
+                                        }
+                                    }
+                                }
+                                Ok(_) => {
+                                    // Handshake not complete yet, shouldn't happen for KK
+                                    let err = LpError::Internal("Subsession handshake incomplete after KK2".to_string());
+                                    let reason = err.to_string();
+                                    result_action = Some(Err(err));
+                                    LpState::Closed { reason }
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        LpMessage::EncryptedData(_) => {
+                            // Parent still processes normal traffic during subsession handshake
+                            // Same as Transport state handling
+                            if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
+                                result_action = Some(Err(e));
+                                LpState::SubsessionHandshaking { session, subsession }
+                            } else {
+                                match session.decrypt_data(&packet.message) {
+                                    Ok(plaintext) => {
+                                        if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
+                                            result_action = Some(Err(e));
+                                            LpState::SubsessionHandshaking { session, subsession }
+                                        } else {
+                                            match plaintext.try_into() {
+                                                Ok(data) => {
+                                                    result_action = Some(Ok(LpAction::DeliverData(data)));
+                                                    LpState::SubsessionHandshaking { session, subsession }
+                                                }
+                                                Err(err) => {
+                                                    result_action = Some(Err(err));
+                                                    LpState::SubsessionHandshaking { session, subsession }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let reason = e.to_string();
+                                        result_action = Some(Err(e.into()));
+                                        LpState::Closed { reason }
+                                    }
+                                }
+                            }
+                        }
+                        LpMessage::SubsessionReady(ready_data) if !subsession.is_initiator() => {
+                            // Responder receives SubsessionReady from initiator
+                            // Responder completes handshake here, uses initiator's receiver_index
+                            // The subsession handshake should already be complete (after KK2)
+                            if subsession.is_complete() {
+                                let new_receiver_index = ready_data.receiver_index;
+                                session.demote(new_receiver_index);
+                                result_action = Some(Ok(LpAction::SubsessionComplete {
+                                    packet: None, // Responder has no packet to send
+                                    subsession,
+                                    new_receiver_index,
+                                }));
+                                LpState::ReadOnlyTransport { session }
+                            } else {
+                                // Shouldn't happen - handshake should be complete after KK2
+                                let err = LpError::Internal(
+                                    "Received SubsessionReady but handshake not complete".to_string(),
+                                );
+                                let reason = err.to_string();
+                                result_action = Some(Err(err));
+                                LpState::Closed { reason }
+                            }
+                        }
+                        LpMessage::SubsessionAbort if subsession.is_initiator() => {
+                            // We received abort from peer - we lost the simultaneous initiation race.
+                            // Peer has higher X25519 key and is staying as initiator.
+                            // Discard our initiator subsession and return to Transport to receive peer's KK1.
+                            // Peer's KK1 should already be in flight or queued.
+                            result_action = None;
+                            LpState::Transport { session }
+                        }
+                        LpMessage::SubsessionAbort if !subsession.is_initiator() => {
+                            // Race was already resolved via KK1 - this abort is stale.
+                            // We already became responder when we received KK1 and detected local < remote.
+                            // The winner's abort message arrived after we processed their KK1.
+                            // Silently ignore it - we're in the correct state.
+                            result_action = None;
+                            LpState::SubsessionHandshaking { session, subsession }
+                        }
+                        _ => {
+                            // Wrong message type for subsession handshake
+                            let err = LpError::InvalidStateTransition {
+                                state: "SubsessionHandshaking".to_string(),
+                                input: format!("Unexpected message type: {:?}", packet.message),
+                            };
+                            let reason = err.to_string();
+                            result_action = Some(Err(err));
+                            LpState::Closed { reason }
+                        }
+                    }
+                }
+            }
+
+            // Parent can still send data during subsession handshake
+            (LpState::SubsessionHandshaking { session, subsession }, LpInput::SendData(data)) => {
+                match self.prepare_data_packet(&session, data) {
+                    Ok(packet) => result_action = Some(Ok(LpAction::SendPacket(packet))),
+                    Err(e) => {
+                        result_action = Some(Err(e.into()));
+                    }
+                }
+                LpState::SubsessionHandshaking { session, subsession }
+            }
+
+            // Reject other inputs during subsession handshake
+            (LpState::SubsessionHandshaking { session, subsession }, LpInput::StartHandshake) => {
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "SubsessionHandshaking".to_string(),
+                    input: "StartHandshake".to_string(),
+                }));
+                LpState::SubsessionHandshaking { session, subsession }
+            }
+
+            (LpState::SubsessionHandshaking { session, subsession }, LpInput::InitiateSubsession) => {
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "SubsessionHandshaking".to_string(),
+                    input: "InitiateSubsession".to_string(),
+                }));
+                LpState::SubsessionHandshaking { session, subsession }
+            }
+
+            // --- ReadOnlyTransport State ---
+            (LpState::ReadOnlyTransport { session }, LpInput::ReceivePacket(packet)) => {
+                // Can still receive and decrypt, but state stays ReadOnlyTransport
+                if packet.header.receiver_idx() != session.id() {
+                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
+                    LpState::ReadOnlyTransport { session }
+                } else if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
+                    result_action = Some(Err(e));
+                    LpState::ReadOnlyTransport { session }
+                } else {
+                    match session.decrypt_data(&packet.message) {
+                        Ok(plaintext) => {
+                            if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
+                                result_action = Some(Err(e));
+                                LpState::ReadOnlyTransport { session }
+                            } else {
+                                match plaintext.try_into() {
+                                    Ok(data) => {
+                                        result_action = Some(Ok(LpAction::DeliverData(data)));
+                                        LpState::ReadOnlyTransport { session }
+                                    }
+                                    Err(err) => {
+                                        result_action = Some(Err(err));
+                                        LpState::ReadOnlyTransport { session }
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            let reason = e.to_string();
+                            result_action = Some(Err(e.into()));
+                            LpState::Closed { reason }
+                        }
+                    }
+                }
+            }
+
+            // Reject SendData in read-only mode
+            (LpState::ReadOnlyTransport { session }, LpInput::SendData(_)) => {
+                result_action = Some(Err(LpError::NoiseError(NoiseError::SessionReadOnly)));
+                LpState::ReadOnlyTransport { session }
+            }
+
+            // Reject other inputs in read-only mode
+            (LpState::ReadOnlyTransport { session }, LpInput::StartHandshake) => {
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "ReadOnlyTransport".to_string(),
+                    input: "StartHandshake".to_string(),
+                }));
+                LpState::ReadOnlyTransport { session }
+            }
+
+            (LpState::ReadOnlyTransport { session }, LpInput::InitiateSubsession) => {
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "ReadOnlyTransport".to_string(),
+                    input: "InitiateSubsession".to_string(),
+                }));
+                LpState::ReadOnlyTransport { session }
+            }
+
+            // --- Close Transition (applies to ReadyToHandshake, KKTExchange, Handshaking, Transport, SubsessionHandshaking, ReadOnlyTransport) ---
+            (
+                LpState::ReadyToHandshake { .. } // We consume the session here
+                | LpState::KKTExchange { .. }
+                | LpState::Handshaking { .. }
+                | LpState::Transport { .. }
+                | LpState::SubsessionHandshaking { .. }
+                | LpState::ReadOnlyTransport { .. },
+                LpInput::Close,
+            ) => {
+                result_action = Some(Ok(LpAction::ConnectionClosed));
+                // Transition to Closed state
+                LpState::Closed { reason: "Closed by user".to_string() }
+            }
+            // Ignore Close if already Closed
+            (closed_state @ LpState::Closed { .. }, LpInput::Close) => {
+                // result_action remains None
+                // Return the original closed state
+                closed_state
+            }
+            // Ignore StartHandshake if Closed
+            // (closed_state @ LpState::Closed { .. }, LpInput::StartHandshake) => {
+            //      result_action = Some(Err(LpError::LpSessionClosed));
+            //      closed_state
+            // }
+            // Ignore ReceivePacket if Closed
+            (closed_state @ LpState::Closed { .. }, LpInput::ReceivePacket(_)) => {
+                result_action = Some(Err(LpError::LpSessionClosed));
+                closed_state
+            }
+            // Ignore SendData if Closed
+            (closed_state @ LpState::Closed { .. }, LpInput::SendData(_)) => {
+                result_action = Some(Err(LpError::LpSessionClosed));
+                closed_state
+            }
+            // Processing state should not be matched directly if using replace
+            (LpState::Processing, _) => {
+                // This case should ideally be unreachable if placeholder logic is correct
+                let err = LpError::Internal("Reached Processing state unexpectedly".to_string());
+                let reason = err.to_string();
+                result_action = Some(Err(err));
+                LpState::Closed { reason }
+            }
+
+            // --- Default: Invalid input for current state (if any combinations missed) ---
+            // Consider if this should transition to Closed state. For now, just report error
+            // and transition to Closed as a safety measure.
+            (invalid_state, input) => {
+                let err = LpError::InvalidStateTransition {
+                    state: format!("{:?}", invalid_state), // Use owned state for debug info
+                    input: format!("{:?}", input),
+                };
+                let reason = err.to_string();
+                result_action = Some(Err(err));
+                LpState::Closed { reason }
+            }
+        };
+
+        // 3. Put the calculated next state back into the machine.
+        self.state = next_state;
+
+        result_action // Return the determined action (or None)
+    }
+
+    // Helper to prepare an outgoing data packet
+    // Kept as it doesn't mutate self.state
+    fn prepare_data_packet(
+        &self,
+        session: &LpSession,
+        data: LpData,
+    ) -> Result<LpPacket, NoiseError> {
+        let encrypted_message = session.encrypt_data(Vec::<u8>::from(data).as_ref())?;
+        session
+            .next_packet(encrypted_message)
+            .map_err(|e| NoiseError::Other(e.to_string())) // Improve error conversion?
     }
 }
 
@@ -1614,7 +1519,7 @@ mod tests {
     }
     /// Helper function to complete a full handshake between initiator and responder,
     /// returning both in Transport state ready for subsession testing.
-    fn setup_transport_sessions<'a>(kem: KEM) -> (LpStateMachine<'a>, LpStateMachine<'a>) {
+    fn setup_transport_sessions(kem: KEM) -> (LpStateMachine, LpStateMachine) {
         let (a, b) = mock_peers(kem);
 
         let salt = [60u8; 32];

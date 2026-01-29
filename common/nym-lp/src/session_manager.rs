@@ -19,18 +19,18 @@ use nym_kkt::ciphersuite::Ciphersuite;
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
 /// The SessionManager is responsible for creating, storing, and retrieving sessions
-pub struct SessionManager<'a> {
+pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
-    state_machines: HashMap<u32, LpStateMachine<'a>>,
+    state_machines: HashMap<u32, LpStateMachine>,
 }
 
-impl<'a> Default for SessionManager<'a> {
+impl Default for SessionManager {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a> SessionManager<'a> {
+impl SessionManager {
     /// Creates a new session manager with empty session storage.
     pub fn new() -> Self {
         Self {
@@ -39,7 +39,7 @@ impl<'a> SessionManager<'a> {
     }
 
     pub fn process_input(
-        &'a mut self,
+        &mut self,
         lp_id: u32,
         input: LpInput,
     ) -> Result<Option<LpAction>, LpError> {
@@ -48,7 +48,7 @@ impl<'a> SessionManager<'a> {
             .transpose()
     }
 
-    pub fn add(&mut self, session: LpSession<'a>) -> Result<(), LpError> {
+    pub fn add(&mut self, session: LpSession) -> Result<(), LpError> {
         let sm = LpStateMachine {
             state: LpState::ReadyToHandshake {
                 session: Box::new(session),
@@ -58,32 +58,32 @@ impl<'a> SessionManager<'a> {
         Ok(())
     }
 
-    pub fn handshaking(&'a self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn handshaking(&self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Handshaking)
     }
 
-    pub fn should_initiate_handshake(&'a self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn should_initiate_handshake(&self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self.ready_to_handshake(lp_id)? || self.closed(lp_id)?)
     }
 
-    pub fn ready_to_handshake(&'a self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn ready_to_handshake(&self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::ReadyToHandshake)
     }
 
-    pub fn closed(&'a self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn closed(&self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Closed)
     }
 
-    pub fn transport(&'a self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn transport(&self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Transport)
     }
 
     #[cfg(test)]
-    fn get_state_machine_id(&'a self, lp_id: u32) -> Result<u32, LpError> {
+    fn get_state_machine_id(&self, lp_id: u32) -> Result<u32, LpError> {
         self.state_machine(lp_id)?.id()
     }
 
-    pub fn get_state(&'a self, lp_id: u32) -> Result<LpStateBare, LpError> {
+    pub fn get_state(&self, lp_id: u32) -> Result<LpStateBare, LpError> {
         Ok(self.state_machine(lp_id)?.bare_state())
     }
 
@@ -97,22 +97,22 @@ impl<'a> SessionManager<'a> {
             .receiving_counter_quick_check(counter)
     }
 
-    pub fn receiving_counter_mark(&'a self, lp_id: u32, counter: u64) -> Result<(), LpError> {
+    pub fn receiving_counter_mark(&self, lp_id: u32, counter: u64) -> Result<(), LpError> {
         self.state_machine(lp_id)?
             .session()?
             .receiving_counter_mark(counter)
     }
 
-    // pub fn start_handshake(&'a self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
+    // pub fn start_handshake(& self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
     //     self.prepare_handshake_message(lp_id)
     // }
     //
-    // pub fn prepare_handshake_message(&'a self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
+    // pub fn prepare_handshake_message(& self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
     //     self.with_state_machine(lp_id, |sm| sm.session().ok()?.prepare_handshake_message())
     //         .ok()?
     // }
 
-    pub fn is_handshake_complete(&'a self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn is_handshake_complete(&self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self
             .state_machine(lp_id)?
             .session()?
@@ -123,26 +123,26 @@ impl<'a> SessionManager<'a> {
         Ok(self.state_machine_mut(lp_id)?.session()?.next_counter())
     }
 
-    pub fn decrypt_data(&'a self, lp_id: u32, message: &LpMessage) -> Result<Vec<u8>, LpError> {
+    pub fn decrypt_data(&self, lp_id: u32, message: &LpMessage) -> Result<Vec<u8>, LpError> {
         self.state_machine(lp_id)?
             .session()?
             .decrypt_data(message)
             .map_err(LpError::NoiseError)
     }
 
-    pub fn encrypt_data(&'a self, lp_id: u32, message: &[u8]) -> Result<LpMessage, LpError> {
+    pub fn encrypt_data(&self, lp_id: u32, message: &[u8]) -> Result<LpMessage, LpError> {
         self.state_machine(lp_id)?
             .session()?
             .encrypt_data(message)
             .map_err(LpError::NoiseError)
     }
 
-    pub fn current_packet_cnt(&'a self, lp_id: u32) -> Result<(u64, u64), LpError> {
+    pub fn current_packet_cnt(&self, lp_id: u32) -> Result<(u64, u64), LpError> {
         Ok(self.state_machine(lp_id)?.session()?.current_packet_cnt())
     }
 
     pub fn process_handshake_message(
-        &'a self,
+        &self,
         lp_id: u32,
         message: &LpMessage,
     ) -> Result<ReadResult, LpError> {
@@ -151,27 +151,27 @@ impl<'a> SessionManager<'a> {
             .process_handshake_message(message)
     }
 
-    pub fn session_count(&'a self) -> usize {
+    pub fn session_count(&self) -> usize {
         self.state_machines.len()
     }
 
-    pub fn state_machine_exists(&'a self, lp_id: u32) -> bool {
+    pub fn state_machine_exists(&self, lp_id: u32) -> bool {
         self.state_machines.contains_key(&lp_id)
     }
 
-    fn state_machine(&'a self, lp_id: u32) -> Result<&LpStateMachine, LpError> {
+    fn state_machine(&self, lp_id: u32) -> Result<&LpStateMachine, LpError> {
         self.state_machines
             .get(&lp_id)
             .ok_or_else(|| LpError::StateMachineNotFound { lp_id })
     }
 
-    fn state_machine_mut(&mut self, lp_id: u32) -> Result<&mut LpStateMachine<'a>, LpError> {
+    fn state_machine_mut(&mut self, lp_id: u32) -> Result<&mut LpStateMachine, LpError> {
         self.state_machines
             .get_mut(&lp_id)
             .ok_or_else(|| LpError::StateMachineNotFound { lp_id })
     }
 
-    // pub fn with_state_machine<F, R>(&'a self, lp_id: u32, f: F) -> Result<R, LpError>
+    // pub fn with_state_machine<F, R>(& self, lp_id: u32, f: F) -> Result<R, LpError>
     // where
     //     F: FnOnce(&LpStateMachine) -> R,
     // {
@@ -184,7 +184,7 @@ impl<'a> SessionManager<'a> {
     // }
     //
     // // For mutable access (like running process_input)
-    // pub fn with_state_machine_mut<F, R>(&'a self, lp_id: u32, f: F) -> Result<R, LpError>
+    // pub fn with_state_machine_mut<F, R>(& self, lp_id: u32, f: F) -> Result<R, LpError>
     // where
     //     F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
     // {

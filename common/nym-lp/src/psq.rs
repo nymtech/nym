@@ -85,41 +85,31 @@ pub fn build_initiator<'a>(
 // which we already obtained matching on the ciphersuite kem type in `LpSession::new`
 pub fn build_responder<'a>(
     local_x25519_keys: &'a DHKeyPair,
-    local_kem_keys: &'a Arc<KemKeyPair>,
+    local_kem_keys: &'a KemKeyPair,
 ) -> Responder<'a, rand09::rngs::ThreadRng> {
-    let responder_cbuilder = match ciphersuite.kem() {
-        KEM::MlKem768 => match (local_kem_decapsulation_key, local_kem_encapsulation_key) {
-            (
-                DecapsulationKey::MlKem768(ml_kem_private_key),
-                EncapsulationKey::MlKem768(ml_kem_public_key),
-            ) => CiphersuiteBuilder::new(
-                CiphersuiteName::X25519_MLKEM768_X25519_CHACHA20POLY1305_HKDFSHA256,
-            )
-            .longterm_mlkem_encapsulation_key(ml_kem_public_key)
-            .longterm_mlkem_decapsulation_key(ml_kem_private_key),
-            _ => panic!(
-                "wrong key type passed (local_kem_encapsulation_key should be EncapsulationKey::MlKem768 and local_kem_decapsulation_key should be DecapsulationKey::MlKem768)"
-            ),
-        },
-        KEM::McEliece => match (local_kem_decapsulation_key, local_kem_encapsulation_key) {
-            (
-                DecapsulationKey::McEliece(mceliece_private_key),
-                EncapsulationKey::McEliece(mceliece_public_key),
-            ) => CiphersuiteBuilder::new(
-                CiphersuiteName::X25519_CLASSICMCELIECE_X25519_CHACHA20POLY1305_HKDFSHA256,
-            )
-            .longterm_cmc_encapsulation_key(mceliece_public_key)
-            .longterm_cmc_decapsulation_key(mceliece_private_key),
-            _ => panic!(
-                "wrong key type passed (local_kem_encapsulation_key should be EncapsulationKey::McEliece and local_kem_decapsulation_key should be DecapsulationKey::McEliece)"
-            ),
-        },
-        _ => panic!("undefined"),
-    };
-    let responder_ciphersuite = responder_cbuilder
-        .longterm_x25519_keys(local_x25519_keys)
-        .build_responder_ciphersuite()
-        .unwrap();
+    let responder_ciphersuite = match local_kem_keys {
+        KemKeyPair::MlKem768 {
+            encapsulation_key,
+            decapsulation_key,
+        } => CiphersuiteBuilder::new(
+            CiphersuiteName::X25519_MLKEM768_X25519_CHACHA20POLY1305_HKDFSHA256,
+        )
+        .longterm_mlkem_encapsulation_key(encapsulation_key)
+        .longterm_mlkem_decapsulation_key(decapsulation_key),
+        KemKeyPair::McEliece {
+            encapsulation_key,
+            decapsulation_key,
+        } => CiphersuiteBuilder::new(
+            CiphersuiteName::X25519_CLASSICMCELIECE_X25519_CHACHA20POLY1305_HKDFSHA256,
+        )
+        .longterm_cmc_encapsulation_key(encapsulation_key)
+        .longterm_cmc_decapsulation_key(decapsulation_key),
+        KemKeyPair::XWing { .. } => panic!("unsupported"),
+        KemKeyPair::X25519 { .. } => panic!("unsupported"),
+    }
+    .longterm_x25519_keys(local_x25519_keys)
+    .build_responder_ciphersuite()
+    .unwrap();
 
     PrincipalBuilder::new(rand09::rng())
         .outer_aad(AAD_RESPONDER)

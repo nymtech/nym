@@ -11,8 +11,10 @@ use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
 use crate::{LpError, LpMessage, LpSession, LpStateMachine};
 use dashmap::DashMap;
+use dashmap::mapref::one::{Ref, RefMut};
 #[cfg(test)]
 use libcrux_psq::handshake::types::DHPublicKey;
+use nym_kkt::ciphersuite::Ciphersuite;
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
@@ -37,8 +39,14 @@ impl<'a> SessionManager<'a> {
         }
     }
 
-    pub fn process_input(&self, lp_id: u32, input: LpInput) -> Result<Option<LpAction>, LpError> {
-        self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
+    pub fn process_input(
+        &'a self,
+        lp_id: u32,
+        input: LpInput,
+    ) -> Result<Option<LpAction>, LpError> {
+        self.state_machine_mut(lp_id)?
+            .process_input(input)
+            .transpose()
     }
 
     pub fn add(&self, session: LpSession<'a>) -> Result<(), LpError> {
@@ -51,131 +59,170 @@ impl<'a> SessionManager<'a> {
         Ok(())
     }
 
-    pub fn handshaking(&self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn handshaking(&'a self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Handshaking)
     }
 
-    pub fn should_initiate_handshake(&self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn should_initiate_handshake(&'a self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self.ready_to_handshake(lp_id)? || self.closed(lp_id)?)
     }
 
-    pub fn ready_to_handshake(&self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn ready_to_handshake(&'a self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::ReadyToHandshake)
     }
 
-    pub fn closed(&self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn closed(&'a self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Closed)
     }
 
-    pub fn transport(&self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn transport(&'a self, lp_id: u32) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Transport)
     }
 
     #[cfg(test)]
-    fn get_state_machine_id(&self, lp_id: u32) -> Result<u32, LpError> {
-        self.with_state_machine(lp_id, |sm| sm.id())?
+    fn get_state_machine_id(&'a self, lp_id: u32) -> Result<u32, LpError> {
+        self.state_machine(lp_id)?.id()
     }
 
-    pub fn get_state(&self, lp_id: u32) -> Result<LpStateBare, LpError> {
-        self.with_state_machine(lp_id, |sm| Ok(sm.bare_state()))?
+    pub fn get_state(&'a self, lp_id: u32) -> Result<LpStateBare, LpError> {
+        Ok(self.state_machine(lp_id)?.bare_state())
     }
 
-    pub fn receiving_counter_quick_check(&self, lp_id: u32, counter: u64) -> Result<(), LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?.receiving_counter_quick_check(counter)
-        })?
+    pub fn receiving_counter_quick_check(
+        &'a self,
+        lp_id: u32,
+        counter: u64,
+    ) -> Result<(), LpError> {
+        self.state_machine_mut(lp_id)?
+            .session()?
+            .receiving_counter_quick_check(counter)
     }
 
-    pub fn receiving_counter_mark(&self, lp_id: u32, counter: u64) -> Result<(), LpError> {
-        self.with_state_machine(lp_id, |sm| sm.session()?.receiving_counter_mark(counter))?
+    pub fn receiving_counter_mark(&'a self, lp_id: u32, counter: u64) -> Result<(), LpError> {
+        self.state_machine(lp_id)?
+            .session()?
+            .receiving_counter_mark(counter)
     }
 
-    pub fn start_handshake(&self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
-        self.prepare_handshake_message(lp_id)
+    // pub fn start_handshake(&'a self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
+    //     self.prepare_handshake_message(lp_id)
+    // }
+    //
+    // pub fn prepare_handshake_message(&'a self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
+    //     self.with_state_machine(lp_id, |sm| sm.session().ok()?.prepare_handshake_message())
+    //         .ok()?
+    // }
+
+    pub fn is_handshake_complete(&'a self, lp_id: u32) -> Result<bool, LpError> {
+        Ok(self
+            .state_machine(lp_id)?
+            .session()?
+            .is_handshake_complete())
     }
 
-    pub fn prepare_handshake_message(&self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
-        self.with_state_machine(lp_id, |sm| sm.session().ok()?.prepare_handshake_message())
-            .ok()?
+    pub fn next_counter(&'a self, lp_id: u32) -> Result<u64, LpError> {
+        Ok(self.state_machine_mut(lp_id)?.session()?.next_counter())
     }
 
-    pub fn is_handshake_complete(&self, lp_id: u32) -> Result<bool, LpError> {
-        self.with_state_machine(lp_id, |sm| Ok(sm.session()?.is_handshake_complete()))?
+    pub fn decrypt_data(&'a self, lp_id: u32, message: &LpMessage) -> Result<Vec<u8>, LpError> {
+        self.state_machine(lp_id)?
+            .session()?
+            .decrypt_data(message)
+            .map_err(LpError::NoiseError)
     }
 
-    pub fn next_counter(&self, lp_id: u32) -> Result<u64, LpError> {
-        self.with_state_machine(lp_id, |sm| Ok(sm.session()?.next_counter()))?
+    pub fn encrypt_data(&'a self, lp_id: u32, message: &[u8]) -> Result<LpMessage, LpError> {
+        self.state_machine(lp_id)?
+            .session()?
+            .encrypt_data(message)
+            .map_err(LpError::NoiseError)
     }
 
-    pub fn decrypt_data(&self, lp_id: u32, message: &LpMessage) -> Result<Vec<u8>, LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?
-                .decrypt_data(message)
-                .map_err(LpError::NoiseError)
-        })?
-    }
-
-    pub fn encrypt_data(&self, lp_id: u32, message: &[u8]) -> Result<LpMessage, LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?
-                .encrypt_data(message)
-                .map_err(LpError::NoiseError)
-        })?
-    }
-
-    pub fn current_packet_cnt(&self, lp_id: u32) -> Result<(u64, u64), LpError> {
-        self.with_state_machine(lp_id, |sm| Ok(sm.session()?.current_packet_cnt()))?
+    pub fn current_packet_cnt(&'a self, lp_id: u32) -> Result<(u64, u64), LpError> {
+        Ok(self.state_machine(lp_id)?.session()?.current_packet_cnt())
     }
 
     pub fn process_handshake_message(
-        &self,
+        &'a self,
         lp_id: u32,
         message: &LpMessage,
     ) -> Result<ReadResult, LpError> {
-        self.with_state_machine(lp_id, |sm| sm.session()?.process_handshake_message(message))?
+        self.state_machine(lp_id)?
+            .session()?
+            .process_handshake_message(message)
     }
 
-    pub fn session_count(&self) -> usize {
+    pub fn session_count(&'a self) -> usize {
         self.state_machines.len()
     }
 
-    pub fn state_machine_exists(&self, lp_id: u32) -> bool {
+    pub fn state_machine_exists(&'a self, lp_id: u32) -> bool {
         self.state_machines.contains_key(&lp_id)
     }
 
-    pub fn with_state_machine<F, R>(&self, lp_id: u32, f: F) -> Result<R, LpError>
-    where
-        F: FnOnce(&LpStateMachine) -> R,
-    {
-        if let Some(sm) = self.state_machines.get(&lp_id) {
-            Ok(f(&sm))
-        } else {
-            Err(LpError::StateMachineNotFound { lp_id })
-        }
-        // self.state_machines.get(&lp_id).map(|sm_ref| f(&*sm_ref)) // Lock held only during closure execution
+    // this method must NOT be used without some serious considerations,
+    // in particular the value MUST NOT be held across await points
+    // (even if the compiler is fine with it)
+    // as it could lead to a deadlock
+    #[doc(hidden)]
+    fn state_machine(&'a self, lp_id: u32) -> Result<Ref<u32, LpStateMachine>, LpError> {
+        self.state_machines
+            .get(&lp_id)
+            .ok_or_else(|| LpError::StateMachineNotFound { lp_id })
     }
 
-    // For mutable access (like running process_input)
-    pub fn with_state_machine_mut<F, R>(&self, lp_id: u32, f: F) -> Result<R, LpError>
-    where
-        F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
-    {
-        if let Some(mut sm) = self.state_machines.get_mut(&lp_id) {
-            Ok(f(&mut sm))
-        } else {
-            Err(LpError::StateMachineNotFound { lp_id })
-        }
+    // this method must NOT be used without some serious considerations,
+    // in particular the value MUST NOT be held across await points
+    // (even if the compiler is fine with it)
+    // as it could lead to a deadlock
+    #[doc(hidden)]
+    fn state_machine_mut(&'a self, lp_id: u32) -> Result<RefMut<u32, LpStateMachine>, LpError> {
+        self.state_machines
+            .get_mut(&lp_id)
+            .ok_or_else(|| LpError::StateMachineNotFound { lp_id })
     }
+
+    // pub fn with_state_machine<F, R>(&'a self, lp_id: u32, f: F) -> Result<R, LpError>
+    // where
+    //     F: FnOnce(&LpStateMachine) -> R,
+    // {
+    //     if let Some(sm) = self.state_machines.get(&lp_id) {
+    //         Ok(f(&sm))
+    //     } else {
+    //         Err(LpError::StateMachineNotFound { lp_id })
+    //     }
+    //     // self.state_machines.get(&lp_id).map(|sm_ref| f(&*sm_ref)) // Lock held only during closure execution
+    // }
+    //
+    // // For mutable access (like running process_input)
+    // pub fn with_state_machine_mut<F, R>(&'a self, lp_id: u32, f: F) -> Result<R, LpError>
+    // where
+    //     F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
+    // {
+    //     if let Some(mut sm) = self.state_machines.get_mut(&lp_id) {
+    //         Ok(f(&mut sm))
+    //     } else {
+    //         Err(LpError::StateMachineNotFound { lp_id })
+    //     }
+    // }
 
     pub fn create_session_state_machine(
         &self,
         receiver_index: u32,
         is_initiator: bool,
+        ciphersuite: Ciphersuite,
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
         salt: &[u8; 32],
     ) -> Result<u32, LpError> {
-        let sm = LpStateMachine::new(receiver_index, is_initiator, local_peer, remote_peer, salt)?;
+        let sm = LpStateMachine::new(
+            receiver_index,
+            is_initiator,
+            ciphersuite,
+            local_peer,
+            remote_peer,
+            salt,
+        )?;
 
         self.state_machines.insert(receiver_index, sm);
         Ok(receiver_index)
@@ -196,10 +243,10 @@ impl<'a> SessionManager<'a> {
         lp_id: u32,
         remote_x25519_pub: &DHPublicKey,
     ) -> Result<(), LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?.set_kkt_completed_for_test(remote_x25519_pub);
-            Ok(())
-        })?
+        self.state_machine_mut(lp_id)?
+            .session()?
+            .set_kkt_completed_for_test(remote_x25519_pub);
+        Ok(())
     }
 }
 

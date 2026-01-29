@@ -20,7 +20,8 @@ use crate::psq::build_responder;
 /// encapsulating all the known information and keys.
 #[derive(Clone)]
 pub struct LpLocalPeer {
-    pub(crate) ciphersuite: Arc<Ciphersuite>,
+    pub(crate) ciphersuite: Ciphersuite,
+
     /// Local Ed25519 keys for PSQ authentication
     pub(crate) ed25519: Arc<ed25519::KeyPair>,
 
@@ -43,7 +44,7 @@ impl LpLocalPeer {
         let initiator_x25519_keypair = DHKeyPair::from(initiator_libcrux_x25519_private_key);
 
         LpLocalPeer {
-            ciphersuite: Arc::new(ciphersuite),
+            ciphersuite,
             ed25519,
             x25519: Arc::new(initiator_x25519_keypair),
             kem_keypairs: Default::default(),
@@ -78,18 +79,10 @@ impl LpLocalPeer {
         );
 
         let mut expected_kem_key_digests = HashMap::new();
-
-        if let Some(mlkem_key) = &self.mlkem {
+        for (kem, kem_key) in &self.kem_keypairs {
             expected_kem_key_digests.insert(
-                KEM::MlKem768,
-                nym_kkt::key_utils::produce_key_digests(&mlkem_key.1.encode()),
-            );
-        }
-
-        if let Some(mceliece_key) = &self.mceliece {
-            expected_kem_key_digests.insert(
-                KEM::McEliece,
-                nym_kkt::key_utils::produce_key_digests(&mceliece_key.1.encode()),
+                *kem,
+                nym_kkt::key_utils::produce_key_digests(&kem_key.encoded_encapsulation_key()),
             );
         }
 

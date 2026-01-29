@@ -2,6 +2,7 @@ use libcrux_chacha20poly1305::TAG_LEN;
 use libcrux_psq::handshake::types::DHPublicKey;
 use nym_crypto::hkdf::blake3::{derive_key_blake3, derive_key_blake3_multi_input};
 use std::fmt::{Debug, Formatter};
+use std::sync::atomic::{AtomicU64, Ordering};
 use zeroize::Zeroize;
 
 use crate::{
@@ -14,8 +15,8 @@ const MAX_PAYLOAD_LEN: usize = 65535;
 pub struct Carrier {
     tx_key: [u8; 32],
     rx_key: [u8; 32],
-    tx_counter: u64,
-    rx_counter: u64,
+    tx_counter: AtomicU64,
+    rx_counter: AtomicU64,
 }
 
 impl Debug for Carrier {
@@ -29,21 +30,9 @@ impl Debug for Carrier {
     }
 }
 
-fn increment_nonce(nonce: &mut u64) -> Result<(), KKTError> {
-    match nonce.checked_add(1) {
-        Some(incremented_nonce) => {
-            *nonce = incremented_nonce;
-            Ok(())
-        }
-        None => Err(KKTError::AEADError {
-            info: "Nonce maxed out.",
-        }),
-    }
-}
-
-fn as_nonce_bytes(nonce: u64) -> [u8; 12] {
+fn as_nonce_bytes(nonce: &AtomicU64) -> [u8; 12] {
     let mut bytes = [0u8; 12];
-    let nonce_bytes = nonce.to_le_bytes();
+    let nonce_bytes = nonce.load(Ordering::Relaxed).to_le_bytes();
     bytes[4..].clone_from_slice(&nonce_bytes);
     bytes
 }
@@ -54,14 +43,11 @@ impl Carrier {
         role: KKTRole,
         kkt_session_id: &[u8; KKT_SESSION_ID_LEN],
         responder_public_key: &DHPublicKey,
-        responder_encapsulation_key: &EncapsulationKey,
+        encoded_encapsulation_key: &[u8],
     ) -> Result<Self, KKTError> {
         let mut salt = derive_key_blake3_multi_input(
             "nym-kkt-carrier-kdf-main",
-            &[
-                responder_encapsulation_key.encode().as_ref(),
-                responder_public_key.as_ref(),
-            ],
+            &[encoded_encapsulation_key, responder_public_key.as_ref()],
             kkt_session_id,
         );
 
@@ -83,18 +69,18 @@ impl Carrier {
             KKTRole::Initiator | KKTRole::AnonymousInitiator => Self {
                 tx_key: k1,
                 rx_key: k2,
-                tx_counter: 1,
-                rx_counter: 1,
+                tx_counter: AtomicU64::new(1),
+                rx_counter: AtomicU64::new(1),
             },
             KKTRole::Responder => Self {
                 tx_key: k2,
                 rx_key: k1,
-                tx_counter: 1,
-                rx_counter: 1,
+                tx_counter: AtomicU64::new(1),
+                rx_counter: AtomicU64::new(1),
             },
         })
     }
-    pub fn encrypt(&mut self, plaintext: &[u8]) -> Result<Vec<u8>, KKTError> {
+    pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, KKTError> {
         if plaintext.len() > MAX_PAYLOAD_LEN {
             return Err(KKTError::AEADError {
                 info: "Plaintext too large",
@@ -106,14 +92,14 @@ impl Carrier {
             plaintext,
             &mut output_buffer,
             b"kkt-carrier-v1",
-            &as_nonce_bytes(self.tx_counter),
+            &as_nonce_bytes(&self.tx_counter),
         )?;
 
-        increment_nonce(&mut self.tx_counter)?;
+        self.tx_counter.fetch_add(1, Ordering::Relaxed);
 
         Ok(output_buffer)
     }
-    pub fn decrypt(&mut self, ciphertext: &[u8]) -> Result<Vec<u8>, KKTError> {
+    pub fn decrypt(&self, ciphertext: &[u8]) -> Result<Vec<u8>, KKTError> {
         if ciphertext.len() > MAX_PAYLOAD_LEN + TAG_LEN {
             return Err(KKTError::AEADError {
                 info: "Ciphertext too large",
@@ -125,10 +111,10 @@ impl Carrier {
             &mut output_buffer,
             ciphertext,
             b"kkt-carrier-v1",
-            &as_nonce_bytes(self.rx_counter),
+            &as_nonce_bytes(&self.rx_counter),
         )?;
 
-        increment_nonce(&mut self.rx_counter)?;
+        self.rx_counter.fetch_add(1, Ordering::Relaxed);
 
         Ok(output_buffer)
     }

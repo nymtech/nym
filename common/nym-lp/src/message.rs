@@ -8,7 +8,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, write};
 
 /// Data structure for the ClientHello message
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -464,7 +464,6 @@ impl Display for LpMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LpMessage::Busy => write!(f, "Busy"),
-            LpMessage::Handshake(_) => write!(f, "Handshake"),
             LpMessage::EncryptedData(_) => write!(f, "EncryptedData"),
             LpMessage::ClientHello(_) => write!(f, "ClientHello"),
             LpMessage::KKTRequest(_) => write!(f, "KKTRequest"),
@@ -477,34 +476,16 @@ impl Display for LpMessage {
             LpMessage::SubsessionKK2(_) => write!(f, "SubsessionKK2"),
             LpMessage::SubsessionReady(_) => write!(f, "SubsessionReady"),
             LpMessage::SubsessionAbort => write!(f, "SubsessionAbort"),
+            LpMessage::PSQRequest(_) => write!(f, "PSQRequest"),
+            LpMessage::PSQResponse(_) => write!(f, "PSQResponse"),
         }
     }
 }
 
 impl LpMessage {
-    pub fn payload(&self) -> &[u8] {
-        match self {
-            LpMessage::Busy => &[],
-            LpMessage::Handshake(payload) => payload.0.as_slice(),
-            LpMessage::EncryptedData(payload) => payload.0.as_slice(),
-            LpMessage::ClientHello(_) => &[], // Structured data, serialized in encode_content
-            LpMessage::KKTRequest(payload) => payload.0.as_slice(),
-            LpMessage::KKTResponse(payload) => payload.0.as_slice(),
-            LpMessage::ForwardPacket(_) => &[], // Structured data, serialized in encode_content
-            LpMessage::Collision => &[],
-            LpMessage::Ack => &[],
-            LpMessage::SubsessionRequest => &[],
-            LpMessage::SubsessionKK1(_) => &[], // Structured data, serialized in encode_content
-            LpMessage::SubsessionKK2(_) => &[], // Structured data, serialized in encode_content
-            LpMessage::SubsessionReady(_) => &[], // Structured data, serialized in encode_content
-            LpMessage::SubsessionAbort => &[],
-        }
-    }
-
     pub fn is_empty(&self) -> bool {
         match self {
             LpMessage::Busy => true,
-            LpMessage::Handshake(payload) => payload.0.is_empty(),
             LpMessage::EncryptedData(payload) => payload.0.is_empty(),
             LpMessage::ClientHello(_) => false, // Always has data
             LpMessage::KKTRequest(payload) => payload.0.is_empty(),
@@ -517,13 +498,16 @@ impl LpMessage {
             LpMessage::SubsessionKK2(_) => false, // Always has payload
             LpMessage::SubsessionReady(_) => false, // Always has receiver_index
             LpMessage::SubsessionAbort => true,   // Empty signal
+            LpMessage::PSQRequest(payload) => true, // Always had data (?)
+            LpMessage::PSQResponse(payload) => true, // Always had data (?)
         }
     }
 
     pub fn len(&self) -> usize {
         match self {
             LpMessage::Busy => 0,
-            LpMessage::Handshake(payload) => payload.len(),
+            LpMessage::PSQRequest(payload) => payload.len(),
+            LpMessage::PSQResponse(payload) => payload.len(),
             LpMessage::EncryptedData(payload) => payload.len(),
             LpMessage::ClientHello(payload) => payload.len(),
             LpMessage::KKTRequest(payload) => payload.len(),
@@ -542,7 +526,8 @@ impl LpMessage {
     pub fn typ(&self) -> MessageType {
         match self {
             LpMessage::Busy => MessageType::Busy,
-            LpMessage::Handshake(_) => MessageType::Handshake,
+            LpMessage::PSQRequest(_) => todo!(),
+            LpMessage::PSQResponse(_) => todo!(),
             LpMessage::EncryptedData(_) => MessageType::EncryptedData,
             LpMessage::ClientHello(_) => MessageType::ClientHello,
             LpMessage::KKTRequest(_) => MessageType::KKTRequest,
@@ -561,7 +546,8 @@ impl LpMessage {
     pub fn encode_content(&self, dst: &mut BytesMut) {
         match self {
             LpMessage::Busy => { /* No content */ }
-            LpMessage::Handshake(payload) => payload.encode(dst),
+            LpMessage::PSQRequest(payload) => payload.encode(dst),
+            LpMessage::PSQResponse(payload) => payload.encode(dst),
             LpMessage::EncryptedData(payload) => payload.encode(dst),
             LpMessage::ClientHello(data) => data.encode(dst),
             LpMessage::KKTRequest(payload) => payload.encode(dst),
@@ -587,7 +573,7 @@ impl LpMessage {
                 content.ensure_empty()?;
                 Ok(LpMessage::Busy)
             }
-            MessageType::Handshake => Ok(LpMessage::Handshake(HandshakeData::decode(content)?)),
+            MessageType::Handshake => todo!(),
             MessageType::EncryptedData => Ok(LpMessage::EncryptedData(
                 EncryptedDataPayload::decode(content)?,
             )),

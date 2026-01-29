@@ -23,6 +23,7 @@ use crate::{
 };
 use bytes::{Buf, Bytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use nym_kkt::ciphersuite::Ciphersuite;
 use std::mem;
 use tracing::debug;
 
@@ -259,19 +260,22 @@ impl<'a> LpStateMachine<'a> {
     pub fn new(
         receiver_index: u32,
         is_initiator: bool,
+        ciphersuite: Ciphersuite,
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
         salt: &[u8; 32],
     ) -> Result<Self, LpError> {
         // Create the session with both Ed25519 (for PSQ auth) and derived X25519 keys (for Noise)
         // receiver_index is client-proposed, passed through directly
-        let session = LpSession::new(receiver_index, is_initiator, local_peer, remote_peer, salt)?;
 
-        Ok(LpStateMachine {
-            state: LpState::ReadyToHandshake {
-                session: Box::new(session),
-            },
-        })
+        todo!()
+        // let session = LpSession::new(receiver_index, is_initiator,ciphersuite, local_peer, remote_peer, salt)?;
+        //
+        // Ok(LpStateMachine {
+        //     state: LpState::ReadyToHandshake {
+        //         session: Box::new(session),
+        //     },
+        // })
     }
 
     /// Creates a state machine in Transport state from a completed subsession handshake.
@@ -300,7 +304,10 @@ impl<'a> LpStateMachine<'a> {
     }
 
     /// Processes an input event and returns a list of actions to perform.
-    pub fn process_input(&mut self, input: LpInput) -> Option<Result<LpAction, LpError>> {
+    pub fn process_input<'b: 'a>(
+        &'b mut self,
+        input: LpInput,
+    ) -> Option<Result<LpAction, LpError>> {
         // 1. Replace current state with a placeholder, taking ownership of the real current state.
         let current_state = mem::take(&mut self.state);
 
@@ -309,7 +316,7 @@ impl<'a> LpStateMachine<'a> {
         // 2. Match on the owned current_state. Each arm calculates and returns the NEXT state.
         let next_state = match (current_state, input) {
             // --- ReadyToHandshake State ---
-            (LpState::ReadyToHandshake { session }, LpInput::StartHandshake) => {
+            (LpState::ReadyToHandshake { mut session }, LpInput::StartHandshake) => {
                 if session.is_initiator() {
                     // Initiator starts by requesting KEM key via KKT
                     match session.prepare_kkt_request() {
@@ -349,7 +356,7 @@ impl<'a> LpStateMachine<'a> {
             }
 
             // --- KKTExchange State ---
-            (LpState::KKTExchange { session }, LpInput::ReceivePacket(packet)) => {
+            (LpState::KKTExchange { mut session }, LpInput::ReceivePacket(packet)) => {
                 // Check if packet lp_id matches our session
                 if packet.header.receiver_idx() != session.id() {
                     result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
@@ -429,7 +436,7 @@ impl<'a> LpStateMachine<'a> {
             }
 
             // --- Handshaking State ---
-            (LpState::Handshaking { session }, LpInput::ReceivePacket(packet)) => {
+            (LpState::Handshaking { mut session }, LpInput::ReceivePacket(packet)) => {
                 // Check if packet lp_id matches our session
                 if packet.header.receiver_idx() != session.id() {
                     result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));

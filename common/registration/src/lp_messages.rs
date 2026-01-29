@@ -3,6 +3,7 @@
 
 //! LP (Lewes Protocol) registration message types shared between client and gateway.
 
+use crate::WireguardConfiguration;
 use crate::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
     LpDvpnRegistrationRequestMessage, LpDvpnRegistrationRequestMessageContent,
@@ -370,8 +371,6 @@ pub mod dvpn {
         pub error: String,
     }
 }
-
-use crate::WireguardConfiguration;
 
 pub mod mixnet {
     use nym_crypto::asymmetric::ed25519;

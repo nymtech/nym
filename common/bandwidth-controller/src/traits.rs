@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use nym_credential_storage::storage::Storage;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
-use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
 use crate::{error::BandwidthControllerError, BandwidthController, PreparedCredential};
@@ -65,7 +64,7 @@ impl<T: BandwidthTicketProvider + ?Sized + Send> BandwidthTicketProvider for Box
     async fn get_ecash_ticket(
         &self,
         ticket_type: TicketType,
-        gateway_id: PublicKey,
+        gateway_id: ed25519::PublicKey,
         tickets_to_spend: u32,
     ) -> Result<PreparedCredential, BandwidthControllerError> {
         (**self)

@@ -97,6 +97,8 @@ pub mod handler;
 pub mod peer_manager;
 mod registration;
 
+pub type ReceiverIndex = u32;
+
 /// Configuration for LP listener
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -340,8 +342,6 @@ impl<T> TimestampedState<T> {
         Duration::from_secs(now.saturating_sub(last))
     }
 }
-
-pub type ReceiverIndex = u32;
 
 /// Shared state for LP connection handlers
 #[derive(Clone)]

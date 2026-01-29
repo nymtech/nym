@@ -1,7 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{TestedNodeDetails, TestedNodeLpDetails};
 use anyhow::{Context, anyhow, bail};
 use nym_api_requests::models::{
     AuthenticatorDetailsV2, DeclaredRolesV2, DescribedNodeTypeV2, HostInformationV2,
@@ -10,16 +9,20 @@ use nym_api_requests::models::{
 };
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
+use nym_crypto::asymmetric::x25519;
 use nym_http_api_client::UserAgent;
+use nym_kkt_ciphersuite::SignatureScheme;
+use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::v1::node::models::AuxiliaryDetails as NodeAuxiliaryDetails;
 use nym_sdk::mixnet::NodeIdentity;
+use nym_sdk::mixnet::Recipient;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::NymNodeDescriptionV2;
 use rand::prelude::IteratorRandom;
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::{debug, info, warn};
@@ -435,5 +438,71 @@ impl NymApiDirectory {
             bail!("{identity} is not an entry node")
         };
         Ok(maybe_entry)
+    }
+}
+
+#[derive(Default, Debug)]
+pub enum TestedNode {
+    #[default]
+    SameAsEntry,
+    Custom {
+        identity: NodeIdentity,
+        shares_entry: bool,
+    },
+}
+
+impl TestedNode {
+    pub fn is_same_as_entry(&self) -> bool {
+        matches!(
+            self,
+            TestedNode::SameAsEntry
+                | TestedNode::Custom {
+                    shares_entry: true,
+                    ..
+                }
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TestedNodeDetails {
+    pub identity: NodeIdentity,
+    pub exit_router_address: Option<Recipient>,
+    pub authenticator_address: Option<Recipient>,
+    pub authenticator_version: AuthenticatorVersion,
+    pub ip_address: Option<IpAddr>,
+    pub lp_data: Option<TestedNodeLpDetails>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TestedNodeLpDetails {
+    pub address: SocketAddr,
+    pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
+    pub expected_signing_key_hashes: HashMap<SignatureScheme, KEMKeyDigests>,
+    pub x25519: x25519::PublicKey,
+}
+
+impl TestedNodeDetails {
+    /// Create from CLI args (localnet mode - no HTTP query needed)
+    pub fn from_cli(identity: NodeIdentity, lp_data: TestedNodeLpDetails) -> Self {
+        Self {
+            identity,
+            ip_address: Some(lp_data.address.ip()),
+            lp_data: Some(lp_data),
+            // These are None in localnet mode - only needed for mixnet/authenticator
+            exit_router_address: None,
+            authenticator_address: None,
+            authenticator_version: AuthenticatorVersion::UNKNOWN,
+        }
+    }
+
+    /// Check if this node has sufficient info for LP testing
+    pub fn can_test_lp(&self) -> bool {
+        self.lp_data.is_some()
+    }
+
+    /// Check if this node has sufficient info for mixnet testing
+    pub fn can_test_mixnet(&self) -> bool {
+        self.exit_router_address.is_some() || self.authenticator_address.is_some()
     }
 }

@@ -15,7 +15,7 @@ mod sys {
     }
 }
 
-use crate::NetstackArgs;
+use crate::config::NetstackArgs;
 
 #[derive(serde::Serialize)]
 pub struct NetstackRequest {

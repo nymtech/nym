@@ -9,11 +9,11 @@
 use nym_config::defaults::{WG_METADATA_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4};
 use tracing::{error, info};
 
-use crate::NetstackArgs;
-use crate::netstack::{
+use crate::common::netstack::{
     NetstackRequest, NetstackRequestGo, NetstackResult, TwoHopNetstackRequestGo,
 };
-use crate::types::WgProbeResults;
+use crate::common::types::WgProbeResults;
+use crate::config::NetstackArgs;
 
 /// Safe division that returns 0.0 when divisor is 0 (instead of NaN/Inf)
 fn safe_ratio(received: u16, sent: u16) -> f32 {
@@ -99,7 +99,7 @@ pub fn run_tunnel_tests(
     info!("Testing IPv4 tunnel connectivity...");
     let ipv4_request = NetstackRequestGo::from_rust_v4(&netstack_request);
 
-    match crate::netstack::ping(&ipv4_request) {
+    match crate::common::netstack::ping(&ipv4_request) {
         Ok(NetstackResult::Response(netstack_response_v4)) => {
             info!(
                 "WireGuard probe response for IPv4: {:#?}",
@@ -137,7 +137,7 @@ pub fn run_tunnel_tests(
     info!("Testing IPv6 tunnel connectivity...");
     let ipv6_request = NetstackRequestGo::from_rust_v6(&netstack_request);
 
-    match crate::netstack::ping(&ipv6_request) {
+    match crate::common::netstack::ping(&ipv6_request) {
         Ok(NetstackResult::Response(netstack_response_v6)) => {
             info!(
                 "WireGuard probe response for IPv6: {:#?}",
@@ -281,7 +281,7 @@ pub fn run_two_hop_tunnel_tests(
     info!("  Entry endpoint: {}", config.entry_endpoint);
     info!("  Exit endpoint (via forwarder): {}", config.exit_endpoint);
 
-    match crate::netstack::ping_two_hop(&request) {
+    match crate::common::netstack::ping_two_hop(&request) {
         Ok(NetstackResult::Response(response)) => {
             info!("Two-hop WireGuard probe response (IPv4): {:#?}", response);
             wg_outcome.can_handshake_v4 = response.can_handshake;

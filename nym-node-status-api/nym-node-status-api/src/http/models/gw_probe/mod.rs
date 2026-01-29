@@ -20,8 +20,8 @@ use nym_gateway_probe::types::ProbeResult as ProbeResultLatest;
 impl From<ProbeResultLatest> for LastProbeResult {
     fn from(value: ProbeResultLatest) -> Self {
         Self {
-            node: value.node.into(),
-            used_entry: value.used_entry.into(),
+            node: value.node,
+            used_entry: value.used_entry,
             outcome: value.outcome.into(),
         }
     }

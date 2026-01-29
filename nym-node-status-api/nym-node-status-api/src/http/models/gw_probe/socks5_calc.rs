@@ -7,7 +7,7 @@ use crate::http::models::{
     gw_probe::{LastProbeResult, ScoreValue},
 };
 
-pub(crate) fn calculate_socks5_percentiles(gateways: &Vec<Gateway>) -> HashMap<String, ScoreValue> {
+pub(crate) fn calculate_socks5_percentiles(gateways: &[Gateway]) -> HashMap<String, ScoreValue> {
     let parsed_gateways = gateways
         .iter()
         // discard untested gateways
@@ -52,12 +52,10 @@ pub fn score_from_sorted_latencies(gateways: Vec<(String, u64)>) -> HashMap<Stri
     gateways.sort_by_cached_key(|(_, latency)| *latency);
 
     // as soon as you find the first nonzero latency, it's a boundary where non-zero starts
-    let first_nonzero_idx = gateways
-        .iter()
-        .position(|&(_, latency)| latency != 0)
-        .unwrap_or(gateways.len());
+    let (offline_gws, online_gws): (Vec<_>, Vec<_>) =
+        gateways.into_iter().partition(|(_, latency)| *latency == 0);
 
-    let nonzero_count = gateways.len().saturating_sub(first_nonzero_idx);
+    let nonzero_count = online_gws.len();
 
     // x / 2 = 0.5x
     let high_end_idx = nonzero_count.div_ceil(2);
@@ -65,23 +63,15 @@ pub fn score_from_sorted_latencies(gateways: Vec<(String, u64)>) -> HashMap<Stri
     let medium_end_idx = nonzero_count.saturating_mul(3).div_ceil(4);
     // `Low` gets assigned to everything else
 
-    let mut result = HashMap::with_capacity(gateways.len());
-    let mut iter = gateways.into_iter();
+    let mut result = HashMap::new();
 
     // first flag all the zero-latency as Offline
-    for (id, _lat) in iter.by_ref().take(first_nonzero_idx) {
-        match result.entry(id) {
-            std::collections::hash_map::Entry::Vacant(e) => {
-                e.insert(ScoreValue::Offline);
-            }
-            std::collections::hash_map::Entry::Occupied(_) => {
-                // Duplicate IDs: keep first
-            }
-        }
+    for (id, _lat) in offline_gws {
+        result.entry(id).or_insert(ScoreValue::Offline);
     }
 
     // secondly go over remaining non-zero elements, assign by rank within non-zero set
-    for (idx, (id, _)) in iter.enumerate() {
+    for (idx, (id, _)) in online_gws.into_iter().enumerate() {
         let score = if idx < high_end_idx {
             ScoreValue::High
         } else if idx < medium_end_idx {
@@ -90,14 +80,7 @@ pub fn score_from_sorted_latencies(gateways: Vec<(String, u64)>) -> HashMap<Stri
             ScoreValue::Low
         };
 
-        match result.entry(id) {
-            std::collections::hash_map::Entry::Vacant(e) => {
-                e.insert(score);
-            }
-            std::collections::hash_map::Entry::Occupied(_) => {
-                // Duplicate IDs: keep first
-            }
-        }
+        result.entry(id).or_insert(score);
     }
 
     result

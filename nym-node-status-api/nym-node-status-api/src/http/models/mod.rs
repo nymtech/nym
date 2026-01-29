@@ -1,6 +1,11 @@
 use std::net::IpAddr;
 
-use crate::monitor::ExplorerPrettyBond;
+use crate::{
+    http::models::gw_probe::{
+        DvpnGwProbe, DvpnProbeOutcome, LastProbeResult, ScoreValue, calculate_load, calculate_score,
+    },
+    monitor::ExplorerPrettyBond,
+};
 use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_mixnet_contract_common::CoinSchema;
 use nym_node_requests::api::v1::node::models::NodeDescription;
@@ -17,7 +22,10 @@ use utoipa::ToSchema;
 
 use crate::db::models::NymNodeDataDeHelper;
 use crate::node_scraper::models::BridgeInformation;
+
 pub(crate) use nym_node_status_client::models::TestrunAssignment;
+
+pub(crate) mod gw_probe;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Gateway {
@@ -75,17 +83,6 @@ pub struct Location {
     pub asn: Option<Asn>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, EnumString)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-#[derive(PartialEq)]
-pub enum ScoreValue {
-    Offline,
-    Low,
-    Medium,
-    High,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct DVpnGatewayPerformance {
     last_updated_utc: String,
@@ -103,7 +100,7 @@ pub struct DVpnGateway {
     pub ip_packet_router: Option<IpPacketRouterDetailsV1>,
     pub authenticator: Option<AuthenticatorDetailsV1>,
     pub location: Location,
-    pub last_probe: Option<DirectoryGwProbe>,
+    pub last_probe: Option<DvpnGwProbe>,
     #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
     pub mix_port: u16,
@@ -126,124 +123,25 @@ impl DVpnGateway {
     pub fn can_route_entry(&self) -> bool {
         self.last_probe
             .as_ref()
-            .map(|probe| match &probe.outcome.as_entry {
-                directory_gw_probe_outcome::Entry::Tested(entry_test_result) => {
-                    entry_test_result.can_route
-                }
-                directory_gw_probe_outcome::Entry::NotTested
-                | directory_gw_probe_outcome::Entry::EntryFailure => false,
-            })
+            .map(DvpnGwProbe::can_route_entry)
             .unwrap_or(false)
     }
 
     pub fn can_route_exit(&self) -> bool {
         self.last_probe
             .as_ref()
-            .map(|probe| {
-                probe
-                    .outcome
-                    .as_exit
-                    .as_ref()
-                    .map(|outcome| {
-                        outcome.can_route_ip_external_v4 && outcome.can_route_ip_external_v6
-                    })
-                    .unwrap_or(false)
-            })
+            .map(|probe| probe.can_route_exit().unwrap_or(false))
             .unwrap_or(false)
-    }
-}
-
-/// based on
-/// https://github.com/nymtech/nym-vpn-client/blob/nym-vpn-core-v1.10.0/nym-vpn-core/crates/nym-gateway-probe/src/types.rs
-/// TODO: long term types should be moved into this repo because nym-vpn-client
-/// could pull it as a dependency and we'd have a single source of truth
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-pub struct LastProbeResult {
-    node: String,
-    used_entry: String,
-    outcome: ProbeOutcome,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-pub struct DirectoryGwProbe {
-    last_updated_utc: String,
-    outcome: ProbeOutcome,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-pub struct ProbeOutcome {
-    as_entry: directory_gw_probe_outcome::Entry,
-    as_exit: Option<directory_gw_probe_outcome::Exit>,
-    wg: Option<wg_outcome_versions::ProbeOutcomeV1>,
-}
-
-pub mod directory_gw_probe_outcome {
-    use super::*;
-
-    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-    #[serde(untagged)]
-    #[allow(clippy::enum_variant_names)]
-    pub enum Entry {
-        Tested(EntryTestResult),
-        NotTested,
-        EntryFailure,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-    pub struct EntryTestResult {
-        pub can_connect: bool,
-        pub can_route: bool,
-    }
-
-    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub struct Exit {
-        pub can_connect: bool,
-        pub can_route_ip_v4: bool,
-        pub can_route_ip_external_v4: bool,
-        pub can_route_ip_v6: bool,
-        pub can_route_ip_external_v6: bool,
-    }
-}
-
-pub mod wg_outcome_versions {
-    use super::*;
-
-    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub struct ProbeOutcomeV1 {
-        pub can_register: bool,
-        pub can_handshake: Option<bool>,
-        pub can_resolve_dns: Option<bool>,
-        pub ping_hosts_performance: Option<f32>,
-        pub ping_ips_performance: Option<f32>,
-
-        pub can_query_metadata_v4: Option<bool>,
-        pub can_handshake_v4: bool,
-        pub can_resolve_dns_v4: bool,
-        pub ping_hosts_performance_v4: f32,
-        pub ping_ips_performance_v4: f32,
-
-        pub can_handshake_v6: bool,
-        pub can_resolve_dns_v6: bool,
-        pub ping_hosts_performance_v6: f32,
-        pub ping_ips_performance_v6: f32,
-
-        pub download_duration_sec_v4: u64,
-        pub download_duration_milliseconds_v4: Option<u64>,
-        pub downloaded_file_size_bytes_v4: Option<u64>,
-        pub downloaded_file_v4: String,
-        pub download_error_v4: String,
-
-        pub download_duration_sec_v6: u64,
-        pub download_duration_milliseconds_v6: Option<u64>,
-        pub downloaded_file_size_bytes_v6: Option<u64>,
-        pub downloaded_file_v6: String,
-        pub download_error_v6: String,
     }
 }
 
 impl DVpnGateway {
     #[instrument(level = tracing::Level::INFO, name = "dvpn_gw_new", skip_all, fields(gateway_key = gateway.gateway_identity_key, node_id = skimmed_node.node_id))]
-    pub(crate) fn new(gateway: Gateway, skimmed_node: &SkimmedNode) -> anyhow::Result<Self> {
+    pub(crate) fn new(
+        gateway: Gateway,
+        skimmed_node: &SkimmedNode,
+        socks5_score: Option<&ScoreValue>,
+    ) -> anyhow::Result<Self> {
         let location = gateway
             .explorer_pretty_bond
             .clone()
@@ -275,35 +173,22 @@ impl DVpnGateway {
                 .ok()
         });
 
-        tracing::info!("🌈 gateway probe result: {:?}", gateway.last_probe_result);
+        tracing::debug!("🌈 gateway probe result: {:?}", gateway.last_probe_result);
 
         let (last_probe_result, performance_v2) = match gateway.last_probe_result {
             Some(ref value) => {
-                let mut parsed = serde_json::from_value::<LastProbeResult>(value.clone())
+                let parsed = LastProbeResult::deserialize_with_fallback(value.clone())
                     .inspect_err(|err| {
                         error!("Failed to deserialize probe result: {err}");
                     })?;
 
-                parsed.outcome.wg = parsed.outcome.wg.clone().map(|mut wg| {
-                    if wg.can_handshake.is_none() {
-                        wg.can_handshake = Some(wg.can_handshake_v4);
-                    }
-                    if wg.can_resolve_dns.is_none() {
-                        wg.can_resolve_dns = Some(wg.can_resolve_dns_v4);
-                    }
-                    if wg.ping_hosts_performance.is_none() {
-                        wg.ping_hosts_performance = Some(wg.ping_hosts_performance_v4);
-                    }
-                    if wg.ping_ips_performance.is_none() {
-                        wg.ping_ips_performance = Some(wg.ping_ips_performance_v4);
-                    }
-                    wg
-                });
-
-                tracing::info!("🌈 gateway probe parsed: {:?}", parsed);
+                tracing::trace!("🌈 gateway probe parsed: {:?}", parsed);
                 let mixnet_score = calculate_mixnet_score(&gateway);
                 let score = calculate_score(&gateway, &parsed);
                 let mut load = calculate_load(&parsed);
+                let socks5_score = socks5_score.unwrap_or(&ScoreValue::Offline).to_owned();
+                let dvpn_probe_result =
+                    DvpnProbeOutcome::from_raw_probe_outcome(parsed.outcome(), socks5_score);
 
                 // clamp the load value to offline, when the score is offline
                 if score == ScoreValue::Offline {
@@ -319,7 +204,7 @@ impl DVpnGateway {
                     // the network monitor's measure is a good proxy for node uptime, it can be improved in the future
                     uptime_percentage_last_24_hours: network_monitor_performance_mixnet_mode,
                 };
-                (Some(parsed), Some(performance_v2))
+                (Some(dvpn_probe_result), Some(performance_v2))
             }
             None => (None, None),
         };
@@ -356,10 +241,8 @@ impl DVpnGateway {
                     }
                 }),
             },
-            last_probe: last_probe_result.map(|res| DirectoryGwProbe {
-                last_updated_utc: last_updated_utc.to_string(),
-                outcome: res.outcome,
-            }),
+            last_probe: last_probe_result
+                .map(|res| DvpnGwProbe::from_outcome(res, last_updated_utc)),
             ip_addresses: skimmed_node.ip_addresses.clone(),
             mix_port: skimmed_node.mix_port,
             role: skimmed_node.role.clone(),
@@ -369,21 +252,6 @@ impl DVpnGateway {
             performance_v2,
             build_information: self_described.build_information,
         })
-    }
-}
-
-struct NodeScore {
-    download_speed_score: f64,
-    ping_ips_score: f64,
-    mixnet_performance: f64,
-}
-
-impl NodeScore {
-    // Weighted scoring: mixnet performance (40%), download speed (30%), ping performance (30%)
-    fn calculate_weighted_score(&self) -> f64 {
-        (self.mixnet_performance * 0.4)
-            + (self.download_speed_score * 0.3)
-            + (self.ping_ips_score * 0.3)
     }
 }
 
@@ -402,82 +270,6 @@ fn calculate_mixnet_score(gateway: &Gateway) -> ScoreValue {
     }
 }
 
-/// calculates a visual score for the gateway using weighted metrics
-fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreValue {
-    let mixnet_performance = gateway.performance as f64 / 100.0;
-
-    let node_score = probe_outcome
-        .outcome
-        .wg
-        .as_ref()
-        .map(|p| {
-            let ping_ips_performance = p.ping_ips_performance_v4 as f64;
-
-            let duration_sec =
-                p.download_duration_milliseconds_v4
-                    .unwrap_or_else(|| p.download_duration_sec_v4 * 1000) as f64
-                    / 1000f64;
-
-            // get the file size downloaded in bytes and convert to MB, or default to 1MB
-            let file_size_mb =
-                p.downloaded_file_size_bytes_v4.unwrap_or(1048576) as f64 / 1024f64 / 1024f64;
-            let speed_mbps = file_size_mb / duration_sec;
-
-            let file_download_score = if speed_mbps > 5.0 {
-                1.0
-            } else if speed_mbps > 2.0 {
-                0.75
-            } else if speed_mbps > 1.0 {
-                0.5
-            } else if speed_mbps > 0.5 {
-                0.25
-            } else {
-                0.1
-            };
-
-            NodeScore {
-                download_speed_score: file_download_score,
-                ping_ips_score: ping_ips_performance,
-                mixnet_performance,
-            }
-        })
-        .unwrap_or(NodeScore {
-            download_speed_score: 0.0,
-            ping_ips_score: 0.0,
-            mixnet_performance,
-        });
-
-    let weighted_score = node_score.calculate_weighted_score();
-
-    if weighted_score > 0.75 {
-        ScoreValue::High
-    } else if weighted_score > 0.5 {
-        ScoreValue::Medium
-    } else if weighted_score > 0.1 {
-        ScoreValue::Low
-    } else {
-        ScoreValue::Offline
-    }
-}
-
-/// calculates a visual load score for the gateway
-fn calculate_load(probe_outcome: &LastProbeResult) -> ScoreValue {
-    let score = probe_outcome
-        .outcome
-        .wg
-        .clone()
-        .map(|p| p.ping_ips_performance_v4 as f64)
-        .unwrap_or(0f64);
-
-    if score > 0.8 {
-        ScoreValue::Low
-    } else if score > 0.4 {
-        ScoreValue::Medium
-    } else {
-        ScoreValue::High
-    }
-}
-
 fn to_percent(performance: u8) -> String {
     let fraction = performance as f32 / 100.0;
     format!("{fraction:.2}")
@@ -485,6 +277,7 @@ fn to_percent(performance: u8) -> String {
 
 #[cfg(test)]
 mod test {
+
     use super::*;
     use std::str::FromStr;
 
@@ -755,130 +548,6 @@ mod test {
         assert!(service.hostname.is_none());
         assert!(service.mixnet_websockets.is_none());
         assert!(service.last_successful_ping_utc.is_none());
-    }
-
-    #[test]
-    fn test_weighted_score_calculation() {
-        use crate::http::models::directory_gw_probe_outcome::EntryTestResult;
-        use crate::http::models::wg_outcome_versions::ProbeOutcomeV1;
-
-        // Helper function to create a test gateway
-        fn create_test_gateway(performance: u8) -> Gateway {
-            Gateway {
-                gateway_identity_key: "test_key".to_string(),
-                bonded: true,
-                performance,
-                self_described: None,
-                explorer_pretty_bond: None,
-                description: nym_node_requests::api::v1::node::models::NodeDescription {
-                    moniker: "test".to_string(),
-                    details: "test".to_string(),
-                    security_contact: "test@example.com".to_string(),
-                    website: "https://example.com".to_string(),
-                },
-                last_probe_result: None,
-                last_probe_log: None,
-                last_testrun_utc: None,
-                last_updated_utc: "2025-10-10T00:00:00Z".to_string(),
-                routing_score: 0.0,
-                config_score: 0,
-                bridges: None,
-            }
-        }
-
-        // Helper function to create a test probe outcome
-        fn create_test_probe_outcome(
-            download_speed_mbps: f64,
-            ping_ips_performance: f32,
-        ) -> LastProbeResult {
-            let duration_sec = 1.0;
-            let file_size_mb = download_speed_mbps;
-
-            LastProbeResult {
-                node: "test_node".to_string(),
-                used_entry: "test_entry".to_string(),
-                outcome: ProbeOutcome {
-                    as_entry: directory_gw_probe_outcome::Entry::Tested(EntryTestResult {
-                        can_connect: true,
-                        can_route: true,
-                    }),
-                    as_exit: None,
-                    wg: Some(ProbeOutcomeV1 {
-                        can_register: true,
-                        can_handshake: Some(true),
-                        can_resolve_dns: Some(true),
-                        ping_hosts_performance: Some(ping_ips_performance),
-                        ping_ips_performance: Some(ping_ips_performance),
-                        can_query_metadata_v4: Some(true),
-                        can_handshake_v4: true,
-                        can_resolve_dns_v4: true,
-                        ping_hosts_performance_v4: ping_ips_performance,
-                        ping_ips_performance_v4: ping_ips_performance,
-                        can_handshake_v6: true,
-                        can_resolve_dns_v6: true,
-                        ping_hosts_performance_v6: ping_ips_performance,
-                        ping_ips_performance_v6: ping_ips_performance,
-                        download_duration_sec_v4: (duration_sec * 1000.0) as u64,
-                        download_duration_milliseconds_v4: Some((duration_sec * 1000.0) as u64),
-                        downloaded_file_size_bytes_v4: Some(
-                            (file_size_mb * 1024.0 * 1024.0) as u64,
-                        ),
-                        downloaded_file_v4: "test".to_string(),
-                        download_error_v4: "".to_string(),
-                        download_duration_sec_v6: 0,
-                        download_duration_milliseconds_v6: Some(0),
-                        downloaded_file_size_bytes_v6: Some(0),
-                        downloaded_file_v6: "".to_string(),
-                        download_error_v6: "".to_string(),
-                    }),
-                },
-            }
-        }
-
-        // Test case 1: Excellent node (should be High)
-        let gateway = create_test_gateway(90); // 90% mixnet performance
-        let probe = create_test_probe_outcome(6.0, 1.0); // 6 Mbps, 100% ping
-        let score = calculate_score(&gateway, &probe);
-        assert_eq!(score, ScoreValue::High, "Excellent node should be High");
-
-        // Test case 2: Good node (should be High with weighted scoring)
-        let gateway = create_test_gateway(90); // 90% mixnet performance
-        let probe = create_test_probe_outcome(3.0, 0.9); // 3 Mbps (0.75 score), 90% ping
-        let score = calculate_score(&gateway, &probe);
-        assert_eq!(
-            score,
-            ScoreValue::High,
-            "Good node should be High with weighted scoring"
-        );
-
-        // Test case 3: Medium node
-        let gateway = create_test_gateway(80); // 80% mixnet performance
-        let probe = create_test_probe_outcome(1.5, 0.8); // 1.5 Mbps (0.5 score), 80% ping
-        let score = calculate_score(&gateway, &probe);
-        assert_eq!(score, ScoreValue::Medium, "Medium node should be Medium");
-
-        // Test case 4: Poor node
-        let gateway = create_test_gateway(60); // 60% mixnet performance
-        let probe = create_test_probe_outcome(0.3, 0.3); // 0.3 Mbps (0.1 score), 30% ping
-        let score = calculate_score(&gateway, &probe);
-        assert_eq!(score, ScoreValue::Low, "Poor node should be Low");
-
-        // Test case 5: Failed node
-        let gateway = create_test_gateway(10); // 10% mixnet performance
-        let probe = create_test_probe_outcome(0.1, 0.0); // 0.1 Mbps (0.1 score), 0% ping
-        let score = calculate_score(&gateway, &probe);
-        assert_eq!(score, ScoreValue::Offline, "Failed node should be Offline");
-
-        // Test case 6: Edge case - just above threshold
-        let gateway = create_test_gateway(76); // 76% mixnet performance
-        let probe = create_test_probe_outcome(2.1, 0.75); // 2.1 Mbps (0.75 score), 75% ping
-        let score = calculate_score(&gateway, &probe);
-        // Weighted: (0.76 * 0.4) + (0.75 * 0.3) + (0.75 * 0.3) = 0.304 + 0.225 + 0.225 = 0.754
-        assert_eq!(
-            score,
-            ScoreValue::High,
-            "Edge case just above 0.75 threshold should be High"
-        );
     }
 }
 

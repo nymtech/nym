@@ -17,10 +17,6 @@ set -a
 source "${monorepo_root}/envs/${ENVIRONMENT}.env"
 set +a
 
-if [ -z "$NYM_NODE_MNEMONICS" ]; then
-  echo "NYM_NODE_MNEMONICS is required to run an agent"
-  exit 1
-fi
 
 export RUST_LOG="info"
 NODE_STATUS_AGENT_SERVER_ADDRESS="http://127.0.0.1"
@@ -29,7 +25,7 @@ SERVER="${NODE_STATUS_AGENT_SERVER_ADDRESS}|${NODE_STATUS_AGENT_SERVER_PORT}"
 # hardcoded key used only for LOCAL TESTING
 export NODE_STATUS_AGENT_AUTH_KEY=${NODE_STATUS_AGENT_AUTH_KEY_STAGING:-"BjyC9SsHAZUzPRkQR4sPTvVrp4GgaquTh5YfSJksvvWT"}
 export NODE_STATUS_AGENT_PROBE_PATH="$crate_root/nym-gateway-probe"
-export NODE_STATUS_AGENT_PROBE_EXTRA_ARGS="netstack-download-timeout-sec=30,netstack-num-ping=2,netstack-send-timeout-sec=1,netstack-recv-timeout-sec=1"
+export NODE_STATUS_AGENT_PROBE_EXTRA_ARGS="netstack-download-timeout-sec=30,netstack-num-ping=2,netstack-send-timeout-sec=1,netstack-recv-timeout-sec=1,socks5-json-rpc-url-list=https://cloudflare-eth.com;https://ethereum.publicnode.com"
 
 workers=${1:-1}
 echo "Running $workers workers in parallel"

@@ -4,7 +4,6 @@ An agent to run tests and report results back to the Node Status API.
 
 Environment variables that can be set individually are:
 
-- `NYM_NODE_MNEMONICS` - mnemonic to get tickets for tests 
 - `NODE_STATUS_AGENT_SERVER_PORT` - Node Status API port
 - `NODE_STATUS_AGENT_SERVER_ADDRESS` - Node Status API address
 

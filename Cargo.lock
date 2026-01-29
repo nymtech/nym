@@ -6499,6 +6499,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "utoipa",
  "vergen-gitcl",
  "x25519-dalek",
 ]
@@ -7235,7 +7236,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -7244,6 +7245,8 @@ dependencies = [
  "nym-crypto",
  "nym-node-status-client",
  "rand 0.8.5",
+ "regex",
+ "serde_json",
  "tempfile",
  "tokio",
  "tracing",
@@ -7252,7 +7255,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.0.12"
+version = "4.0.14"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -7273,6 +7276,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-ecash-time",
+ "nym-gateway-probe",
  "nym-http-api-client",
  "nym-http-api-common",
  "nym-mixnet-contract-common",

@@ -20,7 +20,10 @@ use crate::{
     db::{DbPool, queries},
     http::{
         error::{HttpError, HttpResult},
-        models::{DVpnGateway, DailyStats, ExtendedNymNode, Gateway, NodeGeoData, SummaryHistory},
+        models::{
+            DVpnGateway, DailyStats, ExtendedNymNode, Gateway, NodeGeoData, SummaryHistory,
+            gw_probe::socks5_calc::calculate_socks5_percentiles,
+        },
     },
     monitor::{DelegationsCache, NodeGeoCache},
 };
@@ -321,6 +324,8 @@ impl HttpCache {
                     }
                 };
 
+                let socks5_scores = calculate_socks5_percentiles(&gateways);
+
                 let res_gws = gateways
                     .iter()
                     .filter(|gw| gw.bonded)
@@ -335,7 +340,7 @@ impl HttpCache {
                         }
                     })
                     .filter_map(
-                        |(gw, skimmed_node)| match DVpnGateway::new(gw.clone(), skimmed_node) {
+                        |(gw, skimmed_node)| match DVpnGateway::new(gw.clone(), skimmed_node, socks5_scores.get(&gw.gateway_identity_key)) {
                             Ok(gw) => Some(gw),
                             Err(err) => {
                                 error!(

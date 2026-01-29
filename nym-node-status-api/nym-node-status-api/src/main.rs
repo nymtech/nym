@@ -31,6 +31,7 @@ async fn main() -> anyhow::Result<()> {
     if let Some(env_file) = &args.config_env_file {
         setup_env(Some(env_file));
     }
+    let network = nym_network_defaults::NymNetworkDetails::new_from_env();
 
     let mut shutdown_manager = ShutdownManager::build_new_default()?;
 
@@ -46,7 +47,13 @@ async fn main() -> anyhow::Result<()> {
         tracing::debug!("Using config:\n{:#?}", args);
     }
 
-    let storage = db::Storage::init(connection_url, args.sqlx_busy_timeout_s).await?;
+    let storage = db::Storage::init(
+        connection_url,
+        args.sqlx_busy_timeout_s,
+        args.sqlx_max_connections,
+        args.sqlx_min_connections,
+    )
+    .await?;
     let db_pool = storage.pool_owned();
 
     // node geocache is shared between node monitor and HTTP server
@@ -55,9 +62,9 @@ async fn main() -> anyhow::Result<()> {
         .build();
     let delegations_cache = DelegationsCache::new();
 
-    let client_config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
-        &nym_network_defaults::NymNetworkDetails::new_from_env(),
-    )?;
+    let client_config = nym_validator_client::nyxd::Config::try_from_nym_network_details(&network)?;
+    tracing::info!("Network: {}", network.network_name);
+
     let nyxd_client = NyxdClient::connect(client_config.clone(), args.nyxd_addr.as_str())
         .map_err(|err| anyhow::anyhow!("Couldn't connect: {}", err))?;
 

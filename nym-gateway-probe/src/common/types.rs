@@ -10,6 +10,7 @@ pub struct ProbeResult {
     pub outcome: ProbeOutcome,
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProbeOutcome {
     pub as_entry: Entry,
@@ -19,6 +20,7 @@ pub struct ProbeOutcome {
     pub lp: Option<LpProbeResults>,
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename = "wg")]
 pub struct WgProbeResults {
@@ -48,6 +50,7 @@ pub struct WgProbeResults {
     pub download_error_v6: String,
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename = "lp")]
 pub struct LpProbeResults {
@@ -57,6 +60,7 @@ pub struct LpProbeResults {
     pub error: Option<String>,
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 #[allow(clippy::enum_variant_names)]
@@ -98,12 +102,14 @@ impl Entry {
     }
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntryTestResult {
     pub can_connect: bool,
     pub can_route: bool,
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Exit {
     pub can_connect: bool,
@@ -135,7 +141,8 @@ impl Exit {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Socks5ProbeResults {
     /// whether we could establish a SOCKS5 proxy connection
     can_connect_socks5: bool,
@@ -164,6 +171,14 @@ impl Socks5ProbeResults {
             can_connect_socks5: true,
             https_connectivity: HttpsConnectivityResult::with_errors(vec![error.into()]),
         }
+    }
+
+    pub fn can_connect_socks5(&self) -> bool {
+        self.can_connect_socks5
+    }
+
+    pub fn https_connectivity(&self) -> &HttpsConnectivityResult {
+        &self.https_connectivity
     }
 }
 

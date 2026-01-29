@@ -329,14 +329,14 @@ pub enum HttpClientError {
 
     #[error("failed to send request for {url}: {source}")]
     RequestSendFailure {
-        url: reqwest::Url,
+        url: Box<reqwest::Url>,
         #[source]
         source: ReqwestErrorWrapper,
     },
 
     #[error("failed to read response body from {url}: {source}")]
     ResponseReadFailure {
-        url: reqwest::Url,
+        url: Box<reqwest::Url>,
         headers: Box<HeaderMap>,
         status: StatusCode,
         #[source]
@@ -353,7 +353,7 @@ pub enum HttpClientError {
     },
 
     #[error("the requested resource could not be found at {url}")]
-    NotFound { url: reqwest::Url },
+    NotFound { url: Box<reqwest::Url> },
 
     #[error("attempted to use domain fronting and clone a request containing stream data")]
     AttemptedToCloneStreamRequest,
@@ -365,7 +365,7 @@ pub enum HttpClientError {
         "the request for {url} failed with status '{status}'. no additional error message provided. response headers: {headers:?}"
     )]
     RequestFailure {
-        url: reqwest::Url,
+        url: Box<reqwest::Url>,
         status: StatusCode,
         headers: Box<HeaderMap>,
     },
@@ -374,7 +374,7 @@ pub enum HttpClientError {
         "the returned response from {url} was empty. status: '{status}'. response headers: {headers:?}"
     )]
     EmptyResponse {
-        url: reqwest::Url,
+        url: Box<reqwest::Url>,
         status: StatusCode,
         headers: Box<HeaderMap>,
     },
@@ -383,7 +383,7 @@ pub enum HttpClientError {
         "failed to resolve request for {url}. status: '{status}'. response headers: {headers:?}. additional error message: {error}"
     )]
     EndpointFailure {
-        url: reqwest::Url,
+        url: Box<reqwest::Url>,
         status: StatusCode,
         headers: Box<HeaderMap>,
         error: String,
@@ -453,7 +453,7 @@ impl HttpClientError {
 
     pub fn request_send_error(url: reqwest::Url, source: reqwest::Error) -> Self {
         HttpClientError::RequestSendFailure {
-            url,
+            url: Box::new(url),
             source: ReqwestErrorWrapper(source),
         }
     }
@@ -1517,7 +1517,7 @@ where
 
     if !allow_empty && let Some(0) = res.content_length() {
         return Err(HttpClientError::EmptyResponse {
-            url,
+            url: Box::new(url),
             status,
             headers: Box::new(headers),
         });
@@ -1530,25 +1530,25 @@ where
             .bytes()
             .await
             .map_err(|source| HttpClientError::ResponseReadFailure {
-                url,
+                url: Box::new(url),
                 headers: Box::new(headers.clone()),
                 status,
                 source: ReqwestErrorWrapper(source),
             })?;
         decode_raw_response(&headers, full)
     } else if res.status() == StatusCode::NOT_FOUND {
-        Err(HttpClientError::NotFound { url })
+        Err(HttpClientError::NotFound { url: Box::new(url) })
     } else {
         let Ok(plaintext) = res.text().await else {
             return Err(HttpClientError::RequestFailure {
-                url,
+                url: Box::new(url),
                 status,
                 headers: Box::new(headers),
             });
         };
 
         Err(HttpClientError::EndpointFailure {
-            url,
+            url: Box::new(url),
             status,
             headers: Box::new(headers),
             error: plaintext,

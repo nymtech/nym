@@ -6,10 +6,9 @@ use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_gateway_probe::nodes::{NymApiDirectory, query_gateway_by_ip};
 use nym_gateway_probe::{
-    CredentialArgs, NetstackArgs, ProbeResult, TestMode, TestedNode, TestedNodeDetails,
-    TestedNodeLpDetails,
+    CredentialArgs, NetstackArgs, NymApiDirectory, ProbeResult, TestMode, TestedNode,
+    TestedNodeDetails, TestedNodeLpDetails, query_gateway_by_ip,
 };
 use nym_kkt_ciphersuite::{HashFunction, KEM};
 use nym_sdk::mixnet::NodeIdentity;

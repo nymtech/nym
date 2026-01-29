@@ -607,7 +607,7 @@ pub struct ClientBuilder {
     use_secure_dns: bool,
 
     #[cfg(feature = "tunneling")]
-    front: Option<fronted::Front>,
+    front: fronted::Front,
 
     retry_limit: usize,
     serialization: SerializationFormat,
@@ -683,10 +683,10 @@ impl ClientBuilder {
 
         let mut builder = Self::new_with_urls(urls)?;
 
-        // Enable domain fronting by default (on retry)
+        // Enable domain fronting using the shared fronting policy
         #[cfg(feature = "tunneling")]
         {
-            builder = builder.with_fronting(FrontPolicy::OnRetry);
+            builder = builder.with_fronting(None);
         }
 
         Ok(builder)
@@ -707,7 +707,7 @@ impl ClientBuilder {
             reqwest_client_builder: None,
             use_secure_dns: true,
             #[cfg(feature = "tunneling")]
-            front: None,
+            front: fronted::Front::off(),
 
             retry_limit: 0,
             serialization: SerializationFormat::Json,
@@ -851,7 +851,7 @@ pub struct Client {
     custom_user_agent: Option<HeaderValue>,
 
     #[cfg(feature = "tunneling")]
-    front: Option<fronted::Front>,
+    front: fronted::Front,
 
     #[cfg(target_arch = "wasm32")]
     request_timeout: Duration,
@@ -940,9 +940,7 @@ impl Client {
 
     #[cfg(feature = "tunneling")]
     fn matches_current_host(&self, url: &Url) -> bool {
-        if let Some(ref front) = self.front
-            && front.is_enabled()
-        {
+        if self.front.is_enabled() {
             url.host_str() == self.current_url().front_str()
         } else {
             url.host_str() == self.current_url().host_str()
@@ -969,9 +967,7 @@ impl Client {
         }
 
         #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front
-            && front.is_enabled()
-        {
+        if self.front.is_enabled() {
             // if we are using fronting, try updating to the next front
             let url = self.current_url();
 
@@ -991,9 +987,7 @@ impl Client {
 
             // if fronting is enabled we want to update to a host that has fronts configured
             #[cfg(feature = "tunneling")]
-            if let Some(ref front) = self.front
-                && front.is_enabled()
-            {
+            if self.front.is_enabled() {
                 while next != orig {
                     if self.base_urls[next].has_front() {
                         // we have a front for the next host, so we can use it
@@ -1024,14 +1018,12 @@ impl Client {
     /// this method. For example, if the client is configured to rotate hosts after each error, this
     /// method should be called after the host has been updated -- i.e. as part of the subsequent
     /// send.
-    fn apply_hosts_to_req(&self, r: &mut reqwest::Request) -> (&str, Option<&str>) {
+    pub(crate) fn apply_hosts_to_req(&self, r: &mut reqwest::Request) -> (&str, Option<&str>) {
         let url = self.current_url();
         r.url_mut().set_host(url.host_str()).unwrap();
 
         #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front
-            && front.is_enabled()
-        {
+        if self.front.is_enabled() {
             if let Some(front_host) = url.front_str() {
                 if let Some(actual_host) = url.host_str() {
                     tracing::debug!(
@@ -1217,14 +1209,12 @@ impl ApiClientCore for Client {
 
     #[cfg(feature = "tunneling")]
     fn maybe_enable_fronting(&self, context: impl std::fmt::Debug) {
-        if let Some(ref front) = self.front {
-            // If fronting is set to be enabled on error, enable domain fronting as we
-            // have encountered an error.
-            let was_enabled = front.is_enabled();
-            front.retry_enable();
-            if !was_enabled && front.is_enabled() {
-                tracing::debug!("Domain fronting activated after connection error: {context:?}",);
-            }
+        // If fronting is set to be OnRetry, enable domain fronting as we
+        // have encountered an error.
+        let was_enabled = self.front.is_enabled();
+        self.front.retry_enable();
+        if !was_enabled && self.front.is_enabled() {
+            tracing::debug!("Domain fronting activated after failure: {context:?}",);
         }
     }
 }

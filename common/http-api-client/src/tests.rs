@@ -199,7 +199,7 @@ fn fronted_host_updating() {
     let url = Url::new("http://nym-api.test", Some(vec!["http://cdn1.test"])).unwrap();
     let mut client = ClientBuilder::new(url)
         .unwrap()
-        .with_fronting(crate::fronted::FrontPolicy::Always)
+        .with_fronting(Some(crate::fronted::FrontPolicy::Always))
         .build()
         .unwrap();
 

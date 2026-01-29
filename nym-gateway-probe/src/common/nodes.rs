@@ -4,8 +4,9 @@
 use anyhow::{Context, anyhow, bail};
 use nym_api_requests::models::{
     AuthenticatorDetailsV2, DeclaredRolesV2, DescribedNodeTypeV2, HostInformationV2,
-    IpPacketRouterDetailsV2, LewesProtocolDetailsV1, NetworkRequesterDetailsV2, NymNodeDataV2,
-    OffsetDateTimeJsonSchemaWrapper, WebSocketsV2, WireguardDetailsV2,
+    IpPacketRouterDetailsV2, LewesProtocolDetailsV1, NetworkRequesterDetailsV1,
+    NetworkRequesterDetailsV2, NymNodeDataV2, OffsetDateTimeJsonSchemaWrapper, WebSocketsV2,
+    WireguardDetailsV2,
 };
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -161,10 +162,12 @@ impl DirectoryNode {
             }),
             _ => None,
         };
+        let network_requester_details = self.described.description.network_requester.clone();
 
         Ok(TestedNodeDetails {
             identity: self.identity(),
             exit_router_address,
+            network_requester_details,
             authenticator_address,
             authenticator_version,
             ip_address: Some(ip_address),
@@ -409,7 +412,17 @@ impl NymApiDirectory {
             .iter()
             .filter(|(_, n)| n.described.description.ip_packet_router.is_some())
             .choose(&mut rand::thread_rng())
-            .ok_or(anyhow!("no gateways running IPR available"))
+            .context("no gateways running IPR available")
+            .map(|(id, _)| *id)
+    }
+
+    pub fn random_exit_with_nr(&self) -> anyhow::Result<NodeIdentity> {
+        info!("Selecting random gateway with NR enabled");
+        self.nodes
+            .iter()
+            .filter(|(_, n)| n.described.description.ip_packet_router.is_some())
+            .choose(&mut rand::thread_rng())
+            .context("no gateways running NR available")
             .map(|(id, _)| *id)
     }
 
@@ -419,7 +432,7 @@ impl NymApiDirectory {
             .iter()
             .filter(|(_, n)| n.described.description.declared_role.entry)
             .choose(&mut rand::thread_rng())
-            .ok_or(anyhow!("no entry gateways available"))
+            .context("no entry gateways available")
             .map(|(id, _)| *id)
     }
 
@@ -436,6 +449,16 @@ impl NymApiDirectory {
         };
         if !maybe_entry.described.description.declared_role.entry {
             bail!("{identity} is not an entry node")
+        };
+        Ok(maybe_entry)
+    }
+
+    pub fn exit_gateway_nr(&self, identity: &NodeIdentity) -> anyhow::Result<DirectoryNode> {
+        let Some(maybe_entry) = self.nodes.get(identity).cloned() else {
+            bail!("{identity} not found in directory")
+        };
+        if !maybe_entry.described.description.declared_role.exit_nr {
+            bail!("{identity} doesn't support exit NR mode")
         };
         Ok(maybe_entry)
     }
@@ -468,6 +491,7 @@ impl TestedNode {
 pub struct TestedNodeDetails {
     pub identity: NodeIdentity,
     pub exit_router_address: Option<Recipient>,
+    pub network_requester_details: Option<NetworkRequesterDetailsV1>,
     pub authenticator_address: Option<Recipient>,
     pub authenticator_version: AuthenticatorVersion,
     pub ip_address: Option<IpAddr>,
@@ -489,6 +513,7 @@ impl TestedNodeDetails {
             identity,
             ip_address: Some(lp_data.address.ip()),
             lp_data: Some(lp_data),
+            network_requester_details: None,
             // These are None in localnet mode - only needed for mixnet/authenticator
             exit_router_address: None,
             authenticator_address: None,

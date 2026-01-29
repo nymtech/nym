@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n                SELECT epoch_id as \"epoch_id: u32\", serialised_signatures\n                FROM partial_expiration_date_signatures\n                WHERE expiration_date = ?\n            ",
+  "query": "\n                SELECT epoch_id as \"epoch_id: u32\", serialised_signatures\n                FROM global_expiration_date_signatures\n                WHERE expiration_date = ? AND epoch_id = ?\n            ",
   "describe": {
     "columns": [
       {
@@ -15,12 +15,12 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 2
     },
     "nullable": [
       false,
       false
     ]
   },
-  "hash": "1f72d6f538a3655a031a3a8706794559c4c0df6defdfd179c84d02d3b8a6c055"
+  "hash": "697e6d738aecf115a3608139579b2d1d937dd4cc4778dfb42709adf08c1497f2"
 }

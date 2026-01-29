@@ -1298,7 +1298,7 @@ mod tests {
 
         let (wireguard_data, _) = wireguard_data(x_keys.clone());
 
-        let (um_recheck_tx, um_recheck_rx) = futures::channel::mpsc::unbounded();
+        let (um_recheck_tx, _) = futures::channel::mpsc::unbounded();
 
         let upgrade_mode_state = UpgradeModeState::new(*id_keys.public_key());
         let upgrade_mode_details = UpgradeModeDetails::new(

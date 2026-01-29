@@ -26,7 +26,7 @@ nym-lp-transport = { path = "../common/nym-lp-transport", features = ["io-mocks"
 nym-gateway = { path = "../gateway" }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
 tracing = { workspace = true }
-
+nym-kkt-ciphersuite = { workspace = true }
 
 [lints]
 workspace = true

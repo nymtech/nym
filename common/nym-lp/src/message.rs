@@ -20,11 +20,13 @@ pub struct ClientHelloData {
     pub client_lp_public_key: x25519::PublicKey,
     /// Client's Ed25519 public key (32 bytes) - for PSQ authentication
     pub client_ed25519_public_key: ed25519::PublicKey,
+    // noiserm
     /// Salt for PSK derivation (32 bytes: 8-byte timestamp + 24-byte nonce)
     pub salt: [u8; 32],
 }
 
 impl ClientHelloData {
+    // noiserm (remove 32 bytes for salt)
     // 4 bytes for receiver index + 32 bytes for client lp key, 32 bytes for client ed25519 key + 32 bytes for salt
     pub const LEN: usize = 100;
 
@@ -41,6 +43,7 @@ impl ClientHelloData {
         }
     }
 
+    // noiserm
     /// Generates a new ClientHelloData with fresh salt.
     ///
     /// Salt format: 8 bytes timestamp (u64 LE) + 24 bytes random nonce
@@ -69,7 +72,7 @@ impl ClientHelloData {
             salt,
         }
     }
-
+    // noiserm
     /// Extracts the timestamp from the salt.
     ///
     /// # Returns
@@ -84,6 +87,7 @@ impl ClientHelloData {
         dst.put_u32_le(self.receiver_index);
         dst.put_slice(self.client_lp_public_key.as_bytes());
         dst.put_slice(self.client_ed25519_public_key.as_bytes());
+        // noiserm
         dst.put_slice(&self.salt);
     }
 
@@ -107,6 +111,7 @@ impl ClientHelloData {
             client_ed25519_public_key: ed25519::PublicKey::from_byte_array(
                 client_ed25519_public_key_bytes,
             )?,
+            // noiserm
             salt: b[68..].try_into().unwrap(),
         })
     }
@@ -133,6 +138,8 @@ pub enum MessageType {
     Ack = 0x0008,
     /// Subsession request - client initiates subsession creation
     SubsessionRequest = 0x0009,
+
+    // georgio: this should be the psq msg
     /// Subsession KK1 - first message of Noise KK handshake
     SubsessionKK1 = 0x000A,
     /// Subsession KK2 - second message of Noise KK handshake
@@ -220,6 +227,42 @@ impl KKTResponseData {
 
     fn decode(bytes: &[u8]) -> Result<Self, LpError> {
         Ok(KKTResponseData(bytes.to_vec()))
+    }
+}
+
+/// PSQ request frame data (serialized bytes)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PSQRequestData(pub Vec<u8>);
+
+impl PSQRequestData {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(PSQRequestData(bytes.to_vec()))
+    }
+}
+
+/// PSQ response frame data (serialized bytes)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PSQResponseData(pub Vec<u8>);
+
+impl PSQResponseData {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(PSQResponseData(bytes.to_vec()))
     }
 }
 
@@ -312,6 +355,7 @@ impl ForwardPacketData {
     }
 }
 
+// georgio: swap with psq
 /// Subsession KK1 message - first message of Noise KK handshake
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubsessionKK1Data {
@@ -392,7 +436,8 @@ impl SubsessionReadyData {
 #[derive(Debug, Clone)]
 pub enum LpMessage {
     Busy,
-    Handshake(HandshakeData),
+    PSQRequest(PSQRequestData),
+    PSQResponse(PSQResponseData),
     EncryptedData(EncryptedDataPayload),
     ClientHello(ClientHelloData),
     KKTRequest(KKTRequestData),
@@ -402,6 +447,7 @@ pub enum LpMessage {
     Collision,
     /// Acknowledgment - gateway confirms receipt of message
     Ack,
+    // georgio: this should become psq stuff
     /// Subsession request - client initiates subsession creation (empty, signal only)
     SubsessionRequest,
     /// Subsession KK1 - first message of Noise KK handshake

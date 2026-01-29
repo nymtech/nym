@@ -28,32 +28,32 @@ use tracing::debug;
 
 /// Represents the possible states of the Lewes Protocol connection.
 #[derive(Debug, Default)]
-pub enum LpState {
+pub enum LpState<'a> {
     /// Initial state: Ready to start the handshake.
     /// State machine is created with keys, lp_id is derived, session is ready.
-    ReadyToHandshake { session: Box<LpSession> },
+    ReadyToHandshake { session: Box<LpSession<'a>> },
 
     /// Performing KKT (KEM Key Transfer) exchange before Noise handshake.
     /// Initiator requests responder's KEM public key, responder provides signed key.
-    KKTExchange { session: Box<LpSession> },
+    KKTExchange { session: Box<LpSession<'a>> },
 
     /// Actively performing the Noise handshake.
     /// (We might be able to merge this with ReadyToHandshake if the first step always happens)
-    Handshaking { session: Box<LpSession> }, // Kept for now, logic might merge later
+    Handshaking { session: Box<LpSession<'a>> }, // Kept for now, logic might merge later
 
     /// Handshake complete, ready for data transport.
-    Transport { session: Box<LpSession> },
+    Transport { session: Box<LpSession<'a>> },
 
     /// Performing subsession KK handshake while parent remains active.
     /// Parent can still send/receive; subsession messages tunneled through parent.
     SubsessionHandshaking {
-        session: Box<LpSession>,
+        session: Box<LpSession<'a>>,
         subsession: Box<SubsessionHandshake>,
     },
 
     /// Parent session demoted after subsession promoted.
     /// Can only receive (drain in-flight), cannot send.
-    ReadOnlyTransport { session: Box<LpSession> },
+    ReadOnlyTransport { session: Box<LpSession<'a>> },
 
     /// An error occurred, or the connection was intentionally closed.
     Closed { reason: String },
@@ -74,7 +74,7 @@ pub enum LpStateBare {
     Processing,
 }
 
-impl From<&LpState> for LpStateBare {
+impl<'a> From<&LpState<'a>> for LpStateBare {
     fn from(state: &LpState) -> Self {
         match state {
             LpState::ReadyToHandshake { .. } => LpStateBare::ReadyToHandshake,
@@ -205,16 +205,16 @@ pub enum LpDataKind {
 }
 
 /// The Lewes Protocol State Machine.
-pub struct LpStateMachine {
-    pub state: LpState,
+pub struct LpStateMachine<'a> {
+    pub state: LpState<'a>,
 }
 
-impl LpStateMachine {
+impl<'a> LpStateMachine<'a> {
     pub fn bare_state(&self) -> LpStateBare {
         LpStateBare::from(&self.state)
     }
 
-    pub fn session(&self) -> Result<&LpSession, LpError> {
+    pub fn session(&self) -> Result<&LpSession<'a>, LpError> {
         match &self.state {
             LpState::ReadyToHandshake { session }
             | LpState::KKTExchange { session }
@@ -230,7 +230,7 @@ impl LpStateMachine {
     /// Consume the state machine and return the session with ownership.
     /// This is useful when the handshake is complete and you want to transfer
     /// ownership of the session to the caller.
-    pub fn into_session(self) -> Result<LpSession, LpError> {
+    pub fn into_session(self) -> Result<LpSession<'a>, LpError> {
         match self.state {
             LpState::ReadyToHandshake { session }
             | LpState::KKTExchange { session }
@@ -1121,391 +1121,402 @@ impl LpStateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::peer::mock_peers;
+    use crate::{kem_list, peer::mock_peers};
+    use nym_kkt::ciphersuite::KEM;
 
     #[test]
     fn test_state_machine_init() {
-        let (init, resp) = mock_peers();
+        for kem in kem_list() {
+            let (init, resp) = mock_peers(kem);
 
-        // Test salt
-        let salt = [51u8; 32];
+            // Test salt
+            let salt = [51u8; 32];
 
-        let receiver_index: u32 = 77777;
+            let receiver_index: u32 = 77777;
 
-        let initiator_sm =
-            LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt);
-        assert!(initiator_sm.is_ok());
-        let initiator_sm = initiator_sm.unwrap();
-        assert!(matches!(
-            initiator_sm.state,
-            LpState::ReadyToHandshake { .. }
-        ));
-        let init_session = initiator_sm.session().unwrap();
-        assert!(init_session.is_initiator());
+            let initiator_sm =
+                LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt);
+            assert!(initiator_sm.is_ok());
+            let initiator_sm = initiator_sm.unwrap();
+            assert!(matches!(
+                initiator_sm.state,
+                LpState::ReadyToHandshake { .. }
+            ));
+            let init_session = initiator_sm.session().unwrap();
+            assert!(init_session.is_initiator());
 
-        let responder_sm =
-            LpStateMachine::new(receiver_index, false, resp, init.as_remote(), &salt);
-        assert!(responder_sm.is_ok());
-        let responder_sm = responder_sm.unwrap();
-        assert!(matches!(
-            responder_sm.state,
-            LpState::ReadyToHandshake { .. }
-        ));
-        let resp_session = responder_sm.session().unwrap();
-        assert!(!resp_session.is_initiator());
+            let responder_sm =
+                LpStateMachine::new(receiver_index, false, resp, init.as_remote(), &salt);
+            assert!(responder_sm.is_ok());
+            let responder_sm = responder_sm.unwrap();
+            assert!(matches!(
+                responder_sm.state,
+                LpState::ReadyToHandshake { .. }
+            ));
+            let resp_session = responder_sm.session().unwrap();
+            assert!(!resp_session.is_initiator());
 
-        // Check both state machines use the same receiver_index
-        assert_eq!(init_session.id(), resp_session.id());
+            // Check both state machines use the same receiver_index
+            assert_eq!(init_session.id(), resp_session.id());
+        }
     }
-
     #[test]
     fn test_state_machine_simplified_flow() {
-        let (init, resp) = mock_peers();
+        for kem in kem_list() {
+            let (init, resp) = mock_peers(kem);
 
-        // Test salt
-        let salt = [52u8; 32];
-        let receiver_index: u32 = 88888;
+            // Test salt
+            let salt = [52u8; 32];
+            let receiver_index: u32 = 88888;
 
-        // Create state machines (already in ReadyToHandshake)
-        let mut initiator = LpStateMachine::new(
-            receiver_index,
-            true, // is_initiator
-            init.clone(),
-            resp.as_remote(),
-            &salt,
-        )
-        .unwrap();
+            // Create state machines (already in ReadyToHandshake)
+            let mut initiator = LpStateMachine::new(
+                receiver_index,
+                true, // is_initiator
+                init.clone(),
+                resp.as_remote(),
+                &salt,
+            )
+            .unwrap();
 
-        let mut responder = LpStateMachine::new(
-            receiver_index,
-            false, // is_initiator
-            resp,
-            init.as_remote(),
-            &salt,
-        )
-        .unwrap();
+            let mut responder = LpStateMachine::new(
+                receiver_index,
+                false, // is_initiator
+                resp,
+                init.as_remote(),
+                &salt,
+            )
+            .unwrap();
 
-        assert_eq!(initiator.id().unwrap(), responder.id().unwrap());
+            assert_eq!(initiator.id().unwrap(), responder.id().unwrap());
 
-        // --- KKT Exchange ---
-        println!("--- Step 1: Initiator starts handshake (sends KKT request) ---");
-        let init_actions_1 = initiator.process_input(LpInput::StartHandshake);
-        let kkt_request_packet = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_1 {
-            packet.clone()
-        } else {
-            panic!("Initiator should send KKT request");
-        };
+            // --- KKT Exchange ---
+            println!("--- Step 1: Initiator starts handshake (sends KKT request) ---");
+            let init_actions_1 = initiator.process_input(LpInput::StartHandshake);
+            let kkt_request_packet = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_1
+            {
+                packet.clone()
+            } else {
+                panic!("Initiator should send KKT request");
+            };
 
-        assert!(
-            matches!(initiator.state, LpState::KKTExchange { .. }),
-            "Initiator should be in KKTExchange"
-        );
-        assert_eq!(
-            kkt_request_packet.header.receiver_idx(),
-            receiver_index,
-            "KKT request packet has wrong receiver_index"
-        );
+            assert!(
+                matches!(initiator.state, LpState::KKTExchange { .. }),
+                "Initiator should be in KKTExchange"
+            );
+            assert_eq!(
+                kkt_request_packet.header.receiver_idx(),
+                receiver_index,
+                "KKT request packet has wrong receiver_index"
+            );
 
-        println!("--- Step 2: Responder starts handshake (waits for KKT) ---");
-        let resp_actions_1 = responder.process_input(LpInput::StartHandshake);
-        assert!(
-            resp_actions_1.is_none(),
-            "Responder should produce 0 actions initially"
-        );
-        assert!(
-            matches!(responder.state, LpState::KKTExchange { .. }),
-            "Responder should be in KKTExchange"
-        );
+            println!("--- Step 2: Responder starts handshake (waits for KKT) ---");
+            let resp_actions_1 = responder.process_input(LpInput::StartHandshake);
+            assert!(
+                resp_actions_1.is_none(),
+                "Responder should produce 0 actions initially"
+            );
+            assert!(
+                matches!(responder.state, LpState::KKTExchange { .. }),
+                "Responder should be in KKTExchange"
+            );
 
-        println!("--- Step 3: Responder receives KKT request, sends KKT response ---");
-        let resp_actions_2 = responder.process_input(LpInput::ReceivePacket(kkt_request_packet));
-        let kkt_response_packet = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_2 {
-            packet.clone()
-        } else {
-            panic!("Responder should send KKT response");
-        };
-        assert!(
-            matches!(responder.state, LpState::Handshaking { .. }),
-            "Responder should be Handshaking after KKT"
-        );
+            println!("--- Step 3: Responder receives KKT request, sends KKT response ---");
+            let resp_actions_2 =
+                responder.process_input(LpInput::ReceivePacket(kkt_request_packet));
+            let kkt_response_packet = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_2
+            {
+                packet.clone()
+            } else {
+                panic!("Responder should send KKT response");
+            };
+            assert!(
+                matches!(responder.state, LpState::Handshaking { .. }),
+                "Responder should be Handshaking after KKT"
+            );
 
-        println!("--- Step 4: Initiator receives KKT response (KKT complete) ---");
-        let init_actions_2 = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
-        assert!(
-            matches!(init_actions_2, Some(Ok(LpAction::KKTComplete))),
-            "Initiator should signal KKT complete"
-        );
-        assert!(
-            matches!(initiator.state, LpState::Handshaking { .. }),
-            "Initiator should be Handshaking after KKT"
-        );
+            println!("--- Step 4: Initiator receives KKT response (KKT complete) ---");
+            let init_actions_2 =
+                initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
+            assert!(
+                matches!(init_actions_2, Some(Ok(LpAction::KKTComplete))),
+                "Initiator should signal KKT complete"
+            );
+            assert!(
+                matches!(initiator.state, LpState::Handshaking { .. }),
+                "Initiator should be Handshaking after KKT"
+            );
 
-        // --- Noise Handshake Message Exchange ---
-        println!("--- Step 5: Responder receives Noise msg 1, sends Noise msg 2 ---");
-        // Now both sides are in Handshaking, continue with Noise handshake
-        // Initiator needs to send first Noise message
-        // (In real flow, this might happen automatically or via another process_input call)
-        // For this test, we'll simulate the responder receiving the first Noise message
-        // Actually, let me check if initiator automatically sends the first Noise message...
-        // Looking at the old test, it seems packet 1 was the first Noise message.
-        // With KKT, we need the initiator to send the first Noise message now.
+            // --- Noise Handshake Message Exchange ---
+            println!("--- Step 5: Responder receives Noise msg 1, sends Noise msg 2 ---");
+            // Now both sides are in Handshaking, continue with Noise handshake
+            // Initiator needs to send first Noise message
+            // (In real flow, this might happen automatically or via another process_input call)
+            // For this test, we'll simulate the responder receiving the first Noise message
+            // Actually, let me check if initiator automatically sends the first Noise message...
+            // Looking at the old test, it seems packet 1 was the first Noise message.
+            // With KKT, we need the initiator to send the first Noise message now.
 
-        // Initiator prepares and sends first Noise handshake message
-        let init_noise_msg = initiator.session().unwrap().prepare_handshake_message();
-        let init_packet_1 = if let Some(Ok(msg)) = init_noise_msg {
-            initiator.session().unwrap().next_packet(msg).unwrap()
-        } else {
-            panic!("Initiator should have first Noise message");
-        };
+            // Initiator prepares and sends first Noise handshake message
+            let init_noise_msg = initiator.session().unwrap().prepare_handshake_message();
+            let init_packet_1 = if let Some(Ok(msg)) = init_noise_msg {
+                initiator.session().unwrap().next_packet(msg).unwrap()
+            } else {
+                panic!("Initiator should have first Noise message");
+            };
 
-        let resp_actions_3 = responder.process_input(LpInput::ReceivePacket(init_packet_1));
-        let resp_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_3 {
-            packet.clone()
-        } else {
-            panic!("Responder should send packet 2");
-        };
-        assert!(
-            matches!(responder.state, LpState::Handshaking { .. }),
-            "Responder still Handshaking"
-        );
-        assert_eq!(
-            resp_packet_2.header.receiver_idx(),
-            receiver_index,
-            "Packet 2 has wrong receiver_index"
-        );
+            let resp_actions_3 = responder.process_input(LpInput::ReceivePacket(init_packet_1));
+            let resp_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_3 {
+                packet.clone()
+            } else {
+                panic!("Responder should send packet 2");
+            };
+            assert!(
+                matches!(responder.state, LpState::Handshaking { .. }),
+                "Responder still Handshaking"
+            );
+            assert_eq!(
+                resp_packet_2.header.receiver_idx(),
+                receiver_index,
+                "Packet 2 has wrong receiver_index"
+            );
 
-        println!("--- Step 6: Initiator receives Noise msg 2, sends Noise msg 3 ---");
-        let init_actions_3 = initiator.process_input(LpInput::ReceivePacket(resp_packet_2));
-        let init_packet_3 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_3 {
-            packet.clone()
-        } else {
-            panic!("Initiator should send Noise packet 3");
-        };
-        assert!(
-            matches!(initiator.state, LpState::Transport { .. }),
-            "Initiator should be Transport"
-        );
-        assert_eq!(
-            init_packet_3.header.receiver_idx(),
-            receiver_index,
-            "Noise packet 3 has wrong receiver_index"
-        );
+            println!("--- Step 6: Initiator receives Noise msg 2, sends Noise msg 3 ---");
+            let init_actions_3 = initiator.process_input(LpInput::ReceivePacket(resp_packet_2));
+            let init_packet_3 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_3 {
+                packet.clone()
+            } else {
+                panic!("Initiator should send Noise packet 3");
+            };
+            assert!(
+                matches!(initiator.state, LpState::Transport { .. }),
+                "Initiator should be Transport"
+            );
+            assert_eq!(
+                init_packet_3.header.receiver_idx(),
+                receiver_index,
+                "Noise packet 3 has wrong receiver_index"
+            );
 
-        println!("--- Step 7: Responder receives Noise msg 3, completes handshake ---");
-        let resp_actions_4 = responder.process_input(LpInput::ReceivePacket(init_packet_3));
-        assert!(
-            matches!(resp_actions_4, Some(Ok(LpAction::HandshakeComplete))),
-            "Responder should complete handshake"
-        );
-        assert!(
-            matches!(responder.state, LpState::Transport { .. }),
-            "Responder should be Transport"
-        );
+            println!("--- Step 7: Responder receives Noise msg 3, completes handshake ---");
+            let resp_actions_4 = responder.process_input(LpInput::ReceivePacket(init_packet_3));
+            assert!(
+                matches!(resp_actions_4, Some(Ok(LpAction::HandshakeComplete))),
+                "Responder should complete handshake"
+            );
+            assert!(
+                matches!(responder.state, LpState::Transport { .. }),
+                "Responder should be Transport"
+            );
 
-        // --- Transport Phase ---
-        println!("--- Step 8: Initiator sends data ---");
-        let data_to_send_1 = LpData::new_opaque(b"hello responder".to_vec());
-        let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.clone()));
-        let data_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_4 {
-            packet.clone()
-        } else {
-            panic!("Initiator should send data packet");
-        };
-        assert_eq!(data_packet_1.header.receiver_idx(), receiver_index);
+            // --- Transport Phase ---
+            println!("--- Step 8: Initiator sends data ---");
+            let data_to_send_1 = LpData::new_opaque(b"hello responder".to_vec());
+            let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.clone()));
+            let data_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_4 {
+                packet.clone()
+            } else {
+                panic!("Initiator should send data packet");
+            };
+            assert_eq!(data_packet_1.header.receiver_idx(), receiver_index);
 
-        println!("--- Step 9: Responder receives data ---");
-        let resp_actions_5 = responder.process_input(LpInput::ReceivePacket(data_packet_1));
-        let resp_data_1 = if let Some(Ok(LpAction::DeliverData(data))) = resp_actions_5 {
-            data
-        } else {
-            panic!("Responder should deliver data");
-        };
-        assert_eq!(resp_data_1, data_to_send_1);
+            println!("--- Step 9: Responder receives data ---");
+            let resp_actions_5 = responder.process_input(LpInput::ReceivePacket(data_packet_1));
+            let resp_data_1 = if let Some(Ok(LpAction::DeliverData(data))) = resp_actions_5 {
+                data
+            } else {
+                panic!("Responder should deliver data");
+            };
+            assert_eq!(resp_data_1, data_to_send_1);
 
-        println!("--- Step 10: Responder sends data ---");
-        let data_to_send_2 = LpData::new_opaque(b"hello initiator".to_vec());
-        let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.clone()));
-        let data_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_6 {
-            packet.clone()
-        } else {
-            panic!("Responder should send data packet");
-        };
-        assert_eq!(data_packet_2.header.receiver_idx(), receiver_index);
+            println!("--- Step 10: Responder sends data ---");
+            let data_to_send_2 = LpData::new_opaque(b"hello initiator".to_vec());
+            let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.clone()));
+            let data_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_6 {
+                packet.clone()
+            } else {
+                panic!("Responder should send data packet");
+            };
+            assert_eq!(data_packet_2.header.receiver_idx(), receiver_index);
 
-        println!("--- Step 11: Initiator receives data ---");
-        let init_actions_5 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
-        if let Some(Ok(LpAction::DeliverData(data))) = init_actions_5 {
-            assert_eq!(data, data_to_send_2);
-        } else {
-            panic!("Initiator should deliver data");
+            println!("--- Step 11: Initiator receives data ---");
+            let init_actions_5 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
+            if let Some(Ok(LpAction::DeliverData(data))) = init_actions_5 {
+                assert_eq!(data, data_to_send_2);
+            } else {
+                panic!("Initiator should deliver data");
+            }
+
+            // --- Close ---
+            println!("--- Step 12: Initiator closes ---");
+            let init_actions_6 = initiator.process_input(LpInput::Close);
+            assert!(matches!(
+                init_actions_6,
+                Some(Ok(LpAction::ConnectionClosed))
+            ));
+            assert!(matches!(initiator.state, LpState::Closed { .. }));
+
+            println!("--- Step 13: Responder closes ---");
+            let resp_actions_7 = responder.process_input(LpInput::Close);
+            assert!(matches!(
+                resp_actions_7,
+                Some(Ok(LpAction::ConnectionClosed))
+            ));
+            assert!(matches!(responder.state, LpState::Closed { .. }));
         }
-
-        // --- Close ---
-        println!("--- Step 12: Initiator closes ---");
-        let init_actions_6 = initiator.process_input(LpInput::Close);
-        assert!(matches!(
-            init_actions_6,
-            Some(Ok(LpAction::ConnectionClosed))
-        ));
-        assert!(matches!(initiator.state, LpState::Closed { .. }));
-
-        println!("--- Step 13: Responder closes ---");
-        let resp_actions_7 = responder.process_input(LpInput::Close);
-        assert!(matches!(
-            resp_actions_7,
-            Some(Ok(LpAction::ConnectionClosed))
-        ));
-        assert!(matches!(responder.state, LpState::Closed { .. }));
     }
 
     #[test]
     fn test_kkt_exchange_initiator_flow() {
-        let (init, resp) = mock_peers();
+        for kem in kem_list() {
+            let (init, resp) = mock_peers(kem);
 
-        let salt = [53u8; 32];
-        let receiver_index: u32 = 99901;
+            let salt = [53u8; 32];
+            let receiver_index: u32 = 99901;
 
-        // Create initiator state machine
-        let mut initiator =
-            LpStateMachine::new(receiver_index, true, init, resp.as_remote(), &salt).unwrap();
+            // Create initiator state machine
+            let mut initiator =
+                LpStateMachine::new(receiver_index, true, init, resp.as_remote(), &salt).unwrap();
 
-        // Verify initial state
-        assert!(matches!(initiator.state, LpState::ReadyToHandshake { .. }));
+            // Verify initial state
+            assert!(matches!(initiator.state, LpState::ReadyToHandshake { .. }));
 
-        // Step 1: Initiator starts handshake (should send KKT request)
-        let init_action = initiator.process_input(LpInput::StartHandshake);
-        assert!(matches!(init_action, Some(Ok(LpAction::SendPacket(_)))));
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
+            // Step 1: Initiator starts handshake (should send KKT request)
+            let init_action = initiator.process_input(LpInput::StartHandshake);
+            assert!(matches!(init_action, Some(Ok(LpAction::SendPacket(_)))));
+            assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
+        }
     }
 
     #[test]
     fn test_kkt_exchange_responder_flow() {
-        let (init, resp) = mock_peers();
+        for kem in kem_list() {
+            let (init, resp) = mock_peers(kem);
 
-        let salt = [54u8; 32];
-        let receiver_index: u32 = 99902;
+            let salt = [54u8; 32];
+            let receiver_index: u32 = 99902;
 
-        // Create responder state machine
-        let mut responder =
-            LpStateMachine::new(receiver_index, false, resp, init.as_remote(), &salt).unwrap();
+            // Create responder state machine
+            let mut responder =
+                LpStateMachine::new(receiver_index, false, resp, init.as_remote(), &salt).unwrap();
 
-        // Verify initial state
-        assert!(matches!(responder.state, LpState::ReadyToHandshake { .. }));
+            // Verify initial state
+            assert!(matches!(responder.state, LpState::ReadyToHandshake { .. }));
 
-        // Step 1: Responder starts handshake (should transition to KKTExchange without sending)
-        let resp_action = responder.process_input(LpInput::StartHandshake);
-        assert!(resp_action.is_none());
-        assert!(matches!(responder.state, LpState::KKTExchange { .. }));
+            // Step 1: Responder starts handshake (should transition to KKTExchange without sending)
+            let resp_action = responder.process_input(LpInput::StartHandshake);
+            assert!(resp_action.is_none());
+            assert!(matches!(responder.state, LpState::KKTExchange { .. }));
+        }
     }
-
     #[test]
     fn test_kkt_exchange_full_roundtrip() {
         // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let (init, resp) = mock_peers();
+        for kem in kem_list() {
+            let (init, resp) = mock_peers(kem);
+            let salt = [55u8; 32];
+            let receiver_index: u32 = 99903;
 
-        let salt = [55u8; 32];
-        let receiver_index: u32 = 99903;
+            // Create both state machines
+            let mut initiator =
+                LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
+                    .unwrap();
 
-        // Create both state machines
-        let mut initiator =
-            LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
-                .unwrap();
+            let mut responder =
+                LpStateMachine::new(receiver_index, false, resp, init.as_remote(), &salt).unwrap();
 
-        let mut responder =
-            LpStateMachine::new(receiver_index, false, resp, init.as_remote(), &salt).unwrap();
+            // Step 1: Initiator starts handshake, sends KKT request
+            let init_action = initiator.process_input(LpInput::StartHandshake);
+            let kkt_request_packet = if let Some(Ok(LpAction::SendPacket(packet))) = init_action {
+                packet.clone()
+            } else {
+                panic!("Initiator should send KKT request");
+            };
+            assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
 
-        // Step 1: Initiator starts handshake, sends KKT request
-        let init_action = initiator.process_input(LpInput::StartHandshake);
-        let kkt_request_packet = if let Some(Ok(LpAction::SendPacket(packet))) = init_action {
-            packet.clone()
-        } else {
-            panic!("Initiator should send KKT request");
-        };
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
+            // Step 2: Responder transitions to KKTExchange
+            let resp_action = responder.process_input(LpInput::StartHandshake);
+            assert!(resp_action.is_none());
+            assert!(matches!(responder.state, LpState::KKTExchange { .. }));
 
-        // Step 2: Responder transitions to KKTExchange
-        let resp_action = responder.process_input(LpInput::StartHandshake);
-        assert!(resp_action.is_none());
-        assert!(matches!(responder.state, LpState::KKTExchange { .. }));
+            // Step 3: Responder receives KKT request, sends KKT response
+            let resp_action = responder.process_input(LpInput::ReceivePacket(kkt_request_packet));
+            let kkt_response_packet = if let Some(Ok(LpAction::SendPacket(packet))) = resp_action {
+                packet.clone()
+            } else {
+                panic!("Responder should send KKT response");
+            };
+            // After sending KKT response, responder moves to Handshaking
+            assert!(matches!(responder.state, LpState::Handshaking { .. }));
 
-        // Step 3: Responder receives KKT request, sends KKT response
-        let resp_action = responder.process_input(LpInput::ReceivePacket(kkt_request_packet));
-        let kkt_response_packet = if let Some(Ok(LpAction::SendPacket(packet))) = resp_action {
-            packet.clone()
-        } else {
-            panic!("Responder should send KKT response");
-        };
-        // After sending KKT response, responder moves to Handshaking
-        assert!(matches!(responder.state, LpState::Handshaking { .. }));
+            // Step 4: Initiator receives KKT response, completes KKT
+            let init_action = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
 
-        // Step 4: Initiator receives KKT response, completes KKT
-        let init_action = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
-
-        assert!(matches!(init_action, Some(Ok(LpAction::KKTComplete))));
-        // After KKT complete, initiator moves to Handshaking
-        assert!(matches!(initiator.state, LpState::Handshaking { .. }));
+            assert!(matches!(init_action, Some(Ok(LpAction::KKTComplete))));
+            // After KKT complete, initiator moves to Handshaking
+            assert!(matches!(initiator.state, LpState::Handshaking { .. }));
+        }
     }
-
     #[test]
     fn test_kkt_exchange_close() {
-        let (init, resp) = mock_peers();
+        for kem in kem_list() {
+            let (init, resp) = mock_peers(kem);
+            let salt = [56u8; 32];
+            let receiver_index: u32 = 99904;
 
-        let salt = [56u8; 32];
-        let receiver_index: u32 = 99904;
+            // Create initiator state machine
+            let mut initiator =
+                LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
+                    .unwrap();
 
-        // Create initiator state machine
-        let mut initiator =
-            LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
-                .unwrap();
+            // Start handshake to enter KKTExchange state
+            initiator.process_input(LpInput::StartHandshake);
+            assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
 
-        // Start handshake to enter KKTExchange state
-        initiator.process_input(LpInput::StartHandshake);
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
-
-        // Close during KKT exchange
-        let close_action = initiator.process_input(LpInput::Close);
-        assert!(matches!(close_action, Some(Ok(LpAction::ConnectionClosed))));
-        assert!(matches!(initiator.state, LpState::Closed { .. }));
+            // Close during KKT exchange
+            let close_action = initiator.process_input(LpInput::Close);
+            assert!(matches!(close_action, Some(Ok(LpAction::ConnectionClosed))));
+            assert!(matches!(initiator.state, LpState::Closed { .. }));
+        }
     }
-
     #[test]
     fn test_kkt_exchange_rejects_invalid_inputs() {
-        let (init, resp) = mock_peers();
+        for kem in kem_list() {
+            let (init, resp) = mock_peers(kem);
+            let salt = [57u8; 32];
+            let receiver_index: u32 = 99905;
 
-        let salt = [57u8; 32];
-        let receiver_index: u32 = 99905;
+            // Create initiator state machine
+            let mut initiator =
+                LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
+                    .unwrap();
 
-        // Create initiator state machine
-        let mut initiator =
-            LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
-                .unwrap();
+            // Start handshake to enter KKTExchange state
+            initiator.process_input(LpInput::StartHandshake);
+            assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
 
-        // Start handshake to enter KKTExchange state
-        initiator.process_input(LpInput::StartHandshake);
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
+            // Try SendData during KKT exchange (should be rejected)
+            let send_data = LpData::new_opaque(vec![1, 2, 3]);
+            let send_action = initiator.process_input(LpInput::SendData(send_data));
+            assert!(matches!(
+                send_action,
+                Some(Err(LpError::InvalidStateTransition { .. }))
+            ));
+            assert!(matches!(initiator.state, LpState::KKTExchange { .. })); // Still in KKTExchange
 
-        // Try SendData during KKT exchange (should be rejected)
-        let send_data = LpData::new_opaque(vec![1, 2, 3]);
-        let send_action = initiator.process_input(LpInput::SendData(send_data));
-        assert!(matches!(
-            send_action,
-            Some(Err(LpError::InvalidStateTransition { .. }))
-        ));
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. })); // Still in KKTExchange
-
-        // Try StartHandshake again during KKT exchange (should be rejected)
-        let start_action = initiator.process_input(LpInput::StartHandshake);
-        assert!(matches!(
-            start_action,
-            Some(Err(LpError::InvalidStateTransition { .. }))
-        ));
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. })); // Still in KKTExchange
+            // Try StartHandshake again during KKT exchange (should be rejected)
+            let start_action = initiator.process_input(LpInput::StartHandshake);
+            assert!(matches!(
+                start_action,
+                Some(Err(LpError::InvalidStateTransition { .. }))
+            ));
+            assert!(matches!(initiator.state, LpState::KKTExchange { .. })); // Still in KKTExchange
+        }
     }
-
     /// Helper function to complete a full handshake between initiator and responder,
     /// returning both in Transport state ready for subsession testing.
-    fn setup_transport_sessions() -> (LpStateMachine, LpStateMachine) {
-        let (a, b) = mock_peers();
+    fn setup_transport_sessions<'a>(kem: KEM) -> (LpStateMachine<'a>, LpStateMachine<'a>) {
+        let (a, b) = mock_peers(kem);
 
         let salt = [60u8; 32];
         let receiver_index: u32 = 111111;
@@ -1582,138 +1593,140 @@ mod tests {
         // Test for simultaneous subsession initiation race condition.
         // Both sides call InitiateSubsession at the same time, sending KK1 to each other.
         // The tie-breaker uses X25519 public key comparison: lower key becomes responder.
+        for kem in kem_list() {
+            let (mut alice, mut bob) = setup_transport_sessions(kem);
 
-        let (mut alice, mut bob) = setup_transport_sessions();
+            // Get X25519 public keys to determine expected winner
+            let alice_x25519 = alice.session().unwrap().local_x25519_public();
+            let bob_x25519 = bob.session().unwrap().local_x25519_public();
 
-        // Get X25519 public keys to determine expected winner
-        let alice_x25519 = alice.session().unwrap().local_x25519_public();
-        let bob_x25519 = bob.session().unwrap().local_x25519_public();
+            // Determine who should win (higher key stays initiator)
+            let alice_wins = alice_x25519.as_ref() > bob_x25519.as_ref();
 
-        // Determine who should win (higher key stays initiator)
-        let alice_wins = alice_x25519.as_bytes() > bob_x25519.as_bytes();
+            // --- Both sides initiate subsession simultaneously ---
+            // Alice initiates subsession
+            let alice_kk1_packet =
+                if let Some(Ok(LpAction::SubsessionInitiated { packet, .. })) =
+                    alice.process_input(LpInput::InitiateSubsession)
+                {
+                    packet
+                } else {
+                    panic!("Alice should initiate subsession with KK1");
+                };
+            assert!(matches!(alice.state, LpState::SubsessionHandshaking { .. }));
 
-        // --- Both sides initiate subsession simultaneously ---
-        // Alice initiates subsession
-        let alice_kk1_packet = if let Some(Ok(LpAction::SubsessionInitiated { packet, .. })) =
-            alice.process_input(LpInput::InitiateSubsession)
-        {
-            packet
-        } else {
-            panic!("Alice should initiate subsession with KK1");
-        };
-        assert!(matches!(alice.state, LpState::SubsessionHandshaking { .. }));
-
-        // Bob initiates subsession (simultaneously)
-        let bob_kk1_packet = if let Some(Ok(LpAction::SubsessionInitiated { packet, .. })) =
-            bob.process_input(LpInput::InitiateSubsession)
-        {
-            packet
-        } else {
-            panic!("Bob should initiate subsession with KK1");
-        };
-        assert!(matches!(bob.state, LpState::SubsessionHandshaking { .. }));
-
-        // --- Cross-delivery of KK1 packets (race resolution) ---
-        // Alice receives Bob's KK1
-        let alice_response = alice.process_input(LpInput::ReceivePacket(bob_kk1_packet));
-
-        // Bob receives Alice's KK1
-        let bob_response = bob.process_input(LpInput::ReceivePacket(alice_kk1_packet));
-
-        // --- Verify tie-breaker worked correctly ---
-        if alice_wins {
-            // Alice has higher key - she stays initiator, sends SubsessionAbort
-            assert!(
-                matches!(alice_response, Some(Ok(LpAction::SendPacket(_)))),
-                "Alice (winner) should send SubsessionAbort"
-            );
-            assert!(
-                matches!(alice.state, LpState::SubsessionHandshaking { .. }),
-                "Alice should still be SubsessionHandshaking as initiator"
-            );
-
-            // Bob has lower key - he becomes responder, sends KK2
-            let bob_kk2_packet = if let Some(Ok(LpAction::SendPacket(p))) = bob_response {
-                p
+            // Bob initiates subsession (simultaneously)
+            let bob_kk1_packet = if let Some(Ok(LpAction::SubsessionInitiated { packet, .. })) =
+                bob.process_input(LpInput::InitiateSubsession)
+            {
+                packet
             } else {
-                panic!("Bob (loser) should send KK2 as new responder");
+                panic!("Bob should initiate subsession with KK1");
             };
-            assert!(
-                matches!(bob.state, LpState::SubsessionHandshaking { .. }),
-                "Bob should be SubsessionHandshaking as responder"
-            );
+            assert!(matches!(bob.state, LpState::SubsessionHandshaking { .. }));
 
-            // Complete the handshake: Alice receives KK2
-            let alice_completion = alice.process_input(LpInput::ReceivePacket(bob_kk2_packet));
-            match alice_completion {
-                Some(Ok(LpAction::SubsessionComplete {
-                    packet: Some(ready_packet),
-                    ..
-                })) => {
-                    assert!(
-                        matches!(alice.state, LpState::ReadOnlyTransport { .. }),
-                        "Alice should be ReadOnlyTransport after SubsessionComplete"
-                    );
+            // --- Cross-delivery of KK1 packets (race resolution) ---
+            // Alice receives Bob's KK1
+            let alice_response = alice.process_input(LpInput::ReceivePacket(bob_kk1_packet));
 
-                    // Bob receives SubsessionReady
-                    let bob_final = bob.process_input(LpInput::ReceivePacket(ready_packet));
-                    assert!(
-                        matches!(bob_final, Some(Ok(LpAction::SubsessionComplete { .. }))),
-                        "Bob should complete with SubsessionComplete"
-                    );
-                    assert!(
-                        matches!(bob.state, LpState::ReadOnlyTransport { .. }),
-                        "Bob should be ReadOnlyTransport"
-                    );
+            // Bob receives Alice's KK1
+            let bob_response = bob.process_input(LpInput::ReceivePacket(alice_kk1_packet));
+
+            // --- Verify tie-breaker worked correctly ---
+            if alice_wins {
+                // Alice has higher key - she stays initiator, sends SubsessionAbort
+                assert!(
+                    matches!(alice_response, Some(Ok(LpAction::SendPacket(_)))),
+                    "Alice (winner) should send SubsessionAbort"
+                );
+                assert!(
+                    matches!(alice.state, LpState::SubsessionHandshaking { .. }),
+                    "Alice should still be SubsessionHandshaking as initiator"
+                );
+
+                // Bob has lower key - he becomes responder, sends KK2
+                let bob_kk2_packet = if let Some(Ok(LpAction::SendPacket(p))) = bob_response {
+                    p
+                } else {
+                    panic!("Bob (loser) should send KK2 as new responder");
+                };
+                assert!(
+                    matches!(bob.state, LpState::SubsessionHandshaking { .. }),
+                    "Bob should be SubsessionHandshaking as responder"
+                );
+
+                // Complete the handshake: Alice receives KK2
+                let alice_completion = alice.process_input(LpInput::ReceivePacket(bob_kk2_packet));
+                match alice_completion {
+                    Some(Ok(LpAction::SubsessionComplete {
+                        packet: Some(ready_packet),
+                        ..
+                    })) => {
+                        assert!(
+                            matches!(alice.state, LpState::ReadOnlyTransport { .. }),
+                            "Alice should be ReadOnlyTransport after SubsessionComplete"
+                        );
+
+                        // Bob receives SubsessionReady
+                        let bob_final = bob.process_input(LpInput::ReceivePacket(ready_packet));
+                        assert!(
+                            matches!(bob_final, Some(Ok(LpAction::SubsessionComplete { .. }))),
+                            "Bob should complete with SubsessionComplete"
+                        );
+                        assert!(
+                            matches!(bob.state, LpState::ReadOnlyTransport { .. }),
+                            "Bob should be ReadOnlyTransport"
+                        );
+                    }
+                    other => panic!("Alice should complete subsession, got: {:?}", other),
                 }
-                other => panic!("Alice should complete subsession, got: {:?}", other),
-            }
-        } else {
-            // Bob has higher key - he stays initiator, sends SubsessionAbort
-            assert!(
-                matches!(bob_response, Some(Ok(LpAction::SendPacket(_)))),
-                "Bob (winner) should send SubsessionAbort"
-            );
-            assert!(
-                matches!(bob.state, LpState::SubsessionHandshaking { .. }),
-                "Bob should still be SubsessionHandshaking as initiator"
-            );
-
-            // Alice has lower key - she becomes responder, sends KK2
-            let alice_kk2_packet = if let Some(Ok(LpAction::SendPacket(p))) = alice_response {
-                p
             } else {
-                panic!("Alice (loser) should send KK2 as new responder");
-            };
-            assert!(
-                matches!(alice.state, LpState::SubsessionHandshaking { .. }),
-                "Alice should be SubsessionHandshaking as responder"
-            );
+                // Bob has higher key - he stays initiator, sends SubsessionAbort
+                assert!(
+                    matches!(bob_response, Some(Ok(LpAction::SendPacket(_)))),
+                    "Bob (winner) should send SubsessionAbort"
+                );
+                assert!(
+                    matches!(bob.state, LpState::SubsessionHandshaking { .. }),
+                    "Bob should still be SubsessionHandshaking as initiator"
+                );
 
-            // Complete the handshake: Bob receives KK2
-            let bob_completion = bob.process_input(LpInput::ReceivePacket(alice_kk2_packet));
-            match bob_completion {
-                Some(Ok(LpAction::SubsessionComplete {
-                    packet: Some(ready_packet),
-                    ..
-                })) => {
-                    assert!(
-                        matches!(bob.state, LpState::ReadOnlyTransport { .. }),
-                        "Bob should be ReadOnlyTransport after SubsessionComplete"
-                    );
+                // Alice has lower key - she becomes responder, sends KK2
+                let alice_kk2_packet = if let Some(Ok(LpAction::SendPacket(p))) = alice_response {
+                    p
+                } else {
+                    panic!("Alice (loser) should send KK2 as new responder");
+                };
+                assert!(
+                    matches!(alice.state, LpState::SubsessionHandshaking { .. }),
+                    "Alice should be SubsessionHandshaking as responder"
+                );
 
-                    // Alice receives SubsessionReady
-                    let alice_final = alice.process_input(LpInput::ReceivePacket(ready_packet));
-                    assert!(
-                        matches!(alice_final, Some(Ok(LpAction::SubsessionComplete { .. }))),
-                        "Alice should complete with SubsessionComplete"
-                    );
-                    assert!(
-                        matches!(alice.state, LpState::ReadOnlyTransport { .. }),
-                        "Alice should be ReadOnlyTransport"
-                    );
+                // Complete the handshake: Bob receives KK2
+                let bob_completion = bob.process_input(LpInput::ReceivePacket(alice_kk2_packet));
+                match bob_completion {
+                    Some(Ok(LpAction::SubsessionComplete {
+                        packet: Some(ready_packet),
+                        ..
+                    })) => {
+                        assert!(
+                            matches!(bob.state, LpState::ReadOnlyTransport { .. }),
+                            "Bob should be ReadOnlyTransport after SubsessionComplete"
+                        );
+
+                        // Alice receives SubsessionReady
+                        let alice_final = alice.process_input(LpInput::ReceivePacket(ready_packet));
+                        assert!(
+                            matches!(alice_final, Some(Ok(LpAction::SubsessionComplete { .. }))),
+                            "Alice should complete with SubsessionComplete"
+                        );
+                        assert!(
+                            matches!(alice.state, LpState::ReadOnlyTransport { .. }),
+                            "Alice should be ReadOnlyTransport"
+                        );
+                    }
+                    other => panic!("Bob should complete subsession, got: {:?}", other),
                 }
-                other => panic!("Bob should complete subsession, got: {:?}", other),
             }
         }
     }

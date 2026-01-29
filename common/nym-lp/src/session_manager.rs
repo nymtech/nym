@@ -11,23 +11,25 @@ use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
 use crate::{LpError, LpMessage, LpSession, LpStateMachine};
 use dashmap::DashMap;
+#[cfg(test)]
+use libcrux_psq::handshake::types::DHPublicKey;
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
 /// The SessionManager is responsible for creating, storing, and retrieving sessions,
 /// ensuring proper thread-safety for concurrent access.
-pub struct SessionManager {
+pub struct SessionManager<'a> {
     /// Manages state machines directly, keyed by lp_id
-    state_machines: DashMap<u32, LpStateMachine>,
+    state_machines: DashMap<u32, LpStateMachine<'a>>,
 }
 
-impl Default for SessionManager {
+impl<'a> Default for SessionManager<'a> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SessionManager {
+impl<'a> SessionManager<'a> {
     /// Creates a new session manager with empty session storage.
     pub fn new() -> Self {
         Self {
@@ -39,7 +41,7 @@ impl SessionManager {
         self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
     }
 
-    pub fn add(&self, session: LpSession) -> Result<(), LpError> {
+    pub fn add(&self, session: LpSession<'a>) -> Result<(), LpError> {
         let sm = LpStateMachine {
             state: LpState::ReadyToHandshake {
                 session: Box::new(session),
@@ -192,7 +194,7 @@ impl SessionManager {
     pub fn init_kkt_for_test(
         &self,
         lp_id: u32,
-        remote_x25519_pub: &nym_crypto::asymmetric::x25519::PublicKey,
+        remote_x25519_pub: &DHPublicKey,
     ) -> Result<(), LpError> {
         self.with_state_machine(lp_id, |sm| {
             sm.session()?.set_kkt_completed_for_test(remote_x25519_pub);
@@ -204,109 +206,113 @@ impl SessionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::peer::{mock_peers, random_peer};
+    use crate::{
+        kem_list,
+        peer::{mock_peers, random_peer},
+    };
     use nym_test_utils::helpers::deterministic_rng;
 
     #[test]
     fn test_session_manager_get() {
         let manager = SessionManager::new();
-        let mut rng = deterministic_rng();
-        let local = random_peer(&mut rng);
-        let peer1 = random_peer(&mut rng);
 
-        let salt = [47u8; 32];
-        let receiver_index: u32 = 1001;
+        for kem in kem_list() {
+            let (local, peer1) = mock_peers(kem);
 
-        let sm_1_id = manager
-            .create_session_state_machine(receiver_index, true, local, peer1.as_remote(), &salt)
-            .unwrap();
+            let salt = [47u8; 32];
+            let receiver_index: u32 = 1001;
 
-        let retrieved = manager.state_machine_exists(sm_1_id);
-        assert!(retrieved);
+            let sm_1_id = manager
+                .create_session_state_machine(receiver_index, true, local, peer1.as_remote(), &salt)
+                .unwrap();
 
-        let not_found = manager.state_machine_exists(99);
-        assert!(!not_found);
+            let retrieved = manager.state_machine_exists(sm_1_id);
+            assert!(retrieved);
+
+            let not_found = manager.state_machine_exists(99);
+            assert!(!not_found);
+        }
     }
-
     #[test]
     fn test_session_manager_remove() {
         let manager = SessionManager::new();
-        let mut rng = deterministic_rng();
-        let local = random_peer(&mut rng);
-        let peer1 = random_peer(&mut rng);
+        for kem in kem_list() {
+            let (local, peer1) = mock_peers(kem);
 
-        let salt = [48u8; 32];
-        let receiver_index: u32 = 2002;
+            let salt = [48u8; 32];
+            let receiver_index: u32 = 2002;
 
-        let sm_1_id = manager
-            .create_session_state_machine(receiver_index, true, local, peer1.as_remote(), &salt)
-            .unwrap();
+            let sm_1_id = manager
+                .create_session_state_machine(receiver_index, true, local, peer1.as_remote(), &salt)
+                .unwrap();
 
-        let removed = manager.remove_state_machine(sm_1_id);
-        assert!(removed);
-        assert_eq!(manager.session_count(), 0);
+            let removed = manager.remove_state_machine(sm_1_id);
+            assert!(removed);
+            assert_eq!(manager.session_count(), 0);
 
-        let removed_again = manager.remove_state_machine(sm_1_id);
-        assert!(!removed_again);
+            let removed_again = manager.remove_state_machine(sm_1_id);
+            assert!(!removed_again);
+        }
     }
 
     #[test]
     fn test_multiple_sessions() {
         let manager = SessionManager::new();
-        let mut rng = deterministic_rng();
-        let local = random_peer(&mut rng);
-        let peer1 = random_peer(&mut rng);
-        let peer2 = random_peer(&mut rng);
-        let peer3 = random_peer(&mut rng);
+        for kem in kem_list() {
+            let (local, peer1) = mock_peers(kem);
+            let (peer2, peer3) = mock_peers(kem);
 
-        let salt = [49u8; 32];
+            let salt = [49u8; 32];
 
-        let sm_1 = manager
-            .create_session_state_machine(3001, true, local.clone(), peer1.as_remote(), &salt)
-            .unwrap();
+            let sm_1 = manager
+                .create_session_state_machine(3001, true, local.clone(), peer1.as_remote(), &salt)
+                .unwrap();
 
-        let sm_2 = manager
-            .create_session_state_machine(3002, true, local.clone(), peer2.as_remote(), &salt)
-            .unwrap();
+            let sm_2 = manager
+                .create_session_state_machine(3002, true, local.clone(), peer2.as_remote(), &salt)
+                .unwrap();
 
-        let sm_3 = manager
-            .create_session_state_machine(3003, true, local.clone(), peer3.as_remote(), &salt)
-            .unwrap();
+            let sm_3 = manager
+                .create_session_state_machine(3003, true, local.clone(), peer3.as_remote(), &salt)
+                .unwrap();
 
-        assert_eq!(manager.session_count(), 3);
+            assert_eq!(manager.session_count(), 3);
 
-        let retrieved1 = manager.get_state_machine_id(sm_1).unwrap();
-        let retrieved2 = manager.get_state_machine_id(sm_2).unwrap();
-        let retrieved3 = manager.get_state_machine_id(sm_3).unwrap();
+            let retrieved1 = manager.get_state_machine_id(sm_1).unwrap();
+            let retrieved2 = manager.get_state_machine_id(sm_2).unwrap();
+            let retrieved3 = manager.get_state_machine_id(sm_3).unwrap();
 
-        assert_eq!(retrieved1, sm_1);
-        assert_eq!(retrieved2, sm_2);
-        assert_eq!(retrieved3, sm_3);
+            assert_eq!(retrieved1, sm_1);
+            assert_eq!(retrieved2, sm_2);
+            assert_eq!(retrieved3, sm_3);
+        }
     }
 
     #[test]
     fn test_session_manager_create_session() {
         let manager = SessionManager::new();
-        let (init, resp) = mock_peers();
+        for kem in kem_list() {
+            let (init, resp) = mock_peers(kem);
 
-        let salt = [50u8; 32];
-        let receiver_index: u32 = 4004;
+            let salt = [50u8; 32];
+            let receiver_index: u32 = 4004;
 
-        let sm = manager.create_session_state_machine(
-            receiver_index,
-            true,
-            init,
-            resp.as_remote(),
-            &salt,
-        );
+            let sm = manager.create_session_state_machine(
+                receiver_index,
+                true,
+                init,
+                resp.as_remote(),
+                &salt,
+            );
 
-        assert!(sm.is_ok());
-        let sm = sm.unwrap();
+            assert!(sm.is_ok());
+            let sm = sm.unwrap();
 
-        assert_eq!(manager.session_count(), 1);
+            assert_eq!(manager.session_count(), 1);
 
-        let retrieved = manager.get_state_machine_id(sm);
-        assert!(retrieved.is_ok());
-        assert_eq!(retrieved.unwrap(), sm);
+            let retrieved = manager.get_state_machine_id(sm);
+            assert!(retrieved.is_ok());
+            assert_eq!(retrieved.unwrap(), sm);
+        }
     }
 }

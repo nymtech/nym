@@ -13,6 +13,27 @@ pub enum EncapsulationKey {
     X25519(libcrux_kem::PublicKey),
     McEliece(libcrux_psq::classic_mceliece::PublicKey),
 }
+impl Clone for EncapsulationKey {
+    fn clone(&self) -> Self {
+        match self {
+            Self::MlKem768(arg0) => Self::MlKem768(arg0.clone()),
+            Self::XWing(arg0) => Self::XWing(
+                libcrux_kem::PublicKey::decode(Algorithm::XWingKemDraft06, &arg0.encode()).unwrap(),
+            ),
+            Self::X25519(arg0) => Self::X25519(
+                libcrux_kem::PublicKey::decode(Algorithm::X25519, &arg0.encode()).unwrap(),
+            ),
+            Self::McEliece(arg0) => {
+                let mut array = [0u8; mceliece::PUBLIC_KEY_LENGTH];
+                array.clone_from_slice(arg0.as_ref());
+
+                Self::McEliece(libcrux_psq::classic_mceliece::PublicKey::from(Box::new(
+                    array,
+                )))
+            }
+        }
+    }
+}
 impl Debug for EncapsulationKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -71,6 +92,7 @@ impl EncapsulationKey {
         }
     }
 }
+
 pub enum DecapsulationKey {
     MlKem768(libcrux_kem::MlKem768PrivateKey),
     XWing(libcrux_kem::PrivateKey),

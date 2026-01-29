@@ -2,55 +2,56 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
+use libcrux_psq::handshake::Responder;
 use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::ciphersuite::{
-    DecapsulationKey, EncapsulationKey, KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests,
+    Ciphersuite, DecapsulationKey, EncapsulationKey, KEM, KEMKeyDigests, SignatureScheme,
+    SigningKeyDigests,
 };
+use rand::rngs::ThreadRng;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
+
+use crate::psq::build_responder;
 
 /// Representation of a local Lewes Protocol peer
 /// encapsulating all the known information and keys.
 #[derive(Clone)]
 pub struct LpLocalPeer {
+    pub(crate) ciphersuite: Arc<Ciphersuite>,
     /// Local Ed25519 keys for PSQ authentication
     pub(crate) ed25519: Arc<ed25519::KeyPair>,
 
     /// Local x25519 keys (Noise static key)
     pub(crate) x25519: Arc<DHKeyPair>,
 
-    /// Local KEM key used for PSQ (x25519: to deprecate)
-    pub(crate) kem_psq: Option<Arc<x25519::KeyPair>>,
-
     /// Local MlKem keypair used for PSQ
-    pub(crate) mlkem: Option<(Arc<DecapsulationKey>, Arc<EncapsulationKey>)>,
+    pub(crate) mlkem: Option<Arc<(DecapsulationKey, EncapsulationKey)>>,
 
     /// Local McEliece keypair used for PSQ
-    pub(crate) mceliece: Option<(Arc<DecapsulationKey>, Arc<EncapsulationKey>)>,
+    pub(crate) mceliece: Option<Arc<(DecapsulationKey, EncapsulationKey)>>,
 }
 
 impl LpLocalPeer {
-    pub fn new(ed25519: Arc<ed25519::KeyPair>, x25519: Arc<x25519::KeyPair>) -> Self {
+    pub fn new(
+        ciphersuite: Ciphersuite,
+        ed25519: Arc<ed25519::KeyPair>,
+        x25519: Arc<x25519::KeyPair>,
+    ) -> Self {
         // TODO: make nicer conversion (without cloning) + error handling
         let initiator_libcrux_x25519_private_key =
             DHPrivateKey::from_bytes(x25519.private_key().as_bytes()).unwrap();
         let initiator_x25519_keypair = DHKeyPair::from(initiator_libcrux_x25519_private_key);
 
         LpLocalPeer {
+            ciphersuite: Arc::new(ciphersuite),
             ed25519,
             x25519: Arc::new(initiator_x25519_keypair),
-            kem_psq: None,
             mlkem: None,
             mceliece: None,
         }
-    }
-
-    // #[must_use]
-    pub fn with_kem_psq_key(mut self, key: Arc<x25519::KeyPair>) -> Self {
-        self.kem_psq = Some(key);
-        self
     }
 
     pub fn with_mlkem_keypair(
@@ -58,10 +59,10 @@ impl LpLocalPeer {
         decapsulation_key: &MlKem768PrivateKey,
         encapsulation_key: &MlKem768PublicKey,
     ) -> Self {
-        self.mlkem = Some((
-            Arc::new(DecapsulationKey::MlKem768(decapsulation_key.clone())),
-            Arc::new(EncapsulationKey::MlKem768(encapsulation_key.clone())),
-        ));
+        self.mlkem = Some(Arc::new((
+            DecapsulationKey::MlKem768(decapsulation_key.clone()),
+            EncapsulationKey::MlKem768(encapsulation_key.clone()),
+        )));
         self
     }
 
@@ -70,10 +71,10 @@ impl LpLocalPeer {
         decapsulation_key: libcrux_psq::classic_mceliece::SecretKey,
         encapsulation_key: libcrux_psq::classic_mceliece::PublicKey,
     ) -> Self {
-        self.mceliece = Some((
-            Arc::new(DecapsulationKey::McEliece(decapsulation_key)),
-            Arc::new(EncapsulationKey::McEliece(encapsulation_key)),
-        ));
+        self.mceliece = Some(Arc::new((
+            DecapsulationKey::McEliece(decapsulation_key),
+            EncapsulationKey::McEliece(encapsulation_key),
+        )));
         self
     }
 
@@ -96,12 +97,6 @@ impl LpLocalPeer {
 
         let mut expected_kem_key_digests = HashMap::new();
 
-        if let Some(x25519_key) = &self.kem_psq {
-            expected_kem_key_digests.insert(
-                KEM::X25519,
-                nym_kkt::key_utils::produce_key_digests(x25519_key.public_key().as_bytes()),
-            );
-        }
         if let Some(mlkem_key) = &self.mlkem {
             expected_kem_key_digests.insert(
                 KEM::MlKem768,
@@ -118,20 +113,10 @@ impl LpLocalPeer {
 
         LpRemotePeer {
             ed25519_public: *self.ed25519.public_key(),
-            x25519_public: self.x25519.pk.clone(),
+            x25519_public: self.x25519.pk,
             expected_kem_key_digests,
             expected_signing_key_digests,
         }
-    }
-
-    // this is only exposed in tests as ideally we should be storing the proper types to begin with
-    #[cfg(test)]
-    pub fn encapsulate_kem_key(&self) -> Option<nym_kkt::ciphersuite::EncapsulationKey> {
-        let pk_bytes = self.kem_psq.as_ref()?.public_key().to_bytes();
-        let libcrux_pk =
-            libcrux_kem::PublicKey::decode(libcrux_kem::Algorithm::X25519, &pk_bytes).ok()?;
-
-        Some(nym_kkt::ciphersuite::EncapsulationKey::X25519(libcrux_pk))
     }
 }
 
@@ -140,13 +125,12 @@ impl Debug for LpLocalPeer {
         f.debug_struct("LpLocalPeer")
             .field("ed25519", &self.ed25519)
             .field("x25519", &self.x25519.pk)
-            .field("kem_psq", &self.kem_psq)
             .field(
                 "mlkem",
                 &format!(
                     "mlkem_public_key: {}",
                     match &self.mlkem {
-                        Some(keypair) => format!("{:?}", keypair.1.as_ref()),
+                        Some(keypair) => format!("{:?}", keypair.as_ref().1),
                         None => "None".to_string(),
                     }
                 ),
@@ -205,14 +189,25 @@ impl LpRemotePeer {
 }
 
 #[cfg(test)]
-pub fn mock_peer() -> LpLocalPeer {
+pub fn mock_peer(kem: KEM) -> LpLocalPeer {
     // use deterministic rng
     let mut rng = nym_test_utils::helpers::deterministic_rng();
-    random_peer(&mut rng)
+
+    let ciphersuite = Ciphersuite::new(
+        kem,
+        nym_kkt::ciphersuite::HashFunction::Blake3,
+        SignatureScheme::Ed25519,
+        nym_kkt::ciphersuite::HashLength::Default,
+    );
+
+    random_peer(&mut rng, ciphersuite)
 }
 
 #[cfg(test)]
-pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLocalPeer {
+pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(
+    rng: &mut R,
+    ciphersuite: Ciphersuite,
+) -> LpLocalPeer {
     use nym_kkt::key_utils::{generate_keypair_mceliece, generate_keypair_mlkem};
 
     let ed25519 = Arc::new(ed25519::KeyPair::new(rng));
@@ -227,27 +222,29 @@ pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLoc
 
     let x25519 = Arc::new(DHKeyPair::from(DHPrivateKey::from_bytes(&sk).unwrap()));
 
-    // temp
-    let kem_psq = Some(Arc::new(ed25519.to_x25519()));
-
-    let mlkem_keypair = generate_keypair_mlkem(&mut rand09::rng());
-    let mceliece_keypair = generate_keypair_mceliece(&mut rand09::rng());
-
-    LpLocalPeer {
+    let default_peer = LpLocalPeer {
+        ciphersuite: Arc::new(ciphersuite),
         ed25519,
         x25519,
-        kem_psq,
         mlkem: None,
         mceliece: None,
+    };
+
+    match ciphersuite.kem() {
+        KEM::MlKem768 => {
+            let mlkem_keypair = generate_keypair_mlkem(&mut rand09::rng());
+            default_peer.with_mlkem_keypair(&mlkem_keypair.0, &mlkem_keypair.1)
+        }
+        KEM::McEliece => {
+            let mceliece_keypair = generate_keypair_mceliece(&mut rand09::rng());
+            default_peer.with_mceliece_keypair(mceliece_keypair.0, mceliece_keypair.1)
+        }
+        _ => unreachable!(),
     }
-    .with_mlkem_keypair(&mlkem_keypair.0, &mlkem_keypair.1)
-    .with_mceliece_keypair(mceliece_keypair.0, mceliece_keypair.1)
 }
 
 #[cfg(test)]
-pub fn mock_peers() -> (LpLocalPeer, LpLocalPeer) {
-    // use deterministic rng
-    let mut rng = nym_test_utils::helpers::deterministic_rng();
-
-    (random_peer(&mut rng), random_peer(&mut rng))
+pub fn mock_peers(kem: KEM) -> (LpLocalPeer, LpLocalPeer) {
+    println!("KEM: {:?}", kem);
+    (mock_peer(kem), mock_peer(kem))
 }

@@ -14,6 +14,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 /// Size of outer header (receiver_idx + counter) - always cleartext
 pub const OUTER_HEADER_SIZE: usize = OuterHeader::SIZE; // 12 bytes
 
+// georgio: maybe remove this?
 /// Size of inner prefix (proto + reserved) - cleartext or encrypted depending on mode
 const INNER_PREFIX_SIZE: usize = 4; // proto(1) + reserved(3)
 
@@ -38,6 +39,7 @@ const INNER_PREFIX_SIZE: usize = 4; // proto(1) + reserved(3)
 /// 3. **No PSK persistence**: PSK handles are not stored/reused across sessions.
 ///    Each connection performs fresh KKT+PSQ handshake.
 ///
+// noiserm
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct OuterAeadKey {
     key: [u8; 32],
@@ -52,7 +54,7 @@ impl OuterAeadKey {
     /// Uses Blake3 KDF with domain separation to avoid key reuse
     /// between the outer AEAD layer and the inner Noise layer.
     pub fn from_psk(psk: &[u8; 32]) -> Self {
-        let key = nym_crypto::kdf::derive_key_blake3(Self::KDF_CONTEXT, psk, &[]);
+        let key = nym_crypto::hkdf::blake3::derive_key_blake3(Self::KDF_CONTEXT, psk, &[]);
         Self { key }
     }
 
@@ -70,6 +72,7 @@ impl std::fmt::Debug for OuterAeadKey {
     }
 }
 
+// noiserm
 /// Build 12-byte nonce from 8-byte counter (zero-padded).
 ///
 /// Format: counter (8 bytes LE) || 0x00000000 (4 bytes)
@@ -177,6 +180,7 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
                 trailer,
             })
         }
+        // noiserm (potentially)
         Some(key) => {
             // AEAD decryption mode
             // AAD is the outer header (12 bytes)
@@ -224,6 +228,7 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
     }
 }
 
+// georgio: start with no outer_key
 /// Serializes an LpPacket into the provided BytesMut buffer.
 ///
 /// ## Unified Packet Format

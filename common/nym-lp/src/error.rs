@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{noise_protocol::NoiseError, replay::ReplayError};
+use libcrux_psq::handshake::builders::BuilderError;
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
-use nym_kkt::ciphersuite::{HashFunction, KEM};
+use nym_kkt::{
+    ciphersuite::{HashFunction, KEM},
+    error::KKTError,
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -11,14 +15,20 @@ pub enum LpError {
     #[error("IO Error: {0}")]
     IoError(#[from] std::io::Error),
 
+    // noiserm
     #[error("Snow Error: {0}")]
     SnowKeyError(#[from] snow::Error),
 
+    // noiserm
     #[error("Snow Pattern Error: {0}")]
     SnowPatternError(String),
 
+    // noiserm
     #[error("Noise Protocol Error: {0}")]
     NoiseError(#[from] NoiseError),
+
+    #[error("PSQ Error: {0}")]
+    PSQError(String),
 
     #[error("Replay detected: {0}")]
     Replay(#[from] ReplayError),
@@ -102,4 +112,10 @@ pub enum LpError {
         kem: KEM,
         hash_function: HashFunction,
     },
+}
+
+impl From<KKTError> for LpError {
+    fn from(err: KKTError) -> Self {
+        LpError::KKTError(format!("KKT Error: {:?}", err))
+    }
 }

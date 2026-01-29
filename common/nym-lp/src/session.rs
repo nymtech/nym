@@ -8,6 +8,7 @@
 
 use crate::codec::OuterAeadKey;
 use crate::message::{EncryptedDataPayload, HandshakeData, PSQRequestData, PSQResponseData};
+use std::fmt::Debug;
 // noiserm
 use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
 use crate::packet::LpHeader;
@@ -153,6 +154,7 @@ pub enum PSQState<'a> {
     InitiatorWaiting {
         initiator: RegistrationInitiator<'a, ThreadRng>,
     },
+
     /// Responder is ready to receive and decapsulate PSQ ciphertext.
     ResponderWaiting { responder: Responder<'a, ThreadRng> },
 
@@ -185,7 +187,6 @@ impl<'a> std::fmt::Debug for PSQState<'a> {
 /// 3. Real PSK injected via `set_psk()` - `psk_injected` flag set to `true`
 /// 4. Handshake completes, transport mode available
 /// 5. Transport operations (`encrypt_data`/`decrypt_data`) check `psk_injected` flag for safety
-// #[derive(Debug)]
 pub struct LpSession<'a> {
     id: u32,
 
@@ -240,6 +241,28 @@ pub struct LpSession<'a> {
     /// Set during handshake completion from the ClientHello/ServerHello packet header.
     /// Used for future version negotiation and compatibility checks.
     negotiated_version: std::sync::atomic::AtomicU8,
+}
+
+impl Debug for LpSession {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LpSession")
+            .field("id", &self.id)
+            .field("is_initiator", &self.is_initiator)
+            .field("kkt_state", &self.kkt_state)
+            .field("psq_state", &self.psq_state)
+            .field("psq_session", &self.psq_session)
+            .field("carrier", &self.carrier)
+            .field("sending_counter", &self.sending_counter)
+            .field("receiving_counter", &self.receiving_counter)
+            .field("psk_injected", &self.psk_injected)
+            .field("local_peer", &self.local_peer)
+            .field("remote_peer", &self.remote_peer)
+            .field("subsession_counter", &self.subsession_counter)
+            .field("read_only", &self.read_only)
+            .field("successor_session_id", &self.successor_session_id)
+            .field("negotiated_version", &self.negotiated_version)
+            .finish()
+    }
 }
 
 impl<'a> LpSession<'a> {
@@ -391,56 +414,31 @@ impl<'a> LpSession<'a> {
         let psq_state = if is_initiator {
             PSQState::NotStarted
         } else {
-            let kp = match kkt_ciphersuite.kem() {
-                KEM::MlKem768 => match local_peer.mlkem {
-                    Some(kp) => match *kp {
-                        (DecapsulationKey::MlKem768(_), EncapsulationKey::MlKem768(_)) => {
-                            (&kp.0, &kp.1)
-                        }
-                        _ => {
-                            return Err(LpError::ResponderWithMissingKEMKey);
-                        }
-                    },
-                    None => return Err(LpError::ResponderWithMissingKEMKey),
-                },
-                KEM::McEliece => match local_peer.mceliece {
-                    Some(kp) => match *kp {
-                        (
-                            DecapsulationKey::McEliece(secret_key),
-                            EncapsulationKey::McEliece(public_key),
-                        ) => (&kp.0, &kp.1),
-                        _ => {
-                            return Err(LpError::ResponderWithMissingKEMKey);
-                        }
-                    },
-                    None => {
-                        return Err(LpError::ResponderWithMissingKEMKey);
-                    }
-                },
-                kem => {
-                    return Err(LpError::KKTError(format!("Unsupported KEM: {:?}", kem)));
-                }
+            let kem = kkt_ciphersuite.kem();
+            let Some(kp) = local_peer.kem_key(kem) else {
+                return Err(LpError::ResponderWithMissingKEMKey { kem });
             };
             PSQState::ResponderWaiting {
-                responder: build_responder(kkt_ciphersuite, &local_peer.x25519, kp.0, kp.1),
+                responder: build_responder(&local_peer.x25519, kp),
             }
         };
 
-        Ok(Self {
-            id,
-            is_initiator,
-            kkt_state: Mutex::new(kkt_state),
-            psq_state: Mutex::new(psq_state),
-            sending_counter: AtomicU64::new(0),
-            receiving_counter: Mutex::new(ReceivingKeyCounterValidator::default()),
-            local_peer,
-            remote_peer,
-            carrier: Mutex::new(None),
-            subsession_counter: AtomicU64::new(0),
-            read_only: AtomicBool::new(false),
-            successor_session_id: Mutex::new(None),
-            negotiated_version: std::sync::atomic::AtomicU8::new(1), // Default to version 1
-        })
+        todo!()
+        // Ok(Self {
+        //     id,
+        //     is_initiator,
+        //     kkt_state: Mutex::new(kkt_state),
+        //     psq_state: Mutex::new(psq_state),
+        //     sending_counter: AtomicU64::new(0),
+        //     receiving_counter: Mutex::new(ReceivingKeyCounterValidator::default()),
+        //     local_peer,
+        //     remote_peer,
+        //     carrier: Mutex::new(None),
+        //     subsession_counter: AtomicU64::new(0),
+        //     read_only: AtomicBool::new(false),
+        //     successor_session_id: Mutex::new(None),
+        //     negotiated_version: std::sync::atomic::AtomicU8::new(1), // Default to version 1
+        // })
     }
 
     pub fn next_packet(&self, message: LpMessage) -> Result<LpPacket, LpError> {
@@ -796,132 +794,134 @@ impl<'a> LpSession<'a> {
     /// * `Ok(ReadResult)` detailing the outcome (e.g., handshake complete, no-op).
     /// * `Err(LpError)` if the message is invalid or causes a Noise/PSQ protocol error.
     pub fn process_handshake_message(&self, message: &LpMessage) -> Result<ReadResult, LpError> {
-        let mut noise_state = self.noise_state.lock();
-        let mut psq_state = self.psq_state.lock();
-
-        match message {
-            LpMessage::Handshake(HandshakeData(payload)) => {
-                // PSQ always runs for responder on first message
-                if !self.is_initiator && matches!(*psq_state, PSQState::ResponderWaiting) {
-                    // Extract PSQ payload: [u16 psq_len][psq_payload][noise_msg]
-                    if payload.len() < 2 {
-                        return Err(LpError::NoiseError(NoiseError::Other(
-                            "Payload too short for PSQ extraction".to_string(),
-                        )));
-                    }
-
-                    let psq_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
-
-                    if payload.len() < 2 + psq_len {
-                        return Err(LpError::NoiseError(NoiseError::Other(
-                            "Payload length mismatch for PSQ extraction".to_string(),
-                        )));
-                    }
-
-                    let psq_payload = &payload[2..2 + psq_len];
-                    let noise_payload = &payload[2 + psq_len..];
-
-                    let (dec_key, enc_key) = self.encapsulated_kem_keys()?;
-
-                    // Decapsulate PSK from PSQ payload using X25519 as DHKEM
-                    let session_context = self.id.to_le_bytes();
-
-                    let psq_result = match psq_responder_process_message(
-                        self.local_peer.x25519.sk(),
-                        &self.remote_peer.x25519_public,
-                        (&dec_key, &enc_key),
-                        &self.remote_peer.ed25519_public,
-                        psq_payload,
-                        &self.salt,
-                        &session_context,
-                    ) {
-                        Ok(result) => result,
-                        Err(e) => {
-                            tracing::error!("PSQ handshake processing failed, aborting: {:?}", e);
-                            return Err(e);
-                        }
-                    };
-                    let psk = psq_result.psk;
-
-                    // Store PQ shared secret for subsession PSK derivation
-                    *self.pq_shared_secret.lock() =
-                        Some(PqSharedSecret::new(psq_result.pq_shared_secret));
-
-                    // Store the PSK handle (ctxt_B) for transmission in next message
-                    {
-                        let mut psk_handle = self.psk_handle.lock();
-                        *psk_handle = Some(psq_result.psk_handle);
-                    }
-
-                    // Inject PSK into Noise HandshakeState
-                    noise_state.set_psk(3, &psk)?;
-                    // Mark PSK as injected for safety checks in transport mode
-                    self.psk_injected.store(true, Ordering::Release);
-
-                    // Derive and store outer AEAD key from PSK
-                    {
-                        let mut outer_key = self.outer_aead_key.lock();
-                        *outer_key = Some(OuterAeadKey::from_psk(&psk));
-                    }
-
-                    // Update PSQ state to Completed
-                    *psq_state = PSQState::Completed { psk };
-
-                    // Process the Noise handshake message (without PSQ prefix)
-                    drop(psq_state); // Release lock before processing
-                    return noise_state
-                        .read_message(noise_payload)
-                        .map_err(LpError::NoiseError);
-                }
-
-                // Check if initiator should extract PSK handle from message 2
-                if let PSQState::InitiatorWaiting { psk } = *psq_state
-                    && self.is_initiator
-                {
-                    // Extract PSK handle: [u16 handle_len][handle_bytes][noise_msg]
-                    if payload.len() >= 2 {
-                        let handle_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
-
-                        if handle_len > 0 && payload.len() >= 2 + handle_len {
-                            // Extract and store the PSK handle
-                            let handle_bytes = &payload[2..2 + handle_len];
-                            let noise_payload = &payload[2 + handle_len..];
-
-                            tracing::debug!(
-                                "Extracted PSK handle ({} bytes) from message 2",
-                                handle_len
-                            );
-
-                            {
-                                let mut psk_handle = self.psk_handle.lock();
-                                *psk_handle = Some(handle_bytes.to_vec());
-                            }
-
-                            // Transition to Completed - we've received confirmation from responder
-                            *psq_state = PSQState::Completed { psk };
-                            drop(psq_state);
-
-                            // Process only the Noise message part
-                            return noise_state
-                                .read_message(noise_payload)
-                                .map_err(LpError::NoiseError);
-                        }
-                    }
-                    // If no valid handle found, fall through to normal processing
-                }
-
-                // The sans-io NoiseProtocol::read_message expects only the payload.
-                noise_state
-                    .read_message(payload)
-                    .map_err(LpError::NoiseError)
-            }
-            _ => Err(LpError::NoiseError(NoiseError::IncorrectStateError)),
-        }
+        todo!()
+        // let mut noise_state = self.noise_state.lock();
+        // let mut psq_state = self.psq_state.lock();
+        //
+        // match message {
+        //     LpMessage::Handshake(HandshakeData(payload)) => {
+        //         // PSQ always runs for responder on first message
+        //         if !self.is_initiator && matches!(*psq_state, PSQState::ResponderWaiting) {
+        //             // Extract PSQ payload: [u16 psq_len][psq_payload][noise_msg]
+        //             if payload.len() < 2 {
+        //                 return Err(LpError::NoiseError(NoiseError::Other(
+        //                     "Payload too short for PSQ extraction".to_string(),
+        //                 )));
+        //             }
+        //
+        //             let psq_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
+        //
+        //             if payload.len() < 2 + psq_len {
+        //                 return Err(LpError::NoiseError(NoiseError::Other(
+        //                     "Payload length mismatch for PSQ extraction".to_string(),
+        //                 )));
+        //             }
+        //
+        //             let psq_payload = &payload[2..2 + psq_len];
+        //             let noise_payload = &payload[2 + psq_len..];
+        //
+        //             let (dec_key, enc_key) = self.encapsulated_kem_keys()?;
+        //
+        //             // Decapsulate PSK from PSQ payload using X25519 as DHKEM
+        //             let session_context = self.id.to_le_bytes();
+        //
+        //             let psq_result = match psq_responder_process_message(
+        //                 self.local_peer.x25519.sk(),
+        //                 &self.remote_peer.x25519_public,
+        //                 (&dec_key, &enc_key),
+        //                 &self.remote_peer.ed25519_public,
+        //                 psq_payload,
+        //                 &self.salt,
+        //                 &session_context,
+        //             ) {
+        //                 Ok(result) => result,
+        //                 Err(e) => {
+        //                     tracing::error!("PSQ handshake processing failed, aborting: {:?}", e);
+        //                     return Err(e);
+        //                 }
+        //             };
+        //             let psk = psq_result.psk;
+        //
+        //             // Store PQ shared secret for subsession PSK derivation
+        //             *self.pq_shared_secret.lock() =
+        //                 Some(PqSharedSecret::new(psq_result.pq_shared_secret));
+        //
+        //             // Store the PSK handle (ctxt_B) for transmission in next message
+        //             {
+        //                 let mut psk_handle = self.psk_handle.lock();
+        //                 *psk_handle = Some(psq_result.psk_handle);
+        //             }
+        //
+        //             // Inject PSK into Noise HandshakeState
+        //             noise_state.set_psk(3, &psk)?;
+        //             // Mark PSK as injected for safety checks in transport mode
+        //             self.psk_injected.store(true, Ordering::Release);
+        //
+        //             // Derive and store outer AEAD key from PSK
+        //             {
+        //                 let mut outer_key = self.outer_aead_key.lock();
+        //                 *outer_key = Some(OuterAeadKey::from_psk(&psk));
+        //             }
+        //
+        //             // Update PSQ state to Completed
+        //             *psq_state = PSQState::Completed { psk };
+        //
+        //             // Process the Noise handshake message (without PSQ prefix)
+        //             drop(psq_state); // Release lock before processing
+        //             return noise_state
+        //                 .read_message(noise_payload)
+        //                 .map_err(LpError::NoiseError);
+        //         }
+        //
+        //         // Check if initiator should extract PSK handle from message 2
+        //         if let PSQState::InitiatorWaiting { psk } = *psq_state
+        //             && self.is_initiator
+        //         {
+        //             // Extract PSK handle: [u16 handle_len][handle_bytes][noise_msg]
+        //             if payload.len() >= 2 {
+        //                 let handle_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
+        //
+        //                 if handle_len > 0 && payload.len() >= 2 + handle_len {
+        //                     // Extract and store the PSK handle
+        //                     let handle_bytes = &payload[2..2 + handle_len];
+        //                     let noise_payload = &payload[2 + handle_len..];
+        //
+        //                     tracing::debug!(
+        //                         "Extracted PSK handle ({} bytes) from message 2",
+        //                         handle_len
+        //                     );
+        //
+        //                     {
+        //                         let mut psk_handle = self.psk_handle.lock();
+        //                         *psk_handle = Some(handle_bytes.to_vec());
+        //                     }
+        //
+        //                     // Transition to Completed - we've received confirmation from responder
+        //                     *psq_state = PSQState::Completed { psk };
+        //                     drop(psq_state);
+        //
+        //                     // Process only the Noise message part
+        //                     return noise_state
+        //                         .read_message(noise_payload)
+        //                         .map_err(LpError::NoiseError);
+        //                 }
+        //             }
+        //             // If no valid handle found, fall through to normal processing
+        //         }
+        //
+        //         // The sans-io NoiseProtocol::read_message expects only the payload.
+        //         noise_state
+        //             .read_message(payload)
+        //             .map_err(LpError::NoiseError)
+        //     }
+        //     _ => Err(LpError::NoiseError(NoiseError::IncorrectStateError)),
+        // }
     }
 
     /// Checks if the Noise handshake phase is complete.
     pub fn is_handshake_complete(&self) -> bool {
-        self.noise_state.lock().is_handshake_finished()
+        todo!()
+        // self.noise_state.lock().is_handshake_finished()
     }
 
     /// Returns the PQ shared secret (K_pq) if available.
@@ -929,7 +929,8 @@ impl<'a> LpSession<'a> {
     /// This is the raw KEM output from PSQ before Blake3 KDF combination.
     /// Used for deriving subsession PSKs to maintain PQ protection.
     pub fn pq_shared_secret(&self) -> Option<[u8; 32]> {
-        self.pq_shared_secret.lock().as_ref().map(|s| *s.as_bytes())
+        todo!()
+        // self.pq_shared_secret.lock().as_ref().map(|s| *s.as_bytes())
     }
 
     /// Gets the next subsession index and increments the counter.
@@ -980,22 +981,23 @@ impl<'a> LpSession<'a> {
     /// * `Ok(Vec<u8>)` containing the encrypted Noise message ciphertext.
     /// * `Err(NoiseError)` if the session is not in transport mode or encryption fails.
     pub fn encrypt_data(&self, payload: &[u8]) -> Result<LpMessage, NoiseError> {
-        // Check if session is read-only (demoted)
-        if self.read_only.load(Ordering::Acquire) {
-            return Err(NoiseError::SessionReadOnly);
-        }
-
-        let mut noise_state = self.noise_state.lock();
-        // Safety: Prevent transport mode with dummy PSK
-        if !self.psk_injected.load(Ordering::Acquire) {
-            return Err(NoiseError::PskNotInjected);
-        }
-        // Explicitly check if handshake is finished before trying to write
-        if !noise_state.is_handshake_finished() {
-            return Err(NoiseError::IncorrectStateError);
-        }
-        let payload = noise_state.write_message(payload)?;
-        Ok(LpMessage::EncryptedData(EncryptedDataPayload(payload)))
+        todo!()
+        // // Check if session is read-only (demoted)
+        // if self.read_only.load(Ordering::Acquire) {
+        //     return Err(NoiseError::SessionReadOnly);
+        // }
+        //
+        // let mut noise_state = self.noise_state.lock();
+        // // Safety: Prevent transport mode with dummy PSK
+        // if !self.psk_injected.load(Ordering::Acquire) {
+        //     return Err(NoiseError::PskNotInjected);
+        // }
+        // // Explicitly check if handshake is finished before trying to write
+        // if !noise_state.is_handshake_finished() {
+        //     return Err(NoiseError::IncorrectStateError);
+        // }
+        // let payload = noise_state.write_message(payload)?;
+        // Ok(LpMessage::EncryptedData(EncryptedDataPayload(payload)))
     }
 
     /// Decrypts an incoming Noise message containing application data.
@@ -1012,22 +1014,23 @@ impl<'a> LpSession<'a> {
     /// * `Ok(Vec<u8>)` containing the decrypted application data payload.
     /// * `Err(NoiseError)` if the session is not in transport mode, decryption fails, or the message is not data.
     pub fn decrypt_data(&self, noise_ciphertext: &LpMessage) -> Result<Vec<u8>, NoiseError> {
-        let mut noise_state = self.noise_state.lock();
-        // Safety: Prevent transport mode with dummy PSK
-        if !self.psk_injected.load(Ordering::Acquire) {
-            return Err(NoiseError::PskNotInjected);
-        }
-        // Explicitly check if handshake is finished before trying to read
-        if !noise_state.is_handshake_finished() {
-            return Err(NoiseError::IncorrectStateError);
-        }
-
-        let payload = noise_ciphertext.payload();
-
-        match noise_state.read_message(payload)? {
-            ReadResult::DecryptedData(data) => Ok(data),
-            _ => Err(NoiseError::IncorrectStateError),
-        }
+        todo!()
+        // let mut noise_state = self.noise_state.lock();
+        // // Safety: Prevent transport mode with dummy PSK
+        // if !self.psk_injected.load(Ordering::Acquire) {
+        //     return Err(NoiseError::PskNotInjected);
+        // }
+        // // Explicitly check if handshake is finished before trying to read
+        // if !noise_state.is_handshake_finished() {
+        //     return Err(NoiseError::IncorrectStateError);
+        // }
+        //
+        // let payload = noise_ciphertext.payload();
+        //
+        // match noise_state.read_message(payload)? {
+        //     ReadResult::DecryptedData(data) => Ok(data),
+        //     _ => Err(NoiseError::IncorrectStateError),
+        // }
     }
 
     // georgio: remove this
@@ -1228,35 +1231,36 @@ impl SubsessionHandshake {
         // Derive outer AEAD key from the subsession PSK
         let outer_key = OuterAeadKey::from_psk(&self.subsession_psk);
 
-        Ok(LpSession {
-            id: receiver_index,
-            is_initiator: self.is_initiator,
-            // noiserm
-            noise_state: Mutex::new(noise_state),
-            // KKT: subsession inherits from parent, mark as processed
-            kkt_state: Mutex::new(KKTState::ResponderProcessed),
-            // PSQ: subsession uses PSK derived from parent's PQ secret
-            psq_state: Mutex::new(PSQState::Completed {
-                psk: self.subsession_psk,
-            }),
-            // georgio: wip
-            psq_state: None,
-            psk_handle: Mutex::new(None), // Subsession doesn't have its own handle
-            sending_counter: AtomicU64::new(0),
-            receiving_counter: Mutex::new(ReceivingKeyCounterValidator::new(0)),
-            // noiserm
-            psk_injected: AtomicBool::new(true), // PSK was in KKpsk0
-            local_peer: self.local_peer,
-            remote_peer: self.remote_peer,
-            salt,
-            outer_aead_key: Mutex::new(Some(outer_key)),
-            pq_shared_secret: Mutex::new(Some(self.pq_shared_secret)),
-            subsession_counter: AtomicU64::new(0),
-            read_only: AtomicBool::new(false),
-            successor_session_id: Mutex::new(None),
-            // Inherit parent's protocol version
-            negotiated_version: std::sync::atomic::AtomicU8::new(1),
-        })
+        todo!()
+        // Ok(LpSession {
+        //     id: receiver_index,
+        //     is_initiator: self.is_initiator,
+        //     // noiserm
+        //     noise_state: Mutex::new(noise_state),
+        //     // KKT: subsession inherits from parent, mark as processed
+        //     kkt_state: Mutex::new(KKTState::ResponderProcessed),
+        //     // PSQ: subsession uses PSK derived from parent's PQ secret
+        //     psq_state: Mutex::new(PSQState::Completed {
+        //         psk: self.subsession_psk,
+        //     }),
+        //     // georgio: wip
+        //     psq_state: None,
+        //     psk_handle: Mutex::new(None), // Subsession doesn't have its own handle
+        //     sending_counter: AtomicU64::new(0),
+        //     receiving_counter: Mutex::new(ReceivingKeyCounterValidator::new(0)),
+        //     // noiserm
+        //     psk_injected: AtomicBool::new(true), // PSK was in KKpsk0
+        //     local_peer: self.local_peer,
+        //     remote_peer: self.remote_peer,
+        //     salt,
+        //     outer_aead_key: Mutex::new(Some(outer_key)),
+        //     pq_shared_secret: Mutex::new(Some(self.pq_shared_secret)),
+        //     subsession_counter: AtomicU64::new(0),
+        //     read_only: AtomicBool::new(false),
+        //     successor_session_id: Mutex::new(None),
+        //     // Inherit parent's protocol version
+        //     negotiated_version: std::sync::atomic::AtomicU8::new(1),
+        // })
     }
 }
 

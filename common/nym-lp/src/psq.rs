@@ -7,7 +7,7 @@ use libcrux_psq::{
         types::{DHKeyPair, DHPublicKey},
     },
 };
-use nym_kkt::ciphersuite::{Ciphersuite, DecapsulationKey, EncapsulationKey, KEM};
+use nym_kkt::ciphersuite::{Ciphersuite, DecapsulationKey, EncapsulationKey, KEM, KemKeyPair};
 use rand09::rngs::ThreadRng;
 
 use std::fmt::Debug;
@@ -81,11 +81,11 @@ pub fn build_initiator<'a>(
         .unwrap()
 }
 
+// JS: I have removed the `ciphersuite` argument as it was only matching on the key types,
+// which we already obtained matching on the ciphersuite kem type in `LpSession::new`
 pub fn build_responder<'a>(
-    ciphersuite: &Ciphersuite,
     local_x25519_keys: &'a DHKeyPair,
-    local_kem_decapsulation_key: &'a DecapsulationKey,
-    local_kem_encapsulation_key: &'a EncapsulationKey,
+    local_kem_keys: &'a Arc<KemKeyPair>,
 ) -> Responder<'a, rand09::rngs::ThreadRng> {
     let responder_cbuilder = match ciphersuite.kem() {
         KEM::MlKem768 => match (local_kem_decapsulation_key, local_kem_encapsulation_key) {

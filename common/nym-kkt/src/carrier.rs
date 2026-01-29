@@ -1,6 +1,7 @@
 use libcrux_chacha20poly1305::TAG_LEN;
 use libcrux_psq::handshake::types::DHPublicKey;
 use nym_crypto::hkdf::blake3::{derive_key_blake3, derive_key_blake3_multi_input};
+use std::fmt::{Debug, Formatter};
 use zeroize::Zeroize;
 
 use crate::{
@@ -17,8 +18,19 @@ pub struct Carrier {
     rx_counter: u64,
 }
 
+impl Debug for Carrier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Carrier")
+            .field("tx_key", &"<redacted>")
+            .field("rx_key", &"<redacted>")
+            .field("tx_counter", &self.tx_counter)
+            .field("rx_counter", &self.rx_counter)
+            .finish()
+    }
+}
+
 fn increment_nonce(nonce: &mut u64) -> Result<(), KKTError> {
-    return match nonce.checked_add(1) {
+    match nonce.checked_add(1) {
         Some(incremented_nonce) => {
             *nonce = incremented_nonce;
             Ok(())
@@ -26,7 +38,7 @@ fn increment_nonce(nonce: &mut u64) -> Result<(), KKTError> {
         None => Err(KKTError::AEADError {
             info: "Nonce maxed out.",
         }),
-    };
+    }
 }
 
 fn as_nonce_bytes(nonce: u64) -> [u8; 12] {

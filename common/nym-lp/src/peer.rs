@@ -6,8 +6,8 @@ use libcrux_psq::handshake::Responder;
 use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::ciphersuite::{
-    Ciphersuite, DecapsulationKey, EncapsulationKey, KEM, KEMKeyDigests, SignatureScheme,
-    SigningKeyDigests,
+    Ciphersuite, DecapsulationKey, EncapsulationKey, KEM, KEMKeyDigests, KemKeyPair,
+    SignatureScheme, SigningKeyDigests,
 };
 use rand::rngs::ThreadRng;
 use std::collections::HashMap;
@@ -27,11 +27,8 @@ pub struct LpLocalPeer {
     /// Local x25519 keys (Noise static key)
     pub(crate) x25519: Arc<DHKeyPair>,
 
-    /// Local MlKem keypair used for PSQ
-    pub(crate) mlkem: Option<Arc<(DecapsulationKey, EncapsulationKey)>>,
-
-    /// Local McEliece keypair used for PSQ
-    pub(crate) mceliece: Option<Arc<(DecapsulationKey, EncapsulationKey)>>,
+    /// Local KEM keys used for PSQ
+    pub(crate) kem_keypairs: HashMap<KEM, Arc<KemKeyPair>>,
 }
 
 impl LpLocalPeer {
@@ -49,32 +46,13 @@ impl LpLocalPeer {
             ciphersuite: Arc::new(ciphersuite),
             ed25519,
             x25519: Arc::new(initiator_x25519_keypair),
-            mlkem: None,
-            mceliece: None,
+            kem_keypairs: Default::default(),
         }
     }
 
-    pub fn with_mlkem_keypair(
-        mut self,
-        decapsulation_key: &MlKem768PrivateKey,
-        encapsulation_key: &MlKem768PublicKey,
-    ) -> Self {
-        self.mlkem = Some(Arc::new((
-            DecapsulationKey::MlKem768(decapsulation_key.clone()),
-            EncapsulationKey::MlKem768(encapsulation_key.clone()),
-        )));
-        self
-    }
-
-    pub fn with_mceliece_keypair(
-        mut self,
-        decapsulation_key: libcrux_psq::classic_mceliece::SecretKey,
-        encapsulation_key: libcrux_psq::classic_mceliece::PublicKey,
-    ) -> Self {
-        self.mceliece = Some(Arc::new((
-            DecapsulationKey::McEliece(decapsulation_key),
-            EncapsulationKey::McEliece(encapsulation_key),
-        )));
+    pub fn with_kem_keypair(mut self, keypair: Arc<KemKeyPair>) -> Self {
+        let kem = keypair.kem();
+        self.kem_keypairs.insert(kem, keypair);
         self
     }
 
@@ -84,6 +62,10 @@ impl LpLocalPeer {
 
     pub fn x25519(&self) -> &Arc<DHKeyPair> {
         &self.x25519
+    }
+
+    pub fn kem_key(&self, kem: KEM) -> Option<&Arc<KemKeyPair>> {
+        self.kem_keypairs.get(&kem)
     }
 
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
@@ -123,18 +105,10 @@ impl LpLocalPeer {
 impl Debug for LpLocalPeer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LpLocalPeer")
+            .field("ciphersuite", &self.ciphersuite)
             .field("ed25519", &self.ed25519)
             .field("x25519", &self.x25519.pk)
-            .field(
-                "mlkem",
-                &format!(
-                    "mlkem_public_key: {}",
-                    match &self.mlkem {
-                        Some(keypair) => format!("{:?}", keypair.as_ref().1),
-                        None => "None".to_string(),
-                    }
-                ),
-            )
+            .field("kem_keypairs", &self.kem_keypairs)
             .finish()
     }
 }

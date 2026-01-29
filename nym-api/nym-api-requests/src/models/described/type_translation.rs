@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use strum_macros::{Display, EnumString};
+use thiserror::Error;
 use utoipa::ToSchema;
 
 // to whoever is thinking of modifying this struct.
@@ -211,17 +212,57 @@ pub struct LewesProtocolDetailsV1 {
 
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
-    pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, Vec<u8>>>,
+    /// note: digests are hex encoded
+    pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
 
     /// Digests of the signing keys available to this node alongside hashing algorithms used
     /// for their computation.
-    pub signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, Vec<u8>>>,
+    /// note: digests are hex encoded
+    pub signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>>,
+}
+
+impl LewesProtocolDetailsV1 {
+    fn decode_digests(
+        digests: &HashMap<LPHashFunction, String>,
+    ) -> Result<HashMap<HashFunction, Vec<u8>>, MalformedLPData> {
+        let mut kem_digests = HashMap::new();
+        for (hash_function, digest) in digests {
+            let digest = hex::decode(digest).map_err(|source| MalformedLPData::MalformedHash {
+                value: digest.to_string(),
+                source,
+            })?;
+            kem_digests.insert((*hash_function).try_into()?, digest);
+        }
+        Ok(kem_digests)
+    }
+
+    pub fn kem_keys(
+        &self,
+    ) -> Result<HashMap<KEM, HashMap<HashFunction, Vec<u8>>>, MalformedLPData> {
+        let mut kem_keys = HashMap::new();
+        for (kem, digests) in &self.kem_keys {
+            let kem_digests = Self::decode_digests(digests)?;
+            kem_keys.insert((*kem).try_into()?, kem_digests);
+        }
+        Ok(kem_keys)
+    }
+
+    pub fn signing_keys(
+        &self,
+    ) -> Result<HashMap<SignatureScheme, HashMap<HashFunction, Vec<u8>>>, MalformedLPData> {
+        let mut signing_keys = HashMap::new();
+        for (signature_scheme, digests) in &self.signing_keys {
+            let kem_digests = Self::decode_digests(digests)?;
+            signing_keys.insert((*signature_scheme).try_into()?, kem_digests);
+        }
+        Ok(signing_keys)
+    }
 }
 
 /// Convert map of digests from `nym_node_requests` types into `nym-api-requests` types
 fn translate_digests(
-    digests: HashMap<nym_node_requests::api::v1::lewes_protocol::models::LPHashFunction, Vec<u8>>,
-) -> HashMap<LPHashFunction, Vec<u8>> {
+    digests: HashMap<nym_node_requests::api::v1::lewes_protocol::models::LPHashFunction, String>,
+) -> HashMap<LPHashFunction, String> {
     digests
         .into_iter()
         .map(|(hash_fn, digest)| (hash_fn.into(), digest))
@@ -244,6 +285,7 @@ fn translate_digests(
     ToSchema,
 )]
 #[strum(serialize_all = "lowercase")]
+#[non_exhaustive]
 pub enum LPKEM {
     MlKem768,
     XWing,
@@ -267,6 +309,7 @@ pub enum LPKEM {
     ToSchema,
 )]
 #[strum(serialize_all = "lowercase")]
+#[non_exhaustive]
 pub enum LPHashFunction {
     Blake3,
     Shake128,
@@ -290,6 +333,7 @@ pub enum LPHashFunction {
     ToSchema,
 )]
 #[strum(serialize_all = "lowercase")]
+#[non_exhaustive]
 pub enum LPSignatureScheme {
     Ed25519,
 }
@@ -469,32 +513,59 @@ impl From<nym_node_requests::api::v1::lewes_protocol::models::LPSignatureScheme>
     }
 }
 
-impl From<LPKEM> for KEM {
-    fn from(value: LPKEM) -> Self {
+#[derive(Debug, Error)]
+pub enum MalformedLPData {
+    #[error("{value} does not correspond to any valid LP KEM")]
+    UnknownLpKEM { value: LPKEM },
+
+    #[error("{value} does not correspond to any valid LP Signature Scheme")]
+    UnknownLpSignatureScheme { value: LPSignatureScheme },
+
+    #[error("{value} does not correspond to any valid LP Hash Function")]
+    UnknownLpHashFunction { value: LPHashFunction },
+
+    #[error("{value} is not a valid hex encoded hash: {source}")]
+    MalformedHash {
+        value: String,
+        source: hex::FromHexError,
+    },
+}
+
+impl TryFrom<LPKEM> for KEM {
+    type Error = MalformedLPData;
+    fn try_from(value: LPKEM) -> Result<Self, Self::Error> {
         match value {
-            LPKEM::MlKem768 => KEM::MlKem768,
-            LPKEM::XWing => KEM::XWing,
-            LPKEM::X25519 => KEM::X25519,
-            LPKEM::McEliece => KEM::McEliece,
+            LPKEM::MlKem768 => Ok(KEM::MlKem768),
+            LPKEM::XWing => Ok(KEM::XWing),
+            LPKEM::X25519 => Ok(KEM::X25519),
+            LPKEM::McEliece => Ok(KEM::McEliece),
+            // TODO: for backwards compatibility once variants within the LP crate change
+            // other => Err(MalformedLPData::UnknownLpKEM { value: other }),
         }
     }
 }
 
-impl From<LPHashFunction> for HashFunction {
-    fn from(value: LPHashFunction) -> Self {
+impl TryFrom<LPHashFunction> for HashFunction {
+    type Error = MalformedLPData;
+    fn try_from(value: LPHashFunction) -> Result<Self, Self::Error> {
         match value {
-            LPHashFunction::Blake3 => HashFunction::Blake3,
-            LPHashFunction::Shake128 => HashFunction::Shake128,
-            LPHashFunction::Shake256 => HashFunction::Shake256,
-            LPHashFunction::Sha256 => HashFunction::SHA256,
+            LPHashFunction::Blake3 => Ok(HashFunction::Blake3),
+            LPHashFunction::Shake128 => Ok(HashFunction::Shake128),
+            LPHashFunction::Shake256 => Ok(HashFunction::Shake256),
+            LPHashFunction::Sha256 => Ok(HashFunction::SHA256),
+            // TODO: for backwards compatibility once variants within the LP crate change
+            // other => Err(MalformedLPData::UnknownLpHashFunction { value: other }),
         }
     }
 }
 
-impl From<LPSignatureScheme> for SignatureScheme {
-    fn from(value: LPSignatureScheme) -> Self {
+impl TryFrom<LPSignatureScheme> for SignatureScheme {
+    type Error = MalformedLPData;
+    fn try_from(value: LPSignatureScheme) -> Result<Self, Self::Error> {
         match value {
-            LPSignatureScheme::Ed25519 => SignatureScheme::Ed25519,
+            LPSignatureScheme::Ed25519 => Ok(SignatureScheme::Ed25519),
+            // TODO: for backwards compatibility once variants within the LP crate change
+            // other => Err(MalformedLPData::UnknownLpSignatureScheme { value: other }),
         }
     }
 }

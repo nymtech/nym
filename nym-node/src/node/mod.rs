@@ -776,7 +776,7 @@ impl NymNode {
         Ok(())
     }
 
-    fn compute_kem_key_hashes(&self) -> HashMap<LPKEM, HashMap<LPHashFunction, Vec<u8>>> {
+    fn compute_kem_key_hashes(&self) -> HashMap<LPKEM, HashMap<LPHashFunction, String>> {
         let kem = LPKEM::X25519;
 
         let kem_key_bytes = self.entry_gateway.psq_kem_key.public_key().as_bytes();
@@ -784,7 +784,7 @@ impl NymNode {
         // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
         let digests = produce_key_digests(kem_key_bytes.as_ref())
             .into_iter()
-            .map(|(f, d)| (f.into(), d))
+            .map(|(f, digest)| (f.into(), hex::encode(&digest)))
             .collect();
 
         let mut hashes = HashMap::new();
@@ -794,7 +794,7 @@ impl NymNode {
 
     fn compute_signing_key_hashes(
         &self,
-    ) -> HashMap<LPSignatureScheme, HashMap<LPHashFunction, Vec<u8>>> {
+    ) -> HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>> {
         let scheme = LPSignatureScheme::Ed25519;
 
         let kem_key_bytes = self.ed25519_identity_keys.public_key().as_bytes();
@@ -802,7 +802,7 @@ impl NymNode {
         // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
         let digests = produce_key_digests(kem_key_bytes.as_ref())
             .into_iter()
-            .map(|(f, d)| (f.into(), d))
+            .map(|(f, digest)| (f.into(), hex::encode(&digest)))
             .collect();
 
         let mut hashes = HashMap::new();

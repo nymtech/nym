@@ -3,8 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-# TODO dz temporary
-version = "4.0.13-probe-integration"
+version = "4.0.13"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

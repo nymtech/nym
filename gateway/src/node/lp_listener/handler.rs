@@ -1228,8 +1228,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::lp_listener::peer_manager::PeerManager;
     use crate::node::lp_listener::{LpConfig, LpDebug};
+    use crate::node::wireguard::PeerManager;
     use crate::node::ActiveClientsStore;
     use bytes::BytesMut;
     use nym_credential_verification::upgrade_mode::{

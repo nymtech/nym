@@ -14,11 +14,11 @@ mod tests {
     use nym_crypto::asymmetric::{ed25519, x25519};
     use nym_gateway::GatewayError;
     use nym_gateway::node::lp_listener::handler::LpConnectionHandler;
-    use nym_gateway::node::lp_listener::peer_manager::PeerManager;
     use nym_gateway::node::lp_listener::{
         LpDebug, LpHandlerState, LpLocalPeer, MixForwardingReceiver, PeerControlRequest,
         WireguardGatewayData, mix_forwarding_channels,
     };
+    use nym_gateway::node::wireguard::PeerManager;
     use nym_gateway::node::{ActiveClientsStore, GatewayStorage, LpConfig};
     use nym_registration_client::{LpClientError, LpRegistrationClient};
     use nym_test_utils::helpers::{CryptoRng, RngCore, u64_seeded_rng};

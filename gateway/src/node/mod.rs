@@ -18,6 +18,7 @@ use nym_credential_verification::upgrade_mode::{
 };
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_router::IpPacketRouter;
+use nym_lp::peer::LpLocalPeer;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::NRServiceProviderBuilder;
@@ -36,8 +37,8 @@ use tokio::sync::Semaphore;
 use tracing::*;
 use zeroize::Zeroizing;
 
-use crate::node::lp_listener::peer_manager::PeerManager;
 pub use crate::node::upgrade_mode::watcher::UpgradeModeWatcher;
+use crate::node::wireguard::PeerManager;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use lp_listener::LpConfig;
 pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender;
@@ -47,7 +48,6 @@ pub use nym_gateway_storage::{
     traits::{BandwidthGatewayStorage, InboxGatewayStorage},
     GatewayStorage,
 };
-use nym_lp::peer::LpLocalPeer;
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
 pub(crate) mod client_handling;
@@ -55,6 +55,7 @@ pub(crate) mod internal_service_providers;
 pub mod lp_listener;
 mod stale_data_cleaner;
 pub mod upgrade_mode;
+pub mod wireguard;
 
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {

@@ -68,7 +68,6 @@
 // They can be exported via Prometheus format using the metrics endpoint.
 
 use crate::error::GatewayError;
-use crate::node::lp_listener::peer_manager::PeerManager;
 use crate::node::lp_listener::registration::RegistrationsInProgress;
 use crate::node::ActiveClientsStore;
 use dashmap::DashMap;
@@ -86,6 +85,7 @@ use tokio::net::TcpListener;
 use tokio::sync::Semaphore;
 use tracing::*;
 
+use crate::node::wireguard::PeerManager;
 pub use nym_lp::peer::LpLocalPeer;
 pub use nym_mixnet_client::forwarder::{
     mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender,
@@ -94,7 +94,6 @@ pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
 
 mod data_handler;
 pub mod handler;
-pub mod peer_manager;
 mod registration;
 
 pub type ReceiverIndex = u32;

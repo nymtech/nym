@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::internal_service_providers::authenticator::{
-    config::Config, error::AuthenticatorError, peer_manager::PeerManager,
-    seen_credential_cache::SeenCredentialCache,
+    config::Config, error::AuthenticatorError, seen_credential_cache::SeenCredentialCache,
 };
+use crate::node::wireguard::PeerManager;
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
@@ -592,7 +592,7 @@ impl MixnetListener {
                 .storage()
                 .remove_wireguard_peer(&public_key)
                 .await?;
-            return Err(e);
+            return Err(e.into());
         }
 
         registered_and_free

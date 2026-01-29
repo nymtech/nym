@@ -51,26 +51,25 @@ pub fn score_from_sorted_latencies(gateways: Vec<(String, u64)>) -> HashMap<Stri
     let mut gateways = gateways;
     gateways.sort_by_cached_key(|(_, latency)| *latency);
 
-    // as soon as you find the first nonzero latency, it's a boundary where non-zero starts
     let (offline_gws, online_gws): (Vec<_>, Vec<_>) =
         gateways.into_iter().partition(|(_, latency)| *latency == 0);
 
-    let nonzero_count = online_gws.len();
+    let online_count = online_gws.len();
 
     // x / 2 = 0.5x
-    let high_end_idx = nonzero_count.div_ceil(2);
+    let high_end_idx = online_count.div_ceil(2);
     // 3x / 4 = 0.75x
-    let medium_end_idx = nonzero_count.saturating_mul(3).div_ceil(4);
+    let medium_end_idx = online_count.saturating_mul(3).div_ceil(4);
     // `Low` gets assigned to everything else
 
     let mut result = HashMap::new();
 
-    // first flag all the zero-latency as Offline
+    // first flag all the offline gateways
     for (id, _lat) in offline_gws {
         result.entry(id).or_insert(ScoreValue::Offline);
     }
 
-    // secondly go over remaining non-zero elements, assign by rank within non-zero set
+    // secondly go over remaining non-zero elements, assign into buckets
     for (idx, (id, _)) in online_gws.into_iter().enumerate() {
         let score = if idx < high_end_idx {
             ScoreValue::High

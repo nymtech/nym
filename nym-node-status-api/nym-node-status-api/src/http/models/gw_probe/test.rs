@@ -175,7 +175,6 @@ fn conversion_from_gw_probe_latest() {
                 can_route_ip_v6: true,
                 can_route_ip_external_v6: true,
             }),
-            // TODO socks5 and lp fields
             socks5: None,
             lp: None,
             wg: Some(wg_latest.clone()),

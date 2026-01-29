@@ -104,6 +104,14 @@ jobs:
         with:
           command: build
 
+        # only build on linux because of wg FFI bindings of its dependency (network probe)
+      - name: Build nym-node-status-api (linux only)
+        if: runner.os == 'Linux'
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: -p nym-node-status-api
+
       - name: Build all examples
         if: contains(matrix.os, 'linux')
         uses: actions-rs/cargo@v1

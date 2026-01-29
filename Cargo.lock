@@ -7233,7 +7233,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "1.0.8-gw-socks5"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "clap",

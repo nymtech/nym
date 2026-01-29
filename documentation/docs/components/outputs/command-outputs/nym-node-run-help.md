@@ -76,6 +76,10 @@ Options:
           Indicates whether this gateway is accepting only coconut credentials for accessing the mixnet or if it also accepts non-paying clients [env: NYMNODE_ENFORCE_ZK_NYMS=] [possible values: true, false]
       --mnemonic <MNEMONIC>
           Custom cosmos wallet mnemonic used for zk-nym redemption. If no value is provided, a fresh mnemonic is going to be generated [env: NYMNODE_MNEMONIC=]
+      --upgrade-mode-attestation-url <UPGRADE_MODE_ATTESTATION_URL>
+          Endpoint to query to retrieve current upgrade mode attestation. This argument should never be set outside testnets and local networks [env: NYMNODE_UPGRADE_MODE_ATTESTATION_URL=]
+      --upgrade-mode-attester-public-key <UPGRADE_MODE_ATTESTER_PUBLIC_KEY>
+          Expected public key of the entity signing the published attestation. This argument should never be set outside testnets and local networks [env: NYMNODE_UPGRADE_MODE_ATTESTER_PUBKEY=]
       --upstream-exit-policy-url <UPSTREAM_EXIT_POLICY_URL>
           Specifies the url for an upstream source of the exit policy used by this node [env: NYMNODE_UPSTREAM_EXIT_POLICY=]
       --open-proxy <OPEN_PROXY>

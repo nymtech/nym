@@ -49,6 +49,136 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.2-oscypek`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.2-oscypek)
+- [`nym-node`](nodes/nym-node.mdx) version `1.24.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-01-27T14:54:15.579821601Z
+Build Version:      1.24.0
+Commit SHA:         83bf9dc7cc2b01f65cab671733f2bf6c3abd471d
+Commit Date:        2026-01-27T15:46:52.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+<Callout type="warning" emoji="⚠️">
+**This release comes with breaking changes - please follow the [steps below](#oscypek-special-update) before upgrading!**
+
+Secondly, the outcome of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), is added to the [Network tunnel manager (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) and operators are required to rerun the tool on their servers as [documented here](update-nym-exit-policy).
+</ Callout>
+
+#### `oscypek` special update
+
+This release brings changes which would lead into a *foreign constraint bug* if operators just switched binaries and restarted the node. To prevent it we need to do a little `sqlite` tweak on the node database.
+
+To simplify this, we made **a build in command, which operators must run after getting the new binary, but beofre restarting the node.**
+
+These are the steps to follow:
+
+<Steps>
+###### 1. Get `oscypek` binary
+- SSH to your machine as root
+- Navigate to the destination where you have `nym-node` binary
+- Get the latest binary and provide it with permissions to run
+```sh
+curl -L "https://github.com/nymtech/nym/releases/download/nym-binaries-v2026.2-oscypek/nym-node" -o nym-node && \
+chmod +x nym-node
+```
+
+###### 2. Run `debug` command
+```sh
+./nym-node debug reset-providers-gateway-dbs --id <ID>
+```
+
+###### 3. Restart your node
+- Restart the `nym-node.service`
+```sh
+systemctl restart nym-node
+```
+- Additionaly look for starus or serivice journal
+```sh
+service nym-node status
+# or
+journalctl -u nym-node -f --all
+```
+</ Steps>
+
+#### Update Nym exit policy
+
+As a result of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), we updated [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh). Every operator is required to download and re-run the current version of NTM on the servers hosting Nym nodes. 
+
+These are the steps for the exit policy update, using NTM.
+
+<Steps>
+###### 1. Get the new NTM
+- Download the updated NTM and make executable
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh
+```
+
+###### 2. Update exit policy
+- To be sure that your routing is clean, run this command:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+</ Steps>
+
+### Features
+
+- [Deriving `Serialize` for `GatewayData`](https://github.com/nymtech/nym/pull/6314): Deriving `Serialize` for gateway data, that will be used by the diagnostic tool in the `vpn-client` repo
+
+- [DNS static table pre-resolve](https://github.com/nymtech/nym/pull/6297): This PR adds pre-resolve stage that returns addres if we have used static table previously. This ensures that we don't continually suffer the penalty of a lookup timeout, while also allowing for the possibility of going back to the default internal secure resolver if one or more nameservers becomes usable again at a future time.
+
+- [Add `Copy+Clone` to `nym_api_provider::Config`](https://github.com/nymtech/nym/pull/6296): Add `Copy+Clone` to `nym_client_core::client::topology_control::nym_api_provider::Config`
+
+- [LP Registration + Telescoping + Gateway Probe Localnet Mode](https://github.com/nymtech/nym/pull/6286):  Combines LP registration protocol implementation, adds telescoping/nested sessions support, adds localnet mode for `gateway-probe` testing, integrates KKT & PSQ cryptographic primitives 
+
+- [Minor DNS improvements](https://github.com/nymtech/nym/pull/6283): Increase timeouts back to 10 seconds for overall lookup and 5 seconds per query, gnore unreliable test, remove JIT resolution in http client as it is at best not useful, and at worst increasing timeout
+
+- [HTTP client without default features](https://github.com/nymtech/nym/pull/6281): Fix compile issue caused when using the http client using `default-features=false`
+
+- [DNS: reduce number of attempts](https://github.com/nymtech/nym/pull/6278): Reduce number of retry attempts performed by hickory to `0`, define `new_resolver` as infallible, use `ResolverOpts` to build builder
+
+- [Fallback gateway listener and remove legacy key support](https://github.com/nymtech/nym/pull/6249)
+
+- [Fix assertion](https://github.com/nymtech/nym/pull/6238)
+
+- [Initial changes to support extra configurable parameters and to print…](https://github.com/nymtech/nym/pull/6237): This branch adds support for the additional configurable parameters introduced in  `nicolas/sdk-param-support-debug` in the nym vpn client branch and also debugging messages to verify that it works
+
+- [Data Observatory](https://github.com/nymtech/nym/pull/6172): This PR adds the Data Observatory that is:
+    - chain scraper
+    - parses Cosmos SDK messages
+    - parses Cosmwasm messages
+    - stores data in pgsql
+
+### Bugfix
+
+- [Downgrade gateway protocol to clients proposed version](https://github.com/nymtech/nym/pull/6377)
+
+- [Ack fix](https://github.com/nymtech/nym/pull/6364)
+
+- [Sqlite transaction escalation was causing errors ](https://github.com/nymtech/nym/pull/6299): Getting tickets from credential storage requires a transaction doing a read and then a write. Running registration in parallel was causing sqlite to return errors, because it can't escalate two transactions, only one.
+
+- [Use proper mixing delay instead of poisson delay in cover traffic](https://github.com/nymtech/nym/pull/6269): Currently the secondary cover traffic loop uses its Poisson process delays instead of a proper mixing delay, this PR fixes that
+
+### Refactors & Maintenance
+
+- [Update nix to `v0.30.1`](https://github.com/nymtech/nym/pull/6316)
+
+- [Rremove repetitive words in comment](https://github.com/nymtech/nym/pull/6313)
+
+- [Clippy fixes and use fixed rust version from `REQUIRED_RUSTC_VERSION`](https://github.com/nymtech/nym/pull/6295)
+
+
 ## `v2026.1-niolo`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.1-niolo)
@@ -120,7 +250,7 @@ Please, let us know how that worked for you.
 
 - [`gateway-probe` fixes for run-local](https://github.com/nymtech/nym/pull/6212)
 
-- [Upgrade mode: VPN adjustments](https://github.com/nymtech/nym/pull/6189): This PR further builds up on [\#6174](https://github.com/nymtech/nym/pull/6174) to include changes required by the VPN-client to fully support the upgrade mode, what is relevant here is that this PR modifies the credential storage to allow it to storage an opaque `emergency credential` that lets it be shared between sessions (if it is still valid)  ]
+- [Upgrade mode: VPN adjustments](https://github.com/nymtech/nym/pull/6189): This PR further builds up on [\#6174](https://github.com/nymtech/nym/pull/6174) to include changes required by the VPN-client to fully support the upgrade mode, what is relevant here is that this PR modifies the credential storage to allow it to storage an opaque `emergency credential` that lets it be shared between sessions (if it is still valid) 
 
 - [Add weighted scoring to NS API](https://github.com/nymtech/nym/pull/6144)
 

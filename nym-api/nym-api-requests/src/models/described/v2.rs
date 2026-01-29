@@ -264,13 +264,13 @@ pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
 
     kem_hashes.insert(
         LPHashFunction::Sha256,
-        hex::encode(&[(seed % 256) as u8; 32]),
+        hex::encode([(seed % 256) as u8; 32]),
     );
     kem_hashes_wrapper.insert(LPKEM::X25519, kem_hashes);
 
     signing_keys_hashes.insert(
         LPHashFunction::Sha256,
-        hex::encode(&[(seed % 256) as u8; 32]),
+        hex::encode([(seed % 256) as u8; 32]),
     );
     signing_keys_hashes_wrapper.insert(LPSignatureScheme::Ed25519, signing_keys_hashes);
 

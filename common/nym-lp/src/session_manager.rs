@@ -10,19 +10,18 @@ use crate::noise_protocol::ReadResult;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
 use crate::{LpError, LpMessage, LpSession, LpStateMachine};
-use dashmap::DashMap;
-use dashmap::mapref::one::{Ref, RefMut};
+use std::collections::HashMap;
+
 #[cfg(test)]
 use libcrux_psq::handshake::types::DHPublicKey;
 use nym_kkt::ciphersuite::Ciphersuite;
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
-/// The SessionManager is responsible for creating, storing, and retrieving sessions,
-/// ensuring proper thread-safety for concurrent access.
+/// The SessionManager is responsible for creating, storing, and retrieving sessions
 pub struct SessionManager<'a> {
     /// Manages state machines directly, keyed by lp_id
-    state_machines: DashMap<u32, LpStateMachine<'a>>,
+    state_machines: HashMap<u32, LpStateMachine<'a>>,
 }
 
 impl<'a> Default for SessionManager<'a> {
@@ -35,12 +34,12 @@ impl<'a> SessionManager<'a> {
     /// Creates a new session manager with empty session storage.
     pub fn new() -> Self {
         Self {
-            state_machines: DashMap::new(),
+            state_machines: HashMap::new(),
         }
     }
 
     pub fn process_input(
-        &'a self,
+        &'a mut self,
         lp_id: u32,
         input: LpInput,
     ) -> Result<Option<LpAction>, LpError> {
@@ -49,7 +48,7 @@ impl<'a> SessionManager<'a> {
             .transpose()
     }
 
-    pub fn add(&self, session: LpSession<'a>) -> Result<(), LpError> {
+    pub fn add(&mut self, session: LpSession<'a>) -> Result<(), LpError> {
         let sm = LpStateMachine {
             state: LpState::ReadyToHandshake {
                 session: Box::new(session),
@@ -89,7 +88,7 @@ impl<'a> SessionManager<'a> {
     }
 
     pub fn receiving_counter_quick_check(
-        &'a self,
+        &mut self,
         lp_id: u32,
         counter: u64,
     ) -> Result<(), LpError> {
@@ -120,7 +119,7 @@ impl<'a> SessionManager<'a> {
             .is_handshake_complete())
     }
 
-    pub fn next_counter(&'a self, lp_id: u32) -> Result<u64, LpError> {
+    pub fn next_counter(&mut self, lp_id: u32) -> Result<u64, LpError> {
         Ok(self.state_machine_mut(lp_id)?.session()?.next_counter())
     }
 
@@ -160,23 +159,13 @@ impl<'a> SessionManager<'a> {
         self.state_machines.contains_key(&lp_id)
     }
 
-    // this method must NOT be used without some serious considerations,
-    // in particular the value MUST NOT be held across await points
-    // (even if the compiler is fine with it)
-    // as it could lead to a deadlock
-    #[doc(hidden)]
-    fn state_machine(&'a self, lp_id: u32) -> Result<Ref<u32, LpStateMachine>, LpError> {
+    fn state_machine(&'a self, lp_id: u32) -> Result<&LpStateMachine, LpError> {
         self.state_machines
             .get(&lp_id)
             .ok_or_else(|| LpError::StateMachineNotFound { lp_id })
     }
 
-    // this method must NOT be used without some serious considerations,
-    // in particular the value MUST NOT be held across await points
-    // (even if the compiler is fine with it)
-    // as it could lead to a deadlock
-    #[doc(hidden)]
-    fn state_machine_mut(&'a self, lp_id: u32) -> Result<RefMut<u32, LpStateMachine>, LpError> {
+    fn state_machine_mut(&mut self, lp_id: u32) -> Result<&mut LpStateMachine<'a>, LpError> {
         self.state_machines
             .get_mut(&lp_id)
             .ok_or_else(|| LpError::StateMachineNotFound { lp_id })
@@ -207,7 +196,7 @@ impl<'a> SessionManager<'a> {
     // }
 
     pub fn create_session_state_machine(
-        &self,
+        &mut self,
         receiver_index: u32,
         is_initiator: bool,
         ciphersuite: Ciphersuite,
@@ -229,7 +218,7 @@ impl<'a> SessionManager<'a> {
     }
 
     /// Method to remove a state machine
-    pub fn remove_state_machine(&self, lp_id: u32) -> bool {
+    pub fn remove_state_machine(&mut self, lp_id: u32) -> bool {
         let removed = self.state_machines.remove(&lp_id);
 
         removed.is_some()
@@ -239,7 +228,7 @@ impl<'a> SessionManager<'a> {
     /// This allows integration tests to bypass KKT exchange and directly test PSQ/handshake.
     #[cfg(test)]
     pub fn init_kkt_for_test(
-        &self,
+        &mut self,
         lp_id: u32,
         remote_x25519_pub: &DHPublicKey,
     ) -> Result<(), LpError> {
@@ -261,7 +250,7 @@ mod tests {
 
     #[test]
     fn test_session_manager_get() {
-        let manager = SessionManager::new();
+        let mut manager = SessionManager::new();
 
         for kem in kem_list() {
             let (local, peer1) = mock_peers(kem);
@@ -282,7 +271,7 @@ mod tests {
     }
     #[test]
     fn test_session_manager_remove() {
-        let manager = SessionManager::new();
+        let mut manager = SessionManager::new();
         for kem in kem_list() {
             let (local, peer1) = mock_peers(kem);
 
@@ -304,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_multiple_sessions() {
-        let manager = SessionManager::new();
+        let mut manager = SessionManager::new();
         for kem in kem_list() {
             let (local, peer1) = mock_peers(kem);
             let (peer2, peer3) = mock_peers(kem);
@@ -337,7 +326,7 @@ mod tests {
 
     #[test]
     fn test_session_manager_create_session() {
-        let manager = SessionManager::new();
+        let mut manager = SessionManager::new();
         for kem in kem_list() {
             let (init, resp) = mock_peers(kem);
 

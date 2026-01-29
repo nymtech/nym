@@ -44,6 +44,7 @@ use parking_lot::Mutex;
 use rand::RngCore;
 use snow::Builder;
 
+use crate::state_machine::LpData;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -113,18 +114,6 @@ pub enum KKTState {
         /// This can be used to send encrypted messages
         carrier: Carrier,
     },
-}
-
-impl KKTState {
-    pub fn carrier_mut(&mut self) -> Result<&mut Carrier, LpError> {
-        match &mut self {
-            KKTState::NotStarted | KKTState::InitiatorWaiting { .. } => {
-                Err(LpError::KKTError("incomplete KKT exchange".to_string()))
-            }
-            KKTState::Completed { carrier, .. } => Ok(carrier),
-            KKTState::ResponderProcessed { carrier } => Ok(carrier),
-        }
-    }
 }
 
 impl std::fmt::Debug for KKTState {
@@ -737,7 +726,7 @@ impl<'a> LpSession<'a> {
             &self.local_peer.ciphersuite,
             &self.id,
             &self.local_peer.x25519,
-            self.remote_x25519_public(),
+            &self.remote_peer.x25519_public,
             remote_kem,
         );
 
@@ -899,7 +888,7 @@ impl<'a> LpSession<'a> {
     }
 
     /// Checks if the Noise handshake phase is complete.
-    pub fn is_handshake_complete(&'a self) -> bool {
+    pub fn is_handshake_complete(&self) -> bool {
         todo!()
         // self.noise_state.lock().is_handshake_finished()
     }
@@ -908,7 +897,7 @@ impl<'a> LpSession<'a> {
     ///
     /// This is the raw KEM output from PSQ before Blake3 KDF combination.
     /// Used for deriving subsession PSKs to maintain PQ protection.
-    pub fn pq_shared_secret(&'a self) -> Option<[u8; 32]> {
+    pub fn pq_shared_secret(&self) -> Option<[u8; 32]> {
         todo!()
         // self.pq_shared_secret.lock().as_ref().map(|s| *s.as_bytes())
     }
@@ -978,6 +967,14 @@ impl<'a> LpSession<'a> {
         // }
         // let payload = noise_state.write_message(payload)?;
         // Ok(LpMessage::EncryptedData(EncryptedDataPayload(payload)))
+    }
+
+    // Helper to prepare an outgoing data packet
+    // Kept as it doesn't mutate self.state
+    pub fn prepare_data_packet(&self, data: LpData) -> Result<LpPacket, NoiseError> {
+        let encrypted_message = self.encrypt_data(Vec::<u8>::from(data).as_ref())?;
+        self.next_packet(encrypted_message)
+            .map_err(|e| NoiseError::Other(e.to_string())) // Improve error conversion?
     }
 
     /// Decrypts an incoming Noise message containing application data.
@@ -1094,6 +1091,8 @@ impl<'a> LpSession<'a> {
             subsession_psk,
         })
     }
+
+    //
 }
 
 /// Subsession created via Noise KKpsk0 handshake tunneled through parent session.

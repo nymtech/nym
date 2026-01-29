@@ -21,13 +21,13 @@ use nym_kkt::{
         responder_ingest_message, responder_process,
     },
 };
-use rand::prelude::*;
+use rand09::prelude::*;
 
 pub fn gen_ed25519_keypair(c: &mut Criterion) {
     c.bench_function("Generate Ed25519 Keypair", |b| {
         b.iter(|| {
             let mut s: [u8; 32] = [0u8; 32];
-            rand::rng().fill_bytes(&mut s);
+            rand09::rng().fill_bytes(&mut s);
             ed25519::KeyPair::from_secret(s, 0)
         });
     });
@@ -36,13 +36,13 @@ pub fn gen_ed25519_keypair(c: &mut Criterion) {
 pub fn gen_mlkem768_keypair(c: &mut Criterion) {
     c.bench_function("Generate MlKem768 Keypair", |b| {
         b.iter(|| {
-            libcrux_kem::key_gen(libcrux_kem::Algorithm::MlKem768, &mut rand::rng()).unwrap()
+            libcrux_kem::key_gen(libcrux_kem::Algorithm::MlKem768, &mut rand09::rng()).unwrap()
         });
     });
 }
 
 pub fn kkt_benchmark(c: &mut Criterion) {
-    let mut rng = rand::rng();
+    let mut rng = rand09::rng();
 
     // generate ed25519 keys
     let mut secret_initiator: [u8; 32] = [0u8; 32];

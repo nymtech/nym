@@ -13,14 +13,14 @@ num_enum = { workspace = true }
 strum = { workspace = true }
 
 # internal
-nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"] }
+nym-crypto = { path = "../crypto", features = ["asymmetric", "hashing", "serde"] }
 nym-kkt-ciphersuite = { workspace = true, features = ["digests"] }
 
 libcrux-kem = { workspace = true }
 libcrux-ecdh = { workspace = true, features = ["codec"] }
 libcrux-chacha20poly1305 = { workspace = true }
 
-rand = "0.9.2"
+rand09 = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 libcrux-psq = { workspace = true, features = ["classic-mceliece"] }

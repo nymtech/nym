@@ -5,8 +5,9 @@ use crate::{KKT_INITIAL_FRAME_AAD, context::KKTContext, error::KKTError, frame::
 use blake3::Hasher;
 use libcrux_chacha20poly1305::{NONCE_LEN, TAG_LEN};
 use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
+use nym_crypto::hkdf::blake3::derive_key_blake3;
 use nym_kkt_ciphersuite::x25519;
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore};
 use zeroize::Zeroize;
 
 #[derive(Clone, Copy, Zeroize)]
@@ -49,15 +50,14 @@ impl KKTSessionSecret {
                 .map_err(|_| KKTError::X25519Error {
                     info: "Key Derivation Error",
                 })?;
-
-        let mut hasher = Hasher::new();
-
-        hasher.update(shared_secret.as_ref());
+        Ok(Self(derive_key_blake3(
+            "KKT_KDF",
+            shared_secret.as_ref(),
+            &[],
+        )))
 
         // TODO: zeroize
         // shared_secret.zeroize();
-
-        Ok(Self(hasher.finalize().as_bytes().to_owned()))
     }
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0
@@ -191,8 +191,8 @@ mod test {
         encryption::{KKTSessionSecret, decrypt, encrypt},
         key_utils::generate_keypair_x25519,
     };
-    use rand::{RngCore, SeedableRng, rng};
     use rand_chacha::ChaCha20Rng;
+    use rand09::{RngCore, SeedableRng, rng};
 
     #[test]
     fn test_keygen() {

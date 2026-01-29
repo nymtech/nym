@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
 use libcrux_psq::handshake::types::DHKeyPair;
 use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, KeyDigests};
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore};
 
 pub fn generate_keypair_ed25519<R>(
     rng: &mut R,

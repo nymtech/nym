@@ -36,7 +36,10 @@ nym-wireguard-types = { workspace = true }
 nym-node-metrics = { workspace = true }
 
 [dev-dependencies]
+anyhow = { workspace = true }
 nym-gateway-storage = { workspace = true, features = ["mock"] }
+mock_instant = { workspace = true }
+nym-test-utils = { workspace = true }
 
 [features]
 default = []

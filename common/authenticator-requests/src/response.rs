@@ -7,6 +7,7 @@ use crate::traits::{
     TopUpBandwidthResponse, UpgradeModeStatus,
 };
 use crate::{v2, v3, v4, v5, v6};
+use nym_sphinx::addressing::Recipient;
 
 #[derive(Debug)]
 pub enum AuthenticatorResponse {
@@ -15,6 +16,17 @@ pub enum AuthenticatorResponse {
     RemainingBandwidth(Box<dyn RemainingBandwidthResponse + Send + Sync + 'static>),
     TopUpBandwidth(Box<dyn TopUpBandwidthResponse + Send + Sync + 'static>),
     UpgradeMode(Box<dyn UpgradeModeStatus + Send + Sync + 'static>),
+}
+
+pub struct SerialisedResponse {
+    pub bytes: Vec<u8>,
+    pub reply_to: Option<Recipient>,
+}
+
+impl SerialisedResponse {
+    pub fn new(bytes: Vec<u8>, reply_to: Option<Recipient>) -> Self {
+        Self { bytes, reply_to }
+    }
 }
 
 impl UpgradeModeStatus for AuthenticatorResponse {

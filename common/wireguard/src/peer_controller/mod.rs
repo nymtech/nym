@@ -77,7 +77,7 @@ pub enum PeerControlRequest {
         response_tx: oneshot::Sender<AddPeerControlResponse>,
     },
     /// Attempt to allocate an IP pair from the pool
-    AllocatePeerIpPair {
+    PreAllocateIpPair {
         response_tx: oneshot::Sender<AllocatePeerControlResponse>,
     },
     /// Attempt to return an IP pair back to the pool
@@ -92,6 +92,10 @@ pub enum PeerControlRequest {
     QueryPeer {
         key: Key,
         response_tx: oneshot::Sender<QueryPeerControlResponse>,
+    },
+    CheckActivePeer {
+        key: Key,
+        response_tx: oneshot::Sender<CheckActivePeerResponse>,
     },
     GetClientBandwidthByKey {
         key: Key,
@@ -118,6 +122,7 @@ pub type AllocatePeerControlResponse = Result<IpPair>;
 pub type ReleaseIpPairControlResponse = Result<()>;
 pub type RemovePeerControlResponse = Result<()>;
 pub type QueryPeerControlResponse = Result<Option<Peer>>;
+pub type CheckActivePeerResponse = Result<bool>;
 pub type GetClientBandwidthControlResponse = Result<ClientBandwidth>;
 pub type QueryVerifierControlResponse = Result<Box<dyn TicketVerifier + Send + Sync>>;
 
@@ -216,7 +221,7 @@ impl PeerController {
         if let Ok(Some(peer)) = self.handle_query_peer_by_key(key).await
             && let Some(ip_pair) = allocated_ip_pair(&peer)
         {
-            self.ip_pool.release(ip_pair).await
+            self.ip_pool.release(ip_pair)
         }
 
         let ret = self.wg_api.remove_peer(key);
@@ -257,6 +262,14 @@ impl PeerController {
 
     async fn handle_add_request(&mut self, peer: &Peer) -> Result<()> {
         nym_metrics::inc!("wg_peer_addition_attempts");
+
+        // confirm ip allocation so that it wouldn't be released for as long as the peer exists
+        let Some(ip_pair) = allocated_ip_pair(peer) else {
+            return Err(Error::Internal(
+                "could not determine ip pair allocated to the peer".to_string(),
+            ));
+        };
+        self.ip_pool.confirm_allocation(ip_pair)?;
 
         // Try to configure WireGuard peer
         if let Err(e) = self.wg_api.configure_peer(peer) {
@@ -302,15 +315,11 @@ impl PeerController {
     ///
     /// This only allocates IPs - the caller must handle database storage and
     /// then call AddPeer with a complete Peer struct.
-    async fn handle_ip_allocation_request(&mut self) -> Result<IpPair> {
+    fn handle_ip_allocation_request(&mut self) -> Result<IpPair> {
         nym_metrics::inc!("wg_ip_allocation_attempts");
 
         // Allocate IP pair from pool
-        let ip_pair = self
-            .ip_pool
-            .allocate()
-            .await
-            .map_err(|e| Error::IpPool(e.to_string()))?;
+        let ip_pair = self.ip_pool.pre_allocate()?;
 
         nym_metrics::inc!("wg_ip_allocation_success");
         tracing::debug!("Allocated IP pair: {ip_pair}");
@@ -319,8 +328,8 @@ impl PeerController {
     }
 
     /// Return IP pair back to the pool
-    async fn handle_ip_release(&mut self, ip_pair: IpPair) {
-        self.ip_pool.release(ip_pair).await
+    fn handle_ip_release(&mut self, ip_pair: IpPair) {
+        self.ip_pool.release(ip_pair)
     }
 
     async fn ip_to_key(&self, ip: IpAddr) -> Result<Option<Key>> {
@@ -357,6 +366,12 @@ impl PeerController {
             .read()
             .await
             .client_bandwidth())
+    }
+
+    fn check_active_peer(&self, key: Key) -> Result<bool> {
+        // peer is active as long as we still have an entry inside the bandwidth storage manager,
+        // as it is removed upon peer removal
+        Ok(self.bw_storage_managers.contains_key(&key))
     }
 
     async fn handle_get_client_bandwidth_by_ip(&self, ip: IpAddr) -> Result<ClientBandwidth> {
@@ -492,16 +507,14 @@ impl PeerController {
             PeerControlRequest::AddPeer { peer, response_tx } => {
                 response_tx.send(self.handle_add_request(&peer).await).ok();
             }
-            PeerControlRequest::AllocatePeerIpPair { response_tx } => {
-                response_tx
-                    .send(self.handle_ip_allocation_request().await)
-                    .ok();
+            PeerControlRequest::PreAllocateIpPair { response_tx } => {
+                response_tx.send(self.handle_ip_allocation_request()).ok();
             }
             PeerControlRequest::ReleaseIpPair {
                 response_tx,
                 ip_pair,
             } => {
-                self.handle_ip_release(ip_pair).await;
+                self.handle_ip_release(ip_pair);
                 response_tx.send(Ok(())).ok();
             }
             PeerControlRequest::RemovePeer { key, response_tx } => {
@@ -540,6 +553,9 @@ impl PeerController {
                     .send(self.handle_query_verifier_by_ip(ip, *credential).await)
                     .ok();
             }
+            PeerControlRequest::CheckActivePeer { key, response_tx } => {
+                response_tx.send(self.check_active_peer(key)).ok();
+            }
         }
     }
 
@@ -558,7 +574,7 @@ impl PeerController {
                 }
                 _ = self.ip_cleanup_interval.next() => {
                     // Periodically cleanup stale IP allocations
-                    let freed = self.ip_pool.cleanup_stale(DEFAULT_IP_STALE_AGE).await;
+                    let freed = self.ip_pool.cleanup_stale(DEFAULT_IP_STALE_AGE);
                     if freed > 0 {
                         nym_metrics::inc_by!("wg_stale_ips_cleaned", freed as u64);
                         info!("Cleaned up {} stale IP allocations", freed);

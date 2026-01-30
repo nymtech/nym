@@ -11,7 +11,7 @@ pub enum ProtocolError {
     InvalidServiceProviderType(u8),
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum ServiceProviderType {
     NetworkRequester = 0,
@@ -76,7 +76,7 @@ impl ServiceProviderTypeExt for u8 {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Protocol {
     pub version: u8,
     pub service_provider_type: ServiceProviderType,

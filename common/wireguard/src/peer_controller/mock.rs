@@ -75,6 +75,7 @@ pub enum PeerControlRequestType {
     ReleaseIpPair { ip_pair: IpPair },
     RemovePeer { key: KeyWrapper },
     QueryPeer { key: KeyWrapper },
+    CheckActivePeer { key: KeyWrapper },
     GetClientBandwidthByKey { key: KeyWrapper },
     GetClientBandwidthByIp { ip: IpAddr },
     GetVerifierByKey { key: KeyWrapper },
@@ -93,6 +94,7 @@ impl PeerControlRequestType {
             PeerControlRequestType::GetClientBandwidthByIp { .. } => None,
             PeerControlRequestType::GetVerifierByKey { key } => Some(key.clone()),
             PeerControlRequestType::GetVerifierByIp { .. } => None,
+            PeerControlRequestType::CheckActivePeer { key } => Some(key.clone()),
         }
     }
 
@@ -107,7 +109,7 @@ impl From<&PeerControlRequest> for PeerControlRequestType {
             PeerControlRequest::AddPeer { peer, .. } => PeerControlRequestType::AddPeer {
                 public_key: (&peer.public_key).into(),
             },
-            PeerControlRequest::AllocatePeerIpPair { .. } => {
+            PeerControlRequest::PreAllocateIpPair { .. } => {
                 PeerControlRequestType::AllocatePeerIpPair {}
             }
             PeerControlRequest::ReleaseIpPair { ip_pair, .. } => {
@@ -130,6 +132,9 @@ impl From<&PeerControlRequest> for PeerControlRequestType {
             }
             PeerControlRequest::GetVerifierByIp { ip, .. } => {
                 PeerControlRequestType::GetVerifierByIp { ip: *ip }
+            }
+            PeerControlRequest::CheckActivePeer { key, .. } => {
+                PeerControlRequestType::CheckActivePeer { key: key.into() }
             }
         }
     }
@@ -266,7 +271,7 @@ impl MockPeerController {
                 }
                 response_tx.send_downcasted(response.content)
             }
-            PeerControlRequest::AllocatePeerIpPair { response_tx, .. } => {
+            PeerControlRequest::PreAllocateIpPair { response_tx, .. } => {
                 response_tx.send_downcasted(response.content)
             }
             PeerControlRequest::ReleaseIpPair {
@@ -293,6 +298,9 @@ impl MockPeerController {
                 response_tx.send_downcasted(response.content)
             }
             PeerControlRequest::GetVerifierByIp { response_tx, .. } => {
+                response_tx.send_downcasted(response.content)
+            }
+            PeerControlRequest::CheckActivePeer { response_tx, .. } => {
                 response_tx.send_downcasted(response.content)
             }
         }

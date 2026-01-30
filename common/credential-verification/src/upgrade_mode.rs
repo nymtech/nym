@@ -291,3 +291,40 @@ struct UpgradeModeStateInner {
     // (and dealing with the async consequences of that)
     status: UpgradeModeStatus,
 }
+
+pub mod testing {
+    use crate::UpgradeModeState;
+    use crate::upgrade_mode::{
+        CheckRequest, UpgradeModeCheckConfig, UpgradeModeCheckRequestSender, UpgradeModeDetails,
+    };
+    use futures::channel::mpsc::UnboundedReceiver;
+    use nym_crypto::asymmetric::ed25519;
+    use std::time::Duration;
+
+    pub fn mock_dummy_upgrade_mode_details() -> (UpgradeModeDetails, UnboundedReceiver<CheckRequest>)
+    {
+        let (um_recheck_tx, um_recheck_rx) = futures::channel::mpsc::unbounded();
+
+        const DUMMY_ATTESTER_ED25519_PRIVATE_KEY: [u8; 32] = [
+            108, 49, 193, 21, 126, 161, 249, 85, 242, 207, 74, 195, 238, 6, 64, 149, 201, 140, 248,
+            163, 122, 170, 79, 198, 87, 85, 36, 29, 243, 92, 64, 161,
+        ];
+
+        pub(crate) fn dummy_attester_public_key() -> ed25519::PublicKey {
+            let private_key =
+                ed25519::PrivateKey::from_bytes(&DUMMY_ATTESTER_ED25519_PRIVATE_KEY).unwrap();
+            private_key.public_key()
+        }
+
+        let upgrade_mode_state = UpgradeModeState::new(dummy_attester_public_key());
+        let upgrade_mode_details = UpgradeModeDetails::new(
+            UpgradeModeCheckConfig {
+                // essentially we never want to trigger this in our tests
+                min_staleness_recheck: Duration::from_nanos(1),
+            },
+            UpgradeModeCheckRequestSender::new(um_recheck_tx),
+            upgrade_mode_state.clone(),
+        );
+        (upgrade_mode_details, um_recheck_rx)
+    }
+}

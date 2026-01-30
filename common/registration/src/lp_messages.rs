@@ -3,7 +3,7 @@
 
 //! LP (Lewes Protocol) registration message types shared between client and gateway.
 
-use crate::WireguardConfiguration;
+use crate::WireguardRegistrationData;
 use crate::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
     LpDvpnRegistrationRequestMessage, LpDvpnRegistrationRequestMessageContent,
@@ -16,7 +16,6 @@ use crate::mixnet::{
 };
 use crate::serialisation::{BincodeError, BincodeOptions, lp_bincode_serializer};
 use nym_authenticator_requests::models::BandwidthClaim;
-use nym_credentials_interface::TicketType;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
@@ -135,16 +134,11 @@ impl LpRegistrationRequest {
     pub fn new_initial_dvpn(
         wg_public_key: nym_wireguard_types::PeerPublicKey,
         psk: [u8; 32],
-        ticket_type: TicketType,
     ) -> Self {
         Self::new(LpRegistrationRequestData::Dvpn {
             data: Box::new(LpDvpnRegistrationRequestMessage {
                 content: LpDvpnRegistrationRequestMessageContent::InitialRequest(
-                    LpDvpnRegistrationInitialRequest {
-                        wg_public_key,
-                        psk,
-                        ticket_type,
-                    },
+                    LpDvpnRegistrationInitialRequest { wg_public_key, psk },
                 ),
             }),
         })
@@ -180,7 +174,7 @@ impl LpRegistrationRequest {
 
 impl LpRegistrationResponse {
     /// Create a success response with GatewayData (for dVPN mode)
-    pub fn success_dvpn(config: WireguardConfiguration, available_bandwidth: i64) -> Self {
+    pub fn success_dvpn(config: WireguardRegistrationData, upgrade_mode: bool) -> Self {
         Self {
             status: RegistrationStatus::Completed,
             response_data: LpRegistrationResponseData::Dvpn {
@@ -188,7 +182,7 @@ impl LpRegistrationResponse {
                     content: LpDvpnRegistrationResponseMessageContent::CompletedRegistration(
                         dvpn::CompletedRegistrationResponse {
                             config,
-                            available_bandwidth,
+                            upgrade_mode,
                         },
                     ),
                 },
@@ -196,16 +190,13 @@ impl LpRegistrationResponse {
         }
     }
 
-    pub fn success_mixnet(config: LpMixnetGatewayData, available_bandwidth: i64) -> Self {
+    pub fn success_mixnet(config: LpMixnetGatewayData) -> Self {
         Self {
             status: RegistrationStatus::Completed,
             response_data: LpRegistrationResponseData::Mixnet {
                 data: LpMixnetRegistrationResponseMessage {
                     content: LpMixnetRegistrationResponseMessageContent::CompletedRegistration(
-                        mixnet::CompletedRegistrationResponse {
-                            config,
-                            available_bandwidth,
-                        },
+                        mixnet::CompletedRegistrationResponse { config },
                     ),
                 },
             },
@@ -284,9 +275,8 @@ impl LpRegistrationResponse {
 }
 
 pub mod dvpn {
-    use crate::WireguardConfiguration;
+    use crate::WireguardRegistrationData;
     use nym_authenticator_requests::models::BandwidthClaim;
-    use nym_credentials_interface::TicketType;
     use serde::{Deserialize, Serialize};
 
     // client
@@ -310,9 +300,6 @@ pub mod dvpn {
 
         /// Preshared key to be used for the connection
         pub psk: [u8; 32],
-
-        /// Type of the ticket/gateway we're going to register with
-        pub ticket_type: TicketType,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -350,10 +337,11 @@ pub mod dvpn {
     pub struct CompletedRegistrationResponse {
         /// Gateway configuration data for dVPN mode (WireGuard)
         /// This matches what WireguardRegistrationResult expects
-        pub config: WireguardConfiguration,
+        pub config: WireguardRegistrationData,
 
-        /// The bandwidth available to this client,
-        pub available_bandwidth: i64,
+        /// Flag indicating whether the gateway has detected the system is undergoing the upgrade
+        /// (thus it will not meter bandwidth)
+        pub upgrade_mode: bool,
     }
 
     #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -427,9 +415,6 @@ pub mod mixnet {
         ///
         /// Contains gateway identity and sphinx key needed for nym address construction.
         pub config: LpMixnetGatewayData,
-
-        /// The bandwidth available to this client,
-        pub available_bandwidth: i64,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -446,15 +431,14 @@ mod tests {
     use std::net::{Ipv4Addr, Ipv6Addr};
     // ==================== Helper Functions ====================
 
-    fn create_test_gateway_data() -> WireguardConfiguration {
-        WireguardConfiguration {
+    fn create_test_wg_config() -> WireguardRegistrationData {
+        WireguardRegistrationData {
             public_key: nym_crypto::asymmetric::x25519::PublicKey::from(
                 nym_sphinx::PublicKey::from([1u8; 32]),
             ),
-            psk: Some([42u8; 32]),
+            port: 1234,
             private_ipv4: Ipv4Addr::new(10, 0, 0, 1),
             private_ipv6: Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, 1),
-            endpoint: "192.168.1.1:8080".parse().expect("Valid test endpoint"),
         }
     }
 
@@ -499,10 +483,9 @@ mod tests {
 
     #[test]
     fn test_lp_registration_response_success_dvpn() {
-        let cfg = create_test_gateway_data();
-        let allocated_bandwidth = 500_000_000;
+        let cfg = create_test_wg_config();
 
-        let response = LpRegistrationResponse::success_dvpn(cfg, allocated_bandwidth);
+        let response = LpRegistrationResponse::success_dvpn(cfg, false);
         assert!(response.status.is_successful());
 
         let LpRegistrationResponseData::Dvpn { data } = response.response_data else {
@@ -515,7 +498,7 @@ mod tests {
             panic!("unexpected response")
         };
         assert_eq!(complete.config, cfg);
-        assert_eq!(complete.available_bandwidth, allocated_bandwidth);
+        assert!(!complete.upgrade_mode);
     }
 
     #[test]
@@ -526,10 +509,7 @@ mod tests {
         let lp_gateway_data = LpMixnetGatewayData {
             gateway_identity: *valid_key.public_key(),
         };
-        let allocated_bandwidth = 500_000_000;
-
-        let response =
-            LpRegistrationResponse::success_mixnet(lp_gateway_data.clone(), allocated_bandwidth);
+        let response = LpRegistrationResponse::success_mixnet(lp_gateway_data.clone());
         assert!(response.status.is_successful());
 
         let LpRegistrationResponseData::Mixnet { data } = response.response_data else {
@@ -542,6 +522,5 @@ mod tests {
             panic!("unexpected response")
         };
         assert_eq!(complete.config, lp_gateway_data);
-        assert_eq!(complete.available_bandwidth, allocated_bandwidth);
     }
 }

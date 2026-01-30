@@ -8365,11 +8365,13 @@ dependencies = [
 name = "nym-wireguard"
 version = "1.20.1"
 dependencies = [
+ "anyhow",
  "base64 0.22.1",
  "defguard_wireguard_rs",
  "futures",
  "ip_network",
  "ipnetwork",
+ "mock_instant",
  "nym-authenticator-requests",
  "nym-credential-verification",
  "nym-credentials-interface",
@@ -8380,6 +8382,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-node-metrics",
  "nym-task",
+ "nym-test-utils",
  "nym-wireguard-types",
  "rand 0.8.5",
  "thiserror 2.0.17",

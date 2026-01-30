@@ -252,7 +252,6 @@ pub async fn lp_registration_probe(
     );
     info!("  - Private IPv4: {}", gateway_data.private_ipv4);
     info!("  - Private IPv6: {}", gateway_data.private_ipv6);
-    info!("  - Endpoint: {}", gateway_data.endpoint);
     lp_outcome.can_register = true;
 
     Ok(lp_outcome)
@@ -298,9 +297,6 @@ pub async fn wg_probe_lp(
 
     let entry_lp_version = entry_lp_data.lp_version;
     let exit_lp_version = exit_lp_data.lp_version;
-
-    let entry_ip = entry_address.ip();
-    let exit_ip = exit_address.ip();
 
     info!("Starting LP-based WireGuard probe (entry→exit via forwarding)");
 
@@ -405,9 +401,9 @@ pub async fn wg_probe_lp(
 
     // Build WireGuard endpoint addresses
     // Entry endpoint uses entry_ip (host-reachable) + port from registration
-    let entry_wg_endpoint = format!("{}:{}", entry_ip, entry_gateway_data.endpoint.port());
+    let entry_wg_endpoint = entry_gateway_data.endpoint;
     // Exit endpoint uses exit_ip + port from registration (forwarded via entry)
-    let exit_wg_endpoint = format!("{}:{}", exit_ip, exit_gateway_data.endpoint.port());
+    let exit_wg_endpoint = exit_gateway_data.endpoint;
 
     info!("Two-hop WireGuard configuration:");
     info!("  Entry gateway:");

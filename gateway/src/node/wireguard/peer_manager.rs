@@ -6,10 +6,27 @@ use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::channel::oneshot;
 use nym_credential_verification::{ClientBandwidth, TicketVerifier};
 use nym_credentials_interface::CredentialSpendingData;
+use nym_metrics::add_histogram_obs;
 use nym_wireguard::peer_controller::IpPair;
 use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use nym_wireguard_types::PeerPublicKey;
+use std::time::Instant;
 use tracing::error;
+
+// Histogram buckets for WireGuard peer controller channel latency
+// Measures time to send request and receive response from peer controller
+// Expected: 1ms-100ms for normal operations, up to 2s for slow conditions
+const WG_CONTROLLER_LATENCY_BUCKETS: &[f64] = &[
+    0.001, // 1ms
+    0.005, // 5ms
+    0.01,  // 10ms
+    0.05,  // 50ms
+    0.1,   // 100ms
+    0.25,  // 250ms
+    0.5,   // 500ms
+    1.0,   // 1s
+    2.0,   // 2s
+];
 
 #[derive(Clone)]
 pub struct PeerManager {
@@ -23,16 +40,17 @@ impl PeerManager {
         }
     }
 
-    pub async fn allocate_peer_ip_pair(&self) -> Result<IpPair, GatewayWireguardError> {
+    pub async fn preallocate_peer_ip_pair(&self) -> Result<IpPair, GatewayWireguardError> {
+        let controller_start = Instant::now();
         let (response_tx, response_rx) = oneshot::channel();
-        let msg = PeerControlRequest::AllocatePeerIpPair { response_tx };
+        let msg = PeerControlRequest::PreAllocateIpPair { response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
             .await
             .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
-        response_rx
+        let res = response_rx
             .await
             .map_err(|e| {
                 GatewayWireguardError::InternalError(format!(
@@ -42,7 +60,16 @@ impl PeerManager {
             .map_err(|e| {
                 error!("Failed to allocate IPs from pool: {e}");
                 GatewayWireguardError::InternalError(format!("Failed to allocate IPs: {e}"))
-            })
+            });
+
+        let latency = controller_start.elapsed().as_secs_f64();
+        add_histogram_obs!(
+            "wg_peer_controller_channel_latency_seconds",
+            latency,
+            WG_CONTROLLER_LATENCY_BUCKETS
+        );
+
+        res
     }
 
     pub async fn release_ip_pair(&self, ip_pair: IpPair) -> Result<(), GatewayWireguardError> {
@@ -70,6 +97,7 @@ impl PeerManager {
     }
 
     pub async fn add_peer(&self, peer: Peer) -> Result<(), GatewayWireguardError> {
+        let controller_start = Instant::now();
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::AddPeer { peer, response_tx };
         self.wireguard_gateway_data
@@ -78,17 +106,27 @@ impl PeerManager {
             .await
             .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
-        response_rx
+        let res = response_rx
             .await
             .map_err(|_| GatewayWireguardError::internal("no response for add peer".to_string()))?
             .map_err(|err| {
                 GatewayWireguardError::internal(format!(
                     "adding peer could not be performed: {err:?}"
                 ))
-            })
+            });
+
+        let latency = controller_start.elapsed().as_secs_f64();
+        add_histogram_obs!(
+            "wg_peer_controller_channel_latency_seconds",
+            latency,
+            WG_CONTROLLER_LATENCY_BUCKETS
+        );
+
+        res
     }
 
-    pub async fn _remove_peer(&self, pub_key: PeerPublicKey) -> Result<(), GatewayWireguardError> {
+    pub async fn remove_peer(&self, pub_key: PeerPublicKey) -> Result<(), GatewayWireguardError> {
+        let controller_start = Instant::now();
         let key = Key::new(pub_key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::RemovePeer { key, response_tx };
@@ -98,20 +136,63 @@ impl PeerManager {
             .await
             .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
-        response_rx
+        let res = response_rx
             .await
             .map_err(|_| GatewayWireguardError::internal("no response for remove peer"))?
             .map_err(|err| {
                 GatewayWireguardError::InternalError(format!(
                     "removing peer could not be performed: {err:?}"
                 ))
-            })
+            });
+
+        let latency = controller_start.elapsed().as_secs_f64();
+        add_histogram_obs!(
+            "wg_peer_controller_channel_latency_seconds",
+            latency,
+            WG_CONTROLLER_LATENCY_BUCKETS
+        );
+
+        res
+    }
+
+    pub async fn check_active_peer(
+        &self,
+        pub_key: PeerPublicKey,
+    ) -> Result<bool, GatewayWireguardError> {
+        let controller_start = Instant::now();
+        let key = Key::new(pub_key.to_bytes());
+        let (response_tx, response_rx) = oneshot::channel();
+        let msg = PeerControlRequest::CheckActivePeer { key, response_tx };
+        self.wireguard_gateway_data
+            .peer_tx()
+            .send(msg)
+            .await
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
+
+        let res = response_rx
+            .await
+            .map_err(|_| GatewayWireguardError::internal("no response for check active peer"))?
+            .map_err(|err| {
+                GatewayWireguardError::InternalError(format!(
+                    "check active peer could not be performed: {err:?}"
+                ))
+            });
+
+        let latency = controller_start.elapsed().as_secs_f64();
+        add_histogram_obs!(
+            "wg_peer_controller_channel_latency_seconds",
+            latency,
+            WG_CONTROLLER_LATENCY_BUCKETS
+        );
+
+        res
     }
 
     pub async fn query_peer(
         &self,
         public_key: PeerPublicKey,
     ) -> Result<Option<Peer>, GatewayWireguardError> {
+        let controller_start = Instant::now();
         let key = Key::new(public_key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::QueryPeer { key, response_tx };
@@ -121,14 +202,23 @@ impl PeerManager {
             .await
             .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
-        response_rx
+        let res = response_rx
             .await
             .map_err(|_| GatewayWireguardError::internal("no response for query peer".to_string()))?
             .map_err(|err| {
                 GatewayWireguardError::internal(format!(
                     "querying peer could not be performed: {err:?}"
                 ))
-            })
+            });
+
+        let latency = controller_start.elapsed().as_secs_f64();
+        add_histogram_obs!(
+            "wg_peer_controller_channel_latency_seconds",
+            latency,
+            WG_CONTROLLER_LATENCY_BUCKETS
+        );
+
+        res
     }
 
     pub async fn query_bandwidth(
@@ -143,6 +233,7 @@ impl PeerManager {
         &self,
         key: PeerPublicKey,
     ) -> Result<ClientBandwidth, GatewayWireguardError> {
+        let controller_start = Instant::now();
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::GetClientBandwidthByKey { key, response_tx };
@@ -152,14 +243,23 @@ impl PeerManager {
             .await
             .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
-        response_rx
+        let res = response_rx
             .await
             .map_err(|_| GatewayWireguardError::internal("no response for query client bandwidth"))?
             .map_err(|err| {
                 GatewayWireguardError::internal(format!(
                     "querying client bandwidth could not be performed: {err:?}"
                 ))
-            })
+            });
+
+        let latency = controller_start.elapsed().as_secs_f64();
+        add_histogram_obs!(
+            "wg_peer_controller_channel_latency_seconds",
+            latency,
+            WG_CONTROLLER_LATENCY_BUCKETS
+        );
+
+        res
     }
 
     pub async fn query_verifier_by_key(
@@ -167,6 +267,7 @@ impl PeerManager {
         key: PeerPublicKey,
         credential: CredentialSpendingData,
     ) -> Result<Box<dyn TicketVerifier + Send + Sync>, GatewayWireguardError> {
+        let controller_start = Instant::now();
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::GetVerifierByKey {
@@ -180,7 +281,7 @@ impl PeerManager {
             .await
             .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
-        response_rx
+        let res = response_rx
             .await
             .map_err(|_| {
                 GatewayWireguardError::internal("no response for query verifier".to_string())
@@ -189,7 +290,16 @@ impl PeerManager {
                 GatewayWireguardError::internal(format!(
                     "querying verifier could not be performed: {err:?}"
                 ))
-            })
+            });
+
+        let latency = controller_start.elapsed().as_secs_f64();
+        add_histogram_obs!(
+            "wg_peer_controller_channel_latency_seconds",
+            latency,
+            WG_CONTROLLER_LATENCY_BUCKETS
+        );
+
+        res
     }
 }
 
@@ -197,6 +307,9 @@ impl PeerManager {
 mod tests {
     use std::{str::FromStr, sync::Arc};
 
+    use crate::node::wireguard::PeerRegistrator;
+    use crate::nym_authenticator::config::Authenticator;
+    use nym_credential_verification::upgrade_mode::testing::mock_dummy_upgrade_mode_details;
     use nym_credential_verification::{
         bandwidth_storage_manager::BandwidthStorageManager, ecash::MockEcashManager,
     };
@@ -207,10 +320,6 @@ mod tests {
     use rand::rngs::OsRng;
     use time::{Duration, OffsetDateTime};
     use tokio::sync::RwLock;
-
-    use crate::nym_authenticator::{
-        config::Authenticator, mixnet_listener::credential_storage_preparation,
-    };
 
     use super::*;
 
@@ -290,8 +399,15 @@ mod tests {
             peer_manager.wireguard_gateway_data.peer_tx().clone(),
             request_rx,
         );
+        let (upgrade_mode_details, _) = mock_dummy_upgrade_mode_details();
+
         let peer = Peer::default();
-        let ecash_manager = MockEcashManager::new(Box::new(storage.clone()));
+        let ecash_manager = Arc::new(MockEcashManager::new(Box::new(storage.clone())));
+        let peer_registrator = PeerRegistrator::new(
+            ecash_manager.clone(),
+            peer_manager.clone(),
+            upgrade_mode_details,
+        );
 
         assert!(peer_manager.add_peer(peer.clone()).await.is_err());
 
@@ -301,7 +417,8 @@ mod tests {
             .unwrap();
         assert!(peer_manager.add_peer(peer.clone()).await.is_err());
 
-        credential_storage_preparation(Arc::new(ecash_manager), client_id)
+        peer_registrator
+            .credential_storage_preparation(client_id)
             .await
             .unwrap();
         peer_manager.add_peer(peer.clone()).await.unwrap();
@@ -311,15 +428,25 @@ mod tests {
 
     async fn helper_add_peer(
         storage: &Arc<RwLock<MockGatewayStorage>>,
-        peer_manager: &mut PeerManager,
+        peer_manager: PeerManager,
     ) -> i64 {
+        let (upgrade_mode_details, _) = mock_dummy_upgrade_mode_details();
+
         let peer = Peer::default();
-        let ecash_manager = MockEcashManager::new(Box::new(storage.clone()));
+        let ecash_manager = Arc::new(MockEcashManager::new(Box::new(storage.clone())));
+
+        let peer_registrator = PeerRegistrator::new(
+            ecash_manager.clone(),
+            peer_manager.clone(),
+            upgrade_mode_details,
+        );
+
         let client_id = storage
             .insert_wireguard_peer(&peer, FromStr::from_str("entry_wireguard").unwrap())
             .await
             .unwrap();
-        credential_storage_preparation(Arc::new(ecash_manager), client_id)
+        peer_registrator
+            .credential_storage_preparation(client_id)
             .await
             .unwrap();
         peer_manager.add_peer(peer.clone()).await.unwrap();
@@ -333,7 +460,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let peer_manager = PeerManager::new(wireguard_data);
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let (storage, task_manager) = start_controller(
@@ -341,8 +468,8 @@ mod tests {
             request_rx,
         );
 
-        helper_add_peer(&storage, &mut peer_manager).await;
-        peer_manager._remove_peer(public_key).await.unwrap();
+        helper_add_peer(&storage, peer_manager.clone()).await;
+        peer_manager.remove_peer(public_key).await.unwrap();
 
         stop_controller(task_manager).await;
     }
@@ -353,7 +480,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let peer_manager = PeerManager::new(wireguard_data);
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let (storage, task_manager) = start_controller(
@@ -363,7 +490,7 @@ mod tests {
 
         assert!(peer_manager.query_peer(public_key).await.unwrap().is_none());
 
-        helper_add_peer(&storage, &mut peer_manager).await;
+        helper_add_peer(&storage, peer_manager.clone()).await;
         let peer = peer_manager.query_peer(public_key).await.unwrap().unwrap();
         assert_eq!(peer.public_key, key);
 
@@ -376,7 +503,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let peer_manager = PeerManager::new(wireguard_data);
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let (storage, task_manager) = start_controller(
@@ -386,7 +513,7 @@ mod tests {
 
         assert!(peer_manager.query_bandwidth(public_key).await.is_err());
 
-        helper_add_peer(&storage, &mut peer_manager).await;
+        helper_add_peer(&storage, peer_manager.clone()).await;
         let available_bandwidth = peer_manager.query_bandwidth(public_key).await.unwrap();
         assert_eq!(available_bandwidth, 0);
 
@@ -399,7 +526,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let peer_manager = PeerManager::new(wireguard_data);
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let (storage, task_manager) = start_controller(
@@ -412,7 +539,7 @@ mod tests {
             .await
             .is_err());
 
-        helper_add_peer(&storage, &mut peer_manager).await;
+        helper_add_peer(&storage, peer_manager.clone()).await;
         let available_bandwidth = peer_manager
             .query_client_bandwidth(public_key)
             .await
@@ -430,7 +557,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let peer_manager = PeerManager::new(wireguard_data);
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let (storage, task_manager) = start_controller(
@@ -444,7 +571,7 @@ mod tests {
             .await
             .is_err());
 
-        helper_add_peer(&storage, &mut peer_manager).await;
+        helper_add_peer(&storage, peer_manager.clone()).await;
         peer_manager
             .query_verifier_by_key(public_key, credential)
             .await
@@ -459,7 +586,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let peer_manager = PeerManager::new(wireguard_data);
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let top_up = 42;
@@ -469,7 +596,7 @@ mod tests {
             request_rx,
         );
 
-        let client_id = helper_add_peer(&storage, &mut peer_manager).await;
+        let client_id = helper_add_peer(&storage, peer_manager.clone()).await;
         let client_bandwidth = peer_manager
             .query_client_bandwidth(public_key)
             .await

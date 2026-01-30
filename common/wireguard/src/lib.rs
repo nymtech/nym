@@ -284,7 +284,7 @@ pub async fn start_wireguard(
 
     // Initialize IP pool from configuration
     info!("Initializing IP pool for WireGuard peer allocation");
-    let ip_pool = IpPool::new(
+    let mut ip_pool = IpPool::new(
         wireguard_data.inner.config().private_ipv4,
         wireguard_data.inner.config().private_network_prefix_v4,
         wireguard_data.inner.config().private_ipv6,
@@ -294,7 +294,7 @@ pub async fn start_wireguard(
     // Mark existing peer IPs as used in the pool
     for peer in &peers {
         if let Some(ip_pair) = crate::ip_pool::allocated_ip_pair(peer) {
-            ip_pool.mark_used(ip_pair).await;
+            ip_pool.mark_used(ip_pair)?;
         }
     }
 

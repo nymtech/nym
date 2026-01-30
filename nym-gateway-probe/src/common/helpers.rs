@@ -68,7 +68,7 @@ pub fn unpack_data_response(reconstructed_message: &ReconstructedMessage) -> Opt
     }
 }
 
-pub async fn hardcoded_topology(
+pub async fn fetch_topology(
     network_details: &NymNetworkDetails,
     debug_config: &DebugConfig,
 ) -> Result<NymTopology, String> {

@@ -76,7 +76,7 @@ impl Probe {
 
         // If we need to run at least one mixnet client, prefetch topology
         if self.config.test_mode.needs_mixnet() || self.config.test_mode.socks5_tests() {
-            self.topology = helpers::hardcoded_topology(&self.network, &mixnet_debug_config)
+            self.topology = helpers::fetch_topology(&self.network, &mixnet_debug_config)
             .await
             .inspect_err(|e| warn!("Failed to fetch topology for that run, mixnet clients will have to handle themselves : {e}")).ok();
         }
@@ -177,7 +177,7 @@ impl Probe {
 
         // If we need to run at least one mixnet client, prefetch topology
         if self.config.test_mode.needs_mixnet() || self.config.test_mode.socks5_tests() {
-            self.topology = helpers::hardcoded_topology(&self.network, &mixnet_debug_config)
+            self.topology = helpers::fetch_topology(&self.network, &mixnet_debug_config)
             .await
             .inspect_err(|e| warn!("Failed to fetch topology for that run, mixnet clients will have to handle themselves : {e}")).ok();
         }

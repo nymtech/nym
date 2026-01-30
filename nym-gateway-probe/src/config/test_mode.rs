@@ -4,7 +4,7 @@
 //! Test mode definitions for gateway probe.
 //!
 //! This module defines the different test modes supported by the gateway probe:
-//! - Default: Traditional mixnet path testing and Wireguard via authenticator
+//! - Core: Traditional mixnet path testing and Wireguard via authenticator
 //! - WgMix: Wireguard via authenticator
 //! - WgLp: Entry LP + Exit LP (nested forwarding) + WireGuard
 //! - LpOnly: LP registration only, no WireGuard
@@ -18,7 +18,7 @@
 pub enum TestMode {
     /// Mixnet tests + WireGuard via authenticator
     #[default]
-    Default,
+    Core,
     /// Wireguard via authenticator
     WgMix,
     /// Wireguard over LP
@@ -34,14 +34,14 @@ pub enum TestMode {
 impl TestMode {
     // Wether we need to run mixnet tests
     pub fn mixnet_tests(&self) -> bool {
-        matches!(self, TestMode::Default | TestMode::All)
+        matches!(self, TestMode::Core | TestMode::All)
     }
 
     // Wether we need to run Wiregurd tests
     pub fn wireguard_tests(&self) -> bool {
         matches!(
             self,
-            TestMode::Default | TestMode::WgMix | TestMode::WgLp | TestMode::All
+            TestMode::Core | TestMode::WgMix | TestMode::WgLp | TestMode::All
         )
     }
 
@@ -57,14 +57,14 @@ impl TestMode {
 
     /// Whether this mode requires a mixnet client
     pub fn needs_mixnet(&self) -> bool {
-        matches!(self, TestMode::Default | TestMode::All | TestMode::WgMix)
+        matches!(self, TestMode::Core | TestMode::All | TestMode::WgMix)
     }
 }
 
 impl std::fmt::Display for TestMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TestMode::Default => write!(f, "default"),
+            TestMode::Core => write!(f, "core"),
             TestMode::WgMix => write!(f, "wg-mix"),
             TestMode::WgLp => write!(f, "wg-lp"),
             TestMode::LpOnly => write!(f, "lp-only"),
@@ -79,14 +79,14 @@ impl std::str::FromStr for TestMode {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "mixnet" | "default" => Ok(TestMode::Default),
+            "mixnet" | "core" => Ok(TestMode::Core),
             "wg-mix" | "wgmix" | "wg_mix" => Ok(TestMode::WgMix),
             "wg-lp" | "wglp" | "wg_lp" => Ok(TestMode::WgLp),
             "lp-only" | "lponly" | "lp_only" => Ok(TestMode::LpOnly),
             "socks5-only" | "socks5only" | "socks5_only" => Ok(TestMode::Socks5Only),
             "all" => Ok(TestMode::All),
             _ => Err(format!(
-                "Unknown test mode: '{}'. Valid modes: default, wg-mix, wg-lp, lp-only, socks5-only, all",
+                "Unknown test mode: '{}'. Valid modes: core, wg-mix, wg-lp, lp-only, socks5-only, all",
                 s
             )),
         }
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_needs_mixnet() {
-        assert!(TestMode::Default.needs_mixnet());
+        assert!(TestMode::Core.needs_mixnet());
         assert!(TestMode::WgMix.needs_mixnet());
         assert!(!TestMode::WgLp.needs_mixnet());
         assert!(!TestMode::LpOnly.needs_mixnet());
@@ -113,7 +113,7 @@ mod tests {
 
     #[test]
     fn test_display() {
-        assert_eq!(TestMode::Default.to_string(), "default");
+        assert_eq!(TestMode::Core.to_string(), "core");
         assert_eq!(TestMode::WgMix.to_string(), "wg-mix");
         assert_eq!(TestMode::WgLp.to_string(), "wg-lp");
         assert_eq!(TestMode::LpOnly.to_string(), "lp-only");
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_from_str_canonical() {
-        assert_eq!("default".parse::<TestMode>().unwrap(), TestMode::Default);
+        assert_eq!("core".parse::<TestMode>().unwrap(), TestMode::Core);
         assert_eq!("wg-mix".parse::<TestMode>().unwrap(), TestMode::WgMix);
         assert_eq!("wg-lp".parse::<TestMode>().unwrap(), TestMode::WgLp);
         assert_eq!("lp-only".parse::<TestMode>().unwrap(), TestMode::LpOnly);
@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn test_from_str_alternate_formats() {
         // Default aliases
-        assert_eq!("mixnet".parse::<TestMode>().unwrap(), TestMode::Default);
+        assert_eq!("mixnet".parse::<TestMode>().unwrap(), TestMode::Core);
 
         // snake_case
         assert_eq!("wg_mix".parse::<TestMode>().unwrap(), TestMode::WgMix);
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_from_str_case_insensitive() {
-        assert_eq!("DEFAULT".parse::<TestMode>().unwrap(), TestMode::Default);
+        assert_eq!("cOrE".parse::<TestMode>().unwrap(), TestMode::Core);
         assert_eq!("WG-MIX".parse::<TestMode>().unwrap(), TestMode::WgMix);
         assert_eq!("Wg_Lp".parse::<TestMode>().unwrap(), TestMode::WgLp);
         assert_eq!("LpOnly".parse::<TestMode>().unwrap(), TestMode::LpOnly);
@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn test_display_fromstr_roundtrip() {
         for mode in [
-            TestMode::Default,
+            TestMode::Core,
             TestMode::WgMix,
             TestMode::WgLp,
             TestMode::LpOnly,

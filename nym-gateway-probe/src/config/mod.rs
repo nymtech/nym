@@ -22,7 +22,7 @@ pub struct ProbeConfig {
     /// Test mode - explicitly specify which tests to run
     ///
     /// Modes:
-    ///   default     - Traditional mixnet testing (entry/exit pings + WireGuard via authenticator)
+    ///   core.       - Traditional mixnet testing (entry/exit pings + WireGuard via authenticator)
     ///   wg-mix      - Wireguard via authenticator
     ///   wg-lp       - Entry LP + Exit LP (nested forwarding) + WireGuard
     ///   lp-only     - LP registration only (no WireGuard)

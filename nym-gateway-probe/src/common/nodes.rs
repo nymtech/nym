@@ -467,7 +467,7 @@ impl NymApiDirectory {
             .declared_role
             .can_operate_exit_gateway()
         {
-            bail!("{identity} is not an entry node")
+            bail!("{identity} is not an exit node")
         };
         Ok(maybe_entry)
     }

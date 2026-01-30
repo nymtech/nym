@@ -32,6 +32,7 @@ use tracing::{debug, info, trace};
 
 use crate::topology::{GatewayInfo, SpeedtestTopology};
 use nym_ip_packet_requests::v8::request::IpPacketRequest;
+use nym_lp::packet::version;
 use nym_lp::peer::LpRemotePeer;
 use nym_sphinx::forwarding::packet::MixPacket;
 
@@ -127,6 +128,7 @@ impl SpeedtestClient {
             self.identity_keypair.clone(),
             gw_peer,
             self.gateway.lp_address,
+            self.gateway.lp_version,
         );
 
         let start = Instant::now();
@@ -173,6 +175,7 @@ impl SpeedtestClient {
             self.identity_keypair.clone(),
             gw_peer,
             self.gateway.lp_address,
+            self.gateway.lp_version,
         );
 
         let start = Instant::now();

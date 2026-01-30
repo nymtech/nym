@@ -14,6 +14,7 @@ use nym_crypto::asymmetric::x25519;
 use nym_http_api_client::UserAgent;
 use nym_kkt_ciphersuite::SignatureScheme;
 use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
+use nym_lp::packet::version;
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::v1::node::models::AuxiliaryDetails as NodeAuxiliaryDetails;
@@ -28,7 +29,6 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::{debug, info, warn};
 use url::Url;
-
 // in the old behaviour we were getting all skimmed nodes to retrieve performance
 // that was ultimately unused
 // should we want to use it again, the code is commented out below
@@ -135,6 +135,8 @@ impl DirectoryNode {
                 expected_kem_key_hashes: lp_data.kem_keys()?,
                 expected_signing_key_hashes: lp_data.signing_keys()?,
                 x25519: noise_key.x25519_pubkey,
+                // \/ TODO: proper derivation from build version
+                lp_version: version::CURRENT,
             }),
             _ => None,
         };
@@ -480,6 +482,7 @@ pub struct TestedNodeLpDetails {
     pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
     pub expected_signing_key_hashes: HashMap<SignatureScheme, KEMKeyDigests>,
     pub x25519: x25519::PublicKey,
+    pub lp_version: u8,
 }
 
 impl TestedNodeDetails {

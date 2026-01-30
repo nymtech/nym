@@ -317,6 +317,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             expected_kem_key_hashes,
             expected_signing_key_hashes: todo!(),
             x25519: x25519_key,
+            lp_version: todo!(),
         };
         let entry_details = TestedNodeDetails::from_cli(identity, entry_lp_node);
 
@@ -348,8 +349,9 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             let exit_lp_node = TestedNodeLpDetails {
                 address: exit_lp_addr,
                 expected_kem_key_hashes,
-                expected_signing_key_hashes: Default::default(),
+                expected_signing_key_hashes: todo!(),
                 x25519: x25519_key,
+                lp_version: todo!(),
             };
 
             Some(TestedNodeDetails::from_cli(identity, exit_lp_node))

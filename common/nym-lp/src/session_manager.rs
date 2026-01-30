@@ -172,8 +172,16 @@ impl SessionManager {
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
         salt: &[u8; 32],
+        protocol_version: u8,
     ) -> Result<u32, LpError> {
-        let sm = LpStateMachine::new(receiver_index, is_initiator, local_peer, remote_peer, salt)?;
+        let sm = LpStateMachine::new(
+            receiver_index,
+            is_initiator,
+            local_peer,
+            remote_peer,
+            salt,
+            protocol_version,
+        )?;
 
         self.state_machines.insert(receiver_index, sm);
         Ok(receiver_index)
@@ -204,6 +212,7 @@ impl SessionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::packet::version;
     use crate::peer::{mock_peers, random_peer};
     use nym_test_utils::helpers::deterministic_rng;
 
@@ -218,7 +227,14 @@ mod tests {
         let receiver_index: u32 = 1001;
 
         let sm_1_id = manager
-            .create_session_state_machine(receiver_index, true, local, peer1.as_remote(), &salt)
+            .create_session_state_machine(
+                receiver_index,
+                true,
+                local,
+                peer1.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .unwrap();
 
         let retrieved = manager.state_machine_exists(sm_1_id);
@@ -239,7 +255,14 @@ mod tests {
         let receiver_index: u32 = 2002;
 
         let sm_1_id = manager
-            .create_session_state_machine(receiver_index, true, local, peer1.as_remote(), &salt)
+            .create_session_state_machine(
+                receiver_index,
+                true,
+                local,
+                peer1.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .unwrap();
 
         let removed = manager.remove_state_machine(sm_1_id);
@@ -262,15 +285,36 @@ mod tests {
         let salt = [49u8; 32];
 
         let sm_1 = manager
-            .create_session_state_machine(3001, true, local.clone(), peer1.as_remote(), &salt)
+            .create_session_state_machine(
+                3001,
+                true,
+                local.clone(),
+                peer1.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .unwrap();
 
         let sm_2 = manager
-            .create_session_state_machine(3002, true, local.clone(), peer2.as_remote(), &salt)
+            .create_session_state_machine(
+                3002,
+                true,
+                local.clone(),
+                peer2.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .unwrap();
 
         let sm_3 = manager
-            .create_session_state_machine(3003, true, local.clone(), peer3.as_remote(), &salt)
+            .create_session_state_machine(
+                3003,
+                true,
+                local.clone(),
+                peer3.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .unwrap();
 
         assert_eq!(manager.session_count(), 3);
@@ -298,6 +342,7 @@ mod tests {
             init,
             resp.as_remote(),
             &salt,
+            version::CURRENT,
         );
 
         assert!(sm.is_ok());

@@ -42,6 +42,10 @@ pub struct NymNodeLPInformation {
     pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
     pub expected_signing_key_hashes: HashMap<SignatureScheme, KEMKeyDigests>,
     pub x25519: x25519::PublicKey,
+
+    /// Supported protocol version of the remote gateway.
+    /// Included in case we have to downgrade our version.
+    pub lp_protocol_version: u8,
 }
 
 #[derive(Clone, Copy, Debug)]

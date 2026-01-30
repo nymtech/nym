@@ -38,12 +38,25 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     // Use consistent salt for deterministic tests
     let salt = [1u8; 32];
 
-    let initiator_session =
-        LpSession::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
-            .expect("Test session creation failed");
+    let initiator_session = LpSession::new(
+        receiver_index,
+        true,
+        init.clone(),
+        resp.as_remote(),
+        &salt,
+        packet::version::CURRENT,
+    )
+    .expect("Test session creation failed");
 
-    let responder_session = LpSession::new(receiver_index, false, resp, init.as_remote(), &salt)
-        .expect("Test session creation failed");
+    let responder_session = LpSession::new(
+        receiver_index,
+        false,
+        resp,
+        init.as_remote(),
+        &salt,
+        packet::version::CURRENT,
+    )
+    .expect("Test session creation failed");
 
     (initiator_session, responder_session)
 }
@@ -51,7 +64,7 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
 #[cfg(test)]
 mod tests {
     use crate::message::LpMessage;
-    use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
+    use crate::packet::{LpHeader, LpPacket, TRAILER_LEN, version};
     use crate::session_manager::SessionManager;
     use crate::{LpError, sessions_for_tests};
     use bytes::BytesMut;
@@ -182,11 +195,19 @@ mod tests {
                 init.clone(),
                 resp.as_remote(),
                 &salt,
+                version::CURRENT,
             )
             .unwrap();
 
         let _ = remote_manager
-            .create_session_state_machine(receiver_index, false, resp, init.as_remote(), &salt)
+            .create_session_state_machine(
+                receiver_index,
+                false,
+                resp,
+                init.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .unwrap();
         // === Packet 1 (Counter 0 - Should succeed) ===
         let packet1 = LpPacket {

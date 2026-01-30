@@ -18,6 +18,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpPacket;
 use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
 use nym_lp::message::ForwardPacketData;
+use nym_lp::packet::version;
 use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpAction, LpData, LpInput, LpStateMachine};
 use nym_lp_transport::traits::LpTransport;
@@ -31,6 +32,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::net::TcpStream;
+use tracing::warn;
 
 /// LP (Lewes Protocol) registration client for direct gateway connections.
 ///
@@ -55,6 +57,10 @@ pub struct LpRegistrationClient<S = TcpStream> {
     /// Gateway LP listener address (host:port, e.g., "1.1.1.1:41264").
     gateway_lp_address: SocketAddr,
 
+    /// Supported protocol version of the remote gateway.
+    /// Included in case we have to downgrade our version.
+    gateway_supported_lp_protocol_version: u8,
+
     /// LP state machine for managing connection lifecycle.
     /// Created during handshake initiation. Persists across packet-per-connection calls.
     state_machine: Option<LpStateMachine>,
@@ -77,6 +83,7 @@ where
     /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair
     /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
     /// * `gateway_lp_address` - Gateway's LP listener socket address
+    /// * `gateway_supported_lp_protocol_version` - Gateway's LP protocol version
     /// * `config` - Configuration for timeouts and TCP parameters (use `LpConfig::default()`)
     ///
     /// # Note
@@ -85,18 +92,56 @@ where
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
         gateway_lp_peer: LpRemotePeer,
         gateway_lp_address: SocketAddr,
+        gateway_supported_lp_protocol_version: u8,
         config: LpConfig,
     ) -> Self {
+        let lp_protocol = if gateway_supported_lp_protocol_version > version::CURRENT {
+            warn!(
+                "suggested LP protocol ({gateway_supported_lp_protocol_version}) is higher  than the current known version. attempting to downgrade it to {}",
+                version::CURRENT
+            );
+            version::CURRENT
+        } else {
+            gateway_supported_lp_protocol_version
+        };
+
         let local_x25519_keypair = local_ed25519_keypair.to_x25519();
         let lp_local_peer = LpLocalPeer::new(local_ed25519_keypair, Arc::new(local_x25519_keypair));
         Self {
             lp_local_peer,
             gateway_lp_peer,
             gateway_lp_address,
+            gateway_supported_lp_protocol_version: lp_protocol,
             state_machine: None,
             config,
             stream: None,
         }
+    }
+
+    /// Creates a new LP registration client with default configuration.
+    ///
+    /// # Arguments
+    /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair
+    /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
+    /// * `gateway_lp_address` - Gateway's LP listener socket address
+    /// * `gateway_supported_lp_protocol_version` - Gateway's LP protocol version
+    ///
+    /// Uses default config (LpConfig::default()) with sane timeout and TCP parameters.
+    /// PSK is derived automatically during handshake inside the state machine.
+    /// For custom config, use `new()` directly.
+    pub fn new_with_default_config(
+        local_ed25519_keypair: Arc<ed25519::KeyPair>,
+        gateway_lp_peer: LpRemotePeer,
+        gateway_lp_address: SocketAddr,
+        gateway_supported_lp_protocol_version: u8,
+    ) -> Self {
+        Self::new(
+            local_ed25519_keypair,
+            gateway_lp_peer,
+            gateway_lp_address,
+            gateway_supported_lp_protocol_version,
+            LpConfig::default(),
+        )
     }
 
     fn state_machine(&self) -> Result<&LpStateMachine> {
@@ -119,30 +164,6 @@ where
         self.stream
             .as_mut()
             .ok_or_else(|| LpClientError::transport("Cannot send: not connected"))
-    }
-
-    /// Creates a new LP registration client with default configuration.
-    ///
-    /// # Arguments
-    /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair
-    /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
-    /// * `gateway_lp_address` - Gateway's LP listener socket address
-    /// * `client_ip` - Client IP address for registration
-    ///
-    /// Uses default config (LpConfig::default()) with sane timeout and TCP parameters.
-    /// PSK is derived automatically during handshake inside the state machine.
-    /// For custom config, use `new()` directly.
-    pub fn new_with_default_config(
-        local_ed25519_keypair: Arc<ed25519::KeyPair>,
-        gateway_lp_peer: LpRemotePeer,
-        gateway_lp_address: SocketAddr,
-    ) -> Self {
-        Self::new(
-            local_ed25519_keypair,
-            gateway_lp_peer,
-            gateway_lp_address,
-            LpConfig::default(),
-        )
     }
 
     /// Returns whether the client has completed the handshake and is ready for registration.
@@ -418,6 +439,7 @@ where
         let client_hello_header = nym_lp::packet::LpHeader::new(
             nym_lp::BOOTSTRAP_RECEIVER_IDX, // session_id not yet established
             0,                              // counter starts at 0
+            self.gateway_supported_lp_protocol_version,
         );
         let client_hello_packet = nym_lp::LpPacket::new(
             client_hello_header,
@@ -431,6 +453,8 @@ where
         let ack_response = self.try_receive_packet_with_key(None).await?;
 
         // Verify we received Ack
+        // this confirms that gateway is fine with our suggested protocol version
+        // in the future we probably have some fancier negotiation
         match ack_response.message() {
             nym_lp::LpMessage::Ack => {
                 tracing::debug!("Received Ack for ClientHello");
@@ -451,6 +475,7 @@ where
             self.lp_local_peer.clone(),
             self.gateway_lp_peer.clone(),
             &salt,
+            self.gateway_supported_lp_protocol_version,
         )?;
 
         // Step 4: Start handshake - get first packet to send (KKT request)
@@ -1201,6 +1226,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_lp::packet::version;
 
     #[test]
     fn test_client_creation() {
@@ -1216,6 +1242,7 @@ mod tests {
             keypair,
             gateway_peer,
             address,
+            version::CURRENT,
         );
 
         assert!(!client.is_handshake_complete());

@@ -54,6 +54,7 @@ mod tests {
         peer: LpLocalPeer,
         x25519_wg_keys: Arc<x25519::KeyPair>,
         socket_addr: SocketAddr,
+        lp_version: u8,
     }
 
     impl Party {
@@ -73,6 +74,7 @@ mod tests {
                     .with_kem_psq_key(lp_x25519_keys),
                 x25519_wg_keys,
                 socket_addr: SocketAddr::from((ip, u16::from_le_bytes(port))),
+                lp_version: 1,
             }
         }
     }
@@ -425,6 +427,7 @@ mod tests {
                 client_data.base.peer.ed25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
+                entry.base.lp_version,
             );
 
             // 1. establish mock connection between client and gateway and retrieve gateway's handle
@@ -524,6 +527,7 @@ mod tests {
                 client_data.base.peer.ed25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
+                entry.base.lp_version,
             );
 
             // 1. establish mock connection between client and gateway and retrieve gateway's handle
@@ -588,6 +592,7 @@ mod tests {
                 client_data.base.peer.ed25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
+                entry.base.lp_version,
             );
 
             // START: ENTRY SETUP
@@ -703,6 +708,7 @@ mod tests {
                 exit.base.socket_addr.to_string(),
                 client_data.base.peer.ed25519().clone(),
                 exit.base.peer.as_remote(),
+                exit.base.lp_version,
             );
 
             // 13. Perform handshake and registration with exit gateway (all via entry forwarding)

@@ -5,7 +5,6 @@ use crate::make_bincode_serializer;
 use bincode::Options;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use serde::{Deserialize, Serialize};
@@ -26,8 +25,11 @@ pub enum InputMessage {
     /// Fire an already prepared mix packets into the network.
     /// No guarantees are made about it. For example no retransmssion
     /// will be attempted if it gets dropped.
+    ///
+    /// Packets are stored as pre-serialized bytes, which avoids
+    /// requiring Serde on MixPacket.
     Premade {
-        msgs: Vec<MixPacket>,
+        packet_bytes: Vec<Vec<u8>>,
         lane: TransmissionLane,
     },
 
@@ -81,11 +83,11 @@ impl InputMessage {
     }
 
     pub fn new_premade(
-        msgs: Vec<MixPacket>,
+        packet_bytes: Vec<Vec<u8>>,
         lane: TransmissionLane,
         packet_type: PacketType,
     ) -> Self {
-        let message = InputMessage::Premade { msgs, lane };
+        let message = InputMessage::Premade { packet_bytes, lane };
         if packet_type == PacketType::Mix {
             message
         } else {

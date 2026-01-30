@@ -292,6 +292,10 @@ where
         use nym_lp::state_machine::{LpInput, LpStateMachine};
         let remote = self.remote_addr;
 
+        // if we managed to parse out the header, i.e. we have code supporting whatever
+        // protocol version has been sent - use that one instead
+        let protocol_version = packet.header().protocol_version;
+
         // Extract ClientHello data
         let hello_data = match packet.message() {
             LpMessage::ClientHello(hello_data) => hello_data,
@@ -325,8 +329,10 @@ where
             // Send Collision response to tell client to retry with new receiver_index
             // No outer key - this is before PSK derivation
             // Note: Do NOT set binding on collision - client may retry with new receiver_index
-            let collision_packet =
-                LpPacket::new(LpHeader::new(receiver_index, 0), LpMessage::Collision);
+            let collision_packet = LpPacket::new(
+                LpHeader::new(receiver_index, 0, protocol_version),
+                LpMessage::Collision,
+            );
             self.send_lp_packet(collision_packet, None).await?;
 
             return Ok(());
@@ -344,6 +350,7 @@ where
             self.state.local_lp_peer.clone(),
             hello_data.to_remote_peer(),
             &hello_data.salt,
+            protocol_version,
         )
         .map_err(|e| {
             inc!("lp_client_hello_failed");
@@ -374,7 +381,10 @@ where
 
         // Send Ack to confirm ClientHello received
         // No outer key - this is before PSK derivation
-        let ack_packet = LpPacket::new(LpHeader::new(receiver_index, 0), LpMessage::Ack);
+        let ack_packet = LpPacket::new(
+            LpHeader::new(receiver_index, 0, protocol_version),
+            LpMessage::Ack,
+        );
         self.send_lp_packet(ack_packet, None).await?;
 
         Ok(())
@@ -431,13 +441,15 @@ where
                     self.remote_addr, receiver_idx
                 );
 
+                let session = state_entry.value().state.session().map_err(|err| {
+                    GatewayError::LpHandshakeError(format!("no session available: {err}"))
+                })?;
+
                 // Get outer key for Ack encryption before releasing borrow
-                let outer_key = state_entry
-                    .value()
-                    .state
-                    .session()
-                    .ok()
-                    .and_then(|s| s.outer_aead_key());
+                let outer_key = session.outer_aead_key();
+
+                // Get previously negotiated protocol version for header creation
+                let negotiated_version = session.negotiated_version();
 
                 // Move state machine to session_states (already in Transport state)
                 // We keep the state machine (not just session) to enable
@@ -461,7 +473,10 @@ where
                 inc!("lp_handshakes_success");
 
                 // Send Ack to confirm handshake completion to the client
-                let ack_packet = LpPacket::new(LpHeader::new(receiver_idx, 0), LpMessage::Ack);
+                let ack_packet = LpPacket::new(
+                    LpHeader::new(receiver_idx, 0, negotiated_version),
+                    LpMessage::Ack,
+                );
                 trace!(
                     "Moved session {} to transport mode, sending Ack",
                     receiver_idx

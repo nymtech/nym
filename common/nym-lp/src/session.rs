@@ -231,7 +231,7 @@ pub struct LpSession {
     /// Negotiated protocol version from handshake.
     /// Set during handshake completion from the ClientHello/ServerHello packet header.
     /// Used for future version negotiation and compatibility checks.
-    negotiated_version: std::sync::atomic::AtomicU8,
+    negotiated_version: u8,
 }
 
 // noiserm
@@ -276,18 +276,9 @@ impl LpSession {
 
     /// Returns the negotiated protocol version from the handshake.
     ///
-    /// Defaults to 1 (current LP version). Set during handshake via
-    /// `set_negotiated_version()` when ClientHello/ServerHello is processed.
+    /// Set during `LpSession` creation after sending / receiving `ClientHelloData`
     pub fn negotiated_version(&self) -> u8 {
-        self.negotiated_version.load(Ordering::Acquire)
-    }
-
-    /// Sets the negotiated protocol version from handshake packet header.
-    ///
-    /// Should be called during handshake when processing ClientHello (responder)
-    /// or ServerHello (initiator) to record the agreed protocol version.
-    pub fn set_negotiated_version(&self, version: u8) {
-        self.negotiated_version.store(version, Ordering::Release);
+        self.negotiated_version
     }
 
     /// Returns the local X25519 public key.
@@ -364,12 +355,14 @@ impl LpSession {
     /// * `local_peer` - This side's LP peer's keys
     /// * `remote_peer` - The remote's LP peer's keys
     /// * `salt` - Salt for PSK derivation
+    /// * `protocol_version` - Protocol version to attach in all `LpPacket`s
     pub fn new(
         id: u32,
         is_initiator: bool,
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
         salt: &[u8; 32],
+        protocol_version: u8,
     ) -> Result<Self, LpError> {
         // noiserm
         // if we're LP responder, we **must** set our kem key
@@ -444,13 +437,13 @@ impl LpSession {
             subsession_counter: AtomicU64::new(0),
             read_only: AtomicBool::new(false),
             successor_session_id: Mutex::new(None),
-            negotiated_version: std::sync::atomic::AtomicU8::new(1), // Default to version 1
+            negotiated_version: protocol_version,
         })
     }
 
     pub fn next_packet(&self, message: LpMessage) -> Result<LpPacket, LpError> {
         let counter = self.next_counter();
-        let header = LpHeader::new(self.id(), counter);
+        let header = LpHeader::new(self.id(), counter, self.negotiated_version);
         let packet = LpPacket::new(header, message);
         Ok(packet)
     }
@@ -1275,6 +1268,7 @@ impl LpSession {
             remote_peer: self.remote_peer.clone(),
             pq_shared_secret: PqSharedSecret::new(pq_secret),
             subsession_psk,
+            negotiated_version: self.negotiated_version,
         })
     }
 }
@@ -1314,8 +1308,12 @@ pub struct SubsessionHandshake {
 
     /// PQ shared secret inherited from parent (for creating further subsessions)
     pq_shared_secret: PqSharedSecret,
+
     /// Subsession PSK (for deriving outer AEAD key)
     subsession_psk: [u8; 32],
+
+    /// Negotiated protocol version from handshake.
+    negotiated_version: u8,
 }
 
 impl SubsessionHandshake {
@@ -1415,7 +1413,7 @@ impl SubsessionHandshake {
             read_only: AtomicBool::new(false),
             successor_session_id: Mutex::new(None),
             // Inherit parent's protocol version
-            negotiated_version: std::sync::atomic::AtomicU8::new(1),
+            negotiated_version: self.negotiated_version,
         })
     }
 }
@@ -1423,6 +1421,7 @@ impl SubsessionHandshake {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::packet::version;
     use crate::peer::mock_peers;
     use crate::{replay::ReplayError, sessions_for_tests};
     use nym_crypto::asymmetric::ed25519;
@@ -1448,8 +1447,15 @@ mod tests {
         let salt = [0u8; 32]; // Test salt
 
         // PSQ will derive the PSK during handshake using X25519 as DHKEM
-        let session = LpSession::new(receiver_index, is_initiator, local, remote.clone(), &salt)
-            .expect("Test session creation failed");
+        let session = LpSession::new(
+            receiver_index,
+            is_initiator,
+            local,
+            remote.clone(),
+            &salt,
+            version::CURRENT,
+        )
+        .expect("Test session creation failed");
 
         // Initialize KKT state to Completed for tests (bypasses KKT exchange)
         // This simulates having already received the remote party's KEM key via KKT
@@ -2112,14 +2118,28 @@ mod tests {
         let receiver_index: u32 = 55555;
         let salt = [0u8; 32];
 
-        let initiator_session =
-            LpSession::new(receiver_index, true, init.clone(), bad_resp, &salt).unwrap();
+        let initiator_session = LpSession::new(
+            receiver_index,
+            true,
+            init.clone(),
+            bad_resp,
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
 
         // Initialize KKT state for test
         initiator_session.set_kkt_completed_for_test(resp.x25519.public_key());
 
-        let responder_session =
-            LpSession::new(receiver_index, false, resp, bad_init, &salt).unwrap();
+        let responder_session = LpSession::new(
+            receiver_index,
+            false,
+            resp,
+            bad_init,
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
         // Initialize KKT state for test
         responder_session.set_kkt_completed_for_test(init.x25519.public_key());
 
@@ -2154,13 +2174,27 @@ mod tests {
         let receiver_index: u32 = 66666;
         let salt = [0u8; 32];
 
-        let initiator_session =
-            LpSession::new(receiver_index, true, init.clone(), resp.as_remote(), &salt).unwrap();
+        let initiator_session = LpSession::new(
+            receiver_index,
+            true,
+            init.clone(),
+            resp.as_remote(),
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
         // Initialize KKT state for test
         initiator_session.set_kkt_completed_for_test(resp.x25519.public_key());
 
-        let responder_session =
-            LpSession::new(receiver_index, false, resp, bad_init, &salt).unwrap();
+        let responder_session = LpSession::new(
+            receiver_index,
+            false,
+            resp,
+            bad_init,
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
         // Initialize KKT state for test
         responder_session.set_kkt_completed_for_test(init.x25519.public_key());
 

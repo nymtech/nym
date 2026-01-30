@@ -256,16 +256,25 @@ impl LpStateMachine {
     /// * `local_peer` - This side's LP peer's keys
     /// * `remote_peer` - The remote's LP peer's keys
     /// * `salt` - Fresh salt for PSK derivation (must be unique per session)
+    /// * `protocol_version` - Protocol version to attach in all `LpPacket`s
     pub fn new(
         receiver_index: u32,
         is_initiator: bool,
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
         salt: &[u8; 32],
+        protocol_version: u8,
     ) -> Result<Self, LpError> {
         // Create the session with both Ed25519 (for PSQ auth) and derived X25519 keys (for Noise)
         // receiver_index is client-proposed, passed through directly
-        let session = LpSession::new(receiver_index, is_initiator, local_peer, remote_peer, salt)?;
+        let session = LpSession::new(
+            receiver_index,
+            is_initiator,
+            local_peer,
+            remote_peer,
+            salt,
+            protocol_version,
+        )?;
 
         Ok(LpStateMachine {
             state: LpState::ReadyToHandshake {
@@ -1144,6 +1153,7 @@ impl LpStateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::packet::version;
     use crate::peer::mock_peers;
 
     #[test]
@@ -1155,8 +1165,14 @@ mod tests {
 
         let receiver_index: u32 = 77777;
 
-        let initiator_sm =
-            LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt);
+        let initiator_sm = LpStateMachine::new(
+            receiver_index,
+            true,
+            init.clone(),
+            resp.as_remote(),
+            &salt,
+            version::CURRENT,
+        );
         assert!(initiator_sm.is_ok());
         let initiator_sm = initiator_sm.unwrap();
         assert!(matches!(
@@ -1166,8 +1182,14 @@ mod tests {
         let init_session = initiator_sm.session().unwrap();
         assert!(init_session.is_initiator());
 
-        let responder_sm =
-            LpStateMachine::new(receiver_index, false, resp, init.as_remote(), &salt);
+        let responder_sm = LpStateMachine::new(
+            receiver_index,
+            false,
+            resp,
+            init.as_remote(),
+            &salt,
+            version::CURRENT,
+        );
         assert!(responder_sm.is_ok());
         let responder_sm = responder_sm.unwrap();
         assert!(matches!(
@@ -1196,6 +1218,7 @@ mod tests {
             init.clone(),
             resp.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
@@ -1205,6 +1228,7 @@ mod tests {
             resp,
             init.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
@@ -1389,8 +1413,15 @@ mod tests {
         let receiver_index: u32 = 99901;
 
         // Create initiator state machine
-        let mut initiator =
-            LpStateMachine::new(receiver_index, true, init, resp.as_remote(), &salt).unwrap();
+        let mut initiator = LpStateMachine::new(
+            receiver_index,
+            true,
+            init,
+            resp.as_remote(),
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
 
         // Verify initial state
         assert!(matches!(initiator.state, LpState::ReadyToHandshake { .. }));
@@ -1409,8 +1440,15 @@ mod tests {
         let receiver_index: u32 = 99902;
 
         // Create responder state machine
-        let mut responder =
-            LpStateMachine::new(receiver_index, false, resp, init.as_remote(), &salt).unwrap();
+        let mut responder = LpStateMachine::new(
+            receiver_index,
+            false,
+            resp,
+            init.as_remote(),
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
 
         // Verify initial state
         assert!(matches!(responder.state, LpState::ReadyToHandshake { .. }));
@@ -1430,12 +1468,25 @@ mod tests {
         let receiver_index: u32 = 99903;
 
         // Create both state machines
-        let mut initiator =
-            LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
-                .unwrap();
+        let mut initiator = LpStateMachine::new(
+            receiver_index,
+            true,
+            init.clone(),
+            resp.as_remote(),
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
 
-        let mut responder =
-            LpStateMachine::new(receiver_index, false, resp, init.as_remote(), &salt).unwrap();
+        let mut responder = LpStateMachine::new(
+            receiver_index,
+            false,
+            resp,
+            init.as_remote(),
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
 
         // Step 1: Initiator starts handshake, sends KKT request
         let init_action = initiator.process_input(LpInput::StartHandshake);
@@ -1477,9 +1528,15 @@ mod tests {
         let receiver_index: u32 = 99904;
 
         // Create initiator state machine
-        let mut initiator =
-            LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
-                .unwrap();
+        let mut initiator = LpStateMachine::new(
+            receiver_index,
+            true,
+            init.clone(),
+            resp.as_remote(),
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
 
         // Start handshake to enter KKTExchange state
         initiator.process_input(LpInput::StartHandshake);
@@ -1499,9 +1556,15 @@ mod tests {
         let receiver_index: u32 = 99905;
 
         // Create initiator state machine
-        let mut initiator =
-            LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt)
-                .unwrap();
+        let mut initiator = LpStateMachine::new(
+            receiver_index,
+            true,
+            init.clone(),
+            resp.as_remote(),
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
 
         // Start handshake to enter KKTExchange state
         initiator.process_input(LpInput::StartHandshake);
@@ -1534,10 +1597,25 @@ mod tests {
         let receiver_index: u32 = 111111;
 
         // Create state machines - Alice is initiator, Bob is responder
-        let mut alice =
-            LpStateMachine::new(receiver_index, true, a.clone(), b.as_remote(), &salt).unwrap();
+        let mut alice = LpStateMachine::new(
+            receiver_index,
+            true,
+            a.clone(),
+            b.as_remote(),
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
 
-        let mut bob = LpStateMachine::new(receiver_index, false, b, a.as_remote(), &salt).unwrap();
+        let mut bob = LpStateMachine::new(
+            receiver_index,
+            false,
+            b,
+            a.as_remote(),
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
 
         // --- Complete KKT Exchange ---
         // Alice starts handshake

@@ -30,6 +30,7 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::codec::{OuterAeadKey, parse_lp_packet};
 use nym_lp::message::ForwardPacketData;
+use nym_lp::packet::version;
 use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpAction, LpData, LpInput, LpStateMachine};
 use nym_lp::{LpMessage, LpPacket};
@@ -42,6 +43,7 @@ use nym_wireguard_types::PeerPublicKey;
 use rand::{CryptoRng, RngCore};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tracing::warn;
 
 /// Manages a nested LP session where the client establishes a handshake with
 /// an exit gateway by forwarding packets through an entry gateway.
@@ -73,6 +75,10 @@ pub struct NestedLpSession {
     /// Encapsulates all the exit gateway keys needed for the Lewes Protocol.
     gateway_lp_peer: LpRemotePeer,
 
+    /// Supported protocol version of the remote gateway.
+    /// Included in case we have to downgrade our version.
+    gateway_supported_lp_protocol_version: u8,
+
     /// LP state machine for exit gateway session (populated after handshake)
     state_machine: Option<LpStateMachine>,
 }
@@ -84,18 +90,31 @@ impl NestedLpSession {
     /// * `exit_address` - Exit gateway's LP address (e.g., "2.2.2.2:41264")
     /// * `client_keypair` - Client's Ed25519 keypair
     /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
+    /// * `gateway_supported_lp_protocol_version` - Gateway's LP protocol version
     pub fn new(
         exit_address: String,
         client_keypair: Arc<ed25519::KeyPair>,
         gateway_lp_peer: LpRemotePeer,
+        gateway_supported_lp_protocol_version: u8,
     ) -> Self {
         let local_x25519_keypair = client_keypair.to_x25519();
         let lp_local_peer = LpLocalPeer::new(client_keypair, Arc::new(local_x25519_keypair));
+
+        let lp_protocol = if gateway_supported_lp_protocol_version > version::CURRENT {
+            warn!(
+                "suggested LP protocol ({gateway_supported_lp_protocol_version}) is higher  than the current known version. attempting to downgrade it to {}",
+                version::CURRENT
+            );
+            version::CURRENT
+        } else {
+            gateway_supported_lp_protocol_version
+        };
 
         Self {
             exit_address,
             lp_local_peer,
             gateway_lp_peer,
+            gateway_supported_lp_protocol_version: lp_protocol,
             state_machine: None,
         }
     }
@@ -194,6 +213,7 @@ impl NestedLpSession {
         let client_hello_header = nym_lp::packet::LpHeader::new(
             nym_lp::BOOTSTRAP_RECEIVER_IDX, // Use constant for bootstrap session
             0,                              // counter starts at 0
+            self.gateway_supported_lp_protocol_version,
         );
         let client_hello_packet = nym_lp::LpPacket::new(
             client_hello_header,
@@ -213,6 +233,8 @@ impl NestedLpSession {
             .await?;
 
         // Parse and validate Ack response (cleartext, no outer key before PSK derivation)
+        // this confirms that gateway is fine with our suggested protocol version
+        // in the future we probably have some fancier negotiation
         let ack_response = Self::parse_packet(&response_bytes, None)?;
         match ack_response.message() {
             LpMessage::Ack => {
@@ -238,6 +260,7 @@ impl NestedLpSession {
             self.lp_local_peer.clone(),
             self.gateway_lp_peer.clone(),
             &salt,
+            self.gateway_supported_lp_protocol_version,
         )?;
 
         // Step 4: Get initial packet from StartHandshake

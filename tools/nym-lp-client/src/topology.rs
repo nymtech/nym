@@ -40,6 +40,7 @@ pub struct GatewayInfo {
     pub lp_address: SocketAddr,
     /// LP data address (IP:51264) for Sphinx packets wrapped in LP
     pub lp_data_address: SocketAddr,
+    pub lp_version: u8,
 }
 
 /// Topology for routing Sphinx packets

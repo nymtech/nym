@@ -203,9 +203,9 @@ impl LpHeader {
 }
 
 impl LpHeader {
-    pub fn new(receiver_idx: u32, counter: u64) -> Self {
+    pub fn new(receiver_idx: u32, counter: u64, protocol_version: u8) -> Self {
         Self {
-            protocol_version: version::CURRENT,
+            protocol_version,
             reserved: [0u8; 3],
             receiver_idx,
             counter,

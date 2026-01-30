@@ -58,11 +58,25 @@ mod tests {
 
         // 4. Create sessions using the pre-built Noise states
         let peer_a_sm = session_manager_1
-            .create_session_state_machine(receiver_index, true, a.clone(), b.as_remote(), &salt)
+            .create_session_state_machine(
+                receiver_index,
+                true,
+                a.clone(),
+                b.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .expect("Failed to create session A");
 
         let peer_b_sm = session_manager_2
-            .create_session_state_machine(receiver_index, false, b.clone(), a.as_remote(), &salt)
+            .create_session_state_machine(
+                receiver_index,
+                false,
+                b.clone(),
+                a.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .expect("Failed to create session B");
 
         // Verify session count
@@ -481,11 +495,25 @@ mod tests {
         let salt = [43u8; 32];
 
         let peer_a_sm = session_manager_1
-            .create_session_state_machine(receiver_index, true, a.clone(), b.as_remote(), &salt)
+            .create_session_state_machine(
+                receiver_index,
+                true,
+                a.clone(),
+                b.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .expect("Failed to create session A");
 
         let peer_b_sm = session_manager_2
-            .create_session_state_machine(receiver_index, false, b.clone(), a.as_remote(), &salt)
+            .create_session_state_machine(
+                receiver_index,
+                false,
+                b.clone(),
+                a.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .expect("Failed to create session B");
 
         // Initialize KKT state for both sessions (test bypass)
@@ -659,7 +687,14 @@ mod tests {
 
         // 2. Create a session (using real noise state)
         let _session = session_manager
-            .create_session_state_machine(receiver_index, true, a.clone(), b.as_remote(), &salt)
+            .create_session_state_machine(
+                receiver_index,
+                true,
+                a.clone(),
+                b.as_remote(),
+                &salt,
+                version::CURRENT,
+            )
             .expect("Failed to create session");
 
         // 3. Try to get a non-existent session
@@ -682,6 +717,7 @@ mod tests {
                 a.clone(),
                 b.as_remote(),
                 &salt,
+                version::CURRENT,
             )
             .expect("Failed to create temp session");
 
@@ -733,6 +769,7 @@ mod tests {
     }
     // Remove unused imports if SessionManager methods are no longer direct dependencies
     // use crate::noise_protocol::{create_noise_state, create_noise_state_responder};
+    use crate::packet::version;
     use crate::peer::mock_peers;
     use crate::state_machine::LpData;
     use crate::{
@@ -772,12 +809,26 @@ mod tests {
         // 3. Create sessions state machines
         assert!(
             session_manager_1
-                .create_session_state_machine(receiver_index, true, a.clone(), b.as_remote(), &salt,) // Initiator
+                .create_session_state_machine(
+                    receiver_index,
+                    true,
+                    a.clone(),
+                    b.as_remote(),
+                    &salt,
+                    version::CURRENT
+                ) // Initiator
                 .is_ok()
         );
         assert!(
             session_manager_2
-                .create_session_state_machine(receiver_index, false, b, a.as_remote(), &salt,) // Responder
+                .create_session_state_machine(
+                    receiver_index,
+                    false,
+                    b,
+                    a.as_remote(),
+                    &salt,
+                    version::CURRENT
+                ) // Responder
                 .is_ok()
         );
 

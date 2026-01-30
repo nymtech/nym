@@ -163,6 +163,7 @@ pub async fn lp_registration_probe(
     bandwidth_controller: &dyn BandwidthTicketProvider,
 ) -> anyhow::Result<LpProbeResults> {
     let lp_address = gateway_lp_data.address;
+    let lp_version = gateway_lp_data.lp_version;
     let peer = helpers::to_lp_remote_peer(gateway_identity, gateway_lp_data);
 
     info!("Starting LP registration probe for gateway at {lp_address}",);
@@ -180,6 +181,7 @@ pub async fn lp_registration_probe(
         client_ed25519_keypair,
         peer,
         lp_address,
+        lp_version,
     );
 
     // Step 1: Perform handshake (connection is implicit in packet-per-connection model)
@@ -289,6 +291,9 @@ pub async fn wg_probe_lp(
     let entry_address = entry_lp_data.address;
     let exit_address = exit_lp_data.address;
 
+    let entry_lp_version = entry_lp_data.lp_version;
+    let exit_lp_version = exit_lp_data.lp_version;
+
     let entry_ip = entry_address.ip();
     let exit_ip = exit_address.ip();
 
@@ -316,6 +321,7 @@ pub async fn wg_probe_lp(
         entry_lp_keypair,
         entry_peer,
         entry_address,
+        entry_lp_version,
     );
 
     // Perform handshake with entry gateway (connection is implicit)
@@ -327,8 +333,12 @@ pub async fn wg_probe_lp(
 
     // STEP 2: Use nested session to register with exit gateway via forwarding
     info!("Registering with exit gateway via entry forwarding...");
-    let mut nested_session =
-        NestedLpSession::new(exit_address.to_string(), exit_lp_keypair, exit_peer);
+    let mut nested_session = NestedLpSession::new(
+        exit_address.to_string(),
+        exit_lp_keypair,
+        exit_peer,
+        exit_lp_version,
+    );
 
     // Convert exit gateway identity to ed25519 public key for registration
     let exit_gateway_pubkey = ed25519::PublicKey::from_bytes(&exit_gateway.identity.to_bytes())

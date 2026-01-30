@@ -73,16 +73,15 @@ impl GwProbe {
 
     pub(crate) fn run_and_get_log(
         &self,
-        gateway_key: &Option<String>,
+        gateway_key: String,
         probe_extra_args: &Vec<String>,
         ticket_materials: AttachedTicketMaterials,
     ) -> String {
         let mut command = std::process::Command::new(&self.path);
         command.stdout(std::process::Stdio::piped());
 
-        if let Some(gateway_id) = gateway_key {
-            command.arg("--gateway").arg(gateway_id);
-        }
+        command.arg("run-agent");
+        command.arg("--gateway").arg(gateway_key);
 
         tracing::info!("Extra args for the probe:");
         for arg in probe_extra_args {

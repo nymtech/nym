@@ -4,87 +4,72 @@
 //! Test mode definitions for gateway probe.
 //!
 //! This module defines the different test modes supported by the gateway probe:
-//! - Mixnet: Traditional mixnet path testing
-//! - SingleHop: LP registration + WireGuard on single gateway
-//! - TwoHop: Entry LP + Exit LP (nested forwarding) + WireGuard
+//! - Default: Traditional mixnet path testing and Wireguard via authenticator
+//! - WgMix: Wireguard via authenticator
+//! - WgLp: Entry LP + Exit LP (nested forwarding) + WireGuard
 //! - LpOnly: LP registration only, no WireGuard
+//! - Socks5Only: Socks5 test
+//! - All: Mixnet, wireguard over authenticator and LP registration
 
 /// Test mode for the gateway probe.
 ///
 /// Determines which tests are performed and how connections are established.
-// This enum replaces the scattered boolean flags (only_wireguard,
-// only_lp_registration, test_lp_wg) with explicit, named modes for clarity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TestMode {
-    /// Traditional mixnet testing - connects via mixnet, tests entry/exit pings + WireGuard via authenticator
+    /// Mixnet tests + WireGuard via authenticator
     #[default]
-    Mixnet,
-    /// LP registration + WireGuard on single gateway (no mixnet, no forwarding)
-    SingleHop,
-    /// Entry LP + Exit LP (nested session forwarding) + WireGuard tunnel
-    TwoHop,
-    /// LP registration only - test handshake and registration, skip WireGuard
+    Default,
+    /// Wireguard via authenticator
+    WgMix,
+    /// Wireguard over LP
+    WgLp,
+    /// LP registration only - test handshake and registration
     LpOnly,
+    /// Socks5 test only
+    Socks5Only,
+    /// Mixnet tests, Wireguard tests, LP tests, Socks5 test
+    All,
 }
 
 impl TestMode {
-    /// Infer test mode from legacy boolean flags (backward compatibility)
-    pub fn from_flags(
-        only_wireguard: bool,
-        only_lp_registration: bool,
-        test_lp_wg: bool,
-        has_exit_gateway: bool,
-    ) -> Self {
-        if only_lp_registration {
-            TestMode::LpOnly
-        } else if test_lp_wg {
-            if has_exit_gateway {
-                TestMode::TwoHop
-            } else {
-                TestMode::SingleHop
-            }
-        } else if only_wireguard {
-            // WireGuard via authenticator (still uses mixnet path)
-            TestMode::Mixnet
-        } else {
-            TestMode::Mixnet
-        }
+    // Wether we need to run mixnet tests
+    pub fn mixnet_tests(&self) -> bool {
+        matches!(self, TestMode::Default | TestMode::All)
+    }
+
+    // Wether we need to run Wiregurd tests
+    pub fn wireguard_tests(&self) -> bool {
+        matches!(
+            self,
+            TestMode::Default | TestMode::WgMix | TestMode::WgLp | TestMode::All
+        )
+    }
+
+    // Wether we need to run Lp tests
+    pub fn lp_tests(&self) -> bool {
+        matches!(self, TestMode::WgLp | TestMode::LpOnly | TestMode::All)
+    }
+
+    // Wether we need to run socks5 tests
+    pub fn socks5_tests(&self) -> bool {
+        matches!(self, TestMode::Socks5Only | TestMode::All)
     }
 
     /// Whether this mode requires a mixnet client
     pub fn needs_mixnet(&self) -> bool {
-        matches!(self, TestMode::Mixnet)
-    }
-
-    /// Whether this mode uses LP registration
-    pub fn uses_lp(&self) -> bool {
-        matches!(
-            self,
-            TestMode::SingleHop | TestMode::TwoHop | TestMode::LpOnly
-        )
-    }
-
-    /// Whether this mode tests WireGuard tunnels
-    pub fn tests_wireguard(&self) -> bool {
-        matches!(
-            self,
-            TestMode::Mixnet | TestMode::SingleHop | TestMode::TwoHop
-        )
-    }
-
-    /// Whether this mode requires an exit gateway
-    pub fn needs_exit_gateway(&self) -> bool {
-        matches!(self, TestMode::TwoHop)
+        matches!(self, TestMode::Default | TestMode::All | TestMode::WgMix)
     }
 }
 
 impl std::fmt::Display for TestMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TestMode::Mixnet => write!(f, "mixnet"),
-            TestMode::SingleHop => write!(f, "single-hop"),
-            TestMode::TwoHop => write!(f, "two-hop"),
+            TestMode::Default => write!(f, "default"),
+            TestMode::WgMix => write!(f, "wg-mix"),
+            TestMode::WgLp => write!(f, "wg-lp"),
             TestMode::LpOnly => write!(f, "lp-only"),
+            TestMode::Socks5Only => write!(f, "socks5-only"),
+            TestMode::All => write!(f, "all"),
         }
     }
 }
@@ -94,12 +79,14 @@ impl std::str::FromStr for TestMode {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "mixnet" => Ok(TestMode::Mixnet),
-            "single-hop" | "singlehop" | "single_hop" => Ok(TestMode::SingleHop),
-            "two-hop" | "twohop" | "two_hop" => Ok(TestMode::TwoHop),
+            "mixnet" | "default" => Ok(TestMode::Default),
+            "wg-mix" | "wgmix" | "wg_mix" => Ok(TestMode::WgMix),
+            "wg-lp" | "wglp" | "wg_lp" => Ok(TestMode::WgLp),
             "lp-only" | "lponly" | "lp_only" => Ok(TestMode::LpOnly),
+            "socks5-only" | "socks5only" | "socks5_only" => Ok(TestMode::Socks5Only),
+            "all" => Ok(TestMode::All),
             _ => Err(format!(
-                "Unknown test mode: '{}'. Valid modes: mixnet, single-hop, two-hop, lp-only",
+                "Unknown test mode: '{}'. Valid modes: default, wg-mix, wg-lp, lp-only, socks5-only, all",
                 s
             )),
         }
@@ -110,152 +97,80 @@ impl std::str::FromStr for TestMode {
 mod tests {
     use super::*;
 
-    // ============ from_flags() tests ============
-
-    #[test]
-    fn test_from_flags_default_is_mixnet() {
-        // All flags false -> Mixnet (default)
-        assert_eq!(
-            TestMode::from_flags(false, false, false, false),
-            TestMode::Mixnet
-        );
-    }
-
-    #[test]
-    fn test_from_flags_only_wireguard_is_mixnet() {
-        // only_wireguard still uses mixnet path (WG via authenticator)
-        assert_eq!(
-            TestMode::from_flags(true, false, false, false),
-            TestMode::Mixnet
-        );
-    }
-
-    #[test]
-    fn test_from_flags_only_lp_registration() {
-        // only_lp_registration -> LpOnly (takes priority)
-        assert_eq!(
-            TestMode::from_flags(false, true, false, false),
-            TestMode::LpOnly
-        );
-        // Even with other flags set, only_lp_registration wins
-        assert_eq!(
-            TestMode::from_flags(true, true, true, true),
-            TestMode::LpOnly
-        );
-    }
-
-    #[test]
-    fn test_from_flags_test_lp_wg_single_hop() {
-        // test_lp_wg without exit gateway -> SingleHop
-        assert_eq!(
-            TestMode::from_flags(false, false, true, false),
-            TestMode::SingleHop
-        );
-    }
-
-    #[test]
-    fn test_from_flags_test_lp_wg_two_hop() {
-        // test_lp_wg with exit gateway -> TwoHop
-        assert_eq!(
-            TestMode::from_flags(false, false, true, true),
-            TestMode::TwoHop
-        );
-    }
-
-    #[test]
-    fn test_from_flags_has_exit_gateway_alone_is_mixnet() {
-        // has_exit_gateway alone doesn't change mode
-        assert_eq!(
-            TestMode::from_flags(false, false, false, true),
-            TestMode::Mixnet
-        );
-    }
-
     // ============ Helper method tests ============
 
     #[test]
     fn test_needs_mixnet() {
-        assert!(TestMode::Mixnet.needs_mixnet());
-        assert!(!TestMode::SingleHop.needs_mixnet());
-        assert!(!TestMode::TwoHop.needs_mixnet());
+        assert!(TestMode::Default.needs_mixnet());
+        assert!(TestMode::WgMix.needs_mixnet());
+        assert!(!TestMode::WgLp.needs_mixnet());
         assert!(!TestMode::LpOnly.needs_mixnet());
-    }
-
-    #[test]
-    fn test_uses_lp() {
-        assert!(!TestMode::Mixnet.uses_lp());
-        assert!(TestMode::SingleHop.uses_lp());
-        assert!(TestMode::TwoHop.uses_lp());
-        assert!(TestMode::LpOnly.uses_lp());
-    }
-
-    #[test]
-    fn test_tests_wireguard() {
-        assert!(TestMode::Mixnet.tests_wireguard());
-        assert!(TestMode::SingleHop.tests_wireguard());
-        assert!(TestMode::TwoHop.tests_wireguard());
-        assert!(!TestMode::LpOnly.tests_wireguard());
-    }
-
-    #[test]
-    fn test_needs_exit_gateway() {
-        assert!(!TestMode::Mixnet.needs_exit_gateway());
-        assert!(!TestMode::SingleHop.needs_exit_gateway());
-        assert!(TestMode::TwoHop.needs_exit_gateway());
-        assert!(!TestMode::LpOnly.needs_exit_gateway());
+        assert!(!TestMode::Socks5Only.needs_mixnet());
+        assert!(TestMode::All.needs_mixnet());
     }
 
     // ============ Display tests ============
 
     #[test]
     fn test_display() {
-        assert_eq!(TestMode::Mixnet.to_string(), "mixnet");
-        assert_eq!(TestMode::SingleHop.to_string(), "single-hop");
-        assert_eq!(TestMode::TwoHop.to_string(), "two-hop");
+        assert_eq!(TestMode::Default.to_string(), "default");
+        assert_eq!(TestMode::WgMix.to_string(), "wg-mix");
+        assert_eq!(TestMode::WgLp.to_string(), "wg-lp");
         assert_eq!(TestMode::LpOnly.to_string(), "lp-only");
+        assert_eq!(TestMode::Socks5Only.to_string(), "socks5-only");
+        assert_eq!(TestMode::All.to_string(), "all");
     }
 
     // ============ FromStr tests ============
 
     #[test]
     fn test_from_str_canonical() {
-        assert_eq!("mixnet".parse::<TestMode>().unwrap(), TestMode::Mixnet);
-        assert_eq!(
-            "single-hop".parse::<TestMode>().unwrap(),
-            TestMode::SingleHop
-        );
-        assert_eq!("two-hop".parse::<TestMode>().unwrap(), TestMode::TwoHop);
+        assert_eq!("default".parse::<TestMode>().unwrap(), TestMode::Default);
+        assert_eq!("wg-mix".parse::<TestMode>().unwrap(), TestMode::WgMix);
+        assert_eq!("wg-lp".parse::<TestMode>().unwrap(), TestMode::WgLp);
         assert_eq!("lp-only".parse::<TestMode>().unwrap(), TestMode::LpOnly);
+        assert_eq!(
+            "socks5-only".parse::<TestMode>().unwrap(),
+            TestMode::Socks5Only
+        );
+        assert_eq!("all".parse::<TestMode>().unwrap(), TestMode::All);
     }
 
     #[test]
     fn test_from_str_alternate_formats() {
+        // Default aliases
+        assert_eq!("mixnet".parse::<TestMode>().unwrap(), TestMode::Default);
+
         // snake_case
-        assert_eq!(
-            "single_hop".parse::<TestMode>().unwrap(),
-            TestMode::SingleHop
-        );
-        assert_eq!("two_hop".parse::<TestMode>().unwrap(), TestMode::TwoHop);
+        assert_eq!("wg_mix".parse::<TestMode>().unwrap(), TestMode::WgMix);
+        assert_eq!("wg_lp".parse::<TestMode>().unwrap(), TestMode::WgLp);
         assert_eq!("lp_only".parse::<TestMode>().unwrap(), TestMode::LpOnly);
+        assert_eq!(
+            "socks5_only".parse::<TestMode>().unwrap(),
+            TestMode::Socks5Only
+        );
 
         // no separator
-        assert_eq!(
-            "singlehop".parse::<TestMode>().unwrap(),
-            TestMode::SingleHop
-        );
-        assert_eq!("twohop".parse::<TestMode>().unwrap(), TestMode::TwoHop);
+        assert_eq!("wgmix".parse::<TestMode>().unwrap(), TestMode::WgMix);
+        assert_eq!("wglp".parse::<TestMode>().unwrap(), TestMode::WgLp);
         assert_eq!("lponly".parse::<TestMode>().unwrap(), TestMode::LpOnly);
+        assert_eq!(
+            "socks5only".parse::<TestMode>().unwrap(),
+            TestMode::Socks5Only
+        );
     }
 
     #[test]
     fn test_from_str_case_insensitive() {
-        assert_eq!("MIXNET".parse::<TestMode>().unwrap(), TestMode::Mixnet);
-        assert_eq!(
-            "Single-Hop".parse::<TestMode>().unwrap(),
-            TestMode::SingleHop
-        );
-        assert_eq!("TWO_HOP".parse::<TestMode>().unwrap(), TestMode::TwoHop);
+        assert_eq!("DEFAULT".parse::<TestMode>().unwrap(), TestMode::Default);
+        assert_eq!("WG-MIX".parse::<TestMode>().unwrap(), TestMode::WgMix);
+        assert_eq!("Wg_Lp".parse::<TestMode>().unwrap(), TestMode::WgLp);
         assert_eq!("LpOnly".parse::<TestMode>().unwrap(), TestMode::LpOnly);
+        assert_eq!(
+            "soCkS5-oNlY".parse::<TestMode>().unwrap(),
+            TestMode::Socks5Only
+        );
+        assert_eq!("ALL".parse::<TestMode>().unwrap(), TestMode::All);
     }
 
     #[test]
@@ -270,10 +185,12 @@ mod tests {
     #[test]
     fn test_display_fromstr_roundtrip() {
         for mode in [
-            TestMode::Mixnet,
-            TestMode::SingleHop,
-            TestMode::TwoHop,
+            TestMode::Default,
+            TestMode::WgMix,
+            TestMode::WgLp,
             TestMode::LpOnly,
+            TestMode::Socks5Only,
+            TestMode::All,
         ] {
             let s = mode.to_string();
             let parsed: TestMode = s.parse().unwrap();

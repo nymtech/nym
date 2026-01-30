@@ -4,9 +4,8 @@
 use anyhow::{Context, anyhow, bail};
 use nym_api_requests::models::{
     AuthenticatorDetailsV2, DeclaredRolesV2, DescribedNodeTypeV2, HostInformationV2,
-    IpPacketRouterDetailsV2, LewesProtocolDetailsV1, NetworkRequesterDetailsV1,
-    NetworkRequesterDetailsV2, NymNodeDataV2, OffsetDateTimeJsonSchemaWrapper, WebSocketsV2,
-    WireguardDetailsV2,
+    IpPacketRouterDetailsV2, NetworkRequesterDetailsV2, NymNodeDataV2,
+    OffsetDateTimeJsonSchemaWrapper, WebSocketsV2, WireguardDetailsV2,
 };
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -27,7 +26,7 @@ use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use time::OffsetDateTime;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 use url::Url;
 // in the old behaviour we were getting all skimmed nodes to retrieve performance
 // that was ultimately unused
@@ -108,6 +107,11 @@ impl DirectoryNode {
             .as_ref()
             .map(|ipr| ipr.address.parse().context("malformed ipr address"))
             .transpose()?;
+        let network_requester_address = description
+            .network_requester
+            .as_ref()
+            .map(|nr| nr.address.parse().context("malformed nr address"))
+            .transpose()?;
         let authenticator_address = description
             .authenticator
             .as_ref()
@@ -140,12 +144,11 @@ impl DirectoryNode {
             }),
             _ => None,
         };
-        let network_requester_details = self.described.description.network_requester.clone();
 
         Ok(TestedNodeDetails {
             identity: self.identity(),
             exit_router_address,
-            network_requester_details,
+            network_requester_address,
             authenticator_address,
             authenticator_version,
             ip_address: Some(ip_address),
@@ -217,12 +220,33 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                 let build_info_result = client.get_build_information().await;
                 let aux_details_result = client.get_auxiliary_details().await;
                 let websockets_result = client.get_mixnet_websockets().await;
-                let lp_result = client.get_lewes_protocol().await;
 
                 // These are optional, so we use ok() to ignore errors
-                let ipr_result = client.get_ip_packet_router().await.ok();
-                let authenticator_result = client.get_authenticator().await.ok();
-                let wireguard_result = client.get_wireguard().await.ok();
+                let ipr_result = client
+                    .get_ip_packet_router()
+                    .await
+                    .inspect_err(|e| error!("Failed to get ipr information : {e}"))
+                    .ok();
+                let nr_result = client
+                    .get_network_requester()
+                    .await
+                    .inspect_err(|e| error!("Failed to get nr information : {e}"))
+                    .ok();
+                let authenticator_result = client
+                    .get_authenticator()
+                    .await
+                    .inspect_err(|e| error!("Failed to get authenticator information : {e}"))
+                    .ok();
+                let wireguard_result = client
+                    .get_wireguard()
+                    .await
+                    .inspect_err(|e| error!("Failed to get wireguard information : {e}"))
+                    .ok();
+                let lp_result = client
+                    .get_lewes_protocol()
+                    .await
+                    .inspect_err(|e| error!("Failed to get LP information : {e}"))
+                    .ok();
 
                 // Check required fields
                 let host_info = host_info_result.context("Failed to get host information")?;
@@ -242,7 +266,11 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                 }
 
                 // Convert to our internal types
-                let network_requester: Option<NetworkRequesterDetailsV2> = None; // Not needed for LP testing
+                let network_requester: Option<NetworkRequesterDetailsV2> =
+                    nr_result.map(|nr| NetworkRequesterDetailsV2 {
+                        address: nr.address,
+                        uses_exit_policy: false, // Field not availabe, to change if it becomes useful here
+                    });
                 let ip_packet_router: Option<IpPacketRouterDetailsV2> =
                     ipr_result.map(|ipr| IpPacketRouterDetailsV2 {
                         address: ipr.address,
@@ -259,8 +287,6 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                         metadata_port: wg.metadata_port,
                         public_key: wg.public_key,
                     });
-
-                let lp: Option<LewesProtocolDetailsV1> = lp_result.ok().map(Into::into);
 
                 // Construct NymNodeData
                 let node_data = NymNodeDataV2 {
@@ -293,7 +319,7 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                     ip_packet_router,
                     authenticator,
                     wireguard,
-                    lewes_protocol: lp,
+                    lewes_protocol: lp_result.map(Into::into),
                     mixnet_websockets: WebSocketsV2 {
                         ws_port: websockets.ws_port,
                         wss_port: websockets.wss_port,
@@ -431,37 +457,19 @@ impl NymApiDirectory {
         Ok(maybe_entry)
     }
 
-    pub fn exit_gateway_nr(&self, identity: &NodeIdentity) -> anyhow::Result<DirectoryNode> {
+    pub fn exit_gateway(&self, identity: &NodeIdentity) -> anyhow::Result<DirectoryNode> {
         let Some(maybe_entry) = self.nodes.get(identity).cloned() else {
-            bail!("{identity} not found in directory")
+            bail!("{identity} does not exist")
         };
-        if !maybe_entry.described.description.declared_role.exit_nr {
-            bail!("{identity} doesn't support exit NR mode")
+        if !maybe_entry
+            .described
+            .description
+            .declared_role
+            .can_operate_exit_gateway()
+        {
+            bail!("{identity} is not an entry node")
         };
         Ok(maybe_entry)
-    }
-}
-
-#[derive(Default, Debug)]
-pub enum TestedNode {
-    #[default]
-    SameAsEntry,
-    Custom {
-        identity: NodeIdentity,
-        shares_entry: bool,
-    },
-}
-
-impl TestedNode {
-    pub fn is_same_as_entry(&self) -> bool {
-        matches!(
-            self,
-            TestedNode::SameAsEntry
-                | TestedNode::Custom {
-                    shares_entry: true,
-                    ..
-                }
-        )
     }
 }
 
@@ -469,7 +477,7 @@ impl TestedNode {
 pub struct TestedNodeDetails {
     pub identity: NodeIdentity,
     pub exit_router_address: Option<Recipient>,
-    pub network_requester_details: Option<NetworkRequesterDetailsV1>,
+    pub network_requester_address: Option<Recipient>,
     pub authenticator_address: Option<Recipient>,
     pub authenticator_version: AuthenticatorVersion,
     pub ip_address: Option<IpAddr>,
@@ -483,30 +491,4 @@ pub struct TestedNodeLpDetails {
     pub expected_signing_key_hashes: HashMap<SignatureScheme, KEMKeyDigests>,
     pub x25519: x25519::PublicKey,
     pub lp_version: u8,
-}
-
-impl TestedNodeDetails {
-    /// Create from CLI args (localnet mode - no HTTP query needed)
-    pub fn from_cli(identity: NodeIdentity, lp_data: TestedNodeLpDetails) -> Self {
-        Self {
-            identity,
-            ip_address: Some(lp_data.address.ip()),
-            lp_data: Some(lp_data),
-            network_requester_details: None,
-            // These are None in localnet mode - only needed for mixnet/authenticator
-            exit_router_address: None,
-            authenticator_address: None,
-            authenticator_version: AuthenticatorVersion::UNKNOWN,
-        }
-    }
-
-    /// Check if this node has sufficient info for LP testing
-    pub fn can_test_lp(&self) -> bool {
-        self.lp_data.is_some()
-    }
-
-    /// Check if this node has sufficient info for mixnet testing
-    pub fn can_test_mixnet(&self) -> bool {
-        self.exit_router_address.is_some() || self.authenticator_address.is_some()
-    }
 }

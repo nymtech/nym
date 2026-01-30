@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::NetstackArgs;
 use anyhow::Context;
 use serde::Deserialize;
 use std::ffi::{CStr, CString};
@@ -14,8 +15,6 @@ mod sys {
         pub unsafe fn wgFreePtr(ptr: *mut c_void);
     }
 }
-
-use crate::config::NetstackArgs;
 
 #[derive(serde::Serialize)]
 pub struct NetstackRequest {

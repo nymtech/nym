@@ -265,7 +265,7 @@ impl LpHeader {
 
         Ok(LpHeader {
             protocol_version,
-            reserved: [0u8; 3],
+            reserved,
             receiver_idx,
             counter,
         })

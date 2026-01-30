@@ -6454,8 +6454,6 @@ version = "1.18.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
- "bincode",
- "bs58",
  "bytes",
  "clap",
  "futures",
@@ -6478,7 +6476,6 @@ dependencies = [
  "nym-ip-packet-requests",
  "nym-kkt-ciphersuite",
  "nym-lp",
- "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-node-requests",
  "nym-node-status-client",
@@ -6492,7 +6489,6 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "thiserror 2.0.17",
  "time",
  "tokio",
  "tokio-util",
@@ -6501,7 +6497,6 @@ dependencies = [
  "url",
  "utoipa",
  "vergen-gitcl",
- "x25519-dalek",
 ]
 
 [[package]]
@@ -7237,7 +7232,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "anyhow",
  "clap",

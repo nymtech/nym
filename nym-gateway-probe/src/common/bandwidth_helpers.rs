@@ -8,29 +8,38 @@ use nym_bandwidth_controller::mock::MockBandwidthController;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_credentials_interface::TicketType;
 use nym_node_status_client::models::AttachedTicketMaterials;
+use nym_sdk::NymNetworkDetails;
 use nym_sdk::bandwidth::BandwidthImporter;
 use nym_sdk::mixnet::{CredentialStorage, DisconnectedMixnetClient, EphemeralCredentialStorage};
-use nym_validator_client::QueryHttpRpcNyxdClient;
 use nym_validator_client::nyxd::error::NyxdError;
 use std::time::Duration;
 use tracing::{error, info};
 
 pub(crate) fn build_bandwidth_controller<S>(
-    rpc_client: QueryHttpRpcNyxdClient,
-    on_disk_storage: S,
+    network: &NymNetworkDetails,
+    storage: S,
     use_mock_ecash: bool,
-) -> Box<dyn BandwidthTicketProvider>
+) -> anyhow::Result<Box<dyn BandwidthTicketProvider>>
 where
     S: CredentialStorage + 'static,
     S::StorageError: Send + Sync + 'static,
 {
     if !use_mock_ecash {
-        Box::new(nym_bandwidth_controller::BandwidthController::new(
-            on_disk_storage,
-            rpc_client,
+        let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(network)?;
+
+        let nyxd_url = network
+            .endpoints
+            .first()
+            .map(|ep| ep.nyxd_url())
+            .ok_or(anyhow::anyhow!("missing nyxd url"))?;
+        let rpc_client =
+            nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
+
+        Ok(Box::new(
+            nym_bandwidth_controller::BandwidthController::new(storage, rpc_client),
         ))
     } else {
-        Box::new(MockBandwidthController::default())
+        Ok(Box::new(MockBandwidthController::default()))
     }
 }
 

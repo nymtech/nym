@@ -9,11 +9,11 @@
 use nym_config::defaults::{WG_METADATA_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4};
 use tracing::{error, info};
 
+use crate::NetstackArgs;
 use crate::common::netstack::{
     NetstackRequest, NetstackRequestGo, NetstackResult, TwoHopNetstackRequestGo,
 };
 use crate::common::types::WgProbeResults;
-use crate::config::NetstackArgs;
 
 /// Safe division that returns 0.0 when divisor is 0 (instead of NaN/Inf)
 fn safe_ratio(received: u16, sent: u16) -> f32 {

@@ -694,8 +694,9 @@ pub(crate) mod cleanup_task {
 
         for to_remove in to_remove {
             pending_reg_removed += 1;
-            // SAFETY: we never dropped the guard and the entry existed
 
+            // SAFETY: we never dropped the guard and the entry existed
+            #[allow(clippy::unwrap_used)]
             let entry = reg_guard.remove(&to_remove).unwrap();
             if let Err(err) = peer_manager
                 .release_ip_pair(entry.state.allocated_ip_pair())

@@ -79,11 +79,11 @@ pub enum PeerControlRequest {
     },
     /// Attempt to allocate an IP pair from the pool
     AllocatePeerIpPair {
-        response_tx: oneshot::Sender<RegisterPeerControlResponse>,
+        response_tx: oneshot::Sender<AllocatePeerControlResponse>,
     },
     /// Attempt to return an IP pair back to the pool
     ReleaseIpPair {
-        response_tx: oneshot::Sender<()>,
+        response_tx: oneshot::Sender<ReleaseIpPairControlResponse>,
         ip_pair: IpPair,
     },
     RemovePeer {
@@ -115,7 +115,8 @@ pub enum PeerControlRequest {
 }
 
 pub type AddPeerControlResponse = Result<()>;
-pub type RegisterPeerControlResponse = Result<IpPair>;
+pub type AllocatePeerControlResponse = Result<IpPair>;
+pub type ReleaseIpPairControlResponse = Result<()>;
 pub type RemovePeerControlResponse = Result<()>;
 pub type QueryPeerControlResponse = Result<Option<Peer>>;
 pub type GetClientBandwidthControlResponse = Result<ClientBandwidth>;
@@ -213,10 +214,10 @@ impl PeerController {
             .await?;
         self.bw_storage_managers.remove(key);
 
-        if let Ok(Some(peer)) = self.handle_query_peer_by_key(key).await {
-            if let Some(ip_pair) = allocated_ip_pair(&peer) {
-                self.ip_pool.release(ip_pair).await
-            }
+        if let Ok(Some(peer)) = self.handle_query_peer_by_key(key).await
+            && let Some(ip_pair) = allocated_ip_pair(&peer)
+        {
+            self.ip_pool.release(ip_pair).await
         }
 
         let ret = self.wg_api.remove_peer(key);
@@ -501,7 +502,8 @@ impl PeerController {
                 response_tx,
                 ip_pair,
             } => {
-                response_tx.send(self.handle_ip_release(ip_pair).await).ok();
+                self.handle_ip_release(ip_pair).await;
+                response_tx.send(Ok(())).ok();
             }
             PeerControlRequest::RemovePeer { key, response_tx } => {
                 response_tx.send(self.remove_peer(&key).await).ok();

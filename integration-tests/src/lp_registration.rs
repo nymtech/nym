@@ -443,11 +443,10 @@ mod tests {
             // 1) peer registration - ip pair allocation
             let ip_pair = entry.allocate_ip_pair().await;
             let reg_res = Ok::<_, nym_wireguard::Error>(ip_pair);
-            let public_key = client_key.to_wg_key();
 
             entry
                 .register_peer_controller_response(
-                    PeerControlRequestType::RegisterPeer { public_key },
+                    PeerControlRequestType::AllocatePeerIpPair {},
                     reg_res,
                 )
                 .await;
@@ -497,7 +496,6 @@ mod tests {
             let peers_guard = entry.mock_peer_controller_state.peers.read().await;
             let peer = peers_guard.get_by_x25519_key(&client_key).unwrap().clone();
             drop(peers_guard);
-            assert!(peer.register_success);
             assert!(peer.add_success);
 
             assert_eq!(registration_result.private_ipv4, ip_pair.ipv4);
@@ -616,11 +614,10 @@ mod tests {
             // 1) peer registration - ip pair allocation
             let entry_ip_pair = entry.allocate_ip_pair().await;
             let reg_res = Ok::<_, nym_wireguard::Error>(entry_ip_pair);
-            let public_key = client_key.to_wg_key();
 
             entry
                 .register_peer_controller_response(
-                    PeerControlRequestType::RegisterPeer { public_key },
+                    PeerControlRequestType::AllocatePeerIpPair {},
                     reg_res,
                 )
                 .await;
@@ -668,10 +665,9 @@ mod tests {
             // 1) peer registration - ip pair allocation
             let exit_ip_pair = exit.allocate_ip_pair().await;
             let reg_res = Ok::<_, nym_wireguard::Error>(exit_ip_pair);
-            let public_key = client_key.to_wg_key();
 
             exit.register_peer_controller_response(
-                PeerControlRequestType::RegisterPeer { public_key },
+                PeerControlRequestType::AllocatePeerIpPair {},
                 reg_res,
             )
             .await;
@@ -738,13 +734,11 @@ mod tests {
             let peers_guard = entry.mock_peer_controller_state.peers.read().await;
             let entry_peer = peers_guard.get_by_x25519_key(&client_key).unwrap().clone();
             drop(peers_guard);
-            assert!(entry_peer.register_success);
             assert!(entry_peer.add_success);
 
             let peers_guard = exit.mock_peer_controller_state.peers.read().await;
             let exit_peer = peers_guard.get_by_x25519_key(&client_key).unwrap().clone();
             drop(peers_guard);
-            assert!(exit_peer.register_success);
             assert!(exit_peer.add_success);
 
             assert_eq!(entry_registration_result.private_ipv4, entry_ip_pair.ipv4);

@@ -31,7 +31,7 @@ pub fn allocated_ip_pair(peer: &Peer) -> Option<IpPair> {
     None
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash)]
 pub struct IpPair {
     pub ipv4: Ipv4Addr,
     pub ipv6: Ipv6Addr,
@@ -141,8 +141,7 @@ impl IpPool {
         // Find a free IP and allocate it
         let free_ip = pool
             .iter_mut()
-            .filter(|(_, state)| matches!(state, AllocationState::Free))
-            .next()
+            .find(|(_, state)| matches!(state, AllocationState::Free))
             .ok_or(IpPoolError::NoFreeIp)?;
 
         let ip_pair = *free_ip.0;

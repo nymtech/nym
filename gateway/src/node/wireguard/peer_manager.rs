@@ -57,9 +57,14 @@ impl PeerManager {
             .await
             .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
-        response_rx.await.map_err(|e| {
-            GatewayWireguardError::InternalError(format!("Failed to release IP allocation: {e}"))
-        })?;
+        response_rx
+            .await
+            .map_err(|_| GatewayWireguardError::internal("no response for release ip allocation"))?
+            .map_err(|err| {
+                GatewayWireguardError::InternalError(format!(
+                    "releasing ip pair not be performed: {err:?}"
+                ))
+            })?;
 
         Ok(())
     }

@@ -20,13 +20,12 @@ use nym_crypto::asymmetric::x25519::{PrivateKey, PublicKey};
 use sha2::Sha256;
 
 pub type PendingRegistrations = HashMap<PeerPublicKey, RegistrationData>;
-pub type PrivateIPs = HashMap<IpPair, Taken>;
+pub type PrivateIPs = HashMap<IpPair, SystemTime>;
 
 #[cfg(feature = "verify")]
 pub type HmacSha256 = Hmac<Sha256>;
 
 pub type Nonce = u64;
-pub type Taken = Option<SystemTime>;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IpPair {

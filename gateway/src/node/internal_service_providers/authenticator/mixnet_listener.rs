@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::internal_service_providers::authenticator::{
-    config::Config, error::AuthenticatorError, peer_manager::PeerManager,
-    seen_credential_cache::SeenCredentialCache,
+    config::Config, error::AuthenticatorError, seen_credential_cache::SeenCredentialCache,
 };
+use crate::node::wireguard::PeerManager;
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
@@ -35,7 +35,6 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownToken;
 use nym_wireguard::WireguardGatewayData;
 use nym_wireguard_types::PeerPublicKey;
-use rand::{prelude::IteratorRandom, thread_rng};
 use std::cmp::max;
 use std::{
     net::IpAddr,
@@ -54,14 +53,14 @@ const DEFAULT_WG_CLIENT_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024 * 1024;
 
 pub(crate) struct RegisteredAndFree {
     registration_in_progress: PendingRegistrations,
-    free_private_network_ips: PrivateIPs,
+    taken_private_network_ips: PrivateIPs,
 }
 
 impl RegisteredAndFree {
-    pub(crate) fn new(free_private_network_ips: PrivateIPs) -> Self {
+    pub(crate) fn new() -> Self {
         RegisteredAndFree {
             registration_in_progress: Default::default(),
-            free_private_network_ips,
+            taken_private_network_ips: Default::default(),
         }
     }
 }
@@ -90,7 +89,6 @@ pub(crate) struct MixnetListener {
 impl MixnetListener {
     pub fn new(
         config: Config,
-        free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         upgrade_mode: UpgradeModeDetails,
@@ -101,7 +99,7 @@ impl MixnetListener {
         MixnetListener {
             config,
             mixnet_client,
-            registered_and_free: RwLock::new(RegisteredAndFree::new(free_private_network_ips)),
+            registered_and_free: RwLock::new(RegisteredAndFree::new()),
             peer_manager: PeerManager::new(wireguard_gateway_data),
             upgrade_mode,
             ecash_verifier,
@@ -139,34 +137,30 @@ impl MixnetListener {
             .cloned()
             .collect();
         for reg in registered_values {
-            let ip = registered_and_free
-                .free_private_network_ips
+            let timestamp = registered_and_free
+                .taken_private_network_ips
                 .get_mut(&reg.gateway_data.private_ips)
                 .ok_or(AuthenticatorError::InternalDataCorruption(format!(
                     "IPs {} should be present",
                     reg.gateway_data.private_ips
                 )))?;
 
-            let Some(timestamp) = ip else {
-                registered_and_free
-                    .registration_in_progress
-                    .remove(&reg.gateway_data.pub_key());
-                tracing::debug!(
-                    "Removed stale registration of {}",
-                    reg.gateway_data.pub_key()
-                );
-                continue;
-            };
             let duration = SystemTime::now().duration_since(*timestamp).map_err(|_| {
                 AuthenticatorError::InternalDataCorruption(
                     "set timestamp shouldn't have been set in the future".to_string(),
                 )
             })?;
             if duration > DEFAULT_REGISTRATION_TIMEOUT_CHECK {
-                *ip = None;
                 registered_and_free
                     .registration_in_progress
                     .remove(&reg.gateway_data.pub_key());
+                registered_and_free
+                    .taken_private_network_ips
+                    .remove(&reg.gateway_data.private_ips);
+                self.peer_manager
+                    .release_ip_pair(reg.gateway_data.private_ips.into())
+                    .await?;
+
                 tracing::debug!(
                     "Removed stale registration of {}",
                     reg.gateway_data.pub_key()
@@ -383,19 +377,18 @@ impl MixnetListener {
             return Ok((bytes, reply_to));
         }
 
-        let private_ip_ref = registered_and_free
-            .free_private_network_ips
-            .iter_mut()
-            .filter(|r| r.1.is_none())
-            .choose(&mut thread_rng())
-            .ok_or(AuthenticatorError::NoFreeIp)?;
-        let private_ips = *private_ip_ref.0;
         // mark it as used, even though it's not final
-        *private_ip_ref.1 = Some(SystemTime::now());
+        let ip_allocation = self.peer_manager.allocate_peer_ip_pair().await?;
+        self.registered_and_free
+            .write()
+            .await
+            .taken_private_network_ips
+            .insert(ip_allocation.into(), SystemTime::now());
+
         let gateway_data = GatewayClient::new(
             self.keypair().private_key(),
             remote_public.inner(),
-            *private_ip_ref.0,
+            ip_allocation.into(),
             nonce,
         );
         let registration_data = latest::registration::RegistrationData {
@@ -414,7 +407,7 @@ impl MixnetListener {
                         gateway_data: v1::registration::GatewayClient::new(
                             self.keypair().private_key(),
                             remote_public.inner(),
-                            private_ips.ipv4.into(),
+                            ip_allocation.ipv4.into(),
                             nonce,
                         ),
                         wg_port: registration_data.wg_port,
@@ -432,7 +425,7 @@ impl MixnetListener {
                         gateway_data: v2::registration::GatewayClient::new(
                             self.keypair().private_key(),
                             remote_public.inner(),
-                            private_ips.ipv4.into(),
+                            ip_allocation.ipv4.into(),
                             nonce,
                         ),
                         wg_port: registration_data.wg_port,
@@ -450,7 +443,7 @@ impl MixnetListener {
                         gateway_data: v3::registration::GatewayClient::new(
                             self.keypair().private_key(),
                             remote_public.inner(),
-                            private_ips.ipv4.into(),
+                            ip_allocation.ipv4.into(),
                             nonce,
                         ),
                         wg_port: registration_data.wg_port,
@@ -592,7 +585,7 @@ impl MixnetListener {
                 .storage()
                 .remove_wireguard_peer(&public_key)
                 .await?;
-            return Err(e);
+            return Err(e.into());
         }
 
         registered_and_free

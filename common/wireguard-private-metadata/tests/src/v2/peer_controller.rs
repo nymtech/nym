@@ -26,7 +26,7 @@ impl From<&PeerControlRequest> for PeerControlRequestTypeV2 {
     fn from(req: &PeerControlRequest) -> Self {
         match req {
             PeerControlRequest::AddPeer { .. } => PeerControlRequestTypeV2::AddPeer,
-            PeerControlRequest::RegisterPeer { .. } => PeerControlRequestTypeV2::AddPeer,
+            PeerControlRequest::AllocatePeerIpPair { .. } => PeerControlRequestTypeV2::AddPeer,
             PeerControlRequest::RemovePeer { .. } => PeerControlRequestTypeV2::RemovePeer,
             PeerControlRequest::QueryPeer { .. } => PeerControlRequestTypeV2::QueryPeer,
             PeerControlRequest::GetClientBandwidthByKey { .. } => {
@@ -41,6 +41,7 @@ impl From<&PeerControlRequest> for PeerControlRequestTypeV2 {
             PeerControlRequest::GetVerifierByIp { ip, .. } => {
                 PeerControlRequestTypeV2::GetVerifierByIp { ip: *ip }
             }
+            PeerControlRequest::ReleaseIpPair { .. } => unreachable!(),
         }
     }
 }
@@ -113,7 +114,7 @@ impl MockPeerControllerV2 {
                     )
                     .unwrap();
             }
-            PeerControlRequest::RegisterPeer { response_tx, .. } => {
+            PeerControlRequest::AllocatePeerIpPair { response_tx, .. } => {
                 response_tx
                     .send(
                         *response
@@ -168,6 +169,15 @@ impl MockPeerControllerV2 {
                     .ok();
             }
             PeerControlRequest::GetVerifierByIp { response_tx, .. } => {
+                response_tx
+                    .send(
+                        *response
+                            .downcast()
+                            .expect("registered response has mismatched type"),
+                    )
+                    .ok();
+            }
+            PeerControlRequest::ReleaseIpPair { response_tx, .. } => {
                 response_tx
                     .send(
                         *response

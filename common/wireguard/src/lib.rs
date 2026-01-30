@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
-// #![warn(clippy::pedantic)]
-// #![warn(clippy::expect_used)]
-// #![warn(clippy::unwrap_used)]
 
 use defguard_wireguard_rs::{
     WGApi, WireguardInterfaceApi, error::WireguardInterfaceError, host::Peer, key::Key,
@@ -15,9 +12,6 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
-
-#[cfg(target_os = "linux")]
-use nym_ip_packet_requests::IpPair;
 
 #[cfg(target_os = "linux")]
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;
@@ -288,6 +282,22 @@ pub async fn start_wireguard(
         peer_bandwidth_managers.insert(peer.public_key.clone(), (bandwidth_manager, peer.clone()));
     }
 
+    // Initialize IP pool from configuration
+    info!("Initializing IP pool for WireGuard peer allocation");
+    let ip_pool = IpPool::new(
+        wireguard_data.inner.config().private_ipv4,
+        wireguard_data.inner.config().private_network_prefix_v4,
+        wireguard_data.inner.config().private_ipv6,
+        wireguard_data.inner.config().private_network_prefix_v6,
+    )?;
+
+    // Mark existing peer IPs as used in the pool
+    for peer in &peers {
+        if let Some(ip_pair) = crate::ip_pool::allocated_ip_pair(peer) {
+            ip_pool.mark_used(ip_pair).await;
+        }
+    }
+
     wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
@@ -296,7 +306,7 @@ pub async fn start_wireguard(
             wireguard_data.inner.config().private_ipv4,
         ))],
         port: wireguard_data.inner.config().announced_tunnel_port,
-        peers: peers.clone(), // Clone since we need to use peers later to mark IPs as used
+        peers,
         mtu: None,
     };
     info!(
@@ -349,33 +359,6 @@ pub async fn start_wireguard(
     wg_api.configure_peer_routing(&[catch_all_peer])?;
 
     let host = wg_api.read_interface_data()?;
-
-    // Initialize IP pool from configuration
-    info!("Initializing IP pool for WireGuard peer allocation");
-    let ip_pool = IpPool::new(
-        wireguard_data.inner.config().private_ipv4,
-        wireguard_data.inner.config().private_network_prefix_v4,
-        wireguard_data.inner.config().private_ipv6,
-        wireguard_data.inner.config().private_network_prefix_v6,
-    )?;
-
-    // Mark existing peer IPs as used in the pool
-    for peer in &peers {
-        for allowed_ip in &peer.allowed_ips {
-            // Extract IPv4 and IPv6 from peer's allowed_ips
-            if let IpAddr::V4(ipv4) = allowed_ip.address {
-                // Find corresponding IPv6
-                if let Some(ipv6_mask) = peer
-                    .allowed_ips
-                    .iter()
-                    .find(|ip| matches!(ip.address, IpAddr::V6(_)))
-                    && let IpAddr::V6(ipv6) = ipv6_mask.address
-                {
-                    ip_pool.mark_used(IpPair::new(ipv4, ipv6)).await;
-                }
-            }
-        }
-    }
 
     let wg_api = std::sync::Arc::new(wg_api);
     let mut controller = PeerController::new(

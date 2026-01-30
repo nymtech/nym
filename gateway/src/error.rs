@@ -3,6 +3,7 @@
 
 pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
+use crate::node::wireguard::GatewayWireguardError;
 use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_gateway_stats_storage::error::StatsStorageError;
 use nym_gateway_storage::error::GatewayStorageError;
@@ -158,6 +159,9 @@ pub enum GatewayError {
 
     #[error(transparent)]
     UpgradeModeEnable(#[from] UpgradeModeEnableError),
+
+    #[error(transparent)]
+    WireguardFailure(#[from] GatewayWireguardError),
 }
 
 impl From<ClientCoreError> for GatewayError {

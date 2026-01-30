@@ -1,14 +1,17 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
+use crate::node::wireguard::GatewayWireguardError;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::channel::oneshot;
 use nym_credential_verification::{ClientBandwidth, TicketVerifier};
 use nym_credentials_interface::CredentialSpendingData;
+use nym_wireguard::peer_controller::IpPair;
 use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use nym_wireguard_types::PeerPublicKey;
+use tracing::error;
 
+#[derive(Clone)]
 pub struct PeerManager {
     pub(crate) wireguard_gateway_data: WireguardGatewayData,
 }
@@ -19,26 +22,73 @@ impl PeerManager {
             wireguard_gateway_data,
         }
     }
-    pub async fn add_peer(&self, peer: Peer) -> Result<(), AuthenticatorError> {
+
+    pub async fn allocate_peer_ip_pair(&self) -> Result<IpPair, GatewayWireguardError> {
+        let (response_tx, response_rx) = oneshot::channel();
+        let msg = PeerControlRequest::AllocatePeerIpPair { response_tx };
+        self.wireguard_gateway_data
+            .peer_tx()
+            .send(msg)
+            .await
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
+
+        response_rx
+            .await
+            .map_err(|e| {
+                GatewayWireguardError::InternalError(format!(
+                    "Failed to receive IP allocation: {e}"
+                ))
+            })?
+            .map_err(|e| {
+                error!("Failed to allocate IPs from pool: {e}");
+                GatewayWireguardError::InternalError(format!("Failed to allocate IPs: {e}"))
+            })
+    }
+
+    pub async fn release_ip_pair(&self, ip_pair: IpPair) -> Result<(), GatewayWireguardError> {
+        let (response_tx, response_rx) = oneshot::channel();
+        let msg = PeerControlRequest::ReleaseIpPair {
+            response_tx,
+            ip_pair,
+        };
+        self.wireguard_gateway_data
+            .peer_tx()
+            .send(msg)
+            .await
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
+
+        response_rx
+            .await
+            .map_err(|_| GatewayWireguardError::internal("no response for release ip allocation"))?
+            .map_err(|err| {
+                GatewayWireguardError::InternalError(format!(
+                    "releasing ip pair not be performed: {err:?}"
+                ))
+            })?;
+
+        Ok(())
+    }
+
+    pub async fn add_peer(&self, peer: Peer) -> Result<(), GatewayWireguardError> {
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::AddPeer { peer, response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
             .await
-            .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
         response_rx
             .await
-            .map_err(|_| AuthenticatorError::InternalError("no response for add peer".to_string()))?
+            .map_err(|_| GatewayWireguardError::internal("no response for add peer".to_string()))?
             .map_err(|err| {
-                AuthenticatorError::InternalError(format!(
+                GatewayWireguardError::internal(format!(
                     "adding peer could not be performed: {err:?}"
                 ))
             })
     }
 
-    pub async fn _remove_peer(&self, pub_key: PeerPublicKey) -> Result<(), AuthenticatorError> {
+    pub async fn _remove_peer(&self, pub_key: PeerPublicKey) -> Result<(), GatewayWireguardError> {
         let key = Key::new(pub_key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::RemovePeer { key, response_tx };
@@ -46,15 +96,13 @@ impl PeerManager {
             .peer_tx()
             .send(msg)
             .await
-            .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
         response_rx
             .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError("no response for remove peer".to_string())
-            })?
+            .map_err(|_| GatewayWireguardError::internal("no response for remove peer"))?
             .map_err(|err| {
-                AuthenticatorError::InternalError(format!(
+                GatewayWireguardError::InternalError(format!(
                     "removing peer could not be performed: {err:?}"
                 ))
             })
@@ -63,7 +111,7 @@ impl PeerManager {
     pub async fn query_peer(
         &self,
         public_key: PeerPublicKey,
-    ) -> Result<Option<Peer>, AuthenticatorError> {
+    ) -> Result<Option<Peer>, GatewayWireguardError> {
         let key = Key::new(public_key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::QueryPeer { key, response_tx };
@@ -71,15 +119,13 @@ impl PeerManager {
             .peer_tx()
             .send(msg)
             .await
-            .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
         response_rx
             .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError("no response for query peer".to_string())
-            })?
+            .map_err(|_| GatewayWireguardError::internal("no response for query peer".to_string()))?
             .map_err(|err| {
-                AuthenticatorError::InternalError(format!(
+                GatewayWireguardError::internal(format!(
                     "querying peer could not be performed: {err:?}"
                 ))
             })
@@ -88,7 +134,7 @@ impl PeerManager {
     pub async fn query_bandwidth(
         &self,
         public_key: PeerPublicKey,
-    ) -> Result<i64, AuthenticatorError> {
+    ) -> Result<i64, GatewayWireguardError> {
         let client_bandwidth = self.query_client_bandwidth(public_key).await?;
         Ok(client_bandwidth.available().await)
     }
@@ -96,7 +142,7 @@ impl PeerManager {
     pub async fn query_client_bandwidth(
         &self,
         key: PeerPublicKey,
-    ) -> Result<ClientBandwidth, AuthenticatorError> {
+    ) -> Result<ClientBandwidth, GatewayWireguardError> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::GetClientBandwidthByKey { key, response_tx };
@@ -104,17 +150,13 @@ impl PeerManager {
             .peer_tx()
             .send(msg)
             .await
-            .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
         response_rx
             .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError(
-                    "no response for query client bandwidth".to_string(),
-                )
-            })?
+            .map_err(|_| GatewayWireguardError::internal("no response for query client bandwidth"))?
             .map_err(|err| {
-                AuthenticatorError::InternalError(format!(
+                GatewayWireguardError::internal(format!(
                     "querying client bandwidth could not be performed: {err:?}"
                 ))
             })
@@ -124,7 +166,7 @@ impl PeerManager {
         &self,
         key: PeerPublicKey,
         credential: CredentialSpendingData,
-    ) -> Result<Box<dyn TicketVerifier + Send + Sync>, AuthenticatorError> {
+    ) -> Result<Box<dyn TicketVerifier + Send + Sync>, GatewayWireguardError> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::GetVerifierByKey {
@@ -136,15 +178,15 @@ impl PeerManager {
             .peer_tx()
             .send(msg)
             .await
-            .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
 
         response_rx
             .await
             .map_err(|_| {
-                AuthenticatorError::InternalError("no response for query verifier".to_string())
+                GatewayWireguardError::internal("no response for query verifier".to_string())
             })?
             .map_err(|err| {
-                AuthenticatorError::InternalError(format!(
+                GatewayWireguardError::internal(format!(
                     "querying verifier could not be performed: {err:?}"
                 ))
             })

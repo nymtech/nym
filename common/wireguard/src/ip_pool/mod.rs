@@ -1,14 +1,56 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+mod compat;
+
+use defguard_wireguard_rs::host::Peer;
 use ipnetwork::IpNetwork;
-use nym_ip_packet_requests::IpPair;
 use rand::seq::IteratorRandom;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
+use tokio::time::Instant;
+use tracing::{trace, warn};
+
+// helper to convert peer's allocation into an `IpPair`
+pub fn allocated_ip_pair(peer: &Peer) -> Option<IpPair> {
+    for allowed_ip in &peer.allowed_ips {
+        // Extract IPv4 and IPv6 from peer's allowed_ips
+        if let IpAddr::V4(ipv4) = allowed_ip.address {
+            // Find corresponding IPv6
+            if let Some(ipv6_mask) = peer
+                .allowed_ips
+                .iter()
+                .find(|ip| matches!(ip.address, IpAddr::V6(_)))
+                && let IpAddr::V6(ipv6) = ipv6_mask.address
+            {
+                return Some(IpPair::new(ipv4, ipv6));
+            }
+        }
+    }
+    None
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash)]
+pub struct IpPair {
+    pub ipv4: Ipv4Addr,
+    pub ipv6: Ipv6Addr,
+}
+
+impl IpPair {
+    pub fn new(ipv4: Ipv4Addr, ipv6: Ipv6Addr) -> Self {
+        IpPair { ipv4, ipv6 }
+    }
+}
+
+impl Display for IpPair {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "IPv4: {}, IPv6: {}", self.ipv4, self.ipv6)
+    }
+}
 
 /// Represents the state of an IP allocation
 #[derive(Debug, Clone, Copy)]
@@ -83,12 +125,8 @@ impl IpPool {
         }
 
         tracing::info!(
-            "Initialized IP pool with {} address pairs from {}/{} and {}/{}",
+            "Initialized IP pool with {} address pairs from {ipv4_network}/{ipv4_prefix} and {ipv6_network}/{ipv6_prefix}",
             allocations.len(),
-            ipv4_network,
-            ipv4_prefix,
-            ipv6_network,
-            ipv6_prefix
         );
 
         Ok(IpPool {
@@ -98,24 +136,28 @@ impl IpPool {
 
     /// Allocate a free IP pair from the pool
     ///
-    /// Randomly selects an available IP pair and marks it as allocated.
-    ///
     /// # Errors
     /// Returns `IpPoolError::NoFreeIp` if no IPs are available
     pub async fn allocate(&self) -> Result<IpPair, IpPoolError> {
         let mut pool = self.allocations.write().await;
 
         // Find a free IP and allocate it
+        let assignment_start = Instant::now();
         let free_ip = pool
             .iter_mut()
             .filter(|(_, state)| matches!(state, AllocationState::Free))
             .choose(&mut rand::thread_rng())
             .ok_or(IpPoolError::NoFreeIp)?;
+        let taken = assignment_start.elapsed();
+        trace!("assigning free ip pair took {taken:?}");
+        if taken > Duration::from_millis(500) {
+            warn!("assigning free ip pair took {taken:?}");
+        }
 
         let ip_pair = *free_ip.0;
         *free_ip.1 = AllocationState::Allocated(SystemTime::now());
 
-        tracing::debug!("Allocated IP pair: {}", ip_pair);
+        tracing::debug!("Allocated IP pair: {ip_pair}");
         Ok(ip_pair)
     }
 
@@ -126,7 +168,7 @@ impl IpPool {
         let mut pool = self.allocations.write().await;
         if let Some(state) = pool.get_mut(&ip_pair) {
             *state = AllocationState::Free;
-            tracing::debug!("Released IP pair: {}", ip_pair);
+            tracing::debug!("Released IP pair: {ip_pair}");
         }
     }
 
@@ -137,9 +179,9 @@ impl IpPool {
         let mut pool = self.allocations.write().await;
         if let Some(state) = pool.get_mut(&ip_pair) {
             *state = AllocationState::Allocated(SystemTime::now());
-            tracing::debug!("Marked IP pair as used: {}", ip_pair);
+            tracing::debug!("Marked IP pair as used: {ip_pair}");
         } else {
-            tracing::warn!("Attempted to mark unknown IP pair as used: {}", ip_pair);
+            tracing::warn!("Attempted to mark unknown IP pair as used: {ip_pair}");
         }
     }
 

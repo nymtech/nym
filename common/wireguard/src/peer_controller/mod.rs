@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ip_pool::allocated_ip_pair;
 use crate::{
     IpPool,
     error::{Error, Result},
@@ -32,9 +33,9 @@ use std::{
 };
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace};
 
-pub use nym_ip_packet_requests::IpPair;
+pub use crate::ip_pool::IpPair;
 
 #[cfg(feature = "mock")]
 pub mod mock;
@@ -75,10 +76,14 @@ pub enum PeerControlRequest {
         peer: Peer,
         response_tx: oneshot::Sender<AddPeerControlResponse>,
     },
-    /// Register a new peer and allocate IPs from the pool
-    RegisterPeer {
-        registration_data: PeerRegistrationData,
-        response_tx: oneshot::Sender<RegisterPeerControlResponse>,
+    /// Attempt to allocate an IP pair from the pool
+    AllocatePeerIpPair {
+        response_tx: oneshot::Sender<AllocatePeerControlResponse>,
+    },
+    /// Attempt to return an IP pair back to the pool
+    ReleaseIpPair {
+        response_tx: oneshot::Sender<ReleaseIpPairControlResponse>,
+        ip_pair: IpPair,
     },
     RemovePeer {
         key: Key,
@@ -109,7 +114,8 @@ pub enum PeerControlRequest {
 }
 
 pub type AddPeerControlResponse = Result<()>;
-pub type RegisterPeerControlResponse = Result<IpPair>;
+pub type AllocatePeerControlResponse = Result<IpPair>;
+pub type ReleaseIpPairControlResponse = Result<()>;
 pub type RemovePeerControlResponse = Result<()>;
 pub type QueryPeerControlResponse = Result<Option<Peer>>;
 pub type GetClientBandwidthControlResponse = Result<ClientBandwidth>;
@@ -207,9 +213,11 @@ impl PeerController {
             .await?;
         self.bw_storage_managers.remove(key);
 
-        warn!("MISSING CALL TO IP POOL RELEASE");
-        // need to figure out what addresses to release
-        // self.ip_pool.release()
+        if let Ok(Some(peer)) = self.handle_query_peer_by_key(key).await
+            && let Some(ip_pair) = allocated_ip_pair(&peer)
+        {
+            self.ip_pool.release(ip_pair).await
+        }
 
         let ret = self.wg_api.remove_peer(key);
         if ret.is_err() {
@@ -294,10 +302,7 @@ impl PeerController {
     ///
     /// This only allocates IPs - the caller must handle database storage and
     /// then call AddPeer with a complete Peer struct.
-    async fn handle_register_request(
-        &mut self,
-        _registration_data: PeerRegistrationData,
-    ) -> Result<IpPair> {
+    async fn handle_ip_allocation_request(&mut self) -> Result<IpPair> {
         nym_metrics::inc!("wg_ip_allocation_attempts");
 
         // Allocate IP pair from pool
@@ -311,6 +316,11 @@ impl PeerController {
         tracing::debug!("Allocated IP pair: {ip_pair}");
 
         Ok(ip_pair)
+    }
+
+    /// Return IP pair back to the pool
+    async fn handle_ip_release(&mut self, ip_pair: IpPair) {
+        self.ip_pool.release(ip_pair).await
     }
 
     async fn ip_to_key(&self, ip: IpAddr) -> Result<Option<Key>> {
@@ -477,6 +487,62 @@ impl PeerController {
         );
     }
 
+    async fn handle_peer_control_request(&mut self, msg: PeerControlRequest) {
+        match msg {
+            PeerControlRequest::AddPeer { peer, response_tx } => {
+                response_tx.send(self.handle_add_request(&peer).await).ok();
+            }
+            PeerControlRequest::AllocatePeerIpPair { response_tx } => {
+                response_tx
+                    .send(self.handle_ip_allocation_request().await)
+                    .ok();
+            }
+            PeerControlRequest::ReleaseIpPair {
+                response_tx,
+                ip_pair,
+            } => {
+                self.handle_ip_release(ip_pair).await;
+                response_tx.send(Ok(())).ok();
+            }
+            PeerControlRequest::RemovePeer { key, response_tx } => {
+                response_tx.send(self.remove_peer(&key).await).ok();
+            }
+            PeerControlRequest::QueryPeer { key, response_tx } => {
+                response_tx
+                    .send(self.handle_query_peer_by_key(&key).await)
+                    .ok();
+            }
+            PeerControlRequest::GetClientBandwidthByKey { key, response_tx } => {
+                response_tx
+                    .send(self.handle_get_client_bandwidth_by_key(&key).await)
+                    .ok();
+            }
+            PeerControlRequest::GetClientBandwidthByIp { ip, response_tx } => {
+                response_tx
+                    .send(self.handle_get_client_bandwidth_by_ip(ip).await)
+                    .ok();
+            }
+            PeerControlRequest::GetVerifierByKey {
+                key,
+                credential,
+                response_tx,
+            } => {
+                response_tx
+                    .send(self.handle_query_verifier_by_key(&key, *credential).await)
+                    .ok();
+            }
+            PeerControlRequest::GetVerifierByIp {
+                ip,
+                credential,
+                response_tx,
+            } => {
+                response_tx
+                    .send(self.handle_query_verifier_by_ip(ip, *credential).await)
+                    .ok();
+            }
+        }
+    }
+
     pub async fn run(&mut self) {
         info!("started wireguard peer controller");
         loop {
@@ -504,30 +570,7 @@ impl PeerController {
                 }
                 msg = self.request_rx.recv() => {
                     match msg {
-                        Some(PeerControlRequest::AddPeer { peer, response_tx }) => {
-                            response_tx.send(self.handle_add_request(&peer).await).ok();
-                        }
-                        Some(PeerControlRequest::RegisterPeer { registration_data, response_tx }) => {
-                            response_tx.send(self.handle_register_request(registration_data).await).ok();
-                        }
-                        Some(PeerControlRequest::RemovePeer { key, response_tx }) => {
-                            response_tx.send(self.remove_peer(&key).await).ok();
-                        }
-                        Some(PeerControlRequest::QueryPeer { key, response_tx }) => {
-                            response_tx.send(self.handle_query_peer_by_key(&key).await).ok();
-                        }
-                        Some(PeerControlRequest::GetClientBandwidthByKey { key, response_tx }) => {
-                            response_tx.send(self.handle_get_client_bandwidth_by_key(&key).await).ok();
-                        }
-                        Some(PeerControlRequest::GetClientBandwidthByIp { ip, response_tx }) => {
-                            response_tx.send(self.handle_get_client_bandwidth_by_ip(ip).await).ok();
-                        }
-                        Some(PeerControlRequest::GetVerifierByKey { key, credential, response_tx }) => {
-                            response_tx.send(self.handle_query_verifier_by_key(&key, *credential).await).ok();
-                        }
-                        Some(PeerControlRequest::GetVerifierByIp { ip, credential, response_tx }) => {
-                            response_tx.send(self.handle_query_verifier_by_ip(ip, *credential).await).ok();
-                        }
+                        Some(request) => self.handle_peer_control_request(request).await,
                         None => {
                             trace!("PeerController [main loop]: stopping since channel closed");
                             break;

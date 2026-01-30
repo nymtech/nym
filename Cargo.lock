@@ -7129,6 +7129,7 @@ dependencies = [
  "csv",
  "cupid",
  "futures",
+ "hex",
  "hkdf",
  "human-repr",
  "humantime-serde",

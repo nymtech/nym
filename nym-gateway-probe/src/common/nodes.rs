@@ -132,32 +132,8 @@ impl DirectoryNode {
         ) {
             (Some(lp_data), Some(noise_key)) => Some(TestedNodeLpDetails {
                 address: SocketAddr::new(ip_address, lp_data.control_port),
-                expected_kem_key_hashes: lp_data
-                    .kem_keys
-                    .into_iter()
-                    .map(|(kem, digests)| {
-                        (
-                            kem.into(),
-                            digests
-                                .into_iter()
-                                .map(|(hash_fn, digest)| (hash_fn.into(), digest))
-                                .collect(),
-                        )
-                    })
-                    .collect(),
-                expected_signing_key_hashes: lp_data
-                    .signing_keys
-                    .into_iter()
-                    .map(|(scheme, digests)| {
-                        (
-                            scheme.into(),
-                            digests
-                                .into_iter()
-                                .map(|(hash_fn, digest)| (hash_fn.into(), digest))
-                                .collect(),
-                        )
-                    })
-                    .collect(),
+                expected_kem_key_hashes: lp_data.kem_keys()?,
+                expected_signing_key_hashes: lp_data.signing_keys()?,
                 x25519: noise_key.x25519_pubkey,
             }),
             _ => None,

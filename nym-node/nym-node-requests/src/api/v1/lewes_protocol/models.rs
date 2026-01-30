@@ -21,11 +21,13 @@ pub struct LewesProtocol {
 
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
-    pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, Vec<u8>>>,
+    /// note: digests are hex encoded
+    pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
 
     /// Digests of the signing keys available to this node alongside hashing algorithms used
     /// for their computation.
-    pub signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, Vec<u8>>>,
+    /// note: digests are hex encoded
+    pub signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>>,
 }
 
 impl LewesProtocol {
@@ -33,8 +35,8 @@ impl LewesProtocol {
         enabled: bool,
         control_port: u16,
         data_port: u16,
-        kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, Vec<u8>>>,
-        signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, Vec<u8>>>,
+        kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
+        signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>>,
     ) -> Self {
         LewesProtocol {
             enabled,

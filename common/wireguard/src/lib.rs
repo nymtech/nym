@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
-// #![warn(clippy::pedantic)]
-// #![warn(clippy::expect_used)]
-// #![warn(clippy::unwrap_used)]
 
 use defguard_wireguard_rs::{
     WGApi, WireguardInterfaceApi, error::WireguardInterfaceError, host::Peer, key::Key,
@@ -15,9 +12,6 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
-
-#[cfg(target_os = "linux")]
-use nym_ip_packet_requests::IpPair;
 
 #[cfg(target_os = "linux")]
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;

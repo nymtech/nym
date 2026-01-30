@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ip_pool::allocated_ip_pair;
 use crate::{
     IpPool,
     error::{Error, Result},
@@ -33,8 +34,6 @@ use std::{
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
 use tracing::{debug, error, info, trace};
-
-use crate::ip_pool::allocated_ip_pair;
 
 pub use crate::ip_pool::IpPair;
 

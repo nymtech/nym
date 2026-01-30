@@ -682,17 +682,14 @@ pub(crate) mod cleanup_task {
 
         // Remove stale registrations (based on time since last activity)
         let mut reg_guard = registrations_in_progress.lock().await;
-        let mut to_remove = Vec::new();
+        let mut stale_registrations = Vec::new();
         for (k, timestamped) in reg_guard.iter() {
             if timestamped.age() > pending_registration_ttl {
-                pending_reg_removed += 1;
-                to_remove.push(*k)
-            } else {
-                to_remove.push(*k)
+                stale_registrations.push(*k)
             }
         }
 
-        for to_remove in to_remove {
+        for to_remove in stale_registrations {
             pending_reg_removed += 1;
 
             // SAFETY: we never dropped the guard and the entry existed

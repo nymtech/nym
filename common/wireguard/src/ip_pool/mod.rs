@@ -5,12 +5,15 @@ mod compat;
 
 use defguard_wireguard_rs::host::Peer;
 use ipnetwork::IpNetwork;
+use rand::seq::IteratorRandom;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
+use tokio::time::Instant;
+use tracing::{trace, warn};
 
 // helper to convert peer's allocation into an `IpPair`
 pub fn allocated_ip_pair(peer: &Peer) -> Option<IpPair> {
@@ -139,10 +142,17 @@ impl IpPool {
         let mut pool = self.allocations.write().await;
 
         // Find a free IP and allocate it
+        let assignment_start = Instant::now();
         let free_ip = pool
             .iter_mut()
-            .find(|(_, state)| matches!(state, AllocationState::Free))
+            .filter(|(_, state)| matches!(state, AllocationState::Free))
+            .choose(&mut rand::thread_rng())
             .ok_or(IpPoolError::NoFreeIp)?;
+        let taken = assignment_start.elapsed();
+        trace!("assigning free ip pair took {taken:?}");
+        if taken > Duration::from_millis(500) {
+            warn!("assigning free ip pair took {taken:?}");
+        }
 
         let ip_pair = *free_ip.0;
         *free_ip.1 = AllocationState::Allocated(SystemTime::now());

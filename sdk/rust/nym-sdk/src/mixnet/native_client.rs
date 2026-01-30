@@ -3,7 +3,7 @@ use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
 use bytes::{Buf as _, BytesMut};
-use futures::{ready, FutureExt, Sink, SinkExt, Stream, StreamExt};
+use futures::{ready, Future, FutureExt, Sink, SinkExt, Stream, StreamExt};
 use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
 use nym_client_core::client::inbound_messages::InputMessageCodec;
@@ -23,7 +23,7 @@ use nym_statistics_common::clients::{ClientStatsEvents, ClientStatsSender};
 use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use nym_task::ShutdownTracker;
 use nym_topology::{NymRouteProvider, NymTopology};
-use std::pin::{pin, Pin};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
@@ -66,8 +66,11 @@ pub struct MixnetClient {
     pub(crate) forget_me: ForgetMe,
     pub(crate) remember_me: RememberMe,
 
-    // internal state used for the `AsyncRead` implementation
+    // Internal state used for AsyncRead
     _read: ReadBuffer,
+
+    // Internal state used for AsyncWrite
+    _write: Option<PendingWrite>,
 }
 
 #[derive(Debug, Default)]
@@ -83,6 +86,17 @@ impl ReadBuffer {
     fn pending(&self) -> bool {
         !self.buffer.is_empty()
     }
+}
+
+struct PendingWrite {
+    future: Pin<
+        Box<
+            dyn Future<Output = Result<(), tokio_util::sync::PollSendError<InputMessage>>>
+                + Send
+                + Sync,
+        >,
+    >,
+    bytes_to_report: usize,
 }
 
 impl MixnetClient {
@@ -114,6 +128,7 @@ impl MixnetClient {
             forget_me,
             remember_me,
             _read: ReadBuffer::default(),
+            _write: None,
         }
     }
 
@@ -180,6 +195,7 @@ impl MixnetClient {
         MixnetClientSender {
             client_input: self.client_input.clone(),
             packet_type: self.packet_type,
+            _write: None,
         }
     }
 
@@ -325,10 +341,20 @@ impl MixnetClient {
     }
 }
 
-#[derive(Clone)]
 pub struct MixnetClientSender {
     client_input: ClientInput,
     packet_type: Option<PacketType>,
+    _write: Option<PendingWrite>,
+}
+
+impl Clone for MixnetClientSender {
+    fn clone(&self) -> Self {
+        Self {
+            client_input: self.client_input.clone(),
+            packet_type: self.packet_type,
+            _write: None, // Don't clone pending write state
+        }
+    }
 }
 
 impl AsyncRead for MixnetClient {
@@ -369,6 +395,25 @@ impl AsyncWrite for MixnetClient {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
+        // Complete any pending write first
+        if let Some(pending) = &mut self._write {
+            match pending.future.as_mut().poll(cx) {
+                Poll::Ready(Ok(())) => {
+                    let bytes = pending.bytes_to_report;
+                    self._write = None;
+                    return Poll::Ready(Ok(bytes));
+                }
+                Poll::Ready(Err(_)) => {
+                    self._write = None;
+                    return Poll::Ready(Err(std::io::Error::other(
+                        "failed to send message to mixnet",
+                    )));
+                }
+                Poll::Pending => return Poll::Pending,
+            }
+        }
+
+        // No pending write, parse new message from buffer
         let codec = InputMessageCodec {};
         let mut reader = FramedRead::new(buf, codec);
         let mut fut = reader.next();
@@ -383,22 +428,31 @@ impl AsyncWrite for MixnetClient {
             Poll::Ready(None) => return Poll::Ready(Ok(0)),
         };
 
-        let msg_size = msg.serialized_size();
+        let msg_size = msg.serialized_size() as usize;
 
-        let mut fut = pin!(self.client_input.send(msg));
-        match fut.poll_unpin(cx) {
-            Poll::Ready(Ok(())) => Poll::Ready(Ok(msg_size as usize)),
-            Poll::Ready(Err(_)) => Poll::Ready(Err(std::io::Error::other(
-                "failed to send message to mixnet",
-            ))),
-            Poll::Pending => Poll::Pending,
-        }
+        // Create and store the send future
+        let mut client_input = self.client_input.clone();
+        let future = Box::pin(async move { client_input.send(msg).await });
+
+        self._write = Some(PendingWrite {
+            future,
+            bytes_to_report: msg_size,
+        });
+
+        // Poll new future immediately
+        self.poll_write(cx, buf)
     }
 
     fn poll_flush(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
+        // Complete any pending write first
+        if self._write.is_some() {
+            ready!(self.as_mut().poll_write(cx, &[]))?;
+        }
+
+        // Flush the underlying sink
         Sink::poll_flush(self, cx).map_err(|_| std::io::Error::other("failed to flush the sink"))
     }
 
@@ -447,6 +501,25 @@ impl AsyncWrite for MixnetClientSender {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
+        // Complete any pending write first
+        if let Some(pending) = &mut self._write {
+            match pending.future.as_mut().poll(cx) {
+                Poll::Ready(Ok(())) => {
+                    let bytes = pending.bytes_to_report;
+                    self._write = None;
+                    return Poll::Ready(Ok(bytes));
+                }
+                Poll::Ready(Err(_)) => {
+                    self._write = None;
+                    return Poll::Ready(Err(std::io::Error::other(
+                        "failed to send message to mixnet",
+                    )));
+                }
+                Poll::Pending => return Poll::Pending,
+            }
+        }
+
+        // No pending write, parse new message from buffer
         let codec = InputMessageCodec {};
         let mut reader = FramedRead::new(buf, codec);
         let mut fut = reader.next();
@@ -461,22 +534,31 @@ impl AsyncWrite for MixnetClientSender {
             Poll::Ready(None) => return Poll::Ready(Ok(0)),
         };
 
-        let msg_size = msg.serialized_size();
+        let msg_size = msg.serialized_size() as usize;
 
-        let mut fut = pin!(self.client_input.send(msg));
-        match fut.poll_unpin(cx) {
-            Poll::Ready(Ok(())) => Poll::Ready(Ok(msg_size as usize)),
-            Poll::Ready(Err(_)) => Poll::Ready(Err(std::io::Error::other(
-                "failed to send message to mixnet",
-            ))),
-            Poll::Pending => Poll::Pending,
-        }
+        // Create and store the send future
+        let mut client_input = self.client_input.clone();
+        let future = Box::pin(async move { client_input.send(msg).await });
+
+        self._write = Some(PendingWrite {
+            future,
+            bytes_to_report: msg_size,
+        });
+
+        // Poll the new future immediately
+        self.poll_write(cx, buf)
     }
 
     fn poll_flush(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
+        // Complete any pending write first
+        if self._write.is_some() {
+            ready!(self.as_mut().poll_write(cx, &[]))?;
+        }
+
+        // Flush the underlying sink
         Sink::poll_flush(self, cx).map_err(|_| std::io::Error::other("failed to flush the sink"))
     }
 

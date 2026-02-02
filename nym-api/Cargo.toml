@@ -27,7 +27,7 @@ moka = { workspace = true }
 pin-project = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
-reqwest = { workspace = true, features = ["json"] }
+reqwest = { workspace = true, features = ["json", "query"] }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

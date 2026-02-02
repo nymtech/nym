@@ -52,7 +52,7 @@ pub(crate) async fn run_probe(
 
     // Run the probe
     let log = probe.run_and_get_log(
-        &Some(gateway_identity_key.clone()),
+        gateway_identity_key.clone(),
         probe_extra_args,
         testrun.ticket_materials,
     );

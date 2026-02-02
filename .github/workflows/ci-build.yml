@@ -10,6 +10,7 @@ on:
       - 'nym-api/**'
       - 'nym-authenticator-client/**'
       - 'nym-credential-proxy/**'
+      - 'nym-gateway-probe/**'
       - 'nym-ip-packet-client/**'
       - 'nym-network-monitor/**'
       - 'nym-node/**'

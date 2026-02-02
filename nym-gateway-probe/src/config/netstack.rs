@@ -3,39 +3,39 @@
 
 use clap::Args;
 
-#[derive(Args, Clone)]
+#[derive(Args, Clone, Debug)]
 pub struct NetstackArgs {
-    #[arg(long, default_value_t = 180)]
+    #[arg(long, hide = true, default_value_t = 180)]
     pub netstack_download_timeout_sec: u64,
 
-    #[arg(long, default_value_t = 30)]
+    #[arg(long, hide = true, default_value_t = 30)]
     pub metadata_timeout_sec: u64,
 
-    #[arg(long, default_value = "1.1.1.1")]
+    #[arg(long, hide = true, default_value = "1.1.1.1")]
     pub netstack_v4_dns: String,
 
-    #[arg(long, default_value = "2606:4700:4700::1111")]
+    #[arg(long, hide = true, default_value = "2606:4700:4700::1111")]
     pub netstack_v6_dns: String,
 
-    #[arg(long, default_value_t = 5)]
+    #[arg(long, hide = true, default_value_t = 5)]
     pub netstack_num_ping: u8,
 
-    #[arg(long, default_value_t = 3)]
+    #[arg(long, hide = true, default_value_t = 3)]
     pub netstack_send_timeout_sec: u64,
 
-    #[arg(long, default_value_t = 3)]
+    #[arg(long, hide = true, default_value_t = 3)]
     pub netstack_recv_timeout_sec: u64,
 
-    #[arg(long, default_values_t = vec!["nym.com".to_string()])]
+    #[arg(long, hide= true, default_values_t = vec!["nym.com".to_string()])]
     pub netstack_ping_hosts_v4: Vec<String>,
 
-    #[arg(long, default_values_t = vec!["1.1.1.1".to_string()])]
+    #[arg(long, hide= true, default_values_t = vec!["1.1.1.1".to_string()])]
     pub netstack_ping_ips_v4: Vec<String>,
 
-    #[arg(long, default_values_t = vec!["cloudflare.com".to_string()])]
+    #[arg(long, hide= true, default_values_t = vec!["cloudflare.com".to_string()])]
     pub netstack_ping_hosts_v6: Vec<String>,
 
-    #[arg(long, default_values_t = vec!["2001:4860:4860::8888".to_string(), "2606:4700:4700::1111".to_string(), "2620:fe::fe".to_string()])]
+    #[arg(long, hide= true, default_values_t = vec!["2001:4860:4860::8888".to_string(), "2606:4700:4700::1111".to_string(), "2620:fe::fe".to_string()])]
     pub netstack_ping_ips_v6: Vec<String>,
 }
 

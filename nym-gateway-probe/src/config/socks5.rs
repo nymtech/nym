@@ -2,19 +2,21 @@ use clap::Args;
 
 use crate::common::socks5_test::JsonRpcClient;
 
-#[derive(Args)]
+const DEFAULT_RPC_ENDPOINT: &str = "https://cloudflare-eth.com";
+
+#[derive(Args, Debug)]
 pub struct Socks5Args {
-    #[arg(long, value_delimiter = ';')]
+    #[arg(long, hide = true, value_delimiter = ';', default_value = DEFAULT_RPC_ENDPOINT)]
     pub socks5_json_rpc_url_list: Vec<String>,
 
-    #[arg(long, default_value_t = 30)]
+    #[arg(long, hide = true, default_value_t = 30)]
     pub mixnet_client_timeout_sec: u64,
 
-    #[arg(long, default_value_t = 10)]
+    #[arg(long, hide = true, default_value_t = 10)]
     pub test_count: u64,
 
     /// stops socks5 test early after this many failed attempts
-    #[arg(long, default_value_t = 3)]
+    #[arg(long, hide = true, default_value_t = 3)]
     pub failure_count_cutoff: usize,
 }
 

@@ -459,13 +459,10 @@ impl AsyncWrite for MixnetClient {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
-        // Complete any pending write first
         if self._write.is_some() {
             ready!(self.as_mut().poll_write(cx, &[]))?;
         }
-
-        // Flush the underlying sink
-        Sink::poll_flush(self, cx).map_err(|_| std::io::Error::other("failed to flush the sink"))
+        Poll::Ready(Ok(()))
     }
 
     fn poll_shutdown(
@@ -567,13 +564,10 @@ impl AsyncWrite for MixnetClientSender {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
-        // Complete any pending write first
         if self._write.is_some() {
             ready!(self.as_mut().poll_write(cx, &[]))?;
         }
-
-        // Flush the underlying sink
-        Sink::poll_flush(self, cx).map_err(|_| std::io::Error::other("failed to flush the sink"))
+        Poll::Ready(Ok(()))
     }
 
     fn poll_shutdown(

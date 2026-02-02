@@ -13,7 +13,7 @@ description = "Functions and tests for checking Nym's Credential Proxy is being 
 
 [dependencies]
 jwt-simple = { workspace = true }
-reqwest = { workspace = true, features = ["rustls-tls"] }
+reqwest = { workspace = true, features = ["rustls"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 time = { workspace = true, features = ["serde", "formatting", "parsing"] }

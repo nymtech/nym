@@ -20,7 +20,7 @@ serde_json.workspace = true
 serde_with = { workspace = true }
 time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 tsify = { workspace = true, optional = true }
-reqwest = { workspace = true, features = ["json", "rustls-tls"] }
+reqwest = { workspace = true, features = ["json", "rustls"] }
 wasm-bindgen = { workspace = true, optional = true }
 
 ## openapi:

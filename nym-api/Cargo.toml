@@ -27,7 +27,6 @@ moka = { workspace = true }
 pin-project = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
-reqwest = { workspace = true, features = ["json"] }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -124,6 +123,7 @@ sqlx = { workspace = true, features = [
 
 [dev-dependencies]
 axum-test = { workspace = true }
+reqwest = { workspace = true, features = ["json", "query"] }
 tempfile = { workspace = true }
 cw3 = { workspace = true }
 cw-utils = { workspace = true }

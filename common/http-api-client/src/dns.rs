@@ -552,7 +552,7 @@ mod test {
         let var_name = HickoryDnsResolver::default();
         let resolver = var_name;
         let client = reqwest::ClientBuilder::new()
-            .dns_resolver(resolver.into())
+            .dns_resolver(resolver)
             .build()
             .unwrap();
 

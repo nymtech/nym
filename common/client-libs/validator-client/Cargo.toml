@@ -76,7 +76,7 @@ features = ["json"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.reqwest]
 workspace = true
-features = ["json", "rustls-tls"]
+features = ["json", "rustls"]
 
 [dev-dependencies]
 anyhow = { workspace = true }

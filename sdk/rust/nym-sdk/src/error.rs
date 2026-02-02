@@ -99,6 +99,9 @@ pub enum Error {
 
     #[error("Failed to get shutdown tracker from the task runtime registry: {0}")]
     RegistryAccess(#[from] nym_task::RegistryAccessError),
+
+    #[error("Cannot use message-based functions after stream mode is activated")]
+    StreamModeActive,
 }
 
 impl Error {

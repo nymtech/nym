@@ -23,6 +23,7 @@ use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use nym_task::ShutdownTracker;
 use nym_topology::{NymRouteProvider, NymTopology};
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
@@ -60,16 +61,21 @@ pub struct MixnetClient {
     pub(crate) shutdown_handle: ShutdownTracker,
     pub(crate) packet_type: Option<PacketType>,
 
-    // internal state used for the `Stream` implementation
+    /// Internal state used for the `Stream` implementation
     _buffered: Vec<ReconstructedMessage>,
+
     pub(crate) forget_me: ForgetMe,
     pub(crate) remember_me: RememberMe,
 
-    // Internal state used for AsyncRead
+    /// Internal state used for AsyncRead
     _read: ReadBuffer,
 
-    // Internal state used for AsyncWrite
+    /// Internal state used for AsyncWrite
     _write: Option<PendingWrite>,
+
+    /// Set to `true` when AsyncRead/AsyncWrite is used to
+    /// prevent mixing stream- and message-based functions.
+    stream_mode: Arc<AtomicBool>,
 }
 
 #[derive(Debug, Default)]
@@ -128,6 +134,7 @@ impl MixnetClient {
             remember_me,
             _read: ReadBuffer::default(),
             _write: None,
+            stream_mode: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -195,6 +202,7 @@ impl MixnetClient {
             client_input: self.client_input.clone(),
             packet_type: self.packet_type,
             _write: None,
+            stream_mode: self.stream_mode.clone(),
         }
     }
 
@@ -344,6 +352,7 @@ pub struct MixnetClientSender {
     client_input: ClientInput,
     packet_type: Option<PacketType>,
     _write: Option<PendingWrite>,
+    stream_mode: Arc<AtomicBool>,
 }
 
 impl Clone for MixnetClientSender {
@@ -352,6 +361,7 @@ impl Clone for MixnetClientSender {
             client_input: self.client_input.clone(),
             packet_type: self.packet_type,
             _write: None, // Don't clone pending write state
+            stream_mode: self.stream_mode.clone(),
         }
     }
 }
@@ -362,6 +372,7 @@ impl AsyncRead for MixnetClient {
         cx: &mut Context<'_>,
         buf: &mut ReadBuf,
     ) -> Poll<tokio::io::Result<()>> {
+        self.stream_mode.store(true, Ordering::SeqCst);
         let mut codec = ReconstructedMessageCodec {};
 
         if self._read.pending() {
@@ -394,6 +405,7 @@ impl AsyncWrite for MixnetClient {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
+        self.stream_mode.store(true, Ordering::SeqCst);
         // Complete any pending write first
         if let Some(pending) = &mut self._write {
             match pending.future.as_mut().poll(cx) {
@@ -467,6 +479,7 @@ impl Sink<InputMessage> for MixnetClient {
     type Error = Error;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        self.stream_mode.store(true, Ordering::SeqCst);
         match self.sender().poll_ready_unpin(cx) {
             Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
             Poll::Ready(Err(_)) => Poll::Ready(Err(Error::MessageSendingFailure)),
@@ -500,6 +513,7 @@ impl AsyncWrite for MixnetClientSender {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
+        self.stream_mode.store(true, Ordering::SeqCst);
         // Complete any pending write first
         if let Some(pending) = &mut self._write {
             match pending.future.as_mut().poll(cx) {
@@ -603,6 +617,10 @@ impl Stream for MixnetClient {
     type Item = ReconstructedMessage;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            tracing::warn!("Stream::poll_next() called after stream mode activated");
+            return Poll::Ready(None);
+        }
         if let Some(next) = self._buffered.pop() {
             cx.waker().wake_by_ref();
             return Poll::Ready(Some(next));
@@ -638,6 +656,10 @@ impl MixnetMessageSender for MixnetClient {
     }
 
     async fn send(&mut self, message: InputMessage) -> Result<()> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            tracing::warn!("send() called after stream mode activated");
+            return Err(Error::StreamModeActive);
+        }
         self.client_input
             .send(message)
             .await
@@ -656,6 +678,10 @@ impl MixnetMessageSender for MixnetClientSender {
     }
 
     async fn send(&mut self, message: InputMessage) -> Result<()> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            tracing::warn!("send() called after stream mode activated");
+            return Err(Error::StreamModeActive);
+        }
         self.client_input
             .send(message)
             .await

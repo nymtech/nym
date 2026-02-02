@@ -532,7 +532,7 @@ pub async fn do_ping_exit(
 }
 
 async fn send_icmp_pings(
-    mixnet_client: &MixnetClient,
+    mixnet_client: &mut MixnetClient,
     our_ips: IpPair,
     exit_router_address: Recipient,
 ) -> anyhow::Result<()> {

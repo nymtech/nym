@@ -15,7 +15,7 @@ use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{IdentityKey, NodeId};
 use nym_serde_helpers::date::DATE_FORMAT;
 use nym_validator_client::nyxd::error::NyxdError;
-use reqwest::StatusCode;
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::Error;

@@ -23,6 +23,7 @@ use crate::{
 };
 use bytes::{Buf, Bytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use nym_kkt::ciphersuite::EncapsulationKey;
 use std::mem;
 use tracing::debug;
 
@@ -364,33 +365,44 @@ impl LpStateMachine {
                     result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     LpState::KKTExchange { session }
                 } else {
-                    use crate::message::LpMessage;
 
                     // Packet message is already parsed, match on it directly
                     match &packet.message {
                         LpMessage::KKTRequest(kkt_request) if !session.is_initiator() => {
                             // Responder processes KKT request
                             // Convert X25519 public key to KEM format for KKT response
-                            use nym_kkt::ciphersuite::EncapsulationKey;
 
-                            // Get local X25519 public key by deriving from private key
-                            let local_x25519_public = session.local_x25519_public();
+                            // Get local KEM key
+                            match session.get_kem_key_handle() {
+                                Err(err) => {
+                                    let reason = err.to_string();
+                                    result_action = Some(Err(err));
+                                    LpState::Closed { reason }
+                                }
+                                Ok(local_kem_psq_public) => {
+                                    // Convert to libcrux KEM public key
+                                    // V1 is X255519
+                                    match libcrux_kem::PublicKey::decode(
+                                        libcrux_kem::Algorithm::X25519,
+                                        local_kem_psq_public.as_bytes(),
+                                    ) {
+                                        Ok(libcrux_public_key) => {
+                                            let responder_kem_pk = EncapsulationKey::X25519(libcrux_public_key);
 
-                            // Convert to libcrux KEM public key
-                            match libcrux_kem::PublicKey::decode(
-                                libcrux_kem::Algorithm::X25519,
-                                local_x25519_public.as_bytes(),
-                            ) {
-                                Ok(libcrux_public_key) => {
-                                    let responder_kem_pk = EncapsulationKey::X25519(libcrux_public_key);
-
-                                    match session.process_kkt_request(&kkt_request.0, &responder_kem_pk) {
-                                        Ok(kkt_response_message) => {
-                                            match session.next_packet(kkt_response_message) {
-                                                Ok(response_packet) => {
-                                                    result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-                                                    // After KKT exchange, move to Handshaking
-                                                    LpState::Handshaking { session }
+                                            match session.process_kkt_request(&kkt_request.0, &responder_kem_pk) {
+                                                Ok(kkt_response_message) => {
+                                                    match session.next_packet(kkt_response_message) {
+                                                        Ok(response_packet) => {
+                                                            result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                            // After KKT exchange, move to Handshaking
+                                                            LpState::Handshaking { session }
+                                                        }
+                                                        Err(e) => {
+                                                            let reason = e.to_string();
+                                                            result_action = Some(Err(e));
+                                                            LpState::Closed { reason }
+                                                        }
+                                                    }
                                                 }
                                                 Err(e) => {
                                                     let reason = e.to_string();
@@ -400,18 +412,13 @@ impl LpStateMachine {
                                             }
                                         }
                                         Err(e) => {
-                                            let reason = e.to_string();
-                                            result_action = Some(Err(e));
+                                            let reason = format!("Failed to convert X25519 to KEM: {:?}", e);
+                                            let err = LpError::Internal(reason.clone());
+                                            result_action = Some(Err(err));
                                             LpState::Closed { reason }
                                         }
                                     }
-                                }
-                                Err(e) => {
-                                    let reason = format!("Failed to convert X25519 to KEM: {:?}", e);
-                                    let err = LpError::Internal(reason.clone());
-                                    result_action = Some(Err(err));
-                                    LpState::Closed { reason }
-                                }
+                                },
                             }
                         }
                         LpMessage::KKTResponse(kkt_response) if session.is_initiator() => {

@@ -6,6 +6,7 @@ use bincode::Options;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketType;
+use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::connections::TransmissionLane;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -251,6 +252,53 @@ impl Decoder for InputMessageCodec {
         }
         #[allow(clippy::expect_used)]
         let len = u32::from_le_bytes(buf[0..LENGHT_ENCODING_PREFIX_SIZE].try_into()?) as usize;
+        if buf.len() < len + LENGHT_ENCODING_PREFIX_SIZE {
+            return Ok(None);
+        }
+
+        let decoded = make_bincode_serializer()
+            .deserialize(&buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE])?;
+
+        buf.advance(len + LENGHT_ENCODING_PREFIX_SIZE);
+
+        Ok(Some(decoded))
+    }
+}
+
+/// Codec for encoding/decoding `ReconstructedMessage` for the AsyncRead interface.
+///
+/// This codec was moved from `nymsphinx::receiver` to keep bincode serialization
+/// out of the core sphinx crate.
+pub struct ReconstructedMessageCodec;
+
+impl Encoder<ReconstructedMessage> for ReconstructedMessageCodec {
+    type Error = ClientCoreError;
+
+    fn encode(
+        &mut self,
+        item: ReconstructedMessage,
+        buf: &mut BytesMut,
+    ) -> Result<(), Self::Error> {
+        let encoded = make_bincode_serializer().serialize(&item)?;
+        let encoded_len = encoded.len() as u32;
+        buf.reserve(LENGHT_ENCODING_PREFIX_SIZE + encoded.len());
+        buf.extend_from_slice(&encoded_len.to_le_bytes());
+        buf.extend_from_slice(&encoded);
+        Ok(())
+    }
+}
+
+impl Decoder for ReconstructedMessageCodec {
+    type Item = ReconstructedMessage;
+    type Error = ClientCoreError;
+
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        if buf.len() < LENGHT_ENCODING_PREFIX_SIZE {
+            return Ok(None);
+        }
+
+        let len = u32::from_le_bytes(buf[0..LENGHT_ENCODING_PREFIX_SIZE].try_into()?) as usize;
+
         if buf.len() < len + LENGHT_ENCODING_PREFIX_SIZE {
             return Ok(None);
         }

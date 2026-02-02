@@ -7774,7 +7774,6 @@ dependencies = [
 name = "nym-sphinx"
 version = "1.20.4"
 dependencies = [
- "bincode",
  "log",
  "nym-crypto",
  "nym-metrics",
@@ -7796,7 +7795,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.17",
  "tokio",
- "tokio-util",
  "tracing",
 ]
 

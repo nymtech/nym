@@ -6,7 +6,7 @@ use bytes::{Buf as _, BytesMut};
 use futures::{ready, Future, FutureExt, Sink, SinkExt, Stream, StreamExt};
 use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
-use nym_client_core::client::inbound_messages::InputMessageCodec;
+use nym_client_core::client::inbound_messages::{InputMessageCodec, ReconstructedMessageCodec};
 use nym_client_core::client::mix_traffic::ClientRequestSender;
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
@@ -17,7 +17,6 @@ use nym_client_core::config::{ForgetMe, RememberMe};
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::receiver::ReconstructedMessageCodec;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_statistics_common::clients::{ClientStatsEvents, ClientStatsSender};
 use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};

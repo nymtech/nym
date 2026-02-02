@@ -261,6 +261,9 @@ pub enum ClientCoreError {
 
     #[error("Could not coarce to array")]
     ArrayCreationFailure(#[from] std::array::TryFromSliceError),
+
+    #[error("Codec error: {0}")]
+    CodecError(String),
 }
 
 impl From<tungstenite::Error> for ClientCoreError {

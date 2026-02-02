@@ -269,6 +269,14 @@ impl Decoder for InputMessageCodec {
 ///
 /// This codec was moved from `nymsphinx::receiver` to keep bincode serialization
 /// out of the core sphinx crate.
+///
+/// Uses a simple length-prefixed binary format:
+/// - 4 bytes: length of encoded message
+/// - N bytes: encoded message using `ReconstructedMessage::encode()`
+///
+/// The message encoding format is:
+/// - Without sender_tag: `[0][payload...]`
+/// - With sender_tag: `[1][16-byte tag][payload...]`
 pub struct ReconstructedMessageCodec;
 
 impl Encoder<ReconstructedMessage> for ReconstructedMessageCodec {
@@ -279,7 +287,7 @@ impl Encoder<ReconstructedMessage> for ReconstructedMessageCodec {
         item: ReconstructedMessage,
         buf: &mut BytesMut,
     ) -> Result<(), Self::Error> {
-        let encoded = make_bincode_serializer().serialize(&item)?;
+        let encoded = item.encode();
         let encoded_len = encoded.len() as u32;
         buf.reserve(LENGHT_ENCODING_PREFIX_SIZE + encoded.len());
         buf.extend_from_slice(&encoded_len.to_le_bytes());
@@ -303,8 +311,10 @@ impl Decoder for ReconstructedMessageCodec {
             return Ok(None);
         }
 
-        let decoded = make_bincode_serializer()
-            .deserialize(&buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE])?;
+        let decoded = ReconstructedMessage::decode(
+            &buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE],
+        )
+        .map_err(|e| ClientCoreError::CodecError(e.to_string()))?;
 
         buf.advance(len + LENGHT_ENCODING_PREFIX_SIZE);
 

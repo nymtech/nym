@@ -181,4 +181,8 @@ impl MixPacket {
             .chain(self.packet.to_bytes()?)
             .collect())
     }
+
+    pub fn into_v2_bytes(self) -> Result<Vec<u8>, MixPacketFormattingError> {
+        self.to_v2_bytes()
+    }
 }

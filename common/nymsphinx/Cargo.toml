@@ -14,9 +14,7 @@ rand_distr = { workspace = true }
 rand_chacha = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-bincode = { workspace = true }
 log = { workspace = true }
-tokio-util = { workspace = true, features = ["codec"] }
 
 nym-sphinx-acknowledgements = { workspace = true }
 nym-sphinx-addressing = { workspace = true }

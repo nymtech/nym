@@ -276,7 +276,7 @@ impl RegistrationClient {
     }
 
     async fn register_lp(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rngs::OsRng;
 
         self.register_lp_with_rng(&mut rng).await
     }

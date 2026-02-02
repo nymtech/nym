@@ -204,6 +204,7 @@ impl InputMessage {
         self
     }
 
+    #[allow(clippy::expect_used)]
     pub fn serialized_size(&self) -> u64 {
         make_bincode_serializer()
             .serialized_size(self)

@@ -5,6 +5,7 @@ use crate::ecash::error::{EcashError, RedemptionError};
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
 use crate::support::caching::cache::UninitialisedCache;
+use axum::http::StatusCode;
 use nym_api_requests::ecash::models::DepositId;
 use nym_api_requests::models::{
     HistoricalPerformanceResponse, HistoricalUptimeResponse, NodePerformance,
@@ -15,7 +16,6 @@ use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{IdentityKey, NodeId};
 use nym_serde_helpers::date::DATE_FORMAT;
 use nym_validator_client::nyxd::error::NyxdError;
-use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::Error;

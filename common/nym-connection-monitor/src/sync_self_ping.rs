@@ -25,18 +25,21 @@ async fn send_self_pings(
     our_address: Recipient,
     mixnet_client: &mut MixnetClient,
 ) -> Result<Vec<u64>> {
-    let mut request_ids = Vec::with_capacity(3);
+    let sender = mixnet_client.split_sender();
 
-    for _ in 1..=3 {
-        let (input_message, request_id) = create_self_ping(our_address);
-        mixnet_client
-            .send(input_message)
-            .await
-            .map_err(|err| Error::NymSdkError(Box::new(err)))?;
-        request_ids.push(request_id);
-    }
+    let futures = (1..=3).map(|_| {
+        let mut sender = sender.clone();
+        async move {
+            let (input_message, request_id) = create_self_ping(our_address);
+            sender
+                .send(input_message)
+                .await
+                .map_err(|e| Error::NymSdkError(Box::new(e)))?;
+            Ok::<_, Error>(request_id)
+        }
+    });
 
-    Ok(request_ids)
+    futures::future::try_join_all(futures).await
 }
 
 async fn wait_for_self_ping_return(

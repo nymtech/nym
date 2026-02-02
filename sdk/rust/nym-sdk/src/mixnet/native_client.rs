@@ -2,7 +2,7 @@ use crate::mixnet::client::MixnetClientBuilder;
 use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
-use bytes::{Buf as _, BytesMut};
+use bytes::BytesMut;
 use futures::{ready, Future, FutureExt, Sink, SinkExt, Stream, StreamExt};
 use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
@@ -333,15 +333,16 @@ impl MixnetClient {
         buf: &mut ReadBuf,
         cx: &mut Context<'_>,
     ) -> Poll<tokio::io::Result<()>> {
-        if self._read.buffer.len() < buf.capacity() {
-            // let written = self._read.buffer.len();
+        let available = self._read.buffer.len();
+        let capacity = buf.capacity();
+
+        if available <= capacity {
             buf.put_slice(&self._read.buffer);
             self._read.clear();
             Poll::Ready(Ok(()))
         } else {
-            let written = buf.capacity();
-            buf.put_slice(&self._read.buffer[..written]);
-            self._read.buffer.advance(written);
+            let chunk = self._read.buffer.split_to(capacity);
+            buf.put_slice(&chunk);
             cx.waker().wake_by_ref();
             Poll::Ready(Ok(()))
         }

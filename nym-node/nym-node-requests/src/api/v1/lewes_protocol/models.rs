@@ -1,6 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_crypto::asymmetric::x25519;
+use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -19,6 +21,12 @@ pub struct LewesProtocol {
     /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
     pub data_port: u16,
 
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    /// LP public key
+    pub x25519: x25519::PublicKey,
+
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
     /// note: digests are hex encoded
@@ -35,6 +43,7 @@ impl LewesProtocol {
         enabled: bool,
         control_port: u16,
         data_port: u16,
+        x25519: x25519::PublicKey,
         kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
         signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>>,
     ) -> Self {
@@ -42,6 +51,7 @@ impl LewesProtocol {
             enabled,
             control_port,
             data_port,
+            x25519,
             kem_keys,
             signing_keys,
         }

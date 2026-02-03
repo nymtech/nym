@@ -890,6 +890,7 @@ impl NymNode {
             self.modes().entry,
             self.config.gateway_tasks.lp.announced_control_port(),
             self.config.gateway_tasks.lp.announced_data_port(),
+            *self.x25519_noise_keys.public_key(),
             self.compute_kem_key_hashes(),
             self.compute_signing_key_hashes(),
         );

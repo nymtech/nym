@@ -130,20 +130,16 @@ impl DirectoryNode {
             .copied()
             .ok_or_else(|| anyhow!("no ip address known"))?;
 
-        let lp_data = match (
-            description.lewes_protocol.clone(),
-            description.host_information.keys.x25519_versioned_noise,
-        ) {
-            (Some(lp_data), Some(noise_key)) => Some(TestedNodeLpDetails {
+        let lp_data = description.lewes_protocol.as_ref().and_then(|lp_data| {
+            Some(TestedNodeLpDetails {
                 address: SocketAddr::new(ip_address, lp_data.control_port),
-                expected_kem_key_hashes: lp_data.kem_keys()?,
-                expected_signing_key_hashes: lp_data.signing_keys()?,
-                x25519: noise_key.x25519_pubkey,
+                expected_kem_key_hashes: lp_data.kem_keys().ok()?,
+                expected_signing_key_hashes: lp_data.signing_keys().ok()?,
+                x25519: lp_data.x25519,
                 // \/ TODO: proper derivation from build version
                 lp_version: version::CURRENT,
-            }),
-            _ => None,
-        };
+            })
+        });
 
         Ok(TestedNodeDetails {
             identity: self.identity(),

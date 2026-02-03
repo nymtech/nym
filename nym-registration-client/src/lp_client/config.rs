@@ -26,8 +26,8 @@ use std::time::Duration;
 /// - Fail fast enough for good UX (no indefinite hangs)
 /// - Allow sufficient time for real network conditions
 /// - Optimize for latency over throughput (small messages)
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LpConfig {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LpRegistrationConfig {
     /// TCP connection timeout (nym-102).
     ///
     /// Maximum time to wait for TCP connection establishment.
@@ -69,7 +69,7 @@ pub struct LpConfig {
     pub tcp_keepalive: Option<Duration>,
 }
 
-impl Default for LpConfig {
+impl Default for LpRegistrationConfig {
     fn default() -> Self {
         Self {
             // nym-102: Sane timeout defaults for real network conditions
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_default_config() {
-        let config = LpConfig::default();
+        let config = LpRegistrationConfig::default();
 
         assert_eq!(config.connect_timeout, Duration::from_secs(10));
         assert_eq!(config.handshake_timeout, Duration::from_secs(15));
@@ -99,13 +99,5 @@ mod tests {
         assert_eq!(config.forward_timeout, Duration::from_secs(30));
         assert!(config.tcp_nodelay);
         assert_eq!(config.tcp_keepalive, None);
-    }
-
-    #[test]
-    fn test_config_clone() {
-        let config = LpConfig::default();
-        let cloned = config.clone();
-
-        assert_eq!(config, cloned);
     }
 }

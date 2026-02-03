@@ -22,7 +22,9 @@ pub use builder::config::{
 };
 pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
-pub use lp_client::{LpConfig, LpRegistrationClient, NestedLpSession, error::LpClientError};
+pub use lp_client::{
+    LpRegistrationClient, LpRegistrationConfig, NestedLpSession, error::LpClientError,
+};
 use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 pub use types::{
     LpRegistrationResult, MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult,
@@ -196,11 +198,12 @@ impl RegistrationClient {
         // This creates the LP session that will be used to forward packets to exit.
         // Uses packet-per-connection model: each handshake packet on new TCP connection.
         tracing::info!("Establishing outer session with entry gateway");
-        let mut entry_client = LpRegistrationClient::new_with_default_config(
+        let mut entry_client = LpRegistrationClient::new(
             entry_lp_keypair.clone(),
             entry_peer,
             entry_address,
             entry_lp_protocol,
+            self.config.lp_registration_config,
         );
 
         // Perform handshake with entry gateway (outer session now established)

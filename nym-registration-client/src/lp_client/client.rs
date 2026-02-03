@@ -3,7 +3,7 @@
 
 //! LP (Lewes Protocol) registration client for direct gateway connections.
 
-use super::config::LpConfig;
+use super::config::LpRegistrationConfig;
 use super::error::{LpClientError, Result};
 use crate::lp_client::helpers::{
     LpDataDeliverExt, LpDataSendExt, convert_forward_data, try_convert_forward_response,
@@ -66,7 +66,7 @@ pub struct LpRegistrationClient<S = TcpStream> {
     state_machine: Option<LpStateMachine>,
 
     /// Configuration for timeouts and TCP parameters.
-    config: LpConfig,
+    config: LpRegistrationConfig,
 
     /// Persistent TCP stream for the connection.
     /// Opened on first use, closed after registration.
@@ -93,7 +93,7 @@ where
         gateway_lp_peer: LpRemotePeer,
         gateway_lp_address: SocketAddr,
         gateway_supported_lp_protocol_version: u8,
-        config: LpConfig,
+        config: LpRegistrationConfig,
     ) -> Self {
         let lp_protocol = if gateway_supported_lp_protocol_version > version::CURRENT {
             warn!(
@@ -140,7 +140,7 @@ where
             gateway_lp_peer,
             gateway_lp_address,
             gateway_supported_lp_protocol_version,
-            LpConfig::default(),
+            LpRegistrationConfig::default(),
         )
     }
 
@@ -634,7 +634,7 @@ where
         packet: &LpPacket,
         send_key: Option<&OuterAeadKey>,
         recv_key: Option<&OuterAeadKey>,
-        config: &LpConfig,
+        config: &LpRegistrationConfig,
     ) -> Result<LpPacket> {
         // 1. Connect with timeout
         let mut stream = tokio::time::timeout(config.connect_timeout, S::connect(address))

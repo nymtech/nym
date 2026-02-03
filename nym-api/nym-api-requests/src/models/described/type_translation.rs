@@ -210,6 +210,12 @@ pub struct LewesProtocolDetailsV1 {
     /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
     pub data_port: u16,
 
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    /// LP public key
+    pub x25519: x25519::PublicKey,
+
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
     /// note: digests are hex encoded
@@ -457,6 +463,7 @@ impl From<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>
             enabled: value.enabled,
             control_port: value.control_port,
             data_port: value.data_port,
+            x25519: value.x25519,
             kem_keys: value
                 .kem_keys
                 .into_iter()

@@ -17,8 +17,8 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
 
-use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
+use crate::{LpRegistrationConfig, config::RegistrationMode};
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
 const MIXNET_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
@@ -44,6 +44,8 @@ pub struct BuilderConfig {
     pub cancel_token: CancellationToken,
     #[cfg(unix)]
     pub connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
+    #[builder(default)]
+    pub lp_registration_config: LpRegistrationConfig,
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]

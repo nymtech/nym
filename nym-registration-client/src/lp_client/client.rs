@@ -858,7 +858,9 @@ where
     {
         // 1. Build registration request
         let wg_public_key = PeerPublicKey::from(*wg_keypair.public_key());
-        let request = LpRegistrationRequest::new_initial_dvpn(rng, wg_public_key, ticket_type);
+        let mut psk = [0u8; 32];
+        rng.fill_bytes(&mut psk);
+        let request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk, ticket_type);
 
         tracing::trace!("Built dVPN registration request: {request:?}");
 
@@ -887,12 +889,12 @@ where
         };
 
         // 7. check response to the initial request
-        match dvpn_response.content {
+        let final_response = match dvpn_response.content {
             LpDvpnRegistrationResponseMessageContent::RegistrationFailure(res) => {
                 let reason = res.error;
                 // the registration has failed
                 tracing::warn!("Gateway rejected registration: {reason}");
-                Err(LpClientError::RegistrationRejected { reason })
+                return Err(LpClientError::RegistrationRejected { reason });
             }
             LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => {
                 // we have already registered with this gateway before, the gateway has updated the psk and sent us the config
@@ -900,7 +902,7 @@ where
                     "LP registration successful! Allocated bandwidth: {} bytes",
                     res.available_bandwidth
                 );
-                Ok(res.config)
+                res.config
             }
             LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
                 // we're registering for the first time with this gateway - we need to attach a credential
@@ -911,9 +913,17 @@ where
                     bandwidth_controller,
                     ticket_type,
                 )
-                .await
+                .await?
             }
-        }
+        };
+
+        Ok(WireguardConfiguration {
+            public_key: final_response.public_key,
+            psk: Some(psk),
+            endpoint: SocketAddr::new(self.gateway_lp_address.ip(), final_response.endpoint.port()),
+            private_ipv4: final_response.private_ipv4,
+            private_ipv6: final_response.private_ipv6,
+        })
     }
 
     /// Register with automatic retry on network failure.
@@ -1054,7 +1064,7 @@ where
         &mut self,
         forward_data: ForwardPacketData,
     ) -> Result<Vec<u8>> {
-        let target_address = forward_data.target_lp_address.clone();
+        let target_address = forward_data.target_lp_address;
 
         tracing::debug!(
             "Sending ForwardPacket to {target_address} ({} inner bytes, persistent connection)",

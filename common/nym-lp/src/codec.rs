@@ -757,12 +757,12 @@ mod tests {
     }
 
     #[test]
-    fn test_forward_packet_encode_decode_roundtrip() {
+    fn test_forward_packet_encode_decode_roundtrip_v4() {
         let mut dst = BytesMut::new();
 
         let forward_data = crate::message::ForwardPacketData {
             target_gateway_identity: [77u8; 32],
-            target_lp_address: "1.2.3.4:41264".to_string(),
+            target_lp_address: "1.2.3.4:41264".parse().unwrap(),
             inner_packet_bytes: vec![0xa, 0xb, 0xc, 0xd],
         };
 
@@ -789,7 +789,50 @@ mod tests {
 
         if let LpMessage::ForwardPacket(data) = decoded.message {
             assert_eq!(data.target_gateway_identity, [77u8; 32]);
-            assert_eq!(data.target_lp_address, "1.2.3.4:41264");
+            assert_eq!(data.target_lp_address, "1.2.3.4:41264".parse().unwrap());
+            assert_eq!(data.inner_packet_bytes, vec![0xa, 0xb, 0xc, 0xd]);
+        } else {
+            panic!("Expected ForwardPacket message");
+        }
+    }
+
+    #[test]
+    fn test_forward_packet_encode_decode_roundtrip_v6() {
+        let mut dst = BytesMut::new();
+
+        let forward_data = crate::message::ForwardPacketData {
+            target_gateway_identity: [77u8; 32],
+            target_lp_address: "[dead:beef:4242:c0ff:ee00::1111]:41264".parse().unwrap(),
+            inner_packet_bytes: vec![0xa, 0xb, 0xc, 0xd],
+        };
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: [0u8; 3],
+                receiver_idx: 999,
+                counter: 555,
+            },
+            message: LpMessage::ForwardPacket(forward_data),
+            trailer: [0xff; TRAILER_LEN],
+        };
+
+        // Serialize
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
+
+        // Parse back
+        let decoded = parse_lp_packet(&dst, None).unwrap();
+
+        // Verify LP protocol handling works correctly
+        assert_eq!(decoded.header.receiver_idx, 999);
+        assert!(matches!(decoded.message.typ(), MessageType::ForwardPacket));
+
+        if let LpMessage::ForwardPacket(data) = decoded.message {
+            assert_eq!(data.target_gateway_identity, [77u8; 32]);
+            assert_eq!(
+                data.target_lp_address,
+                "[dead:beef:4242:c0ff:ee00::1111]:41264".parse().unwrap()
+            );
             assert_eq!(data.inner_packet_bytes, vec![0xa, 0xb, 0xc, 0xd]);
         } else {
             panic!("Expected ForwardPacket message");

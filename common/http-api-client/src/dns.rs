@@ -371,12 +371,11 @@ impl HickoryDnsResolver {
         if let Some(cell) = &self.static_base {
             let static_base =
                 cell.get_or_init(|| HickoryDnsResolver::new_static_fallback(self.use_shared));
-            static_base.preresolve_to_addrs(addrs);
+            static_base.set_preresolve(addrs);
         }
     }
 
-    /// Set (or overwrite) the map of static addresses and mark these domains to be returned
-    /// WITHOUT attempting a lookup over the network resolver.
+    /// Unset the map of static addresses returned in the pre-resolve stage.
     pub fn clear_preresolve(&self) {
         debug!("clearing pre-resolve table");
         if let Some(cell) = &self.static_base {
@@ -386,18 +385,42 @@ impl HickoryDnsResolver {
         }
     }
 
-    /// Get the current map of hostname to address in use by the fallback static lookup if one
+    /// Get the current map of hostnames to addresses used in the fallback static lookup stage if one
     /// exists.
     pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
-        Some(self.static_base.as_ref()?.get()?.get_addrs())
+        Some(self.static_base.as_ref()?.get()?.get_fallback_addrs())
     }
 
     /// Set (or overwrite) the map of addresses used in the fallback static hostname lookup
     pub fn set_static_fallbacks(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
-        let cell = OnceCell::new();
-        cell.set(StaticResolver::new(addrs))
-            .expect("infallible assign");
-        self.static_base = Some(Arc::new(cell));
+        if self.static_base.is_none() {
+            let cell = OnceCell::new();
+            self.static_base = Some(Arc::new(cell));
+        }
+        self.static_base
+            .as_ref()
+            .unwrap()
+            .get_or_init(|| StaticResolver::new())
+            .set_fallback(addrs);
+    }
+
+    /// Get the current map of hostnames to addresses used in the preresolve static lookup stage
+    /// if one exists.
+    pub fn get_static_preresolve(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
+        Some(self.static_base.as_ref()?.get()?.get_preresolve_addrs())
+    }
+
+    /// Set (or overwrite) the map of addresses used in the preresolve static hostname lookup
+    pub fn set_static_preresolve(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+        if self.static_base.is_none() {
+            let cell = OnceCell::new();
+            self.static_base = Some(Arc::new(cell));
+        }
+        self.static_base
+            .as_ref()
+            .unwrap()
+            .get_or_init(|| StaticResolver::new())
+            .set_preresolve(addrs);
     }
 
     /// Successfully resolved addresses are cached for a minimum of 30 minutes
@@ -534,7 +557,7 @@ fn new_resolver_system() -> Result<TokioResolver, ResolveError> {
 }
 
 fn new_default_static_fallback() -> StaticResolver {
-    StaticResolver::new(constants::empty_static_addrs())
+    StaticResolver::new().with_fallback(constants::default_static_addrs())
 }
 
 /// Do a trial resolution using each nameserver individually to test which are working and which

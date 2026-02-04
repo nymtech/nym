@@ -364,24 +364,13 @@ impl HickoryDnsResolver {
         }
     }
 
-    /// Set (or overwrite) the map of static addresses and mark these domains to be returned
-    /// WITHOUT attempting a lookup over the network resolver.
-    pub fn preresolve_to_addrs(&self, addrs: HashMap<String, Vec<IpAddr>>) {
-        debug!("setting pre-resolve entries for {:?}", addrs.keys());
-        if let Some(cell) = &self.static_base {
-            let static_base =
-                cell.get_or_init(|| HickoryDnsResolver::new_static_fallback(self.use_shared));
-            static_base.set_preresolve(addrs);
-        }
-    }
-
     /// Unset the map of static addresses returned in the pre-resolve stage.
     pub fn clear_preresolve(&self) {
         debug!("clearing pre-resolve table");
-        if let Some(cell) = &self.static_base {
-            if let Some(static_base) = cell.get() {
-                static_base.clear_preresolve()
-            }
+        if let Some(cell) = &self.static_base
+            && let Some(static_base) = cell.get()
+        {
+            static_base.clear_preresolve()
         }
     }
 
@@ -392,7 +381,8 @@ impl HickoryDnsResolver {
     }
 
     /// Set (or overwrite) the map of addresses used in the fallback static hostname lookup
-    pub fn set_static_fallbacks(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+    pub fn set_fallback_addrs(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+        debug!("setting fallback entries for {:?}", addrs.keys());
         if self.static_base.is_none() {
             let cell = OnceCell::new();
             self.static_base = Some(Arc::new(cell));
@@ -400,7 +390,7 @@ impl HickoryDnsResolver {
         self.static_base
             .as_ref()
             .unwrap()
-            .get_or_init(|| StaticResolver::new())
+            .get_or_init(|| Self::new_static_fallback(self.use_shared))
             .set_fallback(addrs);
     }
 
@@ -412,6 +402,7 @@ impl HickoryDnsResolver {
 
     /// Set (or overwrite) the map of addresses used in the preresolve static hostname lookup
     pub fn set_static_preresolve(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+        debug!("setting pre-resolve entries for {:?}", addrs.keys());
         if self.static_base.is_none() {
             let cell = OnceCell::new();
             self.static_base = Some(Arc::new(cell));
@@ -419,7 +410,7 @@ impl HickoryDnsResolver {
         self.static_base
             .as_ref()
             .unwrap()
-            .get_or_init(|| StaticResolver::new())
+            .get_or_init(|| Self::new_static_fallback(self.use_shared))
             .set_preresolve(addrs);
     }
 
@@ -659,7 +650,7 @@ mod test {
         let example_ip6: IpAddr = "dead::beef".parse().unwrap();
         addr_map.insert(example_domain.to_string(), vec![example_ip4, example_ip6]);
 
-        resolver.set_static_fallbacks(addr_map);
+        resolver.set_fallback_addrs(addr_map);
 
         let mut addrs = resolver.resolve_str(example_domain).await?;
         assert!(addrs.contains(&example_ip4));

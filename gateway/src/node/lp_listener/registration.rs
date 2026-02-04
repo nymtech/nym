@@ -487,7 +487,7 @@ impl LpHandlerState {
                 ticket_type,
                 wireguard_config: WireguardConfiguration {
                     public_key: gateway_pubkey,
-                    psk: None, // @JS do we still need to store that entire struct?
+                    psk: None,
                     endpoint: gateway_endpoint,
                     private_ipv4: client_ipv4,
                     private_ipv6: client_ipv6,

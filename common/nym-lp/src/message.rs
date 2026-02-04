@@ -294,7 +294,7 @@ impl ForwardPacketData {
         if bytes.len() < 43 {
             // 32 + 1 + 4 + 2 + 4 + 0
             return Err(LpError::DeserializationError(format!(
-                "Too few bytes to deserialise ForwardPacketData[1]. got {}",
+                "Too few bytes to deserialise ForwardPacketData. got {}",
                 bytes.len()
             )));
         }
@@ -309,7 +309,7 @@ impl ForwardPacketData {
             if bytes.len() < 55 {
                 // 32 + 1 + 16 + 2 + 4 + 0
                 return Err(LpError::DeserializationError(format!(
-                    "Too few bytes to deserialise ipv6 ForwardPacketData[1]. got {}",
+                    "Too few bytes to deserialise ipv6 ForwardPacketData. got {}",
                     bytes.len()
                 )));
             }

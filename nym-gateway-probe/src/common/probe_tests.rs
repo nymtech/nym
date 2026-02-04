@@ -252,6 +252,7 @@ pub async fn lp_registration_probe(
     );
     info!("  - Private IPv4: {}", gateway_data.private_ipv4);
     info!("  - Private IPv6: {}", gateway_data.private_ipv6);
+    info!("  - Endpoint: {}", gateway_data.endpoint);
     lp_outcome.can_register = true;
 
     Ok(lp_outcome)

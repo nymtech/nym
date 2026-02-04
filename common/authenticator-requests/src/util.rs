@@ -5,8 +5,8 @@ use nym_network_defaults::{WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 pub fn authenticator_ipv6_to_ipv4(addr: Ipv6Addr) -> Ipv4Addr {
-    let before_last_byte = addr.octets()[2];
-    let last_byte = addr.octets()[3];
+    let before_last_byte = addr.octets()[14];
+    let last_byte = addr.octets()[15];
 
     Ipv4Addr::new(
         WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[0],

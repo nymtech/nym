@@ -1247,12 +1247,9 @@ mod tests {
     use nym_lp::message::{ClientHelloData, EncryptedDataPayload, HandshakeData, LpMessage};
     use nym_lp::packet::{LpHeader, LpPacket};
     use nym_lp::peer::LpLocalPeer;
-    use nym_wireguard::{PeerControlRequest, WireguardConfig, WireguardGatewayData};
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
-    use tokio::sync::mpsc::Receiver;
     // ==================== Test Helpers ====================
 
     /// Create a minimal test state for handler tests

@@ -12,9 +12,9 @@ The Nym Network is decentralized privacy infrastructure that protects against **
 
 ## The problem with metadata
 
-When you send data across the internet, observers can see that communication has occurred in the form of the source and destination IP addresses of internet packets, the timing and frequency of transmissions, packet sizes, and other bits of information that over time can be used to build up inferences about the type of device you're using, your connection, and ultimately who you are. These observers include your ISP, internet infrastructure providers, governments, and large corporations.
+When you send data across the internet, observers can see that communication has occurred in the form of the source and destination IP addresses of internet packets, the timing and frequency of transmissions, packet sizes, and other bits of information that over time can be used to build up inferences about the type of [device/browser you're using](https://browserleaks.com/ip), [your connection](https://browserleaks.com/tcp), and ultimately who you are. These observers include your ISP, internet infrastructure providers, governments, and large corporations.
 
-Even sending encrypted content, metadata can identify users by allowing observers to build up inferences and build behavioral profiles. Advances in machine learning in recent years has made these attacks increasingly practical, and spawned an entire industry dedicated to the capture and analysis of internet traffic.
+Even when sending encrypted content (e.g. using messaging apps like Signal or SimpleX, or encrypted email providers), metadata can identify users by allowing observers to build up inferences and build behavioral profiles. Advances in machine learning in recent years has made these attacks increasingly practical, and spawned an entire industry dedicated to the capture and analysis of internet traffic.
 
 ## How Nym solves this
 

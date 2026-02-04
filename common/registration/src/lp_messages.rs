@@ -17,7 +17,6 @@ use crate::mixnet::{
 use crate::serialisation::{BincodeError, BincodeOptions, lp_bincode_serializer};
 use nym_authenticator_requests::models::BandwidthClaim;
 use nym_credentials_interface::TicketType;
-use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
@@ -133,17 +132,11 @@ impl LpRegistrationRequest {
     }
 
     /// Create new dVPN registration initialisation request
-    pub fn new_initial_dvpn<R>(
-        rng: &mut R,
+    pub fn new_initial_dvpn(
         wg_public_key: nym_wireguard_types::PeerPublicKey,
+        psk: [u8; 32],
         ticket_type: TicketType,
-    ) -> Self
-    where
-        R: RngCore + CryptoRng,
-    {
-        let mut psk = [0u8; 32];
-        rng.fill_bytes(&mut psk);
-
+    ) -> Self {
         Self::new(LpRegistrationRequestData::Dvpn {
             data: Box::new(LpDvpnRegistrationRequestMessage {
                 content: LpDvpnRegistrationRequestMessageContent::InitialRequest(
@@ -458,6 +451,7 @@ mod tests {
             public_key: nym_crypto::asymmetric::x25519::PublicKey::from(
                 nym_sphinx::PublicKey::from([1u8; 32]),
             ),
+            psk: Some([42u8; 32]),
             private_ipv4: Ipv4Addr::new(10, 0, 0, 1),
             private_ipv6: Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, 1),
             endpoint: "192.168.1.1:8080".parse().expect("Valid test endpoint"),

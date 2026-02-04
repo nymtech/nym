@@ -220,12 +220,8 @@ impl RegistrationClient {
         // STEP 2: Use nested session to register with exit gateway via forwarding
         // This hides the client's IP address from the exit gateway
         tracing::info!("Registering with exit gateway via entry forwarding");
-        let mut nested_session = NestedLpSession::new(
-            exit_address.to_string(),
-            exit_lp_keypair,
-            exit_peer,
-            exit_lp_protocol,
-        );
+        let mut nested_session =
+            NestedLpSession::new(exit_address, exit_lp_keypair, exit_peer, exit_lp_protocol);
 
         // Perform handshake and registration with exit gateway (all via entry forwarding)
         let exit_gateway_data = nested_session

@@ -350,6 +350,7 @@ impl AuthenticatorClient {
 
         let gateway_data = WireguardConfiguration {
             public_key: registered_data.pub_key().inner().into(),
+            psk: None, // Mixnet-based regsitration does not have psk
             endpoint: SocketAddr::new(self.ip_addr, registered_data.wg_port()),
             private_ipv4: registered_data.private_ips().ipv4,
             private_ipv6: registered_data.private_ips().ipv6,

@@ -31,6 +31,7 @@ pub struct NymNodeInformation {
 pub struct WireguardConfiguration {
     #[serde(with = "bs58_x25519_pubkey")]
     pub public_key: x25519::PublicKey,
+    pub psk: Option<[u8; 32]>,
     pub endpoint: SocketAddr,
     pub private_ipv4: Ipv4Addr,
     pub private_ipv6: Ipv6Addr,

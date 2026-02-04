@@ -1002,10 +1002,7 @@ where
         let start = std::time::Instant::now();
 
         // Parse target gateway address
-        let target_addr: SocketAddr = forward_data.target_lp_address.parse().map_err(|e| {
-            inc!("lp_forward_failed");
-            GatewayError::LpProtocolError(format!("Invalid target address: {}", e))
-        })?;
+        let target_addr = forward_data.target_lp_address;
 
         // Check if we need to open a new connection
         let need_new_connection = match &self.exit_stream {

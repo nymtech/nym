@@ -705,7 +705,7 @@ mod tests {
             // technically we should use different ephemeral keys than we had for the entry
             // but crypto is going to work the same
             let mut nested_session = NestedLpSession::new(
-                exit.base.socket_addr.to_string(),
+                exit.base.socket_addr,
                 client_data.base.peer.ed25519().clone(),
                 exit.base.peer.as_remote(),
                 exit.base.lp_version,

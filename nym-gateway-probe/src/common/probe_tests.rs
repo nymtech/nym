@@ -244,6 +244,12 @@ pub async fn lp_registration_probe(
 
     info!("LP registration successful! Received gateway data:");
     info!("  - Gateway public key: {:?}", gateway_data.public_key);
+    info!(
+        "  - PSK: {:?}",
+        gateway_data
+            .psk
+            .map(|k| general_purpose::STANDARD.encode(k))
+    );
     info!("  - Private IPv4: {}", gateway_data.private_ipv4);
     info!("  - Private IPv6: {}", gateway_data.private_ipv6);
     info!("  - Endpoint: {}", gateway_data.endpoint);
@@ -332,12 +338,8 @@ pub async fn wg_probe_lp(
 
     // STEP 2: Use nested session to register with exit gateway via forwarding
     info!("Registering with exit gateway via entry forwarding...");
-    let mut nested_session = NestedLpSession::new(
-        exit_address.to_string(),
-        exit_lp_keypair,
-        exit_peer,
-        exit_lp_version,
-    );
+    let mut nested_session =
+        NestedLpSession::new(exit_address, exit_lp_keypair, exit_peer, exit_lp_version);
 
     let exit_gateway_pubkey = exit_gateway.identity;
 

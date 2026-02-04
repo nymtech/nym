@@ -31,19 +31,29 @@ pub struct NymNodeWithKeys {
 
 #[derive(TypedBuilder)]
 pub struct BuilderConfig {
+    // For future reference
+    // Common options
     pub entry_node: NymNodeWithKeys,
     pub exit_node: NymNodeWithKeys,
     pub data_path: Option<PathBuf>,
+    pub mode: RegistrationMode,
+    pub cancel_token: CancellationToken,
+
+    // Toggle
+    #[builder(default)]
+    pub enable_lp_regitration: bool,
+
+    // Mixnet based only option
     pub mixnet_client_config: MixnetClientConfig,
     #[builder(default = MIXNET_CLIENT_STARTUP_TIMEOUT)]
     pub mixnet_client_startup_timeout: Duration,
-    pub mode: RegistrationMode,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     pub network_env: NymNetworkDetails,
-    pub cancel_token: CancellationToken,
     #[cfg(unix)]
     pub connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
+
+    // LP based only option
     #[builder(default)]
     pub lp_registration_config: LpRegistrationConfig,
 }
@@ -77,9 +87,7 @@ impl BuilderConfig {
             // Mixnet mode uses 5-hop configuration
             RegistrationMode::Mixnet => mixnet_debug_config(&self.mixnet_client_config),
             // Wireguard and LP both use 2-hop configuration
-            RegistrationMode::Wireguard | RegistrationMode::Lp => {
-                two_hop_debug_config(&self.mixnet_client_config)
-            }
+            RegistrationMode::Wireguard => two_hop_debug_config(&self.mixnet_client_config),
         }
     }
 
@@ -123,7 +131,7 @@ impl BuilderConfig {
         let debug_config = self.mixnet_client_debug_config();
         let remember_me = match self.mode {
             RegistrationMode::Mixnet => RememberMe::new_mixnet(),
-            RegistrationMode::Wireguard | RegistrationMode::Lp => RememberMe::new_vpn(),
+            RegistrationMode::Wireguard => RememberMe::new_vpn(),
         };
 
         let identity = self.entry_node.node.identity.to_string();

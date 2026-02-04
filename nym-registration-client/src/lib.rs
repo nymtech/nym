@@ -1,20 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::RegistrationClientConfig;
-use crate::lp_client::helpers::to_lp_remote_peer;
-use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
-use nym_bandwidth_controller::BandwidthTicketProvider;
-use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::ed25519;
-use nym_ip_packet_client::IprClientConnect;
-use nym_registration_common::AssignedAddresses;
-use nym_sdk::mixnet::{EventReceiver, MixnetClient, Recipient};
-use rand::rngs::OsRng;
-use std::sync::Arc;
-use tokio::net::TcpStream;
-use tokio_util::sync::CancellationToken;
-
 pub use builder::RegistrationClientBuilder;
 pub use builder::config::{
     BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig,
@@ -25,272 +11,27 @@ pub use error::RegistrationClientError;
 pub use lp_client::{
     LpRegistrationClient, LpRegistrationConfig, NestedLpSession, error::LpClientError,
 };
-use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 pub use types::{
     LpRegistrationResult, MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult,
 };
 
 mod builder;
+mod clients;
 mod config;
 mod error;
 mod lp_client;
 mod types;
 
-pub struct RegistrationClient {
-    mixnet_client: MixnetClient,
-    config: RegistrationClientConfig,
-    mixnet_client_address: Recipient,
-    bandwidth_controller: Box<dyn BandwidthTicketProvider>,
-    cancel_token: CancellationToken,
-    event_rx: EventReceiver,
+pub enum RegistrationClient {
+    Mixnet(Box<clients::MixnetBasedRegistrationClient>),
+    Lp(Box<clients::LpBasedRegistrationClient>),
 }
 
 impl RegistrationClient {
-    async fn register_mix_exit(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let entry_mixnet_gateway_ip = self.config.entry.node.ip_address;
-
-        let exit_mixnet_gateway_ip = self.config.exit.node.ip_address;
-
-        let ipr_address = self.config.exit.node.ipr_address.ok_or(
-            RegistrationClientError::NoIpPacketRouterAddress {
-                node_id: self.config.exit.node.identity.to_base58_string(),
-            },
-        )?;
-        let mut ipr_client = IprClientConnect::new(self.mixnet_client, self.cancel_token.clone());
-        let interface_addresses = ipr_client
-            .connect(ipr_address)
-            .await
-            .map_err(RegistrationClientError::ConnectToIpPacketRouter)?;
-
-        Ok(RegistrationResult::Mixnet(Box::new(
-            MixnetRegistrationResult {
-                mixnet_client: ipr_client.into_mixnet_client(),
-                assigned_addresses: AssignedAddresses {
-                    interface_addresses,
-                    exit_mix_address: ipr_address,
-                    mixnet_client_address: self.mixnet_client_address,
-                    entry_mixnet_gateway_ip,
-                    exit_mixnet_gateway_ip,
-                },
-                event_rx: self.event_rx,
-            },
-        )))
-    }
-
-    async fn register_wg(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let entry_auth_address = self.config.entry.node.authenticator_address.ok_or(
-            RegistrationClientError::AuthenticationNotPossible {
-                node_id: self.config.entry.node.identity.to_base58_string(),
-            },
-        )?;
-
-        let exit_auth_address = self.config.exit.node.authenticator_address.ok_or(
-            RegistrationClientError::AuthenticationNotPossible {
-                node_id: self.config.exit.node.identity.to_base58_string(),
-            },
-        )?;
-
-        let entry_version = self.config.entry.node.version;
-        tracing::debug!("Entry gateway version: {entry_version}");
-        let exit_version = self.config.exit.node.version;
-        tracing::debug!("Exit gateway version: {exit_version}");
-
-        // Start the auth client mixnet listener, which will listen for incoming messages from the
-        // mixnet and rebroadcast them to the auth clients.
-        let mixnet_listener =
-            AuthClientMixnetListener::new(self.mixnet_client, self.cancel_token.clone()).start();
-
-        let mut entry_auth_client = AuthenticatorClient::new(
-            mixnet_listener.subscribe(),
-            mixnet_listener.mixnet_sender(),
-            self.mixnet_client_address,
-            entry_auth_address,
-            entry_version,
-            self.config.entry.keys,
-            self.config.entry.node.ip_address,
-        );
-
-        let mut exit_auth_client = AuthenticatorClient::new(
-            mixnet_listener.subscribe(),
-            mixnet_listener.mixnet_sender(),
-            self.mixnet_client_address,
-            exit_auth_address,
-            exit_version,
-            self.config.exit.keys,
-            self.config.exit.node.ip_address,
-        );
-
-        let entry_fut = entry_auth_client
-            .register_wireguard(&*self.bandwidth_controller, TicketType::V1WireguardEntry);
-        let exit_fut = exit_auth_client
-            .register_wireguard(&*self.bandwidth_controller, TicketType::V1WireguardExit);
-
-        let (entry, exit) = Box::pin(async { tokio::join!(entry_fut, exit_fut) }).await;
-
-        let entry = entry.map_err(|source| {
-            RegistrationClientError::from_authenticator_error(
-                source,
-                self.config.entry.node.identity.to_base58_string(),
-                entry_auth_address,
-                true, // is entry
-            )
-        })?;
-        let exit = exit.map_err(|source| {
-            RegistrationClientError::from_authenticator_error(
-                source,
-                self.config.exit.node.identity.to_base58_string(),
-                exit_auth_address,
-                false, // is exit (not entry)
-            )
-        })?;
-
-        Ok(RegistrationResult::Wireguard(Box::new(
-            WireguardRegistrationResult {
-                entry_gateway_client: entry_auth_client,
-                exit_gateway_client: exit_auth_client,
-                entry_gateway_data: entry,
-                exit_gateway_data: exit,
-                authenticator_listener_handle: mixnet_listener,
-                bw_controller: self.bandwidth_controller,
-            },
-        )))
-    }
-
-    // create dedicated method taking RNG instance for tests
-    async fn register_lp_with_rng<R>(
-        self,
-        rng: &mut R,
-    ) -> Result<RegistrationResult, RegistrationClientError>
-    where
-        R: RngCore + CryptoRng,
-    {
-        // Extract and validate LP data
-        let entry_lp_data = self.config.entry.node.lp_data.ok_or(
-            RegistrationClientError::LpRegistrationNotPossible {
-                node_id: self.config.entry.node.identity.to_base58_string(),
-            },
-        )?;
-
-        let exit_lp_data = self.config.exit.node.lp_data.ok_or(
-            RegistrationClientError::LpRegistrationNotPossible {
-                node_id: self.config.exit.node.identity.to_base58_string(),
-            },
-        )?;
-
-        let entry_lp_protocol = entry_lp_data.lp_protocol_version;
-        let exit_lp_protocol = exit_lp_data.lp_protocol_version;
-
-        let entry_address = entry_lp_data.address;
-        let exit_address = exit_lp_data.address;
-
-        tracing::debug!("Entry gateway LP address: {entry_address}");
-        tracing::debug!("Exit gateway LP address: {exit_address}");
-
-        // Generate fresh Ed25519 keypairs for LP registration
-        // These are ephemeral and used only for the LP handshake protocol
-        let entry_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
-        let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
-
-        let entry_peer = to_lp_remote_peer(self.config.entry.node.identity, entry_lp_data);
-        let exit_peer = to_lp_remote_peer(self.config.exit.node.identity, exit_lp_data);
-
-        // STEP 1: Establish outer session with entry gateway
-        // This creates the LP session that will be used to forward packets to exit.
-        // Uses packet-per-connection model: each handshake packet on new TCP connection.
-        tracing::info!("Establishing outer session with entry gateway");
-        let mut entry_client = LpRegistrationClient::new(
-            entry_lp_keypair.clone(),
-            entry_peer,
-            entry_address,
-            entry_lp_protocol,
-            self.config.lp_registration_config,
-        );
-
-        // Perform handshake with entry gateway (outer session now established)
-        entry_client.perform_handshake().await.map_err(|source| {
-            RegistrationClientError::EntryGatewayRegisterLp {
-                gateway_id: self.config.entry.node.identity.to_base58_string(),
-                lp_address: entry_address,
-                source: Box::new(source),
-            }
-        })?;
-
-        tracing::info!("Outer session with entry gateway established");
-
-        // STEP 2: Use nested session to register with exit gateway via forwarding
-        // This hides the client's IP address from the exit gateway
-        tracing::info!("Registering with exit gateway via entry forwarding");
-        let mut nested_session =
-            NestedLpSession::new(exit_address, exit_lp_keypair, exit_peer, exit_lp_protocol);
-
-        // Perform handshake and registration with exit gateway (all via entry forwarding)
-        let exit_gateway_data = nested_session
-            .handshake_and_register_dvpn::<TcpStream, _>(
-                &mut entry_client,
-                rng,
-                &self.config.exit.keys,
-                &self.config.exit.node.identity,
-                &*self.bandwidth_controller,
-                TicketType::V1WireguardExit,
-            )
-            .await
-            .map_err(|source| RegistrationClientError::ExitGatewayRegisterLp {
-                gateway_id: self.config.exit.node.identity.to_base58_string(),
-                lp_address: exit_address,
-                source: Box::new(source),
-            })?;
-
-        tracing::info!("Exit gateway registration completed via forwarding");
-
-        // STEP 3: Register with entry gateway (packet-per-connection)
-        tracing::info!("Registering with entry gateway");
-        let entry_gateway_data = entry_client
-            .register_dvpn(
-                rng,
-                &self.config.entry.keys,
-                &self.config.entry.node.identity,
-                &*self.bandwidth_controller,
-                TicketType::V1WireguardEntry,
-            )
-            .await
-            .map_err(|source| RegistrationClientError::EntryGatewayRegisterLp {
-                gateway_id: self.config.entry.node.identity.to_base58_string(),
-                lp_address: entry_address,
-                source: Box::new(source),
-            })?;
-
-        tracing::info!("Entry gateway registration successful");
-
-        tracing::info!("LP registration successful for both gateways");
-
-        // LP is registration-only (packet-per-connection model).
-        // All data flows through WireGuard after this point.
-        // Each LP packet used its own TCP connection which was closed after the exchange.
-        // Exit registration was completed via forwarding through entry gateway.
-        Ok(RegistrationResult::Lp(Box::new(LpRegistrationResult {
-            entry_gateway_data,
-            exit_gateway_data,
-            bw_controller: self.bandwidth_controller,
-        })))
-    }
-
-    async fn register_lp(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let mut rng = rand::rngs::OsRng;
-
-        self.register_lp_with_rng(&mut rng).await
-    }
-
     pub async fn register(self) -> Result<RegistrationResult, RegistrationClientError> {
-        self.cancel_token
-            .clone()
-            .run_until_cancelled(async {
-                match self.config.mode {
-                    RegistrationMode::Mixnet => self.register_mix_exit().await,
-                    RegistrationMode::Wireguard => self.register_wg().await,
-                    RegistrationMode::Lp => self.register_lp().await,
-                }
-            })
-            .await
-            .ok_or(RegistrationClientError::Cancelled)?
+        match self {
+            RegistrationClient::Mixnet(client) => client.register().await,
+            RegistrationClient::Lp(client) => client.register().await,
+        }
     }
 }

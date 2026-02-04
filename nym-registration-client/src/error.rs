@@ -3,6 +3,9 @@
 
 #[derive(thiserror::Error, Debug)]
 pub enum RegistrationClientError {
+    #[error("trying to register in mixnet mode with LP and no fallback. This shouldn't happen")]
+    UnsupportedMode,
+
     #[error("failed to build mixnet client")]
     BuildMixnetClient(#[source] Box<nym_sdk::Error>),
 

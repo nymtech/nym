@@ -13,7 +13,12 @@ use nym_validator_client::{
     nyxd::{Config as NyxdClientConfig, NyxdClient},
 };
 
-use crate::{RegistrationClient, config::RegistrationClientConfig, error::RegistrationClientError};
+use crate::{
+    RegistrationClient,
+    clients::{LpBasedRegistrationClient, MixnetBasedRegistrationClient},
+    config::{RegistrationClientConfig, RegistrationMode},
+    error::RegistrationClientError,
+};
 use config::BuilderConfig;
 
 pub(crate) mod config;
@@ -27,7 +32,27 @@ impl RegistrationClientBuilder {
         Self { config }
     }
 
+    pub fn use_lp(&self) -> bool {
+        self.config.enable_lp_regitration
+            && self.config.entry_node.node.lp_data.is_some()
+            && self.config.exit_node.node.lp_data.is_some()
+            // To remove when LP supports Mixnet registration
+            && self.config.mode == RegistrationMode::Wireguard
+    }
+
     pub async fn build(self) -> Result<RegistrationClient, RegistrationClientError> {
+        if self.use_lp() {
+            Ok(RegistrationClient::Lp(Box::new(self.build_lp().await?)))
+        } else {
+            Ok(RegistrationClient::Mixnet(Box::new(
+                self.build_mixnet().await?,
+            )))
+        }
+    }
+
+    pub(crate) async fn build_mixnet(
+        self,
+    ) -> Result<MixnetBasedRegistrationClient, RegistrationClientError> {
         let storage = self.config.setup_storage().await?;
         let config = RegistrationClientConfig {
             entry: self.config.entry_node.clone(),
@@ -84,13 +109,42 @@ impl RegistrationClientBuilder {
         };
         let mixnet_client_address = *mixnet_client.nym_address();
 
-        Ok(RegistrationClient {
+        Ok(MixnetBasedRegistrationClient {
             mixnet_client,
             config,
             cancel_token,
             mixnet_client_address,
             bandwidth_controller,
             event_rx,
+        })
+    }
+
+    async fn build_lp(self) -> Result<LpBasedRegistrationClient, RegistrationClientError> {
+        let storage = self.config.setup_storage().await?;
+        let config = RegistrationClientConfig {
+            entry: self.config.entry_node.clone(),
+            exit: self.config.exit_node.clone(),
+            mode: self.config.mode,
+            lp_registration_config: self.config.lp_registration_config,
+        };
+
+        let nyxd_client = get_nyxd_client(&self.config.network_env)?;
+
+        let bandwidth_controller: Box<dyn BandwidthTicketProvider> =
+            if let Some((_, credential_storage)) = storage {
+                Box::new(BandwidthController::new(credential_storage, nyxd_client))
+            } else {
+                Box::new(BandwidthController::new(
+                    EphemeralCredentialStorage::default(),
+                    nyxd_client,
+                ))
+            };
+
+        Ok(LpBasedRegistrationClient {
+            config,
+            bandwidth_controller,
+            cancel_token: self.config.cancel_token.clone(),
+            fallback_client_builder: Some(self),
         })
     }
 }

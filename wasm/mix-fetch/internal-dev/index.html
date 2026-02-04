@@ -1,27 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nym MixFetch Demo</title>
     <script src="bootstrap.js"></script>
-</head>
+  </head>
 
-<body>
-<h1> Mix Fetch Demo</h1>
-<div>
-    <label>Target Host: </label>
-    <input type="text" size = "60" id="fetch_payload" value="...">
-    <button id="fetch-button"> Fetch </button>
-</div>
+  <body>
+    <h1>Mix Fetch Demo</h1>
 
+    <fieldset id="startup-controls">
+      <legend>MixFetch Configuration</legend>
+      <p>
+        You can either use the default Gateway/NR combo run by us, or have
+        MixFetch choose a random one on startup.
+      </p>
+      <div style="margin-bottom: 10px">
+        <label>
+          <input type="radio" name="gateway-mode" value="default" checked />
+          Default Gateway (q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1)
+        </label>
+      </div>
+      <div style="margin-bottom: 10px">
+        <label>
+          <input type="radio" name="gateway-mode" value="random" />
+          Random Gateway
+        </label>
+      </div>
+      <button id="start-mixfetch">Start MixFetch</button>
+      <span id="mixfetch-status" style="margin-left: 10px; color: gray"
+        >Not started</span
+      >
+    </fieldset>
 
-<hr>
-<p>
-    <span id="output"></span>
-</p>
+    <hr />
 
-</body>
+    <fieldset id="fetch-controls" disabled>
+      <legend>Fetch Controls</legend>
+      <div>
+        <label>Target Host 1: </label>
+        <input
+          type="text"
+          size="60"
+          id="fetch_payload_1"
+          value="https://api.ipify.org?format=json"
+        />
+        <button id="fetch-button-1">Fetch 1</button>
+      </div>
+      <div>
+        <label>Target Host 2: </label>
+        <input
+          type="text"
+          size="60"
+          id="fetch_payload_2"
+          value="https://api6.ipify.org?format=json"
+        />
+        <button id="fetch-button-2">Fetch 2</button>
+      </div>
+      <div>
+        <button id="fetch-10-concurrent">
+          Send 10 Concurrent Requests (posts/1-10)
+        </button>
+      </div>
+      <p>
+        Note: if you're hammering these endpoints and you start to get timeouts
+        (or you've been reloading the page a lot) then change the target hosts
+        to e.g. http://ipv4.icanhazip.com and https://ipv6.icanhazip.com/
+      </p>
+    </fieldset>
 
+    <hr />
+    <p>
+      <span id="output"></span>
+    </p>
+  </body>
 </html>

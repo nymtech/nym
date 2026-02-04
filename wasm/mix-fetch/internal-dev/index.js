@@ -25,9 +25,34 @@ class WebWorkerClient {
                         const { rawString } = ev.data.args;
                         displayReceivedRawString(rawString)
                         break;
+                    case 'Log':
+                        const { message, level } = ev.data.args;
+                        displayLog(message, level);
+                        break;
+                    case 'MixFetchReady':
+                        onMixFetchReady();
+                        break;
+                    case 'MixFetchError':
+                        const { error } = ev.data.args;
+                        onMixFetchError(error);
+                        break;
                 }
             }
         };
+    }
+
+    startMixFetch = (preferredGateway) => {
+        if (!this.worker) {
+            console.error('Could not send message because worker does not exist');
+            return;
+        }
+
+        this.worker.postMessage({
+            kind: 'StartMixFetch',
+            args: {
+                preferredGateway,
+            },
+        });
     }
 
     doFetch = (target) => {
@@ -47,21 +72,106 @@ class WebWorkerClient {
 
 let client = null;
 
+const DEFAULT_GATEWAY = "q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1";
+
 async function main() {
     client = new WebWorkerClient();
 
-    const fetchButton = document.querySelector('#fetch-button');
-    fetchButton.onclick = function () {
-        doFetch();
+    const startButton = document.querySelector('#start-mixfetch');
+    startButton.onclick = function () {
+        const gatewayMode = document.querySelector('input[name="gateway-mode"]:checked').value;
+        const preferredGateway = gatewayMode === 'default' ? DEFAULT_GATEWAY : undefined;
+
+        startButton.disabled = true;
+        document.querySelectorAll('input[name="gateway-mode"]').forEach(r => r.disabled = true);
+        updateStatus('Starting...', 'orange');
+
+        displayLog(`Starting MixFetch with ${gatewayMode} gateway${preferredGateway ? ` (${preferredGateway})` : ''}...`, 'info');
+        client.startMixFetch(preferredGateway);
+    }
+
+    const fetchButton1 = document.querySelector('#fetch-button-1');
+    fetchButton1.onclick = function () {
+        doFetch(1);
+    }
+
+    const fetchButton2 = document.querySelector('#fetch-button-2');
+    fetchButton2.onclick = function () {
+        doFetch(2);
+    }
+
+    const fetch10Button = document.querySelector('#fetch-10-concurrent');
+    fetch10Button.onclick = function () {
+        doFetch10Concurrent();
     }
 }
 
+function updateStatus(text, color) {
+    const status = document.getElementById('mixfetch-status');
+    status.textContent = text;
+    status.style.color = color;
+}
 
-async function doFetch() {
-    const payload = document.getElementById('fetch_payload').value;
+function onMixFetchReady() {
+    updateStatus('Ready', 'green');
+    document.getElementById('fetch-controls').disabled = false;
+    displayLog('MixFetch is ready!', 'info');
+}
+
+function onMixFetchError(error) {
+    updateStatus('Error: ' + error, 'red');
+    document.querySelector('#start-mixfetch').disabled = false;
+    document.querySelectorAll('input[name="gateway-mode"]').forEach(r => r.disabled = false);
+    displayLog('MixFetch error: ' + error, 'error');
+}
+
+
+async function doFetch(id) {
+    const payload = document.getElementById(`fetch_payload_${id}`).value;
     await client.doFetch(payload)
 
-    displaySend(`clicked the button and the payload is: ${payload}...`);
+    displaySend(`[${id}] clicked the button and the payload is: ${payload}...`);
+}
+
+async function doFetch10Concurrent() {
+    const baseUrl = 'https://jsonplaceholder.typicode.com/posts/';
+    displaySend('Starting 10 concurrent requests to posts/1-10...');
+
+    const requests = [];
+    for (let i = 1; i <= 10; i++) {
+        const url = `${baseUrl}${i}`;
+        displaySend(`[${i}] Sending request to ${url}`);
+        requests.push(client.doFetch(url));
+    }
+
+    await Promise.all(requests);
+    displaySend('All 10 concurrent requests dispatched!');
+}
+
+/**
+ * Display log messages from MixFetch. Colors based on level.
+ *
+ * @param {string} message
+ * @param {string} level - 'info', 'error', 'warn', or 'debug'
+ */
+function displayLog(message, level) {
+    let timestamp = new Date().toISOString().substr(11, 12);
+
+    const colors = {
+        info: 'gray',
+        error: 'red',
+        warn: 'orange',
+        debug: 'purple',
+    };
+
+    let logDiv = document.createElement('div');
+    let paragraph = document.createElement('p');
+    paragraph.setAttribute('style', `color: ${colors[level] || 'gray'}`);
+    let paragraphContent = document.createTextNode(timestamp + ' [' + level.toUpperCase() + '] ' + message);
+    paragraph.appendChild(paragraphContent);
+
+    logDiv.appendChild(paragraph);
+    document.getElementById('output').appendChild(logDiv);
 }
 
 /**

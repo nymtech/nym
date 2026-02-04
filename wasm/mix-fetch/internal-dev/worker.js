@@ -43,6 +43,25 @@ let client = null;
 let tester = null;
 const go = new Go(); // Defined in wasm_exec.js
 var goWasm;
+let mixFetchReady = false;
+
+function sendLog(message, level = 'info') {
+    self.postMessage({
+        kind: 'Log',
+        args: { message, level },
+    });
+}
+
+function sendReady() {
+    self.postMessage({ kind: 'MixFetchReady' });
+}
+
+function sendError(error) {
+    self.postMessage({
+        kind: 'MixFetchError',
+        args: { error: String(error) },
+    });
+}
 
 async function logFetchResult(res) {
     console.log(res)
@@ -121,114 +140,85 @@ async function wasm_bindgenSetup() {
     // await setupMixFetchWithConfig(config, { storagePassphrase: "foomp", preferredGateway })
 }
 
-async function nativeSetup() {
-    const preferredGateway = "8ookuLkA9oWfRTjb7Jq4tLGcWrqoXKGQxw84MjMrv2S4";
-    const validator = 'https://sandbox-nym-api1.nymtech.net/api';
+async function nativeSetup(preferredGateway) {
+    sendLog('Setting up MixFetch...');
+    if (preferredGateway) {
+        sendLog(`Using preferred gateway: ${preferredGateway}`);
+    } else {
+        sendLog('Using random gateway selection');
+    }
 
-    // local
-    // const preferredNetworkRequester= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    // const preferredNetworkRequester= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-
-    // those are just some examples, there are obviously more permutations;
-    // note, the extra optional argument is of the following type:
-    /*
-        export interface MixFetchOpts extends MixFetchOptsSimple {
-            clientId?: string;
-            nymApiUrl?: string;
-            nyxdUrl?: string;
-            clientOverride?: DebugWasmOverride;
-            mixFetchOverride?: MixFetchDebugOverride;
-        }
-
-        where
-        export interface MixFetchDebugOverride {
-	       requestTimeoutMs?: number;
-    	}
-
-    	and `DebugWasmOverride` is a rather nested struct that you can look up yourself : )
-     */
-
-    // #1
-    // await setupMixFetch(preferredNetworkRequester)
-    // #2
-    // await setupMixFetch(preferredNetworkRequester, { nymApiUrl: validator })
-    // // #3
     const noCoverTrafficOverride = {
         traffic: {disableMainPoissonPacketDistribution: true},
         coverTraffic: {disableLoopCoverTrafficStream: true},
     }
     const mixFetchOverride = {
-        requestTimeoutMs: 20000
+        requestTimeoutMs: 60000
     }
 
-    await setupMixFetch({
-        // preferredNetworkRequester,
-        // preferredGateway: preferredGateway,
-        // storagePassphrase: "foomp",
+    const opts = {
         forceTls: true,
-        // nymApiUrl: validator,
         clientId: "my-client",
         clientOverride: noCoverTrafficOverride,
         mixFetchOverride,
-    })
+    };
+
+    if (preferredGateway) {
+        opts.preferredGateway = preferredGateway;
+    }
+
+    sendLog('Calling setupMixFetch...');
+    await setupMixFetch(opts);
+    sendLog('setupMixFetch completed');
 }
 
-async function testMixFetch() {
-    console.log('Instantiating Mix Fetch...');
-    // await wasm_bindgenSetup()
+async function startMixFetch(preferredGateway) {
+    sendLog('Instantiating MixFetch...');
 
-    await nativeSetup()
+    try {
+        await nativeSetup(preferredGateway);
+        mixFetchReady = true;
+        sendLog('MixFetch client running!');
+        sendReady();
+    } catch (e) {
+        sendLog('Failed to start MixFetch: ' + e, 'error');
+        sendError(e);
+    }
+}
 
+async function handleFetchPayload(target) {
+    if (!mixFetchReady) {
+        sendLog('MixFetch not ready yet', 'error');
+        return;
+    }
 
-    console.log('Mix Fetch client running!');
+    const url = target;
+    const args = {mode: "unsafe-ignore-cors"};
 
-    // Set callback to handle messages passed to the worker.
+    try {
+        sendLog(`Fetching: ${url}`);
+        const mixFetchRes = await mixFetch(url, args);
+        sendLog('Fetch completed');
+        await logFetchResult(mixFetchRes);
+    } catch (e) {
+        sendLog('Fetch request failure: ' + e, 'error');
+        console.error("mix fetch request failure: ", e);
+    }
+}
+
+function setupMessageHandler() {
     self.onmessage = async event => {
         if (event.data && event.data.kind) {
             switch (event.data.kind) {
+                case 'StartMixFetch': {
+                    const { preferredGateway } = event.data.args;
+                    await startMixFetch(preferredGateway);
+                    break;
+                }
                 case 'FetchPayload': {
-                    const {target} = event.data.args;
-                    const url = target;
-
-                    // const args = { mode: "ors", redirect: "manual", signal }
-                    const args = {mode: "unsafe-ignore-cors"}
-
-                    try {
-                        console.log('using mixFetch...');
-                        const mixFetchRes = await mixFetch(url, args)
-                        console.log(">>> MIX FETCH")
-                        await logFetchResult(mixFetchRes)
-
-                        console.log('done')
-
-                    } catch (e) {
-                        console.error("mix fetch request failure: ", e)
-                    }
-
-                    // console.log("will disconnect");
-                    // await disconnectMixFetch()
-                    //
-                    // try {
-                    //     console.log('using mixFetch...');
-                    //     const mixFetchRes = await mixFetch(url, args)
-                    //     console.log(">>> MIX FETCH")
-                    //     await logFetchResult(mixFetchRes)
-                    //
-                    //     console.log('done')
-                    //
-                    // } catch(e) {
-                    //     console.error("mix fetch request failure: ", e)
-                    // }
-
-
-                    // try {
-                    //     console.log('using normal Fetch...');
-                    //     const fetchRes = await fetch(url, args)
-                    //     console.log(">>> NORMAL FETCH")
-                    //     await logFetchResult(fetchRes)
-                    // } catch(e) {
-                    //     console.error("fetch request failure: ", e)
-                    // }
+                    const { target } = event.data.args;
+                    await handleFetchPayload(target);
+                    break;
                 }
             }
         }
@@ -263,15 +253,17 @@ function setupRsGoBridge() {
 }
 
 async function main() {
-    console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN START");
+    sendLog('Worker starting...');
 
     // load rust WASM package
+    sendLog('Loading Rust WASM...');
     await wasm_bindgen(RUST_WASM_URL);
-    console.log('Loaded RUST WASM');
+    sendLog('Loaded Rust WASM');
 
     // load go WASM package
+    sendLog('Loading Go WASM...');
     await loadGoWasm();
-    console.log("Loaded GO WASM");
+    sendLog('Loaded Go WASM');
 
     // sets up better stack traces in case of in-rust panics
     set_panic_hook();
@@ -280,19 +272,10 @@ async function main() {
 
     goWasmSetLogging("trace")
 
-    // test mixFetch
-    await testMixFetch();
-    //
-    // // run test on simplified and dedicated tester:
-    // // await testWithTester()
-    //
-    // // hook-up the whole client for testing
-    // // await testWithNymClient()
-    //
-    // // 'Normal' client setup (to send 'normal' messages)
-    // // await normalNymClientUsage()
-    //
-    console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
+    // Set up message handler (MixFetch will be started on demand)
+    setupMessageHandler();
+
+    sendLog('Worker ready - click Start MixFetch to begin');
 }
 
 // Let's get started!

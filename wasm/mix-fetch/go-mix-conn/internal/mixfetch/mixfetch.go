@@ -154,7 +154,9 @@ func dialContext(_ctx context.Context, opts *types.RequestOptions, _network, add
 	}
 
 	conn, inj := state.NewFakeConnection(requestId, addr)
-	state.ActiveRequests.Insert(requestId, addr, inj)
+	// Use opts.RequestURL (full URL) as the mapping key, meaning we can now
+	// have concurrent requests to different paths on the same domain.
+	state.ActiveRequests.Insert(requestId, opts.RequestURL, inj)
 
 	return conn, nil
 }
@@ -171,7 +173,9 @@ func dialTLSContext(_ctx context.Context, opts *types.RequestOptions, _network, 
 	}
 
 	conn, inj := state.NewFakeTlsConn(requestId, addr)
-	state.ActiveRequests.Insert(requestId, addr, inj)
+	// Use opts.RequestURL (full URL) as the mapping key, meaning we can now
+	// have concurrent requests to different paths on the same domain.
+	state.ActiveRequests.Insert(requestId, opts.RequestURL, inj)
 
 	if err := conn.Handshake(); err != nil {
 		return nil, err
@@ -195,10 +199,12 @@ func buildHttpClient(reqCtx *types.RequestContext, opts *types.RequestOptions) *
 			},
 
 			//TLSClientConfig: &tlsConfig,
-			DisableKeepAlives:   true,
-			MaxIdleConns:        1,
-			MaxIdleConnsPerHost: 1,
-			MaxConnsPerHost:     1,
+			DisableKeepAlives: true,
+			// Allow multiple concurrent connections to the same host.
+			// Previously set to 1.
+			MaxIdleConns:        10,
+			MaxIdleConnsPerHost: 10,
+			MaxConnsPerHost:     10,
 		},
 		Timeout: state.RequestTimeout,
 	}
@@ -322,12 +328,15 @@ func performRequest(req *conv.ParsedRequest) (*conv.ResponseWrapper, error) {
 func onErrCleanup(url *url.URL) {
 	// TODO: cancel stuff here.... somehow...
 
-	canonicalAddr := canonicalAddr(url)
-	id := state.ActiveRequests.GetId(canonicalAddr)
+	// Use full URL string to match the key used in MixFetch for request deduplication.
+	// Makes sure we clean up the correct request when multiple requests to
+	// different paths on the same domain are in process.
+	requestURL := url.String()
+	id := state.ActiveRequests.GetId(requestURL)
 	// TODO: can we guarantee that rust is not holding any references to that id (that we don't know on this side)?
 	if id == 0 {
 		// if id doesn't exist it [probably] means the error was thrown before the request was properly created
-		log.Debug("there doesn't seem to exist a request associated with addr %s", canonicalAddr)
+		log.Debug("there doesn't seem to exist a request associated with URL %s", requestURL)
 		return
 	}
 	state.ActiveRequests.Remove(id)
@@ -341,10 +350,15 @@ func onErrCleanup(url *url.URL) {
 func MixFetch(request *conv.ParsedRequest) (any, error) {
 	log.Info("_mixFetch: start")
 
-	canonical := canonicalAddr(request.Request.URL)
-	if state.ActiveRequests.ExistsCanonical(canonical) {
-		// TODO: how to deal with it to allow for concurrent requests to say `https://foo.com/index.html` and `https://foo.com/index.js`?
-		return nil, errors.New(fmt.Sprintf("there is already an active request for %s", canonical))
+	// Use the full URL (inc path and query params) as the deduplication key.
+	// Allows concurrent requests to different paths on the same domain
+	// (e.g., foo.com/index.html and foo.com/index.js) while still preventing
+	// duplicate requests to the exact same URL.
+	requestURL := request.Request.URL.String()
+	request.Options.RequestURL = requestURL
+
+	if state.ActiveRequests.ExistsCanonical(requestURL) {
+		return nil, errors.New(fmt.Sprintf("there is already an active request for %s", requestURL))
 	}
 
 	resCh := make(chan *conv.ResponseWrapper)

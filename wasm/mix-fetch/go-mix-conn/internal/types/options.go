@@ -16,6 +16,12 @@ type RequestOptions struct {
 	Referrer         jstypes.Referrer
 	ResponseTainting jstypes.ResponseTainting
 	Method           string
+
+	// RequestURL stores the full URL (inc path and query params) for this request.
+	// Used as the key for request deduplication, allowing concurrent requests to different
+	// paths on the same domain (e.g., foo.com/index.html and foo.com/index.js can run
+	// concurrently, but two requests to the exact same URL will be blocked).
+	RequestURL string
 }
 
 func (opts RequestOptions) String() string {

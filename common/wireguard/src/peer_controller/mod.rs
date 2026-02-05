@@ -269,7 +269,6 @@ impl PeerController {
                 "could not determine ip pair allocated to the peer".to_string(),
             ));
         };
-        self.ip_pool.confirm_allocation(ip_pair)?;
 
         // Try to configure WireGuard peer
         if let Err(e) = self.wg_api.configure_peer(peer) {
@@ -302,6 +301,9 @@ impl PeerController {
             *self.host_information.write().await = host_information;
         }
         let public_key = peer.public_key.clone();
+
+        self.ip_pool.confirm_allocation(ip_pair)?;
+
         tokio::spawn(async move {
             handle.run().await;
             debug!("Peer handle shut down for {public_key}");

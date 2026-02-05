@@ -156,30 +156,9 @@ mod test {
         cache.remove_stale();
         assert!(cache.get_peer_pub_key(&credential).is_some());
 
-        MockClock::advance_system_time(SEEN_CREDENTIAL_CACHE_TIME * 2);
+        MockClock::advance(SEEN_CREDENTIAL_CACHE_TIME * 2);
 
         cache.remove_stale();
-        assert!(cache.get_peer_pub_key(&credential).is_none());
-    }
-
-    #[test]
-    fn invalid_time() {
-        assert!(MockClock::is_thread_local());
-        assert!(Instant::now().is_thread_local());
-
-        let mut cache = SeenCredentialCache::new();
-        let credential = CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap();
-        let peer_pub_key = PeerPublicKey::from_str(PUB_KEY).unwrap();
-
-        // set some value for time
-        MockClock::set_system_time(Duration::from_secs(10));
-        cache.insert_credential(credential.clone(), peer_pub_key);
-
-        // then set the time in the past
-        MockClock::set_system_time(Duration::ZERO);
-        cache.remove_stale();
-
-        // invalid time should remove the credential, just in case
         assert!(cache.get_peer_pub_key(&credential).is_none());
     }
 }

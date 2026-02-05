@@ -241,6 +241,14 @@ impl IpPool {
     }
 
     /// Get the number of allocated IPs in the pool
+    pub fn pre_allocated_count(&self) -> usize {
+        self.allocations
+            .iter()
+            .filter(|(_, state)| matches!(state, AllocationState::PreAllocated { .. }))
+            .count()
+    }
+
+    /// Get the number of allocated IPs in the pool
     pub fn allocated_count(&self) -> usize {
         self.allocations
             .iter()
@@ -261,7 +269,6 @@ impl IpPool {
         let mut freed = 0;
 
         for state in self.allocations.values_mut() {
-            println!("entry: {state:?}");
             if let AllocationState::PreAllocated { allocated_at, .. } = state {
                 let age = now.duration_since(*allocated_at);
                 if age > max_age {
@@ -373,19 +380,25 @@ mod tests {
         };
 
         assert_eq!(pool.free_count(), 3);
-        assert_eq!(pool.allocated_count(), 0);
+        assert_eq!(pool.pre_allocated_count(), 0);
 
         let allocation1 = pool.pre_allocate()?;
         assert_eq!(pool.free_count(), 2);
-        assert_eq!(pool.allocated_count(), 1);
+        assert_eq!(pool.pre_allocated_count(), 1);
 
         let allocation2 = pool.pre_allocate()?;
         assert_eq!(pool.free_count(), 1);
-        assert_eq!(pool.allocated_count(), 2);
+        assert_eq!(pool.pre_allocated_count(), 2);
+
+        pool.confirm_allocation(allocation1)?;
+        assert_eq!(pool.free_count(), 1);
+        assert_eq!(pool.pre_allocated_count(), 1);
+        assert_eq!(pool.allocated_count(), 1);
 
         let allocation3 = pool.pre_allocate()?;
         assert_eq!(pool.free_count(), 0);
-        assert_eq!(pool.allocated_count(), 3);
+        assert_eq!(pool.pre_allocated_count(), 2);
+        assert_eq!(pool.allocated_count(), 1);
 
         // make sure each was unique and different from the gateway
         ensure_different_allocation(allocation1, allocation2)?;
@@ -402,13 +415,15 @@ mod tests {
         // if pair gets released, it's eligible for allocation again
         pool.release(allocation2);
         assert_eq!(pool.free_count(), 1);
-        assert_eq!(pool.allocated_count(), 2);
+        assert_eq!(pool.pre_allocated_count(), 1);
+        assert_eq!(pool.allocated_count(), 1);
 
         let reallocation = pool.pre_allocate()?;
         assert_eq!(reallocation, allocation2);
 
         assert_eq!(pool.free_count(), 0);
-        assert_eq!(pool.allocated_count(), 3);
+        assert_eq!(pool.pre_allocated_count(), 2);
+        assert_eq!(pool.allocated_count(), 1);
 
         Ok(())
     }

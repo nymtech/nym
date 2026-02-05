@@ -269,6 +269,11 @@ impl Iterator for SocketAddrs {
 }
 
 impl HickoryDnsResolver {
+    /// Returns an instance of the shared resolver.
+    pub fn shared() -> Self {
+        SHARED_RESOLVER.clone()
+    }
+
     /// Attempt to resolve a domain name to a set of ['IpAddr']s
     pub async fn resolve_str(
         &self,
@@ -359,18 +364,60 @@ impl HickoryDnsResolver {
         }
     }
 
-    /// Get the current map of hostname to address in use by the fallback static lookup if one
+    /// Clear entries from the static table that would return entries during the pre-resolve stage.
+    /// This means that all lookups will attempt to use the network resolver again before the static
+    /// table is consulted.
+    ///  
+    /// Entries elevated to pre-resolve from fallback (added from default or using
+    /// [`set_fallback`]`) will have their cache timeout cleared. Entries added directly to
+    /// pre-resolve (using [`Self::set_static_preresolve`]) will be removed.
+    pub fn clear_preresolve(&self) {
+        debug!("clearing pre-resolve table");
+        if let Some(cell) = &self.static_base
+            && let Some(static_base) = cell.get()
+        {
+            static_base.clear_preresolve()
+        }
+    }
+
+    /// Get the current map of hostnames to addresses used in the fallback static lookup stage if one
     /// exists.
     pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
-        Some(self.static_base.as_ref()?.get()?.get_addrs())
+        Some(self.static_base.as_ref()?.get()?.get_fallback_addrs())
     }
 
     /// Set (or overwrite) the map of addresses used in the fallback static hostname lookup
-    pub fn set_static_fallbacks(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
-        let cell = OnceCell::new();
-        cell.set(StaticResolver::new(addrs))
-            .expect("infallible assign");
-        self.static_base = Some(Arc::new(cell));
+    pub fn set_fallback_addrs(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+        debug!("setting fallback entries for {:?}", addrs.keys());
+        if self.static_base.is_none() {
+            let cell = OnceCell::new();
+            self.static_base = Some(Arc::new(cell));
+        }
+        self.static_base
+            .as_ref()
+            .unwrap()
+            .get_or_init(|| Self::new_static_fallback(self.use_shared))
+            .set_fallback(addrs);
+    }
+
+    /// Get the current map of hostnames to addresses used in the preresolve static lookup stage
+    /// if one exists.
+    pub fn get_static_preresolve(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
+        Some(self.static_base.as_ref()?.get()?.get_preresolve_addrs())
+    }
+
+    /// Set (or overwrite) the map of addresses used in the preresolve static hostname lookup
+    pub fn set_static_preresolve(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+        debug!("setting pre-resolve entries for {:?}", addrs.keys());
+        if self.static_base.is_none() {
+            let cell = OnceCell::new();
+            self.static_base = Some(Arc::new(cell));
+        }
+        self.static_base
+            .as_ref()
+            .unwrap()
+            .get_or_init(|| Self::new_static_fallback(self.use_shared))
+            .set_preresolve(addrs);
     }
 
     /// Successfully resolved addresses are cached for a minimum of 30 minutes
@@ -507,7 +554,7 @@ fn new_resolver_system() -> Result<TokioResolver, ResolveError> {
 }
 
 fn new_default_static_fallback() -> StaticResolver {
-    StaticResolver::new(constants::default_static_addrs())
+    StaticResolver::new().with_fallback(constants::default_static_addrs())
 }
 
 /// Do a trial resolution using each nameserver individually to test which are working and which
@@ -609,7 +656,7 @@ mod test {
         let example_ip6: IpAddr = "dead::beef".parse().unwrap();
         addr_map.insert(example_domain.to_string(), vec![example_ip4, example_ip6]);
 
-        resolver.set_static_fallbacks(addr_map);
+        resolver.set_fallback_addrs(addr_map);
 
         let mut addrs = resolver.resolve_str(example_domain).await?;
         assert!(addrs.contains(&example_ip4));
@@ -751,17 +798,18 @@ mod test {
 
         #[tokio::test]
         #[ignore]
-        // this test is dependent of external network setup -- i.e. blocking all traffic to the default
-        // resolvers. Otherwise the default resolvers will succeed without using the static fallback,
-        // making the test pointless
+        // This test impacts the state of the shared resolver and as such is disabled to avoid
+        // interference with other tests.
+        //
+        // this test is dependent of external network setup -- i.e. blocking all traffic to the
+        // default resolvers. Otherwise the default resolvers will succeed without using the static
+        // fallback, making the test pointless
         async fn dns_lookup_failure_on_shared() -> Result<(), ResolveError> {
-            let time_start = Instant::now();
-            let r = OnceCell::new();
-            r.set(build_broken_resolver().expect("failed to build resolver"))
-                .expect("broken resolver init error");
+            let resolver1 = HickoryDnsResolver::shared();
 
-            // create a new resolver that won't mess with the shared resolver used by other tests
-            let resolver = HickoryDnsResolver::default();
+            let time_start = Instant::now();
+            // create a new resolver that uses the shared resolver
+            let resolver = HickoryDnsResolver::shared();
 
             // successful lookup using fallback to static resolver
             let domain = "rpc.nymtech.net";
@@ -770,9 +818,27 @@ mod test {
                 .await
                 .expect("failed to resolve address in static lookup");
 
-            println!(
-                "{}ms resolved {domain}",
-                (Instant::now() - time_start).as_millis()
+            let lookup_dur = Instant::now() - time_start;
+            assert!(
+                lookup_dur > resolver.overall_dns_timeout,
+                "expected lookup timeout - took {}ms",
+                (lookup_dur).as_millis()
+            );
+
+            let time_start = Instant::now();
+            // successful lookup using pre-resolve entry promoted from fallback
+            let domain = "rpc.nymtech.net";
+            let _ = resolver1
+                .resolve_str(domain)
+                .await
+                .expect("domain expected to be in pre-resolve");
+
+            // this lookup should basically be instant as we are using pre-resolve
+            let lookup_dur = Instant::now() - time_start;
+            assert!(
+                lookup_dur < Duration::from_millis(10),
+                "expected instant - took {}ms",
+                (lookup_dur).as_millis()
             );
 
             // unsuccessful lookup - primary times out, and not in static table
@@ -781,6 +847,63 @@ mod test {
             assert!(result.is_err());
             // assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
             // assert!(result.is_err_and(|e| matches!(e, ResolveError::ResolveError(e) if e.is_nx_domain())));
+            Ok(())
+        }
+
+        #[tokio::test]
+        #[ignore]
+        // This test impacts the state of the shared resolver and as such is disabled to avoid
+        // interference with other tests.
+        async fn setting_dns_fallbacks_with_shared_resolver() -> Result<(), ResolveError> {
+            let resolver1 = HickoryDnsResolver::shared();
+
+            // create a new resolver that uses the shared resolver
+            let mut resolver = HickoryDnsResolver::shared();
+
+            let example_domains = [
+                String::from("static1.nymvpn.com"),
+                String::from("static2.nymvpn.com"),
+            ];
+            let mut addr_map1 = HashMap::new();
+            addr_map1.insert(
+                example_domains[0].clone(),
+                vec![Ipv4Addr::new(10, 10, 10, 10).into()],
+            );
+            addr_map1.insert(
+                example_domains[1].clone(),
+                vec![Ipv4Addr::new(1, 1, 1, 1).into()],
+            );
+
+            resolver.set_static_preresolve(addr_map1);
+
+            let time_start = Instant::now();
+            // successful lookup using pre-resolve entry promoted from fallback
+            let _ = resolver1
+                .resolve_str(&example_domains[0])
+                .await
+                .expect("domain expected to be in pre-resolve");
+
+            // this lookup should basically be instant as we are using pre-resolve
+            let lookup_dur = Instant::now() - time_start;
+            assert!(
+                lookup_dur < Duration::from_millis(10),
+                "expected instant - took {}ms",
+                (lookup_dur).as_millis()
+            );
+
+            // After clearing the pre-resolve in one instance of the shared resolver ...
+            resolver.clear_preresolve();
+
+            // ... other instances have their pre-resolve entries cleared.
+            let prereslve_lookup = resolver1
+                .static_base
+                .as_ref()
+                .unwrap()
+                .get()
+                .unwrap()
+                .pre_resolve(&example_domains[0]);
+            assert!(prereslve_lookup.is_none());
+
             Ok(())
         }
     }

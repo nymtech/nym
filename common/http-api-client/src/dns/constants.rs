@@ -69,6 +69,12 @@ pub const NYM_RPC_IPS: &[IpAddr] = &[
     )),
 ];
 
+#[allow(unused)]
+pub fn empty_static_addrs() -> HashMap<String, Vec<IpAddr>> {
+    HashMap::new()
+}
+
+#[allow(unused)]
 pub fn default_static_addrs() -> HashMap<String, Vec<IpAddr>> {
     let mut m = HashMap::new();
     m.insert(NYM_API_DOMAIN.to_string(), NYM_API_IPS.to_vec());

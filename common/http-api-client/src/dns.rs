@@ -797,7 +797,7 @@ mod test {
         }
 
         #[tokio::test]
-        #[ignore]
+        #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
         // This test impacts the state of the shared resolver and as such is disabled to avoid
         // interference with other tests.
         //
@@ -851,7 +851,7 @@ mod test {
         }
 
         #[tokio::test]
-        #[ignore]
+        #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
         // This test impacts the state of the shared resolver and as such is disabled to avoid
         // interference with other tests.
         async fn setting_dns_fallbacks_with_shared_resolver() -> Result<(), ResolveError> {

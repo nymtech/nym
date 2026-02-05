@@ -213,7 +213,7 @@ mod tests {
     // NOTE THIS TEST IS DISABLED BECAUSE IT INTERACTS WITH THE SHARED POLICY AND AS SUCH CAN HAVE
     // AN IMPACT ON OTHER TESTS
     #[test]
-    #[ignore]
+    #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
     fn set_policy_shared_client() {
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",

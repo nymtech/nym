@@ -89,7 +89,8 @@ fn sanitizing_urls() {
 // - on error without retries is where we have multiple urls, is the url updated?
 
 #[tokio::test]
-#[ignore] // test relies on external services being available and behaving in a specific way.
+#[cfg(any())] // #[ignore] we run ignore assuming it just means slow in Ci/CD -_-
+// test relies on external services being available and behaving in a specific way.
 async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
     let client = ClientBuilder::new_with_urls(vec![
         "http://broken.nym.test".parse()?, // This should fail because of DNS NXDomain (rotate)

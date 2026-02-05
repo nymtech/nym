@@ -593,7 +593,6 @@ mod test {
     use std::collections::HashMap;
     use std::{
         net::{IpAddr, Ipv4Addr, Ipv6Addr},
-        time::Instant,
     };
 
     /// IP addresses guaranteed to fail attempts to resolve
@@ -807,7 +806,7 @@ mod test {
         async fn dns_lookup_failure_on_shared() -> Result<(), ResolveError> {
             let resolver1 = HickoryDnsResolver::shared();
 
-            let time_start = Instant::now();
+            let time_start = std::time::Instant::now();
             // create a new resolver that uses the shared resolver
             let resolver = HickoryDnsResolver::shared();
 
@@ -825,7 +824,7 @@ mod test {
                 (lookup_dur).as_millis()
             );
 
-            let time_start = Instant::now();
+            let time_start = std::time::Instant::now();
             // successful lookup using pre-resolve entry promoted from fallback
             let domain = "rpc.nymtech.net";
             let _ = resolver1
@@ -834,7 +833,7 @@ mod test {
                 .expect("domain expected to be in pre-resolve");
 
             // this lookup should basically be instant as we are using pre-resolve
-            let lookup_dur = Instant::now() - time_start;
+            let lookup_dur = std::time::Instant::now() - time_start;
             assert!(
                 lookup_dur < Duration::from_millis(10),
                 "expected instant - took {}ms",
@@ -876,7 +875,7 @@ mod test {
 
             resolver.set_static_preresolve(addr_map1);
 
-            let time_start = Instant::now();
+            let time_start = std::time::Instant::now();
             // successful lookup using pre-resolve entry promoted from fallback
             let _ = resolver1
                 .resolve_str(&example_domains[0])
@@ -884,7 +883,7 @@ mod test {
                 .expect("domain expected to be in pre-resolve");
 
             // this lookup should basically be instant as we are using pre-resolve
-            let lookup_dur = Instant::now() - time_start;
+            let lookup_dur = std::time::Instant::now() - time_start;
             assert!(
                 lookup_dur < Duration::from_millis(10),
                 "expected instant - took {}ms",

@@ -1,8 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::packet::LpHeader;
 use crate::peer::LpRemotePeer;
-use crate::{BOOTSTRAP_RECEIVER_IDX, LpError};
+use crate::{BOOTSTRAP_RECEIVER_IDX, LpError, LpPacket};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -28,6 +29,17 @@ pub struct ClientHelloData {
 impl ClientHelloData {
     // 4 bytes for receiver index + 32 bytes for client lp key, 32 bytes for client ed25519 key + 32 bytes for salt
     pub const LEN: usize = 100;
+
+    pub fn into_lp_packet(self, protocol_version: u8) -> LpPacket {
+        LpPacket::new(
+            LpHeader::new(
+                BOOTSTRAP_RECEIVER_IDX, // session_id not yet established
+                0,                      // counter starts at 0
+                protocol_version,
+            ),
+            LpMessage::ClientHello(self),
+        )
+    }
 
     fn len(&self) -> usize {
         Self::LEN

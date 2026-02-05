@@ -1182,23 +1182,12 @@ where
             GatewayError::LpProtocolError(format!("Failed to serialize packet: {}", e))
         })?;
 
-        // Send 4-byte length prefix (u32 big-endian)
-        let len = packet_buf.len() as u32;
         self.stream
-            .write_all(&len.to_be_bytes())
+            .send_serialised_packet(&packet_buf)
             .await
-            .map_err(|e| {
-                GatewayError::LpConnectionError(format!("Failed to send packet length: {}", e))
+            .map_err(|err| {
+                GatewayError::LpConnectionError(format!("failed to send LP packet: {err}"))
             })?;
-
-        // Send the actual packet data
-        self.stream.write_all(&packet_buf).await.map_err(|e| {
-            GatewayError::LpConnectionError(format!("Failed to send packet data: {}", e))
-        })?;
-
-        self.stream.flush().await.map_err(|e| {
-            GatewayError::LpConnectionError(format!("Failed to flush stream: {}", e))
-        })?;
 
         // Track bytes sent (4 byte header + packet data)
         self.stats.record_bytes_sent(4 + packet_buf.len());

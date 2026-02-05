@@ -14,7 +14,7 @@ pub struct Args {
 }
 
 pub async fn query(args: Args, client: &QueryClientWithNyxd) {
-    match client.get_all_cached_described_nodes_v2().await {
+    match client.get_all_cached_described_nodes().await {
         Ok(res) => match args.identity_key {
             Some(identity_key) => {
                 let node = res.iter().find(|node| {

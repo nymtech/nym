@@ -673,6 +673,26 @@ impl NymNode {
         let upgrade_mode_common_state =
             gateway_tasks_builder.build_upgrade_mode_common_state(upgrade_check_request_sender);
 
+        // Set WireGuard data early so other builders can access it
+        if self.config.wireguard.enabled {
+            let Some(wg_data) = self.wireguard.take() else {
+                return Err(NymNodeError::WireguardDataUnavailable);
+            };
+            gateway_tasks_builder.set_wireguard_data(wg_data.into());
+        }
+
+        let wg_peer_registrator = gateway_tasks_builder
+            .build_peer_registrator(upgrade_mode_common_state.clone())
+            .await?;
+
+        if let Some(wg_peer_registrator) = wg_peer_registrator.as_ref() {
+            let cleanup_task = wg_peer_registrator.cleanup_task(self.shutdown_token());
+            self.shutdown_tracker().try_spawn_named(
+                async move { cleanup_task.run().await },
+                "StaleRegistrationRemover",
+            );
+        };
+
         // if we're running in entry mode, start the websocket
         if self.modes().entry {
             info!(
@@ -688,15 +708,6 @@ impl NymNode {
             self.shutdown_tracker()
                 .try_spawn_named(async move { websocket.run().await }, "EntryWebsocket");
 
-            // Set WireGuard data early so LP listener can access it
-            // (LP listener needs wg_peer_controller for dVPN registrations)
-            if self.config.wireguard.enabled {
-                let Some(wg_data) = self.wireguard.take() else {
-                    return Err(NymNodeError::WireguardDataUnavailable);
-                };
-                gateway_tasks_builder.set_wireguard_data(wg_data.into());
-            }
-
             // Start LP listener if enabled
             info!(
                 "starting the LP listener on {} (data handler on: {})",
@@ -704,10 +715,7 @@ impl NymNode {
                 self.config.gateway_tasks.lp.data_bind_address,
             );
             let mut lp_listener = gateway_tasks_builder
-                .build_lp_listener(
-                    upgrade_mode_common_state.clone(),
-                    active_clients_store.clone(),
-                )
+                .build_lp_listener(wg_peer_registrator.clone(), active_clients_store.clone())
                 .await?;
             self.shutdown_tracker()
                 .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
@@ -747,8 +755,16 @@ impl NymNode {
 
             gateway_tasks_builder.set_authenticator_opts(config.auth_opts);
 
+            let Some(peer_registrator) = wg_peer_registrator else {
+                return Err(NymNodeError::WireguardDataUnavailable);
+            };
+
             let authenticator = gateway_tasks_builder
-                .build_wireguard_authenticator(upgrade_mode_common_state.clone(), topology_provider)
+                .build_wireguard_authenticator(
+                    peer_registrator,
+                    upgrade_mode_common_state.clone(),
+                    topology_provider,
+                )
                 .await?;
             let started_authenticator = authenticator.start_service_provider().await?;
             active_clients_store.insert_embedded(started_authenticator.handle);

@@ -25,6 +25,7 @@ use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
+    WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
 use rand::{CryptoRng, RngCore};
@@ -748,7 +749,7 @@ where
         gateway_identity: ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
-    ) -> Result<WireguardConfiguration> {
+    ) -> Result<WireguardRegistrationData> {
         tracing::debug!("Acquiring bandwidth credential for registration");
 
         // 1. Get bandwidth credential from controller
@@ -805,14 +806,7 @@ where
                 tracing::warn!("Gateway rejected registration: {reason}");
                 Err(LpClientError::RegistrationRejected { reason })
             }
-            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => {
-                // we have managed to complete the registration
-                tracing::info!(
-                    "LP registration successful! Allocated bandwidth: {} bytes",
-                    res.available_bandwidth
-                );
-                Ok(res.config)
-            }
+            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => Ok(res.config),
             LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
                 Err(LpClientError::unexpected_response(
                     "received request for additional dvpn data after sending credential!",
@@ -860,7 +854,7 @@ where
         let wg_public_key = PeerPublicKey::from(*wg_keypair.public_key());
         let mut psk = [0u8; 32];
         rng.fill_bytes(&mut psk);
-        let request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk, ticket_type);
+        let request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk);
 
         tracing::trace!("Built dVPN registration request: {request:?}");
 
@@ -896,14 +890,7 @@ where
                 tracing::warn!("Gateway rejected registration: {reason}");
                 return Err(LpClientError::RegistrationRejected { reason });
             }
-            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => {
-                // we have already registered with this gateway before, the gateway has updated the psk and sent us the config
-                tracing::info!(
-                    "LP registration successful! Allocated bandwidth: {} bytes",
-                    res.available_bandwidth
-                );
-                res.config
-            }
+            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => res.config,
             LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
                 // we're registering for the first time with this gateway - we need to attach a credential
 
@@ -920,7 +907,7 @@ where
         Ok(WireguardConfiguration {
             public_key: final_response.public_key,
             psk: Some(psk),
-            endpoint: SocketAddr::new(self.gateway_lp_address.ip(), final_response.endpoint.port()),
+            endpoint: SocketAddr::new(self.gateway_lp_address.ip(), final_response.port),
             private_ipv4: final_response.private_ipv4,
             private_ipv6: final_response.private_ipv6,
         })

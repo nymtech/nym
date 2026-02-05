@@ -22,6 +22,8 @@ pub mod ecash;
 pub mod error;
 pub mod upgrade_mode;
 
+const MOCK_BANDWIDTH: i64 = 2024 * 1024 * 1024;
+
 // Histogram buckets for ecash verification duration (in seconds)
 const ECASH_VERIFICATION_DURATION_BUCKETS: &[f64] =
     &[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0];
@@ -111,6 +113,13 @@ impl CredentialVerifier {
     }
 
     pub async fn verify(&mut self) -> Result<i64> {
+        if self.ecash_verifier.is_mock() {
+            // if we're in the mock mode (local testing), skip cryptographic verification
+            // and just return a dummy bandwidth value since we don't have blockchain access
+            // Return a reasonable test bandwidth value (e.g., 1GB in bytes)
+            return Ok(MOCK_BANDWIDTH);
+        }
+
         let start = Instant::now();
         nym_metrics::inc!("ecash_verification_attempts");
 

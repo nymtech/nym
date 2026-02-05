@@ -68,12 +68,11 @@
 // They can be exported via Prometheus format using the metrics endpoint.
 
 use crate::error::GatewayError;
-use crate::node::lp_listener::registration::RegistrationsInProgress;
+use crate::node::wireguard::PeerRegistrator;
 use crate::node::ActiveClientsStore;
 use dashmap::DashMap;
 use nym_config::serde_helpers::de_maybe_port;
 use nym_credential_verification::ecash::traits::EcashManager;
-use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 use nym_gateway_storage::GatewayStorage;
 use nym_lp::state_machine::LpStateMachine;
 use nym_node_metrics::NymNodeMetrics;
@@ -85,7 +84,6 @@ use tokio::net::TcpListener;
 use tokio::sync::Semaphore;
 use tracing::*;
 
-use crate::node::wireguard::PeerManager;
 pub use nym_lp::peer::LpLocalPeer;
 pub use nym_mixnet_client::forwarder::{
     mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender,
@@ -184,10 +182,6 @@ pub struct LpDebug {
     #[serde(with = "humantime_serde")]
     pub demoted_session_ttl: Duration,
 
-    /// Maximum age of in-progress dVPN registration before cleanup (default: 60s)
-    #[serde(with = "humantime_serde")]
-    pub pending_registration_ttl: Duration,
-
     /// How often to run the state cleanup task (default: 5 minutes)
     ///
     /// The cleanup task scans for and removes stale handshakes and sessions.
@@ -257,9 +251,6 @@ impl LpDebug {
     // 5 minutes - balances memory reclamation with task overhead
     pub const DEFAULT_STATE_CLEANUP_INTERVAL: Duration = Duration::from_secs(300);
 
-    // 1 minute - enough for client to send retrieve credential from its storage and send it across
-    pub const DEFAULT_PENDING_REGISTRATION_TTL: Duration = Duration::from_secs(60);
-
     // Limits concurrent outbound connections to prevent fd exhaustion
     pub const DEFAULT_MAX_CONCURRENT_FORWARDS: usize = 1000;
 }
@@ -273,7 +264,6 @@ impl Default for LpDebug {
             handshake_ttl: Self::DEFAULT_HANDSHAKE_TTL,
             session_ttl: Self::DEFAULT_SESSION_TTL,
             demoted_session_ttl: Self::DEFAULT_DEMOTED_SESSION_TTL,
-            pending_registration_ttl: Self::DEFAULT_PENDING_REGISTRATION_TTL,
             state_cleanup_interval: Self::DEFAULT_STATE_CLEANUP_INTERVAL,
             max_concurrent_forwards: Self::DEFAULT_MAX_CONCURRENT_FORWARDS,
         }
@@ -360,12 +350,8 @@ pub struct LpHandlerState {
     /// Active clients tracking
     pub active_clients_store: ActiveClientsStore,
 
-    /// Current state of the Upgrade Mode as perceived by this gateway
-    pub upgrade_mode: UpgradeModeDetails,
-
-    /// WireGuard gateway data (contains keypair and config)
-    /// alongside helpers for managing peers
-    pub peer_manager: Arc<PeerManager>,
+    /// Handle registering new wireguard peers
+    pub peer_registrator: Option<PeerRegistrator>,
 
     /// LP configuration (for timestamp validation, etc.)
     pub lp_config: LpConfig,
@@ -398,10 +384,6 @@ pub struct LpHandlerState {
     /// (SubsessionKK1/KK2/Ready) during transport phase, allowing long-lived connections
     /// to rekey without re-authentication.
     pub session_states: Arc<DashMap<ReceiverIndex, TimestampedState<LpStateMachine>>>,
-
-    /// In-progress dVPN registrations that require additional data (e.g. credentials)
-    /// to finalise.
-    pub registrations_in_progress: RegistrationsInProgress,
 
     /// Semaphore limiting concurrent forward connections
     ///
@@ -577,31 +559,26 @@ impl LpListener {
     ///
     /// The task automatically stops when the shutdown signal is received.
     fn spawn_state_cleanup_task(&self) -> tokio::task::JoinHandle<()> {
-        let peer_manager = Arc::clone(&self.handler_state.peer_manager);
         let handshake_states = Arc::clone(&self.handler_state.handshake_states);
         let session_states = Arc::clone(&self.handler_state.session_states);
-        let pending_registrations = self.handler_state.registrations_in_progress.clone();
         let dbg_cfg = self.handler_state.lp_config.debug;
 
         let handshake_ttl = dbg_cfg.handshake_ttl;
         let session_ttl = dbg_cfg.session_ttl;
         let demoted_session_ttl = dbg_cfg.demoted_session_ttl;
-        let pending_reg_ttl = dbg_cfg.pending_registration_ttl;
         let interval = dbg_cfg.state_cleanup_interval;
         let shutdown = self.shutdown.clone_shutdown_token();
         let metrics = self.handler_state.metrics.clone();
 
         info!(
-            "Starting LP state cleanup task (handshake_ttl={}s, session_ttl={}s, demoted_ttl={}s, reg_ttl={}s, interval={}s)",
-            handshake_ttl.as_secs(), session_ttl.as_secs(), demoted_session_ttl.as_secs(),pending_reg_ttl.as_secs(), interval.as_secs()
+            "Starting LP state cleanup task (handshake_ttl={}s, session_ttl={}s, demoted_ttl={}s, interval={}s)",
+            handshake_ttl.as_secs(), session_ttl.as_secs(), demoted_session_ttl.as_secs(), interval.as_secs()
         );
 
         self.shutdown.try_spawn_named(
             cleanup_task::cleanup_loop(
-                peer_manager,
                 handshake_states,
                 session_states,
-                pending_registrations,
                 dbg_cfg,
                 shutdown,
                 metrics,
@@ -619,33 +596,27 @@ impl LpListener {
 }
 
 pub(crate) mod cleanup_task {
-    use crate::node::lp_listener::registration::RegistrationsInProgress;
     use crate::node::lp_listener::{LpDebug, TimestampedState};
-    use crate::node::wireguard::PeerManager;
     use dashmap::DashMap;
     use nym_lp::state_machine::LpStateBare;
     use nym_lp::LpStateMachine;
     use nym_metrics::inc_by;
     use nym_node_metrics::NymNodeMetrics;
     use std::sync::Arc;
-    use tracing::{debug, error, info};
+    use tracing::{debug, info};
 
     async fn perform_cleanup(
-        peer_manager: &PeerManager,
         handshake_states: &Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         session_states: &Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
-        registrations_in_progress: &RegistrationsInProgress,
         cfg: LpDebug,
     ) {
         let handshake_ttl = cfg.handshake_ttl;
         let session_ttl = cfg.session_ttl;
         let demoted_session_ttl = cfg.demoted_session_ttl;
-        let pending_registration_ttl = cfg.pending_registration_ttl;
 
         let start = std::time::Instant::now();
         let mut hs_removed = 0u64;
         let mut ss_removed = 0u64;
-        let mut pending_reg_removed = 0u64;
         let mut demoted_removed = 0u64;
 
         // Remove stale handshakes (based on age since creation)
@@ -680,33 +651,10 @@ pub(crate) mod cleanup_task {
             }
         });
 
-        // Remove stale registrations (based on time since last activity)
-        let mut reg_guard = registrations_in_progress.lock().await;
-        let mut stale_registrations = Vec::new();
-        for (k, timestamped) in reg_guard.iter() {
-            if timestamped.age() > pending_registration_ttl {
-                stale_registrations.push(*k)
-            }
-        }
-
-        for to_remove in stale_registrations {
-            pending_reg_removed += 1;
-
-            // SAFETY: we never dropped the guard and the entry existed
-            #[allow(clippy::unwrap_used)]
-            let entry = reg_guard.remove(&to_remove).unwrap();
-            if let Err(err) = peer_manager
-                .release_ip_pair(entry.state.allocated_ip_pair())
-                .await
-            {
-                error!("failed to release allocated ip pair: {err}")
-            }
-        }
-
-        if hs_removed > 0 || ss_removed > 0 || demoted_removed > 0 || pending_reg_removed > 0 {
+        if hs_removed > 0 || ss_removed > 0 || demoted_removed > 0 {
             let duration = start.elapsed();
             info!(
-                "LP state cleanup: removed {hs_removed} handshakes, {pending_reg_removed} pending registrations, {ss_removed} sessions, {demoted_removed} demoted (took {:.3}s)",
+                "LP state cleanup: removed {hs_removed} handshakes, {ss_removed} sessions, {demoted_removed} demoted (took {:.3}s)",
                 duration.as_secs_f64()
             );
 
@@ -720,12 +668,6 @@ pub(crate) mod cleanup_task {
             if demoted_removed > 0 {
                 inc_by!("lp_states_cleanup_demoted_removed", demoted_removed as i64);
             }
-            if pending_reg_removed > 0 {
-                inc_by!(
-                    "lp_states_cleanup_pending_registrations_removed",
-                    pending_reg_removed as i64
-                );
-            }
         }
     }
 
@@ -737,10 +679,8 @@ pub(crate) mod cleanup_task {
     /// Demoted sessions (ReadOnlyTransport) use shorter TTL since they
     /// only need to drain in-flight packets after subsession promotion.
     pub(crate) async fn cleanup_loop(
-        peer_manager: Arc<PeerManager>,
         handshake_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
-        registrations_in_progress: RegistrationsInProgress,
         cfg: LpDebug,
         shutdown: nym_task::ShutdownToken,
         _metrics: NymNodeMetrics,
@@ -757,7 +697,7 @@ pub(crate) mod cleanup_task {
                     break;
                 }
                 _ = cleanup_interval.tick() => {
-                    perform_cleanup(&peer_manager, &handshake_states, &session_states, &registrations_in_progress, cfg).await;
+                    perform_cleanup(&handshake_states, &session_states,  cfg).await;
                 }
             }
         }

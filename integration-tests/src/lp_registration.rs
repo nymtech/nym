@@ -5,11 +5,8 @@
 mod tests {
     use anyhow::Context;
     use nym_bandwidth_controller::mock::MockBandwidthController;
-    use nym_credential_verification::UpgradeModeState;
     use nym_credential_verification::ecash::MockEcashManager;
-    use nym_credential_verification::upgrade_mode::{
-        UpgradeModeCheckConfig, UpgradeModeCheckRequestSender, UpgradeModeDetails,
-    };
+    use nym_credential_verification::upgrade_mode::testing::mock_dummy_upgrade_mode_details;
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::{ed25519, x25519};
     use nym_gateway::GatewayError;
@@ -18,7 +15,7 @@ mod tests {
         LpDebug, LpHandlerState, LpLocalPeer, MixForwardingReceiver, PeerControlRequest,
         WireguardGatewayData, mix_forwarding_channels,
     };
-    use nym_gateway::node::wireguard::PeerManager;
+    use nym_gateway::node::wireguard::{PeerManager, PeerRegistrator};
     use nym_gateway::node::{ActiveClientsStore, GatewayStorage, LpConfig};
     use nym_registration_client::{LpClientError, LpRegistrationClient};
     use nym_test_utils::helpers::{CryptoRng, RngCore, u64_seeded_rng};
@@ -166,10 +163,9 @@ mod tests {
             .unwrap()
         }
 
-        async fn allocate_ip_pair(&mut self) -> IpPair {
+        fn pre_allocate_ip_pair(&mut self) -> IpPair {
             self.ip_pool
-                .allocate()
-                .await
+                .pre_allocate()
                 .expect("unexpected ip allocation failure!")
         }
 
@@ -179,17 +175,6 @@ mod tests {
                 .await
                 .context("cannot connect to db")?;
             Ok(GatewayStorage::from_connection_pool(conn_pool, 100).await?)
-        }
-
-        const DUMMY_ATTESTER_ED25519_PRIVATE_KEY: [u8; 32] = [
-            108, 49, 193, 21, 126, 161, 249, 85, 242, 207, 74, 195, 238, 6, 64, 149, 201, 140, 248,
-            163, 122, 170, 79, 198, 87, 85, 36, 29, 243, 92, 64, 161,
-        ];
-
-        pub(crate) fn dummy_attester_public_key() -> ed25519::PublicKey {
-            let private_key =
-                ed25519::PrivateKey::from_bytes(&Self::DUMMY_ATTESTER_ED25519_PRIVATE_KEY).unwrap();
-            private_key.public_key()
         }
 
         async fn mock(rng: &mut (impl RngCore + CryptoRng)) -> anyhow::Result<Self> {
@@ -217,31 +202,24 @@ mod tests {
             // create wireguard data
             let (wireguard_data, peer_request_rx) = Self::wireguard_data(&base);
 
-            let (um_recheck_tx, um_recheck_rx) = futures::channel::mpsc::unbounded();
-
-            // TODO: use it if we ever want to test UM
-            let _ = um_recheck_rx;
+            let (upgrade_mode_details, _) = mock_dummy_upgrade_mode_details();
 
             // mock the wg peer controller
             let (mock_peer_controller, peer_controller_state) =
                 mock_peer_controller(peer_request_rx);
 
-            let upgrade_mode_state = UpgradeModeState::new(Self::dummy_attester_public_key());
-            let upgrade_mode_details = UpgradeModeDetails::new(
-                UpgradeModeCheckConfig {
-                    // essentially we never want to trigger this in our tests
-                    min_staleness_recheck: Duration::from_nanos(1),
-                },
-                UpgradeModeCheckRequestSender::new(um_recheck_tx),
-                upgrade_mode_state.clone(),
-            );
-
             // registering particular responses for peer controller is up to given test
-            let peer_manager = Arc::new(PeerManager::new(wireguard_data));
+            let ecash_verifier = Arc::new(ecash_verifier);
+
+            let peer_registrator = PeerRegistrator::new(
+                ecash_verifier.clone(),
+                PeerManager::new(wireguard_data),
+                upgrade_mode_details,
+            );
 
             let lp_state = LpHandlerState {
                 // use mock instance of ecash verifier
-                ecash_verifier: Arc::new(ecash_verifier),
+                ecash_verifier,
 
                 // use in-memory database (no need for persistency)
                 storage,
@@ -252,10 +230,6 @@ mod tests {
 
                 // no clients at the beginning
                 active_clients_store: ActiveClientsStore::new(),
-
-                // handles required for wg registration
-                upgrade_mode: upgrade_mode_details,
-                peer_manager,
 
                 // use default lp config (with enabled flag)
                 lp_config,
@@ -269,9 +243,10 @@ mod tests {
                 // we start with empty state
                 session_states: Arc::new(Default::default()),
 
-                // sensible default value for tests
-                registrations_in_progress: Default::default(),
                 forward_semaphore,
+
+                // handles for dealing with new peers
+                peer_registrator: Some(peer_registrator),
             };
 
             Ok(Gateway {
@@ -444,7 +419,7 @@ mod tests {
 
             // 3. register all needed responses for the dvpn registration that will reach the peer controller
             // 1) peer registration - ip pair allocation
-            let ip_pair = entry.allocate_ip_pair().await;
+            let ip_pair = entry.pre_allocate_ip_pair();
             let reg_res = Ok::<_, nym_wireguard::Error>(ip_pair);
 
             entry
@@ -617,7 +592,7 @@ mod tests {
 
             // 4. register all needed responses for the dvpn registration that will reach the peer controller
             // 1) peer registration - ip pair allocation
-            let entry_ip_pair = entry.allocate_ip_pair().await;
+            let entry_ip_pair = entry.pre_allocate_ip_pair();
             let reg_res = Ok::<_, nym_wireguard::Error>(entry_ip_pair);
 
             entry
@@ -668,7 +643,7 @@ mod tests {
 
             // 10. register all needed responses for the dvpn registration that will reach the peer controller
             // 1) peer registration - ip pair allocation
-            let exit_ip_pair = exit.allocate_ip_pair().await;
+            let exit_ip_pair = exit.pre_allocate_ip_pair();
             let reg_res = Ok::<_, nym_wireguard::Error>(exit_ip_pair);
 
             exit.register_peer_controller_response(

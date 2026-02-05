@@ -28,6 +28,22 @@ pub struct NymNodeInformation {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct WireguardRegistrationData {
+    /// Public x25519 key of this gateway
+    #[serde(with = "bs58_x25519_pubkey")]
+    pub public_key: x25519::PublicKey,
+
+    /// Port at which this gateway is accessible for wireguard
+    pub port: u16,
+
+    /// Ipv4 address assigned to this peer
+    pub private_ipv4: Ipv4Addr,
+
+    /// Ipv6 address assigned to this peer
+    pub private_ipv6: Ipv6Addr,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WireguardConfiguration {
     #[serde(with = "bs58_x25519_pubkey")]
     pub public_key: x25519::PublicKey,

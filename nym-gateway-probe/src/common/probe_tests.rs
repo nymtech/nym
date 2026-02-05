@@ -299,9 +299,6 @@ pub async fn wg_probe_lp(
     let entry_lp_version = entry_lp_data.lp_version;
     let exit_lp_version = exit_lp_data.lp_version;
 
-    let entry_ip = entry_address.ip();
-    let exit_ip = exit_address.ip();
-
     info!("Starting LP-based WireGuard probe (entry→exit via forwarding)");
 
     let mut wg_outcome = WgProbeResults::default();
@@ -405,9 +402,9 @@ pub async fn wg_probe_lp(
 
     // Build WireGuard endpoint addresses
     // Entry endpoint uses entry_ip (host-reachable) + port from registration
-    let entry_wg_endpoint = format!("{}:{}", entry_ip, entry_gateway_data.endpoint.port());
+    let entry_wg_endpoint = entry_gateway_data.endpoint;
     // Exit endpoint uses exit_ip + port from registration (forwarded via entry)
-    let exit_wg_endpoint = format!("{}:{}", exit_ip, exit_gateway_data.endpoint.port());
+    let exit_wg_endpoint = exit_gateway_data.endpoint;
 
     info!("Two-hop WireGuard configuration:");
     info!("  Entry gateway:");

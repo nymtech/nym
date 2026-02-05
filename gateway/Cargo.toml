@@ -89,9 +89,11 @@ bytes = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
 
 [dev-dependencies]
+anyhow = { workspace = true }
+nym-test-utils = { workspace = true }
 nym-gateway-storage = { workspace = true, features = ["mock"] }
 nym-wireguard = { workspace = true, features = ["mock"] }
-mock_instant = "0.6.0"
+mock_instant = { workspace = true }
 time = { workspace = true }
 
 [lints]

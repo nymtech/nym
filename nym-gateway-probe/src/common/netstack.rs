@@ -5,6 +5,7 @@ use crate::config::NetstackArgs;
 use anyhow::Context;
 use serde::Deserialize;
 use std::ffi::{CStr, CString};
+use std::net::SocketAddr;
 
 mod sys {
     use std::ffi::{c_char, c_void};
@@ -223,14 +224,14 @@ pub struct TwoHopNetstackRequestGo {
     pub entry_wg_ip: String,
     pub entry_private_key: String,
     pub entry_public_key: String,
-    pub entry_endpoint: String,
+    pub entry_endpoint: SocketAddr,
     pub entry_awg_args: String,
 
     // Exit tunnel configuration (connects via forwarder through entry)
     pub exit_wg_ip: String,
     pub exit_private_key: String,
     pub exit_public_key: String,
-    pub exit_endpoint: String,
+    pub exit_endpoint: SocketAddr,
     pub exit_awg_args: String,
 
     // Test parameters

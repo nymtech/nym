@@ -6937,6 +6937,7 @@ dependencies = [
  "nym-crypto",
  "nym-kkt",
  "nym-lp-common",
+ "nym-lp-transport",
  "nym-test-utils",
  "parking_lot",
  "rand 0.8.5",

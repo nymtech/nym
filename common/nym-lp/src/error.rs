@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::message::MessageType;
 use crate::{noise_protocol::NoiseError, replay::ReplayError};
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_kkt::ciphersuite::{HashFunction, KEM};
@@ -102,4 +103,18 @@ pub enum LpError {
         kem: KEM,
         hash_function: HashFunction,
     },
+
+    #[error("failed to complete KKT/PSQ handshake: {0}")]
+    KKTPsqHandshake(String),
+}
+
+impl LpError {
+    pub fn kkt_psq_handshake(msg: impl Into<String>) -> Self {
+        Self::KKTPsqHandshake(msg.into())
+    }
+    pub fn unexpected_handshake_response(got: MessageType, expected: MessageType) -> LpError {
+        Self::KKTPsqHandshake(format!(
+            "received unexpected response, got: {got:?}, expected: {expected:?}"
+        ))
+    }
 }

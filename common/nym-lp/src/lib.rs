@@ -10,6 +10,7 @@ pub mod noise_protocol;
 pub mod packet;
 pub mod peer;
 pub mod psk;
+mod psq;
 pub mod replay;
 pub mod session;
 mod session_integration;

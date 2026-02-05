@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpError;
-use crate::message::LpMessage;
+use crate::message::{LpMessage, MessageType};
 use crate::replay::ReceivingKeyCounterValidator;
 use bytes::{BufMut, BytesMut};
 use nym_lp_common::format_debug_bytes;
@@ -51,6 +51,10 @@ impl LpPacket {
             message,
             trailer: [0; TRAILER_LEN],
         }
+    }
+
+    pub fn typ(&self) -> MessageType {
+        self.message.typ()
     }
 
     /// Compute a hash of the message payload

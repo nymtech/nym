@@ -591,9 +591,7 @@ mod test {
     use super::*;
     use itertools::Itertools;
     use std::collections::HashMap;
-    use std::{
-        net::{IpAddr, Ipv4Addr, Ipv6Addr},
-    };
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
     /// IP addresses guaranteed to fail attempts to resolve
     ///

@@ -33,17 +33,26 @@ impl RegistrationClientBuilder {
     }
 
     pub fn use_lp(&self) -> bool {
-        self.config.enable_lp_regitration
-            && self.config.entry_node.node.lp_data.is_some()
-            && self.config.exit_node.node.lp_data.is_some()
-            // To remove when LP supports Mixnet registration
-            && self.config.mode == RegistrationMode::Wireguard
+        let lp_enabled = self.config.enable_lp_regitration;
+        let lp_info_available = self.config.entry_node.node.lp_data.is_some()
+            && self.config.exit_node.node.lp_data.is_some();
+        // To remove when LP supports Mixnet registration
+        let wireguard_mode = self.config.mode == RegistrationMode::Wireguard;
+        let use_lp = lp_enabled && lp_info_available && wireguard_mode;
+        if !use_lp && lp_enabled {
+            tracing::warn!(
+                "LP is enabled but can't be used: Missing LP information: {lp_info_available}, wireguard mode: {wireguard_mode}"
+            );
+        }
+        use_lp
     }
 
     pub async fn build(self) -> Result<RegistrationClient, RegistrationClientError> {
         if self.use_lp() {
+            tracing::debug!("Using LP for registration");
             Ok(RegistrationClient::Lp(Box::new(self.build_lp().await?)))
         } else {
+            tracing::debug!("Using Mixnet for registration");
             Ok(RegistrationClient::Mixnet(Box::new(
                 self.build_mixnet().await?,
             )))

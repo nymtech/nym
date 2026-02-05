@@ -364,7 +364,13 @@ impl HickoryDnsResolver {
         }
     }
 
-    /// Unset the map of static addresses returned in the pre-resolve stage.
+    /// Clear entries from the static table that would return entries during the pre-resolve stage.
+    /// This means that all lookups will attempt to use the network resolver again before the static
+    /// table is consulted.
+    ///  
+    /// Entries elevated to pre-resolve from fallback (added from default or using
+    /// [`set_fallback`]`) will have their cache timeout cleared. Entries added directly to
+    /// pre-resolve (using [`Self::set_static_preresolve`]) will be removed.
     pub fn clear_preresolve(&self) {
         debug!("clearing pre-resolve table");
         if let Some(cell) = &self.static_base

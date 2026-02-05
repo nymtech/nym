@@ -1,897 +1,449 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::common::bandwidth_helpers::build_bandwidth_controller;
 use crate::common::helpers;
+use crate::common::nodes::TestedNodeDetails;
 use crate::common::probe_tests::{
     do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe, wg_probe_lp,
 };
-use crate::common::types::{Entry, Exit, Socks5ProbeResults, WgProbeResults};
-use crate::config::Socks5Args;
-use anyhow::bail;
-use nym_api_requests::models::NetworkRequesterDetailsV1;
+use crate::common::types::{Entry, LpProbeResults};
+use crate::config::{CredentialArgs, CredentialMode, NetstackArgs, ProbeConfig};
 use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
+use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_client_core::config::ForgetMe;
 use nym_config::defaults::NymNetworkDetails;
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::x25519::KeyPair;
+use nym_crypto::asymmetric::x25519;
 use nym_sdk::mixnet::{
-    CredentialStorage, Ephemeral, KeyStore, MixnetClient, MixnetClientBuilder, MixnetClientStorage,
-    NodeIdentity, StoragePaths,
+    Ephemeral, KeyStore, MixnetClient, MixnetClientBuilder, MixnetClientStorage, StoragePaths,
 };
-use nym_topology::NymTopology;
+use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use rand::rngs::OsRng;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use tracing::*;
-use url::Url;
+
+pub use crate::common::nodes::{NymApiDirectory, query_gateway_by_ip};
+pub use crate::common::types::{ProbeOutcome, ProbeResult};
 
 mod common;
 pub use common::types;
 pub mod config;
 
-use crate::common::bandwidth_helpers::{
-    acquire_bandwidth, build_bandwidth_controller, import_bandwidth,
-};
-pub use crate::common::nodes::{
-    DirectoryNode, NymApiDirectory, TestedNode, TestedNodeDetails, TestedNodeLpDetails,
-    query_gateway_by_ip,
-};
-pub use crate::common::types::{IpPingReplies, ProbeOutcome, ProbeResult};
-pub use crate::config::{CredentialArgs, NetstackArgs, TestMode};
-
 pub struct Probe {
-    entrypoint: NodeIdentity,
-    tested_node: TestedNode,
-    amnezia_args: String,
-    netstack_args: NetstackArgs,
-    credentials_args: CredentialArgs,
-    /// Pre-queried gateway node (used when --gateway-ip is specified)
-    direct_gateway_node: Option<DirectoryNode>,
-    /// Pre-queried exit gateway node (used when --exit-gateway-ip is specified for LP forwarding)
-    exit_gateway_node: Option<DirectoryNode>,
-    /// Localnet entry gateway info (used when --entry-gateway-identity is specified)
-    localnet_entry: Option<TestedNodeDetails>,
-    /// Localnet exit gateway info (used when --exit-gateway-identity is specified)
-    localnet_exit: Option<TestedNodeDetails>,
-    socks5_args: Socks5Args,
+    /// Entry node
+    entry_node: TestedNodeDetails,
+    /// Optional exit gateway node. If not provided, entry will be used
+    exit_node: Option<TestedNodeDetails>,
+
+    config: ProbeConfig,
+
+    network: NymNetworkDetails,
+
+    topology: Option<NymTopology>,
 }
 
 impl Probe {
+    /// Create a probe with pre-queried gateway nodes
     pub fn new(
-        entrypoint: NodeIdentity,
-        tested_node: TestedNode,
-        netstack_args: NetstackArgs,
-        credentials_args: CredentialArgs,
-        socks5_args: Socks5Args,
+        entry_node: TestedNodeDetails,
+        exit_node: Option<TestedNodeDetails>,
+        network: NymNetworkDetails,
+        config: ProbeConfig,
     ) -> Self {
         Self {
-            entrypoint,
-            tested_node,
-            amnezia_args: "".into(),
-            netstack_args,
-            credentials_args,
-            direct_gateway_node: None,
-            exit_gateway_node: None,
-            localnet_entry: None,
-            localnet_exit: None,
-            socks5_args,
+            entry_node,
+            exit_node,
+            network,
+            config,
+            topology: None,
         }
     }
 
-    /// Create a probe with a pre-queried gateway node (for direct IP mode)
-    pub fn new_with_gateway(
-        entrypoint: NodeIdentity,
-        tested_node: TestedNode,
-        netstack_args: NetstackArgs,
-        credentials_args: CredentialArgs,
-        gateway_node: DirectoryNode,
-        socks5_args: Socks5Args,
-    ) -> Self {
-        Self {
-            entrypoint,
-            tested_node,
-            amnezia_args: "".into(),
-            netstack_args,
-            credentials_args,
-            direct_gateway_node: Some(gateway_node),
-            exit_gateway_node: None,
-            localnet_entry: None,
-            localnet_exit: None,
-            socks5_args,
-        }
-    }
-
-    /// Create a probe with both entry and exit gateways pre-queried (for LP forwarding tests)
-    pub fn new_with_gateways(
-        entrypoint: NodeIdentity,
-        tested_node: TestedNode,
-        netstack_args: NetstackArgs,
-        credentials_args: CredentialArgs,
-        entry_gateway_node: DirectoryNode,
-        exit_gateway_node: DirectoryNode,
-        socks5_args: Socks5Args,
-    ) -> Self {
-        Self {
-            entrypoint,
-            tested_node,
-            amnezia_args: "".into(),
-            netstack_args,
-            credentials_args,
-            direct_gateway_node: Some(entry_gateway_node),
-            exit_gateway_node: Some(exit_gateway_node),
-            localnet_entry: None,
-            localnet_exit: None,
-            socks5_args,
-        }
-    }
-
-    /// Create a probe for localnet mode (no HTTP query needed)
-    /// Uses identity + LP address directly from CLI args
-    pub fn new_localnet(
-        entry: TestedNodeDetails,
-        exit: Option<TestedNodeDetails>,
-        netstack_args: NetstackArgs,
-        credentials_args: CredentialArgs,
-        socks5_args: Socks5Args,
-    ) -> Self {
-        let entrypoint = entry.identity;
-        Self {
-            entrypoint,
-            tested_node: TestedNode::SameAsEntry,
-            amnezia_args: "".into(),
-            netstack_args,
-            credentials_args,
-            direct_gateway_node: None,
-            exit_gateway_node: None,
-            localnet_entry: Some(entry),
-            localnet_exit: exit,
-            socks5_args,
-        }
-    }
-
-    pub fn with_amnezia(&mut self, args: &str) -> &Self {
-        self.amnezia_args = args.to_string();
-        self
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub async fn probe(
-        self,
-        directory: Option<NymApiDirectory>,
-        nyxd_url: Url,
-        ignore_egress_epoch_role: bool,
-        only_wireguard: bool,
-        only_lp_registration: bool,
-        test_lp_wg: bool,
-        min_mixnet_performance: Option<u8>,
-        network_details: NymNetworkDetails,
+    /// Run a probe as an NS agent, i.e. a bonded node on a known network
+    pub async fn probe_run_agent(
+        mut self,
+        credential_args: CredentialArgs,
     ) -> anyhow::Result<ProbeResult> {
-        let tickets_materials = self.credentials_args.decode_attached_ticket_materials()?;
-
-        let tested_entry = self.tested_node.is_same_as_entry();
-        let (mixnet_entry_gateway_id, node_info) = self.lookup_gateway(&directory).await?;
-
         let storage = Ephemeral::default();
 
+        let mixnet_debug_config = helpers::mixnet_debug_config(
+            self.config.min_gateway_mixnet_performance,
+            self.config.ignore_egress_epoch_role,
+        );
+
+        // If we need to run at least one mixnet client, prefetch topology
+        if self.config.test_mode.needs_mixnet() || self.config.test_mode.socks5_tests() {
+            self.topology = helpers::fetch_topology(&self.network, &mixnet_debug_config)
+            .await
+            .inspect_err(|e| warn!("Failed to fetch topology for that run, mixnet clients will have to handle themselves : {e}")).ok();
+        }
+
         // Connect to the mixnet via the entry gateway
-        let disconnected_mixnet_client = MixnetClientBuilder::new_with_storage(storage.clone())
-            .request_gateway(mixnet_entry_gateway_id.to_string())
-            .network_details(network_details.clone())
-            .debug_config(helpers::mixnet_debug_config(
-                min_mixnet_performance,
-                ignore_egress_epoch_role,
-            ))
+        let mut mixnet_client_builder = MixnetClientBuilder::new_with_storage(storage.clone())
+            .request_gateway(self.entry_node.identity.to_string())
+            .network_details(self.network.clone())
+            .debug_config(mixnet_debug_config)
             .with_forget_me(ForgetMe::new_all())
-            .credentials_mode(true)
-            .build()?;
+            .credentials_mode(true);
 
-        // in normal operation expects the ticket material to be provided as an argument
-        let bandwidth_import = disconnected_mixnet_client.begin_bandwidth_import();
-        import_bandwidth(bandwidth_import, tickets_materials).await?;
+        if let Some(topology) = &self.topology {
+            mixnet_client_builder = mixnet_client_builder.custom_topology_provider(Box::new(
+                HardcodedTopologyProvider::new(topology.clone()),
+            ));
+        }
 
-        let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
+        let disconnected_mixnet_client = mixnet_client_builder.build()?;
 
-        // Extract topology from the connected client (if successful) to reuse for SOCKS5 test
-        let topology = match &mixnet_client {
-            Ok(client) => client
-                .read_current_route_provider()
-                .await
-                .map(|rp| rp.topology.clone()),
-            Err(_) => None,
+        // Import credential
+        credential_args
+            .import_credential(&disconnected_mixnet_client)
+            .await?;
+
+        let bandwidth_provider =
+            build_bandwidth_controller(&self.network, storage.credential_store().clone(), false)?;
+
+        // Mixnet client start
+        let mixnet_client = if self.config.test_mode.needs_mixnet() {
+            Some(disconnected_mixnet_client.connect_to_mixnet().await)
+        } else {
+            // Make sure keys are generated, in case we don't start the mixnet client
+            let key_store = storage.key_store();
+            let mut rng = OsRng;
+            if key_store.load_keys().await.is_err() {
+                tracing::log::debug!("Generating new client keys");
+                nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
+            }
+            None
         };
 
-        // Convert legacy flags to TestMode
-        let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
-        let test_mode =
-            TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
-
-        self.do_probe_test(
-            Some(mixnet_client),
-            storage,
-            mixnet_entry_gateway_id,
-            node_info,
-            directory.as_ref(),
-            nyxd_url,
-            tested_entry,
-            test_mode,
-            only_wireguard,
-            false, // Not using mock ecash in regular probe mode
-            network_details,
-            topology,
-        )
-        .await
+        self.do_probe_test(mixnet_client, bandwidth_provider).await
     }
 
-    #[allow(clippy::too_many_arguments)]
+    /// Run a probe on unannounced gateway(s) some tests will not be available
     pub async fn probe_run_locally(
         self,
         config_dir: &PathBuf,
-        mnemonic: Option<&str>,
-        directory: Option<NymApiDirectory>,
-        nyxd_url: Url,
-        ignore_egress_epoch_role: bool,
-        only_wireguard: bool,
-        only_lp_registration: bool,
-        test_lp_wg: bool,
-        min_mixnet_performance: Option<u8>,
-        use_mock_ecash: bool,
-        network_details: NymNetworkDetails,
+        credential: CredentialMode,
     ) -> anyhow::Result<ProbeResult> {
-        // Localnet mode - identity + LP address from CLI, no HTTP query
-        // This path is used when --entry-gateway-identity is specified
-        if let Some(entry_info) = &self.localnet_entry {
-            info!("Using localnet mode with CLI-provided gateway identities");
-
-            // Initialize storage (needed for credentials)
-            if !config_dir.exists() {
-                std::fs::create_dir_all(config_dir)?;
-            }
-            let storage_paths = StoragePaths::new_from_dir(config_dir)?;
-            let storage = storage_paths
-                .initialise_default_persistent_storage()
-                .await?;
-
-            // For localnet, use entry as the test node (or exit if provided)
-            let mixnet_entry_gateway_id = entry_info.identity;
-            let node_info = if let Some(exit_info) = &self.localnet_exit {
-                exit_info.clone()
-            } else {
-                entry_info.clone()
-            };
-
-            // Convert legacy flags to TestMode
-            let has_exit = self.localnet_exit.is_some();
-            let test_mode =
-                TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
-
-            return self
-                .do_probe_test(
-                    None,
-                    storage,
-                    mixnet_entry_gateway_id,
-                    node_info,
-                    directory.as_ref(),
-                    nyxd_url,
-                    false, // tested_entry
-                    test_mode,
-                    only_wireguard,
-                    use_mock_ecash,
-                    network_details,
-                    None, // No topology (no mixnet client in localnet mode)
-                )
-                .await;
-        }
-
-        // If both gateways are pre-queried via --gateway-ip and --exit-gateway-ip,
-        // skip mixnet setup entirely - we have all the data we need
-        if self.direct_gateway_node.is_some() && self.exit_gateway_node.is_some() {
-            let entry_node = if let Some(entry_node) = self.direct_gateway_node.as_ref() {
-                entry_node
-            } else {
-                return Err(anyhow::anyhow!("Entry gateway node is missing"));
-            };
-            let exit_node = if let Some(exit_node) = self.exit_gateway_node.as_ref() {
-                exit_node
-            } else {
-                return Err(anyhow::anyhow!("Exit gateway node is missing"));
-            };
-
-            // Initialize storage (needed for credentials)
-            if !config_dir.exists() {
-                std::fs::create_dir_all(config_dir)?;
-            }
-            let storage_paths = StoragePaths::new_from_dir(config_dir)?;
-            let storage = storage_paths
-                .initialise_default_persistent_storage()
-                .await?;
-
-            // Get node details from pre-queried nodes
-            let mixnet_entry_gateway_id = entry_node.identity();
-            let node_info = exit_node.to_testable_node()?;
-
-            // Convert legacy flags to TestMode (has_exit = true since we have exit_gateway_node)
-            let test_mode =
-                TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, true);
-
-            return self
-                .do_probe_test(
-                    None,
-                    storage,
-                    mixnet_entry_gateway_id,
-                    node_info,
-                    directory.as_ref(),
-                    nyxd_url,
-                    false, // tested_entry
-                    test_mode,
-                    only_wireguard,
-                    use_mock_ecash,
-                    network_details,
-                    None, // No topology (no mixnet client in direct gateway mode)
-                )
-                .await;
-        }
-
-        // If only testing LP registration, use the dedicated LP-only path
-        // This skips mixnet setup entirely and allows testing local gateways
-        if only_lp_registration {
-            return self
-                .probe_lp_only(config_dir, directory, nyxd_url, use_mock_ecash)
-                .await;
-        }
-
-        let tested_entry = self.tested_node.is_same_as_entry();
-        let (mixnet_entry_gateway_id, node_info) = self.lookup_gateway(&directory).await?;
-
-        if config_dir.is_file() {
-            bail!("provided configuration directory is a file");
-        }
-
-        if !config_dir.exists() {
-            std::fs::create_dir_all(config_dir)?;
-        }
-
         let storage_paths = StoragePaths::new_from_dir(config_dir)?;
         let storage = storage_paths
             .initialise_default_persistent_storage()
             .await?;
 
-        // Connect to the mixnet via the entry gateway, without forget-me flag so that gateway remembers client
-        // and keeps its bandwidth between probe runs
+        // We cannot run mixnet tests on unannounced gateway, but we still need one to import credential if not using mock ecash
         let disconnected_mixnet_client = MixnetClientBuilder::new_with_storage(storage.clone())
-            .request_gateway(mixnet_entry_gateway_id.to_string())
-            .network_details(network_details.clone())
-            .debug_config(helpers::mixnet_debug_config(
-                min_mixnet_performance,
-                ignore_egress_epoch_role,
-            ))
-            .credentials_mode(true)
+            .credentials_mode(!credential.use_mock_ecash)
             .build()?;
 
+        // Acquire credential if needed
+        credential
+            .acquire(&disconnected_mixnet_client, &storage)
+            .await?;
+
+        let bandwidth_provider = build_bandwidth_controller(
+            &self.network,
+            storage.credential_store().clone(),
+            credential.use_mock_ecash,
+        )?;
+
+        // Make sure keys are generated
         let key_store = storage.key_store();
         let mut rng = OsRng;
-
-        // WORKAROUND SINCE IT HASN'T MADE IT TO THE MONOREPO:
         if key_store.load_keys().await.is_err() {
             tracing::log::debug!("Generating new client keys");
             nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
         }
 
-        let ticketbook_count = storage
-            .credential_store()
-            .get_ticketbooks_info()
-            .await?
-            .len();
-
-        info!("Credential store contains {} ticketbooks", ticketbook_count);
-
-        // Only acquire real bandwidth if not using mock ecash
-        if ticketbook_count < 1 && !use_mock_ecash {
-            let mnemonic = mnemonic.ok_or_else(|| {
-                anyhow::anyhow!("mnemonic is required when not using mock ecash (--use-mock-ecash)")
-            })?;
-            for ticketbook_type in [
-                TicketType::V1MixnetEntry,
-                TicketType::V1WireguardEntry,
-                TicketType::V1WireguardExit,
-            ] {
-                acquire_bandwidth(mnemonic, &disconnected_mixnet_client, ticketbook_type).await?;
-            }
-        } else if use_mock_ecash {
-            info!("Using mock ecash mode - skipping bandwidth acquisition");
-        }
-
-        let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
-
-        // extract topology from the connected client (if any) to reuse for SOCKS5 test
-        let topology = match &mixnet_client {
-            Ok(client) => client
-                .read_current_route_provider()
-                .await
-                .map(|rp| rp.topology.clone()),
-            Err(_) => None,
-        };
-
-        // Convert legacy flags to TestMode
-        let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
-        let test_mode =
-            TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
-
-        self.do_probe_test(
-            Some(mixnet_client),
-            storage,
-            mixnet_entry_gateway_id,
-            node_info,
-            directory.as_ref(),
-            nyxd_url,
-            tested_entry,
-            test_mode,
-            only_wireguard,
-            use_mock_ecash,
-            network_details,
-            topology,
-        )
-        .await
+        self.do_probe_test(None, bandwidth_provider).await
     }
 
-    /// Probe LP registration only, skipping all mixnet tests
-    /// This is useful for testing local dev gateways that aren't registered in nym-api
-    pub async fn probe_lp_only(
-        self,
+    pub async fn probe_run(
+        mut self,
         config_dir: &PathBuf,
-        directory: Option<NymApiDirectory>,
-        nyxd_url: Url,
-        use_mock_ecash: bool,
+        credential: CredentialMode,
     ) -> anyhow::Result<ProbeResult> {
-        let tested_entry = self.tested_node.is_same_as_entry();
-        let (mixnet_entry_gateway_id, node_info) = self.lookup_gateway(&directory).await?;
-
-        if config_dir.is_file() {
-            bail!("provided configuration directory is a file");
-        }
-
-        if !config_dir.exists() {
-            std::fs::create_dir_all(config_dir)?;
-        }
-
         let storage_paths = StoragePaths::new_from_dir(config_dir)?;
         let storage = storage_paths
             .initialise_default_persistent_storage()
             .await?;
 
-        let key_store = storage.key_store();
-        let mut rng = OsRng;
+        let mixnet_debug_config = helpers::mixnet_debug_config(
+            self.config.min_gateway_mixnet_performance,
+            self.config.ignore_egress_epoch_role,
+        );
 
-        // Generate client keys if they don't exist
-        if key_store.load_keys().await.is_err() {
-            tracing::log::debug!("Generating new client keys");
-            nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
+        // If we need to run at least one mixnet client, prefetch topology
+        if self.config.test_mode.needs_mixnet() || self.config.test_mode.socks5_tests() {
+            self.topology = helpers::fetch_topology(&self.network, &mixnet_debug_config)
+            .await
+            .inspect_err(|e| warn!("Failed to fetch topology for that run, mixnet clients will have to handle themselves : {e}")).ok();
         }
 
-        // Check if node has LP address
-        let Some(lp_data) = node_info.lp_data else {
-            bail!("Gateway does not have LP data configured");
+        // Connect to the mixnet via the entry gateway, with forget-me flag only for stats so that gateway remembers client
+        // and keeps its bandwidth between probe runs
+        let mut mixnet_client_builder = MixnetClientBuilder::new_with_storage(storage.clone())
+            .request_gateway(self.entry_node.identity.to_string())
+            .network_details(self.network.clone())
+            .debug_config(mixnet_debug_config)
+            .with_forget_me(ForgetMe::new_stats())
+            .credentials_mode(!credential.use_mock_ecash);
+
+        if let Some(topology) = &self.topology {
+            mixnet_client_builder = mixnet_client_builder.custom_topology_provider(Box::new(
+                HardcodedTopologyProvider::new(topology.clone()),
+            ));
+        }
+
+        let disconnected_mixnet_client = mixnet_client_builder.build()?;
+
+        // Acquire credential if needed
+        credential
+            .acquire(&disconnected_mixnet_client, &storage)
+            .await?;
+
+        let bandwidth_provider = build_bandwidth_controller(
+            &self.network,
+            storage.credential_store().clone(),
+            credential.use_mock_ecash,
+        )?;
+
+        // Mixnet client start
+        let mixnet_client = if self.config.test_mode.needs_mixnet() {
+            Some(disconnected_mixnet_client.connect_to_mixnet().await)
+        } else {
+            // Make sure keys are generated, in case we don't start the mixnet client
+            let key_store = storage.key_store();
+            let mut rng = OsRng;
+            if key_store.load_keys().await.is_err() {
+                tracing::log::debug!("Generating new client keys");
+                nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
+            }
+            None
         };
 
-        info!("Testing LP registration for gateway {}", node_info.identity);
-
-        // Create bandwidth controller for credential preparation
-        let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
-            &NymNetworkDetails::new_from_env(),
-        )?;
-        let client = nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
-
-        let bw_controller =
-            build_bandwidth_controller(client, storage.credential_store().clone(), use_mock_ecash);
-
-        // Run LP registration probe
-        let lp_outcome = lp_registration_probe(node_info.identity, lp_data, &bw_controller)
-            .await
-            .unwrap_or_default();
-
-        // Return result with only LP outcome
-        Ok(ProbeResult {
-            node: node_info.identity.to_string(),
-            used_entry: mixnet_entry_gateway_id.to_string(),
-            outcome: ProbeOutcome {
-                as_entry: Entry::NotTested,
-                as_exit: if tested_entry {
-                    None
-                } else {
-                    Some(Exit::fail_to_connect())
-                },
-                wg: None,
-                socks5: None,
-                lp: Some(lp_outcome),
-            },
-        })
+        self.do_probe_test(mixnet_client, bandwidth_provider).await
     }
 
-    async fn test_socks5_if_possible(
-        &self,
-        network_details: NymNetworkDetails,
-        network_requester_details: &Option<NetworkRequesterDetailsV1>,
-        directory: &NymApiDirectory,
-        topology: Option<NymTopology>,
-    ) -> Option<Socks5ProbeResults> {
-        if let Some(nr_details) = network_requester_details {
-            match do_socks5_connectivity_test(
-                &nr_details.address,
-                network_details,
-                directory,
-                self.socks5_args.socks5_json_rpc_url_list.clone(),
-                self.socks5_args.mixnet_client_timeout_sec,
-                self.socks5_args.test_count,
-                self.socks5_args.failure_count_cutoff,
-                topology,
-            )
-            .await
-            {
-                Ok(results) => Some(results),
-                Err(e) => {
-                    error!("SOCKS5 test failed: {}", e);
+    #[allow(clippy::too_many_arguments)]
+    pub async fn do_probe_test(
+        self,
+        mixnet_client: Option<nym_sdk::Result<MixnetClient>>,
+        bandwith_provider: Box<dyn BandwidthTicketProvider>,
+    ) -> anyhow::Result<ProbeResult> {
+        // Setup exit node
+        let entry_under_test = self.exit_node.is_none();
+        let exit_node = self.exit_node.unwrap_or(self.entry_node.clone());
+
+        let mut probe_result = ProbeResult {
+            node: self.entry_node.identity.to_string(),
+            used_entry: exit_node.identity.to_string(),
+            outcome: ProbeOutcome {
+                as_entry: Entry::NotTested,
+                as_exit: None,
+                wg: None,
+                lp: None,
+                socks5: None,
+            },
+        };
+
+        let mixnet_client = match mixnet_client {
+            Some(Ok(mixnet_client)) => {
+                // We can connect, we don't know about routing yet, but having `false` if we don't test it is weird
+                probe_result.outcome.as_entry = Entry::success();
+                info!(
+                    "Successfully connected to entry gateway: {}",
+                    self.entry_node.identity
+                );
+                info!("Our nym address: {}", *mixnet_client.nym_address());
+                Some(mixnet_client)
+            }
+            Some(Err(err)) => {
+                error!("Failed to connect to mixnet: {err}");
+                probe_result.outcome.as_entry = if entry_under_test {
+                    Entry::fail_to_connect()
+                } else {
+                    Entry::EntryFailure
+                };
+                None
+            }
+            None => {
+                // At the moment, this is no-op. But if the initialization changes, we will have the correct value
+                probe_result.outcome.as_entry = Entry::NotTested;
+                None
+            }
+        };
+
+        // Mixnet ping tests
+        // There is some weird gymnastics with the mixnet client, but we need to give and then retrieve ownership
+        let mixnet_client = if self.config.test_mode.mixnet_tests() {
+            match mixnet_client {
+                Some(client) => {
+                    let nym_address = *client.nym_address();
+                    let (outcome, client) = do_ping(
+                        client,
+                        nym_address,
+                        exit_node.exit_router_address,
+                        entry_under_test,
+                    )
+                    .await;
+                    match outcome {
+                        Ok(outcome) => {
+                            probe_result.outcome = outcome;
+                        }
+                        Err(e) => {
+                            error!("Mixnet ping tests ended with an error : {e}");
+                        }
+                    }
+                    Some(client)
+                }
+                None => {
+                    error!("Mixnet tests cannot be run without a mixnet client");
+                    probe_result.outcome.as_entry = if entry_under_test {
+                        Entry::fail_to_connect()
+                    } else {
+                        Entry::EntryFailure
+                    };
                     None
                 }
             }
         } else {
-            info!("No NR available, skipping SOCKS5 tests");
-            None
-        }
-    }
-
-    pub async fn lookup_gateway(
-        &self,
-        directory: &Option<NymApiDirectory>,
-    ) -> anyhow::Result<(NodeIdentity, TestedNodeDetails)> {
-        // If we have a pre-queried gateway node (direct IP mode), use that
-        if let Some(direct_node) = &self.direct_gateway_node {
-            info!("Using pre-queried gateway node from direct IP query");
-            let node_info = direct_node.to_testable_node()?;
-            info!("connecting to entry gateway: {}", direct_node.identity());
-            debug!(
-                "authenticator version: {:?}",
-                node_info.authenticator_version
-            );
-            return Ok((self.entrypoint, node_info));
-        }
-
-        // Otherwise, use the directory (original behavior)
-        let directory = directory
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Directory is required when not using --gateway-ip"))?;
-
-        // Setup the entry gateways
-        let entry_gateway = directory.entry_gateway(&self.entrypoint)?;
-
-        let node_info: TestedNodeDetails = match self.tested_node {
-            TestedNode::Custom {
-                identity: _,
-                shares_entry: true,
-            } => {
-                debug!(
-                    "testing node {} as both entry and exit",
-                    entry_gateway.identity()
-                );
-                entry_gateway.to_testable_node()?
-            }
-            TestedNode::Custom {
-                identity,
-                shares_entry: false,
-            } => {
-                let node = directory.get_nym_node(identity)?;
-                info!(
-                    "testing node {} (via entry {})",
-                    node.identity(),
-                    entry_gateway.identity()
-                );
-                node.to_testable_node()?
-            }
-            TestedNode::SameAsEntry => entry_gateway.to_testable_node()?,
+            mixnet_client
         };
 
-        info!("connecting to entry gateway: {}", entry_gateway.identity());
-        debug!(
-            "authenticator version: {:?}",
-            node_info.authenticator_version
-        );
+        // Wireguard with Authenticator test
+        if let Some(mixnet_client) = mixnet_client {
+            // We have a mixnet_client to disconnect at the end here
+            if self.config.test_mode.wireguard_tests() {
+                if let (Some(authenticator), Some(ip_address)) =
+                    (exit_node.authenticator_address, exit_node.ip_address)
+                {
+                    info!("Testing WireGuard via Mixnet registration");
+                    // Run wireguard with authenticator
+                    let nym_address = *mixnet_client.nym_address();
+                    // Start the mixnet listener that the auth clients use to receive messages.
+                    let mixnet_listener_task =
+                        AuthClientMixnetListener::new(mixnet_client, CancellationToken::new())
+                            .start();
+                    let mut rng = rand::thread_rng();
+                    let auth_client = AuthenticatorClient::new(
+                        mixnet_listener_task.subscribe(),
+                        mixnet_listener_task.mixnet_sender(),
+                        nym_address,
+                        authenticator,
+                        exit_node.authenticator_version,
+                        Arc::new(x25519::KeyPair::new(&mut rng)),
+                        ip_address,
+                    );
 
-        Ok((self.entrypoint, node_info))
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub async fn do_probe_test<T>(
-        &self,
-        mixnet_client: Option<nym_sdk::Result<MixnetClient>>,
-        storage: T,
-        mixnet_entry_gateway_id: NodeIdentity,
-        node_info: TestedNodeDetails,
-        directory: Option<&NymApiDirectory>,
-        nyxd_url: Url,
-        tested_entry: bool,
-        test_mode: TestMode,
-        only_wireguard: bool,
-        use_mock_ecash: bool,
-        network_details: NymNetworkDetails,
-        topology: Option<NymTopology>,
-    ) -> anyhow::Result<ProbeResult>
-    where
-        T: MixnetClientStorage + Clone + 'static,
-        <T::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-    {
-        let Some(directory) = directory else {
-            bail!("You need to provide NYM API through environment")
-        };
-        // test_mode replaces the old only_lp_registration and test_lp_wg flags.
-        // only_wireguard is kept separate as it controls ping behavior within Mixnet mode.
-        let mut rng = rand::thread_rng();
-        let mixnet_client = match mixnet_client {
-            Some(Ok(mixnet_client)) => Some(mixnet_client),
-            Some(Err(err)) => {
-                error!("Failed to connect to mixnet: {err}");
-                return Ok(ProbeResult {
-                    node: node_info.identity.to_string(),
-                    used_entry: mixnet_entry_gateway_id.to_string(),
-                    outcome: ProbeOutcome {
-                        as_entry: if tested_entry {
-                            Entry::fail_to_connect()
-                        } else {
-                            Entry::EntryFailure
-                        },
-                        as_exit: None,
-                        socks5: None,
-                        wg: None,
-                        lp: None,
-                    },
-                });
-            }
-            None => None,
-        };
-
-        // Determine if we should run ping tests:
-        // - Only in Mixnet mode (LP modes don't use mixnet)
-        // - And only if not --only-wireguard (which skips pings)
-        let run_ping_tests = test_mode.needs_mixnet() && !only_wireguard;
-
-        let (outcome, mixnet_client) = if let Some(mixnet_client) = mixnet_client {
-            let nym_address = *mixnet_client.nym_address();
-            let entry_gateway = nym_address.gateway().to_base58_string();
-
-            info!("Successfully connected to entry gateway: {entry_gateway}");
-            info!("Our nym address: {nym_address}");
-
-            // Run ping tests if applicable
-            let (outcome, mixnet_client) = if run_ping_tests {
-                do_ping(
-                    mixnet_client,
-                    nym_address,
-                    node_info.exit_router_address,
-                    tested_entry,
-                )
-                .await
-            } else {
-                (
-                    Ok(ProbeOutcome {
-                        as_entry: if tested_entry {
-                            Entry::success()
-                        } else {
-                            Entry::NotTested
-                        },
-                        as_exit: None,
-                        socks5: None,
-                        wg: None,
-                        lp: None,
-                    }),
-                    mixnet_client,
-                )
-            };
-            (outcome, Some(mixnet_client))
-        } else if test_mode.uses_lp() && test_mode.tests_wireguard() {
-            // LP modes (SingleHop/TwoHop) don't need mixnet client
-            // Create default outcome and continue to LP-WG test below
-            (
-                Ok(ProbeOutcome {
-                    as_entry: Entry::NotTested,
-                    as_exit: None,
-                    socks5: None,
-                    wg: None,
-                    lp: None,
-                }),
-                None,
-            )
-        } else {
-            // For Mixnet mode, missing mixnet client is a failure
-            (
-                Ok(ProbeOutcome {
-                    as_entry: if tested_entry {
-                        Entry::fail_to_connect()
+                    let (wg_ticket_type, credential_provider) = if entry_under_test {
+                        (TicketType::V1WireguardEntry, self.entry_node.identity)
                     } else {
-                        Entry::EntryFailure
-                    },
-                    as_exit: None,
-                    socks5: None,
-                    wg: None,
-                    lp: None,
-                }),
-                None,
-            )
-        };
+                        (TicketType::V1WireguardExit, exit_node.identity)
+                    };
 
-        let wg_outcome = if !test_mode.tests_wireguard() {
-            // LpOnly mode: skip WireGuard test
-            WgProbeResults::default()
-        } else if test_mode.uses_lp() {
+                    let credential = bandwith_provider
+                        .get_ecash_ticket(wg_ticket_type, credential_provider, 1)
+                        .await?
+                        .data;
+
+                    let outcome = wg_probe(
+                        auth_client,
+                        ip_address,
+                        exit_node.authenticator_version,
+                        self.config.amnezia_args.clone(),
+                        self.config.netstack_args.clone(),
+                        credential,
+                    )
+                    .await
+                    .unwrap_or_default();
+
+                    // Add wg results to probe result
+                    probe_result.outcome.wg = Some(outcome);
+                    mixnet_listener_task.stop().await;
+                } else {
+                    warn!("Not enough information to run WireGuard via mixnet registration tests");
+                    mixnet_client.disconnect().await;
+                }
+            } else {
+                // We are not running WG tests, we don't need the mixnet client anmore
+                mixnet_client.disconnect().await;
+            }
+        }
+
+        // At this point, any mixnet client MUST be disconnected
+
+        // The current probe includes registration as part of the Wireguard result, which makes that a bit awkward
+        // If we're supposed to run WireGuard tests and LP tests, and Mixnet registration failed, let's try to do it with lp
+        // This behavior should change in the future
+        if probe_result.outcome.wg.is_none()
+            && self.config.test_mode.wireguard_tests()
+            && self.config.test_mode.lp_tests()
+        {
             // Test WireGuard via LP registration (nested session forwarding)
             info!("Testing WireGuard via LP registration (no mixnet)");
 
-            // Create bandwidth controller for LP registration
-            let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
-                &NymNetworkDetails::new_from_env(),
-            )?;
-            let client =
-                nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
-
-            let bw_controller = build_bandwidth_controller(
-                client,
-                storage.credential_store().clone(),
-                use_mock_ecash,
-            );
-
-            // Determine entry and exit gateways
-            // Three modes for gateway resolution:
-            // 1. direct_gateway_node/exit_gateway_node - from --gateway-ip (HTTP API query)
-            // 2. localnet_entry/localnet_exit - from --entry-gateway-identity (CLI-only)
-            // 3. directory lookup - original behavior for production
-            let (entry_gateway, exit_gateway) = if let Some(exit_node) = &self.exit_gateway_node {
-                // Both entry and exit gateways were pre-queried (direct IP mode)
-                info!("Using pre-queried entry and exit gateways for LP forwarding test");
-                let entry_node = self
-                    .direct_gateway_node
-                    .as_ref()
-                    .ok_or_else(|| anyhow::anyhow!("Entry gateway not available"))?;
-
-                let entry_gateway = entry_node.to_testable_node()?;
-                let exit_gateway = exit_node.to_testable_node()?;
-
-                (entry_gateway, exit_gateway)
-            } else if let Some(exit_localnet) = &self.localnet_exit {
-                // Localnet mode: use CLI-provided identities and LP addresses
-                info!("Using localnet entry and exit gateways for LP forwarding test");
-                let entry_localnet = self.localnet_entry.as_ref().ok_or_else(|| {
-                    anyhow::anyhow!("Entry gateway not available in localnet mode")
-                })?;
-
-                (entry_localnet.clone(), exit_localnet.clone())
-            } else {
-                // Original behavior: query from directory
-                // The tested node is the exit
-                let exit_gateway = node_info.clone();
-
-                let entry_gateway_node = directory.entry_gateway(&mixnet_entry_gateway_id)?;
-                let entry_gateway = entry_gateway_node.to_testable_node()?;
-
-                (entry_gateway, exit_gateway)
-            };
-
-            wg_probe_lp(
-                &entry_gateway,
-                &exit_gateway,
-                &bw_controller,
-                self.amnezia_args.clone(),
-                self.netstack_args.clone(),
-            )
-            .await
-            .unwrap_or_default()
-        } else if let (Some(authenticator), Some(ip_address)) =
-            (node_info.authenticator_address, node_info.ip_address)
-        {
-            let mixnet_client = if let Some(mixnet_client) = mixnet_client {
-                mixnet_client
-            } else {
-                bail!(
-                    "Mixnet client is required for authenticator WireGuard probe, run in LP mode instead"
-                );
-            };
-
-            let nym_address = *mixnet_client.nym_address();
-            // Start the mixnet listener that the auth clients use to receive messages.
-            let mixnet_listener_task =
-                AuthClientMixnetListener::new(mixnet_client, CancellationToken::new()).start();
-
-            let auth_client = AuthenticatorClient::new(
-                mixnet_listener_task.subscribe(),
-                mixnet_listener_task.mixnet_sender(),
-                nym_address,
-                authenticator,
-                node_info.authenticator_version,
-                Arc::new(KeyPair::new(&mut rng)),
-                ip_address,
-            );
-            let config =
-                nym_validator_client::nyxd::Config::try_from_nym_network_details(&network_details)?;
-            let client =
-                nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
-            let bw_controller = nym_bandwidth_controller::BandwidthController::new(
-                storage.credential_store().clone(),
-                client,
-            );
-            let (wg_ticket_type, credential_provider) = if tested_entry {
-                (
-                    TicketType::V1WireguardEntry,
-                    nym_address.gateway().to_bytes(),
-                )
-            } else {
-                (TicketType::V1WireguardExit, node_info.identity.to_bytes())
-            };
-
-            let credential = bw_controller
-                .prepare_ecash_ticket(wg_ticket_type, credential_provider, 1)
-                .await?
-                .data;
-
-            let outcome = wg_probe(
-                auth_client,
-                ip_address,
-                node_info.authenticator_version,
-                self.amnezia_args.clone(),
-                self.netstack_args.clone(),
-                credential,
+            let outcome = wg_probe_lp(
+                &self.entry_node,
+                &exit_node,
+                &bandwith_provider,
+                self.config.amnezia_args.clone(),
+                self.config.netstack_args.clone(),
             )
             .await
             .unwrap_or_default();
-
-            mixnet_listener_task.stop().await;
-
-            outcome
-        } else {
-            WgProbeResults::default()
-        };
+            probe_result.outcome.wg = Some(outcome);
+        }
 
         // Test LP registration if node has LP address
-        let lp_outcome = if let Some(lp_data) = node_info.lp_data {
-            info!("Node has LP data, testing LP registration...");
+        if self.config.test_mode.lp_tests() {
+            if let Some(lp_data) = self.entry_node.lp_data {
+                info!("Node has LP data, testing LP registration...");
 
-            // Prepare bandwidth credential for LP registration
-            let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
-                &NymNetworkDetails::new_from_env(),
-            )?;
-            let client =
-                nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
-            let bw_controller = build_bandwidth_controller(
-                client,
-                storage.credential_store().clone(),
-                use_mock_ecash,
-            );
+                let outcome =
+                    lp_registration_probe(self.entry_node.identity, lp_data, &bandwith_provider)
+                        .await
+                        .unwrap_or_default();
 
-            let outcome = lp_registration_probe(node_info.identity, lp_data, &bw_controller)
+                probe_result.outcome.lp = Some(outcome);
+            } else {
+                warn!("LP test was requested, but node did not have LP data");
+
+                probe_result.outcome.lp = Some(LpProbeResults {
+                    can_connect: false,
+                    can_handshake: false,
+                    can_register: false,
+                    error: Some("no LP data".into()),
+                })
+            };
+        }
+
+        // Test socks5 connectivity
+        if self.config.test_mode.socks5_tests() {
+            // test failure doesn't stop further tests
+            if let Some(network_requester) = exit_node.network_requester_address {
+                match do_socks5_connectivity_test(
+                    &network_requester,
+                    self.entry_node.identity,
+                    self.network.clone(),
+                    self.config.min_gateway_mixnet_performance,
+                    self.config.socks5_args,
+                    self.topology,
+                )
                 .await
-                .unwrap_or_default();
-
-            Some(outcome)
-        } else {
-            info!("Node does not have LP address, skipping LP registration test");
-            None
-        };
-
-        // test failure doesn't stop further tests
-        let socks5_outcome = self
-            .test_socks5_if_possible(
-                network_details,
-                &node_info.network_requester_details,
-                directory,
-                topology,
-            )
-            .await;
-
-        // Disconnect the mixnet client gracefully
-        outcome.map(|mut outcome| {
-            outcome.wg = Some(wg_outcome);
-            outcome.lp = lp_outcome;
-            outcome.socks5 = socks5_outcome;
-            ProbeResult {
-                node: node_info.identity.to_string(),
-                used_entry: mixnet_entry_gateway_id.to_string(),
-                outcome,
+                {
+                    Ok(results) => probe_result.outcome.socks5 = Some(results),
+                    Err(e) => {
+                        error!("SOCKS5 test failed: {}", e);
+                    }
+                }
+            } else {
+                warn!("No NR available, skipping SOCKS5 tests");
             }
-        })
+        }
+
+        Ok(probe_result)
     }
 }

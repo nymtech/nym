@@ -343,6 +343,7 @@ pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
                 enabled: true,
                 control_port: 1234,
                 data_port: 2345,
+                x25519: *x25519.public_key(),
                 kem_keys: kem_hashes_wrapper,
                 signing_keys: signing_keys_hashes_wrapper,
             }),

@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
+use crate::node::wireguard::PeerRegistrator;
 use futures::channel::oneshot;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
 use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::ShutdownTracker;
 use nym_wireguard::WireguardGatewayData;
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 
 pub use config::Config;
 
@@ -32,12 +33,12 @@ impl OnStartData {
 pub struct Authenticator {
     #[allow(unused)]
     config: Config,
+    peer_registrator: PeerRegistrator,
     upgrade_mode_state: UpgradeModeDetails,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
-    ecash_verifier: Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
     shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
@@ -45,20 +46,18 @@ pub struct Authenticator {
 impl Authenticator {
     pub fn new(
         config: Config,
+        peer_registrator: PeerRegistrator,
         upgrade_mode_state: UpgradeModeDetails,
         wireguard_gateway_data: WireguardGatewayData,
-        ecash_verifier: Arc<
-            dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync,
-        >,
         shutdown: ShutdownTracker,
     ) -> Self {
         Self {
             config,
+            peer_registrator,
             upgrade_mode_state,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            ecash_verifier,
             wireguard_gateway_data,
             shutdown,
             on_start: None,
@@ -134,8 +133,8 @@ impl Authenticator {
             self.config,
             self.wireguard_gateway_data,
             mixnet_client,
+            self.peer_registrator,
             self.upgrade_mode_state,
-            self.ecash_verifier,
         );
 
         tracing::info!("The address of this client is: {self_address}");

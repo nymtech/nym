@@ -1,20 +1,12 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::bail;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
-use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_gateway_probe::config::Socks5Args;
-use nym_gateway_probe::{
-    CredentialArgs, NetstackArgs, NymApiDirectory, ProbeResult, TestMode, TestedNode,
-    TestedNodeDetails, TestedNodeLpDetails, query_gateway_by_ip,
-};
-use nym_kkt_ciphersuite::{HashFunction, KEM};
+use nym_gateway_probe::config::{CredentialArgs, CredentialMode, ProbeConfig};
+use nym_gateway_probe::{NymApiDirectory, ProbeResult, query_gateway_by_ip};
 use nym_sdk::mixnet::NodeIdentity;
-use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::path::Path;
 use std::{path::PathBuf, sync::OnceLock};
 use tracing::*;
@@ -23,178 +15,84 @@ fn pretty_build_info_static() -> &'static str {
     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
     PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
-
-fn validate_node_identity(s: &str) -> Result<NodeIdentity, String> {
-    match s.parse() {
-        Ok(cg) => Ok(cg),
-        Err(_) => Err(format!("failed to parse country group: {s}")),
-    }
-}
+const DEFAULT_CONFIG_DIR: &str = "/tmp/nym-gateway-probe/config/";
 
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 struct CliArgs {
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 
     /// Path pointing to an env file describing the network.
-    #[arg(short, long, global = true)]
+    #[arg(short, long)]
     config_env_file: Option<PathBuf>,
 
-    /// The specific gateway specified by ID.
-    #[arg(long, short = 'g', alias = "gateway", global = true)]
-    entry_gateway: Option<String>,
-
-    /// The address of the gateway to probe directly (bypasses directory lookup)
-    /// Supports formats: IP (192.168.66.5), IP:PORT (192.168.66.5:8080), HOST:PORT (localhost:30004)
-    #[arg(long, global = true)]
-    gateway_ip: Option<String>,
-
-    // ##########
-    // ENTRY
-    // ##########
-    /// Ed25519 identity of the entry gateway (base58 encoded)
-    /// When provided, skips HTTP API query - use for localnet testing
-    #[arg(long, global = true)]
-    entry_gateway_identity: Option<String>,
-
-    /// x25519 key of the entry gateway used for KKT exchange (base58 encoded)
-    #[arg(long, global = true, requires = "entry_gateway_identity")]
-    entry_gateway_x25519_key: Option<String>,
-
-    /// expected kem type of the entry gateway used during KKT exchange
-    #[arg(long, global = true, requires = "entry_gateway_x25519_key")]
-    entry_gateway_kem_key_type: Option<String>,
-
-    /// expected hash function used for the entry gateway kem key digest
-    #[arg(long, global = true, requires = "entry_gateway_kem_key_type")]
-    entry_gateway_kem_key_hash_function: Option<String>,
-
-    /// expected entry gateway kem key digest (base58 encoded)
-    #[arg(long, global = true, requires = "entry_gateway_kem_key_hash_function")]
-    entry_gateway_kem_hey_hash_bs58: Option<String>,
-
-    /// LP listener address for entry gateway (e.g., "192.168.66.6:41264")
-    /// Used with --entry-gateway-identity for localnet mode
-    #[arg(long, global = true)]
-    entry_lp_address: Option<SocketAddr>,
-
-    // ##########
-    // EXIT
-    // ##########
-    /// The address of the exit gateway for LP forwarding tests (used with --test-lp-wg)
-    /// When specified, --gateway-ip becomes the entry gateway and this becomes the exit gateway
-    /// Supports formats: IP (192.168.66.5), IP:PORT (192.168.66.5:8080), HOST:PORT (localhost:30004)
-    #[arg(long, global = true)]
-    exit_gateway_ip: Option<String>,
-
-    /// Ed25519 identity of the exit gateway (base58 encoded)
-    /// When provided, skips HTTP API query - use for localnet testing
-    #[arg(long, global = true)]
-    exit_gateway_identity: Option<String>,
-
-    /// x25519 key of the exit gateway used for KKT exchange (base58 encoded)
-    #[arg(long, global = true, requires = "exit_gateway_identity")]
-    exit_gateway_x25519_key: Option<String>,
-
-    /// expected kem type of the exit gateway used during KKT exchange
-    #[arg(long, global = true, requires = "exit_gateway_x25519_key")]
-    exit_gateway_kem_key_type: Option<String>,
-
-    /// expected hash function used for the exit gateway kem key digest
-    #[arg(long, global = true, requires = "exit_gateway_kem_key_type")]
-    exit_gateway_kem_key_hash_function: Option<String>,
-
-    /// expected exit gateway kem key digest (base58 encoded)
-    #[arg(long, global = true, requires = "exit_gateway_kem_key_hash_function")]
-    exit_gateway_kem_hey_hash_bs58: Option<String>,
-
-    /// LP listener address for exit gateway (e.g., "172.18.0.5:41264")
-    /// This is the address the entry gateway uses to reach exit (for forwarding)
-    /// Used with --exit-gateway-identity for localnet mode
-    #[arg(long, global = true)]
-    exit_lp_address: Option<SocketAddr>,
-
-    /// Default LP control port when deriving LP address from gateway IP
-    #[arg(long, global = true, default_value = "41264")]
-    lp_port: u16,
-
-    /// Identity of the node to test
-    #[arg(long, short, value_parser = validate_node_identity, global = true)]
-    node: Option<NodeIdentity>,
-
-    #[arg(long, global = true)]
-    min_gateway_mixnet_performance: Option<u8>,
-
-    // this was a dead field
-    // #[arg(long, global = true)]
-    // min_gateway_vpn_performance: Option<u8>,
-    #[arg(long, global = true)]
-    only_wireguard: bool,
-
-    #[arg(long, global = true)]
-    only_lp_registration: bool,
-
-    /// Test WireGuard via LP registration (no mixnet) - uses nested session forwarding
-    #[arg(long, global = true)]
-    test_lp_wg: bool,
-
-    /// Test mode - explicitly specify which tests to run
-    ///
-    /// Modes:
-    ///   mixnet      - Traditional mixnet testing (entry/exit pings + WireGuard via authenticator)
-    ///   single-hop  - LP registration + WireGuard on single gateway (no mixnet)
-    ///   two-hop     - Entry LP + Exit LP (nested forwarding) + WireGuard tunnel
-    ///   lp-only     - LP registration only (no WireGuard)
-    ///
-    /// If not specified, mode is inferred from other flags:
-    ///   --only-lp-registration → lp-only
-    ///   --test-lp-wg with exit gateway → two-hop
-    ///   --test-lp-wg without exit → single-hop
-    ///   otherwise → mixnet
-    #[arg(long, global = true, value_name = "MODE")]
-    mode: Option<String>,
-
     /// Disable logging during probe
-    #[arg(long, global = true)]
-    ignore_egress_epoch_role: bool,
-
-    #[arg(long, global = true)]
+    #[arg(long)]
     no_log: bool,
-
-    /// Arguments to be appended to the wireguard config enabling amnezia-wg configuration
-    #[arg(long, short, global = true)]
-    amnezia_args: Option<String>,
-
-    /// Arguments to manage netstack downloads
-    #[command(flatten)]
-    netstack_args: NetstackArgs,
-
-    /// Arguments to manage credentials
-    #[command(flatten)]
-    credential_args: CredentialArgs,
-
-    /// Arguments to configure socks5 probe
-    #[command(flatten)]
-    socks5_args: Socks5Args,
 }
 
-const DEFAULT_CONFIG_DIR: &str = "/tmp/nym-gateway-probe/config/";
-
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Run the probe locally
+    /// Run the probe on an unannounced gateway. IP must be provided. Bypasses directory lookup
     RunLocal {
-        /// Provide a mnemonic to get credentials (optional when using --use-mock-ecash)
-        #[arg(long)]
-        mnemonic: Option<String>,
-
+        /// Directory for credential and mixnet storage
         #[arg(long)]
         config_dir: Option<PathBuf>,
 
-        /// Use mock ecash credentials for testing (requires gateway with --lp-use-mock-ecash)
+        /// The address of the gateway
+        /// Supports formats: IP (192.168.66.5), IP:PORT (192.168.66.5:8080), HOST:PORT (localhost:30004)
         #[arg(long)]
-        use_mock_ecash: bool,
+        entry_gateway_ip: String,
+
+        /// The address of the exit gateway. If not provided, entry acts as exit
+        /// Supports formats: IP (192.168.66.5), IP:PORT (192.168.66.5:8080), HOST:PORT (localhost:30004)
+        #[arg(long)]
+        exit_gateway_ip: Option<String>,
+
+        /// Arguments to manage credentials
+        #[command(flatten)]
+        credential_mode: CredentialMode,
+
+        #[command(flatten)]
+        probe_config: ProbeConfig,
+    },
+
+    /// Run the probe on a bonded gateway. Uses directory lookup
+    Run {
+        /// Directory for credential and mixnet storage
+        #[arg(long)]
+        config_dir: Option<PathBuf>,
+
+        /// The specific gateway specified by ID.
+        #[arg(long, short = 'g', alias = "gateway")]
+        entry_gateway: NodeIdentity,
+
+        /// Optional identity of the exit node to test, if not provided, entry_gateway is used
+        #[arg(long)]
+        exit_gateway: Option<NodeIdentity>,
+
+        /// Arguments to manage credentials
+        #[command(flatten)]
+        credential_mode: CredentialMode,
+
+        #[command(flatten)]
+        probe_config: ProbeConfig,
+    },
+
+    /// Run the probe by NS agents
+    RunAgent {
+        /// The specific gateway specified by ID.
+        #[arg(long, short = 'g', alias = "gateway")]
+        entry_gateway: NodeIdentity,
+
+        /// Arguments to manage credentials
+        #[command(flatten)]
+        credential_args: CredentialArgs,
+
+        #[command(flatten)]
+        probe_config: ProbeConfig,
     },
 }
 
@@ -214,266 +112,66 @@ fn setup_logging() {
         .init();
 }
 
-/// Resolve the test mode from explicit --mode arg or infer from legacy flags
-fn resolve_test_mode(
-    mode_arg: Option<&str>,
-    only_wireguard: bool,
-    only_lp_registration: bool,
-    test_lp_wg: bool,
-    has_exit_gateway: bool,
-) -> anyhow::Result<TestMode> {
-    if let Some(mode_str) = mode_arg {
-        // Explicit --mode takes priority
-        mode_str
-            .parse::<TestMode>()
-            .map_err(|e| anyhow::anyhow!("{}", e))
-    } else {
-        // Infer from legacy flags
-        Ok(TestMode::from_flags(
-            only_wireguard,
-            only_lp_registration,
-            test_lp_wg,
-            has_exit_gateway,
-        ))
-    }
-}
-
-/// Convert TestMode back to legacy boolean flags for backward compatibility
-fn mode_to_flags(mode: TestMode) -> (bool, bool, bool) {
-    match mode {
-        TestMode::Mixnet => (false, false, false), // only_wireguard handled separately
-        TestMode::SingleHop => (false, false, true),
-        TestMode::TwoHop => (false, false, true),
-        TestMode::LpOnly => (false, true, false),
-    }
-}
-
-#[allow(clippy::todo)]
-#[allow(unreachable_code, unused)]
-// ^^^^ // NOTE: to be changed by @SW
-#[allow(clippy::unwrap_used)]
 pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
     let args = CliArgs::parse();
     if !args.no_log {
         setup_logging();
     }
     debug!("{:?}", nym_bin_common::bin_info_local_vergen!());
-    setup_env(args.config_env_file.as_ref());
 
+    setup_env(args.config_env_file.as_ref());
     let network = nym_sdk::NymNetworkDetails::new_from_env();
 
-    let nyxd_url = network
-        .endpoints
-        .first()
-        .map(|ep| ep.nyxd_url())
-        .ok_or(anyhow::anyhow!("missing nyxd url"))?;
+    match args.command {
+        Commands::RunLocal {
+            config_dir,
+            entry_gateway_ip,
+            exit_gateway_ip,
+            credential_mode,
+            probe_config,
+        } => {
+            info!("Using direct IP query mode for gateway: {entry_gateway_ip}");
+            let entry_details = query_gateway_by_ip(entry_gateway_ip)
+                .await?
+                .to_testable_node()?;
 
-    args.socks5_args.validate_socks5_endpoints().await?;
-
-    // Three resolution modes in priority order:
-    // 1. Localnet mode: --entry-gateway-identity provided (no HTTP query)
-    // 2. Direct IP mode: --gateway-ip provided (queries HTTP API)
-    // 3. Directory mode: uses nym-api directory service
-
-    // Localnet mode: identity provided via CLI, skip HTTP queries entirely
-    if let Some(kem_key_digest) = &args.entry_gateway_kem_hey_hash_bs58 {
-        info!("Using localnet mode with CLI-provided gateway identity");
-
-        // SAFETY: if kem key digest is provided, all other LP data must also be present
-        // (enforced by clap)
-        let hash_fn: HashFunction = args
-            .entry_gateway_kem_key_hash_function
-            .as_ref()
-            .unwrap()
-            .parse()?;
-        let kem_type: KEM = args.entry_gateway_kem_key_type.as_ref().unwrap().parse()?;
-        let x25519_key: x25519::PublicKey =
-            args.entry_gateway_x25519_key.as_ref().unwrap().parse()?;
-        let identity: ed25519::PublicKey = args.entry_gateway_identity.as_ref().unwrap().parse()?;
-        let digest = bs58::decode(&kem_key_digest).into_vec()?;
-
-        let mut expected_kem_key_hashes = HashMap::new();
-        let mut digests = HashMap::new();
-        digests.insert(hash_fn, digest);
-        expected_kem_key_hashes.insert(kem_type, digests);
-
-        // Entry LP address: explicit or derived from gateway_ip + lp_port
-        let entry_lp_addr: SocketAddr = if let Some(lp_addr) = args.entry_lp_address {
-            lp_addr
-        } else if let Some(gw_ip) = &args.gateway_ip {
-            // Derive LP address from gateway IP
-            let ip: std::net::IpAddr = gw_ip
-                .parse()
-                .map_err(|e| anyhow::anyhow!("Invalid gateway-ip '{gw_ip}': {e}"))?;
-            SocketAddr::new(ip, args.lp_port)
-        } else {
-            anyhow::bail!(
-                "--entry-lp-address or --gateway-ip required with --entry-gateway-identity"
-            );
-        };
-
-        let entry_lp_node = TestedNodeLpDetails {
-            address: entry_lp_addr,
-            expected_kem_key_hashes,
-            expected_signing_key_hashes: todo!(),
-            x25519: x25519_key,
-            lp_version: todo!(),
-        };
-        let entry_details = TestedNodeDetails::from_cli(identity, entry_lp_node);
-
-        // Parse exit gateway if provided
-        let exit_details = if let Some(kem_key_digest) = &args.exit_gateway_kem_hey_hash_bs58 {
-            let exit_lp_addr = *args.exit_lp_address.as_ref().ok_or_else(|| {
-                anyhow::anyhow!("--exit-lp-address required with --exit-gateway-identity")
-            })?;
-
-            // SAFETY: if kem key digest is provided, all other LP data must also be present
-            // (enforced by clap)
-            let hash_fn: HashFunction = args
-                .exit_gateway_kem_key_hash_function
-                .as_ref()
-                .unwrap()
-                .parse()?;
-            let kem_type: KEM = args.exit_gateway_kem_key_type.as_ref().unwrap().parse()?;
-            let x25519_key: x25519::PublicKey =
-                args.exit_gateway_x25519_key.as_ref().unwrap().parse()?;
-            let identity: ed25519::PublicKey =
-                args.exit_gateway_identity.as_ref().unwrap().parse()?;
-            let digest = bs58::decode(&kem_key_digest).into_vec()?;
-
-            let mut expected_kem_key_hashes = HashMap::new();
-            let mut digests = HashMap::new();
-            digests.insert(hash_fn, digest);
-            expected_kem_key_hashes.insert(kem_type, digests);
-
-            let exit_lp_node = TestedNodeLpDetails {
-                address: exit_lp_addr,
-                expected_kem_key_hashes,
-                expected_signing_key_hashes: todo!(),
-                x25519: x25519_key,
-                lp_version: todo!(),
-            };
-
-            Some(TestedNodeDetails::from_cli(identity, exit_lp_node))
-        } else {
-            None
-        };
-
-        // Resolve test mode from --mode arg or infer from flags
-        let has_exit = exit_details.is_some();
-        let test_mode = resolve_test_mode(
-            args.mode.as_deref(),
-            args.only_wireguard,
-            args.only_lp_registration,
-            args.test_lp_wg,
-            has_exit,
-        )?;
-
-        // Validate that two-hop mode has required exit gateway
-        if test_mode.needs_exit_gateway() && !has_exit {
-            bail!(
-                "--mode two-hop requires exit gateway \
-                (use --exit-gateway-identity and --exit-lp-address)"
-            );
-        }
-
-        info!("Test mode: {}", test_mode);
-
-        // Convert back to flags for backward compatibility with existing probe methods
-        // only_wireguard is preserved from args since it's orthogonal to mode
-        // (it means "skip ping tests" in mixnet mode, irrelevant for LP modes)
-        let (_, only_lp_registration, test_lp_wg) = mode_to_flags(test_mode);
-        let only_wireguard = args.only_wireguard;
-
-        let mut trial = nym_gateway_probe::Probe::new_localnet(
-            entry_details,
-            exit_details,
-            args.netstack_args,
-            args.credential_args,
-            args.socks5_args,
-        );
-
-        if let Some(awg_args) = args.amnezia_args {
-            trial.with_amnezia(&awg_args);
-        }
-
-        // Localnet mode doesn't need directory, but nyxd_url is still used for credentials
-        return match &args.command {
-            Some(Commands::RunLocal {
-                mnemonic,
-                config_dir,
-                use_mock_ecash,
-            }) => {
-                let config_dir = config_dir
-                    .clone()
-                    .unwrap_or_else(|| Path::new(DEFAULT_CONFIG_DIR).join(&network.network_name));
-
-                info!(
-                    "using the following directory for the probe config: {}",
-                    config_dir.display()
-                );
-
-                Box::pin(trial.probe_run_locally(
-                    &config_dir,
-                    mnemonic.as_deref(),
-                    None, // No directory in localnet mode
-                    nyxd_url,
-                    args.ignore_egress_epoch_role,
-                    only_wireguard,
-                    only_lp_registration,
-                    test_lp_wg,
-                    args.min_gateway_mixnet_performance,
-                    *use_mock_ecash,
-                    network,
-                ))
-                .await
-            }
-            None => {
-                Box::pin(trial.probe(
-                    None, // No directory in localnet mode
-                    nyxd_url,
-                    args.ignore_egress_epoch_role,
-                    only_wireguard,
-                    only_lp_registration,
-                    test_lp_wg,
-                    args.min_gateway_mixnet_performance,
-                    network,
-                ))
-                .await
-            }
-        };
-    }
-
-    // If gateway IP is provided, query it directly without using the directory
-    let (entry, directory, gateway_node, exit_gateway_node) =
-        if let Some(gateway_ip) = args.gateway_ip.clone() {
-            info!("Using direct IP query mode for gateway: {}", gateway_ip);
-            let gateway_node = query_gateway_by_ip(gateway_ip).await?;
-            let identity = gateway_node.identity();
-
-            // Query exit gateway if provided (for LP forwarding tests)
-            let exit_node = if let Some(exit_gateway_ip) = args.exit_gateway_ip {
-                info!(
-                    "Using direct IP query mode for exit gateway: {}",
-                    exit_gateway_ip
-                );
-                Some(query_gateway_by_ip(exit_gateway_ip).await?)
+            // Parse exit gateway if provided
+            let exit_details = if let Some(ip_address) = exit_gateway_ip {
+                info!("Using direct IP query mode for exit gateway: {ip_address}");
+                Some(query_gateway_by_ip(ip_address).await?.to_testable_node()?)
             } else {
                 None
             };
 
-            // Still create the directory for potential secondary lookups,
-            // but only if API URL is available
-            let directory =
-                if let Some(api_url) = network.endpoints.first().and_then(|ep| ep.api_url()) {
-                    Some(NymApiDirectory::new(api_url).await?)
-                } else {
-                    None
-                };
+            let config_dir = config_dir
+                .clone()
+                .unwrap_or_else(|| Path::new(DEFAULT_CONFIG_DIR).join(&network.network_name));
 
-            (identity, directory, Some(gateway_node), exit_node)
-        } else {
-            // Original behavior: use directory service
+            if config_dir.is_file() {
+                anyhow::bail!("provided configuration directory is a file");
+            }
+
+            if !config_dir.exists() {
+                std::fs::create_dir_all(config_dir.clone())?;
+            }
+
+            info!(
+                "using the following directory for the probe config: {}",
+                config_dir.display()
+            );
+
+            let trial =
+                nym_gateway_probe::Probe::new(entry_details, exit_details, network, probe_config);
+
+            Box::pin(trial.probe_run_locally(&config_dir, credential_mode)).await
+        }
+        Commands::Run {
+            entry_gateway,
+            exit_gateway,
+            config_dir,
+            credential_mode,
+            probe_config,
+        } => {
             let api_url = network
                 .endpoints
                 .first()
@@ -481,121 +179,57 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
                 .ok_or(anyhow::anyhow!("missing api url"))?;
 
             let directory = NymApiDirectory::new(api_url).await?;
+            let entry_details = directory
+                .entry_gateway(&entry_gateway)?
+                .to_testable_node()?;
+            let exit_details = exit_gateway
+                .map(|id_key| directory.exit_gateway(&id_key))
+                .transpose()?
+                .map(|node| node.to_testable_node())
+                .transpose()?;
 
-            let entry = if let Some(gateway) = &args.entry_gateway {
-                NodeIdentity::from_base58_string(gateway)?
-            } else {
-                directory.random_exit_with_ipr()?
-            };
-
-            (entry, Some(directory), None, None)
-        };
-
-    let test_point = if let Some(node) = args.node {
-        TestedNode::Custom {
-            identity: node,
-            shares_entry: false,
-        }
-    } else {
-        TestedNode::SameAsEntry
-    };
-
-    // Resolve test mode from --mode arg or infer from flags
-    let has_exit = exit_gateway_node.is_some();
-    let test_mode = resolve_test_mode(
-        args.mode.as_deref(),
-        args.only_wireguard,
-        args.only_lp_registration,
-        args.test_lp_wg,
-        has_exit,
-    )?;
-    info!("Test mode: {}", test_mode);
-
-    // Convert back to flags for backward compatibility with existing probe methods
-    // only_wireguard is preserved from args since it's orthogonal to mode
-    let (_, only_lp_registration, test_lp_wg) = mode_to_flags(test_mode);
-    let only_wireguard = args.only_wireguard;
-
-    let mut trial = if let (Some(entry_node), Some(exit_node)) = (&gateway_node, &exit_gateway_node)
-    {
-        // Both entry and exit gateways provided (for LP telescoping tests)
-        info!("Using both entry and exit gateways for LP forwarding test");
-        nym_gateway_probe::Probe::new_with_gateways(
-            entry,
-            test_point,
-            args.netstack_args,
-            args.credential_args,
-            entry_node.clone(),
-            exit_node.clone(),
-            args.socks5_args,
-        )
-    } else if let Some(gw_node) = gateway_node {
-        // Only entry gateway provided
-        nym_gateway_probe::Probe::new_with_gateway(
-            entry,
-            test_point,
-            args.netstack_args,
-            args.credential_args,
-            gw_node,
-            args.socks5_args,
-        )
-    } else {
-        // No direct gateways, use directory lookup
-        nym_gateway_probe::Probe::new(
-            entry,
-            test_point,
-            args.netstack_args,
-            args.credential_args,
-            args.socks5_args,
-        )
-    };
-
-    if let Some(awg_args) = args.amnezia_args {
-        trial.with_amnezia(&awg_args);
-    }
-
-    match args.command {
-        Some(Commands::RunLocal {
-            mnemonic,
-            config_dir,
-            use_mock_ecash,
-        }) => {
             let config_dir = config_dir
                 .clone()
                 .unwrap_or_else(|| Path::new(DEFAULT_CONFIG_DIR).join(&network.network_name));
+
+            if config_dir.is_file() {
+                anyhow::bail!("provided configuration directory is a file");
+            }
+
+            if !config_dir.exists() {
+                std::fs::create_dir_all(config_dir.clone())?;
+            }
 
             info!(
                 "using the following directory for the probe config: {}",
                 config_dir.display()
             );
 
-            Box::pin(trial.probe_run_locally(
-                &config_dir,
-                mnemonic.as_deref(),
-                directory,
-                nyxd_url,
-                args.ignore_egress_epoch_role,
-                only_wireguard,
-                only_lp_registration,
-                test_lp_wg,
-                args.min_gateway_mixnet_performance,
-                use_mock_ecash,
-                network,
-            ))
-            .await
+            let trial =
+                nym_gateway_probe::Probe::new(entry_details, exit_details, network, probe_config);
+            Box::pin(trial.probe_run(&config_dir, credential_mode)).await
         }
-        None => {
-            Box::pin(trial.probe(
-                directory,
-                nyxd_url,
-                args.ignore_egress_epoch_role,
-                only_wireguard,
-                only_lp_registration,
-                test_lp_wg,
-                args.min_gateway_mixnet_performance,
-                network,
-            ))
-            .await
+        Commands::RunAgent {
+            entry_gateway,
+            credential_args,
+            mut probe_config,
+        } => {
+            let api_url = network
+                .endpoints
+                .first()
+                .and_then(|ep| ep.api_url())
+                .ok_or(anyhow::anyhow!("missing api url"))?;
+
+            let directory = NymApiDirectory::new(api_url).await?;
+            let entry_details = directory
+                .entry_gateway(&entry_gateway)?
+                .to_testable_node()?;
+
+            // Agents run everything
+            probe_config.test_mode = nym_gateway_probe::config::TestMode::All;
+
+            let trial = nym_gateway_probe::Probe::new(entry_details, None, network, probe_config);
+            Box::pin(trial.probe_run_agent(credential_args)).await
         }
     }
 }

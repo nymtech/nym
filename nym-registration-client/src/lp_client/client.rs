@@ -3,7 +3,7 @@
 
 //! LP (Lewes Protocol) registration client for direct gateway connections.
 
-use super::config::LpConfig;
+use super::config::LpRegistrationConfig;
 use super::error::{LpClientError, Result};
 use crate::lp_client::helpers::{
     LpDataDeliverExt, LpDataSendExt, convert_forward_data, try_convert_forward_response,
@@ -25,6 +25,7 @@ use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
+    WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
 use rand::{CryptoRng, RngCore};
@@ -66,7 +67,7 @@ pub struct LpRegistrationClient<S = TcpStream> {
     state_machine: Option<LpStateMachine>,
 
     /// Configuration for timeouts and TCP parameters.
-    config: LpConfig,
+    config: LpRegistrationConfig,
 
     /// Persistent TCP stream for the connection.
     /// Opened on first use, closed after registration.
@@ -93,7 +94,7 @@ where
         gateway_lp_peer: LpRemotePeer,
         gateway_lp_address: SocketAddr,
         gateway_supported_lp_protocol_version: u8,
-        config: LpConfig,
+        config: LpRegistrationConfig,
     ) -> Self {
         let lp_protocol = if gateway_supported_lp_protocol_version > version::CURRENT {
             warn!(
@@ -140,7 +141,7 @@ where
             gateway_lp_peer,
             gateway_lp_address,
             gateway_supported_lp_protocol_version,
-            LpConfig::default(),
+            LpRegistrationConfig::default(),
         )
     }
 
@@ -634,7 +635,7 @@ where
         packet: &LpPacket,
         send_key: Option<&OuterAeadKey>,
         recv_key: Option<&OuterAeadKey>,
-        config: &LpConfig,
+        config: &LpRegistrationConfig,
     ) -> Result<LpPacket> {
         // 1. Connect with timeout
         let mut stream = tokio::time::timeout(config.connect_timeout, S::connect(address))
@@ -748,7 +749,7 @@ where
         gateway_identity: ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
-    ) -> Result<WireguardConfiguration> {
+    ) -> Result<WireguardRegistrationData> {
         tracing::debug!("Acquiring bandwidth credential for registration");
 
         // 1. Get bandwidth credential from controller
@@ -805,14 +806,7 @@ where
                 tracing::warn!("Gateway rejected registration: {reason}");
                 Err(LpClientError::RegistrationRejected { reason })
             }
-            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => {
-                // we have managed to complete the registration
-                tracing::info!(
-                    "LP registration successful! Allocated bandwidth: {} bytes",
-                    res.available_bandwidth
-                );
-                Ok(res.config)
-            }
+            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => Ok(res.config),
             LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
                 Err(LpClientError::unexpected_response(
                     "received request for additional dvpn data after sending credential!",
@@ -858,7 +852,9 @@ where
     {
         // 1. Build registration request
         let wg_public_key = PeerPublicKey::from(*wg_keypair.public_key());
-        let request = LpRegistrationRequest::new_initial_dvpn(rng, wg_public_key, ticket_type);
+        let mut psk = [0u8; 32];
+        rng.fill_bytes(&mut psk);
+        let request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk);
 
         tracing::trace!("Built dVPN registration request: {request:?}");
 
@@ -887,21 +883,14 @@ where
         };
 
         // 7. check response to the initial request
-        match dvpn_response.content {
+        let final_response = match dvpn_response.content {
             LpDvpnRegistrationResponseMessageContent::RegistrationFailure(res) => {
                 let reason = res.error;
                 // the registration has failed
                 tracing::warn!("Gateway rejected registration: {reason}");
-                Err(LpClientError::RegistrationRejected { reason })
+                return Err(LpClientError::RegistrationRejected { reason });
             }
-            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => {
-                // we have already registered with this gateway before, the gateway has updated the psk and sent us the config
-                tracing::info!(
-                    "LP registration successful! Allocated bandwidth: {} bytes",
-                    res.available_bandwidth
-                );
-                Ok(res.config)
-            }
+            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => res.config,
             LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
                 // we're registering for the first time with this gateway - we need to attach a credential
 
@@ -911,9 +900,17 @@ where
                     bandwidth_controller,
                     ticket_type,
                 )
-                .await
+                .await?
             }
-        }
+        };
+
+        Ok(WireguardConfiguration {
+            public_key: final_response.public_key,
+            psk: Some(psk),
+            endpoint: SocketAddr::new(self.gateway_lp_address.ip(), final_response.port),
+            private_ipv4: final_response.private_ipv4,
+            private_ipv6: final_response.private_ipv6,
+        })
     }
 
     /// Register with automatic retry on network failure.
@@ -1054,7 +1051,7 @@ where
         &mut self,
         forward_data: ForwardPacketData,
     ) -> Result<Vec<u8>> {
-        let target_address = forward_data.target_lp_address.clone();
+        let target_address = forward_data.target_lp_address;
 
         tracing::debug!(
             "Sending ForwardPacket to {target_address} ({} inner bytes, persistent connection)",

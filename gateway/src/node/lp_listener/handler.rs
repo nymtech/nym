@@ -1002,10 +1002,7 @@ where
         let start = std::time::Instant::now();
 
         // Parse target gateway address
-        let target_addr: SocketAddr = forward_data.target_lp_address.parse().map_err(|e| {
-            inc!("lp_forward_failed");
-            GatewayError::LpProtocolError(format!("Invalid target address: {}", e))
-        })?;
+        let target_addr = forward_data.target_lp_address;
 
         // Check if we need to open a new connection
         let need_new_connection = match &self.exit_stream {
@@ -1244,46 +1241,21 @@ where
 mod tests {
     use super::*;
     use crate::node::lp_listener::{LpConfig, LpDebug};
-    use crate::node::wireguard::PeerManager;
     use crate::node::ActiveClientsStore;
     use bytes::BytesMut;
-    use nym_credential_verification::upgrade_mode::{
-        UpgradeModeCheckConfig, UpgradeModeCheckRequestSender, UpgradeModeDetails,
-    };
-    use nym_credential_verification::UpgradeModeState;
     use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
     use nym_lp::message::{ClientHelloData, EncryptedDataPayload, HandshakeData, LpMessage};
     use nym_lp::packet::{LpHeader, LpPacket};
     use nym_lp::peer::LpLocalPeer;
-    use nym_wireguard::{PeerControlRequest, WireguardConfig, WireguardGatewayData};
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
-    use tokio::sync::mpsc::Receiver;
     // ==================== Test Helpers ====================
 
     /// Create a minimal test state for handler tests
     async fn create_minimal_test_state() -> LpHandlerState {
         use nym_crypto::asymmetric::ed25519;
         use rand::rngs::OsRng;
-
-        fn wireguard_data(
-            keys: Arc<x25519::KeyPair>,
-        ) -> (WireguardGatewayData, Receiver<PeerControlRequest>) {
-            // some sensible default values (ports don't matter anyway)
-            let cfg = WireguardConfig {
-                bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 51822),
-                private_ipv4: Ipv4Addr::new(10, 1, 0, 1),
-                private_ipv6: Ipv6Addr::new(0xfc01, 0, 0, 0, 0, 0, 0, 0x1), // fc01::1,
-                announced_tunnel_port: 51822,
-                announced_metadata_port: 51830,
-                private_network_prefix_v4: 16,
-                private_network_prefix_v6: 112,
-            };
-
-            WireguardGatewayData::new(cfg, keys)
-        }
 
         // Create in-memory storage for testing
         let storage = nym_gateway_storage::GatewayStorage::init(":memory:", 100)
@@ -1311,20 +1283,6 @@ mod tests {
         let id_keys = Arc::new(ed25519::KeyPair::new(&mut OsRng));
         let x_keys = Arc::new(id_keys.to_x25519());
 
-        let (wireguard_data, _) = wireguard_data(x_keys.clone());
-
-        let (um_recheck_tx, _) = futures::channel::mpsc::unbounded();
-
-        let upgrade_mode_state = UpgradeModeState::new(*id_keys.public_key());
-        let upgrade_mode_details = UpgradeModeDetails::new(
-            UpgradeModeCheckConfig {
-                // essentially we never want to trigger this in our tests
-                min_staleness_recheck: Duration::from_nanos(1),
-            },
-            UpgradeModeCheckRequestSender::new(um_recheck_tx),
-            upgrade_mode_state.clone(),
-        );
-
         let lp_peer = LpLocalPeer::new(id_keys, x_keys.clone()).with_kem_psq_key(x_keys);
 
         LpHandlerState {
@@ -1335,13 +1293,11 @@ mod tests {
             local_lp_peer: lp_peer,
             metrics: nym_node_metrics::NymNodeMetrics::default(),
             active_clients_store: ActiveClientsStore::new(),
-            upgrade_mode: upgrade_mode_details,
             outbound_mix_sender: mix_sender,
             handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),
-            registrations_in_progress: Default::default(),
             forward_semaphore,
-            peer_manager: Arc::new(PeerManager::new(wireguard_data)),
+            peer_registrator: None,
         }
     }
 

@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::NymApiDirectory;
 use crate::common::helpers::mixnet_debug_config;
 use crate::common::nodes::{TestedNodeDetails, TestedNodeLpDetails};
 use crate::common::socks5_test::HttpsConnectivityTest;
@@ -12,7 +11,7 @@ use crate::common::wireguard::{
     TwoHopWgTunnelConfig, WgTunnelConfig, run_tunnel_tests, run_two_hop_tunnel_tests,
 };
 use crate::common::{helpers, icmp};
-use crate::config::NetstackArgs;
+use crate::config::{NetstackArgs, Socks5Args};
 use anyhow::bail;
 use base64::{Engine, engine::general_purpose};
 use bytes::BytesMut;
@@ -30,11 +29,8 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_registration_client::{LpRegistrationClient, NestedLpSession};
+use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
-use nym_sdk::{
-    DebugConfig, NymApiTopologyProvider, NymApiTopologyProviderConfig, NymNetworkDetails,
-    TopologyProvider,
-};
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
@@ -44,13 +40,12 @@ use std::{
 use tokio::net::TcpStream;
 use tokio_util::{codec::Decoder, sync::CancellationToken};
 use tracing::*;
-use url::Url;
 
 pub async fn wg_probe(
     mut auth_client: AuthenticatorClient,
     gateway_ip: IpAddr,
     auth_version: AuthenticatorVersion,
-    awg_args: String,
+    awg_args: Option<String>,
     netstack_args: NetstackArgs,
     // TODO: update type
     credential: CredentialSpendingData,
@@ -123,9 +118,8 @@ pub async fn wg_probe(
     };
 
     let peer_public = registered_data.pub_key().inner();
-    let static_private = x25519_dalek::StaticSecret::from(private_key.to_bytes());
     let public_key_bs64 = general_purpose::STANDARD.encode(peer_public.as_bytes());
-    let private_key_hex = hex::encode(static_private.to_bytes());
+    let private_key_hex = hex::encode(private_key.to_bytes());
     let public_key_hex = hex::encode(peer_public.as_bytes());
 
     info!("WG connection details");
@@ -152,7 +146,12 @@ pub async fn wg_probe(
         wg_endpoint,
     );
 
-    run_tunnel_tests(&tunnel_config, &netstack_args, &awg_args, &mut wg_outcome);
+    run_tunnel_tests(
+        &tunnel_config,
+        &netstack_args,
+        &awg_args.unwrap_or_default(),
+        &mut wg_outcome,
+    );
 
     Ok(wg_outcome)
 }
@@ -166,7 +165,7 @@ pub async fn lp_registration_probe(
     let lp_version = gateway_lp_data.lp_version;
     let peer = helpers::to_lp_remote_peer(gateway_identity, gateway_lp_data);
 
-    info!("Starting LP registration probe for gateway at {lp_address}",);
+    info!("Starting LP registration probe for gateway at {lp_address}");
 
     let mut lp_outcome = LpProbeResults::default();
 
@@ -245,6 +244,12 @@ pub async fn lp_registration_probe(
 
     info!("LP registration successful! Received gateway data:");
     info!("  - Gateway public key: {:?}", gateway_data.public_key);
+    info!(
+        "  - PSK: {:?}",
+        gateway_data
+            .psk
+            .map(|k| general_purpose::STANDARD.encode(k))
+    );
     info!("  - Private IPv4: {}", gateway_data.private_ipv4);
     info!("  - Private IPv6: {}", gateway_data.private_ipv6);
     info!("  - Endpoint: {}", gateway_data.endpoint);
@@ -274,7 +279,7 @@ pub async fn wg_probe_lp(
     entry_gateway: &TestedNodeDetails,
     exit_gateway: &TestedNodeDetails,
     bandwidth_controller: &dyn BandwidthTicketProvider,
-    awg_args: String,
+    awg_args: Option<String>,
     netstack_args: NetstackArgs,
 ) -> anyhow::Result<WgProbeResults> {
     // Validate that both gateways have required information
@@ -293,9 +298,6 @@ pub async fn wg_probe_lp(
 
     let entry_lp_version = entry_lp_data.lp_version;
     let exit_lp_version = exit_lp_data.lp_version;
-
-    let entry_ip = entry_address.ip();
-    let exit_ip = exit_address.ip();
 
     info!("Starting LP-based WireGuard probe (entry→exit via forwarding)");
 
@@ -333,16 +335,10 @@ pub async fn wg_probe_lp(
 
     // STEP 2: Use nested session to register with exit gateway via forwarding
     info!("Registering with exit gateway via entry forwarding...");
-    let mut nested_session = NestedLpSession::new(
-        exit_address.to_string(),
-        exit_lp_keypair,
-        exit_peer,
-        exit_lp_version,
-    );
+    let mut nested_session =
+        NestedLpSession::new(exit_address, exit_lp_keypair, exit_peer, exit_lp_version);
 
-    // Convert exit gateway identity to ed25519 public key for registration
-    let exit_gateway_pubkey = ed25519::PublicKey::from_bytes(&exit_gateway.identity.to_bytes())
-        .map_err(|e| anyhow::anyhow!("Invalid exit gateway identity: {}", e))?;
+    let exit_gateway_pubkey = exit_gateway.identity;
 
     // Perform handshake and registration with exit gateway via forwarding
     let exit_gateway_data = match nested_session
@@ -406,9 +402,9 @@ pub async fn wg_probe_lp(
 
     // Build WireGuard endpoint addresses
     // Entry endpoint uses entry_ip (host-reachable) + port from registration
-    let entry_wg_endpoint = format!("{}:{}", entry_ip, entry_gateway_data.endpoint.port());
+    let entry_wg_endpoint = entry_gateway_data.endpoint;
     // Exit endpoint uses exit_ip + port from registration (forwarded via entry)
-    let exit_wg_endpoint = format!("{}:{}", exit_ip, exit_gateway_data.endpoint.port());
+    let exit_wg_endpoint = exit_gateway_data.endpoint;
 
     info!("Two-hop WireGuard configuration:");
     info!("  Entry gateway:");
@@ -424,12 +420,12 @@ pub async fn wg_probe_lp(
         entry_private_key_hex,
         entry_public_key_hex,
         entry_wg_endpoint,
-        awg_args.clone(), // Entry AWG args
+        awg_args.clone().unwrap_or_default(), // Entry AWG args
         exit_gateway_data.private_ipv4.to_string(),
         exit_private_key_hex,
         exit_public_key_hex,
         exit_wg_endpoint,
-        awg_args, // Exit AWG args
+        awg_args.unwrap_or_default(), // Exit AWG args
     );
 
     // Run two-hop tunnel connectivity tests
@@ -632,38 +628,22 @@ pub async fn listen_for_icmp_ping_replies(
 
 /// Creates a SOCKS5 proxy connection through the mixnet to the exit GW
 /// and performs necessary tests.
-#[allow(clippy::too_many_arguments)]
 #[instrument(level = "info", name = "socks5_test", skip_all)]
 pub(crate) async fn do_socks5_connectivity_test(
-    network_requester_address: &str,
+    nr_recipient: &Recipient,
+    entry_gateway_id: NodeIdentity,
     network_details: NymNetworkDetails,
-    directory: &NymApiDirectory,
-    json_rpc_endpoints: Vec<String>,
-    mixnet_client_timeout: u64,
-    test_run_count: u64,
-    failure_count_cutoff: usize,
-    topology: Option<NymTopology>,
+    min_gw_performance: Option<u8>,
+    socks5_args: Socks5Args,
+    maybe_topology: Option<NymTopology>,
 ) -> anyhow::Result<Socks5ProbeResults> {
     info!(
         "Starting SOCKS5 test through Network Requester: {}",
-        network_requester_address
+        nr_recipient
     );
-    if json_rpc_endpoints.is_empty() {
+    if socks5_args.socks5_json_rpc_url_list.is_empty() {
         bail!("You need to define JSON RPC URLs in order to test SOCKS5")
     }
-
-    // parse the network requester address
-    let nr_recipient = match network_requester_address.parse::<Recipient>() {
-        Ok(addr) => addr,
-        Err(e) => {
-            error!("Invalid Network Requester address: {}", e);
-
-            return Ok(Socks5ProbeResults::error_before_connecting(format!(
-                "Invalid NR address: {}",
-                e
-            )));
-        }
-    };
 
     info!(
         "Network Requester gateway: {}",
@@ -675,53 +655,30 @@ pub(crate) async fn do_socks5_connectivity_test(
     );
 
     // create ephemeral SOCKS5 client
-    let socks5_config = Socks5::new(network_requester_address.to_string());
-
-    // since we define both entry & exit gateways to be the same tested GW,
-    // this shouldn't negatively affect mixnet layers but it will force route
-    // construction in case GW would get filtered out of topology
-    let min_gw_performance = Some(0);
+    let socks5_config = Socks5::new(nr_recipient.to_string());
 
     // debug config similar to main probe
     let debug_config = mixnet_debug_config(min_gw_performance, true);
 
-    // Verify the NR gateway exists in the directory with exit_nr role
-    let nr_gateway_id = nr_recipient.gateway();
-    if let Err(e) = directory.exit_gateway_nr(&nr_gateway_id) {
-        return Ok(Socks5ProbeResults::error_before_connecting(e.to_string()));
-    } else {
-        info!("✔️ Network Requester gateway found in directory with exit_nr role");
-    }
-
-    // use intended exit as entry as well
-    let entry_gateway = nr_gateway_id;
-
-    // use existing topology if available, otherwise fetch it
-    let topology_provider: Box<HardcodedTopologyProvider> = match topology {
-        Some(t) => {
-            info!("✔️ Reusing topology from main mixnet client");
-            Box::new(HardcodedTopologyProvider::new(t))
-        }
-        None => {
-            info!("Fetching topology for SOCKS5 client...");
-            match hardcoded_topology(&network_details, &debug_config).await {
-                Ok(provider) => provider,
-                Err(e) => return Ok(Socks5ProbeResults::error_before_connecting(e)),
-            }
-        }
-    };
-
-    let socks5_client_builder = MixnetClientBuilder::new_ephemeral()
+    let mut socks5_client_builder = MixnetClientBuilder::new_ephemeral()
         // Specify entry gateway explicitly
-        .request_gateway(entry_gateway.to_base58_string())
+        .request_gateway(entry_gateway_id.to_base58_string())
         .socks5_config(socks5_config)
         .network_details(network_details)
-        .debug_config(debug_config)
-        .custom_topology_provider(topology_provider)
-        .build()?;
+        .debug_config(debug_config);
+
+    if let Some(topology) = maybe_topology {
+        socks5_client_builder = socks5_client_builder
+            .custom_topology_provider(Box::new(HardcodedTopologyProvider::new(topology)));
+    }
+
+    let disconnected_socks5_client = socks5_client_builder.build()?;
 
     // connect to mixnet via SOCKS5
-    let socks5_client = match socks5_client_builder.connect_to_mixnet_via_socks5().await {
+    let socks5_client = match disconnected_socks5_client
+        .connect_to_mixnet_via_socks5()
+        .await
+    {
         Ok(client) => {
             info!("🌐 Successfully connected to mixnet via SOCKS5 proxy");
             info!(
@@ -740,10 +697,10 @@ pub(crate) async fn do_socks5_connectivity_test(
     };
 
     let test = match HttpsConnectivityTest::new(
-        test_run_count,
-        mixnet_client_timeout,
-        failure_count_cutoff,
-        json_rpc_endpoints,
+        socks5_args.test_count,
+        socks5_args.mixnet_client_timeout_sec,
+        socks5_args.failure_count_cutoff,
+        socks5_args.socks5_json_rpc_url_list,
         socks5_client.socks5_url(),
     ) {
         Ok(test) => test,
@@ -761,46 +718,4 @@ pub(crate) async fn do_socks5_connectivity_test(
     socks5_client.disconnect().await;
 
     Ok(Socks5ProbeResults::with_http_result(result))
-}
-
-async fn hardcoded_topology(
-    network_details: &NymNetworkDetails,
-    debug_config: &DebugConfig,
-) -> Result<Box<HardcodedTopologyProvider>, String> {
-    // get Nym API URLs from network_details
-    let nym_api_urls: Vec<Url> = network_details
-        .nym_api_urls
-        .as_ref()
-        .map(|urls| urls.iter().filter_map(|u| u.url.parse().ok()).collect())
-        .or_else(|| {
-            network_details
-                .endpoints
-                .first()
-                .and_then(|e| e.api_url())
-                .map(|url| vec![url])
-        })
-        .unwrap_or_default();
-
-    if nym_api_urls.is_empty() {
-        return Err(String::from("No nym-api URLs available to fetch topology"));
-    }
-
-    let topology_config = NymApiTopologyProviderConfig {
-        min_mixnode_performance: debug_config.topology.minimum_mixnode_performance,
-        min_gateway_performance: debug_config.topology.minimum_gateway_performance,
-        use_extended_topology: debug_config.topology.use_extended_topology,
-        ignore_egress_epoch_role: debug_config.topology.ignore_egress_epoch_role,
-    };
-
-    let api_client = nym_http_api_client::Client::new_url(nym_api_urls[0].clone(), None)
-        .map_err(|e| e.to_string())?;
-    let mut provider = NymApiTopologyProvider::new(topology_config, nym_api_urls, api_client);
-
-    match provider.get_new_topology().await {
-        Some(topology) => {
-            info!("Fetched network topology");
-            Ok(Box::new(HardcodedTopologyProvider::new(topology)))
-        }
-        None => Err(String::from("Failed to fetch network topology")),
-    }
 }

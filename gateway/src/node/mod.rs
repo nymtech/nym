@@ -38,7 +38,7 @@ use tracing::*;
 use zeroize::Zeroizing;
 
 pub use crate::node::upgrade_mode::watcher::UpgradeModeWatcher;
-use crate::node::wireguard::PeerManager;
+use crate::node::wireguard::{PeerManager, PeerRegistrator};
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use lp_listener::LpConfig;
 pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender;
@@ -299,6 +299,22 @@ impl GatewayTasksBuilder {
         }
     }
 
+    pub async fn build_peer_registrator(
+        &mut self,
+        upgrade_mode_details: UpgradeModeDetails,
+    ) -> Result<Option<PeerRegistrator>, GatewayError> {
+        let Some(wireguard_data) = &self.wireguard_data else {
+            return Ok(None);
+        };
+
+        let peer_manager = PeerManager::new(wireguard_data.inner.clone());
+        Ok(Some(PeerRegistrator::new(
+            self.ecash_manager().await?,
+            peer_manager,
+            upgrade_mode_details,
+        )))
+    }
+
     pub async fn build_websocket_listener(
         &mut self,
         active_clients_store: ActiveClientsStore,
@@ -330,19 +346,9 @@ impl GatewayTasksBuilder {
 
     pub async fn build_lp_listener(
         &mut self,
-        upgrade_mode_common_state: UpgradeModeDetails,
+        peer_registrator: Option<PeerRegistrator>,
         active_clients_store: ActiveClientsStore,
     ) -> Result<lp_listener::LpListener, GatewayError> {
-        // Get WireGuard peer controller if available
-        let Some(wireguard_data) = &self.wireguard_data else {
-            return Err(GatewayError::InternalWireguardError(
-                "wireguard not set".to_string(),
-            ));
-        };
-
-        // TODO: combine this `PeerManager` with the one used within the authenticator
-        let peer_manager = Arc::new(PeerManager::new(wireguard_data.inner.clone()));
-
         let handler_state = lp_listener::LpHandlerState {
             ecash_verifier: self.ecash_manager().await?,
             storage: self.storage.clone(),
@@ -353,13 +359,11 @@ impl GatewayTasksBuilder {
             .with_kem_psq_key(self.kem_psq_keys.clone()),
             metrics: self.metrics.clone(),
             active_clients_store,
-            upgrade_mode: upgrade_mode_common_state,
-            peer_manager,
+            peer_registrator,
             lp_config: self.config.lp,
             outbound_mix_sender: self.mix_packet_sender.clone(),
             handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),
-            registrations_in_progress: Default::default(),
             forward_semaphore: Arc::new(Semaphore::new(
                 self.config.lp.debug.max_concurrent_forwards,
             )),
@@ -495,11 +499,10 @@ impl GatewayTasksBuilder {
 
     pub async fn build_wireguard_authenticator(
         &mut self,
+        peer_registrator: PeerRegistrator,
         upgrade_mode_common: UpgradeModeDetails,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Result<ServiceProviderBeingBuilt<Authenticator>, GatewayError> {
-        let ecash_manager = self.ecash_manager().await?;
-
         let Some(opts) = &self.authenticator_opts else {
             return Err(GatewayError::UnspecifiedAuthenticatorConfig);
         };
@@ -519,9 +522,9 @@ impl GatewayTasksBuilder {
 
         let mut authenticator_server = Authenticator::new(
             opts.config.clone(),
+            peer_registrator,
             upgrade_mode_common,
             wireguard_data.inner.clone(),
-            ecash_manager,
             self.shutdown_tracker.clone(),
         )
         .with_custom_gateway_transceiver(transceiver)

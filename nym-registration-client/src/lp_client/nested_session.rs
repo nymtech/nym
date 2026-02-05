@@ -38,9 +38,11 @@ use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
+    WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
 use rand::{CryptoRng, RngCore};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::warn;
@@ -67,7 +69,7 @@ use tracing::warn;
 /// ```
 pub struct NestedLpSession {
     /// Exit gateway's LP address (e.g., "2.2.2.2:41264")
-    exit_address: String,
+    exit_address: SocketAddr,
 
     /// Encapsulates all the client keys needed for the Lewes Protocol.
     lp_local_peer: LpLocalPeer,
@@ -92,7 +94,7 @@ impl NestedLpSession {
     /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
     /// * `gateway_supported_lp_protocol_version` - Gateway's LP protocol version
     pub fn new(
-        exit_address: String,
+        exit_address: SocketAddr,
         client_keypair: Arc<ed25519::KeyPair>,
         gateway_lp_peer: LpRemotePeer,
         gateway_supported_lp_protocol_version: u8,
@@ -145,16 +147,13 @@ impl NestedLpSession {
     /// Attempt to wrap the provided `LpData` into a `ForwardPacketData`
     /// using the inner state machine.
     fn prepare_forward_packet(&mut self, data: LpData) -> Result<ForwardPacketData> {
-        let target_gateway_identity = self.gateway_lp_peer.ed25519();
-        let target_lp_address = self.exit_address.clone();
-
         let state_machine = self.state_machine_mut()?;
         let inner_packet_bytes = prepare_serialised_send_packet(data, state_machine)?;
-        Ok(ForwardPacketData {
-            target_gateway_identity: target_gateway_identity.to_bytes(),
-            target_lp_address,
+        Ok(ForwardPacketData::new(
+            self.gateway_lp_peer.ed25519(),
+            self.exit_address,
             inner_packet_bytes,
-        })
+        ))
     }
 
     /// Attempt to recover received `LpData` from the received `LpPacket`
@@ -224,7 +223,7 @@ impl NestedLpSession {
         let client_hello_bytes = serialize_packet(&client_hello_packet, None)?;
         let forward_packet_data = ForwardPacketData::new(
             self.gateway_lp_peer.ed25519(),
-            self.exit_address.clone(),
+            self.exit_address,
             client_hello_bytes,
         );
 
@@ -374,7 +373,7 @@ impl NestedLpSession {
         gateway_identity: ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
-    ) -> Result<WireguardConfiguration>
+    ) -> Result<WireguardRegistrationData>
     where
         S: LpTransport + Unpin,
     {
@@ -435,14 +434,7 @@ impl NestedLpSession {
                 tracing::warn!("Gateway rejected registration: {reason}");
                 Err(LpClientError::RegistrationRejected { reason })
             }
-            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => {
-                // we have managed to complete the registration
-                tracing::info!(
-                    "LP registration successful! Allocated bandwidth: {} bytes",
-                    res.available_bandwidth
-                );
-                Ok(res.config)
-            }
+            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => Ok(res.config),
             LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
                 Err(LpClientError::unexpected_response(
                     "received request for additional dvpn data after sending credential!",
@@ -498,7 +490,10 @@ impl NestedLpSession {
 
         // Step 2: Build registration request
         let wg_public_key = PeerPublicKey::from(*wg_keypair.public_key());
-        let request = LpRegistrationRequest::new_initial_dvpn(rng, wg_public_key, ticket_type);
+        let mut psk = [0u8; 32];
+        rng.fill_bytes(&mut psk);
+
+        let request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk);
 
         // Step 3: Serialize the request
         let send_data = request.to_lp_data()?;
@@ -528,21 +523,14 @@ impl NestedLpSession {
         };
 
         // Step 9: check response to the initial request
-        match dvpn_response.content {
+        let final_response = match dvpn_response.content {
             LpDvpnRegistrationResponseMessageContent::RegistrationFailure(res) => {
                 let reason = res.error;
                 // the registration has failed
                 tracing::warn!("Gateway rejected registration: {reason}");
-                Err(LpClientError::RegistrationRejected { reason })
+                return Err(LpClientError::RegistrationRejected { reason });
             }
-            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => {
-                // we have already registered with this gateway before, the gateway has updated the psk and sent us the config
-                tracing::info!(
-                    "LP registration successful! Allocated bandwidth: {} bytes",
-                    res.available_bandwidth
-                );
-                Ok(res.config)
-            }
+            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => res.config,
             LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
                 // we're registering for the first time with this gateway - we need to attach a credential
 
@@ -553,9 +541,18 @@ impl NestedLpSession {
                     bandwidth_controller,
                     ticket_type,
                 )
-                .await
+                .await?
             }
-        }
+        };
+
+        // JS/SW TODO Adapt this to new gateway response
+        Ok(WireguardConfiguration {
+            public_key: final_response.public_key,
+            psk: Some(psk),
+            endpoint: SocketAddr::new(self.exit_address.ip(), final_response.port),
+            private_ipv4: final_response.private_ipv4,
+            private_ipv6: final_response.private_ipv6,
+        })
     }
 
     /// Performs handshake and registration with the exit gateway via forwarding,
@@ -683,7 +680,7 @@ impl NestedLpSession {
         let packet_bytes = serialize_packet(packet, send_key.as_ref())?;
         let forward_data = ForwardPacketData::new(
             self.gateway_lp_peer.ed25519(),
-            self.exit_address.clone(),
+            self.exit_address,
             packet_bytes,
         );
         let response_bytes = outer_client

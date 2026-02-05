@@ -1,6 +1,38 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_network_defaults::{WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6};
+use std::net::{Ipv4Addr, Ipv6Addr};
+
+pub fn authenticator_ipv6_to_ipv4(addr: Ipv6Addr) -> Ipv4Addr {
+    let before_last_byte = addr.octets()[14];
+    let last_byte = addr.octets()[15];
+
+    Ipv4Addr::new(
+        WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[0],
+        WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[1],
+        before_last_byte,
+        last_byte,
+    )
+}
+
+pub fn authenticator_ipv4_to_ipv6(addr: Ipv4Addr) -> Ipv6Addr {
+    let before_last_byte = addr.octets()[2];
+    let last_byte = addr.octets()[3];
+
+    let last_bytes = ((before_last_byte as u16) << 8) | last_byte as u16;
+    Ipv6Addr::new(
+        WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[0],
+        WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[1],
+        WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[2],
+        WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[3],
+        WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[4],
+        WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[5],
+        WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[6],
+        last_bytes,
+    )
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     pub(crate) const CREDENTIAL_BYTES: [u8; 1245] = [

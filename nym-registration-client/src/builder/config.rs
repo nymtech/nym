@@ -17,8 +17,8 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
 
-use crate::config::RegistrationMode;
-use crate::error::RegistrationClientError;
+use crate::{LpRegistrationConfig, config::RegistrationMode};
+use crate::{config::RegistrationClientConfig, error::RegistrationClientError};
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
 const MIXNET_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
@@ -31,19 +31,31 @@ pub struct NymNodeWithKeys {
 
 #[derive(TypedBuilder)]
 pub struct BuilderConfig {
+    // For future reference
+    // Common options
     pub entry_node: NymNodeWithKeys,
     pub exit_node: NymNodeWithKeys,
     pub data_path: Option<PathBuf>,
+    pub mode: RegistrationMode,
+    pub cancel_token: CancellationToken,
+
+    // Toggle
+    #[builder(default)]
+    pub enable_lp_regitration: bool,
+
+    // Mixnet based only option
     pub mixnet_client_config: MixnetClientConfig,
     #[builder(default = MIXNET_CLIENT_STARTUP_TIMEOUT)]
     pub mixnet_client_startup_timeout: Duration,
-    pub mode: RegistrationMode,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     pub network_env: NymNetworkDetails,
-    pub cancel_token: CancellationToken,
     #[cfg(unix)]
     pub connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
+
+    // LP based only option
+    #[builder(default)]
+    pub lp_registration_config: LpRegistrationConfig,
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
@@ -75,31 +87,58 @@ impl BuilderConfig {
             // Mixnet mode uses 5-hop configuration
             RegistrationMode::Mixnet => mixnet_debug_config(&self.mixnet_client_config),
             // Wireguard and LP both use 2-hop configuration
-            RegistrationMode::Wireguard | RegistrationMode::Lp => {
-                two_hop_debug_config(&self.mixnet_client_config)
-            }
+            RegistrationMode::Wireguard => two_hop_debug_config(&self.mixnet_client_config),
         }
     }
 
-    pub async fn setup_storage(
+    pub fn registration_client_config(&self) -> RegistrationClientConfig {
+        RegistrationClientConfig {
+            entry: self.entry_node.clone(),
+            exit: self.exit_node.clone(),
+            mode: self.mode,
+            lp_registration_config: self.lp_registration_config,
+        }
+    }
+
+    pub async fn setup_mixnet_client_storage(
         &self,
     ) -> Result<Option<(OnDiskPersistent, PersistentStorage)>, RegistrationClientError> {
         if let Some(path) = &self.data_path {
             tracing::debug!("Using custom key storage path: {}", path.display());
 
             let storage_paths = StoragePaths::new_from_dir(path)
-                .map_err(|err| RegistrationClientError::BuildMixnetClient(Box::new(err)))?;
+                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
 
             let mixnet_client_storage = storage_paths
                 .initialise_persistent_storage(&self.mixnet_client_debug_config())
                 .await
-                .map_err(|err| RegistrationClientError::BuildMixnetClient(Box::new(err)))?;
+                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
             let credential_storage = storage_paths
                 .persistent_credential_storage()
                 .await
-                .map_err(|err| RegistrationClientError::BuildMixnetClient(Box::new(err)))?;
+                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
 
             Ok(Some((mixnet_client_storage, credential_storage)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn setup_credential_storage(
+        &self,
+    ) -> Result<Option<PersistentStorage>, RegistrationClientError> {
+        if let Some(path) = &self.data_path {
+            tracing::debug!("Using custom credential storage path: {}", path.display());
+
+            let storage_paths = StoragePaths::new_from_dir(path)
+                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
+
+            let credential_storage = storage_paths
+                .persistent_credential_storage()
+                .await
+                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
+
+            Ok(Some(credential_storage))
         } else {
             Ok(None)
         }
@@ -121,7 +160,7 @@ impl BuilderConfig {
         let debug_config = self.mixnet_client_debug_config();
         let remember_me = match self.mode {
             RegistrationMode::Mixnet => RememberMe::new_mixnet(),
-            RegistrationMode::Wireguard | RegistrationMode::Lp => RememberMe::new_vpn(),
+            RegistrationMode::Wireguard => RememberMe::new_vpn(),
         };
 
         let identity = self.entry_node.node.identity.to_string();

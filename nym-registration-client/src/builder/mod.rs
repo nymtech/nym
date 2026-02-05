@@ -16,7 +16,7 @@ use nym_validator_client::{
 use crate::{
     RegistrationClient,
     clients::{LpBasedRegistrationClient, MixnetBasedRegistrationClient},
-    config::{RegistrationClientConfig, RegistrationMode},
+    config::RegistrationMode,
     error::RegistrationClientError,
 };
 use config::BuilderConfig;
@@ -53,13 +53,8 @@ impl RegistrationClientBuilder {
     pub(crate) async fn build_mixnet(
         self,
     ) -> Result<MixnetBasedRegistrationClient, RegistrationClientError> {
-        let storage = self.config.setup_storage().await?;
-        let config = RegistrationClientConfig {
-            entry: self.config.entry_node.clone(),
-            exit: self.config.exit_node.clone(),
-            mode: self.config.mode,
-            lp_registration_config: self.config.lp_registration_config,
-        };
+        let storage = self.config.setup_mixnet_client_storage().await?;
+        let config = self.config.registration_client_config();
         let cancel_token = self.config.cancel_token.clone();
         let (event_tx, event_rx) = mpsc::unbounded();
 
@@ -120,18 +115,13 @@ impl RegistrationClientBuilder {
     }
 
     async fn build_lp(self) -> Result<LpBasedRegistrationClient, RegistrationClientError> {
-        let storage = self.config.setup_storage().await?;
-        let config = RegistrationClientConfig {
-            entry: self.config.entry_node.clone(),
-            exit: self.config.exit_node.clone(),
-            mode: self.config.mode,
-            lp_registration_config: self.config.lp_registration_config,
-        };
+        let storage = self.config.setup_credential_storage().await?;
+        let config = self.config.registration_client_config();
 
         let nyxd_client = get_nyxd_client(&self.config.network_env)?;
 
         let bandwidth_controller: Box<dyn BandwidthTicketProvider> =
-            if let Some((_, credential_storage)) = storage {
+            if let Some(credential_storage) = storage {
                 Box::new(BandwidthController::new(credential_storage, nyxd_client))
             } else {
                 Box::new(BandwidthController::new(

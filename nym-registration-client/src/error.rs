@@ -9,6 +9,9 @@ pub enum RegistrationClientError {
     #[error("failed to build mixnet client")]
     BuildMixnetClient(#[source] Box<nym_sdk::Error>),
 
+    #[error("failed to initialize storage")]
+    StorageInitialization(#[source] Box<nym_sdk::Error>),
+
     #[error("failed to connect to mixnet")]
     ConnectToMixnet(#[source] Box<nym_sdk::Error>),
 

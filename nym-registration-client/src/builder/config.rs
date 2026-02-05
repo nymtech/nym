@@ -17,8 +17,8 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
 
-use crate::error::RegistrationClientError;
 use crate::{LpRegistrationConfig, config::RegistrationMode};
+use crate::{config::RegistrationClientConfig, error::RegistrationClientError};
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
 const MIXNET_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
@@ -91,25 +91,54 @@ impl BuilderConfig {
         }
     }
 
-    pub async fn setup_storage(
+    pub fn registration_client_config(&self) -> RegistrationClientConfig {
+        RegistrationClientConfig {
+            entry: self.entry_node.clone(),
+            exit: self.exit_node.clone(),
+            mode: self.mode,
+            lp_registration_config: self.lp_registration_config,
+        }
+    }
+
+    pub async fn setup_mixnet_client_storage(
         &self,
     ) -> Result<Option<(OnDiskPersistent, PersistentStorage)>, RegistrationClientError> {
         if let Some(path) = &self.data_path {
             tracing::debug!("Using custom key storage path: {}", path.display());
 
             let storage_paths = StoragePaths::new_from_dir(path)
-                .map_err(|err| RegistrationClientError::BuildMixnetClient(Box::new(err)))?;
+                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
 
             let mixnet_client_storage = storage_paths
                 .initialise_persistent_storage(&self.mixnet_client_debug_config())
                 .await
-                .map_err(|err| RegistrationClientError::BuildMixnetClient(Box::new(err)))?;
+                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
             let credential_storage = storage_paths
                 .persistent_credential_storage()
                 .await
-                .map_err(|err| RegistrationClientError::BuildMixnetClient(Box::new(err)))?;
+                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
 
             Ok(Some((mixnet_client_storage, credential_storage)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn setup_credential_storage(
+        &self,
+    ) -> Result<Option<PersistentStorage>, RegistrationClientError> {
+        if let Some(path) = &self.data_path {
+            tracing::debug!("Using custom credential storage path: {}", path.display());
+
+            let storage_paths = StoragePaths::new_from_dir(path)
+                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
+
+            let credential_storage = storage_paths
+                .persistent_credential_storage()
+                .await
+                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
+
+            Ok(Some(credential_storage))
         } else {
             Ok(None)
         }

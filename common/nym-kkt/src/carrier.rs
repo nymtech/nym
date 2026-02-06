@@ -10,7 +10,7 @@ use crate::{
     frame::KKT_SESSION_ID_LEN,
 };
 
-const MAX_PAYLOAD_LEN: usize = 65535;
+const MAX_PAYLOAD_LEN: usize = 1_000_000;
 
 pub struct Carrier {
     tx_key: [u8; 32],
@@ -228,7 +228,7 @@ mod tests {
                     &mut r_context,
                     i_frame_r.session_id(),
                     responder_ed25519_keypair.private_key(),
-                    &responder_kem_public_key,
+                    &responder_kem_public_key.encode(),
                 )
                 .unwrap();
 
@@ -258,7 +258,7 @@ mod tests {
                     i_context.role(),
                     &i_frame.session_id(),
                     &responder_x25519_keypair.pk,
-                    &i_obtained_key,
+                    &i_obtained_key.encode(),
                 )
                 .unwrap();
 
@@ -267,7 +267,7 @@ mod tests {
                     r_context.role(),
                     &r_frame.session_id(),
                     &responder_x25519_keypair.pk,
-                    &responder_kem_public_key,
+                    &responder_kem_public_key.encode(),
                 )
                 .unwrap();
 

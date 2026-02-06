@@ -118,7 +118,7 @@ pub fn build_responder<'a>(
         .unwrap()
 }
 
-pub fn responder_process<'a>(
+pub fn psq_responder_process<'a>(
     responder: &'a mut Responder<ThreadRng>,
     initiator_message: &[u8],
 ) -> Vec<u8> {

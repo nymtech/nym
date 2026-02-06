@@ -17,12 +17,14 @@ use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
 use crate::packet::LpHeader;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psk::{
-    derive_subsession_psk, psq_initiator_create_message, psq_responder_process_message,
+    derive_subsession_psk
 };
-use crate::psq::{build_initiator, build_responder, initiator_process};
+use crate::psq::{
+    build_initiator, build_responder, initiator_process, psq_responder_process};
 use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
 use libcrux_psq::v1::traits::PSQ;
+use libcrux_psq::{Channel, IntoSession};
 use rand09::rngs::ThreadRng;
 
 use libcrux_psq::{
@@ -104,19 +106,9 @@ pub enum KKTState {
     },
 
     /// KKT exchange completed (initiator received and validated KEM key).
-    Completed {
-        /// Responder's KEM public key for PSQ encapsulation
-        kem_pk: Box<EncapsulationKey>,
-
-        /// This can be used to send encrypted messages
-        carrier: Carrier,
-    },
-
+    Completed,
     /// Responder processed a KKT request and sent response.
-    ResponderProcessed {
-        /// This can be used to send encrypted messages
-        carrier: Carrier,
-    },
+    ResponderProcessed,
 }
 
 impl std::fmt::Debug for KKTState {
@@ -258,6 +250,13 @@ impl HandshakeState {
             return Err(LpError::KKTError("TODO: msg".to_string()));
         };
         Ok(psq_state)
+    }
+    pub fn into_session(mut self) -> Session {
+        let  HandshakeState::PSQ(mut psq_state) = self  else {
+            panic!();
+        }
+        psq_state.into_session()
+        
     }
 }
 
@@ -778,9 +777,7 @@ impl LpSession {
 
         // Mark KKT as processed
         // Responder doesn't store the kem_pk since they already have their own KEM keypair
-        self.handshake_state = HandshakeState::KKT(KKTState::ResponderProcessed {
-            carrier: responder_carrier,
-        });
+        self.carrier = Some(responder_carrier);
 
         Ok(LpMessage::KKTResponse(crate::message::KKTResponseData(
             response_bytes,
@@ -802,7 +799,7 @@ impl LpSession {
     ///
     /// * `None` if no message needs to be sent currently (e.g., waiting for peer, or handshake complete).
     /// * `Some(LpError)` if there's an error within the Noise protocol or PSQ.
-    pub fn prepare_handshake_message(&mut self) -> Option<Result<LpMessage, LpError>> {
+    pub fn prepare_psq_request(&mut self) -> Option<Result<LpMessage, LpError>> {
         let state = self.handshake_state.psq_state_mut().expect("TODO error");
 
         // PSQ always runs for initiator on first message
@@ -861,164 +858,65 @@ impl LpSession {
         ))))
     }
 
-    /// Processes a received handshake message from the peer.
-    ///
-    /// This should be called by the driver/IO layer after receiving a potential
-    /// handshake message payload from an LP packet.
-    ///
-    /// For responders, PSQ always runs on the first message:
-    /// 1. Extracts PSQ payload from the first handshake message: [u16 len][psq_payload][noise_msg]
-    /// 2. Converts X25519 keys to DHKEM format
-    /// 3. Decapsulates PSK from PSQ payload
-    /// 4. Injects PSK into Noise HandshakeState
-    /// 5. Processes the remaining Noise handshake message
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The LP message received from the peer, expected to be a Handshake message.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(ReadResult)` detailing the outcome (e.g., handshake complete, no-op).
-    /// * `Err(LpError)` if the message is invalid or causes a Noise/PSQ protocol error.
-    pub fn process_handshake_message(&self, message: &LpMessage) -> Result<ReadResult, LpError> {
-        todo!()
-        // let mut noise_state = self.noise_state.lock();
-        // let mut psq_state = self.psq_state.lock();
-        //
-        // match message {
-        //     LpMessage::Handshake(HandshakeData(payload)) => {
-        //         // PSQ always runs for responder on first message
-        //         if !self.is_initiator && matches!(*psq_state, PSQState::ResponderWaiting) {
-        //             // Extract PSQ payload: [u16 psq_len][psq_payload][noise_msg]
-        //             if payload.len() < 2 {
-        //                 return Err(LpError::NoiseError(NoiseError::Other(
-        //                     "Payload too short for PSQ extraction".to_string(),
-        //                 )));
-        //             }
-        //
-        //             let psq_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
-        //
-        //             if payload.len() < 2 + psq_len {
-        //                 return Err(LpError::NoiseError(NoiseError::Other(
-        //                     "Payload length mismatch for PSQ extraction".to_string(),
-        //                 )));
-        //             }
-        //
-        //             let psq_payload = &payload[2..2 + psq_len];
-        //             let noise_payload = &payload[2 + psq_len..];
-        //
-        //             let (dec_key, enc_key) = self.encapsulated_kem_keys()?;
-        //
-        //             // Decapsulate PSK from PSQ payload using X25519 as DHKEM
-        //             let session_context = self.id.to_le_bytes();
-        //
-        //             let psq_result = match psq_responder_process_message(
-        //                 self.psq_state.borrow_local_peer().x25519.sk(),
-        //                 &self.psq_state.borrow_remote_peer().x25519_public,
-        //                 (&dec_key, &enc_key),
-        //                 &self.psq_state.borrow_remote_peer().ed25519_public,
-        //                 psq_payload,
-        //                 &self.salt,
-        //                 &session_context,
-        //             ) {
-        //                 Ok(result) => result,
-        //                 Err(e) => {
-        //                     tracing::error!("PSQ handshake processing failed, aborting: {:?}", e);
-        //                     return Err(e);
-        //                 }
-        //             };
-        //             let psk = psq_result.psk;
-        //
-        //             // Store PQ shared secret for subsession PSK derivation
-        //             *self.pq_shared_secret.lock() =
-        //                 Some(PqSharedSecret::new(psq_result.pq_shared_secret));
-        //
-        //             // Store the PSK handle (ctxt_B) for transmission in next message
-        //             {
-        //                 let mut psk_handle = self.psk_handle.lock();
-        //                 *psk_handle = Some(psq_result.psk_handle);
-        //             }
-        //
-        //             // Inject PSK into Noise HandshakeState
-        //             noise_state.set_psk(3, &psk)?;
-        //             // Mark PSK as injected for safety checks in transport mode
-        //             self.psk_injected.store(true, Ordering::Release);
-        //
-        //             // Derive and store outer AEAD key from PSK
-        //             {
-        //                 let mut outer_key = self.outer_aead_key.lock();
-        //                 *outer_key = Some(OuterAeadKey::from_psk(&psk));
-        //             }
-        //
-        //             // Update PSQ state to Completed
-        //             *psq_state = PSQState::Completed { psk };
-        //
-        //             // Process the Noise handshake message (without PSQ prefix)
-        //             drop(psq_state); // Release lock before processing
-        //             return noise_state
-        //                 .read_message(noise_payload)
-        //                 .map_err(LpError::NoiseError);
-        //         }
-        //
-        //         // Check if initiator should extract PSK handle from message 2
-        //         if let PSQState::InitiatorWaiting { psk } = *psq_state
-        //             && self.is_initiator
-        //         {
-        //             // Extract PSK handle: [u16 handle_len][handle_bytes][noise_msg]
-        //             if payload.len() >= 2 {
-        //                 let handle_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
-        //
-        //                 if handle_len > 0 && payload.len() >= 2 + handle_len {
-        //                     // Extract and store the PSK handle
-        //                     let handle_bytes = &payload[2..2 + handle_len];
-        //                     let noise_payload = &payload[2 + handle_len..];
-        //
-        //                     tracing::debug!(
-        //                         "Extracted PSK handle ({} bytes) from message 2",
-        //                         handle_len
-        //                     );
-        //
-        //                     {
-        //                         let mut psk_handle = self.psk_handle.lock();
-        //                         *psk_handle = Some(handle_bytes.to_vec());
-        //                     }
-        //
-        //                     // Transition to Completed - we've received confirmation from responder
-        //                     *psq_state = PSQState::Completed { psk };
-        //                     drop(psq_state);
-        //
-        //                     // Process only the Noise message part
-        //                     return noise_state
-        //                         .read_message(noise_payload)
-        //                         .map_err(LpError::NoiseError);
-        //                 }
-        //             }
-        //             // If no valid handle found, fall through to normal processing
-        //         }
-        //
-        //         // The sans-io NoiseProtocol::read_message expects only the payload.
-        //         noise_state
-        //             .read_message(payload)
-        //             .map_err(LpError::NoiseError)
-        //     }
-        //     _ => Err(LpError::NoiseError(NoiseError::IncorrectStateError)),
-        // }
+    pub fn process_psq_request(&mut self, message: &[u8]) -> Result<LpMessage, LpError> {
+        let state = self.handshake_state.psq_state_mut().expect("TODO error");
+
+        if self.is_initiator || !matches!(state.borrow_state_bare(), PSQStateBare::ResponderWaiting)
+        {
+            panic!("not responder");
+        }
+
+        let mut responder =
+            build_responder(&self.base.local_peer.x25519, self.local_kem_keys().unwrap());
+
+        let psq_response = psq_responder_process(&mut responder, message);
+
+        let encrypted_psq_response = self
+            .carrier
+            .as_ref()
+            .expect("carrier should have been set i guess")
+            .encrypt(&psq_response)
+            .unwrap();
+
+        self.psq_session = Mutex::new(Some(responder.into_session().unwrap()));
+
+        Ok(LpMessage::PSQResponse(PSQResponseData(
+            encrypted_psq_response,
+        )))
+    }
+
+    pub fn process_psq_response(&mut self, message: &[u8]) -> Result<(), LpError> {
+        let state = self.handshake_state.psq_state_mut().expect("TODO error");
+
+        state.with_psq_state_mut(|state| match state {
+            PSQState::InitiatorWaiting { initiator } => {
+                // will move this elsewhere
+                initiator
+                    .read_message(message, &mut [])
+                    .expect("Failed to read message");
+            }
+            _ => panic!("Not initiator waiting"),
+        });
+        let session = state.with_psq_state_mut(|state| match state {
+            PSQState::InitiatorWaiting { initiator } => {
+                // will move this elsewhere
+                // initiator
+                // .read_message(message, &mut [])
+                // .expect("Failed to read message");
+
+                initiator
+                
+            }
+            _ => panic!("Not initiator waiting"),
+        });
+
+        Ok(())
     }
 
     /// Checks if the Noise handshake phase is complete.
     pub fn is_handshake_complete(&self) -> bool {
         todo!()
         // self.noise_state.lock().is_handshake_finished()
-    }
-
-    /// Returns the PQ shared secret (K_pq) if available.
-    ///
-    /// This is the raw KEM output from PSQ before Blake3 KDF combination.
-    /// Used for deriving subsession PSKs to maintain PQ protection.
-    pub fn pq_shared_secret(&self) -> Option<[u8; 32]> {
-        todo!()
-        // self.pq_shared_secret.lock().as_ref().map(|s| *s.as_bytes())
     }
 
     /// Gets the next subsession index and increments the counter.
@@ -1141,9 +1039,7 @@ impl LpSession {
                 .expect("Test KEM key conversion failed");
         let kem_pk = EncapsulationKey::X25519(libcrux_public_key);
 
-        self.kkt_state = KKTState::Completed {
-            kem_pk: Box::new(kem_pk),
-        };
+        self.kkt_state = KKTState::Completed;
     }
 
     // noiserm
@@ -1500,7 +1396,7 @@ mod tests {
     }
 
     #[test]
-    fn test_prepare_handshake_message_initial_state() {
+    fn test_prepare_psq_request_initial_state() {
         let receiver_index = 12345u32;
         for kem in kem_list() {
             let initiator_session = create_handshake_test_session(kem, receiver_index, true);
@@ -1512,7 +1408,7 @@ mod tests {
             );
 
             // Initiator should have a message to send immediately (-> e)
-            let initiator_msg_result = initiator_session.prepare_handshake_message();
+            let initiator_msg_result = initiator_session.prepare_psq_request();
             assert!(initiator_msg_result.is_some());
             let initiator_msg = initiator_msg_result
                 .unwrap()
@@ -1520,13 +1416,13 @@ mod tests {
             assert!(!initiator_msg.is_empty());
 
             // Responder should have nothing to send initially (waits for <- e)
-            let responder_msg_result = responder_session.prepare_handshake_message();
+            let responder_msg_result = responder_session.prepare_psq_request();
             assert!(responder_msg_result.is_none());
         }
     }
 
     #[test]
-    fn test_process_handshake_message_first_step() {
+    fn test_process_psq_request_first_step() {
         let receiver_index = 12345u32;
 
         for kem in kem_list() {
@@ -1534,13 +1430,13 @@ mod tests {
             let responder_session = create_handshake_test_session(kem, receiver_index, false);
 
             // 1. Initiator prepares the first message (-> e)
-            let initiator_msg_result = initiator_session.prepare_handshake_message();
+            let initiator_msg_result = initiator_session.prepare_psq_request();
             let initiator_msg = initiator_msg_result
                 .unwrap()
                 .expect("Initiator msg prep failed");
 
             // 2. Responder processes the message (<- e)
-            let process_result = responder_session.process_handshake_message(&initiator_msg);
+            let process_result = responder_session.process_psq_request(&initiator_msg);
 
             // Check the result of processing
             match process_result {
@@ -1552,7 +1448,7 @@ mod tests {
             }
 
             // 3. After processing, responder should now have a message to send (-> e, es)
-            let responder_response_result = responder_session.prepare_handshake_message();
+            let responder_response_result = responder_session.prepare_psq_request();
             assert!(responder_response_result.is_some());
             let responder_response = responder_response_result
                 .unwrap()
@@ -1573,7 +1469,7 @@ mod tests {
 
             // Start by priming the initiator message
             let mut initiator_to_responder_msg =
-                initiator_session.prepare_handshake_message().unwrap().ok();
+                initiator_session.prepare_psq_request().unwrap().ok();
             assert!(
                 initiator_to_responder_msg.is_some(),
                 "Initiator did not produce initial message"
@@ -1585,16 +1481,14 @@ mod tests {
                 // === Initiator -> Responder ===
                 if let Some(msg) = initiator_to_responder_msg.take() {
                     // Process message
-                    match responder_session.process_handshake_message(&msg) {
+                    match responder_session.process_psq_request(&msg) {
                         Ok(_) => {}
                         Err(e) => panic!("Responder processing failed: {:?}", e),
                     }
 
                     // Check if responder needs to send a reply
-                    responder_to_initiator_msg = responder_session
-                        .prepare_handshake_message()
-                        .transpose()
-                        .unwrap();
+                    responder_to_initiator_msg =
+                        responder_session.prepare_psq_request().transpose().unwrap();
                 }
 
                 // Check completion after potentially processing responder's message below
@@ -1607,16 +1501,14 @@ mod tests {
                 // === Responder -> Initiator ===
                 if let Some(msg) = responder_to_initiator_msg.take() {
                     // Process message
-                    match initiator_session.process_handshake_message(&msg) {
+                    match initiator_session.process_psq_request(&msg) {
                         Ok(_) => {}
                         Err(e) => panic!("Initiator processing failed: {:?}", e),
                     }
 
                     // Check if initiator needs to send a reply (should be last message in XK)
-                    initiator_to_responder_msg = initiator_session
-                        .prepare_handshake_message()
-                        .transpose()
-                        .unwrap();
+                    initiator_to_responder_msg =
+                        initiator_session.prepare_psq_request().transpose().unwrap();
                 }
 
                 // Check completion again after potentially processing initiator's message above
@@ -1652,21 +1544,12 @@ mod tests {
             let responder_session = create_handshake_test_session(kem, 12345u32, false);
 
             // Drive handshake to completion (simplified loop from previous test)
-            let mut i_msg = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            responder_session.process_handshake_message(&i_msg).unwrap();
-            let r_msg = responder_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            initiator_session.process_handshake_message(&r_msg).unwrap();
-            i_msg = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            responder_session.process_handshake_message(&i_msg).unwrap();
+            let mut i_msg = initiator_session.prepare_psq_request().unwrap().unwrap();
+            responder_session.process_psq_request(&i_msg).unwrap();
+            let r_msg = responder_session.prepare_psq_request().unwrap().unwrap();
+            initiator_session.process_psq_request(&r_msg).unwrap();
+            i_msg = initiator_session.prepare_psq_request().unwrap().unwrap();
+            responder_session.process_psq_request(&i_msg).unwrap();
 
             assert!(initiator_session.is_handshake_complete());
             assert!(responder_session.is_handshake_complete());
@@ -1780,7 +1663,7 @@ mod tests {
 
             // Drive the handshake
             let mut i_msg = initiator_session
-                .prepare_handshake_message()
+                .prepare_psq_request()
                 .expect("Initiator should have message")
                 .expect("Message prep should succeed");
 
@@ -1795,26 +1678,26 @@ mod tests {
 
             // Responder processes message (which includes PSQ decapsulation)
             responder_session
-                .process_handshake_message(&i_msg)
+                .process_psq_request(&i_msg)
                 .expect("Responder should process first message");
 
             // Continue handshake
             let r_msg = responder_session
-                .prepare_handshake_message()
+                .prepare_psq_request()
                 .expect("Responder should have message")
                 .expect("Responder message prep should succeed");
 
             initiator_session
-                .process_handshake_message(&r_msg)
+                .process_psq_request(&r_msg)
                 .expect("Initiator should process responder message");
 
             i_msg = initiator_session
-                .prepare_handshake_message()
+                .prepare_psq_request()
                 .expect("Initiator should have final message")
                 .expect("Final message prep should succeed");
 
             responder_session
-                .process_handshake_message(&i_msg)
+                .process_psq_request(&i_msg)
                 .expect("Responder should process final message");
 
             // Verify handshake completed
@@ -1870,7 +1753,7 @@ mod tests {
 
             // Prepare first message (initiator runs PSQ and injects PSK)
             let i_msg = initiator_session
-                .prepare_handshake_message()
+                .prepare_psq_request()
                 .expect("Initiator should have message")
                 .expect("Message prep should succeed");
 
@@ -1882,24 +1765,16 @@ mod tests {
 
             // Complete handshake
             responder_session
-                .process_handshake_message(&i_msg)
+                .process_psq_request(&i_msg)
                 .expect("Responder should process message");
 
-            let r_msg = responder_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
+            let r_msg = responder_session.prepare_psq_request().unwrap().unwrap();
 
-            initiator_session.process_handshake_message(&r_msg).unwrap();
+            initiator_session.process_psq_request(&r_msg).unwrap();
 
-            let final_msg = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
+            let final_msg = initiator_session.prepare_psq_request().unwrap().unwrap();
 
-            responder_session
-                .process_handshake_message(&final_msg)
-                .unwrap();
+            responder_session.process_psq_request(&final_msg).unwrap();
 
             // Test that encryption produces non-trivial ciphertext
             // (would fail if using dummy PSK incorrectly)
@@ -1938,7 +1813,7 @@ mod tests {
 
             // Round 1: Initiator -> Responder (contains PSQ encapsulation)
             let msg1 = initiator_session
-                .prepare_handshake_message()
+                .prepare_psq_request()
                 .expect("Initiator should prepare message")
                 .expect("Message should succeed");
 
@@ -1946,29 +1821,29 @@ mod tests {
             assert!(!initiator_session.is_handshake_complete());
 
             responder_session
-                .process_handshake_message(&msg1)
+                .process_psq_request(&msg1)
                 .expect("Responder should process PSQ message");
 
             assert!(!responder_session.is_handshake_complete());
 
             // Round 2: Responder -> Initiator
             let msg2 = responder_session
-                .prepare_handshake_message()
+                .prepare_psq_request()
                 .expect("Responder should prepare message")
                 .expect("Message should succeed");
 
             initiator_session
-                .process_handshake_message(&msg2)
+                .process_psq_request(&msg2)
                 .expect("Initiator should process message");
 
             // Round 3: Initiator -> Responder (final)
             let msg3 = initiator_session
-                .prepare_handshake_message()
+                .prepare_psq_request()
                 .expect("Initiator should prepare final message")
                 .expect("Message should succeed");
 
             responder_session
-                .process_handshake_message(&msg3)
+                .process_psq_request(&msg3)
                 .expect("Responder should process final message");
 
             // Verify both sides completed
@@ -2010,23 +1885,14 @@ mod tests {
             assert_eq!(initiator_session.id(), responder_session.id());
 
             // Complete handshake
-            let msg1 = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            responder_session.process_handshake_message(&msg1).unwrap();
+            let msg1 = initiator_session.prepare_psq_request().unwrap().unwrap();
+            responder_session.process_psq_request(&msg1).unwrap();
 
-            let msg2 = responder_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            initiator_session.process_handshake_message(&msg2).unwrap();
+            let msg2 = responder_session.prepare_psq_request().unwrap().unwrap();
+            initiator_session.process_psq_request(&msg2).unwrap();
 
-            let msg3 = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            responder_session.process_handshake_message(&msg3).unwrap();
+            let msg3 = initiator_session.prepare_psq_request().unwrap().unwrap();
+            responder_session.process_psq_request(&msg3).unwrap();
 
             // If Ed25519 authentication failed, handshake would not complete
             assert!(initiator_session.is_handshake_complete());
@@ -2052,7 +1918,7 @@ mod tests {
             let bad_message = LpMessage::Handshake(HandshakeData(corrupted_psq_data));
 
             // Attempt to process corrupted message - should fail
-            let result = responder_session.process_handshake_message(&bad_message);
+            let result = responder_session.process_psq_request(&bad_message);
 
             // Should return error (PSQ deserialization will fail)
             assert!(result.is_err(), "Expected error for corrupted PSQ payload");
@@ -2094,12 +1960,12 @@ mod tests {
 
             // Initiator prepares message (should succeed - signing works)
             let msg1 = initiator_session
-                .prepare_handshake_message()
+                .prepare_psq_request()
                 .expect("Initiator should prepare message")
                 .expect("Initiator should have message");
 
             // Responder processes message - should FAIL (signature verification fails)
-            let result = responder_session.process_handshake_message(&msg1);
+            let result = responder_session.process_psq_request(&msg1);
 
             // Should return CredError due to Ed25519 signature mismatch
             assert!(
@@ -2137,14 +2003,11 @@ mod tests {
             responder_session.set_kkt_completed_for_test(&init.x25519.pk);
 
             // Initiator creates message with valid signature (signed with [1u8])
-            let msg = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
+            let msg = initiator_session.prepare_psq_request().unwrap().unwrap();
 
             // Responder tries to verify with wrong public key [99u8]
             // This should fail Ed25519 signature verification
-            let result = responder_session.process_handshake_message(&msg);
+            let result = responder_session.process_psq_request(&msg);
 
             assert!(result.is_err(), "Expected signature verification to fail");
 
@@ -2171,7 +2034,7 @@ mod tests {
             let corrupted_message = LpMessage::Handshake(HandshakeData(vec![0xFF; 100]));
 
             // Process should fail
-            let result = responder_session.process_handshake_message(&corrupted_message);
+            let result = responder_session.process_psq_request(&corrupted_message);
             assert!(result.is_err());
 
             // After error, session should still be in handshake mode (not complete)
@@ -2181,13 +2044,10 @@ mod tests {
             // Create a proper initiator to send valid message
             let initiator_session = create_handshake_test_session(kem, 12345u32, true);
 
-            let valid_msg = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
+            let valid_msg = initiator_session.prepare_psq_request().unwrap().unwrap();
 
             // After the error, responder should still be able to process valid messages
-            let result2 = responder_session.process_handshake_message(&valid_msg);
+            let result2 = responder_session.process_psq_request(&valid_msg);
 
             // Should succeed (session state was not corrupted by previous error)
             assert!(
@@ -2270,21 +2130,12 @@ mod tests {
             let responder_session = create_handshake_test_session(kem, 12345u32, false);
 
             // Drive handshake to completion
-            let i_msg = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            responder_session.process_handshake_message(&i_msg).unwrap();
-            let r_msg = responder_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            initiator_session.process_handshake_message(&r_msg).unwrap();
-            let i_msg = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            responder_session.process_handshake_message(&i_msg).unwrap();
+            let i_msg = initiator_session.prepare_psq_request().unwrap().unwrap();
+            responder_session.process_psq_request(&i_msg).unwrap();
+            let r_msg = responder_session.prepare_psq_request().unwrap().unwrap();
+            initiator_session.process_psq_request(&r_msg).unwrap();
+            let i_msg = initiator_session.prepare_psq_request().unwrap().unwrap();
+            responder_session.process_psq_request(&i_msg).unwrap();
 
             assert!(initiator_session.is_handshake_complete());
 
@@ -2316,21 +2167,12 @@ mod tests {
             let responder_session = create_handshake_test_session(kem, 12345u32, false);
 
             // Drive handshake to completion
-            let i_msg = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            responder_session.process_handshake_message(&i_msg).unwrap();
-            let r_msg = responder_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            initiator_session.process_handshake_message(&r_msg).unwrap();
-            let i_msg = initiator_session
-                .prepare_handshake_message()
-                .unwrap()
-                .unwrap();
-            responder_session.process_handshake_message(&i_msg).unwrap();
+            let i_msg = initiator_session.prepare_psq_request().unwrap().unwrap();
+            responder_session.process_psq_request(&i_msg).unwrap();
+            let r_msg = responder_session.prepare_psq_request().unwrap().unwrap();
+            initiator_session.process_psq_request(&r_msg).unwrap();
+            let i_msg = initiator_session.prepare_psq_request().unwrap().unwrap();
+            responder_session.process_psq_request(&i_msg).unwrap();
 
             assert!(initiator_session.is_handshake_complete());
             assert!(responder_session.is_handshake_complete());

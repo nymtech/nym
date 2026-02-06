@@ -62,6 +62,7 @@ mod tests {
     use crate::session_manager::SessionManager;
     use crate::{LpError, kem_list, sessions_for_tests};
     use bytes::BytesMut;
+    use nym_kkt::ciphersuite::{Ciphersuite, HashFunction, SignatureScheme};
 
     // Import the new standalone functions
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
@@ -171,12 +172,19 @@ mod tests {
     #[test]
     fn test_session_manager_integration() {
         // Create session manager
-        let local_manager = SessionManager::new();
-        let remote_manager = SessionManager::new();
+        let mut local_manager = SessionManager::new();
+        let mut remote_manager = SessionManager::new();
 
         for kem in kem_list() {
             // Generate Ed25519 keypairs for PSQ authentication
             let (init, resp) = mock_peers(kem);
+
+            let mut ciphersuite = Ciphersuite::resolve_ciphersuite(
+                kem,
+                HashFunction::Blake3,
+                SignatureScheme::Ed25519,
+                None,
+            );
 
             // Use fixed receiver_index for deterministic test
             let receiver_index: u32 = 54321;

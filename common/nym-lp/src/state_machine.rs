@@ -40,7 +40,7 @@ pub enum LpState {
 
     /// Actively performing the Noise handshake.
     /// (We might be able to merge this with ReadyToHandshake if the first step always happens)
-    Handshaking { session: Box<LpSession> }, // Kept for now, logic might merge later
+    PSQExchange { session: Box<LpSession> }, // Kept for now, logic might merge later
 
     /// Handshake complete, ready for data transport.
     Transport { session: Box<LpSession> },
@@ -80,7 +80,7 @@ impl From<&LpState> for LpStateBare {
         match state {
             LpState::ReadyToHandshake { .. } => LpStateBare::ReadyToHandshake,
             LpState::KKTExchange { .. } => LpStateBare::KKTExchange,
-            LpState::Handshaking { .. } => LpStateBare::Handshaking,
+            LpState::PSQExchange { .. } => LpStateBare::Handshaking,
             LpState::Transport { .. } => LpStateBare::Transport,
             LpState::SubsessionHandshaking { .. } => LpStateBare::SubsessionHandshaking,
             LpState::ReadOnlyTransport { .. } => LpStateBare::ReadOnlyTransport,
@@ -117,7 +117,7 @@ pub enum LpAction {
     /// Inform the environment that KKT exchange completed successfully.
     KKTComplete,
     /// Inform the environment that the handshake is complete.
-    HandshakeComplete,
+    PSQComplete,
     /// Inform the environment that the connection is closed.
     ConnectionClosed,
     /// Subsession KK handshake initiated by this side.
@@ -219,7 +219,7 @@ impl LpStateMachine {
         match &self.state {
             LpState::ReadyToHandshake { session }
             | LpState::KKTExchange { session }
-            | LpState::Handshaking { session }
+            | LpState::PSQExchange { session }
             | LpState::Transport { session }
             | LpState::SubsessionHandshaking { session, .. }
             | LpState::ReadOnlyTransport { session } => Ok(session),
@@ -235,7 +235,7 @@ impl LpStateMachine {
         match self.state {
             LpState::ReadyToHandshake { session }
             | LpState::KKTExchange { session }
-            | LpState::Handshaking { session }
+            | LpState::PSQExchange { session }
             | LpState::Transport { session }
             | LpState::SubsessionHandshaking { session, .. }
             | LpState::ReadOnlyTransport { session } => Ok(*session),
@@ -370,7 +370,7 @@ impl LpStateMachine {
                                         Ok(response_packet) => {
                                             result_action = Some(Ok(LpAction::SendPacket(response_packet)));
                                             // After KKT exchange, move to Handshaking
-                                            LpState::Handshaking { session }
+                                            LpState::PSQExchange { session }
                                         }
                                         Err(e) => {
                                             let reason = e.to_string();
@@ -391,7 +391,7 @@ impl LpStateMachine {
                                 Ok(()) => {
                                     result_action = Some(Ok(LpAction::KKTComplete));
                                     // After successful KKT, move to Handshaking
-                                    LpState::Handshaking { session }
+                                    LpState::PSQExchange { session }
                                 }
                                 Err(e) => {
                                     let reason = e.to_string();
@@ -433,101 +433,91 @@ impl LpStateMachine {
             }
 
             // --- Handshaking State ---
-            (LpState::Handshaking { mut session }, LpInput::ReceivePacket(packet)) => {
+            (LpState::PSQExchange { mut session }, LpInput::ReceivePacket(packet)) => {
                 // Check if packet lp_id matches our session
                 if packet.header.receiver_idx() != session.id() {
                     result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     // Don't change state, return the original state variant
-                    LpState::Handshaking { session }
+                    LpState::PSQExchange { session }
                 } else {
                     // --- Inline handle_handshake_packet logic ---
                     // 1. Check replay protection *before* processing
                     if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
                         let _reason = e.to_string();
                         result_action = Some(Err(e));
-                        LpState::Handshaking { session }
+                        LpState::PSQExchange { session }
                         //  LpState::Closed { reason }
                     } else {
-                        // 2. Process the handshake message
-                        match session.process_handshake_message(&packet.message) {
-                            Ok(_) => {
-                                // 3. Mark counter as received *after* successful processing
-                                if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-                                    let _reason = e.to_string();
-                                    result_action = Some(Err(e));
-                                    //  LpState::Closed { reason }
-                                    LpState::Handshaking { session }
-                                } else {
-                                    // 4. First check if we need to send a handshake message (before checking completion)
-                                    match session.prepare_handshake_message() {
-                                        Some(Ok(message)) => {
-                                            match session.next_packet(message) {
-                                                Ok(response_packet) => {
-                                                    result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-                                                    // Check if handshake became complete after preparing message
-                                                    if session.is_handshake_complete() {
-                                                        LpState::Transport { session } // Transition to Transport
-                                                    } else {
-                                                        LpState::Handshaking { session } // Remain Handshaking
-                                                    }
-                                                }
-                                                Err(e) => {
-                                                    let reason = e.to_string();
-                                                    result_action = Some(Err(e));
-                                                    LpState::Closed { reason }
-                                                }
-                                            }
+                 match &packet.message {
+                        LpMessage::PSQRequest(psq_request) if !session.is_initiator() => {
+                            match session.process_psq_request(&psq_request.0) {
+                                Ok(psq_response_message) => {
+                                    match session.next_packet(psq_response_message) {
+                                        Ok(psq_response_packet) => {
+                                            result_action = Some(Ok(LpAction::SendPacket(psq_response_packet)));
+                                            // PSQ Complete (Responder side)
+                                            LpState::Transport { session }
                                         }
-                                        Some(Err(e)) => {
+                                        Err(e) => {
                                             let reason = e.to_string();
                                             result_action = Some(Err(e));
                                             LpState::Closed { reason }
                                         }
-                                        None => {
-                                            // 5. No message to send - check if handshake is complete
-                                            if session.is_handshake_complete() {
-                                                result_action = Some(Ok(LpAction::HandshakeComplete));
-                                                LpState::Transport { session } // Transition to Transport
-                                            } else {
-                                                // Handshake stalled unexpectedly
-                                                let err = LpError::NoiseError(NoiseError::Other(
-                                                    "Handshake stalled unexpectedly".to_string(),
-                                                ));
-                                                let reason = err.to_string();
-                                                result_action = Some(Err(err));
-                                                LpState::Closed { reason }
-                                            }
-                                        }
                                     }
                                 }
-                            }
-                            Err(e) => { // Error from process_handshake_message
-                                let reason = e.to_string();
-                                result_action = Some(Err(e));
-                                LpState::Closed { reason }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
                             }
                         }
+                        LpMessage::PSQResponse(psq_response) if session.is_initiator() => {
+                            match session.process_psq_response(&psq_response.0) {
+                                Ok(()) => {
+                                    result_action = Some(Ok(LpAction::PSQComplete));
+                                    // PSQ Complete (Initiator side)
+                                    LpState::Transport { session }
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        _ => {
+                            // Wrong message type for KKT state
+                            let err = LpError::InvalidStateTransition {
+                                state: "PSQExchange".to_string(),
+                                input: format!("Unexpected message type: {:?}", packet.message),
+                            };
+                            let reason = err.to_string();
+                            result_action = Some(Err(err));
+                            LpState::Closed { reason }
+                        }
+                    }
                     }
                     // --- End inline handle_handshake_packet logic ---
                 }
             }
             // Reject SendData during handshake
-            (LpState::Handshaking { session }, LpInput::SendData(_)) => { // Keep session if returning to this state
+            (LpState::PSQExchange { session }, LpInput::SendData(_)) => { // Keep session if returning to this state
                 result_action = Some(Err(LpError::InvalidStateTransition {
                     state: "Handshaking".to_string(),
                     input: "SendData".to_string(),
                 }));
                 // Invalid input, remain in Handshaking state
-                LpState::Handshaking { session }
+                LpState::PSQExchange { session }
             }
             // Reject StartHandshake if already handshaking
-            (LpState::Handshaking { session }, LpInput::StartHandshake) => { // Keep session
+            (LpState::PSQExchange { session }, LpInput::StartHandshake) => { // Keep session
                 result_action = Some(Err(LpError::InvalidStateTransition {
                     state: "Handshaking".to_string(),
                     input: "StartHandshake".to_string(),
                 }));
                 // Invalid input, remain in Handshaking state
-                LpState::Handshaking { session }
+                LpState::PSQExchange { session }
             }
 
             // --- Transport State ---
@@ -1048,7 +1038,7 @@ impl LpStateMachine {
             (
                 LpState::ReadyToHandshake { .. } // We consume the session here
                 | LpState::KKTExchange { .. }
-                | LpState::Handshaking { .. }
+                | LpState::PSQExchange { .. }
                 | LpState::Transport { .. }
                 | LpState::SubsessionHandshaking { .. }
                 | LpState::ReadOnlyTransport { .. },
@@ -1137,6 +1127,8 @@ mod tests {
             let salt = [51u8; 32];
 
             let receiver_index: u32 = 77777;
+
+            let ciphersuite = Ciphersuite::default();
 
             let initiator_sm =
                 LpStateMachine::new(receiver_index, true, init.clone(), resp.as_remote(), &salt);
@@ -1235,7 +1227,7 @@ mod tests {
                 panic!("Responder should send KKT response");
             };
             assert!(
-                matches!(responder.state, LpState::Handshaking { .. }),
+                matches!(responder.state, LpState::PSQExchange { .. }),
                 "Responder should be Handshaking after KKT"
             );
 
@@ -1247,7 +1239,7 @@ mod tests {
                 "Initiator should signal KKT complete"
             );
             assert!(
-                matches!(initiator.state, LpState::Handshaking { .. }),
+                matches!(initiator.state, LpState::PSQExchange { .. }),
                 "Initiator should be Handshaking after KKT"
             );
 
@@ -1262,7 +1254,7 @@ mod tests {
             // With KKT, we need the initiator to send the first Noise message now.
 
             // Initiator prepares and sends first Noise handshake message
-            let init_noise_msg = initiator.session().unwrap().prepare_handshake_message();
+            let init_noise_msg = initiator.session().unwrap().prepare_psq_request();
             let init_packet_1 = if let Some(Ok(msg)) = init_noise_msg {
                 initiator.session().unwrap().next_packet(msg).unwrap()
             } else {
@@ -1276,7 +1268,7 @@ mod tests {
                 panic!("Responder should send packet 2");
             };
             assert!(
-                matches!(responder.state, LpState::Handshaking { .. }),
+                matches!(responder.state, LpState::PSQExchange { .. }),
                 "Responder still Handshaking"
             );
             assert_eq!(
@@ -1305,7 +1297,7 @@ mod tests {
             println!("--- Step 7: Responder receives Noise msg 3, completes handshake ---");
             let resp_actions_4 = responder.process_input(LpInput::ReceivePacket(init_packet_3));
             assert!(
-                matches!(resp_actions_4, Some(Ok(LpAction::HandshakeComplete))),
+                matches!(resp_actions_4, Some(Ok(LpAction::PSQComplete))),
                 "Responder should complete handshake"
             );
             assert!(
@@ -1451,14 +1443,14 @@ mod tests {
                 panic!("Responder should send KKT response");
             };
             // After sending KKT response, responder moves to Handshaking
-            assert!(matches!(responder.state, LpState::Handshaking { .. }));
+            assert!(matches!(responder.state, LpState::PSQExchange { .. }));
 
             // Step 4: Initiator receives KKT response, completes KKT
             let init_action = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
 
             assert!(matches!(init_action, Some(Ok(LpAction::KKTComplete))));
             // After KKT complete, initiator moves to Handshaking
-            assert!(matches!(initiator.state, LpState::Handshaking { .. }));
+            assert!(matches!(initiator.state, LpState::PSQExchange { .. }));
         }
     }
     #[test]
@@ -1561,7 +1553,7 @@ mod tests {
         let noise1_msg = alice
             .session()
             .unwrap()
-            .prepare_handshake_message()
+            .prepare_psq_request()
             .unwrap()
             .unwrap();
         let noise1_packet = alice.session().unwrap().next_packet(noise1_msg).unwrap();

@@ -323,7 +323,7 @@ mod tests {
     use super::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
     // Keep necessary imports
     use crate::LpError;
-    use crate::message::{EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
+    use crate::message::{EncryptedDataPayload, LpMessage, MessageType, PSQRequestData};
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use bytes::BytesMut;
     use nym_crypto::asymmetric::{ed25519, x25519};
@@ -378,7 +378,7 @@ mod tests {
                 receiver_idx: 42,
                 counter: 123,
             },
-            message: LpMessage::Handshake(HandshakeData(payload.clone())),
+            message: LpMessage::PSQRequest(PSQRequestData(payload.clone())),
             trailer: [0; TRAILER_LEN],
         };
 
@@ -395,8 +395,8 @@ mod tests {
 
         // Verify message type and data
         match decoded.message {
-            LpMessage::Handshake(decoded_payload) => {
-                assert_eq!(decoded_payload, HandshakeData(payload));
+            LpMessage::PSQRequest(decoded_payload) => {
+                assert_eq!(decoded_payload, PSQRequestData(payload));
             }
             _ => panic!("Expected Handshake message"),
         }
@@ -1055,7 +1055,7 @@ mod tests {
                 receiver_idx: 99999,
                 counter: 2,
             },
-            message: LpMessage::Handshake(HandshakeData(handshake_data.clone())),
+            message: LpMessage::PSQRequest(PSQRequestData(handshake_data.clone())),
             trailer: [0; TRAILER_LEN],
         };
 
@@ -1065,7 +1065,7 @@ mod tests {
         let decoded = parse_lp_packet(&encrypted, Some(&outer_key)).unwrap();
 
         match decoded.message {
-            LpMessage::Handshake(data) => {
+            LpMessage::PSQResponse(data) => {
                 assert_eq!(data.0, handshake_data);
             }
             _ => panic!("Expected Handshake message"),

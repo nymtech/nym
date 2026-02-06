@@ -94,7 +94,7 @@ mod tests {
 
             // Prime initiator's first message
             i_msg_payload = session_manager_1
-                .prepare_handshake_message(peer_a_sm)
+                .prepare_psq_request(peer_a_sm)
                 .transpose()
                 .unwrap();
 
@@ -134,7 +134,7 @@ mod tests {
                         .expect("B replay check failed (A->B)");
 
                     match session_manager_2
-                        .process_handshake_message(peer_b_sm, &decoded_packet.message)
+                        .process_psq_request(peer_b_sm, &decoded_packet.message)
                     {
                         Ok(_) => {
                             // Mark counter only after successful processing
@@ -146,7 +146,7 @@ mod tests {
                     }
                     // Check if responder needs to send a reply
                     r_msg_payload = session_manager_2
-                        .prepare_handshake_message(peer_b_sm)
+                        .prepare_psq_request(peer_b_sm)
                         .transpose()
                         .unwrap();
                     println!("{:?}", r_msg_payload);
@@ -187,7 +187,7 @@ mod tests {
                         .expect("A replay check failed (B->A)");
 
                     match session_manager_1
-                        .process_handshake_message(peer_a_sm, &decoded_packet.message)
+                        .process_psq_request(peer_a_sm, &decoded_packet.message)
                     {
                         Ok(_) => {
                             // Mark counter only after successful processing
@@ -200,7 +200,7 @@ mod tests {
 
                     // Check if initiator needs to send a reply
                     i_msg_payload = session_manager_1
-                        .prepare_handshake_message(peer_a_sm)
+                        .prepare_psq_request(peer_a_sm)
                         .transpose()
                         .unwrap();
                 }
@@ -518,36 +518,36 @@ mod tests {
 
             // Drive handshake to completion (simplified)
             let mut i_msg = session_manager_1
-                .prepare_handshake_message(peer_a_sm)
+                .prepare_psq_request(peer_a_sm)
                 .transpose()
                 .unwrap()
                 .unwrap();
 
             session_manager_2
-                .process_handshake_message(peer_b_sm, &i_msg)
+                .process_psq_request(peer_b_sm, &i_msg)
                 .unwrap();
             session_manager_2
                 .receiving_counter_mark(peer_b_sm, 0)
                 .unwrap(); // Assume counter 0 for first msg
             let r_msg = session_manager_2
-                .prepare_handshake_message(peer_b_sm)
+                .prepare_psq_request(peer_b_sm)
                 .transpose()
                 .unwrap()
                 .unwrap();
             session_manager_1
-                .process_handshake_message(peer_a_sm, &r_msg)
+                .process_psq_request(peer_a_sm, &r_msg)
                 .unwrap();
             session_manager_1
                 .receiving_counter_mark(peer_a_sm, 0)
                 .unwrap(); // Assume counter 0 for first msg
             i_msg = session_manager_1
-                .prepare_handshake_message(peer_a_sm)
+                .prepare_psq_request(peer_a_sm)
                 .transpose()
                 .unwrap()
                 .unwrap();
 
             session_manager_2
-                .process_handshake_message(peer_b_sm, &i_msg)
+                .process_psq_request(peer_b_sm, &i_msg)
                 .unwrap();
             session_manager_2
                 .receiving_counter_mark(peer_b_sm, 1)
@@ -960,7 +960,7 @@ mod tests {
                         // This might be the case if KKT completion doesn't automatically send the first Noise message
                         // Let's try to prepare the handshake message
                         if let Some(msg_result) =
-                            session_manager_1.prepare_handshake_message(receiver_index)
+                            session_manager_1.prepare_psq_request(receiver_index)
                         {
                             let msg =
                                 msg_result.expect("Failed to prepare handshake message after KKT");

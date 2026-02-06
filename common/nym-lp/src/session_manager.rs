@@ -6,7 +6,6 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
-use crate::noise_protocol::ReadResult;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
 use crate::{LpError, LpMessage, LpSession, LpStateMachine};
@@ -104,11 +103,11 @@ impl SessionManager {
     }
 
     // pub fn start_handshake(& self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
-    //     self.prepare_handshake_message(lp_id)
+    //     self.prepare_psq_request(lp_id)
     // }
     //
-    // pub fn prepare_handshake_message(& self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
-    //     self.with_state_machine(lp_id, |sm| sm.session().ok()?.prepare_handshake_message())
+    // pub fn prepare_psq_request(& self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
+    //     self.with_state_machine(lp_id, |sm| sm.session().ok()?.prepare_psq_request())
     //         .ok()?
     // }
 
@@ -141,15 +140,15 @@ impl SessionManager {
         Ok(self.state_machine(lp_id)?.session()?.current_packet_cnt())
     }
 
-    pub fn process_handshake_message(
-        &self,
-        lp_id: u32,
-        message: &LpMessage,
-    ) -> Result<ReadResult, LpError> {
-        self.state_machine(lp_id)?
-            .session()?
-            .process_handshake_message(message)
-    }
+    // pub fn process_handshake_message(
+    //     &self,
+    //     lp_id: u32,
+    //     message: &LpMessage,
+    // ) -> Result<ReadResult, LpError> {
+    //     self.state_machine(lp_id)?
+    //         .session()?
+    //         .process_handshake_message(message)
+    // }
 
     pub fn session_count(&self) -> usize {
         self.state_machines.len()

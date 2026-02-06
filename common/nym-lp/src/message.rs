@@ -476,6 +476,10 @@ pub enum LpMessage {
     SubsessionReady(SubsessionReadyData),
     /// Subsession abort - race winner tells loser to become responder (empty, signal only)
     SubsessionAbort,
+    // \/ TODO: add this message
+
+    // /// An error has occured
+    // Error(ErrorPacketData),
 }
 
 impl From<HandshakeData> for LpMessage {

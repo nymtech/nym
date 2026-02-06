@@ -201,7 +201,7 @@ pub fn responder_ingest_message<'a>(
 }
 
 pub fn responder_process<'a>(
-    own_context: &mut KKTContext,
+    own_context: &KKTContext,
     session_id: KKTSessionId,
     signing_key: &ed25519::PrivateKey,
     encapsulation_key: &EncapsulationKey<'a>,

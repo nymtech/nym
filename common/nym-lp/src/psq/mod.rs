@@ -1,10 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-mod helpers;
-mod initiator;
-mod responder;
-
 use crate::codec::OuterAeadKey;
 use crate::packet::LpHeader;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
@@ -12,10 +8,15 @@ use crate::psq::helpers::LpTransportHandshakeExt;
 use crate::{LpError, LpMessage, LpPacket};
 use nym_kkt::ciphersuite::Ciphersuite;
 use nym_lp_transport::traits::LpTransport;
-use std::sync::atomic::Ordering;
+
+mod helpers;
+mod initiator;
+mod responder;
 
 // placeholder
-pub struct LPSession;
+pub struct LPSession {
+    outer_aead_key: OuterAeadKey,
+}
 
 pub struct PSQHandshakeState<'a, S> {
     /// The underlying connection established for the handshake
@@ -67,11 +68,10 @@ where
         session_id: u32,
         protocol_version: u8,
         message: LpMessage,
-    ) -> Result<LpPacket, LpError> {
+    ) -> LpPacket {
         let counter = self.next_counter();
         let header = LpHeader::new(session_id, counter, protocol_version);
-        let packet = LpPacket::new(header, message);
-        Ok(packet)
+        LpPacket::new(header, message)
     }
 
     /// Attempt to send an Lp packet on the persistent stream

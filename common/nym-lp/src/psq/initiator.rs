@@ -64,7 +64,7 @@ where
         let (session_secret, encrypted_frame) =
             encrypt_initial_kkt_frame(&mut rng, &self.remote_peer.x25519_public, &kkt_frame)?;
         let lp_message = KKTRequestData::new(encrypted_frame).into();
-        let lp_packet = self.next_packet(session_id, remote_protocol, lp_message)?;
+        let lp_packet = self.next_packet(session_id, remote_protocol, lp_message);
 
         // 4. receive and process KKT response
         let kkt_response = match self.send_and_receive_packet(lp_packet, None).await?.message {
@@ -122,7 +122,7 @@ where
         combined.extend_from_slice(&noise_msg1);
 
         let lp_message = HandshakeData::new(combined).into();
-        let lp_packet = self.next_packet(session_id, remote_protocol, lp_message)?;
+        let lp_packet = self.next_packet(session_id, remote_protocol, lp_message);
 
         // 6. receive and process PSQ msg2
         let psq_msg2 = match self
@@ -160,8 +160,9 @@ where
             .ok_or_else(|| LpError::kkt_psq_handshake("failed to generate noise msg3"))??;
 
         let lp_message = HandshakeData::new(noise_msg3).into();
-        let lp_packet = self.next_packet(session_id, remote_protocol, lp_message)?;
+        let lp_packet = self.next_packet(session_id, remote_protocol, lp_message);
 
+        // 8. [optional] get an ack
         match self
             .send_and_receive_packet(lp_packet, Some(&outer_aead_key))
             .await?
@@ -169,8 +170,6 @@ where
         {
             LpMessage::Ack => (),
             other => {
-                // TODO: retry on collision
-
                 return Err(LpError::unexpected_handshake_response(
                     other.typ(),
                     MessageType::Ack,
@@ -178,6 +177,6 @@ where
             }
         }
 
-        todo!()
+        Ok(LPSession { outer_aead_key })
     }
 }

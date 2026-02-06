@@ -38,5 +38,4 @@ mod nested_session;
 
 pub use client::LpRegistrationClient;
 pub use config::LpConfig;
-pub use error::LpClientError;
 pub use nested_session::NestedLpSession;

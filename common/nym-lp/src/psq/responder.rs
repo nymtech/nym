@@ -13,7 +13,9 @@ use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use nym_kkt::encryption::{decrypt_initial_kkt_frame, encrypt_kkt_frame};
 use nym_kkt::session::{responder_ingest_message, responder_process};
 use nym_lp_transport::traits::LpTransport;
+use rand09::rng;
 use std::time::Duration;
+use tracing::debug;
 
 pub const DEFAULT_TIMESTAMP_TOLERANCE: Duration = Duration::from_secs(30);
 
@@ -75,13 +77,11 @@ impl<'a, S> PSQHandshakeState<'a, S> {
         Ok((dec_key, enc_key))
     }
 
+    // pub async fn psq_handshake_responder<R>(mut self, rng: &mut R) -> Result<LPSession, LpError>
     pub async fn psq_handshake_responder(mut self) -> Result<LPSession, LpError>
     where
         S: LpTransport + Unpin,
     {
-        // TODO: pass rng as argument
-        let mut rng = rand09::rng();
-
         // 1. receive and validate ClientHello
         let client_hello_packet = self.connection.receive_packet(None).await?;
         let client_hello = match client_hello_packet.message {
@@ -93,6 +93,8 @@ impl<'a, S> PSQHandshakeState<'a, S> {
                 ));
             }
         };
+        debug!("received client hello");
+
         validate_client_hello_timestamp(
             client_hello.extract_timestamp(),
             DEFAULT_TIMESTAMP_TOLERANCE,
@@ -103,6 +105,7 @@ impl<'a, S> PSQHandshakeState<'a, S> {
         let version = client_hello_packet.header.protocol_version;
 
         // 2. send ack
+        debug!("sending client hello ACK");
         let ack = self.next_packet(session_id, version, LpMessage::Ack);
         let kkt_request = match self.send_and_receive_packet(ack, None).await?.message {
             LpMessage::KKTRequest(request) => request.0,
@@ -113,6 +116,7 @@ impl<'a, S> PSQHandshakeState<'a, S> {
                 ));
             }
         };
+        debug!("received KKT request");
 
         let kem_key = self.local_peer.get_kem_key_handle()?;
         // TEMP \/
@@ -135,12 +139,17 @@ impl<'a, S> PSQHandshakeState<'a, S> {
             self.local_peer.ed25519().private_key(),
             &encapsulation_key,
         )?;
-        let encrypted_frame =
-            encrypt_kkt_frame(&mut rng, &session_secret, &response_frame, KKT_RESPONSE_AAD)?;
+        let encrypted_frame = encrypt_kkt_frame(
+            &mut rng(),
+            &session_secret,
+            &response_frame,
+            KKT_RESPONSE_AAD,
+        )?;
         let lp_message = KKTResponseData::new(encrypted_frame).into();
         let lp_packet = self.next_packet(session_id, version, lp_message);
 
         // 4. send KKT response and wait for PSQ msg1
+        debug!("sending KKT response");
         let psq_msg1 = match self.send_and_receive_packet(lp_packet, None).await?.message {
             LpMessage::Handshake(response) => response.0,
             other => {
@@ -150,6 +159,8 @@ impl<'a, S> PSQHandshakeState<'a, S> {
                 ));
             }
         };
+        debug!("received PSQ msg1");
+
         // 5. process PSQ msg1
 
         // Extract PSQ payload: [u16 psq_len][psq_payload][noise_msg]
@@ -208,6 +219,7 @@ impl<'a, S> PSQHandshakeState<'a, S> {
         let lp_packet = self.next_packet(session_id, version, lp_message);
 
         // 7. send msg2 and receive PSQ msg3
+        debug!("sending PSQ msg2");
         let psq_msg3 = match self
             .send_and_receive_packet(lp_packet, Some(&outer_aead_key))
             .await?
@@ -221,15 +233,21 @@ impl<'a, S> PSQHandshakeState<'a, S> {
                 ));
             }
         };
+        debug!("received PSQ msg3");
         noise_protocol.read_message(&psq_msg3)?;
         assert!(noise_protocol.is_handshake_finished());
 
         // 8. [optionally] send ACK to finalise
+        debug!("sending final ACK");
         let ack = self.next_packet(session_id, version, LpMessage::Ack);
         self.connection
             .send_packet(ack, Some(&outer_aead_key))
             .await?;
 
-        Ok(LPSession { outer_aead_key })
+        Ok(LPSession {
+            session_id,
+            version,
+            outer_aead_key,
+        })
     }
 }

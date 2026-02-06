@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use classic_mceliece_rust::keypair_boxed;
 
 use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, KeyDigests};
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore};
 
 pub fn generate_keypair_ed25519<R>(
     rng: &mut R,
@@ -61,7 +61,7 @@ pub fn generate_keypair_mceliece<'a, R>(
     classic_mceliece_rust::PublicKey<'a>,
 )
 where
-    // this is annoying because mceliece lib uses rand 0.8.5...
+    // this is annoying because mceliece lib uses rand09 0.8.5...
     R: RngCore + CryptoRng,
 {
     let (encapsulation_key, decapsulation_key) = keypair_boxed(rng);

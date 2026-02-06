@@ -320,6 +320,7 @@ publicsuffix = "2.3.0"
 proc_pidinfo = "0.1.3"
 quote = "1"
 rand = "0.8.5"
+rand09 = { package = "rand", version = "=0.9.2" }
 rand_chacha = "0.3"
 rand_core = "0.6.3"
 rand_distr = "0.4"
@@ -483,9 +484,9 @@ nym-vesting-contract-common = { version = "1.20.4", path = "common/cosmwasm-smar
 nym-verloc = { version = "1.20.4", path = "common/verloc" }
 nym-wireguard = { version = "1.20.4", path = "common/wireguard" }
 nym-wireguard-types = { version = "1.20.4", path = "common/wireguard-types" }
-nym-wireguard-private-metadata-shared =  { version = "1.20.4", path = "common/wireguard-private-metadata/shared" }
-nym-wireguard-private-metadata-client =  { version = "1.20.4", path = "common/wireguard-private-metadata/client" }
-nym-wireguard-private-metadata-server =  { version = "1.20.4", path = "common/wireguard-private-metadata/server" }
+nym-wireguard-private-metadata-shared = { version = "1.20.4", path = "common/wireguard-private-metadata/shared" }
+nym-wireguard-private-metadata-client = { version = "1.20.4", path = "common/wireguard-private-metadata/client" }
+nym-wireguard-private-metadata-server = { version = "1.20.4", path = "common/wireguard-private-metadata/server" }
 nym-sqlx-pool-guard = { version = "1.2.0", path = "nym-sqlx-pool-guard" }
 nym-wasm-client-core = { version = "1.20.4", path = "common/wasm/client-core" }
 nym-wasm-storage = { version = "1.20.4", path = "common/wasm/storage" }

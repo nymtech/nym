@@ -20,7 +20,7 @@ use nym_api_requests::ecash::{
 };
 use nym_api_requests::models::{
     ApiHealthResponse, GatewayCoreStatusResponse, HistoricalPerformanceResponse,
-    MixnodeCoreStatusResponse, NymNodeDescriptionV1, NymNodeDescriptionV2,
+    MixnodeCoreStatusResponse, NymNodeDescriptionV1,
 };
 use nym_api_requests::nym_nodes::{
     NodesByAddressesResponse, SemiSkimmedNodesWithMetadata, SkimmedNode, SkimmedNodesWithMetadata,
@@ -273,18 +273,18 @@ impl<C, S> Client<C, S> {
         Ok(history)
     }
 
-    #[deprecated(note = "use get_all_cached_described_nodes_v2 instead")]
+    // #[deprecated(note = "use get_all_cached_described_nodes_v2 instead")]
     pub async fn get_all_cached_described_nodes(
         &self,
     ) -> Result<Vec<NymNodeDescriptionV1>, ValidatorClientError> {
         Ok(self.nym_api.get_all_described_nodes().await?)
     }
 
-    pub async fn get_all_cached_described_nodes_v2(
-        &self,
-    ) -> Result<Vec<NymNodeDescriptionV2>, ValidatorClientError> {
-        Ok(self.nym_api.get_all_described_nodes_v2().await?)
-    }
+    // pub async fn get_all_cached_described_nodes_v2(
+    //     &self,
+    // ) -> Result<Vec<NymNodeDescriptionV2>, ValidatorClientError> {
+    //     Ok(self.nym_api.get_all_described_nodes_v2().await?)
+    // }
 
     pub async fn get_all_cached_bonded_nym_nodes(
         &self,
@@ -473,7 +473,7 @@ impl NymApiClient {
         Ok(self.nym_api.health().await?)
     }
 
-    #[deprecated(note = "use .get_all_described_nodes_v2 instead")]
+    // #[deprecated(note = "use .get_all_described_nodes_v2 instead")]
     pub async fn get_all_described_nodes(
         &self,
     ) -> Result<Vec<NymNodeDescriptionV1>, ValidatorClientError> {
@@ -495,29 +495,29 @@ impl NymApiClient {
         Ok(descriptions)
     }
 
-    pub async fn get_all_described_nodes_v2(
-        &self,
-    ) -> Result<Vec<NymNodeDescriptionV2>, ValidatorClientError> {
-        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
-        let mut page = 0;
-        let mut descriptions = Vec::new();
-
-        loop {
-            let mut res = self
-                .nym_api
-                .get_nodes_described_v2(Some(page), None)
-                .await?;
-
-            descriptions.append(&mut res.data);
-            if descriptions.len() < res.pagination.total {
-                page += 1
-            } else {
-                break;
-            }
-        }
-
-        Ok(descriptions)
-    }
+    // pub async fn get_all_described_nodes_v2(
+    //     &self,
+    // ) -> Result<Vec<NymNodeDescriptionV2>, ValidatorClientError> {
+    //     // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+    //     let mut page = 0;
+    //     let mut descriptions = Vec::new();
+    //
+    //     loop {
+    //         let mut res = self
+    //             .nym_api
+    //             .get_nodes_described_v2(Some(page), None)
+    //             .await?;
+    //
+    //         descriptions.append(&mut res.data);
+    //         if descriptions.len() < res.pagination.total {
+    //             page += 1
+    //         } else {
+    //             break;
+    //         }
+    //     }
+    //
+    //     Ok(descriptions)
+    // }
 
     pub async fn get_all_bonded_nym_nodes(
         &self,

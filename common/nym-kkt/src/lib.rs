@@ -118,7 +118,7 @@ mod test {
                         &mut r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
-                        &responder_kem_public_key.encode(),
+                        &responder_kem_public_key,
                     )
                     .unwrap();
 
@@ -166,7 +166,7 @@ mod test {
                         &mut r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
-                        &responder_kem_public_key.encode(),
+                        &responder_kem_public_key,
                     )
                     .unwrap();
 
@@ -215,7 +215,7 @@ mod test {
                         &mut r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
-                        &responder_kem_public_key.encode(),
+                        &responder_kem_public_key,
                     )
                     .unwrap();
 
@@ -327,7 +327,7 @@ mod test {
                         &mut r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
-                        &responder_kem_public_key.encode(),
+                        &responder_kem_public_key,
                     )
                     .unwrap();
 
@@ -388,7 +388,7 @@ mod test {
                         &mut r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
-                        &responder_kem_public_key.encode(),
+                        &responder_kem_public_key,
                     )
                     .unwrap();
 
@@ -450,7 +450,7 @@ mod test {
                         &mut r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
-                        &responder_kem_public_key.encode(),
+                        &responder_kem_public_key,
                     )
                     .unwrap();
 

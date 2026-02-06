@@ -204,21 +204,21 @@ pub fn responder_process(
     own_context: &mut KKTContext,
     session_id: KKTSessionId,
     signing_key: &ed25519::PrivateKey,
-    encoded_encapsulation_key: &[u8],
+    encapsulation_key: &EncapsulationKey,
 ) -> Result<KKTFrame, KKTError> {
-    let body = encoded_encapsulation_key;
+    let body = encapsulation_key.encode();
 
     let context_bytes = own_context.encode()?;
 
     let mut bytes_to_sign =
         Vec::with_capacity(own_context.full_message_len() - own_context.signature_len());
     bytes_to_sign.extend_from_slice(&own_context.encode()?);
-    bytes_to_sign.extend_from_slice(body);
+    bytes_to_sign.extend_from_slice(&body);
     bytes_to_sign.extend_from_slice(&session_id);
 
     let signature = signing_key.sign(bytes_to_sign).to_bytes();
 
-    Ok(KKTFrame::new(context_bytes, body, session_id, &signature))
+    Ok(KKTFrame::new(context_bytes, &body, session_id, &signature))
 }
 
 fn check_compatibility(

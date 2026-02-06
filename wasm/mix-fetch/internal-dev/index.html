@@ -58,16 +58,40 @@
         />
         <button id="fetch-button-2">Fetch 2</button>
       </div>
-      <div>
-        <button id="fetch-10-concurrent">
-          Send 10 Concurrent Requests (posts/1-10)
-        </button>
-      </div>
       <p>
         Note: if you're hammering these endpoints and you start to get timeouts
         (or you've been reloading the page a lot) then change the target hosts
         to e.g. http://ipv4.icanhazip.com and https://ipv6.icanhazip.com/
       </p>
+      <div>
+        <button id="fetch-10-concurrent">
+          Send 10 Concurrent Requests (posts/1-10)
+        </button>
+        <p>
+          This does what is says on the tin - sends 10 fetch requests to
+          https://jsonplaceholder.typicode.com/posts/ 1 through 10
+        </p>
+      </div>
+      <hr />
+      <div>
+        <label>POST URL: </label>
+        <input
+          type="text"
+          size="60"
+          id="post_url"
+          value="https://jsonplaceholder.typicode.com/posts"
+        />
+      </div>
+      <div>
+        <label>POST Body (JSON): </label>
+        <textarea id="post_body" rows="3" cols="60">
+{"title": "Test Post", "body": "Hello from MixFetch!", "userId": 1}</textarea
+        >
+      </div>
+      <div>
+        <button id="post-button">Send POST Request</button>
+      </div>
+      <p>Do a POST and get it echoed back</p>
     </fieldset>
 
     <hr />

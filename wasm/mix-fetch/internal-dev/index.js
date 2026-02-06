@@ -68,6 +68,21 @@ class WebWorkerClient {
             },
         });
     }
+
+    doPost = (url, body) => {
+        if (!this.worker) {
+            console.error('Could not send message because worker does not exist');
+            return;
+        }
+
+        this.worker.postMessage({
+            kind: 'PostPayload',
+            args: {
+                url,
+                body,
+            },
+        });
+    }
 }
 
 let client = null;
@@ -103,6 +118,11 @@ async function main() {
     const fetch10Button = document.querySelector('#fetch-10-concurrent');
     fetch10Button.onclick = function () {
         doFetch10Concurrent();
+    }
+
+    const postButton = document.querySelector('#post-button');
+    postButton.onclick = function () {
+        doPost();
     }
 }
 
@@ -146,6 +166,16 @@ async function doFetch10Concurrent() {
 
     await Promise.all(requests);
     displaySend('All 10 concurrent requests dispatched!');
+}
+
+async function doPost() {
+    const url = document.getElementById('post_url').value;
+    const body = document.getElementById('post_body').value;
+
+    displaySend(`[POST] Sending POST request to ${url}`);
+    displaySend(`[POST] Body: ${body}`);
+
+    await client.doPost(url, body);
 }
 
 /**

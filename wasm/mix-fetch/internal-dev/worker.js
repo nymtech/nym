@@ -206,6 +206,33 @@ async function handleFetchPayload(target) {
     }
 }
 
+async function handlePostPayload(url, body) {
+    if (!mixFetchReady) {
+        sendLog('MixFetch not ready yet', 'error');
+        return;
+    }
+
+    const args = {
+        method: 'POST',
+        mode: "unsafe-ignore-cors",
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: body,
+    };
+
+    try {
+        sendLog(`POST request to: ${url}`);
+        sendLog(`POST body: ${body}`);
+        const mixFetchRes = await mixFetch(url, args);
+        sendLog('POST completed');
+        await logFetchResult(mixFetchRes);
+    } catch (e) {
+        sendLog('POST request failure: ' + e, 'error');
+        console.error("mix fetch POST request failure: ", e);
+    }
+}
+
 function setupMessageHandler() {
     self.onmessage = async event => {
         if (event.data && event.data.kind) {
@@ -218,6 +245,11 @@ function setupMessageHandler() {
                 case 'FetchPayload': {
                     const { target } = event.data.args;
                     await handleFetchPayload(target);
+                    break;
+                }
+                case 'PostPayload': {
+                    const { url, body } = event.data.args;
+                    await handlePostPayload(url, body);
                     break;
                 }
             }

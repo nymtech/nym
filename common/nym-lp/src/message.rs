@@ -170,6 +170,9 @@ impl MessageType {
 pub struct HandshakeData(pub Vec<u8>);
 
 impl HandshakeData {
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -187,6 +190,10 @@ impl HandshakeData {
 pub struct EncryptedDataPayload(pub Vec<u8>);
 
 impl EncryptedDataPayload {
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -205,6 +212,10 @@ impl EncryptedDataPayload {
 pub struct KKTRequestData(pub Vec<u8>);
 
 impl KKTRequestData {
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -223,6 +234,10 @@ impl KKTRequestData {
 pub struct KKTResponseData(pub Vec<u8>);
 
 impl KKTResponseData {
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -461,6 +476,60 @@ pub enum LpMessage {
     SubsessionReady(SubsessionReadyData),
     /// Subsession abort - race winner tells loser to become responder (empty, signal only)
     SubsessionAbort,
+}
+
+impl From<HandshakeData> for LpMessage {
+    fn from(value: HandshakeData) -> Self {
+        LpMessage::Handshake(value)
+    }
+}
+
+impl From<EncryptedDataPayload> for LpMessage {
+    fn from(value: EncryptedDataPayload) -> Self {
+        LpMessage::EncryptedData(value)
+    }
+}
+
+impl From<ClientHelloData> for LpMessage {
+    fn from(value: ClientHelloData) -> Self {
+        LpMessage::ClientHello(value)
+    }
+}
+
+impl From<KKTRequestData> for LpMessage {
+    fn from(value: KKTRequestData) -> Self {
+        LpMessage::KKTRequest(value)
+    }
+}
+
+impl From<KKTResponseData> for LpMessage {
+    fn from(value: KKTResponseData) -> Self {
+        LpMessage::KKTResponse(value)
+    }
+}
+
+impl From<ForwardPacketData> for LpMessage {
+    fn from(value: ForwardPacketData) -> Self {
+        LpMessage::ForwardPacket(value)
+    }
+}
+
+impl From<SubsessionKK1Data> for LpMessage {
+    fn from(value: SubsessionKK1Data) -> Self {
+        LpMessage::SubsessionKK1(value)
+    }
+}
+
+impl From<SubsessionKK2Data> for LpMessage {
+    fn from(value: SubsessionKK2Data) -> Self {
+        LpMessage::SubsessionKK2(value)
+    }
+}
+
+impl From<SubsessionReadyData> for LpMessage {
+    fn from(value: SubsessionReadyData) -> Self {
+        LpMessage::SubsessionReady(value)
+    }
 }
 
 impl Display for LpMessage {

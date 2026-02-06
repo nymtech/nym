@@ -5,6 +5,7 @@ use crate::message::MessageType;
 use crate::{noise_protocol::NoiseError, replay::ReplayError};
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_kkt::ciphersuite::{HashFunction, KEM};
+use nym_kkt::error::KKTError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -105,15 +106,21 @@ pub enum LpError {
     },
 
     #[error("failed to complete KKT/PSQ handshake: {0}")]
-    KKTPsqHandshake(String),
+    KKTPSQHandshake(String),
+
+    #[error("failed to complete the KKT exchange: {source}")]
+    KKTFailure {
+        #[from]
+        source: KKTError,
+    },
 }
 
 impl LpError {
     pub fn kkt_psq_handshake(msg: impl Into<String>) -> Self {
-        Self::KKTPsqHandshake(msg.into())
+        Self::KKTPSQHandshake(msg.into())
     }
     pub fn unexpected_handshake_response(got: MessageType, expected: MessageType) -> LpError {
-        Self::KKTPsqHandshake(format!(
+        Self::KKTPSQHandshake(format!(
             "received unexpected response, got: {got:?}, expected: {expected:?}"
         ))
     }

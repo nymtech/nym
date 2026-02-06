@@ -5,6 +5,14 @@ use crate::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
 use crate::{LpError, LpPacket};
 use bytes::BytesMut;
 use nym_lp_transport::traits::LpTransport;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+pub(crate) fn current_timestamp() -> Result<u64, LpError> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| LpError::Internal("System time before UNIX epoch".into()))
+        .map(|d| d.as_secs())
+}
 
 // only used in internal code (and tests)
 #[allow(async_fn_in_trait)]

@@ -296,7 +296,7 @@ pub fn create_noise_state(
 ) -> Result<NoiseProtocol, NoiseError> {
     let pattern_name = crate::NOISE_PATTERN;
     let psk_index = crate::NOISE_PSK_INDEX;
-    let noise_params: NoiseParams = pattern_name.parse().unwrap();
+    let noise_params: NoiseParams = pattern_name.parse()?;
 
     let builder = snow::Builder::new(noise_params.clone());
     // Using dummy remote key as it's not needed for state creation itself
@@ -316,7 +316,7 @@ pub fn create_noise_state_responder(
 ) -> Result<NoiseProtocol, NoiseError> {
     let pattern_name = crate::NOISE_PATTERN;
     let psk_index = crate::NOISE_PSK_INDEX;
-    let noise_params: NoiseParams = pattern_name.parse().unwrap();
+    let noise_params: NoiseParams = pattern_name.parse()?;
 
     let builder = snow::Builder::new(noise_params.clone());
     // Using dummy remote key as it's not needed for state creation itself

@@ -18,7 +18,7 @@ pub struct Carrier {
 }
 
 fn increment_nonce(nonce: &mut u64) -> Result<(), KKTError> {
-    return match nonce.checked_add(1) {
+    match nonce.checked_add(1) {
         Some(incremented_nonce) => {
             *nonce = incremented_nonce;
             Ok(())
@@ -26,7 +26,7 @@ fn increment_nonce(nonce: &mut u64) -> Result<(), KKTError> {
         None => Err(KKTError::AEADError {
             info: "Nonce maxed out.",
         }),
-    };
+    }
 }
 
 fn as_nonce_bytes(nonce: u64) -> [u8; 12] {
@@ -55,12 +55,12 @@ impl Carrier {
 
         let k1 = derive_key_blake3(
             "nym-kkt-carrier-kdf-initiator",
-            &session_secret.as_bytes().as_ref(),
+            session_secret.as_bytes().as_ref(),
             &salt,
         );
         let k2 = derive_key_blake3(
             "nym-kkt-carrier-kdf-responder",
-            &session_secret.as_bytes().as_ref(),
+            session_secret.as_bytes().as_ref(),
             &salt,
         );
 
@@ -129,7 +129,6 @@ mod tests {
         carrier::Carrier,
         ciphersuite::EncapsulationKey,
         encryption::*,
-        frame::KKTFrame,
         key_utils::{
             generate_keypair_ed25519, generate_keypair_libcrux, generate_keypair_mceliece,
             generate_keypair_mlkem, generate_keypair_x25519, hash_encapsulation_key,
@@ -138,7 +137,6 @@ mod tests {
             anonymous_initiator_process, initiator_ingest_response, responder_ingest_message,
             responder_process,
         },
-        test,
     };
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, KEM};
 
@@ -147,7 +145,7 @@ mod tests {
         let mut rng = rand09::rng();
         // generate ed25519 keys
 
-        let initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
+        let _initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
         let responder_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(1));
 
         // generate responder x25519 keys
@@ -197,7 +195,7 @@ mod tests {
 
                 let r_kem_key_bytes = responder_kem_public_key.encode();
 
-                let i_dir_hash = hash_encapsulation_key(
+                let _i_dir_hash = hash_encapsulation_key(
                     &ciphersuite.hash_function(),
                     ciphersuite.hash_len(),
                     &i_kem_key_bytes,

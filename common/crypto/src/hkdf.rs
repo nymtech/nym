@@ -124,10 +124,10 @@ pub mod blake3 {
         input_key_material: &[&[u8]],
         salt: &[u8],
     ) -> [u8; 32] {
-        let mut hasher = Hasher::new_derive_key(&info);
+        let mut hasher = Hasher::new_derive_key(info);
 
         for input_key in input_key_material {
-            hasher.update(*input_key);
+            hasher.update(input_key);
         }
 
         hasher.update(salt);
@@ -162,7 +162,7 @@ pub mod blake3 {
         let mut salt = [0u8; 32];
         rng().fill_bytes(&mut salt);
 
-        let derived_key = derive_key_blake3_multi_input(info, input_key_material, &mut salt);
+        let derived_key = derive_key_blake3_multi_input(info, input_key_material, &salt);
 
         // Zeroize salt
         salt.zeroize();

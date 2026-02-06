@@ -200,7 +200,7 @@ where
     // Encode the `pre_key` into bytes
     let pre_key_bytes = pre_key.encode();
 
-    let new_secret: [u8; 32] = derive_key_blake3(REKEY_CONTEXT, &pre_key_bytes, &remote_salt);
+    let new_secret: [u8; 32] = derive_key_blake3(REKEY_CONTEXT, &pre_key_bytes, remote_salt);
 
     // Zeroize the Initiator's salt
     remote_salt.zeroize();

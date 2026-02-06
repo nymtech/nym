@@ -1,16 +1,10 @@
 // Copyright 2025-2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    KKT_INITIAL_FRAME_AAD, ciphersuite::EncapsulationKey, context::KKTContext, error::KKTError,
-    frame::KKTFrame,
-};
+use crate::{KKT_INITIAL_FRAME_AAD, context::KKTContext, error::KKTError, frame::KKTFrame};
 
 use libcrux_chacha20poly1305::{NONCE_LEN, TAG_LEN};
-use libcrux_psq::{
-    handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey, PQEncapsulationKey},
-    session::{Session, SessionBinding},
-};
+use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
 use nym_crypto::hkdf::blake3::derive_key_blake3;
 use nym_kkt_ciphersuite::x25519;
 use rand09::{CryptoRng, RngCore};

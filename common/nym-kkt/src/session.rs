@@ -1,5 +1,5 @@
 use nym_crypto::asymmetric::ed25519::{self, Signature};
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore};
 
 use crate::frame::KKTSessionId;
 use crate::{

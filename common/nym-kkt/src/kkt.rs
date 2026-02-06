@@ -9,7 +9,7 @@
 //! The underlying KKT protocol is implemented in the `session` module.
 
 use nym_crypto::asymmetric::{ed25519, x25519};
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore};
 
 use crate::{
     ciphersuite::{Ciphersuite, EncapsulationKey},
@@ -33,7 +33,7 @@ use crate::frame::KKTFrame;
 /// The request will be signed with the provided signing key.
 ///
 /// # Arguments
-/// * `rng` - Random number generator
+/// * `rng` - rand09om number generator
 /// * `ciphersuite` - Negotiated ciphersuite (KEM, hash, signature algorithms)
 /// * `signing_key` - Client's Ed25519 signing key for authentication
 /// * `responder_dh_public_key` - Responder's long-term x25519 Diffie-Hellman public key
@@ -197,16 +197,16 @@ mod tests {
         key_utils::{generate_keypair_libcrux, hash_encapsulation_key},
     };
 
-    fn random_x25519_key() -> x25519::PrivateKey {
+    fn rand09om_x25519_key() -> x25519::PrivateKey {
         let mut bytes = [0u8; 32];
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
         rng.fill_bytes(&mut bytes);
         x25519::PrivateKey::from_secret(bytes)
     }
 
     #[test]
     fn test_kkt_wrappers_oneway_authenticated() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         // Generate Ed25519 keypairs for both parties
         let mut initiator_secret = [0u8; 32];
@@ -217,7 +217,7 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let ed25519_resp = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-        let x25519_resp_priv = random_x25519_key();
+        let x25519_resp_priv = rand09om_x25519_key();
         let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         // Generate responder's KEM keypair (X25519 for testing)
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_kkt_wrappers_anonymous() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         // Only responder has keys
         let mut responder_secret = [0u8; 32];
@@ -286,7 +286,7 @@ mod tests {
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
 
-        let x25519_resp_priv = random_x25519_key();
+        let x25519_resp_priv = rand09om_x25519_key();
         let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         let ciphersuite = Ciphersuite::resolve_ciphersuite(
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn test_invalid_signature_rejected() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         let mut initiator_secret = [0u8; 32];
         rng.fill_bytes(&mut initiator_secret);
@@ -347,7 +347,7 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-        let x25519_resp_priv = random_x25519_key();
+        let x25519_resp_priv = rand09om_x25519_key();
         let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         // Different keypair for wrong signature
@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_hash_mismatch_rejected() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         let mut initiator_secret = [0u8; 32];
         rng.fill_bytes(&mut initiator_secret);
@@ -400,7 +400,7 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-        let x25519_resp_priv = random_x25519_key();
+        let x25519_resp_priv = rand09om_x25519_key();
         let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();

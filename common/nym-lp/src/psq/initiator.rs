@@ -5,13 +5,15 @@ use crate::codec::OuterAeadKey;
 use crate::message::{HandshakeData, KKTRequestData, MessageType};
 use crate::noise_protocol::NoiseProtocol;
 use crate::psk::psq_initiator_create_message;
-use crate::psq::helpers::current_timestamp;
+use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp};
 use crate::psq::{LPSession, PSQHandshakeState};
 use crate::{LpError, LpMessage};
 use nym_kkt::KKT_RESPONSE_AAD;
 use nym_kkt::encryption::{decrypt_kkt_frame, encrypt_initial_kkt_frame};
 use nym_kkt::session::{anonymous_initiator_process, initiator_ingest_response};
 use nym_lp_transport::traits::LpTransport;
+use rand09::rng;
+use tracing::debug;
 
 impl<'a, S> PSQHandshakeState<'a, S>
 where
@@ -25,9 +27,6 @@ where
     where
         S: LpTransport + Unpin,
     {
-        // TODO: pass rng as argument
-        let mut rng = rand09::rng();
-
         // 0. retrieve the expected kem key hash. if we don't know if,
         // there's no point in even trying to start the handshake
         let expected_kem_key_digest = self.remote_peer.expected_kem_key_hash(self.ciphersuite)?;
@@ -43,6 +42,7 @@ where
         // 2. receive ack and verify we received Ack
         // this confirms that gateway is fine with our suggested protocol version
         // in the future we probably have some fancier negotiation
+        debug!("sending client hello");
         match self
             .send_and_receive_packet(client_hello_data.into_lp_packet(remote_protocol), None)
             .await?
@@ -58,15 +58,17 @@ where
                 ));
             }
         }
+        debug!("received client hello ACK");
 
         // 3. prepare and send KKT request
-        let (kkt_context, kkt_frame) = anonymous_initiator_process(&mut rng, self.ciphersuite)?;
+        let (kkt_context, kkt_frame) = anonymous_initiator_process(&mut rng(), self.ciphersuite)?;
         let (session_secret, encrypted_frame) =
-            encrypt_initial_kkt_frame(&mut rng, &self.remote_peer.x25519_public, &kkt_frame)?;
+            encrypt_initial_kkt_frame(&mut rng(), &self.remote_peer.x25519_public, &kkt_frame)?;
         let lp_message = KKTRequestData::new(encrypted_frame).into();
         let lp_packet = self.next_packet(session_id, remote_protocol, lp_message);
 
         // 4. receive and process KKT response
+        debug!("sending KKT request");
         let kkt_response = match self.send_and_receive_packet(lp_packet, None).await?.message {
             LpMessage::KKTResponse(response) => response,
             other => {
@@ -76,6 +78,8 @@ where
                 ));
             }
         };
+        debug!("received KKT response");
+
         let (response_frame, remote_context) =
             decrypt_kkt_frame(&session_secret, &kkt_response.0, KKT_RESPONSE_AAD)?;
         let encapsulation_key = initiator_ingest_response(
@@ -125,8 +129,12 @@ where
         let lp_packet = self.next_packet(session_id, remote_protocol, lp_message);
 
         // 6. receive and process PSQ msg2
+        debug!("sending PSQ msg1");
+        // send WITHOUT outer AEAD but receive WITH outer AEAD
+        self.connection.send_packet(lp_packet, None).await?;
         let psq_msg2 = match self
-            .send_and_receive_packet(lp_packet, Some(&outer_aead_key))
+            .connection
+            .receive_packet(Some(&outer_aead_key))
             .await?
             .message
         {
@@ -138,6 +146,7 @@ where
                 ));
             }
         };
+        debug!("received PSQ msg2");
 
         // Extract PSK handle: [u16 handle_len][handle_bytes][noise_msg]
         if psq_msg2.len() < 2 {
@@ -163,6 +172,7 @@ where
         let lp_packet = self.next_packet(session_id, remote_protocol, lp_message);
 
         // 8. [optional] get an ack
+        debug!("sending PSQ msg3");
         match self
             .send_and_receive_packet(lp_packet, Some(&outer_aead_key))
             .await?
@@ -176,7 +186,12 @@ where
                 ));
             }
         }
+        debug!("received final ACK");
 
-        Ok(LPSession { outer_aead_key })
+        Ok(LPSession {
+            session_id,
+            version: remote_protocol,
+            outer_aead_key,
+        })
     }
 }

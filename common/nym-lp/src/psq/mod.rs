@@ -15,6 +15,8 @@ mod responder;
 
 // placeholder
 pub struct LPSession {
+    session_id: u32,
+    version: u8,
     outer_aead_key: OuterAeadKey,
 }
 
@@ -92,5 +94,59 @@ where
     ) -> Result<LpPacket, LpError> {
         self.connection.send_packet(packet, outer_aead_key).await?;
         self.connection.receive_packet(outer_aead_key).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::peer::mock_peers;
+    use nym_kkt::ciphersuite::{HashFunction, HashLength, KEM, SignatureScheme};
+    use nym_test_utils::mocks::async_read_write::MockIOStream;
+    use nym_test_utils::traits::{Leak, TimeboxedSpawnable};
+    use tokio::join;
+
+    #[tokio::test]
+    async fn psq_handshake() -> anyhow::Result<()> {
+        nym_test_utils::helpers::setup_test_logger();
+
+        let conn_init = MockIOStream::default();
+        let conn_resp = conn_init.try_get_remote_handle();
+
+        // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
+        // so they'd get 'static lifetime
+        let conn_init = conn_init.leak();
+        let conn_resp = conn_resp.leak();
+
+        let ciphersuite = Ciphersuite::new(
+            KEM::X25519,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
+        );
+
+        let (init, resp) = mock_peers();
+        let init_remote = init.as_remote();
+        let resp_remote = resp.as_remote();
+
+        let handshake_init = PSQHandshakeState::new(conn_init, ciphersuite, init, resp_remote);
+        let handshake_resp = PSQHandshakeState::new(conn_resp, ciphersuite, resp, init_remote);
+
+        let resp_fut = handshake_resp.psq_handshake_responder().spawn_timeboxed();
+        let init_fut = handshake_init.psq_handshake_initiator(1).spawn_timeboxed();
+
+        let (session_init, session_resp) = join!(init_fut, resp_fut);
+
+        let session_init = session_init???;
+        let session_resp = session_resp???;
+
+        assert_eq!(session_init.session_id, session_resp.session_id);
+        assert_eq!(
+            session_init.outer_aead_key.as_bytes(),
+            session_resp.outer_aead_key.as_bytes()
+        );
+        assert_eq!(session_init.version, session_resp.version);
+
+        Ok(())
     }
 }

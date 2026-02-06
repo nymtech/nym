@@ -38,7 +38,7 @@ mod test {
 
     #[test]
     fn test_kkt_psq_e2e_clear() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         // generate ed25519 keys
         let initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
@@ -241,7 +241,7 @@ mod test {
     }
     #[test]
     fn test_kkt_psq_e2e_encrypted() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         // generate ed25519 keys
         let initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));

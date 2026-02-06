@@ -17,7 +17,7 @@ sha2 = { workspace = true }
 tracing = { workspace = true }
 rand = { workspace = true }
 # rand 0.9 for KKT integration (nym-kkt uses rand 0.9)
-rand09 = { package = "rand", version = "0.9.2" }
+rand09 = { workspace = true }
 
 nym-crypto = { path = "../crypto", features = ["hashing", "asymmetric"] }
 nym-kkt = { path = "../nym-kkt" }
@@ -37,9 +37,12 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
-rand_chacha = "0.3"
+#rand_chacha = "0.3"
 nym-crypto = { path = "../crypto", features = ["rand"] }
 nym-test-utils = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+nym-lp-transport = { path = "../nym-lp-transport", features = ["io-mocks"] }
 
 
 [[bench]]

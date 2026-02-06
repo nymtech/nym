@@ -52,6 +52,14 @@ impl LpLocalPeer {
         &self.x25519
     }
 
+    /// Returns the reference to the KEM Public key of the peer (if available).
+    pub fn get_kem_key_handle(&self) -> Result<&x25519::PublicKey, LpError> {
+        self.kem_psq
+            .as_ref()
+            .map(|kp| kp.public_key())
+            .ok_or(LpError::ResponderWithMissingKEMKey)
+    }
+
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
     #[doc(hidden)]
     pub fn as_remote(&self) -> LpRemotePeer {

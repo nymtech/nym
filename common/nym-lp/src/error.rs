@@ -119,6 +119,7 @@ impl LpError {
     pub fn kkt_psq_handshake(msg: impl Into<String>) -> Self {
         Self::KKTPSQHandshake(msg.into())
     }
+
     pub fn unexpected_handshake_response(got: MessageType, expected: MessageType) -> LpError {
         Self::KKTPSQHandshake(format!(
             "received unexpected response, got: {got:?}, expected: {expected:?}"

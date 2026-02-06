@@ -751,8 +751,8 @@ impl LpSession {
         ) {
             Ok((session_secret, request_frame, remote_context)) => {
                 match responder_ingest_message(&remote_context, None, None, &request_frame) {
-                    Ok((mut context, _)) => match responder_process(
-                        &mut context,
+                    Ok((context, _)) => match responder_process(
+                        &context,
                         request_frame.session_id(),
                         self.local_peer.ed25519().private_key(),
                         responder_kem_pk,

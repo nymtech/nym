@@ -1,9 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ClientHelloData;
+use crate::{ClientHelloData, LpError};
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt::ciphersuite::{KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests};
+use nym_kkt::ciphersuite::{Ciphersuite, KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -136,6 +136,27 @@ impl LpRemotePeer {
         self.expected_kem_key_digests = expected_kem_key_digests;
         self.expected_signing_key_digests = expected_signing_key_digests;
         self
+    }
+
+    /// Attempt to retrieve expected KEM key hash of the remote
+    /// for [`nym_kkt::ciphersuite::KEM`] key type and [`nym_kkt::ciphersuite::HashFunction`]
+    /// specified by own [`nym_kkt::ciphersuite::Ciphersuite`]
+    pub(crate) fn expected_kem_key_hash(
+        &self,
+        ciphersuite: Ciphersuite,
+    ) -> Result<Vec<u8>, LpError> {
+        let kem = ciphersuite.kem();
+        let hash_function = ciphersuite.hash_function();
+
+        let digests = self
+            .expected_kem_key_digests
+            .get(&kem)
+            .ok_or(LpError::NoKnownKEMKeyDigests { kem, hash_function })?;
+
+        digests
+            .get(&hash_function)
+            .ok_or(LpError::NoKnownKEMKeyDigests { kem, hash_function })
+            .cloned()
     }
 }
 

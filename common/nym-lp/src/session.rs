@@ -675,7 +675,7 @@ impl LpSession {
         let mut kkt_state = self.kkt_state.lock();
 
         // Extract context from waiting state
-        let (mut context, session_secret) = match &*kkt_state {
+        let (context, session_secret) = match &*kkt_state {
             KKTState::InitiatorWaiting {
                 context,
                 session_secret,
@@ -692,7 +692,7 @@ impl LpSession {
                 Ok((response_frame, remote_context)) => {
                     let expected_kem_key_digest = self.expected_kem_key_hash(context)?;
                     match initiator_ingest_response(
-                        &mut context,
+                        &context,
                         &response_frame,
                         &remote_context,
                         &self.remote_peer.ed25519_public,

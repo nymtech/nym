@@ -73,7 +73,7 @@ where
 }
 
 pub fn initiator_ingest_response<'a>(
-    own_context: &mut KKTContext,
+    own_context: &KKTContext,
     remote_frame: &KKTFrame,
     remote_context: &KKTContext,
     remote_verification_key: &ed25519::PublicKey,

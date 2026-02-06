@@ -8,22 +8,8 @@ use crate::builder::config::NymNodeWithKeys;
 pub enum RegistrationMode {
     /// 5-hop mixnet with IPR (IP Packet Router)
     Mixnet,
-    /// 2-hop WireGuard with authenticator
+    /// 2-hop WireGuard
     Wireguard,
-    /// 2-hop WireGuard with LP (Lewes Protocol)
-    Lp,
-}
-
-impl RegistrationMode {
-    /// Legacy method for backward compatibility
-    #[deprecated(note = "use explicit enum variant instead")]
-    pub fn legacy_two_hop(use_two_hop: bool) -> RegistrationMode {
-        if use_two_hop {
-            Self::Wireguard
-        } else {
-            Self::Mixnet
-        }
-    }
 }
 
 pub struct RegistrationClientConfig {

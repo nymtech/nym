@@ -398,8 +398,8 @@ where
 ///
 /// Represents a client that is not yet connected to the mixnet. You typically create one when you
 /// want to have a separate configuration and connection phase. Once the mixnet client builder is
-/// configured, call [`MixnetClientBuilder::connect_to_mixnet()`] or
-/// [`MixnetClientBuilder::connect_to_mixnet_via_socks5()`] to transition to a connected
+/// configured, call [`connect_to_mixnet()`](Self::connect_to_mixnet) or
+/// [`connect_to_mixnet_via_socks5()`](Self::connect_to_mixnet_via_socks5) to transition to a connected
 /// client.
 pub struct DisconnectedMixnetClient<S>
 where

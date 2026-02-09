@@ -10,9 +10,53 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 
+/// A pool of pre-initialized [`MixnetClient`] instances for higher-throughput applications.
+///
+/// `ClientPool` maintains a configurable number of ready-to-use mixnet clients in reserve,
+/// automatically creating new clients when the pool is depleted. This is useful for
+/// applications that need to handle many concurrent connections without the latency
+/// of creating new clients on-demand.
+///
+/// ## Usage
+///
+/// The pool operates as a background task that continuously maintains the configured
+/// number of clients. Clients are obtained via [`get_mixnet_client`](Self::get_mixnet_client)
+/// and are removed from the pool (not returned after use).
+///
+/// ## Example
+///
+/// ```rust,no_run
+/// use nym_sdk::client_pool::ClientPool;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     // Create a pool that maintains 5 clients in reserve
+///     let pool = ClientPool::new(5);
+///
+///     // Start the pool in a background task
+///     let pool_clone = pool.clone();
+///     tokio::spawn(async move {
+///         pool_clone.start().await
+///     });
+///
+///     // Get a client from the pool when needed
+///     if let Some(client) = pool.get_mixnet_client().await {
+///         println!("Got client: {}", client.nym_address());
+///         // Use the client...
+///         client.disconnect().await;
+///     }
+///
+///     // Shutdown the pool
+///     pool.disconnect_pool().await;
+///     Ok(())
+/// }
+/// ```
 pub struct ClientPool {
-    clients: Arc<RwLock<Vec<Arc<MixnetClient>>>>, // Collection of clients waiting to be used which are popped off in get_mixnet_client()
-    client_pool_reserve_number: usize, // Default # of clients to have available in pool in reserve waiting for incoming connections
+    /// Collection of clients waiting to be used which are popped off in get_mixnet_client()
+    clients: Arc<RwLock<Vec<Arc<MixnetClient>>>>,
+    /// Default # of clients to have available in pool in reserve waiting for incoming connections
+    client_pool_reserve_number: usize,
+    /// CancellationToken used to signal shutdown
     cancel_token: CancellationToken,
 }
 
@@ -63,6 +107,16 @@ impl Clone for ClientPool {
 }
 
 impl ClientPool {
+    /// Creates a new client pool with the specified reserve size.
+    ///
+    /// The pool will attempt to maintain `client_pool_reserve_number` clients
+    /// ready for immediate use. The pool starts empty and must be activated
+    /// by calling [`start`](Self::start).
+    ///
+    /// # Arguments
+    ///
+    /// * `client_pool_reserve_number` - The target number of clients to keep in reserve.
+    ///   Set to 0 to create a pool that doesn't automatically spawn clients.
     pub fn new(client_pool_reserve_number: usize) -> Self {
         ClientPool {
             clients: Arc::new(RwLock::new(Vec::new())),
@@ -71,8 +125,28 @@ impl ClientPool {
         }
     }
 
-    // The loop here is simple: if there aren't enough clients, create more. If you set clients to 0, repeatedly just sleep.
-    // disconnect_pool() will kill this loop via the cancellation token.
+    /// Starts the pool's background task that maintains the client reserve.
+    ///
+    /// This method runs a loop that continuously checks if more clients are needed
+    /// and creates them as necessary. The loop continues until [`disconnect_pool`](Self::disconnect_pool)
+    /// is called.
+    ///
+    /// This should typically be spawned as a background task:
+    ///
+    /// ```rust,no_run
+    /// # use nym_sdk::client_pool::ClientPool;
+    /// # async fn example() {
+    /// let pool = ClientPool::new(3);
+    /// let pool_clone = pool.clone();
+    /// tokio::spawn(async move {
+    ///     let _ = pool_clone.start().await;
+    /// });
+    /// # }
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` when the pool is shut down via cancellation token.
     pub async fn start(&self) -> Result<()> {
         loop {
             let spawned_clients = self.clients.read().await.len();
@@ -112,9 +186,15 @@ impl ClientPool {
         }
     }
 
-    // Even though this is basically start() with an extra param since I think this
-    // will only be used for testing scenarios, and I didn't want to unnecessarily add
-    // another param to the function that will be used elsewhere, hence this is its own fn
+    /// Starts the pool with all clients connecting to a specific gateway.
+    ///
+    /// This variant of [`start`](Self::start) forces all created clients to use the
+    /// specified gateway. Primarily useful for testing scenarios where gateway
+    /// consistency is required.
+    ///
+    /// # Arguments
+    ///
+    /// * `gateway` - The Ed25519 public key of the gateway all clients should connect to.
     pub async fn start_with_specified_gateway(&self, gateway: ed25519::PublicKey) -> Result<()> {
         loop {
             let spawned_clients = self.clients.read().await.len();
@@ -155,6 +235,14 @@ impl ClientPool {
         }
     }
 
+    /// Shuts down the pool and disconnects all clients.
+    ///
+    /// This method:
+    /// 1. Cancels the background task that creates new clients
+    /// 2. Disconnects all clients currently in the pool
+    ///
+    /// After calling this method, the pool cannot be restarted. Create a new
+    /// `ClientPool` instance if you need to resume pooling.
     pub async fn disconnect_pool(&self) {
         info!("Triggering Client Pool disconnect");
         self.cancel_token.cancel();
@@ -171,6 +259,18 @@ impl ClientPool {
         }
     }
 
+    /// Retrieves a client from the pool, if one is available.
+    ///
+    /// The client is removed from the pool and ownership is transferred to the caller.
+    /// After use, the client should be disconnected; it is not returned to the pool.
+    ///
+    /// If the pool is empty, this returns `None`. The background task started by
+    /// [`start`](Self::start) will create a replacement client automatically.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(MixnetClient)` if a client was available in the pool
+    /// - `None` if the pool is currently empty
     pub async fn get_mixnet_client(&self) -> Option<MixnetClient> {
         debug!("Grabbing client from pool");
         let mut clients = self.clients.write().await;
@@ -179,10 +279,15 @@ impl ClientPool {
             .and_then(|arc_client| Arc::try_unwrap(arc_client).ok())
     }
 
+    /// Returns the current number of clients available in the pool.
     pub async fn get_client_count(&self) -> usize {
         self.clients.read().await.len()
     }
 
+    /// Returns the configured reserve size for this pool.
+    ///
+    /// This is the target number of clients the pool attempts to maintain,
+    /// as set during construction with [`new`](Self::new).
     pub async fn get_pool_reserve(&self) -> usize {
         self.client_pool_reserve_number
     }

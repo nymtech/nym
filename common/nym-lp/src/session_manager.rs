@@ -6,7 +6,6 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
-use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::state_machine::{LpAction, LpInput, LpStateBare};
 use crate::{LpError, LpMessage, LpSession, LpStateMachine};
 use std::collections::HashMap;
@@ -40,17 +39,6 @@ impl SessionManager {
         input: LpInput,
     ) -> Result<Option<LpAction>, LpError> {
         self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
-    }
-
-    pub fn add(&self, session: LpSession) -> Result<(), LpError> {
-        todo!()
-        // let sm = LpStateMachine {
-        //     state: LpState::ReadyToHandshake {
-        //         session: Box::new(session),
-        //     },
-        // };
-        // self.state_machines.insert(sm.id()?, sm);
-        // Ok(())
     }
 
     pub fn closed(&self, lp_id: u32) -> Result<bool, LpError> {
@@ -119,7 +107,7 @@ impl SessionManager {
         F: FnOnce(&LpStateMachine) -> R,
     {
         if let Some(sm) = self.state_machines.get(&lp_id) {
-            Ok(f(&sm))
+            Ok(f(sm))
         } else {
             Err(LpError::StateMachineNotFound { lp_id })
         }
@@ -131,33 +119,18 @@ impl SessionManager {
     where
         F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
     {
-        if let Some(mut sm) = self.state_machines.get_mut(&lp_id) {
-            Ok(f(&mut sm))
+        if let Some(sm) = self.state_machines.get_mut(&lp_id) {
+            Ok(f(sm))
         } else {
             Err(LpError::StateMachineNotFound { lp_id })
         }
     }
 
-    pub fn create_session_state_machine(
-        &mut self,
-        receiver_index: u32,
-        is_initiator: bool,
-        local_peer: LpLocalPeer,
-        remote_peer: LpRemotePeer,
-        salt: &[u8; 32],
-        protocol_version: u8,
-    ) -> Result<u32, LpError> {
-        let sm = LpStateMachine::new(
-            receiver_index,
-            is_initiator,
-            local_peer,
-            remote_peer,
-            salt,
-            protocol_version,
-        )?;
-
+    pub fn create_session_state_machine(&mut self, lp_session: LpSession) -> u32 {
+        let receiver_index = lp_session.id();
+        let sm = LpStateMachine::new(lp_session);
         self.state_machines.insert(receiver_index, sm);
-        Ok(receiver_index)
+        receiver_index
     }
 
     /// Method to remove a state machine
@@ -166,51 +139,24 @@ impl SessionManager {
 
         removed.is_some()
     }
-
-    /// Test-only method to initialize KKT state to Completed for a session.
-    /// This allows integration tests to bypass KKT exchange and directly test PSQ/handshake.
-    #[cfg(test)]
-    pub fn init_kkt_for_test(
-        &self,
-        lp_id: u32,
-        remote_x25519_pub: &nym_crypto::asymmetric::x25519::PublicKey,
-    ) -> Result<(), LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?.set_kkt_completed_for_test(remote_x25519_pub);
-            Ok(())
-        })?
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packet::version;
-    use crate::peer::{mock_peers, random_peer};
-    use nym_test_utils::helpers::deterministic_rng;
+    use crate::{SessionsMock, mock_session_for_test};
 
     #[test]
     fn test_session_manager_get() {
         let mut manager = SessionManager::new();
-        let mut rng = deterministic_rng();
-        let local = random_peer(&mut rng);
-        let peer1 = random_peer(&mut rng);
 
-        let salt = [47u8; 32];
-        let receiver_index: u32 = 1001;
+        let local_session = mock_session_for_test();
+        let id = local_session.id();
 
-        let sm_1_id = manager
-            .create_session_state_machine(
-                receiver_index,
-                true,
-                local,
-                peer1.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
+        let sm_1_id = manager.create_session_state_machine(local_session);
+        assert_eq!(sm_1_id, id);
 
-        let retrieved = manager.state_machine_exists(sm_1_id);
+        let retrieved = manager.state_machine_exists(id);
         assert!(retrieved);
 
         let not_found = manager.state_machine_exists(99);
@@ -220,23 +166,9 @@ mod tests {
     #[test]
     fn test_session_manager_remove() {
         let mut manager = SessionManager::new();
-        let mut rng = deterministic_rng();
-        let local = random_peer(&mut rng);
-        let peer1 = random_peer(&mut rng);
+        let local_session = mock_session_for_test();
 
-        let salt = [48u8; 32];
-        let receiver_index: u32 = 2002;
-
-        let sm_1_id = manager
-            .create_session_state_machine(
-                receiver_index,
-                true,
-                local,
-                peer1.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
+        let sm_1_id = manager.create_session_state_machine(local_session);
 
         let removed = manager.remove_state_machine(sm_1_id);
         assert!(removed);
@@ -249,46 +181,13 @@ mod tests {
     #[test]
     fn test_multiple_sessions() {
         let mut manager = SessionManager::new();
-        let mut rng = deterministic_rng();
-        let local = random_peer(&mut rng);
-        let peer1 = random_peer(&mut rng);
-        let peer2 = random_peer(&mut rng);
-        let peer3 = random_peer(&mut rng);
+        let session1 = SessionsMock::mock_post_handshake(123).unwrap().initiator;
+        let session2 = SessionsMock::mock_post_handshake(124).unwrap().initiator;
+        let session3 = SessionsMock::mock_post_handshake(125).unwrap().initiator;
 
-        let salt = [49u8; 32];
-
-        let sm_1 = manager
-            .create_session_state_machine(
-                3001,
-                true,
-                local.clone(),
-                peer1.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
-
-        let sm_2 = manager
-            .create_session_state_machine(
-                3002,
-                true,
-                local.clone(),
-                peer2.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
-
-        let sm_3 = manager
-            .create_session_state_machine(
-                3003,
-                true,
-                local.clone(),
-                peer3.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
+        let sm_1 = manager.create_session_state_machine(session1);
+        let sm_2 = manager.create_session_state_machine(session2);
+        let sm_3 = manager.create_session_state_machine(session3);
 
         assert_eq!(manager.session_count(), 3);
 
@@ -304,23 +203,10 @@ mod tests {
     #[test]
     fn test_session_manager_create_session() {
         let mut manager = SessionManager::new();
-        let (init, resp) = mock_peers();
 
-        let salt = [50u8; 32];
-        let receiver_index: u32 = 4004;
+        let sesion = mock_session_for_test();
 
-        let sm = manager.create_session_state_machine(
-            receiver_index,
-            true,
-            init,
-            resp.as_remote(),
-            &salt,
-            version::CURRENT,
-        );
-
-        assert!(sm.is_ok());
-        let sm = sm.unwrap();
-
+        let sm = manager.create_session_state_machine(sesion);
         assert_eq!(manager.session_count(), 1);
 
         let retrieved = manager.get_state_machine_id(sm);

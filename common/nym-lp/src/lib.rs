@@ -22,7 +22,7 @@ pub use error::LpError;
 pub use message::{ClientHelloData, LpMessage};
 pub use packet::{BOOTSTRAP_RECEIVER_IDX, LpPacket, OuterHeader};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
-pub use session::{LpSession, generate_fresh_salt};
+pub use session::LpSession;
 pub use session_manager::SessionManager;
 pub use state_machine::LpStateMachine;
 
@@ -30,54 +30,144 @@ pub const NOISE_PATTERN: &str = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";
 pub const NOISE_PSK_INDEX: u8 = 3;
 
 #[cfg(test)]
+struct SessionsMock {
+    initiator: LpSession,
+    responder: LpSession,
+}
+
+#[cfg(test)]
+impl SessionsMock {
+    fn mock_post_handshake(session_id: u32) -> anyhow::Result<SessionsMock> {
+        use crate::peer::mock_peers;
+        use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
+
+        let (init, resp) = mock_peers();
+        let resp_remote = resp.as_remote();
+        let init_remote = init.as_remote();
+        let salt = [42u8; 32];
+        let session_id_bytes = session_id.to_le_bytes();
+
+        // skip KKT by just deriving the kem key locally
+        let kem_keys = resp.kem_psq.as_ref().unwrap();
+
+        let libcrux_private_key = libcrux_kem::PrivateKey::decode(
+            libcrux_kem::Algorithm::X25519,
+            kem_keys.private_key().as_bytes(),
+        )
+        .unwrap();
+        let decapsulation_key = DecapsulationKey::X25519(libcrux_private_key);
+
+        let libcrux_public_key = libcrux_kem::PublicKey::decode(
+            libcrux_kem::Algorithm::X25519,
+            kem_keys.public_key().as_bytes(),
+        )
+        .unwrap();
+        let encapsulation_key = EncapsulationKey::X25519(libcrux_public_key);
+
+        // INIT -> RESP: PSQ MSG1
+        let psq_initiator = crate::psk::psq_initiator_create_message(
+            init.x25519.private_key(),
+            &resp_remote.x25519_public,
+            &encapsulation_key,
+            init.ed25519.private_key(),
+            init.ed25519.public_key(),
+            &salt,
+            &session_id_bytes,
+        )?;
+
+        let psk = psq_initiator.psk;
+        let psq_payload = psq_initiator.payload;
+        let outer_aead_key = crate::codec::OuterAeadKey::from_psk(&psk);
+
+        let noise_state_init = snow::Builder::new(crate::NOISE_PATTERN.parse()?)
+            .local_private_key(init.x25519().private_key().as_bytes())
+            .remote_public_key(resp_remote.x25519_public.as_bytes())
+            .psk(crate::NOISE_PSK_INDEX, &psk)
+            .build_initiator()?;
+        let mut noise_protocol_init = crate::noise_protocol::NoiseProtocol::new(noise_state_init);
+        let noise_msg1 = noise_protocol_init.get_bytes_to_send().unwrap()?;
+
+        let psq_responder = crate::psk::psq_responder_process_message(
+            resp.x25519.private_key(),
+            &init_remote.x25519_public,
+            (&decapsulation_key, &encapsulation_key),
+            &init_remote.ed25519_public,
+            &psq_payload,
+            &salt,
+            &session_id_bytes,
+        )?;
+
+        let noise_state_resp = snow::Builder::new(crate::NOISE_PATTERN.parse()?)
+            .local_private_key(resp.x25519().private_key().as_bytes())
+            .remote_public_key(init_remote.x25519_public.as_bytes())
+            .psk(crate::NOISE_PSK_INDEX, &psk)
+            .build_responder()?;
+        let mut noise_protocol_resp = crate::noise_protocol::NoiseProtocol::new(noise_state_resp);
+        noise_protocol_resp.read_message(&noise_msg1)?;
+
+        let noise_msg2 = noise_protocol_resp.get_bytes_to_send().unwrap()?;
+        noise_protocol_init.read_message(&noise_msg2)?;
+        let noise_msg3 = noise_protocol_init.get_bytes_to_send().unwrap()?;
+
+        assert!(noise_protocol_init.is_handshake_finished());
+
+        noise_protocol_resp.read_message(&noise_msg3)?;
+        assert!(noise_protocol_resp.is_handshake_finished());
+
+        Ok(SessionsMock {
+            initiator: LpSession::new(
+                session_id,
+                1,
+                outer_aead_key.clone(),
+                init,
+                resp_remote,
+                crate::session::PqSharedSecret::new(psq_initiator.pq_shared_secret),
+                noise_protocol_init,
+            ),
+            responder: LpSession::new(
+                session_id,
+                1,
+                outer_aead_key,
+                resp,
+                init_remote,
+                crate::session::PqSharedSecret::new(psq_responder.pq_shared_secret),
+                noise_protocol_resp,
+            ),
+        })
+    }
+
+    // we just need a dummy 'valid' session for simpler tests
+    fn mock_initiator() -> LpSession {
+        Self::mock_post_handshake(1234).unwrap().initiator
+    }
+}
+
+#[cfg(test)]
 pub fn sessions_for_tests() -> (LpSession, LpSession) {
-    let (init, resp) = crate::peer::mock_peers();
+    let sessions = SessionsMock::mock_post_handshake(69).unwrap();
+    (sessions.initiator, sessions.responder)
+}
 
-    // Use a fixed receiver_index for deterministic tests
-    let receiver_index: u32 = 12345;
-
-    // Use consistent salt for deterministic tests
-    let salt = [1u8; 32];
-
-    let initiator_session = LpSession::new(
-        receiver_index,
-        true,
-        init.clone(),
-        resp.as_remote(),
-        &salt,
-        packet::version::CURRENT,
-    )
-    .expect("Test session creation failed");
-
-    let responder_session = LpSession::new(
-        receiver_index,
-        false,
-        resp,
-        init.as_remote(),
-        &salt,
-        packet::version::CURRENT,
-    )
-    .expect("Test session creation failed");
-
-    (initiator_session, responder_session)
+#[cfg(test)]
+pub fn mock_session_for_test() -> LpSession {
+    SessionsMock::mock_initiator()
 }
 
 #[cfg(test)]
 mod tests {
     use crate::message::LpMessage;
-    use crate::packet::{LpHeader, LpPacket, TRAILER_LEN, version};
+    use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use crate::session_manager::SessionManager;
-    use crate::{LpError, sessions_for_tests};
+    use crate::{LpError, SessionsMock, mock_session_for_test};
     use bytes::BytesMut;
 
     // Import the new standalone functions
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
-    use crate::peer::mock_peers;
 
     #[test]
     fn test_replay_protection_integration() {
         // Create session
-        let session = sessions_for_tests().0;
+        let mut session = mock_session_for_test();
 
         // === Packet 1 (Counter 0 - Should succeed) ===
         let packet1 = LpPacket {
@@ -176,40 +266,20 @@ mod tests {
     #[test]
     fn test_session_manager_integration() {
         // Create session manager
-        let local_manager = SessionManager::new();
-        let remote_manager = SessionManager::new();
-
-        // Generate Ed25519 keypairs for PSQ authentication
-        let (init, resp) = mock_peers();
+        let mut local_manager = SessionManager::new();
+        let mut remote_manager = SessionManager::new();
 
         // Use fixed receiver_index for deterministic test
         let receiver_index: u32 = 54321;
 
-        // Test salt
-        let salt = [46u8; 32];
+        let sessions = SessionsMock::mock_post_handshake(receiver_index).unwrap();
+        let local_session = sessions.initiator;
+        let remote_session = sessions.responder;
 
         // Create a session via manager
-        let _ = local_manager
-            .create_session_state_machine(
-                receiver_index,
-                true,
-                init.clone(),
-                resp.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
+        let _ = local_manager.create_session_state_machine(local_session);
+        let _ = remote_manager.create_session_state_machine(remote_session);
 
-        let _ = remote_manager
-            .create_session_state_machine(
-                receiver_index,
-                false,
-                resp,
-                init.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
         // === Packet 1 (Counter 0 - Should succeed) ===
         let packet1 = LpPacket {
             header: LpHeader {

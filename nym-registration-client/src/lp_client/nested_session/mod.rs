@@ -211,7 +211,7 @@ impl NestedLpSession {
         .await?;
 
         // Store the state machine (with established session) for later use
-        self.state_machine = Some(LpStateMachine::new2(session));
+        self.state_machine = Some(LpStateMachine::new(session));
         Ok(())
     }
 

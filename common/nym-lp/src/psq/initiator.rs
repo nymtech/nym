@@ -194,7 +194,7 @@ where
         }
         debug!("received final ACK");
 
-        Ok(LpSession::new2(
+        Ok(LpSession::new(
             session_id,
             remote_protocol,
             outer_aead_key,

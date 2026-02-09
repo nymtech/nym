@@ -238,9 +238,6 @@ mod tests {
                 outbound_mix_sender: mix_sender,
 
                 // we start with empty state
-                handshake_states: Arc::new(Default::default()),
-
-                // we start with empty state
                 session_states: Arc::new(Default::default()),
 
                 forward_semaphore,

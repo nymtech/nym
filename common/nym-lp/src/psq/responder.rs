@@ -255,7 +255,7 @@ impl<'a, S> PSQHandshakeState<'a, S> {
             .await?;
 
         #[allow(clippy::expect_used)]
-        Ok(LpSession::new2(
+        Ok(LpSession::new(
             session_id,
             version,
             outer_aead_key,

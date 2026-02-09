@@ -190,6 +190,7 @@ impl HandshakeData {
 pub struct EncryptedDataPayload(pub Vec<u8>);
 
 impl EncryptedDataPayload {
+    #[allow(dead_code)]
     pub(crate) fn new(bytes: Vec<u8>) -> Self {
         Self(bytes)
     }

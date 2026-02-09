@@ -172,6 +172,7 @@ members = [
     # "wasm/full-nym-wasm",  # If we uncomment this again, remember to also uncomment the profile settings below
     "wasm/mix-fetch",
     "wasm/node-tester",
+    "wasm/libp2p-nym",
     "wasm/zknym-lib",
     "nym-gateway-probe",
     "integration-tests", "common/nym-lp-transport", "common/nym-kkt-ciphersuite",
@@ -542,6 +543,11 @@ web-sys = "0.3.76"
 # for local development:
 #[patch.crates-io]
 #sphinx-packet = { path = "../sphinx" }
+
+# Patch multiaddr with Protocol::Nym support for libp2p-nym transport
+[patch.crates-io.multiaddr]
+git = "https://github.com/mfahampshire/rust-multiaddr"
+branch = "nym-protocol"
 
 # Profile settings for individual crates
 

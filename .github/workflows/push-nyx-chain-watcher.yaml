@@ -8,7 +8,7 @@ env:
 
 jobs:
   build-container:
-    runs-on: arc-linux-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Login to Harbor
         uses: docker/login-action@v3

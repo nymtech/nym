@@ -13,10 +13,6 @@ This crate provides a libp2p `Transport` implementation that uses the Nym mixnet
 ## Building
 
 ```sh
-# Check
-cargo check -p nym-libp2p-wasm --target wasm32-unknown-unknown
-cargo build -p nym-libp2p-wasm --target wasm32-unknown-unknown
-
 # Build with wasm-pack (for browser):
 cd wasm/libp2p-nym
 wasm-pack build --target web
@@ -24,13 +20,12 @@ wasm-pack build --target web
 
 ## Testing
 
-Run WASM tests with wasm-pack:
 ```sh
-cd wasm/libp2p-nym
-
 # Browser tests (headless)
 wasm-pack test --headless --firefox
 wasm-pack test --headless --chrome
+
+# If you want to see the logs in a browser window run one of the above commands without the --headless flag and open the window console
 ```
 
 ## Modules

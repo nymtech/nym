@@ -84,7 +84,10 @@ pub struct NymClientBuilder {
 
 #[wasm_bindgen]
 impl NymClientBuilder {
-    fn new(
+    /// Create a new NymClientBuilder.
+    ///
+    /// For transport use (libp2p), pass a dummy handler and use `start_client_for_transport()`.
+    pub fn new(
         config: ClientConfig,
         on_message: js_sys::Function,
         force_tls: bool,
@@ -268,6 +271,62 @@ impl NymClientBuilder {
                 .inspect_err(|err| console_error!("failed to start the client: {err}"))
                 .into_promise_result()
         })
+    }
+}
+
+// Rust-only methods (not exposed to JavaScript)
+impl NymClientBuilder {
+    /// Start the client for transport use, returning both the client and raw ClientOutput.
+    ///
+    /// Unlike `start_client`, this doesn't consume the ClientOutput with a JS callback,
+    /// allowing Rust code (like libp2p transport) to poll for messages directly.
+    pub async fn start_client_for_transport(
+        mut self,
+    ) -> Result<(NymClient, ClientOutput), WasmClientError> {
+        self.config.base.debug.topology.ignore_egress_epoch_role = true;
+
+        let client_store = self.initialise_client_storage().await?;
+
+        if !self.has_active_gateway(&client_store).await?
+            || !self.try_set_preferred_gateway(&client_store).await?
+        {
+            add_gateway(
+                self.preferred_gateway.clone(),
+                self.latency_based_selection,
+                self.force_tls,
+                &self.config.base.client.nym_api_urls,
+                bin_info!().into(),
+                self.config.base.debug.topology.minimum_gateway_performance,
+                self.config.base.debug.topology.ignore_ingress_epoch_role,
+                &client_store,
+            )
+            .await?;
+        }
+
+        let packet_type = self.config.base.debug.traffic.packet_type;
+        let storage = Self::initialise_storage(&self.config, client_store);
+
+        let base_builder =
+            BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(self.config.base, storage, None);
+
+        let mut started_client = base_builder.start_base().await?;
+        let self_address = started_client.address.to_string();
+
+        let client_input = started_client.client_input.register_producer();
+        let client_output = started_client.client_output.register_consumer();
+
+        // Don't start the reconstructed pusher - let the caller handle messages directly
+
+        let client = NymClient {
+            self_address,
+            client_input: Arc::new(RwLock::new(client_input)),
+            client_state: Arc::new(started_client.client_state),
+            _full_topology: None,
+            _task_manager: started_client.shutdown_handle,
+            packet_type,
+        };
+
+        Ok((client, client_output))
     }
 }
 
@@ -521,5 +580,13 @@ impl NymClient {
 
         let input_msg = InputMessage::new_reply(sender_tag, message, lane, Some(self.packet_type));
         self.client_input.send_message(input_msg)
+    }
+}
+
+// Rust-only methods (not exposed to JavaScript)
+impl NymClient {
+    /// Get the client input channel for use by other Rust code (e.g., libp2p transport).
+    pub fn client_input(&self) -> Arc<RwLock<ClientInput>> {
+        self.client_input.clone()
     }
 }

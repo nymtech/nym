@@ -14,6 +14,8 @@ mod helpers;
 #[cfg(target_arch = "wasm32")]
 mod response_pusher;
 #[cfg(target_arch = "wasm32")]
+pub mod stream;
+#[cfg(target_arch = "wasm32")]
 use nym_wasm_utils::set_panic_hook;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;

@@ -39,6 +39,9 @@ pub enum WasmClientError {
 
     #[error("the node testing features are currently disabled")]
     DisabledTester,
+
+    #[error("failed to send message to mixnet: {0}")]
+    SendFailure(String),
 }
 
 // I dislike this so much - there must be a better way.

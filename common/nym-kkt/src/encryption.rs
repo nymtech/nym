@@ -183,7 +183,6 @@ mod test {
         key_utils::generate_keypair_x25519,
     };
     use rand09::{RngCore, SeedableRng, rng};
-    use rand09_chacha::ChaCha20Rng;
 
     #[test]
     fn test_keygen() {
@@ -227,7 +226,7 @@ mod test {
 
     #[test]
     fn kkt_frame_encryption() -> anyhow::Result<()> {
-        let mut rng = ChaCha20Rng::seed_from_u64(42);
+        let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(42);
         let session_key = KKTSessionSecret::from_bytes([42u8; 32]);
         let aad = b"my-amazing-aad";
 

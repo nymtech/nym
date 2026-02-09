@@ -5,9 +5,10 @@ use crate::codec::OuterAeadKey;
 use crate::message::{HandshakeData, KKTRequestData, MessageType};
 use crate::noise_protocol::NoiseProtocol;
 use crate::psk::psq_initiator_create_message;
+use crate::psq::PSQHandshakeState;
 use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp};
-use crate::psq::{LPSession, PSQHandshakeState};
-use crate::{LpError, LpMessage};
+use crate::session::PqSharedSecret;
+use crate::{LpError, LpMessage, LpSession};
 use nym_kkt::KKT_RESPONSE_AAD;
 use nym_kkt::encryption::{decrypt_kkt_frame, encrypt_initial_kkt_frame};
 use nym_kkt::session::{anonymous_initiator_process, initiator_ingest_response};
@@ -23,7 +24,7 @@ where
     pub async fn psq_handshake_initiator(
         mut self,
         remote_protocol: u8,
-    ) -> Result<LPSession, LpError>
+    ) -> Result<LpSession, LpError>
     where
         S: LpTransport + Unpin,
     {
@@ -188,10 +189,14 @@ where
         }
         debug!("received final ACK");
 
-        Ok(LPSession {
+        Ok(LpSession::new2(
             session_id,
-            version: remote_protocol,
+            remote_protocol,
             outer_aead_key,
-        })
+            self.local_peer,
+            self.remote_peer,
+            PqSharedSecret::new(psq_initiator.pq_shared_secret),
+            noise_protocol,
+        ))
     }
 }

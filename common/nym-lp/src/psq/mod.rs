@@ -5,19 +5,61 @@ use crate::codec::OuterAeadKey;
 use crate::packet::LpHeader;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psq::helpers::LpTransportHandshakeExt;
-use crate::{LpError, LpMessage, LpPacket};
+use crate::session::PqSharedSecret;
+use crate::{LpError, LpMessage, LpPacket, ReceivingKeyCounterValidator};
 use nym_kkt::ciphersuite::Ciphersuite;
 use nym_lp_transport::traits::LpTransport;
+use parking_lot::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 
 mod helpers;
 mod initiator;
 mod responder;
 
 // placeholder
-pub struct LPSession {
+pub struct LPSessionTemp {
+    /// Id of the established session
     session_id: u32,
+
+    /// Negotiated protocol version from handshake.
+    /// Set during handshake completion from the ClientHello/ServerHello packet header.
+    /// Used for future version negotiation and compatibility checks.
     version: u8,
+
+    /// Outer AEAD key for packet encryption (derived from PSK after PSQ handshake).
     outer_aead_key: OuterAeadKey,
+
+    /// Representation of a local Lewes Protocol peer
+    /// encapsulating all the known information and keys.
+    local_peer: LpLocalPeer,
+
+    /// Representation of a remote Lewes Protocol peer
+    /// encapsulating all the known information and keys.
+    remote_peer: LpRemotePeer,
+
+    // TODO: ALL BELOW maybe not needed after all?
+    /// Raw PQ shared secret (K_pq) from PSQ KEM encapsulation/decapsulation.
+    /// Stored after PSQ handshake completes for subsession PSK derivation.
+    pq_shared_secret: PqSharedSecret,
+
+    /// Counter for outgoing packets
+    sending_counter: u64,
+
+    /// Validator for incoming packet counters to prevent replay attacks
+    receiving_counter: ReceivingKeyCounterValidator,
+
+    /// Monotonically increasing counter for subsession indices.
+    /// Each subsession gets a unique index to ensure unique PSK derivation.
+    /// Uses u64 to make overflow practically impossible (~585k years at 1M/sec).
+    subsession_counter: u64,
+
+    /// True if this session has been demoted to read-only mode.
+    /// Demoted sessions can still receive/decrypt but cannot send/encrypt.
+    read_only: bool,
+
+    /// ID of the successor session that replaced this one.
+    /// Set when demote() is called.
+    successor_session_id: Option<u32>,
 }
 
 pub struct PSQHandshakeState<'a, S> {
@@ -140,13 +182,622 @@ mod tests {
         let session_init = session_init???;
         let session_resp = session_resp???;
 
-        assert_eq!(session_init.session_id, session_resp.session_id);
+        assert_eq!(session_init.id(), session_resp.id());
         assert_eq!(
-            session_init.outer_aead_key.as_bytes(),
-            session_resp.outer_aead_key.as_bytes()
+            session_init.outer_aead_key().as_bytes(),
+            session_resp.outer_aead_key().as_bytes()
         );
-        assert_eq!(session_init.version, session_resp.version);
+        assert_eq!(
+            session_init.pq_shared_secret(),
+            session_resp.pq_shared_secret()
+        );
 
         Ok(())
     }
 }
+
+/*
+#[test]
+    fn test_prepare_handshake_message_initial_state() {
+        let receiver_index = 12345u32;
+
+        let initiator_session = create_handshake_test_session(receiver_index, true);
+        let responder_session = create_handshake_test_session(
+            receiver_index,
+            false,
+            // Responder also needs initiator's key for XK
+        );
+
+        // Initiator should have a message to send immediately (-> e)
+        let initiator_msg_result = initiator_session.prepare_handshake_message();
+        assert!(initiator_msg_result.is_some());
+        let initiator_msg = initiator_msg_result
+            .unwrap()
+            .expect("Initiator msg prep failed");
+        assert!(!initiator_msg.is_empty());
+
+        // Responder should have nothing to send initially (waits for <- e)
+        let responder_msg_result = responder_session.prepare_handshake_message();
+        assert!(responder_msg_result.is_none());
+    }
+
+    #[test]
+    fn test_process_handshake_message_first_step() {
+        let receiver_index = 12345u32;
+
+        let initiator_session = create_handshake_test_session(receiver_index, true);
+        let responder_session = create_handshake_test_session(receiver_index, false);
+
+        // 1. Initiator prepares the first message (-> e)
+        let initiator_msg_result = initiator_session.prepare_handshake_message();
+        let initiator_msg = initiator_msg_result
+            .unwrap()
+            .expect("Initiator msg prep failed");
+
+        // 2. Responder processes the message (<- e)
+        let process_result = responder_session.process_handshake_message(&initiator_msg);
+
+        // Check the result of processing
+        match process_result {
+            Ok(ReadResult::NoOp) => {
+                // Expected for XK first message, responder doesn't decrypt data yet
+            }
+            Ok(other) => panic!("Unexpected process result: {:?}", other),
+            Err(e) => panic!("Responder processing failed: {:?}", e),
+        }
+
+        // 3. After processing, responder should now have a message to send (-> e, es)
+        let responder_response_result = responder_session.prepare_handshake_message();
+        assert!(responder_response_result.is_some());
+        let responder_response = responder_response_result
+            .unwrap()
+            .expect("Responder response prep failed");
+        assert!(!responder_response.is_empty());
+    }
+
+    #[test]
+    fn test_handshake_driver_simulation() {
+        let initiator_session = create_handshake_test_session(12345u32, true);
+        let responder_session = create_handshake_test_session(12345u32, false);
+
+        let mut responder_to_initiator_msg = None;
+        let mut rounds = 0;
+        const MAX_ROUNDS: usize = 10; // Safety break for the loop
+
+        // Start by priming the initiator message
+        let mut initiator_to_responder_msg =
+            initiator_session.prepare_handshake_message().unwrap().ok();
+        assert!(
+            initiator_to_responder_msg.is_some(),
+            "Initiator did not produce initial message"
+        );
+
+        while rounds < MAX_ROUNDS {
+            rounds += 1;
+
+            // === Initiator -> Responder ===
+            if let Some(msg) = initiator_to_responder_msg.take() {
+                // Process message
+                match responder_session.process_handshake_message(&msg) {
+                    Ok(_) => {}
+                    Err(e) => panic!("Responder processing failed: {:?}", e),
+                }
+
+                // Check if responder needs to send a reply
+                responder_to_initiator_msg = responder_session
+                    .prepare_handshake_message()
+                    .transpose()
+                    .unwrap();
+            }
+
+            // Check completion after potentially processing responder's message below
+            if initiator_session.is_handshake_complete()
+                && responder_session.is_handshake_complete()
+            {
+                break;
+            }
+
+            // === Responder -> Initiator ===
+            if let Some(msg) = responder_to_initiator_msg.take() {
+                // Process message
+                match initiator_session.process_handshake_message(&msg) {
+                    Ok(_) => {}
+                    Err(e) => panic!("Initiator processing failed: {:?}", e),
+                }
+
+                // Check if initiator needs to send a reply (should be last message in XK)
+                initiator_to_responder_msg = initiator_session
+                    .prepare_handshake_message()
+                    .transpose()
+                    .unwrap();
+            }
+
+            // Check completion again after potentially processing initiator's message above
+            if initiator_session.is_handshake_complete()
+                && responder_session.is_handshake_complete()
+            {
+                break;
+            }
+        }
+
+        assert!(
+            rounds < MAX_ROUNDS,
+            "Handshake did not complete within max rounds"
+        );
+        assert!(
+            initiator_session.is_handshake_complete(),
+            "Initiator handshake did not complete"
+        );
+        assert!(
+            responder_session.is_handshake_complete(),
+            "Responder handshake did not complete"
+        );
+
+        println!("Handshake completed in {} rounds.", rounds);
+    }
+
+    // ====================================================================
+    // PSQ Handshake Integration Tests
+    // ====================================================================
+
+    /// Test that PSQ runs during handshake and derives a PSK
+    #[test]
+    fn test_psq_handshake_runs_with_psk_injection() {
+        let initiator_session = create_handshake_test_session(12345u32, true);
+        let responder_session = create_handshake_test_session(12345u32, false);
+
+        // Drive the handshake
+        let mut i_msg = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should have message")
+            .expect("Message prep should succeed");
+
+        // The first message should contain PSQ payload embedded
+        // Verify message is not empty and has reasonable size
+        assert!(!i_msg.is_empty(), "Initiator message should not be empty");
+        assert!(
+            i_msg.len() > 100,
+            "Message should contain PSQ payload (actual: {})",
+            i_msg.len()
+        );
+
+        // Responder processes message (which includes PSQ decapsulation)
+        responder_session
+            .process_handshake_message(&i_msg)
+            .expect("Responder should process first message");
+
+        // Continue handshake
+        let r_msg = responder_session
+            .prepare_handshake_message()
+            .expect("Responder should have message")
+            .expect("Responder message prep should succeed");
+
+        initiator_session
+            .process_handshake_message(&r_msg)
+            .expect("Initiator should process responder message");
+
+        i_msg = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should have final message")
+            .expect("Final message prep should succeed");
+
+        responder_session
+            .process_handshake_message(&i_msg)
+            .expect("Responder should process final message");
+
+        // Verify handshake completed
+        assert!(initiator_session.is_handshake_complete());
+        assert!(responder_session.is_handshake_complete());
+
+        // Verify encryption works (implicitly tests PSK was correctly injected)
+        let plaintext = b"PSQ test message";
+        let encrypted = initiator_session
+            .encrypt_data(plaintext)
+            .expect("Encryption should work after handshake");
+
+        let decrypted = responder_session
+            .decrypt_data(&encrypted)
+            .expect("Decryption should work with PSQ-derived PSK");
+
+        assert_eq!(decrypted, plaintext);
+    }
+
+     /// Test that PSQ actually derives a different PSK (not using dummy)
+    #[test]
+    fn test_psq_derived_psk_differs_from_dummy() {
+        // Create sessions - they start with dummy PSK [0u8; 32]
+        let initiator_session = create_handshake_test_session(12345u32, true);
+        let responder_session = create_handshake_test_session(12345u32, false);
+
+        // Prepare first message (initiator runs PSQ and injects PSK)
+        let i_msg = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should have message")
+            .expect("Message prep should succeed");
+
+        // Verify message is not empty (PSQ runs successfully)
+        assert!(
+            !i_msg.is_empty(),
+            "First message should contain PSQ payload"
+        );
+
+        // Complete handshake
+        responder_session
+            .process_handshake_message(&i_msg)
+            .expect("Responder should process message");
+
+        let r_msg = responder_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+
+        initiator_session.process_handshake_message(&r_msg).unwrap();
+
+        let final_msg = initiator_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+
+        responder_session
+            .process_handshake_message(&final_msg)
+            .unwrap();
+
+        // Test that encryption produces non-trivial ciphertext
+        // (would fail if using dummy PSK incorrectly)
+        let plaintext = b"test";
+        let encrypted = initiator_session.encrypt_data(plaintext).unwrap();
+
+        // Decrypt should work
+        let decrypted = responder_session.decrypt_data(&encrypted).unwrap();
+        assert_eq!(decrypted, plaintext);
+
+        // Verify ciphertext is not just plaintext (basic encryption sanity)
+        if let LpMessage::EncryptedData(payload) = encrypted {
+            assert_ne!(
+                &payload.0[..plaintext.len()],
+                plaintext,
+                "Ciphertext should differ from plaintext"
+            );
+        } else {
+            panic!("Expected EncryptedData message");
+        }
+    }
+
+    /// Test full end-to-end handshake with PSQ integration
+    #[test]
+    fn test_handshake_with_psq_end_to_end() {
+        let initiator_session = create_handshake_test_session(12345u32, true);
+        let responder_session = create_handshake_test_session(12345u32, false);
+
+        // Verify initial state
+        assert!(!initiator_session.is_handshake_complete());
+        assert!(!responder_session.is_handshake_complete());
+        assert!(initiator_session.is_initiator());
+        assert!(!responder_session.is_initiator());
+
+        // Round 1: Initiator -> Responder (contains PSQ encapsulation)
+        let msg1 = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should prepare message")
+            .expect("Message should succeed");
+
+        assert!(!msg1.is_empty());
+        assert!(!initiator_session.is_handshake_complete());
+
+        responder_session
+            .process_handshake_message(&msg1)
+            .expect("Responder should process PSQ message");
+
+        assert!(!responder_session.is_handshake_complete());
+
+        // Round 2: Responder -> Initiator
+        let msg2 = responder_session
+            .prepare_handshake_message()
+            .expect("Responder should prepare message")
+            .expect("Message should succeed");
+
+        initiator_session
+            .process_handshake_message(&msg2)
+            .expect("Initiator should process message");
+
+        // Round 3: Initiator -> Responder (final)
+        let msg3 = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should prepare final message")
+            .expect("Message should succeed");
+
+        responder_session
+            .process_handshake_message(&msg3)
+            .expect("Responder should process final message");
+
+        // Verify both sides completed
+        assert!(initiator_session.is_handshake_complete());
+        assert!(responder_session.is_handshake_complete());
+
+        // Test bidirectional encrypted communication
+        let msg_i_to_r = b"Hello from initiator";
+        let encrypted_i = initiator_session
+            .encrypt_data(msg_i_to_r)
+            .expect("Initiator encryption");
+        let decrypted_i = responder_session
+            .decrypt_data(&encrypted_i)
+            .expect("Responder decryption");
+        assert_eq!(decrypted_i, msg_i_to_r);
+
+        let msg_r_to_i = b"Hello from responder";
+        let encrypted_r = responder_session
+            .encrypt_data(msg_r_to_i)
+            .expect("Responder encryption");
+        let decrypted_r = initiator_session
+            .decrypt_data(&encrypted_r)
+            .expect("Initiator decryption");
+        assert_eq!(decrypted_r, msg_r_to_i);
+
+        // Successfully completed end-to-end test with PSQ
+    }
+
+    /// Test that Ed25519 keys are used in PSQ authentication
+    #[test]
+    fn test_psq_handshake_uses_ed25519_authentication() {
+        // Create sessions with explicit Ed25519 keys
+        let initiator_session = create_handshake_test_session(12345u32, true);
+        let responder_session = create_handshake_test_session(12345u32, false);
+
+        // Verify sessions store Ed25519 keys
+        // (Internal verification - keys are used in PSQ calls)
+        assert_eq!(initiator_session.id(), responder_session.id());
+
+        // Complete handshake
+        let msg1 = initiator_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+        responder_session.process_handshake_message(&msg1).unwrap();
+
+        let msg2 = responder_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+        initiator_session.process_handshake_message(&msg2).unwrap();
+
+        let msg3 = initiator_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+        responder_session.process_handshake_message(&msg3).unwrap();
+
+        // If Ed25519 authentication failed, handshake would not complete
+        assert!(initiator_session.is_handshake_complete());
+        assert!(responder_session.is_handshake_complete());
+
+        // Verify encrypted communication works (proof of successful PSQ with auth)
+        let test_data = b"Authentication test";
+        let encrypted = initiator_session.encrypt_data(test_data).unwrap();
+        let decrypted = responder_session.decrypt_data(&encrypted).unwrap();
+        assert_eq!(decrypted, test_data);
+    }
+
+    #[test]
+    fn test_psq_deserialization_failure() {
+        // Test that corrupted PSQ payload causes clean abort
+
+        let responder_session = create_handshake_test_session(12345u32, false);
+
+        // Create a handshake message with corrupted PSQ payload
+        let corrupted_psq_data = vec![0xFF; 128]; // Random garbage
+        let bad_message = LpMessage::Handshake(HandshakeData(corrupted_psq_data));
+
+        // Attempt to process corrupted message - should fail
+        let result = responder_session.process_handshake_message(&bad_message);
+
+        // Should return error (PSQ deserialization will fail)
+        assert!(result.is_err(), "Expected error for corrupted PSQ payload");
+
+        // Verify session state is unchanged
+        // PSQ state should still be ResponderWaiting (not modified)
+        // Noise PSK should still be dummy [0u8; 32]
+        assert!(!responder_session.is_handshake_complete());
+    }
+
+    #[test]
+    fn test_handshake_abort_on_psq_failure() {
+        let (init, resp) = mock_peers();
+
+        let mut bad_resp = resp.as_remote();
+        let wrong_ed25519 = ed25519::KeyPair::from_secret([99u8; 32], 99); // Different key!
+        bad_resp.ed25519_public = *wrong_ed25519.public_key();
+
+        let mut bad_init = init.as_remote();
+        bad_init.ed25519_public = *wrong_ed25519.public_key();
+
+        // Create sessions with MISMATCHED Ed25519 keys
+        // This simulates authentication failure
+        let receiver_index: u32 = 55555;
+        let salt = [0u8; 32];
+
+        let initiator_session = LpSession::new(
+            receiver_index,
+            true,
+            init.clone(),
+            bad_resp,
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
+
+        // Initialize KKT state for test
+        initiator_session.set_kkt_completed_for_test(resp.x25519.public_key());
+
+        let responder_session = LpSession::new(
+            receiver_index,
+            false,
+            resp,
+            bad_init,
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
+        // Initialize KKT state for test
+        responder_session.set_kkt_completed_for_test(init.x25519.public_key());
+
+        // Initiator prepares message (should succeed - signing works)
+        let msg1 = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should prepare message")
+            .expect("Initiator should have message");
+
+        // Responder processes message - should FAIL (signature verification fails)
+        let result = responder_session.process_handshake_message(&msg1);
+
+        // Should return CredError due to Ed25519 signature mismatch
+        assert!(
+            result.is_err(),
+            "Expected error for Ed25519 authentication failure"
+        );
+
+        // Verify handshake aborted cleanly
+        assert!(!initiator_session.is_handshake_complete());
+        assert!(!responder_session.is_handshake_complete());
+    }
+
+    #[test]
+    fn test_psq_invalid_signature() {
+        let (init, resp) = mock_peers();
+
+        let mut bad_init = init.as_remote();
+        let wrong_ed25519 = ed25519::KeyPair::from_secret([99u8; 32], 99); // Different key!
+        bad_init.ed25519_public = *wrong_ed25519.public_key();
+
+        let receiver_index: u32 = 66666;
+        let salt = [0u8; 32];
+
+        let initiator_session = LpSession::new(
+            receiver_index,
+            true,
+            init.clone(),
+            resp.as_remote(),
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
+        // Initialize KKT state for test
+        initiator_session.set_kkt_completed_for_test(resp.x25519.public_key());
+
+        let responder_session = LpSession::new(
+            receiver_index,
+            false,
+            resp,
+            bad_init,
+            &salt,
+            version::CURRENT,
+        )
+        .unwrap();
+        // Initialize KKT state for test
+        responder_session.set_kkt_completed_for_test(init.x25519.public_key());
+
+        // Initiator creates message with valid signature (signed with [1u8])
+        let msg = initiator_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+
+        // Responder tries to verify with wrong public key [99u8]
+        // This should fail Ed25519 signature verification
+        let result = responder_session.process_handshake_message(&msg);
+
+        assert!(result.is_err(), "Expected signature verification to fail");
+
+        // Verify error is related to PSQ/authentication
+        match result.unwrap_err() {
+            LpError::Internal(msg) if msg.contains("PSQ") => {
+                // Expected - PSQ v1 responder send failed due to CredError
+            }
+            e => panic!("Unexpected error type: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_psq_state_unchanged_on_error() {
+        // Verify that PSQ errors leave session in clean state
+        let responder_session = create_handshake_test_session(12345u32, false);
+
+        // Capture initial PSQ state (should be ResponderWaiting)
+        // (We can't directly access psq_state, but we can verify behavior)
+
+        // Send corrupted data
+        let corrupted_message = LpMessage::Handshake(HandshakeData(vec![0xFF; 100]));
+
+        // Process should fail
+        let result = responder_session.process_handshake_message(&corrupted_message);
+        assert!(result.is_err());
+
+        // After error, session should still be in handshake mode (not complete)
+        assert!(!responder_session.is_handshake_complete());
+
+        // Session should still be functional - can process valid messages
+        // Create a proper initiator to send valid message
+        let initiator_session = create_handshake_test_session(12345u32, true);
+
+        let valid_msg = initiator_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+
+        // After the error, responder should still be able to process valid messages
+        let result2 = responder_session.process_handshake_message(&valid_msg);
+
+        // Should succeed (session state was not corrupted by previous error)
+        assert!(
+            result2.is_ok(),
+            "Session should still be functional after PSQ error"
+        );
+    }
+
+    #[test]
+    fn test_transport_fails_without_psk_injection() {
+        // This test verifies the safety mechanism that prevents transport mode operations
+        // from running with the dummy PSK if PSQ injection fails or is skipped.
+
+        // Create session but don't complete handshake (no PSK injection will occur)
+        let mut session = create_handshake_test_session(12345u32, true);
+
+        // Verify session was created successfully
+        assert!(!session.is_handshake_complete());
+
+        // Attempt to encrypt data - should fail with PskNotInjected
+        let plaintext = b"test data";
+        let encrypt_result = session.encrypt_data(plaintext);
+
+        assert!(
+            encrypt_result.is_err(),
+            "encrypt_data should fail without PSK injection"
+        );
+        match encrypt_result.unwrap_err() {
+            NoiseError::PskNotInjected => {
+                // Expected - this is the safety mechanism working
+            }
+            e => panic!("Expected PskNotInjected error, got: {:?}", e),
+        }
+
+        // Create a dummy encrypted message to test decrypt
+        let dummy_ciphertext = LpMessage::EncryptedData(EncryptedDataPayload(vec![0u8; 48]));
+
+        // Attempt to decrypt data - should also fail with PskNotInjected
+        let decrypt_result = session.decrypt_data(&dummy_ciphertext);
+
+        assert!(
+            decrypt_result.is_err(),
+            "decrypt_data should fail without PSK injection"
+        );
+        match decrypt_result.unwrap_err() {
+            NoiseError::PskNotInjected => {
+                // Expected - this is the safety mechanism working
+            }
+            e => panic!("Expected PskNotInjected error, got: {:?}", e),
+        }
+    }
+
+
+
+
+ */

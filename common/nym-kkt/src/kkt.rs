@@ -33,7 +33,7 @@ use crate::frame::KKTFrame;
 /// The request will be signed with the provided signing key.
 ///
 /// # Arguments
-/// * `rng` - rand09om number generator
+/// * `rng` - random number generator
 /// * `ciphersuite` - Negotiated ciphersuite (KEM, hash, signature algorithms)
 /// * `signing_key` - Client's Ed25519 signing key for authentication
 /// * `responder_dh_public_key` - Responder's long-term x25519 Diffie-Hellman public key
@@ -197,7 +197,7 @@ mod tests {
         key_utils::{generate_keypair_libcrux, hash_encapsulation_key},
     };
 
-    fn rand09om_x25519_key() -> x25519::PrivateKey {
+    fn random_x25519_key() -> x25519::PrivateKey {
         let mut bytes = [0u8; 32];
         let mut rng = rand09::rng();
         rng.fill_bytes(&mut bytes);
@@ -217,7 +217,7 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let ed25519_resp = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-        let x25519_resp_priv = rand09om_x25519_key();
+        let x25519_resp_priv = random_x25519_key();
         let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         // Generate responder's KEM keypair (X25519 for testing)
@@ -286,7 +286,7 @@ mod tests {
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
 
-        let x25519_resp_priv = rand09om_x25519_key();
+        let x25519_resp_priv = random_x25519_key();
         let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         let ciphersuite = Ciphersuite::resolve_ciphersuite(
@@ -347,7 +347,7 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-        let x25519_resp_priv = rand09om_x25519_key();
+        let x25519_resp_priv = random_x25519_key();
         let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         // Different keypair for wrong signature
@@ -400,7 +400,7 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-        let x25519_resp_priv = rand09om_x25519_key();
+        let x25519_resp_priv = random_x25519_key();
         let x25519_resp_pub = x25519::PublicKey::from(&x25519_resp_priv);
 
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();

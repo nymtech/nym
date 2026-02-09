@@ -12,7 +12,47 @@ use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError};
 use crate::mixnet::client::MixnetClientBuilder;
 use crate::Result;
 
-/// Client connected to the Nym mixnet.
+/// A SOCKS5 proxy client connected to the Nym mixnet.
+///
+/// `Socks5MixnetClient` provides a SOCKS5 proxy interface to the Nym mixnet,
+/// allowing HTTP(S) clients and other SOCKS5-compatible applications to route
+/// their traffic through the mixnet for enhanced privacy.
+///
+/// ## Usage
+///
+/// 1. Connect to a service provider via [`connect_new`](Self::connect_new)
+/// 2. Get the SOCKS5 URL via [`socks5_url`](Self::socks5_url)
+/// 3. Configure your HTTP client to use this SOCKS5 proxy
+///
+/// ## Example
+///
+/// ```rust,no_run
+/// use nym_sdk::mixnet::Socks5MixnetClient;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     // Connect to a network requester service provider
+///     let client = Socks5MixnetClient::connect_new("provider_nym_address...").await?;
+///
+///     // Get the SOCKS5 proxy URL
+///     let socks5_url = client.socks5_url();
+///     println!("Configure your HTTP client to use: {}", socks5_url);
+///
+///     // Your HTTP client can now use the SOCKS5 proxy
+///     // let http_client = reqwest::Client::builder()
+///     //     .proxy(reqwest::Proxy::all(&socks5_url)?)
+///     //     .build()?;
+///
+///     client.disconnect().await;
+///     Ok(())
+/// }
+/// ```
+///
+/// ## Service Providers
+///
+/// The SOCKS5 client connects to a "network requester" service provider that
+/// makes HTTP requests on behalf of the client. The service provider's Nym
+/// address must be provided when creating the client.
 pub struct Socks5MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,

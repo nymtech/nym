@@ -5,9 +5,10 @@ use crate::codec::OuterAeadKey;
 use crate::message::{HandshakeData, KKTResponseData, MessageType};
 use crate::noise_protocol::NoiseProtocol;
 use crate::psk::psq_responder_process_message;
+use crate::psq::PSQHandshakeState;
 use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp};
-use crate::psq::{LPSession, PSQHandshakeState};
-use crate::{LpError, LpMessage};
+use crate::session::PqSharedSecret;
+use crate::{LpError, LpMessage, LpSession};
 use nym_kkt::KKT_RESPONSE_AAD;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use nym_kkt::encryption::{decrypt_initial_kkt_frame, encrypt_kkt_frame};
@@ -78,7 +79,7 @@ impl<'a, S> PSQHandshakeState<'a, S> {
     }
 
     // pub async fn psq_handshake_responder<R>(mut self, rng: &mut R) -> Result<LPSession, LpError>
-    pub async fn psq_handshake_responder(mut self) -> Result<LPSession, LpError>
+    pub async fn psq_handshake_responder(mut self) -> Result<LpSession, LpError>
     where
         S: LpTransport + Unpin,
     {
@@ -244,10 +245,14 @@ impl<'a, S> PSQHandshakeState<'a, S> {
             .send_packet(ack, Some(&outer_aead_key))
             .await?;
 
-        Ok(LPSession {
+        Ok(LpSession::new2(
             session_id,
             version,
             outer_aead_key,
-        })
+            self.local_peer,
+            self.remote_peer,
+            PqSharedSecret::new(psq_result.pq_shared_secret),
+            noise_protocol,
+        ))
     }
 }

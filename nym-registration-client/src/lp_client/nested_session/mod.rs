@@ -22,8 +22,7 @@ use super::client::LpRegistrationClient;
 use super::error::{LpClientError, Result};
 use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt};
 use crate::lp_client::state_machine_helpers::{
-    extract_forwarded_response, get_recv_key, get_send_key, prepare_serialised_send_packet,
-    serialize_packet,
+    extract_forwarded_response, prepare_serialised_send_packet,
 };
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
@@ -32,8 +31,8 @@ use nym_lp::codec::{OuterAeadKey, parse_lp_packet};
 use nym_lp::message::ForwardPacketData;
 use nym_lp::packet::version;
 use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
-use nym_lp::state_machine::{LpAction, LpData, LpInput, LpStateMachine};
-use nym_lp::{LpMessage, LpPacket};
+use nym_lp::state_machine::{LpData, LpStateMachine};
+use nym_lp::{LpPacket, LpSession};
 use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
@@ -44,8 +43,9 @@ use nym_wireguard_types::PeerPublicKey;
 use rand::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::warn;
+
+pub(crate) mod connection;
 
 /// Manages a nested LP session where the client establishes a handshake with
 /// an exit gateway by forwarding packets through an entry gateway.
@@ -140,8 +140,8 @@ impl NestedLpSession {
     /// Attempt to parse received bytes into an LpPacket
     fn parse_received_lp_packet(&self, response_bytes: Vec<u8>) -> Result<LpPacket> {
         let state_machine = self.state_machine()?;
-        let outer_key = get_recv_key(state_machine);
-        Self::parse_packet(&response_bytes, outer_key.as_ref())
+        let outer_key = state_machine.session()?.outer_aead_key();
+        Self::parse_packet(&response_bytes, Some(outer_key))
     }
 
     /// Attempt to wrap the provided `LpData` into a `ForwardPacketData`
@@ -193,155 +193,25 @@ impl NestedLpSession {
             self.exit_address
         );
 
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| LpClientError::Other("System time before UNIX epoch".into()))?
-            .as_secs();
+        let mut nested_connection =
+            outer_client.as_nested_connection(self.gateway_lp_peer.ed25519(), self.exit_address);
 
-        // Step 1: Generate ClientHello for exit gateway
-        let client_hello_data = self.lp_local_peer.build_client_hello_data(timestamp);
-        let salt = client_hello_data.salt;
-        let receiver_index = client_hello_data.receiver_index;
+        let local_peer = self.lp_local_peer.clone();
+        let remote_peer = self.gateway_lp_peer.clone();
+        let protocol_version = self.gateway_supported_lp_protocol_version;
 
-        tracing::trace!(
-            "Generated ClientHello for exit gateway (timestamp: {})",
-            client_hello_data.extract_timestamp()
-        );
-
-        // Step 2: Send ClientHello to exit gateway via forwarding
-        let client_hello_header = nym_lp::packet::LpHeader::new(
-            nym_lp::BOOTSTRAP_RECEIVER_IDX, // Use constant for bootstrap session
-            0,                              // counter starts at 0
-            self.gateway_supported_lp_protocol_version,
-        );
-        let client_hello_packet = nym_lp::LpPacket::new(
-            client_hello_header,
-            LpMessage::ClientHello(client_hello_data),
-        );
-
-        // Serialize and forward ClientHello (no state machine yet, no outer key)
-        let client_hello_bytes = serialize_packet(&client_hello_packet, None)?;
-        let forward_packet_data = ForwardPacketData::new(
-            self.gateway_lp_peer.ed25519(),
-            self.exit_address,
-            client_hello_bytes,
-        );
-
-        let response_bytes = outer_client
-            .send_forward_packet_with_response(forward_packet_data)
-            .await?;
-
-        // Parse and validate Ack response (cleartext, no outer key before PSK derivation)
-        // this confirms that gateway is fine with our suggested protocol version
-        // in the future we probably have some fancier negotiation
-        let ack_response = Self::parse_packet(&response_bytes, None)?;
-        match ack_response.message() {
-            LpMessage::Ack => {
-                tracing::debug!("Received Ack for ClientHello from exit gateway");
-            }
-            LpMessage::Collision => {
-                return Err(LpClientError::Transport(format!(
-                    "Exit gateway returned Collision - receiver_index {receiver_index} already in use",
-                )));
-            }
-            other => {
-                return Err(LpClientError::Transport(format!(
-                    "Expected Ack for ClientHello from exit gateway, got: {:?}",
-                    other
-                )));
-            }
-        }
-
-        // Step 3: Create state machine for exit gateway handshake
-        let mut state_machine = LpStateMachine::new(
-            receiver_index,
-            true, // is_initiator
-            self.lp_local_peer.clone(),
-            self.gateway_lp_peer.clone(),
-            &salt,
-            self.gateway_supported_lp_protocol_version,
-        )?;
-
-        // Step 4: Get initial packet from StartHandshake
-        let mut pending_packet: Option<LpPacket> = None;
-        if let Some(action) = state_machine.process_input(LpInput::StartHandshake) {
-            match action? {
-                LpAction::SendPacket(packet) => {
-                    pending_packet = Some(packet);
-                }
-                other => {
-                    return Err(LpClientError::Transport(format!(
-                        "Unexpected action at handshake start: {other:?}",
-                    )));
-                }
-            }
-        }
-
-        // Step 5: Handshake loop - each packet on new connection via forwarding
-        loop {
-            if let Some(packet) = pending_packet.take() {
-                tracing::trace!("Sending handshake packet to exit via forwarding");
-                let response = self
-                    .send_and_receive_via_forward(outer_client, &state_machine, &packet)
-                    .await?;
-                tracing::trace!("Received handshake response from exit");
-
-                // Process the received packet
-                if let Some(action) = state_machine.process_input(LpInput::ReceivePacket(response))
-                {
-                    match action? {
-                        LpAction::SendPacket(response_packet) => {
-                            pending_packet = Some(response_packet);
-
-                            // Check if handshake completed - send final packet if so
-                            if state_machine.session()?.is_handshake_complete() {
-                                if let Some(final_packet) = pending_packet.take() {
-                                    tracing::trace!("Sending final handshake packet to exit");
-                                    let _ = self
-                                        .send_and_receive_via_forward(
-                                            outer_client,
-                                            &state_machine,
-                                            &final_packet,
-                                        )
-                                        .await?;
-                                }
-                                tracing::info!("Nested LP handshake completed with exit gateway");
-                                break;
-                            }
-                        }
-                        LpAction::HandshakeComplete => {
-                            tracing::info!("Nested LP handshake completed with exit gateway");
-                            break;
-                        }
-                        LpAction::KKTComplete => {
-                            tracing::info!("KKT exchange completed with exit, starting Noise");
-                            // After KKT completes, initiator must send first Noise handshake message
-                            let noise_msg = state_machine
-                                .session()?
-                                .prepare_handshake_message()
-                                .ok_or_else(|| {
-                                LpClientError::Transport(
-                                    "No handshake message available after KKT".to_string(),
-                                )
-                            })??;
-                            let noise_packet = state_machine.session()?.next_packet(noise_msg)?;
-                            pending_packet = Some(noise_packet);
-                        }
-                        other => {
-                            tracing::trace!("Received action during handshake: {:?}", other);
-                        }
-                    }
-                }
-            } else {
-                // No pending packet and not complete - something is wrong
-                return Err(LpClientError::Transport(
-                    "Nested handshake stalled: no packet to send".to_string(),
-                ));
-            }
-        }
+        let ciphersuite = LpSession::default_ciphersuite();
+        let session = LpSession::psq_handshake_state(
+            &mut nested_connection,
+            ciphersuite,
+            local_peer,
+            remote_peer,
+        )
+        .psq_handshake_initiator(protocol_version)
+        .await?;
 
         // Store the state machine (with established session) for later use
-        self.state_machine = Some(state_machine);
+        self.state_machine = Some(LpStateMachine::new2(session));
         Ok(())
     }
 
@@ -658,36 +528,6 @@ impl NestedLpSession {
         Err(last_error.unwrap_or_else(|| {
             LpClientError::Transport("Exit registration failed after all retries".to_string())
         }))
-    }
-
-    /// Sends a packet via forwarding through the entry gateway and returns the parsed response.
-    ///
-    /// This helper consolidates the send/receive pattern used throughout the handshake:
-    /// 1. Gets outer AEAD key from state machine (if available)
-    /// 2. Serializes the packet with outer encryption
-    /// 3. Forwards via entry gateway
-    /// 4. Parses and returns the response
-    async fn send_and_receive_via_forward<S>(
-        &self,
-        outer_client: &mut LpRegistrationClient<S>,
-        state_machine: &LpStateMachine,
-        packet: &LpPacket,
-    ) -> Result<LpPacket>
-    where
-        S: LpTransport + Unpin,
-    {
-        let send_key = get_send_key(state_machine);
-        let packet_bytes = serialize_packet(packet, send_key.as_ref())?;
-        let forward_data = ForwardPacketData::new(
-            self.gateway_lp_peer.ed25519(),
-            self.exit_address,
-            packet_bytes,
-        );
-        let response_bytes = outer_client
-            .send_forward_packet_with_response(forward_data)
-            .await?;
-        let recv_key = get_recv_key(state_machine);
-        Self::parse_packet(&response_bytes, recv_key.as_ref())
     }
 
     /// Parses an LP packet from bytes.

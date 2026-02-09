@@ -7,26 +7,6 @@ use nym_lp::codec::{OuterAeadKey, serialize_lp_packet};
 use nym_lp::state_machine::{LpAction, LpData, LpInput};
 use nym_lp::{LpPacket, LpStateMachine};
 
-/// Gets the outer AEAD key for sending (encryption) from the state machine.
-///
-/// Returns `None` during early handshake before PSK derivation.
-pub(crate) fn get_send_key(state_machine: &LpStateMachine) -> Option<OuterAeadKey> {
-    state_machine
-        .session()
-        .ok()
-        .and_then(|s| s.outer_aead_key_for_sending())
-}
-
-/// Gets the outer AEAD key for receiving (decryption) from the state machine.
-///
-/// Returns `None` during early handshake before PSK derivation.
-pub(crate) fn get_recv_key(state_machine: &LpStateMachine) -> Option<OuterAeadKey> {
-    state_machine
-        .session()
-        .ok()
-        .and_then(|s| s.outer_aead_key())
-}
-
 /// Serializes an LP packet to bytes.
 ///
 /// # Arguments
@@ -79,9 +59,9 @@ pub(crate) fn prepare_serialised_send_packet(
     state_machine: &mut LpStateMachine,
 ) -> Result<Vec<u8>, LpClientError> {
     let packet = prepare_send_packet(data, state_machine)?;
+    let send_key = state_machine.session()?.outer_aead_key();
 
-    let send_key = get_send_key(state_machine);
-    serialize_packet(&packet, send_key.as_ref())
+    serialize_packet(&packet, Some(send_key))
 }
 
 /// Attempt to recover received `LpData` from the received `LpPacket`

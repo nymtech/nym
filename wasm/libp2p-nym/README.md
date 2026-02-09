@@ -2,6 +2,8 @@
 
 This crate provides a libp2p `Transport` implementation that uses the Nym mixnet for p2p communication in browser environments.
 
+This **implements Nym Client -> Nym Client communication** - using the Mixnet as a 'proxy' (allowing for client-only modifications, and e.g. using existing `/tcp/` multiaddrs for bootnodes and addressing) is not yet available.
+
 ## Features
 
 - libp2p `Transport` trait implementation

@@ -5,62 +5,13 @@ use crate::codec::OuterAeadKey;
 use crate::packet::LpHeader;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psq::helpers::LpTransportHandshakeExt;
-use crate::session::PqSharedSecret;
-use crate::{LpError, LpMessage, LpPacket, ReceivingKeyCounterValidator};
+use crate::{LpError, LpMessage, LpPacket};
 use nym_kkt::ciphersuite::Ciphersuite;
 use nym_lp_transport::traits::LpTransport;
-use parking_lot::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicU64};
 
 mod helpers;
 mod initiator;
 mod responder;
-
-// placeholder
-pub struct LPSessionTemp {
-    /// Id of the established session
-    session_id: u32,
-
-    /// Negotiated protocol version from handshake.
-    /// Set during handshake completion from the ClientHello/ServerHello packet header.
-    /// Used for future version negotiation and compatibility checks.
-    version: u8,
-
-    /// Outer AEAD key for packet encryption (derived from PSK after PSQ handshake).
-    outer_aead_key: OuterAeadKey,
-
-    /// Representation of a local Lewes Protocol peer
-    /// encapsulating all the known information and keys.
-    local_peer: LpLocalPeer,
-
-    /// Representation of a remote Lewes Protocol peer
-    /// encapsulating all the known information and keys.
-    remote_peer: LpRemotePeer,
-
-    // TODO: ALL BELOW maybe not needed after all?
-    /// Raw PQ shared secret (K_pq) from PSQ KEM encapsulation/decapsulation.
-    /// Stored after PSQ handshake completes for subsession PSK derivation.
-    pq_shared_secret: PqSharedSecret,
-
-    /// Counter for outgoing packets
-    sending_counter: u64,
-
-    /// Validator for incoming packet counters to prevent replay attacks
-    receiving_counter: ReceivingKeyCounterValidator,
-
-    /// Monotonically increasing counter for subsession indices.
-    /// Each subsession gets a unique index to ensure unique PSK derivation.
-    /// Uses u64 to make overflow practically impossible (~585k years at 1M/sec).
-    subsession_counter: u64,
-
-    /// True if this session has been demoted to read-only mode.
-    /// Demoted sessions can still receive/decrypt but cannot send/encrypt.
-    read_only: bool,
-
-    /// ID of the successor session that replaced this one.
-    /// Set when demote() is called.
-    successor_session_id: Option<u32>,
-}
 
 pub struct PSQHandshakeState<'a, S> {
     /// The underlying connection established for the handshake
@@ -150,8 +101,6 @@ mod tests {
 
     #[tokio::test]
     async fn psq_handshake() -> anyhow::Result<()> {
-        nym_test_utils::helpers::setup_test_logger();
-
         let conn_init = MockIOStream::default();
         let conn_resp = conn_init.try_get_remote_handle();
 
@@ -168,7 +117,6 @@ mod tests {
         );
 
         let (init, resp) = mock_peers();
-        let init_remote = init.as_remote();
         let resp_remote = resp.as_remote();
 
         let handshake_init =
@@ -189,8 +137,8 @@ mod tests {
             session_resp.outer_aead_key().as_bytes()
         );
         assert_eq!(
-            session_init.pq_shared_secret(),
-            session_resp.pq_shared_secret()
+            session_init.pq_shared_secret().as_bytes(),
+            session_resp.pq_shared_secret().as_bytes()
         );
 
         Ok(())

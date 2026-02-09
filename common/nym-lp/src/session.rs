@@ -7,37 +7,20 @@
 //! and Noise protocol state handling.
 
 use crate::codec::OuterAeadKey;
-use crate::message::{EncryptedDataPayload, HandshakeData};
+use crate::message::EncryptedDataPayload;
 // noiserm
 use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
 use crate::packet::LpHeader;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
-use crate::psk::{
-    derive_subsession_psk, psq_initiator_create_message, psq_responder_process_message,
-};
+use crate::psk::derive_subsession_psk;
 use crate::psq::PSQHandshakeState;
 use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt::KKT_RESPONSE_AAD;
-use nym_kkt::ciphersuite::{
-    Ciphersuite, DecapsulationKey, EncapsulationKey, HashFunction, HashLength, KEM, SignatureScheme,
-};
-use nym_kkt::context::KKTContext;
-use nym_kkt::encryption::{
-    KKTSessionSecret, decrypt_initial_kkt_frame, decrypt_kkt_frame, encrypt_initial_kkt_frame,
-    encrypt_kkt_frame,
-};
-use nym_kkt::session::{
-    anonymous_initiator_process, initiator_ingest_response, responder_ingest_message,
-    responder_process,
-};
+use nym_kkt::ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
 use nym_lp_transport::traits::LpTransport;
 use parking_lot::Mutex;
-use rand::RngCore;
 use snow::Builder;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// PQ shared secret wrapper with automatic memory zeroization.
@@ -114,107 +97,45 @@ pub struct LpSession {
     /// ID of the successor session that replaced this one.
     /// Set when demote() is called.
     successor_session_id: Option<u32>,
-    //
-    //
-    //
-    //
-
-    // id: u32,
-    //
-    // /// Flag indicating if this session acts as the Noise protocol initiator.
-    // is_initiator: bool,
-    //
-    // // noiserm
-    // /// Noise protocol state machine
-    // noise_state: Mutex<NoiseProtocol>,
-    //
-    // /// KKT (KEM Key Transfer) exchange state
-    // kkt_state: Mutex<KKTState>,
-    //
-    // /// PSQ (Post-Quantum Secure PSK) handshake state
-    // psq_state: Mutex<PSQState>,
-    //
-    // /// PSK handle from responder (ctxt_B) for future re-registration
-    // psk_handle: Mutex<Option<Vec<u8>>>,
-    //
-    // /// Counter for outgoing packets
-    // sending_counter: AtomicU64,
-    //
-    // /// Validator for incoming packet counters to prevent replay attacks
-    // receiving_counter: Mutex<ReceivingKeyCounterValidator>,
-    //
-    // // noiserm
-    // /// Safety flag: `true` if real PSK was injected via PSQ, `false` if still using dummy PSK.
-    // /// This prevents transport mode operations from running with the insecure dummy `[0u8; 32]` PSK.
-    // psk_injected: AtomicBool,
-    //
-    // /// Representation of a local Lewes Protocol peer
-    // /// encapsulating all the known information and keys.
-    // local_peer: LpLocalPeer,
-    //
-    // /// Representation of a remote Lewes Protocol peer
-    // /// encapsulating all the known information and keys.
-    // remote_peer: LpRemotePeer,
-    //
-    // /// Salt for PSK derivation
-    // salt: [u8; 32],
-    //
-    // /// Outer AEAD key for packet encryption (derived from PSK after PSQ handshake).
-    // /// None before PSK is available, Some after PSK injection.
-    // outer_aead_key: Mutex<Option<OuterAeadKey>>,
-    //
-    // /// Raw PQ shared secret (K_pq) from PSQ KEM encapsulation/decapsulation.
-    // /// Stored after PSQ handshake completes for subsession PSK derivation.
-    // /// This preserves PQ protection when creating subsessions via KKpsk0.
-    // /// Wrapped in PqSharedSecret for automatic memory zeroization on drop.
-    // pq_shared_secret: Mutex<Option<PqSharedSecret>>,
-    //
-    // /// Monotonically increasing counter for subsession indices.
-    // /// Each subsession gets a unique index to ensure unique PSK derivation.
-    // /// Uses u64 to make overflow practically impossible (~585k years at 1M/sec).
-    // subsession_counter: AtomicU64,
-    //
-    // /// True if this session has been demoted to read-only mode.
-    // /// Demoted sessions can still receive/decrypt but cannot send/encrypt.
-    // read_only: AtomicBool,
-    //
-    // /// ID of the successor session that replaced this one.
-    // /// Set when demote() is called.
-    // successor_session_id: Mutex<Option<u32>>,
-    //
-    // /// Negotiated protocol version from handshake.
-    // /// Set during handshake completion from the ClientHello/ServerHello packet header.
-    // /// Used for future version negotiation and compatibility checks.
-    // negotiated_version: u8,
-}
-
-// noiserm
-/// Generates a fresh salt for PSK derivation.
-///
-/// Salt format: 8 bytes timestamp (u64 LE) + 24 bytes random nonce
-///
-/// This ensures each session derives a unique PSK, even with the same key pairs.
-/// The timestamp provides temporal uniqueness while the random nonce prevents collisions.
-///
-/// # Returns
-/// A 32-byte array containing fresh salt material
-pub fn generate_fresh_salt() -> [u8; 32] {
-    let mut salt = [0u8; 32];
-
-    // First 8 bytes: current timestamp as u64 little-endian
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("System time before UNIX epoch")
-        .as_secs();
-    salt[..8].copy_from_slice(&timestamp.to_le_bytes());
-
-    // Last 24 bytes: random nonce
-    rand::thread_rng().fill_bytes(&mut salt[8..]);
-
-    salt
 }
 
 impl LpSession {
+    /// Creates a new session after completed KTT/PSQ exchange
+    ///
+    /// # Arguments
+    ///
+    /// * `session_id` - Session identifier
+    /// * `version` - Protocol version to attach in all `LpPacket`s
+    /// * `outer_aead_key` - Outer AEAD key for packet encryption
+    /// * `local_peer` - This side's LP peer's keys
+    /// * `remote_peer` - The remote's LP peer's keys
+    /// * `pq_shared_secret` - Raw PQ shared secret (K_pq) from PSQ KEM encapsulation/decapsulation.
+    /// * `noise_state` - Noise protocol state machine
+    pub fn new(
+        session_id: u32,
+        version: u8,
+        outer_aead_key: OuterAeadKey,
+        local_peer: LpLocalPeer,
+        remote_peer: LpRemotePeer,
+        pq_shared_secret: PqSharedSecret,
+        noise_state: NoiseProtocol,
+    ) -> Self {
+        LpSession {
+            session_id,
+            version,
+            outer_aead_key,
+            local_peer,
+            remote_peer,
+            pq_shared_secret,
+            noise_state,
+            sending_counter: 0,
+            receiving_counter: Default::default(),
+            subsession_counter: 0,
+            read_only: false,
+            successor_session_id: None,
+        }
+    }
+
     /// Create an instance of `Ciphersuite` using hardcoded defaults.
     /// This is a temporary workaround until values can be properly inferred
     /// from reported version
@@ -274,132 +195,6 @@ impl LpSession {
     /// Returns the outer AEAD key for packet encryption/decryption.
     pub fn outer_aead_key(&self) -> &OuterAeadKey {
         &self.outer_aead_key
-    }
-
-    pub fn new2(
-        session_id: u32,
-        version: u8,
-        outer_aead_key: OuterAeadKey,
-        local_peer: LpLocalPeer,
-        remote_peer: LpRemotePeer,
-        pq_shared_secret: PqSharedSecret,
-        noise_state: NoiseProtocol,
-    ) -> Self {
-        LpSession {
-            session_id,
-            version,
-            outer_aead_key,
-            local_peer,
-            remote_peer,
-            pq_shared_secret,
-            noise_state,
-            sending_counter: 0,
-            receiving_counter: Default::default(),
-            subsession_counter: 0,
-            read_only: false,
-            successor_session_id: None,
-        }
-    }
-
-    /// Creates a new session and initializes the Noise protocol state.
-    ///
-    /// PSQ always runs during the handshake to derive the real PSK from X25519 DHKEM.
-    /// The Noise protocol is initialized with a dummy PSK that gets replaced during handshake.
-    ///
-    /// # Arguments
-    ///
-    /// * `id` - Session identifier
-    /// * `is_initiator` - True if this side initiates the Noise handshake.
-    /// * `local_peer` - This side's LP peer's keys
-    /// * `remote_peer` - The remote's LP peer's keys
-    /// * `salt` - Salt for PSK derivation
-    /// * `protocol_version` - Protocol version to attach in all `LpPacket`s
-    #[deprecated]
-    pub fn new(
-        id: u32,
-        is_initiator: bool,
-        local_peer: LpLocalPeer,
-        remote_peer: LpRemotePeer,
-        salt: &[u8; 32],
-        protocol_version: u8,
-    ) -> Result<Self, LpError> {
-        // noiserm
-        // if we're LP responder, we **must** set our kem key
-        // georgio: if the initiator is a client, this is ok. but if it's a node then this will block mutual kkt.
-        if !is_initiator && local_peer.kem_psq.is_none() {
-            return Err(LpError::ResponderWithMissingKEMKey);
-        }
-
-        todo!()
-        //
-        // // XKpsk3 pattern requires remote static key known upfront (XK)
-        // // and PSK mixed at position 3. This provides forward secrecy with PSK authentication.
-        // let pattern_name = crate::NOISE_PATTERN;
-        // let psk_index = crate::NOISE_PSK_INDEX;
-        //
-        // // noiserm
-        // let params = pattern_name.parse()?;
-        // let builder = Builder::new(params);
-        //
-        // let local_key_bytes = local_peer.x25519.private_key().as_bytes();
-        // // noiserm
-        // let builder = builder.local_private_key(local_key_bytes);
-        //
-        // let remote_key_bytes = remote_peer.x25519_public.to_bytes();
-        // // noiserm
-        // let builder = builder.remote_public_key(&remote_key_bytes);
-        //
-        // // noiserm
-        // // Initialize with dummy PSK - real PSK will be injected via set_psk() during handshake
-        // // when PSQ runs using X25519 as DHKEM
-        // let dummy_psk = [0u8; 32];
-        // let builder = builder.psk(psk_index, &dummy_psk);
-        //
-        // // noiserm
-        // let initial_state = if is_initiator {
-        //     builder.build_initiator().map_err(LpError::SnowKeyError)?
-        // } else {
-        //     builder.build_responder().map_err(LpError::SnowKeyError)?
-        // };
-        //
-        // // noiserm
-        // let noise_protocol = NoiseProtocol::new(initial_state);
-        //
-        // // Initialize KKT state - both roles start at NotStarted
-        // let kkt_state = KKTState::NotStarted;
-        //
-        // // Initialize PSQ state based on role
-        // // georgio: why PSQState::ResponderWaiting if responder?
-        // // georgio: maybe because we can start straight with PSQ?
-        // // georgio: either way, doesn't matter so much because a bad PSQ request will be rejected
-        // let psq_state = if is_initiator {
-        //     PSQState::NotStarted
-        // } else {
-        //     PSQState::ResponderWaiting
-        // };
-        //
-        // Ok(Self {
-        //     id,
-        //     is_initiator,
-        //     // noiserm
-        //     noise_state: Mutex::new(noise_protocol),
-        //     kkt_state: Mutex::new(kkt_state),
-        //     psq_state: Mutex::new(psq_state),
-        //     psk_handle: Mutex::new(None),
-        //     sending_counter: AtomicU64::new(0),
-        //     receiving_counter: Mutex::new(ReceivingKeyCounterValidator::default()),
-        //     // noiserm
-        //     psk_injected: AtomicBool::new(false),
-        //     local_peer,
-        //     remote_peer,
-        //     salt: *salt,
-        //     outer_aead_key: Mutex::new(None),
-        //     pq_shared_secret: Mutex::new(None),
-        //     subsession_counter: AtomicU64::new(0),
-        //     read_only: AtomicBool::new(false),
-        //     successor_session_id: Mutex::new(None),
-        //     negotiated_version: protocol_version,
-        // })
     }
 
     pub fn next_packet(&mut self, message: LpMessage) -> Result<LpPacket, LpError> {
@@ -467,13 +262,12 @@ impl LpSession {
         self.receiving_counter.current_packet_cnt()
     }
 
-    /// Returns the PQ shared secret (K_pq) if available.
+    /// Returns the PQ shared secret (K_pq).
     ///
     /// This is the raw KEM output from PSQ before Blake3 KDF combination.
     /// Used for deriving subsession PSKs to maintain PQ protection.
-    pub fn pq_shared_secret(&self) -> Option<[u8; 32]> {
-        todo!()
-        // self.pq_shared_secret.lock().as_ref().map(|s| *s.as_bytes())
+    pub fn pq_shared_secret(&self) -> &PqSharedSecret {
+        &self.pq_shared_secret
     }
 
     /// Gets the next subsession index and increments the counter.
@@ -552,24 +346,6 @@ impl LpSession {
         }
     }
 
-    /// Test-only method to set KKT state to Completed with a mock KEM key.
-    /// This allows tests to bypass KKT exchange and directly test PSQ handshake.
-    #[cfg(test)]
-    pub(crate) fn set_kkt_completed_for_test(&self, remote_x25519_pub: &x25519::PublicKey) {
-        todo!()
-        // // Convert remote X25519 public key to EncapsulationKey for testing
-        // let remote_kem_bytes = remote_x25519_pub.as_bytes();
-        // let libcrux_public_key =
-        //     libcrux_kem::PublicKey::decode(libcrux_kem::Algorithm::X25519, remote_kem_bytes)
-        //         .expect("Test KEM key conversion failed");
-        // let kem_pk = EncapsulationKey::X25519(libcrux_public_key);
-        //
-        // let mut kkt_state = self.kkt_state.lock();
-        // *kkt_state = KKTState::Completed {
-        //     kem_pk: Box::new(kem_pk),
-        // };
-    }
-
     /// Creates a new subsession using Noise KKpsk0 pattern.
     ///
     /// KKpsk0 reuses parent's static X25519 keys (both parties know each other from parent session).
@@ -591,12 +367,10 @@ impl LpSession {
         is_initiator: bool,
     ) -> Result<SubsessionHandshake, LpError> {
         // Get PQ shared secret
-        let pq_secret = self
-            .pq_shared_secret()
-            .ok_or_else(|| LpError::Internal("PQ shared secret not available".into()))?;
+        let pq_secret = self.pq_shared_secret();
 
         // Derive subsession PSK from parent's PQ shared secret
-        let subsession_psk = derive_subsession_psk(&pq_secret, subsession_index);
+        let subsession_psk = derive_subsession_psk(pq_secret.as_bytes(), subsession_index);
 
         // Build KKpsk0 handshake
         // Pattern: Noise_KKpsk0_25519_ChaChaPoly_SHA256
@@ -624,7 +398,7 @@ impl LpSession {
             is_initiator,
             local_peer: self.local_peer.clone(),
             remote_peer: self.remote_peer.clone(),
-            pq_shared_secret: PqSharedSecret::new(pq_secret),
+            pq_shared_secret: self.pq_shared_secret.clone(),
             subsession_psk,
             negotiated_version: self.version,
         })
@@ -737,91 +511,39 @@ impl SubsessionHandshake {
             ));
         }
 
-        todo!()
-        //
-        // // Extract the noise state (now in transport mode)
-        // let noise_state = self.noise_state.into_inner();
-        //
-        // // Generate fresh salt for the new session
-        // let salt = generate_fresh_salt();
-        //
-        // // Derive outer AEAD key from the subsession PSK
-        // let outer_key = OuterAeadKey::from_psk(&self.subsession_psk);
-        //
-        // Ok(LpSession {
-        //     id: receiver_index,
-        //     is_initiator: self.is_initiator,
-        //     // noiserm
-        //     noise_state: Mutex::new(noise_state),
-        //     // KKT: subsession inherits from parent, mark as processed
-        //     kkt_state: Mutex::new(KKTState::ResponderProcessed),
-        //     // PSQ: subsession uses PSK derived from parent's PQ secret
-        //     psq_state: Mutex::new(PSQState::Completed {
-        //         psk: self.subsession_psk,
-        //     }),
-        //     psk_handle: Mutex::new(None), // Subsession doesn't have its own handle
-        //     sending_counter: AtomicU64::new(0),
-        //     receiving_counter: Mutex::new(ReceivingKeyCounterValidator::new(0)),
-        //     // noiserm
-        //     psk_injected: AtomicBool::new(true), // PSK was in KKpsk0
-        //     local_peer: self.local_peer,
-        //     remote_peer: self.remote_peer,
-        //     salt,
-        //     outer_aead_key: Mutex::new(Some(outer_key)),
-        //     pq_shared_secret: Mutex::new(Some(self.pq_shared_secret)),
-        //     subsession_counter: AtomicU64::new(0),
-        //     read_only: AtomicBool::new(false),
-        //     successor_session_id: Mutex::new(None),
-        //     // Inherit parent's protocol version
-        //     negotiated_version: self.negotiated_version,
-        // })
+        // Extract the noise state (now in transport mode)
+        let noise_state = self.noise_state.into_inner();
+
+        // Derive outer AEAD key from the subsession PSK
+        let outer_key = OuterAeadKey::from_psk(&self.subsession_psk);
+
+        Ok(LpSession {
+            // noiserm
+            session_id: receiver_index,
+            noise_state,
+            sending_counter: 0,
+            receiving_counter: ReceivingKeyCounterValidator::new(0),
+            local_peer: self.local_peer,
+            remote_peer: self.remote_peer,
+            outer_aead_key: outer_key,
+            pq_shared_secret: self.pq_shared_secret,
+            subsession_counter: 0,
+            read_only: false,
+            successor_session_id: None,
+            version: self.negotiated_version,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packet::version;
-    use crate::peer::mock_peers;
-    use crate::{replay::ReplayError, sessions_for_tests};
-    use nym_crypto::asymmetric::ed25519;
+    use crate::{SessionsMock, replay::ReplayError, sessions_for_tests};
     use rand::thread_rng;
 
     // Helper function to generate keypairs for tests
     fn generate_x25519_keypair() -> x25519::KeyPair {
         x25519::KeyPair::new(&mut thread_rng())
-    }
-
-    // Helper function to create a session with real keys for handshake tests
-    fn create_handshake_test_session(receiver_index: u32, is_initiator: bool) -> LpSession {
-        let (keys_1, keys_2) = mock_peers();
-
-        // Create Ed25519 keypairs that correspond to initiator/responder roles
-        // Initiator uses [1u8], Responder uses [2u8]
-        let (local, remote) = if is_initiator {
-            (keys_1, keys_2.as_remote())
-        } else {
-            (keys_2, keys_1.as_remote())
-        };
-
-        let salt = [0u8; 32]; // Test salt
-
-        // PSQ will derive the PSK during handshake using X25519 as DHKEM
-        let mut session = LpSession::new(
-            receiver_index,
-            is_initiator,
-            local,
-            remote.clone(),
-            &salt,
-            version::CURRENT,
-        )
-        .expect("Test session creation failed");
-
-        // Initialize KKT state to Completed for tests (bypasses KKT exchange)
-        // This simulates having already received the remote party's KEM key via KKT
-        session.set_kkt_completed_for_test(&remote.x25519_public);
-
-        session
     }
 
     #[test]
@@ -977,7 +699,8 @@ mod tests {
 
     #[test]
     fn test_demote_sets_read_only() {
-        let mut session = create_handshake_test_session(12345u32, true);
+        let sessions = SessionsMock::mock_post_handshake(12345).unwrap();
+        let mut session = sessions.initiator;
 
         // Initially not read-only
         assert!(!session.is_read_only());
@@ -993,90 +716,50 @@ mod tests {
 
     #[test]
     fn test_encrypt_fails_after_demotion() {
-        // --- Setup Handshake ---
-        todo!()
-        //
-        // let initiator_session = create_handshake_test_session(12345u32, true);
-        // let responder_session = create_handshake_test_session(12345u32, false);
-        //
-        // // Drive handshake to completion
-        // let i_msg = initiator_session
-        //     .prepare_handshake_message()
-        //     .unwrap()
-        //     .unwrap();
-        // responder_session.process_handshake_message(&i_msg).unwrap();
-        // let r_msg = responder_session
-        //     .prepare_handshake_message()
-        //     .unwrap()
-        //     .unwrap();
-        // initiator_session.process_handshake_message(&r_msg).unwrap();
-        // let i_msg = initiator_session
-        //     .prepare_handshake_message()
-        //     .unwrap()
-        //     .unwrap();
-        // responder_session.process_handshake_message(&i_msg).unwrap();
-        //
-        // assert!(initiator_session.is_handshake_complete());
-        //
-        // // Encryption works before demotion
-        // let plaintext = b"Hello before demotion";
-        // assert!(initiator_session.encrypt_data(plaintext).is_ok());
-        //
-        // // Demote the session
-        // initiator_session.demote(99999);
-        //
-        // // Encryption fails after demotion
-        // let result = initiator_session.encrypt_data(plaintext);
-        // assert!(result.is_err());
-        // match result.unwrap_err() {
-        //     NoiseError::SessionReadOnly => {
-        //         // Expected
-        //     }
-        //     e => panic!("Expected SessionReadOnly error, got: {:?}", e),
-        // }
+        let receiver_index = 12345;
+        let sessions = SessionsMock::mock_post_handshake(receiver_index).unwrap();
+        let mut initiator_session = sessions.initiator;
+
+        // Encryption works before demotion
+        let plaintext = b"Hello before demotion";
+        assert!(initiator_session.encrypt_data(plaintext).is_ok());
+
+        // Demote the session
+        initiator_session.demote(99999);
+
+        // Encryption fails after demotion
+        let result = initiator_session.encrypt_data(plaintext);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            NoiseError::SessionReadOnly => {
+                // Expected
+            }
+            e => panic!("Expected SessionReadOnly error, got: {:?}", e),
+        }
     }
 
     #[test]
     fn test_decrypt_works_after_demotion() {
         // --- Setup Handshake ---
-        todo!()
-        // let initiator_session = create_handshake_test_session(12345u32, true);
-        // let responder_session = create_handshake_test_session(12345u32, false);
-        //
-        // // Drive handshake to completion
-        // let i_msg = initiator_session
-        //     .prepare_handshake_message()
-        //     .unwrap()
-        //     .unwrap();
-        // responder_session.process_handshake_message(&i_msg).unwrap();
-        // let r_msg = responder_session
-        //     .prepare_handshake_message()
-        //     .unwrap()
-        //     .unwrap();
-        // initiator_session.process_handshake_message(&r_msg).unwrap();
-        // let i_msg = initiator_session
-        //     .prepare_handshake_message()
-        //     .unwrap()
-        //     .unwrap();
-        // responder_session.process_handshake_message(&i_msg).unwrap();
-        //
-        // assert!(initiator_session.is_handshake_complete());
-        // assert!(responder_session.is_handshake_complete());
-        //
-        // // Responder encrypts a message
-        // let plaintext = b"Message to demoted initiator";
-        // let ciphertext = responder_session
-        //     .encrypt_data(plaintext)
-        //     .expect("Encryption failed");
-        //
-        // // Demote the initiator session
-        // initiator_session.demote(99999);
-        // assert!(initiator_session.is_read_only());
-        //
-        // // Decryption still works on demoted session (drain in-flight)
-        // let decrypted = initiator_session
-        //     .decrypt_data(&ciphertext)
-        //     .expect("Decryption should work on demoted session");
-        // assert_eq!(decrypted, plaintext);
+        let receiver_index = 12345;
+        let sessions = SessionsMock::mock_post_handshake(receiver_index).unwrap();
+        let mut initiator_session = sessions.initiator;
+        let mut responder_session = sessions.responder;
+
+        // Responder encrypts a message
+        let plaintext = b"Message to demoted initiator";
+        let ciphertext = responder_session
+            .encrypt_data(plaintext)
+            .expect("Encryption failed");
+
+        // Demote the initiator session
+        initiator_session.demote(99999);
+        assert!(initiator_session.is_read_only());
+
+        // Decryption still works on demoted session (drain in-flight)
+        let decrypted = initiator_session
+            .decrypt_data(&ciphertext)
+            .expect("Decryption should work on demoted session");
+        assert_eq!(decrypted, plaintext);
     }
 }

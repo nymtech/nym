@@ -13,7 +13,6 @@
 //! State machine ensures protocol steps execute in correct order. Invalid transitions
 //! return LpError, preventing protocol violations.
 
-use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::{
     LpError,
     message::{LpMessage, SubsessionKK1Data, SubsessionKK2Data, SubsessionReadyData},
@@ -23,7 +22,6 @@ use crate::{
 };
 use bytes::{Buf, Bytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use nym_kkt::ciphersuite::EncapsulationKey;
 use std::mem;
 use tracing::debug;
 
@@ -228,49 +226,13 @@ impl LpStateMachine {
         Ok(self.session()?.id())
     }
 
-    pub fn new2(session: LpSession) -> Self {
+    /// Creates a new state machine in `Transport` state post-KKT/PSQ handshake
+    pub fn new(session: LpSession) -> Self {
         LpStateMachine {
             state: LpState::Transport {
                 session: Box::new(session),
             },
         }
-    }
-
-    /// Creates a new state machine from Ed25519 keys.
-    ///
-    /// # Arguments
-    ///
-    /// * `receiver_index` - Client-proposed session identifier (random 4 bytes)
-    /// * `is_initiator` - Whether this side initiates the handshake
-    /// * `local_peer` - This side's LP peer's keys
-    /// * `remote_peer` - The remote's LP peer's keys
-    /// * `salt` - Fresh salt for PSK derivation (must be unique per session)
-    /// * `protocol_version` - Protocol version to attach in all `LpPacket`s
-    pub fn new(
-        receiver_index: u32,
-        is_initiator: bool,
-        local_peer: LpLocalPeer,
-        remote_peer: LpRemotePeer,
-        salt: &[u8; 32],
-        protocol_version: u8,
-    ) -> Result<Self, LpError> {
-        // Create the session with both Ed25519 (for PSQ auth) and derived X25519 keys (for Noise)
-        // receiver_index is client-proposed, passed through directly
-        let session = LpSession::new(
-            receiver_index,
-            is_initiator,
-            local_peer,
-            remote_peer,
-            salt,
-            protocol_version,
-        )?;
-
-        todo!()
-        // Ok(LpStateMachine {
-        //     state: LpState::ReadyToHandshake {
-        //         session: Box::new(session),
-        //     },
-        // })
     }
 
     /// Creates a state machine in Transport state from a completed subsession handshake.
@@ -976,51 +938,19 @@ impl LpStateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packet::version;
-    use crate::peer::mock_peers;
+    use crate::SessionsMock;
 
     #[test]
     fn test_state_machine_init() {
-        let (init, resp) = mock_peers();
+        let mock_sessions = SessionsMock::mock_post_handshake(123).unwrap();
 
-        // Test salt
-        let salt = [51u8; 32];
-
-        let receiver_index: u32 = 77777;
-
-        let initiator_sm = LpStateMachine::new(
-            receiver_index,
-            true,
-            init.clone(),
-            resp.as_remote(),
-            &salt,
-            version::CURRENT,
-        );
-        assert!(initiator_sm.is_ok());
-        let initiator_sm = initiator_sm.unwrap();
-        assert!(matches!(
-            initiator_sm.state,
-            LpState::ReadyToHandshake { .. }
-        ));
+        let initiator_sm = LpStateMachine::new(mock_sessions.initiator);
+        assert!(matches!(initiator_sm.state, LpState::Transport { .. }));
         let init_session = initiator_sm.session().unwrap();
-        assert!(init_session.is_initiator());
 
-        let responder_sm = LpStateMachine::new(
-            receiver_index,
-            false,
-            resp,
-            init.as_remote(),
-            &salt,
-            version::CURRENT,
-        );
-        assert!(responder_sm.is_ok());
-        let responder_sm = responder_sm.unwrap();
-        assert!(matches!(
-            responder_sm.state,
-            LpState::ReadyToHandshake { .. }
-        ));
+        let responder_sm = LpStateMachine::new(mock_sessions.responder);
+        assert!(matches!(responder_sm.state, LpState::Transport { .. }));
         let resp_session = responder_sm.session().unwrap();
-        assert!(!resp_session.is_initiator());
 
         // Check both state machines use the same receiver_index
         assert_eq!(init_session.id(), resp_session.id());
@@ -1028,152 +958,17 @@ mod tests {
 
     #[test]
     fn test_state_machine_simplified_flow() {
-        let (init, resp) = mock_peers();
+        let receiver_index: u32 = 123;
+        let mock_sessions = SessionsMock::mock_post_handshake(123).unwrap();
 
-        // Test salt
-        let salt = [52u8; 32];
-        let receiver_index: u32 = 88888;
-
-        // Create state machines (already in ReadyToHandshake)
-        let mut initiator = LpStateMachine::new(
-            receiver_index,
-            true, // is_initiator
-            init.clone(),
-            resp.as_remote(),
-            &salt,
-            version::CURRENT,
-        )
-        .unwrap();
-
-        let mut responder = LpStateMachine::new(
-            receiver_index,
-            false, // is_initiator
-            resp,
-            init.as_remote(),
-            &salt,
-            version::CURRENT,
-        )
-        .unwrap();
+        // Create state machines (already in Transport)
+        let mut initiator = LpStateMachine::new(mock_sessions.initiator);
+        let mut responder = LpStateMachine::new(mock_sessions.responder);
 
         assert_eq!(initiator.id().unwrap(), responder.id().unwrap());
 
-        // --- KKT Exchange ---
-        println!("--- Step 1: Initiator starts handshake (sends KKT request) ---");
-        let init_actions_1 = initiator.process_input(LpInput::StartHandshake);
-        let kkt_request_packet = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_1 {
-            packet.clone()
-        } else {
-            panic!("Initiator should send KKT request");
-        };
-
-        assert!(
-            matches!(initiator.state, LpState::KKTExchange { .. }),
-            "Initiator should be in KKTExchange"
-        );
-        assert_eq!(
-            kkt_request_packet.header.receiver_idx(),
-            receiver_index,
-            "KKT request packet has wrong receiver_index"
-        );
-
-        println!("--- Step 2: Responder starts handshake (waits for KKT) ---");
-        let resp_actions_1 = responder.process_input(LpInput::StartHandshake);
-        assert!(
-            resp_actions_1.is_none(),
-            "Responder should produce 0 actions initially"
-        );
-        assert!(
-            matches!(responder.state, LpState::KKTExchange { .. }),
-            "Responder should be in KKTExchange"
-        );
-
-        println!("--- Step 3: Responder receives KKT request, sends KKT response ---");
-        let resp_actions_2 = responder.process_input(LpInput::ReceivePacket(kkt_request_packet));
-        let kkt_response_packet = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_2 {
-            packet.clone()
-        } else {
-            panic!("Responder should send KKT response");
-        };
-        assert!(
-            matches!(responder.state, LpState::Handshaking { .. }),
-            "Responder should be Handshaking after KKT"
-        );
-
-        println!("--- Step 4: Initiator receives KKT response (KKT complete) ---");
-        let init_actions_2 = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
-        assert!(
-            matches!(init_actions_2, Some(Ok(LpAction::KKTComplete))),
-            "Initiator should signal KKT complete"
-        );
-        assert!(
-            matches!(initiator.state, LpState::Handshaking { .. }),
-            "Initiator should be Handshaking after KKT"
-        );
-
-        // --- Noise Handshake Message Exchange ---
-        println!("--- Step 5: Responder receives Noise msg 1, sends Noise msg 2 ---");
-        // Now both sides are in Handshaking, continue with Noise handshake
-        // Initiator needs to send first Noise message
-        // (In real flow, this might happen automatically or via another process_input call)
-        // For this test, we'll simulate the responder receiving the first Noise message
-        // Actually, let me check if initiator automatically sends the first Noise message...
-        // Looking at the old test, it seems packet 1 was the first Noise message.
-        // With KKT, we need the initiator to send the first Noise message now.
-
-        // Initiator prepares and sends first Noise handshake message
-        let init_noise_msg = initiator.session().unwrap().prepare_handshake_message();
-        let init_packet_1 = if let Some(Ok(msg)) = init_noise_msg {
-            initiator.session().unwrap().next_packet(msg).unwrap()
-        } else {
-            panic!("Initiator should have first Noise message");
-        };
-
-        let resp_actions_3 = responder.process_input(LpInput::ReceivePacket(init_packet_1));
-        let resp_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_3 {
-            packet.clone()
-        } else {
-            panic!("Responder should send packet 2");
-        };
-        assert!(
-            matches!(responder.state, LpState::Handshaking { .. }),
-            "Responder still Handshaking"
-        );
-        assert_eq!(
-            resp_packet_2.header.receiver_idx(),
-            receiver_index,
-            "Packet 2 has wrong receiver_index"
-        );
-
-        println!("--- Step 6: Initiator receives Noise msg 2, sends Noise msg 3 ---");
-        let init_actions_3 = initiator.process_input(LpInput::ReceivePacket(resp_packet_2));
-        let init_packet_3 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_3 {
-            packet.clone()
-        } else {
-            panic!("Initiator should send Noise packet 3");
-        };
-        assert!(
-            matches!(initiator.state, LpState::Transport { .. }),
-            "Initiator should be Transport"
-        );
-        assert_eq!(
-            init_packet_3.header.receiver_idx(),
-            receiver_index,
-            "Noise packet 3 has wrong receiver_index"
-        );
-
-        println!("--- Step 7: Responder receives Noise msg 3, completes handshake ---");
-        let resp_actions_4 = responder.process_input(LpInput::ReceivePacket(init_packet_3));
-        assert!(
-            matches!(resp_actions_4, Some(Ok(LpAction::HandshakeComplete))),
-            "Responder should complete handshake"
-        );
-        assert!(
-            matches!(responder.state, LpState::Transport { .. }),
-            "Responder should be Transport"
-        );
-
         // --- Transport Phase ---
-        println!("--- Step 8: Initiator sends data ---");
+        println!("--- Step 1: Initiator sends data ---");
         let data_to_send_1 = LpData::new_opaque(b"hello responder".to_vec());
         let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.clone()));
         let data_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_4 {
@@ -1183,7 +978,7 @@ mod tests {
         };
         assert_eq!(data_packet_1.header.receiver_idx(), receiver_index);
 
-        println!("--- Step 9: Responder receives data ---");
+        println!("--- Step 2: Responder receives data ---");
         let resp_actions_5 = responder.process_input(LpInput::ReceivePacket(data_packet_1));
         let resp_data_1 = if let Some(Ok(LpAction::DeliverData(data))) = resp_actions_5 {
             data
@@ -1192,7 +987,7 @@ mod tests {
         };
         assert_eq!(resp_data_1, data_to_send_1);
 
-        println!("--- Step 10: Responder sends data ---");
+        println!("--- Step 3: Responder sends data ---");
         let data_to_send_2 = LpData::new_opaque(b"hello initiator".to_vec());
         let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.clone()));
         let data_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_6 {
@@ -1202,7 +997,7 @@ mod tests {
         };
         assert_eq!(data_packet_2.header.receiver_idx(), receiver_index);
 
-        println!("--- Step 11: Initiator receives data ---");
+        println!("--- Step 4: Initiator receives data ---");
         let init_actions_5 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
         if let Some(Ok(LpAction::DeliverData(data))) = init_actions_5 {
             assert_eq!(data, data_to_send_2);
@@ -1211,7 +1006,7 @@ mod tests {
         }
 
         // --- Close ---
-        println!("--- Step 12: Initiator closes ---");
+        println!("--- Step 5: Initiator closes ---");
         let init_actions_6 = initiator.process_input(LpInput::Close);
         assert!(matches!(
             init_actions_6,
@@ -1219,7 +1014,7 @@ mod tests {
         ));
         assert!(matches!(initiator.state, LpState::Closed { .. }));
 
-        println!("--- Step 13: Responder closes ---");
+        println!("--- Step 6: Responder closes ---");
         let resp_actions_7 = responder.process_input(LpInput::Close);
         assert!(matches!(
             resp_actions_7,
@@ -1228,277 +1023,14 @@ mod tests {
         assert!(matches!(responder.state, LpState::Closed { .. }));
     }
 
-    #[test]
-    fn test_kkt_exchange_initiator_flow() {
-        let (init, resp) = mock_peers();
-
-        let salt = [53u8; 32];
-        let receiver_index: u32 = 99901;
-
-        // Create initiator state machine
-        let mut initiator = LpStateMachine::new(
-            receiver_index,
-            true,
-            init,
-            resp.as_remote(),
-            &salt,
-            version::CURRENT,
-        )
-        .unwrap();
-
-        // Verify initial state
-        assert!(matches!(initiator.state, LpState::ReadyToHandshake { .. }));
-
-        // Step 1: Initiator starts handshake (should send KKT request)
-        let init_action = initiator.process_input(LpInput::StartHandshake);
-        assert!(matches!(init_action, Some(Ok(LpAction::SendPacket(_)))));
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
-    }
-
-    #[test]
-    fn test_kkt_exchange_responder_flow() {
-        let (init, resp) = mock_peers();
-
-        let salt = [54u8; 32];
-        let receiver_index: u32 = 99902;
-
-        // Create responder state machine
-        let mut responder = LpStateMachine::new(
-            receiver_index,
-            false,
-            resp,
-            init.as_remote(),
-            &salt,
-            version::CURRENT,
-        )
-        .unwrap();
-
-        // Verify initial state
-        assert!(matches!(responder.state, LpState::ReadyToHandshake { .. }));
-
-        // Step 1: Responder starts handshake (should transition to KKTExchange without sending)
-        let resp_action = responder.process_input(LpInput::StartHandshake);
-        assert!(resp_action.is_none());
-        assert!(matches!(responder.state, LpState::KKTExchange { .. }));
-    }
-
-    #[test]
-    fn test_kkt_exchange_full_roundtrip() {
-        // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let (init, resp) = mock_peers();
-
-        let salt = [55u8; 32];
-        let receiver_index: u32 = 99903;
-
-        // Create both state machines
-        let mut initiator = LpStateMachine::new(
-            receiver_index,
-            true,
-            init.clone(),
-            resp.as_remote(),
-            &salt,
-            version::CURRENT,
-        )
-        .unwrap();
-
-        let mut responder = LpStateMachine::new(
-            receiver_index,
-            false,
-            resp,
-            init.as_remote(),
-            &salt,
-            version::CURRENT,
-        )
-        .unwrap();
-
-        // Step 1: Initiator starts handshake, sends KKT request
-        let init_action = initiator.process_input(LpInput::StartHandshake);
-        let kkt_request_packet = if let Some(Ok(LpAction::SendPacket(packet))) = init_action {
-            packet.clone()
-        } else {
-            panic!("Initiator should send KKT request");
-        };
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
-
-        // Step 2: Responder transitions to KKTExchange
-        let resp_action = responder.process_input(LpInput::StartHandshake);
-        assert!(resp_action.is_none());
-        assert!(matches!(responder.state, LpState::KKTExchange { .. }));
-
-        // Step 3: Responder receives KKT request, sends KKT response
-        let resp_action = responder.process_input(LpInput::ReceivePacket(kkt_request_packet));
-        let kkt_response_packet = if let Some(Ok(LpAction::SendPacket(packet))) = resp_action {
-            packet.clone()
-        } else {
-            panic!("Responder should send KKT response");
-        };
-        // After sending KKT response, responder moves to Handshaking
-        assert!(matches!(responder.state, LpState::Handshaking { .. }));
-
-        // Step 4: Initiator receives KKT response, completes KKT
-        let init_action = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
-
-        assert!(matches!(init_action, Some(Ok(LpAction::KKTComplete))));
-        // After KKT complete, initiator moves to Handshaking
-        assert!(matches!(initiator.state, LpState::Handshaking { .. }));
-    }
-
-    #[test]
-    fn test_kkt_exchange_close() {
-        let (init, resp) = mock_peers();
-
-        let salt = [56u8; 32];
-        let receiver_index: u32 = 99904;
-
-        // Create initiator state machine
-        let mut initiator = LpStateMachine::new(
-            receiver_index,
-            true,
-            init.clone(),
-            resp.as_remote(),
-            &salt,
-            version::CURRENT,
-        )
-        .unwrap();
-
-        // Start handshake to enter KKTExchange state
-        initiator.process_input(LpInput::StartHandshake);
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
-
-        // Close during KKT exchange
-        let close_action = initiator.process_input(LpInput::Close);
-        assert!(matches!(close_action, Some(Ok(LpAction::ConnectionClosed))));
-        assert!(matches!(initiator.state, LpState::Closed { .. }));
-    }
-
-    #[test]
-    fn test_kkt_exchange_rejects_invalid_inputs() {
-        let (init, resp) = mock_peers();
-
-        let salt = [57u8; 32];
-        let receiver_index: u32 = 99905;
-
-        // Create initiator state machine
-        let mut initiator = LpStateMachine::new(
-            receiver_index,
-            true,
-            init.clone(),
-            resp.as_remote(),
-            &salt,
-            version::CURRENT,
-        )
-        .unwrap();
-
-        // Start handshake to enter KKTExchange state
-        initiator.process_input(LpInput::StartHandshake);
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
-
-        // Try SendData during KKT exchange (should be rejected)
-        let send_data = LpData::new_opaque(vec![1, 2, 3]);
-        let send_action = initiator.process_input(LpInput::SendData(send_data));
-        assert!(matches!(
-            send_action,
-            Some(Err(LpError::InvalidStateTransition { .. }))
-        ));
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. })); // Still in KKTExchange
-
-        // Try StartHandshake again during KKT exchange (should be rejected)
-        let start_action = initiator.process_input(LpInput::StartHandshake);
-        assert!(matches!(
-            start_action,
-            Some(Err(LpError::InvalidStateTransition { .. }))
-        ));
-        assert!(matches!(initiator.state, LpState::KKTExchange { .. })); // Still in KKTExchange
-    }
-
     /// Helper function to complete a full handshake between initiator and responder,
     /// returning both in Transport state ready for subsession testing.
     fn setup_transport_sessions() -> (LpStateMachine, LpStateMachine) {
-        let (a, b) = mock_peers();
-
-        let salt = [60u8; 32];
-        let receiver_index: u32 = 111111;
-
-        // Create state machines - Alice is initiator, Bob is responder
-        let mut alice = LpStateMachine::new(
-            receiver_index,
-            true,
-            a.clone(),
-            b.as_remote(),
-            &salt,
-            version::CURRENT,
+        let sessions = SessionsMock::mock_post_handshake(12345).unwrap();
+        (
+            LpStateMachine::new(sessions.initiator),
+            LpStateMachine::new(sessions.responder),
         )
-        .unwrap();
-
-        let mut bob = LpStateMachine::new(
-            receiver_index,
-            false,
-            b,
-            a.as_remote(),
-            &salt,
-            version::CURRENT,
-        )
-        .unwrap();
-
-        // --- Complete KKT Exchange ---
-        // Alice starts handshake
-        let kkt_request = if let Some(Ok(LpAction::SendPacket(p))) =
-            alice.process_input(LpInput::StartHandshake)
-        {
-            p
-        } else {
-            panic!("Alice should send KKT request");
-        };
-
-        // Bob starts handshake
-        let _ = bob.process_input(LpInput::StartHandshake);
-
-        // Bob receives KKT request, sends response
-        let kkt_response = if let Some(Ok(LpAction::SendPacket(p))) =
-            bob.process_input(LpInput::ReceivePacket(kkt_request))
-        {
-            p
-        } else {
-            panic!("Bob should send KKT response");
-        };
-
-        // Alice receives KKT response
-        let _ = alice.process_input(LpInput::ReceivePacket(kkt_response));
-
-        // --- Complete Noise Handshake ---
-        // Alice prepares first Noise message
-        let noise1_msg = alice
-            .session()
-            .unwrap()
-            .prepare_handshake_message()
-            .unwrap()
-            .unwrap();
-        let noise1_packet = alice.session().unwrap().next_packet(noise1_msg).unwrap();
-
-        // Bob receives noise1, sends noise2
-        let noise2_packet = if let Some(Ok(LpAction::SendPacket(p))) =
-            bob.process_input(LpInput::ReceivePacket(noise1_packet))
-        {
-            p
-        } else {
-            panic!("Bob should send Noise packet 2");
-        };
-
-        // Alice receives noise2, sends noise3
-        let noise3_packet = if let Some(Ok(LpAction::SendPacket(p))) =
-            alice.process_input(LpInput::ReceivePacket(noise2_packet))
-        {
-            p
-        } else {
-            panic!("Alice should send Noise packet 3");
-        };
-        assert!(matches!(alice.state, LpState::Transport { .. }));
-
-        // Bob receives noise3, completes handshake
-        let _ = bob.process_input(LpInput::ReceivePacket(noise3_packet));
-        assert!(matches!(bob.state, LpState::Transport { .. }));
-
-        (alice, bob)
     }
 
     #[test]

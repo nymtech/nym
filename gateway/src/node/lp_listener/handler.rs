@@ -8,8 +8,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::codec::serialize_lp_packet;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_lp::{
-    codec::OuterAeadKey, message::ForwardPacketData, LpMessage, LpPacket, LpSession,
-    LpStateMachine, OuterHeader,
+    message::ForwardPacketData, LpMessage, LpPacket, LpSession, LpStateMachine, OuterHeader,
 };
 use nym_lp_transport::traits::LpTransport;
 use nym_metrics::{add_histogram_obs, inc};
@@ -161,7 +160,7 @@ where
         let receiver_idx = session.id();
 
         // 2. insert the state machine into the shared state
-        let state_machine = LpStateMachine::new2(session);
+        let state_machine = LpStateMachine::new(session);
         self.state
             .session_states
             .insert(receiver_idx, TimestampedState::new(state_machine));

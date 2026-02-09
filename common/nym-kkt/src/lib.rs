@@ -117,7 +117,7 @@ mod test {
                         responder_ingest_message(&r_context, None, None, &i_frame_r).unwrap();
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -129,7 +129,7 @@ mod test {
                     let (i_frame_r, i_context_r) = KKTFrame::from_bytes(&r_bytes).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),
@@ -165,7 +165,7 @@ mod test {
                     assert!(r_obtained_key.is_none());
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -177,7 +177,7 @@ mod test {
                     let (i_frame_r, i_context_r) = KKTFrame::from_bytes(&r_bytes).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),
@@ -214,7 +214,7 @@ mod test {
                     assert_eq!(r_obtained_key.unwrap().encode(), i_kem_key_bytes);
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -226,7 +226,7 @@ mod test {
                     let (i_frame_r, i_context_r) = KKTFrame::from_bytes(&r_bytes).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),
@@ -334,7 +334,7 @@ mod test {
                         responder_ingest_message(&i_context_r, None, None, &i_frame_r).unwrap();
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -352,7 +352,7 @@ mod test {
                         decrypt_kkt_frame(&i_session_secret, &r_bytes, KKT_RESPONSE_AAD).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),
@@ -399,7 +399,7 @@ mod test {
                     assert!(r_obtained_key.is_none());
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -417,7 +417,7 @@ mod test {
                         decrypt_kkt_frame(&i_session_secret, &r_bytes, KKT_RESPONSE_AAD).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),
@@ -465,7 +465,7 @@ mod test {
                     assert_eq!(r_obtained_key.unwrap().encode(), i_kem_key_bytes);
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -483,7 +483,7 @@ mod test {
                         decrypt_kkt_frame(&i_session_secret, &r_bytes, KKT_RESPONSE_AAD).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),

@@ -6,14 +6,14 @@
 //! These tests run in a browser environment via wasm-bindgen-test.
 //! Run with: `wasm-pack test --headless --chrome`
 //!
-//! Note: These tests require network connectivity to the Nym mixnet.
+//! Note: These tests require network connectivity to the Mixnet.
 //! Each test creates real Nym clients that connect to gateways.
 //!
 //! Tests run sequentially (wasm-bindgen-test default in browser).
 
 #![cfg(target_arch = "wasm32")]
 
-use futures::{Future, StreamExt};
+use futures::{select, Future, FutureExt, StreamExt};
 use libp2p::core::transport::{DialOpts, PortUse, TransportEvent};
 use libp2p::core::Endpoint;
 use libp2p::core::{Multiaddr, Transport};
@@ -38,7 +38,7 @@ macro_rules! console_log {
     };
 }
 
-/// Create DialOpts (no Default impl available)
+/// Create DialOpts
 fn dial_opts() -> DialOpts {
     DialOpts {
         role: Endpoint::Dialer,
@@ -64,7 +64,6 @@ async fn create_test_transport(name: &str) -> (NymTransport, Multiaddr) {
     let address_str = result.self_address.to_string();
     console_log!("Got address for '{}': {}", name, &address_str[..20]);
 
-    // Recipient is Copy, so we can use it twice
     let multiaddr =
         nym_address_to_multiaddress(result.self_address).expect("Failed to create multiaddr");
 
@@ -875,20 +874,19 @@ async fn test_08_libp2p_ping() {
         .dial(addr_b.clone())
         .expect("Dial should not fail immediately");
 
-    // Poll both swarms waiting for ping events
+    // Poll both swarms waiting for ping events using futures::select!
     let start = js_sys::Date::now();
-    let timeout_ms = 60_000.0;
-    let mut ping_success = false;
+    let timeout = gloo_timers::future::TimeoutFuture::new(60_000).fuse();
+    futures::pin_mut!(timeout);
 
-    while !ping_success && (js_sys::Date::now() - start) < timeout_ms {
-        // Poll swarm A
-        futures::future::poll_fn(|cx| {
-            while let Poll::Ready(Some(event)) = swarm_a.poll_next_unpin(cx) {
+    let ping_success = loop {
+        select! {
+            event = swarm_a.select_next_some() => {
                 match event {
                     SwarmEvent::Behaviour(ping::Event { peer, result, .. }) => match result {
                         Ok(rtt) => {
                             console_log!("A: Ping to {:?} succeeded! RTT: {:?}", peer, rtt);
-                            ping_success = true;
+                            break true;
                         }
                         Err(e) => {
                             console_log!("A: Ping to {:?} failed: {:?}", peer, e);
@@ -902,19 +900,13 @@ async fn test_08_libp2p_ping() {
                     }
                     _ => {}
                 }
-            }
-            Poll::Ready(())
-        })
-        .await;
-
-        // Poll swarm B
-        futures::future::poll_fn(|cx| {
-            while let Poll::Ready(Some(event)) = swarm_b.poll_next_unpin(cx) {
+            },
+            event = swarm_b.select_next_some() => {
                 match event {
                     SwarmEvent::Behaviour(ping::Event { peer, result, .. }) => match result {
                         Ok(rtt) => {
                             console_log!("B: Ping to {:?} succeeded! RTT: {:?}", peer, rtt);
-                            ping_success = true;
+                            break true;
                         }
                         Err(e) => {
                             console_log!("B: Ping to {:?} failed: {:?}", peer, e);
@@ -936,13 +928,13 @@ async fn test_08_libp2p_ping() {
                     }
                     _ => {}
                 }
-            }
-            Poll::Ready(())
-        })
-        .await;
-
-        sleep_ms(200).await;
-    }
+            },
+            _ = &mut timeout => {
+                console_log!("Timeout waiting for ping!");
+                break false;
+            },
+        }
+    };
 
     let elapsed = (js_sys::Date::now() - start) / 1000.0;
     console_log!("Test completed after {:.1}s", elapsed);
@@ -956,9 +948,7 @@ async fn test_08_libp2p_ping() {
     sleep_ms(1000).await;
 }
 
-// ============================================================================
 // Test 9: libp2p Identify Protocol
-// ============================================================================
 
 /// Test the libp2p identify protocol over the Nym mixnet.
 ///
@@ -1049,23 +1039,21 @@ async fn test_09_libp2p_identify() {
         .dial(addr_b.clone())
         .expect("Dial should not fail immediately");
 
-    // Poll both swarms waiting for identify events
-    // Success = at least one peer receives identify info from the other
+    // Poll both swarms waiting for identify events using futures::select!
     let start = js_sys::Date::now();
-    let timeout_ms = 60_000.0;
-    let mut identify_received = false;
+    let timeout = gloo_timers::future::TimeoutFuture::new(60_000).fuse();
+    futures::pin_mut!(timeout);
 
-    while !identify_received && (js_sys::Date::now() - start) < timeout_ms {
-        // Poll swarm A
-        futures::future::poll_fn(|cx| {
-            while let Poll::Ready(Some(event)) = swarm_a.poll_next_unpin(cx) {
+    let identify_received = loop {
+        select! {
+            event = swarm_a.select_next_some() => {
                 match event {
                     SwarmEvent::Behaviour(identify::Event::Received { peer_id, info, .. }) => {
                         console_log!("A: Received identify from {:?}", peer_id);
                         console_log!("   Protocol: {}", info.protocol_version);
                         console_log!("   Agent: {}", info.agent_version);
                         console_log!("   Protocols: {:?}", info.protocols);
-                        identify_received = true;
+                        break true;
                     }
                     SwarmEvent::Behaviour(identify::Event::Sent { peer_id, .. }) => {
                         console_log!("A: Sent identify to {:?}", peer_id);
@@ -1075,21 +1063,15 @@ async fn test_09_libp2p_identify() {
                     }
                     _ => {}
                 }
-            }
-            Poll::Ready(())
-        })
-        .await;
-
-        // Poll swarm B
-        futures::future::poll_fn(|cx| {
-            while let Poll::Ready(Some(event)) = swarm_b.poll_next_unpin(cx) {
+            },
+            event = swarm_b.select_next_some() => {
                 match event {
                     SwarmEvent::Behaviour(identify::Event::Received { peer_id, info, .. }) => {
                         console_log!("B: Received identify from {:?}", peer_id);
                         console_log!("   Protocol: {}", info.protocol_version);
                         console_log!("   Agent: {}", info.agent_version);
                         console_log!("   Protocols: {:?}", info.protocols);
-                        identify_received = true;
+                        break true;
                     }
                     SwarmEvent::Behaviour(identify::Event::Sent { peer_id, .. }) => {
                         console_log!("B: Sent identify to {:?}", peer_id);
@@ -1110,13 +1092,13 @@ async fn test_09_libp2p_identify() {
                     }
                     _ => {}
                 }
-            }
-            Poll::Ready(())
-        })
-        .await;
-
-        sleep_ms(200).await;
-    }
+            },
+            _ = &mut timeout => {
+                console_log!("Timeout waiting for identify!");
+                break false;
+            },
+        }
+    };
 
     let elapsed = (js_sys::Date::now() - start) / 1000.0;
     console_log!("Test completed after {:.1}s", elapsed);

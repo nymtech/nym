@@ -11,7 +11,6 @@ use futures::{
     io::{Error as IoError, ErrorKind},
     AsyncRead, AsyncWrite, FutureExt, StreamExt,
 };
-use log::debug;
 use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 use nym_wasm_utils::console_log;

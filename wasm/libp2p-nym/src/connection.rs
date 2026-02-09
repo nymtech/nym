@@ -12,6 +12,7 @@ use libp2p::core::{muxing::StreamMuxerEvent, PeerId, StreamMuxer};
 use log::debug;
 use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
+use nym_wasm_utils::console_log;
 use std::{
     collections::{HashMap, HashSet},
     pin::Pin,
@@ -228,7 +229,12 @@ impl StreamMuxer for Connection {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::Substream, Self::Error>> {
+        console_log!("[Connection::poll_inbound] checking for inbound substreams");
         if let Poll::Ready(Some(substream)) = self.inbound_open_rx.poll_next_unpin(cx) {
+            console_log!(
+                "[Connection::poll_inbound] got inbound substream: {:?}",
+                substream.substream_id
+            );
             return Poll::Ready(Ok(substream));
         }
 
@@ -239,8 +245,10 @@ impl StreamMuxer for Connection {
         mut self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
     ) -> Poll<Result<Self::Substream, Self::Error>> {
+        console_log!("[Connection::poll_outbound] called");
         debug!("poll_outbound called");
         let result = self.new_outbound_substream();
+        console_log!("[Connection::poll_outbound] result: {:?}", result.is_ok());
         debug!("poll_outbound result: {:?}", result.is_ok());
         Poll::Ready(result)
     }
@@ -330,15 +338,25 @@ impl StreamMuxer for Connection {
                     self.handle_close(msg.substream_id)?;
                 }
                 SubstreamMessageType::Data(data) => {
+                    console_log!(
+                        "[Connection::poll] Data received: {} bytes for substream {:?}",
+                        data.len(),
+                        msg.substream_id
+                    );
                     debug!("Processing Data: {:?}", &data);
-                    let inbound_tx = self
-                        .substream_inbound_txs
-                        .get_mut(&msg.substream_id)
-                        .expect("must have a substream channel for substream");
+                    let inbound_tx = self.substream_inbound_txs.get_mut(&msg.substream_id);
 
-                    // NOTE: this ignores channel closed errors, which is fine because the substream
-                    // might have been closed/dropped
-                    let _ = inbound_tx.unbounded_send(data);
+                    match inbound_tx {
+                        Some(tx) => {
+                            console_log!("[Connection::poll] Forwarding data to substream channel");
+                            if let Err(e) = tx.unbounded_send(data) {
+                                console_log!("[Connection::poll] ERROR: Channel closed for substream {:?}: {}", msg.substream_id, e);
+                            }
+                        }
+                        None => {
+                            console_log!("[Connection::poll] WARNING: No channel for substream {:?}, dropping data", msg.substream_id);
+                        }
+                    }
                 }
             }
         }

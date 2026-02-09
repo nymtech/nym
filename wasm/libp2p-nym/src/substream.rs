@@ -14,6 +14,7 @@ use futures::{
 use log::debug;
 use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
+use nym_wasm_utils::console_log;
 use parking_lot::Mutex;
 use std::{
     pin::Pin,
@@ -124,27 +125,33 @@ impl AsyncRead for Substream {
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<Result<usize, IoError>> {
-        let closed_result = self.as_mut().check_closed(cx);
-        if let Err(e) = closed_result {
-            return Poll::Ready(Err(e));
-        }
+        console_log!("[Substream::poll_read] called, buf size: {}", buf.len());
 
-        let inbound_rx_data = self.inbound_rx.poll_next_unpin(cx);
-
-        // first, write any previously unread data to the buf
-        let mut unread_data = self.unread_data.lock();
-        let filled_len = if !unread_data.is_empty() {
-            let unread_len = unread_data.len();
-            let buf_len = buf.len();
-            let copy_len = std::cmp::min(unread_len, buf_len);
-            buf[..copy_len].copy_from_slice(&unread_data[..copy_len]);
-            *unread_data = unread_data[copy_len..].to_vec();
-            copy_len
-        } else {
-            0
+        // First, check for any buffered unread data
+        let filled_len = {
+            let mut unread_data = self.unread_data.lock();
+            if !unread_data.is_empty() {
+                let unread_len = unread_data.len();
+                let buf_len = buf.len();
+                let copy_len = std::cmp::min(unread_len, buf_len);
+                buf[..copy_len].copy_from_slice(&unread_data[..copy_len]);
+                *unread_data = unread_data[copy_len..].to_vec();
+                copy_len
+            } else {
+                0
+            }
         };
 
+        // Then check for new data from the channel
+        let inbound_rx_data = self.inbound_rx.poll_next_unpin(cx);
+
         if let Poll::Ready(Some(data)) = inbound_rx_data {
+            console_log!(
+                "[Substream::poll_read] received {} bytes from channel",
+                data.len()
+            );
+            let mut unread_data = self.unread_data.lock();
+
             if filled_len == buf.len() {
                 // we've filled the buffer, so we'll have to save the rest for later
                 let mut new = vec![];
@@ -165,13 +172,28 @@ impl AsyncRead for Substream {
 
             let copied = std::cmp::min(remaining_len, data_len);
             buf[filled_len..filled_len + copied].copy_from_slice(&data[..copied]);
-            debug!("poll_read copied {} bytes", copied);
-            return Poll::Ready(Ok(copied));
+            console_log!(
+                "[Substream::poll_read] copied {} bytes total",
+                filled_len + copied
+            );
+            return Poll::Ready(Ok(filled_len + copied));
         }
 
+        // If we have buffered data, return it
         if filled_len > 0 {
-            debug!("poll_read copied {} bytes", filled_len);
+            console_log!(
+                "[Substream::poll_read] returning {} buffered bytes",
+                filled_len
+            );
             return Poll::Ready(Ok(filled_len));
+        }
+
+        // Only check closed state when there's no data to return
+        // This ensures we drain all buffered data before reporting close
+        let closed_result = self.as_mut().check_closed(cx);
+        if let Err(e) = closed_result {
+            console_log!("[Substream::poll_read] stream closed (no more data): {}", e);
+            return Poll::Ready(Err(e));
         }
 
         Poll::Pending
@@ -184,11 +206,18 @@ impl AsyncWrite for Substream {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<Result<usize, IoError>> {
+        console_log!("[Substream::poll_write] writing {} bytes", buf.len());
         if let Err(e) = self.as_mut().check_closed(cx) {
+            console_log!("[Substream::poll_write] stream closed: {}", e);
             return Poll::Ready(Err(e));
         }
 
         let nonce = self.message_nonce.fetch_add(1, Ordering::SeqCst);
+        console_log!(
+            "[Substream::poll_write] nonce: {}, sender_tag: {:?}",
+            nonce,
+            self.sender_tag.is_some()
+        );
 
         self.outbound_tx
             .unbounded_send(OutboundMessage {
@@ -204,12 +233,14 @@ impl AsyncWrite for Substream {
                 sender_tag: self.sender_tag.clone(),
             })
             .map_err(|e| {
+                console_log!("[Substream::poll_write] ERROR: {}", e);
                 IoError::new(
                     ErrorKind::Other,
                     format!("poll_write outbound_tx error: {}", e),
                 )
             })?;
 
+        console_log!("[Substream::poll_write] successfully queued message");
         Poll::Ready(Ok(buf.len()))
     }
 

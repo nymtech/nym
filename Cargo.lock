@@ -8590,7 +8590,7 @@ dependencies = [
 
 [[package]]
 name = "nyx-chain-watcher"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "anyhow",
  "async-trait",

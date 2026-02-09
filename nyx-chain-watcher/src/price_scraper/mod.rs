@@ -29,7 +29,13 @@ impl PriceScraper {
     async fn get_coingecko_prices(&self) -> anyhow::Result<CoingeckoPriceResponse> {
         tracing::info!("💰 Fetching CoinGecko prices from {COINGECKO_API_URL}");
 
-        let response = reqwest::get(COINGECKO_API_URL)
+        let client = reqwest::Client::new();
+        let response = client
+            .get(COINGECKO_API_URL)
+            .header(reqwest::header::USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .header(reqwest::header::ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+            .header(reqwest::header::REFERER, "https://www.coingecko.com")
+            .send()
             .await?
             .json::<CoingeckoPriceResponse>()
             .await;

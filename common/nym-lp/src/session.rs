@@ -231,7 +231,7 @@ impl LpSession {
         connection: &'_ mut S,
         ciphersuite: Ciphersuite,
         local_peer: LpLocalPeer,
-        remote_peer: LpRemotePeer,
+        remote_peer: Option<LpRemotePeer>,
     ) -> PSQHandshakeState<'_, S>
     where
         S: LpTransport + Unpin,

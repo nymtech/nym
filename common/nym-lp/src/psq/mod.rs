@@ -75,7 +75,7 @@ pub struct PSQHandshakeState<'a, S> {
 
     /// Representation of a remote Lewes Protocol peer
     /// encapsulating all the known information and keys.
-    remote_peer: LpRemotePeer,
+    remote_peer: Option<LpRemotePeer>,
 
     /// Counter for outgoing packets
     sending_counter: u64,
@@ -89,7 +89,7 @@ where
         connection: &'a mut S,
         ciphersuite: Ciphersuite,
         local_peer: LpLocalPeer,
-        remote_peer: LpRemotePeer,
+        remote_peer: Option<LpRemotePeer>,
     ) -> Self {
         PSQHandshakeState {
             connection,
@@ -171,8 +171,9 @@ mod tests {
         let init_remote = init.as_remote();
         let resp_remote = resp.as_remote();
 
-        let handshake_init = PSQHandshakeState::new(conn_init, ciphersuite, init, resp_remote);
-        let handshake_resp = PSQHandshakeState::new(conn_resp, ciphersuite, resp, init_remote);
+        let handshake_init =
+            PSQHandshakeState::new(conn_init, ciphersuite, init, Some(resp_remote));
+        let handshake_resp = PSQHandshakeState::new(conn_resp, ciphersuite, resp, None);
 
         let resp_fut = handshake_resp.psq_handshake_responder().spawn_timeboxed();
         let init_fut = handshake_init.psq_handshake_initiator(1).spawn_timeboxed();

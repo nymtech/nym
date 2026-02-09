@@ -205,7 +205,7 @@ impl NestedLpSession {
             &mut nested_connection,
             ciphersuite,
             local_peer,
-            remote_peer,
+            Some(remote_peer),
         )
         .psq_handshake_initiator(protocol_version)
         .await?;

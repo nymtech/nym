@@ -30,7 +30,12 @@ where
     {
         // 0. retrieve the expected kem key hash. if we don't know if,
         // there's no point in even trying to start the handshake
-        let expected_kem_key_digest = self.remote_peer.expected_kem_key_hash(self.ciphersuite)?;
+        let Some(remote_peer) = self.remote_peer.take() else {
+            return Err(LpError::kkt_psq_handshake(
+                "initiator can't proceed without remote information",
+            ));
+        };
+        let expected_kem_key_digest = remote_peer.expected_kem_key_hash(self.ciphersuite)?;
 
         // 1. Generate and send ClientHelloData with fresh salt and both public keys
         let timestamp = current_timestamp()?;
@@ -64,7 +69,7 @@ where
         // 3. prepare and send KKT request
         let (kkt_context, kkt_frame) = anonymous_initiator_process(&mut rng(), self.ciphersuite)?;
         let (session_secret, encrypted_frame) =
-            encrypt_initial_kkt_frame(&mut rng(), &self.remote_peer.x25519_public, &kkt_frame)?;
+            encrypt_initial_kkt_frame(&mut rng(), &remote_peer.x25519_public, &kkt_frame)?;
         let lp_message = KKTRequestData::new(encrypted_frame).into();
         let lp_packet = self.next_packet(session_id, remote_protocol, lp_message);
 
@@ -87,14 +92,14 @@ where
             &kkt_context,
             &response_frame,
             &remote_context,
-            &self.remote_peer.ed25519_public,
+            &remote_peer.ed25519_public,
             &expected_kem_key_digest,
         )?;
 
         // 5. prepare and send PSQ msg1
         let psq_initiator = psq_initiator_create_message(
             self.local_peer.x25519.private_key(),
-            &self.remote_peer.x25519_public,
+            &remote_peer.x25519_public,
             &encapsulation_key,
             self.local_peer.ed25519.private_key(),
             self.local_peer.ed25519.public_key(),
@@ -111,7 +116,7 @@ where
         // prepare noise state and msg1
         let noise_state = snow::Builder::new(crate::NOISE_PATTERN.parse()?)
             .local_private_key(self.local_peer.x25519().private_key().as_bytes())
-            .remote_public_key(self.remote_peer.x25519_public.as_bytes())
+            .remote_public_key(remote_peer.x25519_public.as_bytes())
             .psk(crate::NOISE_PSK_INDEX, &psk)
             .build_initiator()?;
         let mut noise_protocol = NoiseProtocol::new(noise_state);
@@ -194,7 +199,7 @@ where
             remote_protocol,
             outer_aead_key,
             self.local_peer,
-            self.remote_peer,
+            remote_peer,
             PqSharedSecret::new(psq_initiator.pq_shared_secret),
             noise_protocol,
         ))

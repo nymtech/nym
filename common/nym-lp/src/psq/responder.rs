@@ -4,6 +4,7 @@
 use crate::codec::OuterAeadKey;
 use crate::message::{HandshakeData, KKTResponseData, MessageType};
 use crate::noise_protocol::NoiseProtocol;
+use crate::peer::LpRemotePeer;
 use crate::psk::psq_responder_process_message;
 use crate::psq::PSQHandshakeState;
 use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp};
@@ -105,6 +106,12 @@ impl<'a, S> PSQHandshakeState<'a, S> {
         let session_id_bytes = session_id.to_le_bytes();
         let version = client_hello_packet.header.protocol_version;
 
+        // set remote peer information
+        self.remote_peer = Some(LpRemotePeer::new(
+            client_hello.client_ed25519_public_key,
+            client_hello.client_lp_public_key,
+        ));
+
         // 2. send ack
         debug!("sending client hello ACK");
         let ack = self.next_packet(session_id, version, LpMessage::Ack);
@@ -177,12 +184,14 @@ impl<'a, S> PSQHandshakeState<'a, S> {
 
         let (dec_key, enc_key) = self.encapsulated_kem_keys()?;
 
+        let remote_x25519 = client_hello.client_lp_public_key;
+        let remote_ed25519 = client_hello.client_ed25519_public_key;
         // Decapsulate PSK from PSQ payload using X25519 as DHKEM
         let psq_result = psq_responder_process_message(
             self.local_peer.x25519.private_key(),
-            &self.remote_peer.x25519_public,
+            &remote_x25519,
             (&dec_key, &enc_key),
-            &self.remote_peer.ed25519_public,
+            &remote_ed25519,
             psq_payload,
             &client_hello.salt,
             &session_id_bytes,
@@ -199,7 +208,7 @@ impl<'a, S> PSQHandshakeState<'a, S> {
 
         let noise_state = snow::Builder::new(crate::NOISE_PATTERN.parse()?)
             .local_private_key(self.local_peer.x25519().private_key().as_bytes())
-            .remote_public_key(self.remote_peer.x25519_public.as_bytes())
+            .remote_public_key(remote_x25519.as_bytes())
             .psk(crate::NOISE_PSK_INDEX, &psk)
             .build_responder()?;
         let mut noise_protocol = NoiseProtocol::new(noise_state);
@@ -245,12 +254,14 @@ impl<'a, S> PSQHandshakeState<'a, S> {
             .send_packet(ack, Some(&outer_aead_key))
             .await?;
 
+        #[allow(clippy::expect_used)]
         Ok(LpSession::new2(
             session_id,
             version,
             outer_aead_key,
             self.local_peer,
-            self.remote_peer,
+            self.remote_peer
+                .expect("remote peer is set after receiving client hello"),
             PqSharedSecret::new(psq_result.pq_shared_secret),
             noise_protocol,
         ))

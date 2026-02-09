@@ -155,11 +155,8 @@ impl LpDataHandler {
             .value()
             .state
             .session()
-            .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {}", e)))?
-            .outer_aead_key()
-            .ok_or_else(|| {
-                GatewayError::LpProtocolError("Session has no outer AEAD key".to_string())
-            })?;
+            .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {e}")))?
+            .outer_aead_key();
 
         // Parse full packet with outer AEAD decryption
         let lp_packet = nym_lp::codec::parse_lp_packet(packet, Some(&outer_key)).map_err(|e| {

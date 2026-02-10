@@ -628,7 +628,7 @@ mod tests {
                 receiver_idx: 42,
                 counter: 123,
             },
-            message: LpMessage::ClientHello(hello_data.clone()),
+            message: LpMessage::ClientHello(hello_data),
             trailer: [0; TRAILER_LEN],
         };
 
@@ -681,7 +681,7 @@ mod tests {
                 receiver_idx: 100,
                 counter: 200,
             },
-            message: LpMessage::ClientHello(hello_data.clone()),
+            message: LpMessage::ClientHello(hello_data),
             trailer: [55; TRAILER_LEN],
         };
 

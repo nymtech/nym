@@ -414,11 +414,15 @@ where
 
         // TODO:
         let ciphersuite = LpSession::default_ciphersuite();
-        let session =
-            LpSession::psq_handshake_state(connection, ciphersuite, local_peer, Some(remote_peer))
-                .with_protocol_version(protocol_version)
-                .psq_handshake_initiator()
-                .await?;
+        let session = LpSession::complete_as_initiator(
+            connection,
+            ciphersuite,
+            local_peer,
+            remote_peer,
+            protocol_version,
+        )
+        .psq_handshake_initiator()
+        .await?;
 
         // Store the state machine (with established session) for later use
         self.state_machine = Some(LpStateMachine::new(session));

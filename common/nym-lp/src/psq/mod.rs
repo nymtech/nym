@@ -39,18 +39,13 @@ impl<'a, S> PSQHandshakeState<'a, S>
 where
     S: LpTransport + Unpin,
 {
-    pub fn new(
-        connection: &'a mut S,
-        ciphersuite: Ciphersuite,
-        local_peer: LpLocalPeer,
-        remote_peer: Option<LpRemotePeer>,
-    ) -> Self {
+    pub fn new(connection: &'a mut S, ciphersuite: Ciphersuite, local_peer: LpLocalPeer) -> Self {
         PSQHandshakeState {
             connection,
             protocol_version: None,
             ciphersuite,
             local_peer,
-            remote_peer,
+            remote_peer: None,
             sending_counter: 0,
         }
     }
@@ -58,6 +53,12 @@ where
     #[must_use]
     pub fn with_protocol_version(mut self, protocol_version: u8) -> Self {
         self.protocol_version = Some(protocol_version);
+        self
+    }
+
+    #[must_use]
+    pub fn with_remote_peer(mut self, remote_peer: LpRemotePeer) -> Self {
+        self.remote_peer = Some(remote_peer);
         self
     }
 
@@ -114,12 +115,12 @@ mod tests {
         let (init, resp) = mock_peers();
         let resp_remote = resp.as_remote();
 
-        let handshake_init =
-            PSQHandshakeState::new(conn_init, ciphersuite, init, Some(resp_remote))
-                .with_protocol_version(1);
-        let handshake_resp = PSQHandshakeState::new(conn_resp, ciphersuite, resp, None);
+        let handshake_init = PSQHandshakeState::new(conn_init, ciphersuite, init)
+            .with_protocol_version(1)
+            .with_remote_peer(resp_remote);
+        let handshake_resp = PSQHandshakeState::new(conn_resp, ciphersuite, resp);
 
-        let resp_fut = handshake_resp.psq_handshake_responder().spawn_timeboxed();
+        let resp_fut = handshake_resp.complete_as_responder().spawn_timeboxed();
         let init_fut = handshake_init.psq_handshake_initiator().spawn_timeboxed();
 
         let (session_init, session_resp) = join!(init_fut, resp_fut);

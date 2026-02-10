@@ -148,16 +148,32 @@ impl LpSession {
         )
     }
 
-    pub fn psq_handshake_state<S>(
+    /// Helper function to create `PSQHandshakeState` for the handshake initiator
+    pub fn complete_as_initiator<S>(
         connection: &'_ mut S,
         ciphersuite: Ciphersuite,
         local_peer: LpLocalPeer,
-        remote_peer: Option<LpRemotePeer>,
+        remote_peer: LpRemotePeer,
+        remote_protocol_version: u8,
     ) -> PSQHandshakeState<'_, S>
     where
         S: LpTransport + Unpin,
     {
-        PSQHandshakeState::new(connection, ciphersuite, local_peer, remote_peer)
+        PSQHandshakeState::new(connection, ciphersuite, local_peer)
+            .with_protocol_version(remote_protocol_version)
+            .with_remote_peer(remote_peer)
+    }
+
+    /// Helper function to create `PSQHandshakeState` for the handshake responder
+    pub fn psq_handshake_responder<S>(
+        connection: &'_ mut S,
+        ciphersuite: Ciphersuite,
+        local_peer: LpLocalPeer,
+    ) -> PSQHandshakeState<'_, S>
+    where
+        S: LpTransport + Unpin,
+    {
+        PSQHandshakeState::new(connection, ciphersuite, local_peer)
     }
 
     pub fn id(&self) -> u32 {

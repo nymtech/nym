@@ -133,8 +133,8 @@ where
         // TODO:
         let ciphersuite = LpSession::default_ciphersuite();
         let session = match tokio::time::timeout(timeout, async move {
-            LpSession::psq_handshake_state(stream, ciphersuite, local_peer, None)
-                .psq_handshake_responder()
+            LpSession::psq_handshake_responder(stream, ciphersuite, local_peer)
+                .complete_as_responder()
                 .await
         })
         .await

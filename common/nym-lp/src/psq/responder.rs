@@ -308,7 +308,7 @@ where
         Ok(())
     }
 
-    pub async fn psq_handshake_responder(mut self) -> Result<LpSession, LpError>
+    pub async fn complete_as_responder(mut self) -> Result<LpSession, LpError>
     where
         S: LpTransport + Unpin,
     {

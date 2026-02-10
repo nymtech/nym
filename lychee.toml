@@ -1,0 +1,16 @@
+# This is a pre-commit linkchecker for the docs site
+#
+# Lychee is explicit with links, whereas NextJS resolves links w/out extensions to md(x)
+fallback_extensions = ["mdx", "md"]
+
+# Root directory for resolving absolute paths
+root_dir = "documentation/docs/"
+
+# Remap pages/images to public/images for NextJS static assets
+remap = ["pages/images file:///public/images/"]
+
+# Exclude component snippets (TODO: verify which are still in use)
+exclude_path = ["components/"]
+
+# Only check local file links (skip external URLs for pre-commit speed)
+scheme = ["file"]

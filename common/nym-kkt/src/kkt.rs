@@ -90,7 +90,7 @@ pub fn request_kem_key<R: CryptoRng + RngCore>(
 /// # Example
 /// ```ignore
 /// let gateway_kem_key = validate_kem_response(
-///     &mut context,
+///     &context,
 ///     &session_secret,
 ///     &gateway_verification_key,
 ///     &expected_hash_from_directory,
@@ -241,7 +241,7 @@ mod tests {
         );
 
         // Client: Request KEM key
-        let (session_key, mut context, request_frame_ciphertext) = request_kem_key(
+        let (session_key, context, request_frame_ciphertext) = request_kem_key(
             &mut rng,
             ciphersuite,
             ed25519_init.private_key(),
@@ -262,7 +262,7 @@ mod tests {
 
         // Client: Validate response
         let obtained_key = validate_kem_response(
-            &mut context,
+            &context,
             &session_key,
             ed25519_resp.public_key(),
             &key_hash,
@@ -304,8 +304,7 @@ mod tests {
         );
 
         // Anonymous initiator
-        let (mut context, request_frame) =
-            anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
+        let (context, request_frame) = anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
 
         // Generate the session's shared secret and encrypt the Initiator's request
         let (session_secret, encrypted_request_bytes) =
@@ -324,7 +323,7 @@ mod tests {
 
         // Initiator: Validate response
         let obtained_key = validate_kem_response(
-            &mut context,
+            &context,
             &session_secret,
             responder_keypair.public_key(),
             &key_hash,
@@ -417,7 +416,7 @@ mod tests {
         // Use WRONG hash
         let wrong_hash = [0u8; 32];
 
-        let (session_key, mut context, request_frame) = request_kem_key(
+        let (session_key, context, request_frame) = request_kem_key(
             &mut rng,
             ciphersuite,
             initiator_keypair.private_key(),
@@ -437,7 +436,7 @@ mod tests {
 
         // Client validates with WRONG hash
         let result = validate_kem_response(
-            &mut context,
+            &context,
             &session_key,
             responder_keypair.public_key(),
             &wrong_hash, // Wrong!

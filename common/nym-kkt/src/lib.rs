@@ -106,14 +106,14 @@ mod test {
 
                 // Anonymous Initiator, OneWay
                 {
-                    let (mut i_context, i_frame) =
+                    let (i_context, i_frame) =
                         anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
 
                     let i_frame_bytes = i_frame.to_bytes();
 
                     let (i_frame_r, r_context) = KKTFrame::from_bytes(&i_frame_bytes).unwrap();
 
-                    let (mut r_context, _) =
+                    let (r_context, _) =
                         responder_ingest_message(&r_context, None, None, &i_frame_r).unwrap();
 
                     let r_frame = responder_process(
@@ -141,7 +141,7 @@ mod test {
                 }
                 // Initiator, OneWay
                 {
-                    let (mut i_context, i_frame) = initiator_process(
+                    let (i_context, i_frame) = initiator_process(
                         &mut rng,
                         crate::context::KKTMode::OneWay,
                         ciphersuite,
@@ -154,7 +154,7 @@ mod test {
 
                     let (i_frame_r, r_context) = KKTFrame::from_bytes(&i_frame_bytes).unwrap();
 
-                    let (mut r_context, r_obtained_key) = responder_ingest_message(
+                    let (r_context, r_obtained_key) = responder_ingest_message(
                         &r_context,
                         Some(initiator_ed25519_keypair.public_key()),
                         None,
@@ -190,7 +190,7 @@ mod test {
 
                 // Initiator, Mutual
                 {
-                    let (mut i_context, i_frame) = initiator_process(
+                    let (i_context, i_frame) = initiator_process(
                         &mut rng,
                         crate::context::KKTMode::Mutual,
                         ciphersuite,
@@ -203,7 +203,7 @@ mod test {
 
                     let (i_frame_r, r_context) = KKTFrame::from_bytes(&i_frame_bytes).unwrap();
 
-                    let (mut r_context, r_obtained_key) = responder_ingest_message(
+                    let (r_context, r_obtained_key) = responder_ingest_message(
                         &r_context,
                         Some(initiator_ed25519_keypair.public_key()),
                         Some(&i_dir_hash),
@@ -312,7 +312,7 @@ mod test {
 
                 // Anonymous Initiator, OneWay
                 {
-                    let (mut i_context, i_frame) =
+                    let (i_context, i_frame) =
                         anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
 
                     // encryption - initiator frame
@@ -330,7 +330,7 @@ mod test {
                         decrypt_initial_kkt_frame(responder_x25519_keypair.private_key(), &i_bytes)
                             .unwrap();
 
-                    let (mut r_context, _) =
+                    let (r_context, _) =
                         responder_ingest_message(&i_context_r, None, None, &i_frame_r).unwrap();
 
                     let r_frame = responder_process(
@@ -364,7 +364,7 @@ mod test {
                 }
                 // Initiator, OneWay
                 {
-                    let (mut i_context, i_frame) = initiator_process(
+                    let (i_context, i_frame) = initiator_process(
                         &mut rng,
                         crate::context::KKTMode::OneWay,
                         ciphersuite,
@@ -388,7 +388,7 @@ mod test {
                         decrypt_initial_kkt_frame(responder_x25519_keypair.private_key(), &i_bytes)
                             .unwrap();
 
-                    let (mut r_context, r_obtained_key) = responder_ingest_message(
+                    let (r_context, r_obtained_key) = responder_ingest_message(
                         &r_context,
                         Some(initiator_ed25519_keypair.public_key()),
                         None,
@@ -430,7 +430,7 @@ mod test {
 
                 // Initiator, Mutual
                 {
-                    let (mut i_context, i_frame) = initiator_process(
+                    let (i_context, i_frame) = initiator_process(
                         &mut rng,
                         crate::context::KKTMode::Mutual,
                         ciphersuite,
@@ -454,7 +454,7 @@ mod test {
                         decrypt_initial_kkt_frame(responder_x25519_keypair.private_key(), &i_bytes)
                             .unwrap();
 
-                    let (mut r_context, r_obtained_key) = responder_ingest_message(
+                    let (r_context, r_obtained_key) = responder_ingest_message(
                         &i_context_r,
                         Some(initiator_ed25519_keypair.public_key()),
                         Some(&i_dir_hash),

@@ -749,4 +749,251 @@ mod tests {
 
 
 
+
+
+
+
+
+
+
+
+
+    #[tokio::test]
+    async fn test_send_receive_client_hello_message() {
+        use nym_lp::message::ClientHelloData;
+        use tokio::net::{TcpListener, TcpStream};
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let mut rng = rand::thread_rng();
+        let ed25519 = ed25519::KeyPair::new(&mut rng);
+        let x25519 = ed25519.to_x25519();
+
+        let client_key = *x25519.public_key();
+        let client_ed25519_key = *ed25519.public_key();
+
+        let hello_data =
+            ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
+        let expected_salt = hello_data.salt; // Clone salt before moving hello_data
+
+        let server_task = tokio::spawn(async move {
+            let (stream, remote_addr) = listener.accept().await.unwrap();
+            let state = create_minimal_test_state().await;
+            let mut handler = LpConnectionHandler::new(stream, remote_addr, state);
+
+            let packet = LpPacket::new(
+                LpHeader {
+                    protocol_version: 1,
+                    reserved: [0u8; 3],
+                    receiver_idx: 300,
+                    counter: 30,
+                },
+                LpMessage::ClientHello(hello_data),
+            );
+            handler.send_lp_packet(packet).await
+        });
+
+        let mut client_stream = TcpStream::connect(addr).await.unwrap();
+        server_task.await.unwrap().unwrap();
+
+        let received = read_lp_packet_from_stream(&mut client_stream)
+            .await
+            .unwrap();
+        assert_eq!(received.header().receiver_idx, 300);
+        assert_eq!(received.header().counter, 30);
+        match received.message() {
+            LpMessage::ClientHello(data) => {
+                assert_eq!(data.client_lp_public_key, client_key);
+                assert_eq!(data.salt, expected_salt);
+            }
+            _ => panic!("Expected ClientHello message"),
+        }
+    }
+
+    // ==================== receive_client_hello Tests ====================
+
+    #[tokio::test]
+    async fn test_receive_client_hello_valid() {
+        use tokio::net::{TcpListener, TcpStream};
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_task = tokio::spawn(async move {
+            let (stream, remote_addr) = listener.accept().await.unwrap();
+            let state = create_minimal_test_state().await;
+            let mut handler = LpConnectionHandler::new(stream, remote_addr, state);
+            handler.receive_client_hello().await
+        });
+
+        let mut client_stream = TcpStream::connect(addr).await.unwrap();
+
+        // Create and send valid ClientHello
+        // Create separate Ed25519 keypair and derive X25519 from it (like production code)
+        use nym_crypto::asymmetric::ed25519;
+        use rand::rngs::OsRng;
+
+        let client_ed25519_keypair = ed25519::KeyPair::new(&mut OsRng);
+        let client_x25519_public = client_ed25519_keypair.public_key().to_x25519().unwrap();
+
+        let hello_data = ClientHelloData::new_with_fresh_salt(
+            client_x25519_public,
+            *client_ed25519_keypair.public_key(),
+            timestamp,
+        );
+        let packet = LpPacket::new(
+            LpHeader {
+                protocol_version: 1,
+                reserved: [0u8; 3],
+                receiver_idx: 0,
+                counter: 0,
+            },
+            LpMessage::ClientHello(hello_data.clone()),
+        );
+        write_lp_packet_to_stream(&mut client_stream, &packet)
+            .await
+            .unwrap();
+
+        // Handler should receive and parse it
+        let result = server_task.await.unwrap();
+        assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
+
+        let (x25519_pubkey, ed25519_pubkey, salt) = result.unwrap();
+        assert_eq!(x25519_pubkey.as_bytes(), &client_x25519_public.to_bytes());
+        assert_eq!(
+            ed25519_pubkey.to_bytes(),
+            client_ed25519_keypair.public_key().to_bytes()
+        );
+        assert_eq!(salt, hello_data.salt);
+    }
+
+    #[tokio::test]
+    async fn test_receive_client_hello_timestamp_too_old() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        use tokio::net::{TcpListener, TcpStream};
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server_task = tokio::spawn(async move {
+            let (stream, remote_addr) = listener.accept().await.unwrap();
+            let state = create_minimal_test_state().await;
+            let mut handler = LpConnectionHandler::new(stream, remote_addr, state);
+            handler.receive_client_hello().await
+        });
+
+        let mut client_stream = TcpStream::connect(addr).await.unwrap();
+
+        // Create ClientHello with old timestamp
+        // Use proper separate Ed25519 and X25519 keys (like production code)
+        use nym_crypto::asymmetric::ed25519;
+        use rand::rngs::OsRng;
+
+        let client_ed25519_keypair = ed25519::KeyPair::new(&mut OsRng);
+        let client_x25519_public = client_ed25519_keypair.public_key().to_x25519().unwrap();
+
+        let mut hello_data = ClientHelloData::new_with_fresh_salt(
+            client_x25519_public,
+            *client_ed25519_keypair.public_key(),
+            timestamp,
+        );
+
+        // Manually set timestamp to be very old (100 seconds ago)
+        let old_timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            - 100;
+        hello_data.salt[..8].copy_from_slice(&old_timestamp.to_le_bytes());
+
+        let packet = LpPacket::new(
+            LpHeader {
+                protocol_version: 1,
+                reserved: [0u8; 3],
+                receiver_idx: 0,
+                counter: 0,
+            },
+            LpMessage::ClientHello(hello_data),
+        );
+        write_lp_packet_to_stream(&mut client_stream, &packet)
+            .await
+            .unwrap();
+
+        // Should fail with timestamp error
+        let result = server_task.await.unwrap();
+        assert!(result.is_err());
+        // Note: Can't use unwrap_err() directly because PublicKey doesn't implement Debug
+        // Just check that it failed
+        match result {
+            Err(e) => {
+                let err_msg = format!("{}", e);
+                assert!(
+                    err_msg.contains("too old"),
+                    "Expected 'too old' in error, got: {}",
+                    err_msg
+                );
+            }
+            Ok(_) => panic!("Expected error but got success"),
+        }
+    }
+
+
+    #[tokio::test]
+    async fn test_send_receive_handshake_message() {
+        use tokio::net::{TcpListener, TcpStream};
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let handshake_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        let expected_data = handshake_data.clone();
+
+        let server_task = tokio::spawn(async move {
+            let (stream, remote_addr) = listener.accept().await.unwrap();
+            let state = create_minimal_test_state().await;
+            let mut handler = LpConnectionHandler::new(stream, remote_addr, state);
+
+            let packet = LpPacket::new(
+                LpHeader {
+                    protocol_version: 1,
+                    reserved: [0u8; 3],
+                    receiver_idx: 100,
+                    counter: 10,
+                },
+                LpMessage::Handshake(HandshakeData(handshake_data)),
+            );
+            handler.send_lp_packet(packet).await
+        });
+
+        let mut client_stream = TcpStream::connect(addr).await.unwrap();
+        server_task.await.unwrap().unwrap();
+
+        let received = read_lp_packet_from_stream(&mut client_stream)
+            .await
+            .unwrap();
+        assert_eq!(received.header().receiver_idx, 100);
+        assert_eq!(received.header().counter, 10);
+        match received.message() {
+            LpMessage::Handshake(data) => assert_eq!(data, &HandshakeData(expected_data)),
+            _ => panic!("Expected Handshake message"),
+        }
+    }
+
+
  */

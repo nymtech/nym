@@ -181,9 +181,9 @@ mod tests {
     #[test]
     fn test_multiple_sessions() {
         let mut manager = SessionManager::new();
-        let session1 = SessionsMock::mock_post_handshake(123).unwrap().initiator;
-        let session2 = SessionsMock::mock_post_handshake(124).unwrap().initiator;
-        let session3 = SessionsMock::mock_post_handshake(125).unwrap().initiator;
+        let session1 = SessionsMock::mock_post_handshake(123).initiator;
+        let session2 = SessionsMock::mock_post_handshake(124).initiator;
+        let session3 = SessionsMock::mock_post_handshake(125).initiator;
 
         let sm_1 = manager.create_session_state_machine(session1);
         let sm_2 = manager.create_session_state_machine(session2);

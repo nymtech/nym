@@ -112,8 +112,10 @@ impl<'a, S> LpTransport for NestedConnection<'a, S>
 where
     S: LpTransport + Unpin,
 {
+    #[allow(clippy::unimplemented)]
     async fn connect(_: SocketAddr) -> std::io::Result<Self> {
         // this really breaks the pattern and should be refactored
+        // since this function should never be called
         unimplemented!("cannot establish nested connection without an outer client")
     }
 
@@ -124,12 +126,10 @@ where
     async fn send_serialised_packet(&mut self, packet_data: &[u8]) -> std::io::Result<()> {
         self.send_serialised_packet(packet_data)
             .await
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))
+            .map_err(io::Error::other)
     }
 
     async fn receive_raw_packet(&mut self) -> std::io::Result<Vec<u8>> {
-        self.receive_raw_packet()
-            .await
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))
+        self.receive_raw_packet().await.map_err(io::Error::other)
     }
 }

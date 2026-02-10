@@ -49,6 +49,63 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.3-parmigiano`
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.3-parmigiano)
+- [`nym-node`](nodes/nym-node.mdx) version `1.25.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-01-27T14:54:15.579821601Z
+Build Version:      1.25.0
+Commit SHA:         1ecb457c66ccabc4877e3822566f266c7331d29e
+Commit Date:        2026-02-10T15:46:52.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+<Callout type="info" emoji="ℹ️"> **This release contains several important fixes and improvements for mixnet gateway probes, LP clients, and registration flows. Operators are encouraged to review the LP and gateway probe changes to ensure smooth node operation.**
+
+NOTE: Some LP configuration and registration fixes may require operator attention to maintain compatibility with the latest nym-node and VPN clients. Monitor your nodes closely after updating.
+</Callout>
+
+### Key updates for operators include:
+
+LP Gateway and Client fixes:
+
+- [Registration client now properly supports fallback](https://github.com/nymtech/nym/pull/6419)
+- [Exposed WireGuard PSK for vpn-client](https://github.com/nymtech/nym/pull/6411)
+- [Configurable LP timeouts](https://github.com/nymtech/nym/pull/6409)
+- [LP x25519 key added to descriptions](https://github.com/nymtech/nym/pull/6408)
+- [Improved CLI and behavior for LP Gateway Probe](https://github.com/nymtech/nym/pull/6400)
+
+Mixnet & Networking Enhancements:
+
+- [NS API Socks5 support](https://github.com/nymtech/nym/pull/6361)
+- [Two-step dvpn registration flow](https://github.com/nymtech/nym/pull/6386)
+- [DVPN PSK injection](https://github.com/nymtech/nym/pull/6378)
+
+Security & Encoding Improvements:
+
+- [Hex-encoding for LP key digests](https://github.com/nymtech/nym/pull/6394)
+- [Encrypted KKT](https://github.com/nymtech/nym/pull/6331)
+- [Reject packets with incompatible versions](https://github.com/nymtech/nym/pull/6326)
+
+Bugfixes & Quality-of-Life:
+
+- [Share IP allocation fixes](https://github.com/nymtech/nym/pull/6395)
+- [Mixnet registration fixes](https://github.com/nymtech/nym/pull/6356)
+- [Small QoL changes](https://github.com/nymtech/nym/pull/6340)
+
+Chores & Maintenance:
+
+- [Cleanup x25519/ed22519 usage](https://github.com/nymtech/nym/pull/6335)
+- [Upgrade to def_guard_wireguard v0.8.0](https://github.com/nymtech/nym/pull/6315)
+
 ## `v2026.2-oscypek`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.2-oscypek)

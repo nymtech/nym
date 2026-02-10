@@ -1,10 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::codec::OuterAeadKey;
 use crate::packet::LpHeader;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
-use crate::psq::helpers::LpTransportHandshakeExt;
 use crate::{LpError, LpMessage, LpPacket};
 use nym_kkt::ciphersuite::Ciphersuite;
 use nym_lp_transport::traits::LpTransport;
@@ -84,26 +82,6 @@ where
         let counter = self.next_counter();
         let header = LpHeader::new(session_id, counter, protocol_version);
         LpPacket::new(header, message)
-    }
-
-    /// Attempt to send an Lp packet on the persistent stream
-    /// and attempt to immediately read a response.
-    ///
-    /// Both packets are going to be optionally encrypted/decrypted based on the availability of keys
-    /// within the internal `LpStateMachine`
-    ///
-    /// # Arguments
-    /// * `packet` - The LP packet to send
-    ///
-    /// # Errors
-    /// Returns an error if not connected or if send or receive fails.
-    async fn send_and_receive_packet(
-        &mut self,
-        packet: LpPacket,
-        outer_aead_key: Option<&OuterAeadKey>,
-    ) -> Result<LpPacket, LpError> {
-        self.connection.send_packet(packet, outer_aead_key).await?;
-        self.connection.receive_packet(outer_aead_key).await
     }
 }
 

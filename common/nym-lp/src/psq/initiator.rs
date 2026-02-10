@@ -224,6 +224,7 @@ where
         Ok(())
     }
 
+    /// Receive final ACK that indicates finalisation of the handshake
     async fn receive_final_ack(&mut self, outer_aead_key: &OuterAeadKey) -> Result<(), LpError> {
         match self
             .connection

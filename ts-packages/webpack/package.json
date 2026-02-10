@@ -19,7 +19,7 @@
     "clean-webpack-plugin": "^4.0.0",
     "css-loader": "^6.7.3",
     "dotenv-webpack": "^7.0.3",
-    "eslint": "^8.10.0",
+    "eslint": "^9.26.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.0.0",
     "favicons": "^7.0.2",

@@ -208,7 +208,7 @@ impl NestedLpSession {
             remote_peer,
             protocol_version,
         )
-        .psq_handshake_initiator()
+        .complete_as_initiator()
         .await?;
 
         // Store the state machine (with established session) for later use

@@ -6934,6 +6934,7 @@ dependencies = [
  "libcrux-kem",
  "libcrux-psq",
  "libcrux-traits",
+ "mock_instant",
  "num_enum",
  "nym-crypto",
  "nym-kkt",

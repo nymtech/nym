@@ -41,6 +41,7 @@ nym-test-utils = { workspace = true, optional = true }
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 #rand_chacha = "0.3"
+mock_instant = { workspace = true }
 nym-crypto = { path = "../crypto", features = ["rand"] }
 nym-test-utils = { workspace = true }
 anyhow = { workspace = true }

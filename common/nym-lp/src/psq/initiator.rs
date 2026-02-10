@@ -6,8 +6,8 @@ use crate::message::{HandshakeData, KKTRequestData, MessageType};
 use crate::noise_protocol::NoiseProtocol;
 use crate::peer::LpRemotePeer;
 use crate::psk::psq_initiator_create_message;
-use crate::psq::PSQHandshakeState;
 use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp};
+use crate::psq::{IntermediateHandshakeFailure, PSQHandshakeState};
 use crate::session::PqSharedSecret;
 use crate::{ClientHelloData, LpError, LpMessage, LpSession};
 use nym_kkt::KKT_RESPONSE_AAD;
@@ -24,7 +24,7 @@ where
     S: LpTransport + Unpin,
 {
     /// Generate and send client hello to the responder
-    async fn send_client_hello(&mut self) -> Result<ClientHelloData, LpError> {
+    pub(crate) async fn send_client_hello(&mut self) -> Result<ClientHelloData, LpError> {
         let protocol = self.protocol_version()?;
 
         // 1. Generate and send ClientHelloData with fresh salt and both public keys
@@ -40,8 +40,8 @@ where
     /// Attempt to receive an ack to sent client hello. returns a boolean indicating
     /// whether the request has been successful or whether there has been a collision in receiver
     /// index requiring a retry
-    async fn receive_client_hello_ack(&mut self) -> Result<bool, LpError> {
-        match self.connection.receive_packet(None).await?.message {
+    pub(crate) async fn receive_client_hello_ack(&mut self) -> Result<bool, LpError> {
+        match self.receive_non_error(None).await?.message {
             LpMessage::Ack => Ok(true),
             LpMessage::Collision => Ok(false),
             other => {
@@ -55,7 +55,7 @@ where
     }
 
     /// Attempt to send KKT request to begin the handshake
-    async fn send_kkt_request(
+    pub(crate) async fn send_kkt_request(
         &mut self,
         session_id: u32,
         remote_peer: &LpRemotePeer,
@@ -73,12 +73,12 @@ where
 
     /// Attempt to receive a KKT response to the previously sent request and extract (and validate)
     /// the received encapsulation key
-    async fn receive_kkt_response(
+    pub(crate) async fn receive_kkt_response(
         &mut self,
         (kkt_context, session_secret): (KKTContext, KKTSessionSecret),
         remote_peer: &LpRemotePeer,
     ) -> Result<EncapsulationKey<'static>, LpError> {
-        let kkt_response = match self.connection.receive_packet(None).await?.message {
+        let kkt_response = match self.receive_non_error(None).await?.message {
             LpMessage::KKTResponse(response) => response,
             other => {
                 return Err(LpError::unexpected_handshake_response(
@@ -103,7 +103,7 @@ where
     }
 
     /// Attempt to prepare and send initial PSQ msg1
-    async fn send_psq_initiator_message(
+    pub(crate) async fn send_psq_initiator_message(
         &mut self,
         remote_peer: &LpRemotePeer,
         encapsulation_key: &EncapsulationKey<'_>,
@@ -158,7 +158,7 @@ where
     }
 
     /// Attempt to receive and validate received PSQ msg2
-    async fn receive_psq_responder_message(
+    pub(crate) async fn receive_psq_responder_message(
         &mut self,
         outer_aead_key: &OuterAeadKey,
         noise_protocol: &mut NoiseProtocol,
@@ -196,7 +196,7 @@ where
     }
 
     /// Attempt to prepare and send final PSQ msg3
-    async fn send_final_psq_message(
+    pub(crate) async fn send_final_psq_message(
         &mut self,
         session_id: u32,
         outer_aead_key: &OuterAeadKey,
@@ -224,7 +224,10 @@ where
     }
 
     /// Receive final ACK that indicates finalisation of the handshake
-    async fn receive_final_ack(&mut self, outer_aead_key: &OuterAeadKey) -> Result<(), LpError> {
+    pub(crate) async fn receive_final_ack(
+        &mut self,
+        outer_aead_key: &OuterAeadKey,
+    ) -> Result<(), LpError> {
         match self
             .connection
             .receive_packet(Some(outer_aead_key))
@@ -239,16 +242,17 @@ where
         }
     }
 
-    // TODO: missing: receive counter check
-    pub async fn psq_handshake_initiator(mut self) -> Result<LpSession, LpError>
+    async fn complete_as_initiator_inner(
+        &mut self,
+    ) -> Result<LpSession, IntermediateHandshakeFailure>
     where
         S: LpTransport + Unpin,
     {
         // 0. retrieve the expected kem key hash. if we don't know it,
         // there's no point in even trying to start the handshake
         let Some(remote_peer) = self.remote_peer.take() else {
-            return Err(LpError::kkt_psq_handshake(
-                "initiator can't proceed without remote information",
+            return Err(IntermediateHandshakeFailure::plain(
+                LpError::kkt_psq_handshake("initiator can't proceed without remote information"),
             ));
         };
 
@@ -259,8 +263,15 @@ where
             attempt += 1;
 
             debug!("sending client hello");
-            let client_hello = self.send_client_hello().await?;
-            if self.receive_client_hello_ack().await? {
+            let client_hello = self
+                .send_client_hello()
+                .await
+                .map_err(IntermediateHandshakeFailure::plain)?;
+            if self
+                .receive_client_hello_ack()
+                .await
+                .map_err(IntermediateHandshakeFailure::plain)?
+            {
                 debug!("received client hello ACK");
                 break client_hello;
             }
@@ -268,8 +279,10 @@ where
 
             // TODO: make it configurable
             if attempt > 3 {
-                return Err(LpError::kkt_psq_handshake(
-                    "failed to establish receiver index without collision",
+                return Err(IntermediateHandshakeFailure::plain(
+                    LpError::kkt_psq_handshake(
+                        "failed to establish receiver index without collision",
+                    ),
                 ));
             }
         };
@@ -279,40 +292,100 @@ where
 
         // 3. prepare and send KKT request
         debug!("sending KKT request");
-        let kkt_data = self.send_kkt_request(session_id, &remote_peer).await?;
+        let kkt_data = self
+            .send_kkt_request(session_id, &remote_peer)
+            .await
+            .map_err(|source| IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: None,
+                source,
+            })?;
 
         // 4. receive and process KKT response
-        let encapsulation_key = self.receive_kkt_response(kkt_data, &remote_peer).await?;
+        let encapsulation_key = self
+            .receive_kkt_response(kkt_data, &remote_peer)
+            .await
+            .map_err(|source| IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: None,
+                source,
+            })?;
         debug!("received KKT response");
 
         // 5. prepare and send PSQ msg1
         debug!("sending PSQ msg1");
         let (outer_aead_key, mut noise_protocol, pq_shared_secret) = self
             .send_psq_initiator_message(&remote_peer, &encapsulation_key, &salt, &session_id_bytes)
-            .await?;
+            .await
+            .map_err(|source| IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: None,
+                source,
+            })?;
 
         // 6. receive and process PSQ msg2
         debug!("received PSQ msg2");
-        self.receive_psq_responder_message(&outer_aead_key, &mut noise_protocol)
-            .await?;
+        if let Err(source) = self
+            .receive_psq_responder_message(&outer_aead_key, &mut noise_protocol)
+            .await
+        {
+            return Err(IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: Some(outer_aead_key),
+                source,
+            });
+        }
 
         // 7. prepare and send PSQ msg3
         debug!("sending PSQ msg3");
-        self.send_final_psq_message(session_id, &outer_aead_key, &mut noise_protocol)
-            .await?;
+        if let Err(source) = self
+            .send_final_psq_message(session_id, &outer_aead_key, &mut noise_protocol)
+            .await
+        {
+            return Err(IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: Some(outer_aead_key),
+                source,
+            });
+        }
 
         // 8. receive final ACK and finalise
         debug!("received final ACK");
-        self.receive_final_ack(&outer_aead_key).await?;
+        if let Err(source) = self.receive_final_ack(&outer_aead_key).await {
+            return Err(IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: Some(outer_aead_key),
+                source,
+            });
+        }
 
+        #[allow(clippy::expect_used)]
         Ok(LpSession::new(
             session_id,
-            self.protocol_version()?,
+            self.protocol_version()
+                .expect("protocol version is known at this point"),
             outer_aead_key,
-            self.local_peer,
+            self.local_peer.clone(),
             remote_peer,
             pq_shared_secret,
             noise_protocol,
         ))
+    }
+
+    // TODO: missing: receive counter check
+    pub async fn complete_as_initiator(mut self) -> Result<LpSession, LpError>
+    where
+        S: LpTransport + Unpin,
+    {
+        match self.complete_as_initiator_inner().await {
+            Ok(res) => Ok(res),
+            Err(err) => Err(self.try_send_error_packet(err).await),
+        }
     }
 }

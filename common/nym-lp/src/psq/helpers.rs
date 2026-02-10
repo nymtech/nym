@@ -5,6 +5,10 @@ use crate::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
 use crate::{LpError, LpPacket};
 use bytes::BytesMut;
 use nym_lp_transport::traits::LpTransport;
+
+#[cfg(test)]
+use mock_instant::thread_local::{SystemTime, UNIX_EPOCH};
+#[cfg(not(test))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub(crate) fn current_timestamp() -> Result<u64, LpError> {

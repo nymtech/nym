@@ -6,8 +6,8 @@ use crate::message::{HandshakeData, KKTResponseData, MessageType};
 use crate::noise_protocol::NoiseProtocol;
 use crate::peer::LpRemotePeer;
 use crate::psk::psq_responder_process_message;
-use crate::psq::PSQHandshakeState;
 use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp};
+use crate::psq::{IntermediateHandshakeFailure, PSQHandshakeState};
 use crate::session::PqSharedSecret;
 use crate::{ClientHelloData, LpError, LpMessage, LpSession};
 use nym_kkt::KKT_RESPONSE_AAD;
@@ -51,7 +51,7 @@ impl<'a, S> PSQHandshakeState<'a, S>
 where
     S: LpTransport + Unpin,
 {
-    fn encapsulated_kem_keys(
+    pub(crate) fn encapsulated_kem_keys(
         &self,
     ) -> Result<(DecapsulationKey<'static>, EncapsulationKey<'static>), LpError> {
         let kem_keys = self
@@ -85,8 +85,10 @@ where
     }
 
     /// Attempt to receive and validate ClientHello
-    async fn receive_client_hello(&mut self) -> Result<(ClientHelloData, LpRemotePeer), LpError> {
-        let client_hello_packet = self.connection.receive_packet(None).await?;
+    pub(crate) async fn receive_client_hello(
+        &mut self,
+    ) -> Result<(ClientHelloData, LpRemotePeer), LpError> {
+        let client_hello_packet = self.receive_non_error(None).await?;
         let client_hello = match client_hello_packet.message {
             LpMessage::ClientHello(client_hello) => client_hello,
             other => {
@@ -115,7 +117,7 @@ where
     }
 
     /// Send client hello ACK
-    async fn send_client_hello_ack(&mut self, session_id: u32) -> Result<(), LpError> {
+    pub(crate) async fn send_client_hello_ack(&mut self, session_id: u32) -> Result<(), LpError> {
         let protocol = self.protocol_version()?;
 
         let ack = self.next_packet(session_id, protocol, LpMessage::Ack);
@@ -124,10 +126,10 @@ where
     }
 
     /// Attempt to receive and process a KKT request
-    async fn receive_kkt_request(
+    pub(crate) async fn receive_kkt_request(
         &mut self,
     ) -> Result<(KKTContext, KKTSessionSecret, KKTSessionId), LpError> {
-        let kkt_request = match self.connection.receive_packet(None).await?.message {
+        let kkt_request = match self.receive_non_error(None).await?.message {
             LpMessage::KKTRequest(request) => request.0,
             other => {
                 return Err(LpError::unexpected_handshake_response(
@@ -145,7 +147,7 @@ where
     }
 
     /// Attempt to send KKT response to the previously received request
-    async fn send_kkt_response(
+    pub(crate) async fn send_kkt_response(
         &mut self,
         session_id: u32,
         (kkt_context, session_secret, kkt_session_id): (KKTContext, KKTSessionSecret, KKTSessionId),
@@ -173,14 +175,14 @@ where
     }
 
     /// Attempt to receive and process a PSQ msg1 request
-    async fn receive_psq_initiator_message(
+    pub(crate) async fn receive_psq_initiator_message(
         &mut self,
         remote_peer: &LpRemotePeer,
         local_kem_keypair: (&DecapsulationKey<'_>, &EncapsulationKey<'_>),
         salt: &[u8; 32],
         session_id_bytes: &[u8; 4],
     ) -> Result<(OuterAeadKey, NoiseProtocol, PqSharedSecret, Vec<u8>), LpError> {
-        let psq_msg1 = match self.connection.receive_packet(None).await?.message {
+        let psq_msg1 = match self.receive_non_error(None).await?.message {
             LpMessage::Handshake(response) => response.0,
             other => {
                 return Err(LpError::unexpected_handshake_response(
@@ -235,7 +237,7 @@ where
     }
 
     /// Attempt to prepare and generate a responder PSQ msg2
-    async fn send_psq_responder_message(
+    pub(crate) async fn send_psq_responder_message(
         &mut self,
         session_id: u32,
         psk_handle: &[u8],
@@ -263,7 +265,7 @@ where
     }
 
     /// Attempt to receive and process final PSQ msg3
-    async fn receive_final_psq_message(
+    pub(crate) async fn receive_final_psq_message(
         &mut self,
         outer_aead_key: &OuterAeadKey,
         noise_protocol: &mut NoiseProtocol,
@@ -293,7 +295,7 @@ where
     }
 
     /// Send final ACK to indicate finalisation of the handshake
-    async fn send_final_ack(
+    pub(crate) async fn send_final_ack(
         &mut self,
         session_id: u32,
         outer_aead_key: &OuterAeadKey,
@@ -307,12 +309,22 @@ where
         Ok(())
     }
 
-    pub async fn complete_as_responder(mut self) -> Result<LpSession, LpError>
+    async fn complete_as_responder_inner(
+        &mut self,
+    ) -> Result<LpSession, IntermediateHandshakeFailure>
     where
         S: LpTransport + Unpin,
     {
         // 1. receive and validate ClientHello
-        let (client_hello_data, remote_peer) = self.receive_client_hello().await?;
+        let (client_hello_data, remote_peer) =
+            self.receive_client_hello()
+                .await
+                .map_err(|source| IntermediateHandshakeFailure {
+                    session_id: None,
+                    protocol_version: self.protocol_version,
+                    outer_aead_key: None,
+                    source,
+                })?;
         debug!("received client hello");
 
         let session_id = client_hello_data.receiver_index;
@@ -321,19 +333,47 @@ where
 
         // 2. send ack
         debug!("sending client hello ACK");
-        self.send_client_hello_ack(session_id).await?;
+        self.send_client_hello_ack(session_id)
+            .await
+            .map_err(|source| IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: None,
+                source,
+            })?;
 
         // 3. receive and process KKT request
-        let kkt_data = self.receive_kkt_request().await?;
+        let kkt_data =
+            self.receive_kkt_request()
+                .await
+                .map_err(|source| IntermediateHandshakeFailure {
+                    session_id: Some(session_id),
+                    protocol_version: self.protocol_version,
+                    outer_aead_key: None,
+                    source,
+                })?;
         debug!("received KKT request");
 
         // TEMP: 'derive' KEM keys
-        let (dec_key, enc_key) = self.encapsulated_kem_keys()?;
+        let (dec_key, enc_key) =
+            self.encapsulated_kem_keys()
+                .map_err(|source| IntermediateHandshakeFailure {
+                    session_id: Some(session_id),
+                    protocol_version: self.protocol_version,
+                    outer_aead_key: None,
+                    source,
+                })?;
 
         // 4. prepare and send KKT response
         debug!("sending KKT response");
         self.send_kkt_response(session_id, kkt_data, &enc_key)
-            .await?;
+            .await
+            .map_err(|source| IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: None,
+                source,
+            })?;
 
         // 5. receive and process PSQ msg1
         debug!("received PSQ msg1");
@@ -344,36 +384,78 @@ where
                 &salt,
                 &session_id_bytes,
             )
-            .await?;
+            .await
+            .map_err(|source| IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: None,
+                source,
+            })?;
 
         // 6. prepare and send PSQ msg2
         debug!("sending PSQ msg2");
-        self.send_psq_responder_message(
-            session_id,
-            &psk_handle,
-            &outer_aead_key,
-            &mut noise_protocol,
-        )
-        .await?;
+        if let Err(source) = self
+            .send_psq_responder_message(
+                session_id,
+                &psk_handle,
+                &outer_aead_key,
+                &mut noise_protocol,
+            )
+            .await
+        {
+            return Err(IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: Some(outer_aead_key),
+                source,
+            });
+        }
 
         // 7. receive and process PSQ msg3
         debug!("received PSQ msg3");
-        self.receive_final_psq_message(&outer_aead_key, &mut noise_protocol)
-            .await?;
+        if let Err(source) = self
+            .receive_final_psq_message(&outer_aead_key, &mut noise_protocol)
+            .await
+        {
+            return Err(IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: Some(outer_aead_key),
+                source,
+            });
+        }
 
         // 8. [optionally] send ACK to finalise
         debug!("sending final ACK");
-        self.send_final_ack(session_id, &outer_aead_key).await?;
+        if let Err(source) = self.send_final_ack(session_id, &outer_aead_key).await {
+            return Err(IntermediateHandshakeFailure {
+                session_id: Some(session_id),
+                protocol_version: self.protocol_version,
+                outer_aead_key: Some(outer_aead_key),
+                source,
+            });
+        }
 
         #[allow(clippy::expect_used)]
         Ok(LpSession::new(
             session_id,
-            self.protocol_version()?,
+            self.protocol_version()
+                .expect("protocol version is known at this point"),
             outer_aead_key,
-            self.local_peer,
+            self.local_peer.clone(),
             remote_peer,
             pq_shared_secret,
             noise_protocol,
         ))
+    }
+
+    pub async fn complete_as_responder(mut self) -> Result<LpSession, LpError>
+    where
+        S: LpTransport + Unpin,
+    {
+        match self.complete_as_responder_inner().await {
+            Ok(res) => Ok(res),
+            Err(err) => Err(self.try_send_error_packet(err).await),
+        }
     }
 }

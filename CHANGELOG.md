@@ -2,9 +2,6 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-<<<<<<< Local Changes
-
 ## [2026.3-parmigiano] (2026-02-11)
 
 - chore: disable LP on parmigiano branch ([#6422])
@@ -166,7 +163,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#6238]: https://github.com/nymtech/nym/pull/6238
 [#6237]: https://github.com/nymtech/nym/pull/6237
 [#6172]: https://github.com/nymtech/nym/pull/6172
-||||||| Old File
 
 ## [2026.2-oscypek] (2026-01-27)
 
@@ -329,8 +325,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#5957]: https://github.com/nymtech/nym/pull/5957
 
 ## [2025.20-leerdammer] (2025-11-12)
-=======
->>>>>>> External Changes
+
 ## [2026.3-parmigiano] (2026-02-11)
 
 - chore: disable LP on parmigiano branch ([#6422])

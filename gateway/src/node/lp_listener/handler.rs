@@ -185,7 +185,7 @@ where
 
             let receiver_idx = header.receiver_idx;
 
-            // Step 2: Validate or set binding (session-affine connection)
+            // Step 2: Validate the binding
             if let Err(e) = self.validate_binding(receiver_idx) {
                 self.emit_lifecycle_metrics(false);
                 return Err(e);
@@ -231,7 +231,7 @@ where
     ///   extracts receiver_index from payload
     /// - First non-bootstrap packet: sets binding from header's receiver_idx
     /// - Subsequent packets: must match bound receiver_idx
-    fn validate_binding(&mut self, receiver_idx: u32) -> Result<(), GatewayError> {
+    fn validate_binding(&self, receiver_idx: u32) -> Result<(), GatewayError> {
         let bound_receiver_idx = self.bound_receiver_index()?;
 
         if bound_receiver_idx != receiver_idx {

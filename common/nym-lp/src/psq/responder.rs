@@ -219,12 +219,11 @@ where
         let outer_aead_key = OuterAeadKey::from_psk(&psk);
         // TEMP /\
 
-        let noise_state = snow::Builder::new(crate::NOISE_PATTERN.parse()?)
-            .local_private_key(self.local_peer.x25519().private_key().as_bytes())
-            .remote_public_key(remote_peer.x25519_public.as_bytes())
-            .psk(crate::NOISE_PSK_INDEX, &psk)
-            .build_responder()?;
-        let mut noise_protocol = NoiseProtocol::new(noise_state);
+        let mut noise_protocol = NoiseProtocol::build_new_responder(
+            self.local_peer.x25519().private_key().as_bytes(),
+            remote_peer.x25519_public.as_bytes(),
+            &psk,
+        )?;
         noise_protocol.read_message(noise_payload)?;
 
         Ok((

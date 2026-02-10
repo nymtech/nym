@@ -130,12 +130,11 @@ where
         // TEMP /\
 
         // prepare noise state and msg1
-        let noise_state = snow::Builder::new(crate::NOISE_PATTERN.parse()?)
-            .local_private_key(self.local_peer.x25519().private_key().as_bytes())
-            .remote_public_key(remote_peer.x25519_public.as_bytes())
-            .psk(crate::NOISE_PSK_INDEX, &psk)
-            .build_initiator()?;
-        let mut noise_protocol = NoiseProtocol::new(noise_state);
+        let mut noise_protocol = NoiseProtocol::build_new_initiator(
+            self.local_peer.x25519().private_key().as_bytes(),
+            remote_peer.x25519_public.as_bytes(),
+            &psk,
+        )?;
 
         // prepare noise msg1
         let noise_msg1 = noise_protocol

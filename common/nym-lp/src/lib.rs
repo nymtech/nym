@@ -80,7 +80,7 @@ impl SessionsMock {
         let psq_payload = psq_initiator.payload;
         let outer_aead_key = crate::codec::OuterAeadKey::from_psk(&psk);
 
-        let noise_state_init = snow::Builder::new(crate::NOISE_PATTERN.parse().unwrap())
+        let noise_state_init = snow::Builder::new(crate::noise_protocol::NoiseProtocol::params())
             .local_private_key(init.x25519().private_key().as_bytes())
             .remote_public_key(resp_remote.x25519_public.as_bytes())
             .psk(crate::NOISE_PSK_INDEX, &psk)
@@ -100,7 +100,7 @@ impl SessionsMock {
         )
         .unwrap();
 
-        let noise_state_resp = snow::Builder::new(crate::NOISE_PATTERN.parse().unwrap())
+        let noise_state_resp = snow::Builder::new(crate::noise_protocol::NoiseProtocol::params())
             .local_private_key(resp.x25519().private_key().as_bytes())
             .remote_public_key(init_remote.x25519_public.as_bytes())
             .psk(crate::NOISE_PSK_INDEX, &psk)

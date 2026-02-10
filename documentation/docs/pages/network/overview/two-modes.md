@@ -10,7 +10,7 @@ dVPN mode routes traffic through 2 hops—an Entry Gateway and an Exit Gateway. 
 User ──▶ Entry Gateway ──▶ Exit Gateway ──▶ Internet
 ```
 
-This mode uses [Amnezia Wireguard](https://docs.amnezia.org/documentation/amnezia-wg/) to create a tunnel between you and the Entry Gateway, which then creates another tunnel to the Exit Gateway.
+This mode uses [AmneziaWG](https://docs.amnezia.org/documentation/amnezia-wg/), a WireGuard fork that adds traffic obfuscation to help evade some forms of protocol detection. It creates a tunnel between you and the Entry Gateway, which then creates another tunnel to the Exit Gateway.
 
 dVPN mode hides your IP from destination servers and splits knowledge between two independent operators—the Entry Gateway knows your IP but not your destination, while the Exit Gateway knows your destination but not your IP. However, it does not add timing delays or cover traffic. A sophisticated adversary observing both gateways could potentially correlate entry and exit timing.
 

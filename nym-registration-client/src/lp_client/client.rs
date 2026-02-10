@@ -416,7 +416,8 @@ where
         let ciphersuite = LpSession::default_ciphersuite();
         let session =
             LpSession::psq_handshake_state(connection, ciphersuite, local_peer, Some(remote_peer))
-                .psq_handshake_initiator(protocol_version)
+                .with_protocol_version(protocol_version)
+                .psq_handshake_initiator()
                 .await?;
 
         // Store the state machine (with established session) for later use

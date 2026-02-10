@@ -13,7 +13,7 @@ use std::fmt::{self, Display};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 /// Data structure for the ClientHello message
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ClientHelloData {
     /// Client-proposed receiver index for session identification (4 bytes)
     /// Auto-generated randomly by the client

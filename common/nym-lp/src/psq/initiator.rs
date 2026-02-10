@@ -4,13 +4,16 @@
 use crate::codec::OuterAeadKey;
 use crate::message::{HandshakeData, KKTRequestData, MessageType};
 use crate::noise_protocol::NoiseProtocol;
+use crate::peer::LpRemotePeer;
 use crate::psk::psq_initiator_create_message;
 use crate::psq::PSQHandshakeState;
 use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp};
 use crate::session::PqSharedSecret;
-use crate::{LpError, LpMessage, LpSession};
+use crate::{ClientHelloData, LpError, LpMessage, LpSession};
 use nym_kkt::KKT_RESPONSE_AAD;
-use nym_kkt::encryption::{decrypt_kkt_frame, encrypt_initial_kkt_frame};
+use nym_kkt::ciphersuite::EncapsulationKey;
+use nym_kkt::context::KKTContext;
+use nym_kkt::encryption::{KKTSessionSecret, decrypt_kkt_frame, encrypt_initial_kkt_frame};
 use nym_kkt::session::{anonymous_initiator_process, initiator_ingest_response};
 use nym_lp_transport::traits::LpTransport;
 use rand09::rng;
@@ -20,62 +23,62 @@ impl<'a, S> PSQHandshakeState<'a, S>
 where
     S: LpTransport + Unpin,
 {
-    // TODO: missing: receive counter check
-    pub async fn psq_handshake_initiator(
-        mut self,
-        remote_protocol: u8,
-    ) -> Result<LpSession, LpError>
-    where
-        S: LpTransport + Unpin,
-    {
-        // 0. retrieve the expected kem key hash. if we don't know if,
-        // there's no point in even trying to start the handshake
-        let Some(remote_peer) = self.remote_peer.take() else {
-            return Err(LpError::kkt_psq_handshake(
-                "initiator can't proceed without remote information",
-            ));
-        };
-        let expected_kem_key_digest = remote_peer.expected_kem_key_hash(self.ciphersuite)?;
+    /// Generate and send client hello to the responder
+    async fn send_client_hello(&mut self) -> Result<ClientHelloData, LpError> {
+        let protocol = self.protocol_version()?;
 
         // 1. Generate and send ClientHelloData with fresh salt and both public keys
         let timestamp = current_timestamp()?;
 
         let client_hello_data = self.local_peer.build_client_hello_data(timestamp);
-        let salt = client_hello_data.salt;
-        let session_id = client_hello_data.receiver_index;
-        let session_id_bytes = session_id.to_le_bytes();
+        self.connection
+            .send_packet(client_hello_data.into_lp_packet(protocol), None)
+            .await?;
+        Ok(client_hello_data)
+    }
 
-        // 2. receive ack and verify we received Ack
-        // this confirms that gateway is fine with our suggested protocol version
-        // in the future we probably have some fancier negotiation
-        debug!("sending client hello");
-        match self
-            .send_and_receive_packet(client_hello_data.into_lp_packet(remote_protocol), None)
-            .await?
-            .message
-        {
-            LpMessage::Ack => (),
+    /// Attempt to receive an ack to sent client hello. returns a boolean indicating
+    /// whether the request has been successful or whether there has been a collision in receiver
+    /// index requiring a retry
+    async fn receive_client_hello_ack(&mut self) -> Result<bool, LpError> {
+        match self.connection.receive_packet(None).await?.message {
+            LpMessage::Ack => Ok(true),
+            LpMessage::Collision => Ok(false),
             other => {
                 // TODO: retry on collision
-
-                return Err(LpError::unexpected_handshake_response(
+                Err(LpError::unexpected_handshake_response(
                     other.typ(),
                     MessageType::Ack,
-                ));
+                ))
             }
         }
-        debug!("received client hello ACK");
+    }
 
-        // 3. prepare and send KKT request
+    /// Attempt to send KKT request to begin the handshake
+    async fn send_kkt_request(
+        &mut self,
+        session_id: u32,
+        remote_peer: &LpRemotePeer,
+    ) -> Result<(KKTContext, KKTSessionSecret), LpError> {
+        let protocol = self.protocol_version()?;
+
         let (kkt_context, kkt_frame) = anonymous_initiator_process(&mut rng(), self.ciphersuite)?;
         let (session_secret, encrypted_frame) =
             encrypt_initial_kkt_frame(&mut rng(), &remote_peer.x25519_public, &kkt_frame)?;
         let lp_message = KKTRequestData::new(encrypted_frame).into();
-        let lp_packet = self.next_packet(session_id, remote_protocol, lp_message);
+        let lp_packet = self.next_packet(session_id, protocol, lp_message);
+        self.connection.send_packet(lp_packet, None).await?;
+        Ok((kkt_context, session_secret))
+    }
 
-        // 4. receive and process KKT response
-        debug!("sending KKT request");
-        let kkt_response = match self.send_and_receive_packet(lp_packet, None).await?.message {
+    /// Attempt to receive a KKT response to the previously sent request and extract (and validate)
+    /// the received encapsulation key
+    async fn receive_kkt_response(
+        &mut self,
+        (kkt_context, session_secret): (KKTContext, KKTSessionSecret),
+        remote_peer: &LpRemotePeer,
+    ) -> Result<EncapsulationKey<'static>, LpError> {
+        let kkt_response = match self.connection.receive_packet(None).await?.message {
             LpMessage::KKTResponse(response) => response,
             other => {
                 return Err(LpError::unexpected_handshake_response(
@@ -85,6 +88,7 @@ where
             }
         };
         debug!("received KKT response");
+        let expected_kem_key_digest = remote_peer.expected_kem_key_hash(self.ciphersuite)?;
 
         let (response_frame, remote_context) =
             decrypt_kkt_frame(&session_secret, &kkt_response.0, KKT_RESPONSE_AAD)?;
@@ -95,16 +99,28 @@ where
             &remote_peer.ed25519_public,
             &expected_kem_key_digest,
         )?;
+        Ok(encapsulation_key)
+    }
 
-        // 5. prepare and send PSQ msg1
+    /// Attempt to prepare and send initial PSQ msg1
+    async fn send_psq_initiator_message(
+        &mut self,
+        remote_peer: &LpRemotePeer,
+        encapsulation_key: &EncapsulationKey<'_>,
+        salt: &[u8; 32],
+        session_id_bytes: &[u8; 4],
+    ) -> Result<(OuterAeadKey, NoiseProtocol, PqSharedSecret), LpError> {
+        let protocol = self.protocol_version()?;
+        let session_id = u32::from_le_bytes(*session_id_bytes);
+
         let psq_initiator = psq_initiator_create_message(
             self.local_peer.x25519.private_key(),
             &remote_peer.x25519_public,
-            &encapsulation_key,
+            encapsulation_key,
             self.local_peer.ed25519.private_key(),
             self.local_peer.ed25519.public_key(),
-            &salt,
-            &session_id_bytes,
+            salt,
+            session_id_bytes,
         )?;
         let psk = psq_initiator.psk;
         let psq_payload = psq_initiator.payload;
@@ -132,15 +148,25 @@ where
         combined.extend_from_slice(&noise_msg1);
 
         let lp_message = HandshakeData::new(combined).into();
-        let lp_packet = self.next_packet(session_id, remote_protocol, lp_message);
+        let lp_packet = self.next_packet(session_id, protocol, lp_message);
 
-        // 6. receive and process PSQ msg2
-        debug!("sending PSQ msg1");
-        // send WITHOUT outer AEAD but receive WITH outer AEAD
         self.connection.send_packet(lp_packet, None).await?;
+        Ok((
+            outer_aead_key,
+            noise_protocol,
+            PqSharedSecret::new(psq_initiator.pq_shared_secret),
+        ))
+    }
+
+    /// Attempt to receive and validate received PSQ msg2
+    async fn receive_psq_responder_message(
+        &mut self,
+        outer_aead_key: &OuterAeadKey,
+        noise_protocol: &mut NoiseProtocol,
+    ) -> Result<(), LpError> {
         let psq_msg2 = match self
             .connection
-            .receive_packet(Some(&outer_aead_key))
+            .receive_packet(Some(outer_aead_key))
             .await?
             .message
         {
@@ -152,7 +178,6 @@ where
                 ));
             }
         };
-        debug!("received PSQ msg2");
 
         // Extract PSK handle: [u16 handle_len][handle_bytes][noise_msg]
         if psq_msg2.len() < 2 {
@@ -168,39 +193,125 @@ where
 
         // *sigh* ignore the message
         let _noise_msg2 = noise_protocol.read_message(noise_payload)?;
+        Ok(())
+    }
 
-        // 7. send PSQ msg3
+    /// Attempt to prepare and send final PSQ msg3
+    async fn send_final_psq_message(
+        &mut self,
+        session_id: u32,
+        outer_aead_key: &OuterAeadKey,
+        noise_protocol: &mut NoiseProtocol,
+    ) -> Result<(), LpError> {
+        let protocol = self.protocol_version()?;
+
         let noise_msg3 = noise_protocol
             .get_bytes_to_send()
             .ok_or_else(|| LpError::kkt_psq_handshake("failed to generate noise msg3"))??;
 
         let lp_message = HandshakeData::new(noise_msg3).into();
-        let lp_packet = self.next_packet(session_id, remote_protocol, lp_message);
+        let lp_packet = self.next_packet(session_id, protocol, lp_message);
+        self.connection
+            .send_packet(lp_packet, Some(outer_aead_key))
+            .await?;
 
-        // 8. [optional] get an ack
-        debug!("sending PSQ msg3");
+        if !noise_protocol.is_handshake_finished() {
+            return Err(LpError::kkt_psq_handshake(
+                "noise handshake not finished after msg3",
+            ));
+        }
+
+        Ok(())
+    }
+
+    async fn receive_final_ack(&mut self, outer_aead_key: &OuterAeadKey) -> Result<(), LpError> {
         match self
-            .send_and_receive_packet(lp_packet, Some(&outer_aead_key))
+            .connection
+            .receive_packet(Some(outer_aead_key))
             .await?
             .message
         {
-            LpMessage::Ack => (),
-            other => {
-                return Err(LpError::unexpected_handshake_response(
-                    other.typ(),
-                    MessageType::Ack,
+            LpMessage::Ack => Ok(()),
+            other => Err(LpError::unexpected_handshake_response(
+                other.typ(),
+                MessageType::Ack,
+            )),
+        }
+    }
+
+    // TODO: missing: receive counter check
+    pub async fn psq_handshake_initiator(mut self) -> Result<LpSession, LpError>
+    where
+        S: LpTransport + Unpin,
+    {
+        // 0. retrieve the expected kem key hash. if we don't know it,
+        // there's no point in even trying to start the handshake
+        let Some(remote_peer) = self.remote_peer.take() else {
+            return Err(LpError::kkt_psq_handshake(
+                "initiator can't proceed without remote information",
+            ));
+        };
+
+        // 1. Generate and send ClientHelloData with fresh salt and both public keys
+        // and keep retrying until we manage to establish a receiver index without collisions
+        let mut attempt = 0;
+        let client_hello_data = loop {
+            attempt += 1;
+
+            debug!("sending client hello");
+            let client_hello = self.send_client_hello().await?;
+            if self.receive_client_hello_ack().await? {
+                debug!("received client hello ACK");
+                break client_hello;
+            }
+            debug!("received client hello collision");
+
+            // TODO: make it configurable
+            if attempt > 3 {
+                return Err(LpError::kkt_psq_handshake(
+                    "failed to establish receiver index without collision",
                 ));
             }
-        }
+        };
+        let session_id = client_hello_data.receiver_index;
+        let session_id_bytes = session_id.to_le_bytes();
+        let salt = client_hello_data.salt;
+
+        // 3. prepare and send KKT request
+        debug!("sending KKT request");
+        let kkt_data = self.send_kkt_request(session_id, &remote_peer).await?;
+
+        // 4. receive and process KKT response
+        let encapsulation_key = self.receive_kkt_response(kkt_data, &remote_peer).await?;
+        debug!("received KKT response");
+
+        // 5. prepare and send PSQ msg1
+        debug!("sending PSQ msg1");
+        let (outer_aead_key, mut noise_protocol, pq_shared_secret) = self
+            .send_psq_initiator_message(&remote_peer, &encapsulation_key, &salt, &session_id_bytes)
+            .await?;
+
+        // 6. receive and process PSQ msg2
+        debug!("received PSQ msg2");
+        self.receive_psq_responder_message(&outer_aead_key, &mut noise_protocol)
+            .await?;
+
+        // 7. prepare and send PSQ msg3
+        debug!("sending PSQ msg3");
+        self.send_final_psq_message(session_id, &outer_aead_key, &mut noise_protocol)
+            .await?;
+
+        // 8. receive final ACK and finalise
         debug!("received final ACK");
+        self.receive_final_ack(&outer_aead_key).await?;
 
         Ok(LpSession::new(
             session_id,
-            remote_protocol,
+            self.protocol_version()?,
             outer_aead_key,
             self.local_peer,
             remote_peer,
-            PqSharedSecret::new(psq_initiator.pq_shared_secret),
+            pq_shared_secret,
             noise_protocol,
         ))
     }

@@ -17,6 +17,11 @@ pub struct PSQHandshakeState<'a, S> {
     /// The underlying connection established for the handshake
     connection: &'a mut S,
 
+    /// Protocol version used for the exchange.
+    /// either known implicitly through the directory (initiator)
+    /// or established through client hello (responder)
+    protocol_version: Option<u8>,
+
     /// Ciphersuite selected for the KKT/PSQ exchange
     ciphersuite: Ciphersuite,
 
@@ -44,11 +49,23 @@ where
     ) -> Self {
         PSQHandshakeState {
             connection,
+            protocol_version: None,
             ciphersuite,
             local_peer,
             remote_peer,
             sending_counter: 0,
         }
+    }
+
+    #[must_use]
+    pub fn with_protocol_version(mut self, protocol_version: u8) -> Self {
+        self.protocol_version = Some(protocol_version);
+        self
+    }
+
+    fn protocol_version(&self) -> Result<u8, LpError> {
+        self.protocol_version
+            .ok_or_else(|| LpError::kkt_psq_handshake("unknown protocol version"))
     }
 
     /// Generates the next counter value for outgoing packets.
@@ -120,11 +137,12 @@ mod tests {
         let resp_remote = resp.as_remote();
 
         let handshake_init =
-            PSQHandshakeState::new(conn_init, ciphersuite, init, Some(resp_remote));
+            PSQHandshakeState::new(conn_init, ciphersuite, init, Some(resp_remote))
+                .with_protocol_version(1);
         let handshake_resp = PSQHandshakeState::new(conn_resp, ciphersuite, resp, None);
 
         let resp_fut = handshake_resp.psq_handshake_responder().spawn_timeboxed();
-        let init_fut = handshake_init.psq_handshake_initiator(1).spawn_timeboxed();
+        let init_fut = handshake_init.psq_handshake_initiator().spawn_timeboxed();
 
         let (session_init, session_resp) = join!(init_fut, resp_fut);
 

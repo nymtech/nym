@@ -5,7 +5,7 @@ use crate::{KKT_INITIAL_FRAME_AAD, context::KKTContext, error::KKTError, frame::
 use blake3::Hasher;
 use libcrux_chacha20poly1305::{NONCE_LEN, TAG_LEN};
 use nym_crypto::asymmetric::x25519;
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore};
 use zeroize::Zeroize;
 
 #[derive(Clone, Copy, Zeroize)]
@@ -182,8 +182,7 @@ mod test {
         encryption::{KKTSessionSecret, decrypt, encrypt},
         key_utils::generate_keypair_x25519,
     };
-    use rand::{RngCore, SeedableRng, rng};
-    use rand_chacha::ChaCha20Rng;
+    use rand09::{RngCore, SeedableRng, rng};
 
     #[test]
     fn test_keygen() {
@@ -227,7 +226,7 @@ mod test {
 
     #[test]
     fn kkt_frame_encryption() -> anyhow::Result<()> {
-        let mut rng = ChaCha20Rng::seed_from_u64(42);
+        let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(42);
         let session_key = KKTSessionSecret::from_bytes([42u8; 32]);
         let aad = b"my-amazing-aad";
 

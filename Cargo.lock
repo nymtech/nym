@@ -6925,6 +6925,7 @@ dependencies = [
 name = "nym-lp"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bs58",
  "bytes",
  "chacha20poly1305",
@@ -6933,20 +6934,22 @@ dependencies = [
  "libcrux-kem",
  "libcrux-psq",
  "libcrux-traits",
+ "mock_instant",
  "num_enum",
  "nym-crypto",
  "nym-kkt",
  "nym-lp-common",
+ "nym-lp-transport",
  "nym-test-utils",
  "parking_lot",
  "rand 0.8.5",
  "rand 0.9.2",
- "rand_chacha 0.3.1",
  "serde",
  "sha2 0.10.9",
  "snow",
  "thiserror 2.0.17",
  "tls_codec",
+ "tokio",
  "tracing",
  "zeroize",
 ]

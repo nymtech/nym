@@ -1,9 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ClientHelloData;
+use crate::{ClientHelloData, LpError};
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt::ciphersuite::{KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests};
+use nym_kkt::ciphersuite::{Ciphersuite, KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -50,6 +50,14 @@ impl LpLocalPeer {
 
     pub fn x25519(&self) -> &Arc<x25519::KeyPair> {
         &self.x25519
+    }
+
+    /// Returns the reference to the KEM Public key of the peer (if available).
+    pub fn get_kem_key_handle(&self) -> Result<&x25519::PublicKey, LpError> {
+        self.kem_psq
+            .as_ref()
+            .map(|kp| kp.public_key())
+            .ok_or(LpError::ResponderWithMissingKEMKey)
     }
 
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
@@ -137,16 +145,37 @@ impl LpRemotePeer {
         self.expected_signing_key_digests = expected_signing_key_digests;
         self
     }
+
+    /// Attempt to retrieve expected KEM key hash of the remote
+    /// for [`nym_kkt::ciphersuite::KEM`] key type and [`nym_kkt::ciphersuite::HashFunction`]
+    /// specified by own [`nym_kkt::ciphersuite::Ciphersuite`]
+    pub(crate) fn expected_kem_key_hash(
+        &self,
+        ciphersuite: Ciphersuite,
+    ) -> Result<Vec<u8>, LpError> {
+        let kem = ciphersuite.kem();
+        let hash_function = ciphersuite.hash_function();
+
+        let digests = self
+            .expected_kem_key_digests
+            .get(&kem)
+            .ok_or(LpError::NoKnownKEMKeyDigests { kem, hash_function })?;
+
+        digests
+            .get(&hash_function)
+            .ok_or(LpError::NoKnownKEMKeyDigests { kem, hash_function })
+            .cloned()
+    }
 }
 
-#[cfg(test)]
+#[cfg(any(feature = "mock", test))]
 pub fn mock_peer() -> LpLocalPeer {
     // use deterministic rng
     let mut rng = nym_test_utils::helpers::deterministic_rng();
     random_peer(&mut rng)
 }
 
-#[cfg(test)]
+#[cfg(any(feature = "mock", test))]
 pub fn random_peer<R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLocalPeer {
     let ed25519 = Arc::new(ed25519::KeyPair::new(rng));
     let x25519 = Arc::new(ed25519.to_x25519());
@@ -159,7 +188,7 @@ pub fn random_peer<R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLocalPe
     }
 }
 
-#[cfg(test)]
+#[cfg(any(feature = "mock", test))]
 pub fn mock_peers() -> (LpLocalPeer, LpLocalPeer) {
     // use deterministic rng
     let mut rng = nym_test_utils::helpers::deterministic_rng();

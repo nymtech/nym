@@ -555,7 +555,7 @@ mod tests {
         buf.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
         buf.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf.extend_from_slice(&123u64.to_le_bytes()); // Counter
-        buf.extend_from_slice(&255u16.to_le_bytes()); // Invalid message type
+        buf.extend_from_slice(&231u16.to_le_bytes()); // Invalid message type
         // Need payload and trailer to meet min_size requirement
         let payload_size = 10; // Arbitrary
         buf.extend_from_slice(&vec![0u8; payload_size]); // Some data
@@ -565,7 +565,7 @@ mod tests {
         let result = parse_lp_packet(&buf, None);
         assert!(result.is_err());
         match result {
-            Err(LpError::InvalidMessageType(255)) => {} // Expected error
+            Err(LpError::InvalidMessageType(231)) => {} // Expected error
             Err(e) => panic!("Expected InvalidMessageType error, got {:?}", e),
             Ok(_) => panic!("Expected error, but got Ok"),
         }
@@ -628,7 +628,7 @@ mod tests {
                 receiver_idx: 42,
                 counter: 123,
             },
-            message: LpMessage::ClientHello(hello_data.clone()),
+            message: LpMessage::ClientHello(hello_data),
             trailer: [0; TRAILER_LEN],
         };
 
@@ -681,7 +681,7 @@ mod tests {
                 receiver_idx: 100,
                 counter: 200,
             },
-            message: LpMessage::ClientHello(hello_data.clone()),
+            message: LpMessage::ClientHello(hello_data),
             trailer: [55; TRAILER_LEN],
         };
 
@@ -1287,6 +1287,39 @@ mod tests {
                 assert_eq!(data.payload, kk1_data.payload);
             }
             _ => panic!("Expected SubsessionKK1 message"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_parse_error() {
+        use crate::message::ErrorPacketData;
+
+        let mut dst = BytesMut::new();
+
+        let error_data = ErrorPacketData {
+            message: "this is an error".to_string(),
+        };
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: [0u8; 3],
+                receiver_idx: 42,
+                counter: 200,
+            },
+            message: LpMessage::Error(error_data.clone()),
+            trailer: [0; TRAILER_LEN],
+        };
+
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
+        let decoded = parse_lp_packet(&dst, None).unwrap();
+
+        assert_eq!(decoded.header.receiver_idx, 42);
+        match decoded.message {
+            LpMessage::Error(data) => {
+                assert_eq!(data.message, "this is an error");
+            }
+            _ => panic!("Expected Error message"),
         }
     }
 }

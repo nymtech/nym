@@ -1,5 +1,5 @@
 use nym_crypto::asymmetric::ed25519::{self, Signature};
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore};
 
 use crate::frame::KKTSessionId;
 use crate::{
@@ -73,7 +73,7 @@ where
 }
 
 pub fn initiator_ingest_response<'a>(
-    own_context: &mut KKTContext,
+    own_context: &KKTContext,
     remote_frame: &KKTFrame,
     remote_context: &KKTContext,
     remote_verification_key: &ed25519::PublicKey,
@@ -201,7 +201,7 @@ pub fn responder_ingest_message<'a>(
 }
 
 pub fn responder_process<'a>(
-    own_context: &mut KKTContext,
+    own_context: &KKTContext,
     session_id: KKTSessionId,
     signing_key: &ed25519::PrivateKey,
     encapsulation_key: &EncapsulationKey<'a>,

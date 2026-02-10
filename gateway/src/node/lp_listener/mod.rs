@@ -362,15 +362,6 @@ pub struct LpHandlerState {
     /// from LP clients into the mixnet for routing.
     pub outbound_mix_sender: MixForwardingSender,
 
-    /// In-progress handshakes keyed by session_id
-    ///
-    /// Session ID is deterministically computed from both parties' X25519 keys immediately
-    /// after ClientHello. Used during handshake phase. After handshake completes,
-    /// state moves to session_states map.
-    ///
-    /// Wrapped in TimestampedState for TTL-based cleanup of stale handshakes.
-    pub handshake_states: Arc<DashMap<ReceiverIndex, TimestampedState<LpStateMachine>>>,
-
     /// Established sessions keyed by session_id
     ///
     /// Used after handshake completes (session_id is deterministically computed from
@@ -504,7 +495,7 @@ impl LpListener {
             handler::LpConnectionHandler::new(stream, remote_addr, self.handler_state.clone());
 
         let metrics = self.handler_state.metrics.clone();
-        self.shutdown.try_spawn_named(
+        self.shutdown.try_spawn_named_with_shutdown(
             async move {
                 let result = handler.handle().await;
 
@@ -559,7 +550,6 @@ impl LpListener {
     ///
     /// The task automatically stops when the shutdown signal is received.
     fn spawn_state_cleanup_task(&self) -> tokio::task::JoinHandle<()> {
-        let handshake_states = Arc::clone(&self.handler_state.handshake_states);
         let session_states = Arc::clone(&self.handler_state.session_states);
         let dbg_cfg = self.handler_state.lp_config.debug;
 
@@ -576,13 +566,7 @@ impl LpListener {
         );
 
         self.shutdown.try_spawn_named(
-            cleanup_task::cleanup_loop(
-                handshake_states,
-                session_states,
-                dbg_cfg,
-                shutdown,
-                metrics,
-            ),
+            cleanup_task::cleanup_loop(session_states, dbg_cfg, shutdown, metrics),
             "LP::StateCleanup",
         )
     }
@@ -606,28 +590,15 @@ pub(crate) mod cleanup_task {
     use tracing::{debug, info};
 
     async fn perform_cleanup(
-        handshake_states: &Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         session_states: &Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         cfg: LpDebug,
     ) {
-        let handshake_ttl = cfg.handshake_ttl;
         let session_ttl = cfg.session_ttl;
         let demoted_session_ttl = cfg.demoted_session_ttl;
 
         let start = std::time::Instant::now();
-        let mut hs_removed = 0u64;
         let mut ss_removed = 0u64;
         let mut demoted_removed = 0u64;
-
-        // Remove stale handshakes (based on age since creation)
-        handshake_states.retain(|_, timestamped| {
-            if timestamped.age() > handshake_ttl {
-                hs_removed += 1;
-                false
-            } else {
-                true
-            }
-        });
 
         // Remove stale sessions (based on time since last activity)
         // Use shorter TTL for demoted (ReadOnlyTransport) sessions
@@ -651,17 +622,14 @@ pub(crate) mod cleanup_task {
             }
         });
 
-        if hs_removed > 0 || ss_removed > 0 || demoted_removed > 0 {
+        if ss_removed > 0 || demoted_removed > 0 {
             let duration = start.elapsed();
             info!(
-                "LP state cleanup: removed {hs_removed} handshakes, {ss_removed} sessions, {demoted_removed} demoted (took {:.3}s)",
+                "LP state cleanup: {ss_removed} sessions, {demoted_removed} demoted (took {:.3}s)",
                 duration.as_secs_f64()
             );
 
             // Track metrics
-            if hs_removed > 0 {
-                inc_by!("lp_states_cleanup_handshake_removed", hs_removed as i64);
-            }
             if ss_removed > 0 {
                 inc_by!("lp_states_cleanup_session_removed", ss_removed as i64);
             }
@@ -679,7 +647,6 @@ pub(crate) mod cleanup_task {
     /// Demoted sessions (ReadOnlyTransport) use shorter TTL since they
     /// only need to drain in-flight packets after subsession promotion.
     pub(crate) async fn cleanup_loop(
-        handshake_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         cfg: LpDebug,
         shutdown: nym_task::ShutdownToken,
@@ -697,7 +664,7 @@ pub(crate) mod cleanup_task {
                     break;
                 }
                 _ = cleanup_interval.tick() => {
-                    perform_cleanup(&handshake_states, &session_states,  cfg).await;
+                    perform_cleanup(&session_states, cfg).await;
                 }
             }
         }

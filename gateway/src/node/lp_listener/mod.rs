@@ -68,10 +68,11 @@
 // They can be exported via Prometheus format using the metrics endpoint.
 
 use crate::error::GatewayError;
+use crate::node::wireguard::PeerRegistrator;
 use crate::node::ActiveClientsStore;
 use dashmap::DashMap;
 use nym_config::serde_helpers::de_maybe_port;
-use nym_crypto::asymmetric::ed25519;
+use nym_credential_verification::ecash::traits::EcashManager;
 use nym_gateway_storage::GatewayStorage;
 use nym_lp::state_machine::LpStateMachine;
 use nym_node_metrics::NymNodeMetrics;
@@ -80,9 +81,10 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
-use tokio::sync::{mpsc, Semaphore};
+use tokio::sync::Semaphore;
 use tracing::*;
 
+pub use nym_lp::peer::LpLocalPeer;
 pub use nym_mixnet_client::forwarder::{
     mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender,
 };
@@ -90,8 +92,9 @@ pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
 
 mod data_handler;
 pub mod handler;
-mod messages;
 mod registration;
+
+pub type ReceiverIndex = u32;
 
 /// Configuration for LP listener
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
@@ -112,7 +115,7 @@ pub struct LpConfig {
     pub announce_control_port: Option<u16>,
 
     /// Custom announced port for listening for the UDP LP data traffic.
-    /// If unspecified, the value from the `data_bind_address` will be used instead    
+    /// If unspecified, the value from the `data_bind_address` will be used instead
     /// (default: None)
     #[serde(deserialize_with = "de_maybe_port")]
     pub announce_data_port: Option<u16>,
@@ -312,12 +315,12 @@ impl<T> TimestampedState<T> {
     }
 
     /// Get age since creation
-    pub fn age(&self) -> std::time::Duration {
+    pub fn age(&self) -> Duration {
         self.created_at.elapsed()
     }
 
     /// Get time since last activity
-    pub fn since_activity(&self) -> std::time::Duration {
+    pub fn since_activity(&self) -> Duration {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -333,14 +336,13 @@ impl<T> TimestampedState<T> {
 #[derive(Clone)]
 pub struct LpHandlerState {
     /// Ecash verifier for bandwidth credentials
-    pub ecash_verifier:
-        Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
+    pub ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
 
     /// Storage backend for persistence
     pub storage: GatewayStorage,
 
-    /// Gateway's identity keypair
-    pub local_identity: Arc<ed25519::KeyPair>,
+    /// Encapsulates all required key information of a local Lewes Protocol Peer.
+    pub local_lp_peer: LpLocalPeer,
 
     /// Metrics collection
     pub metrics: NymNodeMetrics,
@@ -348,11 +350,8 @@ pub struct LpHandlerState {
     /// Active clients tracking
     pub active_clients_store: ActiveClientsStore,
 
-    /// WireGuard peer controller channel (for dVPN registrations)
-    pub wg_peer_controller: Option<mpsc::Sender<PeerControlRequest>>,
-
-    /// WireGuard gateway data (contains keypair and config)
-    pub wireguard_data: Option<WireguardGatewayData>,
+    /// Handle registering new wireguard peers
+    pub peer_registrator: Option<PeerRegistrator>,
 
     /// LP configuration (for timestamp validation, etc.)
     pub lp_config: LpConfig,
@@ -370,7 +369,7 @@ pub struct LpHandlerState {
     /// state moves to session_states map.
     ///
     /// Wrapped in TimestampedState for TTL-based cleanup of stale handshakes.
-    pub handshake_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
+    pub handshake_states: Arc<DashMap<ReceiverIndex, TimestampedState<LpStateMachine>>>,
 
     /// Established sessions keyed by session_id
     ///
@@ -384,7 +383,7 @@ pub struct LpHandlerState {
     /// subsession/rekeying support. The state machine handles subsession initiation
     /// (SubsessionKK1/KK2/Ready) during transport phase, allowing long-lived connections
     /// to rekey without re-authentication.
-    pub session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
+    pub session_states: Arc<DashMap<ReceiverIndex, TimestampedState<LpStateMachine>>>,
 
     /// Semaphore limiting concurrent forward connections
     ///
@@ -577,18 +576,99 @@ impl LpListener {
         );
 
         self.shutdown.try_spawn_named(
-            Self::cleanup_loop(
+            cleanup_task::cleanup_loop(
                 handshake_states,
                 session_states,
-                handshake_ttl,
-                session_ttl,
-                demoted_session_ttl,
-                interval,
+                dbg_cfg,
                 shutdown,
                 metrics,
             ),
             "LP::StateCleanup",
         )
+    }
+
+    fn active_lp_connections(&self) -> usize {
+        self.handler_state
+            .metrics
+            .network
+            .active_lp_connections_count()
+    }
+}
+
+pub(crate) mod cleanup_task {
+    use crate::node::lp_listener::{LpDebug, TimestampedState};
+    use dashmap::DashMap;
+    use nym_lp::state_machine::LpStateBare;
+    use nym_lp::LpStateMachine;
+    use nym_metrics::inc_by;
+    use nym_node_metrics::NymNodeMetrics;
+    use std::sync::Arc;
+    use tracing::{debug, info};
+
+    async fn perform_cleanup(
+        handshake_states: &Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
+        session_states: &Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
+        cfg: LpDebug,
+    ) {
+        let handshake_ttl = cfg.handshake_ttl;
+        let session_ttl = cfg.session_ttl;
+        let demoted_session_ttl = cfg.demoted_session_ttl;
+
+        let start = std::time::Instant::now();
+        let mut hs_removed = 0u64;
+        let mut ss_removed = 0u64;
+        let mut demoted_removed = 0u64;
+
+        // Remove stale handshakes (based on age since creation)
+        handshake_states.retain(|_, timestamped| {
+            if timestamped.age() > handshake_ttl {
+                hs_removed += 1;
+                false
+            } else {
+                true
+            }
+        });
+
+        // Remove stale sessions (based on time since last activity)
+        // Use shorter TTL for demoted (ReadOnlyTransport) sessions
+        session_states.retain(|_, timestamped| {
+            let is_demoted = timestamped.state.bare_state() == LpStateBare::ReadOnlyTransport;
+            let ttl = if is_demoted {
+                demoted_session_ttl
+            } else {
+                session_ttl
+            };
+
+            if timestamped.since_activity() > ttl {
+                if is_demoted {
+                    demoted_removed += 1;
+                } else {
+                    ss_removed += 1;
+                }
+                false
+            } else {
+                true
+            }
+        });
+
+        if hs_removed > 0 || ss_removed > 0 || demoted_removed > 0 {
+            let duration = start.elapsed();
+            info!(
+                "LP state cleanup: removed {hs_removed} handshakes, {ss_removed} sessions, {demoted_removed} demoted (took {:.3}s)",
+                duration.as_secs_f64()
+            );
+
+            // Track metrics
+            if hs_removed > 0 {
+                inc_by!("lp_states_cleanup_handshake_removed", hs_removed as i64);
+            }
+            if ss_removed > 0 {
+                inc_by!("lp_states_cleanup_session_removed", ss_removed as i64);
+            }
+            if demoted_removed > 0 {
+                inc_by!("lp_states_cleanup_demoted_removed", demoted_removed as i64);
+            }
+        }
     }
 
     /// Background loop for cleaning up stale state entries
@@ -598,101 +678,30 @@ impl LpListener {
     ///
     /// Demoted sessions (ReadOnlyTransport) use shorter TTL since they
     /// only need to drain in-flight packets after subsession promotion.
-    #[allow(clippy::too_many_arguments)]
-    async fn cleanup_loop(
+    pub(crate) async fn cleanup_loop(
         handshake_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
-        handshake_ttl: Duration,
-        session_ttl: Duration,
-        demoted_session_ttl: Duration,
-        interval: Duration,
+        cfg: LpDebug,
         shutdown: nym_task::ShutdownToken,
         _metrics: NymNodeMetrics,
     ) {
-        use nym_lp::state_machine::LpStateBare;
-        use nym_metrics::inc_by;
+        let interval = cfg.state_cleanup_interval;
 
         let mut cleanup_interval = tokio::time::interval(interval);
 
         loop {
             tokio::select! {
                 biased;
-
                 _ = shutdown.cancelled() => {
                     debug!("LP state cleanup task: received shutdown signal");
                     break;
                 }
-
                 _ = cleanup_interval.tick() => {
-                    let start = std::time::Instant::now();
-                    let mut hs_removed = 0u64;
-                    let mut ss_removed = 0u64;
-                    let mut demoted_removed = 0u64;
-
-                    // Remove stale handshakes (based on age since creation)
-                    handshake_states.retain(|_, timestamped| {
-                        if timestamped.age() > handshake_ttl {
-                            hs_removed += 1;
-                            false
-                        } else {
-                            true
-                        }
-                    });
-
-                    // Remove stale sessions (based on time since last activity)
-                    // Use shorter TTL for demoted (ReadOnlyTransport) sessions
-                    session_states.retain(|_, timestamped| {
-                        let is_demoted = timestamped.state.bare_state() == LpStateBare::ReadOnlyTransport;
-                        let ttl = if is_demoted {
-                            demoted_session_ttl
-                        } else {
-                            session_ttl
-                        };
-
-                        if timestamped.since_activity() > ttl {
-                            if is_demoted {
-                                demoted_removed += 1;
-                            } else {
-                                ss_removed += 1;
-                            }
-                            false
-                        } else {
-                            true
-                        }
-                    });
-
-                    if hs_removed > 0 || ss_removed > 0 || demoted_removed > 0 {
-                        let duration = start.elapsed();
-                        info!(
-                            "LP state cleanup: removed {} handshakes, {} sessions, {} demoted (took {:.3}s)",
-                            hs_removed,
-                            ss_removed,
-                            demoted_removed,
-                            duration.as_secs_f64()
-                        );
-
-                        // Track metrics
-                        if hs_removed > 0 {
-                            inc_by!("lp_states_cleanup_handshake_removed", hs_removed as i64);
-                        }
-                        if ss_removed > 0 {
-                            inc_by!("lp_states_cleanup_session_removed", ss_removed as i64);
-                        }
-                        if demoted_removed > 0 {
-                            inc_by!("lp_states_cleanup_demoted_removed", demoted_removed as i64);
-                        }
-                    }
+                    perform_cleanup(&handshake_states, &session_states,  cfg).await;
                 }
             }
         }
 
         info!("LP state cleanup task shutdown complete");
-    }
-
-    fn active_lp_connections(&self) -> usize {
-        self.handler_state
-            .metrics
-            .network
-            .active_lp_connections_count()
     }
 }

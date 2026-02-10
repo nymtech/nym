@@ -1,12 +1,13 @@
 [package]
 name = "nym-authenticator-requests"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Crate defining requests and responses for the Nym authenticator client"
 
 [dependencies]
 base64 = { workspace = true }
@@ -18,12 +19,12 @@ strum_macros = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
-nym-network-defaults = { path = "../network-defaults" }
-nym-service-provider-requests-common = { path = "../service-provider-requests-common" }
-nym-sphinx = { path = "../nymsphinx" }
-nym-wireguard-types = { path = "../wireguard-types" }
+nym-credentials-interface = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-network-defaults = { workspace = true }
+nym-service-provider-requests-common = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-wireguard-types = { workspace = true }
 
 ## verify:
 hmac = { workspace = true, optional = true }
@@ -31,7 +32,7 @@ sha2 = { workspace = true, optional = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"] }
 
 [dev-dependencies]
-nym-test-utils = { path = "../test-utils" }
+nym-test-utils = { workspace = true }
 
 [features]
 default = ["verify"]

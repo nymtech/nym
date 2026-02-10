@@ -6,14 +6,16 @@ mod tests {
     use anyhow::Context;
     use nym_bandwidth_controller::mock::MockBandwidthController;
     use nym_credential_verification::ecash::MockEcashManager;
+    use nym_credential_verification::upgrade_mode::testing::mock_dummy_upgrade_mode_details;
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::{ed25519, x25519};
     use nym_gateway::GatewayError;
     use nym_gateway::node::lp_listener::handler::LpConnectionHandler;
     use nym_gateway::node::lp_listener::{
-        LpDebug, LpHandlerState, MixForwardingReceiver, PeerControlRequest, WireguardGatewayData,
-        mix_forwarding_channels,
+        LpDebug, LpHandlerState, LpLocalPeer, MixForwardingReceiver, PeerControlRequest,
+        WireguardGatewayData, mix_forwarding_channels,
     };
+    use nym_gateway::node::wireguard::{PeerManager, PeerRegistrator};
     use nym_gateway::node::{ActiveClientsStore, GatewayStorage, LpConfig};
     use nym_registration_client::{LpClientError, LpRegistrationClient};
     use nym_test_utils::helpers::{CryptoRng, RngCore, u64_seeded_rng};
@@ -46,9 +48,10 @@ mod tests {
     }
 
     struct Party {
-        ed25519_keys: Arc<ed25519::KeyPair>,
+        peer: LpLocalPeer,
         x25519_wg_keys: Arc<x25519::KeyPair>,
         socket_addr: SocketAddr,
+        lp_version: u8,
     }
 
     impl Party {
@@ -58,11 +61,17 @@ mod tests {
 
             rng.fill_bytes(&mut ip);
             rng.fill_bytes(&mut port);
+            let ed25519_keys = Arc::new(ed25519::KeyPair::new(rng));
+            let x25519_wg_keys = Arc::new(x25519::KeyPair::new(rng));
+
+            let lp_x25519_keys = Arc::new(ed25519_keys.to_x25519());
 
             Party {
-                ed25519_keys: Arc::new(ed25519::KeyPair::new(rng)),
-                x25519_wg_keys: Arc::new(x25519::KeyPair::new(rng)),
+                peer: LpLocalPeer::new(ed25519_keys, lp_x25519_keys.clone())
+                    .with_kem_psq_key(lp_x25519_keys),
+                x25519_wg_keys,
                 socket_addr: SocketAddr::from((ip, u16::from_le_bytes(port))),
+                lp_version: 1,
             }
         }
     }
@@ -154,10 +163,9 @@ mod tests {
             .unwrap()
         }
 
-        async fn allocate_ip_pair(&mut self) -> IpPair {
+        fn pre_allocate_ip_pair(&mut self) -> IpPair {
             self.ip_pool
-                .allocate()
-                .await
+                .pre_allocate()
                 .expect("unexpected ip allocation failure!")
         }
 
@@ -194,32 +202,34 @@ mod tests {
             // create wireguard data
             let (wireguard_data, peer_request_rx) = Self::wireguard_data(&base);
 
+            let (upgrade_mode_details, _) = mock_dummy_upgrade_mode_details();
+
             // mock the wg peer controller
             let (mock_peer_controller, peer_controller_state) =
                 mock_peer_controller(peer_request_rx);
 
             // registering particular responses for peer controller is up to given test
+            let ecash_verifier = Arc::new(ecash_verifier);
+
+            let peer_registrator = PeerRegistrator::new(
+                ecash_verifier.clone(),
+                PeerManager::new(wireguard_data),
+                upgrade_mode_details,
+            );
 
             let lp_state = LpHandlerState {
                 // use mock instance of ecash verifier
-                ecash_verifier: Arc::new(ecash_verifier),
+                ecash_verifier,
 
                 // use in-memory database (no need for persistency)
                 storage,
 
-                // reuse the same identity we just generated
-                local_identity: base.ed25519_keys.clone(),
+                local_lp_peer: base.peer.clone(),
 
-                // we don't care about metrics - all zeroes are perfectly fine
                 metrics: Default::default(),
 
                 // no clients at the beginning
                 active_clients_store: ActiveClientsStore::new(),
-
-                // handles required for wg registration
-                wg_peer_controller: Some(wireguard_data.peer_tx().clone()),
-
-                wireguard_data: Some(wireguard_data),
 
                 // use default lp config (with enabled flag)
                 lp_config,
@@ -233,8 +243,10 @@ mod tests {
                 // we start with empty state
                 session_states: Arc::new(Default::default()),
 
-                // sensible default value for tests
                 forward_semaphore,
+
+                // handles for dealing with new peers
+                peer_registrator: Some(peer_registrator),
             };
 
             Ok(Gateway {
@@ -373,6 +385,7 @@ mod tests {
     mod using_lp_registration_client {
         use super::*;
         use nym_registration_client::NestedLpSession;
+        use nym_wireguard::DefguardPeer;
 
         #[tokio::test]
         async fn test_basic_lp_entry_registration() -> anyhow::Result<()> {
@@ -385,11 +398,11 @@ mod tests {
             let client_key = *client_data.base.x25519_wg_keys.public_key();
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-            let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_psk(
-                client_data.base.ed25519_keys,
-                *entry.base.ed25519_keys.public_key(),
+            let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
+                client_data.base.peer.ed25519().clone(),
+                entry.base.peer.as_remote(),
                 entry.base.socket_addr,
-                client_data.base.socket_addr.ip(),
+                entry.base.lp_version,
             );
 
             // 1. establish mock connection between client and gateway and retrieve gateway's handle
@@ -406,13 +419,12 @@ mod tests {
 
             // 3. register all needed responses for the dvpn registration that will reach the peer controller
             // 1) peer registration - ip pair allocation
-            let ip_pair = entry.allocate_ip_pair().await;
+            let ip_pair = entry.pre_allocate_ip_pair();
             let reg_res = Ok::<_, nym_wireguard::Error>(ip_pair);
-            let public_key = client_key.to_wg_key();
 
             entry
                 .register_peer_controller_response(
-                    PeerControlRequestType::RegisterPeer { public_key },
+                    PeerControlRequestType::AllocatePeerIpPair {},
                     reg_res,
                 )
                 .await;
@@ -428,6 +440,16 @@ mod tests {
                 )
                 .await;
 
+            // 3) peer query - check for prior registrations
+            let query_res = Ok::<_, nym_wireguard::Error>(Option::<DefguardPeer>::None);
+            let key = client_key.to_wg_key();
+            entry
+                .register_peer_controller_response(
+                    PeerControlRequestType::QueryPeer { key },
+                    query_res,
+                )
+                .await;
+
             // 4. spawn peer controller to be able to handle dvpn registration requests
             entry.spawn_peer_controller();
 
@@ -436,9 +458,10 @@ mod tests {
 
             // 6. perform registration with entry only
             let wg_keypair = client_data.base.x25519_wg_keys;
-            let gateway_identity = entry.base.ed25519_keys.public_key();
+            let gateway_identity = entry.base.peer.ed25519().public_key();
             let registration_result = client
-                .register(
+                .register_dvpn(
+                    &mut client_rng,
                     &wg_keypair,
                     gateway_identity,
                     &client_data.ticket_provider,
@@ -451,7 +474,6 @@ mod tests {
             let peers_guard = entry.mock_peer_controller_state.peers.read().await;
             let peer = peers_guard.get_by_x25519_key(&client_key).unwrap().clone();
             drop(peers_guard);
-            assert!(peer.register_success);
             assert!(peer.add_success);
 
             assert_eq!(registration_result.private_ipv4, ip_pair.ipv4);
@@ -476,11 +498,11 @@ mod tests {
             let client_data = Client::mock(&mut client_rng);
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-            let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_psk(
-                client_data.base.ed25519_keys,
-                *entry.base.ed25519_keys.public_key(),
+            let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
+                client_data.base.peer.ed25519().clone(),
+                entry.base.peer.as_remote(),
                 entry.base.socket_addr,
-                client_data.base.socket_addr.ip(),
+                entry.base.lp_version,
             );
 
             // 1. establish mock connection between client and gateway and retrieve gateway's handle
@@ -502,9 +524,10 @@ mod tests {
             // 4. perform registration with entry only
             // but WITHOUT performing the handshake
             let wg_keypair = client_data.base.x25519_wg_keys;
-            let gateway_identity = entry.base.ed25519_keys.public_key();
+            let gateway_identity = entry.base.peer.ed25519().public_key();
             let registration_result = client
-                .register(
+                .register_dvpn(
+                    &mut client_rng,
                     &wg_keypair,
                     gateway_identity,
                     &client_data.ticket_provider,
@@ -517,7 +540,10 @@ mod tests {
             let LpClientError::Transport(err) = registration_result else {
                 panic!("unexpected error");
             };
-            assert_eq!(err, "Cannot register: handshake not completed");
+            assert_eq!(
+                err,
+                "State machine not available - has the handshake been completed?"
+            );
 
             // 5. stop the gateway task and finish the test
             entry.stop_tasks().await?;
@@ -526,6 +552,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_basic_lp_exit_registration() -> anyhow::Result<()> {
+            // nym_test_utils::helpers::setup_test_logger();
             // initialise random, but deterministic, keys, addresses, etc. for the parties
             let mut client_rng = u64_seeded_rng(0);
             let mut entry_rng = u64_seeded_rng(1);
@@ -536,11 +563,11 @@ mod tests {
             let mut entry = Gateway::mock(&mut entry_rng).await?;
             let mut exit = Gateway::mock(&mut exit_rng).await?;
 
-            let mut entry_client = LpRegistrationClient::<MockIOStream>::new_with_default_psk(
-                client_data.base.ed25519_keys.clone(),
-                *entry.base.ed25519_keys.public_key(),
+            let mut entry_client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
+                client_data.base.peer.ed25519().clone(),
+                entry.base.peer.as_remote(),
                 entry.base.socket_addr,
-                client_data.base.socket_addr.ip(),
+                entry.base.lp_version,
             );
 
             // START: ENTRY SETUP
@@ -565,13 +592,12 @@ mod tests {
 
             // 4. register all needed responses for the dvpn registration that will reach the peer controller
             // 1) peer registration - ip pair allocation
-            let entry_ip_pair = entry.allocate_ip_pair().await;
+            let entry_ip_pair = entry.pre_allocate_ip_pair();
             let reg_res = Ok::<_, nym_wireguard::Error>(entry_ip_pair);
-            let public_key = client_key.to_wg_key();
 
             entry
                 .register_peer_controller_response(
-                    PeerControlRequestType::RegisterPeer { public_key },
+                    PeerControlRequestType::AllocatePeerIpPair {},
                     reg_res,
                 )
                 .await;
@@ -584,6 +610,16 @@ mod tests {
                 .register_peer_controller_response(
                     PeerControlRequestType::AddPeer { public_key },
                     add_res,
+                )
+                .await;
+
+            // 3) peer query - check for prior registrations
+            let query_res = Ok::<_, nym_wireguard::Error>(Option::<DefguardPeer>::None);
+            let key = client_key.to_wg_key();
+            entry
+                .register_peer_controller_response(
+                    PeerControlRequestType::QueryPeer { key },
+                    query_res,
                 )
                 .await;
 
@@ -607,12 +643,11 @@ mod tests {
 
             // 10. register all needed responses for the dvpn registration that will reach the peer controller
             // 1) peer registration - ip pair allocation
-            let exit_ip_pair = exit.allocate_ip_pair().await;
+            let exit_ip_pair = exit.pre_allocate_ip_pair();
             let reg_res = Ok::<_, nym_wireguard::Error>(exit_ip_pair);
-            let public_key = client_key.to_wg_key();
 
             exit.register_peer_controller_response(
-                PeerControlRequestType::RegisterPeer { public_key },
+                PeerControlRequestType::AllocatePeerIpPair {},
                 reg_res,
             )
             .await;
@@ -627,6 +662,15 @@ mod tests {
             )
             .await;
 
+            // 3) peer query - check for prior registrations
+            let query_res = Ok::<_, nym_wireguard::Error>(Option::<DefguardPeer>::None);
+            let key = client_key.to_wg_key();
+            exit.register_peer_controller_response(
+                PeerControlRequestType::QueryPeer { key },
+                query_res,
+            )
+            .await;
+
             // 11. spawn peer controller to be able to handle dvpn registration requests
             exit.spawn_peer_controller();
 
@@ -636,30 +680,31 @@ mod tests {
             // technically we should use different ephemeral keys than we had for the entry
             // but crypto is going to work the same
             let mut nested_session = NestedLpSession::new(
-                exit.base.ed25519_keys.public_key().to_bytes(),
-                exit.base.socket_addr.to_string(),
-                client_data.base.ed25519_keys,
-                *exit.base.ed25519_keys.public_key(),
+                exit.base.socket_addr,
+                client_data.base.peer.ed25519().clone(),
+                exit.base.peer.as_remote(),
+                exit.base.lp_version,
             );
 
             // 13. Perform handshake and registration with exit gateway (all via entry forwarding)
             let exit_registration_result = nested_session
-                .handshake_and_register(
+                .handshake_and_register_dvpn(
                     &mut entry_client,
+                    &mut client_rng,
                     &client_data.base.x25519_wg_keys,
-                    exit.base.ed25519_keys.public_key(),
+                    exit.base.peer.ed25519().public_key(),
                     &client_data.ticket_provider,
                     TicketType::V1WireguardExit,
-                    client_data.base.socket_addr.ip(),
                 )
                 .timeboxed()
                 .await??;
 
             // 14. complete registration with the entry
             let entry_registration_result = entry_client
-                .register(
+                .register_dvpn(
+                    &mut client_rng,
                     &client_data.base.x25519_wg_keys,
-                    entry.base.ed25519_keys.public_key(),
+                    entry.base.peer.ed25519().public_key(),
                     &client_data.ticket_provider,
                     TicketType::V1WireguardEntry,
                 )
@@ -670,13 +715,11 @@ mod tests {
             let peers_guard = entry.mock_peer_controller_state.peers.read().await;
             let entry_peer = peers_guard.get_by_x25519_key(&client_key).unwrap().clone();
             drop(peers_guard);
-            assert!(entry_peer.register_success);
             assert!(entry_peer.add_success);
 
             let peers_guard = exit.mock_peer_controller_state.peers.read().await;
             let exit_peer = peers_guard.get_by_x25519_key(&client_key).unwrap().clone();
             drop(peers_guard);
-            assert!(exit_peer.register_success);
             assert!(exit_peer.add_success);
 
             assert_eq!(entry_registration_result.private_ipv4, entry_ip_pair.ipv4);

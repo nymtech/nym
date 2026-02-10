@@ -1,9 +1,9 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_wasm_utils::wasm_error;
 use serde_wasm_bindgen::Error;
 use thiserror::Error;
-use wasm_utils::wasm_error;
 
 #[derive(Debug, Error)]
 pub enum VpnApiLibError {

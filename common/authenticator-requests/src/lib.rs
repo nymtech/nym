@@ -18,6 +18,7 @@ mod util;
 mod version;
 
 pub use error::Error;
+pub use util::{authenticator_ipv4_to_ipv6, authenticator_ipv6_to_ipv4};
 pub use v6 as latest;
 pub use version::AuthenticatorVersion;
 

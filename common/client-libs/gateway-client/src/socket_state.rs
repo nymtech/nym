@@ -29,7 +29,7 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 #[cfg(target_arch = "wasm32")]
-use wasm_utils::websocket::JSWebsocket;
+use nym_wasm_utils::websocket::JSWebsocket;
 
 // type alias for not having to type the whole thing every single time (and now it makes it easier
 // to use different types based on compilation target)

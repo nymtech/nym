@@ -1,12 +1,13 @@
 [package]
 name = "nym-exit-policy"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Get and set the Nym Exit Policy, used by Exit Gateways"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -57,7 +57,9 @@ mod tests {
         let error = NodeScraperError::MalformedHost {
             host: "".to_string(),
             node_id: 0,
-            source: Box::new(NymNodeApiClientError::NotFound { url: dummy_url() }),
+            source: Box::new(NymNodeApiClientError::NotFound {
+                url: Box::new(dummy_url()),
+            }),
         };
 
         let error_msg = error.to_string();
@@ -112,7 +114,9 @@ mod tests {
     #[allow(deprecated)]
     fn test_error_different_sources() {
         // Test with different NymNodeApiClientError variants
-        let not_found_error = NymNodeApiClientError::NotFound { url: dummy_url() };
+        let not_found_error = NymNodeApiClientError::NotFound {
+            url: Box::new(dummy_url()),
+        };
         let error1 = NodeScraperError::MalformedHost {
             host: "host1".to_string(),
             node_id: 1,

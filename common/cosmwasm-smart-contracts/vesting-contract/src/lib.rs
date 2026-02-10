@@ -6,7 +6,7 @@
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
-use mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::NodeId;
 
 pub mod account;
 pub mod error;
@@ -126,8 +126,8 @@ pub struct AccountsResponse {
 
 #[cfg(test)]
 mod test {
-    use contracts_common::Percent;
     use cosmwasm_std::Uint128;
+    use nym_contracts_common::Percent;
     use std::str::FromStr;
 
     use crate::PledgeCap;

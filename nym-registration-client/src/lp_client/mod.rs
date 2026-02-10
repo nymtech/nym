@@ -17,7 +17,7 @@
 //! ```ignore
 //! use nym_registration_client::lp_client::LpRegistrationClient;
 //!
-//! let mut client = LpRegistrationClient::new_with_default_psk(
+//! let mut client = LpRegistrationClient::new_with_default_config(
 //!     keypair,
 //!     gateway_public_key,
 //!     gateway_lp_address,
@@ -34,9 +34,11 @@
 mod client;
 mod config;
 pub(crate) mod error;
+pub(crate) mod helpers;
 mod nested_session;
+mod state_machine_helpers;
 
 pub use client::LpRegistrationClient;
-pub use config::LpConfig;
+pub use config::LpRegistrationConfig;
 pub use error::LpClientError;
 pub use nested_session::NestedLpSession;

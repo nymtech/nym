@@ -1,8 +1,12 @@
 [package]
 name = "nym-bandwidth-controller"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Crate for controlling the use of zknym credentials to ensure constant bandwidth availability for NymVPN app"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -12,14 +16,14 @@ log = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
 
-nym-credential-storage = { path = "../credential-storage" }
-nym-credentials = { path = "../credentials" }
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-crypto = { path = "../crypto", features = ["rand", "asymmetric", "stream_cipher", "aes", "hashing"] }
-nym-ecash-time = { path = "../ecash-time" }
-nym-task = { path = "../task" }
-nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
+nym-credential-storage = { workspace = true }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand", "asymmetric", "stream_cipher", "aes", "hashing"] }
+nym-ecash-time = { workspace = true }
+nym-task = { workspace = true }
+nym-validator-client = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
-path = "../client-libs/validator-client"
+workspace = true
 features = ["http-client"]

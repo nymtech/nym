@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::wireguard::GatewayWireguardError;
 use ipnetwork::IpNetworkError;
 use nym_client_core::error::ClientCoreError;
 use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
@@ -82,9 +83,6 @@ pub enum AuthenticatorError {
     #[error("internal data corruption: {0}")]
     InternalDataCorruption(String),
 
-    #[error("peers can't be interacted with anymore")]
-    PeerInteractionStopped,
-
     #[error("unknown version number")]
     UnknownVersion,
 
@@ -108,6 +106,9 @@ pub enum AuthenticatorError {
 
     #[error(transparent)]
     UpgradeModeEnable(#[from] UpgradeModeEnableError),
+
+    #[error(transparent)]
+    WireguardFailure(#[from] GatewayWireguardError),
 }
 
 impl AuthenticatorError {

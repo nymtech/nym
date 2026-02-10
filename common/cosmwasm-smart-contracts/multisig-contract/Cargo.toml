@@ -1,8 +1,10 @@
 [package]
 name = "nym-multisig-contract-common"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Common code for the Nym multisig CosmWasm smart contract"
+homepage.workspace = true
 
 [dependencies]
 cosmwasm-schema = { workspace = true }

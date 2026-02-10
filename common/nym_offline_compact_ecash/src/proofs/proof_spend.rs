@@ -5,8 +5,8 @@ use crate::ecash_group_parameters;
 use crate::proofs::{compute_challenge, produce_response, produce_responses, ChallengeDigest};
 use crate::scheme::keygen::VerificationKeyAuth;
 use crate::scheme::PayInfo;
-use bls12_381::{G1Projective, G2Projective, Scalar};
 use group::GroupEncoding;
+use nym_bls12_381_fork::{G1Projective, G2Projective, Scalar};
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 

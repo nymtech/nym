@@ -1,12 +1,13 @@
 [package]
 name = "nym-topology"
-version = "0.1.0"
+version.workspace = true
 edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 homepage = { workspace = true }
 documentation = { workspace = true }
+description = "Nym's topology crate"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -27,25 +28,25 @@ tsify = { workspace = true, features = ["js"], optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 ## internal
-nym-crypto = { path = "../crypto" }
-nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
-nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
-nym-sphinx-types = { path = "../nymsphinx/types", features = [
+nym-crypto = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+nym-sphinx-types = { workspace = true, features = [
     "sphinx",
     "outfox",
 ] }
 
 
 # I'm not sure how to feel about pulling in this dependency here...
-nym-api-requests = { path = "../../nym-api/nym-api-requests" }
+nym-api-requests = { workspace = true }
 
 
 # 'wasm-serde-types' feature
-wasm-utils = { path = "../wasm/utils", default-features = false, optional = true }
+nym-wasm-utils = { workspace = true,  optional = true }
 
 [features]
 default = ["provider-trait"]
 provider-trait = ["async-trait"]
-wasm-serde-types = ["tsify", "wasm-bindgen", "wasm-utils"]
+wasm-serde-types = ["tsify", "wasm-bindgen", "nym-wasm-utils"]
 persistence = ["serde_json"]
 outfox = []

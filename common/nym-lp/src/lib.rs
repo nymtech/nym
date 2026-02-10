@@ -4,16 +4,17 @@
 pub mod codec;
 pub mod config;
 pub mod error;
-pub mod keypair;
-pub mod kkt_orchestrator;
+// pub mod kkt_orchestrator;
 pub mod message;
 pub mod noise_protocol;
 pub mod packet;
+pub mod peer;
 pub mod psk;
 pub mod replay;
 pub mod session;
 mod session_integration;
 pub mod session_manager;
+pub mod state_machine;
 
 pub use config::LpConfig;
 pub use error::LpError;
@@ -22,11 +23,6 @@ pub use packet::{BOOTSTRAP_RECEIVER_IDX, LpPacket, OuterHeader};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::{LpSession, generate_fresh_salt};
 pub use session_manager::SessionManager;
-
-// Add the new state machine module
-pub mod serialisation;
-pub mod state_machine;
-
 pub use state_machine::LpStateMachine;
 
 pub const NOISE_PATTERN: &str = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";
@@ -34,50 +30,31 @@ pub const NOISE_PSK_INDEX: u8 = 3;
 
 #[cfg(test)]
 pub fn sessions_for_tests() -> (LpSession, LpSession) {
-    use crate::keypair::Keypair;
-    use nym_crypto::asymmetric::ed25519;
-
-    // X25519 keypairs for Noise protocol
-    let keypair_1 = Keypair::default();
-    let keypair_2 = Keypair::default();
+    let (init, resp) = crate::peer::mock_peers();
 
     // Use a fixed receiver_index for deterministic tests
     let receiver_index: u32 = 12345;
 
-    // Ed25519 keypairs for PSQ authentication (placeholders for testing)
-    let ed25519_keypair_1 = ed25519::KeyPair::from_secret([1u8; 32], 0);
-    let ed25519_keypair_2 = ed25519::KeyPair::from_secret([2u8; 32], 1);
-
     // Use consistent salt for deterministic tests
     let salt = [1u8; 32];
-
-    // PSQ will always derive the PSK during handshake using X25519 as DHKEM
 
     let initiator_session = LpSession::new(
         receiver_index,
         true,
-        (
-            ed25519_keypair_1.private_key(),
-            ed25519_keypair_1.public_key(),
-        ),
-        keypair_1.private_key(),
-        ed25519_keypair_2.public_key(),
-        keypair_2.public_key(),
+        init.clone(),
+        resp.as_remote(),
         &salt,
+        packet::version::CURRENT,
     )
     .expect("Test session creation failed");
 
     let responder_session = LpSession::new(
         receiver_index,
         false,
-        (
-            ed25519_keypair_2.private_key(),
-            ed25519_keypair_2.public_key(),
-        ),
-        keypair_2.private_key(),
-        ed25519_keypair_1.public_key(),
-        keypair_1.public_key(),
+        resp,
+        init.as_remote(),
         &salt,
+        packet::version::CURRENT,
     )
     .expect("Test session creation failed");
 
@@ -87,13 +64,14 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
 #[cfg(test)]
 mod tests {
     use crate::message::LpMessage;
-    use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
+    use crate::packet::{LpHeader, LpPacket, TRAILER_LEN, version};
     use crate::session_manager::SessionManager;
     use crate::{LpError, sessions_for_tests};
     use bytes::BytesMut;
 
     // Import the new standalone functions
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
+    use crate::peer::mock_peers;
 
     #[test]
     fn test_replay_protection_integration() {
@@ -104,7 +82,7 @@ mod tests {
         let packet1 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42, // Matches session's sending_index assumption for this test
                 counter: 0,
             },
@@ -133,7 +111,7 @@ mod tests {
         let packet2 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 0, // Same counter as before (replay)
             },
@@ -163,7 +141,7 @@ mod tests {
         let packet3 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 1, // Incremented counter
             },
@@ -196,15 +174,12 @@ mod tests {
 
     #[test]
     fn test_session_manager_integration() {
-        use nym_crypto::asymmetric::ed25519;
-
         // Create session manager
         let local_manager = SessionManager::new();
         let remote_manager = SessionManager::new();
 
         // Generate Ed25519 keypairs for PSQ authentication
-        let ed25519_keypair_local = ed25519::KeyPair::from_secret([8u8; 32], 0);
-        let ed25519_keypair_remote = ed25519::KeyPair::from_secret([9u8; 32], 1);
+        let (init, resp) = mock_peers();
 
         // Use fixed receiver_index for deterministic test
         let receiver_index: u32 = 54321;
@@ -216,33 +191,29 @@ mod tests {
         let _ = local_manager
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_local.private_key(),
-                    ed25519_keypair_local.public_key(),
-                ),
-                ed25519_keypair_remote.public_key(),
                 true,
+                init.clone(),
+                resp.as_remote(),
                 &salt,
+                version::CURRENT,
             )
             .unwrap();
 
         let _ = remote_manager
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_remote.private_key(),
-                    ed25519_keypair_remote.public_key(),
-                ),
-                ed25519_keypair_local.public_key(),
                 false,
+                resp,
+                init.as_remote(),
                 &salt,
+                version::CURRENT,
             )
             .unwrap();
         // === Packet 1 (Counter 0 - Should succeed) ===
         let packet1 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: receiver_index,
                 counter: 0,
             },
@@ -275,7 +246,7 @@ mod tests {
         let packet2 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: receiver_index,
                 counter: 1,
             },
@@ -303,7 +274,7 @@ mod tests {
         let packet3 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: receiver_index,
                 counter: 0, // Replay of first packet
             },

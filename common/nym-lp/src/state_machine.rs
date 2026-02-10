@@ -13,16 +13,17 @@
 //! State machine ensures protocol steps execute in correct order. Invalid transitions
 //! return LpError, preventing protocol violations.
 
+use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::{
     LpError,
-    keypair::{Keypair, PrivateKey as LpPrivateKey, PublicKey as LpPublicKey},
     message::{LpMessage, SubsessionKK1Data, SubsessionKK2Data, SubsessionReadyData},
     noise_protocol::NoiseError,
     packet::LpPacket,
     session::{LpSession, SubsessionHandshake},
 };
-use bytes::BytesMut;
-use nym_crypto::asymmetric::ed25519;
+use bytes::{Buf, Bytes};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use nym_kkt::ciphersuite::EncapsulationKey;
 use std::mem;
 use tracing::debug;
 
@@ -90,6 +91,7 @@ impl From<&LpState> for LpStateBare {
 }
 
 /// Represents inputs that drive the state machine transitions.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum LpInput {
     /// Explicitly trigger the start of the handshake (optional, could be implicit on creation)
@@ -97,7 +99,7 @@ pub enum LpInput {
     /// Received an LP Packet from the network.
     ReceivePacket(LpPacket),
     /// Application wants to send data (only valid in Transport state).
-    SendData(Vec<u8>), // Using Bytes for efficiency
+    SendData(LpData),
     /// Close the connection.
     Close,
     /// Initiate a subsession handshake (only valid in Transport state).
@@ -111,7 +113,7 @@ pub enum LpAction {
     /// Send an LP Packet over the network.
     SendPacket(LpPacket),
     /// Deliver decrypted application data received from the peer.
-    DeliverData(BytesMut),
+    DeliverData(LpData),
     /// Inform the environment that KKT exchange completed successfully.
     KKTComplete,
     /// Inform the environment that the handshake is complete.
@@ -132,6 +134,75 @@ pub enum LpAction {
         subsession: Box<SubsessionHandshake>,
         new_receiver_index: u32,
     },
+}
+
+/// Represent application data being sent in Transport mode
+#[derive(Debug, Clone, PartialEq)]
+pub struct LpData {
+    pub kind: LpDataKind,
+    pub content: Bytes,
+}
+
+impl AsRef<[u8]> for LpData {
+    fn as_ref(&self) -> &[u8] {
+        &self.content
+    }
+}
+
+impl LpData {
+    pub fn new(kind: LpDataKind, content: impl Into<Bytes>) -> Self {
+        Self {
+            kind,
+            content: content.into(),
+        }
+    }
+    pub fn new_opaque(content: impl Into<Bytes>) -> Self {
+        Self::new(LpDataKind::Opaque, content)
+    }
+
+    pub fn new_registration(data: impl Into<Bytes>) -> Self {
+        Self::new(LpDataKind::Registration, data)
+    }
+
+    pub fn new_forward(data: impl Into<Bytes>) -> Self {
+        Self::new(LpDataKind::Forward, data)
+    }
+
+    pub fn to_vec(self) -> Vec<u8> {
+        self.into()
+    }
+}
+
+impl From<LpData> for Vec<u8> {
+    fn from(data: LpData) -> Self {
+        let mut out = Vec::with_capacity(data.content.len() + 1);
+        out.push(data.kind as u8);
+        out.extend_from_slice(data.content.as_ref());
+        out
+    }
+}
+
+impl TryFrom<Vec<u8>> for LpData {
+    type Error = LpError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        let kind = LpDataKind::try_from(value[0]).map_err(|_| {
+            LpError::DeserializationError(format!("unknown data type: {}", value[0]))
+        })?;
+        let mut content = Bytes::from(value);
+        content.advance(1);
+
+        Ok(LpData::new(kind, content))
+    }
+}
+
+/// Represent kind of application data being sent in Transport mode
+#[derive(Clone, Copy, PartialEq, Eq, Debug, IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
+pub enum LpDataKind {
+    Opaque = 0,
+    Registration = 1,
+    Forward = 2,
 }
 
 /// The Lewes Protocol State Machine.
@@ -177,70 +248,33 @@ impl LpStateMachine {
         Ok(self.session()?.id())
     }
 
-    /// Creates a new state machine from Ed25519 keys, internally deriving X25519 keys.
-    ///
-    /// This is the primary constructor that accepts only Ed25519 keys (identity/signing keys)
-    /// and internally derives the X25519 keys needed for Noise protocol and DHKEM.
-    /// This simplifies the API by hiding the X25519 derivation as an implementation detail.
+    /// Creates a new state machine from Ed25519 keys.
     ///
     /// # Arguments
     ///
     /// * `receiver_index` - Client-proposed session identifier (random 4 bytes)
     /// * `is_initiator` - Whether this side initiates the handshake
-    /// * `local_ed25519_keypair` - Ed25519 keypair for PSQ authentication and X25519 derivation
-    ///   (from client identity key or gateway signing key)
-    /// * `remote_ed25519_key` - Peer's Ed25519 public key for PSQ authentication and X25519 derivation
+    /// * `local_peer` - This side's LP peer's keys
+    /// * `remote_peer` - The remote's LP peer's keys
     /// * `salt` - Fresh salt for PSK derivation (must be unique per session)
-    ///
-    /// # Errors
-    ///
-    /// Returns `LpError::Ed25519RecoveryError` if Ed25519→X25519 conversion fails for the remote key.
-    /// Local private key conversion cannot fail.
+    /// * `protocol_version` - Protocol version to attach in all `LpPacket`s
     pub fn new(
         receiver_index: u32,
         is_initiator: bool,
-        local_ed25519_keypair: (&ed25519::PrivateKey, &ed25519::PublicKey),
-        remote_ed25519_key: &ed25519::PublicKey,
+        local_peer: LpLocalPeer,
+        remote_peer: LpRemotePeer,
         salt: &[u8; 32],
+        protocol_version: u8,
     ) -> Result<Self, LpError> {
-        // We use standard RFC 7748 conversion to derive X25519 keys from Ed25519 identity keys.
-        // This allows callers to provide only Ed25519 keys (which they already have for signing/identity)
-        // without needing to manage separate X25519 keypairs.
-        //
-        // Security: Ed25519→X25519 conversion is cryptographically sound (RFC 7748).
-        // The derived X25519 keys are used for:
-        // - Noise protocol ephemeral DH
-        // - PSQ ECDH baseline security (pre-quantum)
-
-        // Convert Ed25519 keys to X25519 for Noise protocol
-        let local_x25519_private = local_ed25519_keypair.0.to_x25519();
-        let local_x25519_public = local_ed25519_keypair
-            .1
-            .to_x25519()
-            .map_err(LpError::Ed25519RecoveryError)?;
-
-        let remote_x25519_public = remote_ed25519_key
-            .to_x25519()
-            .map_err(LpError::Ed25519RecoveryError)?;
-
-        // Convert nym_crypto X25519 types to nym_lp keypair types
-        let lp_private = LpPrivateKey::from_bytes(local_x25519_private.as_bytes());
-        let lp_public = LpPublicKey::from_bytes(local_x25519_public.as_bytes())?;
-        let lp_remote_public = LpPublicKey::from_bytes(remote_x25519_public.as_bytes())?;
-
-        // Create X25519 keypair for Noise
-        let local_x25519_keypair = Keypair::from_keys(lp_private, lp_public);
-
         // Create the session with both Ed25519 (for PSQ auth) and derived X25519 keys (for Noise)
         // receiver_index is client-proposed, passed through directly
         let session = LpSession::new(
             receiver_index,
             is_initiator,
-            local_ed25519_keypair,
-            local_x25519_keypair.private_key(),
-            remote_ed25519_key,
-            &lp_remote_public,
+            local_peer,
+            remote_peer,
             salt,
+            protocol_version,
         )?;
 
         Ok(LpStateMachine {
@@ -331,33 +365,44 @@ impl LpStateMachine {
                     result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     LpState::KKTExchange { session }
                 } else {
-                    use crate::message::LpMessage;
 
                     // Packet message is already parsed, match on it directly
                     match &packet.message {
                         LpMessage::KKTRequest(kkt_request) if !session.is_initiator() => {
                             // Responder processes KKT request
                             // Convert X25519 public key to KEM format for KKT response
-                            use nym_kkt::ciphersuite::EncapsulationKey;
 
-                            // Get local X25519 public key by deriving from private key
-                            let local_x25519_public = session.local_x25519_public();
+                            // Get local KEM key
+                            match session.get_kem_key_handle() {
+                                Err(err) => {
+                                    let reason = err.to_string();
+                                    result_action = Some(Err(err));
+                                    LpState::Closed { reason }
+                                }
+                                Ok(local_kem_psq_public) => {
+                                    // Convert to libcrux KEM public key
+                                    // V1 is X255519
+                                    match libcrux_kem::PublicKey::decode(
+                                        libcrux_kem::Algorithm::X25519,
+                                        local_kem_psq_public.as_bytes(),
+                                    ) {
+                                        Ok(libcrux_public_key) => {
+                                            let responder_kem_pk = EncapsulationKey::X25519(libcrux_public_key);
 
-                            // Convert to libcrux KEM public key
-                            match libcrux_kem::PublicKey::decode(
-                                libcrux_kem::Algorithm::X25519,
-                                local_x25519_public.as_bytes(),
-                            ) {
-                                Ok(libcrux_public_key) => {
-                                    let responder_kem_pk = EncapsulationKey::X25519(libcrux_public_key);
-
-                                    match session.process_kkt_request(&kkt_request.0, &responder_kem_pk) {
-                                        Ok(kkt_response_message) => {
-                                            match session.next_packet(kkt_response_message) {
-                                                Ok(response_packet) => {
-                                                    result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-                                                    // After KKT exchange, move to Handshaking
-                                                    LpState::Handshaking { session }
+                                            match session.process_kkt_request(&kkt_request.0, &responder_kem_pk) {
+                                                Ok(kkt_response_message) => {
+                                                    match session.next_packet(kkt_response_message) {
+                                                        Ok(response_packet) => {
+                                                            result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                            // After KKT exchange, move to Handshaking
+                                                            LpState::Handshaking { session }
+                                                        }
+                                                        Err(e) => {
+                                                            let reason = e.to_string();
+                                                            result_action = Some(Err(e));
+                                                            LpState::Closed { reason }
+                                                        }
+                                                    }
                                                 }
                                                 Err(e) => {
                                                     let reason = e.to_string();
@@ -367,23 +412,17 @@ impl LpStateMachine {
                                             }
                                         }
                                         Err(e) => {
-                                            let reason = e.to_string();
-                                            result_action = Some(Err(e));
+                                            let reason = format!("Failed to convert X25519 to KEM: {:?}", e);
+                                            let err = LpError::Internal(reason.clone());
+                                            result_action = Some(Err(err));
                                             LpState::Closed { reason }
                                         }
                                     }
-                                }
-                                Err(e) => {
-                                    let reason = format!("Failed to convert X25519 to KEM: {:?}", e);
-                                    let err = LpError::Internal(reason.clone());
-                                    result_action = Some(Err(err));
-                                    LpState::Closed { reason }
-                                }
+                                },
                             }
                         }
                         LpMessage::KKTResponse(kkt_response) if session.is_initiator() => {
-                            // Initiator processes KKT response (signature-only mode with None)
-                            match session.process_kkt_response(&kkt_response.0, None) {
+                            match session.process_kkt_response(&kkt_response.0) {
                                 Ok(()) => {
                                     result_action = Some(Ok(LpAction::KKTComplete));
                                     // After successful KKT, move to Handshaking
@@ -439,75 +478,75 @@ impl LpStateMachine {
                     // --- Inline handle_handshake_packet logic ---
                     // 1. Check replay protection *before* processing
                     if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-                         let _reason = e.to_string();
-                         result_action = Some(Err(e));
-                         LpState::Handshaking { session }
+                        let _reason = e.to_string();
+                        result_action = Some(Err(e));
+                        LpState::Handshaking { session }
                         //  LpState::Closed { reason }
                     } else {
-                         // 2. Process the handshake message
-                         match session.process_handshake_message(&packet.message) {
-                             Ok(_) => {
-                                 // 3. Mark counter as received *after* successful processing
-                                 if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-                                     let _reason = e.to_string();
-                                     result_action = Some(Err(e));
+                        // 2. Process the handshake message
+                        match session.process_handshake_message(&packet.message) {
+                            Ok(_) => {
+                                // 3. Mark counter as received *after* successful processing
+                                if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
+                                    let _reason = e.to_string();
+                                    result_action = Some(Err(e));
                                     //  LpState::Closed { reason }
                                     LpState::Handshaking { session }
-                                 } else {
-                                     // 4. First check if we need to send a handshake message (before checking completion)
-                                     match session.prepare_handshake_message() {
-                                         Some(Ok(message)) => {
-                                             match session.next_packet(message) {
-                                                 Ok(response_packet) => {
-                                                     result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-                                                     // Check if handshake became complete after preparing message
-                                                     if session.is_handshake_complete() {
-                                                         LpState::Transport { session } // Transition to Transport
-                                                     } else {
-                                                         LpState::Handshaking { session } // Remain Handshaking
-                                                     }
-                                                 }
-                                                 Err(e) => {
-                                                     let reason = e.to_string();
-                                                     result_action = Some(Err(e));
-                                                     LpState::Closed { reason }
-                                                 }
-                                             }
-                                         }
-                                         Some(Err(e)) => {
-                                             let reason = e.to_string();
-                                             result_action = Some(Err(e));
-                                             LpState::Closed { reason }
-                                         }
-                                         None => {
-                                             // 5. No message to send - check if handshake is complete
-                                             if session.is_handshake_complete() {
-                                                 result_action = Some(Ok(LpAction::HandshakeComplete));
-                                                 LpState::Transport { session } // Transition to Transport
-                                             } else {
-                                                 // Handshake stalled unexpectedly
-                                                 let err = LpError::NoiseError(NoiseError::Other(
-                                                     "Handshake stalled unexpectedly".to_string(),
-                                                 ));
-                                                 let reason = err.to_string();
-                                                 result_action = Some(Err(err));
-                                                 LpState::Closed { reason }
-                                             }
-                                         }
-                                     }
-                                 }
-                             }
-                             Err(e) => { // Error from process_handshake_message
-                                 let reason = e.to_string();
-                                 result_action = Some(Err(e));
-                                 LpState::Closed { reason }
-                             }
-                         }
+                                } else {
+                                    // 4. First check if we need to send a handshake message (before checking completion)
+                                    match session.prepare_handshake_message() {
+                                        Some(Ok(message)) => {
+                                            match session.next_packet(message) {
+                                                Ok(response_packet) => {
+                                                    result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                    // Check if handshake became complete after preparing message
+                                                    if session.is_handshake_complete() {
+                                                        LpState::Transport { session } // Transition to Transport
+                                                    } else {
+                                                        LpState::Handshaking { session } // Remain Handshaking
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
+                                        }
+                                        Some(Err(e)) => {
+                                            let reason = e.to_string();
+                                            result_action = Some(Err(e));
+                                            LpState::Closed { reason }
+                                        }
+                                        None => {
+                                            // 5. No message to send - check if handshake is complete
+                                            if session.is_handshake_complete() {
+                                                result_action = Some(Ok(LpAction::HandshakeComplete));
+                                                LpState::Transport { session } // Transition to Transport
+                                            } else {
+                                                // Handshake stalled unexpectedly
+                                                let err = LpError::NoiseError(NoiseError::Other(
+                                                    "Handshake stalled unexpectedly".to_string(),
+                                                ));
+                                                let reason = err.to_string();
+                                                result_action = Some(Err(err));
+                                                LpState::Closed { reason }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Err(e) => { // Error from process_handshake_message
+                                let reason = e.to_string();
+                                result_action = Some(Err(e));
+                                LpState::Closed { reason }
+                            }
+                        }
                     }
                     // --- End inline handle_handshake_packet logic ---
                 }
             }
-             // Reject SendData during handshake
+            // Reject SendData during handshake
             (LpState::Handshaking { session }, LpInput::SendData(_)) => { // Keep session if returning to this state
                 result_action = Some(Err(LpError::InvalidStateTransition {
                     state: "Handshaking".to_string(),
@@ -522,118 +561,127 @@ impl LpStateMachine {
                     state: "Handshaking".to_string(),
                     input: "StartHandshake".to_string(),
                 }));
-                 // Invalid input, remain in Handshaking state
-                 LpState::Handshaking { session }
+                // Invalid input, remain in Handshaking state
+                LpState::Handshaking { session }
             }
 
             // --- Transport State ---
             (LpState::Transport { session }, LpInput::ReceivePacket(packet)) => {
-                 // Check if packet lp_id matches our session
-                 if packet.header.receiver_idx() != session.id() {
+                // Check if packet lp_id matches our session
+                if packet.header.receiver_idx() != session.id() {
                     result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     LpState::Transport { session }
-                 } else {
-                     // Check message type - handle subsession initiation from peer
-                     match &packet.message {
-                         // Peer initiated subsession - we become responder
-                         LpMessage::SubsessionKK1(kk1_data) => {
-                             // Create subsession as responder
-                             let subsession_index = session.next_subsession_index();
-                             match session.create_subsession(subsession_index, false) {
-                                 Ok(subsession) => {
-                                     // Process KK1
-                                     match subsession.process_message(&kk1_data.payload) {
-                                         Ok(_) => {
-                                             // Prepare KK2 response
-                                             match subsession.prepare_message() {
-                                                 Ok(kk2_payload) => {
-                                                     let kk2_msg = LpMessage::SubsessionKK2(SubsessionKK2Data { payload: kk2_payload });
-                                                     match session.next_packet(kk2_msg) {
-                                                         Ok(response_packet) => {
-                                                             result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-                                                             // Stay in SubsessionHandshaking, wait for SubsessionReady
-                                                             LpState::SubsessionHandshaking { session, subsession: Box::new(subsession) }
-                                                         }
-                                                         Err(e) => {
-                                                             let reason = e.to_string();
-                                                             result_action = Some(Err(e));
-                                                             LpState::Closed { reason }
-                                                         }
-                                                     }
-                                                 }
-                                                 Err(e) => {
-                                                     let reason = e.to_string();
-                                                     result_action = Some(Err(e));
-                                                     LpState::Closed { reason }
-                                                 }
-                                             }
-                                         }
-                                         Err(e) => {
-                                             let reason = e.to_string();
-                                             result_action = Some(Err(e));
-                                             LpState::Closed { reason }
-                                         }
-                                     }
-                                 }
-                                 Err(e) => {
-                                     let reason = e.to_string();
-                                     result_action = Some(Err(e));
-                                     LpState::Closed { reason }
-                                 }
-                             }
-                         }
-                         // Normal encrypted data
-                         LpMessage::EncryptedData(_) => {
-                             // 1. Check replay protection
-                             if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-                                 result_action = Some(Err(e));
-                                 LpState::Transport { session }
-                             } else {
-                                 // 2. Decrypt data
-                                 match session.decrypt_data(&packet.message) {
-                                     Ok(plaintext) => {
-                                         // 3. Mark counter as received
-                                         if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-                                             result_action = Some(Err(e));
-                                             LpState::Transport { session }
-                                         } else {
-                                             // 4. Deliver data
-                                             result_action = Some(Ok(LpAction::DeliverData(BytesMut::from(plaintext.as_slice()))));
-                                             LpState::Transport { session }
-                                         }
-                                     }
-                                     Err(e) => {
-                                         let reason = e.to_string();
-                                         result_action = Some(Err(e.into()));
-                                         LpState::Closed { reason }
-                                     }
-                                 }
-                             }
-                         }
-                         // Stale abort in Transport state - race already resolved.
-                         // This can happen if abort arrives after loser already returned to Transport
-                         // via KK1 processing (loser detected local < remote and became responder).
-                         // The winner's abort message arrived late. Silently ignore.
-                         LpMessage::SubsessionAbort => {
-                             debug!("Ignoring stale SubsessionAbort in Transport state");
-                             result_action = None;
-                             LpState::Transport { session }
-                         }
-                         _ => {
-                             // Unexpected message type in Transport state
-                             let err = LpError::InvalidStateTransition {
-                                 state: "Transport".to_string(),
-                                 input: format!("Unexpected message type: {}", packet.message),
-                             };
-                             result_action = Some(Err(err));
-                             LpState::Transport { session }
-                         }
-                     }
-                 }
+                } else {
+                    // Check message type - handle subsession initiation from peer
+                    match &packet.message {
+                        // Peer initiated subsession - we become responder
+                        LpMessage::SubsessionKK1(kk1_data) => {
+                            // Create subsession as responder
+                            let subsession_index = session.next_subsession_index();
+                            match session.create_subsession(subsession_index, false) {
+                                Ok(subsession) => {
+                                    // Process KK1
+                                    match subsession.process_message(&kk1_data.payload) {
+                                        Ok(_) => {
+                                            // Prepare KK2 response
+                                            match subsession.prepare_message() {
+                                                Ok(kk2_payload) => {
+                                                    let kk2_msg = LpMessage::SubsessionKK2(SubsessionKK2Data { payload: kk2_payload });
+                                                    match session.next_packet(kk2_msg) {
+                                                        Ok(response_packet) => {
+                                                            result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                            // Stay in SubsessionHandshaking, wait for SubsessionReady
+                                                            LpState::SubsessionHandshaking { session, subsession: Box::new(subsession) }
+                                                        }
+                                                        Err(e) => {
+                                                            let reason = e.to_string();
+                                                            result_action = Some(Err(e));
+                                                            LpState::Closed { reason }
+                                                        }
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            let reason = e.to_string();
+                                            result_action = Some(Err(e));
+                                            LpState::Closed { reason }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        // Normal encrypted data
+                        LpMessage::EncryptedData(_) => {
+                            // 1. Check replay protection
+                            if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
+                                result_action = Some(Err(e));
+                                LpState::Transport { session }
+                            } else {
+                                // 2. Decrypt data
+                                match session.decrypt_data(&packet.message) {
+                                    Ok(plaintext) => {
+                                        // 3. Mark counter as received
+                                        if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
+                                            result_action = Some(Err(e));
+                                            LpState::Transport { session }
+                                        } else {
+                                            // 4. Deliver data
+                                             match plaintext.try_into() {
+                                                Ok(data) => {
+                                                    result_action = Some(Ok(LpAction::DeliverData(data)));
+                                                    LpState::Transport { session }
+                                                },
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let reason = e.to_string();
+                                        result_action = Some(Err(e.into()));
+                                        LpState::Closed { reason }
+                                    }
+                                }
+                            }
+                        }
+                        // Stale abort in Transport state - race already resolved.
+                        // This can happen if abort arrives after loser already returned to Transport
+                        // via KK1 processing (loser detected local < remote and became responder).
+                        // The winner's abort message arrived late. Silently ignore.
+                        LpMessage::SubsessionAbort => {
+                            debug!("Ignoring stale SubsessionAbort in Transport state");
+                            result_action = None;
+                            LpState::Transport { session }
+                        }
+                        _ => {
+                            // Unexpected message type in Transport state
+                            let err = LpError::InvalidStateTransition {
+                                state: "Transport".to_string(),
+                                input: format!("Unexpected message type: {}", packet.message),
+                            };
+                            result_action = Some(Err(err));
+                            LpState::Transport { session }
+                        }
+                    }
+                }
             }
             (LpState::Transport { session }, LpInput::SendData(data)) => {
                 // Encrypt and send application data
-                match self.prepare_data_packet(&session, &data) {
+                match self.prepare_data_packet(&session, data) {
                     Ok(packet) => result_action = Some(Ok(LpAction::SendPacket(packet))),
                     Err(e) => {
                         // If prepare fails, should we close? Let's report error and stay Transport for now.
@@ -641,17 +689,17 @@ impl LpStateMachine {
                         result_action = Some(Err(e.into()));
                     }
                 }
-                 // Remain in transport state
-                 LpState::Transport { session }
+                // Remain in transport state
+                LpState::Transport { session }
             }
-             // Reject StartHandshake if already in transport
+            // Reject StartHandshake if already in transport
             (LpState::Transport { session }, LpInput::StartHandshake) => { // Keep session
                 result_action = Some(Err(LpError::InvalidStateTransition {
                     state: "Transport".to_string(),
                     input: "StartHandshake".to_string(),
                 }));
-                 // Invalid input, remain in Transport state
-                 LpState::Transport { session }
+                // Invalid input, remain in Transport state
+                LpState::Transport { session }
             }
 
             // --- Transport + InitiateSubsession → SubsessionHandshaking ---
@@ -870,8 +918,16 @@ impl LpStateMachine {
                                             result_action = Some(Err(e));
                                             LpState::SubsessionHandshaking { session, subsession }
                                         } else {
-                                            result_action = Some(Ok(LpAction::DeliverData(BytesMut::from(plaintext.as_slice()))));
-                                            LpState::SubsessionHandshaking { session, subsession }
+                                            match plaintext.try_into() {
+                                                Ok(data) => {
+                                                    result_action = Some(Ok(LpAction::DeliverData(data)));
+                                                    LpState::SubsessionHandshaking { session, subsession }
+                                                }
+                                                Err(err) => {
+                                                    result_action = Some(Err(err));
+                                                    LpState::SubsessionHandshaking { session, subsession }
+                                                }
+                                            }
                                         }
                                     }
                                     Err(e) => {
@@ -937,7 +993,7 @@ impl LpStateMachine {
 
             // Parent can still send data during subsession handshake
             (LpState::SubsessionHandshaking { session, subsession }, LpInput::SendData(data)) => {
-                match self.prepare_data_packet(&session, &data) {
+                match self.prepare_data_packet(&session, data) {
                     Ok(packet) => result_action = Some(Ok(LpAction::SendPacket(packet))),
                     Err(e) => {
                         result_action = Some(Err(e.into()));
@@ -970,25 +1026,33 @@ impl LpStateMachine {
                     result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     LpState::ReadOnlyTransport { session }
                 } else if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-                        result_action = Some(Err(e));
-                        LpState::ReadOnlyTransport { session }
-                    } else {
-                        match session.decrypt_data(&packet.message) {
-                            Ok(plaintext) => {
-                                if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-                                    result_action = Some(Err(e));
-                                    LpState::ReadOnlyTransport { session }
-                                } else {
-                                    result_action = Some(Ok(LpAction::DeliverData(BytesMut::from(plaintext.as_slice()))));
-                                    LpState::ReadOnlyTransport { session }
+                    result_action = Some(Err(e));
+                    LpState::ReadOnlyTransport { session }
+                } else {
+                    match session.decrypt_data(&packet.message) {
+                        Ok(plaintext) => {
+                            if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
+                                result_action = Some(Err(e));
+                                LpState::ReadOnlyTransport { session }
+                            } else {
+                                match plaintext.try_into() {
+                                    Ok(data) => {
+                                        result_action = Some(Ok(LpAction::DeliverData(data)));
+                                        LpState::ReadOnlyTransport { session }
+                                    }
+                                    Err(err) => {
+                                        result_action = Some(Err(err));
+                                        LpState::ReadOnlyTransport { session }
+                                    }
                                 }
                             }
-                            Err(e) => {
-                                let reason = e.to_string();
-                                result_action = Some(Err(e.into()));
-                                LpState::Closed { reason }
-                            }
                         }
+                        Err(e) => {
+                            let reason = e.to_string();
+                            result_action = Some(Err(e.into()));
+                            LpState::Closed { reason }
+                        }
+                    }
                 }
             }
 
@@ -1026,8 +1090,8 @@ impl LpStateMachine {
                 LpInput::Close,
             ) => {
                 result_action = Some(Ok(LpAction::ConnectionClosed));
-                 // Transition to Closed state
-                 LpState::Closed { reason: "Closed by user".to_string() }
+                // Transition to Closed state
+                LpState::Closed { reason: "Closed by user".to_string() }
             }
             // Ignore Close if already Closed
             (closed_state @ LpState::Closed { .. }, LpInput::Close) => {
@@ -1040,36 +1104,36 @@ impl LpStateMachine {
             //      result_action = Some(Err(LpError::LpSessionClosed));
             //      closed_state
             // }
-             // Ignore ReceivePacket if Closed
+            // Ignore ReceivePacket if Closed
             (closed_state @ LpState::Closed { .. }, LpInput::ReceivePacket(_)) => {
-                 result_action = Some(Err(LpError::LpSessionClosed));
-                 closed_state
+                result_action = Some(Err(LpError::LpSessionClosed));
+                closed_state
             }
-             // Ignore SendData if Closed
+            // Ignore SendData if Closed
             (closed_state @ LpState::Closed { .. }, LpInput::SendData(_)) => {
-                 result_action = Some(Err(LpError::LpSessionClosed));
-                 closed_state
+                result_action = Some(Err(LpError::LpSessionClosed));
+                closed_state
             }
             // Processing state should not be matched directly if using replace
             (LpState::Processing, _) => {
-                 // This case should ideally be unreachable if placeholder logic is correct
-                 let err = LpError::Internal("Reached Processing state unexpectedly".to_string());
-                 let reason = err.to_string();
-                 result_action = Some(Err(err));
-                 LpState::Closed { reason }
+                // This case should ideally be unreachable if placeholder logic is correct
+                let err = LpError::Internal("Reached Processing state unexpectedly".to_string());
+                let reason = err.to_string();
+                result_action = Some(Err(err));
+                LpState::Closed { reason }
             }
 
             // --- Default: Invalid input for current state (if any combinations missed) ---
             // Consider if this should transition to Closed state. For now, just report error
             // and transition to Closed as a safety measure.
             (invalid_state, input) => {
-                 let err = LpError::InvalidStateTransition {
-                     state: format!("{:?}", invalid_state), // Use owned state for debug info
-                     input: format!("{:?}", input),
-                 };
-                 let reason = err.to_string();
-                 result_action = Some(Err(err));
-                 LpState::Closed { reason }
+                let err = LpError::InvalidStateTransition {
+                    state: format!("{:?}", invalid_state), // Use owned state for debug info
+                    input: format!("{:?}", input),
+                };
+                let reason = err.to_string();
+                result_action = Some(Err(err));
+                LpState::Closed { reason }
             }
         };
 
@@ -1084,9 +1148,9 @@ impl LpStateMachine {
     fn prepare_data_packet(
         &self,
         session: &LpSession,
-        data: &[u8],
+        data: LpData,
     ) -> Result<LpPacket, NoiseError> {
-        let encrypted_message = session.encrypt_data(data)?;
+        let encrypted_message = session.encrypt_data(Vec::<u8>::from(data).as_ref())?;
         session
             .next_packet(encrypted_message)
             .map_err(|e| NoiseError::Other(e.to_string())) // Improve error conversion?
@@ -1096,14 +1160,12 @@ impl LpStateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::Bytes;
-    use nym_crypto::asymmetric::ed25519;
+    use crate::packet::version;
+    use crate::peer::mock_peers;
 
     #[test]
     fn test_state_machine_init() {
-        // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([16u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([17u8; 32], 1);
+        let (init, resp) = mock_peers();
 
         // Test salt
         let salt = [51u8; 32];
@@ -1113,12 +1175,10 @@ mod tests {
         let initiator_sm = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
-            ed25519_keypair_resp.public_key(),
+            init.clone(),
+            resp.as_remote(),
             &salt,
+            version::CURRENT,
         );
         assert!(initiator_sm.is_ok());
         let initiator_sm = initiator_sm.unwrap();
@@ -1132,12 +1192,10 @@ mod tests {
         let responder_sm = LpStateMachine::new(
             receiver_index,
             false,
-            (
-                ed25519_keypair_resp.private_key(),
-                ed25519_keypair_resp.public_key(),
-            ),
-            ed25519_keypair_init.public_key(),
+            resp,
+            init.as_remote(),
             &salt,
+            version::CURRENT,
         );
         assert!(responder_sm.is_ok());
         let responder_sm = responder_sm.unwrap();
@@ -1154,9 +1212,7 @@ mod tests {
 
     #[test]
     fn test_state_machine_simplified_flow() {
-        // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([18u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([19u8; 32], 1);
+        let (init, resp) = mock_peers();
 
         // Test salt
         let salt = [52u8; 32];
@@ -1166,24 +1222,20 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true, // is_initiator
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
-            ed25519_keypair_resp.public_key(),
+            init.clone(),
+            resp.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
         let mut responder = LpStateMachine::new(
             receiver_index,
             false, // is_initiator
-            (
-                ed25519_keypair_resp.private_key(),
-                ed25519_keypair_resp.public_key(),
-            ),
-            ed25519_keypair_init.public_key(),
+            resp,
+            init.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
@@ -1306,8 +1358,8 @@ mod tests {
 
         // --- Transport Phase ---
         println!("--- Step 8: Initiator sends data ---");
-        let data_to_send_1 = b"hello responder";
-        let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.to_vec()));
+        let data_to_send_1 = LpData::new_opaque(b"hello responder".to_vec());
+        let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.clone()));
         let data_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_4 {
             packet.clone()
         } else {
@@ -1322,11 +1374,11 @@ mod tests {
         } else {
             panic!("Responder should deliver data");
         };
-        assert_eq!(resp_data_1, Bytes::copy_from_slice(data_to_send_1));
+        assert_eq!(resp_data_1, data_to_send_1);
 
         println!("--- Step 10: Responder sends data ---");
-        let data_to_send_2 = b"hello initiator";
-        let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.to_vec()));
+        let data_to_send_2 = LpData::new_opaque(b"hello initiator".to_vec());
+        let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.clone()));
         let data_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_6 {
             packet.clone()
         } else {
@@ -1337,7 +1389,7 @@ mod tests {
         println!("--- Step 11: Initiator receives data ---");
         let init_actions_5 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
         if let Some(Ok(LpAction::DeliverData(data))) = init_actions_5 {
-            assert_eq!(data, Bytes::copy_from_slice(data_to_send_2));
+            assert_eq!(data, data_to_send_2);
         } else {
             panic!("Initiator should deliver data");
         }
@@ -1362,9 +1414,7 @@ mod tests {
 
     #[test]
     fn test_kkt_exchange_initiator_flow() {
-        // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([20u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([21u8; 32], 1);
+        let (init, resp) = mock_peers();
 
         let salt = [53u8; 32];
         let receiver_index: u32 = 99901;
@@ -1373,12 +1423,10 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
-            ed25519_keypair_resp.public_key(),
+            init,
+            resp.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
@@ -1393,9 +1441,7 @@ mod tests {
 
     #[test]
     fn test_kkt_exchange_responder_flow() {
-        // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([22u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([23u8; 32], 1);
+        let (init, resp) = mock_peers();
 
         let salt = [54u8; 32];
         let receiver_index: u32 = 99902;
@@ -1404,12 +1450,10 @@ mod tests {
         let mut responder = LpStateMachine::new(
             receiver_index,
             false,
-            (
-                ed25519_keypair_resp.private_key(),
-                ed25519_keypair_resp.public_key(),
-            ),
-            ed25519_keypair_init.public_key(),
+            resp,
+            init.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
@@ -1425,8 +1469,7 @@ mod tests {
     #[test]
     fn test_kkt_exchange_full_roundtrip() {
         // Ed25519 keypairs for PSQ authentication and X25519 derivation
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([24u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([25u8; 32], 1);
+        let (init, resp) = mock_peers();
 
         let salt = [55u8; 32];
         let receiver_index: u32 = 99903;
@@ -1435,24 +1478,20 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
-            ed25519_keypair_resp.public_key(),
+            init.clone(),
+            resp.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
         let mut responder = LpStateMachine::new(
             receiver_index,
             false,
-            (
-                ed25519_keypair_resp.private_key(),
-                ed25519_keypair_resp.public_key(),
-            ),
-            ed25519_keypair_init.public_key(),
+            resp,
+            init.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
@@ -1482,6 +1521,7 @@ mod tests {
 
         // Step 4: Initiator receives KKT response, completes KKT
         let init_action = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
+
         assert!(matches!(init_action, Some(Ok(LpAction::KKTComplete))));
         // After KKT complete, initiator moves to Handshaking
         assert!(matches!(initiator.state, LpState::Handshaking { .. }));
@@ -1489,9 +1529,7 @@ mod tests {
 
     #[test]
     fn test_kkt_exchange_close() {
-        // Ed25519 keypairs for KKT authentication
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([26u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([27u8; 32], 1);
+        let (init, resp) = mock_peers();
 
         let salt = [56u8; 32];
         let receiver_index: u32 = 99904;
@@ -1500,12 +1538,10 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
-            ed25519_keypair_resp.public_key(),
+            init.clone(),
+            resp.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
@@ -1521,9 +1557,7 @@ mod tests {
 
     #[test]
     fn test_kkt_exchange_rejects_invalid_inputs() {
-        // Ed25519 keypairs for KKT authentication
-        let ed25519_keypair_init = ed25519::KeyPair::from_secret([28u8; 32], 0);
-        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([29u8; 32], 1);
+        let (init, resp) = mock_peers();
 
         let salt = [57u8; 32];
         let receiver_index: u32 = 99905;
@@ -1532,12 +1566,10 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
-            ed25519_keypair_resp.public_key(),
+            init.clone(),
+            resp.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
@@ -1546,7 +1578,8 @@ mod tests {
         assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
 
         // Try SendData during KKT exchange (should be rejected)
-        let send_action = initiator.process_input(LpInput::SendData(vec![1, 2, 3]));
+        let send_data = LpData::new_opaque(vec![1, 2, 3]);
+        let send_action = initiator.process_input(LpInput::SendData(send_data));
         assert!(matches!(
             send_action,
             Some(Err(LpError::InvalidStateTransition { .. }))
@@ -1565,10 +1598,7 @@ mod tests {
     /// Helper function to complete a full handshake between initiator and responder,
     /// returning both in Transport state ready for subsession testing.
     fn setup_transport_sessions() -> (LpStateMachine, LpStateMachine) {
-        // Use different seeds to get different X25519 keys.
-        // The tie-breaker compares X25519 public keys.
-        let ed25519_keypair_a = ed25519::KeyPair::from_secret([30u8; 32], 0);
-        let ed25519_keypair_b = ed25519::KeyPair::from_secret([31u8; 32], 1);
+        let (a, b) = mock_peers();
 
         let salt = [60u8; 32];
         let receiver_index: u32 = 111111;
@@ -1577,24 +1607,20 @@ mod tests {
         let mut alice = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_a.private_key(),
-                ed25519_keypair_a.public_key(),
-            ),
-            ed25519_keypair_b.public_key(),
+            a.clone(),
+            b.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 
         let mut bob = LpStateMachine::new(
             receiver_index,
             false,
-            (
-                ed25519_keypair_b.private_key(),
-                ed25519_keypair_b.public_key(),
-            ),
-            ed25519_keypair_a.public_key(),
+            b,
+            a.as_remote(),
             &salt,
+            version::CURRENT,
         )
         .unwrap();
 

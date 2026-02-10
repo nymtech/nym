@@ -1,6 +1,6 @@
 [package]
 name = "nym-service-provider-requests-common"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Common crate for requests and responses for Nym Service Providers"
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

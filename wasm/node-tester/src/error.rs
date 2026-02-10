@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_node_tester_utils::error::NetworkTestingError;
+use nym_wasm_client_core::error::WasmCoreError;
+use nym_wasm_client_core::topology::WasmTopologyError;
+use nym_wasm_client_core::{ClientCoreError, GatewayClientError};
+use nym_wasm_utils::wasm_error;
 use thiserror::Error;
-use wasm_client_core::error::WasmCoreError;
-use wasm_client_core::topology::WasmTopologyError;
-use wasm_client_core::{ClientCoreError, GatewayClientError};
-use wasm_utils::wasm_error;
 
 #[derive(Debug, Error)]
 pub enum NodeTesterError {

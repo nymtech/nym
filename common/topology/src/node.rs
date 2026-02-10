@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_api_requests::models::DeclaredRoles;
+use nym_api_requests::models::DeclaredRolesV1;
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::NodeId;
@@ -35,8 +35,8 @@ pub struct SupportedRoles {
     pub mixnet_exit: bool,
 }
 
-impl From<DeclaredRoles> for SupportedRoles {
-    fn from(value: DeclaredRoles) -> Self {
+impl From<DeclaredRolesV1> for SupportedRoles {
+    fn from(value: DeclaredRolesV1) -> Self {
         SupportedRoles {
             mixnode: value.mixnode,
             mixnet_entry: value.entry,

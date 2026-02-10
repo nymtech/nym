@@ -1,0 +1,43 @@
+name: Publish to crates.io (dry run)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g. 1.21.0)"
+        required: true
+        type: string
+
+jobs:
+  publish-dry-run:
+    runs-on: arc-ubuntu-22.04-dind
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-workspaces
+        run: cargo install cargo-workspaces
+
+      - name: Bump versions (local only)
+        run: |
+          cargo workspaces version ${{ inputs.version }} \
+            --no-git-commit \
+            --no-git-tag \
+            --no-git-push \
+            --yes
+
+      # Note: Dry run may show cascading dependency errors because packages
+      # aren't actually uploaded. Check if the missing dependency has an
+      # "aborting upload due to dry run" message earlier in the output - if so,
+      # it would succeed in a real publish since cargo-workspaces publishes in
+      # dependency order. cargo-workspaces doesn't fail on err, so there isn't
+      # a good way to check this at the moment.
+      - name: Publish (dry run)
+        run: cargo workspaces publish --from-git --dry-run --allow-dirty

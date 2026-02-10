@@ -7,6 +7,7 @@ homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -32,22 +33,22 @@ humantime = { workspace = true }
 humantime-serde.workspace = true
 
 # internal
-nym-bin-common = { path = "../common/bin-common", features = ["output_format", "basic_tracing"] }
-nym-config = { path = "../common/config" }
-nym-ecash-time = { path = "../common/ecash-time" }
-nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
-nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
-nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
-nym-credentials = { path = "../common/credentials" }
-nym-network-defaults = { path = "../common/network-defaults" }
-nym-task = { path = "../common/task" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-http-api-client = { path = "../common/http-api-client" }
-nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
+nym-config = { workspace = true }
+nym-ecash-time = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-compact-ecash = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
+nym-credentials = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-task = { workspace = true }
+nym-validator-client = { workspace = true }
+nym-http-api-client = { workspace = true }
+nym-coconut-dkg-common = { workspace = true }
 nyxd-scraper-sqlite = { path = "../common/nyxd-scraper-sqlite" }
-nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
-nym-serde-helpers = { path = "../common/serde-helpers", features = ["base64"] }
-nym-pemstore = { path = "../common/pemstore" }
+nym-ticketbooks-merkle = { workspace = true }
+nym-serde-helpers = { workspace = true, features = ["base64"] }
+nym-pemstore = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -56,7 +57,7 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [dev-dependencies]
 rand_chacha = { workspace = true }
-nym-credentials-interface = { path = "../common/credentials-interface" }
+nym-credentials-interface = { workspace = true }
 
 [lints]
 workspace = true

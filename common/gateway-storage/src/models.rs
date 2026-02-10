@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::{error::GatewayStorageError, make_bincode_serializer};
+use defguard_wireguard_rs::key::Key;
 use nym_credentials_interface::{AvailableBandwidth, ClientTicket, CredentialSpendingData};
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use sqlx::FromRow;
@@ -95,6 +96,7 @@ pub struct WireguardPeer {
     pub public_key: String,
     pub allowed_ips: Vec<u8>,
     pub client_id: i64,
+    pub psk: Option<String>,
 }
 
 impl WireguardPeer {
@@ -110,6 +112,7 @@ impl WireguardPeer {
                     source,
                 })?,
             client_id,
+            psk: value.preshared_key.map(|psk| psk.to_lower_hex()),
         })
     }
 }
@@ -132,6 +135,11 @@ impl TryFrom<WireguardPeer> for defguard_wireguard_rs::host::Peer {
                 field_key: "allowed_ips",
                 source,
             })?,
+            preshared_key: value
+                .psk
+                .map(|psk| Key::decode(&psk))
+                .transpose()
+                .map_err(|_| Self::Error::TypeConversion { field_key: "psk" })?,
             ..Default::default()
         })
     }

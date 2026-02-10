@@ -4,7 +4,7 @@ use nym_network_defaults::{DEFAULT_NYM_NODE_HTTP_PORT, NymNetworkDetails};
 use nym_node_requests::api::{client::NymNodeApiClientExt, v1::metrics::models::SessionStats};
 use nym_validator_client::{
     client::{NodeId, NymNodeDetails},
-    models::{DescribedNodeType, NymNodeDescription},
+    models::{DescribedNodeTypeV1, NymNodeDescriptionV1},
 };
 use time::OffsetDateTime;
 
@@ -64,6 +64,10 @@ async fn run(
 
     //SW TBC what nodes exactly need to be scraped, the skimmed node endpoint seems to return more nodes
     let bonded_nodes = nym_api.get_all_bonded_nym_nodes().await?;
+
+    // for now allow usage of old endpoint for we don't need LP related data
+    // and the new endpoint might not be immediately deployed
+    #[allow(deprecated)]
     let all_nodes = nym_api.get_all_described_nodes().await?; //legacy node that did not upgrade the contract bond yet
     tracing::debug!("Fetched {} total nodes", all_nodes.len());
 
@@ -74,7 +78,7 @@ async fn run(
 
     all_nodes
         .into_iter()
-        .filter(|n| n.contract_node_type != DescribedNodeType::LegacyMixnode)
+        .filter(|n| n.contract_node_type != DescribedNodeTypeV1::LegacyMixnode)
         .for_each(|n| {
             nodes_to_scrape.entry(n.node_id).or_insert_with(|| n.into());
         });
@@ -211,8 +215,8 @@ impl From<NymNodeDetails> for MetricsScrapingData {
     }
 }
 
-impl From<NymNodeDescription> for MetricsScrapingData {
-    fn from(value: NymNodeDescription) -> Self {
+impl From<NymNodeDescriptionV1> for MetricsScrapingData {
+    fn from(value: NymNodeDescriptionV1) -> Self {
         MetricsScrapingData::new(
             value.description.host_information.ip_address[0].to_string(),
             value.node_id,

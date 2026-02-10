@@ -1,6 +1,6 @@
 [package]
 name = "nym-test-utils"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Helpers, traits, and mock definitions for tests"
 
 [dependencies]
 anyhow = { workspace = true }
@@ -17,7 +18,7 @@ rand_chacha = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "rt"] }
 tracing = { workspace = true }
 
-nym-bin-common = { path = "../bin-common", features = ["tracing"] }
+nym-bin-common = { workspace = true, features = ["tracing"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

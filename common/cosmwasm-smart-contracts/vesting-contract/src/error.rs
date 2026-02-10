@@ -3,7 +3,7 @@
 
 use crate::account::VestingAccountStorageKey;
 use cosmwasm_std::{Addr, Coin, OverflowError, StdError, Uint128};
-use mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::NodeId;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]

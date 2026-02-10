@@ -1,12 +1,13 @@
 [package]
 name = "nym-id"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Functionality for importing and storing credentials and cryptographic keys"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,5 +17,5 @@ time.workspace = true
 tracing.workspace = true
 zeroize.workspace = true
 
-nym-credential-storage = { path = "../credential-storage" }
-nym-credentials = { path = "../credentials" }
+nym-credential-storage = { workspace = true }
+nym-credentials = { workspace = true }

@@ -47,12 +47,11 @@
 //! - **No cleanup needed**: No state was mutated
 
 use crate::LpError;
-use crate::keypair::{PrivateKey, PublicKey};
 use libcrux_psq::v1::cred::{Authenticator, Ed25519};
 use libcrux_psq::v1::impls::X25519 as PsqX25519;
 use libcrux_psq::v1::psk_registration::{Initiator, InitiatorMsg, Responder};
 use libcrux_psq::v1::traits::{Ciphertext as PsqCiphertext, PSQ};
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use std::time::Duration;
 use tls_codec::{Deserialize as TlsDeserializeTrait, Serialize as TlsSerializeTrait};
@@ -137,8 +136,8 @@ pub struct PsqResponderResult {
 /// // Send ciphertext to gateway
 /// ```
 pub fn derive_psk_with_psq_initiator(
-    local_x25519_private: &PrivateKey,
-    remote_x25519_public: &PublicKey,
+    local_x25519_private: &x25519::PrivateKey,
+    remote_x25519_public: &x25519::PublicKey,
     remote_kem_public: &EncapsulationKey,
     salt: &[u8; 32],
 ) -> Result<([u8; 32], Vec<u8>), LpError> {
@@ -168,7 +167,7 @@ pub fn derive_psk_with_psq_initiator(
 
     // Step 3: Combine ECDH + PSQ via Blake3 KDF
     let mut combined = Vec::with_capacity(64 + psq_psk.len());
-    combined.extend_from_slice(ecdh_secret.as_bytes());
+    combined.extend_from_slice(&ecdh_secret);
     combined.extend_from_slice(&psq_psk); // psq_psk is [u8; 32], need &
     combined.extend_from_slice(salt);
 
@@ -220,8 +219,8 @@ pub fn derive_psk_with_psq_initiator(
 /// )?;
 /// ```
 pub fn derive_psk_with_psq_responder(
-    local_x25519_private: &PrivateKey,
-    remote_x25519_public: &PublicKey,
+    local_x25519_private: &x25519::PrivateKey,
+    remote_x25519_public: &x25519::PublicKey,
     local_kem_keypair: (&DecapsulationKey, &EncapsulationKey),
     ciphertext: &[u8],
     salt: &[u8; 32],
@@ -249,7 +248,7 @@ pub fn derive_psk_with_psq_responder(
 
     // Step 5: Combine ECDH + PSQ via Blake3 KDF (same formula as initiator)
     let mut combined = Vec::with_capacity(64 + psq_psk.len());
-    combined.extend_from_slice(ecdh_secret.as_bytes());
+    combined.extend_from_slice(&ecdh_secret);
     combined.extend_from_slice(&psq_psk); // psq_psk is [u8; 32], need &
     combined.extend_from_slice(salt);
 
@@ -280,8 +279,8 @@ pub fn derive_psk_with_psq_responder(
 /// # Returns
 /// `PsqInitiatorResult` containing PSK, payload, and raw PQ shared secret
 pub fn psq_initiator_create_message(
-    local_x25519_private: &PrivateKey,
-    remote_x25519_public: &PublicKey,
+    local_x25519_private: &x25519::PrivateKey,
+    remote_x25519_public: &x25519::PublicKey,
     remote_kem_public: &EncapsulationKey,
     client_ed25519_sk: &ed25519::PrivateKey,
     client_ed25519_pk: &ed25519::PublicKey,
@@ -335,7 +334,7 @@ pub fn psq_initiator_create_message(
 
     // Step 3: Combine ECDH + PSQ via Blake3 KDF
     let mut combined = Vec::with_capacity(64 + psq_psk.len());
-    combined.extend_from_slice(ecdh_secret.as_bytes());
+    combined.extend_from_slice(&ecdh_secret);
     combined.extend_from_slice(psq_psk); // psq_psk is already a &[u8; 32]
     combined.extend_from_slice(salt);
 
@@ -375,8 +374,8 @@ pub fn psq_initiator_create_message(
 /// # Returns
 /// `PsqResponderResult` containing PSK, PSK handle, and raw PQ shared secret
 pub fn psq_responder_process_message(
-    local_x25519_private: &PrivateKey,
-    remote_x25519_public: &PublicKey,
+    local_x25519_private: &x25519::PrivateKey,
+    remote_x25519_public: &x25519::PublicKey,
     local_kem_keypair: (&DecapsulationKey, &EncapsulationKey),
     initiator_ed25519_pk: &ed25519::PublicKey,
     psq_payload: &[u8],
@@ -444,7 +443,7 @@ pub fn psq_responder_process_message(
 
     // Step 6: Combine ECDH + PSQ via Blake3 KDF (same formula as initiator)
     let mut combined = Vec::with_capacity(64 + psq_psk.len());
-    combined.extend_from_slice(ecdh_secret.as_bytes());
+    combined.extend_from_slice(&ecdh_secret);
     combined.extend_from_slice(&psq_psk); // psq_psk is [u8; 32], need &
     combined.extend_from_slice(salt);
 
@@ -493,12 +492,16 @@ pub fn derive_subsession_psk(pq_shared_secret: &[u8; 32], subsession_index: u64)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keypair::Keypair;
+    use rand::thread_rng;
+
+    fn generate_x25519_keypair() -> x25519::KeyPair {
+        x25519::KeyPair::new(&mut thread_rng())
+    }
 
     #[test]
     fn test_psk_derivation_is_symmetric() {
-        let keypair_1 = Keypair::default();
-        let keypair_2 = Keypair::default();
+        let keypair_1 = generate_x25519_keypair();
+        let keypair_2 = generate_x25519_keypair();
         let salt = [2u8; 32];
 
         let mut rng = &mut rand09::rng();
@@ -533,8 +536,8 @@ mod tests {
 
     #[test]
     fn test_different_salts_produce_different_psks() {
-        let keypair_1 = Keypair::default();
-        let keypair_2 = Keypair::default();
+        let keypair_1 = generate_x25519_keypair();
+        let keypair_2 = generate_x25519_keypair();
 
         let salt1 = [1u8; 32];
         let salt2 = [2u8; 32];
@@ -562,9 +565,9 @@ mod tests {
 
     #[test]
     fn test_different_keys_produce_different_psks() {
-        let keypair_1 = Keypair::default();
-        let keypair_2 = Keypair::default();
-        let keypair_3 = Keypair::default();
+        let keypair_1 = generate_x25519_keypair();
+        let keypair_2 = generate_x25519_keypair();
+        let keypair_3 = generate_x25519_keypair();
         let salt = [3u8; 32];
 
         let mut rng = &mut rand09::rng();
@@ -601,8 +604,8 @@ mod tests {
         let mut rng = rand09::rng();
 
         // Generate X25519 keypairs for Noise
-        let client_keypair = Keypair::default();
-        let gateway_keypair = Keypair::default();
+        let client_keypair = generate_x25519_keypair();
+        let gateway_keypair = generate_x25519_keypair();
 
         // Generate KEM keypair for PSQ
         let (kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
@@ -659,8 +662,8 @@ mod tests {
         let mut rng = rand09::rng();
 
         // Generate X25519 keypairs for Noise
-        let client_keypair = Keypair::default();
-        let gateway_keypair = Keypair::default();
+        let client_keypair = generate_x25519_keypair();
+        let gateway_keypair = generate_x25519_keypair();
 
         // Generate KEM keypair for PSQ
         let (kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
@@ -698,8 +701,8 @@ mod tests {
     fn test_different_kem_keys_different_psk() {
         let mut rng = rand09::rng();
 
-        let client_keypair = Keypair::default();
-        let gateway_keypair = Keypair::default();
+        let client_keypair = generate_x25519_keypair();
+        let gateway_keypair = generate_x25519_keypair();
 
         // Two different KEM keypairs
         let (_, kem_pk1) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
@@ -736,8 +739,8 @@ mod tests {
     fn test_psq_psk_output_length() {
         let mut rng = rand09::rng();
 
-        let client_keypair = Keypair::default();
-        let gateway_keypair = Keypair::default();
+        let client_keypair = generate_x25519_keypair();
+        let gateway_keypair = generate_x25519_keypair();
 
         let (_, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let enc_key = EncapsulationKey::X25519(kem_pk);
@@ -759,8 +762,8 @@ mod tests {
     fn test_psq_different_salts_different_psks() {
         let mut rng = rand09::rng();
 
-        let client_keypair = Keypair::default();
-        let gateway_keypair = Keypair::default();
+        let client_keypair = generate_x25519_keypair();
+        let gateway_keypair = generate_x25519_keypair();
 
         let (_, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let enc_key = EncapsulationKey::X25519(kem_pk);

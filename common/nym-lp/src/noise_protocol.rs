@@ -294,8 +294,8 @@ pub fn create_noise_state(
     remote_public_key: &[u8],
     psk: &[u8],
 ) -> Result<NoiseProtocol, NoiseError> {
-    let pattern_name = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";
-    let psk_index = 3;
+    let pattern_name = crate::NOISE_PATTERN;
+    let psk_index = crate::NOISE_PSK_INDEX;
     let noise_params: NoiseParams = pattern_name.parse().unwrap();
 
     let builder = snow::Builder::new(noise_params.clone());
@@ -314,8 +314,8 @@ pub fn create_noise_state_responder(
     remote_public_key: &[u8],
     psk: &[u8],
 ) -> Result<NoiseProtocol, NoiseError> {
-    let pattern_name = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";
-    let psk_index = 3;
+    let pattern_name = crate::NOISE_PATTERN;
+    let psk_index = crate::NOISE_PSK_INDEX;
     let noise_params: NoiseParams = pattern_name.parse().unwrap();
 
     let builder = snow::Builder::new(noise_params.clone());

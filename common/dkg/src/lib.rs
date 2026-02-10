@@ -13,8 +13,8 @@ pub mod dealing;
 pub(crate) mod share;
 pub(crate) mod utils;
 
-pub use bls12_381::{G2Projective, Scalar};
 pub use dealing::*;
+pub use nym_bls12_381_fork::{G2Projective, Scalar};
 pub use share::*;
 
 // TODO: presumably this should live in a some different, common, crate?
@@ -25,7 +25,7 @@ pub type NodeIndex = u64;
 mod tests {
     use crate::interpolation::perform_lagrangian_interpolation_at_origin;
     use crate::interpolation::polynomial::Polynomial;
-    use bls12_381::Scalar;
+    use nym_bls12_381_fork::Scalar;
     use rand_chacha::rand_core::SeedableRng;
 
     #[test]

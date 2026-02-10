@@ -27,14 +27,14 @@ cw-storage-plus = { workspace = true }
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
 
-nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
-nym-multisig-contract-common = { path = "../../../common/cosmwasm-smart-contracts/multisig-contract" }
-nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-contracts-common-testing = { path = "../../../common/cosmwasm-smart-contracts/contracts-common-testing", optional = true }
+nym-group-contract-common = { workspace = true }
+nym-multisig-contract-common = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-contracts-common-testing = { workspace = true, optional = true }
 
 [dev-dependencies]
-easy-addr = { path = "../../../common/cosmwasm-smart-contracts/easy_addr" }
-cw4-group = { path = "../cw4-group" }
+easy-addr = { workspace = true }
+cw4-group = { workspace = true }
 cw-multi-test = { workspace = true }
 cw20-base = { workspace = true }
 

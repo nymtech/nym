@@ -12,13 +12,14 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+publish = false
 
 [dependencies]
 anyhow = { workspace = true }
 bs58 = { workspace = true }
 bincode = { workspace = true }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde", ] }
-nym-credentials = { path = "../../common/credentials" }
+nym-crypto = { workspace = true, features = ["asymmetric", "serde", ] }
+nym-credentials = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

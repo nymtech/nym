@@ -71,7 +71,7 @@ use url::Url;
 
 #[cfg(target_arch = "wasm32")]
 #[cfg(debug_assertions)]
-use wasm_utils::console_log;
+use nym_wasm_utils::console_log;
 
 /// Default number of retries for Nym API requests when using network details with domain fronting.
 /// This allows the client to try alternative URLs if the primary endpoint is unavailable.

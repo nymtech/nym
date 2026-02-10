@@ -16,7 +16,7 @@ use nym_validator_client::{
 };
 use nym_validator_client::{
     client::{NodeId, NymApiClientExt, NymNodeDetails},
-    models::NymNodeDescription,
+    models::NymNodeDescriptionV1,
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::{sync::RwLock, time::Duration};
@@ -282,7 +282,7 @@ impl Monitor {
     }
 
     #[instrument(level = "info", skip_all)]
-    async fn location_cached(&mut self, node: &NymNodeDescription) -> Location {
+    async fn location_cached(&mut self, node: &NymNodeDescriptionV1) -> Location {
         let node_id = node.node_id;
 
         match self.geocache.get(&node_id).await {
@@ -310,7 +310,7 @@ impl Monitor {
         &self,
         skimmed_nodes: Vec<SkimmedNode>,
         bonded_node_info: &HashMap<NodeId, NymNodeDetails>,
-        described_nodes: &HashMap<NodeId, NymNodeDescription>,
+        described_nodes: &HashMap<NodeId, NymNodeDescriptionV1>,
     ) -> Vec<NymNodeInsertRecord> {
         skimmed_nodes
             .into_iter()
@@ -335,7 +335,7 @@ impl Monitor {
 
     async fn prepare_gateway_data(
         &mut self,
-        described_gateways: &[&NymNodeDescription],
+        described_gateways: &[&NymNodeDescriptionV1],
         skimmed_gateways: &[SkimmedNode],
         bonded_nodes: &HashMap<NodeId, NymNodeDetails>,
     ) -> anyhow::Result<Vec<GatewayInsertRecord>> {

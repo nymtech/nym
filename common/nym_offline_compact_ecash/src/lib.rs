@@ -6,14 +6,14 @@
 #![warn(clippy::todo)]
 #![warn(clippy::dbg_macro)]
 
-use bls12_381::Scalar;
+use nym_bls12_381_fork::Scalar;
 use std::sync::OnceLock;
 
 pub use crate::error::CompactEcashError;
 pub use crate::traits::Bytable;
-pub use bls12_381::G1Projective;
 pub use common_types::{BlindedSignature, Signature};
 pub use helpers::{date_scalar, type_scalar};
+pub use nym_bls12_381_fork::G1Projective;
 pub use scheme::aggregation::aggregate_verification_keys;
 pub use scheme::aggregation::aggregate_wallets;
 pub use scheme::identify;

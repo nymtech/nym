@@ -22,12 +22,12 @@ cw-controllers = { workspace = true }
 
 cosmwasm-schema = { workspace = true, optional = true }
 
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-pool-contract-common = { path = "../../common/cosmwasm-smart-contracts/nym-pool-contract" }
+nym-contracts-common = { workspace = true }
+nym-pool-contract-common = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }
+nym-contracts-common-testing = { workspace = true }
 
 [features]
 schema-gen = ["nym-pool-contract-common/schema", "cosmwasm-schema"]

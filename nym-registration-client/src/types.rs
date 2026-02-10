@@ -3,7 +3,7 @@
 
 use nym_authenticator_client::{AuthClientMixnetListenerHandle, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
-use nym_registration_common::{AssignedAddresses, GatewayData};
+use nym_registration_common::{AssignedAddresses, WireguardConfiguration};
 use nym_sdk::mixnet::{EventReceiver, MixnetClient};
 
 pub enum RegistrationResult {
@@ -21,8 +21,8 @@ pub struct MixnetRegistrationResult {
 pub struct WireguardRegistrationResult {
     pub entry_gateway_client: AuthenticatorClient,
     pub exit_gateway_client: AuthenticatorClient,
-    pub entry_gateway_data: GatewayData,
-    pub exit_gateway_data: GatewayData,
+    pub entry_gateway_data: WireguardConfiguration,
+    pub exit_gateway_data: WireguardConfiguration,
     pub authenticator_listener_handle: AuthClientMixnetListenerHandle,
     pub bw_controller: Box<dyn BandwidthTicketProvider>,
 }
@@ -39,10 +39,10 @@ pub struct WireguardRegistrationResult {
 /// * `bw_controller` - Bandwidth ticket provider for credential management
 pub struct LpRegistrationResult {
     /// Gateway configuration data from entry gateway
-    pub entry_gateway_data: GatewayData,
+    pub entry_gateway_data: WireguardConfiguration,
 
     /// Gateway configuration data from exit gateway
-    pub exit_gateway_data: GatewayData,
+    pub exit_gateway_data: WireguardConfiguration,
 
     /// Bandwidth controller for credential management
     pub bw_controller: Box<dyn BandwidthTicketProvider>,

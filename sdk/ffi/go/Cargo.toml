@@ -1,8 +1,12 @@
 [package]
 name = "nym-go-ffi"
-version = "0.2.2"
+version.workspace = true
 edition = "2021"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 license.workspace = true
+description = "Go FFI bindings for Nym Rust SDK"
 
 [lib]
 crate-type = ["cdylib"]
@@ -12,11 +16,11 @@ name = "nym_go_ffi"
 # Bindgen
 uniffi = { workspace = true, features = ["cli"] }
 # Nym clients, addressing, packet format, common tools (logging), ffi shared
-nym-sdk = { path = "../../rust/nym-sdk/" }
-nym-crypto = { path = "../../../common/crypto" }
-nym-bin-common = { path = "../../../common/bin-common", features = ["basic_tracing"] }
-nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
-nym-ffi-shared = { path = "../shared" }
+nym-sdk = { workspace = true }
+nym-crypto = { workspace = true }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+nym-sphinx-anonymous-replies = { workspace = true }
+nym-ffi-shared = { workspace = true }
 # Async runtime
 tokio = { workspace = true, features = ["full"] }
 lazy_static = { workspace = true }

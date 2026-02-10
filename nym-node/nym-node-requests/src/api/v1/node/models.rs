@@ -6,7 +6,7 @@ use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
 use nym_crypto::asymmetric::x25519::{
     self, serde_helpers::bs58_x25519_pubkey, serde_helpers::option_bs58_x25519_pubkey,
 };
-use nym_noise_keys::VersionedNoiseKey;
+use nym_noise_keys::VersionedNoiseKeyV1;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -146,7 +146,7 @@ pub struct HostKeys {
 
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
-    pub x25519_versioned_noise: Option<VersionedNoiseKey>,
+    pub x25519_versioned_noise: Option<VersionedNoiseKeyV1>,
 }
 
 // we need the intermediate struct to help us with the new explicit sphinx key fields
@@ -193,7 +193,7 @@ struct HostKeysDeHelper {
 
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
-    pub x25519_versioned_noise: Option<VersionedNoiseKey>,
+    pub x25519_versioned_noise: Option<VersionedNoiseKeyV1>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

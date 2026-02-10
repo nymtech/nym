@@ -57,3 +57,22 @@ where
         Ok(Some(token))
     }
 }
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<T: BandwidthTicketProvider + ?Sized + Send> BandwidthTicketProvider for Box<T> {
+    async fn get_ecash_ticket(
+        &self,
+        ticket_type: TicketType,
+        gateway_id: ed25519::PublicKey,
+        tickets_to_spend: u32,
+    ) -> Result<PreparedCredential, BandwidthControllerError> {
+        (**self)
+            .get_ecash_ticket(ticket_type, gateway_id, tickets_to_spend)
+            .await
+    }
+
+    async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError> {
+        (**self).get_upgrade_mode_token().await
+    }
+}

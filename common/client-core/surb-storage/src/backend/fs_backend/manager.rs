@@ -13,7 +13,7 @@ use std::path::Path;
 use time::OffsetDateTime;
 use tracing::{error, info};
 
-use sqlx_pool_guard::SqlitePoolGuard;
+use nym_sqlx_pool_guard::SqlitePoolGuard;
 
 #[derive(Debug, Clone)]
 pub struct StorageManager {

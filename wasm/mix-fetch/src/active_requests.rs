@@ -6,11 +6,11 @@ use crate::go_bridge::{goWasmCloseRemoteSocket, goWasmInjectConnError, goWasmInj
 use crate::RequestId;
 use nym_ordered_buffer::OrderedMessageBuffer;
 use nym_socks5_requests::SocketData;
+use nym_wasm_utils::{console_error, console_log};
 use rand::{thread_rng, RngCore};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use wasm_utils::{console_error, console_log};
 
 #[derive(Clone, Default)]
 pub struct ActiveRequests {

@@ -8,10 +8,12 @@
 #![allow(clippy::empty_docs)]
 
 use crate::error::WasmClientError;
+use nym_wasm_client_core::config::{
+    new_base_client_config, BaseClientConfig, ConfigDebug, DebugWasm,
+};
 use serde::{Deserialize, Serialize};
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
-use wasm_client_core::config::{new_base_client_config, BaseClientConfig, ConfigDebug, DebugWasm};
 
 pub const DEFAULT_CLIENT_ID: &str = "nym-mixnet-client";
 

@@ -7,8 +7,8 @@ use crate::{
     EpochEventId, IntervalEventId, MixNodeBond, MixNodeDetails, NodeId, NodeRewarding, NymNodeBond,
     NymNodeDetails, PendingNodeChanges,
 };
-use contracts_common::IdentityKeyRef;
 use cosmwasm_std::{Coin, Decimal, StdError, StdResult, Uint128};
+use nym_contracts_common::IdentityKeyRef;
 
 #[track_caller]
 pub fn compare_decimals(a: Decimal, b: Decimal, epsilon: Option<Decimal>) {

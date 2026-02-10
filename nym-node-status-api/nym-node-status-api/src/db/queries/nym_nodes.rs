@@ -1,14 +1,5 @@
-use crate::db::models::NymNodeDescriptionDeHelper;
-use futures_util::TryStreamExt;
-use nym_node_requests::api::v1::node::models::NodeDescription;
-use nym_validator_client::{
-    client::{NodeId, NymNodeDetails},
-    models::NymNodeDescription,
-};
-use std::collections::HashMap;
-use tracing::{instrument, warn};
-
 use crate::db::DbConnection;
+use crate::db::models::NymNodeDescriptionDeHelper;
 use crate::http::models::DailyStats;
 use crate::{
     db::{
@@ -17,6 +8,12 @@ use crate::{
     },
     node_scraper::helpers::NodeDescriptionResponse,
 };
+use futures_util::TryStreamExt;
+use nym_node_requests::api::v1::node::models::NodeDescription;
+use nym_validator_client::client::{NodeId, NymNodeDetails};
+use nym_validator_client::models::NymNodeDescriptionV2;
+use std::collections::HashMap;
+use tracing::{instrument, warn};
 
 pub(crate) async fn get_all_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNodeDto>> {
     let mut conn = pool.acquire().await?;
@@ -195,7 +192,7 @@ pub(crate) async fn get_described_node_bond_info(
 
 pub(crate) async fn get_node_self_description(
     pool: &DbPool,
-) -> anyhow::Result<HashMap<NodeId, NymNodeDescription>> {
+) -> anyhow::Result<HashMap<NodeId, NymNodeDescriptionV2>> {
     let mut conn = pool.acquire().await?;
 
     sqlx::query!(

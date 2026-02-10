@@ -3,10 +3,14 @@
 
 [package]
 name = "nym-gateway-requests"
-version = "0.1.0"
+version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
+description = "Request and response definitions for Nym Gateway <> client communication"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -24,15 +28,15 @@ time = { workspace = true }
 subtle = { workspace = true }
 zeroize = { workspace = true }
 
-nym-crypto = { path = "../crypto", features = ["aead", "hashing"] }
-nym-pemstore = { path = "../pemstore" }
-nym-sphinx = { path = "../nymsphinx" }
-nym-serde-helpers = { path = "../serde-helpers", features = ["base64"] }
-nym-statistics-common = { path = "../statistics" }
-nym-task = { path = "../task" }
+nym-crypto = { workspace = true, features = ["aead", "hashing"] }
+nym-pemstore = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-serde-helpers = { workspace = true, features = ["base64"] }
+nym-statistics-common = { workspace = true }
+nym-task = { workspace = true }
 
-nym-credentials = { path = "../credentials" }
-nym-credentials-interface = { path = "../credentials-interface" }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 workspace = true
@@ -48,8 +52,8 @@ default-features = false
 
 [dev-dependencies]
 anyhow = { workspace = true }
-nym-compact-ecash = { path = "../nym_offline_compact_ecash" } # we need specific imports in tests
-nym-test-utils = { path = "../test-utils" }
+nym-compact-ecash = { workspace = true } # we need specific imports in tests
+nym-test-utils = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
 [lints]

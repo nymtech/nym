@@ -14,17 +14,17 @@ mod helpers;
 #[cfg(target_arch = "wasm32")]
 mod response_pusher;
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
+use nym_wasm_utils::set_panic_hook;
 #[cfg(target_arch = "wasm32")]
-use wasm_utils::set_panic_hook;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(start)]
 #[cfg(target_arch = "wasm32")]
 pub fn main_js() {
-    wasm_utils::console_log!("[rust main]: setting panic hook");
+    nym_wasm_utils::console_log!("[rust main]: setting panic hook");
     set_panic_hook();
-    wasm_utils::console_log!("[rust main]: rust module loaded");
-    wasm_utils::console_log!(
+    nym_wasm_utils::console_log!("[rust main]: rust module loaded");
+    nym_wasm_utils::console_log!(
         "wasm client version used: {}",
         nym_bin_common::bin_info_owned!()
     );

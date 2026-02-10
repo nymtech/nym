@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_node_tester_utils::TestMessage;
+use nym_wasm_utils::console_log;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use wasm_bindgen::prelude::wasm_bindgen;
-use wasm_utils::console_log;
 
 pub type NodeTestMessage = TestMessage<WasmTestMessageExt>;
 

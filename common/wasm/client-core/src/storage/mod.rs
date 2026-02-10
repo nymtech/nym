@@ -5,15 +5,15 @@ use crate::error::WasmCoreError;
 use crate::storage::wasm_client_traits::{v1, v2, WasmClientStorage};
 use async_trait::async_trait;
 use js_sys::Promise;
+use nym_wasm_storage::traits::BaseWasmStorage;
+use nym_wasm_storage::{
+    Build, Database, RawDbResult, TryFromJs, TryToJs, VersionChangeEvent, WasmStorage,
+};
+use nym_wasm_utils::error::{simple_js_error, PromisableResult};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_storage::traits::BaseWasmStorage;
-use wasm_storage::{
-    Build, Database, RawDbResult, TryFromJs, TryToJs, VersionChangeEvent, WasmStorage,
-};
-use wasm_utils::error::{simple_js_error, PromisableResult};
 use zeroize::Zeroizing;
 
 pub mod core_client_traits;

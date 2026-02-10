@@ -3,6 +3,7 @@
 
 use crate::{noise_protocol::NoiseError, replay::ReplayError};
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
+use nym_kkt::ciphersuite::{HashFunction, KEM};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -82,4 +83,23 @@ pub enum LpError {
     /// Outer AEAD authentication tag verification failed.
     #[error("AEAD authentication tag verification failed")]
     AeadTagMismatch,
+
+    /// Received an LP packet with an incompatible, future, version
+    #[error("incompatible LP packet version. got: {got}, highest supported: {highest_supported}")]
+    IncompatibleFuturePacketVersion { got: u8, highest_supported: u8 },
+
+    /// Received an LP packet with an incompatible, legacy, version
+    #[error("incompatible LP packet version. got: {got}, lowest supported: {lowest_supported}")]
+    IncompatibleLegacyPacketVersion { got: u8, lowest_supported: u8 },
+
+    #[error("attempted to create an LP responder without providing a valid KEM key")]
+    ResponderWithMissingKEMKey,
+
+    #[error(
+        "there are no known digests for remote's KEM key with {kem} KEM and {hash_function} hash function"
+    )]
+    NoKnownKEMKeyDigests {
+        kem: KEM,
+        hash_function: HashFunction,
+    },
 }

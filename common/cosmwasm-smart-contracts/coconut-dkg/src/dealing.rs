@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{ChunkIndex, DealingIndex, EpochId, PartialContractDealingData};
-use contracts_common::dealings::ContractSafeBytes;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
+use nym_contracts_common::dealings::ContractSafeBytes;
 use std::collections::{BTreeMap, HashMap};
 
 /// Defines the maximum size of a dealing chunk. Currently set to 2kB

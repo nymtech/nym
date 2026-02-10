@@ -1,10 +1,11 @@
 [package]
-name = "wasm-client-core"
+name = "nym-wasm-client-core"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"
+description = "Crate containing core WASM client functionality and configs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -22,21 +23,21 @@ wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 zeroize = { workspace = true }
 
-nym-bandwidth-controller = { path = "../../bandwidth-controller" }
-nym-client-core = { path = "../../client-core", default-features = false, features = ["wasm"] }
-nym-config = { path = "../../config" }
-nym-credential-storage = { path = "../../credential-storage" }
-nym-crypto = { path = "../../crypto", features = ["asymmetric", "serde"] }
-nym-gateway-client = { path = "../../client-libs/gateway-client", default-features = false, features = ["wasm"] }
-nym-sphinx = { path = "../../nymsphinx" }
-nym-sphinx-acknowledgements = { path = "../../nymsphinx/acknowledgements", features = ["serde"] }
-nym-statistics-common = { path = "../../statistics" }
-nym-task = { path = "../../task" }
-nym-topology = { path = "../../topology", features = ["wasm-serde-types"] }
-nym-validator-client = { path = "../../client-libs/validator-client", default-features = false }
-nym-http-api-client = { path = "../../http-api-client" }
-wasm-utils = { path = "../utils" }
-wasm-storage = { path = "../storage" }
+nym-bandwidth-controller = { workspace = true }
+nym-client-core = { workspace = true, default-features = false, features = ["wasm"] }
+nym-config = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
+nym-gateway-client = { workspace = true, default-features = false, features = ["wasm"] }
+nym-sphinx = { workspace = true }
+nym-sphinx-acknowledgements = { workspace = true, features = ["serde"] }
+nym-statistics-common = { workspace = true }
+nym-task = { workspace = true }
+nym-topology = { workspace = true, features = ["wasm-serde-types"] }
+nym-validator-client = { workspace = true, default-features = false }
+nym-http-api-client = { workspace = true }
+nym-wasm-utils = { workspace = true }
+nym-wasm-storage = { workspace = true }
 
 
 # The `console_error_panic_hook` crate provides better debugging of panics by

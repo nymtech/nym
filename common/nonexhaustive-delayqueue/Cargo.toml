@@ -1,9 +1,13 @@
 [package]
 name = "nym-nonexhaustive-delayqueue"
-version = "0.1.0"
+version.workspace = true
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
+description = "A copy of tokio-util delay_queue with `Sleep` and `Instant` being replaced with`wasm_timer` equivalents"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,4 +24,3 @@ features = ["time"]
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]
 workspace = true
 features = ["tokio", "tokio-util"]
-

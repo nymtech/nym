@@ -4,8 +4,9 @@
 //! Error types for LP (Lewes Protocol) client operations.
 
 use nym_lp::LpError;
-use nym_lp::serialisation::BincodeError;
+use nym_registration_common::BincodeError;
 use std::io;
+use std::time::Duration;
 use thiserror::Error;
 
 /// Errors that can occur during LP client operations.
@@ -35,6 +36,10 @@ pub enum LpClientError {
     #[error("Gateway rejected registration: {reason}")]
     RegistrationRejected { reason: String },
 
+    /// Failed to receive response within specified deadline
+    #[error("Failed to receive response within the set timeout: {timeout:?}")]
+    ResponseReceiveTimeout { timeout: Duration },
+
     /// LP transport error
     #[error("LP transport error: {0}")]
     Transport(String),
@@ -55,9 +60,8 @@ pub enum LpClientError {
     #[error("Timeout waiting for {operation}")]
     Timeout { operation: String },
 
-    /// Cryptographic operation failed
-    #[error("Cryptographic error: {0}")]
-    Crypto(String),
+    #[error("received an unexpected response: {message}")]
+    UnexpectedResponse { message: String },
 
     /// Another uncategorized error
     #[error("{0}")]
@@ -67,6 +71,12 @@ pub enum LpClientError {
 impl LpClientError {
     pub fn transport(message: impl Into<String>) -> LpClientError {
         LpClientError::Transport(message.into())
+    }
+
+    pub fn unexpected_response(message: impl Into<String>) -> LpClientError {
+        LpClientError::UnexpectedResponse {
+            message: message.into(),
+        }
     }
 }
 

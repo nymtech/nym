@@ -32,6 +32,8 @@ use tracing::{debug, info, trace};
 
 use crate::topology::{GatewayInfo, SpeedtestTopology};
 use nym_ip_packet_requests::v8::request::IpPacketRequest;
+use nym_lp::packet::version;
+use nym_lp::peer::LpRemotePeer;
 use nym_sphinx::forwarding::packet::MixPacket;
 
 /// Conv ID for KCP - hash of source and destination addresses
@@ -116,13 +118,17 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let client_ip = "0.0.0.0".parse()?;
+        let gw_peer = LpRemotePeer::new(self.gateway.identity, self.gateway.identity.to_x25519()?)
+            .with_key_digests(
+                self.gateway.kem_key_hashes.clone(),
+                self.gateway.signing_key_hashes.clone(),
+            );
 
-        let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
+        let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
             self.identity_keypair.clone(),
-            self.gateway.identity,
+            gw_peer,
             self.gateway.lp_address,
-            client_ip,
+            self.gateway.lp_version,
         );
 
         let start = Instant::now();
@@ -159,13 +165,17 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let client_ip = "0.0.0.0".parse()?;
+        let gw_peer = LpRemotePeer::new(self.gateway.identity, self.gateway.identity.to_x25519()?)
+            .with_key_digests(
+                self.gateway.kem_key_hashes.clone(),
+                self.gateway.signing_key_hashes.clone(),
+            );
 
-        let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
+        let mut lp_client = LpRegistrationClient::new_with_default_config(
             self.identity_keypair.clone(),
-            self.gateway.identity,
+            gw_peer,
             self.gateway.lp_address,
-            client_ip,
+            self.gateway.lp_version,
         );
 
         let start = Instant::now();

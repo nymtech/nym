@@ -1,9 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use thiserror::Error;
-
 use crate::context::KKTStatus;
+use nym_kkt_ciphersuite::error::KKTCiphersuiteError;
+use std::fmt::Debug;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum KKTError {
@@ -11,8 +12,8 @@ pub enum KKTError {
     SigConstructorError,
     #[error("Signature verification error")]
     SigVerifError,
-    #[error("Ciphersuite Decoding Error: {}", info)]
-    CiphersuiteDecodingError { info: String },
+    #[error(transparent)]
+    CiphersuiteDecodingError(#[from] KKTCiphersuiteError),
 
     #[error("KEM mapping failure: {}", info)]
     KEMMapping { info: &'static str },
@@ -43,6 +44,9 @@ pub enum KKTError {
 
     #[error("{}", info)]
     X25519Error { info: &'static str },
+
+    #[error("{}", info)]
+    AEADError { info: &'static str },
 
     #[error("Generic libcrux error")]
     LibcruxError,
@@ -84,6 +88,30 @@ impl From<libcrux_ecdh::Error> for KKTError {
                 info: "Invalid Remote Public Key",
             },
             _ => KKTError::LibcruxError,
+        }
+    }
+}
+impl From<libcrux_chacha20poly1305::AeadError> for KKTError {
+    fn from(err: libcrux_chacha20poly1305::AeadError) -> Self {
+        KKTError::KEMError {
+            info: match err {
+                libcrux_chacha20poly1305::AeadError::PlaintextTooLarge => {
+                    "Plaintext is longer than u32::MAX"
+                }
+                libcrux_chacha20poly1305::AeadError::CiphertextTooLarge => {
+                    "Ciphertext is longer than u32::MAX"
+                }
+                libcrux_chacha20poly1305::AeadError::AadTooLarge => "Aad is longer than u32::MAX",
+                libcrux_chacha20poly1305::AeadError::CiphertextTooShort => {
+                    "The provided destination ciphertext does not fit the ciphertext and tag"
+                }
+                libcrux_chacha20poly1305::AeadError::PlaintextTooShort => {
+                    "The provided destination plaintext is too short to fit the decrypted plaintext"
+                }
+                libcrux_chacha20poly1305::AeadError::InvalidCiphertext => {
+                    "The ciphertext is not a valid encryption under the given key and nonce."
+                }
+            },
         }
     }
 }

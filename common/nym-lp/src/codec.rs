@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpError;
-use crate::message::{
-    ClientHelloData, EncryptedDataPayload, ForwardPacketData, HandshakeData, KKTRequestData,
-    KKTResponseData, LpMessage, MessageType, SubsessionKK1Data, SubsessionKK2Data,
-    SubsessionReadyData,
-};
+use crate::message::{LpMessage, MessageType};
 use crate::packet::{LpHeader, LpPacket, OuterHeader, TRAILER_LEN};
-use crate::serialisation::{BincodeOptions, lp_bincode_serializer};
 use bytes::{BufMut, BytesMut};
 use chacha20poly1305::{
     ChaCha20Poly1305, Key, Nonce, Tag,
@@ -96,87 +91,7 @@ fn parse_message_from_type_and_content(
     let message_type = MessageType::from_u32(msg_type_raw)
         .ok_or_else(|| LpError::invalid_message_type(msg_type_raw))?;
 
-    match message_type {
-        MessageType::Busy => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::Busy)
-        }
-        MessageType::Handshake => Ok(LpMessage::Handshake(HandshakeData(content.to_vec()))),
-        MessageType::EncryptedData => Ok(LpMessage::EncryptedData(EncryptedDataPayload(
-            content.to_vec(),
-        ))),
-        MessageType::ClientHello => {
-            let data = ClientHelloData::decode(content)?;
-            Ok(LpMessage::ClientHello(data))
-        }
-        MessageType::KKTRequest => Ok(LpMessage::KKTRequest(KKTRequestData(content.to_vec()))),
-        MessageType::KKTResponse => Ok(LpMessage::KKTResponse(KKTResponseData(content.to_vec()))),
-        MessageType::ForwardPacket => {
-            let data: ForwardPacketData = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::ForwardPacket(data))
-        }
-        MessageType::Collision => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::Collision)
-        }
-        MessageType::Ack => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::Ack)
-        }
-        MessageType::SubsessionRequest => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::SubsessionRequest)
-        }
-        MessageType::SubsessionKK1 => {
-            let data: SubsessionKK1Data = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::SubsessionKK1(data))
-        }
-        MessageType::SubsessionKK2 => {
-            let data: SubsessionKK2Data = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::SubsessionKK2(data))
-        }
-        MessageType::SubsessionReady => {
-            let data: SubsessionReadyData = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::SubsessionReady(data))
-        }
-        MessageType::SubsessionAbort => {
-            // Empty signal message - no content to deserialize
-            if !content.is_empty() {
-                return Err(LpError::DeserializationError(
-                    "SubsessionAbort should have no payload".to_string(),
-                ));
-            }
-            Ok(LpMessage::SubsessionAbort)
-        }
-    }
+    LpMessage::decode_content(content, message_type)
 }
 
 /// Parse only the outer header from raw packet bytes.
@@ -249,7 +164,7 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
 
             let header = LpHeader {
                 protocol_version,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: outer_header.receiver_idx,
                 counter: outer_header.counter,
             };
@@ -293,7 +208,7 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
 
             let header = LpHeader {
                 protocol_version,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: outer_header.receiver_idx,
                 counter: outer_header.counter,
             };
@@ -340,7 +255,7 @@ pub fn serialize_lp_packet(
             // Cleartext mode
             // 2. Write inner prefix: proto(1) + reserved(3)
             dst.put_u8(item.header.protocol_version);
-            dst.put_slice(&[0, 0, 0]); // reserved
+            dst.put_slice(&item.header.reserved); // reserved
 
             // 3. Write message type (4B) + content
             dst.put_slice(&(item.message.typ() as u32).to_le_bytes());
@@ -359,7 +274,7 @@ pub fn serialize_lp_packet(
             // 2. Build plaintext: proto(1) + reserved(3) + msg_type(4) + content
             let mut plaintext = BytesMut::new();
             plaintext.put_u8(item.header.protocol_version);
-            plaintext.put_slice(&[0, 0, 0]); // reserved
+            plaintext.put_slice(&item.header.reserved); // reserved
             plaintext.put_slice(&(item.message.typ() as u32).to_le_bytes());
             item.message.encode_content(&mut plaintext);
 
@@ -406,6 +321,8 @@ mod tests {
     use crate::message::{EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use bytes::BytesMut;
+    use nym_crypto::asymmetric::{ed25519, x25519};
+    use rand::thread_rng;
 
     // With unified format, outer header (receiver_idx + counter) is always first
     // and is the only cleartext portion for encrypted packets
@@ -421,7 +338,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -452,7 +369,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -490,7 +407,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -688,11 +605,13 @@ mod tests {
     fn test_serialize_parse_client_hello() {
         use crate::message::ClientHelloData;
 
+        let mut rng = thread_rng();
+        let valid_ed25519 = ed25519::KeyPair::new(&mut rng);
         let mut dst = BytesMut::new();
 
         // Create ClientHelloData
-        let client_key = [42u8; 32];
-        let client_ed25519_key = [43u8; 32];
+        let client_key = x25519::PublicKey::from_byte_array(&[42u8; 32]);
+        let client_ed25519_key = *valid_ed25519.public_key();
         let salt = [99u8; 32];
         let hello_data = ClientHelloData {
             receiver_index: 12345,
@@ -705,7 +624,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -746,8 +665,11 @@ mod tests {
             .as_secs();
 
         // Create ClientHelloData with fresh salt
-        let client_key = [7u8; 32];
-        let client_ed25519_key = [8u8; 32];
+        let mut rng = thread_rng();
+        let valid_ed25519 = ed25519::KeyPair::new(&mut rng);
+
+        let client_key = x25519::PublicKey::from_byte_array(&[7u8; 32]);
+        let client_ed25519_key = *valid_ed25519.public_key();
         let hello_data =
             ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
@@ -755,7 +677,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 100,
                 counter: 200,
             },
@@ -835,56 +757,19 @@ mod tests {
     }
 
     #[test]
-    fn test_client_hello_different_protocol_versions() {
-        use crate::message::ClientHelloData;
-
-        for version in [0u8, 1, 2, 255] {
-            let mut dst = BytesMut::new();
-
-            let hello_data = ClientHelloData {
-                receiver_index: version as u32,
-                client_lp_public_key: [version; 32],
-                client_ed25519_public_key: [version.wrapping_add(2); 32],
-                salt: [version.wrapping_add(1); 32],
-            };
-
-            let packet = LpPacket {
-                header: LpHeader {
-                    protocol_version: 1,
-                    reserved: 0,
-                    receiver_idx: version as u32,
-                    counter: version as u64,
-                },
-                message: LpMessage::ClientHello(hello_data.clone()),
-                trailer: [version; TRAILER_LEN],
-            };
-
-            serialize_lp_packet(&packet, &mut dst, None).unwrap();
-            let decoded = parse_lp_packet(&dst, None).unwrap();
-
-            match decoded.message {
-                LpMessage::ClientHello(decoded_data) => {
-                    assert_eq!(decoded_data.client_lp_public_key, [version; 32]);
-                }
-                _ => panic!("Expected ClientHello message for version {}", version),
-            }
-        }
-    }
-
-    #[test]
-    fn test_forward_packet_encode_decode_roundtrip() {
+    fn test_forward_packet_encode_decode_roundtrip_v4() {
         let mut dst = BytesMut::new();
 
         let forward_data = crate::message::ForwardPacketData {
             target_gateway_identity: [77u8; 32],
-            target_lp_address: "1.2.3.4:41264".to_string(),
+            target_lp_address: "1.2.3.4:41264".parse().unwrap(),
             inner_packet_bytes: vec![0xa, 0xb, 0xc, 0xd],
         };
 
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 999,
                 counter: 555,
             },
@@ -904,7 +789,50 @@ mod tests {
 
         if let LpMessage::ForwardPacket(data) = decoded.message {
             assert_eq!(data.target_gateway_identity, [77u8; 32]);
-            assert_eq!(data.target_lp_address, "1.2.3.4:41264");
+            assert_eq!(data.target_lp_address, "1.2.3.4:41264".parse().unwrap());
+            assert_eq!(data.inner_packet_bytes, vec![0xa, 0xb, 0xc, 0xd]);
+        } else {
+            panic!("Expected ForwardPacket message");
+        }
+    }
+
+    #[test]
+    fn test_forward_packet_encode_decode_roundtrip_v6() {
+        let mut dst = BytesMut::new();
+
+        let forward_data = crate::message::ForwardPacketData {
+            target_gateway_identity: [77u8; 32],
+            target_lp_address: "[dead:beef:4242:c0ff:ee00::1111]:41264".parse().unwrap(),
+            inner_packet_bytes: vec![0xa, 0xb, 0xc, 0xd],
+        };
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: [0u8; 3],
+                receiver_idx: 999,
+                counter: 555,
+            },
+            message: LpMessage::ForwardPacket(forward_data),
+            trailer: [0xff; TRAILER_LEN],
+        };
+
+        // Serialize
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
+
+        // Parse back
+        let decoded = parse_lp_packet(&dst, None).unwrap();
+
+        // Verify LP protocol handling works correctly
+        assert_eq!(decoded.header.receiver_idx, 999);
+        assert!(matches!(decoded.message.typ(), MessageType::ForwardPacket));
+
+        if let LpMessage::ForwardPacket(data) = decoded.message {
+            assert_eq!(data.target_gateway_identity, [77u8; 32]);
+            assert_eq!(
+                data.target_lp_address,
+                "[dead:beef:4242:c0ff:ee00::1111]:41264".parse().unwrap()
+            );
             assert_eq!(data.inner_packet_bytes, vec![0xa, 0xb, 0xc, 0xd]);
         } else {
             panic!("Expected ForwardPacket message");
@@ -922,7 +850,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -951,7 +879,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -998,7 +926,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -1027,7 +955,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -1056,7 +984,7 @@ mod tests {
         let packet1 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 1,
             },
@@ -1067,7 +995,7 @@ mod tests {
         let packet2 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 2, // Different counter
             },
@@ -1102,7 +1030,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -1128,7 +1056,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 54321,
                 counter: 12345678,
             },
@@ -1161,7 +1089,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 99999,
                 counter: 2,
             },
@@ -1191,7 +1119,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 100,
             },
@@ -1220,7 +1148,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 123,
                 counter: 456,
             },
@@ -1253,7 +1181,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 789,
                 counter: 1000,
             },
@@ -1286,7 +1214,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 200,
             },
@@ -1341,7 +1269,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 54321,
                 counter: 999,
             },

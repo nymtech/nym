@@ -3,13 +3,12 @@
 
 use crate::error::Error;
 use crate::models::BandwidthClaim;
+use crate::util::{authenticator_ipv4_to_ipv6, authenticator_ipv6_to_ipv4};
 use base64::{Engine, engine::general_purpose};
-use nym_network_defaults::constants::{WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6};
 use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::time::SystemTime;
 use std::{fmt, ops::Deref, str::FromStr};
 
 #[cfg(feature = "verify")]
@@ -20,13 +19,11 @@ use nym_crypto::asymmetric::x25519::{PrivateKey, PublicKey};
 use sha2::Sha256;
 
 pub type PendingRegistrations = HashMap<PeerPublicKey, RegistrationData>;
-pub type PrivateIPs = HashMap<IpPair, Taken>;
 
 #[cfg(feature = "verify")]
 pub type HmacSha256 = Hmac<Sha256>;
 
 pub type Nonce = u64;
-pub type Taken = Option<SystemTime>;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IpPair {
@@ -54,27 +51,11 @@ impl fmt::Display for IpPair {
 
 impl From<IpAddr> for IpPair {
     fn from(value: IpAddr) -> Self {
-        let (before_last_byte, last_byte) = match value {
-            IpAddr::V4(ipv4_addr) => (ipv4_addr.octets()[2], ipv4_addr.octets()[3]),
-            IpAddr::V6(ipv6_addr) => (ipv6_addr.octets()[14], ipv6_addr.octets()[15]),
+        let (ipv4, ipv6) = match value {
+            IpAddr::V4(ipv4) => (ipv4, authenticator_ipv4_to_ipv6(ipv4)),
+            IpAddr::V6(ipv6_addr) => (authenticator_ipv6_to_ipv4(ipv6_addr), ipv6_addr),
         };
-        let last_bytes = ((before_last_byte as u16) << 8) | last_byte as u16;
-        let ipv4 = Ipv4Addr::new(
-            WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[0],
-            WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[1],
-            before_last_byte,
-            last_byte,
-        );
-        let ipv6 = Ipv6Addr::new(
-            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[0],
-            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[1],
-            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[2],
-            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[3],
-            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[4],
-            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[5],
-            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[6],
-            last_bytes,
-        );
+
         IpPair::new(ipv4, ipv6)
     }
 }

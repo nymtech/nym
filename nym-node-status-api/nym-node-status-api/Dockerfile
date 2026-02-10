@@ -1,6 +1,13 @@
 # this will only work with VPN, otherwise remove the harbor part
 FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 
+RUN apt update && apt install -yy libdbus-1-dev pkg-config libclang-dev
+
+# Install go (required for nym-gateway-probe dependency)
+RUN wget https://go.dev/dl/go1.22.5.linux-amd64.tar.gz -O go.tar.gz
+RUN tar -xzvf go.tar.gz -C /usr/local
+ENV PATH=/go/bin:/usr/local/go/bin:$PATH
+
 COPY ./ /usr/src/nym
 WORKDIR /usr/src/nym/nym-node-status-api/nym-node-status-api/
 

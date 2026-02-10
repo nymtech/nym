@@ -7,8 +7,8 @@ use crate::proofs::proof_withdrawal::{WithdrawalReqInstance, WithdrawalReqProof}
 use crate::scheme::withdrawal::RequestInfo;
 use crate::scheme::{Payment, WalletSignatures};
 use crate::{Attribute, CompactEcashError, PartialWallet, WithdrawalRequest};
-use bls12_381::{G1Affine, G1Projective};
 use group::GroupEncoding;
+use nym_bls12_381_fork::{G1Affine, G1Projective};
 
 #[macro_export]
 macro_rules! impl_byteable_bs58 {

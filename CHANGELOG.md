@@ -4,6 +4,86 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.3-parmigiano] (2026-02-10)
+
+- chore: disable LP on parmigiano branch ([#6422])
+- revert mixnet-based client fautly changes from LP ([#6420])
+- [LP fix] Registration client with fallback ([#6419])
+- Lp/ip pool fixes ([#6412])
+- [LP-fix] expose wg psk for the vpn-client ([#6411])
+- LP-fix : configurable LP timeouts ([#6409])
+- LP-fix : add LP x25519 key to the description ([#6408])
+- use rng that is Send ([#6404])
+- use local kem key instead of local x25519 ([#6402])
+- [LP Gateway Probe] CLI and behavior improvements  ([#6400])
+- lp: attempt to negotiate (and use) protocol version ([#6399])
+- bugfix: use correct reserved bytes when parsing LpHeader ([#6398])
+- Lp/bugfix/share ip allocation ([#6395])
+- feat: use hex-encoding for lp key digests ([#6394])
+- Add socks5 test to gateway-probe ([#6393])
+- [LP Gateway probe] Improve file structure ([#6391])
+- Reduce the size of `HttpClientError` ([#6390])
+- Lp/two step dvpn reg ([#6386])
+- Add extra configured nym api url to env ([#6382])
+- Lp/dvpn psk injection ([#6378])
+- LP: include signing key digests to LP responses ([#6373])
+- Lp/use noise x25519 ([#6372])
+- Topology fallback ([#6363])
+- NS API socks5 support ([#6361])
+- LP: modified LPRemotePeer to dynamically choose required KEM key hash ([#6358])
+- Fix KKT Integration into LP ([#6357])
+- LP: mixnet reg fixes ([#6356])
+- LP: announced KEM key hashes ([#6349])
+- revert faulty drop changes ([#6346])
+- small qol changes ([#6340])
+- Apply configured api urls via env ([#6337])
+- lp chore: make sure to take reserved bytes straight from the header ([#6336])
+- LP: x25519/ed22519 cleanup round ([#6335])
+- Lp/encrypted kkt ([#6331])
+- ensure packets with incompatible versions are rejected ([#6326])
+- standarise lp serialisation: ([#6324])
+- Upgrade to def_guard_wireguard v0.8.0 ([#6315])
+- Max/crates io prep v2 ([#6270])
+
+[#6422]: https://github.com/nymtech/nym/pull/6422
+[#6420]: https://github.com/nymtech/nym/pull/6420
+[#6419]: https://github.com/nymtech/nym/pull/6419
+[#6412]: https://github.com/nymtech/nym/pull/6412
+[#6411]: https://github.com/nymtech/nym/pull/6411
+[#6409]: https://github.com/nymtech/nym/pull/6409
+[#6408]: https://github.com/nymtech/nym/pull/6408
+[#6404]: https://github.com/nymtech/nym/pull/6404
+[#6402]: https://github.com/nymtech/nym/pull/6402
+[#6400]: https://github.com/nymtech/nym/pull/6400
+[#6399]: https://github.com/nymtech/nym/pull/6399
+[#6398]: https://github.com/nymtech/nym/pull/6398
+[#6395]: https://github.com/nymtech/nym/pull/6395
+[#6394]: https://github.com/nymtech/nym/pull/6394
+[#6393]: https://github.com/nymtech/nym/pull/6393
+[#6391]: https://github.com/nymtech/nym/pull/6391
+[#6390]: https://github.com/nymtech/nym/pull/6390
+[#6386]: https://github.com/nymtech/nym/pull/6386
+[#6382]: https://github.com/nymtech/nym/pull/6382
+[#6378]: https://github.com/nymtech/nym/pull/6378
+[#6373]: https://github.com/nymtech/nym/pull/6373
+[#6372]: https://github.com/nymtech/nym/pull/6372
+[#6363]: https://github.com/nymtech/nym/pull/6363
+[#6361]: https://github.com/nymtech/nym/pull/6361
+[#6358]: https://github.com/nymtech/nym/pull/6358
+[#6357]: https://github.com/nymtech/nym/pull/6357
+[#6356]: https://github.com/nymtech/nym/pull/6356
+[#6349]: https://github.com/nymtech/nym/pull/6349
+[#6346]: https://github.com/nymtech/nym/pull/6346
+[#6340]: https://github.com/nymtech/nym/pull/6340
+[#6337]: https://github.com/nymtech/nym/pull/6337
+[#6336]: https://github.com/nymtech/nym/pull/6336
+[#6335]: https://github.com/nymtech/nym/pull/6335
+[#6331]: https://github.com/nymtech/nym/pull/6331
+[#6326]: https://github.com/nymtech/nym/pull/6326
+[#6324]: https://github.com/nymtech/nym/pull/6324
+[#6315]: https://github.com/nymtech/nym/pull/6315
+[#6270]: https://github.com/nymtech/nym/pull/6270
+
 ## [2026.2-oscypek] (2026-01-27)
 
 - bugfix: downgrade gateway protocol to clients proposed version ([#6377])

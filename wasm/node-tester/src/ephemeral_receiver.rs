@@ -6,10 +6,10 @@ use futures::StreamExt;
 use nym_node_tester_utils::processor::Received;
 use nym_node_tester_utils::receiver::ReceivedReceiver;
 use nym_node_tester_utils::FragmentIdentifier;
+use nym_wasm_utils::{console_error, console_log, console_warn};
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::sync::MutexGuard as AsyncMutexGuard;
-use wasm_utils::{console_error, console_log, console_warn};
 use wasmtimer::tokio::sleep;
 
 pub(crate) struct EphemeralTestReceiver<'a> {

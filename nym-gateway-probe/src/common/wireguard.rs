@@ -7,13 +7,14 @@
 //! that is shared between different test modes (authenticator-based and LP-based).
 
 use nym_config::defaults::{WG_METADATA_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4};
+use std::net::SocketAddr;
 use tracing::{error, info};
 
 use crate::NetstackArgs;
-use crate::netstack::{
+use crate::common::netstack::{
     NetstackRequest, NetstackRequestGo, NetstackResult, TwoHopNetstackRequestGo,
 };
-use crate::types::WgProbeResults;
+use crate::common::types::WgProbeResults;
 
 /// Safe division that returns 0.0 when divisor is 0 (instead of NaN/Inf)
 fn safe_ratio(received: u16, sent: u16) -> f32 {
@@ -99,7 +100,7 @@ pub fn run_tunnel_tests(
     info!("Testing IPv4 tunnel connectivity...");
     let ipv4_request = NetstackRequestGo::from_rust_v4(&netstack_request);
 
-    match crate::netstack::ping(&ipv4_request) {
+    match crate::common::netstack::ping(&ipv4_request) {
         Ok(NetstackResult::Response(netstack_response_v4)) => {
             info!(
                 "WireGuard probe response for IPv4: {:#?}",
@@ -137,7 +138,7 @@ pub fn run_tunnel_tests(
     info!("Testing IPv6 tunnel connectivity...");
     let ipv6_request = NetstackRequestGo::from_rust_v6(&netstack_request);
 
-    match crate::netstack::ping(&ipv6_request) {
+    match crate::common::netstack::ping(&ipv6_request) {
         Ok(NetstackResult::Response(netstack_response_v6)) => {
             info!(
                 "WireGuard probe response for IPv6: {:#?}",
@@ -185,7 +186,7 @@ pub struct TwoHopWgTunnelConfig {
     /// Entry gateway's WireGuard public key (hex encoded)
     pub entry_public_key_hex: String,
     /// Entry WireGuard endpoint address (entry_gateway_ip:port)
-    pub entry_endpoint: String,
+    pub entry_endpoint: SocketAddr,
     /// Entry Amnezia WG args (empty for standard WG)
     pub entry_awg_args: String,
 
@@ -197,7 +198,7 @@ pub struct TwoHopWgTunnelConfig {
     /// Exit gateway's WireGuard public key (hex encoded)
     pub exit_public_key_hex: String,
     /// Exit WireGuard endpoint address (exit_gateway_ip:port, forwarded via entry)
-    pub exit_endpoint: String,
+    pub exit_endpoint: SocketAddr,
     /// Exit Amnezia WG args (empty for standard WG)
     pub exit_awg_args: String,
 }
@@ -209,24 +210,24 @@ impl TwoHopWgTunnelConfig {
         entry_private_ipv4: impl Into<String>,
         entry_private_key_hex: impl Into<String>,
         entry_public_key_hex: impl Into<String>,
-        entry_endpoint: impl Into<String>,
+        entry_endpoint: SocketAddr,
         entry_awg_args: impl Into<String>,
         exit_private_ipv4: impl Into<String>,
         exit_private_key_hex: impl Into<String>,
         exit_public_key_hex: impl Into<String>,
-        exit_endpoint: impl Into<String>,
+        exit_endpoint: SocketAddr,
         exit_awg_args: impl Into<String>,
     ) -> Self {
         Self {
             entry_private_ipv4: entry_private_ipv4.into(),
             entry_private_key_hex: entry_private_key_hex.into(),
             entry_public_key_hex: entry_public_key_hex.into(),
-            entry_endpoint: entry_endpoint.into(),
+            entry_endpoint,
             entry_awg_args: entry_awg_args.into(),
             exit_private_ipv4: exit_private_ipv4.into(),
             exit_private_key_hex: exit_private_key_hex.into(),
             exit_public_key_hex: exit_public_key_hex.into(),
-            exit_endpoint: exit_endpoint.into(),
+            exit_endpoint,
             exit_awg_args: exit_awg_args.into(),
         }
     }
@@ -256,14 +257,14 @@ pub fn run_two_hop_tunnel_tests(
         entry_wg_ip: config.entry_private_ipv4.clone(),
         entry_private_key: config.entry_private_key_hex.clone(),
         entry_public_key: config.entry_public_key_hex.clone(),
-        entry_endpoint: config.entry_endpoint.clone(),
+        entry_endpoint: config.entry_endpoint,
         entry_awg_args: config.entry_awg_args.clone(),
 
         // Exit tunnel config
         exit_wg_ip: config.exit_private_ipv4.clone(),
         exit_private_key: config.exit_private_key_hex.clone(),
         exit_public_key: config.exit_public_key_hex.clone(),
-        exit_endpoint: config.exit_endpoint.clone(),
+        exit_endpoint: config.exit_endpoint,
         exit_awg_args: config.exit_awg_args.clone(),
 
         // Test parameters (use IPv4 config)
@@ -281,7 +282,7 @@ pub fn run_two_hop_tunnel_tests(
     info!("  Entry endpoint: {}", config.entry_endpoint);
     info!("  Exit endpoint (via forwarder): {}", config.exit_endpoint);
 
-    match crate::netstack::ping_two_hop(&request) {
+    match crate::common::netstack::ping_two_hop(&request) {
         Ok(NetstackResult::Response(response)) => {
             info!("Two-hop WireGuard probe response (IPv4): {:#?}", response);
             wg_outcome.can_handshake_v4 = response.can_handshake;

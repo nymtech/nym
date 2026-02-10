@@ -1,6 +1,6 @@
 [package]
 name = "nym-sphinx-chunking"
-version = "0.1.0"
+version.workspace = true
 description = "Sphinx packet chunking of underlying data packets"
 edition = { workspace = true }
 authors = { workspace = true }
@@ -17,11 +17,11 @@ dashmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 utoipa = { workspace = true }
 
-nym-sphinx-addressing = { path = "../addressing" }
-nym-sphinx-params = { path = "../params" }
-nym-sphinx-types = { path = "../types" }
-nym-metrics = { path = "../../nym-metrics" }
-nym-crypto = { path = "../../crypto", version = "0.4.0", features = [
+nym-sphinx-addressing = { workspace = true }
+nym-sphinx-params = { workspace = true }
+nym-sphinx-types = { workspace = true }
+nym-metrics = { workspace = true }
+nym-crypto = { workspace = true, features = [
     "asymmetric",
 ] }
 

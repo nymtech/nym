@@ -1,6 +1,6 @@
 [package]
 name = "nym-upgrade-mode-check"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Functions and tests for checking Nym's Credential Proxy is being properly upgraded"
 
 [dependencies]
 jwt-simple = { workspace = true }
@@ -20,14 +21,14 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true, optional = true }
 
-nym-http-api-client = { path = "../http-api-client", default-features = false }
-nym-crypto = { path = "../crypto", features = ["asymmetric", "serde", "naive_jwt"] }
+nym-http-api-client = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric", "serde", "naive_jwt"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 time = { workspace = true, features = ["macros"] }
-nym-test-utils = { path = "../test-utils" }
-nym-crypto = { path = "../crypto", features = ["rand"] }
+nym-test-utils = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand"] }
 
 
 [features]

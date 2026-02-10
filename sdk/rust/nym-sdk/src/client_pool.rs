@@ -1,3 +1,6 @@
+//! A variable-size pool of ephemeral Nym Clients to quickly grab and use.
+//!
+//!
 //! use crate::mixnet::{MixnetClient, MixnetClientBuilder, NymNetworkDetails};
 //! use anyhow::Result;
 //! use std::fmt;

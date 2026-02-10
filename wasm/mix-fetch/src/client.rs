@@ -11,22 +11,22 @@ use crate::{config, RequestId};
 use js_sys::Promise;
 use nym_bin_common::bin_info;
 use nym_socks5_requests::RemoteAddress;
+use nym_wasm_client_core::client::base_client::storage::GatewaysDetailsStore;
+use nym_wasm_client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
+use nym_wasm_client_core::client::inbound_messages::InputMessage;
+use nym_wasm_client_core::helpers::{add_gateway, generate_new_client_keys};
+use nym_wasm_client_core::nym_task::connections::TransmissionLane;
+use nym_wasm_client_core::nym_task::ShutdownTracker;
+use nym_wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
+use nym_wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
+use nym_wasm_client_core::storage::ClientStorage;
+use nym_wasm_client_core::{IdentityKey, QueryReqwestRpcNyxdClient, Recipient};
+use nym_wasm_utils::console_log;
+use nym_wasm_utils::error::PromisableResult;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_client_core::client::base_client::storage::GatewaysDetailsStore;
-use wasm_client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
-use wasm_client_core::client::inbound_messages::InputMessage;
-use wasm_client_core::helpers::{add_gateway, generate_new_client_keys};
-use wasm_client_core::nym_task::connections::TransmissionLane;
-use wasm_client_core::nym_task::ShutdownTracker;
-use wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
-use wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
-use wasm_client_core::storage::ClientStorage;
-use wasm_client_core::{IdentityKey, QueryReqwestRpcNyxdClient, Recipient};
-use wasm_utils::console_log;
-use wasm_utils::error::PromisableResult;
 
 #[wasm_bindgen]
 pub struct MixFetchClient {

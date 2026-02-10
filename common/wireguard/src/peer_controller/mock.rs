@@ -19,6 +19,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::sync::mpsc::Receiver;
 
+use crate::ip_pool::IpPair;
 pub use defguard_wireguard_rs::key::Key;
 
 pub fn mock_peer_controller(
@@ -70,9 +71,11 @@ impl From<&Key> for KeyWrapper {
 #[derive(Hash, PartialOrd, PartialEq, Clone, Debug, Eq)]
 pub enum PeerControlRequestType {
     AddPeer { public_key: KeyWrapper },
-    RegisterPeer { public_key: KeyWrapper },
+    AllocatePeerIpPair {},
+    ReleaseIpPair { ip_pair: IpPair },
     RemovePeer { key: KeyWrapper },
     QueryPeer { key: KeyWrapper },
+    CheckActivePeer { key: KeyWrapper },
     GetClientBandwidthByKey { key: KeyWrapper },
     GetClientBandwidthByIp { ip: IpAddr },
     GetVerifierByKey { key: KeyWrapper },
@@ -83,13 +86,15 @@ impl PeerControlRequestType {
     pub fn peer_key(&self) -> Option<KeyWrapper> {
         match self {
             PeerControlRequestType::AddPeer { public_key } => Some(public_key.clone()),
-            PeerControlRequestType::RegisterPeer { public_key } => Some(public_key.clone()),
+            PeerControlRequestType::AllocatePeerIpPair {} => None,
+            PeerControlRequestType::ReleaseIpPair { .. } => None,
             PeerControlRequestType::RemovePeer { key } => Some(key.clone()),
             PeerControlRequestType::QueryPeer { key } => Some(key.clone()),
             PeerControlRequestType::GetClientBandwidthByKey { key } => Some(key.clone()),
             PeerControlRequestType::GetClientBandwidthByIp { .. } => None,
             PeerControlRequestType::GetVerifierByKey { key } => Some(key.clone()),
             PeerControlRequestType::GetVerifierByIp { .. } => None,
+            PeerControlRequestType::CheckActivePeer { key } => Some(key.clone()),
         }
     }
 
@@ -104,11 +109,12 @@ impl From<&PeerControlRequest> for PeerControlRequestType {
             PeerControlRequest::AddPeer { peer, .. } => PeerControlRequestType::AddPeer {
                 public_key: (&peer.public_key).into(),
             },
-            PeerControlRequest::RegisterPeer {
-                registration_data, ..
-            } => PeerControlRequestType::RegisterPeer {
-                public_key: (&registration_data.public_key).into(),
-            },
+            PeerControlRequest::PreAllocateIpPair { .. } => {
+                PeerControlRequestType::AllocatePeerIpPair {}
+            }
+            PeerControlRequest::ReleaseIpPair { ip_pair, .. } => {
+                PeerControlRequestType::ReleaseIpPair { ip_pair: *ip_pair }
+            }
             PeerControlRequest::RemovePeer { key, .. } => {
                 PeerControlRequestType::RemovePeer { key: key.into() }
             }
@@ -126,6 +132,9 @@ impl From<&PeerControlRequest> for PeerControlRequestType {
             }
             PeerControlRequest::GetVerifierByIp { ip, .. } => {
                 PeerControlRequestType::GetVerifierByIp { ip: *ip }
+            }
+            PeerControlRequest::CheckActivePeer { key, .. } => {
+                PeerControlRequestType::CheckActivePeer { key: key.into() }
             }
         }
     }
@@ -166,9 +175,6 @@ pub struct MockPeerControllerState {
 
 #[derive(Clone, Default)]
 pub struct PeerState {
-    /// Has IpPair been allocated to the peer?
-    pub register_success: bool,
-
     // in the future maybe we could extend it with `ClientBandwidth` information
     /// Has the client handle been spawned
     pub add_success: bool,
@@ -265,14 +271,13 @@ impl MockPeerController {
                 }
                 response_tx.send_downcasted(response.content)
             }
-            PeerControlRequest::RegisterPeer { response_tx, .. } => {
-                let key = typ.peer_key_unchecked();
-                let peer = peers_guard.peers.entry(key).or_default();
-                if response.success {
-                    peer.register_success = true;
-                }
+            PeerControlRequest::PreAllocateIpPair { response_tx, .. } => {
                 response_tx.send_downcasted(response.content)
             }
+            PeerControlRequest::ReleaseIpPair {
+                response_tx,
+                ip_pair: _,
+            } => response_tx.send_downcasted(response.content),
             PeerControlRequest::RemovePeer { response_tx, .. } => {
                 let key = typ.peer_key_unchecked();
                 if response.success {
@@ -293,6 +298,9 @@ impl MockPeerController {
                 response_tx.send_downcasted(response.content)
             }
             PeerControlRequest::GetVerifierByIp { response_tx, .. } => {
+                response_tx.send_downcasted(response.content)
+            }
+            PeerControlRequest::CheckActivePeer { response_tx, .. } => {
                 response_tx.send_downcasted(response.content)
             }
         }

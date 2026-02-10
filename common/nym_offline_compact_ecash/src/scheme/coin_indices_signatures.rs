@@ -8,8 +8,8 @@ use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::scheme::setup::Parameters;
 use crate::utils::generate_lagrangian_coefficients_at_origin;
 use crate::utils::{batch_verify_signatures, hash_g1};
-use bls12_381::{G1Projective, Scalar};
 use itertools::Itertools;
+use nym_bls12_381_fork::{G1Projective, Scalar};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 

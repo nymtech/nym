@@ -1,12 +1,15 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::serialisation::{BincodeOptions, lp_bincode_serializer};
+use crate::peer::LpRemotePeer;
 use crate::{BOOTSTRAP_RECEIVER_IDX, LpError};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use nym_crypto::asymmetric::{ed25519, x25519};
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 /// Data structure for the ClientHello message
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,15 +18,20 @@ pub struct ClientHelloData {
     /// Auto-generated randomly by the client
     pub receiver_index: u32,
     /// Client's LP x25519 public key (32 bytes) - derived from Ed25519 key
-    pub client_lp_public_key: [u8; 32],
+    pub client_lp_public_key: x25519::PublicKey,
     /// Client's Ed25519 public key (32 bytes) - for PSQ authentication
-    pub client_ed25519_public_key: [u8; 32],
+    pub client_ed25519_public_key: ed25519::PublicKey,
     /// Salt for PSK derivation (32 bytes: 8-byte timestamp + 24-byte nonce)
     pub salt: [u8; 32],
 }
 
 impl ClientHelloData {
+    // 4 bytes for receiver index + 32 bytes for client lp key, 32 bytes for client ed25519 key + 32 bytes for salt
     pub const LEN: usize = 100;
+
+    fn len(&self) -> usize {
+        Self::LEN
+    }
 
     fn generate_receiver_index() -> u32 {
         loop {
@@ -42,8 +50,8 @@ impl ClientHelloData {
     /// * `client_lp_public_key` - Client's x25519 public key (derived from Ed25519)
     /// * `client_ed25519_public_key` - Client's Ed25519 public key (for PSQ authentication)
     pub fn new_with_fresh_salt(
-        client_lp_public_key: [u8; 32],
-        client_ed25519_public_key: [u8; 32],
+        client_lp_public_key: x25519::PublicKey,
+        client_ed25519_public_key: ed25519::PublicKey,
         timestamp: u64,
     ) -> Self {
         // Generate salt: timestamp + nonce
@@ -53,7 +61,6 @@ impl ClientHelloData {
         salt[..8].copy_from_slice(&timestamp.to_le_bytes());
 
         // Last 24 bytes: random nonce
-        use rand::RngCore;
         rand::thread_rng().fill_bytes(&mut salt[8..]);
 
         Self {
@@ -74,14 +81,13 @@ impl ClientHelloData {
         u64::from_le_bytes(timestamp_bytes)
     }
 
-    pub fn encode(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(Self::LEN);
-        out.put_u32_le(self.receiver_index);
-        out.put_slice(&self.client_lp_public_key);
-        out.put_slice(&self.client_ed25519_public_key);
-        out.put_slice(&self.salt);
-        out
+    pub fn encode(&self, dst: &mut BytesMut) {
+        dst.put_u32_le(self.receiver_index);
+        dst.put_slice(self.client_lp_public_key.as_bytes());
+        dst.put_slice(self.client_ed25519_public_key.as_bytes());
+        dst.put_slice(&self.salt);
     }
+
     pub fn decode(b: &[u8]) -> Result<Self, LpError> {
         if b.len() != Self::LEN {
             return Err(LpError::DeserializationError(format!(
@@ -93,12 +99,22 @@ impl ClientHelloData {
 
         // SAFETY: we checked for valid byte lengths
         #[allow(clippy::unwrap_used)]
+        let client_lp_public_key_bytes = b[4..36].try_into().unwrap();
+        let client_ed25519_public_key_bytes = b[36..68].try_into().unwrap();
+
         Ok(ClientHelloData {
             receiver_index: u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
-            client_lp_public_key: b[4..36].try_into().unwrap(),
-            client_ed25519_public_key: b[36..68].try_into().unwrap(),
+            client_lp_public_key: x25519::PublicKey::from_byte_array(client_lp_public_key_bytes),
+            client_ed25519_public_key: ed25519::PublicKey::from_byte_array(
+                client_ed25519_public_key_bytes,
+            )?,
             salt: b[68..].try_into().unwrap(),
         })
+    }
+
+    /// Attempt to construct remote peer information based on the data provided in this packet.
+    pub fn to_remote_peer(&self) -> LpRemotePeer {
+        LpRemotePeer::new(self.client_ed25519_public_key, self.client_lp_public_key)
     }
 }
 
@@ -141,50 +157,273 @@ impl MessageType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandshakeData(pub Vec<u8>);
 
+impl HandshakeData {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(HandshakeData(bytes.to_vec()))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EncryptedDataPayload(pub Vec<u8>);
+
+impl EncryptedDataPayload {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(EncryptedDataPayload(bytes.to_vec()))
+    }
+}
 
 /// KKT request frame data (serialized KKTFrame bytes)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KKTRequestData(pub Vec<u8>);
 
+impl KKTRequestData {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(KKTRequestData(bytes.to_vec()))
+    }
+}
+
 /// KKT response frame data (serialized KKTFrame bytes)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KKTResponseData(pub Vec<u8>);
 
+impl KKTResponseData {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(KKTResponseData(bytes.to_vec()))
+    }
+}
+
 /// Packet forwarding request with embedded inner LP packet
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ForwardPacketData {
     /// Target gateway's Ed25519 identity (32 bytes)
     pub target_gateway_identity: [u8; 32],
 
     /// Target gateway's LP address (IP:port string)
-    pub target_lp_address: String,
+    pub target_lp_address: SocketAddr,
 
     /// Complete inner LP packet bytes (serialized LpPacket)
     /// This is the CLIENT→EXIT gateway packet, encrypted for exit
     pub inner_packet_bytes: Vec<u8>,
 }
 
+impl ForwardPacketData {
+    pub fn new(
+        target_gateway_identity: ed25519::PublicKey,
+        target_lp_address: SocketAddr,
+        inner_packet_bytes: Vec<u8>,
+    ) -> Self {
+        ForwardPacketData {
+            target_gateway_identity: target_gateway_identity.to_bytes(),
+            target_lp_address,
+            inner_packet_bytes,
+        }
+    }
+
+    fn len(&self) -> usize {
+        // 32 bytes target gateway identity
+        // +
+        // 1 byte length of target lp address type
+        // +
+        // {4,16} target_lp_address IPv{4,6}
+        // +
+        // 2 bytes target_lp_address port
+        // +
+        // 4 bytes of length of inner packet bytes
+        // +
+        // inner_packet_bytes.len()
+        match self.target_lp_address {
+            SocketAddr::V4(_) => 32 + 1 + 4 + 2 + 4 + self.inner_packet_bytes.len(),
+            SocketAddr::V6(_) => 32 + 1 + 16 + 2 + 4 + self.inner_packet_bytes.len(),
+        }
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        let (is_ipv6, ip_bytes) = match &self.target_lp_address {
+            SocketAddr::V4(address) => (false, address.ip().octets().to_vec()),
+            SocketAddr::V6(address) => (true, address.ip().octets().to_vec()),
+        };
+
+        dst.put_slice(&self.target_gateway_identity);
+        dst.put_u8(is_ipv6 as u8); // IP type , 0 for ipv4
+        dst.put_slice(&ip_bytes); // IP bytes
+        dst.put_u16_le(self.target_lp_address.port()); // Port
+        dst.put_u32_le(self.inner_packet_bytes.len() as u32);
+        dst.put_slice(&self.inner_packet_bytes);
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = BytesMut::new();
+        self.encode(&mut buf);
+        buf.into()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        // smallest possible packet with ipv4 and empty data
+        if bytes.len() < 43 {
+            // 32 + 1 + 4 + 2 + 4 + 0
+            return Err(LpError::DeserializationError(format!(
+                "Too few bytes to deserialise ForwardPacketData. got {}",
+                bytes.len()
+            )));
+        }
+        // SAFETY: we ensured we have sufficient data
+        #[allow(clippy::unwrap_used)]
+        let target_gateway_identity = bytes[0..32].try_into().unwrap();
+        let target_lp_address_is_ipv6 = bytes[32] != 0;
+
+        let (target_lp_address, next_index) = if target_lp_address_is_ipv6 {
+            // IPv6, first check we have actually enough bytes
+            // smallest possible packet with ipv6 and empty data
+            if bytes.len() < 55 {
+                // 32 + 1 + 16 + 2 + 4 + 0
+                return Err(LpError::DeserializationError(format!(
+                    "Too few bytes to deserialise ipv6 ForwardPacketData. got {}",
+                    bytes.len()
+                )));
+            }
+            // SAFETY: we ensured we have sufficient data, and the length is correct for casting
+            #[allow(clippy::unwrap_used)]
+            let ipv6 = IpAddr::V6(Ipv6Addr::from_octets(bytes[33..49].try_into().unwrap()));
+            let port = u16::from_le_bytes([bytes[49], bytes[50]]);
+            (SocketAddr::new(ipv6, port), 51)
+        } else {
+            // IPv4. Length check done at the start
+            // SAFETY: we ensured we have sufficient data, and the length is correct for casting
+            #[allow(clippy::unwrap_used)]
+            let ipv4 = IpAddr::V4(Ipv4Addr::from_octets(bytes[33..37].try_into().unwrap()));
+            let port = u16::from_le_bytes([bytes[37], bytes[38]]);
+            (SocketAddr::new(ipv4, port), 39)
+        };
+
+        let inner_packet_bytes_len = u32::from_le_bytes([
+            bytes[next_index],
+            bytes[next_index + 1],
+            bytes[next_index + 2],
+            bytes[next_index + 3],
+        ]);
+        if bytes[next_index + 4..].len() != inner_packet_bytes_len as usize {
+            return Err(LpError::DeserializationError(format!(
+                "Expected {inner_packet_bytes_len} bytes to deserialise inner packet bytes of ForwardPacketData. got {}",
+                bytes[next_index + 4..].len()
+            )));
+        }
+        let inner_packet_bytes = bytes[next_index + 4..].to_vec();
+
+        Ok(ForwardPacketData {
+            target_gateway_identity,
+            target_lp_address,
+            inner_packet_bytes,
+        })
+    }
+}
+
 /// Subsession KK1 message - first message of Noise KK handshake
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubsessionKK1Data {
     /// Noise KK first message payload (ephemeral key + encrypted static)
     pub payload: Vec<u8>,
 }
 
+impl SubsessionKK1Data {
+    fn len(&self) -> usize {
+        self.payload.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.payload);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(SubsessionKK1Data {
+            payload: bytes.to_vec(),
+        })
+    }
+}
+
 /// Subsession KK2 message - second message of Noise KK handshake
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubsessionKK2Data {
     /// Noise KK second message payload (ephemeral key + encrypted response)
     pub payload: Vec<u8>,
 }
 
+impl SubsessionKK2Data {
+    fn len(&self) -> usize {
+        self.payload.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.payload);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(SubsessionKK2Data {
+            payload: bytes.to_vec(),
+        })
+    }
+}
+
 /// Subsession ready confirmation with new session index
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubsessionReadyData {
     /// New subsession's receiver index for routing
     pub receiver_index: u32,
+}
+
+impl SubsessionReadyData {
+    pub const LEN: usize = 4;
+
+    fn len(&self) -> usize {
+        Self::LEN
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_u32_le(self.receiver_index);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        if bytes.len() != 4 {
+            return Err(LpError::DeserializationError(format!(
+                "Expected 4 bytes to deserialise SubsessionReadyData. got {}",
+                bytes.len()
+            )));
+        }
+        Ok(SubsessionReadyData {
+            receiver_index: u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -275,23 +514,18 @@ impl LpMessage {
     pub fn len(&self) -> usize {
         match self {
             LpMessage::Busy => 0,
-            LpMessage::Handshake(payload) => payload.0.len(),
-            LpMessage::EncryptedData(payload) => payload.0.len(),
-            // 4 bytes receiver_index + 32 bytes x25519 key + 32 bytes ed25519 key + 32 bytes salt
-            LpMessage::ClientHello(_) => ClientHelloData::LEN,
-            LpMessage::KKTRequest(payload) => payload.0.len(),
-            LpMessage::KKTResponse(payload) => payload.0.len(),
-            LpMessage::ForwardPacket(data) => {
-                32 + data.target_lp_address.len() + data.inner_packet_bytes.len() + 10
-            }
+            LpMessage::Handshake(payload) => payload.len(),
+            LpMessage::EncryptedData(payload) => payload.len(),
+            LpMessage::ClientHello(payload) => payload.len(),
+            LpMessage::KKTRequest(payload) => payload.len(),
+            LpMessage::KKTResponse(payload) => payload.len(),
+            LpMessage::ForwardPacket(payload) => payload.len(),
             LpMessage::Collision => 0,
             LpMessage::Ack => 0,
             LpMessage::SubsessionRequest => 0,
-            // Variable length: bincode overhead (~8 bytes for Vec length) + payload
-            LpMessage::SubsessionKK1(data) => 8 + data.payload.len(),
-            LpMessage::SubsessionKK2(data) => 8 + data.payload.len(),
-            // 4 bytes u32 + bincode overhead (~4 bytes)
-            LpMessage::SubsessionReady(_) => 8,
+            LpMessage::SubsessionKK1(payload) => payload.len(),
+            LpMessage::SubsessionKK2(payload) => payload.len(),
+            LpMessage::SubsessionReady(payload) => payload.len(),
             LpMessage::SubsessionAbort => 0,
         }
     }
@@ -318,50 +552,89 @@ impl LpMessage {
     pub fn encode_content(&self, dst: &mut BytesMut) {
         match self {
             LpMessage::Busy => { /* No content */ }
-            LpMessage::Handshake(payload) => {
-                dst.put_slice(&payload.0);
-            }
-            LpMessage::EncryptedData(payload) => {
-                dst.put_slice(&payload.0);
-            }
-            LpMessage::ClientHello(data) => {
-                dst.put_slice(&data.encode());
-            }
-            LpMessage::KKTRequest(payload) => {
-                dst.put_slice(&payload.0);
-            }
-            LpMessage::KKTResponse(payload) => {
-                dst.put_slice(&payload.0);
-            }
-            LpMessage::ForwardPacket(data) => {
-                let serialized = lp_bincode_serializer()
-                    .serialize(data)
-                    .expect("Failed to serialize ForwardPacketData");
-                dst.put_slice(&serialized);
-            }
+            LpMessage::Handshake(payload) => payload.encode(dst),
+            LpMessage::EncryptedData(payload) => payload.encode(dst),
+            LpMessage::ClientHello(data) => data.encode(dst),
+            LpMessage::KKTRequest(payload) => payload.encode(dst),
+            LpMessage::KKTResponse(payload) => payload.encode(dst),
+            LpMessage::ForwardPacket(data) => data.encode(dst),
             LpMessage::Collision => { /* No content */ }
             LpMessage::Ack => { /* No content */ }
             LpMessage::SubsessionRequest => { /* No content - signal only */ }
-            LpMessage::SubsessionKK1(data) => {
-                let serialized = lp_bincode_serializer()
-                    .serialize(data)
-                    .expect("Failed to serialize SubsessionKK1Data");
-                dst.put_slice(&serialized);
-            }
-            LpMessage::SubsessionKK2(data) => {
-                let serialized = lp_bincode_serializer()
-                    .serialize(data)
-                    .expect("Failed to serialize SubsessionKK2Data");
-                dst.put_slice(&serialized);
-            }
-            LpMessage::SubsessionReady(data) => {
-                let serialized = lp_bincode_serializer()
-                    .serialize(data)
-                    .expect("Failed to serialize SubsessionReadyData");
-                dst.put_slice(&serialized);
-            }
+            LpMessage::SubsessionKK1(data) => data.encode(dst),
+            LpMessage::SubsessionKK2(data) => data.encode(dst),
+            LpMessage::SubsessionReady(data) => data.encode(dst),
             LpMessage::SubsessionAbort => { /* No content - signal only */ }
         }
+    }
+
+    /// Parse message from its type and content bytes.
+    ///
+    /// Used when decrypting outer-encrypted packets where the message type
+    /// was encrypted along with the content.
+    pub fn decode_content(content: &[u8], message_type: MessageType) -> Result<Self, LpError> {
+        match message_type {
+            MessageType::Busy => {
+                content.ensure_empty()?;
+                Ok(LpMessage::Busy)
+            }
+            MessageType::Handshake => Ok(LpMessage::Handshake(HandshakeData::decode(content)?)),
+            MessageType::EncryptedData => Ok(LpMessage::EncryptedData(
+                EncryptedDataPayload::decode(content)?,
+            )),
+            MessageType::ClientHello => {
+                Ok(LpMessage::ClientHello(ClientHelloData::decode(content)?))
+            }
+            MessageType::KKTRequest => Ok(LpMessage::KKTRequest(KKTRequestData::decode(content)?)),
+            MessageType::KKTResponse => {
+                Ok(LpMessage::KKTResponse(KKTResponseData::decode(content)?))
+            }
+            MessageType::ForwardPacket => Ok(LpMessage::ForwardPacket(ForwardPacketData::decode(
+                content,
+            )?)),
+            MessageType::Collision => {
+                content.ensure_empty()?;
+                Ok(LpMessage::Collision)
+            }
+            MessageType::Ack => {
+                content.ensure_empty()?;
+                Ok(LpMessage::Ack)
+            }
+            MessageType::SubsessionRequest => {
+                content.ensure_empty()?;
+                Ok(LpMessage::SubsessionRequest)
+            }
+            MessageType::SubsessionKK1 => Ok(LpMessage::SubsessionKK1(SubsessionKK1Data::decode(
+                content,
+            )?)),
+            MessageType::SubsessionKK2 => Ok(LpMessage::SubsessionKK2(SubsessionKK2Data::decode(
+                content,
+            )?)),
+            MessageType::SubsessionReady => Ok(LpMessage::SubsessionReady(
+                SubsessionReadyData::decode(content)?,
+            )),
+            MessageType::SubsessionAbort => {
+                content.ensure_empty()?;
+                Ok(LpMessage::SubsessionAbort)
+            }
+        }
+    }
+}
+
+/// Helper trait for improving readability to return error if bytes content is not empty
+trait EnsureEmptyContent {
+    fn ensure_empty(&self) -> Result<(), LpError>;
+}
+
+impl EnsureEmptyContent for &[u8] {
+    fn ensure_empty(&self) -> Result<(), LpError> {
+        if !self.is_empty() {
+            return Err(LpError::InvalidPayloadSize {
+                expected: 0,
+                actual: self.len(),
+            });
+        }
+        Ok(())
     }
 }
 
@@ -379,7 +652,7 @@ mod tests {
 
         let resp_header = LpHeader {
             protocol_version: 1,
-            reserved: 0,
+            reserved: [0u8; 3],
             receiver_idx: 0,
             counter: 0,
         };
@@ -411,8 +684,13 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("System time before UNIX epoch")
             .as_secs();
-        let client_key = [1u8; 32];
-        let client_ed25519_key = [2u8; 32];
+
+        let mut rng = rand::thread_rng();
+        let ed25519 = ed25519::KeyPair::new(&mut rng);
+        let x25519 = ed25519.to_x25519();
+
+        let client_key = *x25519.public_key();
+        let client_ed25519_key = *ed25519.public_key();
         let hello1 =
             ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
         let hello2 =
@@ -433,8 +711,12 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("System time before UNIX epoch")
             .as_secs();
-        let client_key = [2u8; 32];
-        let client_ed25519_key = [3u8; 32];
+        let mut rng = rand::thread_rng();
+        let ed25519 = ed25519::KeyPair::new(&mut rng);
+        let x25519 = ed25519.to_x25519();
+
+        let client_key = *x25519.public_key();
+        let client_ed25519_key = *ed25519.public_key();
         let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
         let timestamp = hello.extract_timestamp();
@@ -453,8 +735,12 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("System time before UNIX epoch")
             .as_secs();
-        let client_key = [3u8; 32];
-        let client_ed25519_key = [4u8; 32];
+        let mut rng = rand::thread_rng();
+        let ed25519 = ed25519::KeyPair::new(&mut rng);
+        let x25519 = ed25519.to_x25519();
+
+        let client_key = *x25519.public_key();
+        let client_ed25519_key = *ed25519.public_key();
         let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
         // First 8 bytes should be non-zero timestamp

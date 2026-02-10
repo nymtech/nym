@@ -16,8 +16,9 @@ use nym_credential_verification::ecash::{
 use nym_credential_verification::upgrade_mode::{
     UpgradeModeCheckConfig, UpgradeModeDetails, UpgradeModeState,
 };
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_router::IpPacketRouter;
+use nym_lp::peer::LpLocalPeer;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::NRServiceProviderBuilder;
@@ -37,6 +38,7 @@ use tracing::*;
 use zeroize::Zeroizing;
 
 pub use crate::node::upgrade_mode::watcher::UpgradeModeWatcher;
+use crate::node::wireguard::{PeerManager, PeerRegistrator};
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use lp_listener::LpConfig;
 pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender;
@@ -53,6 +55,7 @@ pub(crate) mod internal_service_providers;
 pub mod lp_listener;
 mod stale_data_cleaner;
 pub mod upgrade_mode;
+pub mod wireguard;
 
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
@@ -92,6 +95,12 @@ pub struct GatewayTasksBuilder {
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<ed25519::KeyPair>,
 
+    /// x25519 keypair used within KTT exchange
+    x25519_keypair: Arc<x25519::KeyPair>,
+
+    /// x25519 (for now, to be changed into MlKem) keypair used for the PSQ derivation
+    kem_psq_keys: Arc<x25519::KeyPair>,
+
     storage: GatewayStorage,
 
     mix_packet_sender: MixForwardingSender,
@@ -120,6 +129,8 @@ impl GatewayTasksBuilder {
     pub fn new(
         config: Config,
         identity: Arc<ed25519::KeyPair>,
+        x25519: Arc<x25519::KeyPair>,
+        kem_psq_keys: Arc<x25519::KeyPair>,
         storage: GatewayStorage,
         mix_packet_sender: MixForwardingSender,
         metrics_sender: MetricEventsSender,
@@ -137,6 +148,8 @@ impl GatewayTasksBuilder {
             wireguard_data: None,
             user_agent,
             identity_keypair: identity,
+            x25519_keypair: x25519,
+            kem_psq_keys,
             storage,
             mix_packet_sender,
             metrics_sender,
@@ -286,6 +299,22 @@ impl GatewayTasksBuilder {
         }
     }
 
+    pub async fn build_peer_registrator(
+        &mut self,
+        upgrade_mode_details: UpgradeModeDetails,
+    ) -> Result<Option<PeerRegistrator>, GatewayError> {
+        let Some(wireguard_data) = &self.wireguard_data else {
+            return Ok(None);
+        };
+
+        let peer_manager = PeerManager::new(wireguard_data.inner.clone());
+        Ok(Some(PeerRegistrator::new(
+            self.ecash_manager().await?,
+            peer_manager,
+            upgrade_mode_details,
+        )))
+    }
+
     pub async fn build_websocket_listener(
         &mut self,
         active_clients_store: ActiveClientsStore,
@@ -317,22 +346,20 @@ impl GatewayTasksBuilder {
 
     pub async fn build_lp_listener(
         &mut self,
+        peer_registrator: Option<PeerRegistrator>,
         active_clients_store: ActiveClientsStore,
     ) -> Result<lp_listener::LpListener, GatewayError> {
-        // Get WireGuard peer controller if available
-        let wg_peer_controller = self
-            .wireguard_data
-            .as_ref()
-            .map(|wg_data| wg_data.inner.peer_tx().clone());
-
         let handler_state = lp_listener::LpHandlerState {
             ecash_verifier: self.ecash_manager().await?,
             storage: self.storage.clone(),
-            local_identity: Arc::clone(&self.identity_keypair),
+            local_lp_peer: LpLocalPeer::new(
+                self.identity_keypair.clone(),
+                self.x25519_keypair.clone(),
+            )
+            .with_kem_psq_key(self.kem_psq_keys.clone()),
             metrics: self.metrics.clone(),
             active_clients_store,
-            wg_peer_controller,
-            wireguard_data: self.wireguard_data.as_ref().map(|wd| wd.inner.clone()),
+            peer_registrator,
             lp_config: self.config.lp,
             outbound_mix_sender: self.mix_packet_sender.clone(),
             handshake_states: Arc::new(dashmap::DashMap::new()),
@@ -447,7 +474,7 @@ impl GatewayTasksBuilder {
                     .await?;
                 continue;
             };
-            used_private_network_ips.push(allowed_ip.ip);
+            used_private_network_ips.push(allowed_ip.address);
             all_peers.push(peer);
         }
 
@@ -470,26 +497,12 @@ impl GatewayTasksBuilder {
         Ok(peers)
     }
 
-    async fn get_wireguard_networks(&mut self) -> Result<Vec<IpAddr>, GatewayError> {
-        if let Some(cached) = self.wireguard_networks.take() {
-            return Ok(cached);
-        }
-
-        let (peers, used_private_network_ips) = self.build_wireguard_peers_and_networks().await?;
-        // cache peers for the other task
-
-        self.wireguard_peers = Some(peers);
-        Ok(used_private_network_ips)
-    }
-
     pub async fn build_wireguard_authenticator(
         &mut self,
+        peer_registrator: PeerRegistrator,
         upgrade_mode_common: UpgradeModeDetails,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Result<ServiceProviderBeingBuilt<Authenticator>, GatewayError> {
-        let ecash_manager = self.ecash_manager().await?;
-        let used_private_network_ips = self.get_wireguard_networks().await?;
-
         let Some(opts) = &self.authenticator_opts else {
             return Err(GatewayError::UnspecifiedAuthenticatorConfig);
         };
@@ -509,10 +522,9 @@ impl GatewayTasksBuilder {
 
         let mut authenticator_server = Authenticator::new(
             opts.config.clone(),
+            peer_registrator,
             upgrade_mode_common,
             wireguard_data.inner.clone(),
-            used_private_network_ips,
-            ecash_manager,
             self.shutdown_tracker.clone(),
         )
         .with_custom_gateway_transceiver(transceiver)

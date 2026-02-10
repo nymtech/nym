@@ -11,11 +11,11 @@ use crate::utils::{
     try_deserialize_scalar_vec,
 };
 use crate::{ecash_group_parameters, Base58};
-use bls12_381::{G1Projective, G2Projective, Scalar};
 use core::borrow::Borrow;
 use core::iter::Sum;
 use core::ops::{Add, Mul};
 use group::{Curve, GroupEncoding};
+use nym_bls12_381_fork::{G1Projective, G2Projective, Scalar};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};

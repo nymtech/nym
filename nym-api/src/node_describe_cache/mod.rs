@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::caching::cache::UninitialisedCache;
-use nym_api_requests::models::NymNodeDescription;
+use nym_api_requests::models::{NymNodeDescriptionV1, NymNodeDescriptionV2};
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_requests::api::client::NymNodeApiClientError;
@@ -68,7 +68,19 @@ pub(crate) trait NodeDescriptionTopologyExt {
     ) -> Result<RoutingNode, RoutingNodeError>;
 }
 
-impl NodeDescriptionTopologyExt for NymNodeDescription {
+impl NodeDescriptionTopologyExt for NymNodeDescriptionV1 {
+    fn try_to_topology_node(
+        &self,
+        current_rotation_id: u32,
+    ) -> Result<RoutingNode, RoutingNodeError> {
+        // for the purposes of routing, performance is completely ignored,
+        // so add dummy value and piggyback on existing conversion
+        (&self.to_skimmed_node(current_rotation_id, Default::default(), Default::default()))
+            .try_into()
+    }
+}
+
+impl NodeDescriptionTopologyExt for NymNodeDescriptionV2 {
     fn try_to_topology_node(
         &self,
         current_rotation_id: u32,

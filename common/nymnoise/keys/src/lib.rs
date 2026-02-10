@@ -30,8 +30,14 @@ impl From<NoiseVersion> for u8 {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
-pub struct VersionedNoiseKey {
+// to whoever is thinking of modifying this struct.
+// you MUST NOT change its structure in any way - adding, removing or changing fields
+// otherwise, it will break old clients as bincode serialisation is not backwards compatible
+// even if you put `#[serde(default)]` all over the place
+#[derive(
+    Copy, Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema, PartialEq,
+)]
+pub struct VersionedNoiseKeyV1 {
     #[schemars(with = "u8")]
     #[schema(value_type = u8)]
     pub supported_version: NoiseVersion,

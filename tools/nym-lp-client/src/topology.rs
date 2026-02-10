@@ -6,14 +6,17 @@
 #![allow(unused)]
 
 use anyhow::{anyhow, bail, Context, Result};
+use nym_api_requests::models::{LPHashFunction, LPKEM};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::UserAgent;
+use nym_kkt_ciphersuite::{KEMKeyDigests, SignatureScheme, SigningKeyDigests, KEM};
 use nym_sphinx_types::Node as SphinxNode;
 use nym_topology::{NymRouteProvider, NymTopology, NymTopologyMetadata};
 use nym_validator_client::nym_api::NymApiClientExt;
 use rand::prelude::IteratorRandom;
 use rand::{CryptoRng, Rng};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use tracing::{debug, info};
 use url::Url;
@@ -27,6 +30,9 @@ const LP_DATA_PORT: u16 = 51264;
 #[derive(Debug, Clone)]
 pub struct GatewayInfo {
     pub identity: ed25519::PublicKey,
+    pub kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
+    pub signing_key_hashes: HashMap<SignatureScheme, SigningKeyDigests>,
+
     pub sphinx_key: nym_crypto::asymmetric::x25519::PublicKey,
     /// Mix host (IP:port for Sphinx mixing)
     pub mix_host: SocketAddr,
@@ -34,6 +40,7 @@ pub struct GatewayInfo {
     pub lp_address: SocketAddr,
     /// LP data address (IP:51264) for Sphinx packets wrapped in LP
     pub lp_data_address: SocketAddr,
+    pub lp_version: u8,
 }
 
 /// Topology for routing Sphinx packets
@@ -181,41 +188,42 @@ impl SpeedtestTopology {
 
 /// Extract gateway info for LP connections from a SkimmedNode
 fn gateway_info_from_skimmed(node: &SkimmedNode) -> Result<GatewayInfo> {
-    let first_ip = node
-        .ip_addresses
-        .first()
-        .ok_or_else(|| anyhow!("node has no IP addresses"))?;
-
-    // LP default control port
-    const LP_CONTROL_PORT: u16 = 41264;
-
-    Ok(GatewayInfo {
-        identity: node.ed25519_identity_pubkey,
-        sphinx_key: node.x25519_sphinx_pubkey,
-        mix_host: SocketAddr::new(*first_ip, node.mix_port),
-        lp_address: SocketAddr::new(*first_ip, LP_CONTROL_PORT),
-        lp_data_address: SocketAddr::new(*first_ip, LP_DATA_PORT),
-    })
+    todo!("insufficient information to convert into GatewayInfo")
+    // let first_ip = node
+    //     .ip_addresses
+    //     .first()
+    //     .ok_or_else(|| anyhow!("node has no IP addresses"))?;
+    //
+    // // LP default control port
+    // const LP_CONTROL_PORT: u16 = 41264;
+    //
+    // Ok(GatewayInfo {
+    //     identity: node.ed25519_identity_pubkey,
+    //     sphinx_key: node.x25519_sphinx_pubkey,
+    //     mix_host: SocketAddr::new(*first_ip, node.mix_port),
+    //     lp_address: SocketAddr::new(*first_ip, LP_CONTROL_PORT),
+    //     lp_data_address: SocketAddr::new(*first_ip, LP_DATA_PORT),
+    // })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    #[ignore = "requires network access"]
-    async fn test_fetch_topology() {
-        let nym_api = Url::parse("https://validator.nymtech.net/api").unwrap();
-        let topology = SpeedtestTopology::fetch(&nym_api).await.unwrap();
-
-        assert!(topology.gateway_count() > 0);
-        println!("Found {} gateways", topology.gateway_count());
-
-        let mut rng = rand::thread_rng();
-        let gateway = topology.random_gateway(&mut rng).unwrap();
-        println!("Selected gateway: {:?}", gateway.identity);
-
-        let route = topology.random_route_to_gateway(&mut rng, gateway).unwrap();
-        println!("Route has {} hops", route.len());
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//
+//     #[tokio::test]
+//     #[ignore = "requires network access"]
+//     async fn test_fetch_topology() {
+//         let nym_api = Url::parse("https://validator.nymtech.net/api").unwrap();
+//         let topology = SpeedtestTopology::fetch(&nym_api).await.unwrap();
+//
+//         assert!(topology.gateway_count() > 0);
+//         println!("Found {} gateways", topology.gateway_count());
+//
+//         let mut rng = rand::thread_rng();
+//         let gateway = topology.random_gateway(&mut rng).unwrap();
+//         println!("Selected gateway: {:?}", gateway.identity);
+//
+//         let route = topology.random_route_to_gateway(&mut rng, gateway).unwrap();
+//         println!("Route has {} hops", route.len());
+//     }
+// }

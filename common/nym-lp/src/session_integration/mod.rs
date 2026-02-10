@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
-    use crate::keypair::PublicKey;
     use crate::{
         LpError,
         message::LpMessage,
@@ -9,7 +8,6 @@ mod tests {
         session_manager::SessionManager,
     };
     use bytes::BytesMut;
-    use nym_crypto::asymmetric::ed25519;
 
     // Function to create a test packet - similar to how it's done in codec.rs tests
     fn create_test_packet(
@@ -21,7 +19,7 @@ mod tests {
         // Create the header
         let header = LpHeader {
             protocol_version,
-            reserved: 0u16, // reserved
+            reserved: [0u8; 3], // reserved
             receiver_idx,
             counter,
         };
@@ -50,24 +48,7 @@ mod tests {
         let session_manager_2 = SessionManager::new();
 
         // 2. Generate Ed25519 keypairs for PSQ authentication
-        let ed25519_keypair_a = ed25519::KeyPair::from_secret([1u8; 32], 0);
-        let ed25519_keypair_b = ed25519::KeyPair::from_secret([2u8; 32], 1);
-
-        // Derive X25519 keys from Ed25519 (needed for KKT init test)
-        let x25519_pub_a = ed25519_keypair_a
-            .public_key()
-            .to_x25519()
-            .expect("Failed to derive X25519 from Ed25519");
-        let x25519_pub_b = ed25519_keypair_b
-            .public_key()
-            .to_x25519()
-            .expect("Failed to derive X25519 from Ed25519");
-
-        // Convert to LP keypair types
-        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
-            .expect("Failed to create PublicKey from bytes");
-        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
-            .expect("Failed to create PublicKey from bytes");
+        let (a, b) = mock_peers();
 
         // Use fixed receiver_index for deterministic test
         let receiver_index: u32 = 100001;
@@ -79,26 +60,22 @@ mod tests {
         let peer_a_sm = session_manager_1
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_a.private_key(),
-                    ed25519_keypair_a.public_key(),
-                ),
-                ed25519_keypair_b.public_key(),
                 true,
+                a.clone(),
+                b.as_remote(),
                 &salt,
+                version::CURRENT,
             )
             .expect("Failed to create session A");
 
         let peer_b_sm = session_manager_2
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_b.private_key(),
-                    ed25519_keypair_b.public_key(),
-                ),
-                ed25519_keypair_a.public_key(),
                 false,
+                b.clone(),
+                a.as_remote(),
                 &salt,
+                version::CURRENT,
             )
             .expect("Failed to create session B");
 
@@ -108,10 +85,10 @@ mod tests {
 
         // Initialize KKT state for both sessions (test bypass)
         session_manager_1
-            .init_kkt_for_test(peer_a_sm, &lp_pub_b)
+            .init_kkt_for_test(peer_a_sm, b.x25519.public_key())
             .expect("Failed to init KKT for peer A");
         session_manager_2
-            .init_kkt_for_test(peer_b_sm, &lp_pub_a)
+            .init_kkt_for_test(peer_b_sm, a.x25519.public_key())
             .expect("Failed to init KKT for peer B");
 
         // 5. Simulate Noise Handshake (Sans-IO)
@@ -509,24 +486,7 @@ mod tests {
         let session_manager_2 = SessionManager::new();
 
         // 2. Generate Ed25519 keypairs for PSQ authentication
-        let ed25519_keypair_a = ed25519::KeyPair::from_secret([3u8; 32], 0);
-        let ed25519_keypair_b = ed25519::KeyPair::from_secret([4u8; 32], 1);
-
-        // Derive X25519 keys from Ed25519 (same as state machine does internally)
-        let x25519_pub_a = ed25519_keypair_a
-            .public_key()
-            .to_x25519()
-            .expect("Failed to derive X25519 from Ed25519");
-        let x25519_pub_b = ed25519_keypair_b
-            .public_key()
-            .to_x25519()
-            .expect("Failed to derive X25519 from Ed25519");
-
-        // Convert to LP keypair types
-        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
-            .expect("Failed to create PublicKey from bytes");
-        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
-            .expect("Failed to create PublicKey from bytes");
+        let (a, b) = mock_peers();
 
         // Use fixed receiver_index for test
         let receiver_index: u32 = 100002;
@@ -537,34 +497,31 @@ mod tests {
         let peer_a_sm = session_manager_1
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_a.private_key(),
-                    ed25519_keypair_a.public_key(),
-                ),
-                ed25519_keypair_b.public_key(),
                 true,
+                a.clone(),
+                b.as_remote(),
                 &salt,
+                version::CURRENT,
             )
-            .unwrap();
+            .expect("Failed to create session A");
+
         let peer_b_sm = session_manager_2
             .create_session_state_machine(
                 receiver_index,
-                (
-                    ed25519_keypair_b.private_key(),
-                    ed25519_keypair_b.public_key(),
-                ),
-                ed25519_keypair_a.public_key(),
                 false,
+                b.clone(),
+                a.as_remote(),
                 &salt,
+                version::CURRENT,
             )
-            .unwrap();
+            .expect("Failed to create session B");
 
         // Initialize KKT state for both sessions (test bypass)
         session_manager_1
-            .init_kkt_for_test(peer_a_sm, &lp_pub_b)
+            .init_kkt_for_test(peer_a_sm, b.x25519.public_key())
             .expect("Failed to init KKT for peer A");
         session_manager_2
-            .init_kkt_for_test(peer_b_sm, &lp_pub_a)
+            .init_kkt_for_test(peer_b_sm, a.x25519.public_key())
             .expect("Failed to init KKT for peer B");
 
         // Drive handshake to completion (simplified)
@@ -720,17 +677,7 @@ mod tests {
         let session_manager = SessionManager::new();
 
         // Generate Ed25519 keypair for PSQ authentication
-        let ed25519_keypair = ed25519::KeyPair::from_secret([5u8; 32], 0);
-
-        // Derive X25519 key from Ed25519 (same as state machine does internally)
-        let x25519_pub = ed25519_keypair
-            .public_key()
-            .to_x25519()
-            .expect("Failed to derive X25519 from Ed25519");
-
-        // Convert to LP keypair type (still needed for init_kkt_for_test below if used)
-        let _lp_pub = PublicKey::from_bytes(x25519_pub.as_bytes())
-            .expect("Failed to create PublicKey from bytes");
+        let (a, b) = mock_peers();
 
         // Use fixed receiver_index for test
         let receiver_index: u32 = 100003;
@@ -742,10 +689,11 @@ mod tests {
         let _session = session_manager
             .create_session_state_machine(
                 receiver_index,
-                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-                ed25519_keypair.public_key(),
                 true,
+                a.clone(),
+                b.as_remote(),
                 &salt,
+                version::CURRENT,
             )
             .expect("Failed to create session");
 
@@ -765,10 +713,11 @@ mod tests {
         let _temp_session = session_manager
             .create_session_state_machine(
                 receiver_index_temp,
-                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-                ed25519_keypair.public_key(),
                 true,
+                a.clone(),
+                b.as_remote(),
                 &salt,
+                version::CURRENT,
             )
             .expect("Failed to create temp session");
 
@@ -820,13 +769,16 @@ mod tests {
     }
     // Remove unused imports if SessionManager methods are no longer direct dependencies
     // use crate::noise_protocol::{create_noise_state, create_noise_state_responder};
+    use crate::packet::version;
+    use crate::peer::mock_peers;
+    use crate::state_machine::LpData;
     use crate::{
         // Bring in state machine types
         state_machine::{LpAction, LpInput, LpStateBare},
         // message::LpMessage, // LpMessage likely still needed for LpInput/LpAction
         // packet::{LpHeader, LpPacket, TRAILER_LEN}, // LpPacket needed for LpAction/LpInput
     };
-    use bytes::Bytes; // Use Bytes for SendData input
+    // Use Bytes for SendData input
 
     // Keep helper function for creating test packets if needed,
     // but LpAction::SendPacket should provide the packets now.
@@ -846,8 +798,7 @@ mod tests {
         let session_manager_2 = SessionManager::new();
 
         // 2. Generate Ed25519 keypairs for PSQ authentication
-        let ed25519_keypair_a = ed25519::KeyPair::from_secret([6u8; 32], 0);
-        let ed25519_keypair_b = ed25519::KeyPair::from_secret([7u8; 32], 1);
+        let (a, b) = mock_peers();
 
         // Use fixed receiver_index for test
         let receiver_index: u32 = 100005;
@@ -860,13 +811,11 @@ mod tests {
             session_manager_1
                 .create_session_state_machine(
                     receiver_index,
-                    (
-                        ed25519_keypair_a.private_key(),
-                        ed25519_keypair_a.public_key()
-                    ),
-                    ed25519_keypair_b.public_key(),
                     true,
+                    a.clone(),
+                    b.as_remote(),
                     &salt,
+                    version::CURRENT
                 ) // Initiator
                 .is_ok()
         );
@@ -874,13 +823,11 @@ mod tests {
             session_manager_2
                 .create_session_state_machine(
                     receiver_index,
-                    (
-                        ed25519_keypair_b.private_key(),
-                        ed25519_keypair_b.public_key()
-                    ),
-                    ed25519_keypair_a.public_key(),
                     false,
+                    b,
+                    a.as_remote(),
                     &salt,
+                    version::CURRENT
                 ) // Responder
                 .is_ok()
         );
@@ -1162,13 +1109,13 @@ mod tests {
 
         // --- 5. Simulate Data Transfer via process_input ---
         println!("Starting data transfer simulation via process_input...");
-        let plaintext_a_to_b = b"Hello from A via process_input!";
-        let plaintext_b_to_a = b"Hello from B via process_input!";
+        let plaintext_a_to_b = LpData::new_opaque(b"Hello from A via process_input!".to_vec());
+        let plaintext_b_to_a = LpData::new_opaque(b"Hello from B via process_input!".to_vec());
 
         // --- A sends to B ---
         println!("  A sends to B");
         let action_a_send = session_manager_1
-            .process_input(receiver_index, LpInput::SendData(plaintext_a_to_b.to_vec()))
+            .process_input(receiver_index, LpInput::SendData(plaintext_a_to_b.clone()))
             .expect("A SendData should produce action")
             .expect("A SendData failed");
 
@@ -1191,14 +1138,10 @@ mod tests {
             .expect("B ReceivePacket (data) failed");
 
         if let LpAction::DeliverData(data) = action_b_recv {
-            assert_eq!(
-                data,
-                Bytes::copy_from_slice(plaintext_a_to_b),
-                "Decrypted data mismatch A->B"
-            );
+            assert_eq!(data, plaintext_a_to_b, "Decrypted data mismatch A->B");
             println!(
                 "    B successfully decrypted: {:?}",
-                String::from_utf8_lossy(&data)
+                String::from_utf8_lossy(&data.content)
             );
         } else {
             panic!("B ReceivePacket did not produce DeliverData");
@@ -1207,7 +1150,7 @@ mod tests {
         // --- B sends to A ---
         println!("  B sends to A");
         let action_b_send = session_manager_2
-            .process_input(receiver_index, LpInput::SendData(plaintext_b_to_a.to_vec()))
+            .process_input(receiver_index, LpInput::SendData(plaintext_b_to_a.clone()))
             .expect("B SendData should produce action")
             .expect("B SendData failed");
 
@@ -1232,14 +1175,10 @@ mod tests {
             .expect("A ReceivePacket (data) failed");
 
         if let LpAction::DeliverData(data) = action_a_recv {
-            assert_eq!(
-                data,
-                Bytes::copy_from_slice(plaintext_b_to_a),
-                "Decrypted data mismatch B->A"
-            );
+            assert_eq!(data, plaintext_b_to_a, "Decrypted data mismatch B->A");
             println!(
                 "    A successfully decrypted: {:?}",
-                String::from_utf8_lossy(&data)
+                String::from_utf8_lossy(&data.content)
             );
         } else {
             panic!("A ReceivePacket did not produce DeliverData");
@@ -1264,11 +1203,11 @@ mod tests {
         println!("Testing out-of-order reception via process_input...");
 
         // A prepares N+1 then N
-        let data_n_plus_1 = Bytes::from_static(b"Message N+1");
-        let data_n = Bytes::from_static(b"Message N");
+        let data_n_plus_1 = LpData::new_opaque(b"Message N+1".to_vec());
+        let data_n = LpData::new_opaque(b"Message N".to_vec());
 
         let action_send_n1 = session_manager_1
-            .process_input(receiver_index, LpInput::SendData(data_n_plus_1.to_vec()))
+            .process_input(receiver_index, LpInput::SendData(data_n_plus_1.clone()))
             .unwrap()
             .unwrap();
         let packet_n1 = match action_send_n1 {
@@ -1277,7 +1216,7 @@ mod tests {
         };
 
         let action_send_n = session_manager_1
-            .process_input(receiver_index, LpInput::SendData(data_n.to_vec()))
+            .process_input(receiver_index, LpInput::SendData(data_n.clone()))
             .unwrap()
             .unwrap();
         let packet_n = match action_send_n {
@@ -1334,8 +1273,10 @@ mod tests {
         );
 
         // Further actions on A fail
-        let send_after_close_a =
-            session_manager_1.process_input(receiver_index, LpInput::SendData(b"fail".to_vec()));
+        let send_after_close_a = session_manager_1.process_input(
+            receiver_index,
+            LpInput::SendData(LpData::new_opaque(b"fail".to_vec())),
+        );
         assert!(send_after_close_a.is_err());
         assert!(matches!(
             send_after_close_a.err().unwrap(),
@@ -1354,8 +1295,10 @@ mod tests {
         );
 
         // Further actions on B fail
-        let send_after_close_b =
-            session_manager_2.process_input(receiver_index, LpInput::SendData(b"fail".to_vec()));
+        let send_after_close_b = session_manager_2.process_input(
+            receiver_index,
+            LpInput::SendData(LpData::new_opaque(b"fail".to_vec())),
+        );
         assert!(send_after_close_b.is_err());
         assert!(matches!(
             send_after_close_b.err().unwrap(),

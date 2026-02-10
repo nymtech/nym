@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+publish = false
 
 [dependencies]
 anyhow = { workspace = true }
@@ -21,9 +22,9 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
 tracing = { workspace = true }
 
 importer-contract = { path = "../importer-contract" }
-nym-validator-client = { path = "../../../../common/client-libs/validator-client" }
-nym-bin-common = { path = "../../../../common/bin-common", features = ["basic_tracing"] }
-nym-network-defaults = { path = "../../../../common/network-defaults" }
+nym-validator-client = { workspace = true }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+nym-network-defaults = { workspace = true }
 
-nym-mixnet-contract-common = { path = "../../../../common/cosmwasm-smart-contracts/mixnet-contract" }
-nym-vesting-contract-common = { path = "../../../../common/cosmwasm-smart-contracts/vesting-contract" }
+nym-mixnet-contract-common = { workspace = true }
+nym-vesting-contract-common = { workspace = true }

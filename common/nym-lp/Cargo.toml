@@ -35,6 +35,9 @@ num_enum = { workspace = true }
 chacha20poly1305 = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
+# needed for the 'mock 'feature
+nym-test-utils = { workspace = true, optional = true }
+
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 #rand_chacha = "0.3"
@@ -44,6 +47,8 @@ anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 nym-lp-transport = { path = "../nym-lp-transport", features = ["io-mocks"] }
 
+[features]
+mock = ["nym-test-utils", "nym-crypto/rand"]
 
 [[bench]]
 name = "replay_protection"

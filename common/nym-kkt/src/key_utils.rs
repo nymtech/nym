@@ -61,7 +61,6 @@ pub fn generate_keypair_mceliece<'a, R>(
     classic_mceliece_rust::PublicKey<'a>,
 )
 where
-    // this is annoying because mceliece lib uses rand09 0.8.5...
     R: RngCore + CryptoRng,
 {
     let (encapsulation_key, decapsulation_key) = keypair_boxed(rng);

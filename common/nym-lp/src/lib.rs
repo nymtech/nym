@@ -29,15 +29,15 @@ pub use state_machine::LpStateMachine;
 pub const NOISE_PATTERN: &str = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";
 pub const NOISE_PSK_INDEX: u8 = 3;
 
-#[cfg(test)]
-struct SessionsMock {
-    initiator: LpSession,
-    responder: LpSession,
+#[cfg(any(feature = "mock", test))]
+pub struct SessionsMock {
+    pub initiator: LpSession,
+    pub responder: LpSession,
 }
 
-#[cfg(test)]
+#[cfg(any(feature = "mock", test))]
 impl SessionsMock {
-    fn mock_post_handshake(session_id: u32) -> anyhow::Result<SessionsMock> {
+    pub fn mock_post_handshake(session_id: u32) -> SessionsMock {
         use crate::peer::mock_peers;
         use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 
@@ -73,19 +73,21 @@ impl SessionsMock {
             init.ed25519.public_key(),
             &salt,
             &session_id_bytes,
-        )?;
+        )
+        .unwrap();
 
         let psk = psq_initiator.psk;
         let psq_payload = psq_initiator.payload;
         let outer_aead_key = crate::codec::OuterAeadKey::from_psk(&psk);
 
-        let noise_state_init = snow::Builder::new(crate::NOISE_PATTERN.parse()?)
+        let noise_state_init = snow::Builder::new(crate::NOISE_PATTERN.parse().unwrap())
             .local_private_key(init.x25519().private_key().as_bytes())
             .remote_public_key(resp_remote.x25519_public.as_bytes())
             .psk(crate::NOISE_PSK_INDEX, &psk)
-            .build_initiator()?;
+            .build_initiator()
+            .unwrap();
         let mut noise_protocol_init = crate::noise_protocol::NoiseProtocol::new(noise_state_init);
-        let noise_msg1 = noise_protocol_init.get_bytes_to_send().unwrap()?;
+        let noise_msg1 = noise_protocol_init.get_bytes_to_send().unwrap().unwrap();
 
         let psq_responder = crate::psk::psq_responder_process_message(
             resp.x25519.private_key(),
@@ -95,26 +97,28 @@ impl SessionsMock {
             &psq_payload,
             &salt,
             &session_id_bytes,
-        )?;
+        )
+        .unwrap();
 
-        let noise_state_resp = snow::Builder::new(crate::NOISE_PATTERN.parse()?)
+        let noise_state_resp = snow::Builder::new(crate::NOISE_PATTERN.parse().unwrap())
             .local_private_key(resp.x25519().private_key().as_bytes())
             .remote_public_key(init_remote.x25519_public.as_bytes())
             .psk(crate::NOISE_PSK_INDEX, &psk)
-            .build_responder()?;
+            .build_responder()
+            .unwrap();
         let mut noise_protocol_resp = crate::noise_protocol::NoiseProtocol::new(noise_state_resp);
-        noise_protocol_resp.read_message(&noise_msg1)?;
+        noise_protocol_resp.read_message(&noise_msg1).unwrap();
 
-        let noise_msg2 = noise_protocol_resp.get_bytes_to_send().unwrap()?;
-        noise_protocol_init.read_message(&noise_msg2)?;
-        let noise_msg3 = noise_protocol_init.get_bytes_to_send().unwrap()?;
+        let noise_msg2 = noise_protocol_resp.get_bytes_to_send().unwrap().unwrap();
+        noise_protocol_init.read_message(&noise_msg2).unwrap();
+        let noise_msg3 = noise_protocol_init.get_bytes_to_send().unwrap().unwrap();
 
         assert!(noise_protocol_init.is_handshake_finished());
 
-        noise_protocol_resp.read_message(&noise_msg3)?;
+        noise_protocol_resp.read_message(&noise_msg3).unwrap();
         assert!(noise_protocol_resp.is_handshake_finished());
 
-        Ok(SessionsMock {
+        SessionsMock {
             initiator: LpSession::new(
                 session_id,
                 1,
@@ -133,22 +137,22 @@ impl SessionsMock {
                 crate::session::PqSharedSecret::new(psq_responder.pq_shared_secret),
                 noise_protocol_resp,
             ),
-        })
+        }
     }
 
     // we just need a dummy 'valid' session for simpler tests
-    fn mock_initiator() -> LpSession {
-        Self::mock_post_handshake(1234).unwrap().initiator
+    pub fn mock_initiator() -> LpSession {
+        Self::mock_post_handshake(1234).initiator
     }
 }
 
-#[cfg(test)]
+#[cfg(any(feature = "mock", test))]
 pub fn sessions_for_tests() -> (LpSession, LpSession) {
-    let sessions = SessionsMock::mock_post_handshake(69).unwrap();
+    let sessions = SessionsMock::mock_post_handshake(69);
     (sessions.initiator, sessions.responder)
 }
 
-#[cfg(test)]
+#[cfg(any(feature = "mock", test))]
 pub fn mock_session_for_test() -> LpSession {
     SessionsMock::mock_initiator()
 }
@@ -272,7 +276,7 @@ mod tests {
         // Use fixed receiver_index for deterministic test
         let receiver_index: u32 = 54321;
 
-        let sessions = SessionsMock::mock_post_handshake(receiver_index).unwrap();
+        let sessions = SessionsMock::mock_post_handshake(receiver_index);
         let local_session = sessions.initiator;
         let remote_session = sessions.responder;
 

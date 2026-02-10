@@ -699,7 +699,7 @@ mod tests {
 
     #[test]
     fn test_demote_sets_read_only() {
-        let sessions = SessionsMock::mock_post_handshake(12345).unwrap();
+        let sessions = SessionsMock::mock_post_handshake(12345);
         let mut session = sessions.initiator;
 
         // Initially not read-only
@@ -717,7 +717,7 @@ mod tests {
     #[test]
     fn test_encrypt_fails_after_demotion() {
         let receiver_index = 12345;
-        let sessions = SessionsMock::mock_post_handshake(receiver_index).unwrap();
+        let sessions = SessionsMock::mock_post_handshake(receiver_index);
         let mut initiator_session = sessions.initiator;
 
         // Encryption works before demotion
@@ -742,7 +742,7 @@ mod tests {
     fn test_decrypt_works_after_demotion() {
         // --- Setup Handshake ---
         let receiver_index = 12345;
-        let sessions = SessionsMock::mock_post_handshake(receiver_index).unwrap();
+        let sessions = SessionsMock::mock_post_handshake(receiver_index);
         let mut initiator_session = sessions.initiator;
         let mut responder_session = sessions.responder;
 

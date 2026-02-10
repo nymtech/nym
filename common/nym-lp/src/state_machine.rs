@@ -942,7 +942,7 @@ mod tests {
 
     #[test]
     fn test_state_machine_init() {
-        let mock_sessions = SessionsMock::mock_post_handshake(123).unwrap();
+        let mock_sessions = SessionsMock::mock_post_handshake(123);
 
         let initiator_sm = LpStateMachine::new(mock_sessions.initiator);
         assert!(matches!(initiator_sm.state, LpState::Transport { .. }));
@@ -959,7 +959,7 @@ mod tests {
     #[test]
     fn test_state_machine_simplified_flow() {
         let receiver_index: u32 = 123;
-        let mock_sessions = SessionsMock::mock_post_handshake(123).unwrap();
+        let mock_sessions = SessionsMock::mock_post_handshake(123);
 
         // Create state machines (already in Transport)
         let mut initiator = LpStateMachine::new(mock_sessions.initiator);
@@ -1026,7 +1026,7 @@ mod tests {
     /// Helper function to complete a full handshake between initiator and responder,
     /// returning both in Transport state ready for subsession testing.
     fn setup_transport_sessions() -> (LpStateMachine, LpStateMachine) {
-        let sessions = SessionsMock::mock_post_handshake(12345).unwrap();
+        let sessions = SessionsMock::mock_post_handshake(12345);
         (
             LpStateMachine::new(sessions.initiator),
             LpStateMachine::new(sessions.responder),

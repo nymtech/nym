@@ -48,7 +48,7 @@ mod tests {
         let mut session_manager_2 = SessionManager::new();
 
         let receiver_index = 12345;
-        let sessions = SessionsMock::mock_post_handshake(receiver_index).unwrap();
+        let sessions = SessionsMock::mock_post_handshake(receiver_index);
 
         // 2. Create sessions using the pre-built Noise states
         let peer_a_sm = session_manager_1.create_session_state_machine(sessions.initiator);
@@ -293,7 +293,7 @@ mod tests {
         let mut session_manager_2 = SessionManager::new();
 
         let receiver_index = 12345;
-        let sessions = SessionsMock::mock_post_handshake(receiver_index).unwrap();
+        let sessions = SessionsMock::mock_post_handshake(receiver_index);
 
         // 2. Create sessions using the pre-built Noise states
         let peer_a_sm = session_manager_1.create_session_state_machine(sessions.initiator);
@@ -405,10 +405,8 @@ mod tests {
         let mut session_manager = SessionManager::new();
 
         let receiver_index = 123;
-        let session1 = SessionsMock::mock_post_handshake(receiver_index)
-            .unwrap()
-            .initiator;
-        let session2 = SessionsMock::mock_post_handshake(124).unwrap().initiator;
+        let session1 = SessionsMock::mock_post_handshake(receiver_index).initiator;
+        let session2 = SessionsMock::mock_post_handshake(124).initiator;
 
         // 2. Create a session (using real noise state)
         let _session = session_manager.create_session_state_machine(session1);
@@ -497,7 +495,7 @@ mod tests {
         let mut session_manager_2 = SessionManager::new();
 
         let receiver_index = 12345;
-        let sessions = SessionsMock::mock_post_handshake(receiver_index).unwrap();
+        let sessions = SessionsMock::mock_post_handshake(receiver_index);
 
         // 2. Create sessions state machines
         session_manager_1.create_session_state_machine(sessions.initiator);

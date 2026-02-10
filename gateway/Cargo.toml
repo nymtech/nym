@@ -95,6 +95,7 @@ nym-gateway-storage = { workspace = true, features = ["mock"] }
 nym-wireguard = { workspace = true, features = ["mock"] }
 mock_instant = { workspace = true }
 time = { workspace = true }
+nym-lp = { path = "../common/nym-lp", features = ["mock"] }
 
 [lints]
 workspace = true

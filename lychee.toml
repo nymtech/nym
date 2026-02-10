@@ -3,11 +3,13 @@
 # Lychee is explicit with links, whereas NextJS resolves links w/out extensions to md(x)
 fallback_extensions = ["mdx", "md"]
 
-# Root directory for resolving absolute paths
-root_dir = "documentation/docs/"
+# Root directory for resolving absolute paths (pages for content)
+# Note: root_dir must be passed via CLI with absolute path in CI
+# root_dir = "documentation/docs/pages/"
 
-# Remap pages/images to public/images for NextJS static assets
-remap = ["pages/images file:///public/images/"]
+# Remap /images to public/images for NextJS static assets
+# Lychee resolves /images to pages/images, but Next.js serves from public/images
+remap = ["pages/images public/images"]
 
 # Exclude component snippets (TODO: verify which are still in use)
 exclude_path = ["components/"]

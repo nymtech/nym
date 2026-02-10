@@ -72,7 +72,7 @@ cargo Profile:      release
 <Callout type="warning" emoji="⚠️">
 **This release comes with breaking changes - please follow the [steps below](#oscypek-special-update) before upgrading!**
 
-Secondly, the outcome of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), is added to the [Network tunnel manager (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) and operators are required to rerun the tool on their servers as [documented here](update-nym-exit-policy).
+Secondly, the outcome of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), is added to the [Network tunnel manager (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) and operators are required to rerun the tool on their servers.
 </ Callout>
 
 #### `oscypek` special update
@@ -4080,7 +4080,7 @@ Here are the aims of these tests:
 
 Meanwhile we started to research pricing of stronger servers with unlimited bandwidth and higher (and stable) port speed, to arrive to a better understanding of needed rewards and grants to bootstrap the network before NymVPN launch.
 
-More info about testing and tools for performance monitoring can be found in [this chapter](testing/performance.md).
+More info about testing and tools for performance monitoring can be found in [this chapter](performance-and-testing).
 
 > We would like to call out to operators to join the efforts and reach out to us if they know of solid ISPs who offer reliable dedicated services for good price or may even be interested in partnership.
 
@@ -4641,11 +4641,11 @@ done
 
 ### Operators Guide, Tooling & Updates
 
-- More explicit [setup for `nym-node`](nodes/setup.md#initialise--run) with a new [option explanation](nodes/setup.md#essential-parameters--variables), including syntax examples
+- More explicit [setup for `nym-node`](nodes/nym-node/setup#initialise--run) with a new [option explanation](nodes/nym-node/setup#essential-parameters--variables), including syntax examples
 
-- New [VPS networking configuration steps for Wireguard](nodes/configuration.md#routing-configuration)
+- New [VPS networking configuration steps for Wireguard](nodes/nym-node/configuration#routing-configuration)
 
-- Wireguard [builds from source](binaries/building-nym.md) together with `nym-node`, no need to specify with a feature flag anymore
+- Wireguard [builds from source](binaries/building-nym) together with `nym-node`, no need to specify with a feature flag anymore
 
 - Wireguard peers stay connected for longer time, re-connections are also faster
 
@@ -4684,12 +4684,12 @@ Every `nym-node` should be upgraded to the latest version! Operators can test us
 **`nym-node`**
 
 - Make sure to fill in basic description info, into the file located at `.nym/nym-nodes/<ID>/data/description.toml` (all nodes)
-- Configure wireguard routing with new [`network_tunnel_manager.sh`](https://github.com/nymtech/nym/blob/develop/scripts/network_tunnel_manager.sh) following [these steps](nodes/configuration.md#routing-configuration) (Gateways only for the time being)
+- Configure wireguard routing with new [`network_tunnel_manager.sh`](https://github.com/nymtech/nym/blob/develop/scripts/network_tunnel_manager.sh) following [these steps](nodes/nym-node/configuration#routing-configuration) (Gateways only for the time being)
 - Enable Wireguard with `--wireguard-enabled true` flag included in your run command (Gateways only for the time being)
     - Note: On some VPS this setup may not be enough to get the correct results as some ISPs  have their own security groups setup below the individual VPS. In that case a ticket to ISP will have to be issued to open the needed settings. We are working on a template for such ticket.
-- Setup [reverse proxy and WSS](nodes/proxy-configuration.md) on `nym-node` (Gateways only for the time being)
+- Setup [reverse proxy and WSS](nodes/nym-node/configuration/proxy-configuration) on `nym-node` (Gateways only for the time being)
 - Don't forget to restart your node - or (preferably using [systemd automation](nodes/nym-node/configuration.mdx#systemd)) reload daemon and restart the service
-- Optional: Use [`nym-gateway-probe`](testing/gateway-probe.html) and [NymVPN CLI](https://nymtech.net/developers/nymvpn/cli.html) to test your own Gateway
+- Optional: Use [`nym-gateway-probe`](performance-and-testing/gateway-probe) and [NymVPN CLI](https://nymtech.net/developers/nymvpn/cli.html) to test your own Gateway
 - Optional: Run the script below to measure ping speed of your Gateway and share your results in [Nym Operators channel](https://matrix.to/#/#operators:nymtech.chat)
 
 <AccordionTemplate name='The script to measure Gateway ping results'>
@@ -4878,7 +4878,7 @@ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-
 
 ### Operators Guide updates
 
-* [WireGuard tunnel configuration guide](nodes/configuration.md#routing-configuration) for `nym-node` (currently Gateways functionalities). For simplicity we made a detailed step by step guide to upgrade an existing `nym-node` to the latest version and configure your VPS routing for WireGuard. Open by clicking on the example block below.
+* [WireGuard tunnel configuration guide](nodes/nym-node/configuration#routing-configuration) for `nym-node` (currently Gateways functionalities). For simplicity we made a detailed step by step guide to upgrade an existing `nym-node` to the latest version and configure your VPS routing for WireGuard. Open by clicking on the example block below.
 
 <AccordionTemplate name="Upgrading with wireguard">
 **Prerequisites**
@@ -4943,7 +4943,7 @@ chmod u+x network_tunnel_manager.sh
 
 **Step 3: Update the Nym Node Service File**
 
-1. Modify your [`nym-node` service file](nodes/configuration.md#systemd) to enable WireGuard. Open the file (usually located at `/etc/systemd/system/nym-node.service`) and update the `[Service]` section as follows:
+1. Modify your [`nym-node` service file](nodes/nym-node/configuration#systemd) to enable WireGuard. Open the file (usually located at `/etc/systemd/system/nym-node.service`) and update the `[Service]` section as follows:
 
 ```ini
 [Service]
@@ -4989,7 +4989,7 @@ Finally, run the following command to initiate our favorite routing test - run t
 - **Note:** Wireguard will return only IPv4 joke, not IPv6. WG IPv6 is under development. Running IPR joke through the mixnet with `./network_tunnel_manager.sh joke_through_the_mixnet` should work with both IPv4 and IPv6!
 </AccordionTemplate>
 
-* [Change `--wireguard-enabled` flag to `true`](nodes/setup.md#-initialise--run): With a proper [routing configuration](nodes/configuration.md#routing-configuration) `nym-nodes` running as Gateways can now enable WG. See the example below:
+* [Change `--wireguard-enabled` flag to `true`](nodes/nym-node/setup#initialise--run): With a proper [routing configuration](nodes/nym-node/configuration#routing-configuration) `nym-nodes` running as Gateways can now enable WG. See the example below:
 
 <AccordionTemplate name="Run node with wireguard enabled">
 For Exit Gateway:
@@ -5350,8 +5350,8 @@ bind_address = '0.0.0.0:9000'
 
 ### Operators Guide updates
 
-- [Node description guide](nodes/configuration.md#node-description): Steps to add self-description to `nym-node` and query this information from any node.
-- [Web Secure Socket (WSS) guide and reverse proxy update](nodes/proxy-configuration.md), PR [here](https://github.com/nymtech/nym/pull/4694): A guide to setup `nym-node` in a secure fashion, using WSS via Nginx and Certbot. Landing page (reversed proxy) is updated and simplified.
+- [Node description guide](nodes/nym-node/configuration#node-description): Steps to add self-description to `nym-node` and query this information from any node.
+- [Web Secure Socket (WSS) guide and reverse proxy update](nodes/nym-node/configuration/proxy-configuration), PR [here](https://github.com/nymtech/nym/pull/4694): A guide to setup `nym-node` in a secure fashion, using WSS via Nginx and Certbot. Landing page (reversed proxy) is updated and simplified.
 
 ---
 
@@ -5551,16 +5551,16 @@ warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ig
 
 ### Operators Guide updates
 
-- [New Release Cycle](release-cycle.md) introduced: a transparent release flow, including:
+- [New Release Cycle](release-cycle) introduced: a transparent release flow, including:
     - New environments
     - Stable testnet
     - [Testnet token faucet](https://nymtech.net/operators/sandbox.html#sandbox-token-faucet)
-    - Flow [chart](release-cycle.md#release-flow)
-- [Sandbox testnet](sandbox.md) guide: teaching Nym node operators how to run their nodes in Nym Sandbox testnet environment.
-- [Terms & Conditions flag](nodes/setup.md#terms--conditions)
+    - Flow [chart](release-cycle#release-flow)
+- [Sandbox testnet](sandbox) guide: teaching Nym node operators how to run their nodes in Nym Sandbox testnet environment.
+- [Terms & Conditions flag](nodes/nym-node/setup#terms--conditions)
 - Node API Check CLI
-- [Pruning VPS `syslog` scripts](troubleshooting/vps-isp.md#pruning-logs)
-- [Black-xit: Exiting the blacklist](troubleshooting/nodes.md#my-gateway-is-blacklisted)
+- [Pruning VPS `syslog` scripts](troubleshooting/vps-isp#pruning-logs)
+- [Black-xit: Exiting the blacklist](troubleshooting/nodes#my-gateway-is-blacklisted)
 
 ---
 
@@ -5712,9 +5712,9 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
 
 ### Operators Guide updates
 
-- [`nym-gateway-probe`](testing/gateway-probe.md): A CLI tool to check in-real-time networking status of any Gateway locally.
-- [Where to host your `nym-node`?](legal/isp-list.md): A list of Internet Service Providers (ISPs) by Nym Operators community. We invite all operators to add their experiences with different ISPs to strengthen the community knowledge and Nym mixnet performance.
-- Make sure you run `nym-node` with `--wireguard-enabled false` and add a location description to your `config.toml`, both documented in [`nym-node` setup manual](nodes/setup.md#mode-exit-gateway).
+- [`nym-gateway-probe`](performance-and-testing/gateway-probe): A CLI tool to check in-real-time networking status of any Gateway locally.
+- [Where to host your `nym-node`?](community-counsel/isp-list): A list of Internet Service Providers (ISPs) by Nym Operators community. We invite all operators to add their experiences with different ISPs to strengthen the community knowledge and Nym mixnet performance.
+- Make sure you run `nym-node` with `--wireguard-enabled false` and add a location description to your `config.toml`, both documented in [`nym-node` setup manual](nodes/nym-node/setup#mode-exit-gateway).
 
 
 ---
@@ -5728,8 +5728,8 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
 - Nym wallet changes:
     - Adding `nym-node` command to bonding screens
     - Fixed the delegation issues with fixing RPC
-- [Network configuration](nodes/configuration.md#connectivity-test-and-configuration) section updates, in particular for `--mode mixnode` operators
-- [VPS IPv6 troubleshooting](troubleshooting/vps-isp.md#ipv6-troubleshooting) updates
+- [Network configuration](nodes/nym-node/configuration#connectivity-test-and-configuration) section updates, in particular for `--mode mixnode` operators
+- [VPS IPv6 troubleshooting](troubleshooting/vps-isp#ipv6-troubleshooting) updates
 
 
 ---
@@ -5740,8 +5740,8 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
 - [`nym-node`](nodes/nym-node.mdx) initial release
 - New tool for monitoring Gateways performance [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net)
 - New versioning `1.1.0+nymnode` mainly for internal migration testing, not essential for operational use. We aim to correct this in a future release to ensure mixnodes feature correctly in the main API
-- New [VPS specs & configuration](nodes/vps-setup.md) page
-- New [configuration page](nodes/configuration.md) with [connectivity setup guide](nodes/configuration.md#connectivity-test-and-configuration) - a new requirement for `exit-gateway`
+- New [VPS specs & configuration](nodes/preliminary-steps/vps-setup) page
+- New [configuration page](nodes/nym-node/configuration) with [connectivity setup guide](nodes/nym-node/configuration#connectivity-test-and-configuration) - a new requirement for `exit-gateway`
 - API endpoints redirection: Nym-mixnode and nym-gateway endpoints will eventually be deprecated; due to this, their endpoints will be redirected to new routes once the `nym-node` has been migrated and is running
 
 **API endpoints redirection**

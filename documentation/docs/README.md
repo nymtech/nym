@@ -22,6 +22,12 @@ Our `prebuild` script relies on the following:
 
 Otherwise make sure to have `node` installed.
 
+### Link checking (optional)
+We use [lychee](https://github.com/lycheeverse/lychee) to check for broken links. Install via your package manager or `cargo install lychee`, then run:
+```sh
+lychee documentation/docs/ --config lychee.toml --root-dir documentation/docs/pages/
+```
+
 ### Serve Local (Hot Reload)
 ```sh
 pnpm i
@@ -48,7 +54,7 @@ pnpm run build
 > **Only run this script on branches where you want to push e.g. the build info of a binary to production docs**; it will build the monorepo binaries and use their command output for the produced markdown files.
 
 ## CI/CD
-TODO
+- **Link checking**: Runs on every push to `documentation/docs/` via `.github/workflows/ci-docs-linkcheck.yml`
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

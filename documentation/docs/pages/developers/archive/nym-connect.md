@@ -2,7 +2,7 @@
 
 ```admonish warning
 Since the beginning of 2024 NymConnect is no longer maintained. Nym is developing a new client called [NymVPN](https://nymvpn.com), an application routing all users traffic thorugh the mixnet.
-If users want to route their traffic through socks5 we advice to use maintained [Nym Socks5 Client](../clients/socks5/setup.md).
+If users want to route their traffic through socks5 we advice to use maintained [Nym Socks5 Client](../clients/socks5/setup).
 ```
 
 In case you want to run deprecated NymConnect, follow these steps:
@@ -27,7 +27,7 @@ Here are some examples of applications which will work behind Socks5 proxy (`nym
 
 To download Electrum visit the [official webpage](https://electrum.org/#download). To connect to the Mixnet follow these steps:
 
-1. Start and connect NymConnect (or [`nym-socks5-client`](../clients/socks5/setup.md))
+1. Start and connect NymConnect (or [`nym-socks5-client`](../clients/socks5/setup))
 2. Start your Electrum Bitcoin wallet
 3. Go to: *Tools* -> *Network* -> *Proxy*
 4. Set *Use proxy* to ✅, choose `SOCKS5` from the drop-down and add (copy-paste) the values from your NymConnect application
@@ -39,7 +39,7 @@ To download Electrum visit the [official webpage](https://electrum.org/#download
 
 To download Monero wallet visit [getmonero.org](https://www.getmonero.org/downloads/). To connect to the Mixnet follow these steps:
 
-1. Start and connect NymConnect (or [`nym-socks5-client`](../clients/socks5/setup.md))
+1. Start and connect NymConnect (or [`nym-socks5-client`](../clients/socks5/setup))
 2. Start your Monero wallet
 3. Go to: *Settings* -> *Interface* -> *Socks5 proxy* -> Add values: IP address `127.0.0.1`, Port `1080` (the values copied from NymConnect)
 5. Now your Monero wallet runs through the Mixnet and it will be connected only if your NymConnect or `nym-socks5-client` are connected.
@@ -49,7 +49,7 @@ To download Monero wallet visit [getmonero.org](https://www.getmonero.org/downlo
 
 To download Element (chat client for Matrix) visit [element.io](https://element.io/download). To connect to the Mixnet follow these steps:
 
-1. Start and connect NymConnect (or [`nym-socks5-client`](../clients/socks5/setup.md))
+1. Start and connect NymConnect (or [`nym-socks5-client`](../clients/socks5/setup))
 2. Start `element-desktop` with `--proxy-server` argument:
 
 **Linux**
@@ -68,7 +68,7 @@ To make the start of Element over NymConnect simplier, you can add this command 
 
 ### Telegram via NymConnect
 
-1. Start and connect NymConnect (or [`nym-socks5-client`](../clients/socks5/setup.md))
+1. Start and connect NymConnect (or [`nym-socks5-client`](../clients/socks5/setup))
 2. Start your Telegram chat application
 3. Open the Telegram proxy settings.
     - Linux: *Settings* -> *Advanced* -> *Connection type* -> *Use custom proxy*

@@ -1,7 +1,7 @@
 # Interacting with Nyx Chain and Smart Contracts
 
 There are two options for interacting with the blockchain to send tokens or interact with deployed smart contracts:
-* [`Nym-CLI`](../tools/nym-cli.md) tool
+* [`Nym-CLI`](./tools/nym-cli) tool
 * `nyxd` binary
 
 ## Nym-CLI tool (recommended in most cases)

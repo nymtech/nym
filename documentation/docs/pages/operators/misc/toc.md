@@ -6,4 +6,4 @@ There has been a long ongoing discussion whether and how to apply Terms and Cond
 
 Accepting T&Cs is done via an explicit flag `--accept-operator-terms-and-conditions` added to `nym-node run` command.
 
-More information on how to setup your node or check whether any node has T&C accepted can be found in [`nym-node` setup guide](nodes/setup.md#terms--conditions).
+More information on how to setup your node or check whether any node has T&C accepted can be found in [`nym-node` setup guide](/operators/nodes/nym-node/setup#terms--conditions).

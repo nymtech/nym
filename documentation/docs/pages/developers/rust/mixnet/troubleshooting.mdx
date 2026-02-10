@@ -111,7 +111,7 @@ However, this is not true.
 
 **This will only block until the message is put into client's internal queue**. Therefore in the above example, the client is being shut down before the message is _actually sent to the mixnet_; after being placed in the client's internal queue, there is still work to be done under the hood, such as route encrypting the message and placing it amongst the stream of cover traffic.
 
-The simple solution? Make sure the program/client stays active, either by calling `sleep`, or listening out for new messages. As sending a one-shot message without listening out for a response is likely not what you'll be doing, then you will be then awaiting a response (see the [message helpers page](./message-helpers.md) for an example of this).
+The simple solution? Make sure the program/client stays active, either by calling `sleep`, or listening out for new messages. As sending a one-shot message without listening out for a response is likely not what you'll be doing, then you will be then awaiting a response (see the [message helpers page](./message-helpers) for an example of this).
 
 Furthermore, you should always **manually disconnect your client** with `client.disconnect().await` as seen in the code examples. This is important as your client is writing to a local DB and dealing with SURB storage.
 
@@ -122,7 +122,7 @@ You might however be receiving messages without data attached to them / empty pa
 
 Whether the `data` of a SURB request being empty is a feature or a bug is to be decided - there is some discussion surrounding whether we can use SURB requests to send additional data to streamline the process of sending large replies across the mixnet.
 
-You can find a few helper functions [here](./message-helpers.md) to help deal with this issue in the meantime.
+You can find a few helper functions [here](./message-helpers) to help deal with this issue in the meantime.
 
 > If you can think of a more succinct or different way of handling this do reach out - we're happy to hear other opinions
 

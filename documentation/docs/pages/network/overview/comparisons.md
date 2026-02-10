@@ -39,3 +39,8 @@ Nym and E2EE are complementary. Use E2EE to protect message content. Use Nym to 
 ## Summary
 
 Use Nym dVPN mode when you want decentralized VPN without trusting a single provider, speed matters, and your adversaries are typical. Use Nym mixnet mode when metadata protection is critical and latency is acceptable. Consider Tor for general web browsing with lower latency when mixnet delays are unacceptable. Always combine network-layer protection with end-to-end encryption for defense in depth.
+
+## Further reading
+
+- [What is WireGuard?](https://nym.com/blog/what-is-wireguard-vpn)
+- [VPN Tunnels Explained](https://nym.com/blog/vpn-tunnels)

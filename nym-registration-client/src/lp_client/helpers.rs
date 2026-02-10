@@ -1,6 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(dead_code)]
+
 use crate::LpClientError;
 use nym_crypto::asymmetric::ed25519;
 use nym_lp::message::ForwardPacketData;

@@ -14,9 +14,7 @@ use nym_validator_client::{
 };
 
 use crate::{
-    RegistrationClient,
-    clients::{LpBasedRegistrationClient, MixnetBasedRegistrationClient},
-    config::RegistrationMode,
+    RegistrationClient, clients::MixnetBasedRegistrationClient, config::RegistrationMode,
     error::RegistrationClientError,
 };
 use config::BuilderConfig;
@@ -50,7 +48,10 @@ impl RegistrationClientBuilder {
     pub async fn build(self) -> Result<RegistrationClient, RegistrationClientError> {
         if self.use_lp() {
             tracing::debug!("Using LP for registration");
-            Ok(RegistrationClient::Lp(Box::new(self.build_lp().await?)))
+            Err(RegistrationClientError::LpRegistrationNotPossible {
+                node_id: "any".to_string(),
+            })
+            // Ok(RegistrationClient::Lp(Box::new(self.build_lp().await?)))
         } else {
             tracing::debug!("Using Mixnet for registration");
             Ok(RegistrationClient::Mixnet(Box::new(
@@ -123,29 +124,29 @@ impl RegistrationClientBuilder {
         })
     }
 
-    async fn build_lp(self) -> Result<LpBasedRegistrationClient, RegistrationClientError> {
-        let storage = self.config.setup_credential_storage().await?;
-        let config = self.config.registration_client_config();
-
-        let nyxd_client = get_nyxd_client(&self.config.network_env)?;
-
-        let bandwidth_controller: Box<dyn BandwidthTicketProvider> =
-            if let Some(credential_storage) = storage {
-                Box::new(BandwidthController::new(credential_storage, nyxd_client))
-            } else {
-                Box::new(BandwidthController::new(
-                    EphemeralCredentialStorage::default(),
-                    nyxd_client,
-                ))
-            };
-
-        Ok(LpBasedRegistrationClient {
-            config,
-            bandwidth_controller,
-            cancel_token: self.config.cancel_token.clone(),
-            fallback_client_builder: Some(self),
-        })
-    }
+    // async fn build_lp(self) -> Result<LpBasedRegistrationClient, RegistrationClientError> {
+    //     let storage = self.config.setup_credential_storage().await?;
+    //     let config = self.config.registration_client_config();
+    //
+    //     let nyxd_client = get_nyxd_client(&self.config.network_env)?;
+    //
+    //     let bandwidth_controller: Box<dyn BandwidthTicketProvider> =
+    //         if let Some(credential_storage) = storage {
+    //             Box::new(BandwidthController::new(credential_storage, nyxd_client))
+    //         } else {
+    //             Box::new(BandwidthController::new(
+    //                 EphemeralCredentialStorage::default(),
+    //                 nyxd_client,
+    //             ))
+    //         };
+    //
+    //     Ok(LpBasedRegistrationClient {
+    //         config,
+    //         bandwidth_controller,
+    //         cancel_token: self.config.cancel_token.clone(),
+    //         fallback_client_builder: Some(self),
+    //     })
+    // }
 }
 
 // temporary while we use the legacy bandwidth-controller

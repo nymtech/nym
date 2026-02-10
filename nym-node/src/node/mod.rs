@@ -42,7 +42,6 @@ use nym_bin_common::bin_info;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder, UpgradeModeCheckRequestSender};
-use nym_kkt::key_utils::produce_key_digests;
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_requester::{
@@ -51,9 +50,6 @@ use nym_network_requester::{
 };
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::events::MetricEventsSender;
-use nym_node_requests::api::v1::lewes_protocol::models::{
-    LPHashFunction, LPKEM, LPSignatureScheme,
-};
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKeyV1;
@@ -66,7 +62,6 @@ use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::path::Path;
@@ -714,11 +709,13 @@ impl NymNode {
                 self.config.gateway_tasks.lp.control_bind_address,
                 self.config.gateway_tasks.lp.data_bind_address,
             );
-            let mut lp_listener = gateway_tasks_builder
+            let lp_listener = gateway_tasks_builder
                 .build_lp_listener(wg_peer_registrator.clone(), active_clients_store.clone())
                 .await?;
-            self.shutdown_tracker()
-                .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
+            // make sure lp listener can be built, but do not start it
+            let _ = lp_listener;
+            // self.shutdown_tracker()
+            //     .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
         } else {
             info!("node not running in entry mode: the websocket and LP will remain closed");
         }
@@ -794,40 +791,40 @@ impl NymNode {
 
         Ok(())
     }
-
-    fn compute_kem_key_hashes(&self) -> HashMap<LPKEM, HashMap<LPHashFunction, String>> {
-        let kem = LPKEM::X25519;
-
-        let kem_key_bytes = self.entry_gateway.psq_kem_key.public_key().as_bytes();
-
-        // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
-        let digests = produce_key_digests(kem_key_bytes.as_ref())
-            .into_iter()
-            .map(|(f, digest)| (f.into(), hex::encode(&digest)))
-            .collect();
-
-        let mut hashes = HashMap::new();
-        hashes.insert(kem, digests);
-        hashes
-    }
-
-    fn compute_signing_key_hashes(
-        &self,
-    ) -> HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>> {
-        let scheme = LPSignatureScheme::Ed25519;
-
-        let kem_key_bytes = self.ed25519_identity_keys.public_key().as_bytes();
-
-        // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
-        let digests = produce_key_digests(kem_key_bytes.as_ref())
-            .into_iter()
-            .map(|(f, digest)| (f.into(), hex::encode(&digest)))
-            .collect();
-
-        let mut hashes = HashMap::new();
-        hashes.insert(scheme, digests);
-        hashes
-    }
+    //
+    // fn compute_kem_key_hashes(&self) -> HashMap<LPKEM, HashMap<LPHashFunction, String>> {
+    //     let kem = LPKEM::X25519;
+    //
+    //     let kem_key_bytes = self.entry_gateway.psq_kem_key.public_key().as_bytes();
+    //
+    //     // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
+    //     let digests = produce_key_digests(kem_key_bytes.as_ref())
+    //         .into_iter()
+    //         .map(|(f, digest)| (f.into(), hex::encode(&digest)))
+    //         .collect();
+    //
+    //     let mut hashes = HashMap::new();
+    //     hashes.insert(kem, digests);
+    //     hashes
+    // }
+    //
+    // fn compute_signing_key_hashes(
+    //     &self,
+    // ) -> HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>> {
+    //     let scheme = LPSignatureScheme::Ed25519;
+    //
+    //     let kem_key_bytes = self.ed25519_identity_keys.public_key().as_bytes();
+    //
+    //     // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
+    //     let digests = produce_key_digests(kem_key_bytes.as_ref())
+    //         .into_iter()
+    //         .map(|(f, digest)| (f.into(), hex::encode(&digest)))
+    //         .collect();
+    //
+    //     let mut hashes = HashMap::new();
+    //     hashes.insert(scheme, digests);
+    //     hashes
+    // }
 
     pub(crate) async fn build_http_server(&self) -> Result<NymNodeHttpServer, NymNodeError> {
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
@@ -902,15 +899,6 @@ impl NymNode {
                 policy: None,
             };
 
-        let lp_details = api_requests::v1::lewes_protocol::models::LewesProtocol::new(
-            self.modes().entry,
-            self.config.gateway_tasks.lp.announced_control_port(),
-            self.config.gateway_tasks.lp.announced_data_port(),
-            *self.x25519_noise_keys.public_key(),
-            self.compute_kem_key_hashes(),
-            self.compute_signing_key_hashes(),
-        );
-
         let mut config = HttpServerConfig::new()
             .with_landing_page_assets(self.config.http.landing_page_assets_path.as_ref())
             .with_mixnode_details(mixnode_details)
@@ -921,8 +909,7 @@ impl NymNode {
             .with_used_exit_policy(exit_policy_details)
             .with_description(self.description.clone())
             .with_auxiliary_details(auxiliary_details)
-            .with_prometheus_bearer_token(self.config.http.access_token.clone())
-            .with_lewes_protocol(lp_details);
+            .with_prometheus_bearer_token(self.config.http.access_token.clone());
 
         if self.config.http.expose_system_info {
             config = config.with_system_info(get_system_info(

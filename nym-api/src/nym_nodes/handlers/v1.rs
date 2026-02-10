@@ -231,7 +231,7 @@ async fn get_bonded_nodes(
     ),
     params(PaginationRequest)
 )]
-#[deprecated(note = "use '/v2/nym-nodes/described' instead")]
+// #[deprecated(note = "use '/v2/nym-nodes/described' instead")]
 async fn get_described_nodes(
     State(state): State<AppState>,
     Query(pagination): Query<PaginationRequest>,

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
 // import { Footer } from "./components/footer";
@@ -13,7 +14,6 @@ const config: DocsThemeConfig = {
     const image = url + "/images/Nym_meta_Image.png";
     const favicon = url + "/favicon.svg";
 
-    // Define descriptions for different "books"
     const bookDescriptions: Record<string, string> = {
       "/developers":
         "Nym's developer documentation covering core concepts of integrating with the Mixnet, interacting with the Nyx blockchain, an overview of the avaliable tools, and our SDK docs.",
@@ -33,32 +33,105 @@ const config: DocsThemeConfig = {
       config.frontMatter.description ||
       bookDescriptions[topLevel] ||
       defaultDescription;
+    const title = route === "/" ? "Nym docs" : config.title + " - Nym docs";
+    const pageUrl = url + route;
 
-    const title = (route === "/" ? "Nym docs" : config.title + " - Nym docs");
+    const section = config.frontMatter?.section || "";
+    const lastUpdated = config.frontMatter?.lastUpdated || "";
+    const schemaType = config.frontMatter?.schemaType || "TechArticle";
+
+    const org = {
+      "@id": `${url}/#org`,
+      "@type": "Organization",
+      "name": "Nym Technologies SA",
+      "url": url,
+      "logo": {
+        "@id": `${url}/#logo`,
+        "@type": "ImageObject",
+        "url": `${url}/apple-touch-icon.png`
+      },
+      "sameAs": ["https://x.com/nymproject", "https://github.com/nymtech"]
+    };
+
+    const website = {
+      "@id": `${url}/docs#website`,
+      "@type": "WebSite",
+      "name": "Nym Docs",
+      "url": `${url}/docs`,
+      "publisher": { "@id": `${url}/#org` }
+    };
+
+    const webpage = {
+      "@id": `${pageUrl}#webpage`,
+      "@type": "WebPage",
+      "url": pageUrl,
+      "name": title,
+      "description": description,
+      "inLanguage": "en",
+      "isPartOf": { "@id": `${url}/docs#website` },
+      "breadcrumb": { "@id": `${pageUrl}#breadcrumb` },
+      "potentialAction": { "@type": "ReadAction", "target": pageUrl }
+    };
+
+    const articleSchema = {
+      "@id": `${pageUrl}#article`,
+      "@type": schemaType,
+      ...(schemaType === "HowTo" ? { "name": config.title } : { "headline": config.title }),
+      "description": description,
+      "url": pageUrl,
+      "author": { "@id": `${url}/#org` },
+      "publisher": { "@id": `${url}/#org` },
+      "mainEntityOfPage": { "@id": `${pageUrl}#webpage` },
+      ...(lastUpdated && {
+        "datePublished": lastUpdated,
+        "dateModified": lastUpdated
+      })
+    };
+
+    const pathParts = route.split('/').filter(Boolean);
+    const breadcrumb = {
+      "@id": `${pageUrl}#breadcrumb`,
+      "@type": "BreadcrumbList",
+      itemListElement: pathParts.map((part, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: part.charAt(0).toUpperCase() + part.slice(1).replace(/-/g, ' '),
+        item: `${url}/${pathParts.slice(0, i + 1).join('/')}`
+      }))
+    };
+
+    const schema = {
+      "@context": "https://schema.org",
+      "@graph": [org, website, webpage, articleSchema, breadcrumb]
+    };
 
     return (
       <>
         <title>{title}</title>
         <meta name="author" content="Nym" />
-        <link rel="canonical" href={url + route} />
+        <link rel="canonical" href={pageUrl} />
         <link rel="icon" href={favicon} type="image/svg+xml" />
         <meta property="og:title" content={title} />
-        <meta property="og:site_name" content="Nym docs"></meta>
+        <meta property="og:site_name" content="Nym docs" />
         <meta name="description" content={description} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={image} />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={url + route}></meta>
-
-        <meta property="twitter:title" content={title}></meta>
-        <meta property="twitter:description" content={description}></meta>
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content={pageUrl} />
+        {section && <meta property="article:section" content={section} />}
+        {lastUpdated && <meta property="article:modified_time" content={lastUpdated} />}
+        <meta property="twitter:title" content={title} />
+        <meta property="twitter:description" content={description} />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta property="twitter:image" content={image}></meta>
+        <meta property="twitter:image" content={image} />
         <meta name="twitter:site" content="@nymproject" />
         <meta name="twitter:site:domain" content={url} />
-        <meta name="twitter:url" content={url + route} />
-
+        <meta name="twitter:url" content={pageUrl} />
         <meta name="apple-mobile-web-app-title" content="Nym docs" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        />
       </>
     );
   },

@@ -96,7 +96,7 @@
     "css-loader": "^6.7.3",
     "css-minimizer-webpack-plugin": "^3.0.2",
     "dotenv-webpack": "^7.0.3",
-    "eslint": "^8.10.0",
+    "eslint": "^9.26.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-typescript": "^16.1.0",
     "eslint-config-prettier": "^8.5.0",

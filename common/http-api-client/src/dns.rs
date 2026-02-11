@@ -46,7 +46,10 @@ use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
     str::FromStr,
-    sync::{Arc, LazyLock},
+    sync::{
+        Arc, LazyLock,
+        atomic::{AtomicBool, Ordering::Relaxed},
+    },
     time::Duration,
 };
 
@@ -70,14 +73,23 @@ pub(crate) const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 
 impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.
+    /// This forces the use of an independent request executor (via [`Self::non_shared`]).
     pub fn dns_resolver<R: Resolve + 'static>(mut self, resolver: Arc<R>) -> Self {
-        self.reqwest_client_builder = self.reqwest_client_builder.dns_resolver(resolver);
+        self = self.non_shared();
+        // because of the call to non-shared this conditional should always run.
+        if let Some(rb) = self.reqwest_client_builder {
+            self.reqwest_client_builder = Some(rb.dns_resolver(resolver));
+        }
         self.use_secure_dns = false;
         self
     }
 
-    /// Override the DNS resolver implementation used by the underlying http client.
+    /// Override the DNS resolver implementation used by the underlying http client. If
+    /// [`Self::dns_resolver`] is called directly that will take priority over this, there is no
+    /// need to call both.
+    /// This forces the use of an independent request executor (via [`Self::non_shared`]).
     pub fn no_hickory_dns(mut self) -> Self {
+        self = self.non_shared();
         self.use_secure_dns = false;
         self
     }
@@ -129,7 +141,8 @@ pub struct HickoryDnsResolver {
     // Tokio Runtime in initialization, so we must delay the actual
     // construction of the resolver.
     state: Arc<OnceCell<TokioResolver>>,
-    fallback: Option<Arc<OnceCell<TokioResolver>>>,
+    use_system: Arc<AtomicBool>,
+    system_resolver: Arc<OnceCell<TokioResolver>>,
     static_base: Option<Arc<OnceCell<StaticResolver>>>,
     use_shared: bool,
     /// Overall timeout for dns lookup associated with any individual host resolution. For example,
@@ -141,7 +154,8 @@ impl Default for HickoryDnsResolver {
     fn default() -> Self {
         Self {
             state: Default::default(),
-            fallback: Default::default(),
+            use_system: Arc::new(AtomicBool::new(false)),
+            system_resolver: Default::default(),
             static_base: Some(Default::default()),
             use_shared: true,
             overall_dns_timeout: DEFAULT_OVERALL_LOOKUP_TIMEOUT,
@@ -151,16 +165,28 @@ impl Default for HickoryDnsResolver {
 
 impl Resolve for HickoryDnsResolver {
     fn resolve(&self, name: Name) -> Resolving {
-        let resolver = self.state.clone();
-        let maybe_fallback = self.fallback.clone();
-        let maybe_static = self.static_base.clone();
+        let use_system = self.use_system.load(std::sync::atomic::Ordering::Relaxed);
         let use_shared = self.use_shared;
+        let resolver = if use_system {
+            match self
+                .system_resolver
+                .get_or_try_init(|| HickoryDnsResolver::new_resolver_system(use_shared))
+            {
+                Ok(r) => r.clone(),
+                Err(e) => return Box::pin(return_err(e)),
+            }
+        } else {
+            self.state
+                .get_or_init(|| HickoryDnsResolver::new_resolver(use_shared))
+                .clone()
+        };
+
+        let maybe_static = self.static_base.clone();
         let overall_dns_timeout = self.overall_dns_timeout;
         Box::pin(async move {
             resolve(
                 name,
                 resolver,
-                maybe_fallback,
                 maybe_static,
                 use_shared,
                 overall_dns_timeout,
@@ -171,16 +197,17 @@ impl Resolve for HickoryDnsResolver {
     }
 }
 
+async fn return_err(e: ResolveError) -> Result<Addrs, Box<dyn std::error::Error + Send + Sync>> {
+    Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+}
+
 async fn resolve(
     name: Name,
-    resolver: Arc<OnceCell<TokioResolver>>,
-    maybe_fallback: Option<Arc<OnceCell<TokioResolver>>>,
+    resolver: TokioResolver,
     maybe_static: Option<Arc<OnceCell<StaticResolver>>>,
     independent: bool,
     overall_dns_timeout: Duration,
 ) -> Result<Addrs, ResolveError> {
-    let resolver = resolver.get_or_init(|| HickoryDnsResolver::new_resolver(independent));
-
     // try checking the static table to see if any of the addresses in the table have been
     // looked up previously within the timeout to where we are not yet ready to try the
     // default resolver yet again.
@@ -214,22 +241,6 @@ async fn resolve(
         }
     };
 
-    // If the primary resolver encountered an error, attempt a lookup using the fallback
-    // resolver if one is configured.
-    if let Some(ref fallback) = maybe_fallback {
-        let resolver =
-            fallback.get_or_try_init(|| HickoryDnsResolver::new_resolver_system(independent))?;
-
-        let resolve_fut =
-            tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
-        if let Ok(Ok(lookup)) = resolve_fut.await {
-            let addrs: Addrs = Box::new(SocketAddrs {
-                iter: lookup.into_iter(),
-            });
-            return Ok(addrs);
-        }
-    }
-
     // If no record has been found and a static map of fallback addresses is configured
     // check the table for our entry
     if let Some(ref static_resolver) = maybe_static {
@@ -258,6 +269,11 @@ impl Iterator for SocketAddrs {
 }
 
 impl HickoryDnsResolver {
+    /// Returns an instance of the shared resolver.
+    pub fn shared() -> Self {
+        SHARED_RESOLVER.clone()
+    }
+
     /// Attempt to resolve a domain name to a set of ['IpAddr']s
     pub async fn resolve_str(
         &self,
@@ -265,10 +281,20 @@ impl HickoryDnsResolver {
     ) -> Result<impl Iterator<Item = IpAddr> + use<>, ResolveError> {
         let n =
             Name::from_str(name).map_err(|_| ResolveError::InvalidNameError(name.to_string()))?;
+        let use_system = self.use_system.load(std::sync::atomic::Ordering::Relaxed);
+        let resolver = if use_system {
+            self.system_resolver
+                .get_or_try_init(|| HickoryDnsResolver::new_resolver_system(self.use_shared))?
+                .clone()
+        } else {
+            self.state
+                .get_or_init(|| HickoryDnsResolver::new_resolver(self.use_shared))
+                .clone()
+        };
+
         resolve(
             n,
-            self.state.clone(),
-            self.fallback.clone(),
+            resolver,
             self.static_base.clone(),
             self.use_shared,
             self.overall_dns_timeout,
@@ -298,13 +324,11 @@ impl HickoryDnsResolver {
     fn new_resolver_system(use_shared: bool) -> Result<TokioResolver, ResolveError> {
         // using a closure here is slightly gross, but this makes sure that if the
         // lazy-init returns an error it can be handled by the client
-        if !use_shared || SHARED_RESOLVER.fallback.is_none() {
+        if !use_shared {
             new_resolver_system()
         } else {
             Ok(SHARED_RESOLVER
-                .fallback
-                .as_ref()
-                .unwrap()
+                .system_resolver
                 .get_or_try_init(new_resolver_system)?
                 .clone())
         }
@@ -320,45 +344,80 @@ impl HickoryDnsResolver {
         }
     }
 
-    /// Enable fallback to the system default resolver if the primary (DoX) resolver fails
-    pub fn enable_system_fallback(&mut self) -> Result<(), ResolveError> {
-        self.fallback = Some(Default::default());
-        let _ = self
-            .fallback
-            .as_ref()
-            .unwrap()
-            .get_or_try_init(new_resolver_system)?;
+    /// Swap the primary internal resolver to the system resolver rather than the
+    /// configured custom resolver.
+    pub fn use_system_resolver(&self) {
+        self.use_system.store(true, Relaxed);
 
-        // IF THIS INSTANCE IS A FRONT FOR THE SHARED RESOLVER SHOULDN'T THIS FN ENABLE THE SYSTEM FALLBACK FOR THE SHARED RESOLVER TOO?
-        // if self.use_shared {
-        //     SHARED_RESOLVER.enable_system_fallback()?;
-        // }
-        Ok(())
+        if self.use_shared {
+            SHARED_RESOLVER.use_system_resolver();
+        }
     }
 
-    /// Disable fallback resolution. If the primary resolver fails the error is
-    /// returned immediately
-    pub fn disable_system_fallback(&mut self) {
-        self.fallback = None;
+    /// Swap the primary internal resolver to the configured custom resolver rather than the
+    /// system resolver.
+    pub fn use_configured_resolver(&self) {
+        self.use_system.store(false, Relaxed);
 
-        // // IF THIS INSTANCE IS A FRONT FOR THE SHARED RESOLVER SHOULDN'T THIS FN ENABLE THE SYSTEM FALLBACK FOR THE SHARED RESOLVER TOO?
-        // if self.use_shared {
-        //     SHARED_RESOLVER.fallback = None;
-        // }
+        if self.use_shared {
+            SHARED_RESOLVER.use_configured_resolver();
+        }
     }
 
-    /// Get the current map of hostname to address in use by the fallback static lookup if one
+    /// Clear entries from the static table that would return entries during the pre-resolve stage.
+    /// This means that all lookups will attempt to use the network resolver again before the static
+    /// table is consulted.
+    ///  
+    /// Entries elevated to pre-resolve from fallback (added from default or using
+    /// [`set_fallback`]`) will have their cache timeout cleared. Entries added directly to
+    /// pre-resolve (using [`Self::set_static_preresolve`]) will be removed.
+    pub fn clear_preresolve(&self) {
+        debug!("clearing pre-resolve table");
+        if let Some(cell) = &self.static_base
+            && let Some(static_base) = cell.get()
+        {
+            static_base.clear_preresolve()
+        }
+    }
+
+    /// Get the current map of hostnames to addresses used in the fallback static lookup stage if one
     /// exists.
     pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
-        Some(self.static_base.as_ref()?.get()?.get_addrs())
+        Some(self.static_base.as_ref()?.get()?.get_fallback_addrs())
     }
 
     /// Set (or overwrite) the map of addresses used in the fallback static hostname lookup
-    pub fn set_static_fallbacks(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
-        let cell = OnceCell::new();
-        cell.set(StaticResolver::new(addrs))
-            .expect("infallible assign");
-        self.static_base = Some(Arc::new(cell));
+    pub fn set_fallback_addrs(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+        debug!("setting fallback entries for {:?}", addrs.keys());
+        if self.static_base.is_none() {
+            let cell = OnceCell::new();
+            self.static_base = Some(Arc::new(cell));
+        }
+        self.static_base
+            .as_ref()
+            .unwrap()
+            .get_or_init(|| Self::new_static_fallback(self.use_shared))
+            .set_fallback(addrs);
+    }
+
+    /// Get the current map of hostnames to addresses used in the preresolve static lookup stage
+    /// if one exists.
+    pub fn get_static_preresolve(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
+        Some(self.static_base.as_ref()?.get()?.get_preresolve_addrs())
+    }
+
+    /// Set (or overwrite) the map of addresses used in the preresolve static hostname lookup
+    pub fn set_static_preresolve(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+        debug!("setting pre-resolve entries for {:?}", addrs.keys());
+        if self.static_base.is_none() {
+            let cell = OnceCell::new();
+            self.static_base = Some(Arc::new(cell));
+        }
+        self.static_base
+            .as_ref()
+            .unwrap()
+            .get_or_init(|| Self::new_static_fallback(self.use_shared))
+            .set_preresolve(addrs);
     }
 
     /// Successfully resolved addresses are cached for a minimum of 30 minutes
@@ -495,7 +554,7 @@ fn new_resolver_system() -> Result<TokioResolver, ResolveError> {
 }
 
 fn new_default_static_fallback() -> StaticResolver {
-    StaticResolver::new(constants::default_static_addrs())
+    StaticResolver::new().with_fallback(constants::default_static_addrs())
 }
 
 /// Do a trial resolution using each nameserver individually to test which are working and which
@@ -532,10 +591,7 @@ mod test {
     use super::*;
     use itertools::Itertools;
     use std::collections::HashMap;
-    use std::{
-        net::{IpAddr, Ipv4Addr, Ipv6Addr},
-        time::Instant,
-    };
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
     /// IP addresses guaranteed to fail attempts to resolve
     ///
@@ -597,7 +653,7 @@ mod test {
         let example_ip6: IpAddr = "dead::beef".parse().unwrap();
         addr_map.insert(example_domain.to_string(), vec![example_ip4, example_ip6]);
 
-        resolver.set_static_fallbacks(addr_map);
+        resolver.set_fallback_addrs(addr_map);
 
         let mut addrs = resolver.resolve_str(example_domain).await?;
         assert!(addrs.contains(&example_ip4));
@@ -738,18 +794,19 @@ mod test {
         }
 
         #[tokio::test]
-        #[ignore]
-        // this test is dependent of external network setup -- i.e. blocking all traffic to the default
-        // resolvers. Otherwise the default resolvers will succeed without using the static fallback,
-        // making the test pointless
+        #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
+        // This test impacts the state of the shared resolver and as such is disabled to avoid
+        // interference with other tests.
+        //
+        // this test is dependent of external network setup -- i.e. blocking all traffic to the
+        // default resolvers. Otherwise the default resolvers will succeed without using the static
+        // fallback, making the test pointless
         async fn dns_lookup_failure_on_shared() -> Result<(), ResolveError> {
-            let time_start = Instant::now();
-            let r = OnceCell::new();
-            r.set(build_broken_resolver().expect("failed to build resolver"))
-                .expect("broken resolver init error");
+            let resolver1 = HickoryDnsResolver::shared();
 
-            // create a new resolver that won't mess with the shared resolver used by other tests
-            let resolver = HickoryDnsResolver::default();
+            let time_start = std::time::Instant::now();
+            // create a new resolver that uses the shared resolver
+            let resolver = HickoryDnsResolver::shared();
 
             // successful lookup using fallback to static resolver
             let domain = "rpc.nymtech.net";
@@ -758,9 +815,27 @@ mod test {
                 .await
                 .expect("failed to resolve address in static lookup");
 
-            println!(
-                "{}ms resolved {domain}",
-                (Instant::now() - time_start).as_millis()
+            let lookup_dur = Instant::now() - time_start;
+            assert!(
+                lookup_dur > resolver.overall_dns_timeout,
+                "expected lookup timeout - took {}ms",
+                (lookup_dur).as_millis()
+            );
+
+            let time_start = std::time::Instant::now();
+            // successful lookup using pre-resolve entry promoted from fallback
+            let domain = "rpc.nymtech.net";
+            let _ = resolver1
+                .resolve_str(domain)
+                .await
+                .expect("domain expected to be in pre-resolve");
+
+            // this lookup should basically be instant as we are using pre-resolve
+            let lookup_dur = std::time::Instant::now() - time_start;
+            assert!(
+                lookup_dur < Duration::from_millis(10),
+                "expected instant - took {}ms",
+                (lookup_dur).as_millis()
             );
 
             // unsuccessful lookup - primary times out, and not in static table
@@ -769,6 +844,63 @@ mod test {
             assert!(result.is_err());
             // assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
             // assert!(result.is_err_and(|e| matches!(e, ResolveError::ResolveError(e) if e.is_nx_domain())));
+            Ok(())
+        }
+
+        #[tokio::test]
+        #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
+        // This test impacts the state of the shared resolver and as such is disabled to avoid
+        // interference with other tests.
+        async fn setting_dns_fallbacks_with_shared_resolver() -> Result<(), ResolveError> {
+            let resolver1 = HickoryDnsResolver::shared();
+
+            // create a new resolver that uses the shared resolver
+            let mut resolver = HickoryDnsResolver::shared();
+
+            let example_domains = [
+                String::from("static1.nymvpn.com"),
+                String::from("static2.nymvpn.com"),
+            ];
+            let mut addr_map1 = HashMap::new();
+            addr_map1.insert(
+                example_domains[0].clone(),
+                vec![Ipv4Addr::new(10, 10, 10, 10).into()],
+            );
+            addr_map1.insert(
+                example_domains[1].clone(),
+                vec![Ipv4Addr::new(1, 1, 1, 1).into()],
+            );
+
+            resolver.set_static_preresolve(addr_map1);
+
+            let time_start = std::time::Instant::now();
+            // successful lookup using pre-resolve entry promoted from fallback
+            let _ = resolver1
+                .resolve_str(&example_domains[0])
+                .await
+                .expect("domain expected to be in pre-resolve");
+
+            // this lookup should basically be instant as we are using pre-resolve
+            let lookup_dur = std::time::Instant::now() - time_start;
+            assert!(
+                lookup_dur < Duration::from_millis(10),
+                "expected instant - took {}ms",
+                (lookup_dur).as_millis()
+            );
+
+            // After clearing the pre-resolve in one instance of the shared resolver ...
+            resolver.clear_preresolve();
+
+            // ... other instances have their pre-resolve entries cleared.
+            let prereslve_lookup = resolver1
+                .static_base
+                .as_ref()
+                .unwrap()
+                .get()
+                .unwrap()
+                .pre_resolve(&example_domains[0]);
+            assert!(prereslve_lookup.is_none());
+
             Ok(())
         }
     }

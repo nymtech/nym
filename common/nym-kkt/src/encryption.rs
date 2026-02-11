@@ -244,12 +244,11 @@ mod test {
             KKTRole::Initiator,
             KKTMode::Mutual,
             Ciphersuite::decode([255, 1, 0, 0])?,
-        )?;
+        );
         let dummy_frame = KKTFrame::new(
             valid_context.encode()?,
             &[2u8; 32],
             [3u8; KKT_SESSION_ID_LEN],
-            &[4u8; 64],
         );
 
         let ciphertext = encrypt_kkt_frame(&mut rng, &session_key, &dummy_frame, aad.as_slice())?;

@@ -21,26 +21,22 @@ pub struct KKTFrame {
     context: [u8; KKT_CONTEXT_LEN],
     session_id: KKTSessionId,
     body: Vec<u8>,
-    signature: Vec<u8>,
 }
 
-// if oneway and message coming from initiator => body is empty, signature contains signature of context + session id (64 bytes).
-// if message coming from anonymous initiator => body is empty, there is no signature.
-// if mutual and message coming from initiator => body has the initiator's kem public key and the signature is over the context + body + session_id.
-// if coming from responder => body has the responder's kem public key and the signature is over the context + body + session_id.
+// if oneway and message coming from initiator => body is empty.
+// if mutual and message coming from initiator => body has the initiator's kem public key.
+// if coming from responder => body has the responder's kem public key.
 
 impl KKTFrame {
     pub fn new(
         context: [u8; KKT_CONTEXT_LEN],
         body: &[u8],
         session_id: [u8; KKT_SESSION_ID_LEN],
-        signature: &[u8],
     ) -> Self {
         Self {
             context,
             body: Vec::from(body),
             session_id,
-            signature: Vec::from(signature),
         }
     }
     pub fn context_ref(&self) -> &[u8] {
@@ -49,10 +45,6 @@ impl KKTFrame {
 
     pub fn context(&self) -> Result<KKTContext, KKTError> {
         KKTContext::try_decode(self.context)
-    }
-
-    pub fn signature_ref(&self) -> &[u8] {
-        &self.signature
     }
 
     pub fn body_ref(&self) -> &[u8] {
@@ -66,9 +58,6 @@ impl KKTFrame {
         self.session_id
     }
 
-    pub fn signature_mut(&mut self) -> &mut [u8] {
-        &mut self.signature
-    }
     pub fn body_mut(&mut self) -> &mut [u8] {
         &mut self.body
     }
@@ -78,7 +67,7 @@ impl KKTFrame {
     }
 
     pub fn frame_length(&self) -> usize {
-        self.context.len() + self.session_id.len() + self.body.len() + self.signature.len()
+        self.context.len() + self.session_id.len() + self.body.len()
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -86,7 +75,6 @@ impl KKTFrame {
         bytes.extend_from_slice(&self.context);
         bytes.extend_from_slice(&self.body);
         bytes.extend_from_slice(&self.session_id);
-        bytes.extend_from_slice(&self.signature);
         bytes
     }
 
@@ -115,7 +103,6 @@ impl KKTFrame {
         }
 
         let mut body = Vec::new();
-        let mut signature = Vec::new();
 
         // decode body
         if context.body_len() > 0 {
@@ -137,19 +124,6 @@ impl KKTFrame {
         //     );
         // }
 
-        // decode signature
-        if context.signature_len() > 0 {
-            let signature_bytes = &bytes[KKT_CONTEXT_LEN + context.body_len() + KKT_SESSION_ID_LEN
-                ..KKT_CONTEXT_LEN
-                    + context.body_len()
-                    + KKT_SESSION_ID_LEN
-                    + context.signature_len()];
-            signature.extend_from_slice(signature_bytes);
-        }
-
-        Ok((
-            KKTFrame::new(context_bytes, &body, session_id, &signature),
-            context,
-        ))
+        Ok((KKTFrame::new(context_bytes, &body, session_id), context))
     }
 }

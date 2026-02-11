@@ -1,4 +1,3 @@
-use nym_crypto::asymmetric::ed25519::{self, Signature};
 use rand09::{CryptoRng, RngCore};
 
 use crate::frame::KKTSessionId;
@@ -14,13 +13,12 @@ pub fn initiator_process<R>(
     rng: &mut R,
     mode: KKTMode,
     ciphersuite: Ciphersuite,
-    signing_key: &ed25519::PrivateKey,
     own_encapsulation_key: Option<&EncapsulationKey>,
 ) -> Result<(KKTContext, KKTFrame), KKTError>
 where
     R: CryptoRng + RngCore,
 {
-    let context = KKTContext::new(KKTRole::Initiator, mode, ciphersuite)?;
+    let context = KKTContext::new(KKTRole::Initiator, mode, ciphersuite);
 
     let context_bytes = context.encode()?;
 
@@ -42,18 +40,7 @@ where
         },
     };
 
-    let mut bytes_to_sign =
-        Vec::with_capacity(context.full_message_len() - context.signature_len());
-    bytes_to_sign.extend_from_slice(&context_bytes);
-    bytes_to_sign.extend_from_slice(body);
-    bytes_to_sign.extend_from_slice(&session_id);
-
-    let signature = signing_key.sign(bytes_to_sign).to_bytes();
-
-    Ok((
-        context,
-        KKTFrame::new(context_bytes, body, session_id, &signature),
-    ))
+    Ok((context, KKTFrame::new(context_bytes, body, session_id)))
 }
 
 pub fn anonymous_initiator_process<R>(
@@ -63,57 +50,39 @@ pub fn anonymous_initiator_process<R>(
 where
     R: CryptoRng + RngCore,
 {
-    let context = KKTContext::new(KKTRole::AnonymousInitiator, KKTMode::OneWay, ciphersuite)?;
+    let context = KKTContext::new(KKTRole::Initiator, KKTMode::OneWay, ciphersuite);
     let context_bytes = context.encode()?;
 
     let mut session_id = [0u8; KKT_SESSION_ID_LEN];
     rng.fill_bytes(&mut session_id);
 
-    Ok((context, KKTFrame::new(context_bytes, &[], session_id, &[])))
+    Ok((context, KKTFrame::new(context_bytes, &[], session_id)))
 }
 
 pub fn initiator_ingest_response(
     own_context: &mut KKTContext,
     remote_frame: &KKTFrame,
     remote_context: &KKTContext,
-    remote_verification_key: &ed25519::PublicKey,
     expected_hash: &[u8],
 ) -> Result<EncapsulationKey, KKTError> {
     check_compatibility(own_context, remote_context)?;
     match remote_context.status() {
         KKTStatus::Ok => {
-            let mut bytes_to_verify: Vec<u8> = Vec::with_capacity(
-                remote_context.full_message_len() - remote_context.signature_len(),
-            );
-            bytes_to_verify.extend_from_slice(&remote_context.encode()?);
-            bytes_to_verify.extend_from_slice(remote_frame.body_ref());
-            bytes_to_verify.extend_from_slice(remote_frame.session_id_ref());
+            let received_encapsulation_key =
+                EncapsulationKey::decode(own_context.ciphersuite().kem(), remote_frame.body_ref())?;
 
-            match Signature::from_bytes(remote_frame.signature_ref()) {
-                Ok(sig) => match remote_verification_key.verify(bytes_to_verify, &sig) {
-                    Ok(()) => {
-                        let received_encapsulation_key = EncapsulationKey::decode(
-                            own_context.ciphersuite().kem(),
-                            remote_frame.body_ref(),
-                        )?;
+            match validate_encapsulation_key(
+                &own_context.ciphersuite().hash_function(),
+                own_context.ciphersuite().hash_len(),
+                remote_frame.body_ref(),
+                expected_hash,
+            ) {
+                true => Ok(received_encapsulation_key),
 
-                        match validate_encapsulation_key(
-                            &own_context.ciphersuite().hash_function(),
-                            own_context.ciphersuite().hash_len(),
-                            remote_frame.body_ref(),
-                            expected_hash,
-                        ) {
-                            true => Ok(received_encapsulation_key),
-
-                            // The key does not match the hash obtained from the directory
-                            false => Err(KKTError::KEMError {
-                                info: "Hash of received encapsulation key does not match the value stored on the directory.",
-                            }),
-                        }
-                    }
-                    Err(_) => Err(KKTError::SigVerifError),
-                },
-                Err(_) => Err(KKTError::SigConstructorError),
+                // The key does not match the hash obtained from the directory
+                false => Err(KKTError::KEMError {
+                    info: "Hash of received encapsulation key does not match the value stored on the directory.",
+                }),
             }
         }
         _ => Err(KKTError::ResponderFlaggedError {
@@ -126,74 +95,46 @@ pub fn initiator_ingest_response(
 
 pub fn responder_ingest_message(
     remote_context: &KKTContext,
-    remote_verification_key: Option<&ed25519::PublicKey>,
     expected_hash: Option<&[u8]>,
     remote_frame: &KKTFrame,
 ) -> Result<(KKTContext, Option<EncapsulationKey>), KKTError> {
     let own_context = remote_context.derive_responder_header()?;
 
     match remote_context.role() {
-        KKTRole::AnonymousInitiator => Ok((own_context, None)),
-
         KKTRole::Initiator => {
-            match remote_verification_key {
-                Some(remote_verif_key) => {
-                    let mut bytes_to_verify: Vec<u8> = Vec::with_capacity(
-                        own_context.full_message_len() - own_context.signature_len(),
-                    );
-                    bytes_to_verify.extend_from_slice(remote_frame.context_ref());
-                    bytes_to_verify.extend_from_slice(remote_frame.body_ref());
-                    bytes_to_verify.extend_from_slice(remote_frame.session_id_ref());
-
-                    match Signature::from_bytes(remote_frame.signature_ref()) {
-                        Ok(sig) => match remote_verif_key.verify(bytes_to_verify, &sig) {
-                            Ok(()) => {
-                                // using own_context here because maybe for whatever reason we want to ignore the remote kem key
-                                match own_context.mode() {
-                                    KKTMode::OneWay => Ok((own_context, None)),
-                                    KKTMode::Mutual => {
-                                        match expected_hash {
-                                            Some(expected_hash) => {
-                                                let received_encapsulation_key =
-                                                    EncapsulationKey::decode(
-                                                        own_context.ciphersuite().kem(),
-                                                        remote_frame.body_ref(),
-                                                    )?;
-                                                if validate_encapsulation_key(
-                                                    &own_context.ciphersuite().hash_function(),
-                                                    own_context.ciphersuite().hash_len(),
-                                                    remote_frame.body_ref(),
-                                                    expected_hash,
-                                                ) {
-                                                    Ok((
-                                                        own_context,
-                                                        Some(received_encapsulation_key),
-                                                    ))
-                                                }
-                                                // The key does not match the hash obtained from the directory
-                                                else {
-                                                    Err(KKTError::KEMError {
-                                                        info: "Hash of received encapsulation key does not match the value stored on the directory.",
-                                                    })
-                                                }
-                                            }
-                                            None => Err(KKTError::FunctionInputError {
-                                                info: "Expected hash of the remote encapsulation key is not provided.",
-                                            }),
-                                        }
-                                    }
-                                }
+            // using own_context here because maybe for whatever reason we want to ignore the remote kem key
+            match own_context.mode() {
+                KKTMode::OneWay => Ok((own_context, None)),
+                KKTMode::Mutual => {
+                    match expected_hash {
+                        Some(expected_hash) => {
+                            let received_encapsulation_key = EncapsulationKey::decode(
+                                own_context.ciphersuite().kem(),
+                                remote_frame.body_ref(),
+                            )?;
+                            if validate_encapsulation_key(
+                                &own_context.ciphersuite().hash_function(),
+                                own_context.ciphersuite().hash_len(),
+                                remote_frame.body_ref(),
+                                expected_hash,
+                            ) {
+                                Ok((own_context, Some(received_encapsulation_key)))
                             }
-                            Err(_) => Err(KKTError::SigVerifError),
-                        },
-                        Err(_) => Err(KKTError::SigConstructorError),
+                            // The key does not match the hash obtained from the directory
+                            else {
+                                Err(KKTError::KEMError {
+                                    info: "Hash of received encapsulation key does not match the value stored on the directory.",
+                                })
+                            }
+                        }
+                        None => Err(KKTError::FunctionInputError {
+                            info: "Expected hash of the remote encapsulation key is not provided.",
+                        }),
                     }
                 }
-                None => Err(KKTError::FunctionInputError {
-                    info: "Remote Signature Verification Key Not Provided",
-                }),
             }
         }
+
         KKTRole::Responder => Err(KKTError::IncompatibilityError {
             info: "Responder received a request from another responder.",
         }),
@@ -203,22 +144,11 @@ pub fn responder_ingest_message(
 pub fn responder_process(
     own_context: &mut KKTContext,
     session_id: KKTSessionId,
-    signing_key: &ed25519::PrivateKey,
     encapsulation_key: &EncapsulationKey,
 ) -> Result<KKTFrame, KKTError> {
     let body = encapsulation_key.encode();
-
     let context_bytes = own_context.encode()?;
-
-    let mut bytes_to_sign =
-        Vec::with_capacity(own_context.full_message_len() - own_context.signature_len());
-    bytes_to_sign.extend_from_slice(&own_context.encode()?);
-    bytes_to_sign.extend_from_slice(&body);
-    bytes_to_sign.extend_from_slice(&session_id);
-
-    let signature = signing_key.sign(bytes_to_sign).to_bytes();
-
-    Ok(KKTFrame::new(context_bytes, &body, session_id, &signature))
+    Ok(KKTFrame::new(context_bytes, &body, session_id))
 }
 
 fn check_compatibility(

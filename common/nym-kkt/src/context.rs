@@ -15,11 +15,10 @@ pub enum KKTStatus {
     Ok = 0b0000_0000,
     InvalidRequestFormat = 0b0010_0000,
     InvalidResponseFormat = 0b0100_0000,
-    InvalidSignature = 0b0110_0000,
-    UnsupportedCiphersuite = 0b1000_0000,
-    UnsupportedKKTVersion = 0b1010_0000,
-    InvalidKey = 0b1100_0000,
-    Timeout = 0b1110_0000,
+    UnsupportedCiphersuite = 0b0110_0000,
+    UnsupportedKKTVersion = 0b1000_0000,
+    InvalidKey = 0b1010_0000,
+    Timeout = 0b1100_0000,
 }
 
 impl Display for KKTStatus {
@@ -28,7 +27,6 @@ impl Display for KKTStatus {
             KKTStatus::Ok => "Ok",
             KKTStatus::InvalidRequestFormat => "Invalid Request Format",
             KKTStatus::InvalidResponseFormat => "Invalid Response Format",
-            KKTStatus::InvalidSignature => "Invalid Signature",
             KKTStatus::UnsupportedCiphersuite => "Unsupported Ciphersuite",
             KKTStatus::UnsupportedKKTVersion => "Unsupported KKT Version",
             KKTStatus::InvalidKey => "Invalid Key",
@@ -43,7 +41,6 @@ impl Display for KKTStatus {
 pub enum KKTRole {
     Initiator = 0b0000_0000,
     Responder = 0b0000_0001,
-    AnonymousInitiator = 0b0000_0010,
 }
 
 // bitmask used: 0b0001_1100
@@ -64,20 +61,15 @@ pub struct KKTContext {
     ciphersuite: Ciphersuite,
 }
 impl KKTContext {
-    pub fn new(role: KKTRole, mode: KKTMode, ciphersuite: Ciphersuite) -> Result<Self, KKTError> {
-        if role == KKTRole::AnonymousInitiator && mode != KKTMode::OneWay {
-            return Err(KKTError::IncompatibilityError {
-                info: "Anonymous Initiator can only use OneWay mode",
-            });
-        }
-        Ok(Self {
+    pub fn new(role: KKTRole, mode: KKTMode, ciphersuite: Ciphersuite) -> Self {
+        Self {
             version: KKT_VERSION,
             message_sequence: 0,
             status: KKTStatus::Ok,
             mode,
             role,
             ciphersuite,
-        })
+        }
     }
 
     pub fn derive_responder_header(&self) -> Result<Self, KKTError> {
@@ -119,19 +111,13 @@ impl KKTContext {
 
     pub fn body_len(&self) -> usize {
         if self.status != KKTStatus::Ok
-            || (self.mode == KKTMode::OneWay
-                && (self.role == KKTRole::Initiator || self.role == KKTRole::AnonymousInitiator))
+        ||
+        // no payload
+        (self.mode == KKTMode::OneWay && self.role == KKTRole::Initiator)
         {
             0
         } else {
             self.ciphersuite.kem_key_len()
-        }
-    }
-
-    pub fn signature_len(&self) -> usize {
-        match self.role {
-            KKTRole::Initiator | KKTRole::Responder => self.ciphersuite.signature_len(),
-            KKTRole::AnonymousInitiator => 0,
         }
     }
 
@@ -152,7 +138,7 @@ impl KKTContext {
     }
 
     pub fn full_message_len(&self) -> usize {
-        self.body_len() + self.signature_len() + self.header_len() + self.session_id_len()
+        self.body_len() + self.header_len() + self.session_id_len()
     }
 
     pub fn encode(&self) -> Result<[u8; KKT_CONTEXT_LEN], KKTError> {
@@ -229,8 +215,7 @@ mod tests {
             KKTRole::Initiator,
             KKTMode::Mutual,
             Ciphersuite::decode([255, 1, 0, 0]).unwrap(),
-        )
-        .unwrap();
+        );
         let encoded = valid_context.encode().unwrap();
         let decoded = KKTContext::try_decode(encoded).unwrap();
 

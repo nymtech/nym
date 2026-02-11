@@ -44,15 +44,12 @@ pub fn gen_mlkem768_keypair(c: &mut Criterion) {
 pub fn kkt_benchmark(c: &mut Criterion) {
     let mut rng = rand09::rng();
 
-    // generate ed25519 keys
     let mut secret_initiator: [u8; 32] = [0u8; 32];
     rng.fill_bytes(&mut secret_initiator);
-    let initiator_ed25519_keypair = ed25519::KeyPair::from_secret(secret_initiator, 0);
 
     let mut secret_responder: [u8; 32] = [0u8; 32];
     rng.fill_bytes(&mut secret_responder);
 
-    let responder_ed25519_keypair = ed25519::KeyPair::from_secret(secret_responder, 1);
     for kem in [KEM::MlKem768, KEM::XWing, KEM::X25519, KEM::McEliece] {
         for hash_function in [
             HashFunction::Blake3,
@@ -140,14 +137,12 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         "{kem}, {hash_function} | Anonymous Initiator: Responder Ingest Frame",
                     ),
                     |b| {
-                        b.iter(|| {
-                            responder_ingest_message(&r_context, None, None, &i_frame_r).unwrap()
-                        });
+                        b.iter(|| responder_ingest_message(&r_context, None, &i_frame_r).unwrap());
                     },
                 );
 
                 let (mut r_context, _) =
-                    responder_ingest_message(&r_context, None, None, &i_frame_r).unwrap();
+                    responder_ingest_message(&r_context, None, &i_frame_r).unwrap();
 
                 c.bench_function(
                     &format!(
@@ -158,7 +153,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                             responder_process(
                                 &mut r_context,
                                 i_frame_r.session_id(),
-                                responder_ed25519_keypair.private_key(),
                                 &responder_kem_public_key,
                             )
                             .unwrap()
@@ -168,7 +162,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 let r_frame = responder_process(
                     &mut r_context,
                     i_frame_r.session_id(),
-                    responder_ed25519_keypair.private_key(),
                     &responder_kem_public_key,
                 )
                 .unwrap();
@@ -190,7 +183,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 &mut i_context,
                                 &r_frame,
                                 &r_frame.context().unwrap(),
-                                responder_ed25519_keypair.public_key(),
                                 &r_dir_hash,
                             )
                             .unwrap()
@@ -202,7 +194,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                     &mut i_context,
                     &r_frame,
                     &r_frame.context().unwrap(),
-                    responder_ed25519_keypair.public_key(),
                     &r_dir_hash,
                 )
                 .unwrap();
@@ -211,27 +202,14 @@ pub fn kkt_benchmark(c: &mut Criterion) {
             }
             // Initiator, OneWay
             {
-                let (mut i_context, i_frame) = initiator_process(
-                    &mut rng,
-                    KKTMode::OneWay,
-                    ciphersuite,
-                    initiator_ed25519_keypair.private_key(),
-                    None,
-                )
-                .unwrap();
+                let (mut i_context, i_frame) =
+                    initiator_process(&mut rng, KKTMode::OneWay, ciphersuite, None).unwrap();
 
                 c.bench_function(
                     &format!("{kem}, {hash_function} | Initiator OneWay: Generate Request",),
                     |b| {
                         b.iter(|| {
-                            initiator_process(
-                                &mut rng,
-                                KKTMode::OneWay,
-                                ciphersuite,
-                                initiator_ed25519_keypair.private_key(),
-                                None,
-                            )
-                            .unwrap()
+                            initiator_process(&mut rng, KKTMode::OneWay, ciphersuite, None).unwrap()
                         });
                     },
                 );
@@ -253,25 +231,12 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 c.bench_function(
                     &format!("{kem}, {hash_function} | Initiator OneWay: Responder Ingest Frame",),
                     |b| {
-                        b.iter(|| {
-                            responder_ingest_message(
-                                &r_context,
-                                Some(initiator_ed25519_keypair.public_key()),
-                                None,
-                                &i_frame_r,
-                            )
-                            .unwrap()
-                        });
+                        b.iter(|| responder_ingest_message(&r_context, None, &i_frame_r).unwrap());
                     },
                 );
 
-                let (mut r_context, r_obtained_key) = responder_ingest_message(
-                    &r_context,
-                    Some(initiator_ed25519_keypair.public_key()),
-                    None,
-                    &i_frame_r,
-                )
-                .unwrap();
+                let (mut r_context, r_obtained_key) =
+                    responder_ingest_message(&r_context, None, &i_frame_r).unwrap();
 
                 assert!(r_obtained_key.is_none());
 
@@ -284,7 +249,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                             responder_process(
                                 &mut r_context,
                                 i_frame_r.session_id(),
-                                responder_ed25519_keypair.private_key(),
                                 &responder_kem_public_key,
                             )
                             .unwrap()
@@ -295,7 +259,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 let r_frame = responder_process(
                     &mut r_context,
                     i_frame_r.session_id(),
-                    responder_ed25519_keypair.private_key(),
                     &responder_kem_public_key,
                 )
                 .unwrap();
@@ -317,7 +280,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 &mut i_context,
                                 &r_frame,
                                 &r_frame.context().unwrap(),
-                                responder_ed25519_keypair.public_key(),
                                 &r_dir_hash,
                             )
                             .unwrap()
@@ -329,7 +291,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                     &mut i_context,
                     &r_frame,
                     &r_frame.context().unwrap(),
-                    responder_ed25519_keypair.public_key(),
                     &r_dir_hash,
                 )
                 .unwrap();
@@ -347,7 +308,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 &mut rng,
                                 KKTMode::Mutual,
                                 ciphersuite,
-                                initiator_ed25519_keypair.private_key(),
                                 Some(&initiator_kem_public_key),
                             )
                             .unwrap()
@@ -359,7 +319,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                     &mut rng,
                     KKTMode::Mutual,
                     ciphersuite,
-                    initiator_ed25519_keypair.private_key(),
                     Some(&initiator_kem_public_key),
                 )
                 .unwrap();
@@ -386,24 +345,14 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                     &format!("{kem}, {hash_function} | Initiator Mutual: Responder Ingest Frame",),
                     |b| {
                         b.iter(|| {
-                            responder_ingest_message(
-                                &r_context,
-                                Some(initiator_ed25519_keypair.public_key()),
-                                Some(&i_dir_hash),
-                                &i_frame_r,
-                            )
-                            .unwrap()
+                            responder_ingest_message(&r_context, Some(&i_dir_hash), &i_frame_r)
+                                .unwrap()
                         });
                     },
                 );
 
-                let (mut r_context, r_obtained_key) = responder_ingest_message(
-                    &r_context,
-                    Some(initiator_ed25519_keypair.public_key()),
-                    Some(&i_dir_hash),
-                    &i_frame_r,
-                )
-                .unwrap();
+                let (mut r_context, r_obtained_key) =
+                    responder_ingest_message(&r_context, Some(&i_dir_hash), &i_frame_r).unwrap();
 
                 assert_eq!(r_obtained_key.unwrap().encode(), i_kem_key_bytes);
 
@@ -416,7 +365,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                             responder_process(
                                 &mut r_context,
                                 i_frame_r.session_id(),
-                                responder_ed25519_keypair.private_key(),
                                 &responder_kem_public_key,
                             )
                             .unwrap()
@@ -427,7 +375,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 let r_frame = responder_process(
                     &mut r_context,
                     i_frame_r.session_id(),
-                    responder_ed25519_keypair.private_key(),
                     &responder_kem_public_key,
                 )
                 .unwrap();
@@ -451,7 +398,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 &mut i_context,
                                 &r_frame,
                                 &r_frame.context().unwrap(),
-                                responder_ed25519_keypair.public_key(),
                                 &r_dir_hash,
                             )
                             .unwrap()
@@ -463,7 +409,6 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                     &mut i_context,
                     &r_frame,
                     &r_frame.context().unwrap(),
-                    responder_ed25519_keypair.public_key(),
                     &r_dir_hash,
                 )
                 .unwrap();

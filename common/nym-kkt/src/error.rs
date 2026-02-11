@@ -8,10 +8,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum KKTError {
-    #[error("Signature constructor error")]
-    SigConstructorError,
-    #[error("Signature verification error")]
-    SigVerifError,
     #[error(transparent)]
     CiphersuiteDecodingError(#[from] KKTCiphersuiteError),
 

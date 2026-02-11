@@ -68,7 +68,7 @@ impl Carrier {
         session_secret.zeroize();
 
         Ok(match role {
-            KKTRole::Initiator | KKTRole::AnonymousInitiator => Self {
+            KKTRole::Initiator => Self {
                 tx_key: k1,
                 rx_key: k2,
                 tx_counter: 1,
@@ -130,8 +130,8 @@ mod tests {
         ciphersuite::EncapsulationKey,
         encryption::*,
         key_utils::{
-            generate_keypair_ed25519, generate_keypair_libcrux, generate_keypair_mceliece,
-            generate_keypair_mlkem, generate_keypair_x25519, hash_encapsulation_key,
+            generate_keypair_libcrux, generate_keypair_mceliece, generate_keypair_mlkem,
+            generate_keypair_x25519, hash_encapsulation_key,
         },
         session::{
             anonymous_initiator_process, initiator_ingest_response, responder_ingest_message,
@@ -144,9 +144,6 @@ mod tests {
     fn test_e2e() {
         let mut rng = rand09::rng();
         // generate ed25519 keys
-
-        let _initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
-        let responder_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(1));
 
         // generate responder x25519 keys
         let responder_x25519_keypair = generate_keypair_x25519(&mut rng);
@@ -222,12 +219,11 @@ mod tests {
                     decrypt_initial_kkt_frame(responder_x25519_keypair.sk(), &i_bytes).unwrap();
 
                 let (mut r_context, _) =
-                    responder_ingest_message(&i_context_r, None, None, &i_frame_r).unwrap();
+                    responder_ingest_message(&i_context_r, None, &i_frame_r).unwrap();
 
                 let r_frame = responder_process(
                     &mut r_context,
                     i_frame_r.session_id(),
-                    responder_ed25519_keypair.private_key(),
                     &responder_kem_public_key,
                 )
                 .unwrap();
@@ -246,7 +242,6 @@ mod tests {
                     &mut i_context,
                     &i_frame_r,
                     &i_context_r,
-                    responder_ed25519_keypair.public_key(),
                     &r_dir_hash,
                 )
                 .unwrap();

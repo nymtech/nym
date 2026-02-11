@@ -135,6 +135,7 @@ impl Config {
                 start_block_height: None,
                 use_best_effort_start_height: true,
             },
+            run_migrations: true,
         })
     }
 

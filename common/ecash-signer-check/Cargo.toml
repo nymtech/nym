@@ -15,6 +15,7 @@ description = "Functions to interact with zknym signers, checking their status a
 futures = { workspace = true }
 thiserror = { workspace = true }
 semver = { workspace = true }
+serde = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 tracing = { workspace = true }
 url = { workspace = true }

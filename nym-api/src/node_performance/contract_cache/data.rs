@@ -7,8 +7,10 @@ use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{EpochId, NodeId};
 use nym_validator_client::nyxd::contract_traits::performance_query_client::NodePerformance;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
+#[derive(Serialize, Deserialize)]
 pub(crate) struct PerformanceContractEpochCacheData {
     pub(crate) epoch_id: EpochId,
     pub(crate) median_performance: HashMap<NodeId, Performance>,
@@ -30,6 +32,7 @@ impl PerformanceContractEpochCacheData {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub(crate) struct PerformanceContractCacheData {
     pub(crate) epoch_performance: BTreeMap<EpochId, PerformanceContractEpochCacheData>,
 }

@@ -14,6 +14,8 @@ use nym_mixnet_contract_common::{
 };
 use nym_topology::CachedEpochRewardedSet;
 use nym_validator_client::nyxd::Coin;
+use std::path::Path;
+use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
 
@@ -27,10 +29,16 @@ pub struct MixnetContractCache {
     pub(crate) inner: SharedCache<MixnetContractCacheData>,
 }
 
+impl From<SharedCache<MixnetContractCacheData>> for MixnetContractCache {
+    fn from(inner: SharedCache<MixnetContractCacheData>) -> Self {
+        MixnetContractCache { inner }
+    }
+}
+
 impl MixnetContractCache {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new<P: AsRef<Path>>(store_path: P, max_cache_age: Duration) -> Self {
         MixnetContractCache {
-            inner: SharedCache::new(),
+            inner: SharedCache::new_with_persistent(store_path, max_cache_age, None),
         }
     }
 

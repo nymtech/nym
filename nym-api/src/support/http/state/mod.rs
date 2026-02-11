@@ -20,11 +20,8 @@ use crate::support::storage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::unstable_routes::v1::account::models::NyxAccountDetails;
 use axum::extract::FromRef;
-use nym_api_requests::models::NodeAnnotation;
 use nym_crypto::asymmetric::ed25519;
-use nym_mixnet_contract_common::NodeId;
 use nym_topology::CachedEpochRewardedSet;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLockReadGuard;
 
@@ -156,16 +153,6 @@ impl AppState {
         &self,
     ) -> Result<Cache<CachedEpochRewardedSet>, AxumErrorResponse> {
         Ok(self.nym_contract_cache().cached_rewarded_set().await?)
-    }
-
-    pub(crate) async fn node_annotations(
-        &self,
-    ) -> Result<RwLockReadGuard<'_, Cache<HashMap<NodeId, NodeAnnotation>>>, AxumErrorResponse>
-    {
-        self.node_status_cache()
-            .node_annotations()
-            .await
-            .ok_or_else(AxumErrorResponse::internal)
     }
 
     pub(crate) async fn get_address_info(

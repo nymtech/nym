@@ -101,7 +101,8 @@ where
     let rewarded_set = state.rewarded_set().await?;
 
     // 2. grab all annotations so that we could attach scores to the [nym] nodes
-    let annotations = state.node_annotations().await?;
+    let status_cache = &state.node_status_cache();
+    let annotations = status_cache.node_annotations().await?;
 
     // 3. implicitly grab the relevant described nodes
     // (ideally it'd be tied directly to the NI iterator, but I couldn't defeat the compiler)
@@ -138,7 +139,7 @@ where
         // min of all caches
         let refreshed_at = refreshed_at([
             rewarded_set.timestamp(),
-            annotations.timestamp(),
+            status_cache.cache_timestamp().await,
             describe_cache.timestamp(),
         ]);
 
@@ -155,7 +156,7 @@ where
     // min of all caches
     let refreshed_at = refreshed_at([
         rewarded_set.timestamp(),
-        annotations.timestamp(),
+        status_cache.cache_timestamp().await,
         describe_cache.timestamp(),
     ]);
 
@@ -183,7 +184,8 @@ pub(crate) async fn nodes_basic(
 
     let describe_cache = state.describe_nodes_cache_data().await?;
     let all_nym_nodes = describe_cache.all_nym_nodes();
-    let annotations = state.node_annotations().await?;
+    let status_cache = &state.node_status_cache();
+    let annotations = status_cache.node_annotations().await?;
 
     let interval = state.nym_contract_cache().current_interval().await?;
     let current_key_rotation = state.nym_contract_cache().current_key_rotation_id().await?;
@@ -199,7 +201,7 @@ pub(crate) async fn nodes_basic(
     // min of all caches
     let refreshed_at = refreshed_at([
         rewarded_set.timestamp(),
-        annotations.timestamp(),
+        status_cache.cache_timestamp().await,
         describe_cache.timestamp(),
     ]);
 

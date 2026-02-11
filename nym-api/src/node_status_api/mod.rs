@@ -12,6 +12,7 @@ use crate::{
 };
 pub(crate) use cache::NodeStatusCache;
 use nym_task::ShutdownManager;
+use std::path::PathBuf;
 use std::time::Duration;
 use tokio::sync::watch;
 
@@ -39,6 +40,7 @@ pub(crate) fn start_cache_refresh(
     performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
     nym_contract_cache_listener: watch::Receiver<support::caching::CacheNotification>,
     described_cache_cache_listener: watch::Receiver<support::caching::CacheNotification>,
+    on_disk_file: PathBuf,
     shutdown_manager: &ShutdownManager,
 ) {
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
@@ -49,6 +51,7 @@ pub(crate) fn start_cache_refresh(
         nym_contract_cache_listener,
         described_cache_cache_listener,
         performance_provider,
+        on_disk_file,
     );
     let shutdown_listener = shutdown_manager.clone_shutdown_token();
     tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });

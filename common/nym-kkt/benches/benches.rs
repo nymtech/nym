@@ -7,7 +7,6 @@
 
 use criterion::{Criterion, criterion_group, criterion_main};
 
-use nym_crypto::asymmetric::ed25519;
 use nym_kkt::{
     ciphersuite::{Ciphersuite, EncapsulationKey, HashFunction, KEM, SignatureScheme},
     context::KKTMode,
@@ -17,21 +16,10 @@ use nym_kkt::{
         hash_encapsulation_key,
     },
     session::{
-        anonymous_initiator_process, initiator_ingest_response, initiator_process,
-        responder_ingest_message, responder_process,
+        initiator_ingest_response, initiator_process, responder_ingest_message, responder_process,
     },
 };
 use rand09::prelude::*;
-
-pub fn gen_ed25519_keypair(c: &mut Criterion) {
-    c.bench_function("Generate Ed25519 Keypair", |b| {
-        b.iter(|| {
-            let mut s: [u8; 32] = [0u8; 32];
-            rand09::rng().fill_bytes(&mut s);
-            ed25519::KeyPair::from_secret(s, 0)
-        });
-    });
-}
 
 pub fn gen_mlkem768_keypair(c: &mut Criterion) {
     c.bench_function("Generate MlKem768 Keypair", |b| {
@@ -107,12 +95,14 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 c.bench_function(
                     &format!("{kem}, {hash_function} | Anonymous Initiator: Generate Request",),
                     |b| {
-                        b.iter(|| anonymous_initiator_process(&mut rng, ciphersuite).unwrap());
+                        b.iter(|| {
+                            initiator_process(&mut rng, KKTMode::OneWay, ciphersuite, None).unwrap()
+                        });
                     },
                 );
 
                 let (mut i_context, i_frame) =
-                    anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
+                    initiator_process(&mut rng, KKTMode::OneWay, ciphersuite, None).unwrap();
 
                 c.bench_function(
                     &format!(
@@ -419,10 +409,5 @@ pub fn kkt_benchmark(c: &mut Criterion) {
     }
 }
 
-criterion_group!(
-    benches,
-    gen_ed25519_keypair,
-    gen_mlkem768_keypair,
-    kkt_benchmark
-);
+criterion_group!(benches, gen_mlkem768_keypair, kkt_benchmark);
 criterion_main!(benches);

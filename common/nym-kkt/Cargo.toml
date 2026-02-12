@@ -7,13 +7,12 @@ license.workspace = true
 publish = false
 
 [dependencies]
-blake3 = { workspace = true }
 thiserror = { workspace = true }
 num_enum = { workspace = true }
 strum = { workspace = true }
 
 # internal
-nym-crypto = { path = "../crypto", features = ["asymmetric", "hashing", "serde"] }
+nym-crypto = { path = "../crypto", features = ["hashing"] }
 nym-kkt-ciphersuite = { workspace = true, features = ["digests"] }
 
 libcrux-kem = { workspace = true }

@@ -43,22 +43,6 @@ where
     Ok((context, KKTFrame::new(context_bytes, body, session_id)))
 }
 
-pub fn anonymous_initiator_process<R>(
-    rng: &mut R,
-    ciphersuite: Ciphersuite,
-) -> Result<(KKTContext, KKTFrame), KKTError>
-where
-    R: CryptoRng + RngCore,
-{
-    let context = KKTContext::new(KKTRole::Initiator, KKTMode::OneWay, ciphersuite);
-    let context_bytes = context.encode()?;
-
-    let mut session_id = [0u8; KKT_SESSION_ID_LEN];
-    rng.fill_bytes(&mut session_id);
-
-    Ok((context, KKTFrame::new(context_bytes, &[], session_id)))
-}
-
 pub fn initiator_ingest_response(
     own_context: &mut KKTContext,
     remote_frame: &KKTFrame,

@@ -54,6 +54,18 @@ pub enum KKTError {
     LibcruxError,
 }
 
+#[derive(Error, Debug)]
+pub enum MaskedByteError {
+    #[error(
+        "Invalid Masked Byte Length: Expected({}), Actual({}).",
+        expected,
+        actual
+    )]
+    InvalidLength { expected: usize, actual: usize },
+    #[error("Failed to Unmask Byte.")]
+    Failure,
+}
+
 impl From<libcrux_kem::Error> for KKTError {
     fn from(err: libcrux_kem::Error) -> Self {
         match err {

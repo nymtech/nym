@@ -1,14 +1,12 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub mod carrier;
 pub mod ciphersuite;
 pub mod context;
-// pub mod encryption;
 pub mod error;
 pub mod frame;
 pub mod key_utils;
-// pub mod kkt;
-pub mod carrier;
 pub mod masked_byte;
 pub mod rekey;
 pub mod session;

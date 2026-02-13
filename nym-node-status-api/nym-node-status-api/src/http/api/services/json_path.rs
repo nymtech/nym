@@ -79,6 +79,8 @@ mod tests {
             },
             last_probe_result: None,
             last_probe_log: None,
+            ports_check: None,
+            last_ports_check_utc: None,
             last_testrun_utc: None,
             last_updated_utc: "2025-01-01T12:00:00Z".to_string(),
             routing_score: 1.0,

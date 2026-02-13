@@ -63,6 +63,7 @@ impl WgTunnelConfig {
 /// - DNS resolution
 /// - ICMP ping to specified hosts and IPs
 /// - Optional download test
+/// - Optional exit policy port check (TCP connect through tunnel)
 ///
 /// Results are written directly into the provided `wg_outcome` to avoid field-by-field
 /// copying at call sites.
@@ -71,6 +72,7 @@ impl WgTunnelConfig {
 /// * `config` - WireGuard tunnel configuration
 /// * `netstack_args` - Netstack test parameters (DNS, hosts to ping, timeouts, etc.)
 /// * `awg_args` - Amnezia WireGuard arguments (empty string for standard WG)
+/// * `port_check_only` - If true, skip pings/download and only run TCP port checks
 /// * `wg_outcome` - Mutable reference to write test results into
 // This function extracts the shared netstack testing logic from
 // wg_probe() and wg_probe_lp() to eliminate code duplication.
@@ -78,6 +80,7 @@ pub fn run_tunnel_tests(
     config: &WgTunnelConfig,
     netstack_args: &NetstackArgs,
     awg_args: &str,
+    port_check_only: bool,
     wg_outcome: &mut WgProbeResults,
 ) {
     // Build the netstack request
@@ -91,9 +94,10 @@ pub fn run_tunnel_tests(
         netstack_args.netstack_download_timeout_sec,
         awg_args,
         netstack_args.clone(),
+        port_check_only,
     );
 
-    // Perform IPv4 ping test
+    // Perform IPv4 ping test (also carries port check results in port-check-only mode)
     info!("Testing IPv4 tunnel connectivity...");
     let ipv4_request = NetstackRequestGo::from_rust_v4(&netstack_request);
 
@@ -122,6 +126,11 @@ pub fn run_tunnel_tests(
                 netstack_response_v4.downloaded_file_size_bytes;
             wg_outcome.downloaded_file_v4 = netstack_response_v4.downloaded_file;
             wg_outcome.download_error_v4 = netstack_response_v4.download_error;
+
+            // capture port check results (present when ports were requested)
+            if netstack_response_v4.port_check_results.is_some() {
+                wg_outcome.port_check_results = netstack_response_v4.port_check_results;
+            }
         }
         Ok(NetstackResult::Error { error }) => {
             error!("Netstack runtime error (IPv4): {error}")
@@ -129,6 +138,12 @@ pub fn run_tunnel_tests(
         Err(error) => {
             error!("Internal error (IPv4): {error}")
         }
+    }
+
+    // in port-check-only mode, skip IPv6 tests — port checks ran through IPv4 above
+    if port_check_only {
+        info!("Port-check-only mode: skipping IPv6 tunnel tests");
+        return;
     }
 
     // Perform IPv6 ping test

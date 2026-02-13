@@ -191,6 +191,8 @@ mod tests {
             },
             last_probe_result: None,
             last_probe_log: None,
+            ports_check: None,
+            last_ports_check_utc: None,
             last_testrun_utc: Some("2024-01-20T10:00:00Z".to_string()),
             last_updated_utc: "2024-01-20T11:00:00Z".to_string(),
             routing_score: 0.95,

@@ -11,6 +11,8 @@ mod db_tests {
             explorer_pretty_bond: Some("{\"key\":\"value\"}".to_string()),
             last_probe_result: Some("{\"key\":\"value\"}".to_string()),
             last_probe_log: Some("log".to_string()),
+            ports_check: None,
+            last_ports_check_utc: None,
             last_testrun_utc: Some(1672531200),
             last_updated_utc: 1672531200,
             moniker: "moniker".to_string(),
@@ -35,6 +37,101 @@ mod db_tests {
         assert_eq!(http_gateway.description.website, "website");
         assert_eq!(http_gateway.description.security_contact, "contact");
         assert_eq!(http_gateway.description.details, "details");
+    }
+
+    #[test]
+    fn test_gateway_dto_normalizes_legacy_dedicated_ports_check_shape() {
+        let legacy_ports = serde_json::json!({
+            "gateway": "gw1",
+            "can_register": true,
+            "port_check_target": "portquiz.net",
+            "ports": {
+                "20": false,
+                "21": true,
+                "43": false
+            },
+            "error": null
+        });
+        let gateway_dto = crate::db::models::GatewayDto {
+            gateway_identity_key: "id1".to_string(),
+            bonded: true,
+            performance: 50,
+            self_described: Some("{}".to_string()),
+            explorer_pretty_bond: Some("{}".to_string()),
+            last_probe_result: None,
+            last_probe_log: None,
+            ports_check: Some(legacy_ports),
+            last_ports_check_utc: Some(1672531200),
+            last_testrun_utc: None,
+            last_updated_utc: 1672531200,
+            moniker: "m".to_string(),
+            security_contact: "c".to_string(),
+            details: "d".to_string(),
+            website: "w".to_string(),
+            bridges: None,
+        };
+
+        let http_gateway: crate::http::models::Gateway = gateway_dto.try_into().unwrap();
+        let normalized = http_gateway.ports_check.unwrap();
+
+        assert_eq!(
+            normalized.get("all_pass"),
+            Some(&serde_json::Value::Bool(false))
+        );
+        assert_eq!(
+            normalized.get("port_check_target"),
+            Some(&serde_json::Value::String("portquiz.net".to_string()))
+        );
+        assert_eq!(normalized.get("error"), Some(&serde_json::Value::Null));
+        assert_eq!(
+            normalized.get("failed_ports"),
+            Some(&serde_json::json!(["20", "43"]))
+        );
+        assert!(normalized.get("gateway").is_none());
+        assert!(normalized.get("ports").is_none());
+    }
+
+    #[test]
+    fn test_gateway_dto_normalizes_legacy_in_probe_summary_shape() {
+        let legacy_summary = serde_json::json!({
+            "all_pass": true,
+            "failed_ports": [],
+            "error": null,
+            "ports_tested": 32
+        });
+        let gateway_dto = crate::db::models::GatewayDto {
+            gateway_identity_key: "id2".to_string(),
+            bonded: true,
+            performance: 50,
+            self_described: Some("{}".to_string()),
+            explorer_pretty_bond: Some("{}".to_string()),
+            last_probe_result: None,
+            last_probe_log: None,
+            ports_check: Some(legacy_summary),
+            last_ports_check_utc: Some(1672531200),
+            last_testrun_utc: None,
+            last_updated_utc: 1672531200,
+            moniker: "m".to_string(),
+            security_contact: "c".to_string(),
+            details: "d".to_string(),
+            website: "w".to_string(),
+            bridges: None,
+        };
+
+        let http_gateway: crate::http::models::Gateway = gateway_dto.try_into().unwrap();
+        let normalized = http_gateway.ports_check.unwrap();
+
+        assert_eq!(
+            normalized.get("all_pass"),
+            Some(&serde_json::Value::Bool(true))
+        );
+        assert_eq!(normalized.get("failed_ports"), Some(&serde_json::json!([])));
+        assert_eq!(normalized.get("error"), Some(&serde_json::Value::Null));
+        assert_eq!(
+            normalized.get("port_check_target"),
+            Some(&serde_json::Value::Null)
+        );
+        assert!(normalized.get("ports_tested").is_none());
     }
 
     #[test]
@@ -267,6 +364,8 @@ fn test_gateway_dto_with_null_values() {
         explorer_pretty_bond: None,
         last_probe_result: None,
         last_probe_log: None,
+        ports_check: None,
+        last_ports_check_utc: None,
         last_testrun_utc: None,
         last_updated_utc: 0,
         moniker: "".to_string(),

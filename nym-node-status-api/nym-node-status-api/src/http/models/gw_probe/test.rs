@@ -20,6 +20,8 @@ fn test_weighted_score_calculation() {
             },
             last_probe_result: None,
             last_probe_log: None,
+            ports_check: None,
+            last_ports_check_utc: None,
             last_testrun_utc: None,
             last_updated_utc: "2025-10-10T00:00:00Z".to_string(),
             routing_score: 0.0,
@@ -163,10 +165,12 @@ fn conversion_from_gw_probe_latest() {
         downloaded_file_size_bytes_v6: 20971520,
         downloaded_file_v6: "test-file-v6.bin".to_string(),
         download_error_v6: "none-v6".to_string(),
+        port_check_results: None,
     };
     let probe_latest = ProbeResultLatest {
         node: "test-node-identity-key".to_string(),
         used_entry: "test-entry-node".to_string(),
+        ports_check: None,
         outcome: ProbeOutcomeLatest {
             as_entry: EntryLatest::Tested(EntryTestResultLatest {
                 can_connect: true,

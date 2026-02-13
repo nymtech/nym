@@ -76,6 +76,12 @@ impl Storage {
         Ok(())
     }
 
+                gw.last_probe_log as "last_probe_log?",
+                gw.ports_check as "ports_check?",
+                
+                gw.last_testrun_utc as "last_testrun_utc?",
+        .await?;
+        .await?;
     pub(crate) async fn get_all_gateways(&self) -> anyhow::Result<Vec<Gateway>> {
         let items = sqlx::query_as!(
             GatewayDto,
@@ -87,6 +93,8 @@ impl Storage {
                 gw.explorer_pretty_bond as "explorer_pretty_bond?",
                 gw.last_probe_result as "last_probe_result?",
                 gw.last_probe_log as "last_probe_log?",
+                gw.ports_check as "ports_check?",
+                gw.last_ports_check_utc as "last_ports_check_utc?",
                 gw.last_testrun_utc as "last_testrun_utc?",
                 gw.last_updated_utc as "last_updated_utc!",
                 gw.bridges as "bridges?: serde_json::Value",
@@ -102,7 +110,6 @@ impl Storage {
         .fetch(&self.pool)
         .try_collect::<Vec<_>>()
         .await?;
-
         let items: Vec<Gateway> = items
             .into_iter()
             .map(|item| item.try_into())

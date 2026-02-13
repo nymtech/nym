@@ -29,10 +29,13 @@ pub mod builders {
                     },
                     last_probe_result: None,
                     last_probe_log: None,
+                    ports_check: None,
+                    last_ports_check_utc: None,
                     last_testrun_utc: None,
                     last_updated_utc: "2024-01-01T00:00:00Z".to_string(),
                     routing_score: 0.95,
                     config_score: 100,
+                    bridges: None,
                 },
             }
         }

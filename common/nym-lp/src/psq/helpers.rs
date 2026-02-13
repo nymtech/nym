@@ -6,10 +6,19 @@ use crate::{LpError, LpPacket};
 use bytes::BytesMut;
 use nym_lp_transport::traits::LpTransport;
 
+use libcrux_psq::handshake::ciphersuites::CiphersuiteName;
 #[cfg(test)]
 use mock_instant::thread_local::{SystemTime, UNIX_EPOCH};
+use nym_kkt_ciphersuite::KEM;
 #[cfg(not(test))]
 use std::time::{SystemTime, UNIX_EPOCH};
+
+pub(crate) fn kem_to_ciphersuite(kem: KEM) -> CiphersuiteName {
+    match kem {
+        KEM::MlKem768 => CiphersuiteName::X25519_MLKEM768_X25519_AESGCM128_HKDFSHA256,
+        KEM::McEliece => CiphersuiteName::X25519_CLASSICMCELIECE_X25519_AESGCM128_HKDFSHA256,
+    }
+}
 
 pub(crate) fn current_timestamp() -> Result<u64, LpError> {
     SystemTime::now()

@@ -29,10 +29,10 @@ use rand09::rngs::ThreadRng;
 
 use std::fmt::Debug;
 
-pub(crate) const AAD_INITIATOR_OUTER: &[u8] = b"NYM-PQ-AAD-INIT-OUTER-V1";
-pub(crate) const AAD_INITIATOR_INNER: &[u8] = b"NYM-PQ-AAD-INIT-INNER-V1";
-pub(crate) const AAD_RESPONDER: &[u8] = b"NYM-PQ-AAD-RESP-V1";
-pub(crate) const SESSION_CONTEXT: &[u8] = b"NYM-PQ-SESSION-CONTEXT-V1";
+pub(crate) const AAD_INITIATOR_OUTER_V1: &[u8] = b"NYM-PQ-AAD-INIT-OUTER-V1";
+pub(crate) const AAD_INITIATOR_INNER_V1: &[u8] = b"NYM-PQ-AAD-INIT-INNER-V1";
+pub(crate) const AAD_RESPONDER_V1: &[u8] = b"NYM-PQ-AAD-RESP-V1";
+pub(crate) const SESSION_CONTEXT_V1: &[u8] = b"NYM-PQ-SESSION-CONTEXT-V1";
 
 pub enum PSQState<'a> {
     Initiator(RegistrationInitiator<'a, ThreadRng>),
@@ -322,6 +322,7 @@ mod tests {
         generate_keypair_mceliece, generate_keypair_mlkem, generate_keypair_x25519,
         hash_encapsulation_key,
     };
+    use nym_kkt::keys::EncapsulationKey;
     use nym_kkt::responder::KKTResponder;
     use nym_kkt_ciphersuite::{HashFunction, HashLength, SignatureScheme};
     use nym_test_utils::helpers::deterministic_rng_09;
@@ -493,22 +494,18 @@ mod tests {
     fn e2e_test_plain() {
         let mut rng = deterministic_rng_09();
 
+        let kem = KEM::MlKem768;
+        let protocol_version = 1;
         let (mut init, resp) = mock_peers();
 
-        init.ciphersuite = Ciphersuite::default().with_kem(KEM::MlKem768);
+        init.ciphersuite = Ciphersuite::default().with_kem(kem);
         let resp_remote = resp.as_remote();
         let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite).unwrap();
 
         let resp_keys = resp.kem_keypairs.as_ref().unwrap();
 
-        // we should add these as consts
-        let aad_initiator_outer = b"Test Data I Outer";
-        let aad_initiator_inner = b"Test Data I Inner";
-        let aad_responder = b"Test Data R";
-        let ctx = b"Test Context";
-
         // generate responder x25519 keys
-        let responder_x25519_keypair = generate_keypair_x25519(&mut rng);
+        let responder_x25519_keypair = resp.x25519();
         let hash_function = HashFunction::Blake3;
         // generate kem public keys
 
@@ -522,27 +519,13 @@ mod tests {
                 HashFunction::Shake128,
                 HashFunction::Shake256,
             ],
-            &[1],
+            &[protocol_version],
             &[SignatureScheme::Ed25519],
         )
         .unwrap();
 
         // OneWay - MlKem
         let psq_ciphersuite = CiphersuiteName::X25519_MLKEM768_X25519_AESGCM128_HKDFSHA256;
-
-        let responder_ciphersuite = CiphersuiteBuilder::new(psq_ciphersuite)
-            .longterm_x25519_keys(&responder_x25519_keypair)
-            .longterm_mlkem_encapsulation_key(resp_keys.ml_kem768_encapsulation_key())
-            .longterm_mlkem_decapsulation_key(resp_keys.ml_kem768_decapsulation_key())
-            .build_responder_ciphersuite()
-            .unwrap();
-
-        let mut responder = PrincipalBuilder::new(rand09::rng())
-            .context(ctx)
-            .outer_aad(aad_responder)
-            .recent_keys_upper_bound(30)
-            .build_responder(responder_ciphersuite)
-            .unwrap();
 
         let ciphersuite = Ciphersuite::resolve_ciphersuite(
             KEM::MlKem768,
@@ -557,7 +540,7 @@ mod tests {
             &ciphersuite,
             &responder_x25519_keypair.pk,
             &dir_hash,
-            1u8,
+            protocol_version,
         )
         .unwrap();
 
@@ -576,24 +559,22 @@ mod tests {
         let mlkem_key =
             libcrux_kem::MlKem768PublicKey::try_from(i_obtained_key.as_slice()).unwrap();
 
-        let initiator_psq_keys = generate_keypair_x25519(&mut rng);
-        let initiator_cbuilder = CiphersuiteBuilder::new(psq_ciphersuite)
-            .longterm_x25519_keys(&initiator_psq_keys)
-            .peer_longterm_x25519_pk(&responder_x25519_keypair.pk)
-            .peer_longterm_mlkem_pk(&mlkem_key);
-
-        let initiator_ciphersuite = initiator_cbuilder.build_initiator_ciphersuite().unwrap();
+        let encapsulation_key = EncapsulationKey::MlKem768(mlkem_key);
 
         let mut msg_channel = vec![0u8; 8192];
         let mut payload_buf_responder = vec![0u8; 4096];
         let mut payload_buf_initiator = vec![0u8; 4096];
 
-        let mut initiator = PrincipalBuilder::new(rand09::rng())
-            .outer_aad(aad_initiator_outer)
-            .inner_aad(aad_initiator_inner)
-            .context(ctx)
-            .build_registration_initiator(initiator_ciphersuite)
-            .unwrap();
+        let initiator_ciphersuite =
+            initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key).unwrap();
+        let mut initiator =
+            initiator::build_psq_principal(rand09::rng(), protocol_version, initiator_ciphersuite)
+                .unwrap();
+
+        let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem).unwrap();
+        let mut responder =
+            responder::build_psq_principal(rand09::rng(), protocol_version, responder_ciphersuite)
+                .unwrap();
 
         // Send first message
         let registration_payload_initiator = b"Registration_init";
@@ -651,18 +632,18 @@ mod tests {
             .serialize(
                 &mut session_storage,
                 SessionBinding {
-                    initiator_authenticator: &Authenticator::Dh(initiator_psq_keys.pk),
+                    initiator_authenticator: &Authenticator::Dh(init.x25519().pk),
                     responder_ecdh_pk: &responder_x25519_keypair.pk,
-                    responder_pq_pk: Some(PQEncapsulationKey::MlKem(&mlkem_key)),
+                    responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
                 },
             )
             .unwrap();
         let mut i_transport = Session::deserialize(
             &session_storage,
             SessionBinding {
-                initiator_authenticator: &Authenticator::Dh(initiator_psq_keys.pk),
+                initiator_authenticator: &Authenticator::Dh(init.x25519().pk),
                 responder_ecdh_pk: &responder_x25519_keypair.pk,
-                responder_pq_pk: Some(PQEncapsulationKey::MlKem(&mlkem_key)),
+                responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
             },
         )
         .unwrap();
@@ -673,7 +654,7 @@ mod tests {
                 SessionBinding {
                     initiator_authenticator: &initiator_authenticator,
                     responder_ecdh_pk: &responder_x25519_keypair.pk,
-                    responder_pq_pk: Some(PQEncapsulationKey::MlKem(&mlkem_key)),
+                    responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
                 },
             )
             .unwrap();
@@ -682,7 +663,7 @@ mod tests {
             SessionBinding {
                 initiator_authenticator: &initiator_authenticator,
                 responder_ecdh_pk: &responder_x25519_keypair.pk,
-                responder_pq_pk: Some(PQEncapsulationKey::MlKem(&mlkem_key)),
+                responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
             },
         )
         .unwrap();

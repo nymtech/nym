@@ -117,6 +117,15 @@ pub enum LpError {
         #[from]
         source: KKTError,
     },
+
+    #[error("version {version} is not supported")]
+    UnsupportedVersion { version: u8 },
+
+    #[error("failed to build PSQ responder: {inner:?}")]
+    PSQResponderBuilderFailure { inner: BuilderError },
+
+    #[error("failed to build PSQ initiator: {inner:?}")]
+    PSQInitiatorBuilderFailure { inner: BuilderError },
 }
 
 impl LpError {

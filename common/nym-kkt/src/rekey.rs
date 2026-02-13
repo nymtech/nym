@@ -48,19 +48,13 @@ impl RekeyInitiator {
         R: CryptoRng + RngCore,
     {
         let (algorithm, buffer_size) = match kem {
-            KEM::XWing => (Algorithm::XWingKemDraft06, 32 + xwing::PUBLIC_KEY_LENGTH),
+            // KEM::XWing => (Algorithm::XWingKemDraft06, 32 + xwing::PUBLIC_KEY_LENGTH),
             KEM::MlKem768 => (Algorithm::MlKem768, 32 + ml_kem768::PUBLIC_KEY_LENGTH),
             // We don't support McEliece because the keys are massive.
             // If this is a deal-breaker, users can start a new session with PSQ which can use McEliece.
             KEM::McEliece => {
                 return Err(KKTError::UnsupportedAlgorithm {
                     info: "McEliece is not supported for re-keying",
-                });
-            }
-            // We don't support X25519 because it's not post-quantum secure.
-            KEM::X25519 => {
-                return Err(KKTError::UnsupportedAlgorithm {
-                    info: "X25519 is not supported for re-keying",
                 });
             }
         };

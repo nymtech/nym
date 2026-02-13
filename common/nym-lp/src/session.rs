@@ -150,7 +150,7 @@ impl LpSession {
     /// from reported version
     pub fn default_ciphersuite() -> Ciphersuite {
         Ciphersuite::new(
-            KEM::X25519,
+            KEM::MlKem768,
             HashFunction::Blake3,
             SignatureScheme::Ed25519,
             HashLength::Default,

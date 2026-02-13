@@ -4,17 +4,70 @@
 use crate::codec::OuterAeadKey;
 use crate::message::{HandshakeData, KKTResponseData, MessageType};
 use crate::noise_protocol::NoiseProtocol;
-use crate::peer::LpRemotePeer;
+use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psk::psq_responder_process_message;
-use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp};
-use crate::psq::{IntermediateHandshakeFailure, PSQHandshakeState};
+use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp, kem_to_ciphersuite};
+use crate::psq::{
+    AAD_RESPONDER_V1, IntermediateHandshakeFailure, PSQHandshakeState, SESSION_CONTEXT_V1,
+};
 use crate::session::PqSharedSecret;
 use crate::{ClientHelloData, LpError, LpMessage, LpSession};
+use libcrux_psq::handshake::Responder;
+use libcrux_psq::handshake::builders::{
+    CiphersuiteBuilder, PrincipalBuilder, ResponderCiphersuite,
+};
+use libcrux_psq::handshake::ciphersuites::CiphersuiteName;
 use nym_kkt::context::KKTContext;
+use nym_kkt::keys::KEMKeys;
+use nym_kkt_ciphersuite::KEM;
 use nym_lp_transport::traits::LpTransport;
 use rand09::rng;
 use std::time::Duration;
 use tracing::debug;
+
+pub(crate) fn build_psq_principal<R>(
+    rng: R,
+    version: u8,
+    ciphersuite: ResponderCiphersuite,
+) -> Result<Responder<R>, LpError>
+where
+    R: rand09::CryptoRng,
+{
+    let (ctx, aad) = match version {
+        1 => (SESSION_CONTEXT_V1, AAD_RESPONDER_V1),
+        other => return Err(LpError::UnsupportedVersion { version: other }),
+    };
+
+    PrincipalBuilder::new(rng)
+        .context(ctx)
+        .outer_aad(aad)
+        .recent_keys_upper_bound(30)
+        .build_responder(ciphersuite)
+        .map_err(|inner| LpError::PSQResponderBuilderFailure { inner })
+}
+
+pub(crate) fn build_psq_ciphersuite(
+    peer: &LpLocalPeer,
+    kem: KEM,
+) -> Result<ResponderCiphersuite, LpError> {
+    let Some(kem_keys) = peer.kem_keypairs.as_ref() else {
+        return Err(LpError::ResponderWithMissingKEMKey { kem });
+    };
+
+    let psq_ciphersuite = kem_to_ciphersuite(kem);
+    let builder = CiphersuiteBuilder::new(psq_ciphersuite).longterm_x25519_keys(peer.x25519());
+
+    match kem {
+        KEM::MlKem768 => builder
+            .longterm_mlkem_encapsulation_key(kem_keys.ml_kem768_encapsulation_key())
+            .longterm_mlkem_decapsulation_key(kem_keys.ml_kem768_decapsulation_key()),
+        KEM::McEliece => builder
+            .longterm_cmc_encapsulation_key(kem_keys.mc_eliece_encapsulation_key())
+            .longterm_cmc_decapsulation_key(kem_keys.mc_eliece_decapsulation_key()),
+    }
+    .build_responder_ciphersuite()
+    .map_err(|inner| LpError::PSQResponderBuilderFailure { inner })
+}
 
 pub const DEFAULT_TIMESTAMP_TOLERANCE: Duration = Duration::from_secs(30);
 

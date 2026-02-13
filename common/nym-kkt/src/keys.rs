@@ -3,6 +3,7 @@
 
 use libcrux_ml_kem::mlkem768::{MlKem768KeyPair, MlKem768PrivateKey, MlKem768PublicKey};
 use libcrux_psq::classic_mceliece;
+use libcrux_psq::handshake::types::PQEncapsulationKey;
 use nym_kkt_ciphersuite::KEM;
 use std::fmt::{Debug, Formatter};
 
@@ -51,5 +52,35 @@ impl KEMKeys {
 
     pub fn ml_kem768_decapsulation_key(&self) -> &MlKem768PrivateKey {
         self.ml_kem768.private_key()
+    }
+}
+
+pub enum EncapsulationKey {
+    McEliece(classic_mceliece::PublicKey),
+    MlKem768(MlKem768PublicKey),
+}
+
+impl EncapsulationKey {
+    pub fn kem(&self) -> KEM {
+        match self {
+            EncapsulationKey::McEliece(_) => KEM::McEliece,
+            EncapsulationKey::MlKem768(_) => KEM::MlKem768,
+        }
+    }
+
+    pub fn as_pq_encapsulation_key(&self) -> PQEncapsulationKey {
+        match self {
+            EncapsulationKey::McEliece(pk) => PQEncapsulationKey::CMC(pk),
+            EncapsulationKey::MlKem768(pk) => PQEncapsulationKey::MlKem(pk),
+        }
+    }
+}
+
+impl Debug for EncapsulationKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EncapsulationKey::McEliece(_) => write!(f, "McEliece"),
+            EncapsulationKey::MlKem768(_) => write!(f, "MlKem768"),
+        }
     }
 }

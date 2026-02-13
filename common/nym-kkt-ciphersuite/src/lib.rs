@@ -209,20 +209,17 @@ impl SignatureScheme {
 #[strum(serialize_all = "lowercase")]
 #[repr(u8)]
 pub enum KEM {
-    #[deprecated]
-    XWing = 0,
+    // unsupported
+    // XWing = 0,
     MlKem768 = 1,
     McEliece = 2,
-    #[deprecated]
-    X25519 = 255,
 }
 
 impl KEM {
     pub fn encapsulation_key_length(&self) -> usize {
         match self {
             KEM::MlKem768 => ml_kem768::PUBLIC_KEY_LENGTH,
-            KEM::XWing => xwing::PUBLIC_KEY_LENGTH,
-            KEM::X25519 => x25519::PUBLIC_KEY_LENGTH,
+            // KEM::XWing => xwing::PUBLIC_KEY_LENGTH,
             KEM::McEliece => mceliece::PUBLIC_KEY_LENGTH,
         }
     }

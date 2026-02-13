@@ -4,16 +4,70 @@
 use crate::codec::OuterAeadKey;
 use crate::message::{HandshakeData, KKTRequestData, MessageType};
 use crate::noise_protocol::NoiseProtocol;
-use crate::peer::LpRemotePeer;
+use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psk::psq_initiator_create_message;
-use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp};
-use crate::psq::{IntermediateHandshakeFailure, PSQHandshakeState};
+use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp, kem_to_ciphersuite};
+use crate::psq::{
+    AAD_INITIATOR_INNER_V1, AAD_INITIATOR_OUTER_V1, IntermediateHandshakeFailure,
+    PSQHandshakeState, SESSION_CONTEXT_V1,
+};
 use crate::session::PqSharedSecret;
 use crate::{ClientHelloData, LpError, LpMessage, LpSession};
+use libcrux_psq::handshake::RegistrationInitiator;
+use libcrux_psq::handshake::builders::{
+    CiphersuiteBuilder, InitiatorCiphersuite, PrincipalBuilder,
+};
+use libcrux_psq::handshake::ciphersuites::CiphersuiteName;
 use nym_kkt::context::KKTContext;
+use nym_kkt::keys::EncapsulationKey;
+use nym_kkt_ciphersuite::KEM;
 use nym_lp_transport::traits::LpTransport;
 use rand09::rng;
 use tracing::debug;
+
+pub(crate) fn build_psq_principal<R>(
+    rng: R,
+    version: u8,
+    ciphersuite: InitiatorCiphersuite,
+) -> Result<RegistrationInitiator<R>, LpError>
+where
+    R: rand09::CryptoRng,
+{
+    let (ctx, inner_aad, outer_aad) = match version {
+        1 => (
+            SESSION_CONTEXT_V1,
+            AAD_INITIATOR_INNER_V1,
+            AAD_INITIATOR_OUTER_V1,
+        ),
+        other => return Err(LpError::UnsupportedVersion { version: other }),
+    };
+
+    PrincipalBuilder::new(rng)
+        .outer_aad(outer_aad)
+        .inner_aad(inner_aad)
+        .context(ctx)
+        .build_registration_initiator(ciphersuite)
+        .map_err(|inner| LpError::PSQInitiatorBuilderFailure { inner })
+}
+
+pub(crate) fn build_psq_ciphersuite<'a>(
+    init: &'a LpLocalPeer,
+    responder: &'a LpRemotePeer,
+    kem_key: &'a EncapsulationKey,
+) -> Result<InitiatorCiphersuite<'a>, LpError> {
+    let psq_ciphersuite = kem_to_ciphersuite(kem_key.kem());
+
+    let builder = CiphersuiteBuilder::new(psq_ciphersuite)
+        .longterm_x25519_keys(init.x25519())
+        .peer_longterm_x25519_pk(responder.x25519());
+
+    match kem_key {
+        EncapsulationKey::McEliece(kem_key) => builder.peer_longterm_cmc_pk(kem_key),
+        EncapsulationKey::MlKem768(kem_key) => builder.peer_longterm_mlkem_pk(kem_key),
+    }
+    .build_initiator_ciphersuite()
+    .map_err(|inner| LpError::PSQInitiatorBuilderFailure { inner })
+}
 
 impl<'a, S> PSQHandshakeState<'a, S>
 where

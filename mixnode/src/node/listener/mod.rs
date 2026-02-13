@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::listener::connection_handler::ConnectionHandler;
+use quinn::{Endpoint, ServerConfig};
+use rcgen::generate_simple_self_signed;
+use rustls::{Certificate, PrivateKey};
 use std::net::SocketAddr;
-use std::process;
-use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 #[cfg(feature = "cpucycles")]
 use tracing::error;
@@ -25,27 +26,36 @@ impl Listener {
 
     async fn run(&mut self, connection_handler: ConnectionHandler) {
         log::trace!("Starting Listener");
-        let listener = match TcpListener::bind(self.address).await {
-            Ok(listener) => listener,
-            Err(err) => {
-                error!("Failed to bind to {} - {err}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address);
-                process::exit(1);
-            }
-        };
+        let endpoint = Endpoint::server(server_config(), self.address).unwrap();
 
         while !self.shutdown.is_shutdown() {
             tokio::select! {
                 biased;
                 _ = self.shutdown.recv() => {
                     log::trace!("Listener: Received shutdown");
-                }
-                connection = listener.accept() => {
+                },
+                connection = endpoint.accept() => {
                     match connection {
-                        Ok((socket, remote_addr)) => {
-                            let handler = connection_handler.clone();
-                            tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone()));
+                        Some(connecting) => {
+                           match connecting.await {
+                                Ok(conn) => {
+                                    debug!("Handling connection from {:?}", conn.remote_address());
+                                    let handler = connection_handler.clone();
+                                    tokio::spawn(handler.handle_connection(conn, self.shutdown.clone()));
+                                },
+                                Err(err) => error!("Failed to establish connection - {err:?}"),
+                            }
                         }
-                        Err(err) => warn!("Failed to accept incoming connection - {err}"),
+                        // Some(Err(err)) => {
+                        //     error!(
+                        //         "The socket connection got corrupted with error: {err}. Closing the socket",
+                        //     );
+                        //     return;
+                        // }
+                        None => {
+                            error!("Endpoint closed");
+                            break;
+                        }, // stream got closed by remote
                     }
                 },
             };
@@ -58,4 +68,15 @@ impl Listener {
 
         tokio::spawn(async move { self.run(connection_handler).await })
     }
+}
+
+fn generate_self_signed_cert(
+) -> Result<(rustls::Certificate, rustls::PrivateKey), Box<dyn std::error::Error>> {
+    let cert = generate_simple_self_signed(vec!["mixnode".to_string()])?;
+    let key = PrivateKey(cert.serialize_private_key_der());
+    Ok((Certificate(cert.serialize_der()?), key))
+}
+fn server_config() -> ServerConfig {
+    let (cert, key) = generate_self_signed_cert().expect("Failed to generate certificate");
+    ServerConfig::with_single_cert(vec![cert], key).expect("Failed to generate server config")
 }

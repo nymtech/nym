@@ -5,8 +5,10 @@ use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandle
 use crate::node::storage::Storage;
 use log::*;
 use nym_task::TaskClient;
+use quinn::{Endpoint, ServerConfig};
+use rcgen::generate_simple_self_signed;
+use rustls::{Certificate, PrivateKey};
 use std::net::SocketAddr;
-use std::process;
 use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {
@@ -25,13 +27,7 @@ impl Listener {
         St: Storage + Clone + 'static,
     {
         info!("Starting mixnet listener at {}", self.address);
-        let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
-            Ok(listener) => listener,
-            Err(err) => {
-                error!("Failed to bind to {} - {err}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address);
-                process::exit(1);
-            }
-        };
+        let endpoint = Endpoint::server(server_config(), self.address).unwrap();
 
         while !self.shutdown.is_shutdown() {
             tokio::select! {
@@ -39,13 +35,22 @@ impl Listener {
                 _ = self.shutdown.recv() => {
                     log::trace!("mixnet_handling::Listener: Received shutdown");
                 }
-                connection = tcp_listener.accept() => {
+                connection = endpoint.accept() => {
                     match connection {
-                        Ok((socket, remote_addr)) => {
-                            let handler = connection_handler.clone();
-                            tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone()));
+                        Some(connecting) => {
+                            match connecting.await {
+                                Ok(conn) => {
+                                    debug!("Handling connection from {:?}", conn.remote_address());
+                                    let handler = connection_handler.clone();
+                                    tokio::spawn(handler.handle_connection(conn, self.shutdown.clone()));
+                                },
+                                Err(err) => error!("Failed to establish connection - {err:?}"),
+                            }
                         }
-                        Err(err) => warn!("failed to get client: {err}"),
+                        None => {
+                            error!("Endpoint closed");
+                            break;
+                        }, // stream got closed by remote
                     }
                 }
             }
@@ -60,4 +65,14 @@ impl Listener {
 
         tokio::spawn(async move { self.run(connection_handler).await })
     }
+}
+
+fn generate_self_signed_cert() -> Result<(Certificate, PrivateKey), Box<dyn std::error::Error>> {
+    let cert = generate_simple_self_signed(vec!["mixnode".to_string()])?;
+    let key = PrivateKey(cert.serialize_private_key_der());
+    Ok((Certificate(cert.serialize_der()?), key))
+}
+fn server_config() -> ServerConfig {
+    let (cert, key) = generate_self_signed_cert().expect("Failed to generate certificate");
+    ServerConfig::with_single_cert(vec![cert], key).expect("Failed to generate server config")
 }

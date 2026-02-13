@@ -15,10 +15,9 @@ use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
+use quinn::{Connection, ConnectionError};
 use std::collections::HashMap;
-use std::net::SocketAddr;
-use tokio::net::TcpStream;
-use tokio_util::codec::Framed;
+use tokio_util::codec::FramedRead;
 
 pub(crate) struct ConnectionHandler<St: Storage> {
     packet_processor: PacketProcessor,
@@ -174,23 +173,37 @@ impl<St: Storage> ConnectionHandler<St> {
         self.handle_processed_packet(processed_final_hop).await
     }
 
-    pub(crate) async fn handle_connection(
-        mut self,
-        conn: TcpStream,
-        remote: SocketAddr,
-        mut shutdown: TaskClient,
-    ) {
-        debug!("Starting connection handler for {:?}", remote);
+    pub(crate) async fn handle_connection(mut self, conn: Connection, mut shutdown: TaskClient) {
+        debug!(
+            "Starting connection handler for {:?}",
+            conn.remote_address()
+        );
         shutdown.mark_as_success();
-        let mut framed_conn = Framed::new(conn, NymCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
                     log::trace!("ConnectionHandler: received shutdown");
                 }
-                framed_sphinx_packet = framed_conn.next() => {
-                    match framed_sphinx_packet {
+                recv = conn.accept_uni() => {
+                    let recv_stream = match recv {
+                        Ok(recv_stream) => recv_stream,
+                        Err(err) => {
+                            match err {
+                                ConnectionError::TimedOut => {
+                                    //normal timeout, we just need to drop the connection
+                                    break;
+                                },
+                                _ => {
+                                    error!("Error accepting uni stream - {err:?}");
+                                    break;
+                                },
+                            }
+                        }
+
+                    };
+                    let mut framed_stream = FramedRead::new(recv_stream, NymCodec);
+                    match framed_stream.next().await {
                         Some(Ok(framed_sphinx_packet)) => {
                             // TODO: benchmark spawning tokio task with full processing vs just processing it
                             // synchronously under higher load in single and multi-threaded situation.
@@ -212,9 +225,6 @@ impl<St: Storage> ConnectionHandler<St> {
             }
         }
 
-        info!(
-            "Closing connection from {:?}",
-            framed_conn.into_inner().peer_addr()
-        );
+        info!("Closing connection from {:?}", conn.remote_address());
     }
 }

@@ -46,7 +46,7 @@ mod tests {
             responder_mlkem_keypair.1.as_slice().as_slice(),
         );
 
-        let r_dir_hash_mceliece = hash_encapsulation_key(
+        let _r_dir_hash_mceliece = hash_encapsulation_key(
             // &ciphersuite.hash_function(),
             &hash_function,
             // ciphersuite.hash_len(),
@@ -210,7 +210,7 @@ mod tests {
             .serialize(
                 &mut session_storage,
                 SessionBinding {
-                    initiator_authenticator: &Authenticator::Dh(initiator_psq_keys.pk),
+                    initiator_authenticator: &initiator_authenticator,
                     responder_ecdh_pk: &responder_x25519_keypair.pk,
                     responder_pq_pk: Some(PQEncapsulationKey::MlKem(&mlkem_key)),
                 },
@@ -219,7 +219,7 @@ mod tests {
         let mut r_transport = Session::deserialize(
             &session_storage,
             SessionBinding {
-                initiator_authenticator: &Authenticator::Dh(initiator_psq_keys.pk),
+                initiator_authenticator: &initiator_authenticator,
                 responder_ecdh_pk: &responder_x25519_keypair.pk,
                 responder_pq_pk: Some(PQEncapsulationKey::MlKem(&mlkem_key)),
             },

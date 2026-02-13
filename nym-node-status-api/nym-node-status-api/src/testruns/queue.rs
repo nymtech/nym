@@ -1,5 +1,5 @@
 use crate::db::DbConnection;
-use crate::db::models::{GatewayInfoDto, TestRunDto, TestRunStatus};
+use crate::db::models::{GatewayInfoDto, TestRunDto, TestRunKind, TestRunStatus};
 use crate::testruns::models::TestRun;
 use crate::utils::now_utc;
 use anyhow::anyhow;
@@ -53,15 +53,17 @@ pub(crate) async fn try_queue_testrun(
             id,
             gateway_id,
             status,
+            kind,
             created_utc,
             ip_address,
             log,
             last_assigned_utc
          FROM testruns
-         WHERE gateway_id = $1 AND status != 2
+         WHERE gateway_id = $1 AND status != 2 AND kind = $2
          ORDER BY id DESC
          LIMIT 1"#,
-        gateway_id
+        gateway_id,
+        TestRunKind::Probe as i16
     )
     .fetch(conn.as_mut())
     .try_collect::<Vec<_>>()

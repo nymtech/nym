@@ -1,4 +1,7 @@
-use crate::models::{TestrunAssignmentWithTickets, get_testrun, submit_results, submit_results_v2};
+use crate::models::{
+    TestrunAssignmentWithTickets, get_testrun, submit_ports_check_results_v2, submit_results,
+    submit_results_v2,
+};
 use anyhow::bail;
 use api::ApiPaths;
 use nym_crypto::asymmetric::ed25519::{PrivateKey, Signature};
@@ -71,7 +74,53 @@ impl NsApiClient {
                 testrun
             })
             .map_err(|err| {
-                tracing::error!("err");
+                tracing::error!("{err}");
+                err.into()
+            })
+    }
+
+    #[instrument(level = "info", skip_all)]
+    pub async fn request_ports_check_testrun(
+        &self,
+    ) -> anyhow::Result<Option<TestrunAssignmentWithTickets>> {
+        let target_url = self.api.request_ports_check_testrun();
+
+        let payload = get_testrun::Payload {
+            agent_public_key: self.auth_key.public_key(),
+            timestamp: time::UtcDateTime::now().unix_timestamp(),
+        };
+        let signature = self.sign_message(&payload)?;
+        let request = get_testrun::GetTestrunRequest { payload, signature };
+
+        let res = self.client.get(target_url).json(&request).send().await?;
+        let status = res.status();
+        let response_text = res.text().await?;
+
+        if status.is_client_error() {
+            if matches!(status, reqwest::StatusCode::NOT_FOUND) {
+                tracing::warn!(
+                    "Ports-check request endpoint not available on server (404), skipping iteration"
+                );
+                return Ok(None);
+            }
+            bail!("{}: {}", status, response_text);
+        } else if status.is_server_error() {
+            if matches!(status, reqwest::StatusCode::SERVICE_UNAVAILABLE)
+                && response_text.contains("No testruns available")
+            {
+                return Ok(None);
+            } else {
+                bail!("{}: {}", status, response_text);
+            }
+        }
+
+        serde_json::from_str(&response_text)
+            .map(|testrun| {
+                tracing::info!("Received ports-check testrun assignment: {:?}", testrun);
+                testrun
+            })
+            .map_err(|err| {
+                tracing::error!("{err}");
                 err.into()
             })
     }
@@ -137,6 +186,40 @@ impl NsApiClient {
             .and_then(|response| response.error_for_status())?;
 
         tracing::debug!("Submitted results with context: {})", res.status());
+        Ok(())
+    }
+
+    #[instrument(level = "info", skip(self, port_check_result))]
+    pub async fn submit_ports_check_results_with_context(
+        &self,
+        testrun_id: i32,
+        port_check_result: nym_gateway_probe::PortCheckResult,
+        probe_log: String,
+        assigned_at_utc: i64,
+        gateway_identity_key: String,
+    ) -> anyhow::Result<()> {
+        let target_url = self.api.submit_ports_check_results_v2(testrun_id);
+
+        let payload = submit_ports_check_results_v2::Payload {
+            port_check_result,
+            probe_log,
+            agent_public_key: self.auth_key.public_key(),
+            assigned_at_utc,
+            gateway_identity_key,
+        };
+        let signature = self.sign_message(&payload)?;
+        let submit =
+            submit_ports_check_results_v2::SubmitPortsCheckResultsV2 { payload, signature };
+
+        let res = self
+            .client
+            .post(target_url)
+            .json(&submit)
+            .send()
+            .await
+            .and_then(|response| response.error_for_status())?;
+
+        tracing::debug!("Submitted ports-check results: {})", res.status());
         Ok(())
     }
 

@@ -46,6 +46,7 @@ pub async fn wg_probe(
     auth_version: AuthenticatorVersion,
     awg_args: Option<String>,
     netstack_args: NetstackArgs,
+    port_check_only: bool,
     // TODO: update type
     credential: CredentialSpendingData,
 ) -> anyhow::Result<WgProbeResults> {
@@ -149,6 +150,7 @@ pub async fn wg_probe(
         &tunnel_config,
         &netstack_args,
         &awg_args.unwrap_or_default(),
+        port_check_only,
         &mut wg_outcome,
     );
 

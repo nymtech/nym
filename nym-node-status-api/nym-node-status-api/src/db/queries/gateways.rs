@@ -77,23 +77,24 @@ pub(crate) async fn update_bonded_gateways(
 
 pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gateway>> {
     let mut conn = pool.acquire().await?;
-    let items = sqlx::query_as!(
-        GatewayDto,
+    let items = sqlx::query_as::<_, GatewayDto>(
         r#"SELECT
-            gw.gateway_identity_key as "gateway_identity_key!",
-            gw.bonded as "bonded: bool",
-            gw.performance as "performance!",
-            gw.self_described as "self_described?",
-            gw.explorer_pretty_bond as "explorer_pretty_bond?",
-            gw.last_probe_result as "last_probe_result?",
-            gw.last_probe_log as "last_probe_log?",
-            gw.last_testrun_utc as "last_testrun_utc?",
-            gw.last_updated_utc as "last_updated_utc!",
-            gw.bridges as "bridges?: serde_json::Value",
-            COALESCE(gd.moniker, 'NA') as "moniker!",
-            COALESCE(gd.website, 'NA') as "website!",
-            COALESCE(gd.security_contact, 'NA') as "security_contact!",
-            COALESCE(gd.details, 'NA') as "details!"
+            gw.gateway_identity_key,
+            gw.bonded,
+            gw.performance,
+            gw.self_described,
+            gw.explorer_pretty_bond,
+            gw.last_probe_result,
+            gw.last_probe_log,
+            gw.ports_check,
+            gw.last_ports_check_utc,
+            gw.last_testrun_utc,
+            gw.last_updated_utc,
+            COALESCE(gd.moniker, 'NA') AS moniker,
+            COALESCE(gd.security_contact, 'NA') AS security_contact,
+            COALESCE(gd.details, 'NA') AS details,
+            COALESCE(gd.website, 'NA') AS website,
+            gw.bridges
          FROM gateways gw
          LEFT JOIN gateway_description gd
          ON gw.gateway_identity_key = gd.gateway_identity_key

@@ -1,10 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::KKTError;
 use libcrux_ml_kem::mlkem768::{MlKem768KeyPair, MlKem768PrivateKey, MlKem768PublicKey};
 use libcrux_psq::classic_mceliece;
 use libcrux_psq::handshake::types::PQEncapsulationKey;
-use nym_kkt_ciphersuite::KEM;
+use nym_kkt_ciphersuite::{KEM, mceliece};
 use std::fmt::{Debug, Formatter};
 
 /// Wrapper around keys used for the KEM exchange
@@ -72,6 +73,26 @@ impl EncapsulationKey {
         match self {
             EncapsulationKey::McEliece(pk) => PQEncapsulationKey::CMC(pk),
             EncapsulationKey::MlKem768(pk) => PQEncapsulationKey::MlKem(pk),
+        }
+    }
+
+    pub fn try_from_bytes(bytes: Vec<u8>, kem: KEM) -> Result<EncapsulationKey, KKTError> {
+        match kem {
+            KEM::MlKem768 => Ok(EncapsulationKey::MlKem768(
+                MlKem768PublicKey::try_from(bytes.as_slice()).unwrap(),
+            )),
+            KEM::McEliece => {
+                let boxed_array: Box<[u8; mceliece::PUBLIC_KEY_LENGTH]> = bytes
+                    .into_boxed_slice()
+                    .try_into()
+                    .map_err(|_| KKTError::KEMError {
+                        info: "mceliece key of invalid length",
+                    })?;
+
+                Ok(EncapsulationKey::McEliece(
+                    classic_mceliece::PublicKey::try_from(boxed_array).unwrap(),
+                ))
+            }
         }
     }
 }

@@ -63,14 +63,14 @@ pub struct KKTContext {
     ciphersuite: Ciphersuite,
 }
 impl KKTContext {
-    pub fn new(role: KKTRole, mode: KKTMode, ciphersuite: &Ciphersuite) -> Self {
+    pub fn new(role: KKTRole, mode: KKTMode, ciphersuite: Ciphersuite) -> Self {
         Self {
             version: KKT_VERSION,
             message_sequence: 0,
             status: KKTStatus::Ok,
             mode,
             role,
-            ciphersuite: *ciphersuite,
+            ciphersuite,
         }
     }
 

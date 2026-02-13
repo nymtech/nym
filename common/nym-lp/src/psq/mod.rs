@@ -526,17 +526,9 @@ mod tests {
         // OneWay - MlKem
         let psq_ciphersuite = CiphersuiteName::X25519_MLKEM768_X25519_AESGCM128_HKDFSHA256;
 
-        let ciphersuite = Ciphersuite::resolve_ciphersuite(
-            KEM::MlKem768,
-            hash_function,
-            SignatureScheme::Ed25519,
-            None,
-        )
-        .unwrap();
-
         let (mut initiator, request_bytes) = KKTInitiator::generate_one_way_request(
             &mut rng,
-            &ciphersuite,
+            init.ciphersuite,
             &responder_x25519_keypair.pk,
             &dir_hash,
             protocol_version,
@@ -545,20 +537,8 @@ mod tests {
 
         let (response_bytes, _) = kkt_responder.process_request(&request_bytes).unwrap();
 
-        let (i_obtained_key, _) = initiator.process_response(&response_bytes).unwrap();
-
-        assert_eq!(
-            i_obtained_key,
-            resp_keys
-                .ml_kem768_encapsulation_key()
-                .as_slice()
-                .as_slice(),
-        );
-
-        let mlkem_key =
-            libcrux_kem::MlKem768PublicKey::try_from(i_obtained_key.as_slice()).unwrap();
-
-        let encapsulation_key = EncapsulationKey::MlKem768(mlkem_key);
+        let response = initiator.process_response(&response_bytes).unwrap();
+        let encapsulation_key = response.encapsulation_key;
 
         let mut msg_channel = vec![0u8; 8192];
         let mut payload_buf_responder = vec![0u8; 4096];

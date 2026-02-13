@@ -1,8 +1,9 @@
 use libcrux_psq::handshake::types::DHPublicKey;
-use nym_kkt_ciphersuite::Ciphersuite;
+use nym_kkt_ciphersuite::{Ciphersuite, KEM};
 use rand09::{CryptoRng, RngCore};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+use crate::keys::EncapsulationKey;
 use crate::{
     carrier::Carrier,
     context::{KKTContext, KKTMode, KKTRole, KKTStatus},
@@ -10,6 +11,14 @@ use crate::{
     frame::KKTFrame,
     key_utils::validate_encapsulation_key,
 };
+
+pub struct KKTResponse {
+    /// The obtained encapsulation key of the remote
+    pub encapsulation_key: EncapsulationKey,
+
+    /// Indicates whether responder was able to verify the initiator's kem key,
+    pub verified_initiator_kem_key: bool,
+}
 
 pub struct KKTInitiator<'a> {
     carrier: Carrier,
@@ -27,7 +36,7 @@ impl<'a> KKTInitiator<'a> {
     // to be used by clients
     pub fn generate_one_way_request<R>(
         rng: &mut R,
-        ciphersuite: &Ciphersuite,
+        ciphersuite: Ciphersuite,
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
@@ -49,7 +58,7 @@ impl<'a> KKTInitiator<'a> {
     // to be used by nodes
     pub fn generate_mutual_request<'b, R>(
         rng: &mut R,
-        ciphersuite: &Ciphersuite,
+        ciphersuite: Ciphersuite,
         local_encapsulation_key: &'b [u8],
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
@@ -72,7 +81,7 @@ impl<'a> KKTInitiator<'a> {
     fn generate_encrypted_request<'b, R>(
         rng: &mut R,
         mode: KKTMode,
-        ciphersuite: &Ciphersuite,
+        ciphersuite: Ciphersuite,
         local_encapsulation_key: Option<&'b [u8]>,
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
@@ -97,22 +106,30 @@ impl<'a> KKTInitiator<'a> {
 
     // bool would be true if the initiator was using mutual mode
     // and the responder was able to verify the initiator's kem key
-    pub fn process_response(&mut self, response_bytes: &[u8]) -> Result<(Vec<u8>, bool), KKTError> {
+    pub fn process_response(&mut self, response_bytes: &[u8]) -> Result<KKTResponse, KKTError> {
         let decrypted_response_bytes = self.carrier.decrypt(response_bytes)?;
         let (response_frame, remote_context) = KKTFrame::from_bytes(&decrypted_response_bytes)?;
-        initiator_ingest_response(
+        let (kem_bytes, verified_initiator_kem_key) = initiator_ingest_response(
             &mut self.context,
             &response_frame,
             &remote_context,
             self.expected_hash,
-        )
+        )?;
+
+        let encapsulation_key =
+            EncapsulationKey::try_from_bytes(kem_bytes, self.context.ciphersuite().kem())?;
+
+        Ok(KKTResponse {
+            encapsulation_key,
+            verified_initiator_kem_key,
+        })
     }
 }
 
-pub fn initiator_process<'a>(
+pub fn initiator_process(
     mode: KKTMode,
-    ciphersuite: &Ciphersuite,
-    own_encapsulation_key: Option<&'a [u8]>,
+    ciphersuite: Ciphersuite,
+    own_encapsulation_key: Option<&[u8]>,
 ) -> Result<(KKTContext, KKTFrame), KKTError> {
     let context = KKTContext::new(KKTRole::Initiator, mode, ciphersuite);
 

@@ -66,3 +66,40 @@ As a general approach, licensing is as follows this pattern:
 * Nym applications and binaries are [GPL-3.0-only](https://www.gnu.org/licenses/)
 
 * Used libraries and different components are [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.html) or [MIT](https://mit-license.org/)
+
+## SEO & Structured Data
+
+### Frontmatter
+Every `.mdx` page supports frontmatter fields that control meta tags, Open Graph, and JSON-LD schema:
+```yaml
+---
+title: "Page Title for Search Engines"
+description: "Unique meta description for this page."
+schemaType: "TechArticle"    # TechArticle (default), HowTo, or FAQPage
+section: "Operators"          # Operators, Developers, Network, APIs
+lastUpdated: "2026-02-11"    # Feeds dateModified schema
+breadcrumbLabel: "Custom Label" # Optional, overrides URL slug in breadcrumbs
+---
+```
+
+Pages without frontmatter fall back to the default Nym description. See the [full spec](https://docs.google.com/document/d/14Af5brvEQSS0MIX9e_cZ3BktvgQeqA5CnzSGlKb7pYw/edit) for all page blocks.
+
+### Sitemap
+Generated automatically on build. After building:
+```bash
+npx next-sitemap
+```
+Outputs `sitemap.xml` and `robots.txt` to `/public`.
+
+### Environment Variable
+Set in production:
+```
+NEXT_PUBLIC_SITE_URL=https://nymtech.net/docs
+```
+
+### Schema Types
+| Type | Use When |
+|------|----------|
+| TechArticle | Reference docs, config guides, overviews (default) |
+| HowTo | Step-by-step install/setup guides |
+| FAQPage | Question-answer pages |

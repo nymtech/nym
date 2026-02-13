@@ -1,3 +1,11 @@
+---
+title: "Run a Nyx RPC Node for the Nym Network"
+description: "Set up and run a dedicated RPC node for the Nyx blockchain. Query network state, serve chain data, and interact with Nym smart contracts programmatically."
+schemaType: "HowTo"
+section: "Developers"
+lastUpdated: "2026-02-01"
+---
+
 # RPC Nodes
 
 RPC Nodes (which might otherwise be referred to as 'Lite Nodes' or just 'Full Nodes') differ from Validators in that they hold a copy of the Nyx blockchain, but do **not** participate in consensus / block-production.

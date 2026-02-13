@@ -22,7 +22,6 @@ use crate::{
 };
 use bytes::{Buf, Bytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use nym_kkt::ciphersuite::Ciphersuite;
 use std::mem;
 use tracing::debug;
 
@@ -939,7 +938,8 @@ impl LpStateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::SessionsMock;
+    use crate::{SessionsMock, kem_list};
+    use nym_kkt_ciphersuite::KEM;
 
     #[test]
     fn test_state_machine_init() {

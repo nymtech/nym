@@ -5,10 +5,8 @@ use crate::message::MessageType;
 use crate::{noise_protocol::NoiseError, replay::ReplayError};
 use libcrux_psq::handshake::builders::BuilderError;
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
-use nym_kkt::{
-    ciphersuite::{HashFunction, KEM},
-    error::KKTError,
-};
+use nym_kkt::error::KKTError;
+use nym_kkt_ciphersuite::{HashFunction, KEM};
 use thiserror::Error;
 
 #[derive(Error, Debug)]

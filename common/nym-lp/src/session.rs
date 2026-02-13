@@ -13,19 +13,20 @@ use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
 use crate::packet::LpHeader;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psk::derive_subsession_psk;
-use crate::psq::PSQHandshakeState;
 use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
 use libcrux_psq::v1::traits::PSQ;
 use libcrux_psq::{Channel, IntoSession};
 use rand09::rngs::ThreadRng;
 
+use crate::psq::PSQHandshakeState;
 use libcrux_psq::{
     handshake::{RegistrationInitiator, Responder, types::DHPublicKey},
     session::Session,
 };
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt::ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
+use nym_kkt::context::KKTContext;
+use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
 use nym_lp_transport::traits::LpTransport;
 use parking_lot::Mutex;
 use snow::Builder;
@@ -67,9 +68,6 @@ pub struct LpSession {
     /// Set during handshake completion from the ClientHello/ServerHello packet header.
     /// Used for future version negotiation and compatibility checks.
     version: u8,
-
-    /// Carrier
-    carrier: Option<Carrier>,
 
     /// Outer AEAD key for packet encryption (derived from PSK after PSQ handshake).
     outer_aead_key: OuterAeadKey,
@@ -204,7 +202,8 @@ impl LpSession {
     /// This is used for KKT protocol when the responder needs to send their
     /// KEM public key in the KKT response.
     pub fn local_x25519_public(&self) -> x25519::PublicKey {
-        *self.local_peer.x25519.public_key()
+        todo!()
+        // *self.local_peer.x25519.pk
     }
 
     /// Returns the remote ed25519 public key.
@@ -212,23 +211,24 @@ impl LpSession {
         self.remote_peer.ed25519_public
     }
 
-    pub fn local_kem_keys(&self) -> Result<&KemKeyPair, LpError> {
-        todo!()
-        // let kem = self.base.local_peer.ciphersuite.kem();
-        //
-        // self.base
-        //     .local_peer
-        //     .kem_key(kem)
-        //     .ok_or_else(|| LpError::ResponderWithMissingKEMKey { kem })
-        //     .map(|keys| keys.deref())
-    }
+    // pub fn local_kem_keys(&self) -> Result<&KemKeyPair, LpError> {
+    //     todo!()
+    //     // let kem = self.base.local_peer.ciphersuite.kem();
+    //     //
+    //     // self.base
+    //     //     .local_peer
+    //     //     .kem_key(kem)
+    //     //     .ok_or_else(|| LpError::ResponderWithMissingKEMKey { kem })
+    //     //     .map(|keys| keys.deref())
+    // }
 
     /// Returns the remote X25519 public key.
     ///
     /// Used for tie-breaking in simultaneous subsession initiation.
     /// Lower key loses and becomes responder.
     pub fn remote_x25519_public(&self) -> &x25519::PublicKey {
-        &self.remote_peer.x25519_public
+        todo!()
+        // &self.remote_peer.x25519_public
     }
 
     // noiserm
@@ -435,42 +435,43 @@ impl LpSession {
         subsession_index: u64,
         is_initiator: bool,
     ) -> Result<SubsessionHandshake, LpError> {
-        // Get PQ shared secret
-        let pq_secret = self.pq_shared_secret();
-
-        // Derive subsession PSK from parent's PQ shared secret
-        let subsession_psk = derive_subsession_psk(pq_secret.as_bytes(), subsession_index);
-
-        // Build KKpsk0 handshake
-        // Pattern: Noise_KKpsk0_25519_ChaChaPoly_SHA256
-        // Both parties already know each other's static keys from parent session
-        let pattern_name = "Noise_KKpsk0_25519_ChaChaPoly_SHA256";
-        let params = pattern_name.parse()?;
-
-        let local_key_bytes = self.local_peer.x25519.private_key().to_bytes();
-        let remote_key_bytes = self.remote_x25519_public().to_bytes();
-
-        let builder = Builder::new(params)
-            .local_private_key(&local_key_bytes)
-            .remote_public_key(&remote_key_bytes)
-            .psk(0, &subsession_psk); // PSK at position 0 for KKpsk0
-
-        let handshake_state = if is_initiator {
-            builder.build_initiator().map_err(LpError::SnowKeyError)?
-        } else {
-            builder.build_responder().map_err(LpError::SnowKeyError)?
-        };
-
-        Ok(SubsessionHandshake {
-            index: subsession_index,
-            noise_state: Mutex::new(NoiseProtocol::new(handshake_state)),
-            is_initiator,
-            local_peer: self.local_peer.clone(),
-            remote_peer: self.remote_peer.clone(),
-            pq_shared_secret: self.pq_shared_secret.clone(),
-            subsession_psk,
-            negotiated_version: self.version,
-        })
+        todo!()
+        // // Get PQ shared secret
+        // let pq_secret = self.pq_shared_secret();
+        //
+        // // Derive subsession PSK from parent's PQ shared secret
+        // let subsession_psk = derive_subsession_psk(pq_secret.as_bytes(), subsession_index);
+        //
+        // // Build KKpsk0 handshake
+        // // Pattern: Noise_KKpsk0_25519_ChaChaPoly_SHA256
+        // // Both parties already know each other's static keys from parent session
+        // let pattern_name = "Noise_KKpsk0_25519_ChaChaPoly_SHA256";
+        // let params = pattern_name.parse()?;
+        //
+        // let local_key_bytes = self.local_peer.x25519.private_key().to_bytes();
+        // let remote_key_bytes = self.remote_x25519_public().to_bytes();
+        //
+        // let builder = Builder::new(params)
+        //     .local_private_key(&local_key_bytes)
+        //     .remote_public_key(&remote_key_bytes)
+        //     .psk(0, &subsession_psk); // PSK at position 0 for KKpsk0
+        //
+        // let handshake_state = if is_initiator {
+        //     builder.build_initiator().map_err(LpError::SnowKeyError)?
+        // } else {
+        //     builder.build_responder().map_err(LpError::SnowKeyError)?
+        // };
+        //
+        // Ok(SubsessionHandshake {
+        //     index: subsession_index,
+        //     noise_state: Mutex::new(NoiseProtocol::new(handshake_state)),
+        //     is_initiator,
+        //     local_peer: self.local_peer.clone(),
+        //     remote_peer: self.remote_peer.clone(),
+        //     pq_shared_secret: self.pq_shared_secret.clone(),
+        //     subsession_psk,
+        //     negotiated_version: self.version,
+        // })
     }
 }
 

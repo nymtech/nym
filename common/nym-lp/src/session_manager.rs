@@ -13,7 +13,6 @@ use std::collections::HashMap;
 
 #[cfg(test)]
 use libcrux_psq::handshake::types::DHPublicKey;
-use nym_kkt::ciphersuite::Ciphersuite;
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///

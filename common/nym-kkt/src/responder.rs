@@ -48,21 +48,20 @@ impl<'a> KKTResponder<'a> {
                     Err(KKTError::FunctionInputError {
                         info: "Did not provide a supported outer protocol version when instaciating a KKTResponder",
                     })
+                } else if mlkem_encapsulation_key.is_none() && mceliece_encapsulation_key.is_none()
+                {
+                    return Err(KKTError::FunctionInputError {
+                        info: "Did not provide an encapsulation key when instanciating a KKTResponder.",
+                    });
                 } else {
-                    if mlkem_encapsulation_key.is_none() && mceliece_encapsulation_key.is_none() {
-                        return Err(KKTError::FunctionInputError {
-                            info: "Did not provide an encapsulation key when instanciating a KKTResponder.",
-                        });
-                    } else {
-                        Ok(Self {
-                            x25519_keypair,
-                            mlkem_encapsulation_key,
-                            mceliece_encapsulation_key,
-                            supported_hash_functions: hash_functions,
-                            supported_signature_schemes: signature_schemes,
-                            supported_outer_protocol_versions: outer_protocol_versions,
-                        })
-                    }
+                    Ok(Self {
+                        x25519_keypair,
+                        mlkem_encapsulation_key,
+                        mceliece_encapsulation_key,
+                        supported_hash_functions: hash_functions,
+                        supported_signature_schemes: signature_schemes,
+                        supported_outer_protocol_versions: outer_protocol_versions,
+                    })
                 }
             }
         }
@@ -76,36 +75,32 @@ impl<'a> KKTResponder<'a> {
 
     fn check_ciphersuite_compatiblity(
         &self,
-        remote_ciphersuite: &Ciphersuite,
+        remote_ciphersuite: Ciphersuite,
     ) -> Result<(), KKTError> {
         if !self
             .supported_hash_functions
-            .contains(remote_ciphersuite.hash_function())
+            .contains(&remote_ciphersuite.hash_function())
         {
             Err(KKTError::IncompatibilityError {
                 info: "Unsupported HashFunction",
             })
+        } else if !self
+            .supported_signature_schemes
+            .contains(&remote_ciphersuite.signature_scheme())
+        {
+            Err(KKTError::IncompatibilityError {
+                info: "Unsupported SignatureScheme",
+            })
+        } else if match remote_ciphersuite.kem() {
+            KEM::MlKem768 => self.mlkem_encapsulation_key.is_some(),
+            KEM::McEliece => self.mceliece_encapsulation_key.is_some(),
+            _ => false,
+        } {
+            Ok(())
         } else {
-            if !self
-                .supported_signature_schemes
-                .contains(remote_ciphersuite.signature_scheme())
-            {
-                Err(KKTError::IncompatibilityError {
-                    info: "Unsupported SignatureScheme",
-                })
-            } else {
-                if match remote_ciphersuite.kem() {
-                    KEM::MlKem768 => self.mlkem_encapsulation_key.is_some(),
-                    KEM::McEliece => self.mceliece_encapsulation_key.is_some(),
-                    _ => false,
-                } {
-                    Ok(())
-                } else {
-                    Err(KKTError::IncompatibilityError {
-                        info: "Unsupported KEM",
-                    })
-                }
-            }
+            Err(KKTError::IncompatibilityError {
+                info: "Unsupported KEM",
+            })
         }
     }
 
@@ -135,19 +130,19 @@ impl<'a> KKTResponder<'a> {
             }
         };
 
-        let frame = if local_context.ciphersuite().kem() == &KEM::MlKem768 {
+        let frame = if local_context.ciphersuite().kem() == KEM::MlKem768 {
             KKTFrame::new(
                 &local_context,
                 // SAFETY: the self.check_ciphersuite_compatibility call above guarantees that we will have a key in the right place
                 #[allow(clippy::unwrap_used)]
-                &self.mlkem_encapsulation_key.unwrap().as_slice().as_slice(),
+                self.mlkem_encapsulation_key.unwrap().as_slice().as_slice(),
             )?
         } else {
             KKTFrame::new(
                 &local_context,
                 // SAFETY: the self.check_ciphersuite_compatibility call above guarantees that we will have a key in the right place
                 #[allow(clippy::unwrap_used)]
-                &self.mceliece_encapsulation_key.unwrap().as_ref(),
+                self.mceliece_encapsulation_key.unwrap().as_ref(),
             )?
         };
 

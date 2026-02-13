@@ -20,6 +20,7 @@ rand09 = { workspace = true }
 
 nym-crypto = { path = "../crypto", features = ["hashing", "asymmetric"] }
 nym-kkt = { path = "../nym-kkt" }
+nym-kkt-ciphersuite = { workspace = true }
 nym-lp-common = { path = "../nym-lp-common" }
 nym-lp-transport = { path = "../nym-lp-transport" }
 

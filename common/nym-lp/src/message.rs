@@ -8,12 +8,11 @@ use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use rand::RngCore;
-use serde::{Deserialize, Serialize};
-use std::fmt::{self, Display, write};
+use std::fmt::{self, Display};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 /// Data structure for the ClientHello message
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ClientHelloData {
     /// Client-proposed receiver index for session identification (4 bytes)
     /// Auto-generated randomly by the client
@@ -575,9 +574,15 @@ pub enum LpMessage {
     Error(ErrorPacketData),
 }
 
-impl From<HandshakeData> for LpMessage {
-    fn from(value: HandshakeData) -> Self {
-        LpMessage::Handshake(value)
+impl From<PSQRequestData> for LpMessage {
+    fn from(value: PSQRequestData) -> Self {
+        LpMessage::PSQRequest(value)
+    }
+}
+
+impl From<PSQResponseData> for LpMessage {
+    fn from(value: PSQResponseData) -> Self {
+        LpMessage::PSQResponse(value)
     }
 }
 
@@ -656,7 +661,8 @@ impl LpMessage {
     pub fn payload(&self) -> &[u8] {
         match self {
             LpMessage::Busy => &[],
-            LpMessage::Handshake(payload) => payload.0.as_slice(),
+            LpMessage::PSQRequest(payload) => payload.0.as_slice(),
+            LpMessage::PSQResponse(payload) => payload.0.as_slice(),
             LpMessage::EncryptedData(payload) => payload.0.as_slice(),
             LpMessage::ClientHello(_) => &[], // Structured data, serialized in encode_content
             LpMessage::KKTRequest(payload) => payload.0.as_slice(),
@@ -688,8 +694,8 @@ impl LpMessage {
             LpMessage::SubsessionKK2(_) => false, // Always has payload
             LpMessage::SubsessionReady(_) => false, // Always has receiver_index
             LpMessage::SubsessionAbort => true,   // Empty signal
-            LpMessage::PSQRequest(payload) => true, // Always had data (?)
-            LpMessage::PSQResponse(payload) => true, // Always had data (?)
+            LpMessage::PSQRequest(_) => true,     // Always had data (?)
+            LpMessage::PSQResponse(_) => true,    // Always had data (?)
             LpMessage::Error(_) => false,
         }
     }

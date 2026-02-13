@@ -6846,6 +6846,7 @@ dependencies = [
  "num_enum",
  "nym-crypto",
  "nym-kkt",
+ "nym-kkt-ciphersuite",
  "nym-lp-common",
  "nym-lp-transport",
  "nym-test-utils",

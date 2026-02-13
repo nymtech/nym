@@ -36,7 +36,7 @@ where
 }
 
 pub fn hash_key_bytes(
-    hash_function: &HashFunction,
+    hash_function: HashFunction,
     hash_length: usize,
     key_bytes: &[u8],
 ) -> Vec<u8> {
@@ -61,7 +61,7 @@ fn compare_hashes(a: &[u8], b: &[u8]) -> bool {
 }
 
 pub fn validate_encapsulation_key(
-    hash_function: &HashFunction,
+    hash_function: HashFunction,
     hash_length: usize,
     encapsulation_key: &[u8],
     expected_hash_bytes: &[u8],
@@ -73,7 +73,7 @@ pub fn validate_encapsulation_key(
 }
 
 pub fn validate_key_bytes(
-    hash_function: &HashFunction,
+    hash_function: HashFunction,
     hash_length: usize,
     key_bytes: &[u8],
     expected_hash_bytes: &[u8],
@@ -85,7 +85,7 @@ pub fn validate_key_bytes(
 }
 
 pub fn hash_encapsulation_key(
-    hash_function: &HashFunction,
+    hash_function: HashFunction,
     hash_length: usize,
     encapsulation_key: &[u8],
 ) -> Vec<u8> {

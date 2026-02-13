@@ -101,8 +101,8 @@ impl KKTContext {
     pub fn status(&self) -> KKTStatus {
         self.status
     }
-    pub fn ciphersuite(&self) -> &Ciphersuite {
-        &self.ciphersuite
+    pub fn ciphersuite(&self) -> Ciphersuite {
+        self.ciphersuite
     }
     pub fn role(&self) -> KKTRole {
         self.role

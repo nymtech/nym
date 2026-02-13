@@ -1,20 +1,15 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
-use libcrux_psq::handshake::Responder;
+use crate::{ClientHelloData, LpError};
 use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt::ciphersuite::{
-    Ciphersuite, DecapsulationKey, EncapsulationKey, KEM, KEMKeyDigests, KemKeyPair,
-    SignatureScheme, SigningKeyDigests,
+use nym_kkt_ciphersuite::{
+    Ciphersuite, HashFunction, HashLength, KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests,
 };
-use rand::rngs::ThreadRng;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-
-use crate::psq::build_responder;
 
 /// Representation of a local Lewes Protocol peer
 /// encapsulating all the known information and keys.
@@ -29,7 +24,8 @@ pub struct LpLocalPeer {
     pub(crate) x25519: Arc<DHKeyPair>,
 
     /// Local KEM keys used for PSQ
-    pub(crate) kem_keypairs: HashMap<KEM, Arc<KemKeyPair>>,
+    // pub(crate) kem_keypairs: HashMap<KEM, Arc<KemKeyPair>>,
+    pub(crate) kem_keypairs: HashMap<KEM, Arc<()>>,
 }
 
 impl LpLocalPeer {
@@ -52,17 +48,19 @@ impl LpLocalPeer {
     }
 
     pub fn build_client_hello_data(&self, timestamp: u64) -> ClientHelloData {
-        ClientHelloData::new_with_fresh_salt(
-            *self.x25519().public_key(),
-            *self.ed25519().public_key(),
-            timestamp,
-        )
+        todo!()
+        // ClientHelloData::new_with_fresh_salt(
+        //     *self.x25519().public_key(),
+        //     *self.ed25519().public_key(),
+        //     timestamp,
+        // )
     }
 
-    pub fn with_kem_keypair(mut self, keypair: Arc<KemKeyPair>) -> Self {
-        let kem = keypair.kem();
-        self.kem_keypairs.insert(kem, keypair);
-        self
+    pub fn with_kem_keypair(mut self, keypair: Arc<()>) -> Self {
+        todo!()
+        // let kem = keypair.kem();
+        // self.kem_keypairs.insert(kem, keypair);
+        // self
     }
 
     pub fn ed25519(&self) -> &Arc<ed25519::KeyPair> {
@@ -81,33 +79,34 @@ impl LpLocalPeer {
     //         .ok_or(LpError::ResponderWithMissingKEMKey)
     // }
 
-    pub fn kem_key(&self, kem: KEM) -> Option<&Arc<KemKeyPair>> {
+    pub fn kem_key(&self, kem: KEM) -> Option<&Arc<()>> {
         self.kem_keypairs.get(&kem)
     }
 
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
     #[doc(hidden)]
     pub fn as_remote(&self) -> LpRemotePeer {
-        let mut expected_signing_key_digests = HashMap::new();
-        expected_signing_key_digests.insert(
-            SignatureScheme::Ed25519,
-            nym_kkt::key_utils::produce_key_digests(self.ed25519.public_key().as_bytes()),
-        );
-
-        let mut expected_kem_key_digests = HashMap::new();
-        for (kem, kem_key) in &self.kem_keypairs {
-            expected_kem_key_digests.insert(
-                *kem,
-                nym_kkt::key_utils::produce_key_digests(&kem_key.encoded_encapsulation_key()),
-            );
-        }
-
-        LpRemotePeer {
-            ed25519_public: *self.ed25519.public_key(),
-            x25519_public: self.x25519.pk,
-            expected_kem_key_digests,
-            expected_signing_key_digests,
-        }
+        todo!()
+        // let mut expected_signing_key_digests = HashMap::new();
+        // expected_signing_key_digests.insert(
+        //     SignatureScheme::Ed25519,
+        //     nym_kkt::key_utils::produce_key_digests(self.ed25519.public_key().as_bytes()),
+        // );
+        //
+        // let mut expected_kem_key_digests = HashMap::new();
+        // for (kem, kem_key) in &self.kem_keypairs {
+        //     expected_kem_key_digests.insert(
+        //         *kem,
+        //         nym_kkt::key_utils::produce_key_digests(&kem_key.encoded_encapsulation_key()),
+        //     );
+        // }
+        //
+        // LpRemotePeer {
+        //     ed25519_public: *self.ed25519.public_key(),
+        //     x25519_public: self.x25519.pk,
+        //     expected_kem_key_digests,
+        //     expected_signing_key_digests,
+        // }
     }
 }
 
@@ -199,9 +198,9 @@ pub fn mock_peer(kem: KEM) -> LpLocalPeer {
 
     let ciphersuite = Ciphersuite::new(
         kem,
-        nym_kkt::ciphersuite::HashFunction::Blake3,
+        HashFunction::Blake3,
         SignatureScheme::Ed25519,
-        nym_kkt::ciphersuite::HashLength::Default,
+        HashLength::Default,
     );
 
     random_peer(&mut rng, ciphersuite)
@@ -226,25 +225,26 @@ pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(
 
     let x25519 = Arc::new(DHKeyPair::from(DHPrivateKey::from_bytes(&sk).unwrap()));
 
-    let default_peer = LpLocalPeer {
-        ciphersuite: Arc::new(ciphersuite),
-        ed25519,
-        x25519,
-        mlkem: None,
-        mceliece: None,
-    };
-
-    match ciphersuite.kem() {
-        KEM::MlKem768 => {
-            let mlkem_keypair = generate_keypair_mlkem(&mut rand09::rng());
-            default_peer.with_mlkem_keypair(&mlkem_keypair.0, &mlkem_keypair.1)
-        }
-        KEM::McEliece => {
-            let mceliece_keypair = generate_keypair_mceliece(&mut rand09::rng());
-            default_peer.with_mceliece_keypair(mceliece_keypair.0, mceliece_keypair.1)
-        }
-        _ => unreachable!(),
-    }
+    todo!()
+    // let default_peer = LpLocalPeer {
+    //     ciphersuite: Arc::new(ciphersuite),
+    //     ed25519,
+    //     x25519,
+    //     mlkem: None,
+    //     mceliece: None,
+    // };
+    //
+    // match ciphersuite.kem() {
+    //     KEM::MlKem768 => {
+    //         let mlkem_keypair = generate_keypair_mlkem(&mut rand09::rng());
+    //         default_peer.with_mlkem_keypair(&mlkem_keypair.0, &mlkem_keypair.1)
+    //     }
+    //     KEM::McEliece => {
+    //         let mceliece_keypair = generate_keypair_mceliece(&mut rand09::rng());
+    //         default_peer.with_mceliece_keypair(mceliece_keypair.0, mceliece_keypair.1)
+    //     }
+    //     _ => unreachable!(),
+    // }
 }
 
 #[cfg(any(feature = "mock", test))]

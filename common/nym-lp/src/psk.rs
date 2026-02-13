@@ -47,11 +47,12 @@
 //! - **No cleanup needed**: No state was mutated
 
 use crate::LpError;
+use libcrux_psq::handshake::types::{DHPrivateKey, DHPublicKey};
 use libcrux_psq::v1::cred::{Authenticator, Ed25519};
 use libcrux_psq::v1::impls::X25519 as PsqX25519;
 use libcrux_psq::v1::psk_registration::{Initiator, InitiatorMsg, Responder};
 use libcrux_psq::v1::traits::{Ciphertext as PsqCiphertext, PSQ};
-use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::asymmetric::ed25519;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use std::time::Duration;
 use tls_codec::{Deserialize as TlsDeserializeTrait, Serialize as TlsSerializeTrait};
@@ -136,13 +137,15 @@ pub struct PsqResponderResult {
 /// // Send ciphertext to gateway
 /// ```
 pub fn derive_psk_with_psq_initiator(
-    local_x25519_private: &x25519::PrivateKey,
-    remote_x25519_public: &x25519::PublicKey,
+    local_x25519_private: &DHPrivateKey,
+    remote_x25519_public: &DHPublicKey,
     remote_kem_public: &EncapsulationKey,
     salt: &[u8; 32],
 ) -> Result<([u8; 32], Vec<u8>), LpError> {
     // Step 1: Classical ECDH for baseline security
-    let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+    // let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+
+    let ecdh_secret: [u8; 32] = unimplemented!("unexposed by libcrux");
 
     // Step 2: PSQ encapsulation for post-quantum security
     // KEM algorithm migration path:
@@ -171,7 +174,7 @@ pub fn derive_psk_with_psq_initiator(
     combined.extend_from_slice(&psq_psk); // psq_psk is [u8; 32], need &
     combined.extend_from_slice(salt);
 
-    let final_psk = nym_crypto::kdf::derive_key_blake3(PSK_PSQ_CONTEXT, &combined, &[]);
+    let final_psk = nym_crypto::hkdf::blake3::derive_key_blake3(PSK_PSQ_CONTEXT, &combined, &[]);
 
     // Serialize ciphertext using TLS encoding for transport
     let ct_bytes = ciphertext
@@ -219,14 +222,16 @@ pub fn derive_psk_with_psq_initiator(
 /// )?;
 /// ```
 pub fn derive_psk_with_psq_responder(
-    local_x25519_private: &x25519::PrivateKey,
-    remote_x25519_public: &x25519::PublicKey,
+    local_x25519_private: &DHPrivateKey,
+    remote_x25519_public: &DHPublicKey,
     local_kem_keypair: (&DecapsulationKey, &EncapsulationKey),
     ciphertext: &[u8],
     salt: &[u8; 32],
 ) -> Result<[u8; 32], LpError> {
     // Step 1: Classical ECDH for baseline security
-    let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+    // let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+
+    let ecdh_secret: [u8; 32] = unimplemented!("unexposed by libcrux");
 
     // Step 2: Extract X25519 keypair from DecapsulationKey/EncapsulationKey
     let (kem_sk, kem_pk) = match (local_kem_keypair.0, local_kem_keypair.1) {
@@ -252,7 +257,7 @@ pub fn derive_psk_with_psq_responder(
     combined.extend_from_slice(&psq_psk); // psq_psk is [u8; 32], need &
     combined.extend_from_slice(salt);
 
-    let final_psk = nym_crypto::kdf::derive_key_blake3(PSK_PSQ_CONTEXT, &combined, &[]);
+    let final_psk = nym_crypto::hkdf::blake3::derive_key_blake3(PSK_PSQ_CONTEXT, &combined, &[]);
 
     Ok(final_psk)
 }
@@ -279,8 +284,8 @@ pub fn derive_psk_with_psq_responder(
 /// # Returns
 /// `PsqInitiatorResult` containing PSK, payload, and raw PQ shared secret
 pub fn psq_initiator_create_message(
-    local_x25519_private: &x25519::PrivateKey,
-    remote_x25519_public: &x25519::PublicKey,
+    local_x25519_private: &DHPrivateKey,
+    remote_x25519_public: &DHPublicKey,
     remote_kem_public: &EncapsulationKey,
     client_ed25519_sk: &ed25519::PrivateKey,
     client_ed25519_pk: &ed25519::PublicKey,
@@ -288,7 +293,9 @@ pub fn psq_initiator_create_message(
     session_context: &[u8],
 ) -> Result<PsqInitiatorResult, LpError> {
     // Step 1: Classical ECDH for baseline security
-    let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+    // let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+
+    let ecdh_secret: [u8; 32] = unimplemented!("unexposed by libcrux");
 
     // Step 2: PSQ v1 with Ed25519 authentication
     // Extract X25519 KEM key from EncapsulationKey
@@ -338,7 +345,7 @@ pub fn psq_initiator_create_message(
     combined.extend_from_slice(psq_psk); // psq_psk is already a &[u8; 32]
     combined.extend_from_slice(salt);
 
-    let final_psk = nym_crypto::kdf::derive_key_blake3(PSK_PSQ_CONTEXT, &combined, &[]);
+    let final_psk = nym_crypto::hkdf::blake3::derive_key_blake3(PSK_PSQ_CONTEXT, &combined, &[]);
 
     // Serialize InitiatorMsg with TLS encoding for transport
     let msg_bytes = initiator_msg
@@ -374,8 +381,8 @@ pub fn psq_initiator_create_message(
 /// # Returns
 /// `PsqResponderResult` containing PSK, PSK handle, and raw PQ shared secret
 pub fn psq_responder_process_message(
-    local_x25519_private: &x25519::PrivateKey,
-    remote_x25519_public: &x25519::PublicKey,
+    local_x25519_private: &DHPrivateKey,
+    remote_x25519_public: &DHPublicKey,
     local_kem_keypair: (&DecapsulationKey, &EncapsulationKey),
     initiator_ed25519_pk: &ed25519::PublicKey,
     psq_payload: &[u8],
@@ -383,7 +390,8 @@ pub fn psq_responder_process_message(
     session_context: &[u8],
 ) -> Result<PsqResponderResult, LpError> {
     // Step 1: Classical ECDH for baseline security
-    let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+    // let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
+    let ecdh_secret: [u8; 32] = unimplemented!("unexposed by libcrux");
 
     // Step 2: Extract X25519 keypair from DecapsulationKey/EncapsulationKey
     let (kem_sk, kem_pk) = match (local_kem_keypair.0, local_kem_keypair.1) {
@@ -447,7 +455,7 @@ pub fn psq_responder_process_message(
     combined.extend_from_slice(&psq_psk); // psq_psk is [u8; 32], need &
     combined.extend_from_slice(salt);
 
-    let final_psk = nym_crypto::kdf::derive_key_blake3(PSK_PSQ_CONTEXT, &combined, &[]);
+    let final_psk = nym_crypto::hkdf::blake3::derive_key_blake3(PSK_PSQ_CONTEXT, &combined, &[]);
 
     // Step 7: Serialize ResponderMsg (contains ctxt_B - encrypted PSK handle)
     use tls_codec::Serialize;
@@ -482,7 +490,7 @@ pub fn psq_responder_process_message(
 /// # Returns
 /// 32-byte PSK for Noise KKpsk0 handshake
 pub fn derive_subsession_psk(pq_shared_secret: &[u8; 32], subsession_index: u64) -> [u8; 32] {
-    nym_crypto::kdf::derive_key_blake3(
+    nym_crypto::hkdf::blake3::derive_key_blake3(
         SUBSESSION_PSK_CONTEXT,
         pq_shared_secret,
         &subsession_index.to_le_bytes(),
@@ -492,10 +500,10 @@ pub fn derive_subsession_psk(pq_shared_secret: &[u8; 32], subsession_index: u64)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::thread_rng;
+    use libcrux_psq::handshake::types::DHKeyPair;
 
-    fn generate_x25519_keypair() -> x25519::KeyPair {
-        x25519::KeyPair::new(&mut thread_rng())
+    fn generate_x25519_keypair() -> DHKeyPair {
+        DHKeyPair::new(&mut rand09::rng())
     }
 
     #[test]
@@ -510,18 +518,13 @@ mod tests {
         let dec_key = DecapsulationKey::X25519(_kem_sk);
 
         // Client derives PSK
-        let (client_psk, ciphertext) = derive_psk_with_psq_initiator(
-            keypair_1.private_key(),
-            keypair_2.public_key(),
-            &enc_key,
-            &salt,
-        )
-        .unwrap();
+        let (client_psk, ciphertext) =
+            derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt).unwrap();
 
         // Gateway derives PSK from their perspective
         let gateway_psk = derive_psk_with_psq_responder(
-            keypair_2.private_key(),
-            keypair_1.public_key(),
+            keypair_2.sk(),
+            &keypair_1.pk,
             (&dec_key, &enc_key),
             &ciphertext,
             &salt,
@@ -545,20 +548,10 @@ mod tests {
         let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let enc_key = EncapsulationKey::X25519(kem_pk);
 
-        let psk1 = derive_psk_with_psq_initiator(
-            keypair_1.private_key(),
-            keypair_2.public_key(),
-            &enc_key,
-            &salt1,
-        )
-        .unwrap();
-        let psk2 = derive_psk_with_psq_initiator(
-            keypair_1.private_key(),
-            keypair_2.public_key(),
-            &enc_key,
-            &salt2,
-        )
-        .unwrap();
+        let psk1 =
+            derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt1).unwrap();
+        let psk2 =
+            derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt2).unwrap();
 
         assert_ne!(psk1, psk2, "Different salts should produce different PSKs");
     }
@@ -574,20 +567,10 @@ mod tests {
         let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let enc_key = EncapsulationKey::X25519(kem_pk);
 
-        let psk1 = derive_psk_with_psq_initiator(
-            keypair_1.private_key(),
-            keypair_2.public_key(),
-            &enc_key,
-            &salt,
-        )
-        .unwrap();
-        let psk2 = derive_psk_with_psq_initiator(
-            keypair_1.private_key(),
-            keypair_3.public_key(),
-            &enc_key,
-            &salt,
-        )
-        .unwrap();
+        let psk1 =
+            derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt).unwrap();
+        let psk2 =
+            derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_3.pk, &enc_key, &salt).unwrap();
 
         assert_ne!(
             psk1, psk2,
@@ -616,16 +599,16 @@ mod tests {
 
         // Derive PSK twice with same inputs (initiator side)
         let (_psk1, ct1) = derive_psk_with_psq_initiator(
-            client_keypair.private_key(),
-            gateway_keypair.public_key(),
+            client_keypair.sk(),
+            &gateway_keypair.pk,
             &enc_key,
             &salt,
         )
         .unwrap();
 
         let (_psk2, _ct2) = derive_psk_with_psq_initiator(
-            client_keypair.private_key(),
-            gateway_keypair.public_key(),
+            client_keypair.sk(),
+            &gateway_keypair.pk,
             &enc_key,
             &salt,
         )
@@ -634,8 +617,8 @@ mod tests {
         // PSKs will be different due to randomness in PSQ, but ciphertexts too
         // This test verifies the function is deterministic given the SAME ciphertext
         let psk_responder1 = derive_psk_with_psq_responder(
-            gateway_keypair.private_key(),
-            client_keypair.public_key(),
+            gateway_keypair.sk(),
+            &client_keypair.pk,
             (&dec_key, &enc_key),
             &ct1,
             &salt,
@@ -643,8 +626,8 @@ mod tests {
         .unwrap();
 
         let psk_responder2 = derive_psk_with_psq_responder(
-            gateway_keypair.private_key(),
-            client_keypair.public_key(),
+            gateway_keypair.sk(),
+            &client_keypair.pk,
             (&dec_key, &enc_key),
             &ct1, // Same ciphertext
             &salt,
@@ -674,8 +657,8 @@ mod tests {
 
         // Client derives PSK (initiator)
         let (client_psk, ciphertext) = derive_psk_with_psq_initiator(
-            client_keypair.private_key(),
-            gateway_keypair.public_key(),
+            client_keypair.sk(),
+            &gateway_keypair.pk,
             &enc_key,
             &salt,
         )
@@ -683,8 +666,8 @@ mod tests {
 
         // Gateway derives PSK from ciphertext (responder)
         let gateway_psk = derive_psk_with_psq_responder(
-            gateway_keypair.private_key(),
-            client_keypair.public_key(),
+            gateway_keypair.sk(),
+            &client_keypair.pk,
             (&dec_key, &enc_key),
             &ciphertext,
             &salt,
@@ -714,16 +697,16 @@ mod tests {
         let salt = [3u8; 32];
 
         let (psk1, _) = derive_psk_with_psq_initiator(
-            client_keypair.private_key(),
-            gateway_keypair.public_key(),
+            client_keypair.sk(),
+            &gateway_keypair.pk,
             &enc_key1,
             &salt,
         )
         .unwrap();
 
         let (psk2, _) = derive_psk_with_psq_initiator(
-            client_keypair.private_key(),
-            gateway_keypair.public_key(),
+            client_keypair.sk(),
+            &gateway_keypair.pk,
             &enc_key2,
             &salt,
         )
@@ -748,8 +731,8 @@ mod tests {
         let salt = [4u8; 32];
 
         let (psk, _) = derive_psk_with_psq_initiator(
-            client_keypair.private_key(),
-            gateway_keypair.public_key(),
+            client_keypair.sk(),
+            &gateway_keypair.pk,
             &enc_key,
             &salt,
         )
@@ -772,16 +755,16 @@ mod tests {
         let salt2 = [2u8; 32];
 
         let (psk1, _) = derive_psk_with_psq_initiator(
-            client_keypair.private_key(),
-            gateway_keypair.public_key(),
+            client_keypair.sk(),
+            &gateway_keypair.pk,
             &enc_key,
             &salt1,
         )
         .unwrap();
 
         let (psk2, _) = derive_psk_with_psq_initiator(
-            client_keypair.private_key(),
-            gateway_keypair.public_key(),
+            client_keypair.sk(),
+            &gateway_keypair.pk,
             &enc_key,
             &salt2,
         )

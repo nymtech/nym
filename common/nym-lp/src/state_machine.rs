@@ -22,6 +22,7 @@ use crate::{
 };
 use bytes::{Buf, Bytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use nym_kkt::ciphersuite::Ciphersuite;
 use std::mem;
 use tracing::debug;
 
@@ -531,7 +532,7 @@ impl LpStateMachine {
                             let local_key = session.local_x25519_public();
                             let remote_key = session.remote_x25519_public();
 
-                            if local_key.as_bytes() < remote_key.as_bytes() {
+                            if local_key.as_ref() < remote_key.as_ref() {
                                 // We LOSE - become responder
                                 // Use the same index as our initiator subsession, which should
                                 // match the winner's index if subsession counters are in sync.
@@ -942,6 +943,8 @@ mod tests {
 
     #[test]
     fn test_state_machine_init() {
+        let TODO = "        for kem in kem_list() {";
+
         let mock_sessions = SessionsMock::mock_post_handshake(123);
 
         let initiator_sm = LpStateMachine::new(mock_sessions.initiator);
@@ -958,6 +961,8 @@ mod tests {
 
     #[test]
     fn test_state_machine_simplified_flow() {
+        let TODO = "        for kem in kem_list() {";
+
         let receiver_index: u32 = 123;
         let mock_sessions = SessionsMock::mock_post_handshake(123);
 
@@ -1025,7 +1030,7 @@ mod tests {
 
     /// Helper function to complete a full handshake between initiator and responder,
     /// returning both in Transport state ready for subsession testing.
-    fn setup_transport_sessions() -> (LpStateMachine, LpStateMachine) {
+    fn setup_transport_sessions(kem: KEM) -> (LpStateMachine, LpStateMachine) {
         let sessions = SessionsMock::mock_post_handshake(12345);
         (
             LpStateMachine::new(sessions.initiator),
@@ -1038,138 +1043,140 @@ mod tests {
         // Test for simultaneous subsession initiation race condition.
         // Both sides call InitiateSubsession at the same time, sending KK1 to each other.
         // The tie-breaker uses X25519 public key comparison: lower key becomes responder.
+        for kem in kem_list() {
+            let (mut alice, mut bob) = setup_transport_sessions(kem);
 
-        let (mut alice, mut bob) = setup_transport_sessions();
+            // Get X25519 public keys to determine expected winner
+            let alice_x25519 = alice.session().unwrap().local_x25519_public();
+            let bob_x25519 = bob.session().unwrap().local_x25519_public();
 
-        // Get X25519 public keys to determine expected winner
-        let alice_x25519 = alice.session().unwrap().local_x25519_public();
-        let bob_x25519 = bob.session().unwrap().local_x25519_public();
+            // Determine who should win (higher key stays initiator)
+            let alice_wins = alice_x25519.as_ref() > bob_x25519.as_ref();
 
-        // Determine who should win (higher key stays initiator)
-        let alice_wins = alice_x25519.as_bytes() > bob_x25519.as_bytes();
+            // --- Both sides initiate subsession simultaneously ---
+            // Alice initiates subsession
+            let alice_kk1_packet =
+                if let Some(Ok(LpAction::SubsessionInitiated { packet, .. })) =
+                    alice.process_input(LpInput::InitiateSubsession)
+                {
+                    packet
+                } else {
+                    panic!("Alice should initiate subsession with KK1");
+                };
+            assert!(matches!(alice.state, LpState::SubsessionHandshaking { .. }));
 
-        // --- Both sides initiate subsession simultaneously ---
-        // Alice initiates subsession
-        let alice_kk1_packet = if let Some(Ok(LpAction::SubsessionInitiated { packet, .. })) =
-            alice.process_input(LpInput::InitiateSubsession)
-        {
-            packet
-        } else {
-            panic!("Alice should initiate subsession with KK1");
-        };
-        assert!(matches!(alice.state, LpState::SubsessionHandshaking { .. }));
-
-        // Bob initiates subsession (simultaneously)
-        let bob_kk1_packet = if let Some(Ok(LpAction::SubsessionInitiated { packet, .. })) =
-            bob.process_input(LpInput::InitiateSubsession)
-        {
-            packet
-        } else {
-            panic!("Bob should initiate subsession with KK1");
-        };
-        assert!(matches!(bob.state, LpState::SubsessionHandshaking { .. }));
-
-        // --- Cross-delivery of KK1 packets (race resolution) ---
-        // Alice receives Bob's KK1
-        let alice_response = alice.process_input(LpInput::ReceivePacket(bob_kk1_packet));
-
-        // Bob receives Alice's KK1
-        let bob_response = bob.process_input(LpInput::ReceivePacket(alice_kk1_packet));
-
-        // --- Verify tie-breaker worked correctly ---
-        if alice_wins {
-            // Alice has higher key - she stays initiator, sends SubsessionAbort
-            assert!(
-                matches!(alice_response, Some(Ok(LpAction::SendPacket(_)))),
-                "Alice (winner) should send SubsessionAbort"
-            );
-            assert!(
-                matches!(alice.state, LpState::SubsessionHandshaking { .. }),
-                "Alice should still be SubsessionHandshaking as initiator"
-            );
-
-            // Bob has lower key - he becomes responder, sends KK2
-            let bob_kk2_packet = if let Some(Ok(LpAction::SendPacket(p))) = bob_response {
-                p
+            // Bob initiates subsession (simultaneously)
+            let bob_kk1_packet = if let Some(Ok(LpAction::SubsessionInitiated { packet, .. })) =
+                bob.process_input(LpInput::InitiateSubsession)
+            {
+                packet
             } else {
-                panic!("Bob (loser) should send KK2 as new responder");
+                panic!("Bob should initiate subsession with KK1");
             };
-            assert!(
-                matches!(bob.state, LpState::SubsessionHandshaking { .. }),
-                "Bob should be SubsessionHandshaking as responder"
-            );
+            assert!(matches!(bob.state, LpState::SubsessionHandshaking { .. }));
 
-            // Complete the handshake: Alice receives KK2
-            let alice_completion = alice.process_input(LpInput::ReceivePacket(bob_kk2_packet));
-            match alice_completion {
-                Some(Ok(LpAction::SubsessionComplete {
-                    packet: Some(ready_packet),
-                    ..
-                })) => {
-                    assert!(
-                        matches!(alice.state, LpState::ReadOnlyTransport { .. }),
-                        "Alice should be ReadOnlyTransport after SubsessionComplete"
-                    );
+            // --- Cross-delivery of KK1 packets (race resolution) ---
+            // Alice receives Bob's KK1
+            let alice_response = alice.process_input(LpInput::ReceivePacket(bob_kk1_packet));
 
-                    // Bob receives SubsessionReady
-                    let bob_final = bob.process_input(LpInput::ReceivePacket(ready_packet));
-                    assert!(
-                        matches!(bob_final, Some(Ok(LpAction::SubsessionComplete { .. }))),
-                        "Bob should complete with SubsessionComplete"
-                    );
-                    assert!(
-                        matches!(bob.state, LpState::ReadOnlyTransport { .. }),
-                        "Bob should be ReadOnlyTransport"
-                    );
+            // Bob receives Alice's KK1
+            let bob_response = bob.process_input(LpInput::ReceivePacket(alice_kk1_packet));
+
+            // --- Verify tie-breaker worked correctly ---
+            if alice_wins {
+                // Alice has higher key - she stays initiator, sends SubsessionAbort
+                assert!(
+                    matches!(alice_response, Some(Ok(LpAction::SendPacket(_)))),
+                    "Alice (winner) should send SubsessionAbort"
+                );
+                assert!(
+                    matches!(alice.state, LpState::SubsessionHandshaking { .. }),
+                    "Alice should still be SubsessionHandshaking as initiator"
+                );
+
+                // Bob has lower key - he becomes responder, sends KK2
+                let bob_kk2_packet = if let Some(Ok(LpAction::SendPacket(p))) = bob_response {
+                    p
+                } else {
+                    panic!("Bob (loser) should send KK2 as new responder");
+                };
+                assert!(
+                    matches!(bob.state, LpState::SubsessionHandshaking { .. }),
+                    "Bob should be SubsessionHandshaking as responder"
+                );
+
+                // Complete the handshake: Alice receives KK2
+                let alice_completion = alice.process_input(LpInput::ReceivePacket(bob_kk2_packet));
+                match alice_completion {
+                    Some(Ok(LpAction::SubsessionComplete {
+                        packet: Some(ready_packet),
+                        ..
+                    })) => {
+                        assert!(
+                            matches!(alice.state, LpState::ReadOnlyTransport { .. }),
+                            "Alice should be ReadOnlyTransport after SubsessionComplete"
+                        );
+
+                        // Bob receives SubsessionReady
+                        let bob_final = bob.process_input(LpInput::ReceivePacket(ready_packet));
+                        assert!(
+                            matches!(bob_final, Some(Ok(LpAction::SubsessionComplete { .. }))),
+                            "Bob should complete with SubsessionComplete"
+                        );
+                        assert!(
+                            matches!(bob.state, LpState::ReadOnlyTransport { .. }),
+                            "Bob should be ReadOnlyTransport"
+                        );
+                    }
+                    other => panic!("Alice should complete subsession, got: {:?}", other),
                 }
-                other => panic!("Alice should complete subsession, got: {:?}", other),
-            }
-        } else {
-            // Bob has higher key - he stays initiator, sends SubsessionAbort
-            assert!(
-                matches!(bob_response, Some(Ok(LpAction::SendPacket(_)))),
-                "Bob (winner) should send SubsessionAbort"
-            );
-            assert!(
-                matches!(bob.state, LpState::SubsessionHandshaking { .. }),
-                "Bob should still be SubsessionHandshaking as initiator"
-            );
-
-            // Alice has lower key - she becomes responder, sends KK2
-            let alice_kk2_packet = if let Some(Ok(LpAction::SendPacket(p))) = alice_response {
-                p
             } else {
-                panic!("Alice (loser) should send KK2 as new responder");
-            };
-            assert!(
-                matches!(alice.state, LpState::SubsessionHandshaking { .. }),
-                "Alice should be SubsessionHandshaking as responder"
-            );
+                // Bob has higher key - he stays initiator, sends SubsessionAbort
+                assert!(
+                    matches!(bob_response, Some(Ok(LpAction::SendPacket(_)))),
+                    "Bob (winner) should send SubsessionAbort"
+                );
+                assert!(
+                    matches!(bob.state, LpState::SubsessionHandshaking { .. }),
+                    "Bob should still be SubsessionHandshaking as initiator"
+                );
 
-            // Complete the handshake: Bob receives KK2
-            let bob_completion = bob.process_input(LpInput::ReceivePacket(alice_kk2_packet));
-            match bob_completion {
-                Some(Ok(LpAction::SubsessionComplete {
-                    packet: Some(ready_packet),
-                    ..
-                })) => {
-                    assert!(
-                        matches!(bob.state, LpState::ReadOnlyTransport { .. }),
-                        "Bob should be ReadOnlyTransport after SubsessionComplete"
-                    );
+                // Alice has lower key - she becomes responder, sends KK2
+                let alice_kk2_packet = if let Some(Ok(LpAction::SendPacket(p))) = alice_response {
+                    p
+                } else {
+                    panic!("Alice (loser) should send KK2 as new responder");
+                };
+                assert!(
+                    matches!(alice.state, LpState::SubsessionHandshaking { .. }),
+                    "Alice should be SubsessionHandshaking as responder"
+                );
 
-                    // Alice receives SubsessionReady
-                    let alice_final = alice.process_input(LpInput::ReceivePacket(ready_packet));
-                    assert!(
-                        matches!(alice_final, Some(Ok(LpAction::SubsessionComplete { .. }))),
-                        "Alice should complete with SubsessionComplete"
-                    );
-                    assert!(
-                        matches!(alice.state, LpState::ReadOnlyTransport { .. }),
-                        "Alice should be ReadOnlyTransport"
-                    );
+                // Complete the handshake: Bob receives KK2
+                let bob_completion = bob.process_input(LpInput::ReceivePacket(alice_kk2_packet));
+                match bob_completion {
+                    Some(Ok(LpAction::SubsessionComplete {
+                        packet: Some(ready_packet),
+                        ..
+                    })) => {
+                        assert!(
+                            matches!(bob.state, LpState::ReadOnlyTransport { .. }),
+                            "Bob should be ReadOnlyTransport after SubsessionComplete"
+                        );
+
+                        // Alice receives SubsessionReady
+                        let alice_final = alice.process_input(LpInput::ReceivePacket(ready_packet));
+                        assert!(
+                            matches!(alice_final, Some(Ok(LpAction::SubsessionComplete { .. }))),
+                            "Alice should complete with SubsessionComplete"
+                        );
+                        assert!(
+                            matches!(alice.state, LpState::ReadOnlyTransport { .. }),
+                            "Alice should be ReadOnlyTransport"
+                        );
+                    }
+                    other => panic!("Bob should complete subsession, got: {:?}", other),
                 }
-                other => panic!("Bob should complete subsession, got: {:?}", other),
             }
         }
     }

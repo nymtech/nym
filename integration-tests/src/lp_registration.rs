@@ -17,6 +17,7 @@ mod tests {
     };
     use nym_gateway::node::wireguard::{PeerManager, PeerRegistrator};
     use nym_gateway::node::{ActiveClientsStore, GatewayStorage, LpConfig};
+    use nym_kkt_ciphersuite::Ciphersuite;
     use nym_registration_client::{LpClientError, LpRegistrationClient};
     use nym_test_utils::helpers::{CryptoRng, RngCore, u64_seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
@@ -66,8 +67,10 @@ mod tests {
 
             let lp_x25519_keys = Arc::new(ed25519_keys.to_x25519());
 
+            let ciphersuite = Ciphersuite::Default();
+
             Party {
-                peer: LpLocalPeer::new(ed25519_keys, lp_x25519_keys.clone())
+                peer: LpLocalPeer::new(ciphersuite, ed25519_keys, lp_x25519_keys.clone())
                     .with_kem_psq_key(lp_x25519_keys),
                 x25519_wg_keys,
                 socket_addr: SocketAddr::from((ip, u16::from_le_bytes(port))),

@@ -6,14 +6,18 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
-use crate::state_machine::{LpAction, LpInput, LpStateBare};
+use crate::peer::{LpLocalPeer, LpRemotePeer};
+use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
 use crate::{LpError, LpMessage, LpSession, LpStateMachine};
 use std::collections::HashMap;
 
+#[cfg(test)]
+use libcrux_psq::handshake::types::DHPublicKey;
+use nym_kkt::ciphersuite::Ciphersuite;
+
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
-/// The SessionManager is responsible for creating, storing, and retrieving sessions,
-/// ensuring proper thread-safety for concurrent access.
+/// The SessionManager is responsible for creating, storing, and retrieving sessions
 pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
     state_machines: HashMap<u32, LpStateMachine>,
@@ -111,7 +115,6 @@ impl SessionManager {
         } else {
             Err(LpError::StateMachineNotFound { lp_id })
         }
-        // self.state_machines.get(&lp_id).map(|sm_ref| f(&*sm_ref)) // Lock held only during closure execution
     }
 
     // For mutable access (like running process_input)
@@ -150,6 +153,8 @@ mod tests {
     fn test_session_manager_get() {
         let mut manager = SessionManager::new();
 
+        let TODO = "        for kem in kem_list() {";
+
         let local_session = mock_session_for_test();
         let id = local_session.id();
 
@@ -168,6 +173,8 @@ mod tests {
         let mut manager = SessionManager::new();
         let local_session = mock_session_for_test();
 
+        let TODO = "        for kem in kem_list() {";
+
         let sm_1_id = manager.create_session_state_machine(local_session);
 
         let removed = manager.remove_state_machine(sm_1_id);
@@ -181,6 +188,9 @@ mod tests {
     #[test]
     fn test_multiple_sessions() {
         let mut manager = SessionManager::new();
+
+        let TODO = "        for kem in kem_list() {";
+
         let session1 = SessionsMock::mock_post_handshake(123).initiator;
         let session2 = SessionsMock::mock_post_handshake(124).initiator;
         let session3 = SessionsMock::mock_post_handshake(125).initiator;
@@ -203,6 +213,8 @@ mod tests {
     #[test]
     fn test_session_manager_create_session() {
         let mut manager = SessionManager::new();
+
+        let TODO = "        for kem in kem_list() {";
 
         let sesion = mock_session_for_test();
 

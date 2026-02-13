@@ -9,7 +9,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, write};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 /// Data structure for the ClientHello message
@@ -22,11 +22,13 @@ pub struct ClientHelloData {
     pub client_lp_public_key: x25519::PublicKey,
     /// Client's Ed25519 public key (32 bytes) - for PSQ authentication
     pub client_ed25519_public_key: ed25519::PublicKey,
+    // noiserm
     /// Salt for PSK derivation (32 bytes: 8-byte timestamp + 24-byte nonce)
     pub salt: [u8; 32],
 }
 
 impl ClientHelloData {
+    // noiserm (remove 32 bytes for salt)
     // 4 bytes for receiver index + 32 bytes for client lp key, 32 bytes for client ed25519 key + 32 bytes for salt
     pub const LEN: usize = 100;
 
@@ -54,6 +56,7 @@ impl ClientHelloData {
         }
     }
 
+    // noiserm
     /// Generates a new ClientHelloData with fresh salt.
     ///
     /// Salt format: 8 bytes timestamp (u64 LE) + 24 bytes random nonce
@@ -82,7 +85,7 @@ impl ClientHelloData {
             salt,
         }
     }
-
+    // noiserm
     /// Extracts the timestamp from the salt.
     ///
     /// # Returns
@@ -97,6 +100,7 @@ impl ClientHelloData {
         dst.put_u32_le(self.receiver_index);
         dst.put_slice(self.client_lp_public_key.as_bytes());
         dst.put_slice(self.client_ed25519_public_key.as_bytes());
+        // noiserm
         dst.put_slice(&self.salt);
     }
 
@@ -120,6 +124,7 @@ impl ClientHelloData {
             client_ed25519_public_key: ed25519::PublicKey::from_byte_array(
                 client_ed25519_public_key_bytes,
             )?,
+            // noiserm
             salt: b[68..].try_into().unwrap(),
         })
     }
@@ -146,6 +151,8 @@ pub enum MessageType {
     Ack = 0x0008,
     /// Subsession request - client initiates subsession creation
     SubsessionRequest = 0x0009,
+
+    // georgio: this should be the psq msg
     /// Subsession KK1 - first message of Noise KK handshake
     SubsessionKK1 = 0x000A,
     /// Subsession KK2 - second message of Noise KK handshake
@@ -300,6 +307,42 @@ impl ErrorPacketData {
     }
 }
 
+/// PSQ request frame data (serialized bytes)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PSQRequestData(pub Vec<u8>);
+
+impl PSQRequestData {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(PSQRequestData(bytes.to_vec()))
+    }
+}
+
+/// PSQ response frame data (serialized bytes)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PSQResponseData(pub Vec<u8>);
+
+impl PSQResponseData {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(PSQResponseData(bytes.to_vec()))
+    }
+}
+
 /// Packet forwarding request with embedded inner LP packet
 #[derive(Debug, Clone)]
 pub struct ForwardPacketData {
@@ -425,6 +468,7 @@ impl ForwardPacketData {
     }
 }
 
+// georgio: swap with psq
 /// Subsession KK1 message - first message of Noise KK handshake
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubsessionKK1Data {
@@ -505,7 +549,8 @@ impl SubsessionReadyData {
 #[derive(Debug, Clone)]
 pub enum LpMessage {
     Busy,
-    Handshake(HandshakeData),
+    PSQRequest(PSQRequestData),
+    PSQResponse(PSQResponseData),
     EncryptedData(EncryptedDataPayload),
     ClientHello(ClientHelloData),
     KKTRequest(KKTRequestData),
@@ -515,6 +560,7 @@ pub enum LpMessage {
     Collision,
     /// Acknowledgment - gateway confirms receipt of message
     Ack,
+    // georgio: this should become psq stuff
     /// Subsession request - client initiates subsession creation (empty, signal only)
     SubsessionRequest,
     /// Subsession KK1 - first message of Noise KK handshake
@@ -587,7 +633,6 @@ impl Display for LpMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LpMessage::Busy => write!(f, "Busy"),
-            LpMessage::Handshake(_) => write!(f, "Handshake"),
             LpMessage::EncryptedData(_) => write!(f, "EncryptedData"),
             LpMessage::ClientHello(_) => write!(f, "ClientHello"),
             LpMessage::KKTRequest(_) => write!(f, "KKTRequest"),
@@ -601,6 +646,8 @@ impl Display for LpMessage {
             LpMessage::SubsessionReady(_) => write!(f, "SubsessionReady"),
             LpMessage::SubsessionAbort => write!(f, "SubsessionAbort"),
             LpMessage::Error(_) => write!(f, "Error"),
+            LpMessage::PSQRequest(_) => write!(f, "PSQRequest"),
+            LpMessage::PSQResponse(_) => write!(f, "PSQResponse"),
         }
     }
 }
@@ -629,7 +676,6 @@ impl LpMessage {
     pub fn is_empty(&self) -> bool {
         match self {
             LpMessage::Busy => true,
-            LpMessage::Handshake(payload) => payload.0.is_empty(),
             LpMessage::EncryptedData(payload) => payload.0.is_empty(),
             LpMessage::ClientHello(_) => false, // Always has data
             LpMessage::KKTRequest(payload) => payload.0.is_empty(),
@@ -642,6 +688,8 @@ impl LpMessage {
             LpMessage::SubsessionKK2(_) => false, // Always has payload
             LpMessage::SubsessionReady(_) => false, // Always has receiver_index
             LpMessage::SubsessionAbort => true,   // Empty signal
+            LpMessage::PSQRequest(payload) => true, // Always had data (?)
+            LpMessage::PSQResponse(payload) => true, // Always had data (?)
             LpMessage::Error(_) => false,
         }
     }
@@ -649,7 +697,8 @@ impl LpMessage {
     pub fn len(&self) -> usize {
         match self {
             LpMessage::Busy => 0,
-            LpMessage::Handshake(payload) => payload.len(),
+            LpMessage::PSQRequest(payload) => payload.len(),
+            LpMessage::PSQResponse(payload) => payload.len(),
             LpMessage::EncryptedData(payload) => payload.len(),
             LpMessage::ClientHello(payload) => payload.len(),
             LpMessage::KKTRequest(payload) => payload.len(),
@@ -669,7 +718,8 @@ impl LpMessage {
     pub fn typ(&self) -> MessageType {
         match self {
             LpMessage::Busy => MessageType::Busy,
-            LpMessage::Handshake(_) => MessageType::Handshake,
+            LpMessage::PSQRequest(_) => todo!(),
+            LpMessage::PSQResponse(_) => todo!(),
             LpMessage::EncryptedData(_) => MessageType::EncryptedData,
             LpMessage::ClientHello(_) => MessageType::ClientHello,
             LpMessage::KKTRequest(_) => MessageType::KKTRequest,
@@ -689,7 +739,8 @@ impl LpMessage {
     pub fn encode_content(&self, dst: &mut BytesMut) {
         match self {
             LpMessage::Busy => { /* No content */ }
-            LpMessage::Handshake(payload) => payload.encode(dst),
+            LpMessage::PSQRequest(payload) => payload.encode(dst),
+            LpMessage::PSQResponse(payload) => payload.encode(dst),
             LpMessage::EncryptedData(payload) => payload.encode(dst),
             LpMessage::ClientHello(data) => data.encode(dst),
             LpMessage::KKTRequest(payload) => payload.encode(dst),
@@ -716,7 +767,7 @@ impl LpMessage {
                 content.ensure_empty()?;
                 Ok(LpMessage::Busy)
             }
-            MessageType::Handshake => Ok(LpMessage::Handshake(HandshakeData::decode(content)?)),
+            MessageType::Handshake => todo!(),
             MessageType::EncryptedData => Ok(LpMessage::EncryptedData(
                 EncryptedDataPayload::decode(content)?,
             )),

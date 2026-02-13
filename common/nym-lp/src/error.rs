@@ -3,9 +3,12 @@
 
 use crate::message::MessageType;
 use crate::{noise_protocol::NoiseError, replay::ReplayError};
+use libcrux_psq::handshake::builders::BuilderError;
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
-use nym_kkt::ciphersuite::{HashFunction, KEM};
-use nym_kkt::error::KKTError;
+use nym_kkt::{
+    ciphersuite::{HashFunction, KEM},
+    error::KKTError,
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -13,14 +16,20 @@ pub enum LpError {
     #[error("IO Error: {0}")]
     IoError(#[from] std::io::Error),
 
+    // noiserm
     #[error("Snow Error: {0}")]
     SnowKeyError(#[from] snow::Error),
 
+    // noiserm
     #[error("Snow Pattern Error: {0}")]
     SnowPatternError(String),
 
+    // noiserm
     #[error("Noise Protocol Error: {0}")]
     NoiseError(#[from] NoiseError),
+
+    #[error("PSQ Error: {0}")]
+    PSQError(String),
 
     #[error("Replay detected: {0}")]
     Replay(#[from] ReplayError),
@@ -51,9 +60,6 @@ pub enum LpError {
 
     #[error("Deserialization error: {0}")]
     DeserializationError(String),
-
-    #[error("KKT protocol error: {0}")]
-    KKTError(String),
 
     #[error(transparent)]
     InvalidBase58String(#[from] bs58::decode::Error),
@@ -94,8 +100,8 @@ pub enum LpError {
     #[error("incompatible LP packet version. got: {got}, lowest supported: {lowest_supported}")]
     IncompatibleLegacyPacketVersion { got: u8, lowest_supported: u8 },
 
-    #[error("attempted to create an LP responder without providing a valid KEM key")]
-    ResponderWithMissingKEMKey,
+    #[error("attempted to create an LP responder without providing a valid KEM key for {kem} ")]
+    ResponderWithMissingKEMKey { kem: KEM },
 
     #[error(
         "there are no known digests for remote's KEM key with {kem} KEM and {hash_function} hash function"

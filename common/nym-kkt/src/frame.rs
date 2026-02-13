@@ -7,42 +7,120 @@
 // [2..=5] => Ciphersuite
 // [6] => Reserved
 
+use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
+use nym_kkt_ciphersuite::x25519::PUBLIC_KEY_LENGTH;
+use rand09::{CryptoRng, RngCore};
+
 use crate::{
+    carrier::Carrier,
     context::{KKT_CONTEXT_LEN, KKTContext},
     error::KKTError,
+    masked_byte::{MASKED_BYTE_LEN, MaskedByte},
 };
 
-pub const KKT_SESSION_ID_LEN: usize = 16;
-
-pub type KKTSessionId = [u8; KKT_SESSION_ID_LEN];
+const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct KKTFrame {
     context: [u8; KKT_CONTEXT_LEN],
-    session_id: KKTSessionId,
     body: Vec<u8>,
-    signature: Vec<u8>,
 }
 
-// if oneway and message coming from initiator => body is empty, signature contains signature of context + session id (64 bytes).
-// if message coming from anonymous initiator => body is empty, there is no signature.
-// if mutual and message coming from initiator => body has the initiator's kem public key and the signature is over the context + body + session_id.
-// if coming from responder => body has the responder's kem public key and the signature is over the context + body + session_id.
+// if oneway and message coming from initiator => body is empty.
+// if mutual and message coming from initiator => body has the initiator's kem public key.
+// if coming from responder => body has the responder's kem public key.
 
 impl KKTFrame {
-    pub fn new(
-        context: [u8; KKT_CONTEXT_LEN],
-        body: &[u8],
-        session_id: [u8; KKT_SESSION_ID_LEN],
-        signature: &[u8],
-    ) -> Self {
-        Self {
-            context,
+    pub fn new(context: &KKTContext, body: &[u8]) -> Result<Self, KKTError> {
+        let context_bytes = context.encode()?;
+        Ok(Self {
+            context: context_bytes,
             body: Vec::from(body),
-            session_id,
-            signature: Vec::from(signature),
-        }
+        })
     }
+
+    pub fn encrypt_initiator_frame<R>(
+        &self,
+        rng: &mut R,
+        responder_public_key: &DHPublicKey,
+        version_byte: u8,
+    ) -> Result<(Carrier, Vec<u8>), KKTError>
+    where
+        R: CryptoRng + RngCore,
+    {
+        let ephemeral_keypair = DHKeyPair::new(rng);
+        let shared_secret = ephemeral_keypair
+            .sk()
+            .diffie_hellman(responder_public_key)
+            .map_err(|_| KKTError::X25519Error {
+                info: "Key Derivation Error",
+            })?;
+
+        let mut mask = Vec::from(ephemeral_keypair.pk.as_ref());
+        mask.extend_from_slice(responder_public_key.as_ref());
+
+        let masked_byte = MaskedByte::new(version_byte, &mask);
+
+        let mut context = Vec::from(masked_byte.as_slice());
+        context.extend_from_slice(KKT_CARRIER_CONTEXT);
+        context.extend_from_slice(ephemeral_keypair.pk.as_ref());
+        context.extend_from_slice(responder_public_key.as_ref());
+
+        let mut carrier = Carrier::from_secret_slice(shared_secret.as_ref(), &context);
+
+        let mut full_kkt_message = Vec::from(ephemeral_keypair.pk.as_ref());
+        full_kkt_message.extend_from_slice(masked_byte.as_slice());
+        let encrypted_kkt_frame = carrier.encrypt(&self.to_bytes())?;
+        full_kkt_message.extend_from_slice(&encrypted_kkt_frame);
+
+        Ok((carrier, full_kkt_message))
+    }
+
+    pub fn decrypt_initiator_frame(
+        responder_keypair: &DHKeyPair,
+        message: &[u8],
+        supported_versions: &[u8],
+    ) -> Result<(Carrier, KKTFrame, KKTContext), KKTError> {
+        let mut initiator_public_key_bytes: [u8; PUBLIC_KEY_LENGTH] = [0; PUBLIC_KEY_LENGTH];
+        initiator_public_key_bytes.clone_from_slice(&message[0..PUBLIC_KEY_LENGTH]);
+
+        // check mask
+
+        let masked_byte =
+            MaskedByte::try_from(&message[PUBLIC_KEY_LENGTH..PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN])?;
+
+        let mut mask = Vec::from(&initiator_public_key_bytes);
+        mask.extend_from_slice(responder_keypair.pk.as_ref());
+
+        // this could be used later when we have multiple versions
+        // if this call fails, it does before the server has to run a DH
+        let _outer_protocol_version =
+            masked_byte.unmask_check_version(&mask, supported_versions)?;
+
+        // now that the version is ok, we can try dh
+
+        let initiator_public_key = DHPublicKey::from_bytes(&initiator_public_key_bytes);
+
+        let shared_secret = responder_keypair
+            .sk()
+            .diffie_hellman(&initiator_public_key)
+            .map_err(|_| KKTError::X25519Error {
+                info: "Key Derivation Error",
+            })?;
+
+        let mut context = Vec::from(masked_byte.as_slice());
+        context.extend_from_slice(KKT_CARRIER_CONTEXT);
+        context.extend_from_slice(initiator_public_key.as_ref());
+        context.extend_from_slice(responder_keypair.pk.as_ref());
+
+        let mut carrier = Carrier::from_secret_slice(shared_secret.as_ref(), &context).flip_keys();
+
+        let decrypted_message = carrier.decrypt(&message[PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN..])?;
+        let (frame, context) = KKTFrame::from_bytes(&decrypted_message)?;
+
+        Ok((carrier, frame, context))
+    }
+
     pub fn context_ref(&self) -> &[u8] {
         &self.context
     }
@@ -51,42 +129,22 @@ impl KKTFrame {
         KKTContext::try_decode(self.context)
     }
 
-    pub fn signature_ref(&self) -> &[u8] {
-        &self.signature
-    }
-
     pub fn body_ref(&self) -> &[u8] {
         &self.body
     }
 
-    pub fn session_id_ref(&self) -> &[u8] {
-        &self.session_id
-    }
-    pub fn session_id(&self) -> [u8; KKT_SESSION_ID_LEN] {
-        self.session_id
-    }
-
-    pub fn signature_mut(&mut self) -> &mut [u8] {
-        &mut self.signature
-    }
     pub fn body_mut(&mut self) -> &mut [u8] {
         &mut self.body
     }
 
-    pub fn session_id_mut(&mut self) -> &mut [u8] {
-        &mut self.session_id
-    }
-
     pub fn frame_length(&self) -> usize {
-        self.context.len() + self.session_id.len() + self.body.len() + self.signature.len()
+        self.context.len() + self.body.len()
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(self.frame_length());
         bytes.extend_from_slice(&self.context);
         bytes.extend_from_slice(&self.body);
-        bytes.extend_from_slice(&self.session_id);
-        bytes.extend_from_slice(&self.signature);
         bytes
     }
 
@@ -115,7 +173,6 @@ impl KKTFrame {
         }
 
         let mut body = Vec::new();
-        let mut signature = Vec::new();
 
         // decode body
         if context.body_len() > 0 {
@@ -123,33 +180,7 @@ impl KKTFrame {
             body.extend_from_slice(body_bytes);
         }
 
-        let session_bytes = &bytes[KKT_CONTEXT_LEN + context.body_len()
-            ..KKT_CONTEXT_LEN + context.body_len() + KKT_SESSION_ID_LEN];
-        // SAFETY: we're using exactly KKT_SESSION_ID_LEN bytes and we checked for sufficient bytes
-        #[allow(clippy::unwrap_used)]
-        let session_id = session_bytes.try_into().unwrap();
-
-        // // old code left for reference if session id becomes variable in length:
-        // if context.session_id_len() > 0 {
-        //     session_id.extend_from_slice(
-        //         &bytes[KKT_CONTEXT_LEN + context.body_len()
-        //             ..KKT_CONTEXT_LEN + context.body_len() + context.session_id_len()],
-        //     );
-        // }
-
-        // decode signature
-        if context.signature_len() > 0 {
-            let signature_bytes = &bytes[KKT_CONTEXT_LEN + context.body_len() + KKT_SESSION_ID_LEN
-                ..KKT_CONTEXT_LEN
-                    + context.body_len()
-                    + KKT_SESSION_ID_LEN
-                    + context.signature_len()];
-            signature.extend_from_slice(signature_bytes);
-        }
-
-        Ok((
-            KKTFrame::new(context_bytes, &body, session_id, &signature),
-            context,
-        ))
+        let frame = KKTFrame::new(&context, &body)?;
+        Ok((frame, context))
     }
 }

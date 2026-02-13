@@ -226,6 +226,17 @@ impl KEM {
     }
 }
 
+// pub const fn map_kem_to_libcrux_kem(kem: &KEM) -> Result<Algorithm, KKTError> {
+//     match kem {
+//         KEM::MlKem768 => Ok(Algorithm::MlKem768),
+//         KEM::XWing => Ok(Algorithm::XWingKemDraft06),
+//         KEM::X25519 => Ok(Algorithm::X25519),
+//         KEM::McEliece => Err(KKTError::KEMMapping {
+//             info: "attempted to map McEliece KEM to libcrux_kem",
+//         }),
+//     }
+// }
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Ciphersuite {
     hash_function: HashFunction,
@@ -273,16 +284,16 @@ impl Ciphersuite {
         self.verification_key_length
     }
 
-    pub fn hash_function(&self) -> HashFunction {
-        self.hash_function
+    pub fn hash_function(&self) -> &HashFunction {
+        &self.hash_function
     }
 
-    pub fn kem(&self) -> KEM {
-        self.kem
+    pub fn kem(&self) -> &KEM {
+        &self.kem
     }
 
-    pub fn signature_scheme(&self) -> SignatureScheme {
-        self.signature_scheme
+    pub fn signature_scheme(&self) -> &SignatureScheme {
+        &self.signature_scheme
     }
 
     pub fn hash_len(&self) -> usize {
@@ -347,6 +358,17 @@ impl Display for Ciphersuite {
                 self.kem, self.hash_function, self.hash_length, self.signature_scheme
             )
             .to_ascii_lowercase(),
+        )
+    }
+}
+
+impl Default for Ciphersuite {
+    fn default() -> Self {
+        Self::new(
+            KEM::MlKem768,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
         )
     }
 }

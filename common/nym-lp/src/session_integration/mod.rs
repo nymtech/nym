@@ -2,7 +2,7 @@
 mod tests {
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
     use crate::{
-        LpError, SessionsMock,
+        LpError, SessionsMock, kem_list,
         message::LpMessage,
         packet::{LpHeader, LpPacket, TRAILER_LEN},
         session_manager::SessionManager,
@@ -46,6 +46,8 @@ mod tests {
         // 1. Initialize session manager
         let mut session_manager_1 = SessionManager::new();
         let mut session_manager_2 = SessionManager::new();
+
+        let TODO = "        for kem in kem_list() {";
 
         let receiver_index = 12345;
         let sessions = SessionsMock::mock_post_handshake(receiver_index);
@@ -292,6 +294,8 @@ mod tests {
         let mut session_manager_1 = SessionManager::new();
         let mut session_manager_2 = SessionManager::new();
 
+        let TODO = "        for kem in kem_list() {";
+
         let receiver_index = 12345;
         let sessions = SessionsMock::mock_post_handshake(receiver_index);
 
@@ -404,6 +408,7 @@ mod tests {
         // 1. Initialize session manager
         let mut session_manager = SessionManager::new();
 
+        let TODO = "        for kem in kem_list() {";
         let receiver_index = 123;
         let session1 = SessionsMock::mock_post_handshake(receiver_index).initiator;
         let session2 = SessionsMock::mock_post_handshake(124).initiator;
@@ -493,6 +498,8 @@ mod tests {
         // 1. Initialize session managers
         let mut session_manager_1 = SessionManager::new();
         let mut session_manager_2 = SessionManager::new();
+
+        let TODO = "        for kem in kem_list() {";
 
         let receiver_index = 12345;
         let sessions = SessionsMock::mock_post_handshake(receiver_index);

@@ -8,12 +8,11 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum KKTError {
-    #[error("Signature constructor error")]
-    SigConstructorError,
-    #[error("Signature verification error")]
-    SigVerifError,
     #[error(transparent)]
     CiphersuiteDecodingError(#[from] KKTCiphersuiteError),
+
+    #[error(transparent)]
+    MaskedByteError(#[from] MaskedByteError),
 
     #[error("KEM mapping failure: {}", info)]
     KEMMapping { info: &'static str },
@@ -48,8 +47,26 @@ pub enum KKTError {
     #[error("{}", info)]
     AEADError { info: &'static str },
 
+    #[error("{}", info)]
+    DecodingError { info: &'static str },
+
+    #[error("{}", info)]
+    UnsupportedAlgorithm { info: &'static str },
+
     #[error("Generic libcrux error")]
     LibcruxError,
+}
+
+#[derive(Error, Debug)]
+pub enum MaskedByteError {
+    #[error(
+        "Invalid Masked Byte Length: Expected({}), Actual({}).",
+        expected,
+        actual
+    )]
+    InvalidLength { expected: usize, actual: usize },
+    #[error("Failed to Unmask Byte.")]
+    Failure,
 }
 
 impl From<libcrux_kem::Error> for KKTError {

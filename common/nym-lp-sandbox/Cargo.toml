@@ -1,5 +1,5 @@
 [package]
-name = "nym-lp"
+name = "nym-lp-sandbox"
 version = "0.1.0"
 edition = { workspace = true }
 license = { workspace = true }
@@ -18,10 +18,12 @@ tracing = { workspace = true }
 rand = { workspace = true }
 rand09 = { workspace = true }
 
+
 nym-crypto = { path = "../crypto", features = ["hashing", "asymmetric"] }
 nym-kkt = { path = "../nym-kkt" }
 nym-lp-common = { path = "../nym-lp-common" }
-nym-lp-transport = { path = "../nym-lp-transport" }
+
+nym-kkt-ciphersuite = { path ="../nym-kkt-ciphersuite" }
 
 # libcrux dependencies for PSQ (Post-Quantum PSK derivation)
 libcrux-psq = { workspace = true, features = ["test-utils"] }
@@ -31,22 +33,10 @@ num_enum = { workspace = true }
 chacha20poly1305 = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
-# needed for the 'mock 'feature
-nym-test-utils = { workspace = true, optional = true }
-
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
-#rand_chacha = "0.3"
-mock_instant = { workspace = true }
+rand_chacha = "0.3"
 nym-crypto = { path = "../crypto", features = ["rand"] }
 nym-test-utils = { workspace = true }
-anyhow = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-nym-lp-transport = { path = "../nym-lp-transport", features = ["io-mocks"] }
 
-[features]
-mock = ["nym-test-utils", "nym-crypto/rand"]
 
-[[bench]]
-name = "replay_protection"
-harness = false

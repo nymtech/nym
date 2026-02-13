@@ -155,7 +155,7 @@ impl<St: Storage> ConnectionHandler<St> {
         self.forward_ack(forward_ack, client_address);
     }
 
-    async fn handle_received_packet(&mut self, framed_sphinx_packet: FramedNymPacket) {
+    pub(crate) async fn handle_received_packet(&mut self, framed_sphinx_packet: FramedNymPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
         // packet processor for vpn packets,
@@ -174,47 +174,47 @@ impl<St: Storage> ConnectionHandler<St> {
         self.handle_processed_packet(processed_final_hop).await
     }
 
-    pub(crate) async fn handle_connection(
-        mut self,
-        conn: TcpStream,
-        remote: SocketAddr,
-        mut shutdown: TaskClient,
-    ) {
-        debug!("Starting connection handler for {:?}", remote);
-        shutdown.mark_as_success();
-        let mut framed_conn = Framed::new(conn, NymCodec);
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                biased;
-                _ = shutdown.recv() => {
-                    log::trace!("ConnectionHandler: received shutdown");
-                }
-                framed_sphinx_packet = framed_conn.next() => {
-                    match framed_sphinx_packet {
-                        Some(Ok(framed_sphinx_packet)) => {
-                            // TODO: benchmark spawning tokio task with full processing vs just processing it
-                            // synchronously under higher load in single and multi-threaded situation.
+    // pub(crate) async fn handle_connection(
+    //     mut self,
+    //     conn: TcpStream,
+    //     remote: SocketAddr,
+    //     mut shutdown: TaskClient,
+    // ) {
+    //     debug!("Starting connection handler for {:?}", remote);
+    //     shutdown.mark_as_success();
+    //     let mut framed_conn = Framed::new(conn, NymCodec);
+    //     while !shutdown.is_shutdown() {
+    //         tokio::select! {
+    //             biased;
+    //             _ = shutdown.recv() => {
+    //                 log::trace!("ConnectionHandler: received shutdown");
+    //             }
+    //             framed_sphinx_packet = framed_conn.next() => {
+    //                 match framed_sphinx_packet {
+    //                     Some(Ok(framed_sphinx_packet)) => {
+    //                         // TODO: benchmark spawning tokio task with full processing vs just processing it
+    //                         // synchronously under higher load in single and multi-threaded situation.
 
-                            // in theory we could process multiple sphinx packet from the same connection in parallel,
-                            // but we already handle multiple concurrent connections so if anything, making
-                            // that change would only slow things down
-                            self.handle_received_packet(framed_sphinx_packet).await;
-                        }
-                        Some(Err(err)) => {
-                            error!(
-                                "The socket connection got corrupted with error: {err}. Closing the socket",
-                            );
-                            return;
-                        }
-                        None => break, // stream got closed by remote
-                    }
-                }
-            }
-        }
+    //                         // in theory we could process multiple sphinx packet from the same connection in parallel,
+    //                         // but we already handle multiple concurrent connections so if anything, making
+    //                         // that change would only slow things down
+    //                         self.handle_received_packet(framed_sphinx_packet).await;
+    //                     }
+    //                     Some(Err(err)) => {
+    //                         error!(
+    //                             "The socket connection got corrupted with error: {err}. Closing the socket",
+    //                         );
+    //                         return;
+    //                     }
+    //                     None => break, // stream got closed by remote
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        info!(
-            "Closing connection from {:?}",
-            framed_conn.into_inner().peer_addr()
-        );
-    }
+    //     info!(
+    //         "Closing connection from {:?}",
+    //         framed_conn.into_inner().peer_addr()
+    //     );
+    // }
 }

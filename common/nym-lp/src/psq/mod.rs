@@ -511,8 +511,7 @@ mod tests {
 
         let kkt_responder = KKTResponder::new(
             &responder_x25519_keypair,
-            Some(resp_keys.ml_kem768_encapsulation_key()),
-            Some(resp_keys.mc_eliece_encapsulation_key()),
+            &resp_keys,
             &[
                 HashFunction::Blake3,
                 HashFunction::SHA256,

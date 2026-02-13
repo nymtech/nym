@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::key_utils::validate_encapsulation_key;
+use crate::keys::KEMKeys;
 use crate::{
     context::{KKTContext, KKTMode, KKTRole, KKTStatus},
     error::KKTError,
@@ -11,17 +12,16 @@ use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, KEM, SignatureScheme};
 
 pub struct KKTResponder<'a> {
     x25519_keypair: &'a DHKeyPair,
-    mlkem_encapsulation_key: Option<&'a libcrux_kem::MlKem768PublicKey>,
-    mceliece_encapsulation_key: Option<&'a libcrux_psq::classic_mceliece::PublicKey>,
+    kem_keys: &'a KEMKeys,
     supported_hash_functions: HashSet<HashFunction>,
     supported_signature_schemes: HashSet<SignatureScheme>,
     supported_outer_protocol_versions: HashSet<u8>,
 }
+
 impl<'a> KKTResponder<'a> {
     pub fn new(
         x25519_keypair: &'a DHKeyPair,
-        mlkem_encapsulation_key: Option<&'a libcrux_kem::MlKem768PublicKey>,
-        mceliece_encapsulation_key: Option<&'a libcrux_psq::classic_mceliece::PublicKey>,
+        kem_keys: &'a KEMKeys,
         supported_hash_functions: &[HashFunction],
         supported_outer_protocol_versions: &[u8],
         supported_signature_schemes: &[SignatureScheme],
@@ -51,15 +51,10 @@ impl<'a> KKTResponder<'a> {
             Err(KKTError::FunctionInputError {
                 info: "Did not provide a supported outer protocol version when instaciating a KKTResponder",
             })
-        } else if mlkem_encapsulation_key.is_none() && mceliece_encapsulation_key.is_none() {
-            Err(KKTError::FunctionInputError {
-                info: "Did not provide an encapsulation key when instanciating a KKTResponder.",
-            })
         } else {
             Ok(Self {
                 x25519_keypair,
-                mlkem_encapsulation_key,
-                mceliece_encapsulation_key,
+                kem_keys,
                 supported_hash_functions: hash_functions,
                 supported_signature_schemes: signature_schemes,
                 supported_outer_protocol_versions: outer_protocol_versions,
@@ -81,27 +76,21 @@ impl<'a> KKTResponder<'a> {
             .supported_hash_functions
             .contains(&remote_ciphersuite.hash_function())
         {
-            Err(KKTError::IncompatibilityError {
+            return Err(KKTError::IncompatibilityError {
                 info: "Unsupported HashFunction",
-            })
-        } else if !self
+            });
+        }
+
+        if !self
             .supported_signature_schemes
             .contains(&remote_ciphersuite.signature_scheme())
         {
-            Err(KKTError::IncompatibilityError {
+            return Err(KKTError::IncompatibilityError {
                 info: "Unsupported SignatureScheme",
-            })
-        } else if match remote_ciphersuite.kem() {
-            KEM::MlKem768 => self.mlkem_encapsulation_key.is_some(),
-            KEM::McEliece => self.mceliece_encapsulation_key.is_some(),
-            _ => false,
-        } {
-            Ok(())
-        } else {
-            Err(KKTError::IncompatibilityError {
-                info: "Unsupported KEM",
-            })
+            });
         }
+
+        Ok(())
     }
 
     // When this function fails, we do that silently (i.e. we dont generate a response to the initiator).
@@ -130,21 +119,13 @@ impl<'a> KKTResponder<'a> {
             }
         };
 
-        let frame = if local_context.ciphersuite().kem() == KEM::MlKem768 {
-            KKTFrame::new(
-                &local_context,
-                // SAFETY: the self.check_ciphersuite_compatibility call above guarantees that we will have a key in the right place
-                #[allow(clippy::unwrap_used)]
-                self.mlkem_encapsulation_key.unwrap().as_slice().as_slice(),
-            )?
-        } else {
-            KKTFrame::new(
-                &local_context,
-                // SAFETY: the self.check_ciphersuite_compatibility call above guarantees that we will have a key in the right place
-                #[allow(clippy::unwrap_used)]
-                self.mceliece_encapsulation_key.unwrap().as_ref(),
-            )?
+        let kem = local_context.ciphersuite().kem();
+        let Some(kem_key) = self.kem_keys.encoded_encapsulation_key(kem) else {
+            return Err(KKTError::IncompatibilityError {
+                info: "Unsupported KEM",
+            });
         };
+        let frame = KKTFrame::new(&local_context, kem_key)?;
 
         // encryption - responder frame
         let response_bytes = carrier.encrypt(&frame.to_bytes())?;

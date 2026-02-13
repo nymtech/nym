@@ -226,6 +226,17 @@ impl KEM {
     }
 }
 
+// pub const fn map_kem_to_libcrux_kem(kem: &KEM) -> Result<Algorithm, KKTError> {
+//     match kem {
+//         KEM::MlKem768 => Ok(Algorithm::MlKem768),
+//         KEM::XWing => Ok(Algorithm::XWingKemDraft06),
+//         KEM::X25519 => Ok(Algorithm::X25519),
+//         KEM::McEliece => Err(KKTError::KEMMapping {
+//             info: "attempted to map McEliece KEM to libcrux_kem",
+//         }),
+//     }
+// }
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Ciphersuite {
     hash_function: HashFunction,

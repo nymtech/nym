@@ -1,9 +1,8 @@
-use crate::ciphersuite::HashFunction;
 use std::collections::HashMap;
 
 use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
 use libcrux_psq::handshake::types::DHKeyPair;
-use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, KeyDigests};
+use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, HashFunction, KeyDigests};
 use rand09::{CryptoRng, RngCore};
 
 pub fn generate_keypair_x25519<R>(rng: &mut R) -> DHKeyPair
@@ -11,28 +10,6 @@ where
     R: RngCore + CryptoRng,
 {
     DHKeyPair::new(rng)
-}
-
-// (decapsulation_key, encapsulation_key)
-pub fn generate_keypair_libcrux<R>(
-    rng: &mut R,
-    kem: crate::ciphersuite::KEM,
-) -> Result<(libcrux_kem::PrivateKey, libcrux_kem::PublicKey), crate::error::KKTError>
-where
-    R: RngCore + CryptoRng,
-{
-    match kem {
-        crate::ciphersuite::KEM::XWing => Ok(libcrux_kem::key_gen(
-            libcrux_kem::Algorithm::XWingKemDraft06,
-            rng,
-        )?),
-        crate::ciphersuite::KEM::X25519 => {
-            Ok(libcrux_kem::key_gen(libcrux_kem::Algorithm::X25519, rng)?)
-        }
-        _ => Err(crate::error::KKTError::KEMError {
-            info: "Key Generation Error: Unsupported Libcrux Algorithm",
-        }),
-    }
 }
 
 pub fn generate_keypair_mlkem<R>(rng: &mut R) -> (MlKem768PrivateKey, MlKem768PublicKey)

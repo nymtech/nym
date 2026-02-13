@@ -1,9 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ciphersuite::CIPHERSUITE_ENCODING_LEN;
-use crate::{KKT_VERSION, ciphersuite::Ciphersuite, error::KKTError};
+use crate::{KKT_VERSION, error::KKTError};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use nym_kkt_ciphersuite::{CIPHERSUITE_ENCODING_LEN, Ciphersuite};
 use std::fmt::Display;
 
 pub const KKT_CONTEXT_LEN: usize = 3 + CIPHERSUITE_ENCODING_LEN;

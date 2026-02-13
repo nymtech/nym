@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use crate::key_utils::validate_encapsulation_key;
 use crate::{
-    ciphersuite::EncapsulationKey,
     context::{KKTContext, KKTMode, KKTRole, KKTStatus},
     error::KKTError,
     frame::KKTFrame,
@@ -11,8 +10,8 @@ use libcrux_psq::handshake::types::DHKeyPair;
 use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, KEM, SignatureScheme};
 pub struct KKTResponder<'a> {
     x25519_keypair: &'a DHKeyPair,
-    mlkem_encapsulation_key: Option<&'a EncapsulationKey>,
-    mceliece_encapsulation_key: Option<&'a EncapsulationKey>,
+    mlkem_encapsulation_key: Option<&'a libcrux_kem::MlKem768PublicKey>,
+    mceliece_encapsulation_key: Option<&'a libcrux_psq::classic_mceliece::PublicKey>,
     supported_hash_functions: HashSet<HashFunction>,
     supported_signature_schemes: HashSet<SignatureScheme>,
     supported_outer_protocol_versions: HashSet<u8>,
@@ -20,8 +19,8 @@ pub struct KKTResponder<'a> {
 impl<'a> KKTResponder<'a> {
     pub fn new(
         x25519_keypair: &'a DHKeyPair,
-        mlkem_encapsulation_key: Option<&'a EncapsulationKey>,
-        mceliece_encapsulation_key: Option<&'a EncapsulationKey>,
+        mlkem_encapsulation_key: Option<&'a libcrux_kem::MlKem768PublicKey>,
+        mceliece_encapsulation_key: Option<&'a libcrux_psq::classic_mceliece::PublicKey>,
         supported_hash_functions: &[HashFunction],
         supported_outer_protocol_versions: &[u8],
         supported_signature_schemes: &[SignatureScheme],
@@ -50,61 +49,19 @@ impl<'a> KKTResponder<'a> {
                         info: "Did not provide a supported outer protocol version when instaciating a KKTResponder",
                     })
                 } else {
-                    match (mlkem_encapsulation_key, mceliece_encapsulation_key) {
-                        (Some(mlkem_key), Some(mceliece_key)) => match (mlkem_key, mceliece_key) {
-                            (EncapsulationKey::MlKem768(_), EncapsulationKey::McEliece(_)) => {
-                                Ok(Self {
-                                    x25519_keypair,
-                                    mlkem_encapsulation_key,
-                                    mceliece_encapsulation_key,
-                                    supported_hash_functions: hash_functions,
-                                    supported_signature_schemes: signature_schemes,
-                                    supported_outer_protocol_versions: outer_protocol_versions,
-                                })
-                            }
-                            (EncapsulationKey::MlKem768(_), _) => {
-                                Err(KKTError::FunctionInputError {
-                                    info: "Provided a non-MlKem768 encapsulation key as the MlKem768 key.",
-                                })
-                            }
-                            (EncapsulationKey::McEliece(_), _) => {
-                                Err(KKTError::FunctionInputError {
-                                    info: "Provided a non-McEliece encapsulation key as the McEliece key.",
-                                })
-                            }
-                            _ => Err(KKTError::FunctionInputError {
-                                info: "Provided incompatible encapsulation keys.",
-                            }),
-                        },
-                        (Some(mlkem_key), None) => match mlkem_key {
-                            EncapsulationKey::MlKem768(_) => Ok(Self {
-                                x25519_keypair,
-                                mlkem_encapsulation_key,
-                                mceliece_encapsulation_key: None,
-                                supported_hash_functions: hash_functions,
-                                supported_signature_schemes: signature_schemes,
-                                supported_outer_protocol_versions: outer_protocol_versions,
-                            }),
-                            _ => Err(KKTError::FunctionInputError {
-                                info: "Provided a non-MlKem768 encapsulation key as the MlKem768 key.",
-                            }),
-                        },
-                        (None, Some(mceliece_key)) => match mceliece_key {
-                            EncapsulationKey::McEliece(_) => Ok(Self {
-                                x25519_keypair,
-                                mlkem_encapsulation_key: None,
-                                mceliece_encapsulation_key,
-                                supported_hash_functions: hash_functions,
-                                supported_signature_schemes: signature_schemes,
-                                supported_outer_protocol_versions: outer_protocol_versions,
-                            }),
-                            _ => Err(KKTError::FunctionInputError {
-                                info: "Provided a non-McEliece encapsulation key as the McEliece key.",
-                            }),
-                        },
-                        (None, None) => Err(KKTError::FunctionInputError {
+                    if mlkem_encapsulation_key.is_none() && mceliece_encapsulation_key.is_none() {
+                        return Err(KKTError::FunctionInputError {
                             info: "Did not provide an encapsulation key when instanciating a KKTResponder.",
-                        }),
+                        });
+                    } else {
+                        Ok(Self {
+                            x25519_keypair,
+                            mlkem_encapsulation_key,
+                            mceliece_encapsulation_key,
+                            supported_hash_functions: hash_functions,
+                            supported_signature_schemes: signature_schemes,
+                            supported_outer_protocol_versions: outer_protocol_versions,
+                        })
                     }
                 }
             }
@@ -157,7 +114,7 @@ impl<'a> KKTResponder<'a> {
     pub fn process_request(
         &self,
         request_bytes: &[u8],
-    ) -> Result<(Vec<u8>, Option<EncapsulationKey>), KKTError> {
+    ) -> Result<(Vec<u8>, Option<Vec<u8>>), KKTError> {
         let (mut carrier, remote_frame, remote_context) = KKTFrame::decrypt_initiator_frame(
             self.x25519_keypair,
             request_bytes,
@@ -183,14 +140,14 @@ impl<'a> KKTResponder<'a> {
                 &local_context,
                 // SAFETY: the self.check_ciphersuite_compatibility call above guarantees that we will have a key in the right place
                 #[allow(clippy::unwrap_used)]
-                &self.mlkem_encapsulation_key.unwrap().encode(),
+                &self.mlkem_encapsulation_key.unwrap().as_slice().as_slice(),
             )?
         } else {
             KKTFrame::new(
                 &local_context,
                 // SAFETY: the self.check_ciphersuite_compatibility call above guarantees that we will have a key in the right place
                 #[allow(clippy::unwrap_used)]
-                &self.mceliece_encapsulation_key.unwrap().encode(),
+                &self.mceliece_encapsulation_key.unwrap().as_ref(),
             )?
         };
 
@@ -204,7 +161,7 @@ pub fn responder_ingest_message(
     remote_context: &KKTContext,
     expected_hash: Option<&[u8]>,
     remote_frame: &KKTFrame,
-) -> Result<(KKTContext, Option<EncapsulationKey>), KKTError> {
+) -> Result<(KKTContext, Option<Vec<u8>>), KKTError> {
     let mut own_context = remote_context.derive_responder_header()?;
 
     match remote_context.role() {
@@ -215,17 +172,13 @@ pub fn responder_ingest_message(
                 KKTMode::Mutual => {
                     match expected_hash {
                         Some(expected_hash) => {
-                            let received_encapsulation_key = EncapsulationKey::decode(
-                                own_context.ciphersuite().kem(),
-                                remote_frame.body_ref(),
-                            )?;
                             if validate_encapsulation_key(
                                 own_context.ciphersuite().hash_function(),
                                 own_context.ciphersuite().hash_len(),
                                 remote_frame.body_ref(),
                                 expected_hash,
                             ) {
-                                Ok((own_context, Some(received_encapsulation_key)))
+                                Ok((own_context, Some(remote_frame.body_ref().to_vec())))
                             }
                             // The key does not match the hash obtained from the directory
                             else {

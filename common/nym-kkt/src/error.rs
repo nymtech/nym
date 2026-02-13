@@ -11,6 +11,9 @@ pub enum KKTError {
     #[error(transparent)]
     CiphersuiteDecodingError(#[from] KKTCiphersuiteError),
 
+    #[error(transparent)]
+    MaskedByteError(#[from] MaskedByteError),
+
     #[error("KEM mapping failure: {}", info)]
     KEMMapping { info: &'static str },
 

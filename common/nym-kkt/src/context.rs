@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ciphersuite::CIPHERSUITE_ENCODING_LEN;
-use crate::{KKT_VERSION, ciphersuite::Ciphersuite, error::KKTError, frame::KKT_SESSION_ID_LEN};
+use crate::{KKT_VERSION, ciphersuite::Ciphersuite, error::KKTError};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::fmt::Display;
 
@@ -19,6 +19,7 @@ pub enum KKTStatus {
     UnsupportedKKTVersion = 0b1000_0000,
     InvalidKey = 0b1010_0000,
     Timeout = 0b1100_0000,
+    UnverifiedKEMKey = 0b1110_0000,
 }
 
 impl Display for KKTStatus {
@@ -30,6 +31,7 @@ impl Display for KKTStatus {
             KKTStatus::UnsupportedCiphersuite => "Unsupported Ciphersuite",
             KKTStatus::UnsupportedKKTVersion => "Unsupported KKT Version",
             KKTStatus::InvalidKey => "Invalid Key",
+            KKTStatus::UnverifiedKEMKey => "Could not verify received encapsulation key",
             KKTStatus::Timeout => "Timeout",
         })
     }
@@ -61,14 +63,14 @@ pub struct KKTContext {
     ciphersuite: Ciphersuite,
 }
 impl KKTContext {
-    pub fn new(role: KKTRole, mode: KKTMode, ciphersuite: Ciphersuite) -> Self {
+    pub fn new(role: KKTRole, mode: KKTMode, ciphersuite: &Ciphersuite) -> Self {
         Self {
             version: KKT_VERSION,
             message_sequence: 0,
             status: KKTStatus::Ok,
             mode,
             role,
-            ciphersuite,
+            ciphersuite: *ciphersuite,
         }
     }
 
@@ -99,8 +101,8 @@ impl KKTContext {
     pub fn status(&self) -> KKTStatus {
         self.status
     }
-    pub fn ciphersuite(&self) -> Ciphersuite {
-        self.ciphersuite
+    pub fn ciphersuite(&self) -> &Ciphersuite {
+        &self.ciphersuite
     }
     pub fn role(&self) -> KKTRole {
         self.role
@@ -110,7 +112,7 @@ impl KKTContext {
     }
 
     pub fn body_len(&self) -> usize {
-        if self.status != KKTStatus::Ok
+        if (self.status != KKTStatus::Ok && self.status != KKTStatus::UnverifiedKEMKey)
         ||
         // no payload
         (self.mode == KKTMode::OneWay && self.role == KKTRole::Initiator)
@@ -125,20 +127,8 @@ impl KKTContext {
         KKT_CONTEXT_LEN
     }
 
-    pub const fn session_id_len(&self) -> usize {
-        // note: if anyone decides to update this function and changes the constant value,
-        // you will have to adjust encoding/decoding functions
-
-        // match self.role {
-        //     KKTRole::Initiator | KKTRole::Responder => SESSION_ID_LENGTH,
-        // It doesn't make sense to send a session_id if we send messages in the clear
-        //     KKTRole::AnonymousInitiator => 0,
-        // }
-        KKT_SESSION_ID_LEN
-    }
-
     pub fn full_message_len(&self) -> usize {
-        self.body_len() + self.header_len() + self.session_id_len()
+        self.body_len() + self.header_len()
     }
 
     pub fn encode(&self) -> Result<[u8; KKT_CONTEXT_LEN], KKTError> {
@@ -214,7 +204,7 @@ mod tests {
         let valid_context = KKTContext::new(
             KKTRole::Initiator,
             KKTMode::Mutual,
-            Ciphersuite::decode([255, 1, 0, 0]).unwrap(),
+            &Ciphersuite::decode([255, 1, 0, 0]).unwrap(),
         );
         let encoded = valid_context.encode().unwrap();
         let decoded = KKTContext::try_decode(encoded).unwrap();

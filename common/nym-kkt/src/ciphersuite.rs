@@ -45,7 +45,7 @@ impl Debug for EncapsulationKey {
     }
 }
 impl EncapsulationKey {
-    pub(crate) fn decode(kem: KEM, bytes: &[u8]) -> Result<Self, KKTError> {
+    pub(crate) fn decode(kem: &KEM, bytes: &[u8]) -> Result<Self, KKTError> {
         match kem {
             KEM::McEliece => {
                 if bytes.len() != mceliece::PUBLIC_KEY_LENGTH {
@@ -110,7 +110,7 @@ impl Debug for DecapsulationKey {
     }
 }
 
-pub const fn map_kem_to_libcrux_kem(kem: KEM) -> Result<Algorithm, KKTError> {
+pub const fn map_kem_to_libcrux_kem(kem: &KEM) -> Result<Algorithm, KKTError> {
     match kem {
         KEM::MlKem768 => Ok(Algorithm::MlKem768),
         KEM::XWing => Ok(Algorithm::XWingKemDraft06),

@@ -47,12 +47,13 @@ pub struct NetstackArgs {
     #[arg(long = "use-target", default_value = "portquiz.net")]
     pub port_check_target: String,
 
-    /// List ports to check, separated by a comma.
+    /// TCP ports to check through the WireGuard tunnel for exit policy verification.
+    /// Only used with the `run-ports` subcommand. For all exit policy ports, use --check-all-ports instead.
     #[arg(long = "check-ports", value_delimiter = ',', default_values_t = Vec::<u16>::new())]
     pub port_check_ports: Vec<u16>,
 
-    /// Timeout in seconds for each individual port check attempt
-    #[arg(long, default_value_t = NetstackArgs::default().port_check_timeout_sec)]
+    /// Timeout in seconds for each individual TCP port check
+    #[arg(long, default_value_t = 5)]
     pub port_check_timeout_sec: u64,
 }
 

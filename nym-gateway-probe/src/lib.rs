@@ -8,7 +8,7 @@ use crate::common::probe_tests::{
     do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe,
 };
 use crate::common::types::{Entry, LpProbeResults};
-use crate::config::{CredentialArgs, CredentialMode, NetstackArgs, ProbeConfig};
+use crate::config::{CredentialArgs, CredentialMode, ProbeConfig};
 use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_client_core::config::ForgetMe;
@@ -21,7 +21,6 @@ use nym_sdk::mixnet::{
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use rand::rngs::OsRng;
 use std::collections::HashMap;
-use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -299,15 +298,12 @@ impl Probe {
     }
 
     /// Run a port-check probe against the exit gateway's WG exit policy
-    pub async fn run_ports_bonded(
-        entry_node: TestedNodeDetails,
-        exit_node: Option<TestedNodeDetails>,
-        network: NymNetworkDetails,
-        config: &RunPortsConfig,
+    pub async fn probe_run_ports(
+        mut self,
         config_dir: &PathBuf,
         credential: CredentialMode,
     ) -> anyhow::Result<PortCheckResult> {
-        let exit_node = exit_node.unwrap_or(entry_node.clone());
+        let exit_node = self.exit_node.take().unwrap_or(self.entry_node.clone());
         let exit_identity = exit_node.identity.to_string();
 
         // need authenticator + IP to be a functional exit
@@ -322,8 +318,8 @@ impl Probe {
                 }
             };
 
-        let ports = config.netstack_args.port_check_ports.clone();
-        let port_check_target = config.netstack_args.port_check_target.clone();
+        let ports = self.config.netstack_args.port_check_ports.clone();
+        let port_check_target = self.config.netstack_args.port_check_target.clone();
 
         if ports.is_empty() {
             anyhow::bail!(
@@ -345,23 +341,23 @@ impl Probe {
             .await?;
 
         let mixnet_debug_config = helpers::mixnet_debug_config(
-            config.min_gateway_mixnet_performance,
-            config.ignore_egress_epoch_role,
+            self.config.min_gateway_mixnet_performance,
+            self.config.ignore_egress_epoch_role,
         );
 
-        let topology = helpers::fetch_topology(&network, &mixnet_debug_config)
+        self.topology = helpers::fetch_topology(&self.network, &mixnet_debug_config)
             .await
             .inspect_err(|e| warn!("Failed to fetch topology: {e}"))
             .ok();
 
         let mut mixnet_client_builder = MixnetClientBuilder::new_with_storage(storage.clone())
-            .request_gateway(entry_node.identity.to_string())
-            .network_details(network.clone())
+            .request_gateway(self.entry_node.identity.to_string())
+            .network_details(self.network.clone())
             .debug_config(mixnet_debug_config)
             .with_forget_me(ForgetMe::new_stats())
             .credentials_mode(!credential.use_mock_ecash);
 
-        if let Some(topology) = &topology {
+        if let Some(topology) = &self.topology {
             mixnet_client_builder = mixnet_client_builder.custom_topology_provider(Box::new(
                 HardcodedTopologyProvider::new(topology.clone()),
             ));
@@ -383,7 +379,7 @@ impl Probe {
             .await?;
 
         let bandwidth_provider = build_bandwidth_controller(
-            &network,
+            &self.network,
             storage.credential_store().clone(),
             credential.use_mock_ecash,
         )?;
@@ -392,7 +388,7 @@ impl Probe {
             Ok(client) => {
                 info!(
                     "Connected to mixnet via entry gateway: {}",
-                    entry_node.identity
+                    self.entry_node.identity
                 );
                 info!("Our nym address: {}", *client.nym_address());
                 client
@@ -455,7 +451,7 @@ impl Probe {
                 }
             };
 
-            let netstack_args = config.netstack_args.clone();
+            let netstack_args = self.config.netstack_args.clone();
             let mut rng = rand::thread_rng();
             let auth_client = AuthenticatorClient::new(
                 mixnet_listener_task.subscribe(),
@@ -471,7 +467,7 @@ impl Probe {
                 auth_client,
                 ip_address,
                 exit_node.authenticator_version,
-                None,
+                self.config.amnezia_args.clone(),
                 netstack_args,
                 true, // port_check_only
                 credential,
@@ -510,95 +506,6 @@ impl Probe {
             port_check_target,
             ports: port_results,
             error: if can_register { None } else { last_error },
-        })
-    }
-
-    /// Run a direct TCP port check against an IP-only target gateway.
-    /// This bypasses mixnet and auth registration. It is intended for unannounced/local gateways
-    pub async fn probe_run_ports_direct_ip(
-        gateway_address: &str,
-        target_ip: IpAddr,
-        config: &RunPortsConfig,
-        protocol: DirectPortCheckProtocol,
-    ) -> anyhow::Result<PortCheckResult> {
-        let ports = config.netstack_args.port_check_ports.clone();
-        if ports.is_empty() {
-            anyhow::bail!(
-                "No ports specified. Use --check-ports 80,443,22021 or --check-all-ports"
-            );
-        }
-
-        // Preferred truth source: gateway-declared exit policy.
-        if let Ok(used_policy) =
-            crate::common::nodes::query_exit_policy_by_ip(gateway_address).await
-        {
-            if used_policy.enabled {
-                if let Some(policy) = used_policy.policy {
-                    let mut policy_results = HashMap::with_capacity(ports.len());
-                    let v4_probe = std::net::IpAddr::V4(std::net::Ipv4Addr::new(1, 1, 1, 1));
-                    let v6_probe = std::net::IpAddr::V6(std::net::Ipv6Addr::new(
-                        0x2606, 0x4700, 0x4700, 0, 0, 0, 0, 0x1111,
-                    ));
-
-                    for port in &ports {
-                        let allowed_v4 = policy.allows(&v4_probe, *port).unwrap_or(false);
-                        let allowed_v6 = policy.allows(&v6_probe, *port).unwrap_or(false);
-                        policy_results.insert(port.to_string(), allowed_v4 || allowed_v6);
-                    }
-
-                    return Ok(PortCheckResult {
-                        gateway: gateway_address.to_string(),
-                        can_register: true,
-                        port_check_target: gateway_address.to_string(),
-                        ports: policy_results,
-                        error: None,
-                    });
-                }
-            }
-        }
-
-        let timeout_duration =
-            std::time::Duration::from_secs(config.netstack_args.port_check_timeout_sec);
-        let mut port_results = HashMap::with_capacity(ports.len());
-
-        info!(
-            "Direct {:?} port check: testing {} ports on {} (timeout {}s per port)",
-            protocol,
-            ports.len(),
-            target_ip,
-            config.netstack_args.port_check_timeout_sec
-        );
-
-        for port in ports {
-            let socket = SocketAddr::new(target_ip, port);
-            let is_open = match protocol {
-                DirectPortCheckProtocol::Auto => {
-                    Probe::check_tcp_socket(socket, timeout_duration).await
-                        || Probe::check_udp_socket(socket, timeout_duration).await
-                }
-                DirectPortCheckProtocol::Tcp => {
-                    Probe::check_tcp_socket(socket, timeout_duration).await
-                }
-                DirectPortCheckProtocol::Udp => {
-                    Probe::check_udp_socket(socket, timeout_duration).await
-                }
-            };
-            port_results.insert(port.to_string(), is_open);
-        }
-
-        let open = port_results.values().filter(|&&is_open| is_open).count();
-        info!(
-            "Direct port check complete: {}/{} ports reachable",
-            open,
-            port_results.len()
-        );
-
-        Ok(PortCheckResult {
-            gateway: gateway_address.to_string(),
-            can_register: true,
-            port_check_target: gateway_address.to_string(),
-            ports: port_results,
-            error: None,
         })
     }
 

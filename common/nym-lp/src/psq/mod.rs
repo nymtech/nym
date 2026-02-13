@@ -29,10 +29,10 @@ use rand09::rngs::ThreadRng;
 
 use std::fmt::Debug;
 
-pub(crate) const AAD_INITIATOR_OUTER: &[u8] = b"NYM-PSQ-AAD-INIT-OUTER-V1";
-pub(crate) const AAD_INITIATOR_INNER: &[u8] = b"NYM-PSQ-AAD-INIT-INNER-V1";
-pub(crate) const AAD_RESPONDER: &[u8] = b"NYM-PSQ-AAD-RESP-V1";
-pub(crate) const SESSION_CONTEXT: &[u8] = b"NYM-PSQ-SESSION-CONTEXT-V1";
+pub(crate) const AAD_INITIATOR_OUTER: &[u8] = b"NYM-PQ-AAD-INIT-OUTER-V1";
+pub(crate) const AAD_INITIATOR_INNER: &[u8] = b"NYM-PQ-AAD-INIT-INNER-V1";
+pub(crate) const AAD_RESPONDER: &[u8] = b"NYM-PQ-AAD-RESP-V1";
+pub(crate) const SESSION_CONTEXT: &[u8] = b"NYM-PQ-SESSION-CONTEXT-V1";
 
 pub enum PSQState<'a> {
     Initiator(RegistrationInitiator<'a, ThreadRng>),
@@ -324,6 +324,7 @@ mod tests {
     };
     use nym_kkt::responder::KKTResponder;
     use nym_kkt_ciphersuite::{HashFunction, HashLength, SignatureScheme};
+    use nym_test_utils::helpers::deterministic_rng_09;
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Leak, TimeboxedSpawnable};
     use std::time::Duration;
@@ -490,7 +491,15 @@ mod tests {
     // plain test without any wrappers
     #[test]
     fn e2e_test_plain() {
-        let mut rng = rand09::rng();
+        let mut rng = deterministic_rng_09();
+
+        let (mut init, resp) = mock_peers();
+
+        init.ciphersuite = Ciphersuite::default().with_kem(KEM::MlKem768);
+        let resp_remote = resp.as_remote();
+        let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite).unwrap();
+
+        let resp_keys = resp.kem_keypairs.as_ref().unwrap();
 
         // we should add these as consts
         let aad_initiator_outer = b"Test Data I Outer";
@@ -503,29 +512,10 @@ mod tests {
         let hash_function = HashFunction::Blake3;
         // generate kem public keys
 
-        let responder_mlkem_keypair = generate_keypair_mlkem(&mut rng);
-        let responder_mceliece_keypair = generate_keypair_mceliece(&mut rng);
-
-        let r_dir_hash_mlkem = hash_encapsulation_key(
-            // &ciphersuite.hash_function(),
-            hash_function,
-            // ciphersuite.hash_len(),
-            HashLength::Default.value(),
-            responder_mlkem_keypair.1.as_slice().as_slice(),
-        );
-
-        let _r_dir_hash_mceliece = hash_encapsulation_key(
-            // &ciphersuite.hash_function(),
-            hash_function,
-            // ciphersuite.hash_len(),
-            HashLength::Default.value(),
-            responder_mceliece_keypair.1.as_ref(),
-        );
-
         let kkt_responder = KKTResponder::new(
             &responder_x25519_keypair,
-            Some(&responder_mlkem_keypair.1),
-            Some(&responder_mceliece_keypair.1),
+            Some(resp_keys.ml_kem768_encapsulation_key()),
+            Some(resp_keys.mc_eliece_encapsulation_key()),
             &[
                 HashFunction::Blake3,
                 HashFunction::SHA256,
@@ -542,8 +532,8 @@ mod tests {
 
         let responder_ciphersuite = CiphersuiteBuilder::new(psq_ciphersuite)
             .longterm_x25519_keys(&responder_x25519_keypair)
-            .longterm_mlkem_encapsulation_key(&responder_mlkem_keypair.1)
-            .longterm_mlkem_decapsulation_key(&responder_mlkem_keypair.0)
+            .longterm_mlkem_encapsulation_key(resp_keys.ml_kem768_encapsulation_key())
+            .longterm_mlkem_decapsulation_key(resp_keys.ml_kem768_decapsulation_key())
             .build_responder_ciphersuite()
             .unwrap();
 
@@ -566,7 +556,7 @@ mod tests {
             &mut rng,
             &ciphersuite,
             &responder_x25519_keypair.pk,
-            &r_dir_hash_mlkem,
+            &dir_hash,
             1u8,
         )
         .unwrap();
@@ -577,7 +567,10 @@ mod tests {
 
         assert_eq!(
             i_obtained_key,
-            responder_mlkem_keypair.1.as_slice().as_slice(),
+            resp_keys
+                .ml_kem768_encapsulation_key()
+                .as_slice()
+                .as_slice(),
         );
 
         let mlkem_key =

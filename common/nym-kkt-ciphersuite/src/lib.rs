@@ -209,9 +209,11 @@ impl SignatureScheme {
 #[strum(serialize_all = "lowercase")]
 #[repr(u8)]
 pub enum KEM {
+    #[deprecated]
     XWing = 0,
     MlKem768 = 1,
     McEliece = 2,
+    #[deprecated]
     X25519 = 255,
 }
 
@@ -266,6 +268,34 @@ impl Ciphersuite {
             verification_key_length: signature_scheme.verification_key_length(),
             signature_length: signature_scheme.signature_length(),
         }
+    }
+
+    #[must_use]
+    pub fn with_kem(mut self, kem: KEM) -> Self {
+        self.kem = kem;
+        self.encapsulation_key_length = kem.encapsulation_key_length();
+        self
+    }
+
+    #[must_use]
+    pub fn with_signature_scheme(mut self, signature_scheme: SignatureScheme) -> Self {
+        self.signature_scheme = signature_scheme;
+        self.signing_key_length = signature_scheme.signing_key_length();
+        self.verification_key_length = signature_scheme.verification_key_length();
+        self.signature_length = signature_scheme.signature_length();
+        self
+    }
+
+    #[must_use]
+    pub fn with_hash_function(mut self, hash_function: HashFunction) -> Self {
+        self.hash_function = hash_function;
+        self
+    }
+
+    #[must_use]
+    pub fn with_hash_length(mut self, hash_length: HashLength) -> Self {
+        self.hash_length = hash_length;
+        self
     }
 
     pub fn kem_key_len(&self) -> usize {

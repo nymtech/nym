@@ -7,6 +7,7 @@ pub mod error;
 pub mod frame;
 pub mod initiator;
 pub mod key_utils;
+pub mod keys;
 pub mod masked_byte;
 pub mod rekey;
 pub mod responder;
@@ -44,6 +45,7 @@ mod test {
             // generate kem public keys
 
             let responder_mlkem_keypair = generate_keypair_mlkem(&mut rng);
+
             let responder_mceliece_keypair = generate_keypair_mceliece(&mut rng);
 
             let r_dir_hash_mlkem = hash_encapsulation_key(

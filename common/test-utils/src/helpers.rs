@@ -7,12 +7,18 @@ use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;
 use nym_bin_common::logging::tracing_subscriber::util::SubscriberInitExt;
 use nym_bin_common::logging::{default_tracing_fmt_layer, tracing_subscriber};
 use rand_chacha::rand_core::SeedableRng;
+use rand_chacha09::rand_core::SeedableRng as SeedableRng09;
 use std::future::Future;
 use tokio::task::JoinHandle;
 use tokio::time::error::Elapsed;
 
+// 'current' rand crate
 pub use rand_chacha::ChaCha20Rng as DeterministicRng;
 pub use rand_chacha::rand_core::{CryptoRng, RngCore};
+
+// rand09 compat
+pub use rand_chacha09::ChaChaRng as DeterministicRng09;
+pub use rand_chacha09::rand_core::{CryptoRng as CryptoRng09, RngCore as RngCore09};
 
 pub fn leak<T>(val: T) -> &'static mut T {
     Box::leak(Box::new(val))
@@ -26,6 +32,10 @@ where
     tokio::spawn(async move { fut.timeboxed().await })
 }
 
+pub fn deterministic_rng_09() -> DeterministicRng09 {
+    seeded_rng_09([42u8; 32])
+}
+
 pub fn deterministic_rng() -> DeterministicRng {
     seeded_rng([42u8; 32])
 }
@@ -34,8 +44,16 @@ pub fn seeded_rng(seed: [u8; 32]) -> DeterministicRng {
     DeterministicRng::from_seed(seed)
 }
 
+pub fn seeded_rng_09(seed: [u8; 32]) -> DeterministicRng09 {
+    DeterministicRng09::from_seed(seed)
+}
+
 pub fn u64_seeded_rng(seed: u64) -> DeterministicRng {
     DeterministicRng::seed_from_u64(seed)
+}
+
+pub fn u64_seeded_rng_09(seed: u64) -> DeterministicRng09 {
+    DeterministicRng09::seed_from_u64(seed)
 }
 
 // test logger to use during debugging

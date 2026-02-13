@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{ClientHelloData, LpError};
-use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
+use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt_ciphersuite::{
-    Ciphersuite, HashFunction, HashLength, KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests,
+use nym_kkt::key_utils::{
+    generate_keypair_mceliece, generate_keypair_mlkem, generate_keypair_x25519,
 };
+use nym_kkt::keys::KEMKeys;
+use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests};
+use nym_test_utils::helpers::{deterministic_rng, seeded_rng_09};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -24,25 +27,19 @@ pub struct LpLocalPeer {
     pub(crate) x25519: Arc<DHKeyPair>,
 
     /// Local KEM keys used for PSQ
-    // pub(crate) kem_keypairs: HashMap<KEM, Arc<KemKeyPair>>,
-    pub(crate) kem_keypairs: HashMap<KEM, Arc<()>>,
+    pub(crate) kem_keypairs: Option<Arc<KEMKeys>>,
 }
 
 impl LpLocalPeer {
     pub fn new(
         ciphersuite: Ciphersuite,
         ed25519: Arc<ed25519::KeyPair>,
-        x25519: Arc<x25519::KeyPair>,
+        x25519: Arc<DHKeyPair>,
     ) -> Self {
-        // TODO: make nicer conversion (without cloning) + error handling
-        let initiator_libcrux_x25519_private_key =
-            DHPrivateKey::from_bytes(x25519.private_key().as_bytes()).unwrap();
-        let initiator_x25519_keypair = DHKeyPair::from(initiator_libcrux_x25519_private_key);
-
         LpLocalPeer {
             ciphersuite,
             ed25519,
-            x25519: Arc::new(initiator_x25519_keypair),
+            x25519,
             kem_keypairs: Default::default(),
         }
     }
@@ -56,11 +53,10 @@ impl LpLocalPeer {
         // )
     }
 
-    pub fn with_kem_keypair(mut self, keypair: Arc<()>) -> Self {
-        todo!()
-        // let kem = keypair.kem();
-        // self.kem_keypairs.insert(kem, keypair);
-        // self
+    #[must_use]
+    pub fn with_kem_keys(mut self, kem_keys: Arc<KEMKeys>) -> Self {
+        self.kem_keypairs = Some(kem_keys);
+        self
     }
 
     pub fn ed25519(&self) -> &Arc<ed25519::KeyPair> {
@@ -79,34 +75,33 @@ impl LpLocalPeer {
     //         .ok_or(LpError::ResponderWithMissingKEMKey)
     // }
 
-    pub fn kem_key(&self, kem: KEM) -> Option<&Arc<()>> {
-        self.kem_keypairs.get(&kem)
-    }
-
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
     #[doc(hidden)]
     pub fn as_remote(&self) -> LpRemotePeer {
-        todo!()
-        // let mut expected_signing_key_digests = HashMap::new();
-        // expected_signing_key_digests.insert(
-        //     SignatureScheme::Ed25519,
-        //     nym_kkt::key_utils::produce_key_digests(self.ed25519.public_key().as_bytes()),
-        // );
-        //
-        // let mut expected_kem_key_digests = HashMap::new();
-        // for (kem, kem_key) in &self.kem_keypairs {
-        //     expected_kem_key_digests.insert(
-        //         *kem,
-        //         nym_kkt::key_utils::produce_key_digests(&kem_key.encoded_encapsulation_key()),
-        //     );
-        // }
-        //
-        // LpRemotePeer {
-        //     ed25519_public: *self.ed25519.public_key(),
-        //     x25519_public: self.x25519.pk,
-        //     expected_kem_key_digests,
-        //     expected_signing_key_digests,
-        // }
+        let mut expected_signing_key_digests = HashMap::new();
+        expected_signing_key_digests.insert(
+            SignatureScheme::Ed25519,
+            nym_kkt::key_utils::produce_key_digests(self.ed25519.public_key().as_bytes()),
+        );
+
+        let mut expected_kem_key_digests = HashMap::new();
+        if let Some(keys) = &self.kem_keypairs {
+            for kem in [KEM::MlKem768, KEM::McEliece] {
+                expected_kem_key_digests.insert(
+                    kem,
+                    nym_kkt::key_utils::produce_key_digests(
+                        keys.encoded_encapsulation_key(kem).unwrap(),
+                    ),
+                );
+            }
+        }
+
+        LpRemotePeer {
+            ed25519_public: *self.ed25519.public_key(),
+            x25519_public: self.x25519.pk,
+            expected_kem_key_digests,
+            expected_signing_key_digests,
+        }
     }
 }
 
@@ -192,63 +187,38 @@ impl LpRemotePeer {
 }
 
 #[cfg(any(feature = "mock", test))]
-pub fn mock_peer(kem: KEM) -> LpLocalPeer {
+pub fn mock_peer() -> LpLocalPeer {
     // use deterministic rng
     let mut rng = nym_test_utils::helpers::deterministic_rng();
-
-    let ciphersuite = Ciphersuite::new(
-        kem,
-        HashFunction::Blake3,
-        SignatureScheme::Ed25519,
-        HashLength::Default,
-    );
-
-    random_peer(&mut rng, ciphersuite)
+    random_peer(&mut rng)
 }
 
 #[cfg(any(feature = "mock", test))]
-pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(
-    rng: &mut R,
-    ciphersuite: Ciphersuite,
-) -> LpLocalPeer {
-    use nym_kkt::key_utils::{generate_keypair_mceliece, generate_keypair_mlkem};
+pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLocalPeer {
     let ed25519 = Arc::new(ed25519::KeyPair::new(rng));
 
-    let mut sk = [0u8; 32];
-    rng.fill_bytes(&mut sk);
+    // disgusting conversion between rng08 and rng09
+    let mut seed = [0u8; 32];
+    rng.fill_bytes(&mut seed);
 
-    let TODO = "";
-    // clamp
-    sk[0] &= 248u8;
-    sk[31] &= 127u8;
-    sk[31] |= 64u8;
+    let mut rng09 = seeded_rng_09(seed);
 
-    let x25519 = Arc::new(DHKeyPair::from(DHPrivateKey::from_bytes(&sk).unwrap()));
+    let x25519 = Arc::new(generate_keypair_x25519(&mut rng09));
 
-    todo!()
-    // let default_peer = LpLocalPeer {
-    //     ciphersuite: Arc::new(ciphersuite),
-    //     ed25519,
-    //     x25519,
-    //     mlkem: None,
-    //     mceliece: None,
-    // };
-    //
-    // match ciphersuite.kem() {
-    //     KEM::MlKem768 => {
-    //         let mlkem_keypair = generate_keypair_mlkem(&mut rand09::rng());
-    //         default_peer.with_mlkem_keypair(&mlkem_keypair.0, &mlkem_keypair.1)
-    //     }
-    //     KEM::McEliece => {
-    //         let mceliece_keypair = generate_keypair_mceliece(&mut rand09::rng());
-    //         default_peer.with_mceliece_keypair(mceliece_keypair.0, mceliece_keypair.1)
-    //     }
-    //     _ => unreachable!(),
-    // }
+    LpLocalPeer {
+        ciphersuite: Ciphersuite::default(),
+        ed25519,
+        x25519,
+        kem_keypairs: Some(Arc::new(KEMKeys::new(
+            generate_keypair_mceliece(&mut rng09),
+            generate_keypair_mlkem(&mut rng09),
+        ))),
+    }
 }
 
 #[cfg(any(feature = "mock", test))]
-pub fn mock_peers(kem: KEM) -> (LpLocalPeer, LpLocalPeer) {
-    println!("KEM: {:?}", kem);
-    (mock_peer(kem), mock_peer(kem))
+pub fn mock_peers() -> (LpLocalPeer, LpLocalPeer) {
+    let mut rng = deterministic_rng();
+
+    (random_peer(&mut rng), random_peer(&mut rng))
 }

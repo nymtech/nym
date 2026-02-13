@@ -8,6 +8,7 @@ use crate::{
 };
 use libcrux_psq::handshake::types::DHKeyPair;
 use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, KEM, SignatureScheme};
+
 pub struct KKTResponder<'a> {
     x25519_keypair: &'a DHKeyPair,
     mlkem_encapsulation_key: Option<&'a libcrux_kem::MlKem768PublicKey>,
@@ -29,41 +30,40 @@ impl<'a> KKTResponder<'a> {
             supported_hash_functions.iter().copied().collect();
 
         if hash_functions.is_empty() {
-            Err(KKTError::FunctionInputError {
+            return Err(KKTError::FunctionInputError {
                 info: "Did not provide a supported HashFunction when instaciating a KKTResponder",
+            });
+        }
+
+        let signature_schemes: HashSet<SignatureScheme> =
+            supported_signature_schemes.iter().copied().collect();
+
+        if signature_schemes.is_empty() {
+            return Err(KKTError::FunctionInputError {
+                info: "Did not provide a supported SignatureScheme when instaciating a KKTResponder",
+            });
+        }
+
+        let outer_protocol_versions: HashSet<u8> =
+            supported_outer_protocol_versions.iter().copied().collect();
+
+        if outer_protocol_versions.is_empty() {
+            Err(KKTError::FunctionInputError {
+                info: "Did not provide a supported outer protocol version when instaciating a KKTResponder",
+            })
+        } else if mlkem_encapsulation_key.is_none() && mceliece_encapsulation_key.is_none() {
+            Err(KKTError::FunctionInputError {
+                info: "Did not provide an encapsulation key when instanciating a KKTResponder.",
             })
         } else {
-            let signature_schemes: HashSet<SignatureScheme> =
-                supported_signature_schemes.iter().copied().collect();
-
-            if signature_schemes.is_empty() {
-                Err(KKTError::FunctionInputError {
-                    info: "Did not provide a supported SignatureScheme when instaciating a KKTResponder",
-                })
-            } else {
-                let outer_protocol_versions: HashSet<u8> =
-                    supported_outer_protocol_versions.iter().copied().collect();
-
-                if outer_protocol_versions.is_empty() {
-                    Err(KKTError::FunctionInputError {
-                        info: "Did not provide a supported outer protocol version when instaciating a KKTResponder",
-                    })
-                } else if mlkem_encapsulation_key.is_none() && mceliece_encapsulation_key.is_none()
-                {
-                    Err(KKTError::FunctionInputError {
-                        info: "Did not provide an encapsulation key when instanciating a KKTResponder.",
-                    })
-                } else {
-                    Ok(Self {
-                        x25519_keypair,
-                        mlkem_encapsulation_key,
-                        mceliece_encapsulation_key,
-                        supported_hash_functions: hash_functions,
-                        supported_signature_schemes: signature_schemes,
-                        supported_outer_protocol_versions: outer_protocol_versions,
-                    })
-                }
-            }
+            Ok(Self {
+                x25519_keypair,
+                mlkem_encapsulation_key,
+                mceliece_encapsulation_key,
+                supported_hash_functions: hash_functions,
+                supported_signature_schemes: signature_schemes,
+                supported_outer_protocol_versions: outer_protocol_versions,
+            })
         }
     }
     fn supported_protocol_versions(&self) -> Vec<u8> {

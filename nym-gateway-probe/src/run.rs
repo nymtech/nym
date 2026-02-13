@@ -4,10 +4,8 @@
 use clap::{Args, Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
-use nym_gateway_probe::config::{CredentialArgs, CredentialMode, NetstackArgs, ProbeConfig};
-use nym_gateway_probe::{
-    NymApiDirectory, PortCheckResult, ProbeResult, RunPortsConfig, query_gateway_by_ip,
-};
+use nym_gateway_probe::config::{CredentialArgs, CredentialMode, ProbeConfig};
+use nym_gateway_probe::{NymApiDirectory, PortCheckResult, ProbeResult, query_gateway_by_ip};
 use nym_sdk::mixnet::NodeIdentity;
 use serde::Serialize;
 use std::path::Path;
@@ -92,7 +90,7 @@ enum Commands {
         #[arg(long)]
         config_dir: Option<PathBuf>,
 
-        /// Bonded gateway identity.
+        /// Gateway to test (used as both entry and exit unless --exit-gateway is set)
         #[arg(long, short = 'g', alias = "gateway")]
         entry_gateway: NodeIdentity,
 
@@ -105,12 +103,12 @@ enum Commands {
         #[arg(long)]
         check_all_ports: bool,
 
-        /// Credential arguments (required).
+        /// Arguments to manage credentials
         #[command(flatten)]
         credential_mode: CredentialMode,
 
         #[command(flatten)]
-        probe_config: RunPortsProbeConfig,
+        probe_config: ProbeConfig,
     },
 
     /// Run the probe by NS agents
@@ -126,21 +124,6 @@ enum Commands {
         #[command(flatten)]
         probe_config: ProbeConfig,
     },
-}
-
-#[derive(Debug, Args, Clone)]
-struct RunPortsProbeConfig {
-    /// Only choose gateway with that minimum performance
-    #[arg(long)]
-    min_gateway_mixnet_performance: Option<u8>,
-
-    /// Ignore egress epoch role constraints
-    #[arg(long, global = true)]
-    ignore_egress_epoch_role: bool,
-
-    /// Arguments to manage netstack downloads and port checks
-    #[command(flatten)]
-    netstack_args: NetstackArgs,
 }
 
 /// CLI output wrapper — either a standard probe result or a port-check result
@@ -276,18 +259,12 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
             config_dir,
             check_all_ports,
             credential_mode,
-            probe_config,
+            mut probe_config,
         } => {
-            let mut run_ports_config = RunPortsConfig {
-                min_gateway_mixnet_performance: probe_config.min_gateway_mixnet_performance,
-                ignore_egress_epoch_role: probe_config.ignore_egress_epoch_role,
-                netstack_args: probe_config.netstack_args,
-            };
-
             // --check-all-ports overrides --check-ports with the full exit policy list
             if check_all_ports {
                 use nym_gateway_probe::config::EXIT_POLICY_PORTS;
-                run_ports_config.netstack_args.port_check_ports = EXIT_POLICY_PORTS.to_vec();
+                probe_config.netstack_args.port_check_ports = EXIT_POLICY_PORTS.to_vec();
                 info!(
                     "Using full exit policy port list ({} ports)",
                     EXIT_POLICY_PORTS.len()
@@ -329,16 +306,11 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
                 config_dir.display()
             );
 
-            Box::pin(nym_gateway_probe::Probe::run_ports_bonded(
-                entry_details,
-                exit_details,
-                network,
-                &run_ports_config,
-                &config_dir,
-                credential_mode,
-            ))
-            .await
-            .map(ProbeOutput::PortCheck)
+            let trial =
+                nym_gateway_probe::Probe::new(entry_details, exit_details, network, probe_config);
+            Box::pin(trial.probe_run_ports(&config_dir, credential_mode))
+                .await
+                .map(ProbeOutput::PortCheck)
         }
         Commands::RunAgent {
             entry_gateway,

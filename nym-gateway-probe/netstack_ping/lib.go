@@ -618,7 +618,7 @@ func checkPorts(target string, ports []uint16, timeoutSec uint64, tnet *netstack
 	// testing all 114 ports in one burst trips it after ~29 connections.
 	// small batches with a cooldown in between keep us under the limit.
 	const batchSize = 20
-	const batchDelay = 25 * time.Second
+	const batchDelay = 45 * time.Second
 	const dialGap = 200 * time.Millisecond
 
 	results := make(map[string]bool)

@@ -50,7 +50,7 @@ impl MaskedByte {
         self.unmask_check_version(mask, &U8_RANGE)
     }
 
-    // This is could be more efficient than unmask,
+    // This could be more efficient than unmask,
     // because we just could check against a smaller list of supported versions.
     pub fn unmask_check_version(
         &self,

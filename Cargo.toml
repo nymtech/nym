@@ -174,8 +174,9 @@ members = [
     "wasm/node-tester",
     "wasm/zknym-lib",
     #    "nym-gateway-probe",
-    "integration-tests", "common/nym-lp-transport", "common/nym-kkt-ciphersuite",
-    "common/nym-lp-sandbox"
+    "integration-tests",
+    "common/nym-lp-transport",
+    "common/nym-kkt-ciphersuite",
 ]
 
 default-members = [

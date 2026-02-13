@@ -50,9 +50,9 @@ impl<'a> KKTResponder<'a> {
                     })
                 } else if mlkem_encapsulation_key.is_none() && mceliece_encapsulation_key.is_none()
                 {
-                    return Err(KKTError::FunctionInputError {
+                    Err(KKTError::FunctionInputError {
                         info: "Did not provide an encapsulation key when instanciating a KKTResponder.",
-                    });
+                    })
                 } else {
                     Ok(Self {
                         x25519_keypair,

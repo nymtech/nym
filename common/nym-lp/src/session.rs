@@ -609,7 +609,7 @@ impl SubsessionHandshake {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{SessionsMock, replay::ReplayError, sessions_for_tests};
+    use crate::{SessionsMock, kem_list, replay::ReplayError, sessions_for_tests};
     use rand::thread_rng;
 
     // Helper function to generate keypairs for tests
@@ -619,18 +619,19 @@ mod tests {
 
     #[test]
     fn test_session_creation() {
-        let mut session = sessions_for_tests().0;
-        for kem in kem_list() {
-            let session = sessions_for_tests(kem).0;
-
-            // Initial counter should be zero
-            let counter = session.next_counter();
-            assert_eq!(counter, 0);
-
-            // Counter should increment
-            let counter = session.next_counter();
-            assert_eq!(counter, 1);
-        }
+        todo!()
+        // let mut session = sessions_for_tests().0;
+        // for kem in kem_list() {
+        //     let session = sessions_for_tests(kem).0;
+        //
+        //     // Initial counter should be zero
+        //     let counter = session.next_counter();
+        //     assert_eq!(counter, 0);
+        //
+        //     // Counter should increment
+        //     let counter = session.next_counter();
+        //     assert_eq!(counter, 1);
+        // }
     }
 
     // NOTE: These tests are obsolete after removing optional KEM parameters.
@@ -650,69 +651,72 @@ mod tests {
 
     #[test]
     fn test_replay_protection_sequential() {
-        for kem in kem_list() {
-            let mut session = sessions_for_tests(kem).1;
-
-            // Sequential counters should be accepted
-            assert!(session.receiving_counter_quick_check(0).is_ok());
-            assert!(session.receiving_counter_mark(0).is_ok());
-
-            assert!(session.receiving_counter_quick_check(1).is_ok());
-            assert!(session.receiving_counter_mark(1).is_ok());
-
-            // Duplicates should be rejected
-            assert!(session.receiving_counter_quick_check(0).is_err());
-            let err = session.receiving_counter_mark(0).unwrap_err();
-            match err {
-                LpError::Replay(replay_error) => {
-                    assert!(matches!(replay_error, ReplayError::DuplicateCounter));
-                }
-                _ => panic!("Expected replay error"),
-            }
-        }
+        todo!()
+        // for kem in kem_list() {
+        //     let mut session = sessions_for_tests(kem).1;
+        //
+        //     // Sequential counters should be accepted
+        //     assert!(session.receiving_counter_quick_check(0).is_ok());
+        //     assert!(session.receiving_counter_mark(0).is_ok());
+        //
+        //     assert!(session.receiving_counter_quick_check(1).is_ok());
+        //     assert!(session.receiving_counter_mark(1).is_ok());
+        //
+        //     // Duplicates should be rejected
+        //     assert!(session.receiving_counter_quick_check(0).is_err());
+        //     let err = session.receiving_counter_mark(0).unwrap_err();
+        //     match err {
+        //         LpError::Replay(replay_error) => {
+        //             assert!(matches!(replay_error, ReplayError::DuplicateCounter));
+        //         }
+        //         _ => panic!("Expected replay error"),
+        //     }
+        // }
     }
 
     #[test]
     fn test_replay_protection_out_of_order() {
-        for kem in kem_list() {
-            let mut session = sessions_for_tests(kem).1;
-
-            // Receive packets in order
-            assert!(session.receiving_counter_mark(0).is_ok());
-            assert!(session.receiving_counter_mark(1).is_ok());
-            assert!(session.receiving_counter_mark(2).is_ok());
-
-            // Skip ahead
-            assert!(session.receiving_counter_mark(10).is_ok());
-
-            // Can still receive out-of-order packets within window
-            assert!(session.receiving_counter_quick_check(5).is_ok());
-            assert!(session.receiving_counter_mark(5).is_ok());
-
-            // But duplicates are still rejected
-            assert!(session.receiving_counter_quick_check(5).is_err());
-            assert!(session.receiving_counter_mark(5).is_err());
-        }
+        todo!()
+        // for kem in kem_list() {
+        //     let mut session = sessions_for_tests(kem).1;
+        //
+        //     // Receive packets in order
+        //     assert!(session.receiving_counter_mark(0).is_ok());
+        //     assert!(session.receiving_counter_mark(1).is_ok());
+        //     assert!(session.receiving_counter_mark(2).is_ok());
+        //
+        //     // Skip ahead
+        //     assert!(session.receiving_counter_mark(10).is_ok());
+        //
+        //     // Can still receive out-of-order packets within window
+        //     assert!(session.receiving_counter_quick_check(5).is_ok());
+        //     assert!(session.receiving_counter_mark(5).is_ok());
+        //
+        //     // But duplicates are still rejected
+        //     assert!(session.receiving_counter_quick_check(5).is_err());
+        //     assert!(session.receiving_counter_mark(5).is_err());
+        // }
     }
 
     #[test]
     fn test_packet_stats() {
-        for kem in kem_list() {
-            let mut session = sessions_for_tests(kem).1;
-
-            // Initial stats
-            let (next, received) = session.current_packet_cnt();
-            assert_eq!(next, 0);
-            assert_eq!(received, 0);
-
-            // After receiving packets
-            assert!(session.receiving_counter_mark(0).is_ok());
-            assert!(session.receiving_counter_mark(1).is_ok());
-
-            let (next, received) = session.current_packet_cnt();
-            assert_eq!(next, 2);
-            assert_eq!(received, 2);
-        }
+        todo!()
+        // for kem in kem_list() {
+        //     let mut session = sessions_for_tests(kem).1;
+        //
+        //     // Initial stats
+        //     let (next, received) = session.current_packet_cnt();
+        //     assert_eq!(next, 0);
+        //     assert_eq!(received, 0);
+        //
+        //     // After receiving packets
+        //     assert!(session.receiving_counter_mark(0).is_ok());
+        //     assert!(session.receiving_counter_mark(1).is_ok());
+        //
+        //     let (next, received) = session.current_packet_cnt();
+        //     assert_eq!(next, 2);
+        //     assert_eq!(received, 2);
+        // }
     }
 
     /*
@@ -754,47 +758,48 @@ mod tests {
     /// Test that X25519 keys are correctly converted to KEM format
     #[test]
     fn test_x25519_to_kem_conversion() {
-        use nym_kkt::ciphersuite::EncapsulationKey;
-
-        let initiator_keys = generate_x25519_keypair();
-        let responder_keys = generate_x25519_keypair();
-
-        // Verify we can convert X25519 public key to KEM format (as done in session.rs)
-        let x25519_public_bytes = responder_keys.public_key().as_bytes();
-        let libcrux_public_key =
-            libcrux_kem::PublicKey::decode(libcrux_kem::Algorithm::X25519, x25519_public_bytes)
-                .expect("X25519 public key should convert to libcrux PublicKey");
-
-        let _kem_key = EncapsulationKey::X25519(libcrux_public_key);
-
-        // Verify we can convert X25519 private key to KEM format
-        let x25519_private_bytes = initiator_keys.private_key().to_bytes();
-        let _libcrux_private_key =
-            libcrux_kem::PrivateKey::decode(libcrux_kem::Algorithm::X25519, &x25519_private_bytes)
-                .expect("X25519 private key should convert to libcrux PrivateKey");
-
-        // Successful conversion is sufficient - actual encapsulation is tested in psk.rs
-        // (libcrux_kem::PrivateKey is an enum with no len() method, conversion success is enough)
+        todo!()
+        //
+        // let initiator_keys = generate_x25519_keypair();
+        // let responder_keys = generate_x25519_keypair();
+        //
+        // // Verify we can convert X25519 public key to KEM format (as done in session.rs)
+        // let x25519_public_bytes = responder_keys.public_key().as_bytes();
+        // let libcrux_public_key =
+        //     libcrux_kem::PublicKey::decode(libcrux_kem::Algorithm::X25519, x25519_public_bytes)
+        //         .expect("X25519 public key should convert to libcrux PublicKey");
+        //
+        // let _kem_key = EncapsulationKey::X25519(libcrux_public_key);
+        //
+        // // Verify we can convert X25519 private key to KEM format
+        // let x25519_private_bytes = initiator_keys.private_key().to_bytes();
+        // let _libcrux_private_key =
+        //     libcrux_kem::PrivateKey::decode(libcrux_kem::Algorithm::X25519, &x25519_private_bytes)
+        //         .expect("X25519 private key should convert to libcrux PrivateKey");
+        //
+        // // Successful conversion is sufficient - actual encapsulation is tested in psk.rs
+        // // (libcrux_kem::PrivateKey is an enum with no len() method, conversion success is enough)
     }
 
     #[test]
     fn test_demote_sets_read_only() {
-        let sessions = SessionsMock::mock_post_handshake(12345);
-        let mut session = sessions.initiator;
-        for kem in kem_list() {
-            let session = create_handshake_test_session(kem, 12345u32, true);
-
-            // Initially not read-only
-            assert!(!session.is_read_only());
-            assert!(session.successor_session_id().is_none());
-
-            // Demote the session
-            session.demote(99999);
-
-            // Now read-only with successor
-            assert!(session.is_read_only());
-            assert_eq!(session.successor_session_id(), Some(99999));
-        }
+        todo!()
+        // let sessions = SessionsMock::mock_post_handshake(12345);
+        // let mut session = sessions.initiator;
+        // for kem in kem_list() {
+        //     let session = create_handshake_test_session(kem, 12345u32, true);
+        //
+        //     // Initially not read-only
+        //     assert!(!session.is_read_only());
+        //     assert!(session.successor_session_id().is_none());
+        //
+        //     // Demote the session
+        //     session.demote(99999);
+        //
+        //     // Now read-only with successor
+        //     assert!(session.is_read_only());
+        //     assert_eq!(session.successor_session_id(), Some(99999));
+        // }
     }
 
     #[test]

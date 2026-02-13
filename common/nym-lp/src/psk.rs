@@ -517,268 +517,272 @@ mod tests {
 
     #[test]
     fn test_psk_derivation_is_symmetric() {
-        let keypair_1 = generate_x25519_keypair();
-        let keypair_2 = generate_x25519_keypair();
-        let salt = [2u8; 32];
-
-        let mut rng = &mut rand09::rng();
-        let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-        let enc_key = EncapsulationKey::X25519(kem_pk);
-        let dec_key = DecapsulationKey::X25519(_kem_sk);
-
-        // Client derives PSK
-        let (client_psk, ciphertext) =
-            derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt).unwrap();
-
-        // Gateway derives PSK from their perspective
-        let gateway_psk = derive_psk_with_psq_responder(
-            keypair_2.sk(),
-            &keypair_1.pk,
-            (&dec_key, &enc_key),
-            &ciphertext,
-            &salt,
-        )
-        .unwrap();
-
-        assert_eq!(
-            client_psk, gateway_psk,
-            "Both sides should derive identical PSK"
-        );
+        todo!()
+        // let keypair_1 = generate_x25519_keypair();
+        // let keypair_2 = generate_x25519_keypair();
+        // let salt = [2u8; 32];
+        //
+        // let mut rng = &mut rand09::rng();
+        // let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        // let enc_key = EncapsulationKey::X25519(kem_pk);
+        // let dec_key = DecapsulationKey::X25519(_kem_sk);
+        //
+        // // Client derives PSK
+        // let (client_psk, ciphertext) =
+        //     derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt).unwrap();
+        //
+        // // Gateway derives PSK from their perspective
+        // let gateway_psk = derive_psk_with_psq_responder(
+        //     keypair_2.sk(),
+        //     &keypair_1.pk,
+        //     (&dec_key, &enc_key),
+        //     &ciphertext,
+        //     &salt,
+        // )
+        // .unwrap();
+        //
+        // assert_eq!(
+        //     client_psk, gateway_psk,
+        //     "Both sides should derive identical PSK"
+        // );
     }
 
     #[test]
     fn test_different_salts_produce_different_psks() {
-        let keypair_1 = generate_x25519_keypair();
-        let keypair_2 = generate_x25519_keypair();
-
-        let salt1 = [1u8; 32];
-        let salt2 = [2u8; 32];
-        let mut rng = &mut rand09::rng();
-        let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-        let enc_key = EncapsulationKey::X25519(kem_pk);
-
-        let psk1 =
-            derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt1).unwrap();
-        let psk2 =
-            derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt2).unwrap();
-
-        assert_ne!(psk1, psk2, "Different salts should produce different PSKs");
+        todo!()
+        // let keypair_1 = generate_x25519_keypair();
+        // let keypair_2 = generate_x25519_keypair();
+        //
+        // let salt1 = [1u8; 32];
+        // let salt2 = [2u8; 32];
+        // let mut rng = &mut rand09::rng();
+        // let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        // let enc_key = EncapsulationKey::X25519(kem_pk);
+        //
+        // let psk1 =
+        //     derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt1).unwrap();
+        // let psk2 =
+        //     derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt2).unwrap();
+        //
+        // assert_ne!(psk1, psk2, "Different salts should produce different PSKs");
     }
 
     #[test]
     fn test_different_keys_produce_different_psks() {
-        let keypair_1 = generate_x25519_keypair();
-        let keypair_2 = generate_x25519_keypair();
-        let keypair_3 = generate_x25519_keypair();
-        let salt = [3u8; 32];
-
-        let mut rng = &mut rand09::rng();
-        let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-        let enc_key = EncapsulationKey::X25519(kem_pk);
-
-        let psk1 =
-            derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt).unwrap();
-        let psk2 =
-            derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_3.pk, &enc_key, &salt).unwrap();
-
-        assert_ne!(
-            psk1, psk2,
-            "Different remote keys should produce different PSKs"
-        );
+        todo!()
+        // let keypair_1 = generate_x25519_keypair();
+        // let keypair_2 = generate_x25519_keypair();
+        // let keypair_3 = generate_x25519_keypair();
+        // let salt = [3u8; 32];
+        //
+        // let mut rng = &mut rand09::rng();
+        // let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        // let enc_key = EncapsulationKey::X25519(kem_pk);
+        //
+        // let psk1 =
+        //     derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_2.pk, &enc_key, &salt).unwrap();
+        // let psk2 =
+        //     derive_psk_with_psq_initiator(keypair_1.sk(), &keypair_3.pk, &enc_key, &salt).unwrap();
+        //
+        // assert_ne!(
+        //     psk1, psk2,
+        //     "Different remote keys should produce different PSKs"
+        // );
     }
-
-    // PSQ-enhanced PSK tests
-    use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey, KEM};
-    use nym_kkt::key_utils::generate_keypair_libcrux;
 
     #[test]
     fn test_psq_derivation_deterministic() {
-        let mut rng = rand09::rng();
-
-        // Generate X25519 keypairs for Noise
-        let client_keypair = generate_x25519_keypair();
-        let gateway_keypair = generate_x25519_keypair();
-
-        // Generate KEM keypair for PSQ
-        let (kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-        let enc_key = EncapsulationKey::X25519(kem_pk);
-        let dec_key = DecapsulationKey::X25519(kem_sk);
-
-        let salt = [1u8; 32];
-
-        // Derive PSK twice with same inputs (initiator side)
-        let (_psk1, ct1) = derive_psk_with_psq_initiator(
-            client_keypair.sk(),
-            &gateway_keypair.pk,
-            &enc_key,
-            &salt,
-        )
-        .unwrap();
-
-        let (_psk2, _ct2) = derive_psk_with_psq_initiator(
-            client_keypair.sk(),
-            &gateway_keypair.pk,
-            &enc_key,
-            &salt,
-        )
-        .unwrap();
-
-        // PSKs will be different due to randomness in PSQ, but ciphertexts too
-        // This test verifies the function is deterministic given the SAME ciphertext
-        let psk_responder1 = derive_psk_with_psq_responder(
-            gateway_keypair.sk(),
-            &client_keypair.pk,
-            (&dec_key, &enc_key),
-            &ct1,
-            &salt,
-        )
-        .unwrap();
-
-        let psk_responder2 = derive_psk_with_psq_responder(
-            gateway_keypair.sk(),
-            &client_keypair.pk,
-            (&dec_key, &enc_key),
-            &ct1, // Same ciphertext
-            &salt,
-        )
-        .unwrap();
-
-        assert_eq!(
-            psk_responder1, psk_responder2,
-            "Same ciphertext should produce same PSK"
-        );
+        todo!()
+        // let mut rng = rand09::rng();
+        //
+        // // Generate X25519 keypairs for Noise
+        // let client_keypair = generate_x25519_keypair();
+        // let gateway_keypair = generate_x25519_keypair();
+        //
+        // // Generate KEM keypair for PSQ
+        // let (kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        // let enc_key = EncapsulationKey::X25519(kem_pk);
+        // let dec_key = DecapsulationKey::X25519(kem_sk);
+        //
+        // let salt = [1u8; 32];
+        //
+        // // Derive PSK twice with same inputs (initiator side)
+        // let (_psk1, ct1) = derive_psk_with_psq_initiator(
+        //     client_keypair.sk(),
+        //     &gateway_keypair.pk,
+        //     &enc_key,
+        //     &salt,
+        // )
+        // .unwrap();
+        //
+        // let (_psk2, _ct2) = derive_psk_with_psq_initiator(
+        //     client_keypair.sk(),
+        //     &gateway_keypair.pk,
+        //     &enc_key,
+        //     &salt,
+        // )
+        // .unwrap();
+        //
+        // // PSKs will be different due to randomness in PSQ, but ciphertexts too
+        // // This test verifies the function is deterministic given the SAME ciphertext
+        // let psk_responder1 = derive_psk_with_psq_responder(
+        //     gateway_keypair.sk(),
+        //     &client_keypair.pk,
+        //     (&dec_key, &enc_key),
+        //     &ct1,
+        //     &salt,
+        // )
+        // .unwrap();
+        //
+        // let psk_responder2 = derive_psk_with_psq_responder(
+        //     gateway_keypair.sk(),
+        //     &client_keypair.pk,
+        //     (&dec_key, &enc_key),
+        //     &ct1, // Same ciphertext
+        //     &salt,
+        // )
+        // .unwrap();
+        //
+        // assert_eq!(
+        //     psk_responder1, psk_responder2,
+        //     "Same ciphertext should produce same PSK"
+        // );
     }
 
     #[test]
     fn test_psq_derivation_symmetric() {
-        let mut rng = rand09::rng();
-
-        // Generate X25519 keypairs for Noise
-        let client_keypair = generate_x25519_keypair();
-        let gateway_keypair = generate_x25519_keypair();
-
-        // Generate KEM keypair for PSQ
-        let (kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-        let enc_key = EncapsulationKey::X25519(kem_pk);
-        let dec_key = DecapsulationKey::X25519(kem_sk);
-
-        let salt = [2u8; 32];
-
-        // Client derives PSK (initiator)
-        let (client_psk, ciphertext) = derive_psk_with_psq_initiator(
-            client_keypair.sk(),
-            &gateway_keypair.pk,
-            &enc_key,
-            &salt,
-        )
-        .unwrap();
-
-        // Gateway derives PSK from ciphertext (responder)
-        let gateway_psk = derive_psk_with_psq_responder(
-            gateway_keypair.sk(),
-            &client_keypair.pk,
-            (&dec_key, &enc_key),
-            &ciphertext,
-            &salt,
-        )
-        .unwrap();
-
-        assert_eq!(
-            client_psk, gateway_psk,
-            "Both sides should derive identical PSK via PSQ"
-        );
+        todo!()
+        // let mut rng = rand09::rng();
+        //
+        // // Generate X25519 keypairs for Noise
+        // let client_keypair = generate_x25519_keypair();
+        // let gateway_keypair = generate_x25519_keypair();
+        //
+        // // Generate KEM keypair for PSQ
+        // let (kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        // let enc_key = EncapsulationKey::X25519(kem_pk);
+        // let dec_key = DecapsulationKey::X25519(kem_sk);
+        //
+        // let salt = [2u8; 32];
+        //
+        // // Client derives PSK (initiator)
+        // let (client_psk, ciphertext) = derive_psk_with_psq_initiator(
+        //     client_keypair.sk(),
+        //     &gateway_keypair.pk,
+        //     &enc_key,
+        //     &salt,
+        // )
+        // .unwrap();
+        //
+        // // Gateway derives PSK from ciphertext (responder)
+        // let gateway_psk = derive_psk_with_psq_responder(
+        //     gateway_keypair.sk(),
+        //     &client_keypair.pk,
+        //     (&dec_key, &enc_key),
+        //     &ciphertext,
+        //     &salt,
+        // )
+        // .unwrap();
+        //
+        // assert_eq!(
+        //     client_psk, gateway_psk,
+        //     "Both sides should derive identical PSK via PSQ"
+        // );
     }
 
     #[test]
     fn test_different_kem_keys_different_psk() {
-        let mut rng = rand09::rng();
-
-        let client_keypair = generate_x25519_keypair();
-        let gateway_keypair = generate_x25519_keypair();
-
-        // Two different KEM keypairs
-        let (_, kem_pk1) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-        let (_, kem_pk2) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-
-        let enc_key1 = EncapsulationKey::X25519(kem_pk1);
-        let enc_key2 = EncapsulationKey::X25519(kem_pk2);
-
-        let salt = [3u8; 32];
-
-        let (psk1, _) = derive_psk_with_psq_initiator(
-            client_keypair.sk(),
-            &gateway_keypair.pk,
-            &enc_key1,
-            &salt,
-        )
-        .unwrap();
-
-        let (psk2, _) = derive_psk_with_psq_initiator(
-            client_keypair.sk(),
-            &gateway_keypair.pk,
-            &enc_key2,
-            &salt,
-        )
-        .unwrap();
-
-        assert_ne!(
-            psk1, psk2,
-            "Different KEM keys should produce different PSKs"
-        );
+        todo!()
+        // let mut rng = rand09::rng();
+        //
+        // let client_keypair = generate_x25519_keypair();
+        // let gateway_keypair = generate_x25519_keypair();
+        //
+        // // Two different KEM keypairs
+        // let (_, kem_pk1) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        // let (_, kem_pk2) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        //
+        // let enc_key1 = EncapsulationKey::X25519(kem_pk1);
+        // let enc_key2 = EncapsulationKey::X25519(kem_pk2);
+        //
+        // let salt = [3u8; 32];
+        //
+        // let (psk1, _) = derive_psk_with_psq_initiator(
+        //     client_keypair.sk(),
+        //     &gateway_keypair.pk,
+        //     &enc_key1,
+        //     &salt,
+        // )
+        // .unwrap();
+        //
+        // let (psk2, _) = derive_psk_with_psq_initiator(
+        //     client_keypair.sk(),
+        //     &gateway_keypair.pk,
+        //     &enc_key2,
+        //     &salt,
+        // )
+        // .unwrap();
+        //
+        // assert_ne!(
+        //     psk1, psk2,
+        //     "Different KEM keys should produce different PSKs"
+        // );
     }
 
     #[test]
     fn test_psq_psk_output_length() {
-        let mut rng = rand09::rng();
-
-        let client_keypair = generate_x25519_keypair();
-        let gateway_keypair = generate_x25519_keypair();
-
-        let (_, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-        let enc_key = EncapsulationKey::X25519(kem_pk);
-
-        let salt = [4u8; 32];
-
-        let (psk, _) = derive_psk_with_psq_initiator(
-            client_keypair.sk(),
-            &gateway_keypair.pk,
-            &enc_key,
-            &salt,
-        )
-        .unwrap();
-
-        assert_eq!(psk.len(), 32, "PSQ PSK should be exactly 32 bytes");
+        todo!()
+        // let mut rng = rand09::rng();
+        //
+        // let client_keypair = generate_x25519_keypair();
+        // let gateway_keypair = generate_x25519_keypair();
+        //
+        // let (_, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        // let enc_key = EncapsulationKey::X25519(kem_pk);
+        //
+        // let salt = [4u8; 32];
+        //
+        // let (psk, _) = derive_psk_with_psq_initiator(
+        //     client_keypair.sk(),
+        //     &gateway_keypair.pk,
+        //     &enc_key,
+        //     &salt,
+        // )
+        // .unwrap();
+        //
+        // assert_eq!(psk.len(), 32, "PSQ PSK should be exactly 32 bytes");
     }
 
     #[test]
     fn test_psq_different_salts_different_psks() {
-        let mut rng = rand09::rng();
-
-        let client_keypair = generate_x25519_keypair();
-        let gateway_keypair = generate_x25519_keypair();
-
-        let (_, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-        let enc_key = EncapsulationKey::X25519(kem_pk);
-
-        let salt1 = [1u8; 32];
-        let salt2 = [2u8; 32];
-
-        let (psk1, _) = derive_psk_with_psq_initiator(
-            client_keypair.sk(),
-            &gateway_keypair.pk,
-            &enc_key,
-            &salt1,
-        )
-        .unwrap();
-
-        let (psk2, _) = derive_psk_with_psq_initiator(
-            client_keypair.sk(),
-            &gateway_keypair.pk,
-            &enc_key,
-            &salt2,
-        )
-        .unwrap();
-
-        assert_ne!(psk1, psk2, "Different salts should produce different PSKs");
+        todo!()
+        // let mut rng = rand09::rng();
+        //
+        // let client_keypair = generate_x25519_keypair();
+        // let gateway_keypair = generate_x25519_keypair();
+        //
+        // let (_, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        // let enc_key = EncapsulationKey::X25519(kem_pk);
+        //
+        // let salt1 = [1u8; 32];
+        // let salt2 = [2u8; 32];
+        //
+        // let (psk1, _) = derive_psk_with_psq_initiator(
+        //     client_keypair.sk(),
+        //     &gateway_keypair.pk,
+        //     &enc_key,
+        //     &salt1,
+        // )
+        // .unwrap();
+        //
+        // let (psk2, _) = derive_psk_with_psq_initiator(
+        //     client_keypair.sk(),
+        //     &gateway_keypair.pk,
+        //     &enc_key,
+        //     &salt2,
+        // )
+        // .unwrap();
+        //
+        // assert_ne!(psk1, psk2, "Different salts should produce different PSKs");
     }
 }

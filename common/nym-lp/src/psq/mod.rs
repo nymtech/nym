@@ -29,10 +29,10 @@ use rand09::rngs::ThreadRng;
 
 use std::fmt::Debug;
 
-const AAD_INITIATOR_OUTER: &[u8] = b"Test Data I Outer";
-const AAD_INITIATOR_INNER: &[u8] = b"Test Data I Inner";
-const AAD_RESPONDER: &[u8] = b"Test Data R";
-const SESSION_CONTEXT: &[u8] = b"Test Context";
+pub(crate) const AAD_INITIATOR_OUTER: &[u8] = b"NYM-PSQ-AAD-INIT-OUTER-V1";
+pub(crate) const AAD_INITIATOR_INNER: &[u8] = b"NYM-PSQ-AAD-INIT-INNER-V1";
+pub(crate) const AAD_RESPONDER: &[u8] = b"NYM-PSQ-AAD-RESP-V1";
+pub(crate) const SESSION_CONTEXT: &[u8] = b"NYM-PSQ-SESSION-CONTEXT-V1";
 
 pub enum PSQState<'a> {
     Initiator(RegistrationInitiator<'a, ThreadRng>),
@@ -313,8 +313,17 @@ mod tests {
     use crate::peer::mock_peers;
     use crate::psq::helpers::LpTransportHandshakeExt;
     use crate::psq::responder::DEFAULT_TIMESTAMP_TOLERANCE;
+    use libcrux_psq::IntoSession;
+    use libcrux_psq::handshake::types::{Authenticator, PQEncapsulationKey};
+    use libcrux_psq::session::{Session, SessionBinding};
     use mock_instant::thread_local::MockClock;
-    use nym_kkt::ciphersuite::{HashFunction, HashLength, KEM, SignatureScheme};
+    use nym_kkt::initiator::KKTInitiator;
+    use nym_kkt::key_utils::{
+        generate_keypair_mceliece, generate_keypair_mlkem, generate_keypair_x25519,
+        hash_encapsulation_key,
+    };
+    use nym_kkt::responder::KKTResponder;
+    use nym_kkt_ciphersuite::{HashFunction, HashLength, SignatureScheme};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Leak, TimeboxedSpawnable};
     use std::time::Duration;
@@ -331,146 +340,391 @@ mod tests {
 
     #[tokio::test]
     async fn e2e_psq_handshake() -> anyhow::Result<()> {
-        let conn_init = MockIOStream::default();
-        let conn_resp = conn_init.try_get_remote_handle();
-
-        // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
-        // so they'd get 'static lifetime
-        let conn_init = conn_init.leak();
-        let conn_resp = conn_resp.leak();
-
-        let ciphersuite = Ciphersuite::new(
-            KEM::X25519,
-            HashFunction::Blake3,
-            SignatureScheme::Ed25519,
-            HashLength::Default,
-        );
-
-        let (init, resp) = mock_peers();
-        let resp_remote = resp.as_remote();
-
-        let handshake_init = PSQHandshakeState::new(conn_init, ciphersuite, init)
-            .with_protocol_version(1)
-            .with_remote_peer(resp_remote);
-        let handshake_resp = PSQHandshakeState::new(conn_resp, ciphersuite, resp);
-
-        let resp_fut = handshake_resp.complete_as_responder().spawn_timeboxed();
-        let init_fut = handshake_init.complete_as_initiator().spawn_timeboxed();
-
-        let (session_init, session_resp) = join!(init_fut, resp_fut);
-
-        let session_init = session_init???;
-        let session_resp = session_resp???;
-
-        assert_eq!(session_init.id(), session_resp.id());
-        assert_eq!(
-            session_init.outer_aead_key().as_bytes(),
-            session_resp.outer_aead_key().as_bytes()
-        );
-        assert_eq!(
-            session_init.pq_shared_secret().as_bytes(),
-            session_resp.pq_shared_secret().as_bytes()
-        );
-
-        Ok(())
+        todo!()
+        // let conn_init = MockIOStream::default();
+        // let conn_resp = conn_init.try_get_remote_handle();
+        //
+        // // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
+        // // so they'd get 'static lifetime
+        // let conn_init = conn_init.leak();
+        // let conn_resp = conn_resp.leak();
+        //
+        // let ciphersuite = Ciphersuite::new(
+        //     KEM::X25519,
+        //     HashFunction::Blake3,
+        //     SignatureScheme::Ed25519,
+        //     HashLength::Default,
+        // );
+        //
+        // let (init, resp) = mock_peers();
+        // let resp_remote = resp.as_remote();
+        //
+        // let handshake_init = PSQHandshakeState::new(conn_init, ciphersuite, init)
+        //     .with_protocol_version(1)
+        //     .with_remote_peer(resp_remote);
+        // let handshake_resp = PSQHandshakeState::new(conn_resp, ciphersuite, resp);
+        //
+        // let resp_fut = handshake_resp.complete_as_responder().spawn_timeboxed();
+        // let init_fut = handshake_init.complete_as_initiator().spawn_timeboxed();
+        //
+        // let (session_init, session_resp) = join!(init_fut, resp_fut);
+        //
+        // let session_init = session_init???;
+        // let session_resp = session_resp???;
+        //
+        // assert_eq!(session_init.id(), session_resp.id());
+        // assert_eq!(
+        //     session_init.outer_aead_key().as_bytes(),
+        //     session_resp.outer_aead_key().as_bytes()
+        // );
+        // assert_eq!(
+        //     session_init.pq_shared_secret().as_bytes(),
+        //     session_resp.pq_shared_secret().as_bytes()
+        // );
+        //
+        // Ok(())
     }
 
     #[tokio::test]
     async fn preparing_client_hello_initiator() -> anyhow::Result<()> {
-        let mut conn_init = MockIOStream::default();
-        let mut conn_resp = conn_init.try_get_remote_handle();
-
-        let ciphersuite = Ciphersuite::new(
-            KEM::X25519,
-            HashFunction::Blake3,
-            SignatureScheme::Ed25519,
-            HashLength::Default,
-        );
-        let (init, resp) = mock_peers();
-        let resp_remote = resp.as_remote();
-
-        // as initiator
-        let mut handshake_init = PSQHandshakeState::new(&mut conn_init, ciphersuite, init)
-            .with_protocol_version(1)
-            .with_remote_peer(resp_remote);
-
-        // you can generate and send (valid) client hello as initiator
-        let client_hello = handshake_init.send_client_hello().await?;
-        let LpMessage::ClientHello(received_client_hello) =
-            conn_resp.receive_packet(None).await?.message
-        else {
-            panic!("wrong message type");
-        };
-        assert_eq!(client_hello, received_client_hello);
-        Ok(())
+        todo!()
+        // let mut conn_init = MockIOStream::default();
+        // let mut conn_resp = conn_init.try_get_remote_handle();
+        //
+        // let ciphersuite = Ciphersuite::new(
+        //     KEM::X25519,
+        //     HashFunction::Blake3,
+        //     SignatureScheme::Ed25519,
+        //     HashLength::Default,
+        // );
+        // let (init, resp) = mock_peers();
+        // let resp_remote = resp.as_remote();
+        //
+        // // as initiator
+        // let mut handshake_init = PSQHandshakeState::new(&mut conn_init, ciphersuite, init)
+        //     .with_protocol_version(1)
+        //     .with_remote_peer(resp_remote);
+        //
+        // // you can generate and send (valid) client hello as initiator
+        // let client_hello = handshake_init.send_client_hello().await?;
+        // let LpMessage::ClientHello(received_client_hello) =
+        //     conn_resp.receive_packet(None).await?.message
+        // else {
+        //     panic!("wrong message type");
+        // };
+        // assert_eq!(client_hello, received_client_hello);
+        // Ok(())
     }
 
     // essentially make sure you can't accidentally trigger the handshake as the responder
     #[tokio::test]
     async fn preparing_client_hello_responder() -> anyhow::Result<()> {
-        let conn_init = MockIOStream::default();
-        let mut conn_resp = conn_init.try_get_remote_handle();
-
-        let ciphersuite = Ciphersuite::new(
-            KEM::X25519,
-            HashFunction::Blake3,
-            SignatureScheme::Ed25519,
-            HashLength::Default,
-        );
-        let (_, resp) = mock_peers();
-
-        // as initiator
-        let mut handshake_resp = PSQHandshakeState::new(&mut conn_resp, ciphersuite, resp);
-
-        // you can generate and send (valid) client hello as initiator
-        let sending_res = handshake_resp.send_client_hello().await;
-        assert!(sending_res.is_err());
-        Ok(())
+        todo!()
+        // let conn_init = MockIOStream::default();
+        // let mut conn_resp = conn_init.try_get_remote_handle();
+        //
+        // let ciphersuite = Ciphersuite::new(
+        //     KEM::X25519,
+        //     HashFunction::Blake3,
+        //     SignatureScheme::Ed25519,
+        //     HashLength::Default,
+        // );
+        // let (_, resp) = mock_peers();
+        //
+        // // as initiator
+        // let mut handshake_resp = PSQHandshakeState::new(&mut conn_resp, ciphersuite, resp);
+        //
+        // // you can generate and send (valid) client hello as initiator
+        // let sending_res = handshake_resp.send_client_hello().await;
+        // assert!(sending_res.is_err());
+        // Ok(())
     }
 
     #[tokio::test]
     async fn test_receive_client_hello_timestamp_too_skewed() -> anyhow::Result<()> {
-        let current_time = Duration::from_secs(10000);
-        MockClock::set_system_time(current_time);
+        todo!()
+        // let current_time = Duration::from_secs(10000);
+        // MockClock::set_system_time(current_time);
+        //
+        // let too_old = current_time - DEFAULT_TIMESTAMP_TOLERANCE - Duration::from_secs(1);
+        // let too_recent = current_time + DEFAULT_TIMESTAMP_TOLERANCE + Duration::from_secs(1);
+        //
+        // let ciphersuite = Ciphersuite::new(
+        //     KEM::X25519,
+        //     HashFunction::Blake3,
+        //     SignatureScheme::Ed25519,
+        //     HashLength::Default,
+        // );
+        //
+        // // TOO OLD
+        // let mut conn_init = MockIOStream::default();
+        // let mut conn_resp = conn_init.try_get_remote_handle();
+        // let (init, resp) = mock_peers();
+        //
+        // let mut handshake_resp = PSQHandshakeState::new(&mut conn_resp, ciphersuite, resp);
+        // let client_hello_too_old = init.build_client_hello_data(too_old.as_secs());
+        //
+        // conn_init
+        //     .send_packet(client_hello_too_old.into_lp_packet(1), None)
+        //     .await?;
+        // let err = handshake_resp.receive_client_hello().await.unwrap_err();
+        // assert!(err.to_string().contains("too old"));
+        //
+        // // TOO RECENT
+        // let mut conn_init = MockIOStream::default();
+        // let mut conn_resp = conn_init.try_get_remote_handle();
+        // let (init, resp) = mock_peers();
+        //
+        // let mut handshake_resp = PSQHandshakeState::new(&mut conn_resp, ciphersuite, resp);
+        // let client_hello_too_recent = init.build_client_hello_data(too_recent.as_secs());
+        //
+        // conn_init
+        //     .send_packet(client_hello_too_recent.into_lp_packet(1), None)
+        //     .await?;
+        // let err = handshake_resp.receive_client_hello().await.unwrap_err();
+        //
+        // assert!(err.to_string().contains("too future"));
+        // Ok(())
+    }
 
-        let too_old = current_time - DEFAULT_TIMESTAMP_TOLERANCE - Duration::from_secs(1);
-        let too_recent = current_time + DEFAULT_TIMESTAMP_TOLERANCE + Duration::from_secs(1);
+    // plain test without any wrappers
+    #[test]
+    fn e2e_test_plain() {
+        let mut rng = rand09::rng();
 
-        let ciphersuite = Ciphersuite::new(
-            KEM::X25519,
-            HashFunction::Blake3,
-            SignatureScheme::Ed25519,
-            HashLength::Default,
+        // we should add these as consts
+        let aad_initiator_outer = b"Test Data I Outer";
+        let aad_initiator_inner = b"Test Data I Inner";
+        let aad_responder = b"Test Data R";
+        let ctx = b"Test Context";
+
+        // generate responder x25519 keys
+        let responder_x25519_keypair = generate_keypair_x25519(&mut rng);
+        let hash_function = HashFunction::Blake3;
+        // generate kem public keys
+
+        let responder_mlkem_keypair = generate_keypair_mlkem(&mut rng);
+        let responder_mceliece_keypair = generate_keypair_mceliece(&mut rng);
+
+        let r_dir_hash_mlkem = hash_encapsulation_key(
+            // &ciphersuite.hash_function(),
+            hash_function,
+            // ciphersuite.hash_len(),
+            HashLength::Default.value(),
+            responder_mlkem_keypair.1.as_slice().as_slice(),
         );
 
-        // TOO OLD
-        let mut conn_init = MockIOStream::default();
-        let mut conn_resp = conn_init.try_get_remote_handle();
-        let (init, resp) = mock_peers();
+        let _r_dir_hash_mceliece = hash_encapsulation_key(
+            // &ciphersuite.hash_function(),
+            hash_function,
+            // ciphersuite.hash_len(),
+            HashLength::Default.value(),
+            responder_mceliece_keypair.1.as_ref(),
+        );
 
-        let mut handshake_resp = PSQHandshakeState::new(&mut conn_resp, ciphersuite, resp);
-        let client_hello_too_old = init.build_client_hello_data(too_old.as_secs());
+        let kkt_responder = KKTResponder::new(
+            &responder_x25519_keypair,
+            Some(&responder_mlkem_keypair.1),
+            Some(&responder_mceliece_keypair.1),
+            &[
+                HashFunction::Blake3,
+                HashFunction::SHA256,
+                HashFunction::Shake128,
+                HashFunction::Shake256,
+            ],
+            &[1],
+            &[SignatureScheme::Ed25519],
+        )
+        .unwrap();
 
-        conn_init
-            .send_packet(client_hello_too_old.into_lp_packet(1), None)
-            .await?;
-        let err = handshake_resp.receive_client_hello().await.unwrap_err();
-        assert!(err.to_string().contains("too old"));
+        // OneWay - MlKem
+        let psq_ciphersuite = CiphersuiteName::X25519_MLKEM768_X25519_AESGCM128_HKDFSHA256;
 
-        // TOO RECENT
-        let mut conn_init = MockIOStream::default();
-        let mut conn_resp = conn_init.try_get_remote_handle();
-        let (init, resp) = mock_peers();
+        let responder_ciphersuite = CiphersuiteBuilder::new(psq_ciphersuite)
+            .longterm_x25519_keys(&responder_x25519_keypair)
+            .longterm_mlkem_encapsulation_key(&responder_mlkem_keypair.1)
+            .longterm_mlkem_decapsulation_key(&responder_mlkem_keypair.0)
+            .build_responder_ciphersuite()
+            .unwrap();
 
-        let mut handshake_resp = PSQHandshakeState::new(&mut conn_resp, ciphersuite, resp);
-        let client_hello_too_recent = init.build_client_hello_data(too_recent.as_secs());
+        let mut responder = PrincipalBuilder::new(rand09::rng())
+            .context(ctx)
+            .outer_aad(aad_responder)
+            .recent_keys_upper_bound(30)
+            .build_responder(responder_ciphersuite)
+            .unwrap();
 
-        conn_init
-            .send_packet(client_hello_too_recent.into_lp_packet(1), None)
-            .await?;
-        let err = handshake_resp.receive_client_hello().await.unwrap_err();
+        let ciphersuite = Ciphersuite::resolve_ciphersuite(
+            KEM::MlKem768,
+            hash_function,
+            SignatureScheme::Ed25519,
+            None,
+        )
+        .unwrap();
 
-        assert!(err.to_string().contains("too future"));
-        Ok(())
+        let (mut initiator, request_bytes) = KKTInitiator::generate_one_way_request(
+            &mut rng,
+            &ciphersuite,
+            &responder_x25519_keypair.pk,
+            &r_dir_hash_mlkem,
+            1u8,
+        )
+        .unwrap();
+
+        let (response_bytes, _) = kkt_responder.process_request(&request_bytes).unwrap();
+
+        let (i_obtained_key, _) = initiator.process_response(&response_bytes).unwrap();
+
+        assert_eq!(
+            i_obtained_key,
+            responder_mlkem_keypair.1.as_slice().as_slice(),
+        );
+
+        let mlkem_key =
+            libcrux_kem::MlKem768PublicKey::try_from(i_obtained_key.as_slice()).unwrap();
+
+        let initiator_psq_keys = generate_keypair_x25519(&mut rng);
+        let initiator_cbuilder = CiphersuiteBuilder::new(psq_ciphersuite)
+            .longterm_x25519_keys(&initiator_psq_keys)
+            .peer_longterm_x25519_pk(&responder_x25519_keypair.pk)
+            .peer_longterm_mlkem_pk(&mlkem_key);
+
+        let initiator_ciphersuite = initiator_cbuilder.build_initiator_ciphersuite().unwrap();
+
+        let mut msg_channel = vec![0u8; 8192];
+        let mut payload_buf_responder = vec![0u8; 4096];
+        let mut payload_buf_initiator = vec![0u8; 4096];
+
+        let mut initiator = PrincipalBuilder::new(rand09::rng())
+            .outer_aad(aad_initiator_outer)
+            .inner_aad(aad_initiator_inner)
+            .context(ctx)
+            .build_registration_initiator(initiator_ciphersuite)
+            .unwrap();
+
+        // Send first message
+        let registration_payload_initiator = b"Registration_init";
+        let len_i = initiator
+            .write_message(registration_payload_initiator, &mut msg_channel)
+            .unwrap();
+
+        // Read first message
+        let (len_r_deserialized, len_r_payload) = responder
+            .read_message(&msg_channel, &mut payload_buf_responder)
+            .unwrap();
+
+        // We read the same amount of data.
+        assert_eq!(len_r_deserialized, len_i);
+        assert_eq!(len_r_payload, registration_payload_initiator.len());
+        assert_eq!(
+            &payload_buf_responder[0..len_r_payload],
+            registration_payload_initiator
+        );
+
+        // Get the authenticator out here, so we can deserialize the session later.
+        let Some(initiator_authenticator) = responder.initiator_authenticator() else {
+            panic!("No initiator authenticator found")
+        };
+
+        // Respond
+        let registration_payload_responder = b"Registration_respond";
+        let len_r = responder
+            .write_message(registration_payload_responder, &mut msg_channel)
+            .unwrap();
+
+        // Finalize on registration initiator
+        let (len_i_deserialized, len_i_payload) = initiator
+            .read_message(&msg_channel, &mut payload_buf_initiator)
+            .unwrap();
+
+        // We read the same amount of data.
+        assert_eq!(len_r, len_i_deserialized);
+        assert_eq!(registration_payload_responder.len(), len_i_payload);
+        assert_eq!(
+            &payload_buf_initiator[0..len_i_payload],
+            registration_payload_responder
+        );
+
+        // Ready for transport mode
+        assert!(initiator.is_handshake_finished());
+        assert!(responder.is_handshake_finished());
+
+        let i_transport = initiator.into_session().unwrap();
+        let r_transport = responder.into_session().unwrap();
+
+        // test serialization, deserialization
+        let mut session_storage = vec![0u8; 4096];
+        i_transport
+            .serialize(
+                &mut session_storage,
+                SessionBinding {
+                    initiator_authenticator: &Authenticator::Dh(initiator_psq_keys.pk),
+                    responder_ecdh_pk: &responder_x25519_keypair.pk,
+                    responder_pq_pk: Some(PQEncapsulationKey::MlKem(&mlkem_key)),
+                },
+            )
+            .unwrap();
+        let mut i_transport = Session::deserialize(
+            &session_storage,
+            SessionBinding {
+                initiator_authenticator: &Authenticator::Dh(initiator_psq_keys.pk),
+                responder_ecdh_pk: &responder_x25519_keypair.pk,
+                responder_pq_pk: Some(PQEncapsulationKey::MlKem(&mlkem_key)),
+            },
+        )
+        .unwrap();
+
+        r_transport
+            .serialize(
+                &mut session_storage,
+                SessionBinding {
+                    initiator_authenticator: &initiator_authenticator,
+                    responder_ecdh_pk: &responder_x25519_keypair.pk,
+                    responder_pq_pk: Some(PQEncapsulationKey::MlKem(&mlkem_key)),
+                },
+            )
+            .unwrap();
+        let mut r_transport = Session::deserialize(
+            &session_storage,
+            SessionBinding {
+                initiator_authenticator: &initiator_authenticator,
+                responder_ecdh_pk: &responder_x25519_keypair.pk,
+                responder_pq_pk: Some(PQEncapsulationKey::MlKem(&mlkem_key)),
+            },
+        )
+        .unwrap();
+
+        let mut channel_i = i_transport.transport_channel().unwrap();
+        let mut channel_r = r_transport.transport_channel().unwrap();
+
+        assert_eq!(channel_i.identifier(), channel_r.identifier());
+
+        let app_data_i = b"Derived session hey".as_slice();
+        let app_data_r = b"Derived session ho".as_slice();
+
+        let len_i = channel_i
+            .write_message(app_data_i, &mut msg_channel)
+            .unwrap();
+
+        let (len_r_deserialized, len_r_payload) = channel_r
+            .read_message(&msg_channel, &mut payload_buf_responder)
+            .unwrap();
+
+        // We read the same amount of data.
+        assert_eq!(len_r_deserialized, len_i);
+        assert_eq!(len_r_payload, app_data_i.len());
+        assert_eq!(&payload_buf_responder[0..len_r_payload], app_data_i);
+
+        let len_r = channel_r
+            .write_message(app_data_r, &mut msg_channel)
+            .unwrap();
+
+        let (len_i_deserialized, len_i_payload) = channel_i
+            .read_message(&msg_channel, &mut payload_buf_initiator)
+            .unwrap();
+
+        assert_eq!(len_r, len_i_deserialized);
+        assert_eq!(app_data_r.len(), len_i_payload);
+        assert_eq!(&payload_buf_initiator[0..len_i_payload], app_data_r);
     }
 }

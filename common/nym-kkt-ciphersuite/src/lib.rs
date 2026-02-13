@@ -273,16 +273,16 @@ impl Ciphersuite {
         self.verification_key_length
     }
 
-    pub fn hash_function(&self) -> HashFunction {
-        self.hash_function
+    pub fn hash_function(&self) -> &HashFunction {
+        &self.hash_function
     }
 
-    pub fn kem(&self) -> KEM {
-        self.kem
+    pub fn kem(&self) -> &KEM {
+        &self.kem
     }
 
-    pub fn signature_scheme(&self) -> SignatureScheme {
-        self.signature_scheme
+    pub fn signature_scheme(&self) -> &SignatureScheme {
+        &self.signature_scheme
     }
 
     pub fn hash_len(&self) -> usize {

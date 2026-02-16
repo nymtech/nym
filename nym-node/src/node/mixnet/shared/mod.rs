@@ -185,16 +185,20 @@ impl SharedData {
     }
 
     pub(super) fn forward_mix_packet(&self, packet: MixPacket, delay_until: Option<Instant>) {
+        let has_delay = delay_until.is_some();
         if self
             .mixnet_forwarder
             .forward_packet(PacketToForward::new(packet, delay_until))
             .is_err()
-            && !self.shutdown_token.is_cancelled()
         {
-            error!(
-                "failed to forward sphinx packet on the channel while the process is not going through the shutdown!"
-            );
-            self.shutdown_token.cancel();
+            if !self.shutdown_token.is_cancelled() {
+                error!(
+                    event = "forwarder.channel_send_failed",
+                    has_delay,
+                    "failed to forward sphinx packet on the channel while the process is not going through the shutdown!"
+                );
+                self.shutdown_token.cancel();
+            }
         }
     }
 

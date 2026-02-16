@@ -40,6 +40,20 @@ pub(crate) struct Cli {
     )]
     pub(crate) no_banner: bool,
 
+    /// Enable OpenTelemetry tracing export via OTLP/gRPC.
+    /// Requires the binary to be built with the `otel` feature.
+    #[clap(long, env = "NYMNODE_OTEL_ENABLE")]
+    pub(crate) otel: bool,
+
+    /// OpenTelemetry OTLP collector endpoint (gRPC).
+    /// Only used when --otel is enabled.
+    #[clap(
+        long,
+        env = "NYMNODE_OTEL_ENDPOINT",
+        default_value = "http://localhost:4317"
+    )]
+    pub(crate) otel_endpoint: String,
+
     #[clap(subcommand)]
     command: Commands,
 }
@@ -54,30 +68,68 @@ impl Cli {
 
     pub(crate) fn execute(self) -> anyhow::Result<()> {
         // NOTE: `test_throughput` sets up its own logger as it has to include additional layers
+        #[cfg(feature = "otel")]
+        let _otel_guard = if !matches!(self.command, Commands::TestThroughput(..)) {
+            let otel_config = if self.otel {
+                Some(crate::logging::OtelConfig {
+                    endpoint: self.otel_endpoint.clone(),
+                    service_name: "nym-node".to_string(),
+                })
+            } else {
+                None
+            };
+            crate::logging::setup_tracing_logger(otel_config)?
+        } else {
+            None
+        };
+
+        #[cfg(not(feature = "otel"))]
         if !matches!(self.command, Commands::TestThroughput(..)) {
-            crate::logging::setup_tracing_logger()?;
+            let otel_config = if self.otel {
+                Some(crate::logging::OtelConfig {
+                    endpoint: self.otel_endpoint.clone(),
+                    service_name: "nym-node".to_string(),
+                })
+            } else {
+                None
+            };
+            crate::logging::setup_tracing_logger(otel_config)?;
         }
 
-        match self.command {
-            Commands::BuildInfo(args) => build_info::execute(args)?,
-            Commands::BondingInformation(args) => {
-                { Self::execute_async(bonding_information::execute(args))? }?
-            }
-            Commands::NodeDetails(args) => { Self::execute_async(node_details::execute(args))? }?,
-            Commands::Run(args) => { Self::execute_async(run::execute(*args))? }?,
-            Commands::Migrate(args) => migrate::execute(*args)?,
-            Commands::Sign(args) => { Self::execute_async(sign::execute(args))? }?,
-            Commands::TestThroughput(args) => test_throughput::execute(args)?,
-            Commands::UnsafeResetSphinxKeys(args) => {
-                { Self::execute_async(reset_sphinx_keys::execute(args))? }?
-            }
-            Commands::Debug(debug) => match debug.command {
-                DebugCommands::ResetProvidersGatewayDbs(args) => {
-                    { Self::execute_async(debug::reset_providers_dbs::execute(args))? }?
+        let result = (|| -> anyhow::Result<()> {
+            match self.command {
+                Commands::BuildInfo(args) => build_info::execute(args)?,
+                Commands::BondingInformation(args) => {
+                    { Self::execute_async(bonding_information::execute(args))? }?
                 }
-            },
+                Commands::NodeDetails(args) => {
+                    { Self::execute_async(node_details::execute(args))? }?
+                }
+                Commands::Run(args) => { Self::execute_async(run::execute(*args))? }?,
+                Commands::Migrate(args) => migrate::execute(*args)?,
+                Commands::Sign(args) => { Self::execute_async(sign::execute(args))? }?,
+                Commands::TestThroughput(args) => test_throughput::execute(args)?,
+                Commands::UnsafeResetSphinxKeys(args) => {
+                    { Self::execute_async(reset_sphinx_keys::execute(args))? }?
+                }
+                Commands::Debug(debug) => match debug.command {
+                    DebugCommands::ResetProvidersGatewayDbs(args) => {
+                        { Self::execute_async(debug::reset_providers_dbs::execute(args))? }?
+                    }
+                },
+            }
+            Ok(())
+        })();
+
+        // Flush any pending OTel spans before exit
+        #[cfg(feature = "otel")]
+        if let Some(guard) = _otel_guard {
+            if let Err(e) = guard.provider.shutdown() {
+                eprintln!("OpenTelemetry shutdown error: {e}");
+            }
         }
-        Ok(())
+
+        result
     }
 }
 

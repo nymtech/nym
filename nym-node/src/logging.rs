@@ -7,6 +7,20 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
+/// Configuration for OpenTelemetry OTLP export.
+/// Fields are only read when the `otel` feature is enabled.
+#[allow(dead_code)]
+pub(crate) struct OtelConfig {
+    pub endpoint: String,
+    pub service_name: String,
+}
+
+/// Handle returned when OTel is active so the caller can trigger a graceful shutdown.
+#[cfg(feature = "otel")]
+pub(crate) struct OtelGuard {
+    pub provider: opentelemetry_sdk::trace::SdkTracerProvider,
+}
+
 pub(crate) fn granual_filtered_env() -> anyhow::Result<EnvFilter> {
     fn directive_checked(directive: impl Into<String>) -> anyhow::Result<Directive> {
         directive.into().parse().map_err(From::from)
@@ -22,12 +36,73 @@ pub(crate) fn granual_filtered_env() -> anyhow::Result<EnvFilter> {
     Ok(filter)
 }
 
-pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {
+/// Initialise the tracing subscriber stack.
+///
+/// When the `otel` feature is enabled **and** an `OtelConfig` is supplied, an
+/// OTLP exporter layer is added and the returned `OtelGuard` must be used to
+/// flush pending spans on shutdown.
+#[cfg(feature = "otel")]
+pub(crate) fn setup_tracing_logger(
+    otel: Option<OtelConfig>,
+) -> anyhow::Result<Option<OtelGuard>> {
     let stderr_layer =
         default_tracing_fmt_layer(std::io::stderr).with_filter(granual_filtered_env()?);
 
     cfg_if::cfg_if! {if #[cfg(feature = "tokio-console")] {
-        // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
+        let console_layer = console_subscriber::spawn();
+
+        if let Some(otel_config) = otel {
+            let (otel_layer, provider) = nym_bin_common::logging::init_otel_layer(
+                &otel_config.service_name,
+                &otel_config.endpoint,
+            ).map_err(|e| anyhow::anyhow!("failed to initialise OpenTelemetry: {e}"))?;
+
+            tracing_subscriber::registry()
+                .with(console_layer)
+                .with(stderr_layer)
+                .with(otel_layer)
+                .init();
+
+            Ok(Some(OtelGuard { provider }))
+        } else {
+            tracing_subscriber::registry()
+                .with(console_layer)
+                .with(stderr_layer)
+                .init();
+
+            Ok(None)
+        }
+    } else {
+        if let Some(otel_config) = otel {
+            let (otel_layer, provider) = nym_bin_common::logging::init_otel_layer(
+                &otel_config.service_name,
+                &otel_config.endpoint,
+            ).map_err(|e| anyhow::anyhow!("failed to initialise OpenTelemetry: {e}"))?;
+
+            tracing_subscriber::registry()
+                .with(stderr_layer)
+                .with(otel_layer)
+                .init();
+
+            Ok(Some(OtelGuard { provider }))
+        } else {
+            tracing_subscriber::registry()
+                .with(stderr_layer)
+                .init();
+
+            Ok(None)
+        }
+    }}
+}
+
+/// Non-OTel variant -- identical subscriber stack without the OTLP layer.
+#[cfg(not(feature = "otel"))]
+pub(crate) fn setup_tracing_logger(otel: Option<OtelConfig>) -> anyhow::Result<()> {
+    let _ = otel;
+    let stderr_layer =
+        default_tracing_fmt_layer(std::io::stderr).with_filter(granual_filtered_env()?);
+
+    cfg_if::cfg_if! {if #[cfg(feature = "tokio-console")] {
         let console_layer = console_subscriber::spawn();
 
         tracing_subscriber::registry()

@@ -4,16 +4,9 @@
 use serde::{Deserialize, Serialize};
 use std::io::IsTerminal;
 
-#[cfg(feature = "tracing")]
-pub use opentelemetry;
-#[cfg(feature = "tracing")]
-pub use opentelemetry_jaeger;
-#[cfg(feature = "tracing")]
-pub use tracing_opentelemetry;
+// Re-export tracing_subscriber for consumers that need to compose layers
 #[cfg(feature = "basic_tracing")]
 pub use tracing_subscriber;
-#[cfg(feature = "tracing")]
-pub use tracing_tree;
 
 #[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -69,40 +62,55 @@ pub fn setup_tracing_logger() {
     build_tracing_logger().init()
 }
 
-// TODO: This has to be a macro, running it as a function does not work for the file_appender for some reason
-#[cfg(feature = "tracing")]
-#[macro_export]
-macro_rules! setup_tracing {
-    ($service_name: expr) => {
-        use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;
-        use nym_bin_common::logging::tracing_subscriber::util::SubscriberInitExt;
+/// Initialize an OpenTelemetry tracing layer that exports spans via OTLP/gRPC.
+///
+/// This produces a layer compatible with `tracing_subscriber::registry()` that
+/// sends traces to any OTLP-compatible collector (SigNoz, Grafana Tempo, etc).
+///
+/// Returns both the tracing layer and the [`SdkTracerProvider`] so the caller
+/// can invoke [`SdkTracerProvider::shutdown`] for graceful flush on exit.
+///
+/// # Arguments
+/// * `service_name` - The service name reported to the collector (e.g. "nym-node")
+/// * `endpoint` - The OTLP/gRPC collector endpoint (e.g. "http://localhost:4317")
+#[cfg(feature = "otel-otlp")]
+pub fn init_otel_layer<S>(
+    service_name: &str,
+    endpoint: &str,
+) -> Result<
+    (
+        tracing_opentelemetry::OpenTelemetryLayer<S, opentelemetry_sdk::trace::SdkTracer>,
+        opentelemetry_sdk::trace::SdkTracerProvider,
+    ),
+    Box<dyn std::error::Error + Send + Sync>,
+>
+where
+    S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+{
+    use opentelemetry::trace::TracerProvider as _;
+    use opentelemetry_otlp::WithExportConfig;
 
-        let registry = nym_bin_common::logging::tracing_subscriber::Registry::default()
-            .with(nym_bin_common::logging::tracing_subscriber::EnvFilter::from_default_env())
-            .with(
-                nym_bin_common::logging::tracing_tree::HierarchicalLayer::new(4)
-                    .with_targets(true)
-                    .with_bracketed_fields(true),
-            );
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .with_endpoint(endpoint)
+        .build()?;
 
-        let tracer = nym_bin_common::logging::opentelemetry_jaeger::new_collector_pipeline()
-            .with_endpoint("http://44.199.230.10:14268/api/traces")
-            .with_service_name($service_name)
-            .with_isahc()
-            .with_trace_config(
-                nym_bin_common::logging::opentelemetry::sdk::trace::config().with_sampler(
-                    nym_bin_common::logging::opentelemetry::sdk::trace::Sampler::TraceIdRatioBased(
-                        0.1,
-                    ),
-                ),
-            )
-            .install_batch(nym_bin_common::logging::opentelemetry::runtime::Tokio)
-            .expect("Could not init tracer");
+    let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .with_resource(
+            opentelemetry_sdk::Resource::builder()
+                .with_service_name(service_name.to_owned())
+                .build(),
+        )
+        .build();
 
-        let telemetry = nym_bin_common::logging::tracing_opentelemetry::layer().with_tracer(tracer);
+    opentelemetry::global::set_tracer_provider(tracer_provider.clone());
+    let tracer = tracer_provider.tracer(service_name.to_owned());
 
-        registry.with(telemetry).init();
-    };
+    Ok((
+        tracing_opentelemetry::layer().with_tracer(tracer),
+        tracer_provider,
+    ))
 }
 
 pub fn banner(crate_name: &str, crate_version: &str) -> String {

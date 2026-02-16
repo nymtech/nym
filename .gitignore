@@ -76,3 +76,4 @@ CLAUDE.md
 .claude/settings.json
 
 /notes
+/target-otel

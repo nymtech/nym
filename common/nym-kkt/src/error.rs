@@ -55,6 +55,20 @@ pub enum KKTError {
 
     #[error("Generic libcrux error")]
     LibcruxError,
+
+    #[error("failed to derive shared secret: {inner:?}")]
+    SharedSecretDerivationFailure {
+        inner: libcrux_psq::handshake::HandshakeError,
+    },
+
+    #[error("the received encapsulation key hash does not match the expected value")]
+    MismatchedKEMHash,
+}
+
+impl KKTError {
+    pub fn shared_secret_derivation_failure(inner: libcrux_psq::handshake::HandshakeError) -> Self {
+        KKTError::SharedSecretDerivationFailure { inner }
+    }
 }
 
 #[derive(Error, Debug)]

@@ -7,22 +7,23 @@
 // [2..=5] => Ciphersuite
 // [6] => Reserved
 
-use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
-use nym_kkt_ciphersuite::x25519::PUBLIC_KEY_LENGTH;
-use rand09::{CryptoRng, RngCore};
-
+use crate::message::{DecryptedRequestFrame, KKTRequest, KKTRequestPlaintext};
 use crate::{
     carrier::Carrier,
     context::{KKT_CONTEXT_LEN, KKTContext},
     error::KKTError,
     masked_byte::{MASKED_BYTE_LEN, MaskedByte},
 };
+use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
+use nym_kkt_ciphersuite::x25519;
+use nym_kkt_ciphersuite::x25519::PUBLIC_KEY_LENGTH;
+use rand09::{CryptoRng, RngCore};
 
-const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";
+pub(crate) const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct KKTFrame {
-    context: [u8; KKT_CONTEXT_LEN],
+    context: KKTContext,
     body: Vec<u8>,
 }
 
@@ -31,106 +32,74 @@ pub struct KKTFrame {
 // if coming from responder => body has the responder's kem public key.
 
 impl KKTFrame {
-    pub fn new(context: &KKTContext, body: &[u8]) -> Result<Self, KKTError> {
-        let context_bytes = context.encode()?;
-        Ok(Self {
-            context: context_bytes,
+    pub fn new(context: KKTContext, body: &[u8]) -> Self {
+        Self {
+            context,
             body: Vec::from(body),
-        })
+        }
+    }
+
+    pub fn context(&self) -> &KKTContext {
+        &self.context
     }
 
     pub fn encrypt_initiator_frame<R>(
-        &self,
+        self,
         rng: &mut R,
         responder_public_key: &DHPublicKey,
         version_byte: u8,
-    ) -> Result<(Carrier, Vec<u8>), KKTError>
+    ) -> Result<(Carrier, KKTRequest), KKTError>
     where
         R: CryptoRng + RngCore,
     {
         let ephemeral_keypair = DHKeyPair::new(rng);
-        let shared_secret = ephemeral_keypair
-            .sk()
-            .diffie_hellman(responder_public_key)
-            .map_err(|_| KKTError::X25519Error {
-                info: "Key Derivation Error",
-            })?;
 
-        let mut mask = Vec::from(ephemeral_keypair.pk.as_ref());
-        mask.extend_from_slice(responder_public_key.as_ref());
+        let plaintext =
+            KKTRequestPlaintext::new(ephemeral_keypair.pk, responder_public_key, version_byte);
 
-        let masked_byte = MaskedByte::new(version_byte, &mask);
-
-        let mut context = Vec::from(masked_byte.as_slice());
-        context.extend_from_slice(KKT_CARRIER_CONTEXT);
-        context.extend_from_slice(ephemeral_keypair.pk.as_ref());
-        context.extend_from_slice(responder_public_key.as_ref());
-
-        let mut carrier = Carrier::from_secret_slice(shared_secret.as_ref(), &context);
-
-        let mut full_kkt_message = Vec::from(ephemeral_keypair.pk.as_ref());
-        full_kkt_message.extend_from_slice(masked_byte.as_slice());
-        let encrypted_kkt_frame = carrier.encrypt(&self.to_bytes())?;
-        full_kkt_message.extend_from_slice(&encrypted_kkt_frame);
+        let mut carrier =
+            plaintext.derive_initiator_carrier(ephemeral_keypair.sk(), responder_public_key)?;
+        let full_kkt_message = plaintext.into_message(&mut carrier, self)?;
 
         Ok((carrier, full_kkt_message))
     }
 
     pub fn decrypt_initiator_frame(
         responder_keypair: &DHKeyPair,
-        message: &[u8],
+        message: KKTRequest,
         supported_versions: &[u8],
-    ) -> Result<(Carrier, KKTFrame, KKTContext), KKTError> {
-        let mut initiator_public_key_bytes: [u8; PUBLIC_KEY_LENGTH] = [0; PUBLIC_KEY_LENGTH];
-        initiator_public_key_bytes.clone_from_slice(&message[0..PUBLIC_KEY_LENGTH]);
+    ) -> Result<DecryptedRequestFrame, KKTError> {
+        let mask = message.plaintext.version_mask(&responder_keypair.pk);
 
         // check mask
-
-        let masked_byte =
-            MaskedByte::try_from(&message[PUBLIC_KEY_LENGTH..PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN])?;
-
-        let mut mask = Vec::from(&initiator_public_key_bytes);
-        mask.extend_from_slice(responder_keypair.pk.as_ref());
-
         // this could be used later when we have multiple versions
         // if this call fails, it does before the server has to run a DH
-        let _outer_protocol_version =
-            masked_byte.unmask_check_version(&mask, supported_versions)?;
+        let outer_protocol_version = message
+            .plaintext
+            .masked_version_bytes
+            .unmask_check_version(&mask, supported_versions)?;
 
-        // now that the version is ok, we can try dh
+        // after verifying the version, we can perform the DH and continue processing the request
+        let mut carrier = message
+            .plaintext
+            .derive_responder_carrier(responder_keypair)?;
 
-        let initiator_public_key = DHPublicKey::from_bytes(&initiator_public_key_bytes);
+        let decrypted_message = carrier.decrypt(&message.encrypted_frame)?;
+        let frame = KKTFrame::from_bytes(&decrypted_message)?;
 
-        let shared_secret = responder_keypair
-            .sk()
-            .diffie_hellman(&initiator_public_key)
-            .map_err(|_| KKTError::X25519Error {
-                info: "Key Derivation Error",
-            })?;
-
-        let mut context = Vec::from(masked_byte.as_slice());
-        context.extend_from_slice(KKT_CARRIER_CONTEXT);
-        context.extend_from_slice(initiator_public_key.as_ref());
-        context.extend_from_slice(responder_keypair.pk.as_ref());
-
-        let mut carrier = Carrier::from_secret_slice(shared_secret.as_ref(), &context).flip_keys();
-
-        let decrypted_message = carrier.decrypt(&message[PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN..])?;
-        let (frame, context) = KKTFrame::from_bytes(&decrypted_message)?;
-
-        Ok((carrier, frame, context))
-    }
-
-    pub fn context_ref(&self) -> &[u8] {
-        &self.context
-    }
-
-    pub fn context(&self) -> Result<KKTContext, KKTError> {
-        KKTContext::try_decode(self.context)
+        Ok(DecryptedRequestFrame {
+            carrier,
+            remote_frame: frame,
+            outer_protocol_version,
+        })
     }
 
     pub fn body_ref(&self) -> &[u8] {
         &self.body
+    }
+
+    pub fn body(self) -> Vec<u8> {
+        self.body
     }
 
     pub fn body_mut(&mut self) -> &mut [u8] {
@@ -138,17 +107,17 @@ impl KKTFrame {
     }
 
     pub fn frame_length(&self) -> usize {
-        self.context.len() + self.body.len()
+        KKT_CONTEXT_LEN + self.body.len()
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn try_to_bytes(&self) -> Result<Vec<u8>, KKTError> {
         let mut bytes = Vec::with_capacity(self.frame_length());
-        bytes.extend_from_slice(&self.context);
+        bytes.extend_from_slice(&self.context.encode()?);
         bytes.extend_from_slice(&self.body);
-        bytes
+        Ok(bytes)
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<(Self, KKTContext), KKTError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, KKTError> {
         let len = bytes.len();
         if bytes.len() < KKT_CONTEXT_LEN {
             return Err(KKTError::FrameDecodingError {
@@ -180,7 +149,6 @@ impl KKTFrame {
             body.extend_from_slice(body_bytes);
         }
 
-        let frame = KKTFrame::new(&context, &body)?;
-        Ok((frame, context))
+        Ok(KKTFrame::new(context, &body))
     }
 }

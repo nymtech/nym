@@ -78,7 +78,7 @@ impl MaskedByte {
         &self.0
     }
 
-    pub fn to_bytes(self) -> [u8; 16] {
+    pub fn to_bytes(self) -> [u8; MASKED_BYTE_LEN] {
         self.0
     }
 }
@@ -91,7 +91,7 @@ impl From<[u8; MASKED_BYTE_LEN]> for MaskedByte {
 
 impl From<&[u8; MASKED_BYTE_LEN]> for MaskedByte {
     fn from(value: &[u8; MASKED_BYTE_LEN]) -> Self {
-        MaskedByte(value.to_owned())
+        MaskedByte(*value)
     }
 }
 
@@ -99,14 +99,13 @@ impl TryFrom<&[u8]> for MaskedByte {
     type Error = MaskedByteError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        if value.len() != MASKED_BYTE_LEN {
-            Err(InvalidLength {
+        let Ok(inner) = value.try_into() else {
+            return Err(InvalidLength {
                 expected: MASKED_BYTE_LEN,
                 actual: value.len(),
-            })
-        } else {
-            Ok(Self::from(value.as_chunks::<MASKED_BYTE_LEN>().0[0]))
-        }
+            });
+        };
+        Ok(MaskedByte(inner))
     }
 }
 
@@ -171,19 +170,19 @@ mod test {
 
         // add more one more byte
         wire_bytes_messy.push(0x42);
-        assert!(wire_bytes_messy.len() == MASKED_BYTE_LEN + 1);
+        assert_eq!(wire_bytes_messy.len(), MASKED_BYTE_LEN + 1);
         // should fail
         assert!(MaskedByte::try_from(wire_bytes_messy.as_slice()).is_err());
 
         // pop the added byte
         _ = wire_bytes_messy.pop();
-        assert!(wire_bytes_messy.len() == MASKED_BYTE_LEN);
+        assert_eq!(wire_bytes_messy.len(), MASKED_BYTE_LEN);
         // should succeed
         assert!(MaskedByte::try_from(wire_bytes_messy.as_slice()).is_ok());
 
         // pop one more byte
         _ = wire_bytes_messy.pop();
-        assert!(wire_bytes_messy.len() == MASKED_BYTE_LEN - 1);
+        assert_eq!(wire_bytes_messy.len(), MASKED_BYTE_LEN - 1);
         // should fail
         assert!(MaskedByte::try_from(wire_bytes_messy.as_slice()).is_err());
     }

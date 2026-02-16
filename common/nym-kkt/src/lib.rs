@@ -9,6 +9,7 @@ pub mod initiator;
 pub mod key_utils;
 pub mod keys;
 pub mod masked_byte;
+pub mod message;
 pub mod rekey;
 pub mod responder;
 

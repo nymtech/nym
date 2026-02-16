@@ -1,9 +1,13 @@
+// Copyright 2025-2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use libcrux_psq::handshake::types::DHPublicKey;
-use nym_kkt_ciphersuite::{Ciphersuite, KEM};
+use nym_kkt_ciphersuite::Ciphersuite;
 use rand09::{CryptoRng, RngCore};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::keys::EncapsulationKey;
+use crate::message::{KKTRequest, KKTResponse, ProcessedKKTResponse};
 use crate::{
     carrier::Carrier,
     context::{KKTContext, KKTMode, KKTRole, KKTStatus},
@@ -12,25 +16,16 @@ use crate::{
     key_utils::validate_encapsulation_key,
 };
 
-pub struct KKTResponse {
-    /// The obtained encapsulation key of the remote
-    pub encapsulation_key: EncapsulationKey,
-
-    /// Indicates whether responder was able to verify the initiator's kem key,
-    pub verified_initiator_kem_key: bool,
-}
-
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct KKTInitiator<'a> {
     carrier: Carrier,
+
+    #[zeroize(skip)]
     context: KKTContext,
+
+    #[zeroize(skip)]
     expected_hash: &'a [u8],
 }
-impl<'a> Zeroize for KKTInitiator<'a> {
-    fn zeroize(&mut self) {
-        self.carrier.zeroize();
-    }
-}
-impl<'a> ZeroizeOnDrop for KKTInitiator<'a> {}
 
 impl<'a> KKTInitiator<'a> {
     // to be used by clients
@@ -40,7 +35,7 @@ impl<'a> KKTInitiator<'a> {
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
-    ) -> Result<(Self, Vec<u8>), KKTError>
+    ) -> Result<(Self, KKTRequest), KKTError>
     where
         R: CryptoRng + RngCore,
     {
@@ -63,7 +58,7 @@ impl<'a> KKTInitiator<'a> {
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
-    ) -> Result<(Self, Vec<u8>), KKTError>
+    ) -> Result<(Self, KKTRequest), KKTError>
     where
         R: CryptoRng + RngCore,
     {
@@ -86,11 +81,12 @@ impl<'a> KKTInitiator<'a> {
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
-    ) -> Result<(Self, Vec<u8>), KKTError>
+    ) -> Result<(Self, KKTRequest), KKTError>
     where
         R: CryptoRng + RngCore,
     {
-        let (context, frame) = initiator_process(mode, ciphersuite, local_encapsulation_key)?;
+        let frame = initiator_process(mode, ciphersuite, local_encapsulation_key)?;
+        let context = *frame.context();
         let (carrier, message_bytes) =
             frame.encrypt_initiator_frame(rng, responder_dh_public_key, outer_protocol_version)?;
 
@@ -104,25 +100,13 @@ impl<'a> KKTInitiator<'a> {
         ))
     }
 
-    // bool would be true if the initiator was using mutual mode
-    // and the responder was able to verify the initiator's kem key
-    pub fn process_response(&mut self, response_bytes: &[u8]) -> Result<KKTResponse, KKTError> {
-        let decrypted_response_bytes = self.carrier.decrypt(response_bytes)?;
-        let (response_frame, remote_context) = KKTFrame::from_bytes(&decrypted_response_bytes)?;
-        let (kem_bytes, verified_initiator_kem_key) = initiator_ingest_response(
-            &mut self.context,
-            &response_frame,
-            &remote_context,
-            self.expected_hash,
-        )?;
-
-        let encapsulation_key =
-            EncapsulationKey::try_from_bytes(kem_bytes, self.context.ciphersuite().kem())?;
-
-        Ok(KKTResponse {
-            encapsulation_key,
-            verified_initiator_kem_key,
-        })
+    pub fn process_response(
+        &mut self,
+        response: KKTResponse,
+    ) -> Result<ProcessedKKTResponse, KKTError> {
+        let decrypted_response_bytes = self.carrier.decrypt(&response.encrypted_frame)?;
+        let response_frame = KKTFrame::from_bytes(&decrypted_response_bytes)?;
+        initiator_ingest_response(&mut self.context, &response_frame, self.expected_hash)
     }
 }
 
@@ -130,7 +114,7 @@ pub fn initiator_process(
     mode: KKTMode,
     ciphersuite: Ciphersuite,
     own_encapsulation_key: Option<&[u8]>,
-) -> Result<(KKTContext, KKTFrame), KKTError> {
+) -> Result<KKTFrame, KKTError> {
     let context = KKTContext::new(KKTRole::Initiator, mode, ciphersuite);
 
     let body: &[u8] = match mode {
@@ -147,18 +131,16 @@ pub fn initiator_process(
         },
     };
 
-    let frame = KKTFrame::new(&context, body)?;
-
-    Ok((context, frame))
+    Ok(KKTFrame::new(context, body))
 }
 
 pub fn initiator_ingest_response(
-    own_context: &mut KKTContext,
+    own_context: &KKTContext,
     remote_frame: &KKTFrame,
-    remote_context: &KKTContext,
     expected_hash: &[u8],
-) -> Result<(Vec<u8>, bool), KKTError> {
-    match remote_context.status() {
+) -> Result<ProcessedKKTResponse, KKTError> {
+    let remote_context = remote_frame.context();
+    let verified_initiator_kem_key = match remote_context.status() {
         KKTStatus::Ok | KKTStatus::UnverifiedKEMKey => {
             match validate_encapsulation_key(
                 own_context.ciphersuite().hash_function(),
@@ -166,19 +148,24 @@ pub fn initiator_ingest_response(
                 remote_frame.body_ref(),
                 expected_hash,
             ) {
-                true => Ok((
-                    remote_frame.body_ref().to_vec(),
-                    remote_context.status() != KKTStatus::UnverifiedKEMKey,
-                )),
+                true => remote_context.status() != KKTStatus::UnverifiedKEMKey,
 
                 // The key does not match the hash obtained from the directory
-                false => Err(KKTError::KEMError {
-                    info: "Hash of received encapsulation key does not match the value stored on the directory.",
-                }),
+                false => return Err(KKTError::MismatchedKEMHash),
             }
         }
-        _ => Err(KKTError::ResponderFlaggedError {
-            status: remote_context.status(),
-        }),
-    }
+        _ => {
+            return Err(KKTError::ResponderFlaggedError {
+                status: remote_context.status(),
+            });
+        }
+    };
+
+    let kem = own_context.ciphersuite().kem();
+    let kem_bytes = remote_frame.body_ref();
+    let encapsulation_key = EncapsulationKey::try_from_bytes(kem_bytes.to_vec(), kem)?;
+    Ok(ProcessedKKTResponse {
+        encapsulation_key,
+        verified_initiator_kem_key,
+    })
 }

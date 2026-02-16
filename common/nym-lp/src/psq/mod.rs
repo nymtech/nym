@@ -494,39 +494,37 @@ mod tests {
     fn e2e_test_plain() {
         let mut rng = deterministic_rng_09();
 
+        // SETUP START:
         let kem = KEM::MlKem768;
         let protocol_version = 1;
         let (mut init, resp) = mock_peers();
-
         init.ciphersuite = Ciphersuite::default().with_kem(kem);
         let resp_remote = resp.as_remote();
         let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite).unwrap();
 
         let resp_keys = resp.kem_keypairs.as_ref().unwrap();
-
-        // generate responder x25519 keys
         let responder_x25519_keypair = resp.x25519();
-        let hash_function = HashFunction::Blake3;
-        // generate kem public keys
 
+        let supported_sigs = [SignatureScheme::Ed25519];
+        let supported_hash = [
+            HashFunction::Blake3,
+            HashFunction::Shake256,
+            HashFunction::Shake128,
+            HashFunction::SHA256,
+        ];
         let kkt_responder = KKTResponder::new(
             &responder_x25519_keypair,
             &resp_keys,
-            &[
-                HashFunction::Blake3,
-                HashFunction::SHA256,
-                HashFunction::Shake128,
-                HashFunction::Shake256,
-            ],
+            &supported_hash,
+            &supported_sigs,
             &[protocol_version],
-            &[SignatureScheme::Ed25519],
         )
         .unwrap();
 
-        // OneWay - MlKem
-        let psq_ciphersuite = CiphersuiteName::X25519_MLKEM768_X25519_AESGCM128_HKDFSHA256;
+        // SETUP END
 
-        let (mut initiator, request_bytes) = KKTInitiator::generate_one_way_request(
+        // OneWay - MlKem
+        let (mut initiator, request) = KKTInitiator::generate_one_way_request(
             &mut rng,
             init.ciphersuite,
             &responder_x25519_keypair.pk,
@@ -535,9 +533,9 @@ mod tests {
         )
         .unwrap();
 
-        let (response_bytes, _) = kkt_responder.process_request(&request_bytes).unwrap();
+        let processed_req = kkt_responder.process_request(request).unwrap();
 
-        let response = initiator.process_response(&response_bytes).unwrap();
+        let response = initiator.process_response(processed_req.response).unwrap();
         let encapsulation_key = response.encapsulation_key;
 
         let mut msg_channel = vec![0u8; 8192];

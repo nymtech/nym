@@ -94,12 +94,19 @@ where
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry_otlp::WithExportConfig;
 
+    use opentelemetry_otlp::WithTonicConfig;
+
     let mut builder = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
         .with_endpoint(endpoint);
 
+    // Explicitly configure TLS when the endpoint uses HTTPS
+    if endpoint.starts_with("https://") {
+        builder = builder
+            .with_tls_config(tonic::transport::ClientTlsConfig::new().with_native_roots());
+    }
+
     if let Some(key) = ingestion_key {
-        use opentelemetry_otlp::WithTonicConfig;
         let mut metadata = tonic::metadata::MetadataMap::new();
         metadata.insert(
             "signoz-ingestion-key",

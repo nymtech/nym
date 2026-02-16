@@ -190,15 +190,14 @@ impl SharedData {
             .mixnet_forwarder
             .forward_packet(PacketToForward::new(packet, delay_until))
             .is_err()
+            && !self.shutdown_token.is_cancelled()
         {
-            if !self.shutdown_token.is_cancelled() {
-                error!(
-                    event = "forwarder.channel_send_failed",
-                    has_delay,
-                    "failed to forward sphinx packet on the channel while the process is not going through the shutdown!"
-                );
-                self.shutdown_token.cancel();
-            }
+            error!(
+                event = "forwarder.channel_send_failed",
+                has_delay,
+                "failed to forward sphinx packet on the channel while the process is not going through the shutdown!"
+            );
+            self.shutdown_token.cancel();
         }
     }
 

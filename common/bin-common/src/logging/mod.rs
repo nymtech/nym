@@ -76,11 +76,14 @@ pub fn setup_tracing_logger() {
 ///   or "https://ingest.eu.signoz.cloud:443" for SigNoz Cloud)
 /// * `ingestion_key` - Optional SigNoz Cloud ingestion key. When provided, it is
 ///   sent as the `signoz-ingestion-key` gRPC metadata header on every export.
+/// * `environment` - Deployment environment label (e.g. "sandbox", "mainnet", "canary").
+///   Attached as the `deployment.environment` OTel resource attribute.
 #[cfg(feature = "otel-otlp")]
 pub fn init_otel_layer<S>(
     service_name: &str,
     endpoint: &str,
     ingestion_key: Option<&str>,
+    environment: &str,
 ) -> Result<
     (
         tracing_opentelemetry::OpenTelemetryLayer<S, opentelemetry_sdk::trace::SdkTracer>,
@@ -102,8 +105,8 @@ where
 
     // Explicitly configure TLS when the endpoint uses HTTPS
     if endpoint.starts_with("https://") {
-        builder = builder
-            .with_tls_config(tonic::transport::ClientTlsConfig::new().with_native_roots());
+        builder =
+            builder.with_tls_config(tonic::transport::ClientTlsConfig::new().with_native_roots());
     }
 
     if let Some(key) = ingestion_key {
@@ -122,6 +125,10 @@ where
         .with_resource(
             opentelemetry_sdk::Resource::builder()
                 .with_service_name(service_name.to_owned())
+                .with_attribute(opentelemetry::KeyValue::new(
+                    "deployment.environment",
+                    environment.to_owned(),
+                ))
                 .build(),
         )
         .build();

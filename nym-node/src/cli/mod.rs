@@ -59,6 +59,11 @@ pub(crate) struct Cli {
     #[clap(long, env = "NYMNODE_OTEL_KEY")]
     pub(crate) otel_key: Option<String>,
 
+    /// Deployment environment label attached to all exported traces.
+    /// Used to distinguish sandbox / mainnet / canary in the OTel backend.
+    #[clap(long, env = "NYMNODE_OTEL_ENV", default_value = "mainnet")]
+    pub(crate) otel_env: String,
+
     #[clap(subcommand)]
     command: Commands,
 }
@@ -71,26 +76,19 @@ impl Cli {
 
         // Set up tracing inside the runtime so the OTel batch exporter
         // can spawn its background tasks on the tokio reactor.
-        let _otel_guard = runtime.block_on(async {
-            self.setup_logging()
-        })?;
+        let _otel_guard = runtime.block_on(async { self.setup_logging() })?;
 
-        let result = runtime.block_on(async {
+        // `_otel_guard` is dropped at function exit, flushing pending spans via its Drop impl
+        runtime.block_on(async {
             match self.command {
                 Commands::BuildInfo(args) => build_info::execute(args)?,
-                Commands::BondingInformation(args) => {
-                    bonding_information::execute(args).await?
-                }
-                Commands::NodeDetails(args) => {
-                    node_details::execute(args).await?
-                }
+                Commands::BondingInformation(args) => bonding_information::execute(args).await?,
+                Commands::NodeDetails(args) => node_details::execute(args).await?,
                 Commands::Run(args) => run::execute(*args).await?,
                 Commands::Migrate(args) => migrate::execute(*args)?,
                 Commands::Sign(args) => sign::execute(args).await?,
                 Commands::TestThroughput(args) => test_throughput::execute(args)?,
-                Commands::UnsafeResetSphinxKeys(args) => {
-                    reset_sphinx_keys::execute(args).await?
-                }
+                Commands::UnsafeResetSphinxKeys(args) => reset_sphinx_keys::execute(args).await?,
                 Commands::Debug(debug) => match debug.command {
                     DebugCommands::ResetProvidersGatewayDbs(args) => {
                         debug::reset_providers_dbs::execute(args).await?
@@ -98,17 +96,7 @@ impl Cli {
                 },
             }
             Ok::<(), anyhow::Error>(())
-        });
-
-        // Flush any pending OTel spans before exit
-        #[cfg(feature = "otel")]
-        if let Some(guard) = _otel_guard {
-            if let Err(e) = guard.provider.shutdown() {
-                eprintln!("OpenTelemetry shutdown error: {e}");
-            }
-        }
-
-        result
+        })
     }
 
     #[cfg(feature = "otel")]
@@ -121,6 +109,7 @@ impl Cli {
                 endpoint: self.otel_endpoint.clone(),
                 service_name: "nym-node".to_string(),
                 ingestion_key: self.otel_key.clone(),
+                environment: self.otel_env.clone(),
             })
         } else {
             None
@@ -138,6 +127,7 @@ impl Cli {
                 endpoint: self.otel_endpoint.clone(),
                 service_name: "nym-node".to_string(),
                 ingestion_key: self.otel_key.clone(),
+                environment: self.otel_env.clone(),
             })
         } else {
             None

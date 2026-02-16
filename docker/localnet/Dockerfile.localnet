@@ -1,8 +1,9 @@
 # Multi-stage Dockerfile for Nym localnet
-# Stage 1: Build binaries
-# Stage 2: Slim runtime with only the final binaries
+# Stage 1: Build Rust binaries
+# Stage 2: Build wireguard-go (cached separately from Rust builds)
+# Stage 3: Slim runtime with only the final binaries
 
-# --- Build stage ---
+# --- Rust build stage ---
 FROM rust:latest AS builder
 
 WORKDIR /usr/src/nym
@@ -13,12 +14,28 @@ ENV CARGO_BUILD_JOBS=8
 RUN cargo build --release --locked -p nym-node --features otel && \
     cargo build --release --locked -p nym-network-requester -p nym-socks5-client
 
+# --- wireguard-go build stage (cached independently) ---
+FROM debian:trixie-slim AS wireguard-builder
+
+ARG TARGETARCH
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl git build-essential ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL "https://go.dev/dl/go1.23.6.linux-${TARGETARCH}.tar.gz" \
+      | tar -C /usr/local -xz
+
+ENV PATH="/usr/local/go/bin:$PATH"
+
+RUN git clone https://git.zx2c4.com/wireguard-go && \
+    cd wireguard-go && make
+
 # --- Runtime stage ---
 FROM debian:trixie-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
-    build-essential \
     python3 \
     python3-pip \
     netcat-openbsd \
@@ -26,27 +43,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iproute2 \
     net-tools \
     wireguard-tools \
-    git \
     iptables \
-    curl \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Go and build wireguard-go, then clean up
-ARG TARGETARCH
-RUN curl -fsSL "https://go.dev/dl/go1.23.6.linux-${TARGETARCH}.tar.gz" \
-      | tar -C /usr/local -xz && \
-    export PATH="/usr/local/go/bin:$PATH" && \
-    git clone https://git.zx2c4.com/wireguard-go && \
-    cd wireguard-go && \
-    make && \
-    cp wireguard-go /usr/local/bin/ && \
-    cd .. && \
-    rm -rf wireguard-go /usr/local/go && \
-    apt-get purge -y --auto-remove build-essential curl
 
 RUN pip3 install --break-system-packages base58
 
-# Copy only the compiled binaries from the builder stage
+# Copy wireguard-go from its dedicated build stage
+COPY --from=wireguard-builder /wireguard-go/wireguard-go /usr/local/bin/
+
+# Copy only the compiled binaries from the Rust builder stage
 COPY --from=builder /usr/src/nym/target/release/nym-node /usr/local/bin/
 COPY --from=builder /usr/src/nym/target/release/nym-network-requester /usr/local/bin/
 COPY --from=builder /usr/src/nym/target/release/nym-socks5-client /usr/local/bin/

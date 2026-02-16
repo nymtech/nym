@@ -131,7 +131,11 @@ pick_url() {
 
 # Millisecond timestamp (works on both GNU and BSD/macOS date)
 now_ms() {
-    python3 -c 'import time; print(int(time.time()*1000))'
+    if command -v python3 &>/dev/null; then
+        python3 -c 'import time; print(int(time.time()*1000))'
+    else
+        echo $(($(date +%s) * 1000))
+    fi
 }
 
 # Worker function: runs requests in a loop until duration expires

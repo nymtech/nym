@@ -14,12 +14,23 @@ pub(crate) struct OtelConfig {
     pub endpoint: String,
     pub service_name: String,
     pub ingestion_key: Option<String>,
+    pub environment: String,
 }
 
-/// Handle returned when OTel is active so the caller can trigger a graceful shutdown.
+/// Handle returned when OTel is active.  Flushes pending spans on drop
+/// to prevent telemetry loss during panics or early exits.
 #[cfg(feature = "otel")]
 pub(crate) struct OtelGuard {
     pub provider: opentelemetry_sdk::trace::SdkTracerProvider,
+}
+
+#[cfg(feature = "otel")]
+impl Drop for OtelGuard {
+    fn drop(&mut self) {
+        if let Err(e) = self.provider.shutdown() {
+            eprintln!("OpenTelemetry shutdown error in Drop: {e}");
+        }
+    }
 }
 
 pub(crate) fn granual_filtered_env() -> anyhow::Result<EnvFilter> {
@@ -43,9 +54,7 @@ pub(crate) fn granual_filtered_env() -> anyhow::Result<EnvFilter> {
 /// OTLP exporter layer is added and the returned `OtelGuard` must be used to
 /// flush pending spans on shutdown.
 #[cfg(feature = "otel")]
-pub(crate) fn setup_tracing_logger(
-    otel: Option<OtelConfig>,
-) -> anyhow::Result<Option<OtelGuard>> {
+pub(crate) fn setup_tracing_logger(otel: Option<OtelConfig>) -> anyhow::Result<Option<OtelGuard>> {
     let stderr_layer =
         default_tracing_fmt_layer(std::io::stderr).with_filter(granual_filtered_env()?);
 
@@ -57,7 +66,12 @@ pub(crate) fn setup_tracing_logger(
                 &otel_config.service_name,
                 &otel_config.endpoint,
                 otel_config.ingestion_key.as_deref(),
-            ).map_err(|e| anyhow::anyhow!("failed to initialise OpenTelemetry: {e}"))?;
+                &otel_config.environment,
+            ).map_err(|e| anyhow::anyhow!(
+                "failed to initialise OpenTelemetry exporter (endpoint: {}, service: {}): {e}",
+                otel_config.endpoint,
+                otel_config.service_name,
+            ))?;
 
             tracing_subscriber::registry()
                 .with(console_layer)
@@ -80,7 +94,12 @@ pub(crate) fn setup_tracing_logger(
                 &otel_config.service_name,
                 &otel_config.endpoint,
                 otel_config.ingestion_key.as_deref(),
-            ).map_err(|e| anyhow::anyhow!("failed to initialise OpenTelemetry: {e}"))?;
+                &otel_config.environment,
+            ).map_err(|e| anyhow::anyhow!(
+                "failed to initialise OpenTelemetry exporter (endpoint: {}, service: {}): {e}",
+                otel_config.endpoint,
+                otel_config.service_name,
+            ))?;
 
             tracing_subscriber::registry()
                 .with(stderr_layer)

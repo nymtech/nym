@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use crate::node::mixnet::shared::SharedData;
 use futures::StreamExt;
 use nym_noise::connection::Connection;
@@ -20,7 +21,10 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
-use tracing::{debug, error, instrument, trace, warn, Span};
+use tracing::{Span, debug, error, instrument, trace, warn};
+
+/// How often (in packets) the stream-level span updates its packet count.
+const SPAN_UPDATE_INTERVAL: u64 = 10_000;
 
 struct PendingReplayCheckPackets {
     // map of rotation id used for packet creation to the packets
@@ -140,7 +144,7 @@ impl ConnectionHandler {
         level = "debug",
         fields(
             remote_addr = %self.remote_address,
-            delay_ms,
+            delay_ms = tracing::field::Empty,
         )
     )]
     fn handle_forward_packet(&self, now: Instant, mix_packet: MixPacket, delay: Option<Delay>) {
@@ -155,12 +159,12 @@ impl ConnectionHandler {
         }
 
         let forward_instant = self.create_delay_target(now, delay);
-        Span::current().record(
-            "delay_ms",
-            forward_instant
-                .map(|i| i.saturating_duration_since(now).as_millis() as u64)
-                .unwrap_or(0),
-        );
+        if let Some(target) = forward_instant {
+            Span::current().record(
+                "delay_ms",
+                target.saturating_duration_since(now).as_millis() as u64,
+            );
+        }
         self.shared.forward_mix_packet(mix_packet, forward_instant);
     }
 
@@ -273,29 +277,59 @@ impl ConnectionHandler {
         time_threshold && count_threshold
     }
 
-    #[instrument(
-        name = "mixnode.sphinx_partial_unwrap",
-        skip(self, packet),
-        level = "debug",
-        fields(
-            key_rotation,
-            unwrap_result,
-        )
-    )]
-    fn try_partially_unwrap_packet(
+    /// Resolve the sphinx key for the given rotation, recording the rotation
+    /// label on the current tracing span.  Returns `ExpiredKey` if the requested
+    /// odd/even key has already been rotated out.
+    fn resolve_rotation_key(
         &self,
-        packet: FramedNymPacket,
-    ) -> Result<PartialyUnwrappedPacketWithKeyRotation, PacketProcessingError> {
-        let rotation_label = match packet.header().key_rotation {
+        rotation: SphinxKeyRotation,
+    ) -> Result<SphinxKeyGuard, PacketProcessingError> {
+        let rotation_label = match rotation {
             SphinxKeyRotation::Unknown => "unknown",
             SphinxKeyRotation::OddRotation => "odd",
             SphinxKeyRotation::EvenRotation => "even",
         };
         Span::current().record("key_rotation", rotation_label);
 
-        let result = match packet.header().key_rotation {
+        match rotation {
+            SphinxKeyRotation::Unknown => Ok(self.shared.sphinx_keys.primary()),
+            SphinxKeyRotation::OddRotation => self.shared.sphinx_keys.odd().ok_or_else(|| {
+                warn!(
+                    event = "packet.dropped.expired_key",
+                    key_rotation = "odd",
+                    remote_addr = %self.remote_address,
+                    "dropping packet: odd key rotation expired"
+                );
+                PacketProcessingError::ExpiredKey
+            }),
+            SphinxKeyRotation::EvenRotation => self.shared.sphinx_keys.even().ok_or_else(|| {
+                warn!(
+                    event = "packet.dropped.expired_key",
+                    key_rotation = "even",
+                    remote_addr = %self.remote_address,
+                    "dropping packet: even key rotation expired"
+                );
+                PacketProcessingError::ExpiredKey
+            }),
+        }
+    }
+
+    #[instrument(
+        name = "mixnode.sphinx_partial_unwrap",
+        skip(self, packet),
+        level = "debug",
+        fields(key_rotation, unwrap_result,)
+    )]
+    fn try_partially_unwrap_packet(
+        &self,
+        packet: FramedNymPacket,
+    ) -> Result<PartialyUnwrappedPacketWithKeyRotation, PacketProcessingError> {
+        let rotation = packet.header().key_rotation;
+
+        let result = match rotation {
             SphinxKeyRotation::Unknown => {
-                let primary = self.shared.sphinx_keys.primary();
+                // Unknown rotation: try primary, fallback to secondary
+                let primary = self.resolve_rotation_key(rotation)?;
                 let primary_rotation = primary.rotation_id();
 
                 match PartiallyUnwrappedPacket::new(packet, primary.inner().as_ref()) {
@@ -314,35 +348,12 @@ impl ConnectionHandler {
                     }
                 }
             }
-            SphinxKeyRotation::OddRotation => {
-                let Some(odd_key) = self.shared.sphinx_keys.odd() else {
-                    warn!(
-                        event = "packet.dropped.expired_key",
-                        key_rotation = "odd",
-                        remote_addr = %self.remote_address,
-                        "dropping packet: odd key rotation expired"
-                    );
-                    return Err(PacketProcessingError::ExpiredKey);
-                };
-                let odd_rotation = odd_key.rotation_id();
-                PartiallyUnwrappedPacket::new(packet, odd_key.inner().as_ref())
+            _ => {
+                let key = self.resolve_rotation_key(rotation)?;
+                let rotation_id = key.rotation_id();
+                PartiallyUnwrappedPacket::new(packet, key.inner().as_ref())
                     .map_err(|(_, err)| err)
-                    .map(|p| p.with_key_rotation(odd_rotation))
-            }
-            SphinxKeyRotation::EvenRotation => {
-                let Some(even_key) = self.shared.sphinx_keys.even() else {
-                    warn!(
-                        event = "packet.dropped.expired_key",
-                        key_rotation = "even",
-                        remote_addr = %self.remote_address,
-                        "dropping packet: even key rotation expired"
-                    );
-                    return Err(PacketProcessingError::ExpiredKey);
-                };
-                let even_rotation = even_key.rotation_id();
-                PartiallyUnwrappedPacket::new(packet, even_key.inner().as_ref())
-                    .map_err(|(_, err)| err)
-                    .map(|p| p.with_key_rotation(even_rotation))
+                    .map(|p| p.with_key_rotation(rotation_id))
             }
         };
 
@@ -487,10 +498,7 @@ impl ConnectionHandler {
         name = "mixnode.replay_check_batch",
         skip(self),
         level = "debug",
-        fields(
-            batch_size,
-            mutex_wait_ms,
-        )
+        fields(batch_size, mutex_wait_ms,)
     )]
     async fn handle_pending_packets_batch(&mut self, now: Instant) {
         let batch_size = self.pending_packets.total_count();
@@ -513,10 +521,7 @@ impl ConnectionHandler {
             self.shared.shutdown_token.cancel();
             return;
         };
-        Span::current().record(
-            "mutex_wait_ms",
-            mutex_start.elapsed().as_millis() as u64,
-        );
+        Span::current().record("mutex_wait_ms", mutex_start.elapsed().as_millis() as u64);
 
         self.handle_post_replay_detection_packets(now, batch, replay_check_results)
             .await;
@@ -532,42 +537,8 @@ impl ConnectionHandler {
         &self,
         packet: FramedNymPacket,
     ) -> Result<MixProcessingResult, PacketProcessingError> {
-        let rotation_label = match packet.header().key_rotation {
-            SphinxKeyRotation::Unknown => "unknown",
-            SphinxKeyRotation::OddRotation => "odd",
-            SphinxKeyRotation::EvenRotation => "even",
-        };
-        Span::current().record("key_rotation", rotation_label);
-
-        match packet.header().key_rotation {
-            SphinxKeyRotation::Unknown => {
-                process_framed_packet(packet, self.shared.sphinx_keys.primary().inner().as_ref())
-            }
-            SphinxKeyRotation::OddRotation => {
-                let Some(odd_key) = self.shared.sphinx_keys.odd() else {
-                    warn!(
-                        event = "packet.dropped.expired_key",
-                        key_rotation = "odd",
-                        remote_addr = %self.remote_address,
-                        "dropping packet: odd key rotation expired"
-                    );
-                    return Err(PacketProcessingError::ExpiredKey);
-                };
-                process_framed_packet(packet, odd_key.inner().as_ref())
-            }
-            SphinxKeyRotation::EvenRotation => {
-                let Some(even_key) = self.shared.sphinx_keys.even() else {
-                    warn!(
-                        event = "packet.dropped.expired_key",
-                        key_rotation = "even",
-                        remote_addr = %self.remote_address,
-                        "dropping packet: even key rotation expired"
-                    );
-                    return Err(PacketProcessingError::ExpiredKey);
-                };
-                process_framed_packet(packet, even_key.inner().as_ref())
-            }
-        }
+        let key = self.resolve_rotation_key(packet.header().key_rotation)?;
+        process_framed_packet(packet, key.inner().as_ref())
     }
 
     async fn handle_received_packet_with_no_replay_detection(
@@ -602,7 +573,7 @@ impl ConnectionHandler {
         level = "debug",
         fields(
             remote = %self.remote_address,
-            noise_handshake_ms,
+            noise_handshake_ms = tracing::field::Empty,
         )
     )]
     pub(crate) async fn handle_connection(&mut self, socket: TcpStream) {
@@ -663,7 +634,7 @@ impl ConnectionHandler {
                         Some(Ok(packet)) => {
                             self.handle_received_nym_packet(packet).await;
                             packets_processed += 1;
-                            if packets_processed % 10000 == 0 {
+                            if packets_processed.is_multiple_of(SPAN_UPDATE_INTERVAL) {
                                 Span::current().record("packets_processed", packets_processed);
                             }
                         }

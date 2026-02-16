@@ -155,7 +155,7 @@ impl<C, F> PacketForwarder<C, F> {
                     self.handle_new_packet(new_packet.unwrap());
                     let channel_len = self.packet_sender.len();
                     let delay_queue_len = self.delay_queue.len();
-                    if processed % 1000 == 0 {
+                    if processed.is_multiple_of(1000) {
                         match channel_len {
                             n if n > 1000 => error!(
                                 event = "forwarder.queue_overload",

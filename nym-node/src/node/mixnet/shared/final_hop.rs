@@ -38,11 +38,13 @@ impl SharedFinalHopData {
                 Err(message)
             }
             Some(sender_channel) => {
+                let send_start = Instant::now();
                 if let Err(unsent) = sender_channel.unbounded_send(vec![message]) {
                     warn!(
                         event = "gateway.push_to_client",
                         client_found = true,
                         send_result = "channel_closed",
+                        send_us = send_start.elapsed().as_micros() as u64,
                         "client {client_address} channel closed, message not delivered"
                     );
                     // the unwrap here is fine as the original message got returned;
@@ -54,6 +56,7 @@ impl SharedFinalHopData {
                         event = "gateway.push_to_client",
                         client_found = true,
                         send_result = "ok",
+                        send_us = send_start.elapsed().as_micros() as u64,
                         "pushed message to client {client_address}"
                     );
                     Ok(())
@@ -74,14 +77,12 @@ impl SharedFinalHopData {
         if result.is_ok() {
             debug!(
                 event = "gateway.disk_store",
-                store_ms,
-                "stored message for {client_address} on disk in {store_ms}ms"
+                store_ms, "stored message for {client_address} on disk in {store_ms}ms"
             );
         } else {
             warn!(
                 event = "gateway.disk_store_failed",
-                store_ms,
-                "failed to store message for {client_address} on disk after {store_ms}ms"
+                store_ms, "failed to store message for {client_address} on disk after {store_ms}ms"
             );
         }
         result

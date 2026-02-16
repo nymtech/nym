@@ -17,6 +17,7 @@ sha2 = { workspace = true }
 tracing = { workspace = true }
 rand = { workspace = true }
 rand09 = { workspace = true }
+rand_core09 = { package = "rand_core", version = "=0.9.2" }
 
 nym-crypto = { path = "../crypto", features = ["hashing", "asymmetric"] }
 nym-kkt = { path = "../nym-kkt" }

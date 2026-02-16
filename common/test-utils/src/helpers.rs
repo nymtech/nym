@@ -9,6 +9,7 @@ use nym_bin_common::logging::{default_tracing_fmt_layer, tracing_subscriber};
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha09::rand_core::SeedableRng as SeedableRng09;
 use std::future::Future;
+use std::sync::{Arc, Mutex};
 use tokio::task::JoinHandle;
 use tokio::time::error::Elapsed;
 
@@ -30,6 +31,31 @@ where
     <F as Future>::Output: Send,
 {
     tokio::spawn(async move { fut.timeboxed().await })
+}
+
+pub struct DeterministicRng09Send(Arc<Mutex<DeterministicRng09>>);
+
+impl DeterministicRng09Send {
+    pub fn new(deterministic_rng09: DeterministicRng09) -> Self {
+        Self(Arc::new(Mutex::new(deterministic_rng09)))
+    }
+}
+
+impl CryptoRng09 for DeterministicRng09Send {}
+
+// unwraps are perfectly fine in test code
+impl RngCore09 for DeterministicRng09Send {
+    fn next_u32(&mut self) -> u32 {
+        self.0.lock().unwrap().next_u32()
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        self.0.lock().unwrap().next_u64()
+    }
+
+    fn fill_bytes(&mut self, dst: &mut [u8]) {
+        self.0.lock().unwrap().fill_bytes(dst)
+    }
 }
 
 pub fn deterministic_rng_09() -> DeterministicRng09 {

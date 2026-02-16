@@ -3,7 +3,9 @@
 
 use crate::message::MessageType;
 use crate::{noise_protocol::NoiseError, replay::ReplayError};
+use libcrux_psq::handshake::HandshakeError;
 use libcrux_psq::handshake::builders::BuilderError;
+use libcrux_psq::session::SessionError;
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_kkt::error::KKTError;
 use nym_kkt_ciphersuite::{HashFunction, KEM};
@@ -126,6 +128,15 @@ pub enum LpError {
 
     #[error("failed to build PSQ initiator: {inner:?}")]
     PSQInitiatorBuilderFailure { inner: BuilderError },
+
+    #[error("failed to complete the PSQ handshake: {inner:?}")]
+    PSQHandshakeFailure { inner: HandshakeError },
+
+    #[error("failed to run the PSQ session: {inner:?}")]
+    PSQSessionFailure { inner: SessionError },
+
+    #[error("can't proceed without remote peer information")]
+    MissingRemotePeerInformation,
 }
 
 impl LpError {
@@ -137,5 +148,21 @@ impl LpError {
         Self::KKTPSQHandshake(format!(
             "received unexpected response, got: {got:?}, expected: {expected:?}"
         ))
+    }
+}
+
+impl From<HandshakeError> for LpError {
+    fn from(handshake_error: HandshakeError) -> Self {
+        Self::PSQHandshakeFailure {
+            inner: handshake_error,
+        }
+    }
+}
+
+impl From<SessionError> for LpError {
+    fn from(session_error: SessionError) -> Self {
+        Self::PSQSessionFailure {
+            inner: session_error,
+        }
     }
 }

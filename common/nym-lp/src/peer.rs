@@ -9,7 +9,6 @@ use nym_kkt::key_utils::{
 };
 use nym_kkt::keys::KEMKeys;
 use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests};
-use nym_test_utils::helpers::{deterministic_rng, seeded_rng_09};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -201,7 +200,7 @@ pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLoc
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
 
-    let mut rng09 = seeded_rng_09(seed);
+    let mut rng09 = nym_test_utils::helpers::seeded_rng_09(seed);
 
     let x25519 = Arc::new(generate_keypair_x25519(&mut rng09));
 
@@ -218,7 +217,7 @@ pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLoc
 
 #[cfg(any(feature = "mock", test))]
 pub fn mock_peers() -> (LpLocalPeer, LpLocalPeer) {
-    let mut rng = deterministic_rng();
+    let mut rng = nym_test_utils::helpers::deterministic_rng();
 
     (random_peer(&mut rng), random_peer(&mut rng))
 }

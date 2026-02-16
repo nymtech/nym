@@ -19,10 +19,25 @@ pub struct KKTRequest {
 }
 
 impl KKTRequest {
-    pub(crate) fn into_bytes(mut self) -> Vec<u8> {
+    pub fn into_bytes(mut self) -> Vec<u8> {
         let mut out = self.plaintext.to_bytes();
         out.append(&mut self.encrypted_frame);
         out
+    }
+
+    pub fn try_from_bytes(b: &[u8]) -> Result<Self, KKTError> {
+        if b.len() < x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN {
+            return Err(KKTError::FrameDecodingError {
+                info: "the KKTRequest frame has invalid length".to_string(),
+            });
+        }
+        let plaintext =
+            KKTRequestPlaintext::try_from_bytes(&b[..x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN])?;
+
+        Ok(KKTRequest {
+            plaintext,
+            encrypted_frame: b[x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN..].to_vec(),
+        })
     }
 }
 
@@ -91,6 +106,24 @@ impl KKTRequestPlaintext {
         out
     }
 
+    pub(crate) fn try_from_bytes(b: &[u8]) -> Result<Self, KKTError> {
+        if b.len() != x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN {
+            return Err(KKTError::FrameDecodingError {
+                info: "the KKTRequest frame has invalid length".to_string(),
+            });
+        }
+        // SAFETY: we're using exactly 32 byte
+        #[allow(clippy::unwrap_used)]
+        let dh_pubkey =
+            DHPublicKey::from_bytes(&b[..x25519::PUBLIC_KEY_LENGTH].try_into().unwrap());
+        let masked_version_bytes = MaskedByte::try_from(&b[x25519::PUBLIC_KEY_LENGTH..])?;
+
+        Ok(KKTRequestPlaintext {
+            dh_pubkey,
+            masked_version_bytes,
+        })
+    }
+
     pub(crate) fn version_mask(&self, responder_pubkey: &DHPublicKey) -> Vec<u8> {
         Self::create_version_mask(&self.dh_pubkey, responder_pubkey)
     }
@@ -157,6 +190,18 @@ pub struct ProcessedKKTRequest {
 pub struct KKTResponse {
     /// Encrypted KKT frame that is going to be sent back to the initiator
     pub encrypted_frame: Vec<u8>,
+}
+
+impl KKTResponse {
+    pub fn from_bytes(bytes: Vec<u8>) -> KKTResponse {
+        KKTResponse {
+            encrypted_frame: bytes,
+        }
+    }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.encrypted_frame
+    }
 }
 
 pub struct ProcessedKKTResponse {

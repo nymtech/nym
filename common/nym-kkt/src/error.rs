@@ -73,13 +73,10 @@ impl KKTError {
 
 #[derive(Error, Debug)]
 pub enum MaskedByteError {
-    #[error(
-        "Invalid Masked Byte Length: Expected({}), Actual({}).",
-        expected,
-        actual
-    )]
+    #[error("invalid Masked Byte Length: Expected({expected}), Actual({actual})")]
     InvalidLength { expected: usize, actual: usize },
-    #[error("Failed to Unmask Byte.")]
+
+    #[error("failed to Unmask Byte")]
     Failure,
 }
 

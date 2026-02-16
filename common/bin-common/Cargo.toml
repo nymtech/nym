@@ -26,7 +26,8 @@ opentelemetry = { workspace = true, features = ["trace"], optional = true }
 
 ## otel-otlp (modern OTLP export to SigNoz/any OTLP collector)
 opentelemetry_sdk = { workspace = true, features = ["trace"], optional = true }
-opentelemetry-otlp = { workspace = true, features = ["grpc-tonic", "trace"], optional = true }
+opentelemetry-otlp = { workspace = true, features = ["grpc-tonic", "trace", "tls-roots"], optional = true }
+tonic = { workspace = true, optional = true }
 
 
 [build-dependencies]
@@ -44,6 +45,7 @@ otel-otlp = [
     "dep:opentelemetry_sdk",
     "dep:opentelemetry-otlp",
     "dep:tracing-opentelemetry",
+    "dep:tonic",
 ]
 clap = ["dep:clap", "dep:clap_complete", "dep:clap_complete_fig"]
 models = []

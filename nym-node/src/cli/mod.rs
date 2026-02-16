@@ -46,12 +46,18 @@ pub(crate) struct Cli {
 
     /// OpenTelemetry OTLP collector endpoint (gRPC).
     /// Only used when --otel is enabled.
+    /// For SigNoz Cloud use https://ingest.<region>.signoz.cloud:443
     #[clap(
         long,
         env = "NYMNODE_OTEL_ENDPOINT",
         default_value = "http://localhost:4317"
     )]
     pub(crate) otel_endpoint: String,
+
+    /// SigNoz Cloud ingestion key for authenticated OTLP export.
+    /// Only needed for SigNoz Cloud (not self-hosted).
+    #[clap(long, env = "NYMNODE_OTEL_KEY")]
+    pub(crate) otel_key: Option<String>,
 
     #[clap(subcommand)]
     command: Commands,
@@ -114,6 +120,7 @@ impl Cli {
             Some(crate::logging::OtelConfig {
                 endpoint: self.otel_endpoint.clone(),
                 service_name: "nym-node".to_string(),
+                ingestion_key: self.otel_key.clone(),
             })
         } else {
             None
@@ -130,6 +137,7 @@ impl Cli {
             Some(crate::logging::OtelConfig {
                 endpoint: self.otel_endpoint.clone(),
                 service_name: "nym-node".to_string(),
+                ingestion_key: self.otel_key.clone(),
             })
         } else {
             None

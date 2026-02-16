@@ -72,11 +72,15 @@ pub fn setup_tracing_logger() {
 ///
 /// # Arguments
 /// * `service_name` - The service name reported to the collector (e.g. "nym-node")
-/// * `endpoint` - The OTLP/gRPC collector endpoint (e.g. "http://localhost:4317")
+/// * `endpoint` - The OTLP/gRPC collector endpoint (e.g. "http://localhost:4317"
+///   or "https://ingest.eu.signoz.cloud:443" for SigNoz Cloud)
+/// * `ingestion_key` - Optional SigNoz Cloud ingestion key. When provided, it is
+///   sent as the `signoz-ingestion-key` gRPC metadata header on every export.
 #[cfg(feature = "otel-otlp")]
 pub fn init_otel_layer<S>(
     service_name: &str,
     endpoint: &str,
+    ingestion_key: Option<&str>,
 ) -> Result<
     (
         tracing_opentelemetry::OpenTelemetryLayer<S, opentelemetry_sdk::trace::SdkTracer>,
@@ -90,10 +94,21 @@ where
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry_otlp::WithExportConfig;
 
-    let exporter = opentelemetry_otlp::SpanExporter::builder()
+    let mut builder = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
-        .with_endpoint(endpoint)
-        .build()?;
+        .with_endpoint(endpoint);
+
+    if let Some(key) = ingestion_key {
+        use opentelemetry_otlp::WithTonicConfig;
+        let mut metadata = tonic::metadata::MetadataMap::new();
+        metadata.insert(
+            "signoz-ingestion-key",
+            key.parse().map_err(|_| "invalid ingestion key value")?,
+        );
+        builder = builder.with_metadata(metadata);
+    }
+
+    let exporter = builder.build()?;
 
     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
         .with_batch_exporter(exporter)

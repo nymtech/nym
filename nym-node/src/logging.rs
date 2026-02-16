@@ -13,6 +13,7 @@ use tracing_subscriber::{EnvFilter, Layer};
 pub(crate) struct OtelConfig {
     pub endpoint: String,
     pub service_name: String,
+    pub ingestion_key: Option<String>,
 }
 
 /// Handle returned when OTel is active so the caller can trigger a graceful shutdown.
@@ -55,6 +56,7 @@ pub(crate) fn setup_tracing_logger(
             let (otel_layer, provider) = nym_bin_common::logging::init_otel_layer(
                 &otel_config.service_name,
                 &otel_config.endpoint,
+                otel_config.ingestion_key.as_deref(),
             ).map_err(|e| anyhow::anyhow!("failed to initialise OpenTelemetry: {e}"))?;
 
             tracing_subscriber::registry()
@@ -77,6 +79,7 @@ pub(crate) fn setup_tracing_logger(
             let (otel_layer, provider) = nym_bin_common::logging::init_otel_layer(
                 &otel_config.service_name,
                 &otel_config.endpoint,
+                otel_config.ingestion_key.as_deref(),
             ).map_err(|e| anyhow::anyhow!("failed to initialise OpenTelemetry: {e}"))?;
 
             tracing_subscriber::registry()

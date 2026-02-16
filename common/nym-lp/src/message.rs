@@ -391,14 +391,14 @@ impl ForwardPacketData {
             }
             // SAFETY: we ensured we have sufficient data, and the length is correct for casting
             #[allow(clippy::unwrap_used)]
-            let ipv6 = IpAddr::V6(Ipv6Addr::from_octets(bytes[33..49].try_into().unwrap()));
+            let ipv6 = IpAddr::V6(Ipv6Addr::from(<[u8; 16]>::try_from(&bytes[33..49]).unwrap()));
             let port = u16::from_le_bytes([bytes[49], bytes[50]]);
             (SocketAddr::new(ipv6, port), 51)
         } else {
             // IPv4. Length check done at the start
             // SAFETY: we ensured we have sufficient data, and the length is correct for casting
             #[allow(clippy::unwrap_used)]
-            let ipv4 = IpAddr::V4(Ipv4Addr::from_octets(bytes[33..37].try_into().unwrap()));
+            let ipv4 = IpAddr::V4(Ipv4Addr::from(<[u8; 4]>::try_from(&bytes[33..37]).unwrap()));
             let port = u16::from_le_bytes([bytes[37], bytes[38]]);
             (SocketAddr::new(ipv4, port), 39)
         };

@@ -13,6 +13,18 @@
 
 set -e
 
+check_dependencies() {
+    local missing=()
+    for cmd in docker jq; do
+        command -v "$cmd" &>/dev/null || missing+=("$cmd")
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "ERROR: missing required commands: ${missing[*]}" >&2
+        exit 1
+    fi
+}
+check_dependencies
+
 CH_CONTAINER="signoz-clickhouse"
 TRACES_TABLE="signoz_traces.distributed_signoz_index_v3"
 LOOKBACK_MIN=${1:-15}
@@ -30,6 +42,11 @@ RED='\033[0;31m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
+
+if ! docker ps --filter "name=$CH_CONTAINER" --format '{{.Names}}' | grep -q "$CH_CONTAINER"; then
+    echo "ERROR: ClickHouse container '$CH_CONTAINER' not running. Is SigNoz started?" >&2
+    exit 1
+fi
 
 ch() {
     docker exec "$CH_CONTAINER" clickhouse-client --query "$1" 2>/dev/null

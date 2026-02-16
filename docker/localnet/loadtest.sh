@@ -24,6 +24,18 @@
 
 set -e
 
+check_dependencies() {
+    local missing=()
+    for cmd in curl jq bc; do
+        command -v "$cmd" &>/dev/null || missing+=("$cmd")
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "ERROR: missing required commands: ${missing[*]}" >&2
+        exit 1
+    fi
+}
+check_dependencies
+
 CONCURRENCY=10
 DURATION=60
 PROXY="socks5h://127.0.0.1:1080"

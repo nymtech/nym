@@ -96,8 +96,15 @@ where
 {
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry_otlp::WithExportConfig;
-
     use opentelemetry_otlp::WithTonicConfig;
+
+    // Validate endpoint URI early to fail with a clear message
+    if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
+        return Err(format!(
+            "invalid OTLP endpoint URI: {endpoint} (must start with http:// or https://)"
+        )
+        .into());
+    }
 
     let mut builder = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
@@ -113,12 +120,15 @@ where
         let mut metadata = tonic::metadata::MetadataMap::new();
         metadata.insert(
             "signoz-ingestion-key",
-            key.parse().map_err(|_| "invalid ingestion key value")?,
+            key.parse()
+                .map_err(|_| "invalid ingestion key format (value redacted)")?,
         );
         builder = builder.with_metadata(metadata);
     }
 
-    let exporter = builder.build()?;
+    let exporter = builder
+        .build()
+        .map_err(|e| format!("failed to build OTLP exporter for endpoint {endpoint}: {e}"))?;
 
     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
         .with_batch_exporter(exporter)

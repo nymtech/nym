@@ -374,9 +374,11 @@ impl ForwardPacketData {
                 bytes.len()
             )));
         }
-        // SAFETY: we ensured we have sufficient data
-        #[allow(clippy::unwrap_used)]
-        let target_gateway_identity = bytes[0..32].try_into().unwrap();
+        // length >= 43 guaranteed above, so bytes[0..32] is always 32 bytes
+        #[allow(clippy::expect_used)]
+        let target_gateway_identity: [u8; 32] = bytes[0..32]
+            .try_into()
+            .expect("length check above guarantees at least 43 bytes");
         let target_lp_address_is_ipv6 = bytes[32] != 0;
 
         let (target_lp_address, next_index) = if target_lp_address_is_ipv6 {
@@ -389,18 +391,21 @@ impl ForwardPacketData {
                     bytes.len()
                 )));
             }
-            // SAFETY: we ensured we have sufficient data, and the length is correct for casting
-            #[allow(clippy::unwrap_used)]
+            // length >= 55 guaranteed above, so bytes[33..49] is always 16 bytes
+            #[allow(clippy::expect_used)]
             let ipv6 = IpAddr::V6(Ipv6Addr::from(
-                <[u8; 16]>::try_from(&bytes[33..49]).unwrap(),
+                <[u8; 16]>::try_from(&bytes[33..49])
+                    .expect("length check above guarantees at least 55 bytes"),
             ));
             let port = u16::from_le_bytes([bytes[49], bytes[50]]);
             (SocketAddr::new(ipv6, port), 51)
         } else {
-            // IPv4. Length check done at the start
-            // SAFETY: we ensured we have sufficient data, and the length is correct for casting
-            #[allow(clippy::unwrap_used)]
-            let ipv4 = IpAddr::V4(Ipv4Addr::from(<[u8; 4]>::try_from(&bytes[33..37]).unwrap()));
+            // length >= 43 guaranteed at function entry, so bytes[33..37] is always 4 bytes
+            #[allow(clippy::expect_used)]
+            let ipv4 = IpAddr::V4(Ipv4Addr::from(
+                <[u8; 4]>::try_from(&bytes[33..37])
+                    .expect("length check at entry guarantees at least 43 bytes"),
+            ));
             let port = u16::from_le_bytes([bytes[37], bytes[38]]);
             (SocketAddr::new(ipv4, port), 39)
         };

@@ -11,9 +11,16 @@ use tracing_subscriber::{EnvFilter, Layer};
 /// Fields are only read when the `otel` feature is enabled.
 #[allow(dead_code)]
 pub(crate) struct OtelConfig {
+    /// OTLP/gRPC collector endpoint, e.g. `http://localhost:4317`
+    /// or `https://ingest.eu.signoz.cloud:443` for SigNoz Cloud.
     pub endpoint: String,
+    /// Service name reported to the collector (appears in SigNoz "Services" view).
     pub service_name: String,
+    /// Optional SigNoz Cloud ingestion key for authenticated export.
+    /// Sent as the `signoz-ingestion-key` gRPC metadata header.
     pub ingestion_key: Option<String>,
+    /// Deployment environment label, e.g. `mainnet`, `sandbox`, `canary`.
+    /// Attached as the `deployment.environment` OTel resource attribute.
     pub environment: String,
 }
 

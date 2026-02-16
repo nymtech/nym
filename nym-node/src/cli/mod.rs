@@ -99,12 +99,8 @@ impl Cli {
         })
     }
 
-    #[cfg(feature = "otel")]
-    fn setup_logging(&self) -> anyhow::Result<Option<crate::logging::OtelGuard>> {
-        if matches!(self.command, Commands::TestThroughput(..)) {
-            return Ok(None);
-        }
-        let otel_config = if self.otel {
+    fn build_otel_config(&self) -> Option<crate::logging::OtelConfig> {
+        if self.otel {
             Some(crate::logging::OtelConfig {
                 endpoint: self.otel_endpoint.clone(),
                 service_name: "nym-node".to_string(),
@@ -113,8 +109,15 @@ impl Cli {
             })
         } else {
             None
-        };
-        crate::logging::setup_tracing_logger(otel_config)
+        }
+    }
+
+    #[cfg(feature = "otel")]
+    fn setup_logging(&self) -> anyhow::Result<Option<crate::logging::OtelGuard>> {
+        if matches!(self.command, Commands::TestThroughput(..)) {
+            return Ok(None);
+        }
+        crate::logging::setup_tracing_logger(self.build_otel_config())
     }
 
     #[cfg(not(feature = "otel"))]
@@ -122,17 +125,7 @@ impl Cli {
         if matches!(self.command, Commands::TestThroughput(..)) {
             return Ok(None);
         }
-        let otel_config = if self.otel {
-            Some(crate::logging::OtelConfig {
-                endpoint: self.otel_endpoint.clone(),
-                service_name: "nym-node".to_string(),
-                ingestion_key: self.otel_key.clone(),
-                environment: self.otel_env.clone(),
-            })
-        } else {
-            None
-        };
-        crate::logging::setup_tracing_logger(otel_config)?;
+        crate::logging::setup_tracing_logger(self.build_otel_config())?;
         Ok(None)
     }
 }

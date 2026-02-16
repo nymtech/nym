@@ -501,14 +501,13 @@ impl ConnectionHandler {
         fields(batch_size, mutex_wait_ms,)
     )]
     async fn handle_pending_packets_batch(&mut self, now: Instant) {
-        let batch_size = self.pending_packets.total_count();
-        Span::current().record("batch_size", batch_size as u64);
-
-        let batch = self.pending_packets.reset(now);
         let replay_tags = self.pending_packets.replay_tags();
         if replay_tags.is_empty() {
             return;
         }
+
+        let batch_size = self.pending_packets.total_count();
+        Span::current().record("batch_size", batch_size as u64);
 
         let mutex_start = Instant::now();
         let Ok(replay_check_results) = self
@@ -523,6 +522,7 @@ impl ConnectionHandler {
         };
         Span::current().record("mutex_wait_ms", mutex_start.elapsed().as_millis() as u64);
 
+        let batch = self.pending_packets.reset(now);
         self.handle_post_replay_detection_packets(now, batch, replay_check_results)
             .await;
     }

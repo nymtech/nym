@@ -11,8 +11,10 @@ COPY ./ ./
 
 ENV CARGO_BUILD_JOBS=8
 
-RUN cargo build --release --locked -p nym-node --features otel && \
-    cargo build --release --locked -p nym-network-requester -p nym-socks5-client
+RUN cargo build --release --locked \
+    -p nym-node --features otel \
+    -p nym-network-requester \
+    -p nym-socks5-client
 
 # --- wireguard-go build stage (cached independently) ---
 FROM debian:trixie-slim AS wireguard-builder

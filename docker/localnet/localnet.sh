@@ -26,8 +26,18 @@ fi
 # OpenTelemetry configuration
 # Set OTEL_ENABLE=1 to enable OTel tracing on all nym-node instances.
 # OTEL_ENDPOINT should point to the OTLP gRPC collector reachable from containers.
+# When SigNoz runs in Docker (signoz-net), we route to its collector directly.
 OTEL_ENABLE=${OTEL_ENABLE:-1}
-OTEL_ENDPOINT=${OTEL_ENDPOINT:-"http://${HOST_INTERNAL}:4317"}
+if [ -z "${OTEL_ENDPOINT:-}" ]; then
+    SIGNOZ_NET=$(docker network ls --filter name=signoz-net --format '{{.Name}}' 2>/dev/null || true)
+    if [ "$RUNTIME" = "docker" ] && [ -n "$SIGNOZ_NET" ]; then
+        OTEL_ENDPOINT="http://signoz-otel-collector:4317"
+        OTEL_SIGNOZ_NET="$SIGNOZ_NET"
+    else
+        OTEL_ENDPOINT="http://${HOST_INTERNAL}:4317"
+        OTEL_SIGNOZ_NET=""
+    fi
+fi
 
 # Build OTel flags for nym-node run commands
 otel_flags() {
@@ -248,6 +258,8 @@ start_gateway() {
         $RUNTIME run \
         --name "$GATEWAY_CONTAINER" \
         -m 2G \
+        --cap-add=NET_ADMIN \
+        --device /dev/net/tun \
         --network "$NETWORK_NAME" \
         -p 9000:9000 \
         -p 10004:10004 \
@@ -276,11 +288,9 @@ start_gateway() {
                 --http-bind-address=0.0.0.0:30004 \
                 --http-access-token=lala \
                 --public-ips $CONTAINER_IP \
-                --enable-lp true \
                 --lp-use-mock-ecash true \
                 --output=json \
-                --wireguard-enabled true \
-                --wireguard-userspace true \
+                --wireguard-enabled false \
                 --bonding-information-output="/localnet/gateway.json";
 
             echo "Waiting for network.json...";
@@ -288,7 +298,7 @@ start_gateway() {
                 sleep 2;
             done;
             echo "Starting gateway with LP listener (mock ecash)...";
-            exec nym-node '"${otel_args}"' run --id gateway-localnet --unsafe-disable-replay-protection --local --wireguard-enabled true --wireguard-userspace true --lp-use-mock-ecash true
+            exec nym-node '"${otel_args}"' run --id gateway-localnet --unsafe-disable-replay-protection --local --wireguard-enabled false --lp-use-mock-ecash true
         '
 
     log_success "$GATEWAY_CONTAINER started"
@@ -318,6 +328,8 @@ start_gateway2() {
         $RUNTIME run \
         --name "$GATEWAY2_CONTAINER" \
         -m 2G \
+        --cap-add=NET_ADMIN \
+        --device /dev/net/tun \
         --network "$NETWORK_NAME" \
         -p 9001:9001 \
         -p 10005:10005 \
@@ -346,11 +358,9 @@ start_gateway2() {
                 --http-bind-address=0.0.0.0:30005 \
                 --http-access-token=lala \
                 --public-ips $CONTAINER_IP \
-                --enable-lp true \
                 --lp-use-mock-ecash true \
                 --output=json \
-                --wireguard-enabled true \
-                --wireguard-userspace true \
+                --wireguard-enabled false \
                 --bonding-information-output="/localnet/gateway2.json";
 
             echo "Waiting for network.json...";
@@ -358,7 +368,7 @@ start_gateway2() {
                 sleep 2;
             done;
             echo "Starting gateway2 with LP listener (mock ecash)...";
-            exec nym-node '"${otel_args}"' run --id gateway2-localnet --unsafe-disable-replay-protection --local --wireguard-enabled true --wireguard-userspace true --lp-use-mock-ecash true
+            exec nym-node '"${otel_args}"' run --id gateway2-localnet --unsafe-disable-replay-protection --local --wireguard-enabled false --lp-use-mock-ecash true
         '
 
     log_success "$GATEWAY2_CONTAINER started"
@@ -382,9 +392,9 @@ start_gateway2() {
 start_network_requester() {
     log_info "Starting $REQUESTER_CONTAINER..."
 
-    # Get gateway IP address
+    # Get gateway IP address (first IP only, in case container has multiple networks)
     log_info "Getting gateway IP address..."
-    GATEWAY_IP=$($RUNTIME exec "$GATEWAY_CONTAINER" hostname -i)
+    GATEWAY_IP=$($RUNTIME exec "$GATEWAY_CONTAINER" hostname -i | awk '{print $1}')
     log_info "Gateway IP: $GATEWAY_IP"
 
     $RUNTIME run \
@@ -576,13 +586,13 @@ build_topology() {
         log_success "  $file created"
     done
 
-    # Get container IPs
+    # Get container IPs (first IP only, containers may be on multiple networks)
     log_info "Getting container IP addresses..."
-    MIX1_IP=$($RUNTIME exec "$MIXNODE1_CONTAINER" hostname -i)
-    MIX2_IP=$($RUNTIME exec "$MIXNODE2_CONTAINER" hostname -i)
-    MIX3_IP=$($RUNTIME exec "$MIXNODE3_CONTAINER" hostname -i)
-    GATEWAY_IP=$($RUNTIME exec "$GATEWAY_CONTAINER" hostname -i)
-    GATEWAY2_IP=$($RUNTIME exec "$GATEWAY2_CONTAINER" hostname -i)
+    MIX1_IP=$($RUNTIME exec "$MIXNODE1_CONTAINER" hostname -i | awk '{print $1}')
+    MIX2_IP=$($RUNTIME exec "$MIXNODE2_CONTAINER" hostname -i | awk '{print $1}')
+    MIX3_IP=$($RUNTIME exec "$MIXNODE3_CONTAINER" hostname -i | awk '{print $1}')
+    GATEWAY_IP=$($RUNTIME exec "$GATEWAY_CONTAINER" hostname -i | awk '{print $1}')
+    GATEWAY2_IP=$($RUNTIME exec "$GATEWAY2_CONTAINER" hostname -i | awk '{print $1}')
 
     log_info "Container IPs:"
     echo "  mix1:     $MIX1_IP"
@@ -631,19 +641,32 @@ start_all() {
     start_mixnode 3 "$MIXNODE3_CONTAINER"
     start_gateway
     start_gateway2
+
+    # Connect nym containers to SigNoz network for direct OTLP routing
+    if [ -n "${OTEL_SIGNOZ_NET:-}" ]; then
+        log_info "Connecting containers to SigNoz network ($OTEL_SIGNOZ_NET)..."
+        for c in "$MIXNODE1_CONTAINER" "$MIXNODE2_CONTAINER" "$MIXNODE3_CONTAINER" \
+                 "$GATEWAY_CONTAINER" "$GATEWAY2_CONTAINER"; do
+            docker network connect "$OTEL_SIGNOZ_NET" "$c" 2>/dev/null && \
+                log_success "  $c connected to $OTEL_SIGNOZ_NET" || true
+        done
+    fi
+
     build_topology
 
     # Configure networking for two-hop WireGuard routing on both gateways
-    # Note: Runs after build_topology to ensure gateways have finished WireGuard setup
+    # Note: Requires --privileged or --cap-add=NET_ADMIN on the containers.
+    # Non-fatal: only needed for WireGuard VPN routing, not mixnet packet testing.
     log_info "Configuring gateway networking (IP forwarding, NAT)..."
     for gw in "$GATEWAY_CONTAINER" "$GATEWAY2_CONTAINER"; do
-        $RUNTIME exec "$gw" sh -c "
-            # Enable IP forwarding
-            echo 1 > /proc/sys/net/ipv4/ip_forward
-            # Add NAT masquerade for outbound traffic
-            iptables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-        "
-        log_success "Configured $gw"
+        if $RUNTIME exec "$gw" sh -c "
+            echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null
+            iptables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE 2>/dev/null
+        " 2>/dev/null; then
+            log_success "Configured $gw"
+        else
+            log_warn "Could not configure NAT on $gw (needs --privileged). WireGuard VPN routing will not work."
+        fi
     done
 
     start_network_requester

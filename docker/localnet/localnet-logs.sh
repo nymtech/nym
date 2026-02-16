@@ -5,6 +5,13 @@
 
 SESSION_NAME="nym-localnet-logs"
 
+# Detect runtime
+if command -v container &> /dev/null; then
+    RUNTIME="container"
+else
+    RUNTIME="docker"
+fi
+
 # Container names
 CONTAINERS=(
     "nym-mixnode1"
@@ -17,9 +24,9 @@ CONTAINERS=(
 
 # Check if containers are running
 running_containers=()
-for container in "${CONTAINERS[@]}"; do
-    if container inspect "$container" &>/dev/null; then
-        running_containers+=("$container")
+for ctr in "${CONTAINERS[@]}"; do
+    if $RUNTIME inspect "$ctr" &>/dev/null; then
+        running_containers+=("$ctr")
     fi
 done
 
@@ -32,11 +39,11 @@ fi
 # Check if we're already in tmux
 if [ -n "$TMUX" ]; then
     # Inside tmux - create new window
-    tmux new-window -n "logs" "container logs -f ${running_containers[0]}"
+    tmux new-window -n "logs" "$RUNTIME logs -f ${running_containers[0]}"
 
     # Split for remaining containers
     for ((i=1; i<${#running_containers[@]}; i++)); do
-        tmux split-window -t logs "container logs -f ${running_containers[$i]}"
+        tmux split-window -t logs "$RUNTIME logs -f ${running_containers[$i]}"
         tmux select-layout -t logs tiled
     done
 
@@ -48,11 +55,11 @@ else
         exec tmux attach-session -t "$SESSION_NAME"
     else
         # Create new session
-        tmux new-session -d -s "$SESSION_NAME" -n "logs" "container logs -f ${running_containers[0]}"
+        tmux new-session -d -s "$SESSION_NAME" -n "logs" "$RUNTIME logs -f ${running_containers[0]}"
 
         # Split for remaining containers
         for ((i=1; i<${#running_containers[@]}; i++)); do
-            tmux split-window -t "$SESSION_NAME:logs" "container logs -f ${running_containers[$i]}"
+            tmux split-window -t "$SESSION_NAME:logs" "$RUNTIME logs -f ${running_containers[$i]}"
             tmux select-layout -t "$SESSION_NAME:logs" tiled
         done
 

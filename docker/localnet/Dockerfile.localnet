@@ -10,10 +10,9 @@ COPY ./ ./
 ENV CARGO_BUILD_JOBS=8
 
 # Build all required binaries in release mode
-RUN cargo build --release --locked \
-    -p nym-node \
-    -p nym-network-requester \
-    -p nym-socks5-client
+# nym-node is built with the otel feature for OpenTelemetry tracing support
+RUN cargo build --release --locked -p nym-node --features otel && \
+    cargo build --release --locked -p nym-network-requester -p nym-socks5-client
 
 # Install runtime dependencies including Go for wireguard-go
 RUN apt update && apt install -y \

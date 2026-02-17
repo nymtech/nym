@@ -8,7 +8,7 @@ use crate::frame::KKTFrame;
 use crate::keys::EncapsulationKey;
 use crate::masked_byte::{MASKED_BYTE_LEN, MaskedByte};
 use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
-use nym_kkt_ciphersuite::x25519;
+use nym_kkt_ciphersuite::{KEM, x25519};
 
 pub struct KKTRequest {
     /// The plaintext part of the request
@@ -185,6 +185,12 @@ pub struct ProcessedKKTRequest {
 
     /// The obtained encapsulation key of the remote
     pub remote_encapsulation_key: Option<EncapsulationKey>,
+
+    /// The KEM key requested in the original request
+    pub requested_kem: KEM,
+
+    /// The unmasked byte representing the outer protocol version sent by the initiator
+    pub outer_protocol_version: u8,
 }
 
 pub struct KKTResponse {

@@ -201,7 +201,7 @@ impl NestedLpSession {
         let protocol_version = self.gateway_supported_lp_protocol_version;
 
         let ciphersuite = LpSession::default_ciphersuite();
-        let session = LpSession::complete_as_initiator(
+        let session = LpSession::psq_handshake_initiator(
             &mut nested_connection,
             ciphersuite,
             local_peer,

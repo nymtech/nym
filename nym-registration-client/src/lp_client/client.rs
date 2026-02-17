@@ -414,7 +414,7 @@ where
 
         // TODO:
         let ciphersuite = LpSession::default_ciphersuite();
-        let session = LpSession::complete_as_initiator(
+        let session = LpSession::psq_handshake_initiator(
             connection,
             ciphersuite,
             local_peer,

@@ -127,6 +127,8 @@ impl<'a> KKTResponder<'a> {
         Ok(ProcessedKKTRequest {
             response: KKTResponse { encrypted_frame },
             remote_encapsulation_key,
+            requested_kem: remote_context.ciphersuite().kem(),
+            outer_protocol_version: processed_req.outer_protocol_version,
         })
     }
 }

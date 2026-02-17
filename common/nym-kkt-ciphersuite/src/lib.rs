@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use strum_macros::{Display, EnumIter, EnumString};
 
+pub use strum::IntoEnumIterator;
+
 pub mod error;
 
 pub const DEFAULT_HASH_LEN: usize = 32;

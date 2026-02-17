@@ -118,7 +118,17 @@ Ports published to host:
 - 20001-20005 → Verloc ports
 - 30001-30005 → HTTP APIs
 - 41264/41265 → LP control ports (registration)
-- 51822/51823 → WireGuard tunnel ports (gateway/gateway2)
+- 51822/51823 → WireGuard tunnel ports (gateway/gateway2; only used when WireGuard is enabled)
+
+### WireGuard and privileges
+
+By default, gateways run with **WireGuard disabled** (`--wireguard-enabled false`). No elevated capabilities are required: the script does not use `--cap-add=NET_ADMIN` or `--device /dev/net/tun`, so localnet runs without net admin privileges and is suitable for mixnet packet testing and SOCKS5 over the mixnet.
+
+To enable WireGuard VPN routing in localnet (e.g. for two-hop VPN tests), set `WIREGUARD_ENABLED=1` before starting. The script will then add `--cap-add=NET_ADMIN` and `--device /dev/net/tun` to the gateway containers and configure IP forwarding and NAT. This may not work in all Docker environments (e.g. some hosted runners restrict capabilities).
+
+```bash
+WIREGUARD_ENABLED=1 ./localnet.sh start
+```
 
 ### Startup Flow
 
@@ -664,14 +674,11 @@ start_mixnode 4 "$MIXNODE4_CONTAINER"
 
 ### Container Runtime
 
-Apple's container runtime is a native macOS container system:
-- Uses Virtualization.framework for isolation
-- Lightweight VMs for each container
-- Native macOS integration
-- Separate image store from Docker
-- Natively uses [Kata Containers](https://github.com/kata-containers/kata-containers) images
+**Docker Desktop** is the default and recommended runtime; no extra setup is required for mixnet testing.
 
-### Initial setup for [Container Runtime](https://github.com/apple/container)
+**Apple Container Runtime** is an optional alternative on macOS. It natively uses [Kata Containers](https://github.com/kata-containers/kata-containers) images and is only required if you use `container` instead of Docker (e.g. for consistency with other Apple tooling). Kata is also the path that provides a kernel with `CONFIG_TUN=y` if you need TUN/WireGuard inside containers under the Apple runtime.
+
+### Initial setup for [Container Runtime](https://github.com/apple/container) (optional)
 
 - **MUST** have MacOS Tahoe for inter-container networking
 - `brew install --cask container`
@@ -715,7 +722,7 @@ Both are ephemeral by default (cleaned up on stop).
 - **No Docker Compose**: Uses custom orchestration script
 - **Dynamic IPs**: Container IPs may change between restarts
 - **Port conflicts**: Cannot run alongside services using same ports
-- **TUN device**: Gateway requires `ip` command for network interfaces
+- **TUN device**: Only required when `WIREGUARD_ENABLED=1`; otherwise gateways run without it
 
 ## Support
 

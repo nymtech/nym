@@ -23,6 +23,10 @@ else
     HOST_INTERNAL="host.docker.internal"
 fi
 
+# WireGuard: set to 1 only if you need VPN routing in localnet (requires NET_ADMIN and /dev/net/tun).
+# Default 0: mixnet-only, no elevated capabilities required.
+WIREGUARD_ENABLED=${WIREGUARD_ENABLED:-0}
+
 # OpenTelemetry configuration
 # Set OTEL_ENABLE=1 to enable OTel tracing on all nym-node instances.
 # OTEL_ENDPOINT should point to the OTLP gRPC collector reachable from containers.
@@ -44,6 +48,18 @@ otel_flags() {
     if [ "$OTEL_ENABLE" = "1" ]; then
         echo "--otel --otel-endpoint $OTEL_ENDPOINT"
     fi
+}
+
+# WireGuard capability flags for gateway containers (only when WIREGUARD_ENABLED=1)
+wireguard_cap_args() {
+    if [ "$WIREGUARD_ENABLED" = "1" ]; then
+        echo "--cap-add=NET_ADMIN --device /dev/net/tun"
+    fi
+}
+
+# --wireguard-enabled value for nym-node
+wireguard_flag() {
+    [ "$WIREGUARD_ENABLED" = "1" ] && echo "true" || echo "false"
 }
 
 # Container names
@@ -252,14 +268,14 @@ start_mixnode() {
 start_gateway() {
     log_info "Starting $GATEWAY_CONTAINER..."
 
-    local otel_args
+    local otel_args wg_flag
     otel_args=$(otel_flags)
+    wg_flag=$(wireguard_flag)
 
-        $RUNTIME run \
+    $RUNTIME run \
         --name "$GATEWAY_CONTAINER" \
         -m 2G \
-        --cap-add=NET_ADMIN \
-        --device /dev/net/tun \
+        $(wireguard_cap_args) \
         --network "$NETWORK_NAME" \
         -p 9000:9000 \
         -p 10004:10004 \
@@ -290,7 +306,7 @@ start_gateway() {
                 --public-ips $CONTAINER_IP \
                 --lp-use-mock-ecash true \
                 --output=json \
-                --wireguard-enabled false \
+                --wireguard-enabled '"$wg_flag"' \
                 --bonding-information-output="/localnet/gateway.json";
 
             echo "Waiting for network.json...";
@@ -298,7 +314,7 @@ start_gateway() {
                 sleep 2;
             done;
             echo "Starting gateway with LP listener (mock ecash)...";
-            exec nym-node '"${otel_args}"' run --id gateway-localnet --unsafe-disable-replay-protection --local --wireguard-enabled false --lp-use-mock-ecash true
+            exec nym-node '"${otel_args}"' run --id gateway-localnet --unsafe-disable-replay-protection --local --wireguard-enabled '"$wg_flag"' --lp-use-mock-ecash true
         '
 
     log_success "$GATEWAY_CONTAINER started"
@@ -322,14 +338,14 @@ start_gateway() {
 start_gateway2() {
     log_info "Starting $GATEWAY2_CONTAINER..."
 
-    local otel_args
+    local otel_args wg_flag
     otel_args=$(otel_flags)
+    wg_flag=$(wireguard_flag)
 
-        $RUNTIME run \
+    $RUNTIME run \
         --name "$GATEWAY2_CONTAINER" \
         -m 2G \
-        --cap-add=NET_ADMIN \
-        --device /dev/net/tun \
+        $(wireguard_cap_args) \
         --network "$NETWORK_NAME" \
         -p 9001:9001 \
         -p 10005:10005 \
@@ -360,7 +376,7 @@ start_gateway2() {
                 --public-ips $CONTAINER_IP \
                 --lp-use-mock-ecash true \
                 --output=json \
-                --wireguard-enabled false \
+                --wireguard-enabled '"$wg_flag"' \
                 --bonding-information-output="/localnet/gateway2.json";
 
             echo "Waiting for network.json...";
@@ -368,7 +384,7 @@ start_gateway2() {
                 sleep 2;
             done;
             echo "Starting gateway2 with LP listener (mock ecash)...";
-            exec nym-node '"${otel_args}"' run --id gateway2-localnet --unsafe-disable-replay-protection --local --wireguard-enabled false --lp-use-mock-ecash true
+            exec nym-node '"${otel_args}"' run --id gateway2-localnet --unsafe-disable-replay-protection --local --wireguard-enabled '"$wg_flag"' --lp-use-mock-ecash true
         '
 
     log_success "$GATEWAY2_CONTAINER started"
@@ -654,20 +670,20 @@ start_all() {
 
     build_topology
 
-    # Configure networking for two-hop WireGuard routing on both gateways
-    # Note: Requires --privileged or --cap-add=NET_ADMIN on the containers.
-    # Non-fatal: only needed for WireGuard VPN routing, not mixnet packet testing.
-    log_info "Configuring gateway networking (IP forwarding, NAT)..."
-    for gw in "$GATEWAY_CONTAINER" "$GATEWAY2_CONTAINER"; do
-        if $RUNTIME exec "$gw" sh -c "
-            echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null
-            iptables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE 2>/dev/null
-        " 2>/dev/null; then
-            log_success "Configured $gw"
-        else
-            log_warn "Could not configure NAT on $gw (needs --privileged). WireGuard VPN routing will not work."
-        fi
-    done
+    # Configure networking for WireGuard VPN routing only when WIREGUARD_ENABLED=1
+    if [ "$WIREGUARD_ENABLED" = "1" ]; then
+        log_info "Configuring gateway networking (IP forwarding, NAT) for WireGuard..."
+        for gw in "$GATEWAY_CONTAINER" "$GATEWAY2_CONTAINER"; do
+            if $RUNTIME exec "$gw" sh -c "
+                echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null
+                iptables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE 2>/dev/null
+            " 2>/dev/null; then
+                log_success "Configured $gw"
+            else
+                log_warn "Could not configure NAT on $gw. WireGuard VPN routing may not work."
+            fi
+        done
+    fi
 
     start_network_requester
     start_socks5_client

@@ -1,71 +1,35 @@
-# Nym Localnet
+# Nym Localnet for Kata Container Runtimes
 
-A complete Nym mixnet test environment with OpenTelemetry instrumentation.
-Supports both Docker Desktop and Apple Container Runtime on macOS.
+A complete Nym mixnet test environment running on Apple's container runtime for macOS (for now).
 
 ## Overview
 
 This localnet setup provides a fully functional Nym mixnet for local development and testing:
 - **3 mixnodes** (layer 1, 2, 3)
-- **2 gateways** (entry + exit mode)
+- **1 gateway** (entry + exit mode)
 - **1 network-requester** (service provider)
 - **1 SOCKS5 client**
-- **OpenTelemetry tracing** via OTLP/gRPC to SigNoz (or any OTLP collector)
 
 All components run in isolated containers with proper networking and dynamic IP resolution.
-When the `otel` feature is enabled (default), every nym-node exports traces covering
-the full packet lifecycle: ingress, Sphinx processing, forwarding, and final-hop delivery.
 
 ## Prerequisites
 
 ### Required
 - **macOS** (tested on macOS Sequoia 15.0+)
-- **Docker Desktop** (recommended) or **Apple Container Runtime**
+- **Apple Container Runtime** - Built into macOS
+- **Docker Desktop** (for building images only)
 - **Python 3** with `base58` library
-
-### SigNoz (for trace viewing)
-
-SigNoz is an open-source APM that receives and visualises OpenTelemetry data.
-Install it locally with Docker Compose -- this takes about 2 minutes:
-
-```bash
-# Clone the SigNoz repository
-git clone -b main https://github.com/SigNoz/signoz.git ~/signoz
-cd ~/signoz/deploy
-
-# Start SigNoz (runs ClickHouse, otel-collector, query-service, frontend)
-docker compose up -d
-
-# Verify it is running
-docker ps --filter "name=signoz" --format "table {{.Names}}\t{{.Status}}"
-```
-
-Once running:
-- **SigNoz UI**: http://localhost:8080
-- **OTLP gRPC collector**: localhost:4317 (used by nym-nodes)
-- **OTLP HTTP collector**: localhost:4318
-
-The localnet script auto-detects the SigNoz Docker network (`signoz-net`) and
-routes OTel traffic directly to the collector container -- no manual endpoint
-configuration needed.
-
-To stop SigNoz later:
-```bash
-cd ~/signoz/deploy && docker compose down
-```
 
 ### Installation
 ```bash
 # Install Python dependencies
 pip3 install --break-system-packages base58
 
-# Verify Docker is installed
-docker --version
-```
-
-If using Apple Container Runtime instead of Docker:
-```bash
+# Verify container runtime is available
 container --version
+
+# Verify Docker is installed (for building)
+docker --version
 ```
 
 ## Quick Start
@@ -234,99 +198,54 @@ container logs nym-gateway --follow
 ### Status
 ```bash
 # List all containers
-docker ps --filter "name=nym-" --format "table {{.Names}}\t{{.Status}}"
+container list
 
 # Check specific container
-docker logs nym-gateway
+container logs nym-gateway
 
 # Inspect network
-docker network inspect nym-localnet-network
+container network inspect nym-localnet-network
 ```
 
 ## Testing
 
 ### Basic SOCKS5 Test
 ```bash
-# Simple HTTP request through the mixnet
-curl -x socks5h://127.0.0.1:1080 https://httpbin.org/get
+# Simple HTTP request with redirect following
+curl -L --socks5 localhost:1080 http://example.com
 
 # HTTPS request
-curl -x socks5h://127.0.0.1:1080 https://nymtech.net
+curl -L --socks5 localhost:1080 https://nymtech.net
 
 # Download a file
-curl -x socks5h://127.0.0.1:1080 \
+curl -L --socks5 localhost:1080 \
   https://test-download-files-nym.s3.amazonaws.com/download-files/1MB.zip \
   --output /tmp/test.zip
 ```
 
-### Load Testing
-
-A load test script is included to generate sustained traffic and populate SigNoz
-with meaningful trace data:
-
-```bash
-# Default: 10 concurrent workers, 60 seconds
-./loadtest.sh
-
-# Heavier load: 20 workers for 2 minutes
-./loadtest.sh -c 20 -d 120
-
-# Light single-threaded test
-./loadtest.sh -c 1 -d 10
-
-# Target a specific URL
-./loadtest.sh -c 5 -d 30 -u https://httpbin.org/bytes/4096
-```
-
-The script reports live progress, then prints a summary with request counts,
-throughput, and latency percentiles (p50/p95/p99).
-
 ### Verify Network Topology
 ```bash
 # View the generated topology
-docker exec nym-gateway cat /localnet/network.json | jq .
+container exec nym-gateway cat /localnet/network.json | jq .
 
-# Check container status
-docker ps --filter "name=nym-" --format "table {{.Names}}\t{{.Status}}"
+# Check container IPs
+container list | grep nym-
 
 # Verify all bonding files exist
-docker exec nym-gateway ls -la /localnet/
+container exec nym-gateway ls -la /localnet/
 ```
 
 ### Test Mixnet Routing
 ```bash
-# All traffic flows through: client -> gateway -> mix1 -> mix2 -> mix3 -> gateway -> internet
+# All traffic flows through: client → mix1 → mix2 → mix3 → gateway → internet
 # Watch logs to verify routing:
-docker logs nym-mixnode1 --follow &
-docker logs nym-mixnode2 --follow &
-docker logs nym-mixnode3 --follow &
-docker logs nym-gateway --follow &
+container logs nym-mixnode1 --follow &
+container logs nym-mixnode2 --follow &
+container logs nym-mixnode3 --follow &
+container logs nym-gateway --follow &
 
 # Make a request
-curl -x socks5h://127.0.0.1:1080 https://nymtech.net
-```
-
-## OpenTelemetry
-
-OTel is enabled by default. Each nym-node exports traces via OTLP/gRPC covering
-packet ingress, Sphinx processing, forwarding, and final-hop delivery.
-
-### Viewing Traces
-
-- **SigNoz UI**: http://localhost:8080 -- filter by `serviceName = nym-node`
-- **Terminal report** (queries ClickHouse directly, no login needed):
-
-```bash
-./otel-report.sh           # last 15 minutes
-./otel-report.sh 60        # last 60 minutes
-./otel-report.sh live      # auto-refresh every 10s
-```
-
-### Disabling OTel
-
-```bash
-OTEL_ENABLE=0 ./localnet.sh start                           # disable
-OTEL_ENDPOINT=http://my-collector:4317 ./localnet.sh start   # custom collector
+curl -L --socks5 localhost:1080 https://nymtech.com
 ```
 
 ### LP (Lewes Protocol) Testing
@@ -370,11 +289,8 @@ This makes localnet perfect for rapid LP protocol development and testing.
 docker/localnet/
 ├── README.md              # This file
 ├── localnet.sh           # Main orchestration script
-├── loadtest.sh           # Load test / traffic generator
-├── otel-report.sh        # Terminal-based OTel metrics report
-├── Dockerfile.localnet   # Multi-stage Docker image (builder + slim runtime)
-├── build_topology.py     # Topology generator
-└── localnet-logs.sh      # Tmux-based multi-container log viewer
+├── Dockerfile.localnet   # Docker image definition
+└── build_topology.py     # Topology generator
 ```
 
 ## How It Works

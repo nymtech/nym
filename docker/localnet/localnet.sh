@@ -2,8 +2,8 @@
 
 set -ex
 
-# Nym Localnet Orchestration Script
-# Supports both Docker and Apple Container Runtime
+# Nym Localnet Orchestration Script for Apple Container Runtime
+# Emulates docker-compose functionality
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -13,38 +13,6 @@ VOLUME_PATH="/tmp/nym-localnet-$$"
 NYM_VOLUME_PATH="/tmp/nym-localnet-home-$$"
 
 SUFFIX=${NYM_NODE_SUFFIX:-localnet}
-
-# Detect container runtime: prefer Apple 'container' if available, fall back to docker
-if command -v container &> /dev/null; then
-    RUNTIME="container"
-    HOST_INTERNAL="host.containers.internal"
-else
-    RUNTIME="docker"
-    HOST_INTERNAL="host.docker.internal"
-fi
-
-# OpenTelemetry configuration
-# Set OTEL_ENABLE=1 to enable OTel tracing on all nym-node instances.
-# OTEL_ENDPOINT should point to the OTLP gRPC collector reachable from containers.
-# When SigNoz runs in Docker (signoz-net), we route to its collector directly.
-OTEL_ENABLE=${OTEL_ENABLE:-1}
-if [ -z "${OTEL_ENDPOINT:-}" ]; then
-    SIGNOZ_NET=$(docker network ls --filter name=signoz-net --format '{{.Name}}' 2>/dev/null || true)
-    if [ "$RUNTIME" = "docker" ] && [ -n "$SIGNOZ_NET" ]; then
-        OTEL_ENDPOINT="http://signoz-otel-collector:4317"
-        OTEL_SIGNOZ_NET="$SIGNOZ_NET"
-    else
-        OTEL_ENDPOINT="http://${HOST_INTERNAL}:4317"
-        OTEL_SIGNOZ_NET=""
-    fi
-fi
-
-# Build OTel flags for nym-node run commands
-otel_flags() {
-    if [ "$OTEL_ENABLE" = "1" ]; then
-        echo "--otel --otel-endpoint $OTEL_ENDPOINT"
-    fi
-}
 
 # Container names
 INIT_CONTAINER="nym-localnet-init"
@@ -96,13 +64,13 @@ cleanup_host_state() {
     done
 }
 
-# Check prerequisites
+# Check if container command exists
 check_prerequisites() {
-    if ! command -v docker &> /dev/null; then
-        log_error "Docker not found"
+    if ! command -v container &> /dev/null; then
+        log_error "Apple 'container' command not found"
+        log_error "Install from: https://github.com/apple/container"
         exit 1
     fi
-    log_info "Using runtime: $RUNTIME"
 }
 
 # Build the Docker image
@@ -112,6 +80,7 @@ build_image() {
 
     cd "$PROJECT_ROOT"
 
+    # Build with Docker
     log_info "Building with Docker..."
     if ! docker build \
         -f "$SCRIPT_DIR/Dockerfile.localnet" \
@@ -121,24 +90,30 @@ build_image() {
         exit 1
     fi
 
-    # If using Apple container runtime, transfer image from Docker
-    if [ "$RUNTIME" = "container" ]; then
-        log_info "Transferring image to Apple container runtime..."
-        TEMP_IMAGE="/tmp/nym-localnet-image-$$.tar"
-        if ! docker save -o "$TEMP_IMAGE" "$IMAGE_NAME"; then
-            log_error "Failed to save Docker image"
-            exit 1
-        fi
-        if ! container image load --input "$TEMP_IMAGE"; then
-            rm -f "$TEMP_IMAGE"
-            log_error "Failed to load image into container runtime"
-            exit 1
-        fi
+    # Transfer image to container runtime
+    log_info "Transferring image to container runtime..."
+
+    # Save to temporary file (container image load doesn't support stdin)
+    TEMP_IMAGE="/tmp/nym-localnet-image-$$.tar"
+    if ! docker save -o "$TEMP_IMAGE" "$IMAGE_NAME"; then
+        log_error "Failed to save Docker image"
+        exit 1
+    fi
+
+    # Load into container runtime from file
+    if ! container image load --input "$TEMP_IMAGE"; then
         rm -f "$TEMP_IMAGE"
-        if ! container image inspect "$IMAGE_NAME" &>/dev/null; then
-            log_error "Image not found in container runtime after load"
-            exit 1
-        fi
+        log_error "Failed to load image into container runtime"
+        exit 1
+    fi
+
+    # Clean up temporary file
+    rm -f "$TEMP_IMAGE"
+
+    # Verify image is available
+    if ! container image inspect "$IMAGE_NAME" &>/dev/null; then
+        log_error "Image not found in container runtime after load"
+        exit 1
     fi
 
     log_success "Image built and loaded: $IMAGE_NAME"
@@ -180,7 +155,7 @@ NETWORK_NAME="nym-localnet-network"
 # Create container network
 create_network() {
     log_info "Creating container network: $NETWORK_NAME"
-    if $RUNTIME network create "$NETWORK_NAME" 2>/dev/null; then
+    if container network create "$NETWORK_NAME" 2>/dev/null; then
         log_success "Network created: $NETWORK_NAME"
     else
         log_info "Network $NETWORK_NAME already exists or creation failed"
@@ -189,9 +164,9 @@ create_network() {
 
 # Remove container network
 remove_network() {
-    if $RUNTIME network list | grep -q "$NETWORK_NAME"; then
+    if container network list | grep -q "$NETWORK_NAME"; then
         log_info "Removing network: $NETWORK_NAME"
-        $RUNTIME network rm "$NETWORK_NAME" 2>/dev/null || true
+        container network rm "$NETWORK_NAME" 2>/dev/null || true
         log_success "Network removed"
     fi
 }
@@ -208,10 +183,7 @@ start_mixnode() {
     local verloc_port="2000${node_id}"
     local http_port="3000${node_id}"
 
-    local otel_args
-    otel_args=$(otel_flags)
-
-    $RUNTIME run \
+    container run \
         --name "$container_name" \
         -m 2G \
         --network "$NETWORK_NAME" \
@@ -243,7 +215,7 @@ start_mixnode() {
                 sleep 2;
             done;
             echo "Starting mix'"${node_id}"'...";
-            exec nym-node '"${otel_args}"' run --id mix'"${node_id}"'-localnet --unsafe-disable-replay-protection --local
+            exec nym-node run --id mix'"${node_id}"'-localnet --unsafe-disable-replay-protection --local
         '
 
     log_success "$container_name started"
@@ -252,14 +224,9 @@ start_mixnode() {
 start_gateway() {
     log_info "Starting $GATEWAY_CONTAINER..."
 
-    local otel_args
-    otel_args=$(otel_flags)
-
-        $RUNTIME run \
+        container run \
         --name "$GATEWAY_CONTAINER" \
         -m 2G \
-        --cap-add=NET_ADMIN \
-        --device /dev/net/tun \
         --network "$NETWORK_NAME" \
         -p 9000:9000 \
         -p 10004:10004 \
@@ -288,9 +255,11 @@ start_gateway() {
                 --http-bind-address=0.0.0.0:30004 \
                 --http-access-token=lala \
                 --public-ips $CONTAINER_IP \
+                --enable-lp true \
                 --lp-use-mock-ecash true \
                 --output=json \
-                --wireguard-enabled false \
+                --wireguard-enabled true \
+                --wireguard-userspace true \
                 --bonding-information-output="/localnet/gateway.json";
 
             echo "Waiting for network.json...";
@@ -298,7 +267,7 @@ start_gateway() {
                 sleep 2;
             done;
             echo "Starting gateway with LP listener (mock ecash)...";
-            exec nym-node '"${otel_args}"' run --id gateway-localnet --unsafe-disable-replay-protection --local --wireguard-enabled false --lp-use-mock-ecash true
+            exec nym-node run --id gateway-localnet --unsafe-disable-replay-protection --local --wireguard-enabled true --wireguard-userspace true --lp-use-mock-ecash true
         '
 
     log_success "$GATEWAY_CONTAINER started"
@@ -322,14 +291,9 @@ start_gateway() {
 start_gateway2() {
     log_info "Starting $GATEWAY2_CONTAINER..."
 
-    local otel_args
-    otel_args=$(otel_flags)
-
-        $RUNTIME run \
+        container run \
         --name "$GATEWAY2_CONTAINER" \
         -m 2G \
-        --cap-add=NET_ADMIN \
-        --device /dev/net/tun \
         --network "$NETWORK_NAME" \
         -p 9001:9001 \
         -p 10005:10005 \
@@ -358,9 +322,11 @@ start_gateway2() {
                 --http-bind-address=0.0.0.0:30005 \
                 --http-access-token=lala \
                 --public-ips $CONTAINER_IP \
+                --enable-lp true \
                 --lp-use-mock-ecash true \
                 --output=json \
-                --wireguard-enabled false \
+                --wireguard-enabled true \
+                --wireguard-userspace true \
                 --bonding-information-output="/localnet/gateway2.json";
 
             echo "Waiting for network.json...";
@@ -368,7 +334,7 @@ start_gateway2() {
                 sleep 2;
             done;
             echo "Starting gateway2 with LP listener (mock ecash)...";
-            exec nym-node '"${otel_args}"' run --id gateway2-localnet --unsafe-disable-replay-protection --local --wireguard-enabled false --lp-use-mock-ecash true
+            exec nym-node run --id gateway2-localnet --unsafe-disable-replay-protection --local --wireguard-enabled true --wireguard-userspace true --lp-use-mock-ecash true
         '
 
     log_success "$GATEWAY2_CONTAINER started"
@@ -392,12 +358,12 @@ start_gateway2() {
 start_network_requester() {
     log_info "Starting $REQUESTER_CONTAINER..."
 
-    # Get gateway IP address (first IP only, in case container has multiple networks)
+    # Get gateway IP address
     log_info "Getting gateway IP address..."
-    GATEWAY_IP=$($RUNTIME exec "$GATEWAY_CONTAINER" hostname -i | awk '{print $1}')
+    GATEWAY_IP=$(container exec "$GATEWAY_CONTAINER" hostname -i)
     log_info "Gateway IP: $GATEWAY_IP"
 
-    $RUNTIME run \
+    container run \
         --name "$REQUESTER_CONTAINER" \
         --network "$NETWORK_NAME" \
         -v "$VOLUME_PATH:/localnet" \
@@ -432,7 +398,7 @@ start_network_requester() {
 start_socks5_client() {
     log_info "Starting $SOCKS5_CONTAINER..."
 
-    $RUNTIME run \
+    container run \
         --name "$SOCKS5_CONTAINER" \
         --network "$NETWORK_NAME" \
         -p 1080:1080 \
@@ -485,15 +451,15 @@ stop_containers() {
     log_info "Stopping all containers..."
 
     for container_name in "${ALL_CONTAINERS[@]}"; do
-        if $RUNTIME inspect "$container_name" &>/dev/null; then
+        if container inspect "$container_name" &>/dev/null; then
             log_info "Stopping $container_name"
-            $RUNTIME stop "$container_name" 2>/dev/null || true
-            $RUNTIME rm "$container_name" 2>/dev/null || true
+            container stop "$container_name" 2>/dev/null || true
+            container rm "$container_name" 2>/dev/null || true
         fi
     done
 
     # Also clean up init container if it exists
-    $RUNTIME rm "$INIT_CONTAINER" 2>/dev/null || true
+    container rm "$INIT_CONTAINER" 2>/dev/null || true
 
     log_success "All containers stopped"
 
@@ -501,7 +467,7 @@ stop_containers() {
     remove_network
 }
 
-# Show $RUNTIME logs
+# Show container logs
 show_logs() {
     local container_name=${1:-}
 
@@ -512,8 +478,8 @@ show_logs() {
     fi
 
     # Show logs for specific container
-    if $RUNTIME inspect "$container_name" &>/dev/null; then
-        $RUNTIME logs -f "$container_name"
+    if container inspect "$container_name" &>/dev/null; then
+        container logs -f "$container_name"
     else
         log_error "Container not found: $container_name"
         log_info "Available containers:"
@@ -530,8 +496,8 @@ show_status() {
     echo ""
 
     for container_name in "${ALL_CONTAINERS[@]}"; do
-        if $RUNTIME inspect "$container_name" &>/dev/null; then
-            local status=$($RUNTIME inspect "$container_name" 2>/dev/null | grep -o '"Status":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
+        if container inspect "$container_name" &>/dev/null; then
+            local status=$(container inspect "$container_name" 2>/dev/null | grep -o '"Status":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
             echo -e "  ${GREEN}●${NC} $container_name - $status"
         else
             echo -e "  ${RED}○${NC} $container_name - not running"
@@ -586,13 +552,13 @@ build_topology() {
         log_success "  $file created"
     done
 
-    # Get container IPs (first IP only, containers may be on multiple networks)
+    # Get container IPs
     log_info "Getting container IP addresses..."
-    MIX1_IP=$($RUNTIME exec "$MIXNODE1_CONTAINER" hostname -i | awk '{print $1}')
-    MIX2_IP=$($RUNTIME exec "$MIXNODE2_CONTAINER" hostname -i | awk '{print $1}')
-    MIX3_IP=$($RUNTIME exec "$MIXNODE3_CONTAINER" hostname -i | awk '{print $1}')
-    GATEWAY_IP=$($RUNTIME exec "$GATEWAY_CONTAINER" hostname -i | awk '{print $1}')
-    GATEWAY2_IP=$($RUNTIME exec "$GATEWAY2_CONTAINER" hostname -i | awk '{print $1}')
+    MIX1_IP=$(container exec "$MIXNODE1_CONTAINER" hostname -i)
+    MIX2_IP=$(container exec "$MIXNODE2_CONTAINER" hostname -i)
+    MIX3_IP=$(container exec "$MIXNODE3_CONTAINER" hostname -i)
+    GATEWAY_IP=$(container exec "$GATEWAY_CONTAINER" hostname -i)
+    GATEWAY2_IP=$(container exec "$GATEWAY2_CONTAINER" hostname -i)
 
     log_info "Container IPs:"
     echo "  mix1:     $MIX1_IP"
@@ -602,7 +568,7 @@ build_topology() {
     echo "  gateway2: $GATEWAY2_IP"
 
     # Run build_topology.py in a container with access to the volumes
-    $RUNTIME run \
+    container run \
         --name "nym-localnet-topology-builder" \
         --network "$NETWORK_NAME" \
         -v "$VOLUME_PATH:/localnet" \
@@ -641,32 +607,19 @@ start_all() {
     start_mixnode 3 "$MIXNODE3_CONTAINER"
     start_gateway
     start_gateway2
-
-    # Connect nym containers to SigNoz network for direct OTLP routing
-    if [ -n "${OTEL_SIGNOZ_NET:-}" ]; then
-        log_info "Connecting containers to SigNoz network ($OTEL_SIGNOZ_NET)..."
-        for c in "$MIXNODE1_CONTAINER" "$MIXNODE2_CONTAINER" "$MIXNODE3_CONTAINER" \
-                 "$GATEWAY_CONTAINER" "$GATEWAY2_CONTAINER"; do
-            docker network connect "$OTEL_SIGNOZ_NET" "$c" 2>/dev/null && \
-                log_success "  $c connected to $OTEL_SIGNOZ_NET" || true
-        done
-    fi
-
     build_topology
 
     # Configure networking for two-hop WireGuard routing on both gateways
-    # Note: Requires --privileged or --cap-add=NET_ADMIN on the containers.
-    # Non-fatal: only needed for WireGuard VPN routing, not mixnet packet testing.
+    # Note: Runs after build_topology to ensure gateways have finished WireGuard setup
     log_info "Configuring gateway networking (IP forwarding, NAT)..."
     for gw in "$GATEWAY_CONTAINER" "$GATEWAY2_CONTAINER"; do
-        if $RUNTIME exec "$gw" sh -c "
-            echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null
-            iptables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE 2>/dev/null
-        " 2>/dev/null; then
-            log_success "Configured $gw"
-        else
-            log_warn "Could not configure NAT on $gw (needs --privileged). WireGuard VPN routing will not work."
-        fi
+        container exec "$gw" sh -c "
+            # Enable IP forwarding
+            echo 1 > /proc/sys/net/ipv4/ip_forward
+            # Add NAT masquerade for outbound traffic
+            iptables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+        "
+        log_success "Configured $gw"
     done
 
     start_network_requester

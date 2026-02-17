@@ -78,12 +78,18 @@ pub fn setup_tracing_logger() {
 ///   sent as the `signoz-ingestion-key` gRPC metadata header on every export.
 /// * `environment` - Deployment environment label (e.g. "sandbox", "mainnet", "canary").
 ///   Attached as the `deployment.environment` OTel resource attribute.
+/// * `sample_ratio` - Trace sampling ratio in 0.0..=1.0 (e.g. 0.1 = 10% of traces).
+///   Used to limit cost when exporting from many nodes; clamped to [0.0, 1.0].
+/// * `export_timeout_secs` - Timeout in seconds for each OTLP export batch. Prevents
+///   unbounded blocking if the collector is slow or unreachable.
 #[cfg(feature = "otel-otlp")]
 pub fn init_otel_layer<S>(
     service_name: &str,
     endpoint: &str,
     ingestion_key: Option<&str>,
     environment: &str,
+    sample_ratio: f64,
+    export_timeout_secs: u64,
 ) -> Result<
     (
         tracing_opentelemetry::OpenTelemetryLayer<S, opentelemetry_sdk::trace::SdkTracer>,
@@ -97,6 +103,8 @@ where
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry_otlp::WithExportConfig;
     use opentelemetry_otlp::WithTonicConfig;
+    use opentelemetry_sdk::trace::Sampler;
+    use std::time::Duration;
 
     // Validate endpoint URI early to fail with a clear message
     if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
@@ -106,9 +114,12 @@ where
         .into());
     }
 
+    let sample_ratio_clamped = sample_ratio.clamp(0.0, 1.0);
+
     let mut builder = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
-        .with_endpoint(endpoint);
+        .with_endpoint(endpoint)
+        .with_timeout(Duration::from_secs(export_timeout_secs));
 
     // Explicitly configure TLS when the endpoint uses HTTPS
     if endpoint.starts_with("https://") {
@@ -131,6 +142,7 @@ where
         .map_err(|e| format!("failed to build OTLP exporter for endpoint {endpoint}: {e}"))?;
 
     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+        .with_sampler(Sampler::TraceIdRatioBased(sample_ratio_clamped))
         .with_batch_exporter(exporter)
         .with_resource(
             opentelemetry_sdk::Resource::builder()

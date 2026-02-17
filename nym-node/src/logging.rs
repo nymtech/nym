@@ -22,6 +22,10 @@ pub(crate) struct OtelConfig {
     /// Deployment environment label, e.g. `mainnet`, `sandbox`, `canary`.
     /// Attached as the `deployment.environment` OTel resource attribute.
     pub environment: String,
+    /// Trace sampling ratio in 0.0..=1.0 (e.g. 0.1 = 10% of traces). Used to limit cost.
+    pub sample_ratio: f64,
+    /// Timeout in seconds for each OTLP export batch. Prevents unbounded blocking.
+    pub export_timeout_secs: u64,
 }
 
 /// Handle returned when OTel is active.  Flushes pending spans on drop
@@ -74,6 +78,8 @@ pub(crate) fn setup_tracing_logger(otel: Option<OtelConfig>) -> anyhow::Result<O
                 &otel_config.endpoint,
                 otel_config.ingestion_key.as_deref(),
                 &otel_config.environment,
+                otel_config.sample_ratio,
+                otel_config.export_timeout_secs,
             ).map_err(|e| anyhow::anyhow!(
                 "failed to initialise OpenTelemetry exporter (endpoint: {}, service: {}): {e}",
                 otel_config.endpoint,
@@ -102,6 +108,8 @@ pub(crate) fn setup_tracing_logger(otel: Option<OtelConfig>) -> anyhow::Result<O
                 &otel_config.endpoint,
                 otel_config.ingestion_key.as_deref(),
                 &otel_config.environment,
+                otel_config.sample_ratio,
+                otel_config.export_timeout_secs,
             ).map_err(|e| anyhow::anyhow!(
                 "failed to initialise OpenTelemetry exporter (endpoint: {}, service: {}): {e}",
                 otel_config.endpoint,

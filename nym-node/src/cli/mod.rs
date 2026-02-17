@@ -64,6 +64,14 @@ pub(crate) struct Cli {
     #[clap(long, env = "NYMNODE_OTEL_ENV", default_value = "mainnet")]
     pub(crate) otel_env: String,
 
+    /// Trace sampling ratio (0.0 to 1.0). e.g. 0.1 = 10%% of traces exported. Reduces cost.
+    #[clap(long, env = "NYMNODE_OTEL_SAMPLE_RATIO", default_value = "0.1")]
+    pub(crate) otel_sample_ratio: f64,
+
+    /// Timeout in seconds for each OTLP export batch. Prevents unbounded blocking.
+    #[clap(long, env = "NYMNODE_OTEL_EXPORT_TIMEOUT", default_value = "10")]
+    pub(crate) otel_export_timeout: u64,
+
     #[clap(subcommand)]
     command: Commands,
 }
@@ -106,6 +114,8 @@ impl Cli {
                 service_name: "nym-node".to_string(),
                 ingestion_key: self.otel_key.clone(),
                 environment: self.otel_env.clone(),
+                sample_ratio: self.otel_sample_ratio,
+                export_timeout_secs: self.otel_export_timeout,
             })
         } else {
             None

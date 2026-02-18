@@ -53,7 +53,7 @@ The most useful command is `run`, here are the options for that command:
 -h, --help      Display help information and exit.
 --skip-dns      Skip the DNS tests
 --skip-http     Skip the HTTP tests
---gateway <ID>  Run the gateway connectivity test on the given gateway. Skip those tests if not provided
+--gateway <ID_KEY>  Run the gateway connectivity test on the given gateway. Skip those tests if not provided
 -v, --verbose   Enable verbose output for detailed logging.
 ```
 
@@ -62,7 +62,7 @@ The most useful command is `run`, here are the options for that command:
 Command `register` requires valid credential. Here are the options for that command:
 
 ```sh
---gateway <ID>    Register to the given gateway
+--gateway <ID_KEY>    Register to the given gateway
 --storage-path    Path to the directory containing the credentials database. If it is not valid registration will be skipped.
 --skip-wireguard  Skip Wireguard tests
 ```

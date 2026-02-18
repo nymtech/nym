@@ -86,11 +86,6 @@ pub(crate) struct Cli {
 
 impl Cli {
     pub(crate) fn execute(self) -> anyhow::Result<()> {
-        // test_throughput sets up its own logger and builds a runtime internally.
-        if let Commands::TestThroughput(args) = self.command {
-            return test_throughput::execute(args);
-        }
-
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?;
@@ -109,7 +104,7 @@ impl Cli {
                 Commands::Run(args) => run::execute(*args).await?,
                 Commands::Migrate(args) => migrate::execute(*args)?,
                 Commands::Sign(args) => sign::execute(args).await?,
-                Commands::TestThroughput(..) => unreachable!(),
+                Commands::TestThroughput(args) => test_throughput::execute(args)?,
                 Commands::UnsafeResetSphinxKeys(args) => reset_sphinx_keys::execute(args).await?,
                 Commands::Debug(debug) => match debug.command {
                     DebugCommands::ResetProvidersGatewayDbs(args) => {
@@ -139,6 +134,9 @@ impl Cli {
 
     #[cfg(feature = "otel")]
     fn setup_logging(&self, use_otel: bool) -> anyhow::Result<Option<crate::logging::OtelGuard>> {
+        if matches!(self.command, Commands::TestThroughput(..)) {
+            return Ok(None);
+        }
         let otel_config = if use_otel {
             self.build_otel_config()
         } else {
@@ -149,6 +147,9 @@ impl Cli {
 
     #[cfg(not(feature = "otel"))]
     fn setup_logging(&self, _use_otel: bool) -> anyhow::Result<Option<()>> {
+        if matches!(self.command, Commands::TestThroughput(..)) {
+            return Ok(None);
+        }
         crate::logging::setup_tracing_logger()?;
         Ok(None)
     }

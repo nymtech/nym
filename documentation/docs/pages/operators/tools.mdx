@@ -202,3 +202,17 @@ PING_RETRIES=10 PING_TIMEOUT=5 CONCURRENCY=16 ./test-nodes-pings.sh
 You can look up the IPs from `ping_not_working.csv`, using some online database, like [ipinfo.io](https://ipinfo.io).
 
 Feel invited to share the outcome with Nym team, mentors and the rest of the operators in our [Matrix Node Operators channel](https://matrix.to/#/#operators:nymtech.chat).
+
+## Guides to Setup Own Metrics
+
+A list of different tools, templates and guides for easier navigation:
+
+* [`nym-gateway-probe`](performance-and-testing/gateway-probe.mdx) - a useful tool used under the hood of [Node Status Observatory](https://harbourmaster.nymtech.net)
+
+* [Diagnostic Tool](/developers/tools/diagnostic-tool)- diagnose connectivity issues and provides insights into network performance
+
+* [Prometheus and Grafana](performance-and-testing/prometheus-grafana.mdx) self-hosted setup
+
+* [Nym-node CPU cron service](https://gist.github.com/tommyv1987/97e939a7adf491333d686a8eaa68d4bd) - an easy bash script by Nym core developer [@tommy1987](https://gist.github.com/tommyv1987), designed to monitor a CPU usage of your node, running locally
+
+* Nym's script [`prom_targets.py`](https://github.com/nymtech/nym/blob/develop/scripts/prom_targets.py) - a useful python program to request data from API and can be run on its own or plugged to more sophisticated flows

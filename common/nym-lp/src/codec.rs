@@ -5,6 +5,7 @@ use crate::packet::{EncryptedLpPacket, InnerHeader, LpHeader, LpPacket, OuterHea
 use crate::{LpError, LpMessage};
 use bytes::BytesMut;
 use libcrux_psq::Channel;
+use nym_lp_transport::traits::LpTransport;
 use tracing::error;
 
 pub(crate) const CIPHERTEXT_OVERHEAD: usize = 25;
@@ -50,6 +51,39 @@ pub fn parse_lp_header_only(src: &[u8]) -> Result<OuterHeader, LpError> {
 //     // })
 // }
 
+pub(crate) fn encrypt_data(
+    plaintext: &[u8],
+    transport: &mut libcrux_psq::Transport,
+) -> Result<Vec<u8>, LpError> {
+    let mut ciphertext = vec![0u8; plaintext.len() + CIPHERTEXT_OVERHEAD];
+    let n = transport.write_message(&*plaintext, &mut ciphertext)?;
+
+    if ciphertext.len() != n {
+        // TODO: check consistency
+        panic!("inconsistent ciphertext overhead")
+    }
+    //     ciphertext.truncate(n);
+
+    Ok(ciphertext)
+}
+
+pub(crate) fn decrypt_data(
+    ciphertext: &[u8],
+    transport: &mut libcrux_psq::Transport,
+) -> Result<Vec<u8>, LpError> {
+    if ciphertext.len() < CIPHERTEXT_OVERHEAD {
+        return Err(LpError::InsufficientBufferSize);
+    }
+    let mut plaintext = vec![0u8; ciphertext.len() - CIPHERTEXT_OVERHEAD];
+
+    let (_, n) = transport.read_message(&ciphertext, &mut plaintext)?;
+    if n != ciphertext.len() - CIPHERTEXT_OVERHEAD {
+        // TODO: check consistency
+        panic!("inconsistent ciphertext overhead")
+    }
+    Ok(plaintext)
+}
+
 pub fn encrypt_lp_packet(
     packet: LpPacket,
     transport: &mut libcrux_psq::Transport,
@@ -58,14 +92,7 @@ pub fn encrypt_lp_packet(
     packet.header.inner.encode(&mut plaintext);
     packet.message.encode_content(&mut plaintext);
 
-    let mut ciphertext = vec![0u8; plaintext.len() + CIPHERTEXT_OVERHEAD];
-    let n = transport.write_message(&*plaintext, &mut ciphertext)?;
-
-    if ciphertext.len() != n {
-        error!("inconsistent ciphertext overhead")
-    }
-
-    ciphertext.truncate(n);
+    let ciphertext = encrypt_data(plaintext.as_ref(), transport)?;
 
     Ok(EncryptedLpPacket {
         outer_header: packet.header.outer,
@@ -81,11 +108,7 @@ pub fn decrypt_lp_packet(
         return Err(LpError::InsufficientBufferSize);
     }
 
-    let mut plaintext = Vec::with_capacity(packet.ciphertext.len() - CIPHERTEXT_OVERHEAD);
-    let (_, n) = transport.read_message(&packet.ciphertext, &mut plaintext)?;
-    if n != packet.ciphertext.len() - CIPHERTEXT_OVERHEAD {
-        error!("inconsistent ciphertext overhead")
-    }
+    let plaintext = decrypt_data(&packet.ciphertext, transport)?;
 
     let inner_header = InnerHeader::parse(&plaintext)?;
     let payload = &plaintext[InnerHeader::SIZE..];

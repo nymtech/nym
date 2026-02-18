@@ -14,6 +14,7 @@
 //! return LpError, preventing protocol violations.
 
 use crate::packet::EncryptedLpPacket;
+use crate::session::SessionId;
 use crate::{LpError, message::LpMessage, packet::LpPacket, session::LpSession};
 use bytes::{Buf, Bytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -192,6 +193,10 @@ impl LpStateMachine {
     pub fn id(&self) -> Result<u32, LpError> {
         todo!()
         // Ok(self.session()?.id())
+    }
+
+    pub fn session_identifier(&self) -> Result<SessionId, LpError> {
+        Ok(self.session_identifier()?)
     }
 
     /// Creates a new state machine in `Transport` state post-KKT/PSQ handshake

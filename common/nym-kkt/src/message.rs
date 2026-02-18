@@ -81,8 +81,8 @@ impl KKTRequestPlaintext {
         responder_pubkey: &DHPublicKey,
     ) -> Vec<u8> {
         let mut mask = Vec::with_capacity(2 * x25519::PUBLIC_KEY_LENGTH);
-        mask.extend_from_slice(&initiator_pubkey.as_ref());
-        mask.extend_from_slice(&responder_pubkey.as_ref());
+        mask.extend_from_slice(initiator_pubkey.as_ref());
+        mask.extend_from_slice(responder_pubkey.as_ref());
         mask
     }
 
@@ -102,7 +102,7 @@ impl KKTRequestPlaintext {
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN);
         out.extend_from_slice(self.dh_pubkey.as_ref());
-        out.extend_from_slice(&self.masked_version_bytes.as_slice());
+        out.extend_from_slice(self.masked_version_bytes.as_slice());
         out
     }
 

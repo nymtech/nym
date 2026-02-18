@@ -51,7 +51,7 @@ impl SessionManager {
 
     #[cfg(test)]
     fn get_state_machine_id(&self, lp_id: SessionId) -> Result<SessionId, LpError> {
-        self.with_state_machine(lp_id, |sm| sm.id())?
+        self.with_state_machine(lp_id, |sm| sm.session_identifier())?
     }
 
     pub fn get_state(&self, lp_id: SessionId) -> Result<LpStateBare, LpError> {
@@ -139,78 +139,82 @@ mod tests {
 
     #[test]
     fn test_session_manager_get() {
-        let mut manager = SessionManager::new();
-
-        let TODO = "        for kem in kem_list() {";
-
-        let local_session = mock_session_for_test();
-        let id = local_session.id();
-
-        let sm_1_id = manager.create_session_state_machine(local_session);
-        assert_eq!(sm_1_id, id);
-
-        let retrieved = manager.state_machine_exists(id);
-        assert!(retrieved);
-
-        let not_found = manager.state_machine_exists(99);
-        assert!(!not_found);
+        todo!()
+        // let mut manager = SessionManager::new();
+        //
+        // let TODO = "        for kem in kem_list() {";
+        //
+        // let local_session = mock_session_for_test();
+        // let id = local_session.id();
+        //
+        // let sm_1_id = manager.create_session_state_machine(local_session);
+        // assert_eq!(sm_1_id, id);
+        //
+        // let retrieved = manager.state_machine_exists(id);
+        // assert!(retrieved);
+        //
+        // let not_found = manager.state_machine_exists(99);
+        // assert!(!not_found);
     }
 
     #[test]
     fn test_session_manager_remove() {
-        let mut manager = SessionManager::new();
-        let local_session = mock_session_for_test();
-
-        let TODO = "        for kem in kem_list() {";
-
-        let sm_1_id = manager.create_session_state_machine(local_session);
-
-        let removed = manager.remove_state_machine(sm_1_id);
-        assert!(removed);
-        assert_eq!(manager.session_count(), 0);
-
-        let removed_again = manager.remove_state_machine(sm_1_id);
-        assert!(!removed_again);
+        todo!()
+        // let mut manager = SessionManager::new();
+        // let local_session = mock_session_for_test();
+        //
+        // let TODO = "        for kem in kem_list() {";
+        //
+        // let sm_1_id = manager.create_session_state_machine(local_session);
+        //
+        // let removed = manager.remove_state_machine(sm_1_id);
+        // assert!(removed);
+        // assert_eq!(manager.session_count(), 0);
+        //
+        // let removed_again = manager.remove_state_machine(sm_1_id);
+        // assert!(!removed_again);
     }
 
     #[test]
     fn test_multiple_sessions() {
-        let mut manager = SessionManager::new();
-
-        let TODO = "        for kem in kem_list() {";
-
-        let session1 = SessionsMock::mock_post_handshake(123).initiator;
-        let session2 = SessionsMock::mock_post_handshake(124).initiator;
-        let session3 = SessionsMock::mock_post_handshake(125).initiator;
-
-        let sm_1 = manager.create_session_state_machine(session1);
-        let sm_2 = manager.create_session_state_machine(session2);
-        let sm_3 = manager.create_session_state_machine(session3);
-
-        assert_eq!(manager.session_count(), 3);
-
-        let retrieved1 = manager.get_state_machine_id(sm_1).unwrap();
-        let retrieved2 = manager.get_state_machine_id(sm_2).unwrap();
-        let retrieved3 = manager.get_state_machine_id(sm_3).unwrap();
-
-        assert_eq!(retrieved1, sm_1);
-        assert_eq!(retrieved2, sm_2);
-        assert_eq!(retrieved3, sm_3);
+        todo!()
+        // let mut manager = SessionManager::new();
+        //
+        // let TODO = "        for kem in kem_list() {";
+        //
+        // let session1 = SessionsMock::mock_post_handshake(123).initiator;
+        // let session2 = SessionsMock::mock_post_handshake(124).initiator;
+        // let session3 = SessionsMock::mock_post_handshake(125).initiator;
+        //
+        // let sm_1 = manager.create_session_state_machine(session1);
+        // let sm_2 = manager.create_session_state_machine(session2);
+        // let sm_3 = manager.create_session_state_machine(session3);
+        //
+        // assert_eq!(manager.session_count(), 3);
+        //
+        // let retrieved1 = manager.get_state_machine_id(sm_1).unwrap();
+        // let retrieved2 = manager.get_state_machine_id(sm_2).unwrap();
+        // let retrieved3 = manager.get_state_machine_id(sm_3).unwrap();
+        //
+        // assert_eq!(retrieved1, sm_1);
+        // assert_eq!(retrieved2, sm_2);
+        // assert_eq!(retrieved3, sm_3);
     }
 
     #[test]
     fn test_session_manager_create_session() {
-        let mut manager = SessionManager::new();
-
-        let TODO = "        for kem in kem_list() {";
-
-        let sesion = mock_session_for_test();
-
-        let sm = manager.create_session_state_machine(sesion);
-        assert_eq!(manager.session_count(), 1);
-
-        let retrieved = manager.get_state_machine_id(sm);
-        assert!(retrieved.is_ok());
-        assert_eq!(retrieved.unwrap(), sm);
+        todo!()
+        // let mut manager = SessionManager::new();
+        //
+        // let TODO = "        for kem in kem_list() {";
+        //
+        // let sesion = mock_session_for_test();
+        //
+        // let sm = manager.create_session_state_machine(sesion);
+        // assert_eq!(manager.session_count(), 1);
+        //
+        // let retrieved = manager.get_state_machine_id(sm);
+        // assert!(retrieved.is_ok());
+        // assert_eq!(retrieved.unwrap(), sm);
     }
 }

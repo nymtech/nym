@@ -179,6 +179,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::codec::{decrypt_data, encrypt_data};
     use crate::peer::mock_peers;
     use crate::psq::initiator;
     use nym_kkt::initiator::KKTInitiator;
@@ -271,10 +272,6 @@ mod tests {
         let mut i_transport = initiator.into_session().unwrap();
 
         // test serialization, deserialization
-        let mut msg_channel = vec![0u8; 2048];
-        let mut payload_buf_responder = vec![0u8; 4096];
-        let mut payload_buf_initiator = vec![0u8; 4096];
-
         let mut channel_i = i_transport.transport_channel().unwrap();
         let mut channel_r = session_resp.active_transport();
 
@@ -283,30 +280,15 @@ mod tests {
         let app_data_i = b"Derived session hey".as_slice();
         let app_data_r = b"Derived session ho".as_slice();
 
-        let len_i = channel_i
-            .write_message(app_data_i, &mut msg_channel)
-            .unwrap();
+        let ct_i = encrypt_data(app_data_i, &mut channel_i)?;
+        let pt_r = decrypt_data(&ct_i, &mut channel_r)?;
 
-        let (len_r_deserialized, len_r_payload) = channel_r
-            .read_message(&msg_channel, &mut payload_buf_responder)
-            .unwrap();
+        assert_eq!(app_data_i, pt_r);
 
-        // We read the same amount of data.
-        assert_eq!(len_r_deserialized, len_i);
-        assert_eq!(len_r_payload, app_data_i.len());
-        assert_eq!(&payload_buf_responder[0..len_r_payload], app_data_i);
+        let ct_r = encrypt_data(app_data_r, &mut channel_r)?;
+        let pt_i = decrypt_data(&ct_r, &mut channel_i)?;
 
-        let len_r = channel_r
-            .write_message(app_data_r, &mut msg_channel)
-            .unwrap();
-
-        let (len_i_deserialized, len_i_payload) = channel_i
-            .read_message(&msg_channel, &mut payload_buf_initiator)
-            .unwrap();
-
-        assert_eq!(len_r, len_i_deserialized);
-        assert_eq!(app_data_r.len(), len_i_payload);
-        assert_eq!(&payload_buf_initiator[0..len_i_payload], app_data_r);
+        assert_eq!(app_data_r, pt_i);
 
         Ok(())
     }

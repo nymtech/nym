@@ -3,4 +3,5 @@
 .gitignore
 **/node_modules
 **/target
+target-otel
 dist

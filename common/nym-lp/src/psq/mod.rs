@@ -1,41 +1,26 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::LpMessage;
 use crate::packet::version;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
-use crate::psq::helpers::LpTransportHandshakeExt;
-use crate::psq::initiator::PSQHandshakeStateInitiator;
-use crate::psq::responder::PSQHandshakeStateResponder;
-use libcrux_psq::handshake::types::Authenticator;
-use libcrux_psq::session::Session;
-use nym_kkt::keys::EncapsulationKey;
 use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, IntoEnumIterator, SignatureScheme};
 use nym_lp_transport::traits::LpTransport;
 
 mod helpers;
-mod initiator;
-mod responder;
+pub mod initiator;
+pub mod responder;
+
+pub use initiator::PSQHandshakeStateInitiator;
+pub use responder::PSQHandshakeStateResponder;
 
 pub(crate) const AAD_INITIATOR_OUTER_V1: &[u8] = b"NYM-PQ-AAD-INIT-OUTER-V1";
 pub(crate) const AAD_INITIATOR_INNER_V1: &[u8] = b"NYM-PQ-AAD-INIT-INNER-V1";
 pub(crate) const AAD_RESPONDER_V1: &[u8] = b"NYM-PQ-AAD-RESP-V1";
 pub(crate) const SESSION_CONTEXT_V1: &[u8] = b"NYM-PQ-SESSION-CONTEXT-V1";
 
-pub struct MinimalSession {
-    session: Session,
-    encapsulation_key: Option<EncapsulationKey>,
-    init_authenticator: Option<Authenticator>,
-}
-
 pub struct PSQHandshakeState<'a, S> {
     /// The underlying connection established for the handshake
     connection: &'a mut S,
-
-    /// Protocol version used for the exchange.
-    /// either known implicitly through the directory (initiator)
-    /// or established through KKTRequest (responder)
-    protocol_version: Option<u8>,
 
     /// Ciphersuite selected for the KKT/PSQ exchange
     ciphersuite: Ciphersuite,
@@ -94,7 +79,6 @@ where
     pub fn new(connection: &'a mut S, ciphersuite: Ciphersuite, local_peer: LpLocalPeer) -> Self {
         PSQHandshakeState {
             connection,
-            protocol_version: None,
             ciphersuite,
             local_peer,
         }
@@ -119,7 +103,6 @@ where
 mod tests {
     use super::*;
     use crate::peer::mock_peers;
-    use crate::psq::helpers::LpTransportHandshakeExt;
     use libcrux_psq::handshake::types::Authenticator;
     use libcrux_psq::session::{Session, SessionBinding};
     use libcrux_psq::{Channel, IntoSession};
@@ -132,15 +115,6 @@ mod tests {
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Leak, TimeboxedSpawnable};
     use tokio::join;
-
-    #[allow(dead_code)]
-    async fn extract_error(conn: &mut MockIOStream) -> String {
-        let packet = conn.receive_packet(None).await.unwrap();
-        match packet.message {
-            LpMessage::Error(error) => error.message,
-            _ => panic!("non error packet"),
-        }
-    }
 
     #[tokio::test]
     async fn e2e_psq_handshake() -> anyhow::Result<()> {
@@ -183,8 +157,8 @@ mod tests {
         let session_resp = session_resp???;
 
         assert_eq!(
-            session_init.session.identifier(),
-            session_resp.session.identifier()
+            session_init.session_identifier(),
+            session_resp.session_identifier()
         );
 
         Ok(())

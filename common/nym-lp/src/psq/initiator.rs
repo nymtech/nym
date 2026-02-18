@@ -1,34 +1,27 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::codec::OuterAeadKey;
-use crate::message::{HandshakeData, KKTRequestData, MessageType};
-use crate::noise_protocol::NoiseProtocol;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
-use crate::psk::psq_initiator_create_message;
-use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp, kem_to_ciphersuite};
+use crate::psq::helpers::kem_to_ciphersuite;
 use crate::psq::{
-    AAD_INITIATOR_INNER_V1, AAD_INITIATOR_OUTER_V1, InitiatorData, MinimalSession,
-    PSQHandshakeState, SESSION_CONTEXT_V1, initiator,
+    AAD_INITIATOR_INNER_V1, AAD_INITIATOR_OUTER_V1, InitiatorData, PSQHandshakeState,
+    SESSION_CONTEXT_V1,
 };
-use crate::session::PqSharedSecret;
-use crate::{ClientHelloData, LpError, LpMessage, LpSession};
+use crate::session::PersistentSessionBinding;
+use crate::{LpError, LpSession};
 use libcrux_psq::handshake::RegistrationInitiator;
 use libcrux_psq::handshake::builders::{
     CiphersuiteBuilder, InitiatorCiphersuite, PrincipalBuilder,
 };
-use libcrux_psq::handshake::ciphersuites::CiphersuiteName;
+use libcrux_psq::handshake::types::Authenticator;
 use libcrux_psq::{Channel, IntoSession};
-use nym_kkt::context::KKTContext;
 use nym_kkt::initiator::KKTInitiator;
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt::message::{KKTRequest, KKTResponse};
-use nym_kkt_ciphersuite::KEM;
 use nym_lp_transport::traits::LpTransport;
-use rand09::rng;
 use tracing::debug;
 
-pub(crate) struct PSQHandshakeStateInitiator<'a, S> {
+pub struct PSQHandshakeStateInitiator<'a, S> {
     pub(super) inner_state: PSQHandshakeState<'a, S>,
     pub(super) initiator_data: InitiatorData,
 }
@@ -81,23 +74,6 @@ impl<'a, S> PSQHandshakeStateInitiator<'a, S>
 where
     S: LpTransport + Unpin,
 {
-    fn build_psq_initiator_principal<'b>(
-        &'b self,
-        encapsulation_key: &'b EncapsulationKey,
-    ) -> Result<RegistrationInitiator<'b, rand09::rngs::ThreadRng>, LpError> {
-        let initiator_ciphersuite = build_psq_ciphersuite(
-            &self.inner_state.local_peer,
-            &self.initiator_data.remote_peer,
-            &encapsulation_key,
-        )?;
-        let initiator = build_psq_principal(
-            rng(),
-            self.initiator_data.protocol_version,
-            initiator_ciphersuite,
-        )?;
-        Ok(initiator)
-    }
-
     /// Attempt to send KKT request to begin the handshake
     async fn send_kkt_request(&mut self, request: KKTRequest) -> Result<(), LpError> {
         // TODO: extra header
@@ -114,7 +90,7 @@ where
         Ok(KKTResponse::from_bytes(data))
     }
 
-    pub async fn complete_handshake<R>(mut self, rng: &mut R) -> Result<MinimalSession, LpError>
+    pub async fn complete_handshake<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
     where
         S: LpTransport + Unpin,
         R: rand09::CryptoRng,
@@ -143,7 +119,10 @@ where
 
         // 4. generate and send PSQ request
         let protocol = self.initiator_data.protocol_version;
-        let mut conn = self.inner_state.connection;
+        let conn = self.inner_state.connection;
+
+        // note: the clone is cheap due to internal Arcs
+        let encapsulation_key = response.encapsulation_key.clone();
 
         // build the PSQ initiator
         let initiator_ciphersuite = build_psq_ciphersuite(
@@ -172,12 +151,14 @@ where
             ));
         }
 
-        let session = psq_initiator.into_session()?;
-        Ok(MinimalSession {
-            session,
-            encapsulation_key: Some(response.encapsulation_key),
-            init_authenticator: None,
-        })
+        let binding = PersistentSessionBinding {
+            initiator_authenticator: Authenticator::Dh(self.inner_state.local_peer.x25519().pk),
+            responder_ecdh_pk: self.initiator_data.remote_peer.x25519_public,
+            responder_pq_pk: Some(encapsulation_key),
+        };
+
+        let psq_session = psq_initiator.into_session()?;
+        LpSession::new(psq_session, binding, protocol)
     }
 }
 
@@ -186,10 +167,8 @@ mod tests {
     use super::*;
     use crate::peer::mock_peers;
     use crate::psq::responder;
-    use libcrux_psq::handshake::types::Authenticator;
-    use libcrux_psq::session::{Session, SessionBinding};
     use nym_kkt::responder::KKTResponder;
-    use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, SignatureScheme};
+    use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, KEM, SignatureScheme};
     use nym_test_utils::helpers::{DeterministicRng09Send, u64_seeded_rng_09};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Leak, Timeboxed};
@@ -277,10 +256,8 @@ mod tests {
 
         assert!(responder.is_handshake_finished());
 
-        let session_init = init_fut.await???;
+        let mut session_init = init_fut.await???;
 
-        let encapsulation_key = session_init.encapsulation_key.unwrap();
-        let mut i_transport = session_init.session;
         let mut r_transport = responder.into_session().unwrap();
 
         // test serialization, deserialization
@@ -288,7 +265,7 @@ mod tests {
         let mut payload_buf_responder = vec![0u8; 4096];
         let mut payload_buf_initiator = vec![0u8; 4096];
 
-        let mut channel_i = i_transport.transport_channel().unwrap();
+        let mut channel_i = session_init.active_transport();
         let mut channel_r = r_transport.transport_channel().unwrap();
 
         assert_eq!(channel_i.identifier(), channel_r.identifier());

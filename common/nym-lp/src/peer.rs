@@ -1,12 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{ClientHelloData, LpError};
+use crate::LpError;
 use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_kkt::key_utils::{
-    generate_keypair_mceliece, generate_keypair_mlkem, generate_keypair_x25519,
-};
 use nym_kkt::keys::KEMKeys;
 use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests, SignatureScheme, SigningKeyDigests};
 use std::collections::HashMap;
@@ -43,15 +40,6 @@ impl LpLocalPeer {
         }
     }
 
-    pub fn build_client_hello_data(&self, timestamp: u64) -> ClientHelloData {
-        todo!()
-        // ClientHelloData::new_with_fresh_salt(
-        //     *self.x25519().public_key(),
-        //     *self.ed25519().public_key(),
-        //     timestamp,
-        // )
-    }
-
     #[must_use]
     pub fn with_kem_keys(mut self, kem_keys: Arc<KEMKeys>) -> Self {
         self.kem_keypairs = Some(kem_keys);
@@ -65,14 +53,6 @@ impl LpLocalPeer {
     pub fn x25519(&self) -> &Arc<DHKeyPair> {
         &self.x25519
     }
-
-    // /// Returns the reference to the KEM Public key of the peer (if available).
-    // pub fn get_kem_key_handle(&self) -> Result<&x25519::PublicKey, LpError> {
-    //     self.kem_psq
-    //         .as_ref()
-    //         .map(|kp| kp.public_key())
-    //         .ok_or(LpError::ResponderWithMissingKEMKey)
-    // }
 
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
     #[doc(hidden)]
@@ -202,15 +182,15 @@ pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLoc
 
     let mut rng09 = nym_test_utils::helpers::seeded_rng_09(seed);
 
-    let x25519 = Arc::new(generate_keypair_x25519(&mut rng09));
+    let x25519 = Arc::new(nym_kkt::key_utils::generate_keypair_x25519(&mut rng09));
 
     LpLocalPeer {
         ciphersuite: Ciphersuite::default(),
         ed25519,
         x25519,
         kem_keypairs: Some(Arc::new(KEMKeys::new(
-            generate_keypair_mceliece(&mut rng09),
-            generate_keypair_mlkem(&mut rng09),
+            nym_kkt::key_utils::generate_keypair_mceliece(&mut rng09),
+            nym_kkt::key_utils::generate_keypair_mlkem(&mut rng09),
         ))),
     }
 }

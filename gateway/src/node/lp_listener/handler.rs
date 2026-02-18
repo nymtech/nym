@@ -6,6 +6,7 @@ use crate::error::GatewayError;
 use bytes::BytesMut;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::codec::serialize_lp_packet;
+use nym_lp::message::ApplicationData;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_lp::{
     message::ForwardPacketData, LpMessage, LpPacket, LpSession, LpStateMachine, OuterHeader,
@@ -512,23 +513,14 @@ where
         let wrapped_lp_data = LpData::new(response_kind, serialised_response);
         let data_bytes = wrapped_lp_data.to_vec();
 
-        let encrypted_message = session.encrypt_data(&data_bytes).map_err(|e| {
+        let encrypted_message = session.encrypt_application_data(data_bytes).map_err(|e| {
             GatewayError::LpProtocolError(format!("Failed to encrypt response: {e}"))
         })?;
-
-        let response_packet = session.next_packet(encrypted_message).map_err(|e| {
-            GatewayError::LpProtocolError(format!("Failed to create response packet: {e}"))
-        })?;
-
-        let outer_key = session.outer_aead_key();
 
         // make sure to drop the entry before the .await call
         // Serialize the packet (encrypted if outer_key provided)
         let mut packet_buf = BytesMut::new();
-        serialize_lp_packet(&response_packet, &mut packet_buf, Some(outer_key)).map_err(|e| {
-            GatewayError::LpProtocolError(format!("Failed to serialize packet: {}", e))
-        })?;
-        drop(session_entry);
+        encrypted_message.encode(&mut packet_buf);
 
         // Send response (encrypted with outer AEAD)
         self.send_serialised_packet(&packet_buf).await?;
@@ -1038,7 +1030,7 @@ mod tests {
     use crate::node::ActiveClientsStore;
     use bytes::BytesMut;
     use nym_lp::codec::{parse_lp_packet, serialize_lp_packet, OuterAeadKey};
-    use nym_lp::message::{EncryptedDataPayload, LpMessage};
+    use nym_lp::message::{ApplicationData, LpMessage};
     use nym_lp::packet::{LpHeader, LpPacket};
     use nym_lp::peer::LpLocalPeer;
     use nym_lp::SessionsMock;
@@ -1404,7 +1396,7 @@ mod tests {
                     receiver_idx,
                     counter: 20,
                 },
-                LpMessage::EncryptedData(EncryptedDataPayload(encrypted_payload)),
+                LpMessage::ApplicationData(ApplicationData(encrypted_payload)),
             );
             handler.send_lp_packet(packet).await
         });
@@ -1418,8 +1410,8 @@ mod tests {
         assert_eq!(received.header().receiver_idx, 200);
         assert_eq!(received.header().counter, 20);
         match received.message() {
-            LpMessage::EncryptedData(data) => {
-                assert_eq!(data, &EncryptedDataPayload(expected_payload))
+            LpMessage::ApplicationData(data) => {
+                assert_eq!(data, &ApplicationData(expected_payload))
             }
             _ => panic!("Expected EncryptedData message"),
         }

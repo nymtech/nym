@@ -1,24 +1,26 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::peer::{LpLocalPeer, LpRemotePeer};
+use crate::peer::LpLocalPeer;
 use crate::psq::helpers::kem_to_ciphersuite;
-use crate::psq::{
-    AAD_RESPONDER_V1, MinimalSession, PSQHandshakeState, ResponderData, SESSION_CONTEXT_V1,
-};
-use crate::session::PqSharedSecret;
-use crate::{ClientHelloData, LpError, LpSession};
+use crate::psq::{AAD_RESPONDER_V1, PSQHandshakeState, ResponderData, SESSION_CONTEXT_V1};
+use crate::session::PersistentSessionBinding;
+use crate::{LpError, LpSession};
 use libcrux_psq::handshake::Responder;
 use libcrux_psq::handshake::builders::{
     CiphersuiteBuilder, PrincipalBuilder, ResponderCiphersuite,
 };
 use libcrux_psq::{Channel, IntoSession};
-use nym_kkt::context::KKTContext;
 use nym_kkt::message::{KKTRequest, KKTResponse, ProcessedKKTRequest};
 use nym_kkt::responder::KKTResponder;
 use nym_kkt_ciphersuite::KEM;
 use nym_lp_transport::traits::LpTransport;
 use tracing::debug;
+
+pub struct PSQHandshakeStateResponder<'a, S> {
+    pub(super) inner_state: PSQHandshakeState<'a, S>,
+    pub(super) responder_data: ResponderData,
+}
 
 pub(crate) fn build_psq_principal<R>(
     rng: R,
@@ -44,7 +46,7 @@ where
 pub(crate) fn build_psq_ciphersuite(
     peer: &LpLocalPeer,
     kem: KEM,
-) -> Result<ResponderCiphersuite, LpError> {
+) -> Result<ResponderCiphersuite<'_>, LpError> {
     let Some(kem_keys) = peer.kem_keypairs.as_ref() else {
         return Err(LpError::ResponderWithMissingKEMKeys);
     };
@@ -62,11 +64,6 @@ pub(crate) fn build_psq_ciphersuite(
     }
     .build_responder_ciphersuite()
     .map_err(|inner| LpError::PSQResponderBuilderFailure { inner })
-}
-
-pub(crate) struct PSQHandshakeStateResponder<'a, S> {
-    pub(super) inner_state: PSQHandshakeState<'a, S>,
-    pub(super) responder_data: ResponderData,
 }
 
 impl<'a, S> PSQHandshakeStateResponder<'a, S>
@@ -113,7 +110,7 @@ where
         Ok(self.inner_state.connection.receive_raw_packet().await?)
     }
 
-    pub async fn complete_handshake<R>(mut self, rng: &mut R) -> Result<MinimalSession, LpError>
+    pub async fn complete_handshake<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
     where
         S: LpTransport + Unpin,
         R: rand09::CryptoRng,
@@ -144,7 +141,7 @@ where
             .ok_or(LpError::MissingInitiatorAuthenticator)?;
 
         // 4. send PSQ response
-        let mut conn = self.inner_state.connection;
+        let conn = self.inner_state.connection;
 
         let mut buf = [0u8; 128];
         let n = psq_responder.write_message(&[], &mut buf)?;
@@ -157,12 +154,25 @@ where
             ));
         }
 
-        let session = psq_responder.into_session()?;
-        Ok(MinimalSession {
-            session,
-            encapsulation_key: processed_req.remote_encapsulation_key,
-            init_authenticator: Some(initiator_authenticator),
-        })
+        // SAFETY: we have completed the exchange so this key MUST HAVE been present
+        #[allow(clippy::unwrap_used)]
+        let kem_key = self
+            .inner_state
+            .local_peer
+            .kem_keypairs
+            .as_ref()
+            .unwrap()
+            .encapsulation_key(kem)
+            .unwrap();
+
+        let binding = PersistentSessionBinding {
+            initiator_authenticator,
+            responder_ecdh_pk: self.inner_state.local_peer.x25519().pk,
+            responder_pq_pk: Some(kem_key),
+        };
+
+        let psq_session = psq_responder.into_session()?;
+        LpSession::new(psq_session, binding, processed_req.outer_protocol_version)
     }
 }
 
@@ -171,8 +181,6 @@ mod tests {
     use super::*;
     use crate::peer::mock_peers;
     use crate::psq::initiator;
-    use libcrux_psq::handshake::types::Authenticator;
-    use libcrux_psq::session::{Session, SessionBinding};
     use nym_kkt::initiator::KKTInitiator;
     use nym_kkt_ciphersuite::Ciphersuite;
     use nym_test_utils::helpers::{
@@ -258,11 +266,9 @@ mod tests {
 
         assert!(initiator.is_handshake_finished());
 
-        let session_resp = resp_fut.await???;
-        let init_auth = session_resp.init_authenticator.unwrap();
+        let mut session_resp = resp_fut.await???;
 
         let mut i_transport = initiator.into_session().unwrap();
-        let mut r_transport = session_resp.session;
 
         // test serialization, deserialization
         let mut msg_channel = vec![0u8; 2048];
@@ -270,7 +276,7 @@ mod tests {
         let mut payload_buf_initiator = vec![0u8; 4096];
 
         let mut channel_i = i_transport.transport_channel().unwrap();
-        let mut channel_r = r_transport.transport_channel().unwrap();
+        let mut channel_r = session_resp.active_transport();
 
         assert_eq!(channel_i.identifier(), channel_r.identifier());
 

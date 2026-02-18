@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::message::MessageType;
-use crate::{noise_protocol::NoiseError, replay::ReplayError};
+use crate::replay::ReplayError;
+use crate::session::SessionId;
 use libcrux_psq::handshake::HandshakeError;
 use libcrux_psq::handshake::builders::BuilderError;
 use libcrux_psq::session::SessionError;
@@ -16,26 +17,8 @@ pub enum LpError {
     #[error("IO Error: {0}")]
     IoError(#[from] std::io::Error),
 
-    // noiserm
-    #[error("Snow Error: {0}")]
-    SnowKeyError(#[from] snow::Error),
-
-    // noiserm
-    #[error("Snow Pattern Error: {0}")]
-    SnowPatternError(String),
-
-    // noiserm
-    #[error("Noise Protocol Error: {0}")]
-    NoiseError(#[from] NoiseError),
-
-    #[error("PSQ Error: {0}")]
-    PSQError(String),
-
     #[error("Replay detected: {0}")]
     Replay(#[from] ReplayError),
-
-    #[error("Invalid packet format: {0}")]
-    InvalidPacketFormat(String),
 
     #[error("Invalid message type: {0}")]
     InvalidMessageType(u32),
@@ -81,16 +64,12 @@ pub enum LpError {
     LpSessionProcessing,
 
     /// State machine not found.
-    #[error("State machine not found for lp_id: {lp_id}")]
-    StateMachineNotFound { lp_id: u32 },
+    #[error("State machine not found for lp_id: {lp_id:?}")]
+    StateMachineNotFound { lp_id: SessionId },
 
     /// Ed25519 to X25519 conversion error.
     #[error("Ed25519 key conversion error: {0}")]
     Ed25519RecoveryError(#[from] Ed25519RecoveryError),
-
-    /// Outer AEAD authentication tag verification failed.
-    #[error("AEAD authentication tag verification failed")]
-    AeadTagMismatch,
 
     /// Received an LP packet with an incompatible, future, version
     #[error("incompatible LP packet version. got: {got}, highest supported: {highest_supported}")]
@@ -135,6 +114,9 @@ pub enum LpError {
     #[error("failed to run the PSQ session: {inner:?}")]
     PSQSessionFailure { inner: SessionError },
 
+    #[error("failed to derive a transport channel: {inner:?}")]
+    TransportDerivationFailure { inner: SessionError },
+
     #[error("the initiator authenticator is not available after ingesting PSQ msg1")]
     MissingInitiatorAuthenticator,
 }
@@ -148,6 +130,10 @@ impl LpError {
         Self::KKTPSQHandshake(format!(
             "received unexpected response, got: {got:?}, expected: {expected:?}"
         ))
+    }
+
+    pub fn invalid_message_type(message_type: u32) -> Self {
+        LpError::InvalidMessageType(message_type)
     }
 }
 

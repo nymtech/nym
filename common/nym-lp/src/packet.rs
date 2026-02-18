@@ -6,10 +6,7 @@ use crate::message::{LpMessage, MessageType};
 use crate::replay::ReceivingKeyCounterValidator;
 use bytes::{BufMut, BytesMut};
 use nym_lp_common::format_debug_bytes;
-use parking_lot::Mutex;
-use std::fmt::Write;
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 use tracing::warn;
 
 #[allow(dead_code)]
@@ -32,10 +29,37 @@ pub mod version {
 }
 
 #[derive(Clone)]
+pub struct EncryptedLpPacket {
+    // The outer header that's sent in plaintext
+    pub(crate) outer_header: OuterHeader,
+
+    // The ciphertext containing the inner header and the payload
+    pub(crate) ciphertext: Vec<u8>,
+}
+
+impl Debug for EncryptedLpPacket {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", format_debug_bytes(&self.debug_bytes())?)
+    }
+}
+
+impl EncryptedLpPacket {
+    pub(crate) fn debug_bytes(&self) -> Vec<u8> {
+        let mut bytes = BytesMut::new();
+        self.encode(&mut bytes);
+        bytes.freeze().to_vec()
+    }
+
+    pub fn encode(&self, dst: &mut BytesMut) {
+        self.outer_header.encode(dst);
+        dst.put_slice(&self.ciphertext)
+    }
+}
+
+#[derive(Clone)]
 pub struct LpPacket {
     pub(crate) header: LpHeader,
     pub(crate) message: LpMessage,
-    pub(crate) trailer: [u8; TRAILER_LEN],
 }
 
 impl Debug for LpPacket {
@@ -46,41 +70,11 @@ impl Debug for LpPacket {
 
 impl LpPacket {
     pub fn new(header: LpHeader, message: LpMessage) -> Self {
-        Self {
-            header,
-            message,
-            trailer: [0; TRAILER_LEN],
-        }
+        Self { header, message }
     }
 
     pub fn typ(&self) -> MessageType {
         self.message.typ()
-    }
-
-    /// Compute a hash of the message payload
-    ///
-    /// This can be used for message integrity verification or deduplication
-    pub fn hash_payload(&self) -> [u8; 32] {
-        use sha2::{Digest, Sha256};
-
-        let mut hasher = Sha256::new();
-        let mut buffer = BytesMut::new();
-
-        // Include message type and content in the hash
-        buffer.put_slice(&(self.message.typ() as u16).to_le_bytes());
-        self.message.encode_content(&mut buffer);
-
-        hasher.update(&buffer);
-        hasher.finalize().into()
-    }
-
-    pub fn hash_payload_hex(&self) -> String {
-        let hash = self.hash_payload();
-        hash.iter()
-            .fold(String::with_capacity(hash.len() * 2), |mut acc, byte| {
-                let _ = write!(acc, "{:02x}", byte);
-                acc
-            })
     }
 
     pub fn message(&self) -> &LpMessage {
@@ -93,17 +87,15 @@ impl LpPacket {
 
     pub(crate) fn debug_bytes(&self) -> Vec<u8> {
         let mut bytes = BytesMut::new();
-        self.encode(&mut bytes);
+        self.dbg_encode(&mut bytes);
         bytes.freeze().to_vec()
     }
 
-    pub(crate) fn encode(&self, dst: &mut BytesMut) {
-        self.header.encode(dst);
+    pub(crate) fn dbg_encode(&self, dst: &mut BytesMut) {
+        self.header.dbg_encode(dst);
 
         dst.put_slice(&(self.message.typ() as u16).to_le_bytes());
         self.message.encode_content(dst);
-
-        dst.put_slice(&self.trailer)
     }
 
     /// Validate packet counter against a replay protection validator
@@ -112,10 +104,9 @@ impl LpPacket {
     /// any expensive processing is done.
     pub fn validate_counter(
         &self,
-        validator: &Arc<Mutex<ReceivingKeyCounterValidator>>,
+        validator: &ReceivingKeyCounterValidator,
     ) -> Result<(), LpError> {
-        let guard = validator.lock();
-        guard.will_accept_branchless(self.header.counter)?;
+        validator.will_accept_branchless(self.header.outer.counter)?;
         Ok(())
     }
 
@@ -124,21 +115,12 @@ impl LpPacket {
     /// This should be called after a packet has been successfully processed.
     pub fn mark_received(
         &self,
-        validator: &Arc<Mutex<ReceivingKeyCounterValidator>>,
+        validator: &mut ReceivingKeyCounterValidator,
     ) -> Result<(), LpError> {
-        let mut guard = validator.lock();
-        guard.mark_did_receive_branchless(self.header.counter)?;
+        validator.mark_did_receive_branchless(self.header.outer.counter)?;
         Ok(())
     }
 }
-
-/// Session ID used for ClientHello bootstrap packets before session is established.
-///
-/// When a client first connects, it sends a ClientHello packet with receiver_idx=0
-/// because neither side can compute the deterministic session ID yet (requires
-/// both parties' X25519 keys). After ClientHello is processed, both sides derive
-/// the same session ID from their keys, and all subsequent packets use that ID.
-pub const BOOTSTRAP_RECEIVER_IDX: u32 = 0;
 
 /// Outer header (12 bytes) - always cleartext, used for routing.
 ///
@@ -171,66 +153,36 @@ impl OuterHeader {
         })
     }
 
-    pub fn encode(&self) -> [u8; Self::SIZE] {
-        let mut buf = [0u8; Self::SIZE];
-        buf[0..4].copy_from_slice(&self.receiver_idx.to_le_bytes());
-        buf[4..12].copy_from_slice(&self.counter.to_le_bytes());
-        buf
-    }
-
     /// Encode directly into a BytesMut buffer
-    pub fn encode_into(&self, dst: &mut BytesMut) {
+    pub fn encode(&self, dst: &mut BytesMut) {
         dst.put_slice(&self.receiver_idx.to_le_bytes());
         dst.put_slice(&self.counter.to_le_bytes());
     }
 }
 
-/// Internal LP header representation containing all logical header fields.
-///
-/// **Note**: This struct represents the LOGICAL header, not the wire format.
-/// On the wire, packets use the unified format where:
-/// - `OuterHeader` (receiver_idx + counter) always comes first (12 bytes, cleartext)
-/// - Inner content (version + reserved + payload) follows (cleartext or encrypted)
-///
-/// The `LpHeader::encode()` method outputs the old logical format for debug purposes only.
-/// Use `serialize_lp_packet()` in codec.rs for actual wire serialization.
-#[derive(Debug, Clone)]
-pub struct LpHeader {
+/// InnerHeader header (8 bytes) - encrypted, used for message parsing
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InnerHeader {
     pub protocol_version: u8,
     pub reserved: [u8; 3],
-    pub receiver_idx: u32,
-    pub counter: u64,
+    pub message_type: MessageType,
 }
 
-impl LpHeader {
-    pub const SIZE: usize = 16;
-}
+impl InnerHeader {
+    pub const SIZE: usize = 8; // protocol_version(1) + reserved(3) + message_type(4)
 
-impl LpHeader {
-    pub fn new(receiver_idx: u32, counter: u64, protocol_version: u8) -> Self {
-        Self {
-            protocol_version,
-            reserved: [0u8; 3],
-            receiver_idx,
-            counter,
-        }
-    }
-
-    pub fn encode(&self, dst: &mut BytesMut) {
+    pub(crate) fn encode(&self, dst: &mut BytesMut) {
         // protocol version
         dst.put_u8(self.protocol_version);
 
         // reserved
         dst.put_slice(&self.reserved);
 
-        // sender index
-        dst.put_slice(&self.receiver_idx.to_le_bytes());
-
-        // counter
-        dst.put_slice(&self.counter.to_le_bytes());
+        // message type
+        dst.put_slice(&(self.message_type as u32).to_le_bytes());
     }
 
-    pub fn parse(src: &[u8]) -> Result<Self, LpError> {
+    pub(crate) fn parse(src: &[u8]) -> Result<Self, LpError> {
         if src.len() < Self::SIZE {
             return Err(LpError::InsufficientBufferSize);
         }
@@ -259,30 +211,63 @@ impl LpHeader {
             warn!("received non-zero reserved bytes. got: {reserved:?}");
         }
 
-        let mut receiver_idx_bytes = [0u8; 4];
-        receiver_idx_bytes.copy_from_slice(&src[4..8]);
-        let receiver_idx = u32::from_le_bytes(receiver_idx_bytes);
+        let msg_type_raw = u32::from_le_bytes([src[4], src[5], src[6], src[7]]);
+        let message_type = MessageType::from_u32(msg_type_raw)
+            .ok_or_else(|| LpError::invalid_message_type(msg_type_raw))?;
 
-        let mut counter_bytes = [0u8; 8];
-        counter_bytes.copy_from_slice(&src[8..16]);
-        let counter = u64::from_le_bytes(counter_bytes);
-
-        Ok(LpHeader {
+        Ok(InnerHeader {
             protocol_version,
             reserved,
-            receiver_idx,
-            counter,
+            message_type,
         })
+    }
+}
+
+/// Internal LP header representation containing all logical header fields.
+///
+/// **Note**: This struct represents the LOGICAL header, not the wire format.
+/// On the wire, packets use the unified format where:
+/// - `OuterHeader` (receiver_idx + counter) always comes first (12 bytes, cleartext)
+/// - Inner content (version + reserved + payload) follows (cleartext or encrypted)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LpHeader {
+    pub outer: OuterHeader,
+    pub inner: InnerHeader,
+}
+
+impl LpHeader {
+    pub fn new(
+        receiver_idx: u32,
+        counter: u64,
+        protocol_version: u8,
+        message_type: MessageType,
+    ) -> Self {
+        Self {
+            outer: OuterHeader {
+                receiver_idx,
+                counter,
+            },
+            inner: InnerHeader {
+                protocol_version,
+                reserved: [0u8; 3],
+                message_type,
+            },
+        }
+    }
+
+    pub(crate) fn dbg_encode(&self, dst: &mut BytesMut) {
+        self.outer.encode(dst);
+        self.inner.encode(dst);
     }
 
     /// Get the counter value from the header
     pub fn counter(&self) -> u64 {
-        self.counter
+        self.outer.counter
     }
 
     /// Get the sender index from the header
     pub fn receiver_idx(&self) -> u32 {
-        self.receiver_idx
+        self.outer.receiver_idx
     }
 }
 

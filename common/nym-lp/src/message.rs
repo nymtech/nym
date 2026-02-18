@@ -1,165 +1,31 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::packet::LpHeader;
-use crate::peer::LpRemotePeer;
-use crate::{BOOTSTRAP_RECEIVER_IDX, LpError, LpPacket};
+use crate::LpError;
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use nym_crypto::asymmetric::{ed25519, x25519};
-use rand::RngCore;
+use nym_crypto::asymmetric::ed25519;
 use std::fmt::{self, Display};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-
-/// Data structure for the ClientHello message
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ClientHelloData {
-    /// Client-proposed receiver index for session identification (4 bytes)
-    /// Auto-generated randomly by the client
-    pub receiver_index: u32,
-    /// Client's LP x25519 public key (32 bytes) - derived from Ed25519 key
-    pub client_lp_public_key: x25519::PublicKey,
-    /// Client's Ed25519 public key (32 bytes) - for PSQ authentication
-    pub client_ed25519_public_key: ed25519::PublicKey,
-    // noiserm
-    /// Salt for PSK derivation (32 bytes: 8-byte timestamp + 24-byte nonce)
-    pub salt: [u8; 32],
-}
-
-impl ClientHelloData {
-    // noiserm (remove 32 bytes for salt)
-    // 4 bytes for receiver index + 32 bytes for client lp key, 32 bytes for client ed25519 key + 32 bytes for salt
-    pub const LEN: usize = 100;
-
-    pub fn into_lp_packet(self, protocol_version: u8) -> LpPacket {
-        LpPacket::new(
-            LpHeader::new(
-                BOOTSTRAP_RECEIVER_IDX, // session_id not yet established
-                0,                      // counter starts at 0
-                protocol_version,
-            ),
-            LpMessage::ClientHello(self),
-        )
-    }
-
-    fn len(&self) -> usize {
-        Self::LEN
-    }
-
-    fn generate_receiver_index() -> u32 {
-        loop {
-            let candidate = rand::random();
-            if candidate != BOOTSTRAP_RECEIVER_IDX {
-                return candidate;
-            }
-        }
-    }
-
-    // noiserm
-    /// Generates a new ClientHelloData with fresh salt.
-    ///
-    /// Salt format: 8 bytes timestamp (u64 LE) + 24 bytes random nonce
-    ///
-    /// # Arguments
-    /// * `client_lp_public_key` - Client's x25519 public key (derived from Ed25519)
-    /// * `client_ed25519_public_key` - Client's Ed25519 public key (for PSQ authentication)
-    pub fn new_with_fresh_salt(
-        client_lp_public_key: x25519::PublicKey,
-        client_ed25519_public_key: ed25519::PublicKey,
-        timestamp: u64,
-    ) -> Self {
-        // Generate salt: timestamp + nonce
-        let mut salt = [0u8; 32];
-
-        // First 8 bytes: current timestamp as u64 little-endian
-        salt[..8].copy_from_slice(&timestamp.to_le_bytes());
-
-        // Last 24 bytes: random nonce
-        rand::thread_rng().fill_bytes(&mut salt[8..]);
-
-        Self {
-            receiver_index: Self::generate_receiver_index(), // Auto-generate random receiver index
-            client_lp_public_key,
-            client_ed25519_public_key,
-            salt,
-        }
-    }
-    // noiserm
-    /// Extracts the timestamp from the salt.
-    ///
-    /// # Returns
-    /// Unix timestamp in seconds
-    pub fn extract_timestamp(&self) -> u64 {
-        let mut timestamp_bytes = [0u8; 8];
-        timestamp_bytes.copy_from_slice(&self.salt[..8]);
-        u64::from_le_bytes(timestamp_bytes)
-    }
-
-    pub fn encode(&self, dst: &mut BytesMut) {
-        dst.put_u32_le(self.receiver_index);
-        dst.put_slice(self.client_lp_public_key.as_bytes());
-        dst.put_slice(self.client_ed25519_public_key.as_bytes());
-        // noiserm
-        dst.put_slice(&self.salt);
-    }
-
-    pub fn decode(b: &[u8]) -> Result<Self, LpError> {
-        if b.len() != Self::LEN {
-            return Err(LpError::DeserializationError(format!(
-                "Expected {} bytes to deserialise ClientHelloData. got {}",
-                Self::LEN,
-                b.len()
-            )));
-        }
-
-        // SAFETY: we checked for valid byte lengths
-        #[allow(clippy::unwrap_used)]
-        let client_lp_public_key_bytes = b[4..36].try_into().unwrap();
-        let client_ed25519_public_key_bytes = b[36..68].try_into().unwrap();
-
-        Ok(ClientHelloData {
-            receiver_index: u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
-            client_lp_public_key: x25519::PublicKey::from_byte_array(client_lp_public_key_bytes),
-            client_ed25519_public_key: ed25519::PublicKey::from_byte_array(
-                client_ed25519_public_key_bytes,
-            )?,
-            // noiserm
-            salt: b[68..].try_into().unwrap(),
-        })
-    }
-
-    /// Attempt to construct remote peer information based on the data provided in this packet.
-    pub fn to_remote_peer(&self) -> LpRemotePeer {
-        LpRemotePeer::new(self.client_ed25519_public_key, self.client_lp_public_key)
-    }
-}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u32)]
 pub enum MessageType {
+    /// The party is busy
     Busy = 0x0000,
-    Handshake = 0x0001,
-    EncryptedData = 0x0002,
-    ClientHello = 0x0003,
-    KKTRequest = 0x0004,
-    KKTResponse = 0x0005,
-    ForwardPacket = 0x0006,
-    /// Receiver index collision - client should retry with new index
-    Collision = 0x0007,
-    /// Acknowledgment - gateway confirms receipt of message
-    Ack = 0x0008,
-    /// Subsession request - client initiates subsession creation
-    SubsessionRequest = 0x0009,
 
-    // georgio: this should be the psq msg
-    /// Subsession KK1 - first message of Noise KK handshake
-    SubsessionKK1 = 0x000A,
-    /// Subsession KK2 - second message of Noise KK handshake
-    SubsessionKK2 = 0x000B,
-    /// Subsession ready - subsession established confirmation
-    SubsessionReady = 0x000C,
-    /// Subsession abort - race winner tells loser to become responder
-    SubsessionAbort = 0x000D,
+    /// Encrypted payload
+    EncryptedData = 0x0001,
+
+    /// Receiver should forward this message via telescoping
+    ForwardPacket = 0x0002,
+
+    /// Receiver index collision - client should retry with new index
+    Collision = 0x0003,
+
+    /// Acknowledgment - gateway confirms receipt of message
+    Ack = 0x0004,
+
     /// General error
     Error = 0x00FF,
 }
@@ -175,31 +41,10 @@ impl MessageType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HandshakeData(pub Vec<u8>);
+pub struct ApplicationData(pub Vec<u8>);
 
-impl HandshakeData {
-    pub(crate) fn new(bytes: Vec<u8>) -> Self {
-        Self(bytes)
-    }
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn encode(&self, dst: &mut BytesMut) {
-        dst.put_slice(&self.0);
-    }
-
-    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
-        Ok(HandshakeData(bytes.to_vec()))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EncryptedDataPayload(pub Vec<u8>);
-
-impl EncryptedDataPayload {
-    #[allow(dead_code)]
-    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+impl ApplicationData {
+    pub fn new(bytes: Vec<u8>) -> Self {
         Self(bytes)
     }
 
@@ -212,51 +57,7 @@ impl EncryptedDataPayload {
     }
 
     fn decode(bytes: &[u8]) -> Result<Self, LpError> {
-        Ok(EncryptedDataPayload(bytes.to_vec()))
-    }
-}
-
-/// KKT request frame data (serialized KKTFrame bytes)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct KKTRequestData(pub Vec<u8>);
-
-impl KKTRequestData {
-    pub(crate) fn new(bytes: Vec<u8>) -> Self {
-        Self(bytes)
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn encode(&self, dst: &mut BytesMut) {
-        dst.put_slice(&self.0);
-    }
-
-    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
-        Ok(KKTRequestData(bytes.to_vec()))
-    }
-}
-
-/// KKT response frame data (serialized KKTFrame bytes)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct KKTResponseData(pub Vec<u8>);
-
-impl KKTResponseData {
-    pub(crate) fn new(bytes: Vec<u8>) -> Self {
-        Self(bytes)
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn encode(&self, dst: &mut BytesMut) {
-        dst.put_slice(&self.0);
-    }
-
-    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
-        Ok(KKTResponseData(bytes.to_vec()))
+        Ok(ApplicationData(bytes.to_vec()))
     }
 }
 
@@ -303,42 +104,6 @@ impl ErrorPacketData {
         let message = String::from_utf8_lossy(&bytes[4..]).to_string();
 
         Ok(ErrorPacketData { message })
-    }
-}
-
-/// PSQ request frame data (serialized bytes)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PSQRequestData(pub Vec<u8>);
-
-impl PSQRequestData {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn encode(&self, dst: &mut BytesMut) {
-        dst.put_slice(&self.0);
-    }
-
-    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
-        Ok(PSQRequestData(bytes.to_vec()))
-    }
-}
-
-/// PSQ response frame data (serialized bytes)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PSQResponseData(pub Vec<u8>);
-
-impl PSQResponseData {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn encode(&self, dst: &mut BytesMut) {
-        dst.put_slice(&self.0);
-    }
-
-    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
-        Ok(PSQResponseData(bytes.to_vec()))
     }
 }
 
@@ -467,146 +232,30 @@ impl ForwardPacketData {
     }
 }
 
-// georgio: swap with psq
-/// Subsession KK1 message - first message of Noise KK handshake
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SubsessionKK1Data {
-    /// Noise KK first message payload (ephemeral key + encrypted static)
-    pub payload: Vec<u8>,
-}
-
-impl SubsessionKK1Data {
-    fn len(&self) -> usize {
-        self.payload.len()
-    }
-
-    fn encode(&self, dst: &mut BytesMut) {
-        dst.put_slice(&self.payload);
-    }
-
-    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
-        Ok(SubsessionKK1Data {
-            payload: bytes.to_vec(),
-        })
-    }
-}
-
-/// Subsession KK2 message - second message of Noise KK handshake
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SubsessionKK2Data {
-    /// Noise KK second message payload (ephemeral key + encrypted response)
-    pub payload: Vec<u8>,
-}
-
-impl SubsessionKK2Data {
-    fn len(&self) -> usize {
-        self.payload.len()
-    }
-
-    fn encode(&self, dst: &mut BytesMut) {
-        dst.put_slice(&self.payload);
-    }
-
-    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
-        Ok(SubsessionKK2Data {
-            payload: bytes.to_vec(),
-        })
-    }
-}
-
-/// Subsession ready confirmation with new session index
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SubsessionReadyData {
-    /// New subsession's receiver index for routing
-    pub receiver_index: u32,
-}
-
-impl SubsessionReadyData {
-    pub const LEN: usize = 4;
-
-    fn len(&self) -> usize {
-        Self::LEN
-    }
-
-    fn encode(&self, dst: &mut BytesMut) {
-        dst.put_u32_le(self.receiver_index);
-    }
-
-    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
-        if bytes.len() != 4 {
-            return Err(LpError::DeserializationError(format!(
-                "Expected 4 bytes to deserialise SubsessionReadyData. got {}",
-                bytes.len()
-            )));
-        }
-        Ok(SubsessionReadyData {
-            receiver_index: u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-        })
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum LpMessage {
+    /// The party is busy
     Busy,
-    PSQRequest(PSQRequestData),
-    PSQResponse(PSQResponseData),
-    EncryptedData(EncryptedDataPayload),
-    ClientHello(ClientHelloData),
-    KKTRequest(KKTRequestData),
-    KKTResponse(KKTResponseData),
+
+    /// Application payload is being sent
+    ApplicationData(ApplicationData),
+
+    /// Receiver should forward this message via telescoping
     ForwardPacket(ForwardPacketData),
+
     /// Receiver index collision - client should retry with new receiver_index
     Collision,
+
     /// Acknowledgment - gateway confirms receipt of message
     Ack,
-    // georgio: this should become psq stuff
-    /// Subsession request - client initiates subsession creation (empty, signal only)
-    SubsessionRequest,
-    /// Subsession KK1 - first message of Noise KK handshake
-    SubsessionKK1(SubsessionKK1Data),
-    /// Subsession KK2 - second message of Noise KK handshake
-    SubsessionKK2(SubsessionKK2Data),
-    /// Subsession ready - subsession established confirmation
-    SubsessionReady(SubsessionReadyData),
-    /// Subsession abort - race winner tells loser to become responder (empty, signal only)
-    SubsessionAbort,
+
     /// An error has occurred
     Error(ErrorPacketData),
 }
 
-impl From<PSQRequestData> for LpMessage {
-    fn from(value: PSQRequestData) -> Self {
-        LpMessage::PSQRequest(value)
-    }
-}
-
-impl From<PSQResponseData> for LpMessage {
-    fn from(value: PSQResponseData) -> Self {
-        LpMessage::PSQResponse(value)
-    }
-}
-
-impl From<EncryptedDataPayload> for LpMessage {
-    fn from(value: EncryptedDataPayload) -> Self {
-        LpMessage::EncryptedData(value)
-    }
-}
-
-impl From<ClientHelloData> for LpMessage {
-    fn from(value: ClientHelloData) -> Self {
-        LpMessage::ClientHello(value)
-    }
-}
-
-impl From<KKTRequestData> for LpMessage {
-    fn from(value: KKTRequestData) -> Self {
-        LpMessage::KKTRequest(value)
-    }
-}
-
-impl From<KKTResponseData> for LpMessage {
-    fn from(value: KKTResponseData) -> Self {
-        LpMessage::KKTResponse(value)
+impl From<ApplicationData> for LpMessage {
+    fn from(value: ApplicationData) -> Self {
+        LpMessage::ApplicationData(value)
     }
 }
 
@@ -616,86 +265,40 @@ impl From<ForwardPacketData> for LpMessage {
     }
 }
 
-impl From<SubsessionKK1Data> for LpMessage {
-    fn from(value: SubsessionKK1Data) -> Self {
-        LpMessage::SubsessionKK1(value)
-    }
-}
-
-impl From<SubsessionKK2Data> for LpMessage {
-    fn from(value: SubsessionKK2Data) -> Self {
-        LpMessage::SubsessionKK2(value)
-    }
-}
-
-impl From<SubsessionReadyData> for LpMessage {
-    fn from(value: SubsessionReadyData) -> Self {
-        LpMessage::SubsessionReady(value)
-    }
-}
-
 impl Display for LpMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LpMessage::Busy => write!(f, "Busy"),
-            LpMessage::EncryptedData(_) => write!(f, "EncryptedData"),
-            LpMessage::ClientHello(_) => write!(f, "ClientHello"),
-            LpMessage::KKTRequest(_) => write!(f, "KKTRequest"),
-            LpMessage::KKTResponse(_) => write!(f, "KKTResponse"),
+            LpMessage::ApplicationData(_) => write!(f, "EncryptedData"),
             LpMessage::ForwardPacket(_) => write!(f, "ForwardPacket"),
             LpMessage::Collision => write!(f, "Collision"),
             LpMessage::Ack => write!(f, "Ack"),
-            LpMessage::SubsessionRequest => write!(f, "SubsessionRequest"),
-            LpMessage::SubsessionKK1(_) => write!(f, "SubsessionKK1"),
-            LpMessage::SubsessionKK2(_) => write!(f, "SubsessionKK2"),
-            LpMessage::SubsessionReady(_) => write!(f, "SubsessionReady"),
-            LpMessage::SubsessionAbort => write!(f, "SubsessionAbort"),
             LpMessage::Error(_) => write!(f, "Error"),
-            LpMessage::PSQRequest(_) => write!(f, "PSQRequest"),
-            LpMessage::PSQResponse(_) => write!(f, "PSQResponse"),
         }
     }
 }
 
 impl LpMessage {
+    #[deprecated(note = "is it actually needed?")]
     pub fn payload(&self) -> &[u8] {
         match self {
             LpMessage::Busy => &[],
-            LpMessage::PSQRequest(payload) => payload.0.as_slice(),
-            LpMessage::PSQResponse(payload) => payload.0.as_slice(),
-            LpMessage::EncryptedData(payload) => payload.0.as_slice(),
-            LpMessage::ClientHello(_) => &[], // Structured data, serialized in encode_content
-            LpMessage::KKTRequest(payload) => payload.0.as_slice(),
-            LpMessage::KKTResponse(payload) => payload.0.as_slice(),
+            LpMessage::ApplicationData(payload) => payload.0.as_slice(),
             LpMessage::ForwardPacket(_) => &[], // Structured data, serialized in encode_content
             LpMessage::Collision => &[],
             LpMessage::Ack => &[],
-            LpMessage::SubsessionRequest => &[],
-            LpMessage::SubsessionKK1(_) => &[], // Structured data, serialized in encode_content
-            LpMessage::SubsessionKK2(_) => &[], // Structured data, serialized in encode_content
-            LpMessage::SubsessionReady(_) => &[], // Structured data, serialized in encode_content
-            LpMessage::SubsessionAbort => &[],
             LpMessage::Error(_) => &[], // Structured data, serialized in encode_content (?)
         }
     }
 
+    #[deprecated(note = "is it actually needed?")]
     pub fn is_empty(&self) -> bool {
         match self {
             LpMessage::Busy => true,
-            LpMessage::EncryptedData(payload) => payload.0.is_empty(),
-            LpMessage::ClientHello(_) => false, // Always has data
-            LpMessage::KKTRequest(payload) => payload.0.is_empty(),
-            LpMessage::KKTResponse(payload) => payload.0.is_empty(),
+            LpMessage::ApplicationData(payload) => payload.0.is_empty(),
             LpMessage::ForwardPacket(_) => false, // Always has data
             LpMessage::Collision => true,
             LpMessage::Ack => true,
-            LpMessage::SubsessionRequest => true, // Empty signal
-            LpMessage::SubsessionKK1(_) => false, // Always has payload
-            LpMessage::SubsessionKK2(_) => false, // Always has payload
-            LpMessage::SubsessionReady(_) => false, // Always has receiver_index
-            LpMessage::SubsessionAbort => true,   // Empty signal
-            LpMessage::PSQRequest(_) => true,     // Always had data (?)
-            LpMessage::PSQResponse(_) => true,    // Always had data (?)
             LpMessage::Error(_) => false,
         }
     }
@@ -703,20 +306,10 @@ impl LpMessage {
     pub fn len(&self) -> usize {
         match self {
             LpMessage::Busy => 0,
-            LpMessage::PSQRequest(payload) => payload.len(),
-            LpMessage::PSQResponse(payload) => payload.len(),
-            LpMessage::EncryptedData(payload) => payload.len(),
-            LpMessage::ClientHello(payload) => payload.len(),
-            LpMessage::KKTRequest(payload) => payload.len(),
-            LpMessage::KKTResponse(payload) => payload.len(),
+            LpMessage::ApplicationData(payload) => payload.len(),
             LpMessage::ForwardPacket(payload) => payload.len(),
             LpMessage::Collision => 0,
             LpMessage::Ack => 0,
-            LpMessage::SubsessionRequest => 0,
-            LpMessage::SubsessionKK1(payload) => payload.len(),
-            LpMessage::SubsessionKK2(payload) => payload.len(),
-            LpMessage::SubsessionReady(payload) => payload.len(),
-            LpMessage::SubsessionAbort => 0,
             LpMessage::Error(payload) => payload.len(),
         }
     }
@@ -724,20 +317,10 @@ impl LpMessage {
     pub fn typ(&self) -> MessageType {
         match self {
             LpMessage::Busy => MessageType::Busy,
-            LpMessage::PSQRequest(_) => todo!(),
-            LpMessage::PSQResponse(_) => todo!(),
-            LpMessage::EncryptedData(_) => MessageType::EncryptedData,
-            LpMessage::ClientHello(_) => MessageType::ClientHello,
-            LpMessage::KKTRequest(_) => MessageType::KKTRequest,
-            LpMessage::KKTResponse(_) => MessageType::KKTResponse,
+            LpMessage::ApplicationData(_) => MessageType::EncryptedData,
             LpMessage::ForwardPacket(_) => MessageType::ForwardPacket,
             LpMessage::Collision => MessageType::Collision,
             LpMessage::Ack => MessageType::Ack,
-            LpMessage::SubsessionRequest => MessageType::SubsessionRequest,
-            LpMessage::SubsessionKK1(_) => MessageType::SubsessionKK1,
-            LpMessage::SubsessionKK2(_) => MessageType::SubsessionKK2,
-            LpMessage::SubsessionReady(_) => MessageType::SubsessionReady,
-            LpMessage::SubsessionAbort => MessageType::SubsessionAbort,
             LpMessage::Error(_) => MessageType::Error,
         }
     }
@@ -745,20 +328,10 @@ impl LpMessage {
     pub fn encode_content(&self, dst: &mut BytesMut) {
         match self {
             LpMessage::Busy => { /* No content */ }
-            LpMessage::PSQRequest(payload) => payload.encode(dst),
-            LpMessage::PSQResponse(payload) => payload.encode(dst),
-            LpMessage::EncryptedData(payload) => payload.encode(dst),
-            LpMessage::ClientHello(data) => data.encode(dst),
-            LpMessage::KKTRequest(payload) => payload.encode(dst),
-            LpMessage::KKTResponse(payload) => payload.encode(dst),
+            LpMessage::ApplicationData(payload) => payload.encode(dst),
             LpMessage::ForwardPacket(data) => data.encode(dst),
             LpMessage::Collision => { /* No content */ }
             LpMessage::Ack => { /* No content */ }
-            LpMessage::SubsessionRequest => { /* No content - signal only */ }
-            LpMessage::SubsessionKK1(data) => data.encode(dst),
-            LpMessage::SubsessionKK2(data) => data.encode(dst),
-            LpMessage::SubsessionReady(data) => data.encode(dst),
-            LpMessage::SubsessionAbort => { /* No content - signal only */ }
             LpMessage::Error(data) => data.encode(dst),
         }
     }
@@ -773,17 +346,9 @@ impl LpMessage {
                 content.ensure_empty()?;
                 Ok(LpMessage::Busy)
             }
-            MessageType::Handshake => todo!(),
-            MessageType::EncryptedData => Ok(LpMessage::EncryptedData(
-                EncryptedDataPayload::decode(content)?,
-            )),
-            MessageType::ClientHello => {
-                Ok(LpMessage::ClientHello(ClientHelloData::decode(content)?))
-            }
-            MessageType::KKTRequest => Ok(LpMessage::KKTRequest(KKTRequestData::decode(content)?)),
-            MessageType::KKTResponse => {
-                Ok(LpMessage::KKTResponse(KKTResponseData::decode(content)?))
-            }
+            MessageType::EncryptedData => Ok(LpMessage::ApplicationData(ApplicationData::decode(
+                content,
+            )?)),
             MessageType::ForwardPacket => Ok(LpMessage::ForwardPacket(ForwardPacketData::decode(
                 content,
             )?)),
@@ -794,23 +359,6 @@ impl LpMessage {
             MessageType::Ack => {
                 content.ensure_empty()?;
                 Ok(LpMessage::Ack)
-            }
-            MessageType::SubsessionRequest => {
-                content.ensure_empty()?;
-                Ok(LpMessage::SubsessionRequest)
-            }
-            MessageType::SubsessionKK1 => Ok(LpMessage::SubsessionKK1(SubsessionKK1Data::decode(
-                content,
-            )?)),
-            MessageType::SubsessionKK2 => Ok(LpMessage::SubsessionKK2(SubsessionKK2Data::decode(
-                content,
-            )?)),
-            MessageType::SubsessionReady => Ok(LpMessage::SubsessionReady(
-                SubsessionReadyData::decode(content)?,
-            )),
-            MessageType::SubsessionAbort => {
-                content.ensure_empty()?;
-                Ok(LpMessage::SubsessionAbort)
             }
             MessageType::Error => Ok(LpMessage::Error(ErrorPacketData::decode(content)?)),
         }
@@ -836,114 +384,40 @@ impl EnsureEmptyContent for &[u8] {
 
 #[cfg(test)]
 mod tests {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     use super::*;
     use crate::LpPacket;
     use crate::packet::{LpHeader, TRAILER_LEN};
 
     #[test]
     fn encoding() {
-        let message = LpMessage::EncryptedData(EncryptedDataPayload(vec![11u8; 124]));
-
-        let resp_header = LpHeader {
-            protocol_version: 1,
-            reserved: [0u8; 3],
-            receiver_idx: 0,
-            counter: 0,
-        };
-
-        let packet = LpPacket {
-            header: resp_header,
-            message,
-            trailer: [80; TRAILER_LEN],
-        };
-
-        // Just print packet for debug, will be captured in test output
-        println!("{packet:?}");
-
-        // Verify message type
-        assert!(matches!(packet.message.typ(), MessageType::EncryptedData));
-
-        // Verify correct data in message
-        match &packet.message {
-            LpMessage::EncryptedData(data) => {
-                assert_eq!(*data, EncryptedDataPayload(vec![11u8; 124]));
-            }
-            _ => panic!("Wrong message type"),
-        }
-    }
-
-    #[test]
-    fn test_client_hello_salt_generation() {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("System time before UNIX epoch")
-            .as_secs();
-
-        let mut rng = rand::thread_rng();
-        let ed25519 = ed25519::KeyPair::new(&mut rng);
-        let x25519 = ed25519.to_x25519();
-
-        let client_key = *x25519.public_key();
-        let client_ed25519_key = *ed25519.public_key();
-        let hello1 =
-            ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
-        let hello2 =
-            ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
-
-        // Different salts should be generated
-        assert_ne!(hello1.salt, hello2.salt);
-
-        // But timestamps should be very close (within 1 second)
-        let ts1 = hello1.extract_timestamp();
-        let ts2 = hello2.extract_timestamp();
-        assert!((ts1 as i64 - ts2 as i64).abs() <= 1);
-    }
-
-    #[test]
-    fn test_client_hello_timestamp_extraction() {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("System time before UNIX epoch")
-            .as_secs();
-        let mut rng = rand::thread_rng();
-        let ed25519 = ed25519::KeyPair::new(&mut rng);
-        let x25519 = ed25519.to_x25519();
-
-        let client_key = *x25519.public_key();
-        let client_ed25519_key = *ed25519.public_key();
-        let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
-
-        let timestamp = hello.extract_timestamp();
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        // Timestamp should be within 1 second of now
-        assert!((timestamp as i64 - now as i64).abs() <= 1);
-    }
-
-    #[test]
-    fn test_client_hello_salt_format() {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("System time before UNIX epoch")
-            .as_secs();
-        let mut rng = rand::thread_rng();
-        let ed25519 = ed25519::KeyPair::new(&mut rng);
-        let x25519 = ed25519.to_x25519();
-
-        let client_key = *x25519.public_key();
-        let client_ed25519_key = *ed25519.public_key();
-        let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
-
-        // First 8 bytes should be non-zero timestamp
-        let timestamp_bytes = &hello.salt[..8];
-        assert_ne!(timestamp_bytes, &[0u8; 8]);
-
-        // Salt should be 32 bytes total
-        assert_eq!(hello.salt.len(), 32);
+        todo!()
+        // let message = LpMessage::EncryptedData(EncryptedDataPayload(vec![11u8; 124]));
+        //
+        // let resp_header = LpHeader {
+        //     protocol_version: 1,
+        //     reserved: [0u8; 3],
+        //     receiver_idx: 0,
+        //     counter: 0,
+        // };
+        //
+        // let packet = LpPacket {
+        //     header: resp_header,
+        //     message,
+        //     trailer: [80; TRAILER_LEN],
+        // };
+        //
+        // // Just print packet for debug, will be captured in test output
+        // println!("{packet:?}");
+        //
+        // // Verify message type
+        // assert!(matches!(packet.message.typ(), MessageType::EncryptedData));
+        //
+        // // Verify correct data in message
+        // match &packet.message {
+        //     LpMessage::EncryptedData(data) => {
+        //         assert_eq!(*data, EncryptedDataPayload(vec![11u8; 124]));
+        //     }
+        //     _ => panic!("Wrong message type"),
+        // }
     }
 }

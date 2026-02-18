@@ -10,6 +10,25 @@ use tracing::debug;
 
 // only used in internal code (and tests)
 #[allow(async_fn_in_trait)]
+pub trait LpChannel: Sized {
+    /// Sends a serialised acket over the data stream.
+    ///
+    /// # Arguments
+    /// * `packet_data` - The serialised packet to send
+    ///
+    /// # Errors
+    /// Returns an error on network transmission fails.
+    async fn send_serialised_packet(&mut self, packet_data: &[u8]) -> std::io::Result<()>;
+
+    /// Receives a data chunk of the set length from the data stream.
+    ///
+    /// # Errors
+    /// Returns an error on network transmission fails.
+    async fn receive_raw_packet(&mut self, len: usize) -> std::io::Result<Vec<u8>>;
+}
+
+// only used in internal code (and tests)
+#[allow(async_fn_in_trait)]
 pub trait LpTransport: Sized {
     async fn connect(endpoint: SocketAddr) -> std::io::Result<Self>;
 

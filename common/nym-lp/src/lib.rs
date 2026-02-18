@@ -7,13 +7,9 @@ pub mod codec;
 // pub use config::LpConfig;
 
 pub mod error;
-// georgio: no use for this
-// pub mod kkt_orchestrator;
 pub mod message;
-pub mod noise_protocol;
 pub mod packet;
 pub mod peer;
-pub mod psk;
 pub mod psq;
 pub mod replay;
 pub mod session;
@@ -22,16 +18,12 @@ pub mod session_manager;
 pub mod state_machine;
 
 pub use error::LpError;
-pub use message::{ClientHelloData, LpMessage};
-pub use packet::{BOOTSTRAP_RECEIVER_IDX, LpPacket, OuterHeader};
+pub use message::LpMessage;
+pub use packet::{LpPacket, OuterHeader};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::LpSession;
 pub use session_manager::SessionManager;
 pub use state_machine::LpStateMachine;
-
-// noiserm
-pub const NOISE_PATTERN: &str = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";
-pub const NOISE_PSK_INDEX: u8 = 3;
 
 #[cfg(test)]
 pub fn kem_list() -> Vec<nym_kkt_ciphersuite::KEM> {
@@ -179,108 +171,109 @@ mod tests {
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, SignatureScheme};
 
     // Import the new standalone functions
-    use crate::codec::{parse_lp_packet, serialize_lp_packet};
+    use crate::codec::serialize_lp_packet;
 
     #[test]
     fn test_replay_protection_integration() {
-        for kem in kem_list() {
-            // Create session
-            let mut session = mock_session_for_test();
-
-            // === Packet 1 (Counter 0 - Should succeed) ===
-            let packet1 = LpPacket {
-                header: LpHeader {
-                    protocol_version: 1,
-                    reserved: [0u8; 3],
-                    receiver_idx: 42, // Matches session's sending_index assumption for this test
-                    counter: 0,
-                },
-                message: LpMessage::Busy,
-                trailer: [0u8; TRAILER_LEN],
-            };
-
-            // Serialize packet
-            let mut buf1 = BytesMut::new();
-            serialize_lp_packet(&packet1, &mut buf1, None).unwrap();
-
-            // Parse packet
-            let parsed_packet1 = parse_lp_packet(&buf1, None).unwrap();
-
-            // Perform replay check (should pass)
-            session
-                .receiving_counter_quick_check(parsed_packet1.header.counter)
-                .expect("Initial packet failed replay check");
-
-            // Mark received (simulating successful processing)
-            session
-                .receiving_counter_mark(parsed_packet1.header.counter)
-                .expect("Failed to mark initial packet received");
-
-            // === Packet 2 (Counter 0 - Replay, should fail check) ===
-            let packet2 = LpPacket {
-                header: LpHeader {
-                    protocol_version: 1,
-                    reserved: [0u8; 3],
-                    receiver_idx: 42,
-                    counter: 0, // Same counter as before (replay)
-                },
-                message: LpMessage::Busy,
-                trailer: [0u8; TRAILER_LEN],
-            };
-
-            // Serialize packet
-            let mut buf2 = BytesMut::new();
-            serialize_lp_packet(&packet2, &mut buf2, None).unwrap();
-
-            // Parse packet
-            let parsed_packet2 = parse_lp_packet(&buf2, None).unwrap();
-
-            // Perform replay check (should fail)
-            let replay_result =
-                session.receiving_counter_quick_check(parsed_packet2.header.counter);
-            assert!(replay_result.is_err());
-            match replay_result.unwrap_err() {
-                LpError::Replay(e) => {
-                    assert!(matches!(e, crate::replay::ReplayError::DuplicateCounter));
-                }
-                e => panic!("Expected replay error, got {:?}", e),
-            }
-            // Do not mark received as it failed validation
-
-            // === Packet 3 (Counter 1 - Should succeed) ===
-            let packet3 = LpPacket {
-                header: LpHeader {
-                    protocol_version: 1,
-                    reserved: [0u8; 3],
-                    receiver_idx: 42,
-                    counter: 1, // Incremented counter
-                },
-                message: LpMessage::Busy,
-                trailer: [0u8; TRAILER_LEN],
-            };
-
-            // Serialize packet
-            let mut buf3 = BytesMut::new();
-            serialize_lp_packet(&packet3, &mut buf3, None).unwrap();
-
-            // Parse packet
-            let parsed_packet3 = parse_lp_packet(&buf3, None).unwrap();
-
-            // Perform replay check (should pass)
-            session
-                .receiving_counter_quick_check(parsed_packet3.header.counter)
-                .expect("Packet 3 failed replay check");
-
-            // Mark received
-            session
-                .receiving_counter_mark(parsed_packet3.header.counter)
-                .expect("Failed to mark packet 3 received");
-
-            // Verify validator state directly on the session
-            let state = session.current_packet_cnt();
-            assert_eq!(state.0, 2); // Next expected counter (correct - was 1, now expects 2)
-            assert_eq!(state.1, 2); // Total marked received (correct - packets 1 and 3)
-        }
+        todo!()
+        // for kem in kem_list() {
+        //     // Create session
+        //     let mut session = mock_session_for_test();
+        //
+        //     // === Packet 1 (Counter 0 - Should succeed) ===
+        //     let packet1 = LpPacket {
+        //         header: LpHeader {
+        //             protocol_version: 1,
+        //             reserved: [0u8; 3],
+        //             receiver_idx: 42, // Matches session's sending_index assumption for this test
+        //             counter: 0,
+        //         },
+        //         message: LpMessage::Busy,
+        //         trailer: [0u8; TRAILER_LEN],
+        //     };
+        //
+        //     // Serialize packet
+        //     let mut buf1 = BytesMut::new();
+        //     serialize_lp_packet(&packet1, &mut buf1, None).unwrap();
+        //
+        //     // Parse packet
+        //     let parsed_packet1 = parse_lp_packet(&buf1, None).unwrap();
+        //
+        //     // Perform replay check (should pass)
+        //     session
+        //         .receiving_counter_quick_check(parsed_packet1.header.counter)
+        //         .expect("Initial packet failed replay check");
+        //
+        //     // Mark received (simulating successful processing)
+        //     session
+        //         .receiving_counter_mark(parsed_packet1.header.counter)
+        //         .expect("Failed to mark initial packet received");
+        //
+        //     // === Packet 2 (Counter 0 - Replay, should fail check) ===
+        //     let packet2 = LpPacket {
+        //         header: LpHeader {
+        //             protocol_version: 1,
+        //             reserved: [0u8; 3],
+        //             receiver_idx: 42,
+        //             counter: 0, // Same counter as before (replay)
+        //         },
+        //         message: LpMessage::Busy,
+        //         trailer: [0u8; TRAILER_LEN],
+        //     };
+        //
+        //     // Serialize packet
+        //     let mut buf2 = BytesMut::new();
+        //     serialize_lp_packet(&packet2, &mut buf2, None).unwrap();
+        //
+        //     // Parse packet
+        //     let parsed_packet2 = parse_lp_packet(&buf2, None).unwrap();
+        //
+        //     // Perform replay check (should fail)
+        //     let replay_result =
+        //         session.receiving_counter_quick_check(parsed_packet2.header.counter);
+        //     assert!(replay_result.is_err());
+        //     match replay_result.unwrap_err() {
+        //         LpError::Replay(e) => {
+        //             assert!(matches!(e, crate::replay::ReplayError::DuplicateCounter));
+        //         }
+        //         e => panic!("Expected replay error, got {:?}", e),
+        //     }
+        //     // Do not mark received as it failed validation
+        //
+        //     // === Packet 3 (Counter 1 - Should succeed) ===
+        //     let packet3 = LpPacket {
+        //         header: LpHeader {
+        //             protocol_version: 1,
+        //             reserved: [0u8; 3],
+        //             receiver_idx: 42,
+        //             counter: 1, // Incremented counter
+        //         },
+        //         message: LpMessage::Busy,
+        //         trailer: [0u8; TRAILER_LEN],
+        //     };
+        //
+        //     // Serialize packet
+        //     let mut buf3 = BytesMut::new();
+        //     serialize_lp_packet(&packet3, &mut buf3, None).unwrap();
+        //
+        //     // Parse packet
+        //     let parsed_packet3 = parse_lp_packet(&buf3, None).unwrap();
+        //
+        //     // Perform replay check (should pass)
+        //     session
+        //         .receiving_counter_quick_check(parsed_packet3.header.counter)
+        //         .expect("Packet 3 failed replay check");
+        //
+        //     // Mark received
+        //     session
+        //         .receiving_counter_mark(parsed_packet3.header.counter)
+        //         .expect("Failed to mark packet 3 received");
+        //
+        //     // Verify validator state directly on the session
+        //     let state = session.current_packet_cnt();
+        //     assert_eq!(state.0, 2); // Next expected counter (correct - was 1, now expects 2)
+        //     assert_eq!(state.1, 2); // Total marked received (correct - packets 1 and 3)
+        // }
     }
 
     #[test]

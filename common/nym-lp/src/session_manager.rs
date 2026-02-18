@@ -6,20 +6,17 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
-use crate::peer::{LpLocalPeer, LpRemotePeer};
-use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
-use crate::{LpError, LpMessage, LpSession, LpStateMachine};
+use crate::session::SessionId;
+use crate::state_machine::{LpAction, LpInput, LpStateBare};
+use crate::{LpError, LpSession, LpStateMachine};
 use std::collections::HashMap;
-
-#[cfg(test)]
-use libcrux_psq::handshake::types::DHPublicKey;
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
 /// The SessionManager is responsible for creating, storing, and retrieving sessions
 pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
-    state_machines: HashMap<u32, LpStateMachine>,
+    state_machines: HashMap<SessionId, LpStateMachine>,
 }
 
 impl Default for SessionManager {
@@ -38,62 +35,54 @@ impl SessionManager {
 
     pub fn process_input(
         &mut self,
-        lp_id: u32,
+        lp_id: SessionId,
         input: LpInput,
     ) -> Result<Option<LpAction>, LpError> {
         self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
     }
 
-    pub fn closed(&self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn closed(&self, lp_id: SessionId) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Closed)
     }
 
-    pub fn transport(&self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn transport(&self, lp_id: SessionId) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Transport)
     }
 
     #[cfg(test)]
-    fn get_state_machine_id(&self, lp_id: u32) -> Result<u32, LpError> {
+    fn get_state_machine_id(&self, lp_id: SessionId) -> Result<SessionId, LpError> {
         self.with_state_machine(lp_id, |sm| sm.id())?
     }
 
-    pub fn get_state(&self, lp_id: u32) -> Result<LpStateBare, LpError> {
+    pub fn get_state(&self, lp_id: SessionId) -> Result<LpStateBare, LpError> {
         self.with_state_machine(lp_id, |sm| Ok(sm.bare_state()))?
     }
 
-    pub fn receiving_counter_quick_check(&self, lp_id: u32, counter: u64) -> Result<(), LpError> {
+    pub fn receiving_counter_quick_check(
+        &self,
+        lp_id: SessionId,
+        counter: u64,
+    ) -> Result<(), LpError> {
         self.with_state_machine(lp_id, |sm| {
             sm.session()?.receiving_counter_quick_check(counter)
         })?
     }
 
-    pub fn receiving_counter_mark(&mut self, lp_id: u32, counter: u64) -> Result<(), LpError> {
+    pub fn receiving_counter_mark(
+        &mut self,
+        lp_id: SessionId,
+        counter: u64,
+    ) -> Result<(), LpError> {
         self.with_state_machine_mut(lp_id, |sm| {
             sm.session_mut()?.receiving_counter_mark(counter)
         })?
     }
 
-    pub fn next_counter(&mut self, lp_id: u32) -> Result<u64, LpError> {
+    pub fn next_counter(&mut self, lp_id: SessionId) -> Result<u64, LpError> {
         self.with_state_machine_mut(lp_id, |sm| Ok(sm.session_mut()?.next_counter()))?
     }
 
-    pub fn decrypt_data(&mut self, lp_id: u32, message: &LpMessage) -> Result<Vec<u8>, LpError> {
-        self.with_state_machine_mut(lp_id, |sm| {
-            sm.session_mut()?
-                .decrypt_data(message)
-                .map_err(LpError::NoiseError)
-        })?
-    }
-
-    pub fn encrypt_data(&mut self, lp_id: u32, message: &[u8]) -> Result<LpMessage, LpError> {
-        self.with_state_machine_mut(lp_id, |sm| {
-            sm.session_mut()?
-                .encrypt_data(message)
-                .map_err(LpError::NoiseError)
-        })?
-    }
-
-    pub fn current_packet_cnt(&self, lp_id: u32) -> Result<(u64, u64), LpError> {
+    pub fn current_packet_cnt(&self, lp_id: SessionId) -> Result<(u64, u64), LpError> {
         self.with_state_machine(lp_id, |sm| Ok(sm.session()?.current_packet_cnt()))?
     }
 
@@ -101,11 +90,11 @@ impl SessionManager {
         self.state_machines.len()
     }
 
-    pub fn state_machine_exists(&self, lp_id: u32) -> bool {
+    pub fn state_machine_exists(&self, lp_id: SessionId) -> bool {
         self.state_machines.contains_key(&lp_id)
     }
 
-    pub fn with_state_machine<F, R>(&self, lp_id: u32, f: F) -> Result<R, LpError>
+    pub fn with_state_machine<F, R>(&self, lp_id: SessionId, f: F) -> Result<R, LpError>
     where
         F: FnOnce(&LpStateMachine) -> R,
     {
@@ -117,7 +106,7 @@ impl SessionManager {
     }
 
     // For mutable access (like running process_input)
-    pub fn with_state_machine_mut<F, R>(&mut self, lp_id: u32, f: F) -> Result<R, LpError>
+    pub fn with_state_machine_mut<F, R>(&mut self, lp_id: SessionId, f: F) -> Result<R, LpError>
     where
         F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
     {
@@ -128,15 +117,15 @@ impl SessionManager {
         }
     }
 
-    pub fn create_session_state_machine(&mut self, lp_session: LpSession) -> u32 {
-        let receiver_index = lp_session.id();
+    pub fn create_session_state_machine(&mut self, lp_session: LpSession) -> SessionId {
+        let session_id = *lp_session.session_identifier();
         let sm = LpStateMachine::new(lp_session);
-        self.state_machines.insert(receiver_index, sm);
-        receiver_index
+        self.state_machines.insert(session_id, sm);
+        session_id
     }
 
     /// Method to remove a state machine
-    pub fn remove_state_machine(&mut self, lp_id: u32) -> bool {
+    pub fn remove_state_machine(&mut self, lp_id: SessionId) -> bool {
         let removed = self.state_machines.remove(&lp_id);
 
         removed.is_some()

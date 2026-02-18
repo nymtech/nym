@@ -155,18 +155,16 @@ where
         let mut psq_initiator = build_psq_principal(rng, protocol, initiator_ciphersuite)?;
 
         // PSQ msg 1 send
-        let mut buf = [0u8; 2048];
+        let mut buf = [0u8; 1536];
         // annoyingly `RegistrationInitiator` has to write into unresizable `&mut [u8]`...
         let n = psq_initiator.write_message(&[], &mut buf)?;
         debug!("sending PSQ handshake msg");
         conn.send_serialised_packet(&buf[..n]).await?;
 
         // 5. receive and process PSQ response
-        let TODO = "change buf size";
-        let mut buf = [0u8; 2048];
         let psq_msg = conn.receive_raw_packet().await?;
         debug!("received PSQ handshake msg");
-        psq_initiator.read_message(&psq_msg, &mut buf)?;
+        psq_initiator.read_message(&psq_msg, &mut [])?;
 
         if !psq_initiator.is_handshake_finished() {
             return Err(LpError::kkt_psq_handshake(
@@ -281,54 +279,14 @@ mod tests {
 
         let session_init = init_fut.await???;
 
-        let i_transport = session_init.session;
         let encapsulation_key = session_init.encapsulation_key.unwrap();
-        let r_transport = responder.into_session().unwrap();
+        let mut i_transport = session_init.session;
+        let mut r_transport = responder.into_session().unwrap();
 
         // test serialization, deserialization
         let mut msg_channel = vec![0u8; 2048];
         let mut payload_buf_responder = vec![0u8; 4096];
         let mut payload_buf_initiator = vec![0u8; 4096];
-        let mut session_storage = vec![0u8; 4096];
-        i_transport
-            .serialize(
-                &mut session_storage,
-                SessionBinding {
-                    initiator_authenticator: &Authenticator::Dh(init_remote.x25519_public),
-                    responder_ecdh_pk: &responder_x25519_keypair.pk,
-                    responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
-                },
-            )
-            .unwrap();
-        let mut i_transport = Session::deserialize(
-            &session_storage,
-            SessionBinding {
-                initiator_authenticator: &Authenticator::Dh(init_remote.x25519_public),
-                responder_ecdh_pk: &responder_x25519_keypair.pk,
-                responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
-            },
-        )
-        .unwrap();
-
-        r_transport
-            .serialize(
-                &mut session_storage,
-                SessionBinding {
-                    initiator_authenticator: &initiator_authenticator,
-                    responder_ecdh_pk: &responder_x25519_keypair.pk,
-                    responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
-                },
-            )
-            .unwrap();
-        let mut r_transport = Session::deserialize(
-            &session_storage,
-            SessionBinding {
-                initiator_authenticator: &initiator_authenticator,
-                responder_ecdh_pk: &responder_x25519_keypair.pk,
-                responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
-            },
-        )
-        .unwrap();
 
         let mut channel_i = i_transport.transport_channel().unwrap();
         let mut channel_r = r_transport.transport_channel().unwrap();

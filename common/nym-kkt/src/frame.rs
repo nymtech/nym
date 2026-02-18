@@ -12,11 +12,8 @@ use crate::{
     carrier::Carrier,
     context::{KKT_CONTEXT_LEN, KKTContext},
     error::KKTError,
-    masked_byte::{MASKED_BYTE_LEN, MaskedByte},
 };
-use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
-use nym_kkt_ciphersuite::x25519;
-use nym_kkt_ciphersuite::x25519::PUBLIC_KEY_LENGTH;
+use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 use rand09::{CryptoRng, RngCore};
 
 pub(crate) const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";

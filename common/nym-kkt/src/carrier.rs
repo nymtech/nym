@@ -2,14 +2,14 @@ use libcrux_chacha20poly1305::TAG_LEN;
 use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 use nym_crypto::hkdf::blake3::derive_key_blake3;
 use rand09::{CryptoRng, RngCore};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::error::KKTError;
 
 // This is arbitrary
 pub const MAX_PAYLOAD_LEN: usize = 1_000_000;
-const CARRIER_KDF_INFO_TX: &str = "CARRIER_V1_KDF_RX";
-const CARRIER_KDF_INFO_RX: &str = "CARRIER_V1_KDF_TX";
+const CARRIER_KDF_INFO_TX: &str = "CARRIER_V1_KDF_TX";
+const CARRIER_KDF_INFO_RX: &str = "CARRIER_V1_KDF_RX";
 
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct Carrier {
@@ -52,10 +52,12 @@ impl Carrier {
             rx_counter: 1,
         }
     }
+
     pub fn new<R>(
         rng: &mut R,
         remote_public_key: &DHPublicKey,
         context: &[u8],
+        is_initiator: bool,
     ) -> Result<(Self, DHPublicKey), KKTError>
     where
         R: RngCore + CryptoRng,
@@ -69,31 +71,29 @@ impl Carrier {
             })?;
 
         Ok((
-            Self::from_secret_slice(shared_secret.as_ref(), context),
+            Self::from_secret_slice(shared_secret.as_ref(), context, is_initiator),
             ephemeral_keypair.pk,
         ))
     }
 
-    pub(crate) fn from_secret_slice(secret: &[u8], context: &[u8]) -> Self {
-        let tx_key = derive_key_blake3(CARRIER_KDF_INFO_TX, secret, context);
-        let rx_key = derive_key_blake3(CARRIER_KDF_INFO_RX, secret, context);
+    pub(crate) fn from_secret_slice(secret: &[u8], context: &[u8], is_initiator: bool) -> Self {
+        let (tx_key, rx_key) = if is_initiator {
+            (
+                derive_key_blake3(CARRIER_KDF_INFO_TX, secret, context),
+                derive_key_blake3(CARRIER_KDF_INFO_RX, secret, context),
+            )
+        } else {
+            (
+                derive_key_blake3(CARRIER_KDF_INFO_RX, secret, context),
+                derive_key_blake3(CARRIER_KDF_INFO_TX, secret, context),
+            )
+        };
+
         Self::init(tx_key, rx_key)
     }
 
-    pub fn from_secret(mut secret: [u8; 32], context: &[u8]) -> Self {
-        let tx_key = derive_key_blake3(CARRIER_KDF_INFO_TX, secret.as_ref(), context);
-        let rx_key = derive_key_blake3(CARRIER_KDF_INFO_RX, secret.as_ref(), context);
-        secret.zeroize();
-        Self::init(tx_key, rx_key)
-    }
-
-    pub(crate) fn flip_keys(self) -> Self {
-        Self {
-            tx_key: self.rx_key,
-            rx_key: self.tx_key,
-            tx_counter: self.rx_counter,
-            rx_counter: self.tx_counter,
-        }
+    pub fn from_secret(secret: [u8; 32], context: &[u8], is_initiator: bool) -> Self {
+        Self::from_secret_slice(Zeroizing::new(secret).as_slice(), context, is_initiator)
     }
 
     pub fn encrypt(&mut self, plaintext: &[u8]) -> Result<Vec<u8>, KKTError> {
@@ -157,9 +157,8 @@ mod tests {
 
         let r_shared_secret = r_x25519.sk().diffie_hellman(&ephemeral_keypair.pk).unwrap();
 
-        let mut i_carrier = Carrier::from_secret_slice(i_shared_secret.as_ref(), &context);
-        let mut r_carrier =
-            Carrier::from_secret_slice(r_shared_secret.as_ref(), &context).flip_keys();
+        let mut i_carrier = Carrier::from_secret_slice(i_shared_secret.as_ref(), &context, true);
+        let mut r_carrier = Carrier::from_secret_slice(r_shared_secret.as_ref(), &context, false);
 
         let test1 = b"test1: i>r #1";
         let ct1 = i_carrier.encrypt(test1).unwrap();

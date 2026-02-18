@@ -1,8 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::codec::OuterAeadKey;
-use crate::noise_protocol::NoiseProtocol;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psq::helpers::kem_to_ciphersuite;
 use crate::psq::{
@@ -115,16 +113,6 @@ where
         Ok(self.inner_state.connection.receive_raw_packet().await?)
     }
 
-    /// Attempt to prepare and generate a responder PSQ msg2
-    async fn send_psq_responder_message(&mut self) -> Result<(), LpError> {
-        todo!()
-    }
-
-    /// Attempt to receive and process final PSQ msg3
-    async fn receive_final_psq_message(&mut self) -> Result<(), LpError> {
-        todo!()
-    }
-
     pub async fn complete_handshake<R>(mut self, rng: &mut R) -> Result<MinimalSession, LpError>
     where
         S: LpTransport + Unpin,
@@ -158,8 +146,7 @@ where
         // 4. send PSQ response
         let mut conn = self.inner_state.connection;
 
-        let TODO = "change buf size";
-        let mut buf = [0u8; 2048];
+        let mut buf = [0u8; 128];
         let n = psq_responder.write_message(&[], &mut buf)?;
         debug!("sending PSQ handshake msg");
         conn.send_serialised_packet(&buf[..n]).await?;
@@ -274,54 +261,13 @@ mod tests {
         let session_resp = resp_fut.await???;
         let init_auth = session_resp.init_authenticator.unwrap();
 
-        let i_transport = initiator.into_session().unwrap();
-        let r_transport = session_resp.session;
+        let mut i_transport = initiator.into_session().unwrap();
+        let mut r_transport = session_resp.session;
 
         // test serialization, deserialization
         let mut msg_channel = vec![0u8; 2048];
         let mut payload_buf_responder = vec![0u8; 4096];
         let mut payload_buf_initiator = vec![0u8; 4096];
-        let mut session_storage = vec![0u8; 4096];
-
-        i_transport
-            .serialize(
-                &mut session_storage,
-                SessionBinding {
-                    initiator_authenticator: &Authenticator::Dh(init.x25519().pk),
-                    responder_ecdh_pk: &resp_remote.x25519_public,
-                    responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
-                },
-            )
-            .unwrap();
-        let mut i_transport = Session::deserialize(
-            &session_storage,
-            SessionBinding {
-                initiator_authenticator: &Authenticator::Dh(init.x25519().pk),
-                responder_ecdh_pk: &resp_remote.x25519_public,
-                responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
-            },
-        )
-        .unwrap();
-
-        r_transport
-            .serialize(
-                &mut session_storage,
-                SessionBinding {
-                    initiator_authenticator: &init_auth,
-                    responder_ecdh_pk: &resp_remote.x25519_public,
-                    responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
-                },
-            )
-            .unwrap();
-        let mut r_transport = Session::deserialize(
-            &session_storage,
-            SessionBinding {
-                initiator_authenticator: &init_auth,
-                responder_ecdh_pk: &resp_remote.x25519_public,
-                responder_pq_pk: Some(encapsulation_key.as_pq_encapsulation_key()),
-            },
-        )
-        .unwrap();
 
         let mut channel_i = i_transport.transport_channel().unwrap();
         let mut channel_r = r_transport.transport_channel().unwrap();

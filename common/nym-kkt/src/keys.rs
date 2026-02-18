@@ -35,7 +35,7 @@ impl KEMKeys {
         match kem {
             KEM::McEliece => Some(self.mc_eliece.pk.as_ref()),
             KEM::MlKem768 => Some(self.ml_kem768.pk()),
-            _ => None,
+            // _ => None,
         }
     }
 
@@ -69,7 +69,7 @@ impl EncapsulationKey {
         }
     }
 
-    pub fn as_pq_encapsulation_key(&self) -> PQEncapsulationKey {
+    pub fn as_pq_encapsulation_key(&self) -> PQEncapsulationKey<'_> {
         match self {
             EncapsulationKey::McEliece(pk) => PQEncapsulationKey::CMC(pk),
             EncapsulationKey::MlKem768(pk) => PQEncapsulationKey::MlKem(pk),
@@ -93,6 +93,13 @@ impl EncapsulationKey {
                     classic_mceliece::PublicKey::try_from(boxed_array).unwrap(),
                 ))
             }
+        }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        match self {
+            EncapsulationKey::McEliece(k) => k.as_ref(),
+            EncapsulationKey::MlKem768(k) => k.as_ref(),
         }
     }
 }

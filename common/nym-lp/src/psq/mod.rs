@@ -1,13 +1,12 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::codec::OuterAeadKey;
+use crate::LpMessage;
 use crate::packet::version;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psq::helpers::LpTransportHandshakeExt;
 use crate::psq::initiator::PSQHandshakeStateInitiator;
 use crate::psq::responder::PSQHandshakeStateResponder;
-use crate::{LpError, LpMessage};
 use libcrux_psq::handshake::types::Authenticator;
 use libcrux_psq::session::Session;
 use nym_kkt::keys::EncapsulationKey;
@@ -125,14 +124,13 @@ mod tests {
     use libcrux_psq::session::{Session, SessionBinding};
     use libcrux_psq::{Channel, IntoSession};
     use nym_kkt::initiator::KKTInitiator;
-    use nym_kkt::message::{KKTRequest, KKTResponse};
     use nym_kkt::responder::KKTResponder;
     use nym_kkt_ciphersuite::{HashFunction, KEM, SignatureScheme};
     use nym_test_utils::helpers::{
         DeterministicRng09Send, deterministic_rng_09, u64_seeded_rng_09,
     };
     use nym_test_utils::mocks::async_read_write::MockIOStream;
-    use nym_test_utils::traits::{Leak, Timeboxed, TimeboxedSpawnable};
+    use nym_test_utils::traits::{Leak, TimeboxedSpawnable};
     use tokio::join;
 
     #[allow(dead_code)]

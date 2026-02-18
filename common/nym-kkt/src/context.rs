@@ -204,7 +204,7 @@ mod tests {
         let valid_context = KKTContext::new(
             KKTRole::Initiator,
             KKTMode::Mutual,
-            &Ciphersuite::decode([255, 1, 0, 0]).unwrap(),
+            Ciphersuite::decode([1, 1, 0, 0]).unwrap(),
         );
         let encoded = valid_context.encode().unwrap();
         let decoded = KKTContext::try_decode(encoded).unwrap();

@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-use libcrux_kem::{MlKem768PrivateKey, MlKem768PublicKey};
 use libcrux_ml_kem::mlkem768::MlKem768KeyPair;
 use libcrux_psq::handshake::types::DHKeyPair;
 use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, HashFunction, KeyDigests};
 use rand09::{CryptoRng, RngCore};
+use std::collections::HashMap;
 
 pub fn generate_keypair_x25519<R>(rng: &mut R) -> DHKeyPair
 where
@@ -61,18 +62,6 @@ pub fn validate_encapsulation_key(
 ) -> bool {
     compare_hashes(
         &hash_encapsulation_key(hash_function, hash_length, encapsulation_key),
-        expected_hash_bytes,
-    )
-}
-
-pub fn validate_key_bytes(
-    hash_function: HashFunction,
-    hash_length: usize,
-    key_bytes: &[u8],
-    expected_hash_bytes: &[u8],
-) -> bool {
-    compare_hashes(
-        &hash_key_bytes(hash_function, hash_length, key_bytes),
         expected_hash_bytes,
     )
 }

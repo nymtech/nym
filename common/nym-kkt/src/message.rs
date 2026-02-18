@@ -143,7 +143,11 @@ impl KKTRequestPlaintext {
             .diffie_hellman(responder_pubkey)
             .map_err(KKTError::shared_secret_derivation_failure)?;
 
-        Ok(Carrier::from_secret_slice(shared_secret.as_ref(), &ctx))
+        Ok(Carrier::from_secret_slice(
+            shared_secret.as_ref(),
+            &ctx,
+            true,
+        ))
     }
 
     pub(crate) fn derive_responder_carrier(
@@ -159,11 +163,15 @@ impl KKTRequestPlaintext {
             .sk()
             .diffie_hellman(&self.dh_pubkey)
             .map_err(KKTError::shared_secret_derivation_failure)?;
-        Ok(Carrier::from_secret_slice(shared_secret.as_ref(), &ctx).flip_keys())
+        Ok(Carrier::from_secret_slice(
+            shared_secret.as_ref(),
+            &ctx,
+            false,
+        ))
     }
 }
 
-pub(crate) struct DecryptedRequestFrame {
+pub struct DecryptedRequestFrame {
     /// Derived carrier used for decrypting this frame and encrypting the response
     pub(crate) carrier: Carrier,
 

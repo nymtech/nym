@@ -211,7 +211,7 @@ mod tests {
     fn rekey_test() {
         let mut rng = rand09::rng();
 
-        for kem in [KEM::MlKem768, KEM::XWing] {
+        for kem in [KEM::MlKem768] {
             let (rekey_state, request_message) =
                 RekeyInitiator::generate_request(&mut rng, kem).unwrap();
 

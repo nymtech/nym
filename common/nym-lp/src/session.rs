@@ -69,9 +69,6 @@ pub struct LpSession {
     /// Used for future version negotiation and compatibility checks.
     version: u8,
 
-    /// Outer AEAD key for packet encryption (derived from PSK after PSQ handshake).
-    outer_aead_key: OuterAeadKey,
-
     /// Representation of a local Lewes Protocol peer
     /// encapsulating all the known information and keys.
     local_peer: LpLocalPeer,
@@ -79,14 +76,6 @@ pub struct LpSession {
     /// Representation of a remote Lewes Protocol peer
     /// encapsulating all the known information and keys.
     remote_peer: LpRemotePeer,
-
-    // TODO: ALL BELOW maybe not needed after all?
-    /// Raw PQ shared secret (K_pq) from PSQ KEM encapsulation/decapsulation.
-    /// Stored after PSQ handshake completes for subsession PSK derivation.
-    pq_shared_secret: PqSharedSecret,
-
-    /// Noise protocol state machine
-    noise_state: NoiseProtocol,
 
     /// Counter for outgoing packets
     sending_counter: u64,
@@ -129,20 +118,21 @@ impl LpSession {
         pq_shared_secret: PqSharedSecret,
         noise_state: NoiseProtocol,
     ) -> Self {
-        LpSession {
-            session_id,
-            version,
-            outer_aead_key,
-            local_peer,
-            remote_peer,
-            pq_shared_secret,
-            noise_state,
-            sending_counter: 0,
-            receiving_counter: Default::default(),
-            subsession_counter: 0,
-            read_only: false,
-            successor_session_id: None,
-        }
+        todo!()
+        // LpSession {
+        //     session_id,
+        //     version,
+        //     outer_aead_key,
+        //     local_peer,
+        //     remote_peer,
+        //     pq_shared_secret,
+        //     noise_state,
+        //     sending_counter: 0,
+        //     receiving_counter: Default::default(),
+        //     subsession_counter: 0,
+        //     read_only: false,
+        //     successor_session_id: None,
+        // }
     }
 
     /// Create an instance of `Ciphersuite` using hardcoded defaults.
@@ -314,14 +304,6 @@ impl LpSession {
         self.receiving_counter.current_packet_cnt()
     }
 
-    /// Returns the PQ shared secret (K_pq).
-    ///
-    /// This is the raw KEM output from PSQ before Blake3 KDF combination.
-    /// Used for deriving subsession PSKs to maintain PQ protection.
-    pub fn pq_shared_secret(&self) -> &PqSharedSecret {
-        &self.pq_shared_secret
-    }
-
     /// Gets the next subsession index and increments the counter.
     ///
     /// Each subsession requires a unique index to ensure unique PSK derivation.
@@ -389,13 +371,14 @@ impl LpSession {
     /// * `Ok(Vec<u8>)` containing the encrypted Noise message ciphertext.
     /// * `Err(NoiseError)` if the session is not in transport mode or encryption fails.
     pub fn encrypt_data(&mut self, payload: &[u8]) -> Result<LpMessage, NoiseError> {
-        // Check if session is read-only (demoted)
-        if self.read_only {
-            return Err(NoiseError::SessionReadOnly);
-        }
-
-        let payload = self.noise_state.write_message(payload)?;
-        Ok(LpMessage::EncryptedData(EncryptedDataPayload(payload)))
+        // // Check if session is read-only (demoted)
+        // if self.read_only {
+        //     return Err(NoiseError::SessionReadOnly);
+        // }
+        //
+        // let payload = self.noise_state.write_message(payload)?;
+        // Ok(LpMessage::EncryptedData(EncryptedDataPayload(payload)))
+        todo!()
     }
 
     /// Decrypts an incoming Noise message containing application data.
@@ -411,10 +394,11 @@ impl LpSession {
     pub fn decrypt_data(&mut self, noise_ciphertext: &LpMessage) -> Result<Vec<u8>, NoiseError> {
         let payload = noise_ciphertext.payload();
 
-        match self.noise_state.read_message(payload)? {
-            ReadResult::DecryptedData(data) => Ok(data),
-            _ => Err(NoiseError::IncorrectStateError),
-        }
+        todo!()
+        // match self.noise_state.read_message(payload)? {
+        //     ReadResult::DecryptedData(data) => Ok(data),
+        //     _ => Err(NoiseError::IncorrectStateError),
+        // }
     }
 
     /// Creates a new subsession using Noise KKpsk0 pattern.
@@ -590,21 +574,22 @@ impl SubsessionHandshake {
         // Derive outer AEAD key from the subsession PSK
         let outer_key = OuterAeadKey::from_psk(&self.subsession_psk);
 
-        Ok(LpSession {
-            // noiserm
-            session_id: receiver_index,
-            noise_state,
-            sending_counter: 0,
-            receiving_counter: ReceivingKeyCounterValidator::new(0),
-            local_peer: self.local_peer,
-            remote_peer: self.remote_peer,
-            outer_aead_key: outer_key,
-            pq_shared_secret: self.pq_shared_secret,
-            subsession_counter: 0,
-            read_only: false,
-            successor_session_id: None,
-            version: self.negotiated_version,
-        })
+        todo!()
+        // Ok(LpSession {
+        //     // noiserm
+        //     session_id: receiver_index,
+        //     noise_state,
+        //     sending_counter: 0,
+        //     receiving_counter: ReceivingKeyCounterValidator::new(0),
+        //     local_peer: self.local_peer,
+        //     remote_peer: self.remote_peer,
+        //     outer_aead_key: outer_key,
+        //     pq_shared_secret: self.pq_shared_secret,
+        //     subsession_counter: 0,
+        //     read_only: false,
+        //     successor_session_id: None,
+        //     version: self.negotiated_version,
+        // })
     }
 }
 

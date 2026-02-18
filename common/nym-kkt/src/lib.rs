@@ -21,6 +21,7 @@ const _: () = assert!(KKT_VERSION < 1 << 4);
 mod test {
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
 
+    use crate::keys::KEMKeys;
     use crate::{
         initiator::KKTInitiator,
         key_utils::{
@@ -46,55 +47,47 @@ mod test {
             // generate kem public keys
 
             let responder_mlkem_keypair = generate_keypair_mlkem(&mut rng);
-
             let responder_mceliece_keypair = generate_keypair_mceliece(&mut rng);
 
+            let responder_kem = KEMKeys::new(responder_mceliece_keypair, responder_mlkem_keypair);
+
             let r_dir_hash_mlkem = hash_encapsulation_key(
-                // &ciphersuite.hash_function(),
-                &hash_function,
-                // ciphersuite.hash_len(),
+                hash_function,
                 HashLength::Default.value(),
-                responder_mlkem_keypair.1.as_slice().as_slice(),
+                responder_kem.ml_kem768_encapsulation_key().as_slice(),
             );
 
             let r_dir_hash_mceliece = hash_encapsulation_key(
-                // &ciphersuite.hash_function(),
-                &hash_function,
-                // ciphersuite.hash_len(),
+                hash_function,
                 HashLength::Default.value(),
-                responder_mceliece_keypair.1.as_ref(),
+                responder_kem.mc_eliece_encapsulation_key().as_ref(),
             );
             let initiator_mlkem_keypair = generate_keypair_mlkem(&mut rng);
             let initiator_mceliece_keypair = generate_keypair_mceliece(&mut rng);
 
             let _i_dir_hash_mlkem = hash_encapsulation_key(
-                // &ciphersuite.hash_function(),
-                &hash_function,
-                // ciphersuite.hash_len(),
+                hash_function,
                 HashLength::Default.value(),
-                initiator_mlkem_keypair.1.as_slice().as_slice(),
+                initiator_mlkem_keypair.public_key().as_slice(),
             );
 
             let _i_dir_hash_mceliece = hash_encapsulation_key(
-                // &ciphersuite.hash_function(),
-                &hash_function,
-                // ciphersuite.hash_len(),
+                hash_function,
                 HashLength::Default.value(),
-                initiator_mceliece_keypair.1.as_ref(),
+                initiator_mceliece_keypair.pk.as_ref(),
             );
 
             let responder = KKTResponder::new(
                 &responder_x25519_keypair,
-                Some(&responder_mlkem_keypair.1),
-                Some(&responder_mceliece_keypair.1),
+                &responder_kem,
                 &[
                     HashFunction::Blake3,
                     HashFunction::SHA256,
                     HashFunction::Shake128,
                     HashFunction::Shake256,
                 ],
-                &[1],
                 &[SignatureScheme::Ed25519],
+                &[1],
             )
             .unwrap();
 
@@ -107,22 +100,22 @@ mod test {
                     None,
                 )
                 .unwrap();
-                let (mut initiator, request_bytes) = KKTInitiator::generate_one_way_request(
+                let (mut initiator, request) = KKTInitiator::generate_one_way_request(
                     &mut rng,
-                    &ciphersuite,
+                    ciphersuite,
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mlkem,
                     1u8,
                 )
                 .unwrap();
 
-                let (response_bytes, _) = responder.process_request(&request_bytes).unwrap();
+                let response = responder.process_request(request).unwrap();
 
-                let (i_obtained_key, _) = initiator.process_response(&response_bytes).unwrap();
+                let result = initiator.process_response(response.response).unwrap();
 
                 assert_eq!(
-                    i_obtained_key,
-                    responder_mlkem_keypair.1.as_slice().as_slice(),
+                    result.encapsulation_key.as_bytes(),
+                    responder_kem.ml_kem768_encapsulation_key().as_slice(),
                 )
             }
             // Mutual - MlKem
@@ -134,26 +127,27 @@ mod test {
                     None,
                 )
                 .unwrap();
-                let (mut initiator, request_bytes) = KKTInitiator::generate_one_way_request(
+                let (mut initiator, request) = KKTInitiator::generate_one_way_request(
                     &mut rng,
-                    &ciphersuite,
+                    ciphersuite,
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mlkem,
                     1u8,
                 )
                 .unwrap();
 
-                let (response_bytes, r_obtained_key) =
-                    responder.process_request(&request_bytes).unwrap();
+                let processed_request = responder.process_request(request).unwrap();
 
                 // if we keep unverified keys, this should change
-                assert!(r_obtained_key.is_none());
+                assert!(processed_request.remote_encapsulation_key.is_none());
 
-                let (i_obtained_key, _) = initiator.process_response(&response_bytes).unwrap();
+                let processed_response = initiator
+                    .process_response(processed_request.response)
+                    .unwrap();
 
                 assert_eq!(
-                    i_obtained_key,
-                    responder_mlkem_keypair.1.as_slice().as_slice(),
+                    processed_response.encapsulation_key.as_bytes(),
+                    responder_kem.ml_kem768_encapsulation_key().as_slice(),
                 )
             }
 
@@ -166,20 +160,25 @@ mod test {
                     None,
                 )
                 .unwrap();
-                let (mut initiator, request_bytes) = KKTInitiator::generate_one_way_request(
+                let (mut initiator, request) = KKTInitiator::generate_one_way_request(
                     &mut rng,
-                    &ciphersuite,
+                    ciphersuite,
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mceliece,
                     1u8,
                 )
                 .unwrap();
 
-                let (response_bytes, _) = responder.process_request(&request_bytes).unwrap();
+                let processed_request = responder.process_request(request).unwrap();
 
-                let (i_obtained_key, _) = initiator.process_response(&response_bytes).unwrap();
+                let processed_response = initiator
+                    .process_response(processed_request.response)
+                    .unwrap();
 
-                assert_eq!(i_obtained_key, responder_mceliece_keypair.1.as_ref(),)
+                assert_eq!(
+                    processed_response.encapsulation_key.as_bytes(),
+                    responder_kem.mc_eliece_encapsulation_key().as_ref()
+                )
             }
             // Mutual - MlKem
             {
@@ -190,24 +189,28 @@ mod test {
                     None,
                 )
                 .unwrap();
-                let (mut initiator, request_bytes) = KKTInitiator::generate_one_way_request(
+                let (mut initiator, request) = KKTInitiator::generate_one_way_request(
                     &mut rng,
-                    &ciphersuite,
+                    ciphersuite,
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mceliece,
                     1u8,
                 )
                 .unwrap();
 
-                let (response_bytes, r_obtained_key) =
-                    responder.process_request(&request_bytes).unwrap();
+                let processed_request = responder.process_request(request).unwrap();
 
                 // if we keep unverified keys, this should change
-                assert!(r_obtained_key.is_none());
+                assert!(processed_request.remote_encapsulation_key.is_none());
 
-                let (i_obtained_key, _) = initiator.process_response(&response_bytes).unwrap();
+                let processed_response = initiator
+                    .process_response(processed_request.response)
+                    .unwrap();
 
-                assert_eq!(i_obtained_key, responder_mceliece_keypair.1.as_ref(),)
+                assert_eq!(
+                    processed_response.encapsulation_key.as_bytes(),
+                    responder_kem.mc_eliece_encapsulation_key().as_ref()
+                )
             }
         }
     }

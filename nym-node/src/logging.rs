@@ -8,8 +8,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
 /// Configuration for OpenTelemetry OTLP export.
-/// Fields are only read when the `otel` feature is enabled.
-#[allow(dead_code)]
+#[cfg(feature = "otel")]
 pub(crate) struct OtelConfig {
     /// OTLP/gRPC collector endpoint, e.g. `http://localhost:4317`
     /// or `https://ingest.eu.signoz.cloud:443` for SigNoz Cloud.
@@ -134,8 +133,7 @@ pub(crate) fn setup_tracing_logger(otel: Option<OtelConfig>) -> anyhow::Result<O
 
 /// Non-OTel variant -- identical subscriber stack without the OTLP layer.
 #[cfg(not(feature = "otel"))]
-pub(crate) fn setup_tracing_logger(otel: Option<OtelConfig>) -> anyhow::Result<()> {
-    let _ = otel;
+pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {
     let stderr_layer =
         default_tracing_fmt_layer(std::io::stderr).with_filter(granual_filtered_env()?);
 

@@ -73,16 +73,16 @@ impl SharedFinalHopData {
         let start = Instant::now();
         debug!("Storing received message for {client_address} on the disk...",);
         let result = self.storage.store_message(client_address, message).await;
-        let store_ms = start.elapsed().as_millis() as u64;
+        let store_us = start.elapsed().as_micros() as u64;
         if result.is_ok() {
             debug!(
                 event = "gateway.disk_store",
-                store_ms, "stored message for {client_address} on disk in {store_ms}ms"
+                store_us, "stored message for {client_address} on disk in {store_us}us"
             );
         } else {
             warn!(
                 event = "gateway.disk_store_failed",
-                store_ms, "failed to store message for {client_address} on disk after {store_ms}ms"
+                store_us, "failed to store message for {client_address} on disk after {store_us}us"
             );
         }
         result

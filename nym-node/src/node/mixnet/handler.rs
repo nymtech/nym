@@ -195,8 +195,10 @@ impl ConnectionHandler {
         let message = final_hop_data.message;
         let has_ack = final_hop_data.forward_ack.is_some();
 
+        // if possible attempt to push message directly to the client
         match self.shared.try_push_message_to_client(client, message) {
             Err(unsent_plaintext) => {
+                // if that failed, store it on disk
                 Span::current().record("client_online", false);
                 match self
                     .shared
@@ -221,6 +223,8 @@ impl ConnectionHandler {
             }
         }
 
+        // if we managed to either push message directly to the [online] client or store it at
+        // disk, forward the ack
         self.shared.forward_ack_packet(final_hop_data.forward_ack);
         if has_ack {
             Span::current().record("ack_forwarded", true);

@@ -312,10 +312,13 @@ impl SendWithoutResponse for Client {
         let address = packet.next_hop_address();
         trace!("Sending packet to {address}");
 
+        // TODO: optimisation for the future: rather than constantly using legacy encoding,
+        // use the mix packet type / flags to pick encoding per packet
         let framed_packet =
             FramedNymPacket::from_mix_packet(packet, self.config.use_legacy_packet_encoding);
 
         let Some(sender) = self.active_connections.get_mut(&address) else {
+            // there was never a connection to begin with
             debug!(
                 event = "mixclient.try_send",
                 peer = %address,

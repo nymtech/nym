@@ -21,26 +21,11 @@ fn pretty_build_info_static() -> &'static str {
     PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
-#[derive(Parser, Debug)]
-#[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
-pub(crate) struct Cli {
-    /// Path pointing to an env file that configures the nym-node and overrides any preconfigured values.
-    #[clap(
-        short,
-        long,
-        env = NYMNODE_CONFIG_ENV_FILE_ARG
-    )]
-    pub(crate) config_env_file: Option<std::path::PathBuf>,
-
-    /// Flag used for disabling the printed banner in tty.
-    #[clap(
-        long,
-        env = NYMNODE_NO_BANNER_ARG
-    )]
-    pub(crate) no_banner: bool,
-
+/// OpenTelemetry-related CLI arguments. Only present when built with the `otel` feature.
+#[cfg(feature = "otel")]
+#[derive(Args, Debug, Clone)]
+pub(crate) struct OtelArgs {
     /// Enable OpenTelemetry tracing export via OTLP/gRPC.
-    /// Requires the binary to be built with the `otel` feature.
     #[clap(long, env = "NYMNODE_OTEL_ENABLE")]
     pub(crate) otel: bool,
 
@@ -71,6 +56,29 @@ pub(crate) struct Cli {
     /// Timeout in seconds for each OTLP export batch. Prevents unbounded blocking.
     #[clap(long, env = "NYMNODE_OTEL_EXPORT_TIMEOUT", default_value = "10")]
     pub(crate) otel_export_timeout: u64,
+}
+
+#[derive(Parser, Debug)]
+#[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
+pub(crate) struct Cli {
+    /// Path pointing to an env file that configures the nym-node and overrides any preconfigured values.
+    #[clap(
+        short,
+        long,
+        env = NYMNODE_CONFIG_ENV_FILE_ARG
+    )]
+    pub(crate) config_env_file: Option<std::path::PathBuf>,
+
+    /// Flag used for disabling the printed banner in tty.
+    #[clap(
+        long,
+        env = NYMNODE_NO_BANNER_ARG
+    )]
+    pub(crate) no_banner: bool,
+
+    #[cfg(feature = "otel")]
+    #[clap(flatten)]
+    pub(crate) otel: OtelArgs,
 
     #[clap(subcommand)]
     command: Commands,
@@ -78,13 +86,19 @@ pub(crate) struct Cli {
 
 impl Cli {
     pub(crate) fn execute(self) -> anyhow::Result<()> {
+        // test_throughput sets up its own logger and builds a runtime internally.
+        if let Commands::TestThroughput(args) = self.command {
+            return test_throughput::execute(args);
+        }
+
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?;
 
-        // Set up tracing inside the runtime so the OTel batch exporter
+        // Set up tracing inside the runtime so the OTel batch exporter (when enabled)
         // can spawn its background tasks on the tokio reactor.
-        let _otel_guard = runtime.block_on(async { self.setup_logging() })?;
+        let use_otel = matches!(self.command, Commands::Run(..));
+        let _otel_guard = runtime.block_on(async { self.setup_logging(use_otel) })?;
 
         // `_otel_guard` is dropped at function exit, flushing pending spans via its Drop impl
         runtime.block_on(async {
@@ -95,7 +109,7 @@ impl Cli {
                 Commands::Run(args) => run::execute(*args).await?,
                 Commands::Migrate(args) => migrate::execute(*args)?,
                 Commands::Sign(args) => sign::execute(args).await?,
-                Commands::TestThroughput(args) => test_throughput::execute(args)?,
+                Commands::TestThroughput(..) => unreachable!(),
                 Commands::UnsafeResetSphinxKeys(args) => reset_sphinx_keys::execute(args).await?,
                 Commands::Debug(debug) => match debug.command {
                     DebugCommands::ResetProvidersGatewayDbs(args) => {
@@ -107,15 +121,16 @@ impl Cli {
         })
     }
 
+    #[cfg(feature = "otel")]
     fn build_otel_config(&self) -> Option<crate::logging::OtelConfig> {
-        if self.otel {
+        if self.otel.otel {
             Some(crate::logging::OtelConfig {
-                endpoint: self.otel_endpoint.clone(),
+                endpoint: self.otel.otel_endpoint.clone(),
                 service_name: "nym-node".to_string(),
-                ingestion_key: self.otel_key.clone(),
-                environment: self.otel_env.clone(),
-                sample_ratio: self.otel_sample_ratio,
-                export_timeout_secs: self.otel_export_timeout,
+                ingestion_key: self.otel.otel_key.clone(),
+                environment: self.otel.otel_env.clone(),
+                sample_ratio: self.otel.otel_sample_ratio,
+                export_timeout_secs: self.otel.otel_export_timeout,
             })
         } else {
             None
@@ -123,19 +138,18 @@ impl Cli {
     }
 
     #[cfg(feature = "otel")]
-    fn setup_logging(&self) -> anyhow::Result<Option<crate::logging::OtelGuard>> {
-        if matches!(self.command, Commands::TestThroughput(..)) {
-            return Ok(None);
-        }
-        crate::logging::setup_tracing_logger(self.build_otel_config())
+    fn setup_logging(&self, use_otel: bool) -> anyhow::Result<Option<crate::logging::OtelGuard>> {
+        let otel_config = if use_otel {
+            self.build_otel_config()
+        } else {
+            None
+        };
+        crate::logging::setup_tracing_logger(otel_config)
     }
 
     #[cfg(not(feature = "otel"))]
-    fn setup_logging(&self) -> anyhow::Result<Option<()>> {
-        if matches!(self.command, Commands::TestThroughput(..)) {
-            return Ok(None);
-        }
-        crate::logging::setup_tracing_logger(self.build_otel_config())?;
+    fn setup_logging(&self, _use_otel: bool) -> anyhow::Result<Option<()>> {
+        crate::logging::setup_tracing_logger()?;
         Ok(None)
     }
 }

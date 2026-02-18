@@ -29,7 +29,7 @@ struct CliArgs {
     config_env_file: Option<PathBuf>,
 
     /// Disable logging during probe
-    #[arg(long)]
+    #[arg(long, global = true)]
     no_log: bool,
 }
 

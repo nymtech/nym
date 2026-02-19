@@ -399,6 +399,7 @@ prometheus = { version = "0.14.0" }
 # libcrux
 libcrux-kem = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/exposed-transport" }
 libcrux-ecdh = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/exposed-transport" }
+libcrux-curve25519 = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/exposed-transport" }
 libcrux-chacha20poly1305 = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/exposed-transport" }
 libcrux-psq = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/exposed-transport" }
 libcrux-ml-kem = { git = "https://github.com/jstuczyn/libcrux", branch = "jstuczyn/exposed-transport" }

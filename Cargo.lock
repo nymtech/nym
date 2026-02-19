@@ -6192,6 +6192,7 @@ dependencies = [
  "hkdf",
  "hmac",
  "jwt-simple",
+ "libcrux-curve25519",
  "libcrux-psq",
  "nym-pemstore",
  "nym-sphinx-types",

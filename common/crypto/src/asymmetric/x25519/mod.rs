@@ -417,11 +417,9 @@ impl AsRef<[u8]> for PrivateKey {
 #[cfg(feature = "libcrux_x25519")]
 impl From<PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
     fn from(key: PrivateKey) -> libcrux_psq::handshake::types::DHPrivateKey {
-        todo!("libcrux requires clamping")
-
         // // SAFETY: we're using valid x25519 private key
         // #[allow(clippy::unwrap_used)]
-        // libcrux_psq::handshake::types::DHPrivateKey::from_bytes(key.as_bytes()).unwrap()
+        Self::from(&key)
     }
 }
 
@@ -429,7 +427,7 @@ impl From<PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
 impl From<libcrux_psq::handshake::types::DHPrivateKey> for PrivateKey {
     fn from(key: libcrux_psq::handshake::types::DHPrivateKey) -> PrivateKey {
         // SAFETY: we're using valid x25519 private key
-        #[allow(clippy::unwrap_used)]
+        // #[allow(clippy::unwrap_used)]
         PrivateKey::from_bytes(key.as_ref()).unwrap()
     }
 }
@@ -437,10 +435,14 @@ impl From<libcrux_psq::handshake::types::DHPrivateKey> for PrivateKey {
 #[cfg(feature = "libcrux_x25519")]
 impl From<&PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
     fn from(key: &PrivateKey) -> libcrux_psq::handshake::types::DHPrivateKey {
-        todo!("libcrux requires clamping")
-        // // SAFETY: we're using valid x25519 private key
+        // SAFETY: we're using valid x25519 private key
         // #[allow(clippy::unwrap_used)]
-        // libcrux_psq::handshake::types::DHPrivateKey::from_bytes(key.as_bytes()).unwrap()
+        let mut private_key_bytes = key.to_bytes();
+        libcrux_curve25519::clamp(&mut private_key_bytes);
+        let libcrux_private_key = libcrux_psq::handshake::types::DHPrivateKey::from_bytes(&private_key_bytes).unwrap();
+        private_key_bytes.zeroize();
+        libcrux_private_key
+
     }
 }
 
@@ -448,7 +450,7 @@ impl From<&PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
 impl From<&libcrux_psq::handshake::types::DHPrivateKey> for PrivateKey {
     fn from(key: &libcrux_psq::handshake::types::DHPrivateKey) -> PrivateKey {
         // SAFETY: we're using valid x25519 private key
-        #[allow(clippy::unwrap_used)]
+        // #[allow(clippy::unwrap_used)]
         PrivateKey::from_bytes(key.as_ref()).unwrap()
     }
 }
@@ -464,7 +466,7 @@ impl From<PublicKey> for libcrux_psq::handshake::types::DHPublicKey {
 impl From<libcrux_psq::handshake::types::DHPublicKey> for PublicKey {
     fn from(key: libcrux_psq::handshake::types::DHPublicKey) -> PublicKey {
         // SAFETY: we're using correct 32 bytes representation
-        #[allow(clippy::unwrap_used)]
+        // #[allow(clippy::unwrap_used)]
         PublicKey::from_bytes(key.as_ref()).unwrap()
     }
 }
@@ -494,6 +496,19 @@ mod tests {
     fn assert_zeroize<T: Zeroize>() {}
 
     #[test]
+    fn test_key_conversion(){
+        let dalek_kp = super::KeyPair::new(&mut rand::thread_rng());
+
+        let mut dalek_private_key_bytes = dalek_kp.private_key().as_bytes().to_owned();
+        
+        libcrux_curve25519::clamp(&mut dalek_private_key_bytes);
+        let libcrux_private_key = libcrux_psq::handshake::types::DHPrivateKey::from_bytes(&dalek_private_key_bytes).unwrap();
+        let libcrux_public_key = libcrux_private_key.to_public();
+
+        assert_eq!(libcrux_public_key.as_ref(), dalek_kp.public_key.as_bytes());
+    }
+
+     #[test]
     fn private_key_is_zeroized() {
         assert_zeroize::<PrivateKey>();
         assert_zeroize_on_drop::<PrivateKey>();

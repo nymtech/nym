@@ -417,9 +417,11 @@ impl AsRef<[u8]> for PrivateKey {
 #[cfg(feature = "libcrux_x25519")]
 impl From<PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
     fn from(key: PrivateKey) -> libcrux_psq::handshake::types::DHPrivateKey {
-        // SAFETY: we're using valid x25519 private key
-        #[allow(clippy::unwrap_used)]
-        libcrux_psq::handshake::types::DHPrivateKey::from_bytes(key.as_bytes()).unwrap()
+        todo!("libcrux requires clamping")
+
+        // // SAFETY: we're using valid x25519 private key
+        // #[allow(clippy::unwrap_used)]
+        // libcrux_psq::handshake::types::DHPrivateKey::from_bytes(key.as_bytes()).unwrap()
     }
 }
 
@@ -435,9 +437,10 @@ impl From<libcrux_psq::handshake::types::DHPrivateKey> for PrivateKey {
 #[cfg(feature = "libcrux_x25519")]
 impl From<&PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
     fn from(key: &PrivateKey) -> libcrux_psq::handshake::types::DHPrivateKey {
-        // SAFETY: we're using valid x25519 private key
-        #[allow(clippy::unwrap_used)]
-        libcrux_psq::handshake::types::DHPrivateKey::from_bytes(key.as_bytes()).unwrap()
+        todo!("libcrux requires clamping")
+        // // SAFETY: we're using valid x25519 private key
+        // #[allow(clippy::unwrap_used)]
+        // libcrux_psq::handshake::types::DHPrivateKey::from_bytes(key.as_bytes()).unwrap()
     }
 }
 
@@ -469,14 +472,16 @@ impl From<libcrux_psq::handshake::types::DHPublicKey> for PublicKey {
 #[cfg(feature = "libcrux_x25519")]
 impl From<KeyPair> for libcrux_psq::handshake::types::DHKeyPair {
     fn from(key: KeyPair) -> libcrux_psq::handshake::types::DHKeyPair {
-        libcrux_psq::handshake::types::DHKeyPair::from(key.private_key.into())
+        libcrux_psq::handshake::types::DHKeyPair::from(
+            libcrux_psq::handshake::types::DHPrivateKey::from(&key.private_key),
+        )
     }
 }
 
 #[cfg(feature = "libcrux_x25519")]
 impl From<libcrux_psq::handshake::types::DHKeyPair> for KeyPair {
     fn from(key: libcrux_psq::handshake::types::DHKeyPair) -> KeyPair {
-        KeyPair::from(key.sk().into())
+        KeyPair::from(PrivateKey::from(key.sk()))
     }
 }
 

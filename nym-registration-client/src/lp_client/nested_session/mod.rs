@@ -27,7 +27,6 @@ use crate::lp_client::state_machine_helpers::{
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::codec::{OuterAeadKey, parse_lp_packet};
 use nym_lp::message::ForwardPacketData;
 use nym_lp::packet::version;
 use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
@@ -99,26 +98,27 @@ impl NestedLpSession {
         gateway_lp_peer: LpRemotePeer,
         gateway_supported_lp_protocol_version: u8,
     ) -> Self {
-        let local_x25519_keypair = client_keypair.to_x25519();
-        let lp_local_peer = LpLocalPeer::new(client_keypair, Arc::new(local_x25519_keypair));
-
-        let lp_protocol = if gateway_supported_lp_protocol_version > version::CURRENT {
-            warn!(
-                "suggested LP protocol ({gateway_supported_lp_protocol_version}) is higher  than the current known version. attempting to downgrade it to {}",
-                version::CURRENT
-            );
-            version::CURRENT
-        } else {
-            gateway_supported_lp_protocol_version
-        };
-
-        Self {
-            exit_address,
-            lp_local_peer,
-            gateway_lp_peer,
-            gateway_supported_lp_protocol_version: lp_protocol,
-            state_machine: None,
-        }
+        todo!()
+        // let local_x25519_keypair = client_keypair.to_x25519();
+        // let lp_local_peer = LpLocalPeer::new(client_keypair, Arc::new(local_x25519_keypair));
+        //
+        // let lp_protocol = if gateway_supported_lp_protocol_version > version::CURRENT {
+        //     warn!(
+        //         "suggested LP protocol ({gateway_supported_lp_protocol_version}) is higher  than the current known version. attempting to downgrade it to {}",
+        //         version::CURRENT
+        //     );
+        //     version::CURRENT
+        // } else {
+        //     gateway_supported_lp_protocol_version
+        // };
+        //
+        // Self {
+        //     exit_address,
+        //     lp_local_peer,
+        //     gateway_lp_peer,
+        //     gateway_supported_lp_protocol_version: lp_protocol,
+        //     state_machine: None,
+        // }
     }
 
     fn state_machine(&self) -> Result<&LpStateMachine> {
@@ -140,8 +140,8 @@ impl NestedLpSession {
     /// Attempt to parse received bytes into an LpPacket
     fn parse_received_lp_packet(&self, response_bytes: Vec<u8>) -> Result<LpPacket> {
         let state_machine = self.state_machine()?;
-        let outer_key = state_machine.session()?.outer_aead_key();
-        Self::parse_packet(&response_bytes, Some(outer_key))
+        todo!()
+        // Self::parse_packet(&response_bytes, Some(outer_key))
     }
 
     /// Attempt to wrap the provided `LpData` into a `ForwardPacketData`
@@ -201,19 +201,20 @@ impl NestedLpSession {
         let protocol_version = self.gateway_supported_lp_protocol_version;
 
         let ciphersuite = LpSession::default_ciphersuite();
-        let session = LpSession::psq_handshake_initiator(
-            &mut nested_connection,
-            ciphersuite,
-            local_peer,
-            remote_peer,
-            protocol_version,
-        )
-        .complete_as_initiator()
-        .await?;
-
-        // Store the state machine (with established session) for later use
-        self.state_machine = Some(LpStateMachine::new(session));
-        Ok(())
+        todo!()
+        // let session = LpSession::psq_handshake_initiator(
+        //     &mut nested_connection,
+        //     ciphersuite,
+        //     local_peer,
+        //     remote_peer,
+        //     protocol_version,
+        // )
+        // .complete_as_initiator()
+        // .await?;
+        //
+        // // Store the state machine (with established session) for later use
+        // self.state_machine = Some(LpStateMachine::new(session));
+        // Ok(())
     }
 
     /// This is an internal method only meant to be called by `Self::handshake_and_register_dvpn` if the gateway
@@ -529,21 +530,5 @@ impl NestedLpSession {
         Err(last_error.unwrap_or_else(|| {
             LpClientError::Transport("Exit registration failed after all retries".to_string())
         }))
-    }
-
-    /// Parses an LP packet from bytes.
-    ///
-    /// # Arguments
-    /// * `bytes` - The bytes to parse
-    ///
-    /// # Returns
-    /// * `Ok(LpPacket)` - Parsed LP packet
-    ///
-    /// # Errors
-    /// Returns an error if parsing fails
-    fn parse_packet(bytes: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<LpPacket> {
-        // Use outer AEAD key when available (after PSK derivation)
-        parse_lp_packet(bytes, outer_key)
-            .map_err(|e| LpClientError::Transport(format!("Failed to parse LP packet: {e}")))
     }
 }

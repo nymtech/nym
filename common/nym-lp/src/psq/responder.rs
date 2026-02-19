@@ -3,7 +3,10 @@
 
 use crate::peer::LpLocalPeer;
 use crate::psq::helpers::kem_to_ciphersuite;
-use crate::psq::{AAD_RESPONDER_V1, PSQHandshakeState, ResponderData, SESSION_CONTEXT_V1};
+use crate::psq::{
+    AAD_RESPONDER_V1, PSQ_MSG2_SIZE, PSQHandshakeState, ResponderData, SESSION_CONTEXT_V1,
+    psq_msg1_size,
+};
 use crate::session::PersistentSessionBinding;
 use crate::{LpError, LpSession};
 use libcrux_psq::handshake::Responder;
@@ -11,10 +14,11 @@ use libcrux_psq::handshake::builders::{
     CiphersuiteBuilder, PrincipalBuilder, ResponderCiphersuite,
 };
 use libcrux_psq::{Channel, IntoSession};
+use nym_kkt::context::KKTMode;
 use nym_kkt::message::{KKTRequest, KKTResponse, ProcessedKKTRequest};
 use nym_kkt::responder::KKTResponder;
 use nym_kkt_ciphersuite::KEM;
-use nym_lp_transport::traits::LpTransport;
+use nym_lp_transport::traits::LpChannel;
 use tracing::debug;
 
 pub struct PSQHandshakeStateResponder<'a, S> {
@@ -68,11 +72,16 @@ pub(crate) fn build_psq_ciphersuite(
 
 impl<'a, S> PSQHandshakeStateResponder<'a, S>
 where
-    S: LpTransport + Unpin,
+    S: LpChannel + Unpin,
 {
-    /// Attempt to receive a KKT request
-    async fn receive_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
-        let data = self.inner_state.connection.receive_raw_packet().await?;
+    /// Attempt to receive a KKT request from a one-way client
+    async fn receive_one_way_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
+        let packet_len = KKTRequest::size(
+            KKTMode::OneWay,
+            self.inner_state.local_peer.ciphersuite.kem(),
+        );
+
+        let data = self.inner_state.connection.read_n_bytes(packet_len).await?;
         Ok(KKTRequest::try_from_bytes(&data)?)
     }
 
@@ -100,37 +109,38 @@ where
     async fn send_kkt_response(&mut self, response: KKTResponse) -> Result<(), LpError> {
         self.inner_state
             .connection
-            .send_serialised_packet(&response.into_bytes())
+            .write_all_and_flush(&response.into_bytes())
             .await?;
         Ok(())
     }
 
     /// Attempt to receive and process a PSQ msg1 request
-    async fn receive_psq_initiator_message(&mut self) -> Result<Vec<u8>, LpError> {
-        Ok(self.inner_state.connection.receive_raw_packet().await?)
+    async fn receive_psq_initiator_message(&mut self, kem: KEM) -> Result<Vec<u8>, LpError> {
+        let packet_len = psq_msg1_size(kem);
+        Ok(self.inner_state.connection.read_n_bytes(packet_len).await?)
     }
 
     pub async fn complete_handshake<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
     where
-        S: LpTransport + Unpin,
+        S: LpChannel + Unpin,
         R: rand09::CryptoRng,
     {
         // 1. receive and process KKTRequest
-        let kkt_request = self.receive_kkt_request().await?;
+        let kkt_request = self.receive_one_way_kkt_request().await?;
         debug!("received KKT request");
 
         let processed_req = self.process_kkt_request(kkt_request)?;
+        let kem = processed_req.requested_kem;
 
         // 2. send back the KKTResponse
         debug!("sending KKT response");
         self.send_kkt_response(processed_req.response).await?;
 
         // 3. receive and process PSQ request
-        let raw_psq1 = self.receive_psq_initiator_message().await?;
+        let raw_psq1 = self.receive_psq_initiator_message(kem).await?;
         debug!("received PSQ handshake msg");
 
         // construct the responder and process the message
-        let kem = processed_req.requested_kem;
         let responder_ciphersuite = build_psq_ciphersuite(&self.inner_state.local_peer, kem)?;
         let version = processed_req.outer_protocol_version;
         let mut psq_responder = build_psq_principal(rng, version, responder_ciphersuite)?;
@@ -143,10 +153,10 @@ where
         // 4. send PSQ response
         let conn = self.inner_state.connection;
 
-        let mut buf = [0u8; 128];
-        let n = psq_responder.write_message(&[], &mut buf)?;
+        let mut buf = [0u8; PSQ_MSG2_SIZE];
+        psq_responder.write_message(&[], &mut buf)?;
         debug!("sending PSQ handshake msg");
-        conn.send_serialised_packet(&buf[..n]).await?;
+        conn.write_all_and_flush(&buf).await?;
 
         if !psq_responder.is_handshake_finished() {
             return Err(LpError::kkt_psq_handshake(
@@ -183,7 +193,7 @@ mod tests {
     use crate::peer::mock_peers;
     use crate::psq::initiator;
     use nym_kkt::initiator::KKTInitiator;
-    use nym_kkt_ciphersuite::Ciphersuite;
+    use nym_kkt_ciphersuite::{Ciphersuite, IntoEnumIterator};
     use nym_test_utils::helpers::{
         DeterministicRng09Send, deterministic_rng_09, u64_seeded_rng_09,
     };
@@ -192,103 +202,105 @@ mod tests {
 
     #[tokio::test]
     async fn responder_test_plain() -> anyhow::Result<()> {
-        let conn_init = MockIOStream::default();
-        let conn_resp = conn_init.try_get_remote_handle();
+        for kem in KEM::iter() {
+            let conn_init = MockIOStream::default();
+            let conn_resp = conn_init.try_get_remote_handle();
 
-        // SETUP START:
-        // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
-        // so they'd get 'static lifetime
-        let conn_init = conn_init.leak();
-        let conn_resp = conn_resp.leak();
+            // SETUP START:
+            // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
+            // so they'd get 'static lifetime
+            let conn_init = conn_init.leak();
+            let conn_resp = conn_resp.leak();
 
-        let (init, resp) = mock_peers();
-        let init_remote = init.as_remote();
-        let resp_remote = resp.as_remote();
+            let (mut init, mut resp) = mock_peers();
+            let init_remote = init.as_remote();
+            let resp_remote = resp.as_remote();
 
-        let kem = KEM::MlKem768;
-        let ciphersuite = Ciphersuite::default().with_kem(kem);
+            let ciphersuite = Ciphersuite::default().with_kem(kem);
+            init.ciphersuite = ciphersuite;
+            resp.ciphersuite = ciphersuite;
 
-        let responder_data = ResponderData::default();
-        let handshake_resp =
-            PSQHandshakeState::new(conn_resp, ciphersuite, resp).as_responder(responder_data);
+            let responder_data = ResponderData::default();
+            let handshake_resp =
+                PSQHandshakeState::new(conn_resp, ciphersuite, resp).as_responder(responder_data);
 
-        let mut resp_rng = DeterministicRng09Send::new(u64_seeded_rng_09(2));
-        let resp_fut = tokio::spawn(async move {
-            handshake_resp
-                .complete_handshake(&mut resp_rng)
+            let mut resp_rng = DeterministicRng09Send::new(u64_seeded_rng_09(2));
+            let resp_fut = tokio::spawn(async move {
+                handshake_resp
+                    .complete_handshake(&mut resp_rng)
+                    .timeboxed()
+                    .await
+            });
+
+            // initiator:
+
+            let mut rng = deterministic_rng_09();
+            let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
+
+            // OneWay - MlKem
+            let (mut initiator, request) = KKTInitiator::generate_one_way_request(
+                &mut rng,
+                init.ciphersuite,
+                &resp_remote.x25519_public,
+                &dir_hash,
+                1,
+            )?;
+
+            // 1. send kkt request
+            conn_init
+                .write_all_and_flush(&request.into_bytes())
                 .timeboxed()
-                .await
-        });
+                .await??;
 
-        // initiator:
+            // 2. receive KKT response
+            let response_len = KKTResponse::size(kem);
+            let resp = conn_init.read_n_bytes(response_len).timeboxed().await??;
+            let kkt_response = KKTResponse::from_bytes(resp);
 
-        let mut rng = deterministic_rng_09();
-        let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
+            let response = initiator.process_response(kkt_response)?;
+            let encapsulation_key = response.encapsulation_key;
 
-        // OneWay - MlKem
-        let (mut initiator, request) = KKTInitiator::generate_one_way_request(
-            &mut rng,
-            init.ciphersuite,
-            &resp_remote.x25519_public,
-            &dir_hash,
-            1,
-        )?;
+            let initiator_ciphersuite =
+                initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key)?;
+            let mut initiator =
+                initiator::build_psq_principal(rand09::rng(), 1, initiator_ciphersuite)?;
 
-        // 1. send kkt request
-        conn_init
-            .send_serialised_packet(&request.into_bytes())
-            .timeboxed()
-            .await??;
+            // 3. send PSQ msg1
+            // Send first message
+            let mut buf = vec![0u8; psq_msg1_size(kem)];
+            let n = initiator.write_message(&[], &mut buf).unwrap();
+            assert_eq!(n, buf.len());
+            conn_init.write_all_and_flush(&buf).timeboxed().await??;
 
-        // 2. receive KKT response
-        let resp = conn_init.receive_raw_packet().timeboxed().await??;
-        let kkt_response = KKTResponse::from_bytes(resp);
+            // 4. receive PSQ msg2
+            let msg = conn_init.read_n_bytes(PSQ_MSG2_SIZE).timeboxed().await??;
+            initiator.read_message(&msg, &mut []).unwrap();
 
-        let response = initiator.process_response(kkt_response)?;
-        let encapsulation_key = response.encapsulation_key;
+            assert!(initiator.is_handshake_finished());
 
-        let initiator_ciphersuite =
-            initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key)?;
-        let mut initiator =
-            initiator::build_psq_principal(rand09::rng(), 1, initiator_ciphersuite)?;
+            let mut session_resp = resp_fut.await???;
 
-        // 3. send PSQ msg1
-        // Send first message
-        let mut buf = [0u8; 2028];
-        let n = initiator.write_message(&[], &mut buf).unwrap();
-        conn_init
-            .send_serialised_packet(&buf[..n])
-            .timeboxed()
-            .await??;
+            let mut i_transport = initiator.into_session().unwrap();
 
-        // 4. receive PSQ msg2
-        let msg = conn_init.receive_raw_packet().timeboxed().await??;
-        initiator.read_message(&msg, &mut []).unwrap();
+            // test serialization, deserialization
+            let mut channel_i = i_transport.transport_channel().unwrap();
+            let mut channel_r = session_resp.active_transport();
 
-        assert!(initiator.is_handshake_finished());
+            assert_eq!(channel_i.identifier(), channel_r.identifier());
 
-        let mut session_resp = resp_fut.await???;
+            let app_data_i = b"Derived session hey".as_slice();
+            let app_data_r = b"Derived session ho".as_slice();
 
-        let mut i_transport = initiator.into_session().unwrap();
+            let ct_i = encrypt_data(app_data_i, &mut channel_i)?;
+            let pt_r = decrypt_data(&ct_i, &mut channel_r)?;
 
-        // test serialization, deserialization
-        let mut channel_i = i_transport.transport_channel().unwrap();
-        let mut channel_r = session_resp.active_transport();
+            assert_eq!(app_data_i, pt_r);
 
-        assert_eq!(channel_i.identifier(), channel_r.identifier());
+            let ct_r = encrypt_data(app_data_r, &mut channel_r)?;
+            let pt_i = decrypt_data(&ct_r, &mut channel_i)?;
 
-        let app_data_i = b"Derived session hey".as_slice();
-        let app_data_r = b"Derived session ho".as_slice();
-
-        let ct_i = encrypt_data(app_data_i, &mut channel_i)?;
-        let pt_r = decrypt_data(&ct_i, &mut channel_r)?;
-
-        assert_eq!(app_data_i, pt_r);
-
-        let ct_r = encrypt_data(app_data_r, &mut channel_r)?;
-        let pt_i = decrypt_data(&ct_r, &mut channel_i)?;
-
-        assert_eq!(app_data_r, pt_i);
+            assert_eq!(app_data_r, pt_i);
+        }
 
         Ok(())
     }

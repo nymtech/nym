@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::carrier::Carrier;
-use crate::context::KKTContext;
+use crate::context::{KKTContext, KKTMode, KKTRole};
 use crate::error::KKTError;
 use crate::frame::KKTFrame;
 use crate::keys::EncapsulationKey;
 use crate::masked_byte::{MASKED_BYTE_LEN, MaskedByte};
+use libcrux_chacha20poly1305::TAG_LEN;
 use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
 use nym_kkt_ciphersuite::{KEM, x25519};
 
@@ -19,6 +20,11 @@ pub struct KKTRequest {
 }
 
 impl KKTRequest {
+    // the size of KKTRequest is the plaintext data followed by the frame and the encryption tag
+    pub const fn size(mode: KKTMode, kem: KEM) -> usize {
+        KKTRequestPlaintext::SIZE + KKTFrame::size(KKTRole::Initiator, mode, kem) + TAG_LEN
+    }
+
     pub fn into_bytes(mut self) -> Vec<u8> {
         let mut out = self.plaintext.to_bytes();
         out.append(&mut self.encrypted_frame);
@@ -50,6 +56,8 @@ pub(crate) struct KKTRequestPlaintext {
 }
 
 impl KKTRequestPlaintext {
+    pub const SIZE: usize = x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN;
+
     pub(crate) fn new(
         initiator_pubkey: DHPublicKey,
         responder_pubkey: &DHPublicKey,
@@ -63,7 +71,7 @@ impl KKTRequestPlaintext {
         }
     }
 
-    pub(crate) fn into_message(
+    pub(crate) fn into_request(
         self,
         carrier: &mut Carrier,
         frame: KKTFrame,
@@ -207,6 +215,12 @@ pub struct KKTResponse {
 }
 
 impl KKTResponse {
+    // the size of KKTRequest is the plaintext data followed by the frame and the encryption tag
+    pub const fn size(kem: KEM) -> usize {
+        // `KKTMode` argument makes no difference for the Responder role
+        KKTFrame::size(KKTRole::Responder, KKTMode::OneWay, kem) + TAG_LEN
+    }
+
     pub fn from_bytes(bytes: Vec<u8>) -> KKTResponse {
         KKTResponse {
             encrypted_frame: bytes,

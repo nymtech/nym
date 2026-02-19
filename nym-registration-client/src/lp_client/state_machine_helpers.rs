@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpClientError;
-use bytes::BytesMut;
-use nym_lp::codec::{OuterAeadKey, serialize_lp_packet};
+use nym_lp::packet::EncryptedLpPacket;
 use nym_lp::state_machine::{LpAction, LpData, LpInput};
-use nym_lp::{LpPacket, LpStateMachine};
+use nym_lp::{EncryptedLpPacket, LpPacket, LpStateMachine};
 
 /// Serializes an LP packet to bytes.
 ///
@@ -17,15 +16,13 @@ use nym_lp::{LpPacket, LpStateMachine};
 ///
 /// # Errors
 /// Returns an error if serialization fails
-pub(crate) fn serialize_packet(
-    packet: &LpPacket,
-    outer_key: Option<&OuterAeadKey>,
-) -> Result<Vec<u8>, LpClientError> {
-    let mut buf = BytesMut::new();
-    // Use outer AEAD key when available (after PSK derivation)
-    serialize_lp_packet(packet, &mut buf, outer_key)
-        .map_err(|e| LpClientError::Transport(format!("Failed to serialize LP packet: {}", e)))?;
-    Ok(buf.to_vec())
+pub(crate) fn serialize_packet(packet: &LpPacket) -> Result<Vec<u8>, LpClientError> {
+    todo!()
+    // let mut buf = BytesMut::new();
+    // // Use outer AEAD key when available (after PSK derivation)
+    // serialize_lp_packet(packet, &mut buf, outer_key)
+    //     .map_err(|e| LpClientError::Transport(format!("Failed to serialize LP packet: {}", e)))?;
+    // Ok(buf.to_vec())
 }
 
 /// Attempt to prepare the provided data for sending by wrapping it in appropriate `LpAction`,
@@ -33,7 +30,7 @@ pub(crate) fn serialize_packet(
 pub(crate) fn prepare_send_packet(
     data: LpData,
     state_machine: &mut LpStateMachine,
-) -> Result<LpPacket, LpClientError> {
+) -> Result<EncryptedLpPacket, LpClientError> {
     let action = state_machine
         .process_input(LpInput::SendData(data))
         .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
@@ -59,9 +56,8 @@ pub(crate) fn prepare_serialised_send_packet(
     state_machine: &mut LpStateMachine,
 ) -> Result<Vec<u8>, LpClientError> {
     let packet = prepare_send_packet(data, state_machine)?;
-    let send_key = state_machine.session()?.outer_aead_key();
-
-    serialize_packet(&packet, Some(send_key))
+    todo!()
+    // serialize_packet(&packet, Some(send_key))
 }
 
 /// Attempt to recover received `LpData` from the received `LpPacket`

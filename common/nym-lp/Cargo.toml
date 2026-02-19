@@ -18,6 +18,7 @@ nym-kkt = { path = "../nym-kkt" }
 nym-kkt-ciphersuite = { workspace = true }
 nym-lp-common = { path = "../nym-lp-common" }
 nym-lp-transport = { path = "../nym-lp-transport" }
+nym-lp-packet = { path = "../nym-lp-packet" }
 
 # libcrux dependencies for PSQ (Post-Quantum PSK derivation)
 libcrux-psq = { workspace = true, features = ["test-utils"] }

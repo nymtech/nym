@@ -48,6 +48,8 @@ pub mod xwing {
 }
 
 pub type KEMKeyDigests = KeyDigests;
+
+#[deprecated]
 pub type SigningKeyDigests = KeyDigests;
 
 pub type KeyDigests = HashMap<HashFunction, Vec<u8>>;
@@ -218,7 +220,7 @@ pub enum KEM {
 }
 
 impl KEM {
-    pub fn encapsulation_key_length(&self) -> usize {
+    pub const fn encapsulation_key_length(&self) -> usize {
         match self {
             KEM::MlKem768 => ml_kem768::PUBLIC_KEY_LENGTH,
             // KEM::XWing => xwing::PUBLIC_KEY_LENGTH,

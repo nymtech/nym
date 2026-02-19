@@ -7,6 +7,7 @@
 // [2..=5] => Ciphersuite
 // [6] => Reserved
 
+use crate::context::{KKTMode, KKTRole};
 use crate::message::{DecryptedRequestFrame, KKTRequest, KKTRequestPlaintext};
 use crate::{
     carrier::Carrier,
@@ -14,6 +15,7 @@ use crate::{
     error::KKTError,
 };
 use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
+use nym_kkt_ciphersuite::KEM;
 use rand09::{CryptoRng, RngCore};
 
 pub(crate) const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";
@@ -33,6 +35,27 @@ impl KKTFrame {
         Self {
             context,
             body: Vec::from(body),
+        }
+    }
+
+    pub const fn size(role: KKTRole, mode: KKTMode, kem: KEM) -> usize {
+        match role {
+            KKTRole::Initiator => {
+                match mode {
+                    KKTMode::OneWay => {
+                        // if oneway and message coming from initiator => body is empty.
+                        KKT_CONTEXT_LEN
+                    }
+                    KKTMode::Mutual => {
+                        // if mutual and message coming from initiator => body has the initiator's kem public key.
+                        KKT_CONTEXT_LEN + kem.encapsulation_key_length()
+                    }
+                }
+            }
+            KKTRole::Responder => {
+                // if coming from responder => body has the responder's kem public key.
+                KKT_CONTEXT_LEN + kem.encapsulation_key_length()
+            }
         }
     }
 
@@ -56,7 +79,7 @@ impl KKTFrame {
 
         let mut carrier =
             plaintext.derive_initiator_carrier(ephemeral_keypair.sk(), responder_public_key)?;
-        let full_kkt_message = plaintext.into_message(&mut carrier, self)?;
+        let full_kkt_message = plaintext.into_request(&mut carrier, self)?;
 
         Ok((carrier, full_kkt_message))
     }

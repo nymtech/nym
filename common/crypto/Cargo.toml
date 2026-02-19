@@ -21,6 +21,7 @@ generic-array = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
 hmac = { workspace = true, optional = true }
 jwt-simple = { workspace = true, optional = true }
+libcrux-psq = { workspace = true, optional = true }
 cipher = { workspace = true, optional = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"], optional = true }
 ed25519-dalek = { workspace = true, features = ["rand_core"], optional = true }
@@ -48,6 +49,7 @@ nym-test-utils = { workspace = true }
 default = []
 aead = ["dep:aead", "aead/std", "aes-gcm-siv", "generic-array"]
 naive_jwt = ["asymmetric", "jwt-simple"]
+libcrux_x25519 = ["libcrux-psq"]
 serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
 asymmetric = ["x25519-dalek", "ed25519-dalek", "curve25519-dalek", "sha2", "zeroize"]
 hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2", "zeroize"]

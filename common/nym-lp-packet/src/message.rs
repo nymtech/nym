@@ -1,11 +1,12 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::LpError;
+use crate::error::MalformedLpPacketError;
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use nym_crypto::asymmetric::ed25519;
-use std::fmt::{self, Display};
+use std::fmt;
+use std::fmt::Display;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
@@ -56,7 +57,7 @@ impl ApplicationData {
         dst.put_slice(&self.0);
     }
 
-    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+    fn decode(bytes: &[u8]) -> Result<Self, MalformedLpPacketError> {
         Ok(ApplicationData(bytes.to_vec()))
     }
 }
@@ -68,7 +69,7 @@ pub struct ErrorPacketData {
 }
 
 impl ErrorPacketData {
-    pub(crate) fn new(message: impl Into<String>) -> Self {
+    pub fn new(message: impl Into<String>) -> Self {
         ErrorPacketData {
             message: message.into(),
         }
@@ -84,9 +85,9 @@ impl ErrorPacketData {
         dst.put_slice(self.message.as_bytes());
     }
 
-    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+    fn decode(bytes: &[u8]) -> Result<Self, MalformedLpPacketError> {
         if bytes.len() < 4 {
-            return Err(LpError::DeserializationError(format!(
+            return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                 "Too few bytes to deserialise ErrorPacketData. got {}",
                 bytes.len()
             )));
@@ -94,7 +95,7 @@ impl ErrorPacketData {
 
         let message_len = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
         if bytes[4..].len() != message_len {
-            return Err(LpError::DeserializationError(format!(
+            return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                 "Wrong number of bytes to deserialise ErrorPacketData. got {}. Expected {}",
                 bytes.len(),
                 4 + message_len
@@ -111,7 +112,7 @@ impl ErrorPacketData {
 #[derive(Debug, Clone)]
 pub struct ForwardPacketData {
     /// Target gateway's Ed25519 identity (32 bytes)
-    pub target_gateway_identity: [u8; 32],
+    pub target_gateway_identity: ed25519::PublicKey,
 
     /// Target gateway's LP address (IP:port string)
     pub target_lp_address: SocketAddr,
@@ -128,7 +129,7 @@ impl ForwardPacketData {
         inner_packet_bytes: Vec<u8>,
     ) -> Self {
         ForwardPacketData {
-            target_gateway_identity: target_gateway_identity.to_bytes(),
+            target_gateway_identity,
             target_lp_address,
             inner_packet_bytes,
         }
@@ -158,7 +159,7 @@ impl ForwardPacketData {
             SocketAddr::V6(address) => (true, address.ip().octets().to_vec()),
         };
 
-        dst.put_slice(&self.target_gateway_identity);
+        dst.put_slice(self.target_gateway_identity.as_bytes());
         dst.put_u8(is_ipv6 as u8); // IP type , 0 for ipv4
         dst.put_slice(&ip_bytes); // IP bytes
         dst.put_u16_le(self.target_lp_address.port()); // Port
@@ -172,18 +173,22 @@ impl ForwardPacketData {
         buf.into()
     }
 
-    pub fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, MalformedLpPacketError> {
         // smallest possible packet with ipv4 and empty data
         if bytes.len() < 43 {
             // 32 + 1 + 4 + 2 + 4 + 0
-            return Err(LpError::DeserializationError(format!(
+            return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                 "Too few bytes to deserialise ForwardPacketData. got {}",
                 bytes.len()
             )));
         }
-        // SAFETY: we ensured we have sufficient data
-        #[allow(clippy::unwrap_used)]
-        let target_gateway_identity = bytes[0..32].try_into().unwrap();
+
+        let target_gateway_identity =
+            ed25519::PublicKey::from_bytes(&bytes[0..32]).map_err(|err| {
+                MalformedLpPacketError::DeserialisationFailure(format!(
+                    "ed25519 public key failed to get deserialised: {err}"
+                ))
+            })?;
         let target_lp_address_is_ipv6 = bytes[32] != 0;
 
         let (target_lp_address, next_index) = if target_lp_address_is_ipv6 {
@@ -191,7 +196,7 @@ impl ForwardPacketData {
             // smallest possible packet with ipv6 and empty data
             if bytes.len() < 55 {
                 // 32 + 1 + 16 + 2 + 4 + 0
-                return Err(LpError::DeserializationError(format!(
+                return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                     "Too few bytes to deserialise ipv6 ForwardPacketData. got {}",
                     bytes.len()
                 )));
@@ -217,7 +222,7 @@ impl ForwardPacketData {
             bytes[next_index + 3],
         ]);
         if bytes[next_index + 4..].len() != inner_packet_bytes_len as usize {
-            return Err(LpError::DeserializationError(format!(
+            return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                 "Expected {inner_packet_bytes_len} bytes to deserialise inner packet bytes of ForwardPacketData. got {}",
                 bytes[next_index + 4..].len()
             )));
@@ -340,7 +345,10 @@ impl LpMessage {
     ///
     /// Used when decrypting outer-encrypted packets where the message type
     /// was encrypted along with the content.
-    pub fn decode_content(content: &[u8], message_type: MessageType) -> Result<Self, LpError> {
+    pub fn decode_content(
+        content: &[u8],
+        message_type: MessageType,
+    ) -> Result<Self, MalformedLpPacketError> {
         match message_type {
             MessageType::Busy => {
                 content.ensure_empty()?;
@@ -367,13 +375,13 @@ impl LpMessage {
 
 /// Helper trait for improving readability to return error if bytes content is not empty
 trait EnsureEmptyContent {
-    fn ensure_empty(&self) -> Result<(), LpError>;
+    fn ensure_empty(&self) -> Result<(), MalformedLpPacketError>;
 }
 
 impl EnsureEmptyContent for &[u8] {
-    fn ensure_empty(&self) -> Result<(), LpError> {
+    fn ensure_empty(&self) -> Result<(), MalformedLpPacketError> {
         if !self.is_empty() {
-            return Err(LpError::InvalidPayloadSize {
+            return Err(MalformedLpPacketError::InvalidPayloadSize {
                 expected: 0,
                 actual: self.len(),
             });
@@ -385,39 +393,41 @@ impl EnsureEmptyContent for &[u8] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LpPacket;
-    use crate::packet::{LpHeader, TRAILER_LEN};
+    use crate::{InnerHeader, LpHeader, LpPacket, OuterHeader};
 
     #[test]
     fn encoding() {
-        todo!()
-        // let message = LpMessage::EncryptedData(EncryptedDataPayload(vec![11u8; 124]));
-        //
-        // let resp_header = LpHeader {
-        //     protocol_version: 1,
-        //     reserved: [0u8; 3],
-        //     receiver_idx: 0,
-        //     counter: 0,
-        // };
-        //
-        // let packet = LpPacket {
-        //     header: resp_header,
-        //     message,
-        //     trailer: [80; TRAILER_LEN],
-        // };
-        //
-        // // Just print packet for debug, will be captured in test output
-        // println!("{packet:?}");
-        //
-        // // Verify message type
-        // assert!(matches!(packet.message.typ(), MessageType::EncryptedData));
-        //
-        // // Verify correct data in message
-        // match &packet.message {
-        //     LpMessage::EncryptedData(data) => {
-        //         assert_eq!(*data, EncryptedDataPayload(vec![11u8; 124]));
-        //     }
-        //     _ => panic!("Wrong message type"),
-        // }
+        let message = LpMessage::ApplicationData(ApplicationData(vec![11u8; 124]));
+
+        let resp_header = LpHeader {
+            outer: OuterHeader {
+                receiver_idx: 456,
+                counter: 123,
+            },
+            inner: InnerHeader {
+                protocol_version: 1,
+                reserved: [0u8; 3],
+                message_type: MessageType::EncryptedData,
+            },
+        };
+
+        let packet = LpPacket {
+            header: resp_header,
+            message,
+        };
+
+        // Just print packet for debug, will be captured in test output
+        println!("{packet:?}");
+
+        // Verify message type
+        assert!(matches!(packet.message.typ(), MessageType::EncryptedData));
+
+        // Verify correct data in message
+        match &packet.message {
+            LpMessage::ApplicationData(data) => {
+                assert_eq!(*data, ApplicationData(vec![11u8; 124]));
+            }
+            _ => panic!("Wrong message type"),
+        }
     }
 }

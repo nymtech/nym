@@ -81,8 +81,6 @@ impl LewesProtocol {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum LPKEM {
     MlKem768,
-    XWing,
-    X25519,
     McEliece,
 }
 
@@ -90,8 +88,6 @@ impl From<LPKEM> for nym_kkt_ciphersuite::KEM {
     fn from(lpkem: LPKEM) -> Self {
         match lpkem {
             LPKEM::MlKem768 => nym_kkt_ciphersuite::KEM::MlKem768,
-            LPKEM::XWing => nym_kkt_ciphersuite::KEM::XWing,
-            LPKEM::X25519 => nym_kkt_ciphersuite::KEM::X25519,
             LPKEM::McEliece => nym_kkt_ciphersuite::KEM::McEliece,
         }
     }
@@ -101,8 +97,6 @@ impl From<nym_kkt_ciphersuite::KEM> for LPKEM {
     fn from(kem: nym_kkt_ciphersuite::KEM) -> Self {
         match kem {
             nym_kkt_ciphersuite::KEM::MlKem768 => LPKEM::MlKem768,
-            nym_kkt_ciphersuite::KEM::XWing => LPKEM::XWing,
-            nym_kkt_ciphersuite::KEM::X25519 => LPKEM::X25519,
             nym_kkt_ciphersuite::KEM::McEliece => LPKEM::McEliece,
         }
     }
@@ -199,8 +193,6 @@ mod tests {
     #[test]
     fn kem_display() {
         assert_eq!(LPKEM::MlKem768.to_string(), "mlkem768");
-        assert_eq!(LPKEM::XWing.to_string(), "xwing");
-        assert_eq!(LPKEM::X25519.to_string(), "x25519");
         assert_eq!(LPKEM::McEliece.to_string(), "mceliece");
     }
 

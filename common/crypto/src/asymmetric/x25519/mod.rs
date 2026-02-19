@@ -413,6 +413,73 @@ impl AsRef<[u8]> for PrivateKey {
     }
 }
 
+// libcrux-psq conversion
+#[cfg(feature = "libcrux_x25519")]
+impl From<PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
+    fn from(key: PrivateKey) -> libcrux_psq::handshake::types::DHPrivateKey {
+        // SAFETY: we're using valid x25519 private key
+        #[allow(clippy::unwrap_used)]
+        libcrux_psq::handshake::types::DHPrivateKey::from_bytes(key.as_bytes()).unwrap()
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<libcrux_psq::handshake::types::DHPrivateKey> for PrivateKey {
+    fn from(key: libcrux_psq::handshake::types::DHPrivateKey) -> PrivateKey {
+        // SAFETY: we're using valid x25519 private key
+        #[allow(clippy::unwrap_used)]
+        PrivateKey::from_bytes(key.as_ref()).unwrap()
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<&PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
+    fn from(key: &PrivateKey) -> libcrux_psq::handshake::types::DHPrivateKey {
+        // SAFETY: we're using valid x25519 private key
+        #[allow(clippy::unwrap_used)]
+        libcrux_psq::handshake::types::DHPrivateKey::from_bytes(key.as_bytes()).unwrap()
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<&libcrux_psq::handshake::types::DHPrivateKey> for PrivateKey {
+    fn from(key: &libcrux_psq::handshake::types::DHPrivateKey) -> PrivateKey {
+        // SAFETY: we're using valid x25519 private key
+        #[allow(clippy::unwrap_used)]
+        PrivateKey::from_bytes(key.as_ref()).unwrap()
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<PublicKey> for libcrux_psq::handshake::types::DHPublicKey {
+    fn from(key: PublicKey) -> libcrux_psq::handshake::types::DHPublicKey {
+        libcrux_psq::handshake::types::DHPublicKey::from_bytes(key.as_bytes())
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<libcrux_psq::handshake::types::DHPublicKey> for PublicKey {
+    fn from(key: libcrux_psq::handshake::types::DHPublicKey) -> PublicKey {
+        // SAFETY: we're using correct 32 bytes representation
+        #[allow(clippy::unwrap_used)]
+        PublicKey::from_bytes(key.as_ref()).unwrap()
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<KeyPair> for libcrux_psq::handshake::types::DHKeyPair {
+    fn from(key: KeyPair) -> libcrux_psq::handshake::types::DHKeyPair {
+        libcrux_psq::handshake::types::DHKeyPair::from(key.private_key.into())
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<libcrux_psq::handshake::types::DHKeyPair> for KeyPair {
+    fn from(key: libcrux_psq::handshake::types::DHKeyPair) -> KeyPair {
+        KeyPair::from(key.sk().into())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,7 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::message::MessageType;
 use crate::replay::ReplayError;
 use crate::session::SessionId;
 use libcrux_psq::handshake::HandshakeError;
@@ -10,6 +9,8 @@ use libcrux_psq::session::SessionError;
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_kkt::error::KKTError;
 use nym_kkt_ciphersuite::{HashFunction, KEM};
+use nym_lp_packet::MalformedLpPacketError;
+use nym_lp_transport::LpTransportError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -19,12 +20,6 @@ pub enum LpError {
 
     #[error("Replay detected: {0}")]
     Replay(#[from] ReplayError),
-
-    #[error("Invalid message type: {0}")]
-    InvalidMessageType(u32),
-
-    #[error("Payload too large: {0}")]
-    PayloadTooLarge(usize),
 
     #[error("Insufficient buffer size provided")]
     InsufficientBufferSize,
@@ -71,14 +66,6 @@ pub enum LpError {
     #[error("Ed25519 key conversion error: {0}")]
     Ed25519RecoveryError(#[from] Ed25519RecoveryError),
 
-    /// Received an LP packet with an incompatible, future, version
-    #[error("incompatible LP packet version. got: {got}, highest supported: {highest_supported}")]
-    IncompatibleFuturePacketVersion { got: u8, highest_supported: u8 },
-
-    /// Received an LP packet with an incompatible, legacy, version
-    #[error("incompatible LP packet version. got: {got}, lowest supported: {lowest_supported}")]
-    IncompatibleLegacyPacketVersion { got: u8, lowest_supported: u8 },
-
     #[error("attempted to create an LP responder without providing a valid KEM keys")]
     ResponderWithMissingKEMKeys,
 
@@ -98,6 +85,9 @@ pub enum LpError {
         #[from]
         source: KKTError,
     },
+
+    #[error(transparent)]
+    MalformedPacket(#[from] MalformedLpPacketError),
 
     #[error("version {version} is not supported")]
     UnsupportedVersion { version: u8 },
@@ -119,21 +109,14 @@ pub enum LpError {
 
     #[error("the initiator authenticator is not available after ingesting PSQ msg1")]
     MissingInitiatorAuthenticator,
+
+    #[error("transport failure: {0}")]
+    TransportFailure(#[from] LpTransportError),
 }
 
 impl LpError {
     pub fn kkt_psq_handshake(msg: impl Into<String>) -> Self {
         Self::KKTPSQHandshake(msg.into())
-    }
-
-    pub fn unexpected_handshake_response(got: MessageType, expected: MessageType) -> LpError {
-        Self::KKTPSQHandshake(format!(
-            "received unexpected response, got: {got:?}, expected: {expected:?}"
-        ))
-    }
-
-    pub fn invalid_message_type(message_type: u32) -> Self {
-        LpError::InvalidMessageType(message_type)
     }
 }
 

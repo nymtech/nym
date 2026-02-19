@@ -13,11 +13,11 @@
 //! State machine ensures protocol steps execute in correct order. Invalid transitions
 //! return LpError, preventing protocol violations.
 
-use crate::packet::EncryptedLpPacket;
 use crate::session::SessionId;
-use crate::{LpError, message::LpMessage, packet::LpPacket, session::LpSession};
+use crate::{LpError, session::LpSession};
 use bytes::{Buf, Bytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use nym_lp_packet::{EncryptedLpPacket, LpMessage, LpPacket};
 use std::mem;
 
 #[derive(Debug)]
@@ -196,7 +196,7 @@ impl LpStateMachine {
     }
 
     pub fn session_identifier(&self) -> Result<SessionId, LpError> {
-        Ok(self.session_identifier()?)
+        Ok(*self.session()?.session_identifier())
     }
 
     /// Creates a new state machine in `Transport` state post-KKT/PSQ handshake
@@ -217,15 +217,16 @@ impl LpStateMachine {
         match input {
             LpInput::ReceivePacket(packet) => {
                 // Check if packet lp_id matches our session
-                if packet.header.receiver_idx() != session.id() {
-                    let result_action =
-                        Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
+                if packet.header().receiver_idx() != session.id() {
+                    let result_action = Some(Err(LpError::UnknownSessionId(
+                        packet.header().receiver_idx(),
+                    )));
                     return (LpState::Transport(state), result_action);
                 }
 
-                let ctr = packet.header.counter();
+                let ctr = packet.header().counter();
                 // Check message type
-                match packet.message {
+                match packet.into_message() {
                     // Normal encrypted data
                     LpMessage::ApplicationData(payload) => {
                         // 1. Check replay protection
@@ -348,7 +349,7 @@ impl LpStateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{SessionsMock, kem_list};
+    use crate::SessionsMock;
     use nym_kkt_ciphersuite::KEM;
 
     #[test]

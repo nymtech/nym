@@ -294,8 +294,6 @@ fn translate_digests(
 #[non_exhaustive]
 pub enum LPKEM {
     MlKem768,
-    XWing,
-    X25519,
     McEliece,
 }
 
@@ -482,8 +480,6 @@ impl From<nym_node_requests::api::v1::lewes_protocol::models::LPKEM> for LPKEM {
     fn from(value: nym_node_requests::api::v1::lewes_protocol::models::LPKEM) -> Self {
         match value {
             nym_node_requests::api::v1::lewes_protocol::models::LPKEM::MlKem768 => LPKEM::MlKem768,
-            nym_node_requests::api::v1::lewes_protocol::models::LPKEM::XWing => LPKEM::XWing,
-            nym_node_requests::api::v1::lewes_protocol::models::LPKEM::X25519 => LPKEM::X25519,
             nym_node_requests::api::v1::lewes_protocol::models::LPKEM::McEliece => LPKEM::McEliece,
         }
     }
@@ -543,8 +539,6 @@ impl TryFrom<LPKEM> for KEM {
     fn try_from(value: LPKEM) -> Result<Self, Self::Error> {
         match value {
             LPKEM::MlKem768 => Ok(KEM::MlKem768),
-            LPKEM::XWing => Ok(KEM::XWing),
-            LPKEM::X25519 => Ok(KEM::X25519),
             LPKEM::McEliece => Ok(KEM::McEliece),
             // TODO: for backwards compatibility once variants within the LP crate change
             // other => Err(MalformedLPData::UnknownLpKEM { value: other }),

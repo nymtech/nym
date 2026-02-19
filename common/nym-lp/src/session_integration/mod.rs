@@ -1,13 +1,9 @@
 #[cfg(test)]
 mod tests {
     use crate::codec::serialize_lp_packet;
-    use crate::{
-        LpError, SessionsMock, kem_list,
-        message::LpMessage,
-        packet::{LpHeader, LpPacket, TRAILER_LEN},
-        session_manager::SessionManager,
-    };
+    use crate::{LpError, SessionsMock, kem_list, session_manager::SessionManager};
     use bytes::BytesMut;
+    use nym_lp_packet::{LpHeader, LpMessage, LpPacket};
 
     // Function to create a test packet - similar to how it's done in codec.rs tests
     fn create_test_packet(
@@ -20,7 +16,7 @@ mod tests {
         let header = LpHeader::new(receiver_idx, counter, protocol_version, message.typ());
 
         // Create and return the packet directly
-        LpPacket { header, message }
+        LpPacket::new(header, message)
     }
 
     /// Tests the complete session flow including:

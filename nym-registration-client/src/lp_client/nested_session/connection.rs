@@ -59,17 +59,18 @@ impl<'a, S> NestedConnection<'a, S> {
             }
         };
 
-        // 3. Send the packet with timeout
-        let timeout = self.outer_client.config.forward_timeout;
-        tokio::time::timeout(timeout, async {
-            self.outer_client.try_send_packet(&forward_packet).await
-        })
-        .await
-        .map_err(|_| {
-            LpClientError::Transport(format!("Forward packet timeout after {timeout:?}",))
-        })??;
-
-        Ok(())
+        todo!()
+        // // 3. Send the packet with timeout
+        // let timeout = self.outer_client.config.forward_timeout;
+        // tokio::time::timeout(timeout, async {
+        //     self.outer_client.try_send_packet(&forward_packet).await
+        // })
+        // .await
+        // .map_err(|_| {
+        //     LpClientError::Transport(format!("Forward packet timeout after {timeout:?}",))
+        // })??;
+        //
+        // Ok(())
     }
 
     async fn receive_raw_packet(&mut self) -> Result<Vec<u8>, LpClientError>
@@ -123,13 +124,13 @@ where
         Ok(())
     }
 
-    async fn send_serialised_packet(&mut self, packet_data: &[u8]) -> std::io::Result<()> {
+    async fn send_length_prefixed_packet(&mut self, packet_data: &[u8]) -> std::io::Result<()> {
         self.send_serialised_packet(packet_data)
             .await
             .map_err(io::Error::other)
     }
 
-    async fn receive_raw_packet(&mut self) -> std::io::Result<Vec<u8>> {
+    async fn receive_length_prefixed_packet(&mut self) -> std::io::Result<Vec<u8>> {
         self.receive_raw_packet().await.map_err(io::Error::other)
     }
 }

@@ -940,7 +940,7 @@ where
     /// Send a serialised LP packet over the stream with proper length-prefixed framing.
     async fn send_serialised_packet(&mut self, packet_data: &[u8]) -> Result<(), GatewayError> {
         self.stream
-            .send_serialised_packet(packet_data)
+            .send_length_prefixed_packet(packet_data)
             .await
             .map_err(|err| {
                 GatewayError::LpConnectionError(format!("failed to send LP packet: {err}"))
@@ -980,7 +980,7 @@ where
         })?;
 
         self.stream
-            .send_serialised_packet(&packet_buf)
+            .send_length_prefixed_packet(&packet_buf)
             .await
             .map_err(|err| {
                 GatewayError::LpConnectionError(format!("failed to send LP packet: {err}"))

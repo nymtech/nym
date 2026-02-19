@@ -1,6 +1,5 @@
 [package]
-name = "nym-lp-transport"
-version = "0.1.0"
+name = "nym-lp-packet"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -9,20 +8,16 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-publish = false
+version.workspace = true
 
 [dependencies]
+bytes = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["net", "io-util"] }
+num_enum = { workspace = true }
 tracing = { workspace = true }
 
-nym-lp-packet = { path = "../nym-lp-packet" }
-
-
-nym-test-utils = { path = "../test-utils", optional = true }
-
-[features]
-io-mocks = ["nym-test-utils"]
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-lp-common = { path = "../nym-lp-common" }
 
 [lints]
 workspace = true

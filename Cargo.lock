@@ -6192,6 +6192,7 @@ dependencies = [
  "hkdf",
  "hmac",
  "jwt-simple",
+ "libcrux-psq",
  "nym-pemstore",
  "nym-sphinx-types",
  "nym-test-utils",
@@ -6848,6 +6849,7 @@ dependencies = [
  "nym-kkt",
  "nym-kkt-ciphersuite",
  "nym-lp-common",
+ "nym-lp-packet",
  "nym-lp-transport",
  "nym-test-utils",
  "parking_lot",
@@ -6903,10 +6905,24 @@ name = "nym-lp-common"
 version = "0.1.0"
 
 [[package]]
+name = "nym-lp-packet"
+version = "1.20.4"
+dependencies = [
+ "bytes",
+ "num_enum",
+ "nym-crypto",
+ "nym-lp-common",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
 name = "nym-lp-transport"
 version = "0.1.0"
 dependencies = [
+ "nym-lp-packet",
  "nym-test-utils",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]
@@ -7517,7 +7533,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "typed-builder",
- "url",
 ]
 
 [[package]]

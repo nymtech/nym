@@ -1,12 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::packet::{EncryptedLpPacket, InnerHeader, LpHeader, LpPacket, OuterHeader};
 use crate::{LpError, LpMessage};
 use bytes::BytesMut;
 use libcrux_psq::Channel;
+use nym_lp_packet::{EncryptedLpPacket, InnerHeader, LpHeader, LpPacket, OuterHeader};
 use nym_lp_transport::traits::LpTransport;
-use tracing::error;
 
 pub(crate) const CIPHERTEXT_OVERHEAD: usize = 25;
 
@@ -21,7 +20,7 @@ pub(crate) const CIPHERTEXT_OVERHEAD: usize = 25;
 /// # Errors
 /// * `LpError::InsufficientBufferSize` - Packet too small for outer header
 pub fn parse_lp_header_only(src: &[u8]) -> Result<OuterHeader, LpError> {
-    OuterHeader::parse(src)
+    Ok(OuterHeader::parse(src)?)
 }
 
 // /// Parses a complete Lewes Protocol packet from a byte slice (e.g., a UDP datagram payload).
@@ -88,39 +87,36 @@ pub fn encrypt_lp_packet(
     packet: LpPacket,
     transport: &mut libcrux_psq::Transport,
 ) -> Result<EncryptedLpPacket, LpError> {
-    let mut plaintext = BytesMut::with_capacity(InnerHeader::SIZE + packet.message.len());
-    packet.header.inner.encode(&mut plaintext);
-    packet.message.encode_content(&mut plaintext);
+    let mut plaintext = BytesMut::with_capacity(InnerHeader::SIZE + packet.message().len());
+    packet.header().inner.encode(&mut plaintext);
+    packet.message().encode_content(&mut plaintext);
 
     let ciphertext = encrypt_data(plaintext.as_ref(), transport)?;
 
-    Ok(EncryptedLpPacket {
-        outer_header: packet.header.outer,
-        ciphertext,
-    })
+    Ok(EncryptedLpPacket::new(packet.header().outer, ciphertext))
 }
 
 pub fn decrypt_lp_packet(
     packet: EncryptedLpPacket,
     transport: &mut libcrux_psq::Transport,
 ) -> Result<LpPacket, LpError> {
-    if packet.ciphertext.len() < InnerHeader::SIZE + CIPHERTEXT_OVERHEAD {
+    if packet.ciphertext().len() < InnerHeader::SIZE + CIPHERTEXT_OVERHEAD {
         return Err(LpError::InsufficientBufferSize);
     }
 
-    let plaintext = decrypt_data(&packet.ciphertext, transport)?;
+    let plaintext = decrypt_data(packet.ciphertext(), transport)?;
 
     let inner_header = InnerHeader::parse(&plaintext)?;
     let payload = &plaintext[InnerHeader::SIZE..];
     let message = LpMessage::decode_content(payload, inner_header.message_type)?;
 
-    Ok(LpPacket {
-        header: LpHeader {
-            outer: packet.outer_header,
+    Ok(LpPacket::new(
+        LpHeader {
+            outer: packet.outer_header(),
             inner: inner_header,
         },
         message,
-    })
+    ))
 }
 
 /// Serializes an LpPacket into the provided BytesMut buffer.

@@ -87,7 +87,7 @@ impl<'a> KKTInitiator<'a> {
     {
         let frame = initiator_process(mode, ciphersuite, local_encapsulation_key)?;
         let context = *frame.context();
-        let (carrier, message_bytes) =
+        let (carrier, request) =
             frame.encrypt_initiator_frame(rng, responder_dh_public_key, outer_protocol_version)?;
 
         Ok((
@@ -96,7 +96,7 @@ impl<'a> KKTInitiator<'a> {
                 context,
                 expected_hash,
             },
-            message_bytes,
+            request,
         ))
     }
 

@@ -45,12 +45,32 @@ pub enum KKTRole {
     Responder = 0b0000_0001,
 }
 
+impl KKTRole {
+    pub const fn is_initiator(&self) -> bool {
+        matches!(self, KKTRole::Initiator)
+    }
+
+    pub const fn is_responder(&self) -> bool {
+        matches!(self, KKTRole::Responder)
+    }
+}
+
 // bitmask used: 0b0001_1100
 #[derive(Clone, Copy, PartialEq, Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum KKTMode {
     OneWay = 0b0000_0000,
     Mutual = 0b0000_0100,
+}
+
+impl KKTMode {
+    pub const fn is_one_way(&self) -> bool {
+        matches!(self, KKTMode::OneWay)
+    }
+
+    pub const fn is_mutual(&self) -> bool {
+        matches!(self, KKTMode::Mutual)
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]

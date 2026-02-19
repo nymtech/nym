@@ -6,8 +6,6 @@
 //! This module implements session management functionality, including replay protection
 
 use crate::codec::{decrypt_lp_packet, encrypt_lp_packet};
-use crate::message::ApplicationData;
-use crate::packet::{EncryptedLpPacket, LpHeader};
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psq::{
     InitiatorData, PSQHandshakeState, PSQHandshakeStateInitiator, PSQHandshakeStateResponder,
@@ -18,6 +16,8 @@ use libcrux_psq::handshake::types::{Authenticator, DHPublicKey};
 use libcrux_psq::session::{Session, SessionBinding};
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
+use nym_lp_packet::{ApplicationData, EncryptedLpPacket, LpHeader};
+use nym_lp_transport::LpChannel;
 use nym_lp_transport::traits::LpTransport;
 use std::fmt::{Debug, Formatter};
 
@@ -142,7 +142,7 @@ impl LpSession {
         remote_protocol_version: u8,
     ) -> PSQHandshakeStateInitiator<'_, S>
     where
-        S: LpTransport + Unpin,
+        S: LpChannel + Unpin,
     {
         PSQHandshakeState::new(connection, ciphersuite, local_peer)
             .as_initiator(InitiatorData::new(remote_protocol_version, remote_peer))
@@ -155,7 +155,7 @@ impl LpSession {
         local_peer: LpLocalPeer,
     ) -> PSQHandshakeStateResponder<'_, S>
     where
-        S: LpTransport + Unpin,
+        S: LpChannel + Unpin,
     {
         PSQHandshakeState::new(connection, ciphersuite, local_peer)
             .as_responder(ResponderData::default())

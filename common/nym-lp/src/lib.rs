@@ -7,7 +7,6 @@ pub mod codec;
 // pub use config::LpConfig;
 
 pub mod error;
-pub mod message;
 pub mod packet;
 pub mod peer;
 pub mod psq;
@@ -18,8 +17,10 @@ pub mod session_manager;
 pub mod state_machine;
 
 pub use error::LpError;
-pub use message::LpMessage;
-pub use packet::{LpPacket, OuterHeader};
+pub use nym_kkt_ciphersuite::{
+    Ciphersuite, HashFunction, HashLength, KEM, KEMKeyDigests, SignatureScheme,
+};
+pub use nym_lp_packet::{EncryptedLpPacket, LpMessage, LpPacket, OuterHeader};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::LpSession;
 pub use session_manager::SessionManager;
@@ -45,7 +46,7 @@ impl SessionsMock {
         // use crate::peer::mock_peers;
         // use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
         //
-        // let (init, resp) = mock_peers();
+        // let (mut init, mut resp) = mock_peers();
         // let resp_remote = resp.as_remote();
         // let init_remote = init.as_remote();
         // let salt = [42u8; 32];
@@ -163,8 +164,6 @@ pub fn mock_session_for_test() -> LpSession {
 
 #[cfg(test)]
 mod tests {
-    use crate::message::LpMessage;
-    use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use crate::session_manager::SessionManager;
     use crate::{LpError, SessionsMock, kem_list, mock_session_for_test};
     use bytes::BytesMut;

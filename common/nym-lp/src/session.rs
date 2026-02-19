@@ -284,12 +284,12 @@ impl LpSession {
 mod tests {
     use super::*;
     use nym_crypto::asymmetric::x25519;
-    use rand::thread_rng;
+    // use rand::thread_rng;
 
-    // Helper function to generate keypairs for tests
-    fn generate_x25519_keypair() -> x25519::KeyPair {
-        x25519::KeyPair::new(&mut thread_rng())
-    }
+    // // Helper function to generate keypairs for tests
+    // fn generate_x25519_keypair() -> x25519::KeyPair {
+    //     x25519::KeyPair::new(&mut thread_rng())
+    // }
 
     #[test]
     fn test_session_creation() {

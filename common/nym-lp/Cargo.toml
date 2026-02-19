@@ -10,7 +10,6 @@ thiserror = { workspace = true }
 bs58 = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
-rand = { workspace = true }
 rand09 = { workspace = true }
 
 nym-crypto = { path = "../crypto", features = ["hashing", "asymmetric"] }

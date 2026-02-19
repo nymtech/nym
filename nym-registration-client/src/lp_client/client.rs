@@ -27,7 +27,7 @@ use nym_registration_common::{
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, Rng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -711,7 +711,7 @@ where
             if attempt > 0 {
                 // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
                 let base_delay_ms = 100u64 * (1 << attempt.min(4));
-                let jitter_ms = rand::random::<u64>() % (base_delay_ms / 4 + 1);
+                let jitter_ms: u64 = rand09::rng().random_range(0..(base_delay_ms / 4 + 1));
                 let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
                 tracing::info!("Retrying registration (attempt {attempt_display}) after {delay:?}");
                 tokio::time::sleep(delay).await;
@@ -953,15 +953,19 @@ where
 mod tests {
     use super::*;
     use nym_lp::packet::version;
-
+    use nym_kkt::key_utils::{
+        generate_keypair_x25519,
+    };
+    use nym_test_utils::helpers::{ deterministic_rng_09};
+    
     #[test]
     fn test_client_creation() {
-        let mut rng = rand::thread_rng();
-        let keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
-        let gateway_ed_keys = ed25519::KeyPair::new(&mut rng);
-        let gateway_x_keys = gateway_ed_keys.to_x25519();
+        let mut rng09 = deterministic_rng_09();
+        let keypair = Arc::new(generate_keypair_x25519(&mut rng09));
+
+        let gateway_x_keys = generate_keypair_x25519(&mut rng09);
         let gateway_peer =
-            LpRemotePeer::new(*gateway_ed_keys.public_key(), *gateway_x_keys.public_key());
+            LpRemotePeer::from(gateway_x_keys.pk);
         let address = "127.0.0.1:41264".parse().unwrap();
 
         let client = LpRegistrationClient::<TcpStream>::new_with_default_config(

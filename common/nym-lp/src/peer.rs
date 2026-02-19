@@ -131,37 +131,41 @@ impl LpRemotePeer {
     }
 }
 
+impl From<DHPublicKey> for LpRemotePeer {
+    fn from(value: DHPublicKey) -> Self {
+        LpRemotePeer {
+            x25519_public: value,
+            expected_kem_key_digests: Default::default(),
+        }
+    }
+}
+
 #[cfg(any(feature = "mock", test))]
 pub fn mock_peer() -> LpLocalPeer {
     // use deterministic rng
-    let mut rng = nym_test_utils::helpers::deterministic_rng();
+    let mut rng = nym_test_utils::helpers::deterministic_rng_09();
     random_peer(&mut rng)
 }
 
 #[cfg(any(feature = "mock", test))]
-pub fn random_peer<'a, R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> LpLocalPeer {
-    // disgusting conversion between rng08 and rng09
-    let mut seed = [0u8; 32];
-    rng.fill_bytes(&mut seed);
+pub fn random_peer<'a, R: rand09::CryptoRng + rand09::RngCore>(rng: &mut R) -> LpLocalPeer {
 
-    let mut rng09 = nym_test_utils::helpers::seeded_rng_09(seed);
-
-    let x25519 = Arc::new(nym_kkt::key_utils::generate_keypair_x25519(&mut rng09));
+    let x25519 = Arc::new(nym_kkt::key_utils::generate_keypair_x25519(rng));
 
     LpLocalPeer {
         ciphersuite: Ciphersuite::default(),
 
         x25519,
         kem_keypairs: Some(KEMKeys::new(
-            nym_kkt::key_utils::generate_keypair_mceliece(&mut rng09),
-            nym_kkt::key_utils::generate_keypair_mlkem(&mut rng09),
+            nym_kkt::key_utils::generate_keypair_mceliece( rng),
+            nym_kkt::key_utils::generate_keypair_mlkem(rng),
         )),
     }
 }
 
 #[cfg(any(feature = "mock", test))]
 pub fn mock_peers() -> (LpLocalPeer, LpLocalPeer) {
-    let mut rng = nym_test_utils::helpers::deterministic_rng();
+    let mut rng = nym_test_utils::helpers::deterministic_rng_09();
 
     (random_peer(&mut rng), random_peer(&mut rng))
 }

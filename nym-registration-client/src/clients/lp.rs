@@ -16,8 +16,7 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 
 use nym_lp::peer::DHKeyPair;
-use rand::rngs::OsRng;
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
@@ -150,7 +149,7 @@ impl LpBasedRegistrationClient {
     }
 
     async fn register_wg(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand09::rng();
 
         self.register_wg_with_rng(&mut rng).await
     }

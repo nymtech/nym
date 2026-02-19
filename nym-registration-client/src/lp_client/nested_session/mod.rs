@@ -39,7 +39,7 @@ use nym_registration_common::{
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand::{CryptoRng, RngCore};
+use rand09::{Rng, CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::warn;
@@ -489,7 +489,7 @@ impl NestedLpSession {
 
                 // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
                 let base_delay_ms = 100u64 * (1 << attempt.min(4));
-                let jitter_ms = rand::random::<u64>() % (base_delay_ms / 4 + 1);
+                let jitter_ms: u64 = rand09::rng().random_range(0..(base_delay_ms / 4 + 1));
                 let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
                 tracing::info!(
                     "Retrying exit registration (attempt {}) after {:?}",

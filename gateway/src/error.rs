@@ -8,6 +8,7 @@ use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_gateway_stats_storage::error::StatsStorageError;
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
+use nym_lp_transport::LpTransportError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{AccountId, Coin};
@@ -132,6 +133,9 @@ pub enum GatewayError {
 
     #[error("LP protocol error: {0}")]
     LpProtocolError(String),
+
+    #[error(transparent)]
+    LpTransportError(#[from] LpTransportError),
 
     #[error("LP handshake error: {0}")]
     LpHandshakeError(String),

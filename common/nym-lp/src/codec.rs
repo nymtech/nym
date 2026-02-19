@@ -6,6 +6,7 @@ use bytes::BytesMut;
 use libcrux_psq::Channel;
 use nym_lp_packet::{EncryptedLpPacket, InnerHeader, LpHeader, LpPacket, OuterHeader};
 use nym_lp_transport::traits::LpTransport;
+use tracing::error;
 
 pub(crate) const CIPHERTEXT_OVERHEAD: usize = 25;
 
@@ -54,14 +55,14 @@ pub(crate) fn encrypt_data(
     plaintext: &[u8],
     transport: &mut libcrux_psq::Transport,
 ) -> Result<Vec<u8>, LpError> {
-    let mut ciphertext = vec![0u8; plaintext.len() + CIPHERTEXT_OVERHEAD];
+    let mut ciphertext = vec![0u8; plaintext.len() + CIPHERTEXT_OVERHEAD + 64];
     let n = transport.write_message(&*plaintext, &mut ciphertext)?;
 
-    if ciphertext.len() != n {
+    if plaintext.len() + CIPHERTEXT_OVERHEAD != n {
         // TODO: check consistency
-        panic!("inconsistent ciphertext overhead")
+        error!("FIXME: inconsistent ciphertext overhead")
     }
-    //     ciphertext.truncate(n);
+    ciphertext.truncate(n);
 
     Ok(ciphertext)
 }
@@ -78,8 +79,9 @@ pub(crate) fn decrypt_data(
     let (_, n) = transport.read_message(&ciphertext, &mut plaintext)?;
     if n != ciphertext.len() - CIPHERTEXT_OVERHEAD {
         // TODO: check consistency
-        panic!("inconsistent ciphertext overhead")
+        error!("FIXME: inconsistent ciphertext overhead")
     }
+    plaintext.truncate(n);
     Ok(plaintext)
 }
 

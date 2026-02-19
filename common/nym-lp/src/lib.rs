@@ -20,7 +20,10 @@ pub use error::LpError;
 pub use nym_kkt_ciphersuite::{
     Ciphersuite, HashFunction, HashLength, KEM, KEMKeyDigests, SignatureScheme,
 };
-pub use nym_lp_packet::{EncryptedLpPacket, LpMessage, LpPacket, OuterHeader};
+pub use nym_lp_packet::{
+    EncryptedLpPacket, LpMessage, LpPacket, OuterHeader,
+    message::{ApplicationData, ForwardPacketData},
+};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::LpSession;
 pub use session_manager::SessionManager;

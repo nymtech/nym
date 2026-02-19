@@ -4,8 +4,8 @@
 //! Error types for LP (Lewes Protocol) client operations.
 
 use nym_lp::LpError;
+use nym_lp_transport::LpTransportError;
 use nym_registration_common::BincodeError;
-use std::io;
 use std::time::Duration;
 use thiserror::Error;
 
@@ -17,7 +17,7 @@ pub enum LpClientError {
     TcpConnection {
         address: String,
         #[source]
-        source: io::Error,
+        source: LpTransportError,
     },
 
     /// Failed during LP handshake
@@ -43,6 +43,9 @@ pub enum LpClientError {
     /// LP transport error
     #[error("LP transport error: {0}")]
     Transport(String),
+
+    #[error(transparent)]
+    LpTransportError(#[from] LpTransportError),
 
     /// Invalid LP address format
     #[error("Invalid LP address '{address}': {reason}")]

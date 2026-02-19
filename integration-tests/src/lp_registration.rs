@@ -12,14 +12,17 @@ mod tests {
     use nym_gateway::GatewayError;
     use nym_gateway::node::lp_listener::handler::LpConnectionHandler;
     use nym_gateway::node::lp_listener::{
-        LpDebug, LpHandlerState, LpLocalPeer, MixForwardingReceiver, PeerControlRequest,
-        WireguardGatewayData, mix_forwarding_channels,
+        DHKeyPair, KEMKeys, LpDebug, LpHandlerState, LpLocalPeer, MixForwardingReceiver,
+        PeerControlRequest, WireguardGatewayData, mix_forwarding_channels,
     };
     use nym_gateway::node::wireguard::{PeerManager, PeerRegistrator};
     use nym_gateway::node::{ActiveClientsStore, GatewayStorage, LpConfig};
+    use nym_kkt::key_utils::{
+        generate_keypair_mceliece, generate_keypair_mlkem, generate_keypair_x25519,
+    };
     use nym_kkt_ciphersuite::Ciphersuite;
     use nym_registration_client::{LpClientError, LpRegistrationClient};
-    use nym_test_utils::helpers::{CryptoRng, RngCore, u64_seeded_rng};
+    use nym_test_utils::helpers::{CryptoRng, RngCore, seeded_rng_09, u64_seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::Timeboxed;
     use nym_wireguard::peer_controller::IpPair;
@@ -49,6 +52,7 @@ mod tests {
     }
 
     struct Party {
+        identity: ed25519::KeyPair,
         peer: LpLocalPeer,
         x25519_wg_keys: Arc<x25519::KeyPair>,
         socket_addr: SocketAddr,
@@ -62,16 +66,25 @@ mod tests {
 
             rng.fill_bytes(&mut ip);
             rng.fill_bytes(&mut port);
-            let ed25519_keys = Arc::new(ed25519::KeyPair::new(rng));
+            let ed25519_keys = ed25519::KeyPair::new(rng);
             let x25519_wg_keys = Arc::new(x25519::KeyPair::new(rng));
 
-            let lp_x25519_keys = Arc::new(ed25519_keys.to_x25519());
+            // generate a valid instance of rand09
+            let mut seed = [0u8; 32];
+            rng.fill_bytes(&mut seed);
+            let mut rng09 = seeded_rng_09(seed);
 
-            let ciphersuite = Ciphersuite::Default();
+            let lp_x25519_keys = Arc::new(generate_keypair_x25519(&mut rng09));
+            let mlkem_keypair = generate_keypair_mlkem(&mut rng09);
+            let mceliece_keypair = generate_keypair_mceliece(&mut rng09);
+            let lp_kem_keys = KEMKeys::new(mceliece_keypair, mlkem_keypair);
+
+            let ciphersuite = Ciphersuite::default();
 
             Party {
-                peer: LpLocalPeer::new(ciphersuite, ed25519_keys, lp_x25519_keys.clone())
-                    .with_kem_psq_key(lp_x25519_keys),
+                identity: ed25519_keys,
+                peer: LpLocalPeer::new(ciphersuite, lp_x25519_keys.clone())
+                    .with_kem_keys(lp_kem_keys),
                 x25519_wg_keys,
                 socket_addr: SocketAddr::from((ip, u16::from_le_bytes(port))),
                 lp_version: 1,
@@ -389,7 +402,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_basic_lp_entry_registration() -> anyhow::Result<()> {
-            // nym_test_utils::helpers::setup_test_logger();
+            nym_test_utils::helpers::setup_test_logger();
             // initialise random, but deterministic, keys, addresses, etc. for the parties
             let mut client_rng = u64_seeded_rng(0);
             let mut gateway_rng = u64_seeded_rng(1);
@@ -399,7 +412,7 @@ mod tests {
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
             let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
-                client_data.base.peer.ed25519().clone(),
+                client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
                 entry.base.lp_version,
@@ -458,7 +471,7 @@ mod tests {
 
             // 6. perform registration with entry only
             let wg_keypair = client_data.base.x25519_wg_keys;
-            let gateway_identity = entry.base.peer.ed25519().public_key();
+            let gateway_identity = entry.base.identity.public_key();
             let registration_result = client
                 .register_dvpn(
                     &mut client_rng,
@@ -499,7 +512,7 @@ mod tests {
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
             let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
-                client_data.base.peer.ed25519().clone(),
+                client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
                 entry.base.lp_version,
@@ -524,7 +537,7 @@ mod tests {
             // 4. perform registration with entry only
             // but WITHOUT performing the handshake
             let wg_keypair = client_data.base.x25519_wg_keys;
-            let gateway_identity = entry.base.peer.ed25519().public_key();
+            let gateway_identity = entry.base.identity.public_key();
             let registration_result = client
                 .register_dvpn(
                     &mut client_rng,
@@ -564,7 +577,7 @@ mod tests {
             let mut exit = Gateway::mock(&mut exit_rng).await?;
 
             let mut entry_client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
-                client_data.base.peer.ed25519().clone(),
+                client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
                 entry.base.lp_version,
@@ -681,7 +694,7 @@ mod tests {
             // but crypto is going to work the same
             let mut nested_session = NestedLpSession::new(
                 exit.base.socket_addr,
-                client_data.base.peer.ed25519().clone(),
+                client_data.base.peer.x25519().clone(),
                 exit.base.peer.as_remote(),
                 exit.base.lp_version,
             );
@@ -692,7 +705,7 @@ mod tests {
                     &mut entry_client,
                     &mut client_rng,
                     &client_data.base.x25519_wg_keys,
-                    exit.base.peer.ed25519().public_key(),
+                    exit.base.identity.public_key(),
                     &client_data.ticket_provider,
                     TicketType::V1WireguardExit,
                 )
@@ -704,7 +717,7 @@ mod tests {
                 .register_dvpn(
                     &mut client_rng,
                     &client_data.base.x25519_wg_keys,
-                    entry.base.peer.ed25519().public_key(),
+                    entry.base.identity.public_key(),
                     &client_data.ticket_provider,
                     TicketType::V1WireguardEntry,
                 )

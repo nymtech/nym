@@ -13,10 +13,11 @@ use crate::types::{LpRegistrationResult, RegistrationResult};
 
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
-use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 use nym_crypto::asymmetric::ed25519;
 
+use nym_lp::peer::DHKeyPair;
 use rand::rngs::OsRng;
+use rand::{CryptoRng, RngCore};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
@@ -60,13 +61,13 @@ impl LpBasedRegistrationClient {
         tracing::debug!("Entry gateway LP address: {entry_address}");
         tracing::debug!("Exit gateway LP address: {exit_address}");
 
-        // Generate fresh Ed25519 keypairs for LP registration
-        // These are ephemeral and used only for the LP handshake protocol
-        let entry_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
-        let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
+        // Generate fresh x25519 keypairs for LP registration
+        // TODO: persist them for the duration of the sessions
+        let entry_lp_keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
+        let exit_lp_keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
 
-        let entry_peer = to_lp_remote_peer(self.config.entry.node.identity, entry_lp_data);
-        let exit_peer = to_lp_remote_peer(self.config.exit.node.identity, exit_lp_data);
+        let entry_peer = to_lp_remote_peer(entry_lp_data);
+        let exit_peer = to_lp_remote_peer(exit_lp_data);
 
         // STEP 1: Establish outer session with entry gateway
         // This creates the LP session that will be used to forward packets to exit.

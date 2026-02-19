@@ -6,12 +6,13 @@ use crate::error::GatewayError;
 use bytes::BytesMut;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::codec::serialize_lp_packet;
-use nym_lp::message::ApplicationData;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_lp::{
-    message::ForwardPacketData, LpMessage, LpPacket, LpSession, LpStateMachine, OuterHeader,
+    EncryptedLpPacket, ForwardPacketData, LpMessage, LpPacket, LpSession, LpStateMachine,
+    OuterHeader,
 };
 use nym_lp_transport::traits::LpTransport;
+use nym_lp_transport::LpChannel;
 use nym_metrics::{add_histogram_obs, inc};
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
@@ -95,7 +96,7 @@ pub struct LpConnectionHandler<S = TcpStream> {
 
 impl<S> LpConnectionHandler<S>
 where
-    S: LpTransport + AsyncRead + AsyncWrite + Unpin,
+    S: LpTransport + LpChannel + Unpin,
 {
     pub fn new(stream: S, remote_addr: SocketAddr, state: LpHandlerState) -> Self {
         Self {
@@ -135,7 +136,7 @@ where
         let ciphersuite = LpSession::default_ciphersuite();
         let session = match tokio::time::timeout(timeout, async move {
             LpSession::psq_handshake_responder(stream, ciphersuite, local_peer)
-                .complete_as_responder()
+                .complete_handshake()
                 .await
         })
         .await
@@ -170,7 +171,7 @@ where
         // 3. handle any new incoming packet
         loop {
             // Step 1: Receive raw packet bytes and parse header only (for routing)
-            let (raw_bytes, header) = match self.receive_raw_packet().await {
+            let encrypted_packet = match self.receive_raw_packet().await {
                 Ok(result) => result,
                 Err(e) if Self::is_connection_closed(&e) => {
                     // Graceful EOF - client closed connection
@@ -184,7 +185,7 @@ where
                 }
             };
 
-            let receiver_idx = header.receiver_idx;
+            let receiver_idx = encrypted_packet.outer_header().receiver_idx;
 
             // Step 2: Validate the binding
             if let Err(e) = self.validate_binding(receiver_idx) {
@@ -193,7 +194,7 @@ where
             }
 
             // Step 3: Process the packet
-            if let Err(e) = self.process_packet(raw_bytes, receiver_idx).await {
+            if let Err(e) = self.process_packet(encrypted_packet).await {
                 self.emit_lifecycle_metrics(false);
                 return Err(e);
             }
@@ -253,29 +254,28 @@ where
     /// Individual handlers do NOT emit lifecycle metrics - the main loop handles that.
     async fn process_packet(
         &mut self,
-        raw_bytes: Vec<u8>,
-        receiver_idx: u32,
+        encrypted_packet: EncryptedLpPacket,
     ) -> Result<(), GatewayError> {
+        let receiver_idx = encrypted_packet.outer_header().receiver_idx;
+
         // Get outer_aead_key based on receiver_idx
         // Header is always cleartext for routing. Payload is encrypted after PSK.
-        let Some(state_machine) = self.state.session_states.get(&receiver_idx) else {
+        let Some(mut state_machine) = self.state.session_states.get_mut(&receiver_idx) else {
             // session might have gotten removed due to inactivity
             return Err(GatewayError::LpConnectionError(format!(
                 "missing session state for {receiver_idx} - has it been removed due to inactivity?"
             )));
         };
 
-        let outer_key = state_machine
+        let packet = state_machine
             .state
-            .session()
+            .session_mut()
             .map_err(|err| GatewayError::LpProtocolError(err.to_string()))?
-            .outer_aead_key();
-
-        // Parse full packet with outer AEAD key
-        let packet = nym_lp::codec::parse_lp_packet(&raw_bytes, Some(outer_key)).map_err(|e| {
-            inc!("lp_errors_parse_packet");
-            GatewayError::LpProtocolError(format!("Failed to parse LP packet: {e}"))
-        })?;
+            .decrypt_packet(encrypted_packet)
+            .map_err(|e| {
+                inc!("lp_errors_parse_packet");
+                GatewayError::LpProtocolError(format!("Failed to parse LP packet: {e}"))
+            })?;
 
         drop(state_machine);
 
@@ -283,7 +283,7 @@ where
             "Received packet from {} (receiver_idx={}, counter={})",
             self.remote_addr,
             receiver_idx,
-            packet.header().counter,
+            packet.header().counter(),
         );
 
         self.handle_transport_packet(receiver_idx, packet).await
@@ -331,59 +331,18 @@ where
             })?
             .map_err(|e| GatewayError::LpProtocolError(format!("State machine error: {e}")))?;
 
-        let lp_session = state_machine.session().map_err(|e| {
-            GatewayError::LpProtocolError(format!("Session unavailable after processing: {e}"))
-        })?;
-
-        // Get outer key before releasing borrow
-        let outer_key = lp_session.outer_aead_key();
+        drop(state_entry);
 
         match action {
             LpAction::SendPacket(response_packet) => {
-                // Subsession KK2 response - gateway is responder
-                // This means we received SubsessionKK1 and are responding
-                debug!("Sending subsession KK2 response to {remote} (receiver_idx={receiver_idx})",);
-                inc!("lp_subsession_kk2_sent");
-                let mut packet_buf = BytesMut::new();
-                serialize_lp_packet(&response_packet, &mut packet_buf, Some(outer_key)).map_err(
-                    |e| GatewayError::LpProtocolError(format!("Failed to serialize packet: {}", e)),
-                )?;
-
-                drop(state_entry);
-                self.send_serialised_packet(&packet_buf).await?;
+                self.send_serialised_packet(&response_packet).await?;
                 Ok(())
             }
             LpAction::DeliverData(data) => {
                 // Decrypted application data - process as registration/forwarding
-                drop(state_entry);
                 self.handle_decrypted_payload(receiver_idx, data).await
             }
-            LpAction::SubsessionComplete {
-                packet: ready_packet,
-                subsession,
-                new_receiver_index,
-            } => {
-                // Subsession complete - promote to new session
-
-                // Send SubsessionReady packet if present (for initiator - gateway is responder, so typically None)
-                if let Some(ready_packet) = ready_packet {
-                    let mut packet_buf = BytesMut::new();
-                    serialize_lp_packet(&ready_packet, &mut packet_buf, Some(outer_key)).map_err(
-                        |e| {
-                            GatewayError::LpProtocolError(format!(
-                                "Failed to serialize packet: {e}",
-                            ))
-                        },
-                    )?;
-                    drop(state_entry);
-                    self.send_serialised_packet(&packet_buf).await?;
-                } else {
-                    drop(state_entry);
-                }
-                self.handle_subsession_complete(receiver_idx, *subsession, new_receiver_index)
-                    .await
-            }
-            other => {
+            other @ LpAction::ConnectionClosed => {
                 warn!("Unexpected action in transport from {remote}: {other:?}",);
                 Err(GatewayError::LpProtocolError(format!(
                     "Unexpected action: {other:?}",
@@ -433,61 +392,6 @@ where
         }
     }
 
-    /// Handle subsession completion - promote subsession to new session
-    ///
-    /// When a subsession handshake completes (SubsessionReady received):
-    /// 1. Send SubsessionReady packet if present (for initiator - gateway is responder, so None)
-    /// 2. Create new state machine from completed subsession
-    /// 3. Store new session under new_receiver_index
-    /// 4. Old session stays in ReadOnlyTransport state until TTL cleanup
-    async fn handle_subsession_complete(
-        &mut self,
-        old_receiver_idx: u32,
-        subsession: nym_lp::session::SubsessionHandshake,
-        new_receiver_index: u32,
-    ) -> Result<(), GatewayError> {
-        use nym_lp::state_machine::LpStateMachine;
-
-        info!(
-            "Subsession complete from {}: old_idx={}, new_idx={}",
-            self.remote_addr, old_receiver_idx, new_receiver_index
-        );
-
-        // Create new state machine from completed subsession
-        let new_state_machine = LpStateMachine::from_subsession(subsession, new_receiver_index)
-            .map_err(|e| {
-                GatewayError::LpProtocolError(format!(
-                    "Failed to create session from subsession: {e}",
-                ))
-            })?;
-
-        // Check for receiver_index collision before inserting
-        // new_receiver_index is client-generated (rand::random() in state machine).
-        // Collisions are statistically unlikely (1 in 4 billion) but could cause DoS if exploited.
-        if self.state.session_states.contains_key(&new_receiver_index) {
-            warn!(
-                "Subsession receiver_index collision: {} from {}",
-                new_receiver_index, self.remote_addr
-            );
-            inc!("lp_subsession_receiver_index_collision");
-            return Err(GatewayError::LpProtocolError(
-                "Subsession receiver index collision - client should retry".to_string(),
-            ));
-        }
-
-        // Store new session under new_receiver_index
-        self.state.session_states.insert(
-            new_receiver_index,
-            super::TimestampedState::new(new_state_machine),
-        );
-
-        // Old session is now in ReadOnlyTransport state (handled by state machine)
-        // It will be cleaned up by TTL-based cleanup task
-
-        inc!("lp_subsession_complete");
-        Ok(())
-    }
-
     /// Attempt to wrap and send specified response back to the client
     async fn send_response_packet(
         &mut self,
@@ -517,13 +421,9 @@ where
             GatewayError::LpProtocolError(format!("Failed to encrypt response: {e}"))
         })?;
 
-        // make sure to drop the entry before the .await call
-        // Serialize the packet (encrypted if outer_key provided)
-        let mut packet_buf = BytesMut::new();
-        encrypted_message.encode(&mut packet_buf);
+        drop(session_entry);
 
-        // Send response (encrypted with outer AEAD)
-        self.send_serialised_packet(&packet_buf).await?;
+        self.send_serialised_packet(&encrypted_message).await?;
         Ok(())
     }
 
@@ -585,108 +485,6 @@ where
         );
 
         Ok(())
-    }
-
-    /// Validates that a ClientHello timestamp is within the acceptable time window.
-    ///
-    /// # Arguments
-    /// * `client_timestamp` - Unix timestamp (seconds) from ClientHello salt
-    /// * `tolerance` - Maximum acceptable age
-    ///
-    /// # Returns
-    /// * `Ok(())` if timestamp is valid (within tolerance window)
-    /// * `Err(GatewayError)` if timestamp is too old or too far in the future
-    ///
-    /// # Security
-    /// This prevents replay attacks by rejecting stale ClientHello messages.
-    /// The tolerance window should be:
-    /// - Large enough for clock skew + network latency
-    /// - Small enough to limit replay attack window
-    fn validate_timestamp(client_timestamp: u64, tolerance: Duration) -> Result<(), GatewayError> {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-
-        let age = now.abs_diff(client_timestamp);
-        if age > tolerance.as_secs() {
-            let direction = if now >= client_timestamp {
-                "old"
-            } else {
-                "future"
-            };
-
-            // Track timestamp validation failures
-            inc!("lp_timestamp_validation_rejected");
-            if now >= client_timestamp {
-                inc!("lp_errors_timestamp_too_old");
-            } else {
-                inc!("lp_errors_timestamp_too_far_future");
-            }
-
-            return Err(GatewayError::LpProtocolError(format!(
-                "ClientHello timestamp is too {} (age: {}s, tolerance: {}s)",
-                direction,
-                age,
-                tolerance.as_secs()
-            )));
-        }
-
-        // Track successful timestamp validation
-        inc!("lp_timestamp_validation_accepted");
-        Ok(())
-    }
-
-    /// Receive client's public key and salt via ClientHello message
-    ///
-    /// Note: This method is currently unused but retained for potential future use
-    /// in alternative handshake flows. The current implementation uses `handle_client_hello()`
-    /// which processes ClientHello as part of the single-packet model.
-    #[allow(dead_code)]
-    async fn receive_client_hello(
-        &mut self,
-    ) -> Result<(x25519::PublicKey, ed25519::PublicKey, [u8; 32]), GatewayError> {
-        // Receive first packet which should be ClientHello (no outer encryption)
-        let (raw_bytes, _header) = self.receive_raw_packet().await?;
-        let packet = nym_lp::codec::parse_lp_packet(&raw_bytes, None)
-            .map_err(|e| GatewayError::LpProtocolError(format!("Failed to parse packet: {}", e)))?;
-
-        // Verify it's a ClientHello message
-        match packet.message() {
-            LpMessage::ClientHello(hello_data) => {
-                // Extract and validate timestamp (nym-110: replay protection)
-                let timestamp = hello_data.extract_timestamp();
-                Self::validate_timestamp(
-                    timestamp,
-                    self.state.lp_config.debug.timestamp_tolerance,
-                )?;
-
-                tracing::debug!(
-                    "ClientHello timestamp validated: {} (age: {}s, tolerance: {}s)",
-                    timestamp,
-                    {
-                        use std::time::{SystemTime, UNIX_EPOCH};
-                        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-                        now.abs_diff(timestamp)
-                    },
-                    self.state.lp_config.debug.timestamp_tolerance.as_secs()
-                );
-
-                // Retrieve X25519 PublicKey (for Noise protocol)
-                let client_pubkey = hello_data.client_lp_public_key;
-
-                // Retrieve Ed25519 PublicKey (for PSQ authentication)
-                let client_ed25519_pubkey = hello_data.client_ed25519_public_key;
-
-                // Extract salt for PSK derivation
-                let salt = hello_data.salt;
-
-                Ok((client_pubkey, client_ed25519_pubkey, salt))
-            }
-            other => Err(GatewayError::LpProtocolError(format!(
-                "Expected ClientHello, got {}",
-                other
-            ))),
-        }
     }
 
     /// Returns reference to the established forwarding channel to the exit.
@@ -900,54 +698,24 @@ where
     /// Returns the raw packet bytes and parsed outer header (receiver_idx + counter).
     /// The caller should look up the session to get outer_aead_key, then call
     /// `parse_lp_packet()` with the key.
-    async fn receive_raw_packet(&mut self) -> Result<(Vec<u8>, OuterHeader), GatewayError> {
-        use nym_lp::codec::parse_lp_header_only;
-
-        // Read 4-byte length prefix (u32 big-endian)
-        let mut len_buf = [0u8; 4];
-        self.stream.read_exact(&mut len_buf).await.map_err(|e| {
-            GatewayError::LpConnectionError(format!("Failed to read packet length: {}", e))
-        })?;
-
-        let packet_len = u32::from_be_bytes(len_buf) as usize;
-
-        // Sanity check to prevent huge allocations
-        const MAX_PACKET_SIZE: usize = 65536; // 64KB max
-        if packet_len > MAX_PACKET_SIZE {
-            return Err(GatewayError::LpProtocolError(format!(
-                "Packet size {} exceeds maximum {}",
-                packet_len, MAX_PACKET_SIZE
-            )));
-        }
-
-        // Read the actual packet data
-        let mut packet_buf = vec![0u8; packet_len];
-        self.stream.read_exact(&mut packet_buf).await.map_err(|e| {
-            GatewayError::LpConnectionError(format!("Failed to read packet data: {}", e))
-        })?;
-
-        // Track bytes received (4 byte header + packet data)
-        self.stats.record_bytes_received(4 + packet_len);
-
-        // Parse header only (for routing - header is always cleartext)
-        let header = parse_lp_header_only(&packet_buf).map_err(|e| {
-            GatewayError::LpProtocolError(format!("Failed to parse LP header: {}", e))
-        })?;
-
-        Ok((packet_buf, header))
+    async fn receive_raw_packet(&mut self) -> Result<EncryptedLpPacket, GatewayError> {
+        Ok(self.stream.receive_length_prefixed_packet().await?)
     }
 
     /// Send a serialised LP packet over the stream with proper length-prefixed framing.
-    async fn send_serialised_packet(&mut self, packet_data: &[u8]) -> Result<(), GatewayError> {
+    async fn send_serialised_packet(
+        &mut self,
+        packet: &EncryptedLpPacket,
+    ) -> Result<(), GatewayError> {
         self.stream
-            .send_length_prefixed_packet(packet_data)
+            .send_length_prefixed_packet(packet)
             .await
             .map_err(|err| {
                 GatewayError::LpConnectionError(format!("failed to send LP packet: {err}"))
             })?;
 
         // Track bytes sent (4 byte header + packet data)
-        self.stats.record_bytes_sent(4 + packet_data.len());
+        self.stats.record_bytes_sent(4 + packet.encoded_length());
 
         Ok(())
     }
@@ -1029,9 +797,6 @@ mod tests {
     use crate::node::lp_listener::{LpConfig, LpDebug};
     use crate::node::ActiveClientsStore;
     use bytes::BytesMut;
-    use nym_lp::codec::{parse_lp_packet, serialize_lp_packet, OuterAeadKey};
-    use nym_lp::message::{ApplicationData, LpMessage};
-    use nym_lp::packet::{LpHeader, LpPacket};
     use nym_lp::peer::LpLocalPeer;
     use nym_lp::SessionsMock;
     use std::sync::Arc;

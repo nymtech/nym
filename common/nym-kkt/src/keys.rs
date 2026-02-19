@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 /// Wrapper around keys used for the KEM exchange
 /// with cheap clones thanks to Arc wrappers
+#[derive(Clone)]
 pub struct KEMKeys {
     mc_eliece_pk: Arc<classic_mceliece::PublicKey>,
     mc_eliece_sk: Arc<classic_mceliece::SecretKey>,

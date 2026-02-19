@@ -159,10 +159,10 @@ mod tests {
             let resp_rng = resp_rng.leak();
 
             let init_fut = handshake_init
-                .complete_handshake(init_rng)
+                .complete_handshake_with_rng(init_rng)
                 .spawn_timeboxed();
             let resp_fut = handshake_resp
-                .complete_handshake(resp_rng)
+                .complete_handshake_with_rng(resp_rng)
                 .spawn_timeboxed();
 
             let (session_init, session_resp) = join!(init_fut, resp_fut);

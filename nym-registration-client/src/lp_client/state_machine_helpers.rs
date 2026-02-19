@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpClientError;
-use nym_lp::packet::EncryptedLpPacket;
 use nym_lp::state_machine::{LpAction, LpData, LpInput};
 use nym_lp::{EncryptedLpPacket, LpPacket, LpStateMachine};
 

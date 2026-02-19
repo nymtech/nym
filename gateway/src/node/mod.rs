@@ -18,7 +18,7 @@ use nym_credential_verification::upgrade_mode::{
 };
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_router::IpPacketRouter;
-use nym_lp::peer::LpLocalPeer;
+use nym_lp::peer::{DHKeyPair, KEMKeys, LpLocalPeer};
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::NRServiceProviderBuilder;
@@ -48,6 +48,7 @@ pub use nym_gateway_storage::{
     traits::{BandwidthGatewayStorage, InboxGatewayStorage},
     GatewayStorage,
 };
+use nym_lp::LpSession;
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
 pub(crate) mod client_handling;
@@ -96,10 +97,10 @@ pub struct GatewayTasksBuilder {
     identity_keypair: Arc<ed25519::KeyPair>,
 
     /// x25519 keypair used within KTT exchange
-    x25519_keypair: Arc<x25519::KeyPair>,
+    x25519_keypair: Arc<DHKeyPair>,
 
     /// x25519 (for now, to be changed into MlKem) keypair used for the PSQ derivation
-    kem_psq_keys: Arc<x25519::KeyPair>,
+    kem_psq_keys: KEMKeys,
 
     storage: GatewayStorage,
 
@@ -129,8 +130,8 @@ impl GatewayTasksBuilder {
     pub fn new(
         config: Config,
         identity: Arc<ed25519::KeyPair>,
-        x25519: Arc<x25519::KeyPair>,
-        kem_psq_keys: Arc<x25519::KeyPair>,
+        x25519: Arc<DHKeyPair>,
+        kem_psq_keys: KEMKeys,
         storage: GatewayStorage,
         mix_packet_sender: MixForwardingSender,
         metrics_sender: MetricEventsSender,
@@ -353,10 +354,10 @@ impl GatewayTasksBuilder {
             ecash_verifier: self.ecash_manager().await?,
             storage: self.storage.clone(),
             local_lp_peer: LpLocalPeer::new(
-                self.identity_keypair.clone(),
+                LpSession::default_ciphersuite(),
                 self.x25519_keypair.clone(),
             )
-            .with_kem_psq_key(self.kem_psq_keys.clone()),
+            .with_kem_keys(self.kem_psq_keys.clone()),
             metrics: self.metrics.clone(),
             active_clients_store,
             peer_registrator,

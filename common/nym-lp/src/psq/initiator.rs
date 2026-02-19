@@ -19,6 +19,7 @@ use nym_kkt::initiator::KKTInitiator;
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt::message::{KKTRequest, KKTResponse};
 use nym_lp_transport::traits::LpChannel;
+use rand09::SeedableRng;
 use tracing::debug;
 
 pub struct PSQHandshakeStateInitiator<'a, S> {
@@ -91,7 +92,15 @@ where
         Ok(KKTResponse::from_bytes(data))
     }
 
-    pub async fn complete_handshake<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
+    pub async fn complete_handshake(mut self) -> Result<LpSession, LpError>
+    where
+        S: LpChannel + Unpin,
+    {
+        let mut rng = rand09::rngs::StdRng::from_os_rng();
+        self.complete_handshake_with_rng(&mut rng).await
+    }
+
+    pub async fn complete_handshake_with_rng<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
     where
         S: LpChannel + Unpin,
         R: rand09::CryptoRng,
@@ -209,7 +218,7 @@ mod tests {
 
             let init_fut = tokio::spawn(async move {
                 handshake_init
-                    .complete_handshake(&mut init_rng)
+                    .complete_handshake_with_rng(&mut init_rng)
                     .timeboxed()
                     .await
             });

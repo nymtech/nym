@@ -84,7 +84,7 @@ use tokio::net::TcpListener;
 use tokio::sync::Semaphore;
 use tracing::*;
 
-pub use nym_lp::peer::LpLocalPeer;
+pub use nym_lp::peer::{DHKeyPair, DHPublicKey, KEMKeys, LpLocalPeer};
 pub use nym_mixnet_client::forwarder::{
     mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender,
 };
@@ -174,14 +174,6 @@ pub struct LpDebug {
     #[serde(with = "humantime_serde")]
     pub session_ttl: Duration,
 
-    /// Maximum age of demoted (read-only) sessions before cleanup (default: 60s)
-    ///
-    /// After subsession promotion, old sessions enter ReadOnlyTransport state.
-    /// They only need to stay alive briefly to drain in-flight packets.
-    /// This shorter TTL prevents memory buildup from frequent rekeying.
-    #[serde(with = "humantime_serde")]
-    pub demoted_session_ttl: Duration,
-
     /// How often to run the state cleanup task (default: 5 minutes)
     ///
     /// The cleanup task scans for and removes stale handshakes and sessions.
@@ -245,9 +237,6 @@ impl LpDebug {
     // 24 hours - for long-lived dVPN sessions
     pub const DEFAULT_SESSION_TTL: Duration = Duration::from_secs(86400);
 
-    // 1 minute - enough to drain in-flight packets after subsession promotion
-    pub const DEFAULT_DEMOTED_SESSION_TTL: Duration = Duration::from_secs(60);
-
     // 5 minutes - balances memory reclamation with task overhead
     pub const DEFAULT_STATE_CLEANUP_INTERVAL: Duration = Duration::from_secs(300);
 
@@ -263,7 +252,6 @@ impl Default for LpDebug {
             use_mock_ecash: false,
             handshake_ttl: Self::DEFAULT_HANDSHAKE_TTL,
             session_ttl: Self::DEFAULT_SESSION_TTL,
-            demoted_session_ttl: Self::DEFAULT_DEMOTED_SESSION_TTL,
             state_cleanup_interval: Self::DEFAULT_STATE_CLEANUP_INTERVAL,
             max_concurrent_forwards: Self::DEFAULT_MAX_CONCURRENT_FORWARDS,
         }
@@ -555,14 +543,15 @@ impl LpListener {
 
         let handshake_ttl = dbg_cfg.handshake_ttl;
         let session_ttl = dbg_cfg.session_ttl;
-        let demoted_session_ttl = dbg_cfg.demoted_session_ttl;
         let interval = dbg_cfg.state_cleanup_interval;
         let shutdown = self.shutdown.clone_shutdown_token();
         let metrics = self.handler_state.metrics.clone();
 
         info!(
-            "Starting LP state cleanup task (handshake_ttl={}s, session_ttl={}s, demoted_ttl={}s, interval={}s)",
-            handshake_ttl.as_secs(), session_ttl.as_secs(), demoted_session_ttl.as_secs(), interval.as_secs()
+            "Starting LP state cleanup task (handshake_ttl={}s, session_ttl={}s, interval={}s)",
+            handshake_ttl.as_secs(),
+            session_ttl.as_secs(),
+            interval.as_secs()
         );
 
         self.shutdown.try_spawn_named(
@@ -594,47 +583,31 @@ pub(crate) mod cleanup_task {
         cfg: LpDebug,
     ) {
         let session_ttl = cfg.session_ttl;
-        let demoted_session_ttl = cfg.demoted_session_ttl;
 
         let start = std::time::Instant::now();
         let mut ss_removed = 0u64;
-        let mut demoted_removed = 0u64;
 
         // Remove stale sessions (based on time since last activity)
         // Use shorter TTL for demoted (ReadOnlyTransport) sessions
         session_states.retain(|_, timestamped| {
-            let is_demoted = timestamped.state.bare_state() == LpStateBare::ReadOnlyTransport;
-            let ttl = if is_demoted {
-                demoted_session_ttl
-            } else {
-                session_ttl
-            };
-
-            if timestamped.since_activity() > ttl {
-                if is_demoted {
-                    demoted_removed += 1;
-                } else {
-                    ss_removed += 1;
-                }
+            if timestamped.since_activity() > session_ttl {
+                ss_removed += 1;
                 false
             } else {
                 true
             }
         });
 
-        if ss_removed > 0 || demoted_removed > 0 {
+        if ss_removed > 0 {
             let duration = start.elapsed();
             info!(
-                "LP state cleanup: {ss_removed} sessions, {demoted_removed} demoted (took {:.3}s)",
+                "LP state cleanup: {ss_removed} sessions (took {:.3}s)",
                 duration.as_secs_f64()
             );
 
             // Track metrics
             if ss_removed > 0 {
                 inc_by!("lp_states_cleanup_session_removed", ss_removed as i64);
-            }
-            if demoted_removed > 0 {
-                inc_by!("lp_states_cleanup_demoted_removed", demoted_removed as i64);
             }
         }
     }

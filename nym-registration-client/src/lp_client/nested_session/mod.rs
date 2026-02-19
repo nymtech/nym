@@ -27,11 +27,11 @@ use crate::lp_client::state_machine_helpers::{
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::message::ForwardPacketData;
 use nym_lp::packet::version;
-use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
+use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpData, LpStateMachine};
-use nym_lp::{LpPacket, LpSession};
+use nym_lp::{ForwardPacketData, LpPacket, LpSession};
+use nym_lp_transport::LpChannel;
 use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
@@ -94,7 +94,7 @@ impl NestedLpSession {
     /// * `gateway_supported_lp_protocol_version` - Gateway's LP protocol version
     pub fn new(
         exit_address: SocketAddr,
-        client_keypair: Arc<ed25519::KeyPair>,
+        client_keypair: Arc<DHKeyPair>,
         gateway_lp_peer: LpRemotePeer,
         gateway_supported_lp_protocol_version: u8,
     ) -> Self {
@@ -149,11 +149,12 @@ impl NestedLpSession {
     fn prepare_forward_packet(&mut self, data: LpData) -> Result<ForwardPacketData> {
         let state_machine = self.state_machine_mut()?;
         let inner_packet_bytes = prepare_serialised_send_packet(data, state_machine)?;
-        Ok(ForwardPacketData::new(
-            self.gateway_lp_peer.ed25519(),
-            self.exit_address,
-            inner_packet_bytes,
-        ))
+        todo!()
+        // Ok(ForwardPacketData::new(
+        //     self.gateway_lp_peer.ed25519(),
+        //     self.exit_address,
+        //     inner_packet_bytes,
+        // ))
     }
 
     /// Attempt to recover received `LpData` from the received `LpPacket`
@@ -186,22 +187,23 @@ impl NestedLpSession {
         outer_client: &mut LpRegistrationClient<S>,
     ) -> Result<()>
     where
-        S: LpTransport + Unpin,
+        S: LpTransport + LpChannel + Unpin,
     {
         tracing::debug!(
             "Starting nested LP handshake with exit gateway {}",
             self.exit_address
         );
 
-        let mut nested_connection =
-            outer_client.as_nested_connection(self.gateway_lp_peer.ed25519(), self.exit_address);
-
-        let local_peer = self.lp_local_peer.clone();
-        let remote_peer = self.gateway_lp_peer.clone();
-        let protocol_version = self.gateway_supported_lp_protocol_version;
-
-        let ciphersuite = LpSession::default_ciphersuite();
         todo!()
+        // let mut nested_connection =
+        //     outer_client.as_nested_connection(self.gateway_lp_peer.ed25519(), self.exit_address);
+        //
+        // let local_peer = self.lp_local_peer.clone();
+        // let remote_peer = self.gateway_lp_peer.clone();
+        // let protocol_version = self.gateway_supported_lp_protocol_version;
+        //
+        // let ciphersuite = LpSession::default_ciphersuite();
+        // todo!()
         // let session = LpSession::psq_handshake_initiator(
         //     &mut nested_connection,
         //     ciphersuite,
@@ -247,7 +249,7 @@ impl NestedLpSession {
         ticket_type: TicketType,
     ) -> Result<WireguardRegistrationData>
     where
-        S: LpTransport + Unpin,
+        S: LpTransport + LpChannel + Unpin,
     {
         tracing::debug!("Acquiring bandwidth credential for registration");
 
@@ -352,7 +354,7 @@ impl NestedLpSession {
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
-        S: LpTransport + Unpin,
+        S: LpTransport + LpChannel + Unpin,
         R: RngCore + CryptoRng,
     {
         // Step 1: Perform handshake with exit gateway via forwarding
@@ -467,7 +469,7 @@ impl NestedLpSession {
         max_retries: u32,
     ) -> Result<WireguardConfiguration>
     where
-        S: LpTransport + Unpin,
+        S: LpTransport + LpChannel + Unpin,
         R: RngCore + CryptoRng,
     {
         tracing::debug!(

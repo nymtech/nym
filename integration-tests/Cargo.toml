@@ -27,6 +27,7 @@ nym-gateway = { path = "../gateway" }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
 tracing = { workspace = true }
 futures = { workspace = true }
+nym-kkt = { workspace = true }
 nym-kkt-ciphersuite = { workspace = true }
 
 [lints]

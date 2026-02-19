@@ -125,12 +125,7 @@ impl LpSession {
     /// This is a temporary workaround until values can be properly inferred
     /// from reported version
     pub fn default_ciphersuite() -> Ciphersuite {
-        Ciphersuite::new(
-            KEM::MlKem768,
-            HashFunction::Blake3,
-            SignatureScheme::Ed25519,
-            HashLength::Default,
-        )
+        Ciphersuite::default()
     }
 
     /// Helper function to create `PSQHandshakeState` for the handshake initiator
@@ -174,8 +169,9 @@ impl LpSession {
     }
 
     pub fn id(&self) -> u32 {
-        todo!()
-        // self.session.identifier()
+        let TODO = "this is temporary...";
+        let id = self.psq_session.identifier();
+        u32::from_le_bytes([id[0], id[1], id[2], id[3]])
     }
 
     /// Returns the negotiated protocol version from the handshake.

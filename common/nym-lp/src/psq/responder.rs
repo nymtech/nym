@@ -19,6 +19,7 @@ use nym_kkt::message::{KKTRequest, KKTResponse, ProcessedKKTRequest};
 use nym_kkt::responder::KKTResponder;
 use nym_kkt_ciphersuite::KEM;
 use nym_lp_transport::traits::LpChannel;
+use rand09::SeedableRng;
 use tracing::debug;
 
 pub struct PSQHandshakeStateResponder<'a, S> {
@@ -120,7 +121,15 @@ where
         Ok(self.inner_state.connection.read_n_bytes(packet_len).await?)
     }
 
-    pub async fn complete_handshake<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
+    pub async fn complete_handshake(mut self) -> Result<LpSession, LpError>
+    where
+        S: LpChannel + Unpin,
+    {
+        let mut rng = rand09::rngs::StdRng::from_os_rng();
+        self.complete_handshake_with_rng(&mut rng).await
+    }
+
+    pub async fn complete_handshake_with_rng<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
     where
         S: LpChannel + Unpin,
         R: rand09::CryptoRng,
@@ -227,7 +236,7 @@ mod tests {
             let mut resp_rng = DeterministicRng09Send::new(u64_seeded_rng_09(2));
             let resp_fut = tokio::spawn(async move {
                 handshake_resp
-                    .complete_handshake(&mut resp_rng)
+                    .complete_handshake_with_rng(&mut resp_rng)
                     .timeboxed()
                     .await
             });

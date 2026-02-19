@@ -252,6 +252,17 @@ pub struct Ciphersuite {
     signature_length: usize,
 }
 
+impl Default for Ciphersuite {
+    fn default() -> Self {
+        Ciphersuite::new(
+            KEM::MlKem768,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
+        )
+    }
+}
+
 impl Ciphersuite {
     pub fn new(
         kem: KEM,
@@ -389,17 +400,6 @@ impl Display for Ciphersuite {
                 self.kem, self.hash_function, self.hash_length, self.signature_scheme
             )
             .to_ascii_lowercase(),
-        )
-    }
-}
-
-impl Default for Ciphersuite {
-    fn default() -> Self {
-        Self::new(
-            KEM::MlKem768,
-            HashFunction::Blake3,
-            SignatureScheme::Ed25519,
-            HashLength::Default,
         )
     }
 }

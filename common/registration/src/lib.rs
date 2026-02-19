@@ -57,7 +57,6 @@ pub struct WireguardConfiguration {
 pub struct NymNodeLPInformation {
     pub address: SocketAddr,
     pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
-    pub expected_signing_key_hashes: HashMap<SignatureScheme, KEMKeyDigests>,
     pub x25519: x25519::PublicKey,
 
     /// Supported protocol version of the remote gateway.

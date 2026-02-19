@@ -4,7 +4,7 @@ import { Steps } from 'nextra/components';
 
 The Diagnostic Tool is a standalone binary designed to perform various network tests, including DNS, HTTP, and gateway connectivity tests. This tool helps diagnose connectivity issues and provides insights into network performance.
 
-It’s also possible tu run it within the daemon with the same CLI interface.
+It’s also possible to run it within the daemon with the same CLI interface.
 
 ## Download Binary
 
@@ -22,7 +22,7 @@ To get `nym-diagnostic` follow these steps:
 sudo dpkg -i <FILE_NAME>
 ```
 
-- If you downloaded `.tar.gz`, in temrinal you can extract the file with 
+- If you downloaded `.tar.gz`, in terminal you can extract the file with 
 ```sh
 tar -xvf <FILE_NAME>
 ```
@@ -36,7 +36,7 @@ chmod +x ./*
 
 ## CLI Usage
 
-The Diagnostic Tool can be executed from the command line interface (CLI). Below are the usage instructions and options available. Read in the chapter [*Tests Performed*](#tests-performed) about the purpose and oucome of these commands. 
+The Diagnostic Tool can be executed from the command line interface (CLI). Below are the usage instructions and options available. Read in the chapter [*Tests Performed*](#tests-performed) about the purpose and outcome of these commands. 
 
 ### Command Syntax
 
@@ -121,7 +121,7 @@ The Diagnostic Tool runs the following tests:
 - **Purpose:** To check the correctness of the registration process.
 - **Process:** The tool tries to build a mixnet client to the provided gateway and then tries to register to the entry authenticator
 - **Output:** Display the status of the different steps
-- **Caveat:** This test requires a credential to be spent, which is why is it available as a separate command only
+- **Caveat:** This test requires a credential to be spent, which is why it is available as a separate command only
 
 ### 5. Wireguard Test
 

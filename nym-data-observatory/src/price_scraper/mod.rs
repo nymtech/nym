@@ -3,6 +3,7 @@ use crate::db::{
     queries::price::insert_nym_prices,
 };
 use core::str;
+use std::env;
 use tokio::time::Duration;
 
 use crate::db::DbPool;
@@ -29,7 +30,15 @@ impl PriceScraper {
     async fn get_coingecko_prices(&self) -> anyhow::Result<CoingeckoPriceResponse> {
         tracing::info!("💰 Fetching CoinGecko prices from {COINGECKO_API_URL}");
 
-        let response = reqwest::get(COINGECKO_API_URL).await?;
+        let mut url = COINGECKO_API_URL.to_string();
+
+        let coin_gecko_api_key = env::var("COINGECKO_API_KEY").ok();
+
+        if let Some(api_key) = coin_gecko_api_key {
+            url = format!("{url}&x_cg_demo_api_key={api_key}")
+        }
+
+        let response = reqwest::get(url).await?;
 
         if !response.status().is_success() {
             tracing::error!(

@@ -1,12 +1,37 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{KKT_VERSION, error::KKTError};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use nym_kkt_ciphersuite::{CIPHERSUITE_ENCODING_LEN, Ciphersuite};
 use std::fmt::Display;
+use thiserror::Error;
+
+// This must be less than 4 bits
+pub const KKT_VERSION: u8 = 1;
+const _: () = assert!(KKT_VERSION < 1 << 4);
 
 pub const KKT_CONTEXT_LEN: usize = 3 + CIPHERSUITE_ENCODING_LEN;
+
+#[derive(Debug, Error)]
+pub enum KKTContextEncodingError {
+    #[error("KKT Message Count Limit Reached")]
+    MessageCountLimitReached,
+
+    #[error("{version} is not a valid KKT version")]
+    InvalidVersion { version: u8 },
+
+    #[error("{raw} is not a valid KKTStatus")]
+    InvalidStatus { raw: u8 },
+
+    #[error("{raw} is not a valid KKTRole")]
+    InvalidRole { raw: u8 },
+
+    #[error("{raw} is not a valid KKTMode")]
+    InvalidMode { raw: u8 },
+
+    #[error(transparent)]
+    InvalidCiphersuite(#[from] nym_kkt_ciphersuite::error::KKTCiphersuiteError),
+}
 
 // bitmask used: 0b1110_0000
 #[derive(Clone, Copy, PartialEq, Debug, IntoPrimitive, TryFromPrimitive)]
@@ -82,6 +107,7 @@ pub struct KKTContext {
     role: KKTRole,
     ciphersuite: Ciphersuite,
 }
+
 impl KKTContext {
     pub fn new(role: KKTRole, mode: KKTMode, ciphersuite: Ciphersuite) -> Self {
         Self {
@@ -94,7 +120,7 @@ impl KKTContext {
         }
     }
 
-    pub fn derive_responder_header(&self) -> Result<Self, KKTError> {
+    pub fn derive_responder_header(&self) -> Result<Self, KKTContextEncodingError> {
         let mut responder_header = *self;
 
         responder_header.increment_message_sequence_count()?;
@@ -103,12 +129,12 @@ impl KKTContext {
         Ok(responder_header)
     }
 
-    pub fn increment_message_sequence_count(&mut self) -> Result<(), KKTError> {
+    pub fn increment_message_sequence_count(&mut self) -> Result<(), KKTContextEncodingError> {
         if self.message_sequence + 1 < (1 << 4) {
             self.message_sequence += 1;
             Ok(())
         } else {
-            Err(KKTError::MessageCountLimitReached)
+            Err(KKTContextEncodingError::MessageCountLimitReached)
         }
     }
 
@@ -133,9 +159,9 @@ impl KKTContext {
 
     pub fn body_len(&self) -> usize {
         if (self.status != KKTStatus::Ok && self.status != KKTStatus::UnverifiedKEMKey)
-        ||
-        // no payload
-        (self.mode == KKTMode::OneWay && self.role == KKTRole::Initiator)
+            ||
+            // no payload
+            (self.mode == KKTMode::OneWay && self.role == KKTRole::Initiator)
         {
             0
         } else {
@@ -151,10 +177,10 @@ impl KKTContext {
         self.body_len() + self.header_len()
     }
 
-    pub fn encode(&self) -> Result<[u8; KKT_CONTEXT_LEN], KKTError> {
+    pub fn encode(&self) -> Result<[u8; KKT_CONTEXT_LEN], KKTContextEncodingError> {
         let mut header_bytes = [0u8; KKT_CONTEXT_LEN];
         if self.message_sequence >= 1 << 4 {
-            return Err(KKTError::MessageCountLimitReached);
+            return Err(KKTContextEncodingError::MessageCountLimitReached);
         }
 
         let ciphersuite_bytes = self.ciphersuite.encode();
@@ -171,15 +197,17 @@ impl KKTContext {
         Ok(header_bytes)
     }
 
-    pub fn try_decode(header_bytes: [u8; KKT_CONTEXT_LEN]) -> Result<Self, KKTError> {
+    pub fn try_decode(
+        header_bytes: [u8; KKT_CONTEXT_LEN],
+    ) -> Result<Self, KKTContextEncodingError> {
         let kkt_version = (header_bytes[0] & 0b1111_0000) >> 4;
         let message_sequence_counter = header_bytes[0] & 0b0000_1111;
 
         // We only check if stuff is valid here, not necessarily if it's compatible
 
         if kkt_version > KKT_VERSION {
-            return Err(KKTError::FrameDecodingError {
-                info: format!("Header - Invalid KKT Version: {kkt_version}"),
+            return Err(KKTContextEncodingError::InvalidVersion {
+                version: kkt_version,
             });
         }
 
@@ -187,16 +215,15 @@ impl KKTContext {
         let raw_kkt_role = header_bytes[1] & 0b0000_0011;
         let raw_kkt_mode = header_bytes[1] & 0b0001_1100;
 
-        let status =
-            KKTStatus::try_from(raw_kkt_status).map_err(|_| KKTError::FrameDecodingError {
-                info: format!("Header - Invalid KKT Status: {raw_kkt_status}"),
-            })?;
-        let role = KKTRole::try_from(raw_kkt_role).map_err(|_| KKTError::FrameDecodingError {
-            info: format!("Header - Invalid KKT Role: {raw_kkt_role}"),
+        let status = KKTStatus::try_from(raw_kkt_status).map_err(|_| {
+            KKTContextEncodingError::InvalidStatus {
+                raw: raw_kkt_status,
+            }
         })?;
-        let mode = KKTMode::try_from(raw_kkt_mode).map_err(|_| KKTError::FrameDecodingError {
-            info: format!("Header - Invalid KKT Mode: {raw_kkt_mode}"),
-        })?;
+        let role = KKTRole::try_from(raw_kkt_role)
+            .map_err(|_| KKTContextEncodingError::InvalidRole { raw: raw_kkt_role })?;
+        let mode = KKTMode::try_from(raw_kkt_mode)
+            .map_err(|_| KKTContextEncodingError::InvalidMode { raw: raw_kkt_mode })?;
 
         // SAFETY: we're taking exactly `CIPHERSUITE_ENCODING_LEN` bytes
         #[allow(clippy::unwrap_used)]

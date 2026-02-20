@@ -10,6 +10,7 @@ mod tests {
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::{ed25519, x25519};
     use nym_gateway::GatewayError;
+    use nym_gateway::node::lp_listener::error::LpHandlerError;
     use nym_gateway::node::lp_listener::handler::LpConnectionHandler;
     use nym_gateway::node::lp_listener::{
         DHKeyPair, KEMKeys, LpDebug, LpHandlerState, LpLocalPeer, MixForwardingReceiver,
@@ -124,7 +125,7 @@ mod tests {
             handler: LpConnectionHandler<MockIOStream>,
         },
         Running {
-            handle: JoinHandle<Option<Result<(), GatewayError>>>,
+            handle: JoinHandle<Option<Result<(), LpHandlerError>>>,
         },
         Finished,
     }
@@ -403,6 +404,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_basic_lp_entry_registration() -> anyhow::Result<()> {
+            let TODO = "test with different kems";
+            let ciphersuite = Ciphersuite::default();
+
             // nym_test_utils::helpers::setup_test_logger();
             // initialise random, but deterministic, keys, addresses, etc. for the parties
             let mut client_rng = u64_seeded_rng_09(0);
@@ -416,6 +420,7 @@ mod tests {
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
+                ciphersuite,
                 entry.base.lp_version,
             );
 
@@ -512,10 +517,13 @@ mod tests {
             let client_data = Client::mock(&mut client_rng);
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
+            let ciphersuite = Ciphersuite::default();
+
             let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_config(
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
+                ciphersuite,
                 entry.base.lp_version,
             );
 
@@ -551,13 +559,9 @@ mod tests {
                 .await?
                 .unwrap_err();
 
-            let LpClientError::Transport(err) = registration_result else {
+            let LpClientError::IncompleteHandshake = registration_result else {
                 panic!("unexpected error");
             };
-            assert_eq!(
-                err,
-                "State machine not available - has the handshake been completed?"
-            );
 
             // 5. stop the gateway task and finish the test
             entry.stop_tasks().await?;
@@ -566,7 +570,11 @@ mod tests {
 
         #[tokio::test]
         async fn test_basic_lp_exit_registration() -> anyhow::Result<()> {
-            // nym_test_utils::helpers::setup_test_logger();
+            nym_test_utils::helpers::setup_test_logger();
+
+            let TODO = "test with different kems";
+            let ciphersuite = Ciphersuite::default();
+
             // initialise random, but deterministic, keys, addresses, etc. for the parties
             let mut client_rng = u64_seeded_rng_09(0);
             let mut entry_rng = u64_seeded_rng_09(1);
@@ -581,6 +589,7 @@ mod tests {
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
+                ciphersuite,
                 entry.base.lp_version,
             );
 
@@ -696,13 +705,17 @@ mod tests {
             let mut nested_session = NestedLpSession::new(
                 exit.base.socket_addr,
                 client_data.base.peer.x25519().clone(),
+                *exit.base.identity.public_key(),
                 exit.base.peer.as_remote(),
+                ciphersuite,
                 exit.base.lp_version,
             );
 
             // 13. Perform handshake and registration with exit gateway (all via entry forwarding)
+            nested_session.perform_handshake(&mut entry_client).await?;
+
             let exit_registration_result = nested_session
-                .handshake_and_register_dvpn(
+                .register_dvpn(
                     &mut entry_client,
                     &mut client_rng,
                     &client_data.base.x25519_wg_keys,

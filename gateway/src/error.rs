@@ -3,12 +3,12 @@
 
 pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
+use crate::node::lp_listener::error::LpHandlerError;
 use crate::node::wireguard::GatewayWireguardError;
 use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_gateway_stats_storage::error::StatsStorageError;
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
-use nym_lp_transport::LpTransportError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{AccountId, Coin};
@@ -128,18 +128,6 @@ pub enum GatewayError {
     #[error("{0}")]
     CredentialVerificationError(#[from] nym_credential_verification::Error),
 
-    #[error("LP connection error: {0}")]
-    LpConnectionError(String),
-
-    #[error("LP protocol error: {0}")]
-    LpProtocolError(String),
-
-    #[error(transparent)]
-    LpTransportError(#[from] LpTransportError),
-
-    #[error("LP handshake error: {0}")]
-    LpHandshakeError(String),
-
     #[error("Service provider {service} is not running")]
     ServiceProviderNotRunning { service: String },
 
@@ -166,6 +154,9 @@ pub enum GatewayError {
 
     #[error(transparent)]
     WireguardFailure(#[from] GatewayWireguardError),
+
+    #[error(transparent)]
+    LpFailure(#[from] LpHandlerError),
 }
 
 impl From<ClientCoreError> for GatewayError {

@@ -25,38 +25,19 @@ pub(crate) fn serialize_packet(packet: &LpPacket) -> Result<Vec<u8>, LpClientErr
 }
 
 /// Attempt to prepare the provided data for sending by wrapping it in appropriate `LpAction`,
-/// and attempting to extract `LpPacket` from the provided srtate machine.
+/// and attempting to extract `EncryptedLpPacket` from the provided state machine.
 pub(crate) fn prepare_send_packet(
     data: LpData,
     state_machine: &mut LpStateMachine,
 ) -> Result<EncryptedLpPacket, LpClientError> {
     let action = state_machine
         .process_input(LpInput::SendData(data))
-        .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
-        .map_err(|e| {
-            LpClientError::SendRegistrationRequest(format!(
-                "Failed to encrypt registration request: {e}",
-            ))
-        })?;
+        .ok_or(LpClientError::UnexpectedStateMachineHalt)??;
 
     match action {
         LpAction::SendPacket(packet) => Ok(packet),
-        other => Err(LpClientError::Transport(format!(
-            "Unexpected action when trying to send packet data: {other:?}",
-        ))),
+        action => Err(LpClientError::UnexpectedStateMachineAction { action }),
     }
-}
-
-/// Attempt to prepare the provided data for sending by wrapping it in appropriate `LpAction`,
-/// serialising and finally encrypting (if appropriate key is available) the resultant `LpPacket`
-/// It uses the provided state machine.
-pub(crate) fn prepare_serialised_send_packet(
-    data: LpData,
-    state_machine: &mut LpStateMachine,
-) -> Result<Vec<u8>, LpClientError> {
-    let packet = prepare_send_packet(data, state_machine)?;
-    todo!()
-    // serialize_packet(&packet, Some(send_key))
 }
 
 /// Attempt to recover received `LpData` from the received `LpPacket`
@@ -67,15 +48,10 @@ pub(crate) fn extract_forwarded_response(
 ) -> Result<LpData, LpClientError> {
     let action = state_machine
         .process_input(LpInput::ReceivePacket(response_packet))
-        .ok_or_else(|| LpClientError::Transport("State machine returned no action".to_string()))?
-        .map_err(|e| {
-            LpClientError::Transport(format!("Failed to decrypt received response: {e}"))
-        })?;
+        .ok_or(LpClientError::UnexpectedStateMachineHalt)??;
 
     match action {
         LpAction::DeliverData(data) => Ok(data),
-        other => Err(LpClientError::Transport(format!(
-            "Unexpected action when receiving response: {other:?}"
-        ))),
+        action => Err(LpClientError::UnexpectedStateMachineAction { action }),
     }
 }

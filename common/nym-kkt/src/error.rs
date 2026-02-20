@@ -3,6 +3,7 @@
 
 use crate::context::KKTStatus;
 use nym_kkt_ciphersuite::error::KKTCiphersuiteError;
+use nym_kkt_context::KKTContextEncodingError;
 use std::fmt::Debug;
 use thiserror::Error;
 
@@ -32,9 +33,6 @@ pub enum KKTError {
     #[error("KKT Responder Flagged Error: {}", status)]
     ResponderFlaggedError { status: KKTStatus },
 
-    #[error("KKT Message Count Limit Reached")]
-    MessageCountLimitReached,
-
     #[error("PSQ KEM Error: {}", info)]
     KEMError { info: &'static str },
 
@@ -63,6 +61,9 @@ pub enum KKTError {
 
     #[error("the received encapsulation key hash does not match the expected value")]
     MismatchedKEMHash,
+
+    #[error(transparent)]
+    MalformedContext(#[from] KKTContextEncodingError),
 }
 
 impl KKTError {

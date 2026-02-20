@@ -91,6 +91,7 @@ pub use nym_mixnet_client::forwarder::{
 pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
 
 mod data_handler;
+pub mod error;
 pub mod handler;
 mod registration;
 
@@ -437,7 +438,6 @@ impl LpListener {
         loop {
             tokio::select! {
                 biased;
-
                 _ = shutdown_token.cancelled() => {
                     trace!("LP listener: received shutdown signal");
                     break;
@@ -445,12 +445,8 @@ impl LpListener {
 
                 result = listener.accept() => {
                     match result {
-                        Ok((stream, addr)) => {
-                            self.handle_connection(stream, addr);
-                        }
-                        Err(e) => {
-                            warn!("Failed to accept LP connection: {}", e);
-                        }
+                        Ok((stream, addr)) => self.handle_connection(stream, addr),
+                        Err(e) => warn!("Failed to accept LP connection: {e}")
                     }
                 }
             }

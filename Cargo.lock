@@ -6801,6 +6801,7 @@ dependencies = [
  "num_enum",
  "nym-crypto",
  "nym-kkt-ciphersuite",
+ "nym-kkt-context",
  "rand 0.9.2",
  "rand_chacha 0.9.0",
  "strum",
@@ -6818,6 +6819,15 @@ dependencies = [
  "strum",
  "strum_macros",
  "thiserror 2.0.12",
+]
+
+[[package]]
+name = "nym-kkt-context"
+version = "1.20.4"
+dependencies = [
+ "num_enum",
+ "nym-kkt-ciphersuite",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -6921,6 +6931,8 @@ dependencies = [
 name = "nym-lp-transport"
 version = "0.1.0"
 dependencies = [
+ "nym-kkt-ciphersuite",
+ "nym-kkt-context",
  "nym-lp-packet",
  "nym-test-utils",
  "thiserror 2.0.18",
@@ -7514,6 +7526,7 @@ dependencies = [
 name = "nym-registration-client"
 version = "1.20.4"
 dependencies = [
+ "bincode",
  "bytes",
  "futures",
  "nym-authenticator-client",

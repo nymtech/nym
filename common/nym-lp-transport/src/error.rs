@@ -17,11 +17,17 @@ pub enum LpTransportError {
     #[error("failed to configure the established connection: {0}")]
     ConnectionConfigFailure(String),
 
+    #[error("connection got closed before finishing the operation")]
+    ConnectionClosed,
+
+    #[error("the received packet was malformed: {0}")]
+    MalformedPacket(String),
+
     #[error("failed to send bytes across the channel: {0}")]
-    TransportSendFailure(std::io::Error),
+    TransportSendFailure(String),
 
     #[error("failed to receive bytes across the channel: {0}")]
-    TransportReceiveFailure(std::io::Error),
+    TransportReceiveFailure(String),
 }
 
 impl LpTransportError {
@@ -34,10 +40,16 @@ impl LpTransportError {
     }
 
     pub fn send_failure(error: std::io::Error) -> Self {
-        LpTransportError::TransportSendFailure(error)
+        if error.kind() == std::io::ErrorKind::UnexpectedEof {
+            return LpTransportError::ConnectionClosed;
+        }
+        LpTransportError::TransportSendFailure(error.to_string())
     }
 
     pub fn receive_failure(error: std::io::Error) -> Self {
-        LpTransportError::TransportReceiveFailure(error)
+        if error.kind() == std::io::ErrorKind::UnexpectedEof {
+            return LpTransportError::ConnectionClosed;
+        }
+        LpTransportError::TransportReceiveFailure(error.to_string())
     }
 }

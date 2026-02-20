@@ -14,6 +14,7 @@ strum = { workspace = true }
 # internal
 nym-crypto = { path = "../crypto", features = ["hashing"] }
 nym-kkt-ciphersuite = { workspace = true, features = ["digests"] }
+nym-kkt-context = { path = "../nym-kkt-context" }
 
 libcrux-kem = { workspace = true }
 libcrux-ecdh = { workspace = true, features = ["codec"] }

@@ -23,7 +23,8 @@
 //! The receiver_idx is used to look up the session established during LP registration.
 
 use super::LpHandlerState;
-use crate::error::GatewayError;
+use crate::node::lp_listener::error::LpHandlerError;
+use crate::GatewayError;
 use nym_lp::state_machine::{LpAction, LpInput};
 use nym_metrics::inc;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -73,7 +74,7 @@ impl LpDataHandler {
     }
 
     /// Run the UDP packet receive loop
-    pub async fn run(self) -> Result<(), GatewayError> {
+    pub async fn run(self) -> Result<(), LpHandlerError> {
         let mut buf = vec![0u8; MAX_UDP_PACKET_SIZE];
 
         loop {
@@ -90,12 +91,12 @@ impl LpDataHandler {
                         Ok((len, src_addr)) => {
                             // Process packet in place (no spawn - UDP is fast)
                             if let Err(e) = self.handle_packet(&buf[..len], src_addr).await {
-                                debug!("LP data packet error from {}: {}", src_addr, e);
+                                debug!("LP data packet error from {src_addr}: {e}");
                                 inc!("lp_data_packet_errors");
                             }
                         }
                         Err(e) => {
-                            warn!("LP data socket recv error: {}", e);
+                            warn!("LP data socket recv error: {e}");
                             inc!("lp_data_recv_errors");
                         }
                     }
@@ -121,13 +122,17 @@ impl LpDataHandler {
     /// - Marking counter as used after successful decryption
     ///
     /// This prevents replay attacks where captured packets are re-sent.
-    async fn handle_packet(&self, packet: &[u8], src_addr: SocketAddr) -> Result<(), GatewayError> {
+    async fn handle_packet(
+        &self,
+        packet: &[u8],
+        src_addr: SocketAddr,
+    ) -> Result<(), LpHandlerError> {
         todo!()
         // inc!("lp_data_packets_received");
         //
         // // Step 1: Parse LP header (always cleartext for routing)
         // let header = nym_lp::codec::parse_lp_header_only(packet).map_err(|e| {
-        //     GatewayError::LpProtocolError(format!("Failed to parse LP header: {}", e))
+        //     LpHandlerError::LpProtocolError(format!("Failed to parse LP header: {}", e))
         // })?;
         //
         // let receiver_idx = header.receiver_idx;
@@ -143,7 +148,7 @@ impl LpDataHandler {
         //     .get_mut(&receiver_idx)
         //     .ok_or_else(|| {
         //         inc!("lp_data_unknown_session");
-        //         GatewayError::LpProtocolError(format!(
+        //         LpHandlerError::LpProtocolError(format!(
         //             "Unknown session for receiver_idx {receiver_idx}"
         //         ))
         //     })?;
@@ -156,13 +161,13 @@ impl LpDataHandler {
         //     .value()
         //     .state
         //     .session()
-        //     .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {e}")))?
+        //     .map_err(|e| LpHandlerError::LpProtocolError(format!("Session error: {e}")))?
         //     .outer_aead_key();
         //
         // // Parse full packet with outer AEAD decryption
         // let lp_packet = nym_lp::codec::parse_lp_packet(packet, Some(outer_key)).map_err(|e| {
         //     inc!("lp_data_decrypt_errors");
-        //     GatewayError::LpProtocolError(format!("Failed to decrypt LP packet: {}", e))
+        //     LpHandlerError::LpProtocolError(format!("Failed to decrypt LP packet: {}", e))
         // })?;
         //
         // // Step 4: Process packet through state machine
@@ -175,11 +180,11 @@ impl LpDataHandler {
         // let action = state_machine
         //     .process_input(LpInput::ReceivePacket(lp_packet))
         //     .ok_or_else(|| {
-        //         GatewayError::LpProtocolError("State machine returned no action".to_string())
+        //         LpHandlerError::LpProtocolError("State machine returned no action".to_string())
         //     })?
         //     .map_err(|e| {
         //         inc!("lp_data_state_machine_errors");
-        //         GatewayError::LpProtocolError(format!("State machine error: {}", e))
+        //         LpHandlerError::LpProtocolError(format!("State machine error: {}", e))
         //     })?;
         //
         // // Release session lock before forwarding
@@ -208,7 +213,7 @@ impl LpDataHandler {
         //             src_addr, other
         //         );
         //         inc!("lp_data_unexpected_actions");
-        //         Err(GatewayError::LpProtocolError(format!(
+        //         Err(LpHandlerError::LpProtocolError(format!(
         //             "Unexpected state machine action on UDP: {:?}",
         //             other
         //         )))
@@ -223,29 +228,30 @@ impl LpDataHandler {
     /// - Key rotation (1 byte)
     /// - Next hop address (first mix node)
     /// - Sphinx packet data
-    async fn forward_sphinx_packet(&self, sphinx_bytes: &[u8]) -> Result<(), GatewayError> {
-        // Parse as MixPacket v2 format (packet_type || key_rotation || next_hop || packet)
-        let mix_packet = MixPacket::try_from_v2_bytes(sphinx_bytes).map_err(|e| {
-            inc!("lp_data_sphinx_parse_errors");
-            GatewayError::LpProtocolError(format!("Failed to parse MixPacket: {e}"))
-        })?;
-
-        trace!(
-            "Forwarding Sphinx packet to mixnet (next_hop={}, type={:?})",
-            mix_packet.next_hop(),
-            mix_packet.packet_type()
-        );
-
-        // Forward to mixnet via the shared channel
-        if let Err(e) = self.state.outbound_mix_sender.forward_packet(mix_packet) {
-            error!("Failed to forward Sphinx packet to mixnet: {}", e);
-            inc!("lp_data_forward_errors");
-            return Err(GatewayError::InternalError(format!(
-                "Mix packet forwarding failed: {e}",
-            )));
-        }
-
-        Ok(())
+    async fn forward_sphinx_packet(&self, sphinx_bytes: &[u8]) -> Result<(), LpHandlerError> {
+        todo!()
+        // // Parse as MixPacket v2 format (packet_type || key_rotation || next_hop || packet)
+        // let mix_packet = MixPacket::try_from_v2_bytes(sphinx_bytes).map_err(|e| {
+        //     inc!("lp_data_sphinx_parse_errors");
+        //     LpHandlerError::LpProtocolError(format!("Failed to parse MixPacket: {e}"))
+        // })?;
+        //
+        // trace!(
+        //     "Forwarding Sphinx packet to mixnet (next_hop={}, type={:?})",
+        //     mix_packet.next_hop(),
+        //     mix_packet.packet_type()
+        // );
+        //
+        // // Forward to mixnet via the shared channel
+        // if let Err(e) = self.state.outbound_mix_sender.forward_packet(mix_packet) {
+        //     error!("Failed to forward Sphinx packet to mixnet: {}", e);
+        //     inc!("lp_data_forward_errors");
+        //     return Err(LpHandlerError::InternalError(format!(
+        //         "Mix packet forwarding failed: {e}",
+        //     )));
+        // }
+        //
+        // Ok(())
     }
 }
 

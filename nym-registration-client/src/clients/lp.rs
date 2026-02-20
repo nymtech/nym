@@ -54,8 +54,13 @@ impl LpBasedRegistrationClient {
         let entry_lp_protocol = entry_lp_data.lp_protocol_version;
         let exit_lp_protocol = exit_lp_data.lp_protocol_version;
 
+        let entry_ciphersuite = entry_lp_data.ciphersuite;
+        let exit_ciphersuite = exit_lp_data.ciphersuite;
+
         let entry_address = entry_lp_data.address;
         let exit_address = exit_lp_data.address;
+
+        let exit_identity = self.config.exit.node.identity;
 
         tracing::debug!("Entry gateway LP address: {entry_address}");
         tracing::debug!("Exit gateway LP address: {exit_address}");
@@ -76,6 +81,7 @@ impl LpBasedRegistrationClient {
             entry_lp_keypair.clone(),
             entry_peer,
             entry_address,
+            entry_ciphersuite,
             entry_lp_protocol,
             self.config.lp_registration_config,
         );
@@ -94,8 +100,14 @@ impl LpBasedRegistrationClient {
         // STEP 2: Use nested session to register with exit gateway via forwarding
         // This hides the client's IP address from the exit gateway
         tracing::info!("Registering with exit gateway via entry forwarding");
-        let mut nested_session =
-            NestedLpSession::new(exit_address, exit_lp_keypair, exit_peer, exit_lp_protocol);
+        let mut nested_session = NestedLpSession::new(
+            exit_address,
+            exit_lp_keypair,
+            exit_identity,
+            exit_peer,
+            exit_ciphersuite,
+            exit_lp_protocol,
+        );
 
         // Perform handshake and registration with exit gateway (all via entry forwarding)
         let exit_gateway_data = nested_session

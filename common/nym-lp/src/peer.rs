@@ -63,6 +63,10 @@ impl LpLocalPeer {
             expected_kem_key_digests,
         }
     }
+
+    pub fn ciphersuite(&self) -> Ciphersuite {
+        self.ciphersuite
+    }
 }
 
 impl Debug for LpLocalPeer {
@@ -149,7 +153,6 @@ pub fn mock_peer() -> LpLocalPeer {
 
 #[cfg(any(feature = "mock", test))]
 pub fn random_peer<'a, R: rand09::CryptoRng + rand09::RngCore>(rng: &mut R) -> LpLocalPeer {
-
     let x25519 = Arc::new(nym_kkt::key_utils::generate_keypair_x25519(rng));
 
     LpLocalPeer {
@@ -157,7 +160,7 @@ pub fn random_peer<'a, R: rand09::CryptoRng + rand09::RngCore>(rng: &mut R) -> L
 
         x25519,
         kem_keypairs: Some(KEMKeys::new(
-            nym_kkt::key_utils::generate_keypair_mceliece( rng),
+            nym_kkt::key_utils::generate_keypair_mceliece(rng),
             nym_kkt::key_utils::generate_keypair_mlkem(rng),
         )),
     }

@@ -38,15 +38,11 @@ impl LpDataSendExt for LpRegistrationRequest {
 impl LpDataDeliverExt for LpRegistrationResponse {
     fn from_lp_data(data: LpData) -> Result<Self, LpClientError> {
         if data.kind != LpDataKind::Registration {
-            return Err(LpClientError::Transport(format!(
-                "did not receive a valid registration response. got {:?} instead",
-                data.kind
-            )));
+            return Err(LpClientError::UnexpectedLpPayload { typ: data.kind });
         }
 
-        let response = LpRegistrationResponse::try_deserialise(&data.content).map_err(|e| {
-            LpClientError::Transport(format!("Failed to deserialize registration response: {e}",))
-        })?;
+        let response = LpRegistrationResponse::try_deserialise(&data.content)
+            .map_err(|source| LpClientError::MalformedRegistrationData { source })?;
 
         Ok(response)
     }
@@ -72,19 +68,13 @@ pub(crate) fn convert_forward_data(request: ForwardPacketData) -> Result<LpInput
 pub(crate) fn try_convert_forward_response(action: LpAction) -> Result<Vec<u8>, LpClientError> {
     let response_data = match action {
         LpAction::DeliverData(data) => data,
-        other => {
-            return Err(LpClientError::Transport(format!(
-                "Unexpected action when receiving forward response: {:?}",
-                other
-            )));
-        }
+        action => return Err(LpClientError::UnexpectedStateMachineAction { action }),
     };
 
     if response_data.kind != LpDataKind::Forward {
-        return Err(LpClientError::Transport(format!(
-            "did not receive a valid forward response. got {:?} instead",
-            response_data.kind
-        )));
+        return Err(LpClientError::UnexpectedLpPayload {
+            typ: response_data.kind,
+        });
     }
 
     Ok(response_data.content.into())

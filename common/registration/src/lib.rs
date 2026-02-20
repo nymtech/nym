@@ -5,7 +5,7 @@ use nym_authenticator_requests::AuthenticatorVersion;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_requests::IpPair;
-use nym_kkt_ciphersuite::{KEM, KEMKeyDigests, SignatureScheme};
+use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests, SignatureScheme};
 use nym_sphinx::addressing::Recipient;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -58,6 +58,9 @@ pub struct NymNodeLPInformation {
     pub address: SocketAddr,
     pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
     pub x25519: x25519::PublicKey,
+
+    // to be inferred from node's version
+    pub ciphersuite: Ciphersuite,
 
     /// Supported protocol version of the remote gateway.
     /// Included in case we have to downgrade our version.

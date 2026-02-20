@@ -108,14 +108,43 @@ impl ErrorPacketData {
     }
 }
 
-/// Packet forwarding request with embedded inner LP packet
-#[derive(Debug, Clone)]
-pub struct ForwardPacketData {
-    /// Target gateway's Ed25519 identity (32 bytes)
-    pub target_gateway_identity: ed25519::PublicKey,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExpectedResponseSize {
+    /// We've sent a handshake message and expect response of predefined size
+    Handshake(u32),
 
+    /// We've sent a transport message and the response is length-prefixed
+    Transport,
+}
+
+impl ExpectedResponseSize {
+    pub fn to_bytes(&self) -> [u8; 4] {
+        // there are no empty handshake messages, so we use 0 bytes to indicate Transport variant
+        match self {
+            ExpectedResponseSize::Handshake(size) => size.to_le_bytes(),
+            ExpectedResponseSize::Transport => [0u8; 4],
+        }
+    }
+
+    pub fn from_bytes(b: [u8; 4]) -> Self {
+        let size = u32::from_le_bytes(b);
+        if size == 0 {
+            ExpectedResponseSize::Transport
+        } else {
+            ExpectedResponseSize::Handshake(size)
+        }
+    }
+}
+
+/// Packet forwarding request with embedded inner LP packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForwardPacketData {
     /// Target gateway's LP address (IP:port string)
     pub target_lp_address: SocketAddr,
+
+    /// Indication of the expected size of the response
+    /// to allow the proxy to read correct data from the stream
+    pub expected_response_size: ExpectedResponseSize,
 
     /// Complete inner LP packet bytes (serialized LpPacket)
     /// This is the CLIENT→EXIT gateway packet, encrypted for exit
@@ -124,45 +153,47 @@ pub struct ForwardPacketData {
 
 impl ForwardPacketData {
     pub fn new(
-        target_gateway_identity: ed25519::PublicKey,
         target_lp_address: SocketAddr,
+        expected_response_size: ExpectedResponseSize,
         inner_packet_bytes: Vec<u8>,
     ) -> Self {
         ForwardPacketData {
-            target_gateway_identity,
             target_lp_address,
+            expected_response_size,
             inner_packet_bytes,
         }
     }
 
     fn len(&self) -> usize {
-        // 32 bytes target gateway identity
-        // +
         // 1 byte length of target lp address type
         // +
         // {4,16} target_lp_address IPv{4,6}
         // +
         // 2 bytes target_lp_address port
         // +
+        // 4 bytes for expected response size
+        // +
         // 4 bytes of length of inner packet bytes
         // +
         // inner_packet_bytes.len()
         match self.target_lp_address {
-            SocketAddr::V4(_) => 32 + 1 + 4 + 2 + 4 + self.inner_packet_bytes.len(),
-            SocketAddr::V6(_) => 32 + 1 + 16 + 2 + 4 + self.inner_packet_bytes.len(),
+            SocketAddr::V4(_) => 1 + 4 + 2 + 4 + 4 + self.inner_packet_bytes.len(),
+            SocketAddr::V6(_) => 1 + 16 + 2 + 4 + 4 + self.inner_packet_bytes.len(),
         }
     }
 
+    // 0 || [4B ipv4]  || [2B port] || [4B res size] || [4B plen] || payload
+    // 1 || [16B ipv6] || [2B port] || [4B res size] || [4B plen] || payload
     fn encode(&self, dst: &mut BytesMut) {
         let (is_ipv6, ip_bytes) = match &self.target_lp_address {
             SocketAddr::V4(address) => (false, address.ip().octets().to_vec()),
             SocketAddr::V6(address) => (true, address.ip().octets().to_vec()),
         };
 
-        dst.put_slice(self.target_gateway_identity.as_bytes());
         dst.put_u8(is_ipv6 as u8); // IP type , 0 for ipv4
         dst.put_slice(&ip_bytes); // IP bytes
         dst.put_u16_le(self.target_lp_address.port()); // Port
+        dst.put_slice(&self.expected_response_size.to_bytes());
         dst.put_u32_le(self.inner_packet_bytes.len() as u32);
         dst.put_slice(&self.inner_packet_bytes);
     }
@@ -173,65 +204,56 @@ impl ForwardPacketData {
         buf.into()
     }
 
-    pub fn decode(bytes: &[u8]) -> Result<Self, MalformedLpPacketError> {
+    pub fn decode(b: &[u8]) -> Result<Self, MalformedLpPacketError> {
         // smallest possible packet with ipv4 and empty data
-        if bytes.len() < 43 {
-            // 32 + 1 + 4 + 2 + 4 + 0
+        if b.len() < 15 {
+            // 1 + 4 + 2 + 4 + 4 + 0
             return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                 "Too few bytes to deserialise ForwardPacketData. got {}",
-                bytes.len()
+                b.len()
             )));
         }
 
-        let target_gateway_identity =
-            ed25519::PublicKey::from_bytes(&bytes[0..32]).map_err(|err| {
-                MalformedLpPacketError::DeserialisationFailure(format!(
-                    "ed25519 public key failed to get deserialised: {err}"
-                ))
-            })?;
-        let target_lp_address_is_ipv6 = bytes[32] != 0;
+        let target_lp_address_is_ipv6 = b[0] != 0;
 
-        let (target_lp_address, next_index) = if target_lp_address_is_ipv6 {
+        let (target_lp_address, i) = if target_lp_address_is_ipv6 {
             // IPv6, first check we have actually enough bytes
             // smallest possible packet with ipv6 and empty data
-            if bytes.len() < 55 {
-                // 32 + 1 + 16 + 2 + 4 + 0
+            if b.len() < 27 {
+                // 1 + 16 + 2 + 4 + 4+ 0
                 return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                     "Too few bytes to deserialise ipv6 ForwardPacketData. got {}",
-                    bytes.len()
+                    b.len()
                 )));
             }
             // SAFETY: we ensured we have sufficient data, and the length is correct for casting
             #[allow(clippy::unwrap_used)]
-            let ipv6 = IpAddr::V6(Ipv6Addr::from_octets(bytes[33..49].try_into().unwrap()));
-            let port = u16::from_le_bytes([bytes[49], bytes[50]]);
-            (SocketAddr::new(ipv6, port), 51)
+            let ipv6 = IpAddr::V6(Ipv6Addr::from_octets(b[1..17].try_into().unwrap()));
+            let port = u16::from_le_bytes([b[17], b[18]]);
+            (SocketAddr::new(ipv6, port), 19)
         } else {
             // IPv4. Length check done at the start
             // SAFETY: we ensured we have sufficient data, and the length is correct for casting
             #[allow(clippy::unwrap_used)]
-            let ipv4 = IpAddr::V4(Ipv4Addr::from_octets(bytes[33..37].try_into().unwrap()));
-            let port = u16::from_le_bytes([bytes[37], bytes[38]]);
-            (SocketAddr::new(ipv4, port), 39)
+            let ipv4 = IpAddr::V4(Ipv4Addr::from_octets(b[1..5].try_into().unwrap()));
+            let port = u16::from_le_bytes([b[5], b[6]]);
+            (SocketAddr::new(ipv4, port), 7)
         };
 
-        let inner_packet_bytes_len = u32::from_le_bytes([
-            bytes[next_index],
-            bytes[next_index + 1],
-            bytes[next_index + 2],
-            bytes[next_index + 3],
-        ]);
-        if bytes[next_index + 4..].len() != inner_packet_bytes_len as usize {
+        let expected_response_size_bytes = [b[i], b[i + 1], b[i + 2], b[i + 3]];
+        let inner_packet_bytes_len = u32::from_le_bytes([b[i + 4], b[i + 5], b[i + 6], b[i + 7]]);
+
+        if b[i + 8..].len() != inner_packet_bytes_len as usize {
             return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                 "Expected {inner_packet_bytes_len} bytes to deserialise inner packet bytes of ForwardPacketData. got {}",
-                bytes[next_index + 4..].len()
+                b[i + 8..].len()
             )));
         }
-        let inner_packet_bytes = bytes[next_index + 4..].to_vec();
+        let inner_packet_bytes = b[i + 8..].to_vec();
 
         Ok(ForwardPacketData {
-            target_gateway_identity,
             target_lp_address,
+            expected_response_size: ExpectedResponseSize::from_bytes(expected_response_size_bytes),
             inner_packet_bytes,
         })
     }
@@ -429,5 +451,48 @@ mod tests {
             }
             _ => panic!("Wrong message type"),
         }
+    }
+
+    #[test]
+    fn forward_message_encoding() {
+        let msg1 = ForwardPacketData {
+            target_lp_address: "1.2.3.4:5678".parse().unwrap(),
+            expected_response_size: ExpectedResponseSize::Transport,
+            inner_packet_bytes: vec![],
+        };
+
+        let msg2 = ForwardPacketData {
+            target_lp_address: "1.2.3.4:5678".parse().unwrap(),
+            expected_response_size: ExpectedResponseSize::Handshake(250),
+            inner_packet_bytes: vec![42u8; 64],
+        };
+
+        let msg3 = ForwardPacketData {
+            target_lp_address: "[2001:db8::1]:8080".parse().unwrap(),
+            expected_response_size: ExpectedResponseSize::Transport,
+            inner_packet_bytes: vec![],
+        };
+
+        let msg4 = ForwardPacketData {
+            target_lp_address: "[2001:db8::1]:8080".parse().unwrap(),
+            expected_response_size: ExpectedResponseSize::Handshake(250),
+            inner_packet_bytes: vec![42u8; 64],
+        };
+
+        let b = msg1.to_bytes();
+        let msg1_r = ForwardPacketData::decode(&b).unwrap();
+        assert_eq!(msg1_r, msg1);
+
+        let b = msg2.to_bytes();
+        let msg2_r = ForwardPacketData::decode(&b).unwrap();
+        assert_eq!(msg2_r, msg2);
+
+        let b = msg3.to_bytes();
+        let msg3_r = ForwardPacketData::decode(&b).unwrap();
+        assert_eq!(msg3_r, msg3);
+
+        let b = msg4.to_bytes();
+        let msg4_r = ForwardPacketData::decode(&b).unwrap();
+        assert_eq!(msg4_r, msg4);
     }
 }

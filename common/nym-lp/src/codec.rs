@@ -5,7 +5,7 @@ use crate::{LpError, LpMessage};
 use bytes::BytesMut;
 use libcrux_psq::Channel;
 use nym_lp_packet::{EncryptedLpPacket, InnerHeader, LpHeader, LpPacket, OuterHeader};
-use nym_lp_transport::traits::LpTransport;
+use nym_lp_transport::traits::LpTransportChannel;
 use tracing::error;
 
 pub(crate) const CIPHERTEXT_OVERHEAD: usize = 25;

@@ -1,6 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// fine in test code
+#![allow(clippy::unwrap_used)]
+
 use crate::traits::Timeboxed;
 use nym_bin_common::logging::tracing_subscriber::EnvFilter;
 use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;

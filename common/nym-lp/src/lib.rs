@@ -22,7 +22,8 @@ pub use nym_kkt_ciphersuite::{
 };
 pub use nym_lp_packet::{
     EncryptedLpPacket, LpMessage, LpPacket, OuterHeader,
-    message::{ApplicationData, ForwardPacketData},
+    error::MalformedLpPacketError,
+    message::{ApplicationData, ExpectedResponseSize, ForwardPacketData},
 };
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::LpSession;

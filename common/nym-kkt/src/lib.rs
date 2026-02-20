@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod carrier;
-pub mod context;
 pub mod error;
 pub mod frame;
 pub mod initiator;
@@ -13,9 +12,7 @@ pub mod message;
 pub mod rekey;
 pub mod responder;
 
-// This must be less than 4 bits
-pub const KKT_VERSION: u8 = 1;
-const _: () = assert!(KKT_VERSION < 1 << 4);
+pub use nym_kkt_context as context;
 
 #[cfg(test)]
 mod test {

@@ -17,8 +17,8 @@ use libcrux_psq::session::{Session, SessionBinding};
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
 use nym_lp_packet::{ApplicationData, EncryptedLpPacket, LpHeader};
-use nym_lp_transport::LpChannel;
-use nym_lp_transport::traits::LpTransport;
+use nym_lp_transport::LpHandshakeChannel;
+use nym_lp_transport::traits::LpTransportChannel;
 use std::fmt::{Debug, Formatter};
 
 pub type SessionId = [u8; 32];
@@ -131,29 +131,26 @@ impl LpSession {
     /// Helper function to create `PSQHandshakeState` for the handshake initiator
     pub fn psq_handshake_initiator<S>(
         connection: &'_ mut S,
-        ciphersuite: Ciphersuite,
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
         remote_protocol_version: u8,
     ) -> PSQHandshakeStateInitiator<'_, S>
     where
-        S: LpChannel + Unpin,
+        S: LpHandshakeChannel + Unpin,
     {
-        PSQHandshakeState::new(connection, ciphersuite, local_peer)
+        PSQHandshakeState::new(connection, local_peer)
             .as_initiator(InitiatorData::new(remote_protocol_version, remote_peer))
     }
 
     /// Helper function to create `PSQHandshakeState` for the handshake responder
     pub fn psq_handshake_responder<S>(
         connection: &'_ mut S,
-        ciphersuite: Ciphersuite,
         local_peer: LpLocalPeer,
     ) -> PSQHandshakeStateResponder<'_, S>
     where
-        S: LpChannel + Unpin,
+        S: LpHandshakeChannel + Unpin,
     {
-        PSQHandshakeState::new(connection, ciphersuite, local_peer)
-            .as_responder(ResponderData::default())
+        PSQHandshakeState::new(connection, local_peer).as_responder(ResponderData::default())
     }
 
     pub fn session_binding(&self) -> &PersistentSessionBinding {

@@ -4,8 +4,9 @@
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, IntoEnumIterator, KEM, SignatureScheme};
 use nym_lp_packet::version;
-use nym_lp_transport::traits::LpChannel;
+use nym_lp_transport::traits::LpHandshakeChannel;
 
+pub(crate) mod handshake_message;
 mod helpers;
 pub mod initiator;
 pub mod responder;
@@ -32,9 +33,6 @@ pub(crate) const PSQ_MSG2_SIZE: usize = 70;
 pub struct PSQHandshakeState<'a, S> {
     /// The underlying connection established for the handshake
     connection: &'a mut S,
-
-    /// Ciphersuite selected for the KKT/PSQ exchange
-    ciphersuite: Ciphersuite,
 
     /// Representation of a local Lewes Protocol peer
     /// encapsulating all the known information and keys.
@@ -85,12 +83,11 @@ impl Default for ResponderData {
 
 impl<'a, S> PSQHandshakeState<'a, S>
 where
-    S: LpChannel + Unpin,
+    S: LpHandshakeChannel + Unpin,
 {
-    pub fn new(connection: &'a mut S, ciphersuite: Ciphersuite, local_peer: LpLocalPeer) -> Self {
+    pub fn new(connection: &'a mut S, local_peer: LpLocalPeer) -> Self {
         PSQHandshakeState {
             connection,
-            ciphersuite,
             local_peer,
         }
     }
@@ -146,10 +143,10 @@ mod tests {
             resp.ciphersuite = ciphersuite;
             let resp_remote = resp.as_remote();
 
-            let handshake_init = PSQHandshakeState::new(conn_init, ciphersuite, init)
+            let handshake_init = PSQHandshakeState::new(conn_init, init)
                 .as_initiator(InitiatorData::new(1, resp_remote));
-            let handshake_resp = PSQHandshakeState::new(conn_resp, ciphersuite, resp)
-                .as_responder(ResponderData::default());
+            let handshake_resp =
+                PSQHandshakeState::new(conn_resp, resp).as_responder(ResponderData::default());
 
             let init_rng = DeterministicRng09Send::new(u64_seeded_rng_09(1));
             let resp_rng = DeterministicRng09Send::new(u64_seeded_rng_09(2));

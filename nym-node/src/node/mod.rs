@@ -41,7 +41,9 @@ use crate::node::shared_network::{
 use nym_bin_common::bin_info;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_gateway::node::lp_listener::DHKeyPair;
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder, UpgradeModeCheckRequestSender};
+use nym_kkt::keys::KEMKeys;
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_requester::{
@@ -84,7 +86,6 @@ mod shared_network;
 
 pub struct GatewayTasksData {
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
-    psq_kem_key: Arc<x25519::KeyPair>,
     client_storage: nym_gateway::node::GatewayStorage,
     stats_storage: nym_gateway::node::PersistentStatsStorage,
 }
@@ -106,11 +107,7 @@ impl GatewayTasksData {
         Ok(())
     }
 
-    async fn new(
-        config: &GatewayTasksConfig,
-        // this argument is temporary while we still derive KEM x25519 out of identity ed25519
-        ed25519_identity: &ed25519::KeyPair,
-    ) -> Result<GatewayTasksData, EntryGatewayError> {
+    async fn new(config: &GatewayTasksConfig) -> Result<GatewayTasksData, EntryGatewayError> {
         let client_storage = nym_gateway::node::GatewayStorage::init(
             &config.storage_paths.clients_storage,
             config.debug.message_retrieval_limit,
@@ -125,7 +122,6 @@ impl GatewayTasksData {
 
         Ok(GatewayTasksData {
             mnemonic: Arc::new(config.storage_paths.load_mnemonic_from_file()?),
-            psq_kem_key: Arc::new(ed25519_identity.to_x25519()),
             client_storage,
             stats_storage,
         })
@@ -396,8 +392,9 @@ pub(crate) struct NymNode {
     ed25519_identity_keys: Arc<ed25519::KeyPair>,
     sphinx_key_manager: Option<SphinxKeyManager>,
 
-    // to be used when noise is integrated
     x25519_noise_keys: Arc<x25519::KeyPair>,
+    psq_kem_keys: KEMKeys,
+    x25519_lp_keys: Arc<DHKeyPair>,
 }
 
 impl NymNode {
@@ -462,33 +459,34 @@ impl NymNode {
         let ed25519_identity_keys = load_ed25519_identity_keypair(
             &config.storage_paths.keys.ed25519_identity_storage_paths(),
         )?;
-        let entry_gateway =
-            GatewayTasksData::new(&config.gateway_tasks, &ed25519_identity_keys).await?;
+        let entry_gateway = GatewayTasksData::new(&config.gateway_tasks).await?;
 
-        Ok(NymNode {
-            ed25519_identity_keys: Arc::new(ed25519_identity_keys),
-            sphinx_key_manager: Some(SphinxKeyManager::try_load_or_regenerate(
-                current_rotation_id,
-                &config.storage_paths.keys.primary_x25519_sphinx_key_file,
-                &config.storage_paths.keys.secondary_x25519_sphinx_key_file,
-            )?),
-            x25519_noise_keys: Arc::new(load_x25519_noise_keypair(
-                &config.storage_paths.keys.x25519_noise_storage_paths(),
-            )?),
-            description: load_node_description(&config.storage_paths.description)?,
-            metrics: NymNodeMetrics::new(),
-            verloc_stats: Default::default(),
-            entry_gateway,
-            upgrade_mode_state: UpgradeModeState::new(
-                config.gateway_tasks.upgrade_mode.attester_public_key,
-            ),
-            service_providers: ServiceProvidersData::new(&config.service_providers)?,
-            wireguard: Some(wireguard_data),
-            config,
-            accepted_operator_terms_and_conditions: false,
-            shutdown_manager: ShutdownManager::build_new_default()
-                .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
-        })
+        todo!("deal with kem key migration path")
+        //
+        // Ok(NymNode {
+        //     ed25519_identity_keys: Arc::new(ed25519_identity_keys),
+        //     sphinx_key_manager: Some(SphinxKeyManager::try_load_or_regenerate(
+        //         current_rotation_id,
+        //         &config.storage_paths.keys.primary_x25519_sphinx_key_file,
+        //         &config.storage_paths.keys.secondary_x25519_sphinx_key_file,
+        //     )?),
+        //     x25519_noise_keys: Arc::new(load_x25519_noise_keypair(
+        //         &config.storage_paths.keys.x25519_noise_storage_paths(),
+        //     )?),
+        //     description: load_node_description(&config.storage_paths.description)?,
+        //     metrics: NymNodeMetrics::new(),
+        //     verloc_stats: Default::default(),
+        //     entry_gateway,
+        //     upgrade_mode_state: UpgradeModeState::new(
+        //         config.gateway_tasks.upgrade_mode.attester_public_key,
+        //     ),
+        //     service_providers: ServiceProvidersData::new(&config.service_providers)?,
+        //     wireguard: Some(wireguard_data),
+        //     config,
+        //     accepted_operator_terms_and_conditions: false,
+        //     shutdown_manager: ShutdownManager::build_new_default()
+        //         .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
+        // })
     }
 
     pub(crate) fn shutdown_tracker(&self) -> &ShutdownTracker {
@@ -640,8 +638,8 @@ impl NymNode {
         let mut gateway_tasks_builder = GatewayTasksBuilder::new(
             config.gateway,
             self.ed25519_identity_keys.clone(),
-            self.x25519_noise_keys.clone(),
-            self.entry_gateway.psq_kem_key.clone(),
+            self.x25519_lp_keys.clone(),
+            self.psq_kem_keys.clone(),
             self.entry_gateway.client_storage.clone(),
             mix_packet_sender,
             metrics_sender,

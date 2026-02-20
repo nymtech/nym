@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::peer::{LpLocalPeer, LpRemotePeer};
+use crate::psq::handshake_message::{PSQMsg1, PSQMsg2};
 use crate::psq::helpers::kem_to_ciphersuite;
 use crate::psq::{
     AAD_INITIATOR_INNER_V1, AAD_INITIATOR_OUTER_V1, InitiatorData, PSQ_MSG2_SIZE,
-    PSQHandshakeState, SESSION_CONTEXT_V1, psq_msg1_size,
+    PSQHandshakeState, SESSION_CONTEXT_V1, handshake_message, psq_msg1_size,
 };
 use crate::session::PersistentSessionBinding;
 use crate::{LpError, LpSession};
@@ -18,7 +19,8 @@ use libcrux_psq::{Channel, IntoSession};
 use nym_kkt::initiator::KKTInitiator;
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt::message::{KKTRequest, KKTResponse};
-use nym_lp_transport::traits::LpChannel;
+use nym_kkt_ciphersuite::KEM;
+use nym_lp_transport::traits::LpHandshakeChannel;
 use rand09::SeedableRng;
 use tracing::debug;
 
@@ -73,13 +75,15 @@ pub(crate) fn build_psq_ciphersuite<'a>(
 
 impl<'a, S> PSQHandshakeStateInitiator<'a, S>
 where
-    S: LpChannel + Unpin,
+    S: LpHandshakeChannel + Unpin,
 {
     /// Attempt to send KKT request to begin the handshake
     async fn send_kkt_request(&mut self, request: KKTRequest) -> Result<(), LpError> {
+        let kem = self.inner_state.local_peer.ciphersuite.kem();
+
         self.inner_state
             .connection
-            .write_all_and_flush(&request.into_bytes())
+            .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
             .await?;
         Ok(())
     }
@@ -88,13 +92,18 @@ where
     async fn receive_kkt_response(&mut self) -> Result<KKTResponse, LpError> {
         let packet_len = KKTResponse::size(self.inner_state.local_peer.ciphersuite.kem());
 
-        let data = self.inner_state.connection.read_n_bytes(packet_len).await?;
-        Ok(KKTResponse::from_bytes(data))
+        let resp = self
+            .inner_state
+            .connection
+            .receive_handshake_message::<handshake_message::KKTResponse>(packet_len)
+            .await?;
+
+        Ok(resp.into())
     }
 
-    pub async fn complete_handshake(mut self) -> Result<LpSession, LpError>
+    pub async fn complete_handshake(self) -> Result<LpSession, LpError>
     where
-        S: LpChannel + Unpin,
+        S: LpHandshakeChannel + Unpin,
     {
         let mut rng = rand09::rngs::StdRng::from_os_rng();
         self.complete_handshake_with_rng(&mut rng).await
@@ -102,19 +111,22 @@ where
 
     pub async fn complete_handshake_with_rng<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
     where
-        S: LpChannel + Unpin,
+        S: LpHandshakeChannel + Unpin,
         R: rand09::CryptoRng,
     {
+        let ciphersuite = self.inner_state.local_peer.ciphersuite();
+        let kem = ciphersuite.kem();
+
         // 1. retrieve the expected kem key hash. if we don't know it,
         let dir_hash = self
             .initiator_data
             .remote_peer
-            .expected_kem_key_hash(self.inner_state.ciphersuite)?;
+            .expected_kem_key_hash(ciphersuite)?;
 
         // 2. prepare and send KKT request
         let (mut initiator, kkt_request) = KKTInitiator::generate_one_way_request(
             rng,
-            self.inner_state.ciphersuite,
+            ciphersuite,
             self.initiator_data.remote_peer.x25519(),
             &dir_hash,
             self.initiator_data.protocol_version,
@@ -129,7 +141,7 @@ where
 
         // 4. generate and send PSQ request
         let protocol = self.initiator_data.protocol_version;
-        let kem = self.inner_state.ciphersuite.kem();
+        let kem = ciphersuite.kem();
         let conn = self.inner_state.connection;
 
         // note: the clone is cheap due to internal Arcs
@@ -154,10 +166,11 @@ where
                 "unexpected changes in PSQ msg1 size".to_string(),
             ));
         }
-        conn.write_all_and_flush(&buf).await?;
+        let msg = PSQMsg1::new(buf);
+        conn.send_handshake_message(msg, kem).await?;
 
         // 5. receive and process PSQ response
-        let psq_msg = conn.read_n_bytes(PSQ_MSG2_SIZE).await?;
+        let psq_msg: PSQMsg2 = conn.receive_handshake_message(PSQ_MSG2_SIZE).await?;
         debug!("received PSQ handshake msg");
         psq_initiator.read_message(&psq_msg, &mut [])?;
 
@@ -212,7 +225,7 @@ mod tests {
             let initiator_data = InitiatorData::new(1, resp_remote);
 
             let handshake_init =
-                PSQHandshakeState::new(conn_init, ciphersuite, init).as_initiator(initiator_data);
+                PSQHandshakeState::new(conn_init, init).as_initiator(initiator_data);
 
             let mut init_rng = DeterministicRng09Send::new(u64_seeded_rng_09(1));
 
@@ -243,16 +256,16 @@ mod tests {
             )?;
 
             // 1. read KKT request
-            let raw_kkt_req = conn_resp
-                .read_n_bytes(KKTRequest::size(KKTMode::OneWay, kem))
+            let raw_kkt_req: handshake_message::KKTRequest = conn_resp
+                .receive_handshake_message(KKTRequest::size(KKTMode::OneWay, kem))
                 .timeboxed()
                 .await??;
-            let req = KKTRequest::try_from_bytes(&raw_kkt_req)?;
+            let req = raw_kkt_req.into();
 
             // 2. process
             let processed_req = kkt_responder.process_request(req)?;
             conn_resp
-                .write_all_and_flush(&processed_req.response.into_bytes())
+                .send_handshake_message(processed_req.response.into(), kem)
                 .timeboxed()
                 .await??;
 
@@ -262,8 +275,11 @@ mod tests {
                 responder::build_psq_principal(rand09::rng(), 1, responder_ciphersuite)?;
             let response_len = psq_msg1_size(kem);
 
-            let raw_psq_req = conn_resp.read_n_bytes(response_len).timeboxed().await??;
-            responder.read_message(&raw_psq_req, &mut []).unwrap();
+            let msg: PSQMsg1 = conn_resp
+                .receive_handshake_message(response_len)
+                .timeboxed()
+                .await??;
+            responder.read_message(&msg, &mut []).unwrap();
 
             // Get the authenticator out here, so we can deserialize the session later.
             let Some(initiator_authenticator) = responder.initiator_authenticator() else {
@@ -271,10 +287,14 @@ mod tests {
             };
 
             // 4 send PSQ response
-            let mut buf = [0u8; PSQ_MSG2_SIZE];
+            let mut buf = vec![0u8; PSQ_MSG2_SIZE];
             let n = responder.write_message(&[], &mut buf).unwrap();
             assert_eq!(n, buf.len());
-            conn_resp.write_all_and_flush(&buf).timeboxed().await??;
+            let msg = PSQMsg2::new(buf);
+            conn_resp
+                .send_handshake_message(msg, kem)
+                .timeboxed()
+                .await??;
 
             assert!(responder.is_handshake_finished());
 

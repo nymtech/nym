@@ -53,7 +53,7 @@ pub fn parse_lp_header_only(src: &[u8]) -> Result<OuterHeader, LpError> {
 
 pub(crate) fn encrypt_data(
     plaintext: &[u8],
-    transport: &mut libcrux_psq::Transport,
+    transport: &mut libcrux_psq::session::Transport,
 ) -> Result<Vec<u8>, LpError> {
     let mut ciphertext = vec![0u8; plaintext.len() + CIPHERTEXT_OVERHEAD + 64];
     let n = transport.write_message(&*plaintext, &mut ciphertext)?;
@@ -69,7 +69,7 @@ pub(crate) fn encrypt_data(
 
 pub(crate) fn decrypt_data(
     ciphertext: &[u8],
-    transport: &mut libcrux_psq::Transport,
+    transport: &mut libcrux_psq::session::Transport,
 ) -> Result<Vec<u8>, LpError> {
     if ciphertext.len() < CIPHERTEXT_OVERHEAD {
         return Err(LpError::InsufficientBufferSize);
@@ -87,7 +87,7 @@ pub(crate) fn decrypt_data(
 
 pub fn encrypt_lp_packet(
     packet: LpPacket,
-    transport: &mut libcrux_psq::Transport,
+    transport: &mut libcrux_psq::session::Transport,
 ) -> Result<EncryptedLpPacket, LpError> {
     let mut plaintext = BytesMut::with_capacity(InnerHeader::SIZE + packet.message().len());
     packet.header().inner.encode(&mut plaintext);
@@ -100,7 +100,7 @@ pub fn encrypt_lp_packet(
 
 pub fn decrypt_lp_packet(
     packet: EncryptedLpPacket,
-    transport: &mut libcrux_psq::Transport,
+    transport: &mut libcrux_psq::session::Transport,
 ) -> Result<LpPacket, LpError> {
     if packet.ciphertext().len() < InnerHeader::SIZE + CIPHERTEXT_OVERHEAD {
         return Err(LpError::InsufficientBufferSize);
@@ -136,7 +136,7 @@ pub fn decrypt_lp_packet(
 pub fn serialize_lp_packet(
     item: LpPacket,
     dst: &mut BytesMut,
-    transport: &mut libcrux_psq::Transport,
+    transport: &mut libcrux_psq::session::Transport,
 ) -> Result<(), LpError> {
     // 1. encrypt the inner header and payload
     let encrypted_packet = encrypt_lp_packet(item, transport)?;

@@ -74,7 +74,6 @@ mod tests {
             let ed25519_keys = ed25519::KeyPair::new(&mut rng08);
             let x25519_wg_keys = Arc::new(x25519::KeyPair::new(&mut rng08));
 
-
             let lp_x25519_keys = Arc::new(generate_keypair_x25519(rng));
             let mlkem_keypair = generate_keypair_mlkem(rng);
             let mceliece_keypair = generate_keypair_mceliece(rng);
@@ -404,7 +403,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_basic_lp_entry_registration() -> anyhow::Result<()> {
-            nym_test_utils::helpers::setup_test_logger();
+            // nym_test_utils::helpers::setup_test_logger();
             // initialise random, but deterministic, keys, addresses, etc. for the parties
             let mut client_rng = u64_seeded_rng_09(0);
             let mut gateway_rng = u64_seeded_rng_09(1);

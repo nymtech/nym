@@ -36,7 +36,7 @@ pub struct LpSession {
 
     /// The current active transport channel
     // In the future it might get split between UDP and TCP transports
-    active_transport: libcrux_psq::Transport,
+    active_transport: libcrux_psq::session::Transport,
 
     /// Negotiated protocol version from handshake.
     protocol_version: u8,
@@ -160,7 +160,7 @@ impl LpSession {
         &self.session_binding
     }
 
-    pub(crate) fn active_transport(&mut self) -> &mut libcrux_psq::Transport {
+    pub(crate) fn active_transport(&mut self) -> &mut libcrux_psq::session::Transport {
         &mut self.active_transport
     }
 

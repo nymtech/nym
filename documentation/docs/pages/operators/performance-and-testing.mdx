@@ -12,7 +12,7 @@ As Nym developers constantly improve the software, the role of Node Operators is
 
 Nym Network is routed either through the Mixnet (5-hop) or through Wireguard (2-hop). In all cases Nym node operators always employ only one binary called [`nym-node`](/operators/nodes/nym-node). Through provided arguments (or changes in the config file), `nym-node` can be utilised for different [functionalities](/operators/nodes/nym-node/setup#functionality-mode). However, once it's [registered to Nym Network](/operators/nodes/nym-node/bonding) it's by default available for Nym Mixnet not for Wireguard routing. Only nodes with Wireguard enabled, are also available for Wireguard routing. This creates a situation where every Wireguard enabled `nym-node` is required to have a solid performance score in Mixnet to begin with, but not every Mixnet routing `nym-node` must have Wireguard enabled.
 
-Given this complexity, we divided the part below about perfromance calculation logic and node selection into two parallel tabs: Mixnet and Wireguard.
+Given this complexity, we divided the part below about performance calculation logic and node selection into two parallel tabs: Mixnet and Wireguard.
 
 <div>
   <Tabs items={[
@@ -59,7 +59,7 @@ https://<HOSTNAME>/api/v1/roles
 
 ## Socks5 Score Calculation
 
-Geateway probe also runs tests through a Network requester - a module build as a part of `nym-node`, active only in mode Exit Gateway, used for [Socks5](/developers/clients/socks5) proxy TCP connection.
+Gateway probe also runs tests through a Network requester - a module build as a part of `nym-node`, active only in mode Exit Gateway, used for [Socks5](/developers/clients/socks5) proxy TCP connection.
 
 Socks5 score is displayed in [Nym Node Status Observatory](https://harbourmaster.nymtech.net) (if you open a page with a particular gateway) and in detail it can be previewed at [mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways](https://mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways) or when running own instance of [Gateway probe](/operators/performance-and-testing/gateway-probe).
 

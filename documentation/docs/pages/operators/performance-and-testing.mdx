@@ -1,4 +1,5 @@
 import { Callout } from 'nextra/components';
+import { Steps } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
@@ -7,11 +8,11 @@ import NodePerfMixnet from 'components/operators/snippets/node-perf-mixnet.mdx';
 
 # Performance Monitoring & Testing
 
-As Nym developers constantly improve the software, the role of Node Operators is to keep their nodes up to date, monitor their performance and share feedback with the rest of the community and Nym team. Node performance measurements and [server monitoring](#monitoring) are an essential pillar of our common work. 
+As Nym developers constantly improve the software, the role of Node Operators is to keep their nodes up to date, monitor their performance and share feedback with the rest of the community and Nym team. Node performance measurements and [server monitoring](#monitoring) are an essential pillar of our common work.
 
-Nym Network is routed either through the Mixnet (5-hop) or through Wireguard (2-hop). In all cases Nym node operators always employ only one binary called [`nym-node`](/operators/nodes/nym-node). Through provided arguments (or changes in the config file), `nym-node` can be utilised for different [functionalities](/operators/nodes/nym-node/setup#functionality-mode). However, once it's [registered to Nym Network](/operators/nodes/nym-node/bonding) it's by default available for Nym Mixnet not for Wireguard routing. Only nodes with Wireguard enabled, are also available for Wireguard routing. This creates a situation where every Wireguard enabled `nym-node` is required to have a solid performance score in Mixnet to begin with, but not every Mixnet routing `nym-node` must have Wireguard enabled. 
+Nym Network is routed either through the Mixnet (5-hop) or through Wireguard (2-hop). In all cases Nym node operators always employ only one binary called [`nym-node`](/operators/nodes/nym-node). Through provided arguments (or changes in the config file), `nym-node` can be utilised for different [functionalities](/operators/nodes/nym-node/setup#functionality-mode). However, once it's [registered to Nym Network](/operators/nodes/nym-node/bonding) it's by default available for Nym Mixnet not for Wireguard routing. Only nodes with Wireguard enabled, are also available for Wireguard routing. This creates a situation where every Wireguard enabled `nym-node` is required to have a solid performance score in Mixnet to begin with, but not every Mixnet routing `nym-node` must have Wireguard enabled.
 
-Given this complexity, we divided the part below about perfromance calculation logic and node selection into two parallel tabs: Mixnet and Wireguard. 
+Given this complexity, we divided the part below about perfromance calculation logic and node selection into two parallel tabs: Mixnet and Wireguard.
 
 <div>
   <Tabs items={[
@@ -55,6 +56,38 @@ http://<IPv4_ADDRESS>/api/v1/roles
 https://<HOSTNAME>/api/v1/roles
 ```
 </AccordionTemplate>
+
+## Socks5 Score Calculation
+
+Geateway probe also runs tests through a Network requester - a module build as a part of `nym-node`, active only in mode Exit Gateway, used for [Socks5](/developers/clients/socks5) proxy TCP connection.
+
+Socks5 score is displayed in [Nym Node Status Observatory](https://harbourmaster.nymtech.net) (if you open a page with a particular gateway) and in detail it can be previewed at [mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways](https://mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways) or when running own instance of [Gateway probe](/operators/performance-and-testing/gateway-probe).
+
+### Socks5 Score Calculation Process
+
+Socks5 score is defined in the json output of Gateway probe as `"socks5"` key. Here is an example of the dictionary:
+
+```json
+        "socks5": {
+          "can_proxy_https": true,
+          "score": "medium",
+          "errors": null
+        }
+```
+
+> Note: When we write *gateway* we refer to a `nym-node --mode exit-gateway` in this sub-chapter.
+
+<Steps>
+1. Gateway gets probed as part of a Gateway probe test where other components get tested as well
+
+2. Latency is calculated as an average of 10 attempts
+
+3. Gateway is scored as `"low"`, `"medium"`, `"high"` or `"offline"`, in numbers it means:
+    - `"offline"`: Gateway fails the test is 3 and more out of 10 attempts
+    - `"high"`: Top 50% of nodes with lowest average latency
+    - `"medium"`: Following 25% of nodes with lowest average latency below top 50% nodes
+    - `"low"`: Remaining 25% of nodes with the highest average latency time
+</Steps>
 
 ## Monitoring
 

@@ -80,10 +80,12 @@ Socks5 score is defined in the json output of Gateway probe as `"socks5"` key. H
 <Steps>
 1. Gateway gets probed as part of a Gateway probe test where other components get tested as well
 
-2. Latency is calculated as an average of 10 attempts
+2. Probe tries to connect to the Gateway through Socks5 10 times per testing instance
 
-3. Gateway is scored as `"low"`, `"medium"`, `"high"` or `"offline"`, in numbers it means:
-    - `"offline"`: Gateway fails the test is 3 and more out of 10 attempts
+3. Latency is calculated as an average of the successful attempts
+
+4. Gateway is scored as `"low"`, `"medium"`, `"high"` or `"offline"`, in numbers it means:
+    - `"offline"`: Gateway failed the test 3 or more times (out of 10 attempts)
     - `"high"`: Top 50% of nodes with lowest average latency
     - `"medium"`: Following 25% of nodes with lowest average latency below top 50% nodes
     - `"low"`: Remaining 25% of nodes with the highest average latency time

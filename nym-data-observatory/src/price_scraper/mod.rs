@@ -29,10 +29,16 @@ impl PriceScraper {
     async fn get_coingecko_prices(&self) -> anyhow::Result<CoingeckoPriceResponse> {
         tracing::info!("💰 Fetching CoinGecko prices from {COINGECKO_API_URL}");
 
-        let response = reqwest::get(COINGECKO_API_URL)
-            .await?
-            .json::<CoingeckoPriceResponse>()
-            .await;
+        let response = reqwest::get(COINGECKO_API_URL).await?;
+
+        if !response.status().is_success() {
+            tracing::error!(
+                "CoinGecko price query returned error: {}",
+                response.status()
+            );
+        }
+
+        let response = response.json::<CoingeckoPriceResponse>().await;
 
         tracing::info!("Got response {:?}", response);
         match response {

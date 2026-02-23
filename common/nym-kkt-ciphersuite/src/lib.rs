@@ -208,6 +208,7 @@ impl SignatureScheme {
     EnumIter,
     EnumString,
     Display,
+    Default,
 )]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "lowercase")]
@@ -215,6 +216,7 @@ impl SignatureScheme {
 pub enum KEM {
     // unsupported
     // XWing = 0,
+    #[default]
     MlKem768 = 1,
     McEliece = 2,
 }

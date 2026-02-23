@@ -48,6 +48,7 @@ pub struct LpSession {
 }
 
 /// Wraps public key material that is bound to a session.
+#[derive(Clone)]
 pub struct PersistentSessionBinding {
     /// The initiator's authenticator value, i.e. a long-term DH public value or signature verification key.
     pub initiator_authenticator: Authenticator,
@@ -276,98 +277,88 @@ impl LpSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_crypto::asymmetric::x25519;
-    // use rand::thread_rng;
-
-    // // Helper function to generate keypairs for tests
-    // fn generate_x25519_keypair() -> x25519::KeyPair {
-    //     x25519::KeyPair::new(&mut thread_rng())
-    // }
+    use crate::{ReplayError, SessionsMock, sessions_for_tests};
+    use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
 
     #[test]
     fn test_session_creation() {
-        todo!()
-        // let mut session = sessions_for_tests().0;
-        // for kem in kem_list() {
-        //     let session = sessions_for_tests(kem).0;
-        //
-        //     // Initial counter should be zero
-        //     let counter = session.next_counter();
-        //     assert_eq!(counter, 0);
-        //
-        //     // Counter should increment
-        //     let counter = session.next_counter();
-        //     assert_eq!(counter, 1);
-        // }
+        for kem in KEM::iter() {
+            let mut session = SessionsMock::mock_post_handshake(kem).responder;
+
+            // Initial counter should be zero
+            let counter = session.next_counter();
+            assert_eq!(counter, 0);
+
+            // Counter should increment
+            let counter = session.next_counter();
+            assert_eq!(counter, 1);
+        }
     }
 
     #[test]
     fn test_replay_protection_sequential() {
-        todo!()
-        // for kem in kem_list() {
-        //     let mut session = sessions_for_tests(kem).1;
-        //
-        //     // Sequential counters should be accepted
-        //     assert!(session.receiving_counter_quick_check(0).is_ok());
-        //     assert!(session.receiving_counter_mark(0).is_ok());
-        //
-        //     assert!(session.receiving_counter_quick_check(1).is_ok());
-        //     assert!(session.receiving_counter_mark(1).is_ok());
-        //
-        //     // Duplicates should be rejected
-        //     assert!(session.receiving_counter_quick_check(0).is_err());
-        //     let err = session.receiving_counter_mark(0).unwrap_err();
-        //     match err {
-        //         LpError::Replay(replay_error) => {
-        //             assert!(matches!(replay_error, ReplayError::DuplicateCounter));
-        //         }
-        //         _ => panic!("Expected replay error"),
-        //     }
-        // }
+        for kem in KEM::iter() {
+            let mut session = SessionsMock::mock_post_handshake(kem).responder;
+
+            // Sequential counters should be accepted
+            assert!(session.receiving_counter_quick_check(0).is_ok());
+            assert!(session.receiving_counter_mark(0).is_ok());
+
+            assert!(session.receiving_counter_quick_check(1).is_ok());
+            assert!(session.receiving_counter_mark(1).is_ok());
+
+            // Duplicates should be rejected
+            assert!(session.receiving_counter_quick_check(0).is_err());
+            let err = session.receiving_counter_mark(0).unwrap_err();
+            match err {
+                LpError::Replay(replay_error) => {
+                    assert!(matches!(replay_error, ReplayError::DuplicateCounter));
+                }
+                _ => panic!("Expected replay error"),
+            }
+        }
     }
 
     #[test]
     fn test_replay_protection_out_of_order() {
-        todo!()
-        // for kem in kem_list() {
-        //     let mut session = sessions_for_tests(kem).1;
-        //
-        //     // Receive packets in order
-        //     assert!(session.receiving_counter_mark(0).is_ok());
-        //     assert!(session.receiving_counter_mark(1).is_ok());
-        //     assert!(session.receiving_counter_mark(2).is_ok());
-        //
-        //     // Skip ahead
-        //     assert!(session.receiving_counter_mark(10).is_ok());
-        //
-        //     // Can still receive out-of-order packets within window
-        //     assert!(session.receiving_counter_quick_check(5).is_ok());
-        //     assert!(session.receiving_counter_mark(5).is_ok());
-        //
-        //     // But duplicates are still rejected
-        //     assert!(session.receiving_counter_quick_check(5).is_err());
-        //     assert!(session.receiving_counter_mark(5).is_err());
-        // }
+        for kem in KEM::iter() {
+            let mut session = SessionsMock::mock_post_handshake(kem).responder;
+
+            // Receive packets in order
+            assert!(session.receiving_counter_mark(0).is_ok());
+            assert!(session.receiving_counter_mark(1).is_ok());
+            assert!(session.receiving_counter_mark(2).is_ok());
+
+            // Skip ahead
+            assert!(session.receiving_counter_mark(10).is_ok());
+
+            // Can still receive out-of-order packets within window
+            assert!(session.receiving_counter_quick_check(5).is_ok());
+            assert!(session.receiving_counter_mark(5).is_ok());
+
+            // But duplicates are still rejected
+            assert!(session.receiving_counter_quick_check(5).is_err());
+            assert!(session.receiving_counter_mark(5).is_err());
+        }
     }
 
     #[test]
     fn test_packet_stats() {
-        todo!()
-        // for kem in kem_list() {
-        //     let mut session = sessions_for_tests(kem).1;
-        //
-        //     // Initial stats
-        //     let (next, received) = session.current_packet_cnt();
-        //     assert_eq!(next, 0);
-        //     assert_eq!(received, 0);
-        //
-        //     // After receiving packets
-        //     assert!(session.receiving_counter_mark(0).is_ok());
-        //     assert!(session.receiving_counter_mark(1).is_ok());
-        //
-        //     let (next, received) = session.current_packet_cnt();
-        //     assert_eq!(next, 2);
-        //     assert_eq!(received, 2);
-        // }
+        for kem in KEM::iter() {
+            let mut session = SessionsMock::mock_post_handshake(kem).responder;
+
+            // Initial stats
+            let (next, received) = session.current_packet_cnt();
+            assert_eq!(next, 0);
+            assert_eq!(received, 0);
+
+            // After receiving packets
+            assert!(session.receiving_counter_mark(0).is_ok());
+            assert!(session.receiving_counter_mark(1).is_ok());
+
+            let (next, received) = session.current_packet_cnt();
+            assert_eq!(next, 2);
+            assert_eq!(received, 2);
+        }
     }
 }

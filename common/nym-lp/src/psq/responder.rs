@@ -268,7 +268,7 @@ mod tests {
 
             // 1. send kkt request
             conn_init
-                .send_handshake_message(request.into(), kem)
+                .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
                 .timeboxed()
                 .await??;
 

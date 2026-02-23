@@ -117,7 +117,7 @@ mod tests {
     use libcrux_psq::{Channel, IntoSession};
     use nym_kkt::initiator::KKTInitiator;
     use nym_kkt::responder::KKTResponder;
-    use nym_kkt_ciphersuite::{HashFunction, KEM, SignatureScheme};
+    use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, KEM, SignatureScheme};
     use nym_test_utils::helpers::{
         DeterministicRng09Send, deterministic_rng_09, u64_seeded_rng_09,
     };
@@ -269,7 +269,7 @@ mod tests {
             assert_eq!(len_i, buf.len());
 
             // Read first message
-            let (len_r_deserialized, len_r_payload) = responder
+            let (_, _) = responder
                 .read_message(&buf, &mut payload_buf_responder)
                 .unwrap();
 
@@ -284,7 +284,7 @@ mod tests {
             assert_eq!(len_r, buf.len());
 
             // Finalize on registration initiator
-            let (len_i_deserialized, len_i_payload) = initiator
+            let (len_i_deserialized, _) = initiator
                 .read_message(&buf, &mut payload_buf_initiator)
                 .unwrap();
 

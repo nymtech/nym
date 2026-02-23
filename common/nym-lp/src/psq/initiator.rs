@@ -263,7 +263,10 @@ mod tests {
             // 2. process
             let processed_req = kkt_responder.process_request(req)?;
             conn_resp
-                .send_handshake_message(processed_req.response.into(), kem)
+                .send_handshake_message::<handshake_message::KKTResponse>(
+                    processed_req.response.into(),
+                    kem,
+                )
                 .timeboxed()
                 .await??;
 

@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod codec;
-// georgio: config does not seem to be used anywhere
-// pub mod config;
-// pub use config::LpConfig;
-
 pub mod error;
 pub mod packet;
 pub mod peer;
@@ -15,6 +11,10 @@ pub mod session;
 mod session_integration;
 pub mod session_manager;
 pub mod state_machine;
+
+use crate::psq::{PSQ_MSG2_SIZE, initiator, psq_msg1_size, responder};
+use crate::session::PersistentSessionBinding;
+use libcrux_psq::{Channel, IntoSession};
 
 pub use error::LpError;
 pub use nym_kkt_ciphersuite::{
@@ -30,12 +30,8 @@ pub use session::LpSession;
 pub use session_manager::SessionManager;
 pub use state_machine::LpStateMachine;
 
-#[cfg(test)]
-pub fn kem_list() -> Vec<nym_kkt_ciphersuite::KEM> {
-    todo!()
-    // use nym_kkt::ciphersuite::KEM;
-    // vec![KEM::MlKem768, KEM::McEliece, KEM::X25519]
-}
+#[cfg(any(feature = "mock", test))]
+use nym_test_utils::helpers::u64_seeded_rng_09;
 
 #[cfg(any(feature = "mock", test))]
 pub struct SessionsMock {
@@ -45,119 +41,88 @@ pub struct SessionsMock {
 
 #[cfg(any(feature = "mock", test))]
 impl SessionsMock {
-    pub fn mock_post_handshake(session_id: u32) -> SessionsMock {
-        todo!()
-        // use crate::peer::mock_peers;
-        // use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
-        //
-        // let (mut init, mut resp) = mock_peers();
-        // let resp_remote = resp.as_remote();
-        // let init_remote = init.as_remote();
-        // let salt = [42u8; 32];
-        // let session_id_bytes = session_id.to_le_bytes();
-        //
-        // // skip KKT by just deriving the kem key locally
-        // let kem_keys = resp.kem_psq.as_ref().unwrap();
-        //
-        // let libcrux_private_key = libcrux_kem::PrivateKey::decode(
-        //     libcrux_kem::Algorithm::X25519,
-        //     kem_keys.private_key().as_bytes(),
-        // )
-        // .unwrap();
-        // let decapsulation_key = DecapsulationKey::X25519(libcrux_private_key);
-        //
-        // let libcrux_public_key = libcrux_kem::PublicKey::decode(
-        //     libcrux_kem::Algorithm::X25519,
-        //     kem_keys.public_key().as_bytes(),
-        // )
-        // .unwrap();
-        // let encapsulation_key = EncapsulationKey::X25519(libcrux_public_key);
-        //
-        // // INIT -> RESP: PSQ MSG1
-        // let psq_initiator = crate::psk::psq_initiator_create_message(
-        //     init.x25519.private_key(),
-        //     &resp_remote.x25519_public,
-        //     &encapsulation_key,
-        //     init.ed25519.private_key(),
-        //     init.ed25519.public_key(),
-        //     &salt,
-        //     &session_id_bytes,
-        // )
-        // .unwrap();
-        //
-        // let psk = psq_initiator.psk;
-        // let psq_payload = psq_initiator.payload;
-        // let outer_aead_key = crate::codec::OuterAeadKey::from_psk(&psk);
-        //
-        // let noise_state_init = snow::Builder::new(crate::noise_protocol::NoiseProtocol::params())
-        //     .local_private_key(init.x25519().private_key().as_bytes())
-        //     .remote_public_key(resp_remote.x25519_public.as_bytes())
-        //     .psk(crate::NOISE_PSK_INDEX, &psk)
-        //     .build_initiator()
-        //     .unwrap();
-        // let mut noise_protocol_init = crate::noise_protocol::NoiseProtocol::new(noise_state_init);
-        // let noise_msg1 = noise_protocol_init.get_bytes_to_send().unwrap().unwrap();
-        //
-        // let psq_responder = crate::psk::psq_responder_process_message(
-        //     resp.x25519.private_key(),
-        //     &init_remote.x25519_public,
-        //     (&decapsulation_key, &encapsulation_key),
-        //     &init_remote.ed25519_public,
-        //     &psq_payload,
-        //     &salt,
-        //     &session_id_bytes,
-        // )
-        // .unwrap();
-        //
-        // let noise_state_resp = snow::Builder::new(crate::noise_protocol::NoiseProtocol::params())
-        //     .local_private_key(resp.x25519().private_key().as_bytes())
-        //     .remote_public_key(init_remote.x25519_public.as_bytes())
-        //     .psk(crate::NOISE_PSK_INDEX, &psk)
-        //     .build_responder()
-        //     .unwrap();
-        // let mut noise_protocol_resp = crate::noise_protocol::NoiseProtocol::new(noise_state_resp);
-        // noise_protocol_resp.read_message(&noise_msg1).unwrap();
-        //
-        // let noise_msg2 = noise_protocol_resp.get_bytes_to_send().unwrap().unwrap();
-        // noise_protocol_init.read_message(&noise_msg2).unwrap();
-        // let noise_msg3 = noise_protocol_init.get_bytes_to_send().unwrap().unwrap();
-        //
-        // assert!(noise_protocol_init.is_handshake_finished());
-        //
-        // noise_protocol_resp.read_message(&noise_msg3).unwrap();
-        // assert!(noise_protocol_resp.is_handshake_finished());
-        //
-        // SessionsMock {
-        //     initiator: LpSession::new(
-        //         session_id,
-        //         1,
-        //         outer_aead_key.clone(),
-        //         init,
-        //         resp_remote,
-        //         crate::session::PqSharedSecret::new(psq_initiator.pq_shared_secret),
-        //         noise_protocol_init,
-        //     ),
-        //     responder: LpSession::new(
-        //         session_id,
-        //         1,
-        //         outer_aead_key,
-        //         resp,
-        //         init_remote,
-        //         crate::session::PqSharedSecret::new(psq_responder.pq_shared_secret),
-        //         noise_protocol_resp,
-        //     ),
-        // }
+    pub fn mock_seeded_post_handshake(seed: u64, kem: KEM) -> SessionsMock {
+        use crate::peer::mock_peers;
+
+        let (init, resp) = mock_peers();
+        let resp_remote = resp.as_remote();
+
+        let init_rng = u64_seeded_rng_09(seed);
+        let resp_rng = u64_seeded_rng_09(seed + 1);
+
+        let kem_keys = resp.kem_keypairs.as_ref().unwrap();
+
+        // skip KKT by just deriving the kem key locally
+        let encapsulation_key = kem_keys.encapsulation_key(kem).unwrap();
+        let enc_key = encapsulation_key.clone();
+
+        let initiator_ciphersuite =
+            initiator::build_psq_ciphersuite(&init, &resp_remote, &enc_key).unwrap();
+        let mut initiator =
+            initiator::build_psq_principal(init_rng, 1, initiator_ciphersuite).unwrap();
+
+        let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem).unwrap();
+        let mut responder =
+            responder::build_psq_principal(resp_rng, 1, responder_ciphersuite).unwrap();
+
+        // run PSQ
+        let mut payload_buf_responder = vec![0u8; 4096];
+        let mut payload_buf_initiator = vec![0u8; 4096];
+
+        // Send first message
+        let mut buf = vec![0u8; psq_msg1_size(kem)];
+        let len_i = initiator.write_message(&[], &mut buf).unwrap();
+        assert_eq!(len_i, buf.len());
+
+        // Read first message
+        let (_, _) = responder
+            .read_message(&buf, &mut payload_buf_responder)
+            .unwrap();
+
+        // Get the authenticator out here, so we can deserialize the session later.
+        let Some(initiator_authenticator) = responder.initiator_authenticator() else {
+            panic!("No initiator authenticator found")
+        };
+
+        // Respond
+        let mut buf = [0u8; PSQ_MSG2_SIZE];
+        let len_r = responder.write_message(&[], &mut buf).unwrap();
+        assert_eq!(len_r, buf.len());
+
+        // Finalize on registration initiator
+        let (_, _) = initiator
+            .read_message(&buf, &mut payload_buf_initiator)
+            .unwrap();
+
+        assert!(initiator.is_handshake_finished());
+        assert!(responder.is_handshake_finished());
+
+        let binding = PersistentSessionBinding {
+            initiator_authenticator,
+            responder_ecdh_pk: resp_remote.x25519_public,
+            responder_pq_pk: Some(encapsulation_key),
+        };
+
+        SessionsMock {
+            initiator: LpSession::new(initiator.into_session().unwrap(), binding.clone(), 1)
+                .unwrap(),
+            responder: LpSession::new(responder.into_session().unwrap(), binding, 1).unwrap(),
+        }
+    }
+
+    pub fn mock_post_handshake(kem: KEM) -> SessionsMock {
+        Self::mock_seeded_post_handshake(1, kem)
     }
 
     // we just need a dummy 'valid' session for simpler tests
     pub fn mock_initiator() -> LpSession {
-        Self::mock_post_handshake(1234).initiator
+        Self::mock_post_handshake(KEM::default()).initiator
     }
 }
 
 #[cfg(any(feature = "mock", test))]
 pub fn sessions_for_tests() -> (LpSession, LpSession) {
-    let sessions = SessionsMock::mock_post_handshake(69);
+    let sessions = SessionsMock::mock_post_handshake(KEM::default());
     (sessions.initiator, sessions.responder)
 }
 
@@ -169,9 +134,9 @@ pub fn mock_session_for_test() -> LpSession {
 #[cfg(test)]
 mod tests {
     use crate::session_manager::SessionManager;
-    use crate::{LpError, SessionsMock, kem_list, mock_session_for_test};
+    use crate::{LpError, SessionsMock, mock_session_for_test};
     use bytes::BytesMut;
-    use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, SignatureScheme};
+    use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, IntoEnumIterator, KEM, SignatureScheme};
 
     // Import the new standalone functions
     use crate::codec::serialize_lp_packet;
@@ -285,7 +250,7 @@ mod tests {
         let mut local_manager = SessionManager::new();
         let mut remote_manager = SessionManager::new();
 
-        for kem in kem_list() {
+        for kem in KEM::iter() {
             todo!()
             // // Generate Ed25519 keypairs for PSQ authentication
             // let (init, resp) = mock_peers(kem);

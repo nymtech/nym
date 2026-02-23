@@ -1,8 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use crate::codec::serialize_lp_packet;
-    use crate::{LpError, SessionsMock, kem_list, session_manager::SessionManager};
-    use bytes::BytesMut;
     use nym_lp_packet::{LpHeader, LpMessage, LpPacket};
 
     // Function to create a test packet - similar to how it's done in codec.rs tests

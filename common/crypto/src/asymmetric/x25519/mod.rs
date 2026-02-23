@@ -7,7 +7,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::Deref;
 use std::str::FromStr;
 use thiserror::Error;
-use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
@@ -45,6 +45,9 @@ pub enum KeyRecoveryError {
         #[source]
         source: bs58::decode::Error,
     },
+
+    #[error("the x25519 private key could not be converted to its PSQ representation")]
+    IncompatiblePSQPrivateKey,
 }
 
 #[derive(Zeroize, ZeroizeOnDrop)]
@@ -415,37 +418,46 @@ impl AsRef<[u8]> for PrivateKey {
 
 // libcrux-psq conversion
 #[cfg(feature = "libcrux_x25519")]
-impl From<PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
-    fn from(key: PrivateKey) -> libcrux_psq::handshake::types::DHPrivateKey {
-        Self::from(&key)
+impl TryFrom<PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
+    type Error = KeyRecoveryError;
+
+    fn try_from(
+        key: PrivateKey,
+    ) -> Result<libcrux_psq::handshake::types::DHPrivateKey, Self::Error> {
+        Self::try_from(&key)
     }
 }
 
 #[cfg(feature = "libcrux_x25519")]
 impl From<libcrux_psq::handshake::types::DHPrivateKey> for PrivateKey {
     fn from(key: libcrux_psq::handshake::types::DHPrivateKey) -> PrivateKey {
-        // SAFETY: we're using valid x25519 private key
-        // #[allow(clippy::unwrap_used)]
+        // SAFETY: the DHPrivateKey is guaranteed to be 32 bytes in length
+        #[allow(clippy::unwrap_used)]
         PrivateKey::from_bytes(key.as_ref()).unwrap()
     }
 }
 
 #[cfg(feature = "libcrux_x25519")]
-impl From<&PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
-    fn from(key: &PrivateKey) -> libcrux_psq::handshake::types::DHPrivateKey {
-        // SAFETY: we're using valid x25519 private key
-        // #[allow(clippy::unwrap_used)]
-        let mut private_key_bytes = Zeroizing::new(key.to_bytes());
+impl TryFrom<&PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
+    type Error = KeyRecoveryError;
+
+    fn try_from(
+        key: &PrivateKey,
+    ) -> Result<libcrux_psq::handshake::types::DHPrivateKey, Self::Error> {
+        let mut private_key_bytes = zeroize::Zeroizing::new(key.to_bytes());
         libcrux_curve25519::clamp(&mut private_key_bytes);
-        libcrux_psq::handshake::types::DHPrivateKey::from_bytes(&private_key_bytes).unwrap()
+        match libcrux_psq::handshake::types::DHPrivateKey::from_bytes(&private_key_bytes) {
+            Ok(key) => Ok(key),
+            Err(_) => Err(KeyRecoveryError::IncompatiblePSQPrivateKey),
+        }
     }
 }
 
 #[cfg(feature = "libcrux_x25519")]
 impl From<&libcrux_psq::handshake::types::DHPrivateKey> for PrivateKey {
     fn from(key: &libcrux_psq::handshake::types::DHPrivateKey) -> PrivateKey {
-        // SAFETY: we're using valid x25519 private key
-        // #[allow(clippy::unwrap_used)]
+        // SAFETY: the DHPrivateKey is guaranteed to be 32 bytes in length
+        #[allow(clippy::unwrap_used)]
         PrivateKey::from_bytes(key.as_ref()).unwrap()
     }
 }
@@ -460,18 +472,22 @@ impl From<PublicKey> for libcrux_psq::handshake::types::DHPublicKey {
 #[cfg(feature = "libcrux_x25519")]
 impl From<libcrux_psq::handshake::types::DHPublicKey> for PublicKey {
     fn from(key: libcrux_psq::handshake::types::DHPublicKey) -> PublicKey {
-        // SAFETY: we're using correct 32 bytes representation
-        // #[allow(clippy::unwrap_used)]
+        // SAFETY: the DHPublicKey is guaranteed to be 32 bytes in length
+        #[allow(clippy::unwrap_used)]
         PublicKey::from_bytes(key.as_ref()).unwrap()
     }
 }
 
 #[cfg(feature = "libcrux_x25519")]
-impl From<KeyPair> for libcrux_psq::handshake::types::DHKeyPair {
-    fn from(key: KeyPair) -> libcrux_psq::handshake::types::DHKeyPair {
-        libcrux_psq::handshake::types::DHKeyPair::from(
-            libcrux_psq::handshake::types::DHPrivateKey::from(&key.private_key),
-        )
+impl TryFrom<KeyPair> for libcrux_psq::handshake::types::DHKeyPair {
+    type Error = KeyRecoveryError;
+
+    fn try_from(
+        key: KeyPair,
+    ) -> Result<libcrux_psq::handshake::types::DHKeyPair, KeyRecoveryError> {
+        Ok(libcrux_psq::handshake::types::DHKeyPair::from(
+            libcrux_psq::handshake::types::DHPrivateKey::try_from(&key.private_key)?,
+        ))
     }
 }
 

@@ -5,10 +5,11 @@ use crate::{LpError, LpMessage};
 use bytes::BytesMut;
 use libcrux_psq::Channel;
 use nym_lp_packet::{EncryptedLpPacket, InnerHeader, LpHeader, LpPacket, OuterHeader};
-use nym_lp_transport::traits::LpTransportChannel;
 use tracing::error;
 
-pub(crate) const CIPHERTEXT_OVERHEAD: usize = 25;
+// wtf, why are those different?!
+pub(crate) const ENC_OVERHEAD: usize = 26;
+pub(crate) const DEC_OVERHEAD: usize = 25;
 
 /// Parse only the outer header from raw packet bytes.
 ///
@@ -24,45 +25,20 @@ pub fn parse_lp_header_only(src: &[u8]) -> Result<OuterHeader, LpError> {
     Ok(OuterHeader::parse(src)?)
 }
 
-// /// Parses a complete Lewes Protocol packet from a byte slice (e.g., a UDP datagram payload).
-// ///
-// /// # Arguments
-// /// * `outer_header` - The parsed OuterHeader from the underlying stream
-// /// * `plaintext` - the decrypted plaintext of the remainer of the packet
-// ///
-// /// # Errors
-// /// * `LpError::InsufficientBufferSize` - Packet too small
-// pub fn parse_lp_packet(outer_header: OuterHeader, plaintext: &[u8]) -> Result<LpPacket, LpError> {
-//     todo!()
-//     // if plaintext.len() < InnerHeader::SIZE {
-//     //     return Err(LpError::InsufficientBufferSize);
-//     // }
-//     //
-//     // let inner_header = InnerHeader::parse(plaintext)?;
-//     // let payload = &plaintext[InnerHeader::SIZE..];
-//     // let message = LpMessage::decode_content(payload, inner_header.message_type)?;
-//     //
-//     // Ok(LpPacket {
-//     //     header: LpHeader {
-//     //         outer: outer_header,
-//     //         inner: inner_header,
-//     //     },
-//     //     message,
-//     // })
-// }
-
 pub(crate) fn encrypt_data(
     plaintext: &[u8],
     transport: &mut libcrux_psq::session::Transport,
 ) -> Result<Vec<u8>, LpError> {
-    let mut ciphertext = vec![0u8; plaintext.len() + CIPHERTEXT_OVERHEAD + 64];
-    let n = transport.write_message(&*plaintext, &mut ciphertext)?;
+    let mut ciphertext = vec![0u8; plaintext.len() + ENC_OVERHEAD];
+    let n = transport.write_message(plaintext, &mut ciphertext)?;
 
-    if plaintext.len() + CIPHERTEXT_OVERHEAD != n {
-        // TODO: check consistency
-        error!("FIXME: inconsistent ciphertext overhead")
+    if plaintext.len() + ENC_OVERHEAD != n {
+        error!(
+            "FIXME: inconsistent ciphertext overhead. expected: {ENC_OVERHEAD}, actual: {}",
+            n - plaintext.len()
+        );
+        ciphertext.truncate(n);
     }
-    ciphertext.truncate(n);
 
     Ok(ciphertext)
 }
@@ -71,17 +47,20 @@ pub(crate) fn decrypt_data(
     ciphertext: &[u8],
     transport: &mut libcrux_psq::session::Transport,
 ) -> Result<Vec<u8>, LpError> {
-    if ciphertext.len() < CIPHERTEXT_OVERHEAD {
+    if ciphertext.len() < DEC_OVERHEAD {
         return Err(LpError::InsufficientBufferSize);
     }
-    let mut plaintext = vec![0u8; ciphertext.len() - CIPHERTEXT_OVERHEAD];
+    let mut plaintext = vec![0u8; ciphertext.len() - DEC_OVERHEAD];
 
-    let (_, n) = transport.read_message(&ciphertext, &mut plaintext)?;
-    if n != ciphertext.len() - CIPHERTEXT_OVERHEAD {
+    let (_, n) = transport.read_message(ciphertext, &mut plaintext)?;
+    if n != ciphertext.len() - DEC_OVERHEAD {
         // TODO: check consistency
-        error!("FIXME: inconsistent ciphertext overhead")
+        error!(
+            "FIXME: inconsistent ciphertext overhead. expected: {DEC_OVERHEAD}, actual: {}",
+            ciphertext.len() - n
+        );
+        plaintext.truncate(n);
     }
-    plaintext.truncate(n);
     Ok(plaintext)
 }
 
@@ -102,7 +81,7 @@ pub fn decrypt_lp_packet(
     packet: EncryptedLpPacket,
     transport: &mut libcrux_psq::session::Transport,
 ) -> Result<LpPacket, LpError> {
-    if packet.ciphertext().len() < InnerHeader::SIZE + CIPHERTEXT_OVERHEAD {
+    if packet.ciphertext().len() < InnerHeader::SIZE + ENC_OVERHEAD {
         return Err(LpError::InsufficientBufferSize);
     }
 

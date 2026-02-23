@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::peer::{LpLocalPeer, LpRemotePeer};
-use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, IntoEnumIterator, KEM, SignatureScheme};
+use nym_kkt_ciphersuite::{HashFunction, IntoEnumIterator, KEM, SignatureScheme};
 use nym_lp_packet::version;
 use nym_lp_transport::traits::LpHandshakeChannel;
 
@@ -116,7 +116,6 @@ mod tests {
     use libcrux_psq::session::{Session, SessionBinding};
     use libcrux_psq::{Channel, IntoSession};
     use nym_kkt::initiator::KKTInitiator;
-    use nym_kkt::message::KKTRequest;
     use nym_kkt::responder::KKTResponder;
     use nym_kkt_ciphersuite::{HashFunction, KEM, SignatureScheme};
     use nym_test_utils::helpers::{

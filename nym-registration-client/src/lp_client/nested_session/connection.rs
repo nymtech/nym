@@ -127,11 +127,13 @@ impl<'a, S> LpHandshakeChannel for NestedConnection<'a, S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
+    #[allow(clippy::unimplemented)]
     async fn write_all_and_flush(&mut self, _: &[u8]) -> Result<(), LpTransportError> {
         // this is not being called instead we implement `send_handshake_message` directly
         unimplemented!()
     }
 
+    #[allow(clippy::unimplemented)]
     async fn read_n_bytes(&mut self, _: usize) -> Result<Vec<u8>, LpTransportError> {
         // this is not being called instead we implement `receive_handshake_message` directly
         unimplemented!()

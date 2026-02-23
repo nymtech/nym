@@ -213,7 +213,7 @@ impl LpStateMachine {
         mut state: LpTransportState,
         input: LpInput,
     ) -> (LpState, Option<Result<LpAction, LpError>>) {
-        let mut session = &mut state.session;
+        let session = &mut state.session;
         match input {
             LpInput::ReceivePacket(packet) => {
                 // Check if packet lp_id matches our session
@@ -263,12 +263,12 @@ impl LpStateMachine {
             }
             LpInput::SendData(data) => {
                 // Encrypt and send application data
-                let result_action = match self.prepare_data_packet(&mut session, data) {
+                let result_action = match self.prepare_data_packet(session, data) {
                     Ok(packet) => Some(Ok(LpAction::SendPacket(packet))),
                     Err(e) => {
                         // If prepare fails, should we close? Let's report error and stay Transport for now.
                         // Alternative: transition to Closed state.
-                        Some(Err(e.into()))
+                        Some(Err(e))
                     }
                 };
                 // Remain in transport state

@@ -15,10 +15,9 @@ use crate::{LpError, LpMessage, LpPacket, ReceivingKeyCounterValidator};
 use libcrux_psq::handshake::types::{Authenticator, DHPublicKey};
 use libcrux_psq::session::{Session, SessionBinding};
 use nym_kkt::keys::EncapsulationKey;
-use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
+use nym_kkt_ciphersuite::Ciphersuite;
 use nym_lp_packet::{ApplicationData, EncryptedLpPacket, LpHeader};
 use nym_lp_transport::LpHandshakeChannel;
-use nym_lp_transport::traits::LpTransportChannel;
 use std::fmt::{Debug, Formatter};
 
 pub type SessionId = [u8; 32];
@@ -98,9 +97,6 @@ impl Debug for LpSession {
 
 impl LpSession {
     /// Creates a new session after completed KTT/PSQ exchange
-    ///
-    /// # Arguments
-
     pub fn new(
         mut psq_session: Session,
         session_binding: PersistentSessionBinding,
@@ -157,7 +153,7 @@ impl LpSession {
         &self.session_binding
     }
 
-    pub(crate) fn active_transport(&mut self) -> &mut libcrux_psq::session::Transport {
+    pub fn active_transport(&mut self) -> &mut libcrux_psq::session::Transport {
         &mut self.active_transport
     }
 

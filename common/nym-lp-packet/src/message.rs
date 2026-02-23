@@ -4,7 +4,6 @@
 use crate::error::MalformedLpPacketError;
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use nym_crypto::asymmetric::ed25519;
 use std::fmt;
 use std::fmt::Display;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -226,16 +225,20 @@ impl ForwardPacketData {
                     b.len()
                 )));
             }
+            // Ipv6Addr::from_octets is not available until 1.91 so we have to use
+            // the slightly less obvious u128 conversion
             // SAFETY: we ensured we have sufficient data, and the length is correct for casting
             #[allow(clippy::unwrap_used)]
-            let ipv6 = IpAddr::V6(Ipv6Addr::from_octets(b[1..17].try_into().unwrap()));
+            let ipv6 = IpAddr::V6(Ipv6Addr::from_bits(u128::from_be_bytes(
+                b[1..17].try_into().unwrap(),
+            )));
             let port = u16::from_le_bytes([b[17], b[18]]);
             (SocketAddr::new(ipv6, port), 19)
         } else {
             // IPv4. Length check done at the start
-            // SAFETY: we ensured we have sufficient data, and the length is correct for casting
-            #[allow(clippy::unwrap_used)]
-            let ipv4 = IpAddr::V4(Ipv4Addr::from_octets(b[1..5].try_into().unwrap()));
+
+            // Ipv4Addr::from_octets is not available until 1.91
+            let ipv4 = IpAddr::V4(Ipv4Addr::new(b[1], b[2], b[3], b[4]));
             let port = u16::from_le_bytes([b[5], b[6]]);
             (SocketAddr::new(ipv4, port), 7)
         };

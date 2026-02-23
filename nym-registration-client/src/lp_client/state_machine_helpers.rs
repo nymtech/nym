@@ -5,25 +5,6 @@ use crate::LpClientError;
 use nym_lp::state_machine::{LpAction, LpData, LpInput};
 use nym_lp::{EncryptedLpPacket, LpPacket, LpStateMachine};
 
-/// Serializes an LP packet to bytes.
-///
-/// # Arguments
-/// * `packet` - The LP packet to serialize
-///
-/// # Returns
-/// * `Ok(Vec<u8>)` - Serialized packet bytes
-///
-/// # Errors
-/// Returns an error if serialization fails
-pub(crate) fn serialize_packet(packet: &LpPacket) -> Result<Vec<u8>, LpClientError> {
-    todo!()
-    // let mut buf = BytesMut::new();
-    // // Use outer AEAD key when available (after PSK derivation)
-    // serialize_lp_packet(packet, &mut buf, outer_key)
-    //     .map_err(|e| LpClientError::Transport(format!("Failed to serialize LP packet: {}", e)))?;
-    // Ok(buf.to_vec())
-}
-
 /// Attempt to prepare the provided data for sending by wrapping it in appropriate `LpAction`,
 /// and attempting to extract `EncryptedLpPacket` from the provided state machine.
 pub(crate) fn prepare_send_packet(

@@ -106,7 +106,7 @@ impl<'a> KKTInitiator<'a> {
     ) -> Result<ProcessedKKTResponse, KKTError> {
         let decrypted_response_bytes = self.carrier.decrypt(&response.encrypted_frame)?;
         let response_frame = KKTFrame::from_bytes(&decrypted_response_bytes)?;
-        initiator_ingest_response(&mut self.context, &response_frame, self.expected_hash)
+        initiator_ingest_response(&self.context, &response_frame, self.expected_hash)
     }
 }
 

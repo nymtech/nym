@@ -19,7 +19,6 @@ use libcrux_psq::{Channel, IntoSession};
 use nym_kkt::initiator::KKTInitiator;
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt::message::{KKTRequest, KKTResponse};
-use nym_kkt_ciphersuite::KEM;
 use nym_lp_transport::traits::LpHandshakeChannel;
 use rand09::SeedableRng;
 use tracing::debug;
@@ -141,7 +140,6 @@ where
 
         // 4. generate and send PSQ request
         let protocol = self.initiator_data.protocol_version;
-        let kem = ciphersuite.kem();
         let conn = self.inner_state.connection;
 
         // note: the clone is cheap due to internal Arcs

@@ -42,7 +42,7 @@ pub trait LpHandshakeChannel: Sized {
         expected_size: usize,
     ) -> Result<M, LpTransportError> {
         let bytes = self.read_n_bytes(expected_size).await?;
-        M::try_from_bytes(bytes).map_err(Into::into)
+        M::try_from_bytes(bytes)
     }
 }
 

@@ -19,12 +19,15 @@ serde_json = { workspace = true, optional = true }
 
 ## tracing
 tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
-tracing-tree = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
-opentelemetry-jaeger = { workspace = true, features = ["rt-tokio", "collector_client", "isahc_collector_client"], optional = true }
 tracing-opentelemetry = { workspace = true, optional = true }
 utoipa = { workspace = true, optional = true }
-opentelemetry = { workspace = true, features = ["rt-tokio"], optional = true }
+opentelemetry = { workspace = true, features = ["trace"], optional = true }
+
+## otel-otlp (modern OTLP export to SigNoz/any OTLP collector)
+opentelemetry_sdk = { workspace = true, features = ["trace"], optional = true }
+opentelemetry-otlp = { workspace = true, features = ["grpc-tonic", "trace", "tls-roots"], optional = true }
+tonic = { workspace = true, optional = true }
 
 
 [build-dependencies]
@@ -35,13 +38,14 @@ default = []
 openapi = ["utoipa"]
 output_format = ["serde_json", "dep:clap"]
 bin_info_schema = ["schemars"]
-basic_tracing = ["dep:tracing", "tracing-subscriber"]
-tracing = [
+basic_tracing = ["dep:tracing", "dep:tracing-subscriber"]
+otel-otlp = [
     "basic_tracing",
-    "tracing-tree",
-    "opentelemetry-jaeger",
-    "tracing-opentelemetry",
-    "opentelemetry",
+    "dep:opentelemetry",
+    "dep:opentelemetry_sdk",
+    "dep:opentelemetry-otlp",
+    "dep:tracing-opentelemetry",
+    "dep:tonic",
 ]
 clap = ["dep:clap", "dep:clap_complete", "dep:clap_complete_fig"]
 models = []

@@ -4,7 +4,7 @@
 use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::v1::metrics::models::{
-    VerlocNodeResult, VerlocResult, VerlocResultData, VerlocStats,
+    VerlocMeasurement, VerlocNodeResult, VerlocResult, VerlocResultData, VerlocStats,
 };
 use nym_verloc::measurements::SharedVerlocStats;
 
@@ -43,6 +43,12 @@ async fn build_response(verloc_stats: &SharedVerlocStats) -> VerlocStats {
                 .iter()
                 .map(|r| VerlocNodeResult {
                     node_identity: r.node_identity,
+                    latest_measurement: r.latest_measurement.map(|m| VerlocMeasurement {
+                        minimum: m.minimum,
+                        mean: m.mean,
+                        maximum: m.maximum,
+                        standard_deviation: m.standard_deviation,
+                    }),
                 })
                 .collect(),
         }

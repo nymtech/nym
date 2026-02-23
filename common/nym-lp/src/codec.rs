@@ -21,7 +21,7 @@ pub(crate) const DEC_OVERHEAD: usize = 25;
 ///
 /// # Errors
 /// * `LpError::InsufficientBufferSize` - Packet too small for outer header
-pub fn parse_lp_header_only(src: &[u8]) -> Result<OuterHeader, LpError> {
+pub(crate) fn parse_lp_header_only(src: &[u8]) -> Result<OuterHeader, LpError> {
     Ok(OuterHeader::parse(src)?)
 }
 
@@ -64,7 +64,7 @@ pub(crate) fn decrypt_data(
     Ok(plaintext)
 }
 
-pub fn encrypt_lp_packet(
+pub(crate) fn encrypt_lp_packet(
     packet: LpPacket,
     transport: &mut libcrux_psq::session::Transport,
 ) -> Result<EncryptedLpPacket, LpError> {
@@ -77,7 +77,7 @@ pub fn encrypt_lp_packet(
     Ok(EncryptedLpPacket::new(packet.header().outer, ciphertext))
 }
 
-pub fn decrypt_lp_packet(
+pub(crate) fn decrypt_lp_packet(
     packet: EncryptedLpPacket,
     transport: &mut libcrux_psq::session::Transport,
 ) -> Result<LpPacket, LpError> {
@@ -112,7 +112,7 @@ pub fn decrypt_lp_packet(
 /// * `item` - Packet to serialize
 /// * `dst` - Output buffer
 /// * `transport` - AEAD encryption channel
-pub fn serialize_lp_packet(
+pub(crate) fn serialize_lp_packet(
     item: LpPacket,
     dst: &mut BytesMut,
     transport: &mut libcrux_psq::session::Transport,

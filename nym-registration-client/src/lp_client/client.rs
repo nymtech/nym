@@ -259,7 +259,10 @@ where
     ///
     /// # Errors
     /// Returns an error if not connected or if send or receive fails.
-    async fn send_and_receive_packet(&mut self, packet: &EncryptedLpPacket) -> Result<LpPacket> {
+    async fn send_and_receive_packet(
+        &mut self,
+        packet: &EncryptedLpPacket,
+    ) -> Result<EncryptedLpPacket> {
         self.try_send_packet(packet).await?;
         self.try_receive_packet().await
     }
@@ -279,7 +282,7 @@ where
         &mut self,
         packet: &EncryptedLpPacket,
         timeout: Duration,
-    ) -> Result<LpPacket> {
+    ) -> Result<EncryptedLpPacket> {
         tokio::time::timeout(timeout, self.send_and_receive_packet(packet))
             .await
             .map_err(|_| LpClientError::ConnectionTimeout)?
@@ -304,15 +307,13 @@ where
     ///
     /// # Errors
     /// Returns an error if not connected or if receive fails.
-    pub(crate) async fn try_receive_packet(&mut self) -> Result<LpPacket> {
+    pub(crate) async fn try_receive_packet(&mut self) -> Result<EncryptedLpPacket> {
         let encrypted_packet = self
             .stream_mut()?
             .receive_length_prefixed_transport_packet()
             .await?;
-        let sm = self.state_machine_mut()?;
-        let packet = sm.session_mut()?.decrypt_packet(encrypted_packet)?;
 
-        Ok(packet)
+        Ok(encrypted_packet)
     }
 
     /// Closes the persistent connection.

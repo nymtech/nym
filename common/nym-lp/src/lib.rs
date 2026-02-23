@@ -12,10 +12,6 @@ mod session_integration;
 pub mod session_manager;
 pub mod state_machine;
 
-use crate::psq::{PSQ_MSG2_SIZE, initiator, psq_msg1_size, responder};
-use crate::session::PersistentSessionBinding;
-use libcrux_psq::{Channel, IntoSession};
-
 pub use error::LpError;
 pub use nym_kkt_ciphersuite::{
     Ciphersuite, HashFunction, HashLength, KEM, KEMKeyDigests, SignatureScheme,
@@ -32,6 +28,15 @@ pub use state_machine::LpStateMachine;
 
 #[cfg(any(feature = "mock", test))]
 use nym_test_utils::helpers::u64_seeded_rng_09;
+
+#[cfg(any(feature = "mock", test))]
+use crate::psq::{PSQ_MSG2_SIZE, initiator, psq_msg1_size, responder};
+
+#[cfg(any(feature = "mock", test))]
+use crate::session::PersistentSessionBinding;
+
+#[cfg(any(feature = "mock", test))]
+use libcrux_psq::{Channel, IntoSession};
 
 #[cfg(any(feature = "mock", test))]
 pub struct SessionsMock {

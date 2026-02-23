@@ -251,7 +251,7 @@ impl LpSession {
     ///
     /// * `Ok(EncryptedLpPacket)` containing the encrypted message ciphertext.
     /// * `Err(LpError)` if the session is not in transport mode or encryption fails.
-    pub fn encrypt_application_data(
+    pub(crate) fn encrypt_application_data(
         &mut self,
         data: Vec<u8>,
     ) -> Result<EncryptedLpPacket, LpError> {
@@ -269,7 +269,10 @@ impl LpSession {
     ///
     /// * `Ok(LpPacket)` containing the decrypted application data payload.
     /// * `Err(LpError)` if the session is not in transport mode, decryption fails, or the message is not data.
-    pub fn decrypt_packet(&mut self, packet: EncryptedLpPacket) -> Result<LpPacket, LpError> {
+    pub(crate) fn decrypt_packet(
+        &mut self,
+        packet: EncryptedLpPacket,
+    ) -> Result<LpPacket, LpError> {
         decrypt_lp_packet(packet, &mut self.active_transport)
     }
 }

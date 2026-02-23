@@ -17,7 +17,7 @@ use crate::session::SessionId;
 use crate::{LpError, session::LpSession};
 use bytes::{Buf, Bytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use nym_lp_packet::{EncryptedLpPacket, LpMessage, LpPacket};
+use nym_lp_packet::{EncryptedLpPacket, LpMessage};
 use std::mem;
 
 #[derive(Debug)]
@@ -62,7 +62,7 @@ impl From<&LpState> for LpStateBare {
 #[derive(Debug)]
 pub enum LpInput {
     /// Received an encrypted LP Packet from the network.
-    ReceivePacket(LpPacket),
+    ReceivePacket(EncryptedLpPacket),
 
     /// Application wants to send data (only valid in Transport state).
     SendData(LpData),
@@ -217,29 +217,36 @@ impl LpStateMachine {
         match input {
             LpInput::ReceivePacket(packet) => {
                 // Check if packet lp_id matches our session
-                if packet.header().receiver_idx() != session.id() {
+                if packet.outer_header().receiver_idx != session.id() {
                     let result_action = Some(Err(LpError::UnknownSessionId(
-                        packet.header().receiver_idx(),
+                        packet.outer_header().receiver_idx,
                     )));
                     return (LpState::Transport(state), result_action);
                 }
 
-                let ctr = packet.header().counter();
+                let ctr = packet.outer_header().counter;
+
+                // 1. Check replay protection
+                if let Err(e) = session.receiving_counter_quick_check(ctr) {
+                    return (LpState::Transport(state), Some(Err(e)));
+                }
+
+                // 2. Mark counter as received
+                if let Err(e) = session.receiving_counter_mark(ctr) {
+                    return (LpState::Transport(state), Some(Err(e)));
+                }
+
+                // 3. decrypt the packet and attempt to deliver data
+                let packet = match session.decrypt_packet(packet) {
+                    Ok(packet) => packet,
+                    Err(e) => return (LpState::Transport(state), Some(Err(e))),
+                };
+
                 // Check message type
                 match packet.into_message() {
                     // Normal encrypted data
                     LpMessage::ApplicationData(payload) => {
-                        // 1. Check replay protection
-                        if let Err(e) = session.receiving_counter_quick_check(ctr) {
-                            return (LpState::Transport(state), Some(Err(e)));
-                        }
-
-                        // 2. Mark counter as received
-                        if let Err(e) = session.receiving_counter_mark(ctr) {
-                            return (LpState::Transport(state), Some(Err(e)));
-                        }
-
-                        // 3. Deliver data
+                        //  Deliver data
                         match payload.0.try_into() {
                             Ok(data) => {
                                 let result_action = Some(Ok(LpAction::DeliverData(data)));
@@ -372,70 +379,71 @@ mod tests {
 
     #[test]
     fn test_state_machine_simplified_flow() {
-        for kem in KEM::iter() {
-            let receiver_index: u32 = 123;
-            let mock_sessions = SessionsMock::mock_post_handshake(kem);
-
-            // Create state machines (already in Transport)
-            let mut initiator = LpStateMachine::new(mock_sessions.initiator);
-            let mut responder = LpStateMachine::new(mock_sessions.responder);
-
-            assert_eq!(initiator.id().unwrap(), responder.id().unwrap());
-
-            // --- Transport Phase ---
-            println!("--- Step 1: Initiator sends data ---");
-            let data_to_send_1 = LpData::new_opaque(b"hello responder".to_vec());
-            let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.clone()));
-            let data_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_4 {
-                packet.clone()
-            } else {
-                panic!("Initiator should send data packet");
-            };
-            assert_eq!(data_packet_1.header.receiver_idx(), receiver_index);
-
-            println!("--- Step 2: Responder receives data ---");
-            let resp_actions_5 = responder.process_input(LpInput::ReceivePacket(data_packet_1));
-            let resp_data_1 = if let Some(Ok(LpAction::DeliverData(data))) = resp_actions_5 {
-                data
-            } else {
-                panic!("Responder should deliver data");
-            };
-            assert_eq!(resp_data_1, data_to_send_1);
-
-            println!("--- Step 3: Responder sends data ---");
-            let data_to_send_2 = LpData::new_opaque(b"hello initiator".to_vec());
-            let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.clone()));
-            let data_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_6 {
-                packet.clone()
-            } else {
-                panic!("Responder should send data packet");
-            };
-            assert_eq!(data_packet_2.header.receiver_idx(), receiver_index);
-
-            println!("--- Step 4: Initiator receives data ---");
-            let init_actions_5 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
-            if let Some(Ok(LpAction::DeliverData(data))) = init_actions_5 {
-                assert_eq!(data, data_to_send_2);
-            } else {
-                panic!("Initiator should deliver data");
-            }
-
-            // --- Close ---
-            println!("--- Step 5: Initiator closes ---");
-            let init_actions_6 = initiator.process_input(LpInput::Close);
-            assert!(matches!(
-                init_actions_6,
-                Some(Ok(LpAction::ConnectionClosed))
-            ));
-            assert!(matches!(initiator.state, LpState::Closed { .. }));
-
-            println!("--- Step 6: Responder closes ---");
-            let resp_actions_7 = responder.process_input(LpInput::Close);
-            assert!(matches!(
-                resp_actions_7,
-                Some(Ok(LpAction::ConnectionClosed))
-            ));
-            assert!(matches!(responder.state, LpState::Closed { .. }));
-        }
+        todo!()
+        // for kem in KEM::iter() {
+        //     let receiver_index: u32 = 123;
+        //     let mock_sessions = SessionsMock::mock_post_handshake(kem);
+        //
+        //     // Create state machines (already in Transport)
+        //     let mut initiator = LpStateMachine::new(mock_sessions.initiator);
+        //     let mut responder = LpStateMachine::new(mock_sessions.responder);
+        //
+        //     assert_eq!(initiator.id().unwrap(), responder.id().unwrap());
+        //
+        //     // --- Transport Phase ---
+        //     println!("--- Step 1: Initiator sends data ---");
+        //     let data_to_send_1 = LpData::new_opaque(b"hello responder".to_vec());
+        //     let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.clone()));
+        //     let data_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_4 {
+        //         packet.clone()
+        //     } else {
+        //         panic!("Initiator should send data packet");
+        //     };
+        //     assert_eq!(data_packet_1.header.receiver_idx(), receiver_index);
+        //
+        //     println!("--- Step 2: Responder receives data ---");
+        //     let resp_actions_5 = responder.process_input(LpInput::ReceivePacket(data_packet_1));
+        //     let resp_data_1 = if let Some(Ok(LpAction::DeliverData(data))) = resp_actions_5 {
+        //         data
+        //     } else {
+        //         panic!("Responder should deliver data");
+        //     };
+        //     assert_eq!(resp_data_1, data_to_send_1);
+        //
+        //     println!("--- Step 3: Responder sends data ---");
+        //     let data_to_send_2 = LpData::new_opaque(b"hello initiator".to_vec());
+        //     let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.clone()));
+        //     let data_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_6 {
+        //         packet.clone()
+        //     } else {
+        //         panic!("Responder should send data packet");
+        //     };
+        //     assert_eq!(data_packet_2.header.receiver_idx(), receiver_index);
+        //
+        //     println!("--- Step 4: Initiator receives data ---");
+        //     let init_actions_5 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
+        //     if let Some(Ok(LpAction::DeliverData(data))) = init_actions_5 {
+        //         assert_eq!(data, data_to_send_2);
+        //     } else {
+        //         panic!("Initiator should deliver data");
+        //     }
+        //
+        //     // --- Close ---
+        //     println!("--- Step 5: Initiator closes ---");
+        //     let init_actions_6 = initiator.process_input(LpInput::Close);
+        //     assert!(matches!(
+        //         init_actions_6,
+        //         Some(Ok(LpAction::ConnectionClosed))
+        //     ));
+        //     assert!(matches!(initiator.state, LpState::Closed { .. }));
+        //
+        //     println!("--- Step 6: Responder closes ---");
+        //     let resp_actions_7 = responder.process_input(LpInput::Close);
+        //     assert!(matches!(
+        //         resp_actions_7,
+        //         Some(Ok(LpAction::ConnectionClosed))
+        //     ));
+        //     assert!(matches!(responder.state, LpState::Closed { .. }));
+        // }
     }
 }

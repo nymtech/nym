@@ -24,7 +24,7 @@ pub(crate) fn prepare_send_packet(
 /// Attempt to recover received `LpData` from the received `LpPacket`
 /// using the provided state machine.
 pub(crate) fn extract_forwarded_response(
-    response_packet: LpPacket,
+    response_packet: EncryptedLpPacket,
     state_machine: &mut LpStateMachine,
 ) -> Result<LpData, LpClientError> {
     let action = state_machine

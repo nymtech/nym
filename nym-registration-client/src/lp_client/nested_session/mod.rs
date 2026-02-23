@@ -136,17 +136,6 @@ impl NestedLpSession {
             .ok_or(LpClientError::IncompleteHandshake)
     }
 
-    /// Attempt to parse received bytes into an LpPacket
-    fn parse_received_transport_packet(
-        &mut self,
-        response_packet: EncryptedLpPacket,
-    ) -> Result<LpPacket> {
-        self.state_machine_mut()?
-            .session_mut()?
-            .decrypt_packet(response_packet)
-            .map_err(Into::into)
-    }
-
     /// Attempt to wrap the provided `LpData` into a `EncryptedLpPacket`
     /// using the inner state machine.
     fn prepare_transport_packet(&mut self, data: LpData) -> Result<EncryptedLpPacket> {
@@ -154,9 +143,9 @@ impl NestedLpSession {
         prepare_send_packet(data, state_machine)
     }
 
-    /// Attempt to recover received `LpData` from the received `LpPacket`
+    /// Attempt to recover received `LpData` from the received `EncryptedLpPacket`
     /// using the inner state machine.
-    fn extract_forwarded_response(&mut self, response_packet: LpPacket) -> Result<LpData> {
+    fn extract_forwarded_response(&mut self, response_packet: EncryptedLpPacket) -> Result<LpData> {
         let state_machine = self.state_machine_mut()?;
         extract_forwarded_response(response_packet, state_machine)
     }
@@ -285,13 +274,10 @@ impl NestedLpSession {
             .receive_length_prefixed_transport_packet()
             .await?;
 
-        // Step 7: Parse response to LP packet
-        let response_packet = self.parse_received_transport_packet(response)?;
+        // Step 7: Process via state machine
+        let response_data = self.extract_forwarded_response(response)?;
 
-        // Step 8: Process via state machine
-        let response_data = self.extract_forwarded_response(response_packet)?;
-
-        // Step 9: Extract decrypted data and deserialise the response
+        // Step 8: Extract decrypted data and deserialise the response
         let response = LpRegistrationResponse::from_lp_data(response_data)?;
         let Some(dvpn_response) = response.into_dvpn_response() else {
             return Err(LpClientError::unexpected_response(
@@ -299,7 +285,7 @@ impl NestedLpSession {
             ));
         };
 
-        // Step 10: check response to the initial request
+        // Step 9: check response to the initial request
         match dvpn_response.content {
             LpDvpnRegistrationResponseMessageContent::RegistrationFailure(res) => {
                 let reason = res.error;
@@ -384,13 +370,10 @@ impl NestedLpSession {
             .await?;
         tracing::trace!("Received registration response from exit gateway");
 
-        // Step 7: Parse response to LP packet
-        let response_packet = self.parse_received_transport_packet(response)?;
+        // Step 7: Process via state machine
+        let response_data = self.extract_forwarded_response(response)?;
 
-        // Step 8: Process via state machine
-        let response_data = self.extract_forwarded_response(response_packet)?;
-
-        // Step 9: Extract decrypted data and deserialise the response
+        // Step 8: Extract decrypted data and deserialise the response
         let response = LpRegistrationResponse::from_lp_data(response_data)?;
         let Some(dvpn_response) = response.into_dvpn_response() else {
             return Err(LpClientError::unexpected_response(
@@ -398,7 +381,7 @@ impl NestedLpSession {
             ));
         };
 
-        // Step 10: check response to the initial request
+        // Step 9: check response to the initial request
         let final_response = match dvpn_response.content {
             LpDvpnRegistrationResponseMessageContent::RegistrationFailure(res) => {
                 let reason = res.error;
@@ -410,7 +393,7 @@ impl NestedLpSession {
             LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
                 // we're registering for the first time with this gateway - we need to attach a credential
 
-                // Step 11: retrieve credential from the controller
+                // Step 10: retrieve credential from the controller
                 self.finalise_dvpn_registration(
                     outer_client,
                     *gateway_identity,

@@ -3,13 +3,10 @@
 
 use super::{LpHandlerState, ReceiverIndex, TimestampedState};
 use crate::node::lp_listener::error::LpHandlerError;
-use bytes::BytesMut;
-use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::codec::serialize_lp_packet;
+use nym_crypto::asymmetric::x25519;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_lp::{
-    EncryptedLpPacket, ExpectedResponseSize, ForwardPacketData, LpMessage, LpPacket, LpSession,
-    LpStateMachine, OuterHeader,
+    EncryptedLpPacket, ExpectedResponseSize, ForwardPacketData, LpPacket, LpSession, LpStateMachine,
 };
 use nym_lp_transport::traits::LpTransportChannel;
 use nym_lp_transport::LpHandshakeChannel;
@@ -262,24 +259,17 @@ where
         // Update last activity timestamp
         state_entry.value().touch();
 
-        let mut state_machine = &mut state_entry.value_mut().state;
-
-        let packet = state_machine
-            .session_mut()?
-            .decrypt_packet(encrypted_packet)
-            .inspect_err(|_| {
-                inc!("lp_errors_decrypt_packet");
-            })?;
+        let state_machine = &mut state_entry.value_mut().state;
 
         trace!(
             "Received packet from {} (receiver_idx={receiver_index}, counter={})",
             self.remote_addr,
-            packet.header().counter(),
+            encrypted_packet.outer_header().counter,
         );
 
         // Process packet through state machine
         let action = state_machine
-            .process_input(LpInput::ReceivePacket(packet))
+            .process_input(LpInput::ReceivePacket(encrypted_packet))
             .ok_or(LpHandlerError::UnexpectedStateMachineHalt)??;
 
         drop(state_entry);
@@ -346,22 +336,30 @@ where
         serialised_response: Vec<u8>,
         response_kind: LpDataKind,
     ) -> Result<(), LpHandlerError> {
-        let mut session_entry = self
+        let mut state_entry = self
             .state
             .session_states
             .get_mut(&receiver_index)
             .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })?;
 
         // Access session via state machine for subsession support
-        let session = session_entry.value_mut().state.session_mut()?;
+        let state_machine = &mut state_entry.value_mut().state;
 
         let wrapped_lp_data = LpData::new(response_kind, serialised_response);
-        let data_bytes = wrapped_lp_data.to_vec();
-        let encrypted_message = session.encrypt_application_data(data_bytes)?;
 
-        drop(session_entry);
+        // Process packet through state machine
+        let action = state_machine
+            .process_input(LpInput::SendData(wrapped_lp_data))
+            .ok_or(LpHandlerError::UnexpectedStateMachineHalt)??;
 
-        self.send_serialised_packet(&encrypted_message).await?;
+        let packet = match action {
+            LpAction::SendPacket(packet) => packet,
+            action => return Err(LpHandlerError::UnexpectedStateMachineAction { action }),
+        };
+
+        drop(state_entry);
+
+        self.send_serialised_packet(&packet).await?;
         Ok(())
     }
 

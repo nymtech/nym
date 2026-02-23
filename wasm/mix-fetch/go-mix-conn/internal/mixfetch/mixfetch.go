@@ -142,7 +142,7 @@ func schemeFetch(req *conv.ParsedRequest) error {
 	}
 }
 
-func dialContext(_ctx context.Context, opts *types.RequestOptions, _network, addr string) (net.Conn, error) {
+func dialContext(_ctx context.Context, requestURL string, _network, addr string) (net.Conn, error) {
 	log.Debug("dialing plain connection to %s", addr)
 
 	requestId, err := rust_bridge.RsStartNewMixnetRequest(addr)
@@ -154,14 +154,14 @@ func dialContext(_ctx context.Context, opts *types.RequestOptions, _network, add
 	}
 
 	conn, inj := state.NewFakeConnection(requestId, addr)
-	// Use opts.RequestURL (full URL) as the mapping key, meaning we can now
+	// Use requestURL (full URL) as the mapping key, meaning we can now
 	// have concurrent requests to different paths on the same domain.
-	state.ActiveRequests.Insert(requestId, opts.RequestURL, inj)
+	state.ActiveRequests.Insert(requestId, requestURL, inj)
 
 	return conn, nil
 }
 
-func dialTLSContext(_ctx context.Context, opts *types.RequestOptions, _network, addr string) (net.Conn, error) {
+func dialTLSContext(_ctx context.Context, requestURL string, _network, addr string) (net.Conn, error) {
 	log.Debug("dialing TLS connection to %s", addr)
 
 	requestId, err := rust_bridge.RsStartNewMixnetRequest(addr)
@@ -173,9 +173,9 @@ func dialTLSContext(_ctx context.Context, opts *types.RequestOptions, _network, 
 	}
 
 	conn, inj := state.NewFakeTlsConn(requestId, addr)
-	// Use opts.RequestURL (full URL) as the mapping key, meaning we can now
+	// Use requestURL (full URL) as the mapping key, meaning we can now
 	// have concurrent requests to different paths on the same domain.
-	state.ActiveRequests.Insert(requestId, opts.RequestURL, inj)
+	state.ActiveRequests.Insert(requestId, requestURL, inj)
 
 	if err := conn.Handshake(); err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func dialTLSContext(_ctx context.Context, opts *types.RequestOptions, _network, 
 	return conn, nil
 }
 
-func buildHttpClient(reqCtx *types.RequestContext, opts *types.RequestOptions) *http.Client {
+func buildHttpClient(reqCtx *types.RequestContext, opts *types.RequestOptions, requestURL string) *http.Client {
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return checkRedirect(reqCtx, opts, req, via)
@@ -192,10 +192,10 @@ func buildHttpClient(reqCtx *types.RequestContext, opts *types.RequestOptions) *
 
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialContext(ctx, opts, network, addr)
+				return dialContext(ctx, requestURL, network, addr)
 			},
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialTLSContext(ctx, opts, network, addr)
+				return dialTLSContext(ctx, requestURL, network, addr)
 			},
 
 			//TLSClientConfig: &tlsConfig,
@@ -276,7 +276,7 @@ func doCorsCheck(reqOpts *types.RequestOptions, resp *http.Response) error {
 	return errors.New("failed cors check")
 }
 
-func performRequest(req *conv.ParsedRequest) (*conv.ResponseWrapper, error) {
+func performRequest(req *conv.ParsedRequest, requestURL string) (*conv.ResponseWrapper, error) {
 	err := mainFetchChecks(req)
 	if err != nil {
 		return nil, err
@@ -284,7 +284,7 @@ func performRequest(req *conv.ParsedRequest) (*conv.ResponseWrapper, error) {
 
 	reqCtx := &types.RequestContext{}
 
-	reqClient := buildHttpClient(reqCtx, req.Options)
+	reqClient := buildHttpClient(reqCtx, req.Options, requestURL)
 
 	if req.Options.ReferrerPolicy == "" {
 		// 4.1.8
@@ -355,7 +355,6 @@ func MixFetch(request *conv.ParsedRequest) (any, error) {
 	// (e.g., foo.com/index.html and foo.com/index.js) while still preventing
 	// duplicate requests to the exact same URL.
 	requestURL := request.Request.URL.String()
-	request.Options.RequestURL = requestURL
 
 	if state.ActiveRequests.ExistsCanonical(requestURL) {
 		return nil, errors.New(fmt.Sprintf("there is already an active request for %s", requestURL))
@@ -364,7 +363,7 @@ func MixFetch(request *conv.ParsedRequest) (any, error) {
 	resCh := make(chan *conv.ResponseWrapper)
 	errCh := make(chan error)
 	go func(resCh chan *conv.ResponseWrapper, errCh chan error) {
-		resp, err := performRequest(request)
+		resp, err := performRequest(request, requestURL)
 		if err != nil {
 			errCh <- err
 		} else {

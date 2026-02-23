@@ -10,6 +10,7 @@ build-go-opt:
 
 build-rust:
 	taskset -c 0-11 wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/mix-fetch
+	# taskset -c 0-11 wasm-pack build --scope nymproject --target no-modules --out-dir ../../dist/wasm/mix-fetch
 	taskset -c 0-11 wasm-opt -Oz -o ../../dist/wasm/mix-fetch/mix_fetch_wasm_bg.wasm ../../dist/wasm/mix-fetch/mix_fetch_wasm_bg.wasm
 
 build-rust-debug:

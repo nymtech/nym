@@ -128,54 +128,95 @@ impl ManagedConnection {
 
     async fn run(self) {
         let address = self.address;
+        let reconnection_attempt = self.current_reconnection.load(Ordering::Acquire);
+        let connect_start = tokio::time::Instant::now();
         let connection_fut = TcpStream::connect(address);
 
         let conn = match tokio::time::timeout(self.connection_timeout, connection_fut).await {
             Ok(stream_res) => match stream_res {
                 Ok(stream) => {
-                    debug!("Managed to establish connection to {}", self.address);
+                    let connect_ms = connect_start.elapsed().as_millis() as u64;
+                    debug!(
+                        peer = %address,
+                        connect_ms,
+                        "Managed to establish connection to {}", self.address
+                    );
 
+                    let noise_start = tokio::time::Instant::now();
                     let noise_stream =
                         match upgrade_noise_initiator(stream, &self.noise_config).await {
                             Ok(noise_stream) => noise_stream,
                             Err(err) => {
-                                error!("Failed to perform Noise handshake with {address} - {err}");
-                                // we failed to finish the noise handshake - increase reconnection attempt
+                                let noise_handshake_ms = noise_start.elapsed().as_millis() as u64;
+                                warn!(
+                                    event = "connection.failed.noise",
+                                    peer = %address,
+                                    error = %err,
+                                    connect_ms,
+                                    noise_handshake_ms,
+                                    reconnection_attempt,
+                                    exit_reason = "noise_error",
+                                    "Failed to perform Noise initiator handshake with {address}"
+                                );
                                 self.current_reconnection.fetch_add(1, Ordering::SeqCst);
                                 return;
                             }
                         };
-                    // if we managed to connect AND do the noise handshake, reset the reconnection count (whatever it might have been)
+                    let noise_handshake_ms = noise_start.elapsed().as_millis() as u64;
                     self.current_reconnection.store(0, Ordering::Release);
-                    debug!("Noise initiator handshake completed for {:?}", address);
+                    debug!(
+                        peer = %address,
+                        connect_ms,
+                        noise_handshake_ms,
+                        "Noise initiator handshake completed for {:?}", address
+                    );
                     Framed::new(noise_stream, NymCodec)
                 }
                 Err(err) => {
-                    debug!("failed to establish connection to {address} (err: {err})",);
+                    let connect_ms = connect_start.elapsed().as_millis() as u64;
+                    warn!(
+                        event = "connection.failed.connect",
+                        peer = %address,
+                        error = %err,
+                        connect_ms,
+                        reconnection_attempt,
+                        exit_reason = "connect_error",
+                        "failed to establish connection to {address}"
+                    );
                     return;
                 }
             },
             Err(_) => {
-                debug!(
+                let connect_ms = connect_start.elapsed().as_millis() as u64;
+                warn!(
+                    event = "connection.failed.timeout",
+                    peer = %address,
+                    timeout_ms = self.connection_timeout.as_millis() as u64,
+                    connect_ms,
+                    reconnection_attempt,
+                    exit_reason = "timeout",
                     "failed to connect to {address} within {:?}",
                     self.connection_timeout
                 );
-
-                // we failed to connect - increase reconnection attempt
                 self.current_reconnection.fetch_add(1, Ordering::SeqCst);
                 return;
             }
         };
 
-        // Take whatever the receiver channel produces and put it on the connection.
-        // We could have as well used conn.send_all(receiver.map(Ok)), but considering we don't care
-        // about neither receiver nor the connection, it doesn't matter which one gets consumed
         if let Err(err) = self.message_receiver.map(Ok).forward(conn).await {
-            warn!("Failed to forward packets to {address}: {err}");
+            warn!(
+                event = "connection.forward_error",
+                peer = %address,
+                error = %err,
+                exit_reason = "forward_error",
+                "Failed to forward packets to {address}: {err}"
+            );
         }
 
         debug!(
-            "connection manager to {address} is finished. Either the connection failed or mixnet client got dropped",
+            peer = %address,
+            exit_reason = "sender_dropped",
+            "connection manager to {address} finished"
         );
     }
 }
@@ -272,16 +313,18 @@ impl SendWithoutResponse for Client {
         trace!("Sending packet to {address}");
 
         // TODO: optimisation for the future: rather than constantly using legacy encoding,
-        // once we're addressing by node_id (and thus have full node info here),
-        // we could simply infer supported encoding based on their version
+        // use the mix packet type / flags to pick encoding per packet
         let framed_packet =
             FramedNymPacket::from_mix_packet(packet, self.config.use_legacy_packet_encoding);
 
         let Some(sender) = self.active_connections.get_mut(&address) else {
             // there was never a connection to begin with
-            debug!("establishing initial connection to {address}");
-            // it's not a 'big' error, but we did not manage to send the packet, but queue the packet
-            // for sending for as soon as the connection is created
+            debug!(
+                event = "mixclient.try_send",
+                peer = %address,
+                result = "not_connected",
+                "establishing initial connection to {address}"
+            );
             self.make_connection(address, framed_packet);
             return Err(io::Error::new(
                 io::ErrorKind::NotConnected,
@@ -289,15 +332,24 @@ impl SendWithoutResponse for Client {
             ));
         };
 
+        let channel_capacity = sender.channel.max_capacity();
+        let channel_available = sender.channel.capacity();
+        let channel_used = channel_capacity - channel_available;
+
         let sending_res = sender.channel.try_send(framed_packet);
         drop(sender);
 
         sending_res.map_err(|err| {
             match err {
                 TrySendError::Full(_) => {
-                    debug!("Connection to {address} seems to not be able to handle all the traffic - dropping the current packet");
-                    // it's not a 'big' error, but we did not manage to send the packet
-                    // if the queue is full, we can't really do anything but to drop the packet
+                    warn!(
+                        event = "mixclient.try_send",
+                        peer = %address,
+                        result = "full_dropped",
+                        channel_capacity,
+                        channel_used,
+                        "dropping packet: connection buffer to {address} is full ({channel_used}/{channel_capacity})"
+                    );
                     io::Error::new(
                         io::ErrorKind::WouldBlock,
                         "connection queue is full",
@@ -305,11 +357,13 @@ impl SendWithoutResponse for Client {
                 }
                 TrySendError::Closed(dropped) => {
                     debug!(
-                        "Connection to {address} seems to be dead. attempting to re-establish it...",
+                        event = "mixclient.try_send",
+                        peer = %address,
+                        result = "closed_reconnecting",
+                        channel_capacity,
+                        channel_used,
+                        "connection to {address} dead, attempting re-establishment"
                     );
-
-                    // it's not a 'big' error, but we did not manage to send the packet, but queue
-                    // it up to send it as soon as the connection is re-established
                     self.make_connection(address, dropped);
                     io::Error::new(
                         io::ErrorKind::ConnectionAborted,

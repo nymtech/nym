@@ -25,17 +25,23 @@ func InitialiseGlobalState() {
 	}
 }
 
+// CurrentActiveRequests tracks ongoign requests for thread-safe access.
+// The AddressMapping uses full URLs (inc path and query params) as keys,
+// allowing concurrent requests to different paths on the same domain while
+// preventing duplicate requests to the *exact* same URL.
 type CurrentActiveRequests struct {
 	sync.Mutex
 	Requests       map[types.RequestId]*ActiveRequest
-	AddressMapping map[string]types.RequestId
+	AddressMapping map[string]types.RequestId // key is full URL string
 }
 
-func (ar *CurrentActiveRequests) GetId(canonicalAddr string) types.RequestId {
-	log.Trace("getting id associated with request for %s", canonicalAddr)
+// GetId returns the request ID associated with the given URL string.
+// The URL should be the full URL including path and query params.
+func (ar *CurrentActiveRequests) GetId(requestURL string) types.RequestId {
+	log.Trace("getting id associated with request for %s", requestURL)
 	ar.Lock()
 	defer ar.Unlock()
-	return ar.AddressMapping[canonicalAddr]
+	return ar.AddressMapping[requestURL]
 }
 
 func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
@@ -46,25 +52,30 @@ func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
 	return exists
 }
 
-func (ar *CurrentActiveRequests) ExistsCanonical(canonicalAddr string) bool {
-	return ar.GetId(canonicalAddr) != 0
+// ExistsCanonical checks if there's already an active request for the given URL.
+// The URL should be the full URL including path and query params.
+// Allows concurrent requests to different paths on the same domain.
+func (ar *CurrentActiveRequests) ExistsCanonical(requestURL string) bool {
+	return ar.GetId(requestURL) != 0
 }
 
-func (ar *CurrentActiveRequests) Insert(id types.RequestId, canonicalAddr string, inj ConnectionInjector) {
-	log.Trace("inserting request %d for %s", id, canonicalAddr)
+// Insert adds a new active request to the tracking maps.
+// The requestURL should be the full URL including path and query params.
+func (ar *CurrentActiveRequests) Insert(id types.RequestId, requestURL string, inj ConnectionInjector) {
+	log.Trace("inserting request %d for %s", id, requestURL)
 	ar.Lock()
 	defer ar.Unlock()
 	_, exists := ar.Requests[id]
 	if exists {
 		panic("attempted to overwrite active connection id")
 	}
-	_, exists = ar.AddressMapping[canonicalAddr]
+	_, exists = ar.AddressMapping[requestURL]
 	if exists {
-		panic("attempted to overwrite active connection canonicalAddr")
+		panic("attempted to overwrite active connection for URL")
 	}
 
-	ar.Requests[id] = &ActiveRequest{injector: inj, canonicalAddr: canonicalAddr}
-	ar.AddressMapping[canonicalAddr] = id
+	ar.Requests[id] = &ActiveRequest{injector: inj, requestURL: requestURL}
+	ar.AddressMapping[requestURL] = id
 }
 
 func (ar *CurrentActiveRequests) Remove(id types.RequestId) {
@@ -75,13 +86,13 @@ func (ar *CurrentActiveRequests) Remove(id types.RequestId) {
 	if !exists {
 		panic("attempted to remove active connection id that doesn't exist")
 	}
-	_, exists = ar.AddressMapping[req.canonicalAddr]
+	_, exists = ar.AddressMapping[req.requestURL]
 	if !exists {
-		panic("attempted to remove active connection canonicalAddr that doesn't exist")
+		panic("attempted to remove active connection URL that doesn't exist")
 	}
 
 	delete(ar.Requests, id)
-	delete(ar.AddressMapping, req.canonicalAddr)
+	delete(ar.AddressMapping, req.requestURL)
 }
 
 func (ar *CurrentActiveRequests) InjectData(id types.RequestId, data []byte) {
@@ -119,6 +130,6 @@ func (ar *CurrentActiveRequests) SendError(id types.RequestId, err error) {
 }
 
 type ActiveRequest struct {
-	injector      ConnectionInjector
-	canonicalAddr string
+	injector   ConnectionInjector
+	requestURL string // Full URL including path and query params
 }

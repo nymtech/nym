@@ -49,6 +49,48 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.4-quark`
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.4-quark)
+- [`nym-node`](nodes/nym-node.mdx) version `1.26.0`
+
+```sh
+nym-node 
+Binary Name:        nym-node
+Build Timestamp:    2026-02-24T13:43:24.098285047Z
+Build Version:      1.26.0
+Commit SHA:         a2081af6038ef3ef40b3d9368299d2676a2fbb6a
+Commit Date:        2026-02-24T12:02:35.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Update: Diagnostic Tool & Network Improvements
+
+LP Gateway & Client Enhancements
+
+- [Stateless handshake improvements for LP Gateway](https://github.com/nymtech/nym/pull/6437)
+
+Networking & HTTP/DNS
+
+- [HTTP & DNS improvements](https://github.com/nymtech/nym/pull/6423)
+- [Endpoint support for exit gateway IPs](https://github.com/nymtech/nym/pull/6418)
+
+Build, CI & Dependencies
+
+- [Enhanced CI workflow with feature inputs](https://github.com/nymtech/nym/pull/6462)
+- [On-disk cache persistence for major Nym API caches](https://github.com/nymtech/nym/pull/6302)
+
+Data & Migrations
+
+- [Fixed migrations in the Data Observatory](https://github.com/nymtech/nym/pull/6271)
+
+Diagnostic Tool
+
+- The Diagnostic Tool is a standalone binary for network diagnostics. It performs DNS, HTTP, and gateway connectivity tests, helping developers identify connectivity issues and monitor network performance. It can also run via the daemon CLI for convenience.
+Read the full guide [here](https://nym.com/docs/developers/tools/diagnostic-tool)
+
 ## `v2026.3-parmigiano`
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.3-parmigiano)
 - [`nym-node`](nodes/nym-node.mdx) version `1.25.0`

@@ -1256,6 +1256,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-models"
+version = "0.0.5"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "hax-lib",
+ "pastey",
+ "rand 0.9.2",
+]
+
+[[package]]
 name = "cosmos-sdk-proto"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2872,6 +2882,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
 
 [[package]]
+name = "hax-lib"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "543f93241d32b3f00569201bfce9d7a93c92c6421b23c77864ac929dc947b9fc"
+dependencies = [
+ "hax-lib-macros",
+ "num-bigint",
+ "num-traits",
+]
+
+[[package]]
+name = "hax-lib-macros"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8755751e760b11021765bb04cb4a6c4e24742688d9f3aa14c2079638f537b0f"
+dependencies = [
+ "hax-lib-macros-types",
+ "proc-macro-error2",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "hax-lib-macros-types"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f177c9ae8ea456e2f71ff3c1ea47bf4464f772a05133fcbba56cd5ba169035a2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3805,6 +3852,240 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a82ae493e598baaea5209805c49bbf2ea7de956d50d7da0da1164f9c6d28543"
 
 [[package]]
+name = "libcrux-aesgcm"
+version = "0.0.7"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-intrinsics",
+ "libcrux-platform",
+ "libcrux-secrets",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-chacha20poly1305"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-poly1305",
+ "libcrux-secrets",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-curve25519"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-secrets",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-ecdh"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-curve25519",
+ "libcrux-p256",
+ "rand 0.9.2",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-ed25519"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-sha2",
+ "rand_core 0.9.3",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-hacl-rs"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-macros",
+]
+
+[[package]]
+name = "libcrux-hkdf"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-hmac",
+ "libcrux-secrets",
+]
+
+[[package]]
+name = "libcrux-hmac"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-sha2",
+]
+
+[[package]]
+name = "libcrux-intrinsics"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "core-models",
+ "hax-lib",
+]
+
+[[package]]
+name = "libcrux-kem"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-curve25519",
+ "libcrux-ecdh",
+ "libcrux-ml-kem",
+ "libcrux-p256",
+ "libcrux-sha3",
+ "libcrux-traits",
+ "rand 0.9.2",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-macros"
+version = "0.0.3"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "quote",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "libcrux-ml-dsa"
+version = "0.0.7"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "core-models",
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-macros",
+ "libcrux-platform",
+ "libcrux-sha3",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-ml-kem"
+version = "0.0.7"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-platform",
+ "libcrux-secrets",
+ "libcrux-sha3",
+ "libcrux-traits",
+ "rand 0.9.2",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-p256"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-secrets",
+ "libcrux-sha2",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-platform"
+version = "0.0.3"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "libcrux-poly1305"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+]
+
+[[package]]
+name = "libcrux-psq"
+version = "0.0.7"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-aesgcm",
+ "libcrux-chacha20poly1305",
+ "libcrux-ecdh",
+ "libcrux-ed25519",
+ "libcrux-hkdf",
+ "libcrux-hmac",
+ "libcrux-kem",
+ "libcrux-ml-dsa",
+ "libcrux-ml-kem",
+ "libcrux-sha2",
+ "libcrux-traits",
+ "rand 0.9.2",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-secrets"
+version = "0.0.5"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "hax-lib",
+]
+
+[[package]]
+name = "libcrux-sha2"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-sha3"
+version = "0.0.7"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-platform",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-traits"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-secrets",
+ "rand 0.9.2",
+]
+
+[[package]]
 name = "libloading"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4356,6 +4637,8 @@ dependencies = [
  "curve25519-dalek",
  "ed25519-dalek",
  "jwt-simple",
+ "libcrux-curve25519",
+ "libcrux-psq",
  "nym-pemstore",
  "rand 0.8.5",
  "rand 0.9.2",
@@ -5244,6 +5527,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
+name = "pastey"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b867cad97c0791bbd3aaa6472142568c6c9e8f71937e98379f584cfb0cf35bec"
+
+[[package]]
 name = "pathdiff"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5710,6 +5999,28 @@ dependencies = [
  "proc-macro2",
  "quote",
  "version_check",
+]
+
+[[package]]
+name = "proc-macro-error-attr2"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96de42df36bb9bba5542fe9f1a054b8cc87e172759a1868aa05c1f3acc89dfc5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
+
+[[package]]
+name = "proc-macro-error2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11ec05c52be0a07b08061f7dd003e7d7092e0472bc731b4af7bb1ef876109802"
+dependencies = [
+ "proc-macro-error-attr2",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -7880,6 +8191,27 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "tls_codec"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0de2e01245e2bb89d6f05801c564fa27624dbd7b1846859876c7dad82e90bf6b"
+dependencies = [
+ "tls_codec_derive",
+ "zeroize",
+]
+
+[[package]]
+name = "tls_codec_derive"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d2e76690929402faae40aebdda620a2c0e25dd6d3b9afe48867dfd95991f4bd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
+]
 
 [[package]]
 name = "tokio"

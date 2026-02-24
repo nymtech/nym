@@ -6,7 +6,7 @@
 
 use celes::Country;
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
-use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
+use nym_crypto::asymmetric::x25519::serde_helpers::{bs58_dh_public_key, bs58_x25519_pubkey};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt_ciphersuite::{HashFunction, SignatureScheme, KEM};
 use nym_network_defaults::{WG_METADATA_PORT, WG_TUNNEL_PORT};
@@ -210,21 +210,16 @@ pub struct LewesProtocolDetailsV1 {
     /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
     pub data_port: u16,
 
-    #[serde(with = "bs58_x25519_pubkey")]
+    #[serde(with = "bs58_dh_public_key")]
     #[schemars(with = "String")]
     #[schema(value_type = String)]
     /// LP public key
-    pub x25519: x25519::PublicKey,
+    pub x25519: x25519::DHPublicKey,
 
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
     /// note: digests are hex encoded
     pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
-
-    /// Digests of the signing keys available to this node alongside hashing algorithms used
-    /// for their computation.
-    /// note: digests are hex encoded
-    pub signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>>,
 }
 
 impl LewesProtocolDetailsV1 {
@@ -251,17 +246,6 @@ impl LewesProtocolDetailsV1 {
             kem_keys.insert((*kem).try_into()?, kem_digests);
         }
         Ok(kem_keys)
-    }
-
-    pub fn signing_keys(
-        &self,
-    ) -> Result<HashMap<SignatureScheme, HashMap<HashFunction, Vec<u8>>>, MalformedLPData> {
-        let mut signing_keys = HashMap::new();
-        for (signature_scheme, digests) in &self.signing_keys {
-            let kem_digests = Self::decode_digests(digests)?;
-            signing_keys.insert((*signature_scheme).try_into()?, kem_digests);
-        }
-        Ok(signing_keys)
     }
 }
 
@@ -466,11 +450,6 @@ impl From<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>
                 .kem_keys
                 .into_iter()
                 .map(|(kem, digests)| (kem.into(), translate_digests(digests)))
-                .collect(),
-            signing_keys: value
-                .signing_keys
-                .into_iter()
-                .map(|(scheme, digests)| (scheme.into(), translate_digests(digests)))
                 .collect(),
         }
     }

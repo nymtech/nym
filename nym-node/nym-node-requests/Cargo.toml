@@ -26,6 +26,7 @@ url = { workspace = true, features = ["serde"] }
 nym-crypto = { workspace = true, features = [
     "asymmetric",
     "serde",
+    "libcrux_x25519"
 ] }
 nym-exit-policy = { workspace = true }
 nym-noise-keys = { workspace = true }

@@ -6,7 +6,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [2026.4-quark] (2026-02-24)
 
-- Otel minimal v2 ([#6464])
 - Enhance CI workflow with feature inputs ([#6462])
 - Chore/revert 6433 ([#6445])
 - Lp/stateless handshake ([#6437])
@@ -44,7 +43,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - feat: introduce on-disk cache persistance for major nym-api caches ([#6302])
 - Fix migrations in the Data Observatory ([#6271])
 
-[#6464]: https://github.com/nymtech/nym/pull/6464
 [#6462]: https://github.com/nymtech/nym/pull/6462
 [#6445]: https://github.com/nymtech/nym/pull/6445
 [#6437]: https://github.com/nymtech/nym/pull/6437

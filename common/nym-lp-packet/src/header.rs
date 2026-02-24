@@ -14,14 +14,14 @@ use tracing::warn;
 /// For encrypted packets, this is the AAD (additional authenticated data).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OuterHeader {
-    pub receiver_idx: u32,
+    pub receiver_idx: u64,
     pub counter: u64,
 }
 
 impl OuterHeader {
-    pub const SIZE: usize = 12; // receiver_idx(4) + counter(8)
+    pub const SIZE: usize = 16; // receiver_idx(8) + counter(8)
 
-    pub fn new(receiver_idx: u32, counter: u64) -> Self {
+    pub fn new(receiver_idx: u64, counter: u64) -> Self {
         Self {
             receiver_idx,
             counter,
@@ -34,15 +34,15 @@ impl OuterHeader {
         }
         #[allow(clippy::unwrap_used)]
         Ok(Self {
-            receiver_idx: u32::from_le_bytes(src[0..4].try_into().unwrap()),
-            counter: u64::from_le_bytes(src[4..12].try_into().unwrap()),
+            receiver_idx: u64::from_le_bytes(src[0..8].try_into().unwrap()),
+            counter: u64::from_le_bytes(src[8..16].try_into().unwrap()),
         })
     }
 
     pub fn to_bytes(&self) -> [u8; Self::SIZE] {
         let mut bytes = [0u8; Self::SIZE];
-        bytes[0..4].copy_from_slice(&self.receiver_idx.to_le_bytes());
-        bytes[4..12].copy_from_slice(&self.counter.to_le_bytes());
+        bytes[0..8].copy_from_slice(&self.receiver_idx.to_le_bytes());
+        bytes[8..16].copy_from_slice(&self.counter.to_le_bytes());
         bytes
     }
 
@@ -130,7 +130,7 @@ pub struct LpHeader {
 
 impl LpHeader {
     pub fn new(
-        receiver_idx: u32,
+        receiver_idx: u64,
         counter: u64,
         protocol_version: u8,
         message_type: MessageType,
@@ -159,7 +159,7 @@ impl LpHeader {
     }
 
     /// Get the sender index from the header
-    pub fn receiver_idx(&self) -> u32 {
+    pub fn receiver_idx(&self) -> u64 {
         self.outer.receiver_idx
     }
 }

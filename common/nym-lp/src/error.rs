@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::replay::ReplayError;
-use crate::session::SessionId;
 use libcrux_psq::handshake::HandshakeError;
 use libcrux_psq::handshake::builders::BuilderError;
 use libcrux_psq::session::SessionError;
@@ -27,8 +26,8 @@ pub enum LpError {
     #[error("Attempted operation on closed session")]
     SessionClosed,
 
-    #[error("There already exists an LP session with id {0:?}")]
-    DuplicateSessionId(SessionId),
+    #[error("There already exists an LP session with receiver index {0}")]
+    DuplicateSessionId(u64),
 
     #[error("Internal error: {0}")]
     Internal(String),
@@ -47,7 +46,7 @@ pub enum LpError {
 
     /// Session ID from incoming packet does not match any known session.
     #[error("Received packet with unknown session ID: {0}")]
-    UnknownSessionId(u32),
+    UnknownSessionId(u64),
 
     /// Invalid state transition attempt in the state machine.
     #[error("Invalid input '{input}' for current state '{state}'")]
@@ -62,8 +61,8 @@ pub enum LpError {
     LpSessionProcessing,
 
     /// State machine not found.
-    #[error("State machine not found for lp_id: {lp_id:?}")]
-    StateMachineNotFound { lp_id: SessionId },
+    #[error("State machine not found for lp_id: {lp_id}")]
+    StateMachineNotFound { lp_id: u64 },
 
     /// Ed25519 to X25519 conversion error.
     #[error("Ed25519 key conversion error: {0}")]

@@ -186,6 +186,10 @@ impl LpStateMachine {
         Ok(*self.session()?.session_identifier())
     }
 
+    pub fn receiver_index(&self) -> Result<u64, LpError> {
+        Ok(self.session()?.receiver_index())
+    }
+
     /// Creates a new state machine in `Transport` state post-KKT/PSQ handshake
     pub fn new(session: LpSession) -> Self {
         LpStateMachine {

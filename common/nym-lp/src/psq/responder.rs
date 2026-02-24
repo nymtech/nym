@@ -202,7 +202,12 @@ where
         };
 
         let psq_session = psq_responder.into_session()?;
-        LpSession::new(psq_session, binding, processed_req.outer_protocol_version)
+        LpSession::new(
+            psq_session,
+            binding,
+            processed_req.receiver_index,
+            processed_req.outer_protocol_version,
+        )
     }
 }
 
@@ -267,7 +272,10 @@ mod tests {
 
             // 1. send kkt request
             conn_init
-                .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
+                .send_handshake_message::<handshake_message::KKTRequest>(
+                    request.request.into(),
+                    kem,
+                )
                 .timeboxed()
                 .await??;
 

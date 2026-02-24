@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::lp_listener::ReceiverIndex;
 use nym_lp::state_machine::{LpAction, LpDataKind};
 use nym_lp::{LpError, MalformedLpPacketError};
 use nym_lp_transport::LpTransportError;
@@ -16,10 +17,19 @@ pub enum LpHandlerError {
     LpTransportError(#[from] LpTransportError),
 
     #[error("missing session state for {receiver_index} - has it been removed due to inactivity?")]
-    MissingLpSession { receiver_index: u32 },
+    MissingLpSession { receiver_index: ReceiverIndex },
 
     #[error(transparent)]
     LpProtocolError(#[from] LpError),
+
+    #[error("the initial KKT/PSQ handshake has not been completed")]
+    IncompleteHandshake,
+
+    #[error("receiver_idx mismatch: connection bound to {established}, packet has {received}")]
+    MismatchedReceiverIndex {
+        established: ReceiverIndex,
+        received: ReceiverIndex,
+    },
 
     #[error("no action has been emitted from the LP State Machine")]
     UnexpectedStateMachineHalt,

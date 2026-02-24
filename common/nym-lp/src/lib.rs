@@ -48,12 +48,15 @@ pub struct SessionsMock {
 impl SessionsMock {
     pub fn mock_seeded_post_handshake(seed: u64, kem: KEM) -> SessionsMock {
         use crate::peer::mock_peers;
+        use nym_test_utils::helpers::RngCore09;
 
         let (init, resp) = mock_peers();
         let resp_remote = resp.as_remote();
 
-        let init_rng = u64_seeded_rng_09(seed);
+        let mut init_rng = u64_seeded_rng_09(seed);
         let resp_rng = u64_seeded_rng_09(seed + 1);
+
+        let receiver_index = init_rng.next_u64();
 
         let kem_keys = resp.kem_keypairs.as_ref().unwrap();
 
@@ -109,9 +112,20 @@ impl SessionsMock {
         };
 
         SessionsMock {
-            initiator: LpSession::new(initiator.into_session().unwrap(), binding.clone(), 1)
-                .unwrap(),
-            responder: LpSession::new(responder.into_session().unwrap(), binding, 1).unwrap(),
+            initiator: LpSession::new(
+                initiator.into_session().unwrap(),
+                binding.clone(),
+                receiver_index,
+                1,
+            )
+            .unwrap(),
+            responder: LpSession::new(
+                responder.into_session().unwrap(),
+                binding,
+                receiver_index,
+                1,
+            )
+            .unwrap(),
         }
     }
 

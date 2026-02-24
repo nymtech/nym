@@ -238,7 +238,7 @@ mod tests {
             )
             .unwrap();
 
-            let processed_req = kkt_responder.process_request(request).unwrap();
+            let processed_req = kkt_responder.process_request(request.request).unwrap();
 
             let response = initiator.process_response(processed_req.response).unwrap();
             let encapsulation_key = response.encapsulation_key;

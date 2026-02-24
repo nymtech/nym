@@ -33,11 +33,10 @@ mod tests {
     /// Tests simultaneous bidirectional communication between sessions
     #[test]
     fn test_bidirectional_communication() {
-        // 1. Initialize session manager
-        let mut session_manager_1 = SessionManager::new();
-        let mut session_manager_2 = SessionManager::new();
-
         for kem in KEM::iter() {
+            // 1. Initialize session manager
+            let mut session_manager_1 = SessionManager::new();
+            let mut session_manager_2 = SessionManager::new();
             let sessions = SessionsMock::mock_post_handshake(kem);
 
             // 2. Create sessions using the pre-built Noise states
@@ -122,9 +121,9 @@ mod tests {
             let mut session_manager = SessionManager::new();
 
             let sessions = SessionsMock::mock_post_handshake(kem);
-            let session_id = *sessions.initiator.session_identifier();
+            let session_id = sessions.initiator.receiver_index();
 
-            let non_existent = [42u8; 32];
+            let non_existent = 123;
             // sanity check in case of the 1 in 2^256
             assert_ne!(session_id, non_existent);
 
@@ -135,7 +134,7 @@ mod tests {
             let _session = session_manager.create_session_state_machine(session1);
 
             // 3. Try to get a non-existent session
-            let result = session_manager.state_machine_exists(&non_existent);
+            let result = session_manager.state_machine_exists(non_existent);
             assert!(!result, "Non-existent session should return None");
 
             // 4. Try to remove a non-existent session
@@ -169,7 +168,7 @@ mod tests {
 
         for kem in KEM::iter() {
             let sessions = SessionsMock::mock_post_handshake(kem);
-            let session_id = *sessions.responder.session_identifier();
+            let session_id = sessions.responder.receiver_index();
 
             // 2. Create sessions state machines
             session_manager_1
@@ -181,8 +180,8 @@ mod tests {
 
             assert_eq!(session_manager_1.session_count(), 1);
             assert_eq!(session_manager_2.session_count(), 1);
-            assert!(session_manager_1.state_machine_exists(&session_id));
-            assert!(session_manager_2.state_machine_exists(&session_id));
+            assert!(session_manager_1.state_machine_exists(session_id));
+            assert!(session_manager_2.state_machine_exists(session_id));
 
             // Verify initial states are Transport
             assert_eq!(
@@ -379,13 +378,13 @@ mod tests {
             // --- 7. Session Removal ---
             assert!(session_manager_1.remove_state_machine(session_id));
             assert_eq!(session_manager_1.session_count(), 0);
-            assert!(!session_manager_1.state_machine_exists(&session_id));
+            assert!(!session_manager_1.state_machine_exists(session_id));
 
             // B's session manager still has it until removed
-            assert!(session_manager_2.state_machine_exists(&session_id));
+            assert!(session_manager_2.state_machine_exists(session_id));
             assert!(session_manager_2.remove_state_machine(session_id));
             assert_eq!(session_manager_2.session_count(), 0);
-            assert!(!session_manager_2.state_machine_exists(&session_id));
+            assert!(!session_manager_2.state_machine_exists(session_id));
             println!("Session removal test passed.");
         }
     }

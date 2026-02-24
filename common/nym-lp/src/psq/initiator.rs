@@ -130,8 +130,11 @@ where
             &dir_hash,
             self.initiator_data.protocol_version,
         )?;
+        // derive the receiver index from the request
+        // let receiver_index = kkt_request
+
         debug!("sending KKT request");
-        self.send_kkt_request(kkt_request).await?;
+        self.send_kkt_request(kkt_request.request).await?;
 
         // 3. receive and process KKT response
         let raw_response = self.receive_kkt_response().await?;
@@ -185,7 +188,7 @@ where
         };
 
         let psq_session = psq_initiator.into_session()?;
-        LpSession::new(psq_session, binding, protocol)
+        LpSession::new(psq_session, binding, kkt_request.receiver_index, protocol)
     }
 }
 

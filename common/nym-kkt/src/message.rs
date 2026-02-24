@@ -179,6 +179,17 @@ impl KKTRequestPlaintext {
     }
 }
 
+pub struct KKTRequestEncryptionResult {
+    /// Derived carrier used for decrypting this frame and encrypting the response
+    pub(crate) carrier: Carrier,
+
+    /// A unique index associated to the request sender
+    pub(crate) receiver_index: u64,
+
+    /// The underlying request that is going to get sent to the remote
+    pub(crate) request: KKTRequest,
+}
+
 pub struct DecryptedRequestFrame {
     /// Derived carrier used for decrypting this frame and encrypting the response
     pub(crate) carrier: Carrier,
@@ -190,7 +201,7 @@ pub struct DecryptedRequestFrame {
     pub(crate) outer_protocol_version: u8,
 
     /// A unique index associated to the request sender
-    pub(crate) receiver_index: u64
+    pub(crate) receiver_index: u64,
 }
 
 impl DecryptedRequestFrame {
@@ -207,6 +218,9 @@ pub struct ProcessedKKTRequest {
 
     /// The KEM key requested in the original request
     pub requested_kem: KEM,
+
+    /// Established receiver index used for session lookup
+    pub receiver_index: u64,
 
     /// The unmasked byte representing the outer protocol version sent by the initiator
     pub outer_protocol_version: u8,

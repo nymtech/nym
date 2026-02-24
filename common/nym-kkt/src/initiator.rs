@@ -27,6 +27,11 @@ pub struct KKTInitiator<'a> {
     expected_hash: &'a [u8],
 }
 
+pub struct KKTRequestWithReceiverIndex {
+    pub request: KKTRequest,
+    pub receiver_index: u64,
+}
+
 impl<'a> KKTInitiator<'a> {
     // to be used by clients
     pub fn generate_one_way_request<R>(
@@ -35,7 +40,7 @@ impl<'a> KKTInitiator<'a> {
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
-    ) -> Result<(Self, KKTRequest), KKTError>
+    ) -> Result<(Self, KKTRequestWithReceiverIndex), KKTError>
     where
         R: CryptoRng + RngCore,
     {
@@ -58,7 +63,7 @@ impl<'a> KKTInitiator<'a> {
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
-    ) -> Result<(Self, KKTRequest), KKTError>
+    ) -> Result<(Self, KKTRequestWithReceiverIndex), KKTError>
     where
         R: CryptoRng + RngCore,
     {
@@ -81,22 +86,26 @@ impl<'a> KKTInitiator<'a> {
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
-    ) -> Result<(Self, KKTRequest), KKTError>
+    ) -> Result<(Self, KKTRequestWithReceiverIndex), KKTError>
     where
         R: CryptoRng + RngCore,
     {
         let frame = initiator_process(mode, ciphersuite, local_encapsulation_key)?;
         let context = *frame.context();
-        let (carrier, request) =
+
+        let request =
             frame.encrypt_initiator_frame(rng, responder_dh_public_key, outer_protocol_version)?;
 
         Ok((
             Self {
-                carrier,
+                carrier: request.carrier,
                 context,
                 expected_hash,
             },
-            request,
+            KKTRequestWithReceiverIndex {
+                request: request.request,
+                receiver_index: request.receiver_index,
+            },
         ))
     }
 

@@ -38,6 +38,9 @@ pub struct LpSession {
     // In the future it might get split between UDP and TCP transports
     active_transport: libcrux_psq::session::Transport,
 
+    /// Look-up index established during the initial KKT exchange
+    receiver_index: u64,
+
     /// Negotiated protocol version from handshake.
     protocol_version: u8,
 
@@ -102,6 +105,7 @@ impl LpSession {
     pub fn new(
         mut psq_session: Session,
         session_binding: PersistentSessionBinding,
+        receiver_index: u64,
         protocol_version: u8,
     ) -> Result<Self, LpError> {
         // attempt to derive initial transport
@@ -113,6 +117,7 @@ impl LpSession {
             psq_session,
             session_binding,
             active_transport: transport,
+            receiver_index,
             protocol_version,
             sending_counter: 0,
             receiving_counter: Default::default(),
@@ -163,10 +168,8 @@ impl LpSession {
         self.psq_session.identifier()
     }
 
-    pub fn receiver_index(&self) -> u32 {
-        let TODO = "this is temporary...";
-        let id = self.psq_session.identifier();
-        u32::from_le_bytes([id[0], id[1], id[2], id[3]])
+    pub fn receiver_index(&self) -> u64 {
+        self.receiver_index
     }
 
     /// Returns the negotiated protocol version from the handshake.

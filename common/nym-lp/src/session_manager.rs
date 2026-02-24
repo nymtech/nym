@@ -6,7 +6,6 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
-use crate::session::SessionId;
 use crate::state_machine::{LpAction, LpData, LpInput, LpStateBare};
 use crate::{LpError, LpSession, LpStateMachine};
 use nym_lp_packet::EncryptedLpPacket;
@@ -19,7 +18,7 @@ pub use crate::replay::validator::PacketCount;
 /// The SessionManager is responsible for creating, storing, and retrieving sessions
 pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
-    state_machines: HashMap<SessionId, LpStateMachine>,
+    state_machines: HashMap<u64, LpStateMachine>,
 }
 
 impl Default for SessionManager {
@@ -38,43 +37,43 @@ impl SessionManager {
 
     pub fn process_input(
         &mut self,
-        lp_id: SessionId,
+        lp_id: u64,
         input: LpInput,
     ) -> Result<Option<LpAction>, LpError> {
         self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
     }
 
-    pub fn send_data(&mut self, lp_id: SessionId, data: LpData) -> Result<LpAction, LpError> {
+    pub fn send_data(&mut self, lp_id: u64, data: LpData) -> Result<LpAction, LpError> {
         self.process_input(lp_id, LpInput::SendData(data))?
             .ok_or(LpError::NotInTransport)
     }
 
     pub fn receive_packet(
         &mut self,
-        lp_id: SessionId,
+        lp_id: u64,
         packet: EncryptedLpPacket,
     ) -> Result<Option<LpAction>, LpError> {
         self.process_input(lp_id, LpInput::ReceivePacket(packet))
     }
 
-    pub fn closed(&self, lp_id: SessionId) -> Result<bool, LpError> {
+    pub fn closed(&self, lp_id: u64) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Closed)
     }
 
-    pub fn transport(&self, lp_id: SessionId) -> Result<bool, LpError> {
+    pub fn transport(&self, lp_id: u64) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Transport)
     }
 
     #[cfg(test)]
-    fn get_state_machine_id(&self, lp_id: SessionId) -> Result<SessionId, LpError> {
-        self.with_state_machine(lp_id, |sm| sm.session_identifier())?
+    fn get_state_machine_id(&self, lp_id: u64) -> Result<u64, LpError> {
+        self.with_state_machine(lp_id, |sm| sm.receiver_index())?
     }
 
-    pub fn get_state(&self, lp_id: SessionId) -> Result<LpStateBare, LpError> {
+    pub fn get_state(&self, lp_id: u64) -> Result<LpStateBare, LpError> {
         self.with_state_machine(lp_id, |sm| Ok(sm.bare_state()))?
     }
 
-    pub fn current_packet_cnt(&self, lp_id: SessionId) -> Result<PacketCount, LpError> {
+    pub fn current_packet_cnt(&self, lp_id: u64) -> Result<PacketCount, LpError> {
         self.with_state_machine(lp_id, |sm| Ok(sm.session()?.current_packet_cnt()))?
     }
 
@@ -82,11 +81,11 @@ impl SessionManager {
         self.state_machines.len()
     }
 
-    pub fn state_machine_exists(&self, lp_id: &SessionId) -> bool {
-        self.state_machines.contains_key(lp_id)
+    pub fn state_machine_exists(&self, lp_id: u64) -> bool {
+        self.state_machines.contains_key(&lp_id)
     }
 
-    pub fn with_state_machine<F, R>(&self, lp_id: SessionId, f: F) -> Result<R, LpError>
+    pub fn with_state_machine<F, R>(&self, lp_id: u64, f: F) -> Result<R, LpError>
     where
         F: FnOnce(&LpStateMachine) -> R,
     {
@@ -98,7 +97,7 @@ impl SessionManager {
     }
 
     // For mutable access (like running process_input)
-    pub fn with_state_machine_mut<F, R>(&mut self, lp_id: SessionId, f: F) -> Result<R, LpError>
+    pub fn with_state_machine_mut<F, R>(&mut self, lp_id: u64, f: F) -> Result<R, LpError>
     where
         F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
     {
@@ -109,11 +108,8 @@ impl SessionManager {
         }
     }
 
-    pub fn create_session_state_machine(
-        &mut self,
-        lp_session: LpSession,
-    ) -> Result<SessionId, LpError> {
-        let session_id = *lp_session.session_identifier();
+    pub fn create_session_state_machine(&mut self, lp_session: LpSession) -> Result<u64, LpError> {
+        let session_id = lp_session.receiver_index();
 
         if self.state_machines.contains_key(&session_id) {
             return Err(LpError::DuplicateSessionId(session_id));
@@ -125,7 +121,7 @@ impl SessionManager {
     }
 
     /// Method to remove a state machine
-    pub fn remove_state_machine(&mut self, lp_id: SessionId) -> bool {
+    pub fn remove_state_machine(&mut self, lp_id: u64) -> bool {
         let removed = self.state_machines.remove(&lp_id);
 
         removed.is_some()
@@ -142,15 +138,15 @@ mod tests {
     fn test_session_manager_get() {
         let mut manager = SessionManager::new();
         let local_session = mock_session_for_test();
-        let id = *local_session.session_identifier();
+        let id = local_session.receiver_index();
 
         let sm_1_id = manager.create_session_state_machine(local_session).unwrap();
         assert_eq!(sm_1_id, id);
 
-        let retrieved = manager.state_machine_exists(&id);
+        let retrieved = manager.state_machine_exists(id);
         assert!(retrieved);
 
-        let not_found = manager.state_machine_exists(&[99u8; 32]);
+        let not_found = manager.state_machine_exists(123);
         assert!(!not_found);
     }
 

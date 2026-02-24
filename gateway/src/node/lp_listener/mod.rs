@@ -95,7 +95,7 @@ pub mod error;
 pub mod handler;
 mod registration;
 
-pub type ReceiverIndex = u32;
+pub type ReceiverIndex = u64;
 
 /// Configuration for LP listener
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
@@ -565,7 +565,7 @@ impl LpListener {
 }
 
 pub(crate) mod cleanup_task {
-    use crate::node::lp_listener::{LpDebug, TimestampedState};
+    use crate::node::lp_listener::{LpDebug, ReceiverIndex, TimestampedState};
     use dashmap::DashMap;
     use nym_lp::state_machine::LpStateBare;
     use nym_lp::LpStateMachine;
@@ -575,7 +575,7 @@ pub(crate) mod cleanup_task {
     use tracing::{debug, info};
 
     async fn perform_cleanup(
-        session_states: &Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
+        session_states: &Arc<DashMap<ReceiverIndex, TimestampedState<LpStateMachine>>>,
         cfg: LpDebug,
     ) {
         let session_ttl = cfg.session_ttl;
@@ -616,7 +616,7 @@ pub(crate) mod cleanup_task {
     /// Demoted sessions (ReadOnlyTransport) use shorter TTL since they
     /// only need to drain in-flight packets after subsession promotion.
     pub(crate) async fn cleanup_loop(
-        session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
+        session_states: Arc<DashMap<ReceiverIndex, TimestampedState<LpStateMachine>>>,
         cfg: LpDebug,
         shutdown: nym_task::ShutdownToken,
         _metrics: NymNodeMetrics,

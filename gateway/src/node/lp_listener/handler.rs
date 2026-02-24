@@ -3,10 +3,9 @@
 
 use super::{LpHandlerState, ReceiverIndex, TimestampedState};
 use crate::node::lp_listener::error::LpHandlerError;
-use nym_crypto::asymmetric::x25519;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_lp::{
-    EncryptedLpPacket, ExpectedResponseSize, ForwardPacketData, LpPacket, LpSession, LpStateMachine,
+    EncryptedLpPacket, ExpectedResponseSize, ForwardPacketData, LpSession, LpStateMachine,
 };
 use nym_lp_transport::traits::LpTransportChannel;
 use nym_lp_transport::LpHandshakeChannel;
@@ -14,7 +13,6 @@ use nym_metrics::{add_histogram_obs, inc};
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use tracing::*;
@@ -85,7 +83,7 @@ pub struct LpConnectionHandler<S = TcpStream> {
     /// Bound receiver_idx for this connection (set after first packet).
     /// All subsequent packets on this connection must use this receiver_idx.
     /// Set from ClientHello's proposed receiver_index, or from header for non-bootstrap packets.
-    bound_receiver_idx: Option<u32>,
+    bound_receiver_idx: Option<ReceiverIndex>,
 
     /// Persistent connection to exit gateway for forwarding.
     /// Opened on first forward, reused for subsequent forwards, closed when client disconnects.
@@ -208,28 +206,26 @@ where
         Ok(())
     }
 
-    // fn bound_receiver_index(&self) -> Result<u32, LpHandlerError> {
-    //     self.bound_receiver_idx.ok_or_else(|| {
-    //         LpHandlerError::LpProtocolError(
-    //             "missing bound receiver index after KKT/PSQ handshake".into(),
-    //         )
-    //     })
-    // }
+    fn bound_receiver_index(&self) -> Result<ReceiverIndex, LpHandlerError> {
+        self.bound_receiver_idx
+            .ok_or_else(|| LpHandlerError::IncompleteHandshake)
+    }
 
     /// Validate that the receiver_idx matches the bound session.
-    fn validate_binding(&self, receiver_idx: u32) -> Result<(), LpHandlerError> {
-        // let bound_receiver_idx = self.bound_receiver_index()?;
-        //
-        // if bound_receiver_idx != receiver_idx {
-        //     warn!(
-        //         "Receiver_idx mismatch from {}: expected {bound_receiver_idx}, got {receiver_idx}",
-        //         self.remote_addr
-        //     );
-        //     inc!("lp_errors_receiver_idx_mismatch");
-        //     return Err(LpHandlerError::LpProtocolError(format!(
-        //         "receiver_idx mismatch: connection bound to {bound_receiver_idx}, packet has {receiver_idx}",
-        //     )));
-        // }
+    fn validate_binding(&self, receiver_idx: ReceiverIndex) -> Result<(), LpHandlerError> {
+        let bound_receiver_idx = self.bound_receiver_index()?;
+
+        if bound_receiver_idx != receiver_idx {
+            warn!(
+                "Receiver_idx mismatch from {}: expected {bound_receiver_idx}, got {receiver_idx}",
+                self.remote_addr
+            );
+            inc!("lp_errors_receiver_idx_mismatch");
+            return Err(LpHandlerError::MismatchedReceiverIndex {
+                established: bound_receiver_idx,
+                received: receiver_idx,
+            });
+        }
 
         Ok(())
     }
@@ -296,7 +292,7 @@ where
     /// Handle decrypted transport payload (registration or forwarding request)
     async fn handle_decrypted_payload(
         &mut self,
-        receiver_idx: u32,
+        receiver_idx: ReceiverIndex,
         decrypted_data: LpData,
     ) -> Result<(), LpHandlerError> {
         let remote = self.remote_addr;
@@ -332,7 +328,7 @@ where
     /// Attempt to wrap and send specified response back to the client
     async fn send_response_packet(
         &mut self,
-        receiver_index: u32,
+        receiver_index: ReceiverIndex,
         serialised_response: Vec<u8>,
         response_kind: LpDataKind,
     ) -> Result<(), LpHandlerError> {
@@ -406,7 +402,7 @@ where
     /// to exit gateway, receives response, encrypts it, and sends back to client.
     async fn handle_forwarding_request(
         &mut self,
-        receiver_idx: u32,
+        receiver_idx: ReceiverIndex,
         forward_data: ForwardPacketData,
     ) -> Result<(), LpHandlerError> {
         // Forward the packet to the target gateway and retrieve its response

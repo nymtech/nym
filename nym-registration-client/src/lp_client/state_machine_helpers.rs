@@ -3,7 +3,7 @@
 
 use crate::LpClientError;
 use nym_lp::state_machine::{LpAction, LpData, LpInput};
-use nym_lp::{EncryptedLpPacket, LpPacket, LpStateMachine};
+use nym_lp::{EncryptedLpPacket, LpStateMachine};
 
 /// Attempt to prepare the provided data for sending by wrapping it in appropriate `LpAction`,
 /// and attempting to extract `EncryptedLpPacket` from the provided state machine.

@@ -162,7 +162,7 @@ where
             }
             Ok(Ok(session)) => session,
         };
-        let receiver_idx = session.id();
+        let receiver_idx = session.receiver_index();
 
         // 2. insert the state machine into the shared state
         let state_machine = LpStateMachine::new(session);
@@ -742,7 +742,7 @@ mod tests {
     }
 
     fn add_dummy_lp_state(handler: &mut LpConnectionHandler, session: LpSession) {
-        let id = session.id();
+        let id = session.receiver_index();
         let state_machine = LpStateMachine::new(session);
         handler.bound_receiver_idx = Some(id);
 

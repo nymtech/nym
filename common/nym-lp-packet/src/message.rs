@@ -262,7 +262,7 @@ impl ForwardPacketData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LpMessage {
     /// The party is busy
     Busy,

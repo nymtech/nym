@@ -172,21 +172,21 @@ mod tests {
             );
 
             // test serialization, deserialization
-            let mut channel_i = session_init.active_transport();
-            let mut channel_r = session_resp.active_transport();
+            let channel_i = session_init.active_transport();
+            let channel_r = session_resp.active_transport();
 
             assert_eq!(channel_i.identifier(), channel_r.identifier());
 
             let app_data_i = b"Derived session hey".as_slice();
             let app_data_r = b"Derived session ho".as_slice();
 
-            let ct_i = encrypt_data(app_data_i, &mut channel_i)?;
-            let pt_r = decrypt_data(&ct_i, &mut channel_r)?;
+            let ct_i = encrypt_data(app_data_i, channel_i)?;
+            let pt_r = decrypt_data(&ct_i, channel_r)?;
 
             assert_eq!(app_data_i, pt_r);
 
-            let ct_r = encrypt_data(app_data_r, &mut channel_r)?;
-            let pt_i = decrypt_data(&ct_r, &mut channel_i)?;
+            let ct_r = encrypt_data(app_data_r, channel_r)?;
+            let pt_i = decrypt_data(&ct_r, channel_i)?;
 
             assert_eq!(app_data_r, pt_i);
         }
@@ -218,8 +218,8 @@ mod tests {
                 HashFunction::SHA256,
             ];
             let kkt_responder = KKTResponder::new(
-                &responder_x25519_keypair,
-                &resp_keys,
+                responder_x25519_keypair,
+                resp_keys,
                 &supported_hash,
                 &supported_sigs,
                 &[protocol_version],

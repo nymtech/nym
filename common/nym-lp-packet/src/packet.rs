@@ -53,7 +53,7 @@ impl EncryptedLpPacket {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct LpPacket {
     pub(crate) header: LpHeader,
     pub(crate) message: LpMessage,

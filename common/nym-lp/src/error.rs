@@ -27,6 +27,9 @@ pub enum LpError {
     #[error("Attempted operation on closed session")]
     SessionClosed,
 
+    #[error("There already exists an LP session with id {0:?}")]
+    DuplicateSessionId(SessionId),
+
     #[error("Internal error: {0}")]
     Internal(String),
 
@@ -112,6 +115,9 @@ pub enum LpError {
 
     #[error("transport failure: {0}")]
     TransportFailure(#[from] LpTransportError),
+
+    #[error("the current session is not in transport state")]
+    NotInTransport,
 }
 
 impl LpError {

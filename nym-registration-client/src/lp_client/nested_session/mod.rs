@@ -28,7 +28,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::packet::version;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpData, LpStateMachine};
-use nym_lp::{Ciphersuite, EncryptedLpPacket, ForwardPacketData, LpPacket, LpSession};
+use nym_lp::{Ciphersuite, EncryptedLpPacket, LpSession};
 use nym_lp_transport::LpHandshakeChannel;
 use nym_lp_transport::traits::LpTransportChannel;
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
@@ -71,9 +71,6 @@ pub struct NestedLpSession {
     /// Encapsulates all the client keys needed for the Lewes Protocol.
     lp_local_peer: LpLocalPeer,
 
-    /// Identity of the exit gateway
-    gateway_identity: ed25519::PublicKey,
-
     /// Encapsulates all the exit gateway keys needed for the Lewes Protocol.
     gateway_lp_peer: LpRemotePeer,
 
@@ -97,7 +94,6 @@ impl NestedLpSession {
     pub fn new(
         exit_address: SocketAddr,
         client_keypair: Arc<DHKeyPair>,
-        gateway_identity: ed25519::PublicKey,
         gateway_lp_peer: LpRemotePeer,
         ciphersuite: Ciphersuite,
         gateway_supported_lp_protocol_version: u8,
@@ -117,17 +113,10 @@ impl NestedLpSession {
         Self {
             exit_address,
             lp_local_peer,
-            gateway_identity,
             gateway_lp_peer,
             gateway_supported_lp_protocol_version: lp_protocol,
             state_machine: None,
         }
-    }
-
-    fn state_machine(&self) -> Result<&LpStateMachine> {
-        self.state_machine
-            .as_ref()
-            .ok_or(LpClientError::IncompleteHandshake)
     }
 
     fn state_machine_mut(&mut self) -> Result<&mut LpStateMachine> {
@@ -178,8 +167,7 @@ impl NestedLpSession {
             self.exit_address
         );
 
-        let mut nested_connection =
-            outer_client.as_nested_connection(self.gateway_identity, self.exit_address);
+        let mut nested_connection = outer_client.as_nested_connection(self.exit_address);
 
         let local_peer = self.lp_local_peer.clone();
         let remote_peer = self.gateway_lp_peer.clone();
@@ -233,8 +221,7 @@ impl NestedLpSession {
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
     {
         tracing::debug!("Acquiring bandwidth credential for registration");
-        let mut nested_connection =
-            outer_client.as_nested_connection(self.gateway_identity, self.exit_address);
+        let mut nested_connection = outer_client.as_nested_connection(self.exit_address);
 
         // Step 1: Get bandwidth credential from controller
         let credential_spending = bandwidth_controller
@@ -341,8 +328,7 @@ impl NestedLpSession {
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
         R: RngCore + CryptoRng,
     {
-        let mut nested_connection =
-            outer_client.as_nested_connection(self.gateway_identity, self.exit_address);
+        let mut nested_connection = outer_client.as_nested_connection(self.exit_address);
 
         tracing::debug!("Building registration request for exit gateway");
 
@@ -441,8 +427,7 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Response decryption/deserialization fails
     /// - Gateway rejects the registration
-    #[deprecated(note = "use explicit handshake and register methods")]
-    pub async fn handshake_and_register_dvpn<S, R>(
+    pub(crate) async fn handshake_and_register_dvpn<S, R>(
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,
         rng: &mut R,

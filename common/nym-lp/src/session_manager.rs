@@ -7,9 +7,12 @@
 //! creation, retrieval, and storage of sessions.
 
 use crate::session::SessionId;
-use crate::state_machine::{LpAction, LpInput, LpStateBare};
+use crate::state_machine::{LpAction, LpData, LpInput, LpStateBare};
 use crate::{LpError, LpSession, LpStateMachine};
+use nym_lp_packet::EncryptedLpPacket;
 use std::collections::HashMap;
+
+pub use crate::replay::validator::PacketCount;
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
@@ -41,6 +44,19 @@ impl SessionManager {
         self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
     }
 
+    pub fn send_data(&mut self, lp_id: SessionId, data: LpData) -> Result<LpAction, LpError> {
+        self.process_input(lp_id, LpInput::SendData(data))?
+            .ok_or(LpError::NotInTransport)
+    }
+
+    pub fn receive_packet(
+        &mut self,
+        lp_id: SessionId,
+        packet: EncryptedLpPacket,
+    ) -> Result<Option<LpAction>, LpError> {
+        self.process_input(lp_id, LpInput::ReceivePacket(packet))
+    }
+
     pub fn closed(&self, lp_id: SessionId) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Closed)
     }
@@ -58,31 +74,7 @@ impl SessionManager {
         self.with_state_machine(lp_id, |sm| Ok(sm.bare_state()))?
     }
 
-    pub fn receiving_counter_quick_check(
-        &self,
-        lp_id: SessionId,
-        counter: u64,
-    ) -> Result<(), LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?.receiving_counter_quick_check(counter)
-        })?
-    }
-
-    pub fn receiving_counter_mark(
-        &mut self,
-        lp_id: SessionId,
-        counter: u64,
-    ) -> Result<(), LpError> {
-        self.with_state_machine_mut(lp_id, |sm| {
-            sm.session_mut()?.receiving_counter_mark(counter)
-        })?
-    }
-
-    pub fn next_counter(&mut self, lp_id: SessionId) -> Result<u64, LpError> {
-        self.with_state_machine_mut(lp_id, |sm| Ok(sm.session_mut()?.next_counter()))?
-    }
-
-    pub fn current_packet_cnt(&self, lp_id: SessionId) -> Result<(u64, u64), LpError> {
+    pub fn current_packet_cnt(&self, lp_id: SessionId) -> Result<PacketCount, LpError> {
         self.with_state_machine(lp_id, |sm| Ok(sm.session()?.current_packet_cnt()))?
     }
 
@@ -117,11 +109,19 @@ impl SessionManager {
         }
     }
 
-    pub fn create_session_state_machine(&mut self, lp_session: LpSession) -> SessionId {
+    pub fn create_session_state_machine(
+        &mut self,
+        lp_session: LpSession,
+    ) -> Result<SessionId, LpError> {
         let session_id = *lp_session.session_identifier();
+
+        if self.state_machines.contains_key(&session_id) {
+            return Err(LpError::DuplicateSessionId(session_id));
+        }
+
         let sm = LpStateMachine::new(lp_session);
         self.state_machines.insert(session_id, sm);
-        session_id
+        Ok(session_id)
     }
 
     /// Method to remove a state machine
@@ -144,7 +144,7 @@ mod tests {
         let local_session = mock_session_for_test();
         let id = *local_session.session_identifier();
 
-        let sm_1_id = manager.create_session_state_machine(local_session);
+        let sm_1_id = manager.create_session_state_machine(local_session).unwrap();
         assert_eq!(sm_1_id, id);
 
         let retrieved = manager.state_machine_exists(&id);
@@ -158,7 +158,7 @@ mod tests {
     fn test_session_manager_remove() {
         let mut manager = SessionManager::new();
         let local_session = mock_session_for_test();
-        let sm_1_id = manager.create_session_state_machine(local_session);
+        let sm_1_id = manager.create_session_state_machine(local_session).unwrap();
 
         let removed = manager.remove_state_machine(sm_1_id);
         assert!(removed);
@@ -176,9 +176,9 @@ mod tests {
             let session2 = SessionsMock::mock_seeded_post_handshake(124, kem).initiator;
             let session3 = SessionsMock::mock_seeded_post_handshake(125, kem).initiator;
 
-            let sm_1 = manager.create_session_state_machine(session1);
-            let sm_2 = manager.create_session_state_machine(session2);
-            let sm_3 = manager.create_session_state_machine(session3);
+            let sm_1 = manager.create_session_state_machine(session1).unwrap();
+            let sm_2 = manager.create_session_state_machine(session2).unwrap();
+            let sm_3 = manager.create_session_state_machine(session3).unwrap();
 
             assert_eq!(manager.session_count(), 3);
 
@@ -198,7 +198,7 @@ mod tests {
 
         let sesion = mock_session_for_test();
 
-        let sm = manager.create_session_state_machine(sesion);
+        let sm = manager.create_session_state_machine(sesion).unwrap();
         assert_eq!(manager.session_count(), 1);
 
         let retrieved = manager.get_state_machine_id(sm);

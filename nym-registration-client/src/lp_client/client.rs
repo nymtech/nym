@@ -5,20 +5,16 @@
 
 use super::config::LpRegistrationConfig;
 use super::error::{LpClientError, Result};
-use crate::lp_client::helpers::{
-    LpDataDeliverExt, LpDataSendExt, convert_forward_data, try_convert_forward_response,
-};
+use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt};
 use crate::lp_client::nested_session::connection::NestedConnection;
 use crate::lp_client::state_machine_helpers::{extract_forwarded_response, prepare_send_packet};
-use bytes::BytesMut;
-use futures::SinkExt;
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_lp::LpSession;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
-use nym_lp::state_machine::{LpAction, LpData, LpInput, LpStateMachine};
-use nym_lp::{Ciphersuite, EncryptedLpPacket, ForwardPacketData, packet::version};
-use nym_lp::{LpPacket, LpSession};
+use nym_lp::state_machine::LpStateMachine;
+use nym_lp::{Ciphersuite, EncryptedLpPacket, packet::version};
 use nym_lp_transport::traits::LpTransportChannel;
 use nym_lp_transport::{LpHandshakeChannel, LpTransportError};
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
@@ -120,13 +116,8 @@ where
     }
 
     /// Attempt to use this `LpRegistrationClient` as transport for `NestedSession`
-    pub fn as_nested_connection(
-        &mut self,
-        exit_identity: ed25519::PublicKey,
-        exit_address: SocketAddr,
-    ) -> NestedConnection<'_, S> {
+    pub fn as_nested_connection(&mut self, exit_address: SocketAddr) -> NestedConnection<'_, S> {
         NestedConnection {
-            exit_identity,
             exit_address,
             outer_client: self,
         }
@@ -723,7 +714,7 @@ where
     pub fn session_id(&self) -> Result<u32> {
         self.state_machine()?
             .session()
-            .map(|s| s.id())
+            .map(|s| s.receiver_index())
             .map_err(Into::into)
     }
 }

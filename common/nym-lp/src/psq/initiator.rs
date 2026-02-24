@@ -214,7 +214,6 @@ mod tests {
             let conn_resp = conn_resp.leak();
 
             let (mut init, mut resp) = mock_peers();
-            let init_remote = init.as_remote();
             let resp_remote = resp.as_remote();
 
             let ciphersuite = Ciphersuite::default().with_kem(kem);
@@ -246,8 +245,8 @@ mod tests {
             let responder_x25519_keypair = resp.x25519();
 
             let kkt_responder = KKTResponder::new(
-                &responder_x25519_keypair,
-                &resp_keys,
+                responder_x25519_keypair,
+                resp_keys,
                 &supported_hash,
                 &supported_sigs,
                 &[1],
@@ -282,11 +281,6 @@ mod tests {
                 .await??;
             responder.read_message(&msg, &mut []).unwrap();
 
-            // Get the authenticator out here, so we can deserialize the session later.
-            let Some(initiator_authenticator) = responder.initiator_authenticator() else {
-                panic!("No initiator authenticator found")
-            };
-
             // 4 send PSQ response
             let mut buf = vec![0u8; PSQ_MSG2_SIZE];
             let n = responder.write_message(&[], &mut buf).unwrap();
@@ -304,7 +298,7 @@ mod tests {
             let mut r_transport = responder.into_session().unwrap();
 
             // test serialization, deserialization
-            let mut channel_i = session_init.active_transport();
+            let channel_i = session_init.active_transport();
             let mut channel_r = r_transport.transport_channel().unwrap();
 
             assert_eq!(channel_i.identifier(), channel_r.identifier());
@@ -312,13 +306,13 @@ mod tests {
             let app_data_i = b"Derived session hey".as_slice();
             let app_data_r = b"Derived session ho".as_slice();
 
-            let ct_i = encrypt_data(app_data_i, &mut channel_i)?;
+            let ct_i = encrypt_data(app_data_i, channel_i)?;
             let pt_r = decrypt_data(&ct_i, &mut channel_r)?;
 
             assert_eq!(app_data_i, pt_r);
 
             let ct_r = encrypt_data(app_data_r, &mut channel_r)?;
-            let pt_i = decrypt_data(&ct_r, &mut channel_i)?;
+            let pt_i = decrypt_data(&ct_r, channel_i)?;
 
             assert_eq!(app_data_r, pt_i);
         }

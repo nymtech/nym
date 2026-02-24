@@ -6,8 +6,6 @@
 use nym_lp::state_machine::{LpAction, LpDataKind};
 use nym_lp::{LpError, MalformedLpPacketError};
 use nym_lp_transport::LpTransportError;
-use nym_registration_common::BincodeError;
-use std::time::Duration;
 use thiserror::Error;
 
 /// Errors that can occur during LP client operations.
@@ -74,49 +72,6 @@ pub enum LpClientError {
 
     #[error("{0}")]
     Other(String),
-    // /// Failed to send registration request
-    // #[error("Failed to send registration request: {0}")]
-    // SendRegistrationRequest(String),
-    //
-    // /// Failed to receive registration response
-    // #[error("Failed to receive registration response: {0}")]
-    // ReceiveRegistrationResponse(String),
-    //
-    // /// Registration was rejected by gateway
-    // #[error("Gateway rejected registration: {reason}")]
-    // RegistrationRejected { reason: String },
-    //
-    // /// Failed to receive response within specified deadline
-    // #[error("Failed to receive response within the set timeout: {timeout:?}")]
-    // ResponseReceiveTimeout { timeout: Duration },
-    //
-    // /// LP transport error
-    // #[error("LP transport error: {0}")]
-    // Transport(String),
-    //
-    // #[error(transparent)]
-    // LpTransportError(#[from] LpTransportError),
-    //
-    // /// Invalid LP address format
-    // #[error("Invalid LP address '{address}': {reason}")]
-    // InvalidAddress { address: String, reason: String },
-    //
-    // /// Serialization/deserialization error
-    // #[error("Serialization error: {0}")]
-    // Serialization(#[from] BincodeError),
-    //
-    // /// Connection closed unexpectedly
-    // #[error("Connection closed unexpectedly")]
-    // ConnectionClosed,
-    //
-    // /// Timeout waiting for response
-    // #[error("Timeout waiting for {operation}")]
-    // Timeout { operation: String },
-
-    //
-    // /// Another uncategorized error
-    // #[error("{0}")]
-    // Other(String),
 }
 
 impl LpClientError {

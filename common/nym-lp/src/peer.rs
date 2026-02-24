@@ -152,7 +152,7 @@ pub fn mock_peer() -> LpLocalPeer {
 }
 
 #[cfg(any(feature = "mock", test))]
-pub fn random_peer<'a, R: rand09::CryptoRng + rand09::RngCore>(rng: &mut R) -> LpLocalPeer {
+pub fn random_peer<R: rand09::CryptoRng + rand09::RngCore>(rng: &mut R) -> LpLocalPeer {
     let x25519 = Arc::new(nym_kkt::key_utils::generate_keypair_x25519(rng));
 
     LpLocalPeer {

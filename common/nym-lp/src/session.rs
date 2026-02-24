@@ -11,6 +11,7 @@ use crate::psq::{
     InitiatorData, PSQHandshakeState, PSQHandshakeStateInitiator, PSQHandshakeStateResponder,
     ResponderData,
 };
+use crate::replay::validator::PacketCount;
 use crate::{LpError, LpMessage, LpPacket, ReceivingKeyCounterValidator};
 use libcrux_psq::handshake::types::{Authenticator, DHPublicKey};
 use libcrux_psq::session::{Session, SessionBinding};
@@ -162,7 +163,7 @@ impl LpSession {
         self.psq_session.identifier()
     }
 
-    pub fn id(&self) -> u32 {
+    pub fn receiver_index(&self) -> u32 {
         let TODO = "this is temporary...";
         let id = self.psq_session.identifier();
         u32::from_le_bytes([id[0], id[1], id[2], id[3]])
@@ -177,7 +178,12 @@ impl LpSession {
 
     pub fn next_packet(&mut self, message: LpMessage) -> Result<LpPacket, LpError> {
         let counter = self.next_counter();
-        let header = LpHeader::new(self.id(), counter, self.protocol_version, message.typ());
+        let header = LpHeader::new(
+            self.receiver_index(),
+            counter,
+            self.protocol_version,
+            message.typ(),
+        );
         let packet = LpPacket::new(header, message);
         Ok(packet)
     }
@@ -236,7 +242,7 @@ impl LpSession {
     /// A tuple containing:
     /// * The next expected counter value for incoming packets
     /// * The total number of received packets
-    pub fn current_packet_cnt(&self) -> (u64, u64) {
+    pub fn current_packet_cnt(&self) -> PacketCount {
         self.receiving_counter.current_packet_cnt()
     }
 
@@ -280,7 +286,7 @@ impl LpSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ReplayError, SessionsMock, sessions_for_tests};
+    use crate::{ReplayError, SessionsMock};
     use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
 
     #[test]
@@ -351,17 +357,17 @@ mod tests {
             let mut session = SessionsMock::mock_post_handshake(kem).responder;
 
             // Initial stats
-            let (next, received) = session.current_packet_cnt();
-            assert_eq!(next, 0);
-            assert_eq!(received, 0);
+            let packet_count = session.current_packet_cnt();
+            assert_eq!(packet_count.next, 0);
+            assert_eq!(packet_count.received, 0);
 
             // After receiving packets
             assert!(session.receiving_counter_mark(0).is_ok());
             assert!(session.receiving_counter_mark(1).is_ok());
 
-            let (next, received) = session.current_packet_cnt();
-            assert_eq!(next, 2);
-            assert_eq!(received, 2);
+            let packet_count = session.current_packet_cnt();
+            assert_eq!(packet_count.next, 2);
+            assert_eq!(packet_count.received, 2);
         }
     }
 }

@@ -4,7 +4,6 @@
 use crate::lp_client::helpers::{convert_forward_data, try_convert_forward_response};
 use crate::{LpClientError, LpRegistrationClient};
 use bytes::{BufMut, BytesMut};
-use nym_crypto::asymmetric::ed25519;
 use nym_lp::state_machine::{LpAction, LpInput};
 use nym_lp::{EncryptedLpPacket, ExpectedResponseSize, ForwardPacketData, KEM};
 use nym_lp_transport::traits::{HandshakeMessage, LpTransportChannel};
@@ -14,9 +13,6 @@ use std::net::SocketAddr;
 
 /// Attempt to treat the inner client as a LP connection
 pub struct NestedConnection<'a, S> {
-    /// Remote Ed25519 public key
-    pub(crate) exit_identity: ed25519::PublicKey,
-
     /// Exit gateway's LP address (e.g., "2.2.2.2:41264")
     pub(crate) exit_address: SocketAddr,
 

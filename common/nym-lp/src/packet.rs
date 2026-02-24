@@ -17,7 +17,7 @@ pub(crate) const UDP_PAYLOAD_SIZE: usize = MTU - UDP_OVERHEAD;
 
 pub use nym_lp_packet::version;
 
-pub(crate) trait LpPacketReplayExt {
+pub trait LpPacketReplayExt {
     /// Validate packet counter against a replay protection validator
     ///
     /// This performs a quick check to see if the packet counter is valid before

@@ -233,7 +233,6 @@ mod tests {
             let conn_resp = conn_resp.leak();
 
             let (mut init, mut resp) = mock_peers();
-            let init_remote = init.as_remote();
             let resp_remote = resp.as_remote();
 
             let ciphersuite = Ciphersuite::default().with_kem(kem);
@@ -314,7 +313,7 @@ mod tests {
 
             // test serialization, deserialization
             let mut channel_i = i_transport.transport_channel().unwrap();
-            let mut channel_r = session_resp.active_transport();
+            let channel_r = session_resp.active_transport();
 
             assert_eq!(channel_i.identifier(), channel_r.identifier());
 
@@ -322,11 +321,11 @@ mod tests {
             let app_data_r = b"Derived session ho".as_slice();
 
             let ct_i = encrypt_data(app_data_i, &mut channel_i)?;
-            let pt_r = decrypt_data(&ct_i, &mut channel_r)?;
+            let pt_r = decrypt_data(&ct_i, channel_r)?;
 
             assert_eq!(app_data_i, pt_r);
 
-            let ct_r = encrypt_data(app_data_r, &mut channel_r)?;
+            let ct_r = encrypt_data(app_data_r, channel_r)?;
             let pt_i = decrypt_data(&ct_r, &mut channel_i)?;
 
             assert_eq!(app_data_r, pt_i);

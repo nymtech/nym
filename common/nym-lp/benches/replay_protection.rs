@@ -1,9 +1,8 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use nym_lp::replay::ReceivingKeyCounterValidator;
 use nym_test_utils::helpers::deterministic_rng_09;
-use parking_lot::Mutex;
 use rand09::Rng;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 fn bench_sequential_counters(c: &mut Criterion) {
     let mut group = c.benchmark_group("replay_sequential");
@@ -75,19 +74,15 @@ fn bench_thread_safety(c: &mut Criterion) {
             BenchmarkId::new("thread_safe_validator", size),
             &size,
             |b, &size| {
-                let validator = Arc::new(Mutex::new(ReceivingKeyCounterValidator::default()));
+                let mut validator = ReceivingKeyCounterValidator::default();
                 let counters: Vec<u64> = (0..size).collect();
 
                 b.iter(|| {
                     for &counter in &counters {
-                        let result = {
-                            let guard = validator.lock();
-                            black_box(guard.will_accept_branchless(counter))
-                        };
+                        let result = { black_box(validator.will_accept_branchless(counter)) };
 
                         if result.is_ok() {
-                            let mut guard = validator.lock();
-                            let _ = black_box(guard.mark_did_receive_branchless(counter));
+                            let _ = black_box(validator.mark_did_receive_branchless(counter));
                         }
                     }
                 });
@@ -202,7 +197,7 @@ fn bench_concurrency_scaling(c: &mut Criterion) {
                             let mut success_count = 0;
                             for i in 0..100 {
                                 let counter = t * 1000 + i;
-                                let mut guard = validator_clone.lock();
+                                let mut guard = validator_clone.lock().unwrap();
                                 if guard.mark_did_receive_branchless(counter as u64).is_ok() {
                                     success_count += 1;
                                 }

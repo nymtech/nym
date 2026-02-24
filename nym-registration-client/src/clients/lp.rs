@@ -60,8 +60,6 @@ impl LpBasedRegistrationClient {
         let entry_address = entry_lp_data.address;
         let exit_address = exit_lp_data.address;
 
-        let exit_identity = self.config.exit.node.identity;
-
         tracing::debug!("Entry gateway LP address: {entry_address}");
         tracing::debug!("Exit gateway LP address: {exit_address}");
 
@@ -103,7 +101,6 @@ impl LpBasedRegistrationClient {
         let mut nested_session = NestedLpSession::new(
             exit_address,
             exit_lp_keypair,
-            exit_identity,
             exit_peer,
             exit_ciphersuite,
             exit_lp_protocol,

@@ -1,5 +1,6 @@
 [package]
 name = "nym-kkt-ciphersuite"
+description = "Nym KKT ciphersuite"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

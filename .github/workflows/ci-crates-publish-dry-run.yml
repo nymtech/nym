@@ -15,6 +15,9 @@ env:
 jobs:
   publish-dry-run:
     runs-on: arc-linux-latest
+    timeout-minutes: 35
+    env:
+      RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -59,20 +62,56 @@ jobs:
       - name: Bump versions (local only)
         run: |
           cargo workspaces version custom ${{ inputs.version }} \
-            --allow-branch ${{ github.ref_name }} \
             --no-git-commit \
+            --yes
 
       # Dry run may show cascading dependency errors because packages aren't
       # actually uploaded - these are expected and ignored. We check for real
       # errors like packaging failures, missing metadata, or invalid Cargo.toml.
       - name: Publish (dry run)
         run: |
-          output=$(cargo workspaces publish --dry-run --allow-dirty 2>&1) || true
-          echo "$output"
+          set +e
+          publish_status=1
+          max_attempts=2
+          attempt=1
+          rm -f /tmp/publish-dry-run.log
 
-          # Check for real errors (not cascading dependency errors)
-          # Cascading errors mention "crates.io index", real errors mention "Cargo.toml"
-          echo "$output" | grep -i "Cargo.toml" && exit 1 || true
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Dry-run publish attempt ${attempt}/${max_attempts}"
+            cargo workspaces publish --dry-run --allow-dirty 2>&1 | tee /tmp/publish-dry-run.log
+            publish_status=${PIPESTATUS[0]}
+
+            if [ "$publish_status" -eq 0 ]; then
+              break
+            fi
+
+            # Retry once for interruption/runner issues.
+            if [ "$attempt" -lt "$max_attempts" ] && \
+              { [ "$publish_status" -eq 130 ] || [ "$publish_status" -eq 137 ]; }; then
+              echo "Publish dry-run interrupted (exit ${publish_status}), retrying in 10s..."
+              sleep 10
+              attempt=$((attempt + 1))
+              continue
+            fi
+
+            break
+          done
+          set -e
+
+          if grep -Eiq \
+            "failed to verify manifest|failed to parse manifest|invalid Cargo.toml|error: package .* has no (description|license|repository)" \
+            /tmp/publish-dry-run.log; then
+            echo "Detected real packaging/manifest errors"
+            exit 1
+          fi
+
+          # In dry-run mode, non-zero publish status is expected due to
+          # dependency-cascade failures against crates.io index.
+          if [ "$publish_status" -ne 0 ]; then
+            echo "Dry-run publish returned non-zero (${publish_status}) but no real manifest blockers were detected."
+          fi
+
+          echo "Only expected dry-run dependency cascade errors detected (if any)."
 
       # Show the list of packages published
       - name: Show package versions

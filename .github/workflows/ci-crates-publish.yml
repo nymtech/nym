@@ -17,6 +17,8 @@ on:
 jobs:
   publish:
     runs-on: arc-linux-latest
+    env:
+      RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6

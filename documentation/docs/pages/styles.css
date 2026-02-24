@@ -1,3 +1,29 @@
+/* nym.com-aligned colour tokens */
+:root {
+  --colorPrimary: #85E89D;
+  --textPrimary: #FFFFFF;
+  --bg-dark: #1E2426;
+  --border-dark: #2E3538;
+}
+
+/* dark mode background override */
+html.dark {
+  background-color: var(--bg-dark);
+}
+
+html.dark body {
+  background-color: var(--bg-dark);
+}
+
+/* nextra main content area bg */
+html.dark .nextra-nav-container,
+html.dark .nextra-sidebar-container,
+html.dark .nextra-content,
+html.dark .nx-bg-white,
+html.dark .dark\:nx-bg-dark {
+  background-color: var(--bg-dark) !important;
+}
+
 footer {
   text-align: center;
 }
@@ -19,7 +45,7 @@ footer {
   padding-right: 0px;
   padding-left: 0px;
   /* text-align: right; */
-  border-left: 1px solid #262626;
+  border-left: 1px solid var(--border-dark);
 }
 
 .nextra-content {
@@ -34,14 +60,21 @@ footer {
   background-color: hsl(var(black) 100% 77%/0.1) !important;
 }
 
-/* Sidebar buttons */
+/* Sidebar active item */
 :is(html .dark\:nx-bg-primary-400\/10) {
-  background: var(--colorPrimary) !important;
-  color: var(--textPrimary) !important;
+  background: transparent !important;
+  border-left: 2px solid #85E89D;
+  color: #FFFFFF !important;
+}
+
+:is(html:not(.dark) .dark\:nx-bg-primary-400\/10) {
+  background: transparent !important;
+  border-left: 2px solid #4A9E5C;
+  color: #242B2D !important;
 }
 
 .nextra-sidebar-container {
-  border-right: 1px solid #262626;
+  border-right: 1px solid var(--border-dark);
   width: 300px !important;
 }
 

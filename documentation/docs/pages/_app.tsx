@@ -10,7 +10,11 @@ const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {
         palette: {
           mode: 'dark',
           primary: {
-            main: '#e67300',
+            main: '#85E89D',
+          },
+          background: {
+            default: '#242B2D',
+            paper: '#2A3235',
           },
         },
       }),

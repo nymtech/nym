@@ -15,10 +15,12 @@ use crate::{
     error::KKTError,
 };
 use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
+use nym_crypto::blake3;
 use nym_kkt_ciphersuite::KEM;
 use rand09::{CryptoRng, RngCore};
 
 pub(crate) const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";
+pub(crate) const KKT_RECEIVER_INDEX_CONTEXT: &[u8] = b"KKT_RECEIVER_INDEX_DERIVATION_V1";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct KKTFrame {
@@ -104,14 +106,34 @@ impl KKTFrame {
             .plaintext
             .derive_responder_carrier(responder_keypair)?;
 
+        
         let decrypted_message = carrier.decrypt(&message.encrypted_frame)?;
         let frame = KKTFrame::from_bytes(&decrypted_message)?;
+        
+        let receiver_index: u64 = frame.derive_receiver_index( &message.plaintext)?;
 
         Ok(DecryptedRequestFrame {
             carrier,
             remote_frame: frame,
             outer_protocol_version,
+            receiver_index
         })
+    }
+
+    // HASH(context || pub_key || masked_version || decrypted frame)
+    fn derive_receiver_index(&self, kkt_outer_headers: &KKTRequestPlaintext) -> Result<u64, KKTError> {
+
+        let mut receiver_index_bytes: [u8; 8] = [0u8; 8];
+
+        let mut hasher = blake3::Hasher::new();
+
+        hasher.update(KKT_RECEIVER_INDEX_CONTEXT);
+        hasher.update(&kkt_outer_headers.to_bytes());
+        hasher.update(&self.try_to_bytes()?);
+        
+        hasher.finalize_xof().fill(&mut receiver_index_bytes);
+
+        Ok(u64::from_le_bytes(receiver_index_bytes))
     }
 
     pub fn body_ref(&self) -> &[u8] {

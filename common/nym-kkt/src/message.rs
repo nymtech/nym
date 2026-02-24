@@ -188,6 +188,9 @@ pub struct DecryptedRequestFrame {
 
     /// The unmasked byte representing the outer protocol version sent by the initiator
     pub(crate) outer_protocol_version: u8,
+
+    /// A unique index associated to the request sender
+    pub(crate) receiver_index: u64
 }
 
 impl DecryptedRequestFrame {

@@ -15,6 +15,8 @@ env:
 jobs:
   version-bump:
     runs-on: arc-linux-latest
+    env:
+      RUSTUP_PERMIT_COPY_RENAME: 1
     permissions:
       contents: write
     steps:

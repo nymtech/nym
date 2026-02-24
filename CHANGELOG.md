@@ -4,6 +4,84 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.4-quark] (2026-02-24)
+
+- Otel minimal v2 ([#6464])
+- Enhance CI workflow with feature inputs ([#6462])
+- Chore/revert 6433 ([#6445])
+- Lp/stateless handshake ([#6437])
+- build(deps-dev): bump webpack from 5.98.0 to 5.105.0 in /wasm/client/internal-dev ([#6435])
+- build(deps-dev): bump webpack from 5.102.1 to 5.104.1 ([#6432])
+- build(deps-dev): bump webpack from 5.98.0 to 5.105.0 in /wasm/mix-fetch/internal-dev ([#6431])
+- build(deps-dev): bump webpack from 5.94.0 to 5.104.1 in /nym-credential-proxy/vpn-api-lib-wasm/internal-dev ([#6430])
+- build(deps-dev): bump webpack from 5.77.0 to 5.104.1 in /wasm/zknym-lib/internal-dev ([#6429])
+- build(deps-dev): bump webpack from 5.76.0 to 5.105.0 in /clients/native/examples/js-examples/websocket ([#6428])
+- HTTP & DNS Improvements ([#6423])
+- Endpoint for  exit GW IPs ([#6418])
+- build(deps): bump bytes from 1.6.0 to 1.11.1 in /contracts ([#6416])
+- build(deps): bump @isaacs/brace-expansion from 5.0.0 to 5.0.1 ([#6415])
+- build(deps): bump bytes from 1.11.0 to 1.11.1 ([#6414])
+- build(deps): bump mikefarah/yq from 4.50.1 to 4.52.2 ([#6407])
+- build(deps-dev): bump eslint from 8.57.1 to 9.26.0 ([#6405])
+- Update reqwest to v0.13.1 ([#6401])
+- build(deps): bump next from 15.5.9 to 16.1.5 in /documentation/docs ([#6387])
+- build(deps): bump next from 15.4.10 to 16.1.5 in /nym-node-status-api/nym-node-status-ui ([#6385])
+- build(deps): bump lodash from 4.17.21 to 4.17.23 ([#6369])
+- build(deps): bump lodash-es from 4.17.21 to 4.17.23 ([#6360])
+- build(deps-dev): bump lodash from 4.17.21 to 4.17.23 in /sdk/typescript/codegen/contract-clients ([#6359])
+- build(deps): bump lodash from 4.17.21 to 4.17.23 in /sdk/typescript/packages/nodejs-client ([#6354])
+- build(deps): bump lodash from 4.17.21 to 4.17.23 in /documentation/docs ([#6353])
+- build(deps): bump lodash from 4.17.21 to 4.17.23 in /clients/native/examples/js-examples/websocket ([#6351])
+- build(deps): bump lodash-es from 4.17.21 to 4.17.23 in /documentation/docs ([#6350])
+- build(deps): bump diff from 5.2.0 to 5.2.2 in /documentation/docs ([#6345])
+- Max/crates publishing tweaks ([#6343])
+- build(deps): bump h3 from 1.15.4 to 1.15.5 ([#6339])
+- build(deps): bump h3 from 1.15.4 to 1.15.5 in /documentation/docs ([#6332])
+- build(deps): bump undici from 6.21.3 to 6.23.0 in /documentation/docs ([#6325])
+- build(deps): bump rsa from 0.9.8 to 0.9.10 ([#6311])
+- build(deps): bump qs and express in /wasm/mix-fetch/internal-dev ([#6308])
+- build(deps): bump qs and express in /clients/native/examples/js-examples/websocket ([#6307])
+- feat: introduce on-disk cache persistance for major nym-api caches ([#6302])
+- Fix migrations in the Data Observatory ([#6271])
+
+[#6464]: https://github.com/nymtech/nym/pull/6464
+[#6462]: https://github.com/nymtech/nym/pull/6462
+[#6445]: https://github.com/nymtech/nym/pull/6445
+[#6437]: https://github.com/nymtech/nym/pull/6437
+[#6435]: https://github.com/nymtech/nym/pull/6435
+[#6432]: https://github.com/nymtech/nym/pull/6432
+[#6431]: https://github.com/nymtech/nym/pull/6431
+[#6430]: https://github.com/nymtech/nym/pull/6430
+[#6429]: https://github.com/nymtech/nym/pull/6429
+[#6428]: https://github.com/nymtech/nym/pull/6428
+[#6423]: https://github.com/nymtech/nym/pull/6423
+[#6418]: https://github.com/nymtech/nym/pull/6418
+[#6416]: https://github.com/nymtech/nym/pull/6416
+[#6415]: https://github.com/nymtech/nym/pull/6415
+[#6414]: https://github.com/nymtech/nym/pull/6414
+[#6407]: https://github.com/nymtech/nym/pull/6407
+[#6405]: https://github.com/nymtech/nym/pull/6405
+[#6401]: https://github.com/nymtech/nym/pull/6401
+[#6387]: https://github.com/nymtech/nym/pull/6387
+[#6385]: https://github.com/nymtech/nym/pull/6385
+[#6369]: https://github.com/nymtech/nym/pull/6369
+[#6360]: https://github.com/nymtech/nym/pull/6360
+[#6359]: https://github.com/nymtech/nym/pull/6359
+[#6354]: https://github.com/nymtech/nym/pull/6354
+[#6353]: https://github.com/nymtech/nym/pull/6353
+[#6351]: https://github.com/nymtech/nym/pull/6351
+[#6350]: https://github.com/nymtech/nym/pull/6350
+[#6345]: https://github.com/nymtech/nym/pull/6345
+[#6343]: https://github.com/nymtech/nym/pull/6343
+[#6339]: https://github.com/nymtech/nym/pull/6339
+[#6332]: https://github.com/nymtech/nym/pull/6332
+[#6325]: https://github.com/nymtech/nym/pull/6325
+[#6311]: https://github.com/nymtech/nym/pull/6311
+[#6308]: https://github.com/nymtech/nym/pull/6308
+[#6307]: https://github.com/nymtech/nym/pull/6307
+[#6302]: https://github.com/nymtech/nym/pull/6302
+[#6271]: https://github.com/nymtech/nym/pull/6271
+
 ## [2026.3-parmigiano] (2026-02-10)
 
 - chore: disable LP on parmigiano branch ([#6422])

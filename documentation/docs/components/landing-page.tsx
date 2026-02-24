@@ -51,8 +51,8 @@ export const LandingPage = () => {
   };
 
   return (
-    <Box margin={"0 auto"}>
-      <Typography variant="h2" mb={6}>
+    <Box margin={"0 auto"} textAlign="center">
+      {/*<Typography variant="h2" mb={6}>
         Nym Docs
       </Typography>
 
@@ -62,70 +62,54 @@ export const LandingPage = () => {
         using blinded, re-randomizable, decentralized credentials. Our goal is
         to allow developers to build new applications, or upgrade existing apps,
         with privacy features unavailable in other systems.
-      </Typography>
+      </Typography>*/}
       <Grid container border={"1px solid #262626"}>
         {squares.map((square, index) => (
           <Grid
             item
             key={index}
             xs={12}
-            lg={6}
+            sm={6}
             padding={{ xs: 3, xl: 4 }}
-            width={"100%"}
             sx={{
               borderBottom: {
                 xs: index < 3 ? "1px solid #262626" : "none",
-                lg: index === 0 || index === 1 ? "1px solid #262626" : "none",
+                sm: index === 0 || index === 1 ? "1px solid #262626" : "none",
               },
               borderRight: {
-                md: index === 0 || index === 2 ? "1px solid #262626" : "none",
+                xs: "none",
+                sm: index === 0 || index === 2 ? "1px solid #262626" : "none",
               },
             }}
           >
-            <Link href={square.href} target="_blank" rel="noopener noreferrer">
+            <Link href={square.href}>
               <Box
                 display={"flex"}
                 gap={{ xs: 3, xl: 4 }}
                 height={"100%"}
-                flexDirection={{ xs: "column", sm: "row" }}
-                alignItems={{ xs: "center" }}
+                flexDirection="column"
+                alignItems="center"
               >
+                <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                  {square.text}
+                </Typography>
+
+                <Typography
+                  variant="body1"
+                  textAlign="center"
+                  sx={{
+                    color: "#909195",
+                  }}
+                >
+                  {square.description}
+                </Typography>
+
                 <Image
                   src={square.icon}
                   alt={square.text}
                   width={isDesktop ? 180 : isTablet ? 140 : 180}
                   height={isDesktop ? 134 : isTablet ? 90 : 134}
                 />
-                <Box
-                  display={"flex"}
-                  flexDirection={"column"}
-                  justifyContent={"space-between"}
-                  alignItems={{ xs: "center", sm: "flex-start" }}
-                  flexGrow={1}
-                  height={"100%"}
-                >
-                  <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                    {square.text}
-                  </Typography>
-
-                  <Typography
-                    variant="body1"
-                    textAlign={{ xs: "center", sm: "left" }}
-                    sx={{
-                      color: "#909195",
-                      display: {
-                        lg: "none",
-                        xl: "block",
-                      },
-                    }}
-                  >
-                    {square.description}
-                  </Typography>
-
-                  <Typography sx={{ color: "#14E76F", fontWeight: 600 }}>
-                    Open
-                  </Typography>
-                </Box>
               </Box>
             </Link>
           </Grid>

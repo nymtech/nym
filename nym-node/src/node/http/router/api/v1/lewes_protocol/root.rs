@@ -4,30 +4,29 @@
 use axum::extract::Query;
 use axum::http::StatusCode;
 use nym_http_api_common::{FormattedResponse, OutputParams};
-use nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol;
+use nym_node_requests::api::{SignedLewesProtocol, SignedLewesProtocolInfo};
 
 /// Returns root Lewes Protocol information
 #[utoipa::path(
     get,
-    path = "",
-    context_path = "/api/v1/lewes-protocol",
+    path = "/lewes-protocol",
+    context_path = "/api/v1",
     tag = "Lewes Protocol",
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            (LewesProtocol = "application/json"),
-            (LewesProtocol = "application/yaml"),
-            (LewesProtocol = "application/bincode")
+            (SignedLewesProtocolInfo = "application/json"),
+            (SignedLewesProtocolInfo = "application/yaml"),
+            (SignedLewesProtocolInfo = "application/bincode")
         ))
     ),
     params(OutputParams)
 )]
 pub(crate) async fn root_lewes_protocol(
-    config: Option<LewesProtocol>,
+    config: SignedLewesProtocol,
     Query(output): Query<OutputParams>,
 ) -> Result<LewesProtocolResponse, StatusCode> {
-    let config = config.ok_or(StatusCode::NOT_IMPLEMENTED)?;
     Ok(output.to_response(config))
 }
 
-pub type LewesProtocolResponse = FormattedResponse<LewesProtocol>;
+pub type LewesProtocolResponse = FormattedResponse<SignedLewesProtocol>;

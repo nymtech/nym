@@ -8,7 +8,7 @@ use axum::extract::{Query, State};
 use axum::routing::get;
 use axum::Router;
 use nym_api_requests::models::NymNodeDescriptionV2;
-use nym_api_requests::pagination::PaginatedResponse;
+use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_http_api_common::FormattedResponse;
 use tower_http::compression::CompressionLayer;
 
@@ -36,23 +36,19 @@ async fn get_described_nodes(
     State(state): State<AppState>,
     Query(pagination): Query<PaginationRequest>,
 ) -> AxumResult<FormattedResponse<PaginatedResponse<NymNodeDescriptionV2>>> {
-    let _ = state;
+    // TODO: implement it
     let _ = pagination;
-    Err(AxumErrorResponse::not_implemented())
+    let output = pagination.output.unwrap_or_default();
 
-    // // TODO: implement it
-    // let _ = pagination;
-    // let output = pagination.output.unwrap_or_default();
-    //
-    // let cache = state.described_nodes_cache.get().await?;
-    // let descriptions = cache.all_nodes().cloned().collect::<Vec<_>>();
-    //
-    // Ok(output.to_response(PaginatedResponse {
-    //     pagination: Pagination {
-    //         total: descriptions.len(),
-    //         page: 0,
-    //         size: descriptions.len(),
-    //     },
-    //     data: descriptions,
-    // }))
+    let cache = state.described_nodes_cache.get().await?;
+    let descriptions = cache.all_nodes().cloned().collect::<Vec<_>>();
+
+    Ok(output.to_response(PaginatedResponse {
+        pagination: Pagination {
+            total: descriptions.len(),
+            page: 0,
+            size: descriptions.len(),
+        },
+        data: descriptions,
+    }))
 }

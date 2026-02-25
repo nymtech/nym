@@ -4,7 +4,7 @@
 use crate::LpError;
 use nym_crypto::asymmetric::x25519;
 use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -46,17 +46,11 @@ impl LpLocalPeer {
     /// Convert this `LpLocalPeer` into a valid `LpRemotePeer` that can be used within tests
     #[doc(hidden)]
     pub fn as_remote(&self) -> LpRemotePeer {
-        let mut expected_kem_key_digests = HashMap::new();
-        if let Some(keys) = &self.kem_keypairs {
-            for kem in [KEM::MlKem768, KEM::McEliece] {
-                expected_kem_key_digests.insert(
-                    kem,
-                    nym_kkt::key_utils::produce_key_digests(
-                        keys.encoded_encapsulation_key(kem).unwrap(),
-                    ),
-                );
-            }
-        }
+        let expected_kem_key_digests = self
+            .kem_keypairs
+            .as_ref()
+            .map(|k| k.encapsulation_keys_digests())
+            .unwrap_or_default();
 
         LpRemotePeer {
             x25519_public: self.x25519.pk,
@@ -87,7 +81,7 @@ pub struct LpRemotePeer {
     pub(crate) x25519_public: DHPublicKey,
 
     /// Expected digests of the remote's KEM key
-    pub(crate) expected_kem_key_digests: HashMap<KEM, KEMKeyDigests>,
+    pub(crate) expected_kem_key_digests: BTreeMap<KEM, KEMKeyDigests>,
 }
 
 impl LpRemotePeer {
@@ -107,7 +101,7 @@ impl LpRemotePeer {
     #[must_use]
     pub fn with_key_digests(
         mut self,
-        expected_kem_key_digests: HashMap<KEM, KEMKeyDigests>,
+        expected_kem_key_digests: BTreeMap<KEM, KEMKeyDigests>,
     ) -> Self {
         self.expected_kem_key_digests = expected_kem_key_digests;
         self

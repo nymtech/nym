@@ -48,7 +48,7 @@ nym-bin-common = { workspace = true, features = [
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
-rand_chacha = { workspace = true }
+nym-test-utils = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 
 

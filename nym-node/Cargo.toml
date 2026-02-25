@@ -134,7 +134,6 @@ cargo_metadata = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
-rand_chacha = { workspace = true }
 
 [features]
 tokio-console = ["console-subscriber", "nym-task/tokio-tracing"]

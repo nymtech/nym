@@ -3,7 +3,7 @@
 
 use crate::error::KKTCiphersuiteError;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt::Display;
 use strum_macros::{Display, EnumIter, EnumString};
 
@@ -47,12 +47,7 @@ pub mod xwing {
     pub const PUBLIC_KEY_LENGTH: usize = x25519::PUBLIC_KEY_LENGTH + ml_kem768::PUBLIC_KEY_LENGTH;
 }
 
-pub type KEMKeyDigests = KeyDigests;
-
-#[deprecated]
-pub type SigningKeyDigests = KeyDigests;
-
-pub type KeyDigests = HashMap<HashFunction, Vec<u8>>;
+pub type KEMKeyDigests = BTreeMap<HashFunction, Vec<u8>>;
 
 #[derive(
     Clone,
@@ -66,6 +61,8 @@ pub type KeyDigests = HashMap<HashFunction, Vec<u8>>;
     EnumIter,
     EnumString,
     Display,
+    Ord,
+    PartialOrd,
 )]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "lowercase")]
@@ -209,6 +206,8 @@ impl SignatureScheme {
     EnumString,
     Display,
     Default,
+    Ord,
+    PartialOrd,
 )]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "lowercase")]

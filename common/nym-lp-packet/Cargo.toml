@@ -9,6 +9,7 @@ license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
 version.workspace = true
+publish = false
 
 [dependencies]
 bytes = { workspace = true }

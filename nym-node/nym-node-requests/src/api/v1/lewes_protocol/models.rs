@@ -5,7 +5,7 @@ use nym_crypto::asymmetric::x25519;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_dh_public_key;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use strum_macros::{Display, EnumIter, EnumString};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
@@ -30,7 +30,7 @@ pub struct LewesProtocol {
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
     /// note: digests are hex encoded
-    pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
+    pub kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
 }
 
 impl LewesProtocol {
@@ -39,7 +39,7 @@ impl LewesProtocol {
         control_port: u16,
         data_port: u16,
         x25519: x25519::DHPublicKey,
-        kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
+        kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
     ) -> Self {
         LewesProtocol {
             enabled,
@@ -69,6 +69,7 @@ impl LewesProtocol {
     PartialOrd,
     Display,
     EnumString,
+    Ord,
 )]
 #[strum(serialize_all = "lowercase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -109,6 +110,7 @@ impl From<nym_kkt_ciphersuite::KEM> for LPKEM {
     Display,
     EnumString,
     EnumIter,
+    Ord,
 )]
 #[strum(serialize_all = "lowercase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

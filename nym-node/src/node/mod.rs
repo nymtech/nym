@@ -57,6 +57,8 @@ use nym_network_requester::{
 };
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::events::MetricEventsSender;
+use nym_node_requests::api::SignedData;
+use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM, LewesProtocol};
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKeyV1;
@@ -70,6 +72,7 @@ use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use rand09::SeedableRng;
+use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::path::Path;
@@ -736,13 +739,11 @@ impl NymNode {
                 self.config.gateway_tasks.lp.control_bind_address,
                 self.config.gateway_tasks.lp.data_bind_address,
             );
-            let lp_listener = gateway_tasks_builder
+            let mut lp_listener = gateway_tasks_builder
                 .build_lp_listener(wg_peer_registrator.clone(), active_clients_store.clone())
                 .await?;
-            // make sure lp listener can be built, but do not start it
-            let _ = lp_listener;
-            // self.shutdown_tracker()
-            //     .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
+            self.shutdown_tracker()
+                .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
         } else {
             info!("node not running in entry mode: the websocket and LP will remain closed");
         }
@@ -818,40 +819,24 @@ impl NymNode {
 
         Ok(())
     }
-    //
-    // fn compute_kem_key_hashes(&self) -> HashMap<LPKEM, HashMap<LPHashFunction, String>> {
-    //     let kem = LPKEM::X25519;
-    //
-    //     let kem_key_bytes = self.entry_gateway.psq_kem_key.public_key().as_bytes();
-    //
-    //     // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
-    //     let digests = produce_key_digests(kem_key_bytes.as_ref())
-    //         .into_iter()
-    //         .map(|(f, digest)| (f.into(), hex::encode(&digest)))
-    //         .collect();
-    //
-    //     let mut hashes = HashMap::new();
-    //     hashes.insert(kem, digests);
-    //     hashes
-    // }
-    //
-    // fn compute_signing_key_hashes(
-    //     &self,
-    // ) -> HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>> {
-    //     let scheme = LPSignatureScheme::Ed25519;
-    //
-    //     let kem_key_bytes = self.ed25519_identity_keys.public_key().as_bytes();
-    //
-    //     // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
-    //     let digests = produce_key_digests(kem_key_bytes.as_ref())
-    //         .into_iter()
-    //         .map(|(f, digest)| (f.into(), hex::encode(&digest)))
-    //         .collect();
-    //
-    //     let mut hashes = HashMap::new();
-    //     hashes.insert(scheme, digests);
-    //     hashes
-    // }
+
+    fn compute_kem_key_hashes(&self) -> BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>> {
+        let digests = self.psq_kem_keys.encapsulation_keys_digests();
+
+        // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
+        digests
+            .into_iter()
+            .map(|(kem, kem_digests)| {
+                (
+                    kem.into(),
+                    kem_digests
+                        .into_iter()
+                        .map(|(f, digest)| (f.into(), hex::encode(&digest)))
+                        .collect(),
+                )
+            })
+            .collect()
+    }
 
     pub(crate) async fn build_http_server(&self) -> Result<NymNodeHttpServer, NymNodeError> {
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
@@ -926,7 +911,21 @@ impl NymNode {
                 policy: None,
             };
 
-        let mut config = HttpServerConfig::new()
+        let lewes_protocol = LewesProtocol {
+            enabled: self.modes().entry,
+            control_port: self.config.gateway_tasks.lp.announced_control_port(),
+            data_port: self.config.gateway_tasks.lp.announced_data_port(),
+            x25519: self.x25519_lp_keys.pk,
+            kem_keys: self.compute_kem_key_hashes(),
+        };
+
+        // SAFETY: the only way for this call to fail is if serialisation of LewesProtocol fails.
+        // however, that conversion is stable and infallible
+        #[allow(clippy::unwrap_used)]
+        let signed_lewes_protocol =
+            SignedData::new(lewes_protocol, self.ed25519_identity_keys.private_key()).unwrap();
+
+        let mut config = HttpServerConfig::new(signed_lewes_protocol)
             .with_landing_page_assets(self.config.http.landing_page_assets_path.as_ref())
             .with_mixnode_details(mixnode_details)
             .with_gateway_details(gateway_details)

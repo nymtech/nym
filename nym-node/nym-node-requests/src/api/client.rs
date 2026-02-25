@@ -12,6 +12,7 @@ use nym_http_api_client::{ApiClient, HttpClientError};
 
 use super::v1::gateway::models::Wireguard;
 use super::v1::metrics::models::SessionStats;
+use crate::api::SignedLewesProtocol;
 use crate::api::v1::authenticator::models::Authenticator;
 use crate::api::v1::health::models::NodeHealth;
 use crate::api::v1::ip_packet_router::models::IpPacketRouter;
@@ -98,7 +99,7 @@ pub trait NymNodeApiClientExt: ApiClient {
             .await
     }
 
-    async fn get_lewes_protocol(&self) -> Result<LewesProtocol, NymNodeApiClientError> {
+    async fn get_lewes_protocol(&self) -> Result<SignedLewesProtocol, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::lp_absolute()).await
     }
 }

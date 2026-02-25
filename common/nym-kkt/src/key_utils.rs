@@ -3,9 +3,9 @@
 
 use libcrux_ml_kem::mlkem768::MlKem768KeyPair;
 use libcrux_psq::handshake::types::DHKeyPair;
-use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, HashFunction, KeyDigests};
+use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, HashFunction, KEMKeyDigests};
 use rand09::{CryptoRng, RngCore};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 pub fn generate_lp_keypair_x25519<R>(rng: &mut R) -> DHKeyPair
 where
@@ -38,9 +38,9 @@ pub fn hash_key_bytes(
 
 /// attempt to produce digests of the provided key using all known [HashFunction] with a default
 /// hash length where variable output is available
-pub fn produce_key_digests(key_bytes: &[u8]) -> KeyDigests {
+pub fn produce_key_digests(key_bytes: &[u8]) -> KEMKeyDigests {
     use strum::IntoEnumIterator;
-    let mut digests = HashMap::new();
+    let mut digests = BTreeMap::new();
     for hash in HashFunction::iter() {
         digests.insert(hash, hash.digest(key_bytes, DEFAULT_HASH_LEN));
     }

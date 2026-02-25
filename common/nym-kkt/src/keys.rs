@@ -3,10 +3,12 @@
 
 use crate::error::KKTError;
 use libcrux_psq::handshake::types::PQEncapsulationKey;
-use nym_kkt_ciphersuite::KEM;
+use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
+use crate::key_utils::produce_key_digests;
 pub use libcrux_ml_kem::mlkem768::{MlKem768KeyPair, MlKem768PrivateKey, MlKem768PublicKey};
 pub use libcrux_psq::classic_mceliece as mceliece;
 pub use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
@@ -39,6 +41,18 @@ impl KEMKeys {
             ml_kem768_pk: Arc::new(ml_kem768_pk),
             ml_kem768_sk: Arc::new(ml_kem768_sk),
         }
+    }
+
+    pub fn encapsulation_keys_digests(&self) -> BTreeMap<KEM, KEMKeyDigests> {
+        let mut digests = BTreeMap::new();
+
+        let mlkem_digests = produce_key_digests(self.ml_kem768_pk.as_slice());
+        let mceliece_digests = produce_key_digests(self.mc_eliece_pk.as_ref().as_ref());
+
+        digests.insert(KEM::MlKem768, mlkem_digests);
+        digests.insert(KEM::McEliece, mceliece_digests);
+
+        digests
     }
 
     pub fn encoded_encapsulation_key(&self, kem: KEM) -> Option<&[u8]> {

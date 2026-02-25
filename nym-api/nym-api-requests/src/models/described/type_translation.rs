@@ -5,15 +5,16 @@
 //! and defines required conversion methods
 
 use celes::Country;
-use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
+use nym_crypto::asymmetric::ed25519::serde_helpers::{bs58_ed25519_pubkey, bs58_ed25519_signature};
 use nym_crypto::asymmetric::x25519::serde_helpers::{bs58_dh_public_key, bs58_x25519_pubkey};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt_ciphersuite::{HashFunction, SignatureScheme, KEM};
 use nym_network_defaults::{WG_METADATA_PORT, WG_TUNNEL_PORT};
+use nym_node_requests::api::SignedData;
 use nym_noise_keys::VersionedNoiseKeyV1;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::net::IpAddr;
 use strum_macros::{Display, EnumString};
 use thiserror::Error;
@@ -200,6 +201,16 @@ pub struct WireguardDetailsV1 {
 // even if you put `#[serde(default)]` all over the place
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq)]
 pub struct LewesProtocolDetailsV1 {
+    pub content: LewesProtocolDetailsDataV1,
+
+    #[serde(with = "bs58_ed25519_signature")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    pub signature: ed25519::Signature,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq)]
+pub struct LewesProtocolDetailsDataV1 {
     /// Helper field that specifies whether the LP listener(s) is enabled on this node.
     /// It is directly controlled by the node's role (i.e. it is enabled if it supports 'entry' mode)
     pub enabled: bool,
@@ -219,14 +230,14 @@ pub struct LewesProtocolDetailsV1 {
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
     /// note: digests are hex encoded
-    pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
+    pub kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
 }
 
-impl LewesProtocolDetailsV1 {
+impl LewesProtocolDetailsDataV1 {
     fn decode_digests(
-        digests: &HashMap<LPHashFunction, String>,
-    ) -> Result<HashMap<HashFunction, Vec<u8>>, MalformedLPData> {
-        let mut kem_digests = HashMap::new();
+        digests: &BTreeMap<LPHashFunction, String>,
+    ) -> Result<BTreeMap<HashFunction, Vec<u8>>, MalformedLPData> {
+        let mut kem_digests = BTreeMap::new();
         for (hash_function, digest) in digests {
             let digest = hex::decode(digest).map_err(|source| MalformedLPData::MalformedHash {
                 value: digest.to_string(),
@@ -239,8 +250,8 @@ impl LewesProtocolDetailsV1 {
 
     pub fn kem_keys(
         &self,
-    ) -> Result<HashMap<KEM, HashMap<HashFunction, Vec<u8>>>, MalformedLPData> {
-        let mut kem_keys = HashMap::new();
+    ) -> Result<BTreeMap<KEM, BTreeMap<HashFunction, Vec<u8>>>, MalformedLPData> {
+        let mut kem_keys = BTreeMap::new();
         for (kem, digests) in &self.kem_keys {
             let kem_digests = Self::decode_digests(digests)?;
             kem_keys.insert((*kem).try_into()?, kem_digests);
@@ -251,8 +262,8 @@ impl LewesProtocolDetailsV1 {
 
 /// Convert map of digests from `nym_node_requests` types into `nym-api-requests` types
 fn translate_digests(
-    digests: HashMap<nym_node_requests::api::v1::lewes_protocol::models::LPHashFunction, String>,
-) -> HashMap<LPHashFunction, String> {
+    digests: BTreeMap<nym_node_requests::api::v1::lewes_protocol::models::LPHashFunction, String>,
+) -> BTreeMap<LPHashFunction, String> {
     digests
         .into_iter()
         .map(|(hash_fn, digest)| (hash_fn.into(), digest))
@@ -273,6 +284,7 @@ fn translate_digests(
     Display,
     EnumString,
     ToSchema,
+    Ord,
 )]
 #[strum(serialize_all = "lowercase")]
 #[non_exhaustive]
@@ -295,6 +307,7 @@ pub enum LPKEM {
     Display,
     EnumString,
     ToSchema,
+    Ord,
 )]
 #[strum(serialize_all = "lowercase")]
 #[non_exhaustive]
@@ -437,20 +450,26 @@ impl From<nym_node_requests::api::v1::gateway::models::Wireguard> for WireguardD
     }
 }
 
-impl From<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>
+impl From<SignedData<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>>
     for LewesProtocolDetailsV1
 {
-    fn from(value: nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol) -> Self {
+    fn from(
+        value: SignedData<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>,
+    ) -> Self {
         LewesProtocolDetailsV1 {
-            enabled: value.enabled,
-            control_port: value.control_port,
-            data_port: value.data_port,
-            x25519: value.x25519,
-            kem_keys: value
-                .kem_keys
-                .into_iter()
-                .map(|(kem, digests)| (kem.into(), translate_digests(digests)))
-                .collect(),
+            signature: value.signature,
+            content: LewesProtocolDetailsDataV1 {
+                enabled: value.enabled,
+                control_port: value.control_port,
+                data_port: value.data_port,
+                x25519: value.x25519,
+                kem_keys: value
+                    .data
+                    .kem_keys
+                    .into_iter()
+                    .map(|(kem, digests)| (kem.into(), translate_digests(digests)))
+                    .collect(),
+            },
         }
     }
 }
@@ -547,5 +566,16 @@ impl TryFrom<LPSignatureScheme> for SignatureScheme {
             // TODO: for backwards compatibility once variants within the LP crate change
             // other => Err(MalformedLPData::UnknownLpSignatureScheme { value: other }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn signature_validity_after_conversion() {
+        // make sure the serialisation stays the same and signature is still valid
+        todo!()
     }
 }

@@ -12,7 +12,7 @@ bytes = { workspace = true }
 tracing = { workspace = true }
 rand09 = { workspace = true }
 
-nym-crypto = { path = "../crypto", features = ["hashing", "asymmetric"] }
+nym-crypto = { path = "../crypto", features = ["hashing"] }
 nym-kkt = { path = "../nym-kkt" }
 nym-kkt-ciphersuite = { workspace = true }
 nym-lp-common = { path = "../nym-lp-common" }
@@ -29,14 +29,13 @@ nym-test-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
-nym-crypto = { path = "../crypto", features = ["rand"] }
 nym-test-utils = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 nym-lp-transport = { path = "../nym-lp-transport", features = ["io-mocks"] }
 
 [features]
-mock = ["nym-test-utils", "nym-crypto/rand"]
+mock = ["nym-test-utils"]
 
 [[bench]]
 name = "replay_protection"

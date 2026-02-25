@@ -44,7 +44,7 @@ jobs:
       - name: Build project
         run: pnpm run build
       - name: Generate sitemap
-        run: npx --yes next-sitemap
+        run: npx next-sitemap
       - name: Move files to /dist/
         run: ../scripts/move-to-dist.sh
 

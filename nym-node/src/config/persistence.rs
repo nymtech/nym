@@ -19,6 +19,12 @@ pub const DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME: &str = "x25519_noise";
 pub const DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME: &str = "x25519_noise.pub";
 pub const DEFAULT_NYMNODE_DESCRIPTION_FILENAME: &str = "description.toml";
 
+// Global/LP:
+pub const DEFAULT_MLKEM768_PRIVATE_KEY_FILENAME: &str = "mlkem768";
+pub const DEFAULT_MLKEM768_PUBLIC_KEY_FILENAME: &str = "mlkem768.pub";
+pub const DEFAULT_MCELIECE_PRIVATE_KEY_FILENAME: &str = "mceliece";
+pub const DEFAULT_MCELIECE_PUBLIC_KEY_FILENAME: &str = "mceliece.pub";
+
 // Mixnode:
 
 // Entry Gateway:

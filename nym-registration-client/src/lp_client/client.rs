@@ -707,11 +707,11 @@ where
     /// the gateway to look up the session for decryption.
     ///
     /// # Returns
-    /// * `Ok(u32)` - The session ID
+    /// * `Ok(u64)` - The session ID
     ///
     /// # Errors
     /// Returns an error if handshake has not been completed.
-    pub fn session_id(&self) -> Result<u32> {
+    pub fn session_id(&self) -> Result<u64> {
         self.state_machine()?
             .session()
             .map(|s| s.receiver_index())

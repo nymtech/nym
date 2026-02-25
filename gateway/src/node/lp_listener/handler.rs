@@ -712,7 +712,6 @@ mod tests {
 
         let lp_config = LpConfig {
             debug: LpDebug {
-                timestamp_tolerance: Duration::from_secs(30),
                 ..Default::default()
             },
             ..Default::default()

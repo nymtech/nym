@@ -8,7 +8,7 @@ use nym_ip_packet_requests::IpPair;
 use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests};
 use nym_sphinx::addressing::Recipient;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 pub use lp_messages::*;
@@ -56,7 +56,7 @@ pub struct WireguardConfiguration {
 #[derive(Clone, Debug)]
 pub struct NymNodeLPInformation {
     pub address: SocketAddr,
-    pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
+    pub expected_kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
     pub x25519: x25519::PublicKey,
 
     // to be inferred from node's version

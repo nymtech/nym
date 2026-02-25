@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
+use crate::node_status_api::models::AxumResult;
 use crate::support::http::helpers::PaginationRequest;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};

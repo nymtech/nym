@@ -61,8 +61,8 @@ Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://
 This is a quick summary, to understand the logic behind fundamentals like [rewarded set selection](#rewarded-set-selection), [node performance](#mixnet-node-performance-calculation), [stake saturation](#stake-saturation), or [rewards calculation](#rewards-calculation), please read the chapters below.
 
 * **The current reward system is called [*Naive rewarding*](#naive-rewarding) - an intermediate step - where the operators of `nym-node` get rewarded from [Mixmining pool](https://validator.nymtech.net/api/v1/epoch/reward_params), which emits <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> NYM per hour**
-* **Only nodes selected to [rewarded set](../tokenomics.mdx#active-set) of Mixnet receive rewards**
-* The [rewarded set](../tokenomics.mdx#active-set) of the Mixnet is currently **240 nodes in total and it's selected for each new epoch (60 min)**, from all the nodes registered (bonded) in the network
+* **Only nodes selected to [rewarded set](../tokenomics#rewarded-set) of Mixnet receive rewards**
+* The [rewarded set](../tokenomics#rewarded-set) of the Mixnet is currently **240 nodes in total and it's selected for each new epoch (60 min)**, from all the nodes registered (bonded) in the network
 * Each node gets the same proportion of work factor because of the *naive* distribution of work
 * In the [final model](#roadmap), nodes will get rewarded based on their layer position and the work they do (collected user tickets), where the work factor distribution per layer will be according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as [listed below](#nym-network-rewarded-set-distribution)
 * If a node is selected to the rewarded set, it will be rewarded in the end of the epoch, based on this reward calculation formula:
@@ -146,7 +146,7 @@ In reality there is a an additional value called **&alpha;**, giving a premium t
 | **Network layer** | **1** | **2** |
 | :-- | :---: | :---: |
 | Node functionality in layer | Entry Gateway  | Exit Gateway |
-| Naive rewarding: Nodes in [active set](tokenomics.mdx#active-set) |  only Mixnet mode  | only Mixnet mode |
+| Naive rewarding: Nodes in [active set](../tokenomics#rewarded-set) |  only Mixnet mode  | only Mixnet mode |
 | Naive rewarding\*: Maximum work fraction per node | only Mixnet mode | only Mixnet mode |
 | Final model\*\*: Layer multiplier | 0.33 | 0.67 |
 

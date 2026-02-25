@@ -3,7 +3,7 @@
 
 [package]
 name = "nyx-chain-watcher"
-version = "0.1.14"
+version = "0.1.15"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -26,7 +26,7 @@ nym-network-defaults = { workspace = true }
 nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
 nyxd-scraper-sqlite = { path = "../common/nyxd-scraper-sqlite" }
-reqwest = { workspace = true, features = ["rustls-tls"] }
+reqwest = { workspace = true, features = ["rustls"] }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "time"] }

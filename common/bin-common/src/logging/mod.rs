@@ -10,7 +10,7 @@ pub use opentelemetry;
 pub use opentelemetry_jaeger;
 #[cfg(feature = "tracing")]
 pub use tracing_opentelemetry;
-#[cfg(feature = "tracing")]
+#[cfg(feature = "basic_tracing")]
 pub use tracing_subscriber;
 #[cfg(feature = "tracing")]
 pub use tracing_tree;

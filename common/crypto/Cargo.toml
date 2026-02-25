@@ -33,7 +33,7 @@ thiserror = { workspace = true }
 zeroize = { workspace = true, optional = true, features = ["zeroize_derive"] }
 
 # internal
-nym-sphinx-types = { workspace = true }
+nym-sphinx-types = { workspace = true, optional = true }
 nym-pemstore = { workspace = true }
 
 [dev-dependencies]
@@ -51,7 +51,7 @@ serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"
 asymmetric = ["x25519-dalek", "ed25519-dalek", "curve25519-dalek", "sha2", "zeroize"]
 hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2", "zeroize"]
 stream_cipher = ["aes", "ctr", "cipher", "generic-array"]
-sphinx = ["nym-sphinx-types/sphinx"]
+sphinx = ["nym-sphinx-types", "nym-sphinx-types/sphinx"]
 
 [lints]
 workspace = true

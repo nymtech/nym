@@ -9,7 +9,7 @@
 //! The underlying KKT protocol is implemented in the `session` module.
 
 use nym_crypto::asymmetric::{ed25519, x25519};
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore};
 
 use crate::{
     ciphersuite::{Ciphersuite, EncapsulationKey},
@@ -33,7 +33,7 @@ use crate::frame::KKTFrame;
 /// The request will be signed with the provided signing key.
 ///
 /// # Arguments
-/// * `rng` - Random number generator
+/// * `rng` - random number generator
 /// * `ciphersuite` - Negotiated ciphersuite (KEM, hash, signature algorithms)
 /// * `signing_key` - Client's Ed25519 signing key for authentication
 /// * `responder_dh_public_key` - Responder's long-term x25519 Diffie-Hellman public key
@@ -90,7 +90,7 @@ pub fn request_kem_key<R: CryptoRng + RngCore>(
 /// # Example
 /// ```ignore
 /// let gateway_kem_key = validate_kem_response(
-///     &mut context,
+///     &context,
 ///     &session_secret,
 ///     &gateway_verification_key,
 ///     &expected_hash_from_directory,
@@ -199,14 +199,14 @@ mod tests {
 
     fn random_x25519_key() -> x25519::PrivateKey {
         let mut bytes = [0u8; 32];
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
         rng.fill_bytes(&mut bytes);
         x25519::PrivateKey::from_secret(bytes)
     }
 
     #[test]
     fn test_kkt_wrappers_oneway_authenticated() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         // Generate Ed25519 keypairs for both parties
         let mut initiator_secret = [0u8; 32];
@@ -241,7 +241,7 @@ mod tests {
         );
 
         // Client: Request KEM key
-        let (session_key, mut context, request_frame_ciphertext) = request_kem_key(
+        let (session_key, context, request_frame_ciphertext) = request_kem_key(
             &mut rng,
             ciphersuite,
             ed25519_init.private_key(),
@@ -262,7 +262,7 @@ mod tests {
 
         // Client: Validate response
         let obtained_key = validate_kem_response(
-            &mut context,
+            &context,
             &session_key,
             ed25519_resp.public_key(),
             &key_hash,
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_kkt_wrappers_anonymous() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         // Only responder has keys
         let mut responder_secret = [0u8; 32];
@@ -304,8 +304,7 @@ mod tests {
         );
 
         // Anonymous initiator
-        let (mut context, request_frame) =
-            anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
+        let (context, request_frame) = anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
 
         // Generate the session's shared secret and encrypt the Initiator's request
         let (session_secret, encrypted_request_bytes) =
@@ -324,7 +323,7 @@ mod tests {
 
         // Initiator: Validate response
         let obtained_key = validate_kem_response(
-            &mut context,
+            &context,
             &session_secret,
             responder_keypair.public_key(),
             &key_hash,
@@ -337,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_invalid_signature_rejected() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         let mut initiator_secret = [0u8; 32];
         rng.fill_bytes(&mut initiator_secret);
@@ -390,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_hash_mismatch_rejected() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         let mut initiator_secret = [0u8; 32];
         rng.fill_bytes(&mut initiator_secret);
@@ -417,7 +416,7 @@ mod tests {
         // Use WRONG hash
         let wrong_hash = [0u8; 32];
 
-        let (session_key, mut context, request_frame) = request_kem_key(
+        let (session_key, context, request_frame) = request_kem_key(
             &mut rng,
             ciphersuite,
             initiator_keypair.private_key(),
@@ -437,7 +436,7 @@ mod tests {
 
         // Client validates with WRONG hash
         let result = validate_kem_response(
-            &mut context,
+            &context,
             &session_key,
             responder_keypair.public_key(),
             &wrong_hash, // Wrong!

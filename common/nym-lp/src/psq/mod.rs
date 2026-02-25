@@ -1,0 +1,340 @@
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::codec::OuterAeadKey;
+use crate::message::ErrorPacketData;
+use crate::packet::LpHeader;
+use crate::peer::{LpLocalPeer, LpRemotePeer};
+use crate::psq::helpers::LpTransportHandshakeExt;
+use crate::{LpError, LpMessage, LpPacket};
+use nym_kkt::ciphersuite::Ciphersuite;
+use nym_lp_transport::traits::LpTransport;
+use tracing::debug;
+
+mod helpers;
+mod initiator;
+mod responder;
+
+pub(crate) struct IntermediateHandshakeFailure {
+    /// Session id established during exchange if we managed to derive it
+    session_id: Option<u32>,
+
+    /// Protocol version established during the exchange
+    protocol_version: Option<u8>,
+
+    /// Outer aead key established during exchange if we managed to derive it
+    outer_aead_key: Option<OuterAeadKey>,
+
+    /// The error source
+    source: LpError,
+}
+
+impl IntermediateHandshakeFailure {
+    fn plain(source: LpError) -> IntermediateHandshakeFailure {
+        IntermediateHandshakeFailure {
+            session_id: None,
+            protocol_version: None,
+            outer_aead_key: None,
+            source,
+        }
+    }
+}
+
+pub struct PSQHandshakeState<'a, S> {
+    /// The underlying connection established for the handshake
+    connection: &'a mut S,
+
+    /// Protocol version used for the exchange.
+    /// either known implicitly through the directory (initiator)
+    /// or established through client hello (responder)
+    protocol_version: Option<u8>,
+
+    /// Ciphersuite selected for the KKT/PSQ exchange
+    ciphersuite: Ciphersuite,
+
+    /// Representation of a local Lewes Protocol peer
+    /// encapsulating all the known information and keys.
+    local_peer: LpLocalPeer,
+
+    /// Representation of a remote Lewes Protocol peer
+    /// encapsulating all the known information and keys.
+    remote_peer: Option<LpRemotePeer>,
+
+    /// Counter for outgoing packets
+    sending_counter: u64,
+}
+
+impl<'a, S> PSQHandshakeState<'a, S>
+where
+    S: LpTransport + Unpin,
+{
+    pub fn new(connection: &'a mut S, ciphersuite: Ciphersuite, local_peer: LpLocalPeer) -> Self {
+        PSQHandshakeState {
+            connection,
+            protocol_version: None,
+            ciphersuite,
+            local_peer,
+            remote_peer: None,
+            sending_counter: 0,
+        }
+    }
+
+    #[must_use]
+    pub fn with_protocol_version(mut self, protocol_version: u8) -> Self {
+        self.protocol_version = Some(protocol_version);
+        self
+    }
+
+    #[must_use]
+    pub fn with_remote_peer(mut self, remote_peer: LpRemotePeer) -> Self {
+        self.remote_peer = Some(remote_peer);
+        self
+    }
+
+    fn protocol_version(&self) -> Result<u8, LpError> {
+        self.protocol_version
+            .ok_or_else(|| LpError::kkt_psq_handshake("unknown protocol version"))
+    }
+
+    /// Generates the next counter value for outgoing packets.
+    pub fn next_counter(&mut self) -> u64 {
+        let counter = self.sending_counter;
+        self.sending_counter += 1;
+        counter
+    }
+
+    pub fn next_packet(
+        &mut self,
+        session_id: u32,
+        protocol_version: u8,
+        message: LpMessage,
+    ) -> LpPacket {
+        let counter = self.next_counter();
+        let header = LpHeader::new(session_id, counter, protocol_version);
+        LpPacket::new(header, message)
+    }
+
+    pub(crate) async fn try_send_error_packet(
+        &mut self,
+        err: IntermediateHandshakeFailure,
+    ) -> LpError {
+        // if session_id is not known, we can't send the packet back (with the current design)
+        let (Some(session_id), Some(protocol)) = (err.session_id, err.protocol_version) else {
+            return err.source;
+        };
+        if let Err(err) = self
+            .send_error_packet(
+                session_id,
+                protocol,
+                err.source.to_string(),
+                err.outer_aead_key.as_ref(),
+            )
+            .await
+        {
+            debug!("failed to send back error response: {err}")
+        }
+        err.source
+    }
+
+    /// Attempt to send an error packet
+    pub(crate) async fn send_error_packet(
+        &mut self,
+        session_id: u32,
+        protocol_version: u8,
+        msg: impl Into<String>,
+        outer_aead_key: Option<&OuterAeadKey>,
+    ) -> Result<(), LpError> {
+        let packet = self.next_packet(
+            session_id,
+            protocol_version,
+            LpMessage::Error(ErrorPacketData::new(msg)),
+        );
+        self.connection.send_packet(packet, outer_aead_key).await?;
+        Ok(())
+    }
+
+    /// Attempt to receive a packet from connection, explicitly checking for an error response
+    /// and returning corresponding message if received
+    pub(crate) async fn receive_non_error(
+        &mut self,
+        outer_aead_key: Option<&OuterAeadKey>,
+    ) -> Result<LpPacket, LpError> {
+        let packet = self.connection.receive_packet(outer_aead_key).await?;
+
+        match &packet.message {
+            LpMessage::Error(error_packet) => Err(LpError::kkt_psq_handshake(format!(
+                "remote error: {}",
+                error_packet.message
+            ))),
+            _ => Ok(packet),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::peer::mock_peers;
+    use crate::psq::helpers::LpTransportHandshakeExt;
+    use crate::psq::responder::DEFAULT_TIMESTAMP_TOLERANCE;
+    use mock_instant::thread_local::MockClock;
+    use nym_kkt::ciphersuite::{HashFunction, HashLength, KEM, SignatureScheme};
+    use nym_test_utils::mocks::async_read_write::MockIOStream;
+    use nym_test_utils::traits::{Leak, TimeboxedSpawnable};
+    use std::time::Duration;
+    use tokio::join;
+
+    #[allow(dead_code)]
+    async fn extract_error(conn: &mut MockIOStream) -> String {
+        let packet = conn.receive_packet(None).await.unwrap();
+        match packet.message {
+            LpMessage::Error(error) => error.message,
+            _ => panic!("non error packet"),
+        }
+    }
+
+    #[tokio::test]
+    async fn e2e_psq_handshake() -> anyhow::Result<()> {
+        let conn_init = MockIOStream::default();
+        let conn_resp = conn_init.try_get_remote_handle();
+
+        // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
+        // so they'd get 'static lifetime
+        let conn_init = conn_init.leak();
+        let conn_resp = conn_resp.leak();
+
+        let ciphersuite = Ciphersuite::new(
+            KEM::X25519,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
+        );
+
+        let (init, resp) = mock_peers();
+        let resp_remote = resp.as_remote();
+
+        let handshake_init = PSQHandshakeState::new(conn_init, ciphersuite, init)
+            .with_protocol_version(1)
+            .with_remote_peer(resp_remote);
+        let handshake_resp = PSQHandshakeState::new(conn_resp, ciphersuite, resp);
+
+        let resp_fut = handshake_resp.complete_as_responder().spawn_timeboxed();
+        let init_fut = handshake_init.complete_as_initiator().spawn_timeboxed();
+
+        let (session_init, session_resp) = join!(init_fut, resp_fut);
+
+        let session_init = session_init???;
+        let session_resp = session_resp???;
+
+        assert_eq!(session_init.id(), session_resp.id());
+        assert_eq!(
+            session_init.outer_aead_key().as_bytes(),
+            session_resp.outer_aead_key().as_bytes()
+        );
+        assert_eq!(
+            session_init.pq_shared_secret().as_bytes(),
+            session_resp.pq_shared_secret().as_bytes()
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn preparing_client_hello_initiator() -> anyhow::Result<()> {
+        let mut conn_init = MockIOStream::default();
+        let mut conn_resp = conn_init.try_get_remote_handle();
+
+        let ciphersuite = Ciphersuite::new(
+            KEM::X25519,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
+        );
+        let (init, resp) = mock_peers();
+        let resp_remote = resp.as_remote();
+
+        // as initiator
+        let mut handshake_init = PSQHandshakeState::new(&mut conn_init, ciphersuite, init)
+            .with_protocol_version(1)
+            .with_remote_peer(resp_remote);
+
+        // you can generate and send (valid) client hello as initiator
+        let client_hello = handshake_init.send_client_hello().await?;
+        let LpMessage::ClientHello(received_client_hello) =
+            conn_resp.receive_packet(None).await?.message
+        else {
+            panic!("wrong message type");
+        };
+        assert_eq!(client_hello, received_client_hello);
+        Ok(())
+    }
+
+    // essentially make sure you can't accidentally trigger the handshake as the responder
+    #[tokio::test]
+    async fn preparing_client_hello_responder() -> anyhow::Result<()> {
+        let conn_init = MockIOStream::default();
+        let mut conn_resp = conn_init.try_get_remote_handle();
+
+        let ciphersuite = Ciphersuite::new(
+            KEM::X25519,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
+        );
+        let (_, resp) = mock_peers();
+
+        // as initiator
+        let mut handshake_resp = PSQHandshakeState::new(&mut conn_resp, ciphersuite, resp);
+
+        // you can generate and send (valid) client hello as initiator
+        let sending_res = handshake_resp.send_client_hello().await;
+        assert!(sending_res.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_receive_client_hello_timestamp_too_skewed() -> anyhow::Result<()> {
+        let current_time = Duration::from_secs(10000);
+        MockClock::set_system_time(current_time);
+
+        let too_old = current_time - DEFAULT_TIMESTAMP_TOLERANCE - Duration::from_secs(1);
+        let too_recent = current_time + DEFAULT_TIMESTAMP_TOLERANCE + Duration::from_secs(1);
+
+        let ciphersuite = Ciphersuite::new(
+            KEM::X25519,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
+        );
+
+        // TOO OLD
+        let mut conn_init = MockIOStream::default();
+        let mut conn_resp = conn_init.try_get_remote_handle();
+        let (init, resp) = mock_peers();
+
+        let mut handshake_resp = PSQHandshakeState::new(&mut conn_resp, ciphersuite, resp);
+        let client_hello_too_old = init.build_client_hello_data(too_old.as_secs());
+
+        conn_init
+            .send_packet(client_hello_too_old.into_lp_packet(1), None)
+            .await?;
+        let err = handshake_resp.receive_client_hello().await.unwrap_err();
+        assert!(err.to_string().contains("too old"));
+
+        // TOO RECENT
+        let mut conn_init = MockIOStream::default();
+        let mut conn_resp = conn_init.try_get_remote_handle();
+        let (init, resp) = mock_peers();
+
+        let mut handshake_resp = PSQHandshakeState::new(&mut conn_resp, ciphersuite, resp);
+        let client_hello_too_recent = init.build_client_hello_data(too_recent.as_secs());
+
+        conn_init
+            .send_packet(client_hello_too_recent.into_lp_packet(1), None)
+            .await?;
+        let err = handshake_resp.receive_client_hello().await.unwrap_err();
+
+        assert!(err.to_string().contains("too future"));
+        Ok(())
+    }
+}

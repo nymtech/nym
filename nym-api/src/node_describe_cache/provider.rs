@@ -12,6 +12,7 @@ use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
 use async_trait::async_trait;
 use futures::{stream, StreamExt};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use tracing::{error, info};
 
 pub struct NodeDescriptionProvider {
@@ -90,23 +91,11 @@ impl CacheItemProvider for NodeDescriptionProvider {
     }
 }
 
-// currently dead code : (
-#[allow(dead_code)]
-pub(crate) fn new_refresher(
-    config: &config::DescribeCache,
-    contract_cache: MixnetContractCache,
-) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
-    CacheRefresher::new(
-        NodeDescriptionProvider::new(contract_cache, config.debug.allow_illegal_ips)
-            .with_batch_size(config.debug.batch_size),
-        config.debug.caching_interval,
-    )
-}
-
 pub(crate) fn new_provider_with_initial_value(
     config: &config::DescribeCache,
     contract_cache: MixnetContractCache,
     initial: SharedCache<DescribedNodes>,
+    on_disk_file: PathBuf,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new_with_initial_value(
         Box::new(
@@ -116,4 +105,6 @@ pub(crate) fn new_provider_with_initial_value(
         config.debug.caching_interval,
         initial,
     )
+    .named("node-self-described-data-refresher")
+    .with_persistent_cache(on_disk_file)
 }

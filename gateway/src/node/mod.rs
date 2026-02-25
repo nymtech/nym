@@ -362,7 +362,6 @@ impl GatewayTasksBuilder {
             peer_registrator,
             lp_config: self.config.lp,
             outbound_mix_sender: self.mix_packet_sender.clone(),
-            handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),
             forward_semaphore: Arc::new(Semaphore::new(
                 self.config.lp.debug.max_concurrent_forwards,

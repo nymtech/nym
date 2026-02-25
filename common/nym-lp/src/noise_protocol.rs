@@ -82,6 +82,13 @@ pub enum ReadResult {
 // --- Implementation ---
 
 impl NoiseProtocol {
+    pub fn params() -> NoiseParams {
+        // SAFETY: the hardcoded pattern must be valid
+        // and if for some reason it was not, we MUST fail non-gracefully for there is no possible recovery
+        #[allow(clippy::unwrap_used)]
+        crate::NOISE_PATTERN.parse().unwrap()
+    }
+
     /// Creates a new `NoiseProtocol` instance in the Handshaking state.
     ///
     /// Takes an initialized `snow::HandshakeState` (e.g., from `snow::Builder`).
@@ -89,6 +96,46 @@ impl NoiseProtocol {
         NoiseProtocol {
             state: NoiseProtocolState::Handshaking(Box::new(initial_state)),
         }
+    }
+
+    fn prepare_handshake_state<'a>(
+        local_private_key: &'a [u8],
+        remote_public_key: &'a [u8],
+        psk: &'a [u8],
+    ) -> snow::Builder<'a> {
+        let psk_index = crate::NOISE_PSK_INDEX;
+        let noise_params = NoiseProtocol::params();
+
+        snow::Builder::new(noise_params)
+            .local_private_key(local_private_key)
+            .remote_public_key(remote_public_key)
+            .psk(psk_index, psk)
+    }
+
+    /// Builds a new `NoiseProtocol` initiator instance with the provided local private key,
+    /// remote public key and psk
+    pub fn build_new_initiator(
+        local_private_key: &[u8],
+        remote_public_key: &[u8],
+        psk: &[u8],
+    ) -> Result<Self, NoiseError> {
+        let handshake_state =
+            Self::prepare_handshake_state(local_private_key, remote_public_key, psk)
+                .build_initiator()?;
+        Ok(Self::new(handshake_state))
+    }
+
+    /// Builds a new `NoiseProtocol` responder instance with the provided local private key,
+    /// remote public key and psk
+    pub fn build_new_responder(
+        local_private_key: &[u8],
+        remote_public_key: &[u8],
+        psk: &[u8],
+    ) -> Result<Self, NoiseError> {
+        let handshake_state =
+            Self::prepare_handshake_state(local_private_key, remote_public_key, psk)
+                .build_responder()?;
+        Ok(Self::new(handshake_state))
     }
 
     /// Processes a single, complete incoming Noise message frame.
@@ -287,44 +334,4 @@ impl NoiseProtocol {
             _ => Err(NoiseError::IncorrectStateError),
         }
     }
-}
-
-pub fn create_noise_state(
-    local_private_key: &[u8],
-    remote_public_key: &[u8],
-    psk: &[u8],
-) -> Result<NoiseProtocol, NoiseError> {
-    let pattern_name = crate::NOISE_PATTERN;
-    let psk_index = crate::NOISE_PSK_INDEX;
-    let noise_params: NoiseParams = pattern_name.parse().unwrap();
-
-    let builder = snow::Builder::new(noise_params.clone());
-    // Using dummy remote key as it's not needed for state creation itself
-    // In a real scenario, the key would depend on initiator/responder role
-    let handshake_state = builder
-        .local_private_key(local_private_key)
-        .remote_public_key(remote_public_key) // Use own public as dummy remote
-        .psk(psk_index, psk)
-        .build_initiator()?;
-    Ok(NoiseProtocol::new(handshake_state))
-}
-
-pub fn create_noise_state_responder(
-    local_private_key: &[u8],
-    remote_public_key: &[u8],
-    psk: &[u8],
-) -> Result<NoiseProtocol, NoiseError> {
-    let pattern_name = crate::NOISE_PATTERN;
-    let psk_index = crate::NOISE_PSK_INDEX;
-    let noise_params: NoiseParams = pattern_name.parse().unwrap();
-
-    let builder = snow::Builder::new(noise_params.clone());
-    // Using dummy remote key as it's not needed for state creation itself
-    // In a real scenario, the key would depend on initiator/responder role
-    let handshake_state = builder
-        .local_private_key(local_private_key)
-        .remote_public_key(remote_public_key) // Use own public as dummy remote
-        .psk(psk_index, psk)
-        .build_responder()?;
-    Ok(NoiseProtocol::new(handshake_state))
 }

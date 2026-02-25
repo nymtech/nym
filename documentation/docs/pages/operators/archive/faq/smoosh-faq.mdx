@@ -10,7 +10,7 @@ import { Callout } from 'nextra/components';
 > -- Harry Halpin,  Nym CEO
 
 
-This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the [Mix Nodes FAQ page](mixnodes-faq.md) holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page.
+This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the Mix Nodes FAQ page holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page.
 
 If any questions are not answered or it's not clear for you in which stage project Smoosh is right now, please reach out in Node Operators [Matrix room](https://matrix.to/#/#operators:nymtech.chat).
 
@@ -22,7 +22,7 @@ Project Smoosh will have four steps, please follow the table below to track the 
 | **Step**                                                                                                                                                                                                                                                                                                                                         | **Status**     |
 | :---                                                                                                                                                                                                                                                                                                                                             | :---           |
 | **1.** Combine the `nym-gateway` and `nym-network-requester` into one binary                                                                                                                                                                                                                                                                     | ✅ done        |
-| **2.** Create [Exit Gateway](../../legal/exit-gateway.md): Take the `nym-gateway` binary including `nym-network-requester` combined in \#1 and switch from [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) | ✅ done        |
+| **2.** Create [Exit Gateway](/operators/community-counsel/exit-gateway): Take the `nym-gateway` binary including `nym-network-requester` combined in \#1 and switch from [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) | ✅ done        |
 | **3.** Combine all the nodes in the Nym Mixnet into one binary, that is `nym-mixnode`, `nym-gateway` (entry and exit) and `nym-network-requester`.                                                                                                                                                                                               | ✅ done        |
 | **4.** Adjust reward scheme to incentivise and reward Exit Gateways as a part of `nym-node` binary, implementing [zkNym credentials](https://youtu.be/nLmdsZ1BsQg?t=1717).                                                                                                                                                                       | 🛠️ in progress |
 | **5.** Implement multiple node functionalities into one `nym-node` connected to one Nyx account.                                                                                                                                                                                                                                                 | 🛠️ in progress |
@@ -40,7 +40,7 @@ We are exploring two potential methods for implementing binary functionality in 
 
 ### Where can I read more about the Exit Gateway setup?
 
-We created an [entire page](../../legal/exit-gateway.md) about the technical and legal questions around Exit Gateway.
+We created an [entire page](/operators/community-counsel/exit-gateway) about the technical and legal questions around Exit Gateway.
 
 ### What is the change from allow list to deny list?
 

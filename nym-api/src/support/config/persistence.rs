@@ -18,27 +18,9 @@ pub const DEFAULT_DKG_PUBLIC_KEY_WITH_PROOF_FILENAME: &str = "dkg_public_key_wit
 // don't want to be changing the defaults in case something breaks..., but it should be called ecash.pem instead
 pub const DEFAULT_ECASH_KEY_FILENAME: &str = "coconut.pem";
 
+pub const DEFAULT_CACHES_DIRECTORY: &str = ".cache";
 pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
 pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
-
-// #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-// pub struct NymApiPathfinder {
-//     pub network_monitor: NetworkMonitorPathfinder,
-//
-//     pub node_status_api: NodeStatusAPIPathfinder,
-//
-//     pub coconut: CoconutSignerPathfinder,
-// }
-//
-// impl NymApiPathfinder {
-//     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
-//         NymApiPathfinder {
-//             network_monitor: NetworkMonitorPathfinder::new_default(id.as_ref()),
-//             node_status_api: NodeStatusAPIPathfinder::new_default(id.as_ref()),
-//             coconut: CoconutSignerPathfinder::new_default(id.as_ref()),
-//         }
-//     }
-// }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NetworkMonitorPaths {
@@ -106,6 +88,11 @@ impl EcashSignerPaths {
 #[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct NymApiPaths {
+    /// Path to directory containing persistent caches of, for example,
+    /// the describe information, performance, etc.
+    /// It is used for restarting the nym-api and preserving the data
+    pub persistent_cache_directory: PathBuf,
+
     /// Path to file containing private identity key of the nym-api.
     pub private_identity_key_file: PathBuf,
 
@@ -118,9 +105,14 @@ impl NymApiPaths {
         let data_dir = default_data_directory(id);
 
         NymApiPaths {
+            persistent_cache_directory: data_dir.join(DEFAULT_CACHES_DIRECTORY),
             private_identity_key_file: data_dir.join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME),
             public_identity_key_file: data_dir.join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME),
         }
+    }
+
+    pub fn cache_file(&self, name: impl AsRef<Path>) -> PathBuf {
+        self.persistent_cache_directory.join(name)
     }
 
     pub fn load_identity(&self) -> anyhow::Result<ed25519::KeyPair> {

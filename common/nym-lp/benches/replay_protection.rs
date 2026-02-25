@@ -1,8 +1,8 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use nym_lp::replay::ReceivingKeyCounterValidator;
+use nym_test_utils::helpers::u64_seeded_rng;
 use parking_lot::Mutex;
-use rand::{Rng, SeedableRng};
-use rand_chacha::ChaCha8Rng;
+use rand::Rng;
 use std::sync::Arc;
 
 fn bench_sequential_counters(c: &mut Criterion) {
@@ -47,7 +47,7 @@ fn bench_out_of_order_counters(c: &mut Criterion) {
                 let validator = ReceivingKeyCounterValidator::default();
 
                 // Create random counters within a valid window
-                let mut rng = ChaCha8Rng::seed_from_u64(42);
+                let mut rng = u64_seeded_rng(42);
                 let counters: Vec<u64> = (0..size).map(|_| rng.gen_range(0..1024)).collect();
 
                 b.iter(|| {

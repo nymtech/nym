@@ -572,6 +572,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "aws-lc-rs"
+version = "1.15.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b7b6141e96a8c160799cc2d5adecd5cbbe5054cb8c7c4af53da0f83bb7ad256"
+dependencies = [
+ "aws-lc-sys",
+ "zeroize",
+]
+
+[[package]]
+name = "aws-lc-sys"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c34dda4df7017c8db52132f0f8a2e0f8161649d15723ed63fc00c82d0f2081a"
+dependencies = [
+ "cc",
+ "cmake",
+ "dunce",
+ "fs_extra",
+]
+
+[[package]]
 name = "axum"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -986,9 +1008,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.11.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
+checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 dependencies = [
  "serde",
 ]
@@ -1078,6 +1100,12 @@ dependencies = [
  "phf 0.11.3",
  "serde",
 ]
+
+[[package]]
+name = "cesu8"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d43a04d8753f35258c91f8ec639f792891f748a1edbd759cf1dcea3382ad83c"
 
 [[package]]
 name = "cfg-if"
@@ -1257,6 +1285,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmake"
+version = "0.1.57"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75443c44cd6b379beb8c5b45d85d0773baf31cce901fe7bb252f4eff3008ef7d"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "coarsetime"
 version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1281,6 +1318,16 @@ checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "combine"
+version = "4.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
+dependencies = [
+ "bytes",
+ "memchr",
 ]
 
 [[package]]
@@ -1438,6 +1485,16 @@ name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91e195e091a93c46f7102ec7818a2aa394e1e1771c3ab4825963fa03e45afb8f"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
+]
+
+[[package]]
+name = "core-foundation"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2a6cd9ae233e7f62ba4e9353e81a88df7fc8a5987b8d445b4d90c879bd156f6"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -1866,7 +1923,7 @@ checksum = "79fc3b6dd0b87ba36e565715bf9a2ced221311db47bd18011676f24a6066edbc"
 dependencies = [
  "curl-sys",
  "libc",
- "openssl-probe",
+ "openssl-probe 0.1.6",
  "openssl-sys",
  "schannel",
  "socket2 0.6.1",
@@ -2433,6 +2490,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dunce"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2440,7 +2503,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "easy-addr"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "cosmwasm-std",
  "quote",
@@ -2864,6 +2927,12 @@ checksum = "88a41f105fe1d5b6b34b2055e3dc59bb79b46b48b2040b9e6c7b4b5de097aa41"
 dependencies = [
  "autocfg",
 ]
+
+[[package]]
+name = "fs_extra"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
 
 [[package]]
 name = "fsevent-sys"
@@ -3701,7 +3770,6 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.26.4",
  "tower-service",
- "webpki-roots 1.0.5",
 ]
 
 [[package]]
@@ -4281,6 +4349,28 @@ dependencies = [
  "quote",
  "syn 2.0.114",
 ]
+
+[[package]]
+name = "jni"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a87aa2bb7d2af34197c04845522473242e1aa17c12f4935d5856491a7fb8c97"
+dependencies = [
+ "cesu8",
+ "cfg-if",
+ "combine",
+ "jni-sys",
+ "log",
+ "thiserror 1.0.69",
+ "walkdir",
+ "windows-sys 0.45.0",
+]
+
+[[package]]
+name = "jni-sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 
 [[package]]
 name = "jobserver"
@@ -5241,9 +5331,9 @@ dependencies = [
 
 [[package]]
 name = "num-conv"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+checksum = "cf97ec579c3c42f953ef76dbf8d55ac91fb219dde70e49aa4a6b7d74e9919050"
 
 [[package]]
 name = "num-integer"
@@ -5318,7 +5408,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.73"
+version = "1.1.74"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5374,7 +5464,7 @@ dependencies = [
  "pin-project",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "schemars 0.8.22",
  "semver 1.0.27",
  "serde",
@@ -5401,7 +5491,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api-requests"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bs58",
  "celes",
@@ -5444,7 +5534,7 @@ dependencies = [
 
 [[package]]
 name = "nym-async-file-watcher"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "futures",
  "log",
@@ -5454,7 +5544,7 @@ dependencies = [
 
 [[package]]
 name = "nym-authenticator-client"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bincode",
  "futures",
@@ -5476,7 +5566,7 @@ dependencies = [
 
 [[package]]
 name = "nym-authenticator-requests"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "base64 0.22.1",
  "bincode",
@@ -5500,7 +5590,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bandwidth-controller"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "log",
@@ -5517,7 +5607,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bin-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "clap",
  "clap_complete",
@@ -5556,14 +5646,14 @@ dependencies = [
 
 [[package]]
 name = "nym-cache"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "tokio",
 ]
 
 [[package]]
 name = "nym-cli"
-version = "1.1.70"
+version = "1.1.71"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5587,7 +5677,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli-commands"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5646,7 +5736,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.70"
+version = "1.1.71"
 dependencies = [
  "bs58",
  "clap",
@@ -5683,7 +5773,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-core"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -5744,7 +5834,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-core-config-types"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "humantime-serde",
  "nym-config",
@@ -5759,7 +5849,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-core-gateways-storage"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5778,7 +5868,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-core-surb-storage"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5824,7 +5914,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-websocket-requests"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-sphinx",
  "serde",
@@ -5833,7 +5923,7 @@ dependencies = [
 
 [[package]]
 name = "nym-coconut-dkg-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5846,7 +5936,7 @@ dependencies = [
 
 [[package]]
 name = "nym-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "tracing",
  "tracing-test",
@@ -5854,7 +5944,7 @@ dependencies = [
 
 [[package]]
 name = "nym-compact-ecash"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bincode",
  "bs58",
@@ -5878,7 +5968,7 @@ dependencies = [
 
 [[package]]
 name = "nym-config"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "dirs",
  "handlebars",
@@ -5910,7 +6000,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "bs58",
@@ -5927,7 +6017,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common-testing"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "cosmwasm-std",
@@ -5941,7 +6031,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cpp-ffi"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "bs58",
@@ -5982,7 +6072,7 @@ dependencies = [
  "nym-upgrade-mode-check",
  "nym-validator-client",
  "rand 0.8.5",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "sqlx",
@@ -6004,7 +6094,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credential-proxy-lib"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "axum",
@@ -6023,7 +6113,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-validator-client",
  "rand 0.8.5",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "sqlx",
@@ -6042,7 +6132,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credential-proxy-requests"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "nym-credentials",
@@ -6051,7 +6141,7 @@ dependencies = [
  "nym-http-api-common",
  "nym-serde-helpers",
  "nym-upgrade-mode-check",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -6066,7 +6156,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credential-storage"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6089,7 +6179,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credential-utils"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "log",
  "nym-bandwidth-controller",
@@ -6107,7 +6197,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credential-verification"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "bs58",
@@ -6135,7 +6225,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credentials"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bincode",
  "cosmrs",
@@ -6159,7 +6249,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credentials-interface"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-bls12_381-fork",
  "nym-compact-ecash",
@@ -6177,7 +6267,7 @@ dependencies = [
 
 [[package]]
 name = "nym-crypto"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "aead",
  "aes 0.8.4",
@@ -6212,7 +6302,7 @@ dependencies = [
 
 [[package]]
 name = "nym-data-observatory"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6229,7 +6319,7 @@ dependencies = [
  "nym-validator-client",
  "nyxd-scraper-psql",
  "nyxd-scraper-shared",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -6249,7 +6339,7 @@ dependencies = [
 
 [[package]]
 name = "nym-dkg"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bitvec",
  "bs58",
@@ -6271,7 +6361,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-contract-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -6285,7 +6375,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-signer-check"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "futures",
  "nym-ecash-signer-check-types",
@@ -6293,6 +6383,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-validator-client",
  "semver 1.0.27",
+ "serde",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -6301,7 +6392,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-signer-check-types"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-coconut-dkg-common",
  "nym-crypto",
@@ -6316,7 +6407,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-time"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-compact-ecash",
  "time",
@@ -6324,9 +6415,9 @@ dependencies = [
 
 [[package]]
 name = "nym-exit-policy"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -6336,7 +6427,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ffi-shared"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "bs58",
@@ -6414,7 +6505,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway-client"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "futures",
  "getrandom 0.2.16",
@@ -6488,7 +6579,7 @@ dependencies = [
  "nym-validator-client",
  "pnet_packet",
  "rand 0.8.5",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "time",
@@ -6503,7 +6594,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway-requests"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "bs58",
@@ -6535,7 +6626,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway-stats-storage"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "nym-node-metrics",
@@ -6551,7 +6642,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway-storage"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6570,7 +6661,7 @@ dependencies = [
 
 [[package]]
 name = "nym-go-ffi"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "lazy_static",
@@ -6587,7 +6678,7 @@ dependencies = [
 
 [[package]]
 name = "nym-group-contract-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "cosmwasm-schema",
  "cw-controllers",
@@ -6598,7 +6689,7 @@ dependencies = [
 
 [[package]]
 name = "nym-http-api-client"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "bincode",
@@ -6615,7 +6706,7 @@ dependencies = [
  "nym-http-api-common",
  "nym-network-defaults",
  "once_cell",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "serde_plain",
@@ -6630,20 +6721,20 @@ dependencies = [
 
 [[package]]
 name = "nym-http-api-client-macro"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-http-api-client",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "syn 2.0.114",
  "uuid",
 ]
 
 [[package]]
 name = "nym-http-api-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "axum",
  "axum-client-ip",
@@ -6665,7 +6756,7 @@ dependencies = [
 
 [[package]]
 name = "nym-id"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-credential-storage",
  "nym-credentials",
@@ -6691,7 +6782,7 @@ dependencies = [
 
 [[package]]
 name = "nym-inclusion-probability"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "log",
  "rand 0.8.5",
@@ -6700,7 +6791,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ip-packet-client"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bincode",
  "bytes",
@@ -6715,7 +6806,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ip-packet-requests"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bincode",
  "bytes",
@@ -6733,7 +6824,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ip-packet-router"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6764,7 +6855,7 @@ dependencies = [
  "nym-wireguard",
  "nym-wireguard-types",
  "rand 0.8.5",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -6810,7 +6901,7 @@ dependencies = [
 
 [[package]]
 name = "nym-kkt-ciphersuite"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "blake3",
  "libcrux-sha3",
@@ -6822,7 +6913,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ledger"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bip32",
  "k256",
@@ -6835,6 +6926,7 @@ dependencies = [
 name = "nym-lp"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bs58",
  "bytes",
  "chacha20poly1305",
@@ -6843,20 +6935,22 @@ dependencies = [
  "libcrux-kem",
  "libcrux-psq",
  "libcrux-traits",
+ "mock_instant",
  "num_enum",
  "nym-crypto",
  "nym-kkt",
  "nym-lp-common",
+ "nym-lp-transport",
  "nym-test-utils",
  "parking_lot",
  "rand 0.8.5",
  "rand 0.9.2",
- "rand_chacha 0.3.1",
  "serde",
  "sha2 0.10.9",
  "snow",
  "thiserror 2.0.17",
  "tls_codec",
+ "tokio",
  "tracing",
  "zeroize",
 ]
@@ -6911,7 +7005,7 @@ dependencies = [
 
 [[package]]
 name = "nym-metrics"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "dashmap",
  "lazy_static",
@@ -6921,7 +7015,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-client"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "dashmap",
  "futures",
@@ -6938,7 +7032,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -6961,7 +7055,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bytes",
  "futures",
@@ -6988,7 +7082,7 @@ dependencies = [
 
 [[package]]
 name = "nym-multisig-contract-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -7003,7 +7097,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-defaults"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "cargo_metadata 0.19.2",
  "dotenvy",
@@ -7042,7 +7136,7 @@ dependencies = [
  "petgraph",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "tokio",
@@ -7054,7 +7148,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.71"
+version = "1.1.72"
 dependencies = [
  "addr",
  "anyhow",
@@ -7088,7 +7182,7 @@ dependencies = [
  "publicsuffix",
  "rand 0.8.5",
  "regex",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "sqlx",
@@ -7104,7 +7198,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.25.0"
+version = "1.26.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -7192,7 +7286,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-metrics"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "dashmap",
  "futures",
@@ -7206,7 +7300,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-requests"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "celes",
@@ -7253,7 +7347,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.0.14"
+version = "4.1.0"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -7289,7 +7383,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "regex",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "semver 1.0.27",
  "serde",
  "serde_json",
@@ -7321,7 +7415,7 @@ dependencies = [
  "bs58",
  "nym-credentials",
  "nym-crypto",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "time",
@@ -7330,7 +7424,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-tester-utils"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "futures",
  "log",
@@ -7370,7 +7464,7 @@ dependencies = [
 
 [[package]]
 name = "nym-noise"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -7393,7 +7487,7 @@ dependencies = [
 
 [[package]]
 name = "nym-noise-keys"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-crypto",
  "schemars 0.8.22",
@@ -7403,7 +7497,7 @@ dependencies = [
 
 [[package]]
 name = "nym-nonexhaustive-delayqueue"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "tokio",
  "tokio-stream",
@@ -7429,7 +7523,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ordered-buffer"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "log",
  "thiserror 2.0.17",
@@ -7437,7 +7531,7 @@ dependencies = [
 
 [[package]]
 name = "nym-outfox"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "blake3",
  "chacha20",
@@ -7456,7 +7550,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pemstore"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "pem",
  "tracing",
@@ -7465,7 +7559,7 @@ dependencies = [
 
 [[package]]
 name = "nym-performance-contract-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -7478,7 +7572,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pool-contract-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -7491,7 +7585,7 @@ dependencies = [
 
 [[package]]
 name = "nym-registration-client"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bytes",
  "futures",
@@ -7518,7 +7612,7 @@ dependencies = [
 
 [[package]]
 name = "nym-registration-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bincode",
  "nym-authenticator-requests",
@@ -7535,7 +7629,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sdk"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7575,7 +7669,7 @@ dependencies = [
  "nym-validator-client",
  "parking_lot",
  "rand 0.8.5",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "tap",
  "tempfile",
@@ -7594,7 +7688,7 @@ dependencies = [
 
 [[package]]
 name = "nym-serde-helpers"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -7605,7 +7699,7 @@ dependencies = [
 
 [[package]]
 name = "nym-service-provider-requests-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bincode",
  "serde",
@@ -7614,19 +7708,15 @@ dependencies = [
 
 [[package]]
 name = "nym-service-providers-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
- "anyhow",
  "async-trait",
  "log",
  "nym-bin-common",
- "nym-sdk",
- "nym-socks5-requests",
  "nym-sphinx-anonymous-replies",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
- "tokio",
 ]
 
 [[package]]
@@ -7651,7 +7741,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.70"
+version = "1.1.71"
 dependencies = [
  "bs58",
  "clap",
@@ -7684,7 +7774,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client-core"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "dirs",
@@ -7705,7 +7795,7 @@ dependencies = [
  "nym-validator-client",
  "pin-project",
  "rand 0.8.5",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "schemars 0.8.22",
  "serde",
  "tap",
@@ -7716,7 +7806,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-proxy-helpers"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bytes",
  "futures",
@@ -7731,7 +7821,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-requests"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bincode",
  "log",
@@ -7746,7 +7836,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-crypto",
  "nym-metrics",
@@ -7772,7 +7862,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-acknowledgements"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "generic-array 0.14.7",
  "nym-crypto",
@@ -7790,7 +7880,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-addressing"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bincode",
  "nym-crypto",
@@ -7803,7 +7893,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-anonymous-replies"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bs58",
  "nym-crypto",
@@ -7821,7 +7911,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-chunking"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "dashmap",
  "log",
@@ -7839,7 +7929,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-cover"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-crypto",
  "nym-sphinx-acknowledgements",
@@ -7856,7 +7946,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-forwarding"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-anonymous-replies",
@@ -7867,7 +7957,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-framing"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bytes",
  "cfg-if",
@@ -7884,7 +7974,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-params"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-crypto",
  "nym-sphinx-types",
@@ -7894,7 +7984,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-routing"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-types",
@@ -7903,7 +7993,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sphinx-types"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-outfox",
  "sphinx-packet",
@@ -7912,7 +8002,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sqlx-pool-guard"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "proc_pidinfo",
  "sqlx",
@@ -7955,7 +8045,7 @@ dependencies = [
 
 [[package]]
 name = "nym-statistics-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "futures",
  "log",
@@ -7980,7 +8070,7 @@ dependencies = [
 
 [[package]]
 name = "nym-store-cipher"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -7995,7 +8085,7 @@ dependencies = [
 
 [[package]]
 name = "nym-task"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -8013,7 +8103,7 @@ dependencies = [
 
 [[package]]
 name = "nym-test-utils"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "futures",
@@ -8025,7 +8115,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ticketbooks-merkle"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "nym-credentials-interface",
  "nym-serde-helpers",
@@ -8042,7 +8132,7 @@ dependencies = [
 
 [[package]]
 name = "nym-topology"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "nym-api-requests",
@@ -8052,7 +8142,7 @@ dependencies = [
  "nym-sphinx-types",
  "nym-wasm-utils",
  "rand 0.8.5",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -8064,7 +8154,7 @@ dependencies = [
 
 [[package]]
 name = "nym-tun"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "etherparse",
  "log",
@@ -8076,7 +8166,7 @@ dependencies = [
 
 [[package]]
 name = "nym-types"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "base64 0.22.1",
  "cosmrs",
@@ -8090,7 +8180,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-validator-client",
  "nym-vesting-contract-common",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -8107,14 +8197,14 @@ dependencies = [
 
 [[package]]
 name = "nym-upgrade-mode-check"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "jwt-simple",
  "nym-crypto",
  "nym-http-api-client",
  "nym-test-utils",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -8125,7 +8215,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-client"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8159,7 +8249,7 @@ dependencies = [
  "nym-serde-helpers",
  "nym-vesting-contract-common",
  "prost",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -8219,7 +8309,7 @@ dependencies = [
 
 [[package]]
 name = "nym-verloc"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bytes",
  "futures",
@@ -8240,7 +8330,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -8254,7 +8344,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vpn-api-lib-wasm"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "bs58",
  "getrandom 0.2.16",
@@ -8299,7 +8389,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wasm-client-core"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "console_error_panic_hook",
@@ -8333,7 +8423,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wasm-storage"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "getrandom 0.2.16",
@@ -8349,7 +8439,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wasm-utils"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "console_error_panic_hook",
  "futures",
@@ -8365,7 +8455,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wireguard"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -8395,7 +8485,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wireguard-private-metadata-client"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "nym-http-api-client",
@@ -8405,7 +8495,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wireguard-private-metadata-server"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8425,7 +8515,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wireguard-private-metadata-shared"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "axum",
  "bincode",
@@ -8438,7 +8528,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wireguard-private-metadata-tests"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "axum",
@@ -8462,7 +8552,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wireguard-types"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "base64 0.22.1",
  "nym-crypto",
@@ -8474,7 +8564,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.35"
+version = "0.1.36"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8490,7 +8580,7 @@ dependencies = [
  "nym-bin-common",
  "nym-config",
  "nym-task",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -8504,7 +8594,7 @@ dependencies = [
 
 [[package]]
 name = "nyx-chain-watcher"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8517,7 +8607,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "nyxd-scraper-sqlite",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "schemars 0.8.22",
  "serde",
  "sqlx",
@@ -8552,7 +8642,7 @@ dependencies = [
 
 [[package]]
 name = "nyxd-scraper-shared"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -8649,6 +8739,12 @@ name = "openssl-probe"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
+
+[[package]]
+name = "openssl-probe"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
 
 [[package]]
 name = "openssl-sys"
@@ -9481,6 +9577,7 @@ version = "0.11.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1906b49b0c3bc04b5fe5d86a77925ae6524a19b816ae38ce1e426255f1d8a31"
 dependencies = [
+ "aws-lc-rs",
  "bytes",
  "getrandom 0.3.4",
  "lru-slab",
@@ -9741,9 +9838,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.12.28"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
+checksum = "04e9018c9d814e5f30cc16a0f03271aeab3571e609612d9fe78c1aa8d11c2f62"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -9762,6 +9859,7 @@ dependencies = [
  "quinn",
  "rustls 0.23.36",
  "rustls-pki-types",
+ "rustls-platform-verifier",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -9777,7 +9875,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
- "webpki-roots 1.0.5",
 ]
 
 [[package]]
@@ -9996,6 +10093,7 @@ version = "0.23.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c665f33d38cea657d9614f766881e4d510e0eda4239891eea56b4cadcf01801b"
 dependencies = [
+ "aws-lc-rs",
  "log",
  "once_cell",
  "ring",
@@ -10011,10 +10109,10 @@ version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9aace74cb666635c918e9c12bc0d348266037aa8eb599b5cba565709a8dff00"
 dependencies = [
- "openssl-probe",
+ "openssl-probe 0.1.6",
  "rustls-pemfile 1.0.4",
  "schannel",
- "security-framework",
+ "security-framework 2.11.1",
 ]
 
 [[package]]
@@ -10023,11 +10121,23 @@ version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5bfb394eeed242e909609f56089eecfe5fda225042e8b171791b9c95f5931e5"
 dependencies = [
- "openssl-probe",
+ "openssl-probe 0.1.6",
  "rustls-pemfile 2.2.0",
  "rustls-pki-types",
  "schannel",
- "security-framework",
+ "security-framework 2.11.1",
+]
+
+[[package]]
+name = "rustls-native-certs"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "612460d5f7bea540c490b2b6395d8e34a953e52b491accd6c86c8164c5932a63"
+dependencies = [
+ "openssl-probe 0.2.1",
+ "rustls-pki-types",
+ "schannel",
+ "security-framework 3.5.1",
 ]
 
 [[package]]
@@ -10059,6 +10169,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustls-platform-verifier"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d99feebc72bae7ab76ba994bb5e121b8d83d910ca40b36e0921f53becc41784"
+dependencies = [
+ "core-foundation 0.10.1",
+ "core-foundation-sys",
+ "jni",
+ "log",
+ "once_cell",
+ "rustls 0.23.36",
+ "rustls-native-certs 0.8.3",
+ "rustls-platform-verifier-android",
+ "rustls-webpki 0.103.8",
+ "security-framework 3.5.1",
+ "security-framework-sys",
+ "webpki-root-certs",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "rustls-platform-verifier-android"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
+
+[[package]]
 name = "rustls-webpki"
 version = "0.101.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10085,6 +10222,7 @@ version = "0.103.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ffdfa2f5286e2247234e03f680868ac2815974dc39e00ea15adc445d0aafe52"
 dependencies = [
+ "aws-lc-rs",
  "ring",
  "rustls-pki-types",
  "untrusted",
@@ -10257,7 +10395,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "897b2245f0b511c87893af39b033e5ca9cce68824c4d7e7630b5a1d339658d02"
 dependencies = [
  "bitflags 2.10.0",
- "core-foundation",
+ "core-foundation 0.9.4",
+ "core-foundation-sys",
+ "libc",
+ "security-framework-sys",
+]
+
+[[package]]
+name = "security-framework"
+version = "3.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3297343eaf830f66ede390ea39da1d462b6b0c1b000f420d0a83f898bbbe6ef"
+dependencies = [
+ "bitflags 2.10.0",
+ "core-foundation 0.10.1",
  "core-foundation-sys",
  "libc",
  "security-framework-sys",
@@ -11224,7 +11375,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba3a3adc5c275d719af8cb4272ea1c4a6d668a777f37e115f6d11ddbc1c8e0e7"
 dependencies = [
  "bitflags 1.3.2",
- "core-foundation",
+ "core-foundation 0.9.4",
  "system-configuration-sys",
 ]
 
@@ -11524,9 +11675,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.44"
+version = "0.3.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91e7d9e3bb61134e77bde20dd4825b97c010155709965fedf0f49bb138e52a9d"
+checksum = "743bd48c283afc0388f9b8827b976905fb217ad9e647fae3a379a9283c4def2c"
 dependencies = [
  "deranged",
  "itoa",
@@ -11535,22 +11686,22 @@ dependencies = [
  "num-conv",
  "num_threads",
  "powerfmt",
- "serde",
+ "serde_core",
  "time-core",
  "time-macros",
 ]
 
 [[package]]
 name = "time-core"
-version = "0.1.6"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40868e7c1d2f0b8d73e4a8c7f0ff63af4f6d19be117e90bd73eb1d62cf831c6b"
+checksum = "7694e1cfe791f8d31026952abf09c69ca6f6fa4e1a1229e18988f06a04a12dca"
 
 [[package]]
 name = "time-macros"
-version = "0.2.24"
+version = "0.2.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30cfb0125f12d9c277f35663a0a33f8c30190f4e4574868a330595412d34ebf3"
+checksum = "2e70e4c5a0e0a8a4823ad65dfe1a6930e4f4d756dcd9dd7939022b5e8c501215"
 dependencies = [
  "num-conv",
  "time-core",
@@ -12785,9 +12936,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.19.0"
+version = "1.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2e054861b4bd027cd373e18e8d8d8e6548085000e41290d95ce0c373a654b4a"
+checksum = "ee48d38b119b0cd71fe4141b30f5ba9c7c5d9f4e7a3a8b4a674e4b6ef789976f"
 dependencies = [
  "getrandom 0.3.4",
  "js-sys",
@@ -13111,6 +13262,15 @@ dependencies = [
  "phf_codegen",
  "string_cache",
  "string_cache_codegen",
+]
+
+[[package]]
+name = "webpki-root-certs"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36a29fc0408b113f68cf32637857ab740edfafdf460c326cd2afaa2d84cc05dc"
+dependencies = [
+ "rustls-pki-types",
 ]
 
 [[package]]
@@ -13925,7 +14085,7 @@ dependencies = [
 
 [[package]]
 name = "zknym-lib"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -13939,7 +14099,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-wasm-utils",
  "rand 0.8.5",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "thiserror 2.0.17",
  "tokio",
@@ -13998,12 +14158,12 @@ dependencies = [
 
 [[package]]
 name = "zulip-client"
-version = "1.20.1"
+version = "1.20.4"
 dependencies = [
  "itertools 0.14.0",
  "nym-bin-common",
  "nym-http-api-client",
- "reqwest 0.12.28",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "thiserror 2.0.17",

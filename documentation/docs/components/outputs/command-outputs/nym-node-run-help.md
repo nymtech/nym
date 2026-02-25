@@ -62,6 +62,8 @@ Options:
           Tunnel port announced to external clients wishing to connect to the wireguard interface. Useful in the instances where the node is behind a proxy [env: NYMNODE_WG_ANNOUNCED_PORT=]
       --wireguard-private-network-prefix <WIREGUARD_PRIVATE_NETWORK_PREFIX>
           The prefix denoting the maximum number of the clients that can be connected via Wireguard. The maximum value for IPv4 is 32 and for IPv6 is 128 [env: NYMNODE_WG_PRIVATE_NETWORK_PREFIX=]
+      --wireguard-userspace <WIREGUARD_USERSPACE>
+          Use userspace implementation of WireGuard (wireguard-go) instead of kernel module. Useful in containerized environments without kernel WireGuard support [env: NYMNODE_WG_USERSPACE=] [possible values: true, false]
       --verloc-bind-address <VERLOC_BIND_ADDRESS>
           Socket address this node will use for binding its verloc API. default: `[::]:1790` [env: NYMNODE_VERLOC_BIND_ADDRESS=]
       --verloc-announce-port <VERLOC_ANNOUNCE_PORT>
@@ -80,6 +82,8 @@ Options:
           Endpoint to query to retrieve current upgrade mode attestation. This argument should never be set outside testnets and local networks [env: NYMNODE_UPGRADE_MODE_ATTESTATION_URL=]
       --upgrade-mode-attester-public-key <UPGRADE_MODE_ATTESTER_PUBLIC_KEY>
           Expected public key of the entity signing the published attestation. This argument should never be set outside testnets and local networks [env: NYMNODE_UPGRADE_MODE_ATTESTER_PUBKEY=]
+      --lp-use-mock-ecash <LP_USE_MOCK_ECASH>
+          Use mock ecash manager for LP testing. WARNING: Only use this for local testing! Never enable in production. When enabled, the LP listener will accept any credential without blockchain verification [env: NYMNODE_LP_USE_MOCK_ECASH=] [possible values: true, false]
       --upstream-exit-policy-url <UPSTREAM_EXIT_POLICY_URL>
           Specifies the url for an upstream source of the exit policy used by this node [env: NYMNODE_UPSTREAM_EXIT_POLICY=]
       --open-proxy <OPEN_PROXY>

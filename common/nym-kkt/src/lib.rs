@@ -38,7 +38,7 @@ mod test {
 
     #[test]
     fn test_kkt_psq_e2e_clear() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         // generate ed25519 keys
         let initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
@@ -106,18 +106,18 @@ mod test {
 
                 // Anonymous Initiator, OneWay
                 {
-                    let (mut i_context, i_frame) =
+                    let (i_context, i_frame) =
                         anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
 
                     let i_frame_bytes = i_frame.to_bytes();
 
                     let (i_frame_r, r_context) = KKTFrame::from_bytes(&i_frame_bytes).unwrap();
 
-                    let (mut r_context, _) =
+                    let (r_context, _) =
                         responder_ingest_message(&r_context, None, None, &i_frame_r).unwrap();
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -129,7 +129,7 @@ mod test {
                     let (i_frame_r, i_context_r) = KKTFrame::from_bytes(&r_bytes).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),
@@ -141,7 +141,7 @@ mod test {
                 }
                 // Initiator, OneWay
                 {
-                    let (mut i_context, i_frame) = initiator_process(
+                    let (i_context, i_frame) = initiator_process(
                         &mut rng,
                         crate::context::KKTMode::OneWay,
                         ciphersuite,
@@ -154,7 +154,7 @@ mod test {
 
                     let (i_frame_r, r_context) = KKTFrame::from_bytes(&i_frame_bytes).unwrap();
 
-                    let (mut r_context, r_obtained_key) = responder_ingest_message(
+                    let (r_context, r_obtained_key) = responder_ingest_message(
                         &r_context,
                         Some(initiator_ed25519_keypair.public_key()),
                         None,
@@ -165,7 +165,7 @@ mod test {
                     assert!(r_obtained_key.is_none());
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -177,7 +177,7 @@ mod test {
                     let (i_frame_r, i_context_r) = KKTFrame::from_bytes(&r_bytes).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),
@@ -190,7 +190,7 @@ mod test {
 
                 // Initiator, Mutual
                 {
-                    let (mut i_context, i_frame) = initiator_process(
+                    let (i_context, i_frame) = initiator_process(
                         &mut rng,
                         crate::context::KKTMode::Mutual,
                         ciphersuite,
@@ -203,7 +203,7 @@ mod test {
 
                     let (i_frame_r, r_context) = KKTFrame::from_bytes(&i_frame_bytes).unwrap();
 
-                    let (mut r_context, r_obtained_key) = responder_ingest_message(
+                    let (r_context, r_obtained_key) = responder_ingest_message(
                         &r_context,
                         Some(initiator_ed25519_keypair.public_key()),
                         Some(&i_dir_hash),
@@ -214,7 +214,7 @@ mod test {
                     assert_eq!(r_obtained_key.unwrap().encode(), i_kem_key_bytes);
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -226,7 +226,7 @@ mod test {
                     let (i_frame_r, i_context_r) = KKTFrame::from_bytes(&r_bytes).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),
@@ -241,7 +241,7 @@ mod test {
     }
     #[test]
     fn test_kkt_psq_e2e_encrypted() {
-        let mut rng = rand::rng();
+        let mut rng = rand09::rng();
 
         // generate ed25519 keys
         let initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
@@ -312,7 +312,7 @@ mod test {
 
                 // Anonymous Initiator, OneWay
                 {
-                    let (mut i_context, i_frame) =
+                    let (i_context, i_frame) =
                         anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
 
                     // encryption - initiator frame
@@ -330,11 +330,11 @@ mod test {
                         decrypt_initial_kkt_frame(responder_x25519_keypair.private_key(), &i_bytes)
                             .unwrap();
 
-                    let (mut r_context, _) =
+                    let (r_context, _) =
                         responder_ingest_message(&i_context_r, None, None, &i_frame_r).unwrap();
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -352,7 +352,7 @@ mod test {
                         decrypt_kkt_frame(&i_session_secret, &r_bytes, KKT_RESPONSE_AAD).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),
@@ -364,7 +364,7 @@ mod test {
                 }
                 // Initiator, OneWay
                 {
-                    let (mut i_context, i_frame) = initiator_process(
+                    let (i_context, i_frame) = initiator_process(
                         &mut rng,
                         crate::context::KKTMode::OneWay,
                         ciphersuite,
@@ -388,7 +388,7 @@ mod test {
                         decrypt_initial_kkt_frame(responder_x25519_keypair.private_key(), &i_bytes)
                             .unwrap();
 
-                    let (mut r_context, r_obtained_key) = responder_ingest_message(
+                    let (r_context, r_obtained_key) = responder_ingest_message(
                         &r_context,
                         Some(initiator_ed25519_keypair.public_key()),
                         None,
@@ -399,7 +399,7 @@ mod test {
                     assert!(r_obtained_key.is_none());
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -417,7 +417,7 @@ mod test {
                         decrypt_kkt_frame(&i_session_secret, &r_bytes, KKT_RESPONSE_AAD).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),
@@ -430,7 +430,7 @@ mod test {
 
                 // Initiator, Mutual
                 {
-                    let (mut i_context, i_frame) = initiator_process(
+                    let (i_context, i_frame) = initiator_process(
                         &mut rng,
                         crate::context::KKTMode::Mutual,
                         ciphersuite,
@@ -454,7 +454,7 @@ mod test {
                         decrypt_initial_kkt_frame(responder_x25519_keypair.private_key(), &i_bytes)
                             .unwrap();
 
-                    let (mut r_context, r_obtained_key) = responder_ingest_message(
+                    let (r_context, r_obtained_key) = responder_ingest_message(
                         &i_context_r,
                         Some(initiator_ed25519_keypair.public_key()),
                         Some(&i_dir_hash),
@@ -465,7 +465,7 @@ mod test {
                     assert_eq!(r_obtained_key.unwrap().encode(), i_kem_key_bytes);
 
                     let r_frame = responder_process(
-                        &mut r_context,
+                        &r_context,
                         i_frame_r.session_id(),
                         responder_ed25519_keypair.private_key(),
                         &responder_kem_public_key,
@@ -483,7 +483,7 @@ mod test {
                         decrypt_kkt_frame(&i_session_secret, &r_bytes, KKT_RESPONSE_AAD).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
-                        &mut i_context,
+                        &i_context,
                         &i_frame_r,
                         &i_context_r,
                         responder_ed25519_keypair.public_key(),

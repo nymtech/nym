@@ -1,8 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::packet::LpHeader;
 use crate::peer::LpRemotePeer;
-use crate::{BOOTSTRAP_RECEIVER_IDX, LpError};
+use crate::{BOOTSTRAP_RECEIVER_IDX, LpError, LpPacket};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -12,7 +13,7 @@ use std::fmt::{self, Display};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 /// Data structure for the ClientHello message
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct ClientHelloData {
     /// Client-proposed receiver index for session identification (4 bytes)
     /// Auto-generated randomly by the client
@@ -28,6 +29,17 @@ pub struct ClientHelloData {
 impl ClientHelloData {
     // 4 bytes for receiver index + 32 bytes for client lp key, 32 bytes for client ed25519 key + 32 bytes for salt
     pub const LEN: usize = 100;
+
+    pub fn into_lp_packet(self, protocol_version: u8) -> LpPacket {
+        LpPacket::new(
+            LpHeader::new(
+                BOOTSTRAP_RECEIVER_IDX, // session_id not yet established
+                0,                      // counter starts at 0
+                protocol_version,
+            ),
+            LpMessage::ClientHello(self),
+        )
+    }
 
     fn len(&self) -> usize {
         Self::LEN
@@ -142,6 +154,8 @@ pub enum MessageType {
     SubsessionReady = 0x000C,
     /// Subsession abort - race winner tells loser to become responder
     SubsessionAbort = 0x000D,
+    /// General error
+    Error = 0x00FF,
 }
 
 impl MessageType {
@@ -158,6 +172,9 @@ impl MessageType {
 pub struct HandshakeData(pub Vec<u8>);
 
 impl HandshakeData {
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -175,6 +192,11 @@ impl HandshakeData {
 pub struct EncryptedDataPayload(pub Vec<u8>);
 
 impl EncryptedDataPayload {
+    #[allow(dead_code)]
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -193,6 +215,10 @@ impl EncryptedDataPayload {
 pub struct KKTRequestData(pub Vec<u8>);
 
 impl KKTRequestData {
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -211,6 +237,10 @@ impl KKTRequestData {
 pub struct KKTResponseData(pub Vec<u8>);
 
 impl KKTResponseData {
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -221,6 +251,52 @@ impl KKTResponseData {
 
     fn decode(bytes: &[u8]) -> Result<Self, LpError> {
         Ok(KKTResponseData(bytes.to_vec()))
+    }
+}
+
+/// General human-readable error message
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ErrorPacketData {
+    pub message: String,
+}
+
+impl ErrorPacketData {
+    pub(crate) fn new(message: impl Into<String>) -> Self {
+        ErrorPacketData {
+            message: message.into(),
+        }
+    }
+
+    fn len(&self) -> usize {
+        // length-encoding + message
+        4 + self.message.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_u32_le(self.message.len() as u32);
+        dst.put_slice(self.message.as_bytes());
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        if bytes.len() < 4 {
+            return Err(LpError::DeserializationError(format!(
+                "Too few bytes to deserialise ErrorPacketData. got {}",
+                bytes.len()
+            )));
+        }
+
+        let message_len = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
+        if bytes[4..].len() != message_len {
+            return Err(LpError::DeserializationError(format!(
+                "Wrong number of bytes to deserialise ErrorPacketData. got {}. Expected {}",
+                bytes.len(),
+                4 + message_len
+            )));
+        }
+
+        let message = String::from_utf8_lossy(&bytes[4..]).to_string();
+
+        Ok(ErrorPacketData { message })
     }
 }
 
@@ -449,6 +525,62 @@ pub enum LpMessage {
     SubsessionReady(SubsessionReadyData),
     /// Subsession abort - race winner tells loser to become responder (empty, signal only)
     SubsessionAbort,
+    /// An error has occurred
+    Error(ErrorPacketData),
+}
+
+impl From<HandshakeData> for LpMessage {
+    fn from(value: HandshakeData) -> Self {
+        LpMessage::Handshake(value)
+    }
+}
+
+impl From<EncryptedDataPayload> for LpMessage {
+    fn from(value: EncryptedDataPayload) -> Self {
+        LpMessage::EncryptedData(value)
+    }
+}
+
+impl From<ClientHelloData> for LpMessage {
+    fn from(value: ClientHelloData) -> Self {
+        LpMessage::ClientHello(value)
+    }
+}
+
+impl From<KKTRequestData> for LpMessage {
+    fn from(value: KKTRequestData) -> Self {
+        LpMessage::KKTRequest(value)
+    }
+}
+
+impl From<KKTResponseData> for LpMessage {
+    fn from(value: KKTResponseData) -> Self {
+        LpMessage::KKTResponse(value)
+    }
+}
+
+impl From<ForwardPacketData> for LpMessage {
+    fn from(value: ForwardPacketData) -> Self {
+        LpMessage::ForwardPacket(value)
+    }
+}
+
+impl From<SubsessionKK1Data> for LpMessage {
+    fn from(value: SubsessionKK1Data) -> Self {
+        LpMessage::SubsessionKK1(value)
+    }
+}
+
+impl From<SubsessionKK2Data> for LpMessage {
+    fn from(value: SubsessionKK2Data) -> Self {
+        LpMessage::SubsessionKK2(value)
+    }
+}
+
+impl From<SubsessionReadyData> for LpMessage {
+    fn from(value: SubsessionReadyData) -> Self {
+        LpMessage::SubsessionReady(value)
+    }
 }
 
 impl Display for LpMessage {
@@ -468,6 +600,7 @@ impl Display for LpMessage {
             LpMessage::SubsessionKK2(_) => write!(f, "SubsessionKK2"),
             LpMessage::SubsessionReady(_) => write!(f, "SubsessionReady"),
             LpMessage::SubsessionAbort => write!(f, "SubsessionAbort"),
+            LpMessage::Error(_) => write!(f, "Error"),
         }
     }
 }
@@ -489,6 +622,7 @@ impl LpMessage {
             LpMessage::SubsessionKK2(_) => &[], // Structured data, serialized in encode_content
             LpMessage::SubsessionReady(_) => &[], // Structured data, serialized in encode_content
             LpMessage::SubsessionAbort => &[],
+            LpMessage::Error(_) => &[], // Structured data, serialized in encode_content (?)
         }
     }
 
@@ -508,6 +642,7 @@ impl LpMessage {
             LpMessage::SubsessionKK2(_) => false, // Always has payload
             LpMessage::SubsessionReady(_) => false, // Always has receiver_index
             LpMessage::SubsessionAbort => true,   // Empty signal
+            LpMessage::Error(_) => false,
         }
     }
 
@@ -527,6 +662,7 @@ impl LpMessage {
             LpMessage::SubsessionKK2(payload) => payload.len(),
             LpMessage::SubsessionReady(payload) => payload.len(),
             LpMessage::SubsessionAbort => 0,
+            LpMessage::Error(payload) => payload.len(),
         }
     }
 
@@ -546,6 +682,7 @@ impl LpMessage {
             LpMessage::SubsessionKK2(_) => MessageType::SubsessionKK2,
             LpMessage::SubsessionReady(_) => MessageType::SubsessionReady,
             LpMessage::SubsessionAbort => MessageType::SubsessionAbort,
+            LpMessage::Error(_) => MessageType::Error,
         }
     }
 
@@ -565,6 +702,7 @@ impl LpMessage {
             LpMessage::SubsessionKK2(data) => data.encode(dst),
             LpMessage::SubsessionReady(data) => data.encode(dst),
             LpMessage::SubsessionAbort => { /* No content - signal only */ }
+            LpMessage::Error(data) => data.encode(dst),
         }
     }
 
@@ -617,6 +755,7 @@ impl LpMessage {
                 content.ensure_empty()?;
                 Ok(LpMessage::SubsessionAbort)
             }
+            MessageType::Error => Ok(LpMessage::Error(ErrorPacketData::decode(content)?)),
         }
     }
 }

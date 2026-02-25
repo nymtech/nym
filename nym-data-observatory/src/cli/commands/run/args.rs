@@ -15,9 +15,6 @@ pub(crate) struct Args {
     #[arg(long, env = NYXD_SCRAPER_START_HEIGHT)]
     pub(crate) start_block_height: Option<u32>,
 
-    #[arg(long, env = NYXD_SCRAPER_UNSAFE_NUKE_DB, default_value = "false")]
-    pub(crate) nuke_db: bool,
-
     /// (Override) Postgres connection string for chain scraper history
     #[arg(long, env = NYM_DATA_OBSERVATORY_DB_URL, alias = "db_url")]
     pub(crate) db_connection_string: Option<String>,

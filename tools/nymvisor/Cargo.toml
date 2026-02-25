@@ -1,6 +1,6 @@
 [package]
 name = "nymvisor"
-version = "0.1.35"
+version = "0.1.36"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -22,7 +22,7 @@ hex = { workspace = true }
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
 nix = { workspace = true, features = ["signal", "fs"] }
-reqwest = { workspace = true, features = ["json", "stream", "rustls-tls"] }
+reqwest = { workspace = true, features = ["json", "stream", "rustls"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

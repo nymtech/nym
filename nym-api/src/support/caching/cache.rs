@@ -1,13 +1,19 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use bincode::Options;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::fs::File;
 use std::ops::Deref;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::{RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard};
-use tracing::debug;
+use tracing::{debug, error};
 
 #[derive(Debug, Error)]
 #[error("the cache item has not been initialised")]
@@ -30,6 +36,41 @@ impl<T> Default for SharedCache<T> {
 impl<T> SharedCache<T> {
     pub(crate) fn new() -> Self {
         SharedCache::default()
+    }
+
+    #[track_caller]
+    pub(crate) fn new_with_persistent<P: AsRef<Path>>(
+        store_path: P,
+        max_cache_age: Duration,
+        fallback_value: Option<T>,
+    ) -> Self
+    where
+        T: DeserializeOwned,
+    {
+        // attempt to load data from disk
+        let Ok(disk_cached) = Cache::<T>::try_deserialise_from_file(store_path) else {
+            // if failed, fallback to fresh state
+            // (the file might not have existed, for example on initial run)
+            return if let Some(fallback_value) = fallback_value {
+                Self::new_with_value(fallback_value)
+            } else {
+                Self::new()
+            };
+        };
+        // check if the entry is not too stale
+        if disk_cached.has_expired(max_cache_age, None) {
+            // if too old, fallback to fresh state
+            debug!("cache has expired");
+            return if let Some(fallback_value) = fallback_value {
+                Self::new_with_value(fallback_value)
+            } else {
+                Self::new()
+            };
+        }
+        // use loaded value
+        SharedCache(Arc::new(RwLock::new(CachedItem {
+            inner: Some(disk_cached),
+        })))
     }
 
     pub(crate) fn new_with_value(value: T) -> Self {
@@ -230,6 +271,35 @@ impl<T> Cache<T> {
     pub fn timestamp(&self) -> OffsetDateTime {
         self.as_at
     }
+
+    #[track_caller]
+    pub(crate) fn try_serialise_to_file<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()>
+    where
+        T: Serialize,
+    {
+        SerialisableCache {
+            value: &self.value,
+            as_at: self.as_at,
+        }
+        .try_serialise_to_file(path)
+    }
+
+    #[track_caller]
+    pub(crate) fn try_deserialise_from_file<P: AsRef<Path>>(path: P) -> std::io::Result<Self>
+    where
+        T: DeserializeOwned,
+    {
+        let path = path.as_ref();
+        if !path.exists() {
+            debug!("cached file does not exist at: {}", path.display());
+            return Err(std::io::Error::other("cached file does not exist"));
+        }
+
+        DeserialisedCache::try_deserialise_from_file(path).map(|d| Cache {
+            value: d.value,
+            as_at: d.as_at,
+        })
+    }
 }
 
 impl<T> Deref for Cache<T> {
@@ -249,5 +319,102 @@ where
             value: T::default(),
             as_at: OffsetDateTime::UNIX_EPOCH,
         }
+    }
+}
+
+#[derive(Serialize)]
+struct SerialisableCache<'a, T> {
+    value: &'a T,
+
+    #[serde(with = "time::serde::rfc3339")]
+    as_at: OffsetDateTime,
+}
+
+impl<'a, T> SerialisableCache<'a, T> {
+    #[track_caller]
+    fn try_serialise_to_file<P: AsRef<Path>>(self, path: P) -> std::io::Result<()>
+    where
+        T: Serialize,
+    {
+        use ::bincode::Options;
+
+        let serialiser = make_bincode_serializer();
+        let path = path.as_ref();
+
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        let file = match File::create(path) {
+            Ok(file) => file,
+            Err(err) => {
+                error!("failed to create persistent cache file at {path:?}: {err}",);
+                return Err(err);
+            }
+        };
+
+        serialiser.serialize_into(file, &self).map_err(|err| {
+            error!("failed to serialise persistent cache file at {path:?}: {err}");
+            std::io::Error::other(err)
+        })
+    }
+}
+
+#[derive(Deserialize)]
+struct DeserialisedCache<T> {
+    value: T,
+
+    #[serde(with = "time::serde::rfc3339")]
+    as_at: OffsetDateTime,
+}
+
+impl<T> DeserialisedCache<T> {
+    #[track_caller]
+    fn try_deserialise_from_file<P: AsRef<Path>>(path: P) -> std::io::Result<Self>
+    where
+        T: DeserializeOwned,
+    {
+        use ::bincode::Options;
+
+        let serialiser = make_bincode_serializer();
+        let path = path.as_ref();
+
+        let file = match File::open(path) {
+            Ok(file) => file,
+            Err(err) => {
+                error!("failed to open persistent cache file at {path:?}: {err}",);
+                return Err(err);
+            }
+        };
+
+        serialiser.deserialize_from(file).map_err(|err| {
+            error!("failed to deserialised persistent cache file at {path:?}: {err}");
+            std::io::Error::other(err)
+        })
+    }
+}
+
+fn make_bincode_serializer() -> impl ::bincode::Options {
+    ::bincode::DefaultOptions::new()
+        .with_little_endian()
+        .with_varint_encoding()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserialisation_is_reciprocal() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let dummy_data = Cache {
+            value: "foomp".to_string(),
+            as_at: OffsetDateTime::now_utc(),
+        };
+
+        dummy_data.try_serialise_to_file(tmp.path()).unwrap();
+        let de = Cache::<String>::try_deserialise_from_file(tmp.path()).unwrap();
+        assert_eq!(dummy_data.value, de.value);
+        assert_eq!(dummy_data.as_at, de.as_at);
     }
 }

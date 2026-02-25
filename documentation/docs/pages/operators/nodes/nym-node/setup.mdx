@@ -133,7 +133,7 @@ curl -X 'GET' \
 
 #### Essential Parameters & Variables
 
-Running a `nym-node` in a `mixnode` mode requires less configuration than a full `exit-gateway` setup, we recommend operators to still follow through with all documented [configuration](configuration.md). Before you scroll down to syntax examples for the mode of your choice please familiarise yourself with the essential [paramters and variables](../../variables.mdx) convention we use in the guide.
+Running a `nym-node` in a `mixnode` mode requires less configuration than a full `exit-gateway` setup, we recommend operators to still follow through with all documented [configuration](configuration). Before you scroll down to syntax examples for the mode of your choice please familiarise yourself with the essential [paramters and variables](../../variables) convention we use in the guide.
 
 <Callout>
 To prevent over-flooding of our documentation we cannot provide with every single command syntax as there is a large combination of possibilities. Please read the [variables and parameters page](../../variables.mdx), use the explanation in `--help` option and common sence.
@@ -172,7 +172,7 @@ From `2024.14-crunch` release (`nym-node v1.2.0`) onward, `nym-node` binary does
 Furthermore, giving that legacy nodes had been deprecated for several months, Nym cannot promise 100% serialisation for operators migrating from long outdated versions. If you are about to migrate, start with  [`nym-node v1.1.0`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.3-eclipse) and keep upgrading version by version all the way to the latest one.
 </Callout>
 
-Operators who are about to migrate their nodes need to configure their [VPS](vps-setup.md) and setup `nym-node` which can be downloaded as a [pre-built binary](../binaries/pre-built-binaries.md) or compiled from [source](../binaries/building-nym.md).
+Operators who are about to migrate their nodes need to configure their [VPS](../preliminary-steps/vps-setup) and setup `nym-node` which can be downloaded as a [pre-built binary](../../binaries/pre-built-binaries) or compiled from [source](../../binaries/building-nym).
 
 To migrate a `nym-mixnode` or a `nym-gateway` to `nym-node` use, the `migrate` command with `--config-file` flag pointing to the original `config.toml` file, with a conditional argument defining which type of node this configuration belongs to. The exact steps are below.
 

@@ -6,11 +6,9 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
-use crate::noise_protocol::ReadResult;
-use crate::peer::{LpLocalPeer, LpRemotePeer};
-use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
+use crate::state_machine::{LpAction, LpInput, LpStateBare};
 use crate::{LpError, LpMessage, LpSession, LpStateMachine};
-use dashmap::DashMap;
+use std::collections::HashMap;
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
@@ -18,7 +16,7 @@ use dashmap::DashMap;
 /// ensuring proper thread-safety for concurrent access.
 pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
-    state_machines: DashMap<u32, LpStateMachine>,
+    state_machines: HashMap<u32, LpStateMachine>,
 }
 
 impl Default for SessionManager {
@@ -31,34 +29,16 @@ impl SessionManager {
     /// Creates a new session manager with empty session storage.
     pub fn new() -> Self {
         Self {
-            state_machines: DashMap::new(),
+            state_machines: HashMap::new(),
         }
     }
 
-    pub fn process_input(&self, lp_id: u32, input: LpInput) -> Result<Option<LpAction>, LpError> {
+    pub fn process_input(
+        &mut self,
+        lp_id: u32,
+        input: LpInput,
+    ) -> Result<Option<LpAction>, LpError> {
         self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
-    }
-
-    pub fn add(&self, session: LpSession) -> Result<(), LpError> {
-        let sm = LpStateMachine {
-            state: LpState::ReadyToHandshake {
-                session: Box::new(session),
-            },
-        };
-        self.state_machines.insert(sm.id()?, sm);
-        Ok(())
-    }
-
-    pub fn handshaking(&self, lp_id: u32) -> Result<bool, LpError> {
-        Ok(self.get_state(lp_id)? == LpStateBare::Handshaking)
-    }
-
-    pub fn should_initiate_handshake(&self, lp_id: u32) -> Result<bool, LpError> {
-        Ok(self.ready_to_handshake(lp_id)? || self.closed(lp_id)?)
-    }
-
-    pub fn ready_to_handshake(&self, lp_id: u32) -> Result<bool, LpError> {
-        Ok(self.get_state(lp_id)? == LpStateBare::ReadyToHandshake)
     }
 
     pub fn closed(&self, lp_id: u32) -> Result<bool, LpError> {
@@ -84,38 +64,27 @@ impl SessionManager {
         })?
     }
 
-    pub fn receiving_counter_mark(&self, lp_id: u32, counter: u64) -> Result<(), LpError> {
-        self.with_state_machine(lp_id, |sm| sm.session()?.receiving_counter_mark(counter))?
+    pub fn receiving_counter_mark(&mut self, lp_id: u32, counter: u64) -> Result<(), LpError> {
+        self.with_state_machine_mut(lp_id, |sm| {
+            sm.session_mut()?.receiving_counter_mark(counter)
+        })?
     }
 
-    pub fn start_handshake(&self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
-        self.prepare_handshake_message(lp_id)
+    pub fn next_counter(&mut self, lp_id: u32) -> Result<u64, LpError> {
+        self.with_state_machine_mut(lp_id, |sm| Ok(sm.session_mut()?.next_counter()))?
     }
 
-    pub fn prepare_handshake_message(&self, lp_id: u32) -> Option<Result<LpMessage, LpError>> {
-        self.with_state_machine(lp_id, |sm| sm.session().ok()?.prepare_handshake_message())
-            .ok()?
-    }
-
-    pub fn is_handshake_complete(&self, lp_id: u32) -> Result<bool, LpError> {
-        self.with_state_machine(lp_id, |sm| Ok(sm.session()?.is_handshake_complete()))?
-    }
-
-    pub fn next_counter(&self, lp_id: u32) -> Result<u64, LpError> {
-        self.with_state_machine(lp_id, |sm| Ok(sm.session()?.next_counter()))?
-    }
-
-    pub fn decrypt_data(&self, lp_id: u32, message: &LpMessage) -> Result<Vec<u8>, LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?
+    pub fn decrypt_data(&mut self, lp_id: u32, message: &LpMessage) -> Result<Vec<u8>, LpError> {
+        self.with_state_machine_mut(lp_id, |sm| {
+            sm.session_mut()?
                 .decrypt_data(message)
                 .map_err(LpError::NoiseError)
         })?
     }
 
-    pub fn encrypt_data(&self, lp_id: u32, message: &[u8]) -> Result<LpMessage, LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?
+    pub fn encrypt_data(&mut self, lp_id: u32, message: &[u8]) -> Result<LpMessage, LpError> {
+        self.with_state_machine_mut(lp_id, |sm| {
+            sm.session_mut()?
                 .encrypt_data(message)
                 .map_err(LpError::NoiseError)
         })?
@@ -123,14 +92,6 @@ impl SessionManager {
 
     pub fn current_packet_cnt(&self, lp_id: u32) -> Result<(u64, u64), LpError> {
         self.with_state_machine(lp_id, |sm| Ok(sm.session()?.current_packet_cnt()))?
-    }
-
-    pub fn process_handshake_message(
-        &self,
-        lp_id: u32,
-        message: &LpMessage,
-    ) -> Result<ReadResult, LpError> {
-        self.with_state_machine(lp_id, |sm| sm.session()?.process_handshake_message(message))?
     }
 
     pub fn session_count(&self) -> usize {
@@ -146,7 +107,7 @@ impl SessionManager {
         F: FnOnce(&LpStateMachine) -> R,
     {
         if let Some(sm) = self.state_machines.get(&lp_id) {
-            Ok(f(&sm))
+            Ok(f(sm))
         } else {
             Err(LpError::StateMachineNotFound { lp_id })
         }
@@ -154,90 +115,48 @@ impl SessionManager {
     }
 
     // For mutable access (like running process_input)
-    pub fn with_state_machine_mut<F, R>(&self, lp_id: u32, f: F) -> Result<R, LpError>
+    pub fn with_state_machine_mut<F, R>(&mut self, lp_id: u32, f: F) -> Result<R, LpError>
     where
         F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
     {
-        if let Some(mut sm) = self.state_machines.get_mut(&lp_id) {
-            Ok(f(&mut sm))
+        if let Some(sm) = self.state_machines.get_mut(&lp_id) {
+            Ok(f(sm))
         } else {
             Err(LpError::StateMachineNotFound { lp_id })
         }
     }
 
-    pub fn create_session_state_machine(
-        &self,
-        receiver_index: u32,
-        is_initiator: bool,
-        local_peer: LpLocalPeer,
-        remote_peer: LpRemotePeer,
-        salt: &[u8; 32],
-        protocol_version: u8,
-    ) -> Result<u32, LpError> {
-        let sm = LpStateMachine::new(
-            receiver_index,
-            is_initiator,
-            local_peer,
-            remote_peer,
-            salt,
-            protocol_version,
-        )?;
-
+    pub fn create_session_state_machine(&mut self, lp_session: LpSession) -> u32 {
+        let receiver_index = lp_session.id();
+        let sm = LpStateMachine::new(lp_session);
         self.state_machines.insert(receiver_index, sm);
-        Ok(receiver_index)
+        receiver_index
     }
 
     /// Method to remove a state machine
-    pub fn remove_state_machine(&self, lp_id: u32) -> bool {
+    pub fn remove_state_machine(&mut self, lp_id: u32) -> bool {
         let removed = self.state_machines.remove(&lp_id);
 
         removed.is_some()
-    }
-
-    /// Test-only method to initialize KKT state to Completed for a session.
-    /// This allows integration tests to bypass KKT exchange and directly test PSQ/handshake.
-    #[cfg(test)]
-    pub fn init_kkt_for_test(
-        &self,
-        lp_id: u32,
-        remote_x25519_pub: &nym_crypto::asymmetric::x25519::PublicKey,
-    ) -> Result<(), LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?.set_kkt_completed_for_test(remote_x25519_pub);
-            Ok(())
-        })?
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packet::version;
-    use crate::peer::{mock_peers, random_peer};
-    use nym_test_utils::helpers::deterministic_rng;
+    use crate::{SessionsMock, mock_session_for_test};
 
     #[test]
     fn test_session_manager_get() {
-        let manager = SessionManager::new();
-        let mut rng = deterministic_rng();
-        let local = random_peer(&mut rng);
-        let peer1 = random_peer(&mut rng);
+        let mut manager = SessionManager::new();
 
-        let salt = [47u8; 32];
-        let receiver_index: u32 = 1001;
+        let local_session = mock_session_for_test();
+        let id = local_session.id();
 
-        let sm_1_id = manager
-            .create_session_state_machine(
-                receiver_index,
-                true,
-                local,
-                peer1.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
+        let sm_1_id = manager.create_session_state_machine(local_session);
+        assert_eq!(sm_1_id, id);
 
-        let retrieved = manager.state_machine_exists(sm_1_id);
+        let retrieved = manager.state_machine_exists(id);
         assert!(retrieved);
 
         let not_found = manager.state_machine_exists(99);
@@ -246,24 +165,10 @@ mod tests {
 
     #[test]
     fn test_session_manager_remove() {
-        let manager = SessionManager::new();
-        let mut rng = deterministic_rng();
-        let local = random_peer(&mut rng);
-        let peer1 = random_peer(&mut rng);
+        let mut manager = SessionManager::new();
+        let local_session = mock_session_for_test();
 
-        let salt = [48u8; 32];
-        let receiver_index: u32 = 2002;
-
-        let sm_1_id = manager
-            .create_session_state_machine(
-                receiver_index,
-                true,
-                local,
-                peer1.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
+        let sm_1_id = manager.create_session_state_machine(local_session);
 
         let removed = manager.remove_state_machine(sm_1_id);
         assert!(removed);
@@ -275,47 +180,14 @@ mod tests {
 
     #[test]
     fn test_multiple_sessions() {
-        let manager = SessionManager::new();
-        let mut rng = deterministic_rng();
-        let local = random_peer(&mut rng);
-        let peer1 = random_peer(&mut rng);
-        let peer2 = random_peer(&mut rng);
-        let peer3 = random_peer(&mut rng);
+        let mut manager = SessionManager::new();
+        let session1 = SessionsMock::mock_post_handshake(123).initiator;
+        let session2 = SessionsMock::mock_post_handshake(124).initiator;
+        let session3 = SessionsMock::mock_post_handshake(125).initiator;
 
-        let salt = [49u8; 32];
-
-        let sm_1 = manager
-            .create_session_state_machine(
-                3001,
-                true,
-                local.clone(),
-                peer1.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
-
-        let sm_2 = manager
-            .create_session_state_machine(
-                3002,
-                true,
-                local.clone(),
-                peer2.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
-
-        let sm_3 = manager
-            .create_session_state_machine(
-                3003,
-                true,
-                local.clone(),
-                peer3.as_remote(),
-                &salt,
-                version::CURRENT,
-            )
-            .unwrap();
+        let sm_1 = manager.create_session_state_machine(session1);
+        let sm_2 = manager.create_session_state_machine(session2);
+        let sm_3 = manager.create_session_state_machine(session3);
 
         assert_eq!(manager.session_count(), 3);
 
@@ -330,24 +202,11 @@ mod tests {
 
     #[test]
     fn test_session_manager_create_session() {
-        let manager = SessionManager::new();
-        let (init, resp) = mock_peers();
+        let mut manager = SessionManager::new();
 
-        let salt = [50u8; 32];
-        let receiver_index: u32 = 4004;
+        let sesion = mock_session_for_test();
 
-        let sm = manager.create_session_state_machine(
-            receiver_index,
-            true,
-            init,
-            resp.as_remote(),
-            &salt,
-            version::CURRENT,
-        );
-
-        assert!(sm.is_ok());
-        let sm = sm.unwrap();
-
+        let sm = manager.create_session_state_machine(sesion);
         assert_eq!(manager.session_count(), 1);
 
         let retrieved = manager.get_state_machine_id(sm);

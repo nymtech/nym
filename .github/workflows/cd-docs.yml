@@ -6,6 +6,8 @@ on:
 jobs:
   build:
     runs-on: arc-ubuntu-22.04
+    env:
+      NEXT_PUBLIC_SITE_URL: https://nymtech.net/docs
     defaults:
       run:
         working-directory: documentation/docs
@@ -41,6 +43,8 @@ jobs:
         run: pnpm i
       - name: Build project
         run: pnpm run build
+      - name: Generate sitemap
+        run: npx --yes next-sitemap
       - name: Move files to /dist/
         run: ../scripts/move-to-dist.sh
 

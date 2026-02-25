@@ -5,6 +5,7 @@ pub mod codec;
 pub mod error;
 pub mod packet;
 pub mod peer;
+pub mod peer_config;
 pub mod psq;
 pub mod replay;
 pub mod session;

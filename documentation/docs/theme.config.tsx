@@ -152,6 +152,8 @@ const config: DocsThemeConfig = {
   //   text: Footer,
   // },
   darkMode: true,
+  primaryHue: 135,
+  primarySaturation: 64,
   nextThemes: {
     defaultTheme: "dark",
   },

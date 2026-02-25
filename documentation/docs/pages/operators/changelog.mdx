@@ -97,9 +97,9 @@ rustc Channel:      stable
 cargo Profile:      release
 ```
 
-### Key updates for operators include:
+### Operator & Developer Updates
 
-LP Gateway and Client fixes:
+#### Features
 
 - [Registration client now properly supports fallback](https://github.com/nymtech/nym/pull/6419)
 - [Exposed WireGuard PSK for vpn-client](https://github.com/nymtech/nym/pull/6411)
@@ -108,28 +108,14 @@ LP Gateway and Client fixes:
 
 Note: This code is currently deactivated and doesn’t involve any changes for operators right now, but it will in the future.
 
-Mixnet & Networking Enhancements:
-
-- [NS API Socks5 support](https://github.com/nymtech/nym/pull/6361)
-- [Two-step dvpn registration flow](https://github.com/nymtech/nym/pull/6386)
-- [DVPN PSK injection](https://github.com/nymtech/nym/pull/6378)
-
-Security & Encoding Improvements:
-
-- [Hex-encoding for LP key digests](https://github.com/nymtech/nym/pull/6394)
-- [Encrypted KKT](https://github.com/nymtech/nym/pull/6331)
-- [Reject packets with incompatible versions](https://github.com/nymtech/nym/pull/6326)
-
-Bugfixes & Quality-of-Life:
+#### Bugfixes
 
 - [Share IP allocation fixes](https://github.com/nymtech/nym/pull/6395)
 - [Mixnet registration fixes](https://github.com/nymtech/nym/pull/6356)
-- [Small QoL changes](https://github.com/nymtech/nym/pull/6340)
 
-Chores & Maintenance:
+#### Refactors & Maintenance
 
 - [Cleanup x25519/ed22519 usage](https://github.com/nymtech/nym/pull/6335)
-- [Upgrade to def_guard_wireguard v0.8.0](https://github.com/nymtech/nym/pull/6315)
 
 ## `v2026.2-oscypek`
 

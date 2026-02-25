@@ -34,6 +34,7 @@ human-repr = { workspace = true }
 ipnetwork = { workspace = true }
 indicatif = { workspace = true }
 rand = { workspace = true }
+rand09 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true

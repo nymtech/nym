@@ -132,17 +132,6 @@ pub struct LpDebug {
     /// Maximum concurrent connections
     pub max_connections: usize,
 
-    /// Maximum acceptable age of ClientHello timestamp in seconds (default: 30)
-    ///
-    /// ClientHello messages with timestamps older than this will be rejected
-    /// to prevent replay attacks. Value should be:
-    /// - Large enough to account for clock skew and network latency
-    /// - Small enough to limit replay attack window
-    ///
-    /// Recommended: 30-60 seconds
-    #[serde(with = "humantime_serde")]
-    pub timestamp_tolerance: Duration,
-
     /// Use mock ecash manager for testing (default: false)
     ///
     /// When enabled, the LP listener will use a mock ecash verifier that
@@ -229,9 +218,6 @@ impl Default for LpConfig {
 impl LpDebug {
     pub const DEFAULT_MAX_CONNECTIONS: usize = 10000;
 
-    // 30 seconds - balances security vs clock skew tolerance
-    pub const DEFAULT_TIMESTAMP_TOLERANCE: Duration = Duration::from_secs(30);
-
     // 90 seconds - handshakes should complete quickly
     pub const DEFAULT_HANDSHAKE_TTL: Duration = Duration::from_secs(90);
 
@@ -249,7 +235,6 @@ impl Default for LpDebug {
     fn default() -> Self {
         LpDebug {
             max_connections: Self::DEFAULT_MAX_CONNECTIONS,
-            timestamp_tolerance: Self::DEFAULT_TIMESTAMP_TOLERANCE,
             use_mock_ecash: false,
             handshake_ttl: Self::DEFAULT_HANDSHAKE_TTL,
             session_ttl: Self::DEFAULT_SESSION_TTL,

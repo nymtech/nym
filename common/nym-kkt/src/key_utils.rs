@@ -21,7 +21,6 @@ where
     libcrux_ml_kem::mlkem768::rand::generate_key_pair(rng)
 }
 
-// (decapsulation_key, encapsulation_key)
 pub fn generate_keypair_mceliece<R>(rng: &mut R) -> libcrux_psq::classic_mceliece::KeyPair
 where
     R: RngCore + CryptoRng,

@@ -20,6 +20,8 @@ pub const DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME: &str = "x25519_noise.pub";
 pub const DEFAULT_NYMNODE_DESCRIPTION_FILENAME: &str = "description.toml";
 
 // Global/LP:
+pub const DEFAULT_X25519_PRIVATE_LP_KEY_FILENAME: &str = "x25519_lp";
+pub const DEFAULT_X25519_PUBLIC_LP_KEY_FILENAME: &str = "x25519_lp.pub";
 pub const DEFAULT_MLKEM768_PRIVATE_KEY_FILENAME: &str = "mlkem768";
 pub const DEFAULT_MLKEM768_PUBLIC_KEY_FILENAME: &str = "mlkem768.pub";
 pub const DEFAULT_MCELIECE_PRIVATE_KEY_FILENAME: &str = "mceliece";
@@ -105,6 +107,26 @@ pub struct KeysPaths {
 
     /// Path to file containing x25519 noise public key.
     pub public_x25519_noise_key_file: PathBuf,
+
+    // >> LP KEYS START:
+    /// Path to file containing x25519 lp private key.
+    pub private_x25519_lp_key_file: PathBuf,
+
+    /// Path to file containing x25519 lp public key.
+    pub public_x25519_lp_key_file: PathBuf,
+
+    /// Path to file containing mlkem768 lp private key.
+    pub private_mlkem768_lp_key_file: PathBuf,
+
+    /// Path to file containing mlkem768 lp public key.
+    pub public_mlkem768_lp_key_file: PathBuf,
+
+    /// Path to file containing mceliece lp private key.
+    pub private_mceliece_lp_key_file: PathBuf,
+
+    /// Path to file containing mceliece lp public key.
+    pub public_mceliece_lp_key_file: PathBuf,
+    // >> LP KEYS END
 }
 
 impl KeysPaths {
@@ -122,6 +144,12 @@ impl KeysPaths {
                 .join(DEFAULT_SECONDARY_X25519_SPHINX_KEY_FILENAME),
             private_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME),
             public_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME),
+            private_x25519_lp_key_file: data_dir.join(DEFAULT_X25519_PRIVATE_LP_KEY_FILENAME),
+            public_x25519_lp_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_LP_KEY_FILENAME),
+            private_mlkem768_lp_key_file: data_dir.join(DEFAULT_MLKEM768_PRIVATE_KEY_FILENAME),
+            public_mlkem768_lp_key_file: data_dir.join(DEFAULT_MLKEM768_PUBLIC_KEY_FILENAME),
+            private_mceliece_lp_key_file: data_dir.join(DEFAULT_MCELIECE_PRIVATE_KEY_FILENAME),
+            public_mceliece_lp_key_file: data_dir.join(DEFAULT_MCELIECE_PUBLIC_KEY_FILENAME),
         }
     }
 
@@ -136,6 +164,27 @@ impl KeysPaths {
         nym_pemstore::KeyPairPath::new(
             &self.private_x25519_noise_key_file,
             &self.public_x25519_noise_key_file,
+        )
+    }
+
+    pub fn x25519_lp_key_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_x25519_lp_key_file,
+            &self.public_x25519_lp_key_file,
+        )
+    }
+
+    pub fn mlkem768_key_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_mlkem768_lp_key_file,
+            &self.public_mlkem768_lp_key_file,
+        )
+    }
+
+    pub fn mceliece_key_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_mceliece_lp_key_file,
+            &self.public_mceliece_lp_key_file,
         )
     }
 }

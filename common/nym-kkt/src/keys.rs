@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::KKTError;
-use libcrux_ml_kem::mlkem768::{MlKem768KeyPair, MlKem768PrivateKey, MlKem768PublicKey};
-use libcrux_psq::classic_mceliece;
 use libcrux_psq::handshake::types::PQEncapsulationKey;
-use nym_kkt_ciphersuite::{KEM, mceliece};
+use nym_kkt_ciphersuite::KEM;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
+
+pub use libcrux_ml_kem::mlkem768::{MlKem768KeyPair, MlKem768PrivateKey, MlKem768PublicKey};
+pub use libcrux_psq::classic_mceliece as mceliece;
+pub use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
 
 /// Wrapper around keys used for the KEM exchange
 /// with cheap clones thanks to Arc wrappers
 #[derive(Clone)]
 pub struct KEMKeys {
-    mc_eliece_pk: Arc<classic_mceliece::PublicKey>,
-    mc_eliece_sk: Arc<classic_mceliece::SecretKey>,
+    mc_eliece_pk: Arc<mceliece::PublicKey>,
+    mc_eliece_sk: Arc<mceliece::SecretKey>,
     ml_kem768_pk: Arc<MlKem768PublicKey>,
     ml_kem768_sk: Arc<MlKem768PrivateKey>,
 }
@@ -29,7 +31,7 @@ impl Debug for KEMKeys {
 }
 
 impl KEMKeys {
-    pub fn new(mc_eliece: classic_mceliece::KeyPair, ml_kem768: MlKem768KeyPair) -> Self {
+    pub fn new(mc_eliece: mceliece::KeyPair, ml_kem768: MlKem768KeyPair) -> Self {
         let (ml_kem768_sk, ml_kem768_pk) = ml_kem768.into_parts();
         Self {
             mc_eliece_pk: Arc::new(mc_eliece.pk),
@@ -55,7 +57,7 @@ impl KEMKeys {
         }
     }
 
-    pub fn mc_eliece_encapsulation_key(&self) -> &classic_mceliece::PublicKey {
+    pub fn mc_eliece_encapsulation_key(&self) -> &mceliece::PublicKey {
         &self.mc_eliece_pk
     }
 
@@ -63,7 +65,7 @@ impl KEMKeys {
         self.ml_kem768_pk.as_ref()
     }
 
-    pub fn mc_eliece_decapsulation_key(&self) -> &classic_mceliece::SecretKey {
+    pub fn mc_eliece_decapsulation_key(&self) -> &mceliece::SecretKey {
         &self.mc_eliece_sk
     }
 
@@ -74,7 +76,7 @@ impl KEMKeys {
 
 #[derive(Clone)]
 pub enum EncapsulationKey {
-    McEliece(Arc<classic_mceliece::PublicKey>),
+    McEliece(Arc<mceliece::PublicKey>),
     MlKem768(Arc<MlKem768PublicKey>),
 }
 
@@ -110,15 +112,16 @@ impl EncapsulationKey {
                 })?,
             ))),
             KEM::McEliece => {
-                let boxed_array: Box<[u8; mceliece::PUBLIC_KEY_LENGTH]> = bytes
-                    .into_boxed_slice()
-                    .try_into()
-                    .map_err(|_| KKTError::KEMError {
-                        info: "mceliece key of invalid length",
-                    })?;
+                let boxed_array: Box<[u8; nym_kkt_ciphersuite::mceliece::PUBLIC_KEY_LENGTH]> =
+                    bytes
+                        .into_boxed_slice()
+                        .try_into()
+                        .map_err(|_| KKTError::KEMError {
+                            info: "mceliece key of invalid length",
+                        })?;
 
                 Ok(EncapsulationKey::McEliece(Arc::new(
-                    classic_mceliece::PublicKey::from(boxed_array),
+                    mceliece::PublicKey::from(boxed_array),
                 )))
             }
         }
@@ -128,6 +131,296 @@ impl EncapsulationKey {
         match self {
             EncapsulationKey::McEliece(k) => k.as_ref().as_ref(),
             EncapsulationKey::MlKem768(k) => k.as_ref().as_ref(),
+        }
+    }
+}
+
+// storage helpers
+pub mod storage_wrappers {
+    use nym_pemstore::traits::PemStorableKey;
+    use thiserror::Error;
+
+    #[derive(Debug, Error)]
+    pub enum MalformedStoredKeyError {
+        #[error("{typ} stored key has an invalid length")]
+        InvalidKeyLength { typ: &'static str },
+
+        #[error("{typ} stored key is malformed: {message}")]
+        MalformedData { typ: &'static str, message: String },
+
+        #[error("attempted to take ownership of a stored {typ} key representation")]
+        IllegalStoredConversion { typ: &'static str },
+    }
+
+    pub trait StorableKey: Sized {
+        type StorableRepresentation<'a>: PemStorableKey
+            + From<&'a Self>
+            + TryInto<Self, Error = MalformedStoredKeyError>
+            + Sized
+        where
+            Self: 'a;
+
+        fn to_storable(&self) -> Self::StorableRepresentation<'_> {
+            self.into()
+        }
+
+        fn from_storable(
+            repr: Self::StorableRepresentation<'_>,
+        ) -> Result<Self, MalformedStoredKeyError> {
+            repr.try_into()
+        }
+    }
+
+    macro_rules! declare_key_wrappers {
+        ($pub_key_type:ty, $private_key_type:ty) => {
+            pub enum StorablePublicKey<'a> {
+                Owned(Box<$pub_key_type>),
+                Borrowed(&'a $pub_key_type),
+            }
+
+            impl AsRef<$pub_key_type> for StorablePublicKey<'_> {
+                fn as_ref(&self) -> &$pub_key_type {
+                    match self {
+                        StorablePublicKey::Owned(k) => k,
+                        StorablePublicKey::Borrowed(k) => k,
+                    }
+                }
+            }
+
+            pub enum StorablePrivateKey<'a> {
+                Owned(Box<$private_key_type>),
+                Borrowed(&'a $private_key_type),
+            }
+
+            impl AsRef<$private_key_type> for StorablePrivateKey<'_> {
+                fn as_ref(&self) -> &$private_key_type {
+                    match self {
+                        StorablePrivateKey::Owned(k) => k,
+                        StorablePrivateKey::Borrowed(k) => k,
+                    }
+                }
+            }
+
+            impl<'a> From<&'a $pub_key_type> for StorablePublicKey<'a> {
+                fn from(value: &'a $pub_key_type) -> Self {
+                    StorablePublicKey::Borrowed(value)
+                }
+            }
+
+            impl<'a> TryFrom<StorablePublicKey<'a>> for $pub_key_type {
+                type Error = MalformedStoredKeyError;
+
+                fn try_from(value: StorablePublicKey<'a>) -> Result<Self, Self::Error> {
+                    match value {
+                        StorablePublicKey::Owned(value) => Ok(*value),
+                        StorablePublicKey::Borrowed(_) => {
+                            Err(MalformedStoredKeyError::IllegalStoredConversion {
+                                typ: <StorablePublicKey as PemStorableKey>::pem_type(),
+                            })
+                        }
+                    }
+                }
+            }
+
+            impl<'a> From<&'a $private_key_type> for StorablePrivateKey<'a> {
+                fn from(value: &'a $private_key_type) -> Self {
+                    StorablePrivateKey::Borrowed(value)
+                }
+            }
+
+            impl<'a> TryFrom<StorablePrivateKey<'a>> for $private_key_type {
+                type Error = MalformedStoredKeyError;
+
+                fn try_from(value: StorablePrivateKey<'a>) -> Result<Self, Self::Error> {
+                    match value {
+                        StorablePrivateKey::Owned(value) => Ok(*value),
+                        StorablePrivateKey::Borrowed(_) => {
+                            Err(MalformedStoredKeyError::IllegalStoredConversion {
+                                typ: <StorablePrivateKey as PemStorableKey>::pem_type(),
+                            })
+                        }
+                    }
+                }
+            }
+
+            impl $crate::keys::storage_wrappers::StorableKey for $pub_key_type {
+                type StorableRepresentation<'a> = StorablePublicKey<'a>;
+            }
+
+            impl $crate::keys::storage_wrappers::StorableKey for $private_key_type {
+                type StorableRepresentation<'a> = StorablePrivateKey<'a>;
+            }
+        };
+    }
+
+    pub mod mceliece {
+        use crate::keys::storage_wrappers::MalformedStoredKeyError;
+        use libcrux_psq::classic_mceliece;
+        use nym_pemstore::traits::PemStorableKey;
+
+        declare_key_wrappers!(classic_mceliece::PublicKey, classic_mceliece::SecretKey);
+
+        impl<'a> PemStorableKey for StorablePrivateKey<'a> {
+            type Error = MalformedStoredKeyError;
+
+            fn pem_type() -> &'static str {
+                "MCELIECE PRIVATE KEY"
+            }
+
+            fn to_bytes(&self) -> Vec<u8> {
+                self.as_ref().as_ref().to_vec()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+                let bytes: Box<[u8; nym_kkt_ciphersuite::mceliece::SECRET_KEY_LENGTH]> =
+                    bytes.to_vec().into_boxed_slice().try_into().map_err(|_| {
+                        MalformedStoredKeyError::InvalidKeyLength {
+                            typ: Self::pem_type(),
+                        }
+                    })?;
+
+                Ok(StorablePrivateKey::Owned(Box::new(
+                    classic_mceliece::SecretKey::from(bytes),
+                )))
+            }
+        }
+
+        impl<'a> PemStorableKey for StorablePublicKey<'a> {
+            type Error = MalformedStoredKeyError;
+
+            fn pem_type() -> &'static str {
+                "MCELIECE PUBLIC KEY"
+            }
+
+            fn to_bytes(&self) -> Vec<u8> {
+                self.as_ref().as_ref().to_vec()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+                let bytes: Box<[u8; nym_kkt_ciphersuite::mceliece::PUBLIC_KEY_LENGTH]> =
+                    bytes.to_vec().into_boxed_slice().try_into().map_err(|_| {
+                        MalformedStoredKeyError::InvalidKeyLength {
+                            typ: Self::pem_type(),
+                        }
+                    })?;
+
+                Ok(StorablePublicKey::Owned(Box::new(
+                    classic_mceliece::PublicKey::from(bytes),
+                )))
+            }
+        }
+    }
+
+    pub mod mlkem768 {
+        use crate::keys::storage_wrappers::MalformedStoredKeyError;
+        use libcrux_ml_kem::mlkem768::{MlKem768PrivateKey, MlKem768PublicKey};
+        use nym_pemstore::traits::PemStorableKey;
+
+        declare_key_wrappers!(MlKem768PublicKey, MlKem768PrivateKey);
+
+        impl<'a> PemStorableKey for StorablePrivateKey<'a> {
+            type Error = MalformedStoredKeyError;
+
+            fn pem_type() -> &'static str {
+                "MLKEM768 PRIVATE KEY"
+            }
+
+            fn to_bytes(&self) -> Vec<u8> {
+                self.as_ref().as_slice().to_vec()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+                let inner = MlKem768PrivateKey::try_from(bytes).map_err(|message| {
+                    MalformedStoredKeyError::MalformedData {
+                        typ: Self::pem_type(),
+                        message: message.to_string(),
+                    }
+                })?;
+                Ok(StorablePrivateKey::Owned(Box::new(inner)))
+            }
+        }
+
+        impl<'a> PemStorableKey for StorablePublicKey<'a> {
+            type Error = MalformedStoredKeyError;
+
+            fn pem_type() -> &'static str {
+                "MLKEM768 PUBLIC KEY"
+            }
+
+            fn to_bytes(&self) -> Vec<u8> {
+                self.as_ref().as_slice().to_vec()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+                let inner = MlKem768PublicKey::try_from(bytes).map_err(|message| {
+                    MalformedStoredKeyError::MalformedData {
+                        typ: Self::pem_type(),
+                        message: message.to_string(),
+                    }
+                })?;
+                Ok(StorablePublicKey::Owned(Box::new(inner)))
+            }
+        }
+    }
+
+    pub mod x25519 {
+        use crate::keys::storage_wrappers::MalformedStoredKeyError;
+        use libcrux_psq::handshake::types::{DHPrivateKey, DHPublicKey};
+        use nym_pemstore::traits::PemStorableKey;
+
+        declare_key_wrappers!(DHPublicKey, DHPrivateKey);
+
+        impl<'a> PemStorableKey for StorablePrivateKey<'a> {
+            type Error = MalformedStoredKeyError;
+
+            fn pem_type() -> &'static str {
+                "LP X25519 PRIVATE KEY"
+            }
+
+            fn to_bytes(&self) -> Vec<u8> {
+                self.as_ref().as_ref().to_vec()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+                let bytes =
+                    bytes
+                        .try_into()
+                        .map_err(|_| MalformedStoredKeyError::InvalidKeyLength {
+                            typ: Self::pem_type(),
+                        })?;
+                Ok(StorablePrivateKey::Owned(Box::new(
+                    DHPrivateKey::from_bytes(&bytes).map_err(|err| {
+                        MalformedStoredKeyError::MalformedData {
+                            typ: Self::pem_type(),
+                            message: format!("{err:?}"),
+                        }
+                    })?,
+                )))
+            }
+        }
+
+        impl<'a> PemStorableKey for StorablePublicKey<'a> {
+            type Error = MalformedStoredKeyError;
+
+            fn pem_type() -> &'static str {
+                "LP X25519 PUBLIC KEY"
+            }
+
+            fn to_bytes(&self) -> Vec<u8> {
+                self.as_ref().as_ref().to_vec()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+                let bytes =
+                    bytes
+                        .try_into()
+                        .map_err(|_| MalformedStoredKeyError::InvalidKeyLength {
+                            typ: Self::pem_type(),
+                        })?;
+                Ok(StorablePublicKey::Owned(Box::new(DHPublicKey::from_bytes(
+                    &bytes,
+                ))))
+            }
         }
     }
 }

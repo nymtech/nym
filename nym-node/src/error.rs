@@ -5,6 +5,7 @@ use crate::node::http::error::NymNodeHttpError;
 use crate::wireguard::error::WireguardError;
 use nym_http_api_client::HttpClientError;
 use nym_ip_packet_router::error::ClientCoreError;
+use nym_kkt::keys::storage_wrappers::MalformedStoredKeyError;
 use nym_validator_client::ValidatorClientError;
 use nym_validator_client::nyxd::error::NyxdError;
 use std::io;
@@ -231,6 +232,9 @@ pub enum NymNodeError {
 
     #[error("failed upgrade")]
     FailedUpgrade,
+
+    #[error(transparent)]
+    MalformedStoredKey(#[from] MalformedStoredKeyError),
 }
 
 impl From<EntryGatewayError> for NymNodeError {

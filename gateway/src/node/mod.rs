@@ -16,7 +16,7 @@ use nym_credential_verification::ecash::{
 use nym_credential_verification::upgrade_mode::{
     UpgradeModeCheckConfig, UpgradeModeDetails, UpgradeModeState,
 };
-use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_router::IpPacketRouter;
 use nym_lp::peer::{DHKeyPair, KEMKeys, LpLocalPeer};
 use nym_mixnet_client::forwarder::MixForwardingSender;

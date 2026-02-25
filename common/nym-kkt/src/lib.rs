@@ -22,7 +22,7 @@ mod test {
     use crate::{
         initiator::KKTInitiator,
         key_utils::{
-            generate_keypair_mceliece, generate_keypair_mlkem, generate_keypair_x25519,
+            generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
             hash_encapsulation_key,
         },
         responder::KKTResponder,
@@ -33,7 +33,7 @@ mod test {
         let mut rng = rand09::rng();
 
         // generate responder x25519 keys
-        let responder_x25519_keypair = generate_keypair_x25519(&mut rng);
+        let responder_x25519_keypair = generate_lp_keypair_x25519(&mut rng);
 
         for hash_function in [
             HashFunction::Blake3,

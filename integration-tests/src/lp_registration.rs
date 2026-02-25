@@ -19,7 +19,7 @@ mod tests {
     use nym_gateway::node::wireguard::{PeerManager, PeerRegistrator};
     use nym_gateway::node::{ActiveClientsStore, GatewayStorage, LpConfig};
     use nym_kkt::key_utils::{
-        generate_keypair_mceliece, generate_keypair_mlkem, generate_keypair_x25519,
+        generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
     };
     use nym_kkt_ciphersuite::Ciphersuite;
     use nym_registration_client::{LpClientError, LpRegistrationClient};
@@ -75,7 +75,7 @@ mod tests {
             let ed25519_keys = ed25519::KeyPair::new(&mut rng08);
             let x25519_wg_keys = Arc::new(x25519::KeyPair::new(&mut rng08));
 
-            let lp_x25519_keys = Arc::new(generate_keypair_x25519(rng));
+            let lp_x25519_keys = Arc::new(generate_lp_keypair_x25519(rng));
             let mlkem_keypair = generate_keypair_mlkem(rng);
             let mceliece_keypair = generate_keypair_mceliece(rng);
             let lp_kem_keys = KEMKeys::new(mceliece_keypair, mlkem_keypair);

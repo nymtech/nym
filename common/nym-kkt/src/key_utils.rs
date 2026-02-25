@@ -7,7 +7,7 @@ use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, HashFunction, KeyDigests};
 use rand09::{CryptoRng, RngCore};
 use std::collections::HashMap;
 
-pub fn generate_keypair_x25519<R>(rng: &mut R) -> DHKeyPair
+pub fn generate_lp_keypair_x25519<R>(rng: &mut R) -> DHKeyPair
 where
     R: RngCore + CryptoRng,
 {

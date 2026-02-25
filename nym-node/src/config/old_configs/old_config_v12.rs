@@ -37,7 +37,7 @@ use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_gateway::node::LpConfig;
 use nym_gateway::node::lp_listener::LpDebug;
 use nym_kkt::key_utils::{
-    generate_keypair_mceliece, generate_keypair_mlkem, generate_keypair_x25519,
+    generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
 };
 use rand09::SeedableRng;
 use serde::{Deserialize, Serialize};
@@ -45,9 +45,10 @@ use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tracing::{debug, error, info, instrument};
-pub use unchanged_v12_types::*;
+use tracing::{debug, info, instrument};
 use url::Url;
+
+pub use unchanged_v12_types::*;
 
 // (while some of those are technically unused, they might be needed in future migrations,
 // thus allow them to exist)
@@ -55,14 +56,14 @@ use url::Url;
 pub mod unchanged_v12_types {
     use crate::config::old_configs::old_config_v11::{
         AuthenticatorDebugV11, AuthenticatorPathsV11, AuthenticatorV11, ClientBandwidthDebugV11,
-        DebugV11, GatewayTasksPathsV11, HostV11, HttpV11, IpPacketRouterDebugV11,
-        IpPacketRouterPathsV11, IpPacketRouterV11, KeyRotationDebugV11, KeyRotationV11,
-        KeysPathsV11, LoggingSettingsV11, MetricsConfigV11, MetricsDebugV11, MixnetDebugV11,
-        MixnetV11, NetworkRequesterDebugV11, NetworkRequesterPathsV11, NetworkRequesterV11,
-        NodeModeV11, NodeModesV11, NymNodePathsV11, ReplayProtectionDebugV11,
-        ReplayProtectionPathsV11, ReplayProtectionV11, ServiceProvidersConfigDebugV11,
-        ServiceProvidersConfigV11, ServiceProvidersPathsV11, StaleMessageDebugV11, VerlocDebugV11,
-        VerlocV11, WireguardPathsV11, WireguardV11, ZkNymTicketHandlerDebugV11,
+        GatewayTasksPathsV11, HostV11, HttpV11, IpPacketRouterDebugV11, IpPacketRouterPathsV11,
+        IpPacketRouterV11, KeyRotationDebugV11, KeyRotationV11, KeysPathsV11, LoggingSettingsV11,
+        MetricsConfigV11, MetricsDebugV11, MixnetDebugV11, MixnetV11, NetworkRequesterDebugV11,
+        NetworkRequesterPathsV11, NetworkRequesterV11, NodeModeV11, NodeModesV11, NymNodePathsV11,
+        ReplayProtectionDebugV11, ReplayProtectionPathsV11, ReplayProtectionV11,
+        ServiceProvidersConfigDebugV11, ServiceProvidersConfigV11, ServiceProvidersPathsV11,
+        StaleMessageDebugV11, VerlocDebugV11, VerlocV11, WireguardPathsV11,
+        ZkNymTicketHandlerDebugV11,
     };
 
     pub type WireguardPathsV12 = WireguardPathsV11;
@@ -572,7 +573,7 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
 
     // generate new keys for LP
     info!("generating new LP x25519 DH keypair");
-    let x25519 = generate_keypair_x25519(&mut rng);
+    let x25519 = generate_lp_keypair_x25519(&mut rng);
     let paths = updated_keys.x25519_lp_key_paths();
     store_x25519_lp_keypair(&x25519, &paths)?;
 

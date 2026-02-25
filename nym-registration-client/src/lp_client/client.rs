@@ -722,16 +722,16 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_kkt::key_utils::generate_keypair_x25519;
+    use nym_kkt::key_utils::generate_lp_keypair_x25519;
     use nym_lp::packet::version;
     use nym_test_utils::helpers::deterministic_rng_09;
 
     #[test]
     fn test_client_creation() {
         let mut rng09 = deterministic_rng_09();
-        let keypair = Arc::new(generate_keypair_x25519(&mut rng09));
+        let keypair = Arc::new(generate_lp_keypair_x25519(&mut rng09));
 
-        let gateway_x_keys = generate_keypair_x25519(&mut rng09);
+        let gateway_x_keys = generate_lp_keypair_x25519(&mut rng09);
         let gateway_peer = LpRemotePeer::from(gateway_x_keys.pk);
         let address = "127.0.0.1:41264".parse().unwrap();
 

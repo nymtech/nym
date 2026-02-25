@@ -138,7 +138,7 @@ impl Carrier {
 
 #[cfg(test)]
 mod tests {
-    use crate::{carrier::Carrier, key_utils::generate_keypair_x25519};
+    use crate::{carrier::Carrier, key_utils::generate_lp_keypair_x25519};
     use rand09::RngCore;
 
     #[test]
@@ -146,12 +146,12 @@ mod tests {
         let mut rng = rand09::rng();
 
         // generate responder x25519 keys
-        let r_x25519 = generate_keypair_x25519(&mut rng);
+        let r_x25519 = generate_lp_keypair_x25519(&mut rng);
 
         let mut context: [u8; 32] = [0u8; 32];
         rng.fill_bytes(&mut context);
 
-        let ephemeral_keypair = generate_keypair_x25519(&mut rng);
+        let ephemeral_keypair = generate_lp_keypair_x25519(&mut rng);
 
         let i_shared_secret = ephemeral_keypair.sk().diffie_hellman(&r_x25519.pk).unwrap();
 

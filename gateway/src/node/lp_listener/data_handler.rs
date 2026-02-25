@@ -14,20 +14,12 @@
 //!           LP(Sphinx)      decrypt LP      forward Sphinx
 //! ```
 //!
-//! # Wire Format
-//!
-//! Each UDP packet is a complete LP packet:
-//! - Header (8 bytes): receiver_idx (4) + counter (4)
-//! - Payload: Outer AEAD encrypted Sphinx packet
-//!
-//! The receiver_idx is used to look up the session established during LP registration.
 
 use super::LpHandlerState;
 use crate::node::lp_listener::error::LpHandlerError;
 use crate::GatewayError;
-use nym_lp::state_machine::{LpAction, LpInput};
+use nym_lp::OuterHeader;
 use nym_metrics::inc;
-use nym_sphinx::forwarding::packet::MixPacket;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
@@ -43,6 +35,7 @@ pub struct LpDataHandler {
     socket: Arc<UdpSocket>,
 
     /// Shared state with TCP control plane
+    #[allow(dead_code)]
     state: LpHandlerState,
 
     /// Shutdown token
@@ -127,8 +120,17 @@ impl LpDataHandler {
         packet: &[u8],
         src_addr: SocketAddr,
     ) -> Result<(), LpHandlerError> {
-        todo!()
-        // inc!("lp_data_packets_received");
+        inc!("lp_data_packets_received");
+
+        let _ = OuterHeader::parse(&packet)?;
+        trace!(
+            "received {} bytes from {src_addr} on the unimplemented LP Data endpoint",
+            packet.len()
+        );
+
+        Err(LpHandlerError::UnimplementedDataChannel)
+        // leave old code for future reference
+
         //
         // // Step 1: Parse LP header (always cleartext for routing)
         // let header = nym_lp::codec::parse_lp_header_only(packet).map_err(|e| {
@@ -219,39 +221,6 @@ impl LpDataHandler {
         //         )))
         //     }
         // }
-    }
-
-    /// Parse Sphinx packet bytes and forward to mixnet
-    ///
-    /// The decrypted LP payload contains a serialized MixPacket that includes:
-    /// - Packet type (1 byte)
-    /// - Key rotation (1 byte)
-    /// - Next hop address (first mix node)
-    /// - Sphinx packet data
-    async fn forward_sphinx_packet(&self, sphinx_bytes: &[u8]) -> Result<(), LpHandlerError> {
-        todo!()
-        // // Parse as MixPacket v2 format (packet_type || key_rotation || next_hop || packet)
-        // let mix_packet = MixPacket::try_from_v2_bytes(sphinx_bytes).map_err(|e| {
-        //     inc!("lp_data_sphinx_parse_errors");
-        //     LpHandlerError::LpProtocolError(format!("Failed to parse MixPacket: {e}"))
-        // })?;
-        //
-        // trace!(
-        //     "Forwarding Sphinx packet to mixnet (next_hop={}, type={:?})",
-        //     mix_packet.next_hop(),
-        //     mix_packet.packet_type()
-        // );
-        //
-        // // Forward to mixnet via the shared channel
-        // if let Err(e) = self.state.outbound_mix_sender.forward_packet(mix_packet) {
-        //     error!("Failed to forward Sphinx packet to mixnet: {}", e);
-        //     inc!("lp_data_forward_errors");
-        //     return Err(LpHandlerError::InternalError(format!(
-        //         "Mix packet forwarding failed: {e}",
-        //     )));
-        // }
-        //
-        // Ok(())
     }
 }
 

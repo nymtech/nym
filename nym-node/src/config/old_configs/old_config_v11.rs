@@ -6,7 +6,6 @@ use crate::config::old_configs::old_config_v12::{
     UpgradeModeWatcherV12, WireguardV12,
 };
 use crate::error::NymNodeError;
-use nym_bin_common::logging::LoggingSettings;
 use nym_config::read_config_from_toml_file;
 use serde::{Deserialize, Serialize};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};

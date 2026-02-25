@@ -10,7 +10,9 @@ use crate::error::{EntryGatewayError, NymNodeError, ServiceProvidersError};
 use crate::node::description::{load_node_description, save_node_description};
 use crate::node::helpers::{
     DisplayDetails, get_current_rotation_id, load_ed25519_identity_keypair, load_key,
+    load_mceliece_keypair, load_mlkem768_keypair, load_x25519_lp_keypair,
     load_x25519_noise_keypair, store_ed25519_identity_keypair, store_key, store_keypair,
+    store_mceliece_keypair, store_mlkem768_keypair, store_x25519_lp_keypair,
     store_x25519_noise_keypair,
 };
 use crate::node::http::api::api_requests;
@@ -43,6 +45,9 @@ use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::lp_listener::DHKeyPair;
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder, UpgradeModeCheckRequestSender};
+use nym_kkt::key_utils::{
+    generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
+};
 use nym_kkt::keys::KEMKeys;
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -64,6 +69,7 @@ use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
+use rand09::SeedableRng;
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::path::Path;
@@ -404,10 +410,16 @@ impl NymNode {
     ) -> Result<(), NymNodeError> {
         debug!("initialising nym-node with id: {}", config.id);
         let mut rng = OsRng;
+        let mut rng09 = rand09::rngs::StdRng::from_os_rng();
 
         // global initialisation
         let ed25519_identity_keys = ed25519::KeyPair::new(&mut rng);
         let x25519_noise_keys = x25519::KeyPair::new(&mut rng);
+
+        let x25519_lp_keys = generate_lp_keypair_x25519(&mut rng09);
+        let mlkem = generate_keypair_mlkem(&mut rng09);
+        let mceliece = generate_keypair_mceliece(&mut rng09);
+
         let current_rotation_id =
             get_current_rotation_id(&config.mixnet.nym_api_urls, &config.mixnet.nyxd_urls).await?;
         let _ = SphinxKeyManager::initialise_new(
@@ -428,6 +440,18 @@ impl NymNode {
             &x25519_noise_keys,
             &config.storage_paths.keys.x25519_noise_storage_paths(),
         )?;
+
+        trace!("attempting to x25519 lp keypair");
+        store_x25519_lp_keypair(
+            &x25519_lp_keys,
+            &config.storage_paths.keys.x25519_lp_key_paths(),
+        )?;
+
+        trace!("attempting to mlkem768 keypair");
+        store_mlkem768_keypair(&mlkem, &config.storage_paths.keys.mlkem768_key_paths())?;
+
+        trace!("attempting to mceliece keypair");
+        store_mceliece_keypair(&mceliece, &config.storage_paths.keys.mceliece_key_paths())?;
 
         trace!("creating description file");
         save_node_description(
@@ -460,33 +484,38 @@ impl NymNode {
             &config.storage_paths.keys.ed25519_identity_storage_paths(),
         )?;
         let entry_gateway = GatewayTasksData::new(&config.gateway_tasks).await?;
+        let x25519_lp_keys =
+            load_x25519_lp_keypair(&config.storage_paths.keys.x25519_lp_key_paths())?;
+        let mlkem = load_mlkem768_keypair(&config.storage_paths.keys.mlkem768_key_paths())?;
+        let mceliece = load_mceliece_keypair(&config.storage_paths.keys.mceliece_key_paths())?;
+        let psq_kem_keys = KEMKeys::new(mceliece, mlkem);
 
-        todo!("deal with kem key migration path")
-        //
-        // Ok(NymNode {
-        //     ed25519_identity_keys: Arc::new(ed25519_identity_keys),
-        //     sphinx_key_manager: Some(SphinxKeyManager::try_load_or_regenerate(
-        //         current_rotation_id,
-        //         &config.storage_paths.keys.primary_x25519_sphinx_key_file,
-        //         &config.storage_paths.keys.secondary_x25519_sphinx_key_file,
-        //     )?),
-        //     x25519_noise_keys: Arc::new(load_x25519_noise_keypair(
-        //         &config.storage_paths.keys.x25519_noise_storage_paths(),
-        //     )?),
-        //     description: load_node_description(&config.storage_paths.description)?,
-        //     metrics: NymNodeMetrics::new(),
-        //     verloc_stats: Default::default(),
-        //     entry_gateway,
-        //     upgrade_mode_state: UpgradeModeState::new(
-        //         config.gateway_tasks.upgrade_mode.attester_public_key,
-        //     ),
-        //     service_providers: ServiceProvidersData::new(&config.service_providers)?,
-        //     wireguard: Some(wireguard_data),
-        //     config,
-        //     accepted_operator_terms_and_conditions: false,
-        //     shutdown_manager: ShutdownManager::build_new_default()
-        //         .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
-        // })
+        Ok(NymNode {
+            ed25519_identity_keys: Arc::new(ed25519_identity_keys),
+            sphinx_key_manager: Some(SphinxKeyManager::try_load_or_regenerate(
+                current_rotation_id,
+                &config.storage_paths.keys.primary_x25519_sphinx_key_file,
+                &config.storage_paths.keys.secondary_x25519_sphinx_key_file,
+            )?),
+            x25519_noise_keys: Arc::new(load_x25519_noise_keypair(
+                &config.storage_paths.keys.x25519_noise_storage_paths(),
+            )?),
+            psq_kem_keys,
+            description: load_node_description(&config.storage_paths.description)?,
+            metrics: NymNodeMetrics::new(),
+            verloc_stats: Default::default(),
+            entry_gateway,
+            upgrade_mode_state: UpgradeModeState::new(
+                config.gateway_tasks.upgrade_mode.attester_public_key,
+            ),
+            service_providers: ServiceProvidersData::new(&config.service_providers)?,
+            wireguard: Some(wireguard_data),
+            config,
+            accepted_operator_terms_and_conditions: false,
+            shutdown_manager: ShutdownManager::build_new_default()
+                .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
+            x25519_lp_keys: Arc::new(x25519_lp_keys),
+        })
     }
 
     pub(crate) fn shutdown_tracker(&self) -> &ShutdownTracker {

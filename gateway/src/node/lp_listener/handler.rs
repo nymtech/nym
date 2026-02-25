@@ -597,10 +597,16 @@ where
     /// The caller should look up the session to get outer_aead_key, then call
     /// `parse_lp_packet()` with the key.
     async fn receive_raw_packet(&mut self) -> Result<EncryptedLpPacket, LpHandlerError> {
-        Ok(self
+        let packet = self
             .stream
             .receive_length_prefixed_transport_packet()
-            .await?)
+            .await?;
+
+        // Track bytes sent (4 byte header + packet data)
+        self.stats
+            .record_bytes_received(4 + packet.encoded_length());
+
+        Ok(packet)
     }
 
     /// Send a serialised LP packet over the stream with proper length-prefixed framing.

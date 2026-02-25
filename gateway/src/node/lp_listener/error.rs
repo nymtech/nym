@@ -49,6 +49,9 @@ pub enum LpHandlerError {
     #[error("timed out while attempting to send to/receive from the connection")]
     ConnectionTimeout,
 
+    #[error("data channel is not yet implemented")]
+    UnimplementedDataChannel,
+
     #[error("{0}")]
     Other(String),
 }

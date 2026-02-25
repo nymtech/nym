@@ -552,7 +552,6 @@ impl LpListener {
 pub(crate) mod cleanup_task {
     use crate::node::lp_listener::{LpDebug, ReceiverIndex, TimestampedState};
     use dashmap::DashMap;
-    use nym_lp::state_machine::LpStateBare;
     use nym_lp::LpStateMachine;
     use nym_metrics::inc_by;
     use nym_node_metrics::NymNodeMetrics;

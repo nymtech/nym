@@ -67,18 +67,15 @@ rustc Channel:      stable
 cargo Profile:      release
 ```
 
-### Operator & Developer Update
+### Operator & Developer Updates
 
-#### LP Gateway & Client Enhancements
+#### Features
 
 - [Stateless handshake improvements for LP Gateway](https://github.com/nymtech/nym/pull/6437)
-
-#### Networking & HTTP/DNS
-
 - [HTTP & DNS improvements](https://github.com/nymtech/nym/pull/6423)
 - [Endpoint support for exit gateway IPs](https://github.com/nymtech/nym/pull/6418)
 
-#### Monitoring & Diagnostics
+#### Tools
 
 - **Diagnostic Tool** - a standalone binary for network diagnostics. It performs DNS, HTTP, and gateway connectivity tests, helping developers identify connectivity issues and monitor network performance. It can also be run via the daemon CLI. Read the full guide [here](https://nym.com/docs/developers/tools/diagnostic-tool).  
 - **Socks5 Score Calculation** - performed by the Gateway probe, which tests `nym-node --mode exit-gateway` instances over Socks5. The probe assigns a latency-based rating: high, medium, low, or offline. Full guide [here](https://nym.com/docs/operators/performance-and-testing#socks5-score-calculation-process).

@@ -1,3 +1,11 @@
+---
+title: "Nyx Blockchain & Nym Smart Contracts"
+description: "Developer guide for interacting with the Nyx blockchain via Cosmos SDK. Covers CLI wallet setup, Cosmos Registry, Ledger Live, and RPC node deployment."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-02-11"
+---
+
 # Interacting with Nyx Chain and Smart Contracts
 
 There are two options for interacting with the blockchain to send tokens or interact with deployed smart contracts:

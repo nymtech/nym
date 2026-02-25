@@ -16,15 +16,14 @@ const config: DocsThemeConfig = {
     const defaultDescription =
       "Nym is a privacy platform. It provides strong network-level privacy against sophisticated end-to-end attackers, and anonymous access control using blinded, re-randomizable, decentralized credentials.";
 
-    // Frontmatter-first description (no more shared book descriptions)
-    const description =
-      config.frontMatter.description || defaultDescription;
+    // Frontmatter-first description
+    const description = config.frontMatter.description || defaultDescription;
 
-    // Better title format
     const baseTitle = config.frontMatter.title || config.title || "";
-    const title = route === "/"
-      ? "Nym Docs: Privacy Network Documentation"
-      : baseTitle.includes("| Nym Docs")
+    const title =
+      route === "/"
+        ? "Nym Docs: Privacy Network Documentation"
+        : baseTitle.includes("| Nym Docs")
         ? baseTitle
         : `${baseTitle} | Nym Docs`;
 
@@ -121,9 +120,7 @@ const config: DocsThemeConfig = {
         <meta property="og:url" content={pageUrl} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        {section && (
-          <meta property="article:section" content={section} />
-        )}
+        {section && <meta property="article:section" content={section} />}
         {lastUpdated && (
           <meta property="article:modified_time" content={lastUpdated} />
         )}

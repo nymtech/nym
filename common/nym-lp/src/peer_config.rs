@@ -182,7 +182,7 @@ impl LpPeerConfig {
     pub fn hop_id(&self) -> u8 {
         self.hop_id
     }
-    
+
     pub fn seed(&self) -> &[u8; SEED_LEN] {
         &self.seed
     }

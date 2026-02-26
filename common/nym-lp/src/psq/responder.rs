@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::peer::LpLocalPeer;
-use crate::peer_config::LP_PEER_CONFIG_SIZE;
+use crate::peer_config::{LP_PEER_CONFIG_SIZE, LpPeerConfig};
 use crate::psq::handshake_message::{PSQMsg1, PSQMsg2};
 use crate::psq::helpers::kem_to_ciphersuite;
 use crate::psq::{
@@ -152,6 +152,8 @@ where
 
         let processed_req = self.process_kkt_request(kkt_request)?;
         let kem = processed_req.requested_kem;
+
+        let parsed_payload = LpPeerConfig::deserialize(&processed_req.request_payload)?;
 
         // 2. send back the KKTResponse
         debug!("sending KKT response");

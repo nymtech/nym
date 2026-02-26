@@ -58,7 +58,7 @@ pub trait HandshakeMessage: Sized {
 
     /// Expected size of the response from the remote party.
     /// `None` if this is the final (PSQ msg2) message of the exchange
-    fn response_size(&self, expected_kem: KEM, payload_size: usize) -> Option<usize>;
+    fn response_size(&self, expected_kem: KEM) -> Option<usize>;
 }
 
 async fn write_all_and_flush_async_write<W>(

@@ -38,8 +38,10 @@ impl HandshakeMessage for KKTRequest {
         nym_kkt::message::KKTRequest::size_excluding_payload(mode, expected_kem) + payload_size
     }
 
-    fn response_size(&self, expected_kem: KEM, payload_size: usize) -> Option<usize> {
-        Some(nym_kkt::message::KKTResponse::size_excluding_payload(expected_kem) + payload_size)
+    fn response_size(&self, expected_kem: KEM) -> Option<usize> {
+        Some(nym_kkt::message::KKTResponse::size_excluding_payload(
+            expected_kem,
+        ))
     }
 }
 
@@ -72,8 +74,8 @@ impl HandshakeMessage for KKTResponse {
         nym_kkt::message::KKTResponse::size_excluding_payload(expected_kem) + payload_size
     }
 
-    fn response_size(&self, expected_kem: KEM, payload_size: usize) -> Option<usize> {
-        Some(psq_msg1_size(expected_kem) + payload_size)
+    fn response_size(&self, expected_kem: KEM) -> Option<usize> {
+        Some(psq_msg1_size(expected_kem))
     }
 }
 
@@ -105,8 +107,8 @@ impl HandshakeMessage for PSQMsg1 {
         psq_msg1_size(expected_kem) + payload_size
     }
 
-    fn response_size(&self, _: KEM, payload_size: usize) -> Option<usize> {
-        Some(PSQ_MSG2_SIZE + payload_size)
+    fn response_size(&self, _: KEM) -> Option<usize> {
+        Some(PSQ_MSG2_SIZE)
     }
 }
 
@@ -138,7 +140,7 @@ impl HandshakeMessage for PSQMsg2 {
         PSQ_MSG2_SIZE + payload_size
     }
 
-    fn response_size(&self, _: KEM, _: usize) -> Option<usize> {
+    fn response_size(&self, _: KEM) -> Option<usize> {
         None
     }
 }

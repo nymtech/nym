@@ -82,6 +82,7 @@ impl<'a> KKTInitiator<'a> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn generate_encrypted_request<'b, R>(
         rng: &mut R,
         mode: KKTMode,

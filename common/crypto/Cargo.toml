@@ -41,6 +41,8 @@ nym-pemstore = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+rand_chacha = { workspace = true }
+nym-test-utils = { workspace = true }
 serde_json = { workspace = true }
 
 

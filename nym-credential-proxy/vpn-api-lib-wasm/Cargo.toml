@@ -21,7 +21,6 @@ thiserror.workspace = true
 zeroize = { workspace = true }
 
 # wasm-specific deps
-getrandom = { workspace = true, features = ["js"] }
 wasm-bindgen = { workspace = true }
 js-sys = { workspace = true }
 tsify = { workspace = true, features = ["js"] }

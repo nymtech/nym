@@ -121,6 +121,10 @@ features = ["wasm-bindgen"]
 workspace = true
 features = ["full"]
 
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom03]
+workspace = true
+features = ["wasm_js"]
+
 [dev-dependencies]
 tempfile = { workspace = true }
 

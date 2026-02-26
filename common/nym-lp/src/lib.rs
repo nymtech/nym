@@ -18,7 +18,7 @@ pub use nym_kkt_ciphersuite::{
     Ciphersuite, HashFunction, HashLength, KEM, KEMKeyDigests, SignatureScheme,
 };
 pub use nym_lp_packet::{
-    EncryptedLpPacket, LpMessage, LpPacket, OuterHeader,
+    EncryptedLpPacket, InnerHeader, LpHeader, LpMessage, LpPacket, MessageType, OuterHeader,
     error::MalformedLpPacketError,
     message::{ApplicationData, ExpectedResponseSize, ForwardPacketData},
 };

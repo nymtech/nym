@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Post-Quantum Re-Key Protocol
+
 /// This module implements a stateless post-quantum re-keying protocol in one round-trip.
 /// We currently support MlKem768 and XWing.
 ///
@@ -16,6 +17,7 @@ use libcrux_kem::*;
 use nym_crypto::hkdf::blake3::derive_key_blake3;
 use nym_kkt_ciphersuite::{KEM, mceliece, ml_kem768, x25519, xwing};
 use rand09::{CryptoRng, RngCore};
+use std::fmt::{Debug, Formatter};
 use zeroize::Zeroize;
 
 use crate::error::KKTError;
@@ -27,6 +29,26 @@ pub struct RekeyInitiator {
     algorithm: Algorithm,
     decapsulation_key: PrivateKey,
     salt: [u8; 32],
+}
+
+impl Debug for RekeyInitiator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let key_typ = match self.decapsulation_key {
+            PrivateKey::X25519(_) => "x25519",
+            PrivateKey::P256(_) => "p256",
+            PrivateKey::MlKem512(_) => "ml512",
+            PrivateKey::MlKem768(_) => "mlkem768",
+            PrivateKey::X25519MlKem768Draft00(_) => "x25519-mlkem768",
+            PrivateKey::XWingKemDraft06(_) => "xwing",
+            PrivateKey::MlKem1024(_) => "ml1024",
+        };
+
+        f.debug_struct("RekeyInitiator")
+            .field("algorithm", &self.algorithm)
+            .field("decapsulation_key", &key_typ)
+            .field("salt", &self.salt)
+            .finish()
+    }
 }
 
 impl RekeyInitiator {
@@ -204,6 +226,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::error::KKTError;
     use crate::rekey::{RekeyInitiator, responder_process};
     use nym_kkt_ciphersuite::KEM;
 
@@ -211,16 +234,24 @@ mod tests {
     fn rekey_test() {
         let mut rng = rand09::rng();
 
-        for kem in [KEM::MlKem768] {
-            let (rekey_state, request_message) =
-                RekeyInitiator::generate_request(&mut rng, kem).unwrap();
+        let (rekey_state, request_message) =
+            RekeyInitiator::generate_request(&mut rng, KEM::MlKem768).unwrap();
 
-            let (responder_secret, response_message) =
-                responder_process(&mut rng, request_message).unwrap();
+        let (responder_secret, response_message) =
+            responder_process(&mut rng, request_message).unwrap();
 
-            let initiator_secret = rekey_state.finalize(&response_message).unwrap();
+        let initiator_secret = rekey_state.finalize(&response_message).unwrap();
 
-            assert_eq!(initiator_secret, responder_secret);
-        }
+        assert_eq!(initiator_secret, responder_secret);
+
+        // mceliece should fail
+        let err = RekeyInitiator::generate_request(&mut rng, KEM::McEliece).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            KKTError::UnsupportedAlgorithm {
+                info: "McEliece is not supported for re-keying",
+            }
+            .to_string()
+        )
     }
 }

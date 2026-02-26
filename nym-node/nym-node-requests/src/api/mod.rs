@@ -134,7 +134,6 @@ impl Display for ErrorResponse {
 #[allow(deprecated)]
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use crate::api::v1::node::models::{HostKeys, SphinxKey};
     use nym_crypto::asymmetric::{ed25519, x25519};
@@ -243,7 +242,7 @@ mod tests {
 
     #[test]
     fn dummy_legacy_v3_signed_host_verification() {
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
+        let mut rng = deterministic_rng();
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
         let x25519_noise = x25519::KeyPair::new(&mut rng);
@@ -337,7 +336,7 @@ mod tests {
 
     #[test]
     fn dummy_legacy_v2_signed_host_verification() {
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
+        let mut rng = deterministic_rng();
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
         let x25519_noise = x25519::KeyPair::new(&mut rng);
@@ -426,7 +425,7 @@ mod tests {
 
     #[test]
     fn dummy_legacy_v1_signed_host_verification() {
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
+        let mut rng = deterministic_rng();
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
 

@@ -122,7 +122,7 @@ impl LpDataHandler {
     ) -> Result<(), LpHandlerError> {
         inc!("lp_data_packets_received");
 
-        let _ = OuterHeader::parse(&packet)?;
+        let _ = OuterHeader::parse(packet)?;
         trace!(
             "received {} bytes from {src_addr} on the unimplemented LP Data endpoint",
             packet.len()

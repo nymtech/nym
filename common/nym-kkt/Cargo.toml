@@ -30,12 +30,7 @@ libcrux-ml-kem = { workspace = true }
 [dev-dependencies]
 rand_chacha = "0.9.0"
 anyhow = { workspace = true }
-criterion = { workspace = true }
 
-
-[[bench]]
-name = "benches"
-harness = false
 
 [lints]
 workspace = true

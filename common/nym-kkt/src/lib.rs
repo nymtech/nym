@@ -106,7 +106,7 @@ mod test {
                 )
                 .unwrap();
 
-                let response = responder.process_request(request).unwrap();
+                let response = responder.process_request(request.request).unwrap();
 
                 let result = initiator.process_response(response.response).unwrap();
 
@@ -133,7 +133,7 @@ mod test {
                 )
                 .unwrap();
 
-                let processed_request = responder.process_request(request).unwrap();
+                let processed_request = responder.process_request(request.request).unwrap();
 
                 // if we keep unverified keys, this should change
                 assert!(processed_request.remote_encapsulation_key.is_none());
@@ -166,7 +166,7 @@ mod test {
                 )
                 .unwrap();
 
-                let processed_request = responder.process_request(request).unwrap();
+                let processed_request = responder.process_request(request.request).unwrap();
 
                 let processed_response = initiator
                     .process_response(processed_request.response)
@@ -195,7 +195,7 @@ mod test {
                 )
                 .unwrap();
 
-                let processed_request = responder.process_request(request).unwrap();
+                let processed_request = responder.process_request(request.request).unwrap();
 
                 // if we keep unverified keys, this should change
                 assert!(processed_request.remote_encapsulation_key.is_none());

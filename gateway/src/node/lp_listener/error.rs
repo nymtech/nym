@@ -59,10 +59,9 @@ pub enum LpHandlerError {
 impl LpHandlerError {
     pub fn is_connection_closed(&self) -> bool {
         match self {
-            LpHandlerError::LpTransportError(transport_err) => match transport_err {
-                LpTransportError::ConnectionClosed => true,
-                _ => false,
-            },
+            LpHandlerError::LpTransportError(transport_err) => {
+                matches!(transport_err, LpTransportError::ConnectionClosed)
+            }
             _ => false,
         }
     }

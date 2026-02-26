@@ -209,6 +209,16 @@ pub struct LewesProtocolDetailsV1 {
     pub signature: ed25519::Signature,
 }
 
+impl LewesProtocolDetailsV1 {
+    pub fn verify(&self, key: &ed25519::PublicKey) -> bool {
+        let Ok(plaintext) = serde_json::to_string(&self.content) else {
+            return false;
+        };
+
+        key.verify(plaintext, &self.signature).is_ok()
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq)]
 pub struct LewesProtocolDetailsDataV1 {
     /// Helper field that specifies whether the LP listener(s) is enabled on this node.
@@ -572,10 +582,44 @@ impl TryFrom<LPSignatureScheme> for SignatureScheme {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_node_requests::api::SignedLewesProtocol;
 
     #[test]
     fn signature_validity_after_conversion() {
+        use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM};
+
+        let signing_key = ed25519::PrivateKey::from_bytes(&[42u8; 32]).unwrap();
+        let verification_key = signing_key.public_key();
+
+        let x25519_key = x25519::DHPublicKey::from_bytes(&[42u8; 32]);
+
+        let mut dummy_kems = BTreeMap::new();
+        for kem in [LPKEM::McEliece, LPKEM::McEliece] {
+            let mut kem_digests = BTreeMap::new();
+            for sf in [
+                LPHashFunction::Blake3,
+                LPHashFunction::Shake128,
+                LPHashFunction::Shake256,
+                LPHashFunction::Sha256,
+            ] {
+                kem_digests.insert(sf, "0xdeadbeef".to_string());
+            }
+            dummy_kems.insert(kem, kem_digests);
+        }
+
         // make sure the serialisation stays the same and signature is still valid
-        todo!()
+        let dummy_lp = nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol {
+            enabled: false,
+            control_port: 123,
+            data_port: 345,
+            x25519: x25519_key,
+            kem_keys: dummy_kems,
+        };
+        let dummy_signed_lp = SignedLewesProtocol::new(dummy_lp, &signing_key).unwrap();
+        // sanity check
+        assert!(dummy_signed_lp.verify(&verification_key));
+
+        let converted = LewesProtocolDetailsV1::from(dummy_signed_lp);
+        assert!(converted.verify(&verification_key));
     }
 }

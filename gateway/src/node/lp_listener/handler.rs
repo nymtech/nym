@@ -624,35 +624,6 @@ where
         Ok(())
     }
 
-    // only used in tests
-    #[cfg(test)]
-    async fn send_lp_packet(&mut self, packet: LpPacket) -> Result<(), LpHandlerError> {
-        let receiver_index = self.bound_receiver_index()?;
-
-        let mut session_entry = self
-            .state
-            .session_states
-            .get_mut(&receiver_index)
-            .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })?;
-
-        // Access session via state machine for subsession support
-        let session = session_entry.value_mut().state.session_mut()?;
-
-        let mut packet_buf = BytesMut::new();
-        serialize_lp_packet(&packet, &mut packet_buf, Some(outer_key)).map_err(|e| {
-            LpHandlerError::LpProtocolError(format!("Failed to serialize packet: {e}",))
-        })?;
-
-        self.stream
-            .send_length_prefixed_transport_packet(&packet_buf)
-            .await?;
-
-        // Track bytes sent (4 byte header + packet data)
-        self.stats.record_bytes_sent(4 + packet_buf.len());
-
-        Ok(())
-    }
-
     /// Emit connection lifecycle metrics
     fn emit_lifecycle_metrics(&self, graceful: bool) {
         use nym_metrics::inc_by;
@@ -689,17 +660,18 @@ mod tests {
     use super::*;
     use crate::node::lp_listener::{LpConfig, LpDebug};
     use crate::node::ActiveClientsStore;
-    use bytes::BytesMut;
-    use nym_lp::peer::LpLocalPeer;
-    use nym_lp::SessionsMock;
+    use nym_lp::peer::{generate_keypair_mceliece, generate_keypair_mlkem, KEMKeys, LpLocalPeer};
+    use nym_lp::{sessions_for_tests, Ciphersuite, SessionManager};
+    use nym_test_utils::helpers::{deterministic_rng, deterministic_rng_09};
     use std::sync::Arc;
-    use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
     // ==================== Test Helpers ====================
 
     /// Create a minimal test state for handler tests
     async fn create_minimal_test_state() -> LpHandlerState {
         use nym_crypto::asymmetric::ed25519;
-        use rand::rngs::OsRng;
+
+        let mut rng = deterministic_rng();
+        let mut rng09 = deterministic_rng_09();
 
         // Create in-memory storage for testing
         let storage = nym_gateway_storage::GatewayStorage::init(":memory:", 100)
@@ -723,10 +695,14 @@ mod tests {
         // Create mix forwarding channel (unused in tests but required by struct)
         let (mix_sender, _mix_receiver) = nym_mixnet_client::forwarder::mix_forwarding_channels();
 
-        let id_keys = Arc::new(ed25519::KeyPair::new(&mut OsRng));
-        let x_keys = Arc::new(id_keys.to_x25519());
+        let id_keys = Arc::new(ed25519::KeyPair::new(&mut rng));
+        let x_keys = Arc::new(id_keys.to_x25519().try_into().unwrap());
 
-        let lp_peer = LpLocalPeer::new(id_keys, x_keys.clone()).with_kem_psq_key(x_keys);
+        let kem_keys = KEMKeys::new(
+            generate_keypair_mceliece(&mut rng09),
+            generate_keypair_mlkem(&mut rng09),
+        );
+        let lp_peer = LpLocalPeer::new(Ciphersuite::default(), x_keys).with_kem_keys(kem_keys);
 
         LpHandlerState {
             lp_config,
@@ -739,172 +715,23 @@ mod tests {
             outbound_mix_sender: mix_sender,
             session_states: Arc::new(dashmap::DashMap::new()),
             peer_registrator: None,
+            forward_semaphore,
         }
     }
 
-    fn add_dummy_lp_state(handler: &mut LpConnectionHandler, session: LpSession) {
-        let id = session.receiver_index();
-        let state_machine = LpStateMachine::new(session);
-        handler.bound_receiver_idx = Some(id);
-
-        handler
-            .state
-            .session_states
-            .insert(id, TimestampedState::new(state_machine));
-    }
-
-    /// Helper to write an LP packet to a stream with proper framing
-    async fn write_lp_packet_to_stream<W: AsyncWriteExt + Unpin>(
-        stream: &mut W,
-        packet: &LpPacket,
-    ) -> Result<(), std::io::Error> {
-        let mut packet_buf = BytesMut::new();
-        serialize_lp_packet(packet, &mut packet_buf, None)
-            .map_err(|e| std::io::Error::other(e.to_string()))?;
-
-        // Write length prefix
-        let len = packet_buf.len() as u32;
-        stream.write_all(&len.to_be_bytes()).await?;
-
-        // Write packet data
-        stream.write_all(&packet_buf).await?;
-        stream.flush().await?;
-
-        Ok(())
-    }
-
-    /// Helper to read an LP packet from a stream with proper framing
-    async fn read_lp_packet_from_stream<R: AsyncRead + Unpin>(
-        stream: &mut R,
-        outer_aead_key: &OuterAeadKey,
-    ) -> Result<LpPacket, std::io::Error> {
-        // Read length prefix
-        let mut len_buf = [0u8; 4];
-        stream.read_exact(&mut len_buf).await?;
-        let packet_len = u32::from_be_bytes(len_buf) as usize;
-
-        // Read packet data
-        let mut packet_buf = vec![0u8; packet_len];
-        stream.read_exact(&mut packet_buf).await?;
-
-        // Parse packet
-        parse_lp_packet(&packet_buf, Some(outer_aead_key))
-            .map_err(|e| std::io::Error::other(e.to_string()))
-    }
-
     // ==================== Existing Tests ====================
-
-    #[test]
-    fn test_validate_timestamp_current() {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        // Current timestamp should always pass
-        assert!(
-            LpConnectionHandler::<TcpStream>::validate_timestamp(now, Duration::from_secs(30))
-                .is_ok()
-        );
-    }
-
-    #[test]
-    fn test_validate_timestamp_within_tolerance() {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        // 10 seconds old, tolerance 30s -> should pass
-        let old_timestamp = now - 10;
-        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(
-            old_timestamp,
-            Duration::from_secs(30)
-        )
-        .is_ok());
-
-        // 10 seconds in future, tolerance 30s -> should pass
-        let future_timestamp = now + 10;
-        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(
-            future_timestamp,
-            Duration::from_secs(30)
-        )
-        .is_ok());
-    }
-
-    #[test]
-    fn test_validate_timestamp_too_old() {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        // 60 seconds old, tolerance 30s -> should fail
-        let old_timestamp = now - 60;
-        let result = LpConnectionHandler::<TcpStream>::validate_timestamp(
-            old_timestamp,
-            Duration::from_secs(30),
-        );
-        assert!(result.is_err());
-        assert!(format!("{:?}", result).contains("too old"));
-    }
-
-    #[test]
-    fn test_validate_timestamp_too_far_future() {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        // 60 seconds in future, tolerance 30s -> should fail
-        let future_timestamp = now + 60;
-        let result = LpConnectionHandler::<TcpStream>::validate_timestamp(
-            future_timestamp,
-            Duration::from_secs(30),
-        );
-        assert!(result.is_err());
-        assert!(format!("{:?}", result).contains("too future"));
-    }
-
-    #[test]
-    fn test_validate_timestamp_boundary() {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        // Exactly at tolerance boundary -> should pass
-        let boundary_timestamp = now - 30;
-        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(
-            boundary_timestamp,
-            Duration::from_secs(30)
-        )
-        .is_ok());
-
-        // Just beyond boundary -> should fail
-        let beyond_timestamp = now - 31;
-        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(
-            beyond_timestamp,
-            Duration::from_secs(30)
-        )
-        .is_err());
-    }
 
     // ==================== Packet I/O Tests ====================
 
     #[tokio::test]
     async fn test_receive_raw_packet_valid() {
         use tokio::net::{TcpListener, TcpStream};
+
+        let (init, resp) = sessions_for_tests();
+        let mut init_sm = SessionManager::new();
+        let mut resp_sm = SessionManager::new();
+        resp_sm.create_session_state_machine(resp).unwrap();
+        let id = init_sm.create_session_state_machine(init).unwrap();
 
         // Bind to localhost
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -916,69 +743,38 @@ mod tests {
             let state = create_minimal_test_state().await;
             let mut handler = LpConnectionHandler::new(stream, remote_addr, state);
             // Two-phase: receive raw bytes + header, then parse full packet
-            let (raw_bytes, header) = handler.receive_raw_packet().await?;
-            let packet = parse_lp_packet(&raw_bytes, None).map_err(|e| {
-                LpHandlerError::LpProtocolError(format!("Failed to parse packet: {}", e))
-            })?;
-            Ok::<_, LpHandlerError>((header, packet))
+            let packet = handler.receive_raw_packet().await?;
+            let header = packet.outer_header();
+            assert_eq!(packet.outer_header().receiver_idx, id);
+            let Some(LpAction::DeliverData(data)) = resp_sm.receive_packet(id, packet).unwrap()
+            else {
+                panic!("illegal state")
+            };
+            Ok::<_, LpHandlerError>((header, data))
         });
 
         // Connect as client
         let mut client_stream = TcpStream::connect(addr).await.unwrap();
 
         // Send a valid packet from client side
-        let packet = LpPacket::new(
-            LpHeader {
-                protocol_version: 1,
-                reserved: [0u8; 3],
-                receiver_idx: 42,
-                counter: 0,
-            },
-            LpMessage::Busy,
-        );
-        write_lp_packet_to_stream(&mut client_stream, &packet)
+        let LpAction::SendPacket(packet) = init_sm
+            .send_data(id, LpData::new_opaque(b"foomp".to_vec()))
+            .unwrap()
+        else {
+            panic!("illegal state")
+        };
+
+        client_stream
+            .send_length_prefixed_transport_packet(&packet)
             .await
             .unwrap();
 
         // Handler should receive and parse it correctly
         // Note: header is OuterHeader (receiver_idx + counter only), not LpHeader
         let (header, received) = server_task.await.unwrap().unwrap();
-        assert_eq!(header.receiver_idx, 42);
+        assert_eq!(header.receiver_idx, id);
         assert_eq!(header.counter, 0);
-        assert_eq!(received.header().protocol_version, 1);
-        assert_eq!(received.header().receiver_idx, 42);
-        assert_eq!(received.header().counter, 0);
-    }
-
-    #[tokio::test]
-    async fn test_receive_raw_packet_exceeds_max_size() {
-        use tokio::net::{TcpListener, TcpStream};
-
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-
-        let server_task = tokio::spawn(async move {
-            let (stream, remote_addr) = listener.accept().await.unwrap();
-            let state = create_minimal_test_state().await;
-            let mut handler = LpConnectionHandler::new(stream, remote_addr, state);
-            handler.receive_raw_packet().await
-        });
-
-        let mut client_stream = TcpStream::connect(addr).await.unwrap();
-
-        // Send a packet size that exceeds MAX_PACKET_SIZE (64KB)
-        let oversized_len: u32 = 70000; // > 65536
-        client_stream
-            .write_all(&oversized_len.to_be_bytes())
-            .await
-            .unwrap();
-        client_stream.flush().await.unwrap();
-
-        // Handler should reject it
-        let result = server_task.await.unwrap();
-        assert!(result.is_err());
-        let err_msg = format!("{:?}", result.unwrap_err());
-        assert!(err_msg.contains("exceeds maximum"));
+        assert_eq!(received.content.as_ref(), b"foomp");
     }
 
     #[tokio::test]
@@ -988,88 +784,46 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
-        let receiver_idx = 99;
-        let sessions = SessionsMock::mock_post_handshake(receiver_idx);
-        let init = sessions.initiator;
-        let resp = sessions.responder;
+        let (init, resp) = sessions_for_tests();
+        let mut init_sm = SessionManager::new();
+        let mut resp_sm = SessionManager::new();
+        resp_sm.create_session_state_machine(resp).unwrap();
+        let id = init_sm.create_session_state_machine(init).unwrap();
 
         let server_task = tokio::spawn(async move {
-            let (stream, remote_addr) = listener.accept().await.unwrap();
-            let state = create_minimal_test_state().await;
-            let mut handler = LpConnectionHandler::new(stream, remote_addr, state);
-            add_dummy_lp_state(&mut handler, resp);
+            let (mut stream, _) = listener.accept().await.unwrap();
 
-            let packet = LpPacket::new(
-                LpHeader {
-                    protocol_version: 1,
-                    reserved: [0u8; 3],
-                    receiver_idx,
-                    counter: 5,
-                },
-                LpMessage::Busy,
-            );
-            handler.send_lp_packet(packet).await
+            let LpAction::SendPacket(packet) = resp_sm
+                .send_data(id, LpData::new_opaque(b"foomp".to_vec()))
+                .unwrap()
+            else {
+                panic!("illegal state")
+            };
+
+            stream
+                .send_length_prefixed_transport_packet(&packet)
+                .await
+                .unwrap();
         });
 
         let mut client_stream = TcpStream::connect(addr).await.unwrap();
 
         // Wait for server to send
-        server_task.await.unwrap().unwrap();
+        server_task.await.unwrap();
 
         // Client should receive it correctly
-        let received = read_lp_packet_from_stream(&mut client_stream, init.outer_aead_key())
+        let received = client_stream
+            .receive_length_prefixed_transport_packet()
             .await
             .unwrap();
-        assert_eq!(received.header().receiver_idx, receiver_idx);
-        assert_eq!(received.header().counter, 5);
-    }
+        let header = received.outer_header();
+        let Some(LpAction::DeliverData(data)) = init_sm.receive_packet(id, received).unwrap()
+        else {
+            panic!("illegal state")
+        };
 
-    #[tokio::test]
-    async fn test_send_receive_encrypted_data_message() {
-        use tokio::net::{TcpListener, TcpStream};
-
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-
-        let receiver_idx = 200;
-        let sessions = SessionsMock::mock_post_handshake(receiver_idx);
-        let init = sessions.initiator;
-        let resp = sessions.responder;
-
-        let encrypted_payload = vec![42u8; 256];
-        let expected_payload = encrypted_payload.clone();
-
-        let server_task = tokio::spawn(async move {
-            let (stream, remote_addr) = listener.accept().await.unwrap();
-            let state = create_minimal_test_state().await;
-            let mut handler = LpConnectionHandler::new(stream, remote_addr, state);
-            add_dummy_lp_state(&mut handler, resp);
-
-            let packet = LpPacket::new(
-                LpHeader {
-                    protocol_version: 1,
-                    reserved: [0u8; 3],
-                    receiver_idx,
-                    counter: 20,
-                },
-                LpMessage::ApplicationData(ApplicationData(encrypted_payload)),
-            );
-            handler.send_lp_packet(packet).await
-        });
-
-        let mut client_stream = TcpStream::connect(addr).await.unwrap();
-        server_task.await.unwrap().unwrap();
-
-        let received = read_lp_packet_from_stream(&mut client_stream, init.outer_aead_key())
-            .await
-            .unwrap();
-        assert_eq!(received.header().receiver_idx, 200);
-        assert_eq!(received.header().counter, 20);
-        match received.message() {
-            LpMessage::ApplicationData(data) => {
-                assert_eq!(data, &ApplicationData(expected_payload))
-            }
-            _ => panic!("Expected EncryptedData message"),
-        }
+        assert_eq!(header.receiver_idx, id);
+        assert_eq!(header.counter, 0);
+        assert_eq!(data.content.as_ref(), b"foomp");
     }
 }

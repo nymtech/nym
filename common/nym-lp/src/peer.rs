@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpError;
-use nym_crypto::asymmetric::x25519;
 use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
 pub use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
+pub use nym_kkt::key_utils::{
+    generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
+};
 pub use nym_kkt::keys::KEMKeys;
 
 /// Representation of a local Lewes Protocol peer
@@ -85,11 +87,9 @@ pub struct LpRemotePeer {
 }
 
 impl LpRemotePeer {
-    pub fn new(x25519_public: x25519::PublicKey) -> Self {
-        // TODO: make nicer conversion (without cloning) + error handling
-        let responder_x25519_public_key = DHPublicKey::from_bytes(x25519_public.as_bytes());
+    pub fn new(x25519_public: DHPublicKey) -> Self {
         LpRemotePeer {
-            x25519_public: responder_x25519_public_key,
+            x25519_public,
             expected_kem_key_digests: Default::default(),
         }
     }

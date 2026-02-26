@@ -28,10 +28,12 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
+use nym_lp::peer::DHKeyPair;
 use nym_registration_client::{LpRegistrationClient, NestedLpSession};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
+use rand09::SeedableRng;
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
     sync::Arc,
@@ -163,23 +165,25 @@ pub async fn lp_registration_probe(
 ) -> anyhow::Result<LpProbeResults> {
     let lp_address = gateway_lp_data.address;
     let lp_version = gateway_lp_data.lp_version;
-    let peer = helpers::to_lp_remote_peer(gateway_identity, gateway_lp_data);
+    let lp_ciphersuite = gateway_lp_data.ciphersuite;
+    let peer = gateway_lp_data.into_remote_peer();
 
     info!("Starting LP registration probe for gateway at {lp_address}");
 
     let mut lp_outcome = LpProbeResults::default();
 
     // Generate Ed25519 keypair for this connection (X25519 will be derived internally by LP)
-    let mut rng = rand::thread_rng();
-    let client_ed25519_keypair = std::sync::Arc::new(ed25519::KeyPair::new(&mut rng));
+    let mut rng09 = rand09::rngs::StdRng::from_os_rng();
+    let client_x25519_keypair = Arc::new(DHKeyPair::new(&mut rng09));
 
     // Step 0: Derive X25519 keys from Ed25519 for the gateways
 
     // Create LP registration client (uses Ed25519 keys directly, derives X25519 internally)
     let mut client = LpRegistrationClient::<TcpStream>::new_with_default_config(
-        client_ed25519_keypair,
+        client_x25519_keypair,
         peer,
         lp_address,
+        lp_ciphersuite,
         lp_version,
     );
 
@@ -209,23 +213,13 @@ pub async fn lp_registration_probe(
     let wg_keypair = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rng);
 
     // Convert gateway identity to ed25519 public key
-    let gateway_ed25519_pubkey = match nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
-        &gateway_identity.to_bytes(),
-    ) {
-        Ok(key) => key,
-        Err(e) => {
-            let error_msg = format!("Failed to convert gateway identity: {}", e);
-            error!("{}", error_msg);
-            lp_outcome.error = Some(error_msg);
-            return Ok(lp_outcome);
-        }
-    };
+    let gateway_ed25519_pubkey = gateway_identity;
 
     // Register using the new packet-per-connection API (returns GatewayData directly)
     let ticket_type = TicketType::V1WireguardEntry;
     let gateway_data = match client
         .register_dvpn(
-            &mut rng,
+            &mut rng09,
             &wg_keypair,
             &gateway_ed25519_pubkey,
             bandwidth_controller,
@@ -299,21 +293,26 @@ pub async fn wg_probe_lp(
     let entry_lp_version = entry_lp_data.lp_version;
     let exit_lp_version = exit_lp_data.lp_version;
 
+    let entry_lp_ciphersuite = entry_lp_data.ciphersuite;
+    let exit_lp_ciphersuite = exit_lp_data.ciphersuite;
+
     info!("Starting LP-based WireGuard probe (entry→exit via forwarding)");
 
     let mut wg_outcome = WgProbeResults::default();
 
-    // Generate Ed25519 keypairs for LP protocol
-    let mut rng = rand::thread_rng();
-    let entry_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
-    let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
+    // Generate x25519 keypairs for LP protocol
+    let mut rng09 = rand09::rngs::StdRng::from_os_rng();
+
+    let entry_lp_keypair = Arc::new(DHKeyPair::new(&mut rng09));
+    let exit_lp_keypair = Arc::new(DHKeyPair::new(&mut rng09));
 
     // Generate WireGuard keypairs for VPN registration
+    let mut rng = rand::rngs::OsRng;
     let entry_wg_keypair = x25519::KeyPair::new(&mut rng);
     let exit_wg_keypair = x25519::KeyPair::new(&mut rng);
 
-    let entry_peer = helpers::to_lp_remote_peer(entry_gateway.identity, entry_lp_data);
-    let exit_peer = helpers::to_lp_remote_peer(exit_gateway.identity, exit_lp_data);
+    let entry_peer = entry_lp_data.into_remote_peer();
+    let exit_peer = exit_lp_data.into_remote_peer();
 
     // STEP 1: Establish outer LP session with entry gateway
     // LpRegistrationClient uses packet-per-connection model - connect() is gone,
@@ -323,6 +322,7 @@ pub async fn wg_probe_lp(
         entry_lp_keypair,
         entry_peer,
         entry_address,
+        entry_lp_ciphersuite,
         entry_lp_version,
     );
 
@@ -335,16 +335,26 @@ pub async fn wg_probe_lp(
 
     // STEP 2: Use nested session to register with exit gateway via forwarding
     info!("Registering with exit gateway via entry forwarding...");
-    let mut nested_session =
-        NestedLpSession::new(exit_address, exit_lp_keypair, exit_peer, exit_lp_version);
+    let mut nested_session = NestedLpSession::new(
+        exit_address,
+        exit_lp_keypair,
+        exit_peer,
+        exit_lp_ciphersuite,
+        exit_lp_version,
+    );
 
     let exit_gateway_pubkey = exit_gateway.identity;
 
     // Perform handshake and registration with exit gateway via forwarding
+    if let Err(err) = nested_session.perform_handshake(&mut entry_client).await {
+        error!("Failed to perform handshake with exit gateway: {err}");
+        return Ok(wg_outcome);
+    };
+
     let exit_gateway_data = match nested_session
-        .handshake_and_register_dvpn(
+        .register_dvpn(
             &mut entry_client,
-            &mut rng,
+            &mut rng09,
             &exit_wg_keypair,
             &exit_gateway_pubkey,
             bandwidth_controller,
@@ -370,7 +380,7 @@ pub async fn wg_probe_lp(
     // Use packet-per-connection register() which returns GatewayData directly
     let entry_gateway_data = match entry_client
         .register_dvpn(
-            &mut rng,
+            &mut rng09,
             &entry_wg_keypair,
             &entry_gateway_pubkey,
             bandwidth_controller,

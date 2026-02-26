@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 pub use lp_messages::*;
+use nym_crypto::asymmetric::x25519::DHPublicKey;
 pub use serialisation::BincodeError;
 
 mod lp_messages;
@@ -57,7 +58,7 @@ pub struct WireguardConfiguration {
 pub struct NymNodeLPInformation {
     pub address: SocketAddr,
     pub expected_kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
-    pub x25519: x25519::PublicKey,
+    pub x25519: DHPublicKey,
 
     // to be inferred from node's version
     pub ciphersuite: Ciphersuite,

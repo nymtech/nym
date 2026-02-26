@@ -1,6 +1,6 @@
 # dVPN Mode
 
-dVPN mode is a 2-hop decentralized VPN available through [NymVPN](https://nymvpn.com). It provides strong privacy with low latency, suitable for everyday internet use.
+dVPN mode is a 2-hop decentralized VPN available through [NymVPN](https://nymvpn.com) — traffic is routed through two independent gateways rather than a single VPN provider's server, so no single operator ever sees both who you are and what you're doing.
 
 ## How it works
 
@@ -16,31 +16,18 @@ This "onion" model means neither gateway ever sees both your identity and your d
 
 ## Privacy guarantees
 
-dVPN mode hides your IP from destination servers and provides decentralization—no single operator sees everything. All packets are padded to uniform size, preventing packet-size fingerprinting. And critically, dVPN traffic is indistinguishable from mixnet traffic to external observers.
-
-The mode does not provide timing obfuscation. Packets are forwarded immediately without delay. It does not generate cover traffic. A sophisticated adversary capable of observing both your Entry and Exit Gateways could potentially correlate timing to link your requests. For protection against such adversaries, use [mixnet mode](/network/mixnet-mode).
+dVPN mode hides your IP from destination servers and splits trust across two operators, but it does not add timing obfuscation or cover traffic — packets are forwarded immediately without delay, which means a sophisticated adversary observing both your Entry and Exit Gateways could correlate timing to link your requests. For protection against that kind of adversary, see [Mixnet Mode](/network/mixnet-mode).
 
 ## Performance
 
-Latency is typically 50-150ms additional—comparable to traditional VPNs and suitable for real-time activities. Throughput is high enough for streaming and downloads. The WireGuard-based encryption is efficient and handles reconnection gracefully.
+Latency is typically 50-150ms additional, comparable to traditional VPNs, since WireGuard handles encryption and reconnection without much overhead.
 
-## When to use dVPN mode
-
-dVPN mode is appropriate for general web browsing, streaming video and audio, file downloads, and any situation where speed matters and your adversaries are typical—ISPs monitoring your traffic, websites tracking your location, advertisers building profiles.
-
-Consider mixnet mode instead for sensitive communications, journalism, activism, or situations where sophisticated adversaries might be monitoring network traffic.
-
-## Censorship resistance
-
-dVPN mode uses [AmneziaWG](https://docs.amnezia.org/documentation/amnezia-wg/), a fork of WireGuard designed to be harder to detect and block. AmneziaWG introduces decoy packets before the handshake initiation, which can help disrupt some DPI (Deep Packet Inspection) rules used to identify WireGuard traffic.
-
-This is one of several approaches Nym is taking to improve connectivity in restrictive network environments. It's not a guarantee against all blocking methods, but it raises the bar for censors relying on simple protocol fingerprinting.
-
-For more background, see [Introducing AmneziaWG for NymVPN](https://nym.com/blog/introducing-amneziawg-for-nymvpn).
+For help deciding between dVPN and Mixnet mode, see [Choosing a Mode](/network/overview/choosing-a-mode).
 
 ## Technical details
 
-For protocol specifications and encryption details, see [dVPN Protocol](/network/dvpn-mode/protocol).
+- [dVPN Protocol](/network/dvpn-mode/protocol) — protocol stack and encryption details
+- [Censorship Resistance](/network/dvpn-mode/censorship-resistance) — AmneziaWG and DPI evasion
 
 ## Further reading
 

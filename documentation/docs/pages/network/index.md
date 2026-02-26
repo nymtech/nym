@@ -50,6 +50,6 @@ This documentation covers the network architecture and protocols:
 - [Infrastructure](/network/infrastructure): blockchain and node architecture.
 - [Reference](/network/reference): technical specifications.
 
-For building applications and intergrating existing apps with the Mixnet, see the [Developer Documentation](/developers).
+For building applications and integrating existing apps with the Mixnet, see the [Developer Documentation](/developers).
 
 If you wish to take part in the network as a Node Operator, see the [Operator Documentation](/operators/introduction).

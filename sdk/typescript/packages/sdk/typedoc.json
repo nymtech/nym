@@ -1,7 +1,8 @@
 {
   "sort": ["kind"],
   "entryPoints": ["./src/index.ts"],
-  "out": "./docs",
+  "out": "../../../../documentation/docs/pages/developers/typescript/api/sdk",
+  "plugin": ["typedoc-plugin-markdown"],
   "exclude": ["./src/**/node-tester/*", "./src/**/wasm/types-from-wasm-pack.ts"],
   "kindSortOrder": [
     "Function",
@@ -19,7 +20,6 @@
     "Variable",
     "Accessor",
     "Method",
-    "ObjectLiteral",
     "Parameter",
     "TypeParameter",
     "TypeLiteral",

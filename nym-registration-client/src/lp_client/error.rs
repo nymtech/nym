@@ -70,6 +70,9 @@ pub enum LpClientError {
     #[error("received an unexpected response: {message}")]
     UnexpectedResponse { message: String },
 
+    #[error("currently McEliece keys are not supported for nested registration")]
+    UnsupportedNestedMcEliece,
+
     #[error("{0}")]
     Other(String),
 }

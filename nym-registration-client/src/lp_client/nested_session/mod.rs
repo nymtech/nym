@@ -28,7 +28,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::packet::version;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpData, LpStateMachine};
-use nym_lp::{Ciphersuite, EncryptedLpPacket, LpSession};
+use nym_lp::{Ciphersuite, EncryptedLpPacket, KEM, LpSession};
 use nym_lp_transport::LpHandshakeChannel;
 use nym_lp_transport::traits::LpTransportChannel;
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
@@ -162,6 +162,10 @@ impl NestedLpSession {
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
     {
+        if self.lp_local_peer.ciphersuite().kem() == KEM::McEliece {
+            return Err(LpClientError::UnsupportedNestedMcEliece);
+        }
+
         tracing::debug!(
             "Starting nested LP handshake with exit gateway {}",
             self.exit_address

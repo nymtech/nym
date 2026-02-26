@@ -34,12 +34,12 @@ impl HandshakeMessage for KKTRequest {
         ))
     }
 
-    fn expected_size(mode: KKTMode, expected_kem: KEM) -> usize {
-        nym_kkt::message::KKTRequest::size(mode, expected_kem)
+    fn expected_size(mode: KKTMode, expected_kem: KEM, payload_size: usize) -> usize {
+        nym_kkt::message::KKTRequest::size_excluding_payload(mode, expected_kem) + payload_size
     }
 
-    fn response_size(&self, expected_kem: KEM) -> Option<usize> {
-        Some(nym_kkt::message::KKTResponse::size(expected_kem))
+    fn response_size(&self, expected_kem: KEM, payload_size: usize) -> Option<usize> {
+        Some(nym_kkt::message::KKTResponse::size_excluding_payload(expected_kem) + payload_size)
     }
 }
 
@@ -68,12 +68,12 @@ impl HandshakeMessage for KKTResponse {
         )))
     }
 
-    fn expected_size(_: KKTMode, expected_kem: KEM) -> usize {
-        nym_kkt::message::KKTResponse::size(expected_kem)
+    fn expected_size(_: KKTMode, expected_kem: KEM, payload_size: usize) -> usize {
+        nym_kkt::message::KKTResponse::size_excluding_payload(expected_kem) + payload_size
     }
 
-    fn response_size(&self, expected_kem: KEM) -> Option<usize> {
-        Some(psq_msg1_size(expected_kem))
+    fn response_size(&self, expected_kem: KEM, payload_size: usize) -> Option<usize> {
+        Some(psq_msg1_size(expected_kem) + payload_size)
     }
 }
 
@@ -101,12 +101,12 @@ impl HandshakeMessage for PSQMsg1 {
         Ok(PSQMsg1(bytes))
     }
 
-    fn expected_size(_: KKTMode, expected_kem: KEM) -> usize {
-        psq_msg1_size(expected_kem)
+    fn expected_size(_: KKTMode, expected_kem: KEM, payload_size: usize) -> usize {
+        psq_msg1_size(expected_kem) + payload_size
     }
 
-    fn response_size(&self, _: KEM) -> Option<usize> {
-        Some(PSQ_MSG2_SIZE)
+    fn response_size(&self, _: KEM, payload_size: usize) -> Option<usize> {
+        Some(PSQ_MSG2_SIZE + payload_size)
     }
 }
 
@@ -134,11 +134,11 @@ impl HandshakeMessage for PSQMsg2 {
         Ok(PSQMsg2(bytes))
     }
 
-    fn expected_size(_: KKTMode, _: KEM) -> usize {
-        PSQ_MSG2_SIZE
+    fn expected_size(_: KKTMode, _: KEM, payload_size: usize) -> usize {
+        PSQ_MSG2_SIZE + payload_size
     }
 
-    fn response_size(&self, _: KEM) -> Option<usize> {
+    fn response_size(&self, _: KEM, _: usize) -> Option<usize> {
         None
     }
 }

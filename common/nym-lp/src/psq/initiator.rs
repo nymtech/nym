@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::peer::{LpLocalPeer, LpRemotePeer};
+use crate::peer_config::{LP_PEER_CONFIG_SIZE, LpPeerConfig};
 use crate::psq::handshake_message::{PSQMsg1, PSQMsg2};
 use crate::psq::helpers::kem_to_ciphersuite;
 use crate::psq::{
@@ -89,7 +90,9 @@ where
 
     /// Attempt to receive a KKT response to the previously sent request
     async fn receive_kkt_response(&mut self) -> Result<KKTResponse, LpError> {
-        let packet_len = KKTResponse::size(self.inner_state.local_peer.ciphersuite.kem());
+        // no response payload
+        let packet_len =
+            KKTResponse::size_excluding_payload(self.inner_state.local_peer.ciphersuite.kem());
 
         let resp = self
             .inner_state
@@ -116,6 +119,8 @@ where
         let ciphersuite = self.inner_state.local_peer.ciphersuite();
         let kem = ciphersuite.kem();
 
+        let lp_peer_config = LpPeerConfig::new_client_to_entry(rng, false);
+
         // 1. retrieve the expected kem key hash. if we don't know it,
         let dir_hash = self
             .initiator_data
@@ -129,6 +134,7 @@ where
             self.initiator_data.remote_peer.x25519(),
             &dir_hash,
             self.initiator_data.protocol_version,
+            Some(Vec::from(lp_peer_config.serialize())),
         )?;
         // derive the receiver index from the request
         // let receiver_index = kkt_request
@@ -139,7 +145,9 @@ where
         // 3. receive and process KKT response
         let raw_response = self.receive_kkt_response().await?;
         debug!("received KKT response");
-        let response = initiator.process_response(raw_response)?;
+
+        // the responder does not send a payload
+        let response = initiator.process_response(raw_response, 0)?;
 
         // 4. generate and send PSQ request
         let protocol = self.initiator_data.protocol_version;
@@ -257,13 +265,15 @@ mod tests {
 
             // 1. read KKT request
             let raw_kkt_req: handshake_message::KKTRequest = conn_resp
-                .receive_handshake_message(KKTRequest::size(KKTMode::OneWay, kem))
+                .receive_handshake_message(
+                    KKTRequest::size_excluding_payload(KKTMode::OneWay, kem) + LP_PEER_CONFIG_SIZE,
+                )
                 .timeboxed()
                 .await??;
             let req = raw_kkt_req.into();
 
             // 2. process
-            let processed_req = kkt_responder.process_request(req)?;
+            let processed_req = kkt_responder.process_request(req, LP_PEER_CONFIG_SIZE)?;
             conn_resp
                 .send_handshake_message::<handshake_message::KKTResponse>(
                     processed_req.response.into(),

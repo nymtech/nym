@@ -179,6 +179,14 @@ impl LpPeerConfig {
         }
     }
 
+    pub fn hop_id(&self) -> u8 {
+        self.hop_id
+    }
+    
+    pub fn seed(&self) -> &[u8; SEED_LEN] {
+        &self.seed
+    }
+
     pub fn serialize(&self) -> [u8; LP_PEER_CONFIG_SIZE] {
         let mut output_bytes: [u8; LP_PEER_CONFIG_SIZE] = [0u8; LP_PEER_CONFIG_SIZE];
         output_bytes[0..4].copy_from_slice(self.pack_config().as_slice());

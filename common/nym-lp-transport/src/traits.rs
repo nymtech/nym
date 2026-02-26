@@ -54,11 +54,11 @@ pub trait HandshakeMessage: Sized {
     fn try_from_bytes(bytes: Vec<u8>) -> Result<Self, LpTransportError>;
 
     /// Expected size of this message based on the provided parameters
-    fn expected_size(mode: KKTMode, expected_kem: KEM) -> usize;
+    fn expected_size(mode: KKTMode, expected_kem: KEM, payload_size: usize) -> usize;
 
     /// Expected size of the response from the remote party.
     /// `None` if this is the final (PSQ msg2) message of the exchange
-    fn response_size(&self, expected_kem: KEM) -> Option<usize>;
+    fn response_size(&self, expected_kem: KEM, payload_size: usize) -> Option<usize>;
 }
 
 async fn write_all_and_flush_async_write<W>(

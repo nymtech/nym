@@ -112,6 +112,7 @@ mod tests {
     use super::*;
     use crate::codec::{decrypt_data, encrypt_data};
     use crate::peer::mock_peers;
+    use crate::peer_config::{LP_PEER_CONFIG_SIZE, LpPeerConfig};
     use libcrux_psq::handshake::types::Authenticator;
     use libcrux_psq::session::{Session, SessionBinding};
     use libcrux_psq::{Channel, IntoSession};
@@ -228,6 +229,8 @@ mod tests {
 
             // SETUP END
 
+            let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
+
             // OneWay - MlKem
             let (mut initiator, request) = KKTInitiator::generate_one_way_request(
                 &mut rng,
@@ -235,12 +238,17 @@ mod tests {
                 &responder_x25519_keypair.pk,
                 &dir_hash,
                 protocol_version,
+                Some(Vec::from(lp_peer_config.serialize())),
             )
             .unwrap();
 
-            let processed_req = kkt_responder.process_request(request.request).unwrap();
+            let processed_req = kkt_responder
+                .process_request(request.request, LP_PEER_CONFIG_SIZE)
+                .unwrap();
 
-            let response = initiator.process_response(processed_req.response).unwrap();
+            let response = initiator
+                .process_response(processed_req.response, 0)
+                .unwrap();
             let encapsulation_key = response.encapsulation_key;
 
             let mut payload_buf_responder = vec![0u8; 4096];

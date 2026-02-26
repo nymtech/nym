@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::peer::LpLocalPeer;
+use crate::peer_config::LP_PEER_CONFIG_SIZE;
 use crate::psq::handshake_message::{PSQMsg1, PSQMsg2};
 use crate::psq::helpers::kem_to_ciphersuite;
 use crate::psq::{
@@ -78,10 +79,10 @@ where
 {
     /// Attempt to receive a KKT request from a one-way client
     async fn receive_one_way_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
-        let packet_len = KKTRequest::size(
+        let packet_len = KKTRequest::size_excluding_payload(
             KKTMode::OneWay,
             self.inner_state.local_peer.ciphersuite.kem(),
-        );
+        ) + LP_PEER_CONFIG_SIZE;
 
         let req = self
             .inner_state
@@ -108,7 +109,7 @@ where
             &self.responder_data.supported_signature_schemes,
             &self.responder_data.supported_outer_protocol_versions,
         )?
-        .process_request(kkt_request)?;
+        .process_request(kkt_request, LP_PEER_CONFIG_SIZE)?;
         Ok(processed_req)
     }
 
@@ -216,6 +217,7 @@ mod tests {
     use super::*;
     use crate::codec::{decrypt_data, encrypt_data};
     use crate::peer::mock_peers;
+    use crate::peer_config::LpPeerConfig;
     use crate::psq::initiator;
     use nym_kkt::initiator::KKTInitiator;
     use nym_kkt_ciphersuite::{Ciphersuite, IntoEnumIterator};
@@ -261,6 +263,8 @@ mod tests {
             let mut rng = deterministic_rng_09();
             let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
 
+            let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
+
             // OneWay - MlKem
             let (mut initiator, request) = KKTInitiator::generate_one_way_request(
                 &mut rng,
@@ -268,6 +272,7 @@ mod tests {
                 &resp_remote.x25519_public,
                 &dir_hash,
                 1,
+                Some(Vec::from(lp_peer_config.serialize())),
             )?;
 
             // 1. send kkt request
@@ -280,14 +285,14 @@ mod tests {
                 .await??;
 
             // 2. receive KKT response
-            let response_len = KKTResponse::size(kem);
+            let response_len = KKTResponse::size_excluding_payload(kem);
             let resp: handshake_message::KKTResponse = conn_init
                 .receive_handshake_message(response_len)
                 .timeboxed()
                 .await??;
             let kkt_response = resp.into();
 
-            let response = initiator.process_response(kkt_response)?;
+            let response = initiator.process_response(kkt_response, 0)?;
             let encapsulation_key = response.encapsulation_key;
 
             let initiator_ciphersuite =

@@ -32,9 +32,7 @@ AEAD implementation: [`common/crypto/src/symmetric/aead.rs`](https://github.com/
 
 ## Packet format
 
-All packets are padded to a uniform size before encryption. The packet contains a header with routing information, the encrypted payload (original data plus padding), and an authentication tag. Padding is removed at the Exit Gateway before forwarding to the destination.
-
-This uniformity matters because packet sizes can leak information about content types—video streams have different size patterns than text messages. With uniform packets, this side channel is eliminated.
+dVPN mode uses standard WireGuard packet framing — packets are not padded to a uniform size. This means packet sizes may vary and could in principle leak information about content types (video streams have different size patterns than text messages). This is a tradeoff: uniform padding would add overhead and reduce throughput, which conflicts with dVPN mode's goal of low-latency, high-throughput connectivity. For uniform packet sizes, use [mixnet mode](/network/mixnet-mode), which wraps all traffic in fixed-size Sphinx packets.
 
 ## Connection lifecycle
 
@@ -54,6 +52,6 @@ Replay protection comes from WireGuard's counter-based mechanism and from zk-nym
 
 ## Relationship to mixnet mode
 
-dVPN mode shares infrastructure with mixnet mode. Both use the same Entry and Exit Gateways, the same credential system, and the same packet sizes. External observers cannot distinguish between the two modes. The difference is internal: mixnet mode routes through three additional Mix Node layers with delays and cover traffic, while dVPN mode routes directly between gateways.
+dVPN mode shares infrastructure with mixnet mode. Both use the same Entry and Exit Gateways and the same credential system. The difference is in how traffic is handled: mixnet mode routes through three additional Mix Node layers with delays and cover traffic using fixed-size Sphinx packets, while dVPN mode routes directly between gateways using WireGuard. The two modes are distinguishable at the protocol level due to their different packet formats and traffic patterns.
 
-This shared infrastructure means improvements to Gateways and credentials benefit both modes, and the indistinguishability between modes provides privacy benefits even for dVPN users.
+This shared infrastructure means improvements to Gateways and credentials benefit both modes.

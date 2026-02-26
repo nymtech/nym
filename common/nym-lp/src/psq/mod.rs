@@ -167,6 +167,8 @@ mod tests {
             let mut session_init = session_init???;
             let mut session_resp = session_resp???;
 
+            assert_eq!(session_init.receiver_index(), session_resp.receiver_index());
+
             assert_eq!(
                 session_init.session_identifier(),
                 session_resp.session_identifier()
@@ -243,7 +245,7 @@ mod tests {
             .unwrap();
 
             let processed_req = kkt_responder
-                .process_request(request.request, LP_PEER_CONFIG_SIZE)
+                .process_request(request, LP_PEER_CONFIG_SIZE)
                 .unwrap();
 
             let response = initiator

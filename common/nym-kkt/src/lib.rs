@@ -111,9 +111,7 @@ mod test {
                 )
                 .unwrap();
 
-                let processed_request = responder
-                    .process_request(request.request, payload.len())
-                    .unwrap();
+                let processed_request = responder.process_request(request, payload.len()).unwrap();
 
                 assert_eq!(processed_request.request_payload, payload);
 
@@ -145,9 +143,7 @@ mod test {
                 )
                 .unwrap();
 
-                let processed_request = responder
-                    .process_request(request.request, payload.len())
-                    .unwrap();
+                let processed_request = responder.process_request(request, payload.len()).unwrap();
 
                 assert_eq!(processed_request.request_payload, payload);
 
@@ -183,9 +179,7 @@ mod test {
                 )
                 .unwrap();
 
-                let processed_request = responder
-                    .process_request(request.request, payload.len())
-                    .unwrap();
+                let processed_request = responder.process_request(request, payload.len()).unwrap();
                 assert_eq!(processed_request.request_payload, payload);
 
                 let processed_response = initiator
@@ -216,9 +210,7 @@ mod test {
                 )
                 .unwrap();
 
-                let processed_request = responder
-                    .process_request(request.request, payload.len())
-                    .unwrap();
+                let processed_request = responder.process_request(request, payload.len()).unwrap();
 
                 assert_eq!(processed_request.request_payload, payload);
 

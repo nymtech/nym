@@ -27,11 +27,6 @@ pub struct KKTInitiator<'a> {
     expected_hash: &'a [u8],
 }
 
-pub struct KKTRequestWithReceiverIndex {
-    pub request: KKTRequest,
-    pub receiver_index: u64,
-}
-
 impl<'a> KKTInitiator<'a> {
     // to be used by clients
     pub fn generate_one_way_request<R>(
@@ -41,7 +36,7 @@ impl<'a> KKTInitiator<'a> {
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
         payload: Option<Vec<u8>>,
-    ) -> Result<(Self, KKTRequestWithReceiverIndex), KKTError>
+    ) -> Result<(Self, KKTRequest), KKTError>
     where
         R: CryptoRng + RngCore,
     {
@@ -66,7 +61,7 @@ impl<'a> KKTInitiator<'a> {
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
         payload: Option<Vec<u8>>,
-    ) -> Result<(Self, KKTRequestWithReceiverIndex), KKTError>
+    ) -> Result<(Self, KKTRequest), KKTError>
     where
         R: CryptoRng + RngCore,
     {
@@ -92,7 +87,7 @@ impl<'a> KKTInitiator<'a> {
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
         payload: Option<Vec<u8>>,
-    ) -> Result<(Self, KKTRequestWithReceiverIndex), KKTError>
+    ) -> Result<(Self, KKTRequest), KKTError>
     where
         R: CryptoRng + RngCore,
     {
@@ -108,10 +103,7 @@ impl<'a> KKTInitiator<'a> {
                 context,
                 expected_hash,
             },
-            KKTRequestWithReceiverIndex {
-                request: request.request,
-                receiver_index: request.receiver_index,
-            },
+            request.request,
         ))
     }
 

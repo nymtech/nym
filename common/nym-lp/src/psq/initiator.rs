@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::peer::{LpLocalPeer, LpRemotePeer};
-use crate::peer_config::{LP_PEER_CONFIG_SIZE, LpPeerConfig};
+use crate::peer_config::LpPeerConfig;
 use crate::psq::handshake_message::{PSQMsg1, PSQMsg2};
 use crate::psq::helpers::kem_to_ciphersuite;
 use crate::psq::{
@@ -140,7 +140,7 @@ where
         // let receiver_index = kkt_request
 
         debug!("sending KKT request");
-        self.send_kkt_request(kkt_request.request).await?;
+        self.send_kkt_request(kkt_request).await?;
 
         // 3. receive and process KKT response
         let raw_response = self.receive_kkt_response().await?;
@@ -189,14 +189,19 @@ where
             ));
         }
 
+        let initiator_authenticator = Authenticator::Dh(self.inner_state.local_peer.x25519().pk);
+
+        let receiver_index =
+            lp_peer_config.derive_receiver_index(&initiator_authenticator, &encapsulation_key)?;
+
         let binding = PersistentSessionBinding {
-            initiator_authenticator: Authenticator::Dh(self.inner_state.local_peer.x25519().pk),
+            initiator_authenticator,
             responder_ecdh_pk: self.initiator_data.remote_peer.x25519_public,
             responder_pq_pk: Some(encapsulation_key),
         };
 
         let psq_session = psq_initiator.into_session()?;
-        LpSession::new(psq_session, binding, kkt_request.receiver_index, protocol)
+        LpSession::new(psq_session, binding, receiver_index, protocol)
     }
 }
 
@@ -205,6 +210,7 @@ mod tests {
     use super::*;
     use crate::codec::{decrypt_data, encrypt_data};
     use crate::peer::mock_peers;
+    use crate::peer_config::LP_PEER_CONFIG_SIZE;
     use crate::psq::{PSQ_MSG2_SIZE, psq_msg1_size, responder};
     use nym_kkt::context::KKTMode;
     use nym_kkt::responder::KKTResponder;

@@ -11,6 +11,7 @@ bs58 = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
 rand09 = { workspace = true }
+tls_codec = { workspace =  true }
 
 nym-crypto = { path = "../crypto", features = ["hashing"] }
 nym-kkt = { path = "../nym-kkt" }
@@ -33,6 +34,7 @@ nym-test-utils = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 nym-lp-transport = { path = "../nym-lp-transport", features = ["io-mocks"] }
+
 
 [features]
 mock = ["nym-test-utils"]

@@ -153,7 +153,7 @@ where
         let processed_req = self.process_kkt_request(kkt_request)?;
         let kem = processed_req.requested_kem;
 
-        let parsed_payload = LpPeerConfig::deserialize(&processed_req.request_payload)?;
+        let lp_peer_config = LpPeerConfig::deserialize(&processed_req.request_payload)?;
 
         // 2. send back the KKTResponse
         debug!("sending KKT response");
@@ -198,6 +198,9 @@ where
             .encapsulation_key(kem)
             .unwrap();
 
+        let receiver_index =
+            lp_peer_config.derive_receiver_index(&initiator_authenticator, &kem_key)?;
+
         let binding = PersistentSessionBinding {
             initiator_authenticator,
             responder_ecdh_pk: self.inner_state.local_peer.x25519().pk,
@@ -208,7 +211,7 @@ where
         LpSession::new(
             psq_session,
             binding,
-            processed_req.receiver_index,
+            receiver_index,
             processed_req.outer_protocol_version,
         )
     }
@@ -279,10 +282,7 @@ mod tests {
 
             // 1. send kkt request
             conn_init
-                .send_handshake_message::<handshake_message::KKTRequest>(
-                    request.request.into(),
-                    kem,
-                )
+                .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
                 .timeboxed()
                 .await??;
 

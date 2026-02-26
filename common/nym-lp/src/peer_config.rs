@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpError;
+use libcrux_psq::handshake::types::Authenticator;
+
+use nym_crypto::hkdf::blake3::derive_key_blake3_multi_input;
+use nym_kkt::keys::EncapsulationKey;
 use rand09::{self, CryptoRng, Rng};
+use tls_codec::Serialize;
+use zeroize::Zeroize;
 
 pub const MAX_HOPS: u8 = 16;
 pub const LP_PEER_CONFIG_SIZE: usize = 20;
@@ -10,6 +16,8 @@ pub const LP_PEER_CONFIG_SIZE: usize = 20;
 const SEED_LEN: usize = 16;
 const CONFIG_LEN: usize = 1;
 const FILLER_LEN: usize = LP_PEER_CONFIG_SIZE - SEED_LEN - CONFIG_LEN;
+
+const RECEIVER_INDEX_DERIVATION_CONTEXT: &str = "LP_PEER_CONFIG_RECEIVER_INDEX_DERIVATION_V1";
 
 // 20 bytes
 #[derive(PartialEq)]
@@ -280,6 +288,28 @@ impl LpPeerConfig {
 
     pub fn is_node_to_node(&self) -> bool {
         self.hop_id == 0 && !self.is_exit && self.node_initiator
+    }
+
+    // This returns a u64 made out of the first 8 bytes from
+    // KDF(RECEIVER_INDEX_DERIVATION_CONTEXT, initiator_pub_key || responder_kem_key, seed)
+    pub fn derive_receiver_index(
+        &self,
+        initiator_public_key: &Authenticator,
+        responder_kem_pk: &EncapsulationKey,
+    ) -> Result<u64, LpError> {
+        let initiator_public_key = initiator_public_key.tls_serialize_detached().map_err(|_| {
+            LpError::Internal(
+                "Failed to serialize initiator public key when computing receiver index".into(),
+            )
+        })?;
+        let mut h = derive_key_blake3_multi_input(
+            RECEIVER_INDEX_DERIVATION_CONTEXT,
+            &[initiator_public_key.as_slice(), responder_kem_pk.as_bytes()],
+            self.seed(),
+        );
+        let index = u64::from_le_bytes([h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]]);
+        h.zeroize();
+        Ok(index)
     }
 }
 

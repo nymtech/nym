@@ -1,0 +1,12 @@
+{
+  "NymMixnetClient": "NymMixnetClient",
+  "NymMixnetClientOptions": "NymMixnetClientOptions",
+  "Client": "Client",
+  "Events": "Events",
+  "Payload": "Payload",
+  "ConnectedEvent": "ConnectedEvent",
+  "LoadedEvent": "LoadedEvent",
+  "StringMessageReceivedEvent": "StringMessageReceivedEvent",
+  "BinaryMessageReceivedEvent": "BinaryMessageReceivedEvent",
+  "RawMessageReceivedEvent": "RawMessageReceivedEvent"
+}

@@ -1,7 +1,8 @@
 {
   "sort": ["kind"],
   "entryPoints": ["./src/index.ts"],
-  "out": "./docs",
+  "out": "../../../../documentation/docs/pages/developers/typescript/api/mix-fetch",
+  "plugin": ["typedoc-plugin-markdown"],
   "exclude": ["./src/worker/**"],
   "kindSortOrder": [
     "Function",
@@ -19,7 +20,6 @@
     "Variable",
     "Accessor",
     "Method",
-    "ObjectLiteral",
     "Parameter",
     "TypeParameter",
     "TypeLiteral",

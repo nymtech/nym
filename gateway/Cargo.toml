@@ -80,6 +80,8 @@ nym-id = { workspace = true }
 nym-service-provider-requests-common = { workspace = true }
 nym-registration-common = { path = "../common/registration" }
 
+nym-lp = { path = "../common/nym-lp" }
+
 defguard_wireguard_rs = { workspace = true }
 
 [dev-dependencies]

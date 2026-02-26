@@ -1,10 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::lp::ReceiverIndex;
+use crate::node::lp::LpReceiverIndex;
 use nym_lp::state_machine::{LpAction, LpDataKind};
-use nym_lp::{LpError, MalformedLpPacketError};
-use nym_lp_transport::LpTransportError;
+use nym_lp::transport::LpTransportError;
+use nym_lp::{LpError, packet::MalformedLpPacketError};
 use std::net::SocketAddr;
 use thiserror::Error;
 
@@ -17,7 +17,7 @@ pub enum LpHandlerError {
     LpTransportError(#[from] LpTransportError),
 
     #[error("missing session state for {receiver_index} - has it been removed due to inactivity?")]
-    MissingLpSession { receiver_index: ReceiverIndex },
+    MissingLpSession { receiver_index: LpReceiverIndex },
 
     #[error(transparent)]
     LpProtocolError(#[from] LpError),
@@ -27,8 +27,8 @@ pub enum LpHandlerError {
 
     #[error("receiver_idx mismatch: connection bound to {established}, packet has {received}")]
     MismatchedReceiverIndex {
-        established: ReceiverIndex,
-        received: ReceiverIndex,
+        established: LpReceiverIndex,
+        received: LpReceiverIndex,
     },
 
     #[error("no action has been emitted from the LP State Machine")]

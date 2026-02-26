@@ -6,19 +6,20 @@
 //! This module implements session management functionality, including replay protection
 
 use crate::codec::{decrypt_lp_packet, encrypt_lp_packet};
+use crate::packet::{ApplicationData, EncryptedLpPacket, LpHeader, LpMessage, LpPacket};
 use crate::peer::{LpLocalPeer, LpRemotePeer};
+use crate::peer_config::LpReceiverIndex;
 use crate::psq::{
     InitiatorData, PSQHandshakeState, PSQHandshakeStateInitiator, PSQHandshakeStateResponder,
     ResponderData,
 };
 use crate::replay::validator::PacketCount;
-use crate::{LpError, LpMessage, LpPacket, ReceivingKeyCounterValidator};
+use crate::transport::LpHandshakeChannel;
+use crate::{LpError, replay::ReceivingKeyCounterValidator};
 use libcrux_psq::handshake::types::{Authenticator, DHPublicKey};
 use libcrux_psq::session::{Session, SessionBinding};
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt_ciphersuite::Ciphersuite;
-use nym_lp_packet::{ApplicationData, EncryptedLpPacket, LpHeader};
-use nym_lp_transport::LpHandshakeChannel;
 use std::fmt::{Debug, Formatter};
 
 pub type SessionId = [u8; 32];
@@ -39,7 +40,7 @@ pub struct LpSession {
     active_transport: libcrux_psq::session::Transport,
 
     /// Look-up index established during the initial KKT exchange
-    receiver_index: u64,
+    receiver_index: LpReceiverIndex,
 
     /// Negotiated protocol version from handshake.
     protocol_version: u8,
@@ -105,7 +106,7 @@ impl LpSession {
     pub fn new(
         mut psq_session: Session,
         session_binding: PersistentSessionBinding,
-        receiver_index: u64,
+        receiver_index: LpReceiverIndex,
         protocol_version: u8,
     ) -> Result<Self, LpError> {
         // attempt to derive initial transport
@@ -168,7 +169,7 @@ impl LpSession {
         self.psq_session.identifier()
     }
 
-    pub fn receiver_index(&self) -> u64 {
+    pub fn receiver_index(&self) -> LpReceiverIndex {
         self.receiver_index
     }
 

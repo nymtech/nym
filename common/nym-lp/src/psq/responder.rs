@@ -10,6 +10,7 @@ use crate::psq::{
     handshake_message, psq_msg1_size,
 };
 use crate::session::PersistentSessionBinding;
+use crate::transport::traits::{HandshakeMessage, LpHandshakeChannel};
 use crate::{LpError, LpSession};
 use libcrux_psq::handshake::Responder;
 use libcrux_psq::handshake::builders::{
@@ -20,7 +21,6 @@ use nym_kkt::context::KKTMode;
 use nym_kkt::message::{KKTRequest, KKTResponse, ProcessedKKTRequest};
 use nym_kkt::responder::KKTResponder;
 use nym_kkt_ciphersuite::KEM;
-use nym_lp_transport::traits::{HandshakeMessage, LpHandshakeChannel};
 use rand09::SeedableRng;
 use tracing::debug;
 

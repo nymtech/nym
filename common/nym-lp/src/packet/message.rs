@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::MalformedLpPacketError;
+use crate::packet::error::MalformedLpPacketError;
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::fmt;
@@ -418,7 +418,7 @@ impl EnsureEmptyContent for &[u8] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{InnerHeader, LpHeader, LpPacket, OuterHeader};
+    use crate::packet::{InnerHeader, LpHeader, LpPacket, OuterHeader};
 
     #[test]
     fn encoding() {

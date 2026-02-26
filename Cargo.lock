@@ -4124,7 +4124,6 @@ dependencies = [
  "nym-kkt",
  "nym-kkt-ciphersuite",
  "nym-lp",
- "nym-lp-transport",
  "nym-node",
  "nym-registration-client",
  "nym-test-utils",
@@ -6886,9 +6885,6 @@ dependencies = [
  "nym-crypto",
  "nym-kkt",
  "nym-kkt-ciphersuite",
- "nym-lp-common",
- "nym-lp-packet",
- "nym-lp-transport",
  "nym-test-utils",
  "rand 0.9.2",
  "thiserror 2.0.12",
@@ -6932,35 +6928,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
-]
-
-[[package]]
-name = "nym-lp-common"
-version = "0.1.0"
-
-[[package]]
-name = "nym-lp-packet"
-version = "1.20.4"
-dependencies = [
- "bytes",
- "num_enum",
- "nym-crypto",
- "nym-lp-common",
- "thiserror 2.0.12",
- "tracing",
-]
-
-[[package]]
-name = "nym-lp-transport"
-version = "0.1.0"
-dependencies = [
- "nym-kkt-ciphersuite",
- "nym-kkt-context",
- "nym-lp-packet",
- "nym-test-utils",
- "thiserror 2.0.12",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -7201,7 +7168,6 @@ dependencies = [
  "nym-ip-packet-router",
  "nym-kkt",
  "nym-lp",
- "nym-lp-transport",
  "nym-metrics",
  "nym-mixnet-client",
  "nym-network-requester",
@@ -7561,7 +7527,6 @@ dependencies = [
  "nym-ip-packet-client",
  "nym-kkt",
  "nym-lp",
- "nym-lp-transport",
  "nym-registration-common",
  "nym-sdk",
  "nym-test-utils",

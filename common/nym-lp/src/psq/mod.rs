@@ -1,10 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::packet::version;
 use crate::peer::{LpLocalPeer, LpRemotePeer};
+use crate::transport::traits::LpHandshakeChannel;
 use nym_kkt_ciphersuite::{HashFunction, IntoEnumIterator, KEM, SignatureScheme};
-use nym_lp_packet::version;
-use nym_lp_transport::traits::LpHandshakeChannel;
 
 pub(crate) mod handshake_message;
 mod helpers;

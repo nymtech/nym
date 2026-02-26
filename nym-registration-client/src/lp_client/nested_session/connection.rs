@@ -4,10 +4,11 @@
 use crate::lp_client::helpers::{convert_forward_data, try_convert_forward_response};
 use crate::{LpClientError, LpRegistrationClient};
 use bytes::{BufMut, BytesMut};
+use nym_lp::KEM;
+use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData, message::ExpectedResponseSize};
 use nym_lp::state_machine::{LpAction, LpInput};
-use nym_lp::{EncryptedLpPacket, ExpectedResponseSize, ForwardPacketData, KEM};
-use nym_lp_transport::traits::{HandshakeMessage, LpTransportChannel};
-use nym_lp_transport::{LpHandshakeChannel, LpTransportError};
+use nym_lp::transport::traits::{HandshakeMessage, LpTransportChannel};
+use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use std::io;
 use std::net::SocketAddr;
 

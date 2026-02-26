@@ -10,6 +10,8 @@ use rand09::{self, CryptoRng, Rng};
 use tls_codec::Serialize;
 use zeroize::Zeroize;
 
+pub type LpReceiverIndex = u32;
+
 pub const MAX_HOPS: u8 = 16;
 pub const LP_PEER_CONFIG_SIZE: usize = 20;
 
@@ -290,13 +292,13 @@ impl LpPeerConfig {
         self.hop_id == 0 && !self.is_exit && self.node_initiator
     }
 
-    // This returns a u64 made out of the first 8 bytes from
+    // This returns a LpReceiverIndex made out of the first 4 bytes from
     // KDF(RECEIVER_INDEX_DERIVATION_CONTEXT, initiator_pub_key || responder_kem_key, seed)
     pub fn derive_receiver_index(
         &self,
         initiator_public_key: &Authenticator,
         responder_kem_pk: &EncapsulationKey,
-    ) -> Result<u64, LpError> {
+    ) -> Result<LpReceiverIndex, LpError> {
         let initiator_public_key = initiator_public_key.tls_serialize_detached().map_err(|_| {
             LpError::Internal(
                 "Failed to serialize initiator public key when computing receiver index".into(),
@@ -307,7 +309,7 @@ impl LpPeerConfig {
             &[initiator_public_key.as_slice(), responder_kem_pk.as_bytes()],
             self.seed(),
         );
-        let index = u64::from_le_bytes([h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]]);
+        let index = LpReceiverIndex::from_le_bytes([h[0], h[1], h[2], h[3]]);
         h.zeroize();
         Ok(index)
     }

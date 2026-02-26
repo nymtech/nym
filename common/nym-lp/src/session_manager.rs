@@ -6,9 +6,10 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
+use crate::packet::EncryptedLpPacket;
+use crate::peer_config::LpReceiverIndex;
 use crate::state_machine::{LpAction, LpData, LpInput, LpStateBare};
 use crate::{LpError, LpSession, LpStateMachine};
-use nym_lp_packet::EncryptedLpPacket;
 use std::collections::HashMap;
 
 pub use crate::replay::validator::PacketCount;
@@ -18,7 +19,7 @@ pub use crate::replay::validator::PacketCount;
 /// The SessionManager is responsible for creating, storing, and retrieving sessions
 pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
-    state_machines: HashMap<u64, LpStateMachine>,
+    state_machines: HashMap<LpReceiverIndex, LpStateMachine>,
 }
 
 impl Default for SessionManager {
@@ -37,43 +38,43 @@ impl SessionManager {
 
     pub fn process_input(
         &mut self,
-        lp_id: u64,
+        lp_id: LpReceiverIndex,
         input: LpInput,
     ) -> Result<Option<LpAction>, LpError> {
         self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
     }
 
-    pub fn send_data(&mut self, lp_id: u64, data: LpData) -> Result<LpAction, LpError> {
+    pub fn send_data(&mut self, lp_id: LpReceiverIndex, data: LpData) -> Result<LpAction, LpError> {
         self.process_input(lp_id, LpInput::SendData(data))?
             .ok_or(LpError::NotInTransport)
     }
 
     pub fn receive_packet(
         &mut self,
-        lp_id: u64,
+        lp_id: LpReceiverIndex,
         packet: EncryptedLpPacket,
     ) -> Result<Option<LpAction>, LpError> {
         self.process_input(lp_id, LpInput::ReceivePacket(packet))
     }
 
-    pub fn closed(&self, lp_id: u64) -> Result<bool, LpError> {
+    pub fn closed(&self, lp_id: LpReceiverIndex) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Closed)
     }
 
-    pub fn transport(&self, lp_id: u64) -> Result<bool, LpError> {
+    pub fn transport(&self, lp_id: LpReceiverIndex) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Transport)
     }
 
     #[cfg(test)]
-    fn get_state_machine_id(&self, lp_id: u64) -> Result<u64, LpError> {
+    fn get_state_machine_id(&self, lp_id: LpReceiverIndex) -> Result<LpReceiverIndex, LpError> {
         self.with_state_machine(lp_id, |sm| sm.receiver_index())?
     }
 
-    pub fn get_state(&self, lp_id: u64) -> Result<LpStateBare, LpError> {
+    pub fn get_state(&self, lp_id: LpReceiverIndex) -> Result<LpStateBare, LpError> {
         self.with_state_machine(lp_id, |sm| Ok(sm.bare_state()))?
     }
 
-    pub fn current_packet_cnt(&self, lp_id: u64) -> Result<PacketCount, LpError> {
+    pub fn current_packet_cnt(&self, lp_id: LpReceiverIndex) -> Result<PacketCount, LpError> {
         self.with_state_machine(lp_id, |sm| Ok(sm.session()?.current_packet_cnt()))?
     }
 
@@ -81,34 +82,41 @@ impl SessionManager {
         self.state_machines.len()
     }
 
-    pub fn state_machine_exists(&self, lp_id: u64) -> bool {
+    pub fn state_machine_exists(&self, lp_id: LpReceiverIndex) -> bool {
         self.state_machines.contains_key(&lp_id)
     }
 
-    pub fn with_state_machine<F, R>(&self, lp_id: u64, f: F) -> Result<R, LpError>
+    pub fn with_state_machine<F, R>(&self, lp_id: LpReceiverIndex, f: F) -> Result<R, LpError>
     where
         F: FnOnce(&LpStateMachine) -> R,
     {
         if let Some(sm) = self.state_machines.get(&lp_id) {
             Ok(f(sm))
         } else {
-            Err(LpError::StateMachineNotFound { lp_id })
+            Err(LpError::StateMachineNotFound(lp_id))
         }
     }
 
     // For mutable access (like running process_input)
-    pub fn with_state_machine_mut<F, R>(&mut self, lp_id: u64, f: F) -> Result<R, LpError>
+    pub fn with_state_machine_mut<F, R>(
+        &mut self,
+        lp_id: LpReceiverIndex,
+        f: F,
+    ) -> Result<R, LpError>
     where
         F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
     {
         if let Some(sm) = self.state_machines.get_mut(&lp_id) {
             Ok(f(sm))
         } else {
-            Err(LpError::StateMachineNotFound { lp_id })
+            Err(LpError::StateMachineNotFound(lp_id))
         }
     }
 
-    pub fn create_session_state_machine(&mut self, lp_session: LpSession) -> Result<u64, LpError> {
+    pub fn create_session_state_machine(
+        &mut self,
+        lp_session: LpSession,
+    ) -> Result<LpReceiverIndex, LpError> {
         let session_id = lp_session.receiver_index();
 
         if self.state_machines.contains_key(&session_id) {
@@ -121,7 +129,7 @@ impl SessionManager {
     }
 
     /// Method to remove a state machine
-    pub fn remove_state_machine(&mut self, lp_id: u64) -> bool {
+    pub fn remove_state_machine(&mut self, lp_id: LpReceiverIndex) -> bool {
         let removed = self.state_machines.remove(&lp_id);
 
         removed.is_some()

@@ -5,11 +5,12 @@
 //! State machine ensures protocol steps execute in correct order. Invalid transitions
 //! return LpError, preventing protocol violations.
 
+use crate::packet::{EncryptedLpPacket, LpMessage};
+use crate::peer_config::LpReceiverIndex;
 use crate::session::SessionId;
 use crate::{LpError, session::LpSession};
 use bytes::{Buf, Bytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use nym_lp_packet::{EncryptedLpPacket, LpMessage};
 use std::mem;
 
 #[derive(Debug)]
@@ -186,7 +187,7 @@ impl LpStateMachine {
         Ok(*self.session()?.session_identifier())
     }
 
-    pub fn receiver_index(&self) -> Result<u64, LpError> {
+    pub fn receiver_index(&self) -> Result<LpReceiverIndex, LpError> {
         Ok(self.session()?.receiver_index())
     }
 

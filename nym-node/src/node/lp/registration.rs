@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::lp::{LpHandlerState, ReceiverIndex};
+use crate::node::lp::{LpHandlerState, LpReceiverIndex};
 use nym_metrics::{add_histogram_obs, inc};
 use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
@@ -31,7 +31,7 @@ const LP_REGISTRATION_DURATION_BUCKETS: &[f64] = &[
 impl LpHandlerState {
     async fn process_dvpn_initial_registration(
         &self,
-        sender: ReceiverIndex,
+        sender: LpReceiverIndex,
         request: LpDvpnRegistrationInitialRequest,
     ) -> LpRegistrationResponse {
         let Some(registrator) = self.peer_registrator.as_ref() else {
@@ -54,7 +54,7 @@ impl LpHandlerState {
 
     async fn process_dvpn_registration_finalisation(
         &self,
-        sender: ReceiverIndex,
+        sender: LpReceiverIndex,
         request: LpDvpnRegistrationFinalisation,
     ) -> LpRegistrationResponse {
         let Some(registrator) = self.peer_registrator.as_ref() else {
@@ -77,7 +77,7 @@ impl LpHandlerState {
 
     async fn process_dvpn_registration(
         &self,
-        sender: ReceiverIndex,
+        sender: LpReceiverIndex,
         request: Box<LpDvpnRegistrationRequestMessage>,
     ) -> LpRegistrationResponse {
         // Track dVPN registration attempts
@@ -108,7 +108,7 @@ impl LpHandlerState {
     /// Process an LP registration request
     pub async fn process_registration(
         &self,
-        sender: ReceiverIndex,
+        sender: LpReceiverIndex,
         request: LpRegistrationRequest,
     ) -> LpRegistrationResponse {
         let registration_start = std::time::Instant::now();

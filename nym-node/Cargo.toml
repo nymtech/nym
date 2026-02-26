@@ -118,7 +118,6 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 # LP dependencies
 nym-lp = { path = "../common/nym-lp" }
-nym-lp-transport = { path = "../common/nym-lp-transport" }
 nym-registration-common = { path = "../common/registration" }
 bincode = { workspace = true }
 

@@ -31,6 +31,7 @@ use nym_credentials_interface::{BandwidthCredential, CredentialSpendingData};
 use nym_crypto::asymmetric::x25519;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::PersistedBandwidth;
+use nym_lp::peer_config::LpReceiverIndex;
 use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
 };
@@ -309,7 +310,7 @@ impl PeerRegistrator {
     pub async fn on_initial_lp_request(
         &self,
         init_msg: LpDvpnRegistrationInitialRequest,
-        receiver_index: u64,
+        receiver_index: LpReceiverIndex,
     ) -> Result<LpRegistrationResponse, GatewayWireguardError> {
         let remote_public = init_msg.wg_public_key;
         let psk = Key::new(init_msg.psk);
@@ -340,7 +341,7 @@ impl PeerRegistrator {
     pub async fn on_final_lp_request(
         &self,
         final_msg: LpDvpnRegistrationFinalisation,
-        receiver_index: u64,
+        receiver_index: LpReceiverIndex,
     ) -> Result<LpRegistrationResponse, GatewayWireguardError> {
         // 1. check if there's any pending registration associated with this peer
         let pending_data = self

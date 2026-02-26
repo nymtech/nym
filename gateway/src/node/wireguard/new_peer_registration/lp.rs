@@ -7,6 +7,7 @@ use crate::node::wireguard::new_peer_registration::pending::{
 use crate::node::wireguard::{GatewayWireguardError, PeerRegistrator};
 use defguard_wireguard_rs::host::Peer;
 use defguard_wireguard_rs::key::Key;
+use nym_lp::peer_config::LpReceiverIndex;
 use nym_registration_common::{LpRegistrationResponse, WireguardRegistrationData};
 use nym_wireguard::ip_pool::{allocated_ip_pair, IpPair};
 use nym_wireguard_types::PeerPublicKey;
@@ -57,7 +58,7 @@ impl PeerRegistrator {
 
     pub(super) async fn check_pending_lp_registration(
         &self,
-        receiver_index: u64,
+        receiver_index: LpReceiverIndex,
     ) -> Result<Option<LpRegistrationResponse>, GatewayWireguardError> {
         let Some(pending_registration) = self.pending_registrations.check_lp(receiver_index).await
         else {
@@ -104,7 +105,7 @@ impl PeerRegistrator {
 
     pub(super) async fn process_fresh_initial_lp_registration(
         &self,
-        receiver_index: u64,
+        receiver_index: LpReceiverIndex,
         remote_public: PeerPublicKey,
         psk: Key,
     ) -> Result<LpRegistrationResponse, GatewayWireguardError> {

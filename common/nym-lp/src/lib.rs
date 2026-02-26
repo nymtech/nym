@@ -12,16 +12,14 @@ pub mod session;
 mod session_integration;
 pub mod session_manager;
 pub mod state_machine;
+pub mod transport;
 
 pub use error::LpError;
 pub use nym_kkt_ciphersuite::{
     Ciphersuite, HashFunction, HashLength, KEM, KEMKeyDigests, SignatureScheme,
 };
-pub use nym_lp_packet::{
-    EncryptedLpPacket, InnerHeader, LpHeader, LpMessage, LpPacket, MessageType, OuterHeader,
-    error::MalformedLpPacketError,
-    message::{ApplicationData, ExpectedResponseSize, ForwardPacketData},
-};
+
+#[cfg(any(feature = "mock", test))]
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::LpSession;
 pub use session_manager::SessionManager;
@@ -49,7 +47,8 @@ pub struct SessionsMock {
 impl SessionsMock {
     pub fn mock_seeded_post_handshake(seed: u64, kem: KEM) -> SessionsMock {
         use crate::peer::mock_peers;
-        use nym_test_utils::helpers::RngCore09;
+        use crate::peer_config::LpReceiverIndex;
+        use rand09::Rng;
 
         let (init, resp) = mock_peers();
         let resp_remote = resp.as_remote();
@@ -57,7 +56,7 @@ impl SessionsMock {
         let mut init_rng = u64_seeded_rng_09(seed);
         let resp_rng = u64_seeded_rng_09(seed + 1);
 
-        let receiver_index = init_rng.next_u64();
+        let receiver_index: LpReceiverIndex = init_rng.random();
 
         let kem_keys = resp.kem_keypairs.as_ref().unwrap();
 

@@ -31,7 +31,6 @@ nym-credentials-interface = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "libcrux_x25519"] }
 nym-ip-packet-client = { workspace = true }
 nym-lp = { path = "../common/nym-lp" }
-nym-lp-transport = { path = "../common/nym-lp-transport" }
 nym-registration-common = { workspace = true }
 nym-sdk = { workspace = true }
 nym-validator-client = { workspace = true }

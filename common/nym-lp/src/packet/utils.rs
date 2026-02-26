@@ -1,8 +1,4 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
-
-use std::fmt;
-use std::fmt::Write;
+use std::fmt::{self, Write};
 
 pub fn format_debug_bytes(bytes: &[u8]) -> Result<String, fmt::Error> {
     let mut out = String::new();

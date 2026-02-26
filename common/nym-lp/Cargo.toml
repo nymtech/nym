@@ -12,18 +12,17 @@ bytes = { workspace = true }
 tracing = { workspace = true }
 rand09 = { workspace = true }
 tls_codec = { workspace =  true }
+tokio = { workspace = true, features = ["net", "io-util"] }
 
 nym-crypto = { path = "../crypto", features = ["hashing"] }
 nym-kkt = { path = "../nym-kkt" }
 nym-kkt-ciphersuite = { workspace = true }
-nym-lp-common = { path = "../nym-lp-common" }
-nym-lp-transport = { path = "../nym-lp-transport" }
-nym-lp-packet = { path = "../nym-lp-packet" }
 
 # libcrux dependencies for PSQ (Post-Quantum PSK derivation)
 libcrux-psq = { workspace = true, features = ["test-utils"] }
 num_enum = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
+
 
 # needed for the 'mock 'feature
 nym-test-utils = { workspace = true, optional = true }
@@ -33,7 +32,6 @@ criterion = { version = "0.5", features = ["html_reports"] }
 nym-test-utils = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-nym-lp-transport = { path = "../nym-lp-transport", features = ["io-mocks"] }
 
 
 [features]

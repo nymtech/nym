@@ -1,15 +1,16 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::packet::MalformedLpPacketError;
+use crate::peer_config::LpReceiverIndex;
 use crate::replay::ReplayError;
+use crate::transport::LpTransportError;
 use libcrux_psq::handshake::HandshakeError;
 use libcrux_psq::handshake::builders::BuilderError;
 use libcrux_psq::session::SessionError;
-use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
+// use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_kkt::error::KKTError;
 use nym_kkt_ciphersuite::{HashFunction, KEM};
-use nym_lp_packet::MalformedLpPacketError;
-use nym_lp_transport::LpTransportError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -27,7 +28,7 @@ pub enum LpError {
     SessionClosed,
 
     #[error("There already exists an LP session with receiver index {0}")]
-    DuplicateSessionId(u64),
+    DuplicateSessionId(LpReceiverIndex),
 
     #[error("Internal error: {0}")]
     Internal(String),
@@ -46,7 +47,7 @@ pub enum LpError {
 
     /// Session ID from incoming packet does not match any known session.
     #[error("Received packet with unknown session ID: {0}")]
-    UnknownSessionId(u64),
+    UnknownSessionId(LpReceiverIndex),
 
     /// Invalid state transition attempt in the state machine.
     #[error("Invalid input '{input}' for current state '{state}'")]
@@ -61,12 +62,12 @@ pub enum LpError {
     LpSessionProcessing,
 
     /// State machine not found.
-    #[error("State machine not found for lp_id: {lp_id}")]
-    StateMachineNotFound { lp_id: u64 },
+    #[error("State machine not found for lp_id: {0}")]
+    StateMachineNotFound(LpReceiverIndex),
 
-    /// Ed25519 to X25519 conversion error.
-    #[error("Ed25519 key conversion error: {0}")]
-    Ed25519RecoveryError(#[from] Ed25519RecoveryError),
+    // /// Ed25519 to X25519 conversion error.
+    // #[error("Ed25519 key conversion error: {0}")]
+    // Ed25519RecoveryError(#[from] Ed25519RecoveryError),
 
     #[error("attempted to create an LP responder without providing a valid KEM keys")]
     ResponderWithMissingKEMKeys,

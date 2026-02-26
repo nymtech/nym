@@ -25,12 +25,13 @@ use crate::lp_client::state_machine_helpers::{extract_forwarded_response, prepar
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_lp::packet::EncryptedLpPacket;
 use nym_lp::packet::version;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::state_machine::{LpData, LpStateMachine};
-use nym_lp::{Ciphersuite, EncryptedLpPacket, KEM, LpSession};
-use nym_lp_transport::LpHandshakeChannel;
-use nym_lp_transport::traits::LpTransportChannel;
+use nym_lp::transport::LpHandshakeChannel;
+use nym_lp::transport::traits::LpTransportChannel;
+use nym_lp::{Ciphersuite, KEM, LpSession};
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,

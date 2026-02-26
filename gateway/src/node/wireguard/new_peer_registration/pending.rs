@@ -8,6 +8,7 @@ use crate::node::wireguard::GatewayWireguardError;
 use defguard_wireguard_rs::key::Key;
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_crypto::asymmetric::x25519;
+use nym_lp::peer_config::LpReceiverIndex;
 use nym_registration_common::{LpRegistrationResponse, WireguardRegistrationData};
 use nym_sdk::mixnet::Recipient;
 use nym_wireguard::ip_pool::IpPair;
@@ -116,7 +117,7 @@ pub(crate) struct PendingRegistrations {
 
     /// Registrations in progress received from the LP Listener via the
     /// `LpConnectionHandler` and handle through `LpHandlerState`
-    pub(crate) lp: Arc<RwLock<HashMap<u64, PendingRegistration>>>,
+    pub(crate) lp: Arc<RwLock<HashMap<LpReceiverIndex, PendingRegistration>>>,
 }
 
 impl PendingRegistrations {
@@ -131,11 +132,14 @@ impl PendingRegistrations {
         self.authenticator.write().await.remove(peer);
     }
 
-    pub(crate) async fn remove_lp(&self, receiver_index: u64) {
+    pub(crate) async fn remove_lp(&self, receiver_index: LpReceiverIndex) {
         self.lp.write().await.remove(&receiver_index);
     }
 
-    pub(crate) async fn check_lp(&self, receiver_index: u64) -> Option<PendingRegistration> {
+    pub(crate) async fn check_lp(
+        &self,
+        receiver_index: LpReceiverIndex,
+    ) -> Option<PendingRegistration> {
         self.lp.read().await.get(&receiver_index).cloned()
     }
 

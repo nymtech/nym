@@ -1,16 +1,16 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::LpTransportError;
+use crate::packet::{EncryptedLpPacket, OuterHeader};
+use crate::transport::error::LpTransportError;
+use nym_kkt::context::KKTMode;
 use nym_kkt_ciphersuite::KEM;
-use nym_kkt_context::KKTMode;
-use nym_lp_packet::{EncryptedLpPacket, OuterHeader};
 use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tracing::debug;
 
-#[cfg(feature = "io-mocks")]
+#[cfg(any(feature = "mock", test))]
 use nym_test_utils::mocks::async_read_write::MockIOStream;
 
 pub const MAX_TRANSPORT_PACKET_SIZE: usize = 65536; // 64KB max
@@ -256,7 +256,7 @@ impl LpTransportChannel for TcpStream {
     }
 }
 
-#[cfg(feature = "io-mocks")]
+#[cfg(any(feature = "mock", test))]
 impl LpTransportChannel for MockIOStream {
     async fn connect(_endpoint: SocketAddr) -> Result<Self, LpTransportError> {
         Ok(MockIOStream::default())
@@ -280,7 +280,7 @@ impl LpTransportChannel for MockIOStream {
     }
 }
 
-#[cfg(feature = "io-mocks")]
+#[cfg(any(feature = "mock", test))]
 impl LpHandshakeChannel for MockIOStream {
     async fn write_all_and_flush(&mut self, data: &[u8]) -> Result<(), LpTransportError> {
         write_all_and_flush_async_write(self, data).await

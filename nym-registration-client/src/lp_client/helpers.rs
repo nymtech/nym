@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 
 use crate::LpClientError;
-use nym_lp::ForwardPacketData;
+use nym_lp::packet::ForwardPacketData;
 use nym_lp::peer::LpRemotePeer;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_registration_common::{

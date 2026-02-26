@@ -18,7 +18,7 @@
 use super::LpHandlerState;
 use crate::error::NymNodeError;
 use crate::node::lp::error::LpHandlerError;
-use nym_lp::OuterHeader;
+use nym_lp::packet::OuterHeader;
 use nym_metrics::inc;
 use std::net::SocketAddr;
 use std::sync::Arc;

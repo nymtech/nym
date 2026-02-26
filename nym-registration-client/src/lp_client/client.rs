@@ -13,10 +13,11 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpSession;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
+use nym_lp::peer_config::LpReceiverIndex;
 use nym_lp::state_machine::LpStateMachine;
-use nym_lp::{Ciphersuite, EncryptedLpPacket, packet::version};
-use nym_lp_transport::traits::LpTransportChannel;
-use nym_lp_transport::{LpHandshakeChannel, LpTransportError};
+use nym_lp::transport::traits::LpTransportChannel;
+use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
+use nym_lp::{Ciphersuite, packet::EncryptedLpPacket, packet::version};
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
@@ -707,11 +708,11 @@ where
     /// the gateway to look up the session for decryption.
     ///
     /// # Returns
-    /// * `Ok(u64)` - The session ID
+    /// * `Ok(LpReceiverIndex)` - The session ID
     ///
     /// # Errors
     /// Returns an error if handshake has not been completed.
-    pub fn session_id(&self) -> Result<u64> {
+    pub fn session_id(&self) -> Result<LpReceiverIndex> {
         self.state_machine()?
             .session()
             .map(|s| s.receiver_index())

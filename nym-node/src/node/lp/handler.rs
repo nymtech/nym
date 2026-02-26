@@ -1,14 +1,13 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::{LpHandlerState, ReceiverIndex, TimestampedState};
+use super::{LpHandlerState, LpReceiverIndex, TimestampedState};
 use crate::node::lp::error::LpHandlerError;
+use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData};
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
-use nym_lp::{
-    EncryptedLpPacket, ExpectedResponseSize, ForwardPacketData, LpSession, LpStateMachine,
-};
-use nym_lp_transport::LpHandshakeChannel;
-use nym_lp_transport::traits::LpTransportChannel;
+use nym_lp::transport::LpHandshakeChannel;
+use nym_lp::transport::traits::LpTransportChannel;
+use nym_lp::{LpSession, LpStateMachine, packet::message::ExpectedResponseSize};
 use nym_metrics::{add_histogram_obs, inc};
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
@@ -83,7 +82,7 @@ pub struct LpConnectionHandler<S = TcpStream> {
     /// Bound receiver_idx for this connection (set after first packet).
     /// All subsequent packets on this connection must use this receiver_idx.
     /// Set from ClientHello's proposed receiver_index, or from header for non-bootstrap packets.
-    bound_receiver_idx: Option<ReceiverIndex>,
+    bound_receiver_idx: Option<LpReceiverIndex>,
 
     /// Persistent connection to exit gateway for forwarding.
     /// Opened on first forward, reused for subsequent forwards, closed when client disconnects.
@@ -206,13 +205,13 @@ where
         Ok(())
     }
 
-    fn bound_receiver_index(&self) -> Result<ReceiverIndex, LpHandlerError> {
+    fn bound_receiver_index(&self) -> Result<LpReceiverIndex, LpHandlerError> {
         self.bound_receiver_idx
             .ok_or_else(|| LpHandlerError::IncompleteHandshake)
     }
 
     /// Validate that the receiver_idx matches the bound session.
-    fn validate_binding(&self, receiver_idx: ReceiverIndex) -> Result<(), LpHandlerError> {
+    fn validate_binding(&self, receiver_idx: LpReceiverIndex) -> Result<(), LpHandlerError> {
         let bound_receiver_idx = self.bound_receiver_index()?;
 
         if bound_receiver_idx != receiver_idx {
@@ -292,7 +291,7 @@ where
     /// Handle decrypted transport payload (registration or forwarding request)
     async fn handle_decrypted_payload(
         &mut self,
-        receiver_idx: ReceiverIndex,
+        receiver_idx: LpReceiverIndex,
         decrypted_data: LpData,
     ) -> Result<(), LpHandlerError> {
         let remote = self.remote_addr;
@@ -332,7 +331,7 @@ where
     /// Attempt to wrap and send specified response back to the client
     async fn send_response_packet(
         &mut self,
-        receiver_index: ReceiverIndex,
+        receiver_index: LpReceiverIndex,
         serialised_response: Vec<u8>,
         response_kind: LpDataKind,
     ) -> Result<(), LpHandlerError> {
@@ -366,7 +365,7 @@ where
     /// Handle registration request on an established session
     async fn handle_registration_request(
         &mut self,
-        receiver_idx: ReceiverIndex,
+        receiver_idx: LpReceiverIndex,
         request: LpRegistrationRequest,
     ) -> Result<(), LpHandlerError> {
         // Process registration (might modify state)
@@ -406,7 +405,7 @@ where
     /// to exit gateway, receives response, encrypts it, and sends back to client.
     async fn handle_forwarding_request(
         &mut self,
-        receiver_idx: ReceiverIndex,
+        receiver_idx: LpReceiverIndex,
         forward_data: ForwardPacketData,
     ) -> Result<(), LpHandlerError> {
         // Forward the packet to the target gateway and retrieve its response

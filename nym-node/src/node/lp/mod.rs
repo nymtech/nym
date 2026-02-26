@@ -72,6 +72,7 @@ use crate::error::NymNodeError;
 use dashmap::DashMap;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::peer::LpLocalPeer;
+use nym_lp::peer_config::LpReceiverIndex;
 use nym_lp::state_machine::LpStateMachine;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
@@ -89,8 +90,6 @@ mod data_handler;
 pub mod error;
 pub mod handler;
 mod registration;
-
-pub type ReceiverIndex = u64;
 
 /// Wrapper for state entries with timestamp tracking for cleanup
 ///
@@ -189,7 +188,7 @@ pub struct LpHandlerState {
     /// subsession/rekeying support. The state machine handles subsession initiation
     /// (SubsessionKK1/KK2/Ready) during transport phase, allowing long-lived connections
     /// to rekey without re-authentication.
-    pub session_states: Arc<DashMap<ReceiverIndex, TimestampedState<LpStateMachine>>>,
+    pub session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpStateMachine>>>,
 
     /// Semaphore limiting concurrent forward connections
     ///
@@ -394,7 +393,7 @@ impl LpListener {
 
 pub(crate) mod cleanup_task {
     use crate::config::lp::LpDebug;
-    use crate::node::lp::{ReceiverIndex, TimestampedState};
+    use crate::node::lp::{LpReceiverIndex, TimestampedState};
     use dashmap::DashMap;
     use nym_lp::LpStateMachine;
     use nym_metrics::inc_by;
@@ -403,7 +402,7 @@ pub(crate) mod cleanup_task {
     use tracing::{debug, info};
 
     async fn perform_cleanup(
-        session_states: &Arc<DashMap<ReceiverIndex, TimestampedState<LpStateMachine>>>,
+        session_states: &Arc<DashMap<LpReceiverIndex, TimestampedState<LpStateMachine>>>,
         cfg: LpDebug,
     ) {
         let session_ttl = cfg.session_ttl;
@@ -444,7 +443,7 @@ pub(crate) mod cleanup_task {
     /// Demoted sessions (ReadOnlyTransport) use shorter TTL since they
     /// only need to drain in-flight packets after subsession promotion.
     pub(crate) async fn cleanup_loop(
-        session_states: Arc<DashMap<ReceiverIndex, TimestampedState<LpStateMachine>>>,
+        session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpStateMachine>>>,
         cfg: LpDebug,
         shutdown: nym_task::ShutdownToken,
         _metrics: NymNodeMetrics,

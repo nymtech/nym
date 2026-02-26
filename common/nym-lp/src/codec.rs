@@ -1,10 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{LpError, LpMessage};
+use crate::LpError;
+use crate::packet::{EncryptedLpPacket, InnerHeader, LpHeader, LpMessage, LpPacket};
 use bytes::BytesMut;
 use libcrux_psq::Channel;
-use nym_lp_packet::{EncryptedLpPacket, InnerHeader, LpHeader, LpPacket};
 
 // needs to be equal or above to the actual overhead
 pub(crate) const SANE_ENC_OVERHEAD: usize = 32;
@@ -82,12 +82,12 @@ pub(crate) fn decrypt_lp_packet(
 mod tests {
     use crate::LpError;
     use crate::codec::{decrypt_data, decrypt_lp_packet, encrypt_data, encrypt_lp_packet};
+    use crate::packet::{EncryptedLpPacket, LpHeader, LpMessage, LpPacket, MessageType};
     use crate::peer::mock_peers;
     use crate::psq::initiator::{build_psq_ciphersuite, build_psq_principal};
     use crate::psq::{PSQ_MSG2_SIZE, psq_msg1_size, responder};
     use libcrux_psq::{Channel, IntoSession};
     use nym_kkt_ciphersuite::KEM;
-    use nym_lp_packet::{EncryptedLpPacket, LpHeader, LpMessage, LpPacket, MessageType};
     use nym_test_utils::helpers::u64_seeded_rng_09;
 
     fn mock_transport() -> (

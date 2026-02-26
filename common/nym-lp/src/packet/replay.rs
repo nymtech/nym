@@ -1,21 +1,4 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
-
-use crate::LpError;
-use crate::replay::ReceivingKeyCounterValidator;
-use nym_lp_packet::LpPacket;
-#[allow(dead_code)]
-pub(crate) const UDP_HEADER_LEN: usize = 8;
-#[allow(dead_code)]
-pub(crate) const IP_HEADER_LEN: usize = 40; // v4 - 20, v6 - 40
-#[allow(dead_code)]
-pub(crate) const MTU: usize = 1500;
-#[allow(dead_code)]
-pub(crate) const UDP_OVERHEAD: usize = UDP_HEADER_LEN + IP_HEADER_LEN;
-#[allow(dead_code)]
-pub(crate) const UDP_PAYLOAD_SIZE: usize = MTU - UDP_OVERHEAD;
-
-pub use nym_lp_packet::version;
+use crate::{LpError, packet::LpPacket, replay::ReceivingKeyCounterValidator};
 
 pub trait LpPacketReplayExt {
     /// Validate packet counter against a replay protection validator

@@ -1,9 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{LpHeader, LpMessage, MessageType, OuterHeader};
+use crate::packet::{LpHeader, LpMessage, MessageType, OuterHeader, utils::format_debug_bytes};
 use bytes::{BufMut, BytesMut};
-use nym_lp_common::format_debug_bytes;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
@@ -15,8 +14,8 @@ pub struct EncryptedLpPacket {
     pub(crate) ciphertext: Vec<u8>,
 }
 
-impl Debug for EncryptedLpPacket {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl std::fmt::Debug for EncryptedLpPacket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", format_debug_bytes(&self.debug_bytes())?)
     }
 }

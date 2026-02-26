@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::psq::{PSQ_MSG2_SIZE, psq_msg1_size};
+use crate::transport::{LpTransportError, traits::HandshakeMessage};
 use nym_kkt::context::KKTMode;
 use nym_kkt_ciphersuite::KEM;
-use nym_lp_transport::LpTransportError;
-use nym_lp_transport::traits::HandshakeMessage;
 use std::ops::Deref;
 
 pub struct KKTRequest(nym_kkt::message::KKTRequest);

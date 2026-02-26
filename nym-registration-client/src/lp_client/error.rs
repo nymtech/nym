@@ -3,9 +3,10 @@
 
 //! Error types for LP (Lewes Protocol) client operations.
 
+use nym_lp::LpError;
+use nym_lp::packet::MalformedLpPacketError;
 use nym_lp::state_machine::{LpAction, LpDataKind};
-use nym_lp::{LpError, MalformedLpPacketError};
-use nym_lp_transport::LpTransportError;
+use nym_lp::transport::LpTransportError;
 use thiserror::Error;
 
 /// Errors that can occur during LP client operations.

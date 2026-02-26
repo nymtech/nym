@@ -1,6 +1,6 @@
 # Mixnet Mode
 
-Mixnet mode provides maximum privacy by routing traffic through 5 hops with packet mixing, timing delays, and cover traffic. It is available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).
+Mixnet mode routes traffic through 5 hops — an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway — with random delays, packet reordering, and cover traffic at each mixing layer. It is available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).
 
 ## How it works
 
@@ -18,21 +18,17 @@ The client constructs Sphinx packets with layered encryption. Each layer contain
 
 ## Privacy properties
 
-The mixnet provides **unlinkability**. An observer cannot link an incoming packet to an outgoing packet at any node, cannot connect successive packets from the same user, and cannot correlate activity across different sessions.
+The combination of mixing, delays, and cover traffic gives the mixnet three properties that simpler systems like VPNs and Tor don't have:
 
-It provides **unobservability**. An observer cannot determine when real communication is occurring, how much real traffic versus cover traffic is flowing, or whether a particular user is actively communicating.
-
-It defeats **traffic analysis**. Random delays break timing patterns. Cover traffic masks real traffic volume. Uniform packet sizes prevent content-type fingerprinting. Per-packet routing prevents route-based correlation.
+- **Unlinkability**: an observer watching a Mix Node cannot correlate incoming packets with outgoing ones, cannot connect successive packets from the same user, and cannot link activity across different sessions — the random delays and reordering destroy the timing signal that makes this possible in other networks.
+- **Unobservability**: because your client sends a constant stream of cover traffic whether or not you're actually communicating, an observer cannot tell when real communication is occurring, how much of the traffic is real versus dummy, or even whether a given user is active at all.
+- **Resistance to traffic analysis**: uniform Sphinx packet sizes prevent content-type fingerprinting, per-packet routing means there are no long-lived circuits to observe (unlike Tor), and the mixing delays mean that even an adversary watching the entire network cannot correlate entry and exit timing.
 
 ## Performance
 
 Latency is higher than dVPN mode, typically 200-500ms additional, due to the mixing delays at each of the three Mix Node layers. This is the cost of timing obfuscation. For most messaging applications, this latency is acceptable. For real-time applications like video calls, dVPN mode may be more appropriate.
 
-## When to use mixnet mode
-
-Use mixnet mode for sensitive communications where metadata protection matters—journalism, activism, whistleblowing, or any situation where sophisticated adversaries might be monitoring network traffic. The latency cost is worthwhile when the privacy benefit is critical.
-
-For general browsing and streaming where speed matters more than maximum privacy, consider [dVPN mode](/network/dvpn-mode).
+For help deciding between dVPN and Mixnet mode, see [Choosing a Mode](/network/overview/choosing-a-mode).
 
 ## Further reading
 

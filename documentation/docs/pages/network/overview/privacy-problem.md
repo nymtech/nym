@@ -4,11 +4,11 @@
 
 When you communicate over the internet, you can think of two types of information being transmitted:
 - The **content** is the actual message, file, or data being sent. In the context of a messaging app, this is the contents of your message. In the context of something lower level, like an HTTP packet, this is the encrypted payload of the packet itself.
-- The **metadata** is information about the communication itself, some of which can be gathered immediately, such as HTTP packets have headers which show the sending and receiving IP addresses (revealing which devices are communicating), timestamps, packet sizes hinting at what type of content and what connection type (e.g. the different [Maximum Tranmission Units of different media](https://en.wikipedia.org/wiki/Maximum_transmission_unit#MTUs_for_common_media)), and some which is gathered over time, by finding patterns in large amounts of traffic, such as frequency patterns indicating how often parties interact.
+- The **metadata** is information about the communication itself, some of which can be gathered immediately, such as HTTP packets have headers which show the sending and receiving IP addresses (revealing which devices are communicating), timestamps, packet sizes hinting at what type of content and what connection type (e.g. the different [Maximum Transmission Units of different media](https://en.wikipedia.org/wiki/Maximum_transmission_unit#MTUs_for_common_media)), and some which is gathered over time, by finding patterns in large amounts of traffic, such as frequency patterns indicating how often parties interact.
 
-Traditional encryption like TLS and end-to-end-encryption (E2EE) protect content - this is what is often the [focus of media attention](https://wire.com/en/blog/whatsapp-end-to-end-encryption-risks). However, most solutions either don't protect from metadata analsis, or falsely purport to do so.
+Traditional encryption like TLS and end-to-end-encryption (E2EE) protect content - this is what is often the [focus of media attention](https://wire.com/en/blog/whatsapp-end-to-end-encryption-risks). However, most solutions either don't protect from metadata analysis, or falsely purport to do so.
 
-This matters because metadata can reveal social graphs showing who knows whom, behavioral patterns exposing daily routines and habits, sensitive activities like medical consultations or legal advice, and location history tracking where you've been and when. As former NSA Director Michael Hayden put it: ["We kill people based on metadata."](https://committees.parliament.uk/writtenevidence/36962/html/)
+Even without reading a single message, metadata alone is enough to reconstruct who you talk to, when, how often, and from where — which is why intelligence agencies treat it as seriously as content. As former NSA Director Michael Hayden put it: ["We kill people based on metadata."](https://committees.parliament.uk/writtenevidence/36962/html/)
 
 ## The adversary models
 
@@ -16,16 +16,16 @@ When using the **Mixnet mode** the Nym Network is designed to protect against **
 
 The assumption is that these adversaries can monitor all entry and exit points, correlate timing across the network, apply machine learning to traffic patterns, and conduct long-term statistical analysis. When Tor was first deployed in 2002, such attacks were considered science fiction. They are now documented reality.
 
-**dVPN mode** offers reduced protections against E2E surviellance and timing analsis, but still offers similar protections to Tor whilst offering increased speeds.
+**dVPN mode** offers reduced protections against E2E surveillance and timing analysis, but still offers similar protections to Tor whilst offering increased speeds.
 
 ## Why traditional solutions fall short
 
-**VPNs** provide a single point of trust. Most VPN providers see your traffic movements, can be legally or financially compelled to log, and your payment or account information (in most cases) links directly to your usage.
+**VPNs** concentrate trust in a single provider who can see all your traffic movements, can be legally or financially compelled to log, and whose payment systems (in most cases) link your account directly to your usage — so a VPN provider can be turned into a surveillance tool with a single court order or compromise.
 
-**Tor** was designed before global passive adversaries were considered realistic. It provides no timing obfuscation and no cover traffic, making it vulnerable to end-to-end correlation attacks.
+**Tor** was designed in an era when global passive adversaries were considered unrealistic. It routes traffic through three relays with onion encryption, but packets flow through without delays or cover traffic, which means an adversary who can observe both ends of a circuit can correlate timing to deanonymise users. These [correlation attacks](https://www.usenix.org/conference/usenixsecurity14/technical-sessions/presentation/johnson) were once theoretical — they are now [documented in practice](https://www.vice.com/en/article/timing-attack-tor-deanonymization/).
 
 ## Nym's approach
 
-The Nym Network addresses these limitations through decentralization (no single entity to trust or compromise), and anonymous credentials (ensuring payment cannot be linked to usage) in **dVPN mode**.
+**dVPN mode** splits trust across two independent operators rather than concentrating it in one, and uses [zk-nym credentials](/network/cryptography/zk-nym) so that payment cannot be linked to usage — addressing the two biggest weaknesses of traditional VPNs.
 
-**Mixnet mode** adds packet mixing (reordering traffic to break timing correlation), cover traffic (generating dummy packets indistinguishable from real ones), and uniform packet sizes (preventing content-type inference),
+**Mixnet mode** goes further by adding packet mixing (reordering traffic to break timing correlation), cover traffic (a constant stream of dummy packets that hides when real communication is occurring), and uniform Sphinx packet sizes (preventing content-type fingerprinting) — addressing the timing analysis weakness that Tor and dVPN mode share.

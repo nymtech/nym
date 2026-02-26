@@ -1,10 +1,10 @@
 # Network Components
 
-The Nym Network is built from several types of infrastructure working together.
+The Nym Network is made up of traffic-routing nodes, a Cosmos SDK blockchain for coordination, and an API layer that handles credential issuance.
 
 ## Nym Nodes
 
-All traffic-routing infrastructure runs on **Nym Nodes**—a unified binary that operates in different modes. This simplifies deployment and enables future dynamic role assignment based on network conditions.
+All traffic-routing infrastructure runs on **Nym Nodes** — a single binary that can operate as an Entry Gateway, Mix Node, or Exit Gateway depending on configuration.
 
 **Entry Gateways** are the user's first point of contact. They accept client connections via WebSocket, verify zk-nym credentials to confirm payment, and store messages for clients that go offline (up to 24 hours). Entry Gateways know the client's IP address but cannot see message contents or final destinations. They will either create tunnels to Exit Gateways (dVPN mode) or forward Sphinx packets to the first layer of Mix Nodes (in Mixnet mode).
 

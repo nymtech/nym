@@ -40,6 +40,7 @@ impl<'a> KKTInitiator<'a> {
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
+        payload: Option<Vec<u8>>
     ) -> Result<(Self, KKTRequestWithReceiverIndex), KKTError>
     where
         R: CryptoRng + RngCore,
@@ -52,6 +53,7 @@ impl<'a> KKTInitiator<'a> {
             responder_dh_public_key,
             expected_hash,
             outer_protocol_version,
+            payload
         )
     }
 
@@ -63,6 +65,7 @@ impl<'a> KKTInitiator<'a> {
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
+        payload: Option<Vec<u8>>,
     ) -> Result<(Self, KKTRequestWithReceiverIndex), KKTError>
     where
         R: CryptoRng + RngCore,
@@ -75,6 +78,7 @@ impl<'a> KKTInitiator<'a> {
             responder_dh_public_key,
             expected_hash,
             outer_protocol_version,
+            payload
         )
     }
 
@@ -86,11 +90,12 @@ impl<'a> KKTInitiator<'a> {
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
+        payload: Option<Vec<u8>>,
     ) -> Result<(Self, KKTRequestWithReceiverIndex), KKTError>
     where
         R: CryptoRng + RngCore,
     {
-        let frame = initiator_process(mode, ciphersuite, local_encapsulation_key)?;
+        let frame = initiator_process(mode, ciphersuite, local_encapsulation_key, payload)?;
         let context = *frame.context();
 
         let request =
@@ -112,9 +117,10 @@ impl<'a> KKTInitiator<'a> {
     pub fn process_response(
         &mut self,
         response: KKTResponse,
+        response_payload_len: usize
     ) -> Result<ProcessedKKTResponse, KKTError> {
         let decrypted_response_bytes = self.carrier.decrypt(&response.encrypted_frame)?;
-        let response_frame = KKTFrame::from_bytes(&decrypted_response_bytes)?;
+        let response_frame = KKTFrame::from_bytes(&decrypted_response_bytes, response_payload_len)?;
         initiator_ingest_response(&self.context, &response_frame, self.expected_hash)
     }
 }
@@ -123,6 +129,7 @@ pub fn initiator_process(
     mode: KKTMode,
     ciphersuite: Ciphersuite,
     own_encapsulation_key: Option<&[u8]>,
+    payload: Option<Vec<u8>>,
 ) -> Result<KKTFrame, KKTError> {
     let context = KKTContext::new(KKTRole::Initiator, mode, ciphersuite);
 
@@ -140,7 +147,14 @@ pub fn initiator_process(
         },
     };
 
-    Ok(KKTFrame::new(context, body))
+    Ok(KKTFrame::new(
+        context,
+        body,
+        match payload {
+            Some(payload_vec) => payload_vec,
+            None => Vec::with_capacity(0),
+        },
+    ))
 }
 
 pub fn initiator_ingest_response(
@@ -176,5 +190,6 @@ pub fn initiator_ingest_response(
     Ok(ProcessedKKTResponse {
         encapsulation_key,
         verified_initiator_kem_key,
+        response_payload: remote_frame.payload().to_vec()
     })
 }

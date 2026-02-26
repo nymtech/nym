@@ -27,6 +27,7 @@ pub(crate) const KKT_RECEIVER_INDEX_CONTEXT: &[u8] = b"KKT_RECEIVER_INDEX_DERIVA
 pub struct KKTFrame {
     context: KKTContext,
     body: Vec<u8>,
+    payload: Vec<u8>,
 }
 
 // if oneway and message coming from initiator => body is empty.
@@ -34,14 +35,15 @@ pub struct KKTFrame {
 // if coming from responder => body has the responder's kem public key.
 
 impl KKTFrame {
-    pub fn new(context: KKTContext, body: &[u8]) -> Self {
+    pub fn new(context: KKTContext, body: &[u8], payload: Vec<u8>) -> Self {
         Self {
             context,
             body: Vec::from(body),
+            payload,
         }
     }
 
-    pub const fn size(role: KKTRole, mode: KKTMode, kem: KEM) -> usize {
+    pub const fn size_excluding_payload(role: KKTRole, mode: KKTMode, kem: KEM) -> usize {
         match role {
             KKTRole::Initiator => {
                 match mode {
@@ -62,8 +64,21 @@ impl KKTFrame {
         }
     }
 
+    pub fn size(&self) -> usize {
+        self.payload.len()
+            + Self::size_excluding_payload(
+                self.context.role(),
+                self.context.mode(),
+                self.context.ciphersuite().kem(),
+            )
+    }
+
     pub fn context(&self) -> &KKTContext {
         &self.context
+    }
+
+    pub fn payload(&self) -> &[u8] {
+        self.payload.as_ref()
     }
 
     pub fn encrypt_initiator_frame<R>(
@@ -97,6 +112,7 @@ impl KKTFrame {
         responder_keypair: &DHKeyPair,
         message: KKTRequest,
         supported_versions: &[u8],
+        request_payload_len: usize
     ) -> Result<DecryptedRequestFrame, KKTError> {
         let mask = message.plaintext.version_mask(&responder_keypair.pk);
 
@@ -114,7 +130,7 @@ impl KKTFrame {
             .derive_responder_carrier(responder_keypair)?;
 
         let decrypted_message = carrier.decrypt(&message.encrypted_frame)?;
-        let frame = KKTFrame::from_bytes(&decrypted_message)?;
+        let frame = KKTFrame::from_bytes(&decrypted_message, request_payload_len)?;
 
         let receiver_index: u64 = frame.derive_receiver_index(&message.plaintext)?;
 
@@ -164,10 +180,11 @@ impl KKTFrame {
         let mut bytes = Vec::with_capacity(self.frame_length());
         bytes.extend_from_slice(&self.context.encode()?);
         bytes.extend_from_slice(&self.body);
+        bytes.extend_from_slice(&self.payload);
         Ok(bytes)
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, KKTError> {
+    pub fn from_bytes(bytes: &[u8], payload_len: usize) -> Result<Self, KKTError> {
         let len = bytes.len();
         if bytes.len() < KKT_CONTEXT_LEN {
             return Err(KKTError::FrameDecodingError {
@@ -182,7 +199,7 @@ impl KKTFrame {
         let context_bytes = bytes[0..KKT_CONTEXT_LEN].try_into().unwrap();
         let context = KKTContext::try_decode(context_bytes)?;
 
-        if bytes.len() != context.full_message_len() {
+        if bytes.len() != context.full_message_len() + payload_len {
             return Err(KKTError::FrameDecodingError {
                 info: format!(
                     "Frame is shorter than expected: actual {len} != expected {}",
@@ -199,6 +216,9 @@ impl KKTFrame {
             body.extend_from_slice(body_bytes);
         }
 
-        Ok(KKTFrame::new(context, &body))
+        // decode payload. this could be empty.
+        let payload: Vec<u8> = Vec::from(&bytes[KKT_CONTEXT_LEN + context.body_len()..]);
+
+        Ok(KKTFrame::new(context, &body, payload))
     }
 }

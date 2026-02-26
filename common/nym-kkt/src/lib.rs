@@ -17,6 +17,7 @@ pub use nym_kkt_context as context;
 #[cfg(test)]
 mod test {
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
+    use rand09::RngCore;
 
     use crate::keys::KEMKeys;
     use crate::{
@@ -31,6 +32,9 @@ mod test {
     #[test]
     fn test_kkt_psq_e2e_encrypted_carrier() {
         let mut rng = rand09::rng();
+
+        let mut payload: Vec<u8> = vec![0u8; 900_000];
+        rng.fill_bytes(&mut payload);
 
         // generate responder x25519 keys
         let responder_x25519_keypair = generate_lp_keypair_x25519(&mut rng);
@@ -103,12 +107,15 @@ mod test {
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mlkem,
                     1u8,
+                    Some(payload.clone())
                 )
                 .unwrap();
 
-                let response = responder.process_request(request.request).unwrap();
+                let processed_request = responder.process_request(request.request, payload.len()).unwrap();
 
-                let result = initiator.process_response(response.response).unwrap();
+                assert_eq!(processed_request.request_payload, payload);
+
+                let result = initiator.process_response(processed_request.response, 0).unwrap();
 
                 assert_eq!(
                     result.encapsulation_key.as_bytes(),
@@ -130,16 +137,19 @@ mod test {
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mlkem,
                     1u8,
+                    Some(payload.clone())
                 )
                 .unwrap();
 
-                let processed_request = responder.process_request(request.request).unwrap();
+                let processed_request = responder.process_request(request.request,payload.len() ).unwrap();
+
+                assert_eq!(processed_request.request_payload, payload);
 
                 // if we keep unverified keys, this should change
                 assert!(processed_request.remote_encapsulation_key.is_none());
 
                 let processed_response = initiator
-                    .process_response(processed_request.response)
+                    .process_response(processed_request.response, 0)
                     .unwrap();
 
                 assert_eq!(
@@ -163,13 +173,15 @@ mod test {
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mceliece,
                     1u8,
+                    Some(payload.clone())
                 )
                 .unwrap();
 
-                let processed_request = responder.process_request(request.request).unwrap();
-
+                let processed_request = responder.process_request(request.request, payload.len()).unwrap();
+assert_eq!(processed_request.request_payload, payload);
+                
                 let processed_response = initiator
-                    .process_response(processed_request.response)
+                    .process_response(processed_request.response, 0)
                     .unwrap();
 
                 assert_eq!(
@@ -192,16 +204,19 @@ mod test {
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mceliece,
                     1u8,
+                    Some(payload.clone())
                 )
                 .unwrap();
 
-                let processed_request = responder.process_request(request.request).unwrap();
+                let processed_request = responder.process_request(request.request, payload.len()).unwrap();
+
+                assert_eq!(processed_request.request_payload, payload);
 
                 // if we keep unverified keys, this should change
                 assert!(processed_request.remote_encapsulation_key.is_none());
 
                 let processed_response = initiator
-                    .process_response(processed_request.response)
+                    .process_response(processed_request.response, 0)
                     .unwrap();
 
                 assert_eq!(

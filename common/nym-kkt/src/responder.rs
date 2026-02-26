@@ -89,15 +89,17 @@ impl<'a> KKTResponder<'a> {
 
     // When this function fails, we do that silently (i.e. we don't generate a response to the initiator).
 
-    pub fn process_request(&self, request: KKTRequest) -> Result<ProcessedKKTRequest, KKTError> {
+    pub fn process_request(&self, request: KKTRequest, request_payload_len: usize) -> Result<ProcessedKKTRequest, KKTError> {
         let processed_req = KKTFrame::decrypt_initiator_frame(
             self.x25519_keypair,
             request,
             &self.supported_outer_protocol_versions,
+            request_payload_len
         )?;
 
         let remote_context = *processed_req.remote_context();
         let remote_frame = processed_req.remote_frame;
+        let request_payload = remote_frame.payload().to_vec();
         let mut carrier = processed_req.carrier;
 
         self.check_ciphersuite_compatiblity(remote_context.ciphersuite())?;
@@ -120,7 +122,11 @@ impl<'a> KKTResponder<'a> {
                 info: "Unsupported KEM",
             });
         };
-        let frame = KKTFrame::new(local_context, kem_key);
+
+        // for now the response payload is empty
+        let response_payload = Vec::with_capacity(0);
+
+        let frame = KKTFrame::new(local_context, kem_key, response_payload);
 
         // encryption - responder frame
         let encrypted_frame = carrier.encrypt(&frame.try_to_bytes()?)?;
@@ -130,6 +136,7 @@ impl<'a> KKTResponder<'a> {
             requested_kem: remote_context.ciphersuite().kem(),
             receiver_index: processed_req.receiver_index,
             outer_protocol_version: processed_req.outer_protocol_version,
+            request_payload
         })
     }
 }

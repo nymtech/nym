@@ -21,8 +21,14 @@ pub struct KKTRequest {
 
 impl KKTRequest {
     // the size of KKTRequest is the plaintext data followed by the frame and the encryption tag
-    pub const fn size(mode: KKTMode, kem: KEM) -> usize {
-        KKTRequestPlaintext::SIZE + KKTFrame::size(KKTRole::Initiator, mode, kem) + TAG_LEN
+    pub const fn size_excluding_payload(mode: KKTMode, kem: KEM) -> usize {
+        KKTRequestPlaintext::SIZE
+            + KKTFrame::size_excluding_payload(KKTRole::Initiator, mode, kem)
+            + TAG_LEN
+    }
+
+    pub fn size(&self) -> usize {
+        self.encrypted_frame.len() + KKTRequestPlaintext::SIZE
     }
 
     pub fn into_bytes(mut self) -> Vec<u8> {
@@ -224,6 +230,9 @@ pub struct ProcessedKKTRequest {
 
     /// The unmasked byte representing the outer protocol version sent by the initiator
     pub outer_protocol_version: u8,
+
+    // Request payload data (Could be empty. Contents are unrelated to current KKT execution).
+    pub request_payload: Vec<u8>,
 }
 
 pub struct KKTResponse {
@@ -233,9 +242,13 @@ pub struct KKTResponse {
 
 impl KKTResponse {
     // the size of KKTRequest is the plaintext data followed by the frame and the encryption tag
-    pub const fn size(kem: KEM) -> usize {
+    pub const fn size_excluding_payload(kem: KEM) -> usize {
         // `KKTMode` argument makes no difference for the Responder role
-        KKTFrame::size(KKTRole::Responder, KKTMode::OneWay, kem) + TAG_LEN
+        KKTFrame::size_excluding_payload(KKTRole::Responder, KKTMode::OneWay, kem) + TAG_LEN
+    }
+
+    pub fn size(&self) -> usize {
+        self.encrypted_frame.len()
     }
 
     pub fn from_bytes(bytes: Vec<u8>) -> KKTResponse {
@@ -255,4 +268,7 @@ pub struct ProcessedKKTResponse {
 
     /// Indicates whether responder was able to verify the initiator's kem key,
     pub verified_initiator_kem_key: bool,
+
+    /// Optional response payload (Could be empty. Contents are unrelated to current KKT execution).
+    pub response_payload: Vec<u8>,
 }

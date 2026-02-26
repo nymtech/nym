@@ -4,7 +4,7 @@ The Nym Network relies on several cryptographic systems working together. This s
 
 ## Defense in depth
 
-Multiple cryptographic layers protect user privacy. Transport encryption secures all network connections. Sphinx packets provide per-hop encryption so each node only sees its next destination. End-to-end encryption protects payload contents. And the zk-nym credential system ensures payment cannot be linked to usage.
+There isn't a single cryptographic scheme protecting traffic — transport encryption secures connections between nodes, Sphinx packets add per-hop encryption so each node only learns where to forward rather than the full route, the payload itself is encrypted end-to-end, and zk-nyms keep payment separate from usage.
 
 ## What's covered
 

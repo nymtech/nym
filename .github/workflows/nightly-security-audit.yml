@@ -24,34 +24,3 @@ jobs:
         with:
           name: report
           path: .github/workflows/support-files/notifications/deny.message
-  notification:
-    needs: cargo-deny
-    runs-on: custom-linux
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v6
-      - name: Download report from previous job
-        uses: actions/download-artifact@v7
-        with:
-          name: report
-          path: .github/workflows/support-files/notifications
-      - name: install npm
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Matrix - Node Install
-        run: npm install
-        working-directory: .github/workflows/support-files
-      - name: Matrix - Send Notification
-        env:
-          NYM_NOTIFICATION_KIND: security
-          NYM_PROJECT_NAME: "Daily security report"
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
-          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM_AUDIT }}"
-          MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
-          MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
-          MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"
-        uses: docker://keybaseio/client:stable-node
-        with:
-          args: .github/workflows/support-files/notifications/entry_point.sh

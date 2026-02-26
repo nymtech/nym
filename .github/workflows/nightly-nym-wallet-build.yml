@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest, windows-latest]
+        os: [ ubuntu-22.04, macos-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TERM_COLOR: always
@@ -55,38 +55,3 @@ jobs:
         with:
           command: clippy
           args: ${{ env.MANIFEST_PATH }} --workspace --all-targets -- -D warnings
-
-  notification:
-    needs: build
-    runs-on: custom-linux
-    steps:
-      - name: Collect jobs status
-        uses: technote-space/workflow-conclusion-action@v3
-      - name: Check out repository code
-        uses: actions/checkout@v6
-      - name: install npm
-        uses: actions/setup-node@v4
-        if: env.WORKFLOW_CONCLUSION == 'failure'
-        with:
-          node-version: 20
-      - name: Matrix - Node Install
-        if: env.WORKFLOW_CONCLUSION == 'failure'
-        run: npm install
-        working-directory: .github/workflows/support-files
-      - name: Matrix - Send Notification
-        if: env.WORKFLOW_CONCLUSION == 'failure'
-        env:
-          NYM_NOTIFICATION_KIND: nightly
-          NYM_PROJECT_NAME: "nym-wallet-nightly-build"
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
-          GIT_BRANCH: "${GITHUB_REF##*/}"
-          IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
-          MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
-          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM_NIGHTLY }}"
-          MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
-          MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
-          MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"
-        uses: docker://keybaseio/client:stable-node
-        with:
-          args: .github/workflows/support-files/notifications/entry_point.sh

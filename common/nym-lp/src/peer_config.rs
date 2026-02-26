@@ -72,7 +72,13 @@ impl LpPeerConfig {
     where
         R: Rng + CryptoRng,
     {
-        Self::new(rng, hop_id, false, false, censorship_resistance)
+        if hop_id == 0 || hop_id == 15 {
+            Err(LpError::Internal(format!(
+                "An intermediate hop cannot be the first or last hop. Requested hop id {hop_id}"
+            )))
+        } else {
+            Self::new(rng, hop_id, false, false, censorship_resistance)
+        }
     }
 
     pub fn new_node_to_node<R>(rng: &mut R) -> Result<Self, LpError>
@@ -386,5 +392,40 @@ mod test {
             assert_eq!(conf_bytes[0], conf_alt_first_byte);
             assert!(conf.is_client_intermediate_node());
         }
+    }
+
+    #[test]
+    fn test_failures() {
+        let mut rng = rand09::rng();
+        // Hop with id 15 must be an exit node
+        assert!(LpPeerConfig::new(&mut rng, 15, false, false, false).is_err());
+
+        // intermediate hop cannot be the first hop
+        assert!(LpPeerConfig::new_client_to_intermediate(&mut rng, 0, false).is_err());
+        // intermediate hop cannot be the last hop
+        assert!(LpPeerConfig::new_client_to_intermediate(&mut rng, 15, false).is_err());
+
+        // Hop with id 0 must be an entry node
+        assert!(LpPeerConfig::new_client_to_intermediate(&mut rng, 0, false).is_err());
+        assert!(LpPeerConfig::new_client_to_exit(&mut rng, 0, false).is_err());
+        assert!(LpPeerConfig::new(&mut rng, 0, true, false, false).is_err());
+
+        // cannot be node to node with hop_id > 0
+        assert!(LpPeerConfig::new(&mut rng, 1, false, true, false).is_err());
+
+        // cannot be node to node and exit at the same time
+        assert!(LpPeerConfig::new(&mut rng, 0, true, true, false).is_err());
+
+        // cannot have hop_id greater than 15
+        // this is a valid config
+        assert!(LpPeerConfig::new(&mut rng, 0, false, false, false).is_ok());
+        // this is a valid config
+        assert!(LpPeerConfig::new(&mut rng, 14, false, false, false).is_ok());
+        // this is a valid config
+        assert!(LpPeerConfig::new(&mut rng, 15, true, false, false).is_ok());
+        // these are not valid configs
+        assert!(LpPeerConfig::new(&mut rng, 16, false, false, false).is_err());
+        assert!(LpPeerConfig::new(&mut rng, 16, true, false, false).is_err());
+        assert!(LpPeerConfig::new(&mut rng, 240, false, false, false).is_err());
     }
 }

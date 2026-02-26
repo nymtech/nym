@@ -69,13 +69,13 @@ cargo Profile:      release
 
 ### Operator & Developer Updates
 
-#### Features
+### Features
 
 - [Stateless handshake improvements for LP Gateway](https://github.com/nymtech/nym/pull/6437)
 - [HTTP & DNS improvements](https://github.com/nymtech/nym/pull/6423)
 - [Endpoint support for exit gateway IPs](https://github.com/nymtech/nym/pull/6418)
 
-#### Tools
+### Tools
 
 - **Diagnostic Tool** - a standalone binary for network diagnostics. It performs DNS, HTTP, and gateway connectivity tests, helping developers identify connectivity issues and monitor network performance. It can also be run via the daemon CLI. Read the full guide [here](https://nym.com/docs/developers/tools/diagnostic-tool).  
 - **Socks5 Score Calculation** - performed by the Gateway probe, which tests `nym-node --mode exit-gateway` instances over Socks5. The probe assigns a latency-based rating: high, medium, low, or offline. Full guide [here](https://nym.com/docs/operators/performance-and-testing#socks5-score-calculation-process).
@@ -99,7 +99,7 @@ cargo Profile:      release
 
 ### Operator & Developer Updates
 
-#### Features
+### Features
 
 - [Registration client now properly supports fallback](https://github.com/nymtech/nym/pull/6419)
 - [Exposed WireGuard PSK for vpn-client](https://github.com/nymtech/nym/pull/6411)
@@ -108,12 +108,12 @@ cargo Profile:      release
 
 Note: This code is currently deactivated and doesn’t involve any changes for operators right now, but it will in the future.
 
-#### Bugfixes
+### Bugfixes
 
 - [Share IP allocation fixes](https://github.com/nymtech/nym/pull/6395)
 - [Mixnet registration fixes](https://github.com/nymtech/nym/pull/6356)
 
-#### Refactors & Maintenance
+### Refactors & Maintenance
 
 - [Cleanup x25519/ed22519 usage](https://github.com/nymtech/nym/pull/6335)
 

@@ -89,12 +89,16 @@ impl<'a> KKTResponder<'a> {
 
     // When this function fails, we do that silently (i.e. we don't generate a response to the initiator).
 
-    pub fn process_request(&self, request: KKTRequest, request_payload_len: usize) -> Result<ProcessedKKTRequest, KKTError> {
+    pub fn process_request(
+        &self,
+        request: KKTRequest,
+        request_payload_len: usize,
+    ) -> Result<ProcessedKKTRequest, KKTError> {
         let processed_req = KKTFrame::decrypt_initiator_frame(
             self.x25519_keypair,
             request,
             &self.supported_outer_protocol_versions,
-            request_payload_len
+            request_payload_len,
         )?;
 
         let remote_context = *processed_req.remote_context();
@@ -136,7 +140,7 @@ impl<'a> KKTResponder<'a> {
             requested_kem: remote_context.ciphersuite().kem(),
             receiver_index: processed_req.receiver_index,
             outer_protocol_version: processed_req.outer_protocol_version,
-            request_payload
+            request_payload,
         })
     }
 }

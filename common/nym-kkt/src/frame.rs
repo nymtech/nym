@@ -112,7 +112,7 @@ impl KKTFrame {
         responder_keypair: &DHKeyPair,
         message: KKTRequest,
         supported_versions: &[u8],
-        request_payload_len: usize
+        request_payload_len: usize,
     ) -> Result<DecryptedRequestFrame, KKTError> {
         let mask = message.plaintext.version_mask(&responder_keypair.pk);
 

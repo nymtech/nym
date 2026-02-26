@@ -40,7 +40,7 @@ impl<'a> KKTInitiator<'a> {
         responder_dh_public_key: &DHPublicKey,
         expected_hash: &'a [u8],
         outer_protocol_version: u8,
-        payload: Option<Vec<u8>>
+        payload: Option<Vec<u8>>,
     ) -> Result<(Self, KKTRequestWithReceiverIndex), KKTError>
     where
         R: CryptoRng + RngCore,
@@ -53,7 +53,7 @@ impl<'a> KKTInitiator<'a> {
             responder_dh_public_key,
             expected_hash,
             outer_protocol_version,
-            payload
+            payload,
         )
     }
 
@@ -78,7 +78,7 @@ impl<'a> KKTInitiator<'a> {
             responder_dh_public_key,
             expected_hash,
             outer_protocol_version,
-            payload
+            payload,
         )
     }
 
@@ -118,7 +118,7 @@ impl<'a> KKTInitiator<'a> {
     pub fn process_response(
         &mut self,
         response: KKTResponse,
-        response_payload_len: usize
+        response_payload_len: usize,
     ) -> Result<ProcessedKKTResponse, KKTError> {
         let decrypted_response_bytes = self.carrier.decrypt(&response.encrypted_frame)?;
         let response_frame = KKTFrame::from_bytes(&decrypted_response_bytes, response_payload_len)?;
@@ -191,6 +191,6 @@ pub fn initiator_ingest_response(
     Ok(ProcessedKKTResponse {
         encapsulation_key,
         verified_initiator_kem_key,
-        response_payload: remote_frame.payload().to_vec()
+        response_payload: remote_frame.payload().to_vec(),
     })
 }

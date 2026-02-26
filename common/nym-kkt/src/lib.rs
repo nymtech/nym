@@ -107,15 +107,19 @@ mod test {
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mlkem,
                     1u8,
-                    Some(payload.clone())
+                    Some(payload.clone()),
                 )
                 .unwrap();
 
-                let processed_request = responder.process_request(request.request, payload.len()).unwrap();
+                let processed_request = responder
+                    .process_request(request.request, payload.len())
+                    .unwrap();
 
                 assert_eq!(processed_request.request_payload, payload);
 
-                let result = initiator.process_response(processed_request.response, 0).unwrap();
+                let result = initiator
+                    .process_response(processed_request.response, 0)
+                    .unwrap();
 
                 assert_eq!(
                     result.encapsulation_key.as_bytes(),
@@ -137,11 +141,13 @@ mod test {
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mlkem,
                     1u8,
-                    Some(payload.clone())
+                    Some(payload.clone()),
                 )
                 .unwrap();
 
-                let processed_request = responder.process_request(request.request,payload.len() ).unwrap();
+                let processed_request = responder
+                    .process_request(request.request, payload.len())
+                    .unwrap();
 
                 assert_eq!(processed_request.request_payload, payload);
 
@@ -173,13 +179,15 @@ mod test {
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mceliece,
                     1u8,
-                    Some(payload.clone())
+                    Some(payload.clone()),
                 )
                 .unwrap();
 
-                let processed_request = responder.process_request(request.request, payload.len()).unwrap();
-assert_eq!(processed_request.request_payload, payload);
-                
+                let processed_request = responder
+                    .process_request(request.request, payload.len())
+                    .unwrap();
+                assert_eq!(processed_request.request_payload, payload);
+
                 let processed_response = initiator
                     .process_response(processed_request.response, 0)
                     .unwrap();
@@ -204,11 +212,13 @@ assert_eq!(processed_request.request_payload, payload);
                     &responder_x25519_keypair.pk,
                     &r_dir_hash_mceliece,
                     1u8,
-                    Some(payload.clone())
+                    Some(payload.clone()),
                 )
                 .unwrap();
 
-                let processed_request = responder.process_request(request.request, payload.len()).unwrap();
+                let processed_request = responder
+                    .process_request(request.request, payload.len())
+                    .unwrap();
 
                 assert_eq!(processed_request.request_payload, payload);
 

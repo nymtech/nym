@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::lp_listener::ReceiverIndex;
 use crate::node::wireguard::new_peer_registration::pending::{
     PendingRegistration, PendingRegistrationData,
 };
@@ -58,9 +57,10 @@ impl PeerRegistrator {
 
     pub(super) async fn check_pending_lp_registration(
         &self,
-        sender: ReceiverIndex,
+        receiver_index: u64,
     ) -> Result<Option<LpRegistrationResponse>, GatewayWireguardError> {
-        let Some(pending_registration) = self.pending_registrations.check_lp(sender).await else {
+        let Some(pending_registration) = self.pending_registrations.check_lp(receiver_index).await
+        else {
             return Ok(None);
         };
 
@@ -104,7 +104,7 @@ impl PeerRegistrator {
 
     pub(super) async fn process_fresh_initial_lp_registration(
         &self,
-        sender: ReceiverIndex,
+        receiver_index: u64,
         remote_public: PeerPublicKey,
         psk: Key,
     ) -> Result<LpRegistrationResponse, GatewayWireguardError> {
@@ -121,7 +121,7 @@ impl PeerRegistrator {
             .lp
             .write()
             .await
-            .insert(sender, pending);
+            .insert(receiver_index, pending);
 
         Ok(response)
     }

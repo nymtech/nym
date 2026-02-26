@@ -13,6 +13,8 @@ license = "GPL-3.0"
 publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 async-trait = { workspace = true }
@@ -27,6 +29,7 @@ colored = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
+dashmap = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
 humantime-serde = { workspace = true }
@@ -112,6 +115,12 @@ nym-node-metrics = { workspace = true }
 nym-gateway = { path = "../gateway" }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
+
+# LP dependencies
+nym-lp = { path = "../common/nym-lp" }
+nym-lp-transport = { path = "../common/nym-lp-transport" }
+nym-registration-common = { path = "../common/registration" }
+bincode = { workspace = true }
 
 
 # throughput tester to recreate lioness

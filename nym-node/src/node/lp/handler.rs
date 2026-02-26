@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::{LpHandlerState, ReceiverIndex, TimestampedState};
-use crate::node::lp_listener::error::LpHandlerError;
+use crate::node::lp::error::LpHandlerError;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_lp::{
     EncryptedLpPacket, ExpectedResponseSize, ForwardPacketData, LpSession, LpStateMachine,
 };
-use nym_lp_transport::traits::LpTransportChannel;
 use nym_lp_transport::LpHandshakeChannel;
+use nym_lp_transport::traits::LpTransportChannel;
 use nym_metrics::{add_histogram_obs, inc};
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
@@ -305,7 +305,8 @@ where
 
                 debug!(
                     "LP registration request from {remote} (receiver_idx={receiver_idx}): mode={:?}",
-                request.mode());
+                    request.mode()
+                );
 
                 self.handle_registration_request(receiver_idx, request)
                     .await
@@ -318,7 +319,10 @@ where
             }
             typ @ LpDataKind::Opaque => {
                 // Neither registration nor forwarding - unknown payload type
-                warn!("Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes", bytes.len());
+                warn!(
+                    "Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes",
+                    bytes.len()
+                );
                 inc!("lp_errors_unknown_payload_type");
                 Err(LpHandlerError::UnexpectedLpPayload { typ })
             }
@@ -420,6 +424,7 @@ where
     }
 
     /// Returns reference to the established forwarding channel to the exit.
+    #[allow(dead_code)]
     pub fn forwarding_channel(&self) -> &Option<(S, SocketAddr)> {
         &self.exit_stream
     }
@@ -658,10 +663,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::lp_listener::{LpConfig, LpDebug};
-    use crate::node::ActiveClientsStore;
-    use nym_lp::peer::{generate_keypair_mceliece, generate_keypair_mlkem, KEMKeys, LpLocalPeer};
-    use nym_lp::{sessions_for_tests, Ciphersuite, SessionManager};
+    use crate::config::lp::LpDebug;
+    use crate::node::lp::LpConfig;
+    use nym_lp::peer::{KEMKeys, LpLocalPeer, generate_keypair_mceliece, generate_keypair_mlkem};
+    use nym_lp::{Ciphersuite, SessionManager, sessions_for_tests};
     use nym_test_utils::helpers::{deterministic_rng, deterministic_rng_09};
     use std::sync::Arc;
     // ==================== Test Helpers ====================
@@ -672,15 +677,6 @@ mod tests {
 
         let mut rng = deterministic_rng();
         let mut rng09 = deterministic_rng_09();
-
-        // Create in-memory storage for testing
-        let storage = nym_gateway_storage::GatewayStorage::init(":memory:", 100)
-            .await
-            .expect("Failed to create test storage");
-
-        // Create mock ecash manager for testing
-        let ecash_verifier =
-            nym_credential_verification::ecash::MockEcashManager::new(Box::new(storage.clone()));
 
         let lp_config = LpConfig {
             debug: LpDebug {
@@ -706,12 +702,8 @@ mod tests {
 
         LpHandlerState {
             lp_config,
-            ecash_verifier: Arc::new(ecash_verifier)
-                as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
-            storage,
             local_lp_peer: lp_peer,
             metrics: nym_node_metrics::NymNodeMetrics::default(),
-            active_clients_store: ActiveClientsStore::new(),
             outbound_mix_sender: mix_sender,
             session_states: Arc::new(dashmap::DashMap::new()),
             peer_registrator: None,

@@ -22,6 +22,7 @@ use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::controller::KeyRotationController;
 use crate::node::key_rotation::manager::SphinxKeyManager;
+use crate::node::lp::{LpHandlerState, LpListener};
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
 use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
@@ -43,12 +44,14 @@ use crate::node::shared_network::{
 use nym_bin_common::bin_info;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_gateway::node::lp_listener::DHKeyPair;
-use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder, UpgradeModeCheckRequestSender};
+use nym_gateway::node::wireguard::PeerRegistrator;
+use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_kkt::key_utils::{
     generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
 };
-use nym_kkt::keys::KEMKeys;
+use nym_kkt::keys::{DHKeyPair, KEMKeys};
+use nym_lp::LpSession;
+use nym_lp::peer::LpLocalPeer;
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_requester::{
@@ -77,15 +80,19 @@ use std::net::SocketAddr;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{Semaphore, mpsc};
 use tracing::{debug, info, trace};
 use zeroize::Zeroizing;
+
+pub use nym_gateway::node::ActiveClientsStore;
+pub use nym_gateway::node::GatewayStorage;
 
 pub mod bonding_information;
 pub mod description;
 pub mod helpers;
 pub(crate) mod http;
 pub(crate) mod key_rotation;
+pub mod lp;
 pub(crate) mod metrics;
 pub(crate) mod mixnet;
 mod nym_apis_client;
@@ -95,7 +102,7 @@ mod shared_network;
 
 pub struct GatewayTasksData {
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
-    client_storage: nym_gateway::node::GatewayStorage,
+    client_storage: GatewayStorage,
     stats_storage: nym_gateway::node::PersistentStatsStorage,
 }
 
@@ -117,7 +124,7 @@ impl GatewayTasksData {
     }
 
     async fn new(config: &GatewayTasksConfig) -> Result<GatewayTasksData, EntryGatewayError> {
-        let client_storage = nym_gateway::node::GatewayStorage::init(
+        let client_storage = GatewayStorage::init(
             &config.storage_paths.clients_storage,
             config.debug.message_retrieval_limit,
         )
@@ -378,7 +385,7 @@ impl From<WireguardData> for nym_wireguard::WireguardData {
     }
 }
 
-pub(crate) struct NymNode {
+pub struct NymNode {
     config: Config,
     accepted_operator_terms_and_conditions: bool,
     shutdown_manager: ShutdownManager,
@@ -402,6 +409,7 @@ pub(crate) struct NymNode {
     sphinx_key_manager: Option<SphinxKeyManager>,
 
     x25519_noise_keys: Arc<x25519::KeyPair>,
+
     psq_kem_keys: KEMKeys,
     x25519_lp_keys: Arc<DHKeyPair>,
 }
@@ -476,6 +484,33 @@ impl NymNode {
         WireguardData::initialise(&config.wireguard)?;
 
         config.save()
+    }
+
+    pub async fn build_lp_listener(
+        &mut self,
+        peer_registrator: Option<PeerRegistrator>,
+        mix_packet_sender: MixForwardingSender,
+    ) -> Result<LpListener, NymNodeError> {
+        let handler_state = LpHandlerState {
+            local_lp_peer: LpLocalPeer::new(
+                LpSession::default_ciphersuite(),
+                self.x25519_lp_keys.clone(),
+            )
+            .with_kem_keys(self.psq_kem_keys.clone()),
+            metrics: self.metrics.clone(),
+            peer_registrator,
+            lp_config: self.config.lp,
+            outbound_mix_sender: mix_packet_sender,
+            session_states: Arc::new(dashmap::DashMap::new()),
+            forward_semaphore: Arc::new(Semaphore::new(
+                self.config.lp.debug.max_concurrent_forwards,
+            )),
+        };
+
+        Ok(LpListener::new(
+            handler_state,
+            self.shutdown_manager.shutdown_tracker().clone(),
+        ))
     }
 
     pub(crate) async fn new(config: Config) -> Result<Self, NymNodeError> {
@@ -670,15 +705,14 @@ impl NymNode {
         let mut gateway_tasks_builder = GatewayTasksBuilder::new(
             config.gateway,
             self.ed25519_identity_keys.clone(),
-            self.x25519_lp_keys.clone(),
-            self.psq_kem_keys.clone(),
             self.entry_gateway.client_storage.clone(),
-            mix_packet_sender,
+            mix_packet_sender.clone(),
             metrics_sender,
             self.metrics.clone(),
             self.entry_gateway.mnemonic.clone(),
             Self::user_agent(),
             self.upgrade_mode_state.clone(),
+            self.config.lp.debug.use_mock_ecash,
             self.shutdown_tracker().clone(),
         );
 
@@ -736,11 +770,10 @@ impl NymNode {
             // Start LP listener if enabled
             info!(
                 "starting the LP listener on {} (data handler on: {})",
-                self.config.gateway_tasks.lp.control_bind_address,
-                self.config.gateway_tasks.lp.data_bind_address,
+                self.config.lp.control_bind_address, self.config.lp.data_bind_address,
             );
-            let mut lp_listener = gateway_tasks_builder
-                .build_lp_listener(wg_peer_registrator.clone(), active_clients_store.clone())
+            let mut lp_listener = self
+                .build_lp_listener(wg_peer_registrator.clone(), mix_packet_sender)
                 .await?;
             self.shutdown_tracker()
                 .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
@@ -913,8 +946,8 @@ impl NymNode {
 
         let lewes_protocol = LewesProtocol {
             enabled: self.modes().entry,
-            control_port: self.config.gateway_tasks.lp.announced_control_port(),
-            data_port: self.config.gateway_tasks.lp.announced_data_port(),
+            control_port: self.config.lp.announced_control_port(),
+            data_port: self.config.lp.announced_data_port(),
             x25519: self.x25519_lp_keys.pk,
             kem_keys: self.compute_kem_key_hashes(),
         };
@@ -1371,7 +1404,7 @@ impl NymNode {
         Ok(self.shutdown_manager)
     }
 
-    pub(crate) async fn run(mut self) -> Result<(), NymNodeError> {
+    pub async fn run(mut self) -> Result<(), NymNodeError> {
         let mut shutdown_signals = self.shutdown_manager.detach_shutdown_signals();
 
         // listen for shutdown signal in case we received it when attempting to spawn all the tasks

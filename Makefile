@@ -119,7 +119,8 @@ sdk-typescript-build:
 	yarn --cwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
-WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm zknym-lib
+# WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm zknym-lib
+WASM_CRATES = nym-client-wasm nym-node-tester-wasm
 
 sdk-wasm-test:
 	#cargo test $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings

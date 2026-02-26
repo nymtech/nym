@@ -3,7 +3,6 @@
 
 pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
-use crate::node::lp_listener::error::LpHandlerError;
 use crate::node::wireguard::GatewayWireguardError;
 use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_gateway_stats_storage::error::StatsStorageError;
@@ -134,12 +133,6 @@ pub enum GatewayError {
     #[error("Internal error: {0}")]
     InternalError(String),
 
-    #[error("Failed to bind listener to {address}: {source}")]
-    ListenerBindFailure {
-        address: String,
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
     #[error("Failed to parse ip address: {source}")]
     IpAddrParseError {
         #[from]
@@ -154,9 +147,6 @@ pub enum GatewayError {
 
     #[error(transparent)]
     WireguardFailure(#[from] GatewayWireguardError),
-
-    #[error(transparent)]
-    LpFailure(#[from] LpHandlerError),
 }
 
 impl From<ClientCoreError> for GatewayError {

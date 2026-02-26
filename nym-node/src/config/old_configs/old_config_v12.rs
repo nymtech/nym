@@ -34,8 +34,6 @@ use nym_config::read_config_from_toml_file;
 use nym_config::serde_helpers::de_maybe_port;
 use nym_crypto::asymmetric::ed25519;
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
-use nym_gateway::node::LpConfig;
-use nym_gateway::node::lp_listener::LpDebug;
 use nym_kkt::key_utils::{
     generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
 };
@@ -48,6 +46,7 @@ use std::time::Duration;
 use tracing::{debug, info, instrument};
 use url::Url;
 
+use crate::config::lp::{LpConfig, LpDebug};
 pub use unchanged_v12_types::*;
 
 // (while some of those are technically unused, they might be needed in future migrations,
@@ -720,6 +719,20 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
                     .public_diffie_hellman_key_file,
             },
         },
+        lp: LpConfig {
+            control_bind_address: old_cfg.gateway_tasks.lp.control_bind_address,
+            data_bind_address: old_cfg.gateway_tasks.lp.data_bind_address,
+            announce_control_port: old_cfg.gateway_tasks.lp.announce_control_port,
+            announce_data_port: old_cfg.gateway_tasks.lp.announce_data_port,
+            debug: LpDebug {
+                max_connections: old_cfg.gateway_tasks.lp.debug.max_connections,
+                use_mock_ecash: old_cfg.gateway_tasks.lp.debug.use_mock_ecash,
+                handshake_ttl: old_cfg.gateway_tasks.lp.debug.handshake_ttl,
+                session_ttl: old_cfg.gateway_tasks.lp.debug.session_ttl,
+                state_cleanup_interval: old_cfg.gateway_tasks.lp.debug.state_cleanup_interval,
+                max_concurrent_forwards: old_cfg.gateway_tasks.lp.debug.max_concurrent_forwards,
+            },
+        },
         gateway_tasks: GatewayTasksConfig {
             storage_paths: GatewayTasksPaths {
                 clients_storage: old_cfg.gateway_tasks.storage_paths.clients_storage,
@@ -746,20 +759,6 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
                         .upgrade_mode
                         .debug
                         .expedited_poll_interval,
-                },
-            },
-            lp: LpConfig {
-                control_bind_address: old_cfg.gateway_tasks.lp.control_bind_address,
-                data_bind_address: old_cfg.gateway_tasks.lp.data_bind_address,
-                announce_control_port: old_cfg.gateway_tasks.lp.announce_control_port,
-                announce_data_port: old_cfg.gateway_tasks.lp.announce_data_port,
-                debug: LpDebug {
-                    max_connections: old_cfg.gateway_tasks.lp.debug.max_connections,
-                    use_mock_ecash: old_cfg.gateway_tasks.lp.debug.use_mock_ecash,
-                    handshake_ttl: old_cfg.gateway_tasks.lp.debug.handshake_ttl,
-                    session_ttl: old_cfg.gateway_tasks.lp.debug.session_ttl,
-                    state_cleanup_interval: old_cfg.gateway_tasks.lp.debug.state_cleanup_interval,
-                    max_concurrent_forwards: old_cfg.gateway_tasks.lp.debug.max_concurrent_forwards,
                 },
             },
             debug: gateway_tasks::Debug {

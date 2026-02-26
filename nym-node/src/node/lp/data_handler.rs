@@ -16,8 +16,8 @@
 //!
 
 use super::LpHandlerState;
-use crate::node::lp_listener::error::LpHandlerError;
-use crate::GatewayError;
+use crate::error::NymNodeError;
+use crate::node::lp::error::LpHandlerError;
 use nym_lp::OuterHeader;
 use nym_metrics::inc;
 use std::net::SocketAddr;
@@ -48,12 +48,12 @@ impl LpDataHandler {
         bind_addr: SocketAddr,
         state: LpHandlerState,
         shutdown: nym_task::ShutdownToken,
-    ) -> Result<Self, GatewayError> {
-        let socket = UdpSocket::bind(bind_addr).await.map_err(|e| {
-            error!("Failed to bind LP data socket to {bind_addr}: {e}");
-            GatewayError::ListenerBindFailure {
-                address: bind_addr.to_string(),
-                source: Box::new(e),
+    ) -> Result<Self, NymNodeError> {
+        let socket = UdpSocket::bind(bind_addr).await.map_err(|source| {
+            error!("Failed to bind LP data socket to {bind_addr}: {source}");
+            NymNodeError::LpBindFailure {
+                address: bind_addr,
+                source,
             }
         })?;
 

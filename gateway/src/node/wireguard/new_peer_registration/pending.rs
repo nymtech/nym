@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::lp_listener::ReceiverIndex;
 use crate::node::wireguard::new_peer_registration::helpers::{
     build_final_authenticator_response, build_pending_authenticator_response,
 };
@@ -116,9 +115,8 @@ pub(crate) struct PendingRegistrations {
     pub(crate) authenticator: Arc<RwLock<HashMap<PeerPublicKey, PendingRegistration>>>,
 
     /// Registrations in progress received from the LP Listener via the
-    /// [`crate::node::lp_listener::handler::LpConnectionHandler`] and handle through
-    /// [`crate::node::lp_listener::registration::LpHandlerState`]
-    pub(crate) lp: Arc<RwLock<HashMap<ReceiverIndex, PendingRegistration>>>,
+    /// `LpConnectionHandler` and handle through `LpHandlerState`
+    pub(crate) lp: Arc<RwLock<HashMap<u64, PendingRegistration>>>,
 }
 
 impl PendingRegistrations {
@@ -133,14 +131,11 @@ impl PendingRegistrations {
         self.authenticator.write().await.remove(peer);
     }
 
-    pub(crate) async fn remove_lp(&self, receiver_index: ReceiverIndex) {
+    pub(crate) async fn remove_lp(&self, receiver_index: u64) {
         self.lp.write().await.remove(&receiver_index);
     }
 
-    pub(crate) async fn check_lp(
-        &self,
-        receiver_index: ReceiverIndex,
-    ) -> Option<PendingRegistration> {
+    pub(crate) async fn check_lp(&self, receiver_index: u64) -> Option<PendingRegistration> {
         self.lp.read().await.get(&receiver_index).cloned()
     }
 

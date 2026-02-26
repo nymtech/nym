@@ -67,28 +67,23 @@
 // To view metrics, the nym-metrics registry automatically collects all metrics.
 // They can be exported via Prometheus format using the metrics endpoint.
 
-use crate::error::GatewayError;
-use crate::node::wireguard::PeerRegistrator;
-use crate::node::ActiveClientsStore;
+use crate::config::lp::LpConfig;
+use crate::error::NymNodeError;
 use dashmap::DashMap;
-use nym_config::serde_helpers::de_maybe_port;
-use nym_credential_verification::ecash::traits::EcashManager;
-use nym_gateway_storage::GatewayStorage;
+use nym_gateway::node::wireguard::PeerRegistrator;
+use nym_lp::peer::LpLocalPeer;
 use nym_lp::state_machine::LpStateMachine;
+use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::Semaphore;
 use tracing::*;
 
-pub use nym_lp::peer::{DHKeyPair, DHPublicKey, KEMKeys, LpLocalPeer};
-pub use nym_mixnet_client::forwarder::{
-    mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender,
-};
-pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
+pub use nym_mixnet_client::forwarder::{MixForwardingReceiver, mix_forwarding_channels};
 
 mod data_handler;
 pub mod error;
@@ -96,153 +91,6 @@ pub mod handler;
 mod registration;
 
 pub type ReceiverIndex = u64;
-
-/// Configuration for LP listener
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
-#[serde(default)]
-pub struct LpConfig {
-    /// Bind address for the TCP LP control traffic.
-    /// default: `[::]:41264`
-    pub control_bind_address: SocketAddr,
-
-    /// Bind address for the UDP LP data traffic.
-    /// default: `[::]:51264`
-    pub data_bind_address: SocketAddr,
-
-    /// Custom announced port for listening for the TCP LP control traffic.
-    /// If unspecified, the value from the `control_bind_address` will be used instead
-    /// (default: None)
-    #[serde(deserialize_with = "de_maybe_port")]
-    pub announce_control_port: Option<u16>,
-
-    /// Custom announced port for listening for the UDP LP data traffic.
-    /// If unspecified, the value from the `data_bind_address` will be used instead
-    /// (default: None)
-    #[serde(deserialize_with = "de_maybe_port")]
-    pub announce_data_port: Option<u16>,
-
-    /// Auxiliary configuration
-    #[serde(default)]
-    pub debug: LpDebug,
-}
-
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
-#[serde(default)]
-pub struct LpDebug {
-    /// Maximum concurrent connections
-    pub max_connections: usize,
-
-    /// Use mock ecash manager for testing (default: false)
-    ///
-    /// When enabled, the LP listener will use a mock ecash verifier that
-    /// accepts any credential without blockchain verification. This is
-    /// useful for testing the LP protocol implementation without requiring
-    /// a full blockchain/contract setup.
-    ///
-    /// WARNING: Only use this for local testing! Never enable in production.
-    pub use_mock_ecash: bool,
-
-    /// Maximum age of in-progress handshakes before cleanup (default: 90s)
-    ///
-    /// Handshakes should complete quickly (3-5 packets). This TTL accounts for:
-    /// - Network latency and retransmits
-    /// - Slow clients
-    /// - Clock skew tolerance
-    ///
-    /// Stale handshakes are removed by the cleanup task to prevent memory leaks.
-    #[serde(with = "humantime_serde")]
-    pub handshake_ttl: Duration,
-
-    /// Maximum age of established sessions before cleanup (default: 24h)
-    ///
-    /// Sessions can be long-lived for dVPN tunnels. This TTL should be set
-    /// high enough to accommodate expected usage patterns:
-    /// - dVPN sessions: hours to days
-    /// - Registration: minutes
-    ///
-    /// Sessions with no activity for this duration are removed by the cleanup task.
-    #[serde(with = "humantime_serde")]
-    pub session_ttl: Duration,
-
-    /// How often to run the state cleanup task (default: 5 minutes)
-    ///
-    /// The cleanup task scans for and removes stale handshakes and sessions.
-    /// Lower values = more frequent cleanup but higher overhead.
-    /// Higher values = less overhead but slower memory reclamation.
-    #[serde(with = "humantime_serde")]
-    pub state_cleanup_interval: Duration,
-
-    /// Maximum concurrent forward connections (default: 1000)
-    ///
-    /// Limits simultaneous outbound connections when forwarding LP packets to other gateways
-    /// during telescope setup. This prevents file descriptor exhaustion under high load.
-    ///
-    /// When at capacity, new forward requests return an error, signaling the client
-    /// to choose a different gateway.
-    pub max_concurrent_forwards: usize,
-}
-
-impl LpConfig {
-    pub const DEFAULT_CONTROL_PORT: u16 = 41264;
-    pub const DEFAULT_DATA_PORT: u16 = 51264;
-
-    pub fn announced_control_port(&self) -> u16 {
-        self.announce_control_port
-            .unwrap_or(self.control_bind_address.port())
-    }
-
-    pub fn announced_data_port(&self) -> u16 {
-        self.announce_data_port
-            .unwrap_or(self.data_bind_address.port())
-    }
-}
-
-impl Default for LpConfig {
-    fn default() -> Self {
-        LpConfig {
-            control_bind_address: SocketAddr::new(
-                IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-                Self::DEFAULT_CONTROL_PORT,
-            ),
-            data_bind_address: SocketAddr::new(
-                IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-                Self::DEFAULT_DATA_PORT,
-            ),
-            announce_control_port: None,
-            announce_data_port: None,
-            debug: Default::default(),
-        }
-    }
-}
-
-impl LpDebug {
-    pub const DEFAULT_MAX_CONNECTIONS: usize = 10000;
-
-    // 90 seconds - handshakes should complete quickly
-    pub const DEFAULT_HANDSHAKE_TTL: Duration = Duration::from_secs(90);
-
-    // 24 hours - for long-lived dVPN sessions
-    pub const DEFAULT_SESSION_TTL: Duration = Duration::from_secs(86400);
-
-    // 5 minutes - balances memory reclamation with task overhead
-    pub const DEFAULT_STATE_CLEANUP_INTERVAL: Duration = Duration::from_secs(300);
-
-    // Limits concurrent outbound connections to prevent fd exhaustion
-    pub const DEFAULT_MAX_CONCURRENT_FORWARDS: usize = 1000;
-}
-
-impl Default for LpDebug {
-    fn default() -> Self {
-        LpDebug {
-            max_connections: Self::DEFAULT_MAX_CONNECTIONS,
-            use_mock_ecash: false,
-            handshake_ttl: Self::DEFAULT_HANDSHAKE_TTL,
-            session_ttl: Self::DEFAULT_SESSION_TTL,
-            state_cleanup_interval: Self::DEFAULT_STATE_CLEANUP_INTERVAL,
-            max_concurrent_forwards: Self::DEFAULT_MAX_CONCURRENT_FORWARDS,
-        }
-    }
-}
 
 /// Wrapper for state entries with timestamp tracking for cleanup
 ///
@@ -289,6 +137,7 @@ impl<T> TimestampedState<T> {
     }
 
     /// Get age since creation
+    #[allow(dead_code)]
     pub fn age(&self) -> Duration {
         self.created_at.elapsed()
     }
@@ -309,20 +158,11 @@ impl<T> TimestampedState<T> {
 /// Shared state for LP connection handlers
 #[derive(Clone)]
 pub struct LpHandlerState {
-    /// Ecash verifier for bandwidth credentials
-    pub ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
-
-    /// Storage backend for persistence
-    pub storage: GatewayStorage,
-
     /// Encapsulates all required key information of a local Lewes Protocol Peer.
     pub local_lp_peer: LpLocalPeer,
 
     /// Metrics collection
     pub metrics: NymNodeMetrics,
-
-    /// Active clients tracking
-    pub active_clients_store: ActiveClientsStore,
 
     /// Handle registering new wireguard peers
     pub peer_registrator: Option<PeerRegistrator>,
@@ -334,6 +174,7 @@ pub struct LpHandlerState {
     ///
     /// Used by the LP data handler (UDP:51264) to forward decrypted Sphinx packets
     /// from LP clients into the mixnet for routing.
+    #[allow(dead_code)]
     pub outbound_mix_sender: MixForwardingSender,
 
     /// Established sessions keyed by session_id
@@ -397,16 +238,18 @@ impl LpListener {
         self.handler_state.lp_config
     }
 
-    pub async fn run(&mut self) -> Result<(), GatewayError> {
+    pub async fn run(&mut self) -> Result<(), NymNodeError> {
         let control_bind_address = self.lp_config().control_bind_address;
         let data_bind_address = self.lp_config().data_bind_address;
-        let listener = TcpListener::bind(control_bind_address).await.map_err(|e| {
-            error!("Failed to bind LP listener to {control_bind_address}: {e}",);
-            GatewayError::ListenerBindFailure {
-                address: control_bind_address.to_string(),
-                source: Box::new(e),
-            }
-        })?;
+        let listener = TcpListener::bind(control_bind_address)
+            .await
+            .map_err(|source| {
+                error!("Failed to bind LP listener to {control_bind_address}: {source}",);
+                NymNodeError::LpBindFailure {
+                    address: control_bind_address,
+                    source,
+                }
+            })?;
 
         let shutdown_token = self.shutdown.clone_shutdown_token();
 
@@ -489,7 +332,7 @@ impl LpListener {
     /// The data handler listens on UDP port 51264 and processes LP-wrapped Sphinx packets
     /// from registered clients. It decrypts the LP layer and forwards the Sphinx packets
     /// into the mixnet.
-    async fn spawn_data_handler(&self) -> Result<tokio::task::JoinHandle<()>, GatewayError> {
+    async fn spawn_data_handler(&self) -> Result<tokio::task::JoinHandle<()>, NymNodeError> {
         // Create data handler
         let data_handler = data_handler::LpDataHandler::new(
             self.lp_config().data_bind_address,
@@ -550,7 +393,8 @@ impl LpListener {
 }
 
 pub(crate) mod cleanup_task {
-    use crate::node::lp_listener::{LpDebug, ReceiverIndex, TimestampedState};
+    use crate::config::lp::LpDebug;
+    use crate::node::lp::{ReceiverIndex, TimestampedState};
     use dashmap::DashMap;
     use nym_lp::LpStateMachine;
     use nym_metrics::inc_by;

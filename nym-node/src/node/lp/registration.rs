@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::lp_listener::{LpHandlerState, ReceiverIndex};
+use crate::node::lp::{LpHandlerState, ReceiverIndex};
 use nym_metrics::{add_histogram_obs, inc};
 use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,

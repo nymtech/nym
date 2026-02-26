@@ -9,18 +9,18 @@ mod tests {
     use nym_credential_verification::upgrade_mode::testing::mock_dummy_upgrade_mode_details;
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::{ed25519, x25519};
-    use nym_gateway::node::lp_listener::error::LpHandlerError;
-    use nym_gateway::node::lp_listener::handler::LpConnectionHandler;
-    use nym_gateway::node::lp_listener::{
-        KEMKeys, LpDebug, LpHandlerState, LpLocalPeer, MixForwardingReceiver, PeerControlRequest,
-        WireguardGatewayData, mix_forwarding_channels,
-    };
-    use nym_gateway::node::wireguard::{PeerManager, PeerRegistrator};
-    use nym_gateway::node::{ActiveClientsStore, GatewayStorage, LpConfig};
     use nym_kkt::key_utils::{
         generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
     };
+    use nym_kkt::keys::KEMKeys;
     use nym_kkt_ciphersuite::Ciphersuite;
+    use nym_lp::peer::LpLocalPeer;
+    use nym_node::config::{LpConfig, LpDebug};
+    use nym_node::node::GatewayStorage;
+    use nym_node::node::lp::error::LpHandlerError;
+    use nym_node::node::lp::handler::LpConnectionHandler;
+    use nym_node::node::lp::{LpHandlerState, MixForwardingReceiver, mix_forwarding_channels};
+    use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{LpClientError, LpRegistrationClient};
     use nym_test_utils::helpers::{CryptoRng09, seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
@@ -30,7 +30,7 @@ mod tests {
         Key, KeyWrapper, MockPeerController, MockPeerControllerState, PeerControlRequestType,
         RegisteredResponse, mock_peer_controller,
     };
-    use nym_wireguard::{IpPool, WireguardConfig};
+    use nym_wireguard::{IpPool, PeerControlRequest, WireguardConfig, WireguardGatewayData};
     use std::mem;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
     use std::sync::Arc;
@@ -232,18 +232,9 @@ mod tests {
             );
 
             let lp_state = LpHandlerState {
-                // use mock instance of ecash verifier
-                ecash_verifier,
-
-                // use in-memory database (no need for persistency)
-                storage,
-
                 local_lp_peer: base.peer.clone(),
 
                 metrics: Default::default(),
-
-                // no clients at the beginning
-                active_clients_store: ActiveClientsStore::new(),
 
                 // use default lp config (with enabled flag)
                 lp_config,
@@ -570,7 +561,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_basic_lp_exit_registration() -> anyhow::Result<()> {
-            nym_test_utils::helpers::setup_test_logger();
+            // nym_test_utils::helpers::setup_test_logger();
 
             // TODO: update the test once mceliece works
             let kem = KEM::MlKem768;

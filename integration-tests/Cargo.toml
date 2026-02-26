@@ -23,7 +23,8 @@ nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-test-utils = { path = "../common/test-utils" }
 nym-registration-client = { path = "../nym-registration-client" }
 nym-lp-transport = { path = "../common/nym-lp-transport", features = ["io-mocks"] }
-nym-gateway = { path = "../gateway" }
+nym-node = { path = "../nym-node" }
+nym-lp = { path = "../common/nym-lp" }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
 tracing = { workspace = true }
 futures = { workspace = true }

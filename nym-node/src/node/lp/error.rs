@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::lp_listener::ReceiverIndex;
+use crate::node::lp::ReceiverIndex;
 use nym_lp::state_machine::{LpAction, LpDataKind};
 use nym_lp::{LpError, MalformedLpPacketError};
 use nym_lp_transport::LpTransportError;

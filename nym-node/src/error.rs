@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::http::error::NymNodeHttpError;
+use crate::node::lp::error::LpHandlerError;
 use crate::wireguard::error::WireguardError;
 use nym_http_api_client::HttpClientError;
 use nym_ip_packet_router::error::ClientCoreError;
@@ -9,7 +10,7 @@ use nym_kkt::keys::storage_wrappers::MalformedStoredKeyError;
 use nym_validator_client::ValidatorClientError;
 use nym_validator_client::nyxd::error::NyxdError;
 use std::io;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -235,6 +236,15 @@ pub enum NymNodeError {
 
     #[error(transparent)]
     MalformedStoredKey(#[from] MalformedStoredKeyError),
+
+    #[error("failed to bind LP to {address}: {source}")]
+    LpBindFailure {
+        address: SocketAddr,
+        source: io::Error,
+    },
+
+    #[error(transparent)]
+    LpFailure(#[from] LpHandlerError),
 }
 
 impl From<EntryGatewayError> for NymNodeError {

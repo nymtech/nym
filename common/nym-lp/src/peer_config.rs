@@ -14,31 +14,34 @@ const FILLER_LEN: usize = LP_PEER_CONFIG_SIZE - SEED_LEN - CONFIG_LEN;
 // 20 bytes
 #[derive(PartialEq)]
 pub struct LpPeerConfig {
-    // these FILLER_LEN fields will be packed in one u8
-    // with 2 bits left at the end
+    // The first 4 fields will be packed in one u8
+    // with 1 bit left at the end
 
-    // determine the hop id.
-    // should be 0 if node_initiator is true
-    // should be > 1 if is_exit is true
+    // Determine the hop id.
+    // Should be 0 if node_initiator is true
+    // Should be > 1 if is_exit is true
     hop_id: u8,
 
-    // determine if the recipient should be an exit node
+    // Determine if the recipient should be an exit node
     is_exit: bool,
 
-    // determine if we are establishing a node<>node connection
-    // should be false if is_exit is true
+    // Determine if we are establishing a node<>node connection
+    // Should be false if is_exit is true
     node_initiator: bool,
 
-    // enable censorship resistance countermeasures
+    // Enable censorship resistance countermeasures
     censorship_resistance: bool,
 
-    // if we add config params later, we can use this
+    // If we add more config params later, we can use this
     filler: [u8; FILLER_LEN],
 
     seed: [u8; SEED_LEN],
 }
 
 impl LpPeerConfig {
+    /// Creates a new client to entry config.
+    /// Sets `hop_id` to 0.
+    /// Input: censorship_resistance flag to enable censorship resistance features.
     pub fn new_client_to_entry<R>(rng: &mut R, censorship_resistance: bool) -> Self
     where
         R: Rng + CryptoRng,
@@ -52,7 +55,10 @@ impl LpPeerConfig {
             rng.random(),
         )
     }
-
+    /// Creates a new client to exit config.
+    /// Inputs:
+    /// hop_id: this value must be in the range (1..=15). This function returns an error if this is not the case.
+    /// censorship_resistance flag to enable censorship resistance features.
     pub fn new_client_to_exit<R>(
         rng: &mut R,
         hop_id: u8,
@@ -63,7 +69,10 @@ impl LpPeerConfig {
     {
         Self::new(rng, hop_id, true, false, censorship_resistance)
     }
-
+    /// Creates a new client to an intermediate node config.
+    /// Inputs:
+    /// hop_id: this value must be in the range (1..=14). This function returns an error if this is not the case.
+    /// censorship_resistance flag to enable censorship resistance features.
     pub fn new_client_to_intermediate<R>(
         rng: &mut R,
         hop_id: u8,
@@ -81,6 +90,8 @@ impl LpPeerConfig {
         }
     }
 
+    /// Creates a new node to node config.
+    /// Censorship resistance features are disabled by default between nodes.
     pub fn new_node_to_node<R>(rng: &mut R) -> Result<Self, LpError>
     where
         R: Rng + CryptoRng,

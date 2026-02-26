@@ -1,3 +1,6 @@
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::LpError;
 use rand09::{self, CryptoRng, Rng};
 
@@ -272,17 +275,17 @@ mod test {
                 .unwrap()
                 .pack_config()[0];
 
-            assert!(expected_conf == conf_bytes[0]);
-            assert!(expected_conf == deserialized_conf_first_byte);
-            assert!(
-                conf_bytes[0]
-                    == LpPeerConfig::new_node_to_node(&mut rng)
-                        .unwrap()
-                        .serialize()[0]
+            assert_eq!(expected_conf, conf_bytes[0]);
+            assert_eq!(expected_conf, deserialized_conf_first_byte);
+            assert_eq!(
+                conf_bytes[0],
+                LpPeerConfig::new_node_to_node(&mut rng)
+                    .unwrap()
+                    .serialize()[0]
             );
             assert!(conf.is_node_to_node());
         }
-        
+
         // Node to node, with censorship resistance
         {
             let expected_conf = 0b0110_0000;
@@ -292,8 +295,8 @@ mod test {
                 .unwrap()
                 .pack_config()[0];
 
-            assert!(expected_conf == conf_bytes[0]);
-            assert!(expected_conf == deserialized_conf_first_byte);
+            assert_eq!(expected_conf, conf_bytes[0]);
+            assert_eq!(expected_conf, deserialized_conf_first_byte);
             assert!(conf.is_node_to_node());
         }
 
@@ -308,9 +311,9 @@ mod test {
             let conf_alt_first_byte =
                 LpPeerConfig::new_client_to_entry(&mut rng, false).serialize()[0];
 
-            assert!(expected_conf == conf_bytes[0]);
-            assert!(expected_conf == deserialized_conf_first_byte);
-            assert!(conf_bytes[0] == conf_alt_first_byte);
+            assert_eq!(expected_conf, conf_bytes[0]);
+            assert_eq!(expected_conf, deserialized_conf_first_byte);
+            assert_eq!(conf_bytes[0], conf_alt_first_byte);
             assert!(conf.is_client_entry())
         }
 
@@ -325,9 +328,9 @@ mod test {
             let conf_alt_first_byte =
                 LpPeerConfig::new_client_to_entry(&mut rng, true).serialize()[0];
 
-            assert!(expected_conf == conf_bytes[0]);
-            assert!(expected_conf == deserialized_conf_first_byte);
-            assert!(conf_bytes[0] == conf_alt_first_byte);
+            assert_eq!(expected_conf, conf_bytes[0]);
+            assert_eq!(expected_conf, deserialized_conf_first_byte);
+            assert_eq!(conf_bytes[0], conf_alt_first_byte);
             assert!(conf.is_client_entry());
         }
 
@@ -339,12 +342,13 @@ mod test {
             let deserialized_conf_first_byte = LpPeerConfig::deserialize(&conf_bytes)
                 .unwrap()
                 .pack_config()[0];
-            let conf_alt_first_byte =
-                LpPeerConfig::new_client_to_exit(&mut rng, 1, true).unwrap().serialize()[0];
+            let conf_alt_first_byte = LpPeerConfig::new_client_to_exit(&mut rng, 1, true)
+                .unwrap()
+                .serialize()[0];
 
-            assert!(expected_conf == conf_bytes[0]);
-            assert!(expected_conf == deserialized_conf_first_byte);
-            assert!(conf_bytes[0] == conf_alt_first_byte);
+            assert_eq!(expected_conf, conf_bytes[0]);
+            assert_eq!(expected_conf, deserialized_conf_first_byte);
+            assert_eq!(conf_bytes[0], conf_alt_first_byte);
             assert!(conf.is_client_exit());
         }
 
@@ -356,12 +360,13 @@ mod test {
             let deserialized_conf_first_byte = LpPeerConfig::deserialize(&conf_bytes)
                 .unwrap()
                 .pack_config()[0];
-            let conf_alt_first_byte =
-                LpPeerConfig::new_client_to_exit(&mut rng, 2, false).unwrap().serialize()[0];
+            let conf_alt_first_byte = LpPeerConfig::new_client_to_exit(&mut rng, 2, false)
+                .unwrap()
+                .serialize()[0];
 
-            assert!(expected_conf == conf_bytes[0]);
-            assert!(expected_conf == deserialized_conf_first_byte);
-            assert!(conf_bytes[0] == conf_alt_first_byte);
+            assert_eq!(expected_conf, conf_bytes[0]);
+            assert_eq!(expected_conf, deserialized_conf_first_byte);
+            assert_eq!(conf_bytes[0], conf_alt_first_byte);
             assert!(conf.is_client_exit());
         }
         // Client to Intermediate (hop_id = 14), without censorship resistance
@@ -372,13 +377,13 @@ mod test {
             let deserialized_conf_first_byte = LpPeerConfig::deserialize(&conf_bytes)
                 .unwrap()
                 .pack_config()[0];
-            let conf_alt_first_byte =
-                LpPeerConfig::new_client_to_intermediate(&mut rng, 14, false).unwrap().serialize()[0];
+            let conf_alt_first_byte = LpPeerConfig::new_client_to_intermediate(&mut rng, 14, false)
+                .unwrap()
+                .serialize()[0];
 
-            
-            assert!(expected_conf == conf_bytes[0]);            
-            assert!(expected_conf == deserialized_conf_first_byte);
-            assert!(conf_bytes[0] == conf_alt_first_byte);
+            assert_eq!(expected_conf, conf_bytes[0]);
+            assert_eq!(expected_conf, deserialized_conf_first_byte);
+            assert_eq!(conf_bytes[0], conf_alt_first_byte);
             assert!(conf.is_client_intermediate_node());
         }
     }

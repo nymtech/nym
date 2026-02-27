@@ -10,7 +10,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
-    client::NymNodeDetails, models::NymNodeDescriptionV1, nym_api::SkimmedNode,
+    client::NymNodeDetails, models::NymNodeDescriptionV1, nym_api::SkimmedNodeV1,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -462,7 +462,7 @@ pub(crate) struct NymNodeInsertRecord {
 
 impl NymNodeInsertRecord {
     pub fn new(
-        skimmed_node: SkimmedNode,
+        skimmed_node: SkimmedNodeV1,
         bond_info: Option<&NymNodeDetails>,
         self_described: Option<&NymNodeDescriptionV1>,
     ) -> anyhow::Result<Self> {
@@ -503,7 +503,7 @@ impl NymNodeInsertRecord {
     }
 }
 
-impl TryFrom<NymNodeDto> for SkimmedNode {
+impl TryFrom<NymNodeDto> for SkimmedNodeV1 {
     type Error = anyhow::Error;
 
     fn try_from(other: NymNodeDto) -> Result<Self, Self::Error> {
@@ -517,7 +517,7 @@ impl TryFrom<NymNodeDto> for SkimmedNode {
             None => None,
         };
 
-        let skimmed_node = SkimmedNode {
+        let skimmed_node = SkimmedNodeV1 {
             node_id,
             ed25519_identity_pubkey: ed25519::PublicKey::from_base58_string(
                 other.ed25519_identity_pubkey,

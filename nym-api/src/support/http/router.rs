@@ -10,6 +10,7 @@ use crate::support::http::openapi::ApiDoc;
 use crate::support::http::state::AppState;
 use crate::unstable_routes::v1::unstable_routes_v1;
 use crate::unstable_routes::v2::unstable_routes_v2;
+use crate::unstable_routes::v3::unstable_routes_v3;
 use crate::{nym_nodes, status};
 use anyhow::anyhow;
 use axum::response::Redirect;
@@ -70,7 +71,8 @@ impl RouterBuilder {
                 Router::new()
                     .nest("/unstable", unstable_routes_v2())
                     .nest("/nym-nodes", nym_nodes::handlers::v2::routes()),
-            );
+            )
+            .nest("/v3", Router::new().nest("/unstable", unstable_routes_v3()));
 
         Self {
             unfinished_router: default_routes,

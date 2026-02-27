@@ -141,7 +141,7 @@ mod db_tests {
             http_api_port: None,
         };
 
-        let skimmed_node: nym_validator_client::nym_api::SkimmedNode =
+        let skimmed_node: nym_validator_client::nym_api::SkimmedNodeV1 =
             nym_node_dto.try_into().unwrap();
 
         assert_eq!(skimmed_node.node_id, 1);
@@ -174,7 +174,7 @@ fn test_nym_node_insert_record_new() {
     let ed25519_pk = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(&[1; 32]).unwrap();
     let x25519_pk = nym_crypto::asymmetric::x25519::PublicKey::from_bytes(&[2; 32]).unwrap();
 
-    let skimmed_node = nym_validator_client::nym_api::SkimmedNode {
+    let skimmed_node = nym_validator_client::nym_api::SkimmedNodeV1 {
         node_id: 1,
         ed25519_identity_pubkey: ed25519_pk,
         ip_addresses: vec!["1.1.1.1".parse().unwrap()],
@@ -226,7 +226,7 @@ fn test_nym_node_insert_record_with_entry() {
     let ed25519_pk = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(&[1; 32]).unwrap();
     let x25519_pk = nym_crypto::asymmetric::x25519::PublicKey::from_bytes(&[2; 32]).unwrap();
 
-    let skimmed_node = nym_validator_client::nym_api::SkimmedNode {
+    let skimmed_node = nym_validator_client::nym_api::SkimmedNodeV1 {
         node_id: 1,
         ed25519_identity_pubkey: ed25519_pk,
         ip_addresses: vec!["1.1.1.1".parse().unwrap()],
@@ -438,7 +438,7 @@ fn test_nym_node_dto_with_invalid_keys() {
         http_api_port: None,
     };
 
-    let result: Result<nym_validator_client::nym_api::SkimmedNode, _> = nym_node_dto.try_into();
+    let result: Result<nym_validator_client::nym_api::SkimmedNodeV1, _> = nym_node_dto.try_into();
     assert!(result.is_err());
     assert!(
         result
@@ -476,7 +476,7 @@ fn test_nym_node_dto_with_invalid_performance() {
         http_api_port: None,
     };
 
-    let result: Result<nym_validator_client::nym_api::SkimmedNode, _> = nym_node_dto.try_into();
+    let result: Result<nym_validator_client::nym_api::SkimmedNodeV1, _> = nym_node_dto.try_into();
     assert!(result.is_err());
     assert!(
         result

@@ -7,7 +7,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use nym_api_requests::models::{LPHashFunction, LPKEM};
-use nym_api_requests::nym_nodes::SkimmedNode;
+use nym_api_requests::nym_nodes::SkimmedNodeV1;
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::UserAgent;
 use nym_kkt_ciphersuite::{Ciphersuite, KEMKeyDigests, SignatureScheme, KEM};
@@ -189,7 +189,7 @@ impl SpeedtestTopology {
 }
 
 /// Extract gateway info for LP connections from a SkimmedNode
-fn gateway_info_from_skimmed(node: &SkimmedNode) -> Result<GatewayInfo> {
+fn gateway_info_from_skimmed(node: &SkimmedNodeV1) -> Result<GatewayInfo> {
     todo!("insufficient information to convert into GatewayInfo")
     // let first_ip = node
     //     .ip_addresses

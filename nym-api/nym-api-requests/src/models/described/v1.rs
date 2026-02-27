@@ -6,7 +6,7 @@ use crate::models::{
     HostInformationV1, IpPacketRouterDetailsV1, NetworkRequesterDetailsV1,
     OffsetDateTimeJsonSchemaWrapper, WebSocketsV1, WireguardDetailsV1,
 };
-use crate::nym_nodes::{BasicEntryInformation, NodeRole, SemiSkimmedNode, SkimmedNode};
+use crate::nym_nodes::{BasicEntryInformation, NodeRole, SemiSkimmedNodeV1, SkimmedNodeV1};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NodeId;
@@ -76,7 +76,7 @@ impl NymNodeDescriptionV1 {
         current_rotation_id: u32,
         role: NodeRole,
         performance: Performance,
-    ) -> SkimmedNode {
+    ) -> SkimmedNodeV1 {
         let keys = &self.description.host_information.keys;
         let entry = if self.description.declared_role.entry {
             Some(self.entry_information())
@@ -84,7 +84,7 @@ impl NymNodeDescriptionV1 {
             None
         };
 
-        SkimmedNode {
+        SkimmedNodeV1 {
             node_id: self.node_id,
             ed25519_identity_pubkey: keys.ed25519,
             ip_addresses: self.description.host_information.ip_address.clone(),
@@ -105,10 +105,10 @@ impl NymNodeDescriptionV1 {
         current_rotation_id: u32,
         role: NodeRole,
         performance: Performance,
-    ) -> SemiSkimmedNode {
+    ) -> SemiSkimmedNodeV1 {
         let skimmed_node = self.to_skimmed_node(current_rotation_id, role, performance);
 
-        SemiSkimmedNode {
+        SemiSkimmedNodeV1 {
             basic: skimmed_node,
             x25519_noise_versioned_key: self
                 .description

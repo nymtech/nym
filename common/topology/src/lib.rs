@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ::serde::{Deserialize, Serialize};
-use nym_api_requests::nym_nodes::SkimmedNode;
+use nym_api_requests::nym_nodes::SkimmedNodeV1;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::EpochId;
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -283,11 +283,11 @@ impl NymTopology {
         serde_json::from_reader(file).map_err(Into::into)
     }
 
-    pub fn add_skimmed_nodes(&mut self, nodes: &[SkimmedNode]) {
+    pub fn add_skimmed_nodes(&mut self, nodes: &[SkimmedNodeV1]) {
         self.add_additional_nodes(nodes.iter())
     }
 
-    pub fn with_skimmed_nodes(mut self, nodes: &[SkimmedNode]) -> Self {
+    pub fn with_skimmed_nodes(mut self, nodes: &[SkimmedNodeV1]) -> Self {
         self.add_skimmed_nodes(nodes);
         self
     }

@@ -5,7 +5,7 @@ use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
 use crate::unstable_routes::v1::nym_nodes::helpers::NodesParamsWithRole;
 use axum::extract::{Query, State};
-use nym_api_requests::nym_nodes::{CachedNodesResponse, SemiSkimmedNode};
+use nym_api_requests::nym_nodes::{CachedNodesResponse, SemiSkimmedNodeV1};
 use nym_http_api_common::FormattedResponse;
 
 #[utoipa::path(
@@ -22,6 +22,6 @@ use nym_http_api_common::FormattedResponse;
 pub(crate) async fn nodes_expanded(
     _state: State<AppState>,
     _query_params: Query<NodesParamsWithRole>,
-) -> AxumResult<FormattedResponse<CachedNodesResponse<SemiSkimmedNode>>> {
+) -> AxumResult<FormattedResponse<CachedNodesResponse<SemiSkimmedNodeV1>>> {
     Err(AxumErrorResponse::not_implemented())
 }

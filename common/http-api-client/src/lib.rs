@@ -1401,6 +1401,7 @@ pub trait ApiClient: ApiClientCore {
     /// 'get' data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
     /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
     /// into the provided type `T` based on the content type header
+    #[instrument(level = "debug", skip_all, fields(path=?path))]
     async fn get_response<P, T, K, V>(
         &self,
         path: P,

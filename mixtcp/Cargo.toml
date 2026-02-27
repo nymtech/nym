@@ -11,6 +11,7 @@ smoltcp = { workspace = true, default-features = false, features = [
     "proto-ipv4",
     "proto-ipv6",
     "socket-tcp",
+    "socket-udp",
     "socket-icmp",
 ] }
 tokio = { workspace = true }
@@ -25,3 +26,5 @@ reqwest.workspace = true
 webpki-roots.workspace = true
 rustls = { workspace = true }
 nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing"] }
+hickory-proto.workspace = true
+hickory-resolver.workspace = true

@@ -12,6 +12,7 @@ More to come in the future.
 - `cloudflare_ping` - HTTPS request to Cloudflare through the mixnet
 - `https_client` - `reqwest`-like HTTPS `GET` client with timed clearnet comparison
 - `tls` - TLS handshake diagnostics with state logging
+- `dns_udp` - DNS A-record lookup over UDP with timed clearnet comparison
 
 ## Component Interaction
 ```sh

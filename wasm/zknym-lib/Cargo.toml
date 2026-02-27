@@ -16,31 +16,21 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 async-trait.workspace = true
-bs58.workspace = true
-getrandom = { workspace = true, features = ["js"] }
 js-sys.workspace = true
 wasm-bindgen.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tsify = { workspace = true, features = ["js"] }
 uuid = { workspace = true, features = ["serde"] }
-reqwest = { workspace = true }
 wasmtimer = { workspace = true }
 zeroize.workspace = true
 
-rand = { workspace = true }
-
-
 nym-bin-common = { workspace = true }
 nym-compact-ecash = { workspace = true }
-nym-credentials = { workspace = true }
-nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-http-api-client = { workspace = true }
 nym-wasm-utils = { workspace = true }
 
 [dev-dependencies]
-anyhow = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
 
 
 [package.metadata.wasm-pack.profile.release]

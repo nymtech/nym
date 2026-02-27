@@ -1,0 +1,21 @@
+[package]
+name = "nym-kkt-context"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+num_enum = { workspace = true }
+thiserror = { workspace = true }
+
+nym-kkt-ciphersuite = { path = "../nym-kkt-ciphersuite" }
+
+[lints]
+workspace = true

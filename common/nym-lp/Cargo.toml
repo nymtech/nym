@@ -7,49 +7,35 @@ publish = false
 
 [dependencies]
 thiserror = { workspace = true }
-parking_lot = { workspace = true }
-snow = { workspace = true }
 bs58 = { workspace = true }
-serde = { workspace = true }
 bytes = { workspace = true }
-dashmap = { workspace = true }
-sha2 = { workspace = true }
 tracing = { workspace = true }
-rand = { workspace = true }
-# rand 0.9 for KKT integration (nym-kkt uses rand 0.9)
 rand09 = { workspace = true }
+tls_codec = { workspace =  true }
+tokio = { workspace = true, features = ["net", "io-util"] }
 
-nym-crypto = { path = "../crypto", features = ["hashing", "asymmetric"] }
+nym-crypto = { path = "../crypto", features = ["hashing"] }
 nym-kkt = { path = "../nym-kkt" }
-nym-lp-common = { path = "../nym-lp-common" }
-nym-lp-transport = { path = "../nym-lp-transport" }
+nym-kkt-ciphersuite = { workspace = true }
 
 # libcrux dependencies for PSQ (Post-Quantum PSK derivation)
-libcrux-psq = { git = "https://github.com/cryspen/libcrux", features = [
-    "test-utils",
-] }
-libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
-libcrux-traits = { git = "https://github.com/cryspen/libcrux" }
-tls_codec = { workspace = true }
+libcrux-psq = { workspace = true, features = ["test-utils"] }
 num_enum = { workspace = true }
-chacha20poly1305 = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
+
 
 # needed for the 'mock 'feature
 nym-test-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
-#rand_chacha = "0.3"
-mock_instant = { workspace = true }
-nym-crypto = { path = "../crypto", features = ["rand"] }
 nym-test-utils = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-nym-lp-transport = { path = "../nym-lp-transport", features = ["io-mocks"] }
+
 
 [features]
-mock = ["nym-test-utils", "nym-crypto/rand"]
+mock = ["nym-test-utils"]
 
 [[bench]]
 name = "replay_protection"

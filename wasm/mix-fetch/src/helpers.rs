@@ -25,6 +25,7 @@ pub(crate) async fn get_network_requester(
         url::Url::parse(&nym_api_url.unwrap_or(NYM_API_URL.to_string()))?,
         None,
     );
+    #[allow(deprecated)]
     let nodes = client.get_all_described_nodes().await?;
     let providers: Vec<_> = nodes
         .iter()

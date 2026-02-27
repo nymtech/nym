@@ -1351,10 +1351,11 @@ checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
 name = "classic-mceliece-rust"
-version = "3.2.0"
-source = "git+https://github.com/georgio/classic-mceliece-rust#f2f27048b621df103bbe64369a18174ffec04ae1"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62a9b6d27e553269a76625911aa8cf6afaa8659f1b0c85b410cb5f51a87183d9"
 dependencies = [
- "rand 0.9.2",
+ "rand 0.8.5",
  "sha3",
  "zeroize",
 ]
@@ -1563,11 +1564,11 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "core-models"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.5"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "hax-lib",
- "pastey",
+ "pastey 0.2.1",
  "rand 0.9.2",
 ]
 
@@ -3307,9 +3308,9 @@ dependencies = [
 
 [[package]]
 name = "hax-lib"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74d9ba66d1739c68e0219b2b2238b5c4145f491ebf181b9c6ab561a19352ae86"
+checksum = "543f93241d32b3f00569201bfce9d7a93c92c6421b23c77864ac929dc947b9fc"
 dependencies = [
  "hax-lib-macros",
  "num-bigint",
@@ -3318,9 +3319,9 @@ dependencies = [
 
 [[package]]
 name = "hax-lib-macros"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24ba777a231a58d1bce1d68313fa6b6afcc7966adef23d60f45b8a2b9b688bf1"
+checksum = "f8755751e760b11021765bb04cb4a6c4e24742688d9f3aa14c2079638f537b0f"
 dependencies = [
  "hax-lib-macros-types",
  "proc-macro-error2",
@@ -3331,9 +3332,9 @@ dependencies = [
 
 [[package]]
 name = "hax-lib-macros-types"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "867e19177d7425140b417cd27c2e05320e727ee682e98368f88b7194e80ad515"
+checksum = "f177c9ae8ea456e2f71ff3c1ea47bf4464f772a05133fcbba56cd5ba169035a2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4120,8 +4121,10 @@ dependencies = [
  "nym-credential-verification",
  "nym-credentials-interface",
  "nym-crypto",
- "nym-gateway",
- "nym-lp-transport",
+ "nym-kkt",
+ "nym-kkt-ciphersuite",
+ "nym-lp",
+ "nym-node",
  "nym-registration-client",
  "nym-test-utils",
  "nym-wireguard",
@@ -4451,9 +4454,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
 
 [[package]]
+name = "libcrux-aesgcm"
+version = "0.0.7"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "libcrux-intrinsics",
+ "libcrux-platform",
+ "libcrux-secrets",
+ "libcrux-traits",
+]
+
+[[package]]
 name = "libcrux-chacha20poly1305"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-hacl-rs",
  "libcrux-macros",
@@ -4464,8 +4478,8 @@ dependencies = [
 
 [[package]]
 name = "libcrux-curve25519"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-hacl-rs",
  "libcrux-macros",
@@ -4475,8 +4489,8 @@ dependencies = [
 
 [[package]]
 name = "libcrux-ecdh"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-curve25519",
  "libcrux-p256",
@@ -4486,8 +4500,8 @@ dependencies = [
 
 [[package]]
 name = "libcrux-ed25519"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-hacl-rs",
  "libcrux-macros",
@@ -4499,15 +4513,15 @@ dependencies = [
 [[package]]
 name = "libcrux-hacl-rs"
 version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-macros",
 ]
 
 [[package]]
 name = "libcrux-hkdf"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-hacl-rs",
  "libcrux-hmac",
@@ -4516,8 +4530,8 @@ dependencies = [
 
 [[package]]
 name = "libcrux-hmac"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-hacl-rs",
  "libcrux-macros",
@@ -4526,8 +4540,8 @@ dependencies = [
 
 [[package]]
 name = "libcrux-intrinsics"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "core-models",
  "hax-lib",
@@ -4535,8 +4549,8 @@ dependencies = [
 
 [[package]]
 name = "libcrux-kem"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-curve25519",
  "libcrux-ecdh",
@@ -4551,16 +4565,30 @@ dependencies = [
 [[package]]
 name = "libcrux-macros"
 version = "0.0.3"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "quote",
  "syn 2.0.106",
 ]
 
 [[package]]
+name = "libcrux-ml-dsa"
+version = "0.0.7"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
+dependencies = [
+ "core-models",
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-macros",
+ "libcrux-platform",
+ "libcrux-sha3",
+ "tls_codec",
+]
+
+[[package]]
 name = "libcrux-ml-kem"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.7"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "hax-lib",
  "libcrux-intrinsics",
@@ -4574,8 +4602,8 @@ dependencies = [
 
 [[package]]
 name = "libcrux-p256"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-hacl-rs",
  "libcrux-macros",
@@ -4586,8 +4614,8 @@ dependencies = [
 
 [[package]]
 name = "libcrux-platform"
-version = "0.0.2"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.3"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libc",
 ]
@@ -4595,7 +4623,7 @@ dependencies = [
 [[package]]
 name = "libcrux-poly1305"
 version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-hacl-rs",
  "libcrux-macros",
@@ -4603,34 +4631,38 @@ dependencies = [
 
 [[package]]
 name = "libcrux-psq"
-version = "0.0.5"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.7"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
+ "classic-mceliece-rust",
+ "libcrux-aesgcm",
  "libcrux-chacha20poly1305",
  "libcrux-ecdh",
  "libcrux-ed25519",
  "libcrux-hkdf",
  "libcrux-hmac",
  "libcrux-kem",
+ "libcrux-ml-dsa",
  "libcrux-ml-kem",
  "libcrux-sha2",
  "libcrux-traits",
+ "rand 0.8.5",
  "rand 0.9.2",
  "tls_codec",
 ]
 
 [[package]]
 name = "libcrux-secrets"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.5"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "hax-lib",
 ]
 
 [[package]]
 name = "libcrux-sha2"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-hacl-rs",
  "libcrux-macros",
@@ -4639,8 +4671,8 @@ dependencies = [
 
 [[package]]
 name = "libcrux-sha3"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.7"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "hax-lib",
  "libcrux-intrinsics",
@@ -4650,8 +4682,8 @@ dependencies = [
 
 [[package]]
 name = "libcrux-traits"
-version = "0.0.4"
-source = "git+https://github.com/cryspen/libcrux#f63bb67ead59297560edf523a3b29b21489c17ea"
+version = "0.0.6"
+source = "git+https://github.com/cryspen/libcrux?rev=b17f8687b67cdcfc10b55aeecc998bbbca28f775#b17f8687b67cdcfc10b55aeecc998bbbca28f775"
 dependencies = [
  "libcrux-secrets",
  "rand 0.9.2",
@@ -5075,7 +5107,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3176f18d11a1ae46053e59ec89d46ba318ae1343615bd3f8c908bfc84edae35c"
 dependencies = [
  "byteorder",
- "pastey",
+ "pastey 0.1.1",
  "thiserror 2.0.12",
 ]
 
@@ -5422,7 +5454,6 @@ dependencies = [
  "nym-serde-helpers",
  "nym-test-utils",
  "nym-ticketbooks-merkle",
- "rand_chacha 0.3.1",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -5689,6 +5720,7 @@ dependencies = [
  "clap",
  "comfy-table",
  "futures",
+ "getrandom 0.3.3",
  "gloo-timers",
  "http-body-util",
  "humantime",
@@ -6192,10 +6224,13 @@ dependencies = [
  "hkdf",
  "hmac",
  "jwt-simple",
+ "libcrux-curve25519",
+ "libcrux-psq",
  "nym-pemstore",
  "nym-sphinx-types",
  "nym-test-utils",
  "rand 0.8.5",
+ "rand 0.9.2",
  "rand_chacha 0.3.1",
  "serde",
  "serde_bytes",
@@ -6357,7 +6392,6 @@ dependencies = [
  "bincode",
  "bip39",
  "bs58",
- "bytes",
  "dashmap",
  "defguard_wireguard_rs",
  "fastrand",
@@ -6377,9 +6411,7 @@ dependencies = [
  "nym-gateway-storage",
  "nym-id",
  "nym-ip-packet-router",
- "nym-kcp",
  "nym-lp",
- "nym-lp-transport",
  "nym-metrics",
  "nym-mixnet-client",
  "nym-network-defaults",
@@ -6486,6 +6518,7 @@ dependencies = [
  "nym-validator-client",
  "pnet_packet",
  "rand 0.8.5",
+ "rand 0.9.2",
  "reqwest 0.13.1",
  "serde",
  "serde_json",
@@ -6790,15 +6823,16 @@ name = "nym-kkt"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "blake3",
- "classic-mceliece-rust",
- "criterion",
  "libcrux-chacha20poly1305",
  "libcrux-ecdh",
  "libcrux-kem",
+ "libcrux-ml-kem",
+ "libcrux-psq",
  "num_enum",
  "nym-crypto",
  "nym-kkt-ciphersuite",
+ "nym-kkt-context",
+ "nym-pemstore",
  "rand 0.9.2",
  "rand_chacha 0.9.0",
  "strum",
@@ -6813,8 +6847,18 @@ dependencies = [
  "blake3",
  "libcrux-sha3",
  "num_enum",
+ "semver 1.0.26",
  "strum",
  "strum_macros",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "nym-kkt-context"
+version = "1.20.4"
+dependencies = [
+ "num_enum",
+ "nym-kkt-ciphersuite",
  "thiserror 2.0.12",
 ]
 
@@ -6836,25 +6880,14 @@ dependencies = [
  "anyhow",
  "bs58",
  "bytes",
- "chacha20poly1305",
  "criterion",
- "dashmap",
- "libcrux-kem",
  "libcrux-psq",
- "libcrux-traits",
- "mock_instant",
  "num_enum",
  "nym-crypto",
  "nym-kkt",
- "nym-lp-common",
- "nym-lp-transport",
+ "nym-kkt-ciphersuite",
  "nym-test-utils",
- "parking_lot",
- "rand 0.8.5",
  "rand 0.9.2",
- "serde",
- "sha2 0.10.9",
- "snow",
  "thiserror 2.0.12",
  "tls_codec",
  "tokio",
@@ -6886,6 +6919,7 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "rand 0.8.5",
+ "rand 0.9.2",
  "rand_chacha 0.3.1",
  "serde",
  "serde_json",
@@ -6895,19 +6929,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
-]
-
-[[package]]
-name = "nym-lp-common"
-version = "0.1.0"
-
-[[package]]
-name = "nym-lp-transport"
-version = "0.1.0"
-dependencies = [
- "nym-test-utils",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -7112,6 +7133,7 @@ dependencies = [
  "arrayref",
  "async-trait",
  "axum 0.7.9",
+ "bincode",
  "bip39",
  "blake2 0.8.1",
  "bloomfilter",
@@ -7126,6 +7148,7 @@ dependencies = [
  "criterion",
  "csv",
  "cupid",
+ "dashmap",
  "futures",
  "hex",
  "hkdf",
@@ -7145,6 +7168,7 @@ dependencies = [
  "nym-http-api-common",
  "nym-ip-packet-router",
  "nym-kkt",
+ "nym-lp",
  "nym-metrics",
  "nym-mixnet-client",
  "nym-network-requester",
@@ -7154,6 +7178,7 @@ dependencies = [
  "nym-noise-keys",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
+ "nym-registration-common",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
@@ -7163,6 +7188,7 @@ dependencies = [
  "nym-sphinx-types",
  "nym-statistics-common",
  "nym-task",
+ "nym-test-utils",
  "nym-topology",
  "nym-types",
  "nym-validator-client",
@@ -7172,7 +7198,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry_sdk",
  "rand 0.8.5",
- "rand_chacha 0.3.1",
+ "rand 0.9.2",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -7220,9 +7246,9 @@ dependencies = [
  "nym-http-api-client",
  "nym-kkt-ciphersuite",
  "nym-noise-keys",
+ "nym-test-utils",
  "nym-upgrade-mode-check",
  "nym-wireguard-types",
- "rand_chacha 0.3.1",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -7445,12 +7471,7 @@ dependencies = [
  "blake3",
  "chacha20",
  "chacha20poly1305",
- "criterion",
  "fastrand",
- "getrandom 0.2.16",
- "log",
- "rand 0.8.5",
- "rayon",
  "sphinx-packet",
  "thiserror 2.0.12",
  "x25519-dalek",
@@ -7496,6 +7517,7 @@ dependencies = [
 name = "nym-registration-client"
 version = "1.20.4"
 dependencies = [
+ "bincode",
  "bytes",
  "futures",
  "nym-authenticator-client",
@@ -7504,19 +7526,19 @@ dependencies = [
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ip-packet-client",
+ "nym-kkt",
  "nym-lp",
- "nym-lp-transport",
  "nym-registration-common",
  "nym-sdk",
+ "nym-test-utils",
  "nym-validator-client",
  "nym-wireguard-types",
- "rand 0.8.5",
+ "rand 0.9.2",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
  "tracing",
  "typed-builder",
- "url",
 ]
 
 [[package]]
@@ -8018,6 +8040,7 @@ dependencies = [
  "futures",
  "nym-bin-common",
  "rand_chacha 0.3.1",
+ "rand_chacha 0.9.0",
  "tokio",
  "tracing",
 ]
@@ -8252,31 +8275,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-vpn-api-lib-wasm"
-version = "1.20.4"
-dependencies = [
- "bs58",
- "getrandom 0.2.16",
- "js-sys",
- "nym-bin-common",
- "nym-compact-ecash",
- "nym-credential-proxy-requests",
- "nym-credentials",
- "nym-credentials-interface",
- "nym-crypto",
- "nym-ecash-time",
- "nym-wasm-utils",
- "serde",
- "serde-wasm-bindgen 0.6.5",
- "serde_json",
- "thiserror 2.0.12",
- "time",
- "tsify",
- "wasm-bindgen",
- "zeroize",
-]
-
-[[package]]
 name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
@@ -8335,9 +8333,7 @@ name = "nym-wasm-storage"
 version = "1.20.4"
 dependencies = [
  "async-trait",
- "getrandom 0.2.16",
  "indexed_db_futures",
- "js-sys",
  "nym-store-cipher",
  "nym-wasm-utils",
  "serde",
@@ -8828,6 +8824,12 @@ name = "pastey"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35fb2e5f958ec131621fdd531e9fc186ed768cbe395337403ae56c17a74c68ec"
+
+[[package]]
+name = "pastey"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b867cad97c0791bbd3aaa6472142568c6c9e8f71937e98379f584cfb0cf35bec"
 
 [[package]]
 name = "peg"
@@ -14094,22 +14096,14 @@ dependencies = [
 name = "zknym-lib"
 version = "1.20.4"
 dependencies = [
- "anyhow",
  "async-trait",
- "bs58",
- "getrandom 0.2.16",
  "js-sys",
  "nym-bin-common",
  "nym-compact-ecash",
- "nym-credentials",
- "nym-crypto",
  "nym-http-api-client",
  "nym-wasm-utils",
- "rand 0.8.5",
- "reqwest 0.13.1",
  "serde",
  "thiserror 2.0.12",
- "tokio",
  "tsify",
  "uuid",
  "wasm-bindgen",

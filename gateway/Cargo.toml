@@ -78,13 +78,9 @@ nym-authenticator-requests = { workspace = true }
 nym-client-core = { workspace = true, features = ["cli"] }
 nym-id = { workspace = true }
 nym-service-provider-requests-common = { workspace = true }
-
-# LP dependencies
-nym-lp = { path = "../common/nym-lp" }
-nym-lp-transport = { path = "../common/nym-lp-transport" }
-nym-kcp = { path = "../common/nym-kcp" }
 nym-registration-common = { path = "../common/registration" }
-bytes = { workspace = true }
+
+nym-lp = { path = "../common/nym-lp" }
 
 defguard_wireguard_rs = { workspace = true }
 

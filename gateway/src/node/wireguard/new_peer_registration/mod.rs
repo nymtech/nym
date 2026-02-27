@@ -11,7 +11,6 @@
 //! 2. Finalisation request message is received, where credential has to be attached is verified.
 //!    Upon successful completion, pending registration is transformed into a properly inserted peer.
 
-use crate::node::lp_listener::ReceiverIndex;
 use crate::node::wireguard::new_peer_registration::pending::{
     PendingRegistration, PendingRegistrations,
 };
@@ -32,6 +31,7 @@ use nym_credentials_interface::{BandwidthCredential, CredentialSpendingData};
 use nym_crypto::asymmetric::x25519;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::PersistedBandwidth;
+use nym_lp::peer_config::LpReceiverIndex;
 use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
 };
@@ -225,7 +225,7 @@ impl PeerRegistrator {
         Ok(())
     }
 
-    pub(crate) async fn on_initial_authenticator_request(
+    pub async fn on_initial_authenticator_request(
         &mut self,
         init_message: Box<dyn InitMessage + Send + Sync + 'static>,
         protocol: Protocol,
@@ -262,7 +262,7 @@ impl PeerRegistrator {
         .await
     }
 
-    pub(crate) async fn on_final_authenticator_request(
+    pub async fn on_final_authenticator_request(
         &mut self,
         final_message: Box<dyn FinalMessage + Send + Sync + 'static>,
         protocol: Protocol,
@@ -307,10 +307,10 @@ impl PeerRegistrator {
         )
     }
 
-    pub(crate) async fn on_initial_lp_request(
+    pub async fn on_initial_lp_request(
         &self,
         init_msg: LpDvpnRegistrationInitialRequest,
-        sender: ReceiverIndex,
+        receiver_index: LpReceiverIndex,
     ) -> Result<LpRegistrationResponse, GatewayWireguardError> {
         let remote_public = init_msg.wg_public_key;
         let psk = Key::new(init_msg.psk);
@@ -318,7 +318,9 @@ impl PeerRegistrator {
         // 1. check if there's any pending registration already in progress,
         // if so, return the same data again without additional processing,
         // but update stored PSK
-        if let Some(pending_registration) = self.check_pending_lp_registration(sender).await? {
+        if let Some(pending_registration) =
+            self.check_pending_lp_registration(receiver_index).await?
+        {
             self.update_peer_psk(remote_public, psk).await?;
             return Ok(pending_registration);
         }
@@ -332,19 +334,19 @@ impl PeerRegistrator {
         }
 
         // 3. process fresh registration request
-        self.process_fresh_initial_lp_registration(sender, remote_public, psk)
+        self.process_fresh_initial_lp_registration(receiver_index, remote_public, psk)
             .await
     }
 
-    pub(crate) async fn on_final_lp_request(
+    pub async fn on_final_lp_request(
         &self,
         final_msg: LpDvpnRegistrationFinalisation,
-        sender: ReceiverIndex,
+        receiver_index: LpReceiverIndex,
     ) -> Result<LpRegistrationResponse, GatewayWireguardError> {
         // 1. check if there's any pending registration associated with this peer
         let pending_data = self
             .pending_registrations
-            .check_lp(sender)
+            .check_lp(receiver_index)
             .await
             .ok_or(GatewayWireguardError::RegistrationNotInProgress)?
             .clone();
@@ -356,7 +358,7 @@ impl PeerRegistrator {
             .await?;
 
         // 3 remove pending registration
-        self.pending_registrations.remove_lp(sender).await;
+        self.pending_registrations.remove_lp(receiver_index).await;
 
         // 4. construct and return the response
         Ok(pending_data.to_registered_lp_response(self.upgrade_mode_enabled()))

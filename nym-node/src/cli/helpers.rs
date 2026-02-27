@@ -458,15 +458,6 @@ pub(crate) struct EntryGatewayArgs {
     )]
     #[zeroize(skip)]
     pub(crate) upgrade_mode_attester_public_key: Option<ed25519::PublicKey>,
-
-    /// Use mock ecash manager for LP testing.
-    /// WARNING: Only use this for local testing! Never enable in production.
-    /// When enabled, the LP listener will accept any credential without blockchain verification.
-    #[clap(
-        long,
-        env = NYMNODE_LP_USE_MOCK_ECASH_ARG
-    )]
-    pub(crate) lp_use_mock_ecash: Option<bool>,
 }
 
 impl EntryGatewayArgs {
@@ -499,9 +490,6 @@ impl EntryGatewayArgs {
         }
         if let Some(upgrade_mode_attester_public_key) = self.upgrade_mode_attester_public_key {
             section.upgrade_mode.attester_public_key = upgrade_mode_attester_public_key
-        }
-        if let Some(use_mock_ecash) = self.lp_use_mock_ecash {
-            section.lp.debug.use_mock_ecash = use_mock_ecash
         }
 
         section
@@ -544,6 +532,65 @@ impl ExitGatewayArgs {
         }
         if let Some(open_proxy) = self.open_proxy {
             section.open_proxy = open_proxy
+        }
+
+        section
+    }
+}
+
+#[derive(clap::Args, Debug)]
+pub(crate) struct LpArgs {
+    /// Bind address for the TCP LP control traffic.
+    /// default: `[::]:41264`
+    #[clap(
+        long,
+        env = NYMNODE_LP_CONTROL_BIND_ADDRESS_ARG
+    )]
+    pub(crate) lp_control_bind_address: Option<SocketAddr>,
+
+    /// Custom announced port for listening for the TCP LP control traffic.
+    /// If unspecified, the value from the `lp_control_bind_address` will be used instead
+    #[clap(
+        long,
+        env = NYMNODE_LP_CONTROL_ANNOUNCE_PORT_ARG
+    )]
+    pub(crate) lp_control_announce_port: Option<u16>,
+
+    /// Bind address for the UDP LP data traffic.
+    /// default: `[::]:51264`
+    #[clap(
+        long,
+        env = NYMNODE_LP_DATA_BIND_ADDRESS_ARG
+    )]
+    pub(crate) lp_data_bind_address: Option<SocketAddr>,
+
+    /// Custom announced port for listening for the UDP LP data traffic.
+    /// If unspecified, the value from the `lp_data_bind_address` will be used instead
+    #[clap(
+        long,
+        env = NYMNODE_LP_DATA_ANNOUNCE_PORT_ARG
+    )]
+    pub(crate) lp_data_announce_port: Option<u16>,
+
+    /// Use mock ecash manager for LP testing.
+    /// WARNING: Only use this for local testing! Never enable in production.
+    /// When enabled, the LP listener will accept any credential without blockchain verification.
+    #[clap(
+        long,
+        env = NYMNODE_LP_USE_MOCK_ECASH_ARG
+    )]
+    pub(crate) lp_use_mock_ecash: Option<bool>,
+}
+
+impl LpArgs {
+    // TODO: could we perhaps make a clap error here and call `safe_exit` instead?
+    pub(crate) fn build_config_section(self) -> config::LpConfig {
+        self.override_config_section(config::LpConfig::default())
+    }
+
+    pub(crate) fn override_config_section(self, mut section: config::LpConfig) -> config::LpConfig {
+        if let Some(use_mock_ecash) = self.lp_use_mock_ecash {
+            section.debug.use_mock_ecash = use_mock_ecash
         }
 
         section

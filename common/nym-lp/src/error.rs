@@ -1,11 +1,16 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::message::MessageType;
-use crate::{noise_protocol::NoiseError, replay::ReplayError};
-use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
-use nym_kkt::ciphersuite::{HashFunction, KEM};
+use crate::packet::MalformedLpPacketError;
+use crate::peer_config::LpReceiverIndex;
+use crate::replay::ReplayError;
+use crate::transport::LpTransportError;
+use libcrux_psq::handshake::HandshakeError;
+use libcrux_psq::handshake::builders::BuilderError;
+use libcrux_psq::session::SessionError;
+// use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_kkt::error::KKTError;
+use nym_kkt_ciphersuite::{HashFunction, KEM};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -13,32 +18,17 @@ pub enum LpError {
     #[error("IO Error: {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error("Snow Error: {0}")]
-    SnowKeyError(#[from] snow::Error),
-
-    #[error("Snow Pattern Error: {0}")]
-    SnowPatternError(String),
-
-    #[error("Noise Protocol Error: {0}")]
-    NoiseError(#[from] NoiseError),
-
     #[error("Replay detected: {0}")]
     Replay(#[from] ReplayError),
-
-    #[error("Invalid packet format: {0}")]
-    InvalidPacketFormat(String),
-
-    #[error("Invalid message type: {0}")]
-    InvalidMessageType(u32),
-
-    #[error("Payload too large: {0}")]
-    PayloadTooLarge(usize),
 
     #[error("Insufficient buffer size provided")]
     InsufficientBufferSize,
 
     #[error("Attempted operation on closed session")]
     SessionClosed,
+
+    #[error("There already exists an LP session with receiver index {0}")]
+    DuplicateSessionId(LpReceiverIndex),
 
     #[error("Internal error: {0}")]
     Internal(String),
@@ -52,15 +42,12 @@ pub enum LpError {
     #[error("Deserialization error: {0}")]
     DeserializationError(String),
 
-    #[error("KKT protocol error: {0}")]
-    KKTError(String),
-
     #[error(transparent)]
     InvalidBase58String(#[from] bs58::decode::Error),
 
     /// Session ID from incoming packet does not match any known session.
     #[error("Received packet with unknown session ID: {0}")]
-    UnknownSessionId(u32),
+    UnknownSessionId(LpReceiverIndex),
 
     /// Invalid state transition attempt in the state machine.
     #[error("Invalid input '{input}' for current state '{state}'")]
@@ -75,27 +62,14 @@ pub enum LpError {
     LpSessionProcessing,
 
     /// State machine not found.
-    #[error("State machine not found for lp_id: {lp_id}")]
-    StateMachineNotFound { lp_id: u32 },
+    #[error("State machine not found for lp_id: {0}")]
+    StateMachineNotFound(LpReceiverIndex),
 
-    /// Ed25519 to X25519 conversion error.
-    #[error("Ed25519 key conversion error: {0}")]
-    Ed25519RecoveryError(#[from] Ed25519RecoveryError),
-
-    /// Outer AEAD authentication tag verification failed.
-    #[error("AEAD authentication tag verification failed")]
-    AeadTagMismatch,
-
-    /// Received an LP packet with an incompatible, future, version
-    #[error("incompatible LP packet version. got: {got}, highest supported: {highest_supported}")]
-    IncompatibleFuturePacketVersion { got: u8, highest_supported: u8 },
-
-    /// Received an LP packet with an incompatible, legacy, version
-    #[error("incompatible LP packet version. got: {got}, lowest supported: {lowest_supported}")]
-    IncompatibleLegacyPacketVersion { got: u8, lowest_supported: u8 },
-
-    #[error("attempted to create an LP responder without providing a valid KEM key")]
-    ResponderWithMissingKEMKey,
+    // /// Ed25519 to X25519 conversion error.
+    // #[error("Ed25519 key conversion error: {0}")]
+    // Ed25519RecoveryError(#[from] Ed25519RecoveryError),
+    #[error("attempted to create an LP responder without providing a valid KEM keys")]
+    ResponderWithMissingKEMKeys,
 
     #[error(
         "there are no known digests for remote's KEM key with {kem} KEM and {hash_function} hash function"
@@ -113,16 +87,56 @@ pub enum LpError {
         #[from]
         source: KKTError,
     },
+
+    #[error(transparent)]
+    MalformedPacket(#[from] MalformedLpPacketError),
+
+    #[error("version {version} is not supported")]
+    UnsupportedVersion { version: u8 },
+
+    #[error("failed to build PSQ responder: {inner:?}")]
+    PSQResponderBuilderFailure { inner: BuilderError },
+
+    #[error("failed to build PSQ initiator: {inner:?}")]
+    PSQInitiatorBuilderFailure { inner: BuilderError },
+
+    #[error("failed to complete the PSQ handshake: {inner:?}")]
+    PSQHandshakeFailure { inner: HandshakeError },
+
+    #[error("failed to run the PSQ session: {inner:?}")]
+    PSQSessionFailure { inner: SessionError },
+
+    #[error("failed to derive a transport channel: {inner:?}")]
+    TransportDerivationFailure { inner: SessionError },
+
+    #[error("the initiator authenticator is not available after ingesting PSQ msg1")]
+    MissingInitiatorAuthenticator,
+
+    #[error("transport failure: {0}")]
+    TransportFailure(#[from] LpTransportError),
+
+    #[error("the current session is not in transport state")]
+    NotInTransport,
 }
 
 impl LpError {
     pub fn kkt_psq_handshake(msg: impl Into<String>) -> Self {
         Self::KKTPSQHandshake(msg.into())
     }
+}
 
-    pub fn unexpected_handshake_response(got: MessageType, expected: MessageType) -> LpError {
-        Self::KKTPSQHandshake(format!(
-            "received unexpected response, got: {got:?}, expected: {expected:?}"
-        ))
+impl From<HandshakeError> for LpError {
+    fn from(handshake_error: HandshakeError) -> Self {
+        Self::PSQHandshakeFailure {
+            inner: handshake_error,
+        }
+    }
+}
+
+impl From<SessionError> for LpError {
+    fn from(session_error: SessionError) -> Self {
+        Self::PSQSessionFailure {
+            inner: session_error,
+        }
     }
 }

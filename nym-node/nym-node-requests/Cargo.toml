@@ -26,6 +26,7 @@ url = { workspace = true, features = ["serde"] }
 nym-crypto = { workspace = true, features = [
     "asymmetric",
     "serde",
+    "libcrux_x25519"
 ] }
 nym-exit-policy = { workspace = true }
 nym-noise-keys = { workspace = true }
@@ -47,7 +48,7 @@ nym-bin-common = { workspace = true, features = [
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
-rand_chacha = { workspace = true }
+nym-test-utils = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 
 

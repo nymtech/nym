@@ -4,6 +4,7 @@
 use crate::config::persistence::{NymNodePaths, ReplayProtectionPaths};
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymNodeError;
+use crate::node::replay_protection::{bitmap_size, items_in_bloomfilter};
 use celes::Country;
 use clap::ValueEnum;
 use human_repr::HumanCount;
@@ -35,6 +36,7 @@ use url::Url;
 pub mod authenticator;
 pub mod gateway_tasks;
 pub mod helpers;
+pub mod lp;
 pub mod metrics;
 mod old_configs;
 pub mod persistence;
@@ -43,9 +45,9 @@ mod template;
 pub mod upgrade_helpers;
 
 pub use crate::config::gateway_tasks::GatewayTasksConfig;
+pub use crate::config::lp::{LpConfig, LpDebug};
 pub use crate::config::metrics::MetricsConfig;
 pub use crate::config::service_providers::ServiceProvidersConfig;
-use crate::node::replay_protection::{bitmap_size, items_in_bloomfilter};
 
 const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 
@@ -186,6 +188,8 @@ pub struct ConfigBuilder {
 
     pub metrics: Option<MetricsConfig>,
 
+    pub lp: Option<LpConfig>,
+
     pub logging: Option<LoggingSettings>,
 }
 
@@ -205,6 +209,7 @@ impl ConfigBuilder {
             gateway_tasks: None,
             service_providers: None,
             metrics: None,
+            lp: None,
             logging: None,
         }
     }
@@ -231,6 +236,11 @@ impl ConfigBuilder {
 
     pub fn with_mixnet(mut self, section: impl Into<Option<Mixnet>>) -> Self {
         self.mixnet = section.into();
+        self
+    }
+
+    pub fn with_lp(mut self, section: impl Into<Option<LpConfig>>) -> Self {
+        self.lp = section.into();
         self
     }
 
@@ -284,6 +294,7 @@ impl ConfigBuilder {
                 .storage_paths
                 .unwrap_or_else(|| NymNodePaths::new(&self.data_dir)),
             metrics: self.metrics.unwrap_or_default(),
+            lp: self.lp.unwrap_or_default(),
             gateway_tasks,
             service_providers: self
                 .service_providers
@@ -322,6 +333,9 @@ pub struct Config {
     pub verloc: Verloc,
 
     pub wireguard: Wireguard,
+
+    #[serde(default)]
+    pub lp: LpConfig,
 
     #[serde(alias = "entry_gateway")]
     pub gateway_tasks: GatewayTasksConfig,

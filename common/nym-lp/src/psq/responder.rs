@@ -1,461 +1,351 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::codec::OuterAeadKey;
-use crate::message::{HandshakeData, KKTResponseData, MessageType};
-use crate::noise_protocol::NoiseProtocol;
-use crate::peer::LpRemotePeer;
-use crate::psk::psq_responder_process_message;
-use crate::psq::helpers::{LpTransportHandshakeExt, current_timestamp};
-use crate::psq::{IntermediateHandshakeFailure, PSQHandshakeState};
-use crate::session::PqSharedSecret;
-use crate::{ClientHelloData, LpError, LpMessage, LpSession};
-use nym_kkt::KKT_RESPONSE_AAD;
-use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
-use nym_kkt::context::KKTContext;
-use nym_kkt::encryption::{KKTSessionSecret, decrypt_initial_kkt_frame, encrypt_kkt_frame};
-use nym_kkt::frame::KKTSessionId;
-use nym_kkt::session::{responder_ingest_message, responder_process};
-use nym_lp_transport::traits::LpTransport;
-use rand09::rng;
-use std::time::Duration;
+use crate::peer::LpLocalPeer;
+use crate::peer_config::{LP_PEER_CONFIG_SIZE, LpPeerConfig};
+use crate::psq::handshake_message::{PSQMsg1, PSQMsg2};
+use crate::psq::helpers::kem_to_ciphersuite;
+use crate::psq::{
+    AAD_RESPONDER_V1, PSQ_MSG2_SIZE, PSQHandshakeState, ResponderData, SESSION_CONTEXT_V1,
+    handshake_message, psq_msg1_size,
+};
+use crate::session::PersistentSessionBinding;
+use crate::transport::traits::{HandshakeMessage, LpHandshakeChannel};
+use crate::{LpError, LpSession};
+use libcrux_psq::handshake::Responder;
+use libcrux_psq::handshake::builders::{
+    CiphersuiteBuilder, PrincipalBuilder, ResponderCiphersuite,
+};
+use libcrux_psq::{Channel, IntoSession};
+use nym_kkt::context::KKTMode;
+use nym_kkt::message::{KKTRequest, KKTResponse, ProcessedKKTRequest};
+use nym_kkt::responder::KKTResponder;
+use nym_kkt_ciphersuite::KEM;
+use rand09::SeedableRng;
 use tracing::debug;
 
-pub const DEFAULT_TIMESTAMP_TOLERANCE: Duration = Duration::from_secs(30);
-
-// this will be removed anyway, so no point in doing anything more than a hardcoded placeholder
-fn validate_client_hello_timestamp(
-    client_timestamp: u64,
-    tolerance: Duration,
-) -> Result<(), LpError> {
-    let now = current_timestamp()?;
-
-    let age = now.abs_diff(client_timestamp);
-    if age > tolerance.as_secs() {
-        let direction = if now >= client_timestamp {
-            "old"
-        } else {
-            "future"
-        };
-
-        return Err(LpError::kkt_psq_handshake(format!(
-            "ClientHello timestamp is too {direction} (age: {age}s, tolerance: {}s)",
-            tolerance.as_secs()
-        )));
-    }
-
-    Ok(())
+pub struct PSQHandshakeStateResponder<'a, S> {
+    pub(super) inner_state: PSQHandshakeState<'a, S>,
+    pub(super) responder_data: ResponderData,
 }
 
-impl<'a, S> PSQHandshakeState<'a, S>
+pub(crate) fn build_psq_principal<R>(
+    rng: R,
+    version: u8,
+    ciphersuite: ResponderCiphersuite,
+) -> Result<Responder<R>, LpError>
 where
-    S: LpTransport + Unpin,
+    R: rand09::CryptoRng,
 {
-    pub(crate) fn encapsulated_kem_keys(
-        &self,
-    ) -> Result<(DecapsulationKey<'static>, EncapsulationKey<'static>), LpError> {
-        let kem_keys = self
+    let (ctx, aad) = match version {
+        1 => (SESSION_CONTEXT_V1, AAD_RESPONDER_V1),
+        other => return Err(LpError::UnsupportedVersion { version: other }),
+    };
+
+    PrincipalBuilder::new(rng)
+        .context(ctx)
+        .outer_aad(aad)
+        .recent_keys_upper_bound(30)
+        .build_responder(ciphersuite)
+        .map_err(|inner| LpError::PSQResponderBuilderFailure { inner })
+}
+
+pub(crate) fn build_psq_ciphersuite(
+    peer: &LpLocalPeer,
+    kem: KEM,
+) -> Result<ResponderCiphersuite<'_>, LpError> {
+    let Some(kem_keys) = peer.kem_keypairs.as_ref() else {
+        return Err(LpError::ResponderWithMissingKEMKeys);
+    };
+
+    let psq_ciphersuite = kem_to_ciphersuite(kem);
+    let builder = CiphersuiteBuilder::new(psq_ciphersuite).longterm_x25519_keys(peer.x25519());
+
+    match kem {
+        KEM::MlKem768 => builder
+            .longterm_mlkem_encapsulation_key(kem_keys.ml_kem768_encapsulation_key())
+            .longterm_mlkem_decapsulation_key(kem_keys.ml_kem768_decapsulation_key()),
+        KEM::McEliece => builder
+            .longterm_cmc_encapsulation_key(kem_keys.mc_eliece_encapsulation_key())
+            .longterm_cmc_decapsulation_key(kem_keys.mc_eliece_decapsulation_key()),
+    }
+    .build_responder_ciphersuite()
+    .map_err(|inner| LpError::PSQResponderBuilderFailure { inner })
+}
+
+impl<'a, S> PSQHandshakeStateResponder<'a, S>
+where
+    S: LpHandshakeChannel + Unpin,
+{
+    /// Attempt to receive a KKT request from a one-way client
+    async fn receive_one_way_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
+        let packet_len = KKTRequest::size_excluding_payload(
+            KKTMode::OneWay,
+            self.inner_state.local_peer.ciphersuite.kem(),
+        ) + LP_PEER_CONFIG_SIZE;
+
+        let req = self
+            .inner_state
+            .connection
+            .receive_handshake_message::<handshake_message::KKTRequest>(packet_len)
+            .await?;
+
+        Ok(req.into())
+    }
+
+    /// Attempt to process the received KKT request
+    fn process_kkt_request(&self, kkt_request: KKTRequest) -> Result<ProcessedKKTRequest, LpError> {
+        let kem_keys = &self
+            .inner_state
             .local_peer
-            .kem_psq
+            .kem_keypairs
             .as_ref()
-            .ok_or(LpError::ResponderWithMissingKEMKey)?;
+            .ok_or(LpError::ResponderWithMissingKEMKeys)?;
 
-        let libcrux_private_key = libcrux_kem::PrivateKey::decode(
-            libcrux_kem::Algorithm::X25519,
-            kem_keys.private_key().as_bytes(),
-        )
-        .map_err(|e| {
-            LpError::KKTError(format!(
-                "Failed to convert X25519 private key to libcrux PrivateKey: {e:?}",
-            ))
-        })?;
-        let dec_key = DecapsulationKey::X25519(libcrux_private_key);
-
-        let libcrux_public_key = libcrux_kem::PublicKey::decode(
-            libcrux_kem::Algorithm::X25519,
-            kem_keys.public_key().as_bytes(),
-        )
-        .map_err(|e| {
-            LpError::KKTError(format!(
-                "Failed to convert X25519 public key to libcrux PublicKey: {e:?}",
-            ))
-        })?;
-        let enc_key = EncapsulationKey::X25519(libcrux_public_key);
-        Ok((dec_key, enc_key))
-    }
-
-    /// Attempt to receive and validate ClientHello
-    pub(crate) async fn receive_client_hello(
-        &mut self,
-    ) -> Result<(ClientHelloData, LpRemotePeer), LpError> {
-        let client_hello_packet = self.receive_non_error(None).await?;
-        let client_hello = match client_hello_packet.message {
-            LpMessage::ClientHello(client_hello) => client_hello,
-            other => {
-                return Err(LpError::unexpected_handshake_response(
-                    other.typ(),
-                    MessageType::ClientHello,
-                ));
-            }
-        };
-
-        validate_client_hello_timestamp(
-            client_hello.extract_timestamp(),
-            DEFAULT_TIMESTAMP_TOLERANCE,
-        )?;
-
-        // TODO: somehow check for collision
-
-        // set version and remote peer information
-        self.protocol_version = Some(client_hello_packet.header.protocol_version);
-        let remote_peer = LpRemotePeer::new(
-            client_hello.client_ed25519_public_key,
-            client_hello.client_lp_public_key,
-        );
-
-        Ok((client_hello, remote_peer))
-    }
-
-    /// Send client hello ACK
-    pub(crate) async fn send_client_hello_ack(&mut self, session_id: u32) -> Result<(), LpError> {
-        let protocol = self.protocol_version()?;
-
-        let ack = self.next_packet(session_id, protocol, LpMessage::Ack);
-        self.connection.send_packet(ack, None).await?;
-        Ok(())
-    }
-
-    /// Attempt to receive and process a KKT request
-    pub(crate) async fn receive_kkt_request(
-        &mut self,
-    ) -> Result<(KKTContext, KKTSessionSecret, KKTSessionId), LpError> {
-        let kkt_request = match self.receive_non_error(None).await?.message {
-            LpMessage::KKTRequest(request) => request.0,
-            other => {
-                return Err(LpError::unexpected_handshake_response(
-                    other.typ(),
-                    MessageType::KKTRequest,
-                ));
-            }
-        };
-
-        let (session_secret, request_frame, remote_context) =
-            decrypt_initial_kkt_frame(self.local_peer.x25519.private_key(), &kkt_request)?;
-        let (context, _) = responder_ingest_message(&remote_context, None, None, &request_frame)?;
-
-        Ok((context, session_secret, request_frame.session_id()))
+        let processed_req = KKTResponder::new(
+            &self.inner_state.local_peer.x25519,
+            kem_keys,
+            &self.responder_data.supported_hash_functions,
+            &self.responder_data.supported_signature_schemes,
+            &self.responder_data.supported_outer_protocol_versions,
+        )?
+        .process_request(kkt_request, LP_PEER_CONFIG_SIZE)?;
+        Ok(processed_req)
     }
 
     /// Attempt to send KKT response to the previously received request
-    pub(crate) async fn send_kkt_response(
-        &mut self,
-        session_id: u32,
-        (kkt_context, session_secret, kkt_session_id): (KKTContext, KKTSessionSecret, KKTSessionId),
-        encapsulation_key: &EncapsulationKey<'_>,
-    ) -> Result<(), LpError> {
-        let protocol = self.protocol_version()?;
-
-        let response_frame = responder_process(
-            &kkt_context,
-            kkt_session_id,
-            self.local_peer.ed25519().private_key(),
-            encapsulation_key,
-        )?;
-        let encrypted_frame = encrypt_kkt_frame(
-            &mut rng(),
-            &session_secret,
-            &response_frame,
-            KKT_RESPONSE_AAD,
-        )?;
-        let lp_message = KKTResponseData::new(encrypted_frame).into();
-        let lp_packet = self.next_packet(session_id, protocol, lp_message);
-
-        self.connection.send_packet(lp_packet, None).await?;
+    async fn send_kkt_response(&mut self, response: KKTResponse, kem: KEM) -> Result<(), LpError> {
+        self.inner_state
+            .connection
+            .send_handshake_message::<handshake_message::KKTResponse>(response.into(), kem)
+            .await?;
         Ok(())
     }
 
     /// Attempt to receive and process a PSQ msg1 request
-    pub(crate) async fn receive_psq_initiator_message(
-        &mut self,
-        remote_peer: &LpRemotePeer,
-        local_kem_keypair: (&DecapsulationKey<'_>, &EncapsulationKey<'_>),
-        salt: &[u8; 32],
-        session_id_bytes: &[u8; 4],
-    ) -> Result<(OuterAeadKey, NoiseProtocol, PqSharedSecret, Vec<u8>), LpError> {
-        let psq_msg1 = match self.receive_non_error(None).await?.message {
-            LpMessage::Handshake(response) => response.0,
-            other => {
-                return Err(LpError::unexpected_handshake_response(
-                    other.typ(),
-                    MessageType::Handshake,
-                ));
-            }
-        };
-
-        // Extract PSQ payload: [u16 psq_len][psq_payload][noise_msg]
-        if psq_msg1.len() < 2 {
-            return Err(LpError::kkt_psq_handshake("too short msg1 received"));
-        }
-        let handle_len = u16::from_le_bytes([psq_msg1[0], psq_msg1[1]]) as usize;
-        if psq_msg1.len() < 2 + handle_len {
-            return Err(LpError::kkt_psq_handshake("too short msg1 received"));
-        }
-        let psq_payload = &psq_msg1[2..2 + handle_len];
-        let noise_payload = &psq_msg1[2 + handle_len..];
-
-        // Decapsulate PSK from PSQ payload using X25519 as DHKEM
-        let psq_responder = psq_responder_process_message(
-            self.local_peer.x25519.private_key(),
-            &remote_peer.x25519_public,
-            local_kem_keypair,
-            &remote_peer.ed25519_public,
-            psq_payload,
-            salt,
-            session_id_bytes,
-        )?;
-
-        let psk = psq_responder.psk;
-        let psk_handle = psq_responder.psk_handle;
-
-        // TEMP \/
-        let outer_aead_key = OuterAeadKey::from_psk(&psk);
-        // TEMP /\
-
-        let mut noise_protocol = NoiseProtocol::build_new_responder(
-            self.local_peer.x25519().private_key().as_bytes(),
-            remote_peer.x25519_public.as_bytes(),
-            &psk,
-        )?;
-        noise_protocol.read_message(noise_payload)?;
-
-        Ok((
-            outer_aead_key,
-            noise_protocol,
-            PqSharedSecret::new(psq_responder.pq_shared_secret),
-            psk_handle,
-        ))
-    }
-
-    /// Attempt to prepare and generate a responder PSQ msg2
-    pub(crate) async fn send_psq_responder_message(
-        &mut self,
-        session_id: u32,
-        psk_handle: &[u8],
-        outer_aead_key: &OuterAeadKey,
-        noise_protocol: &mut NoiseProtocol,
-    ) -> Result<(), LpError> {
-        let protocol = self.protocol_version()?;
-
-        let msg2 = noise_protocol
-            .get_bytes_to_send()
-            .ok_or_else(|| LpError::kkt_psq_handshake("failed to generate noise msg2"))??;
-        // Embed PSK handle in message: [u16 handle_len][handle_bytes][noise_msg]
-        let handle_len = psk_handle.len() as u16;
-        let mut combined = Vec::with_capacity(2 + psk_handle.len() + msg2.len());
-        combined.extend_from_slice(&handle_len.to_le_bytes());
-        combined.extend_from_slice(psk_handle);
-        combined.extend_from_slice(&msg2);
-
-        let lp_message = HandshakeData::new(combined).into();
-        let lp_packet = self.next_packet(session_id, protocol, lp_message);
-        self.connection
-            .send_packet(lp_packet, Some(outer_aead_key))
-            .await?;
-        Ok(())
-    }
-
-    /// Attempt to receive and process final PSQ msg3
-    pub(crate) async fn receive_final_psq_message(
-        &mut self,
-        outer_aead_key: &OuterAeadKey,
-        noise_protocol: &mut NoiseProtocol,
-    ) -> Result<(), LpError> {
-        let psq_msg3 = match self
+    async fn receive_psq_initiator_message(&mut self, kem: KEM) -> Result<Vec<u8>, LpError> {
+        let packet_len = psq_msg1_size(kem);
+        let msg: PSQMsg1 = self
+            .inner_state
             .connection
-            .receive_packet(Some(outer_aead_key))
-            .await?
-            .message
-        {
-            LpMessage::Handshake(response) => response.0,
-            other => {
-                return Err(LpError::unexpected_handshake_response(
-                    other.typ(),
-                    MessageType::Handshake,
-                ));
-            }
-        };
-
-        noise_protocol.read_message(&psq_msg3)?;
-        if !noise_protocol.is_handshake_finished() {
-            return Err(LpError::kkt_psq_handshake(
-                "noise handshake not finished after msg3",
-            ));
-        }
-        Ok(())
-    }
-
-    /// Send final ACK to indicate finalisation of the handshake
-    pub(crate) async fn send_final_ack(
-        &mut self,
-        session_id: u32,
-        outer_aead_key: &OuterAeadKey,
-    ) -> Result<(), LpError> {
-        let protocol = self.protocol_version()?;
-
-        let ack = self.next_packet(session_id, protocol, LpMessage::Ack);
-        self.connection
-            .send_packet(ack, Some(outer_aead_key))
+            .receive_handshake_message(packet_len)
             .await?;
-        Ok(())
+        Ok(msg.into_bytes())
     }
 
-    async fn complete_as_responder_inner(
-        &mut self,
-    ) -> Result<LpSession, IntermediateHandshakeFailure>
+    pub async fn complete_handshake(self) -> Result<LpSession, LpError>
     where
-        S: LpTransport + Unpin,
+        S: LpHandshakeChannel + Unpin,
     {
-        // 1. receive and validate ClientHello
-        let (client_hello_data, remote_peer) =
-            self.receive_client_hello()
-                .await
-                .map_err(|source| IntermediateHandshakeFailure {
-                    session_id: None,
-                    protocol_version: self.protocol_version,
-                    outer_aead_key: None,
-                    source,
-                })?;
-        debug!("received client hello");
+        let mut rng = rand09::rngs::StdRng::from_os_rng();
+        self.complete_handshake_with_rng(&mut rng).await
+    }
 
-        let session_id = client_hello_data.receiver_index;
-        let session_id_bytes = session_id.to_le_bytes();
-        let salt = client_hello_data.salt;
-
-        // 2. send ack
-        debug!("sending client hello ACK");
-        self.send_client_hello_ack(session_id)
-            .await
-            .map_err(|source| IntermediateHandshakeFailure {
-                session_id: Some(session_id),
-                protocol_version: self.protocol_version,
-                outer_aead_key: None,
-                source,
-            })?;
-
-        // 3. receive and process KKT request
-        let kkt_data =
-            self.receive_kkt_request()
-                .await
-                .map_err(|source| IntermediateHandshakeFailure {
-                    session_id: Some(session_id),
-                    protocol_version: self.protocol_version,
-                    outer_aead_key: None,
-                    source,
-                })?;
+    pub async fn complete_handshake_with_rng<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
+    where
+        S: LpHandshakeChannel + Unpin,
+        R: rand09::CryptoRng,
+    {
+        // 1. receive and process KKTRequest
+        let kkt_request = self.receive_one_way_kkt_request().await?;
         debug!("received KKT request");
 
-        // TEMP: 'derive' KEM keys
-        let (dec_key, enc_key) =
-            self.encapsulated_kem_keys()
-                .map_err(|source| IntermediateHandshakeFailure {
-                    session_id: Some(session_id),
-                    protocol_version: self.protocol_version,
-                    outer_aead_key: None,
-                    source,
-                })?;
+        let processed_req = self.process_kkt_request(kkt_request)?;
+        let kem = processed_req.requested_kem;
 
-        // 4. prepare and send KKT response
+        let lp_peer_config = LpPeerConfig::deserialize(&processed_req.request_payload)?;
+
+        // 2. send back the KKTResponse
         debug!("sending KKT response");
-        self.send_kkt_response(session_id, kkt_data, &enc_key)
-            .await
-            .map_err(|source| IntermediateHandshakeFailure {
-                session_id: Some(session_id),
-                protocol_version: self.protocol_version,
-                outer_aead_key: None,
-                source,
-            })?;
+        self.send_kkt_response(processed_req.response, kem).await?;
 
-        // 5. receive and process PSQ msg1
-        debug!("received PSQ msg1");
-        let (outer_aead_key, mut noise_protocol, pq_shared_secret, psk_handle) = self
-            .receive_psq_initiator_message(
-                &remote_peer,
-                (&dec_key, &enc_key),
-                &salt,
-                &session_id_bytes,
-            )
-            .await
-            .map_err(|source| IntermediateHandshakeFailure {
-                session_id: Some(session_id),
-                protocol_version: self.protocol_version,
-                outer_aead_key: None,
-                source,
-            })?;
+        // 3. receive and process PSQ request
+        let raw_psq1 = self.receive_psq_initiator_message(kem).await?;
+        debug!("received PSQ handshake msg");
 
-        // 6. prepare and send PSQ msg2
-        debug!("sending PSQ msg2");
-        if let Err(source) = self
-            .send_psq_responder_message(
-                session_id,
-                &psk_handle,
-                &outer_aead_key,
-                &mut noise_protocol,
-            )
-            .await
-        {
-            return Err(IntermediateHandshakeFailure {
-                session_id: Some(session_id),
-                protocol_version: self.protocol_version,
-                outer_aead_key: Some(outer_aead_key),
-                source,
-            });
+        // construct the responder and process the message
+        let responder_ciphersuite = build_psq_ciphersuite(&self.inner_state.local_peer, kem)?;
+        let version = processed_req.outer_protocol_version;
+        let mut psq_responder = build_psq_principal(rng, version, responder_ciphersuite)?;
+        psq_responder.read_message(&raw_psq1, &mut [])?;
+
+        let initiator_authenticator = psq_responder
+            .initiator_authenticator()
+            .ok_or(LpError::MissingInitiatorAuthenticator)?;
+
+        // 4. send PSQ response
+        let conn = self.inner_state.connection;
+
+        let mut buf = vec![0u8; PSQ_MSG2_SIZE];
+        psq_responder.write_message(&[], &mut buf)?;
+        debug!("sending PSQ handshake msg");
+        conn.send_handshake_message(PSQMsg2::new(buf), kem).await?;
+
+        if !psq_responder.is_handshake_finished() {
+            return Err(LpError::kkt_psq_handshake(
+                "handshake not finished after receiving psq response",
+            ));
         }
 
-        // 7. receive and process PSQ msg3
-        debug!("received PSQ msg3");
-        if let Err(source) = self
-            .receive_final_psq_message(&outer_aead_key, &mut noise_protocol)
-            .await
-        {
-            return Err(IntermediateHandshakeFailure {
-                session_id: Some(session_id),
-                protocol_version: self.protocol_version,
-                outer_aead_key: Some(outer_aead_key),
-                source,
-            });
-        }
+        // SAFETY: we have completed the exchange so this key MUST HAVE been present
+        #[allow(clippy::unwrap_used)]
+        let kem_key = self
+            .inner_state
+            .local_peer
+            .kem_keypairs
+            .as_ref()
+            .unwrap()
+            .encapsulation_key(kem)
+            .unwrap();
 
-        // 8. [optionally] send ACK to finalise
-        debug!("sending final ACK");
-        if let Err(source) = self.send_final_ack(session_id, &outer_aead_key).await {
-            return Err(IntermediateHandshakeFailure {
-                session_id: Some(session_id),
-                protocol_version: self.protocol_version,
-                outer_aead_key: Some(outer_aead_key),
-                source,
-            });
-        }
+        let receiver_index =
+            lp_peer_config.derive_receiver_index(&initiator_authenticator, &kem_key)?;
 
-        #[allow(clippy::expect_used)]
-        Ok(LpSession::new(
-            session_id,
-            self.protocol_version()
-                .expect("protocol version is known at this point"),
-            outer_aead_key,
-            self.local_peer.clone(),
-            remote_peer,
-            pq_shared_secret,
-            noise_protocol,
-        ))
+        let binding = PersistentSessionBinding {
+            initiator_authenticator,
+            responder_ecdh_pk: self.inner_state.local_peer.x25519().pk,
+            responder_pq_pk: Some(kem_key),
+        };
+
+        let psq_session = psq_responder.into_session()?;
+        LpSession::new(
+            psq_session,
+            binding,
+            receiver_index,
+            processed_req.outer_protocol_version,
+        )
     }
+}
 
-    pub async fn complete_as_responder(mut self) -> Result<LpSession, LpError>
-    where
-        S: LpTransport + Unpin,
-    {
-        match self.complete_as_responder_inner().await {
-            Ok(res) => Ok(res),
-            Err(err) => Err(self.try_send_error_packet(err).await),
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::codec::{decrypt_data, encrypt_data};
+    use crate::peer::mock_peers;
+    use crate::peer_config::LpPeerConfig;
+    use crate::psq::initiator;
+    use nym_kkt::initiator::KKTInitiator;
+    use nym_kkt_ciphersuite::{Ciphersuite, IntoEnumIterator};
+    use nym_test_utils::helpers::{
+        DeterministicRng09Send, deterministic_rng_09, u64_seeded_rng_09,
+    };
+    use nym_test_utils::mocks::async_read_write::MockIOStream;
+    use nym_test_utils::traits::{Leak, Timeboxed};
+
+    #[tokio::test]
+    async fn responder_test_plain() -> anyhow::Result<()> {
+        for kem in KEM::iter() {
+            let conn_init = MockIOStream::default();
+            let conn_resp = conn_init.try_get_remote_handle();
+
+            // SETUP START:
+            // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
+            // so they'd get 'static lifetime
+            let conn_init = conn_init.leak();
+            let conn_resp = conn_resp.leak();
+
+            let (mut init, mut resp) = mock_peers();
+            let resp_remote = resp.as_remote();
+
+            let ciphersuite = Ciphersuite::default().with_kem(kem);
+            init.ciphersuite = ciphersuite;
+            resp.ciphersuite = ciphersuite;
+
+            let responder_data = ResponderData::default();
+            let handshake_resp =
+                PSQHandshakeState::new(conn_resp, resp).as_responder(responder_data);
+
+            let mut resp_rng = DeterministicRng09Send::new(u64_seeded_rng_09(2));
+            let resp_fut = tokio::spawn(async move {
+                handshake_resp
+                    .complete_handshake_with_rng(&mut resp_rng)
+                    .timeboxed()
+                    .await
+            });
+
+            // initiator:
+
+            let mut rng = deterministic_rng_09();
+            let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
+
+            let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
+
+            // OneWay - MlKem
+            let (mut initiator, request) = KKTInitiator::generate_one_way_request(
+                &mut rng,
+                init.ciphersuite,
+                &resp_remote.x25519_public,
+                &dir_hash,
+                1,
+                Some(Vec::from(lp_peer_config.serialize())),
+            )?;
+
+            // 1. send kkt request
+            conn_init
+                .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
+                .timeboxed()
+                .await??;
+
+            // 2. receive KKT response
+            let response_len = KKTResponse::size_excluding_payload(kem);
+            let resp: handshake_message::KKTResponse = conn_init
+                .receive_handshake_message(response_len)
+                .timeboxed()
+                .await??;
+            let kkt_response = resp.into();
+
+            let response = initiator.process_response(kkt_response, 0)?;
+            let encapsulation_key = response.encapsulation_key;
+
+            let initiator_ciphersuite =
+                initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key)?;
+            let mut initiator =
+                initiator::build_psq_principal(rand09::rng(), 1, initiator_ciphersuite)?;
+
+            // 3. send PSQ msg1
+            // Send first message
+            let mut buf = vec![0u8; psq_msg1_size(kem)];
+            let n = initiator.write_message(&[], &mut buf).unwrap();
+            assert_eq!(n, buf.len());
+            let msg = PSQMsg1::new(buf);
+            conn_init
+                .send_handshake_message(msg, kem)
+                .timeboxed()
+                .await??;
+
+            // 4. receive PSQ msg2
+            let msg: PSQMsg2 = conn_init
+                .receive_handshake_message(PSQ_MSG2_SIZE)
+                .timeboxed()
+                .await??;
+            initiator.read_message(&msg, &mut []).unwrap();
+
+            assert!(initiator.is_handshake_finished());
+
+            let mut session_resp = resp_fut.await???;
+
+            let mut i_transport = initiator.into_session().unwrap();
+
+            // test serialization, deserialization
+            let mut channel_i = i_transport.transport_channel().unwrap();
+            let channel_r = session_resp.active_transport();
+
+            assert_eq!(channel_i.identifier(), channel_r.identifier());
+
+            let app_data_i = b"Derived session hey".as_slice();
+            let app_data_r = b"Derived session ho".as_slice();
+
+            let ct_i = encrypt_data(app_data_i, &mut channel_i)?;
+            let pt_r = decrypt_data(&ct_i, channel_r)?;
+
+            assert_eq!(app_data_i, pt_r);
+
+            let ct_r = encrypt_data(app_data_r, channel_r)?;
+            let pt_i = decrypt_data(&ct_r, &mut channel_i)?;
+
+            assert_eq!(app_data_r, pt_i);
         }
+
+        Ok(())
     }
 }

@@ -5,13 +5,14 @@ use nym_authenticator_requests::AuthenticatorVersion;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_requests::IpPair;
-use nym_kkt_ciphersuite::{KEM, KEMKeyDigests, SignatureScheme};
+use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests};
 use nym_sphinx::addressing::Recipient;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 pub use lp_messages::*;
+use nym_crypto::asymmetric::x25519::DHPublicKey;
 pub use serialisation::BincodeError;
 
 mod lp_messages;
@@ -56,9 +57,11 @@ pub struct WireguardConfiguration {
 #[derive(Clone, Debug)]
 pub struct NymNodeLPInformation {
     pub address: SocketAddr,
-    pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
-    pub expected_signing_key_hashes: HashMap<SignatureScheme, KEMKeyDigests>,
-    pub x25519: x25519::PublicKey,
+    pub expected_kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
+    pub x25519: DHPublicKey,
+
+    // to be inferred from node's version
+    pub ciphersuite: Ciphersuite,
 
     /// Supported protocol version of the remote gateway.
     /// Included in case we have to downgrade our version.

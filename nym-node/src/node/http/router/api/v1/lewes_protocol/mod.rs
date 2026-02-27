@@ -3,13 +3,13 @@
 
 use axum::Router;
 use axum::routing::get;
-use nym_node_requests::api::v1::lewes_protocol::models;
+use nym_node_requests::api::SignedLewesProtocol;
 
 pub mod root;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct Config {
-    pub details: Option<models::LewesProtocol>,
+    pub details: SignedLewesProtocol,
 }
 
 pub(crate) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router<S> {

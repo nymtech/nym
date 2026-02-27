@@ -16,7 +16,8 @@ use nym_node_requests::api::{SignedDataHostInfo, v1::node::models::SignedHostInf
     responses(
         (status = 200, content(
             (SignedDataHostInfo = "application/json"),
-            (SignedDataHostInfo = "application/yaml")
+            (SignedDataHostInfo = "application/yaml"),
+            (SignedDataHostInfo = "application/bincode")
         ))
     ),
     params(OutputParams)

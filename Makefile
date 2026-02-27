@@ -104,11 +104,11 @@ $(eval $(call add_cargo_workspace,wallet,nym-wallet))
 sdk-wasm: sdk-wasm-build sdk-wasm-test sdk-wasm-lint
 
 sdk-wasm-build:
-	$(MAKE) -C nym-browser-extension/storage wasm-pack
+# 	$(MAKE) -C nym-browser-extension/storage wasm-pack
 	$(MAKE) -C wasm/client
 	$(MAKE) -C wasm/node-tester
 	$(MAKE) -C wasm/mix-fetch
-	$(MAKE) -C wasm/zknym-lib
+# 	$(MAKE) -C wasm/zknym-lib
 	# $(MAKE) -C wasm/full-nym-wasm
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
@@ -119,13 +119,14 @@ sdk-typescript-build:
 	yarn --cwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
-WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm zknym-lib
+# WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm zknym-lib
+WASM_CRATES = nym-client-wasm nym-node-tester-wasm
 
 sdk-wasm-test:
 	#cargo test $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
 
 sdk-wasm-lint:
-	cargo clippy $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
+	RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
 	$(MAKE) -C wasm/mix-fetch check-fmt
 
 # Add to top-level targets

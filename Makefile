@@ -126,7 +126,7 @@ sdk-wasm-test:
 	#cargo test $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
 
 sdk-wasm-lint:
-	cargo clippy $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
+	RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
 	$(MAKE) -C wasm/mix-fetch check-fmt
 
 # Add to top-level targets

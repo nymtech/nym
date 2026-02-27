@@ -3,6 +3,7 @@
 
 use super::{LpHandlerState, LpReceiverIndex, TimestampedState};
 use crate::node::lp::error::LpHandlerError;
+use dashmap::mapref::one::RefMut;
 use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData};
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_lp::transport::LpHandshakeChannel;
@@ -109,6 +110,18 @@ where
             bound_receiver_idx: None,
             exit_stream: None,
         }
+    }
+
+    /// Get the mutable reference to the state machine associated with this client.
+    /// It is vital it's never held across await points or this might lead to a deadlock.
+    fn state_entry_mut(
+        &self,
+    ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpStateMachine>>, LpHandlerError> {
+        let receiver_index = self.bound_receiver_index()?;
+        self.state
+            .session_states
+            .get_mut(&receiver_index)
+            .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })
     }
 
     /// AIDEV-NOTE: Stream-oriented packet loop
@@ -245,11 +258,7 @@ where
     ) -> Result<(), LpHandlerError> {
         let receiver_index = encrypted_packet.outer_header().receiver_idx;
 
-        let mut state_entry = self
-            .state
-            .session_states
-            .get_mut(&receiver_index)
-            .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })?;
+        let mut state_entry = self.state_entry_mut()?;
 
         // Update last activity timestamp
         state_entry.value().touch();
@@ -331,15 +340,10 @@ where
     /// Attempt to wrap and send specified response back to the client
     async fn send_response_packet(
         &mut self,
-        receiver_index: LpReceiverIndex,
         serialised_response: Vec<u8>,
         response_kind: LpDataKind,
     ) -> Result<(), LpHandlerError> {
-        let mut state_entry = self
-            .state
-            .session_states
-            .get_mut(&receiver_index)
-            .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })?;
+        let mut state_entry = self.state_entry_mut()?;
 
         // Access session via state machine for subsession support
         let state_machine = &mut state_entry.value_mut().state;
@@ -374,7 +378,7 @@ where
             .serialise()
             .map_err(|source| LpHandlerError::MalformedRegistrationRequest { source })?;
 
-        self.send_response_packet(receiver_idx, response_bytes, LpDataKind::Registration)
+        self.send_response_packet(response_bytes, LpDataKind::Registration)
             .await?;
 
         match response.status {
@@ -411,12 +415,12 @@ where
         // Forward the packet to the target gateway and retrieve its response
         let response_bytes = self.handle_forward_packet(forward_data).await?;
 
-        self.send_response_packet(receiver_idx, response_bytes, LpDataKind::Forward)
+        self.send_response_packet(response_bytes, LpDataKind::Forward)
             .await?;
 
         debug!(
-            "LP forwarding completed for {} (receiver_idx={})",
-            self.remote_addr, receiver_idx
+            "LP forwarding completed for {} (receiver_idx={receiver_idx})",
+            self.remote_addr
         );
 
         Ok(())
@@ -503,9 +507,6 @@ where
         &mut self,
         forward_data: ForwardPacketData,
     ) -> Result<Vec<u8>, LpHandlerError> {
-        use std::time::Duration;
-        use tokio::time::timeout;
-
         inc!("lp_forward_total");
         let start = std::time::Instant::now();
 

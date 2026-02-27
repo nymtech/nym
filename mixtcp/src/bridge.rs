@@ -4,8 +4,8 @@
 use crate::error::MixtcpError;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::stream_wrapper::IpMixStream;
-use tokio::sync::mpsc;
-use tracing::{error, info};
+use tokio::sync::{mpsc, oneshot};
+use tracing::{debug, error, info, trace};
 
 /// Asynchronous bridge between smoltcp device and Mixnet.
 ///
@@ -32,6 +32,20 @@ pub struct NymIprBridge {
     tx_receiver: mpsc::UnboundedReceiver<Vec<u8>>,
     /// Channel for sending incoming packets to device
     rx_sender: mpsc::UnboundedSender<Vec<u8>>,
+    /// Shutdown signal receiver
+    shutdown_rx: oneshot::Receiver<()>,
+}
+
+/// Handle for signaling the bridge to shut down gracefully.
+pub struct BridgeShutdownHandle {
+    tx: oneshot::Sender<()>,
+}
+
+impl BridgeShutdownHandle {
+    /// Signal the bridge to shut down and disconnect from the mixnet.
+    pub fn shutdown(self) {
+        let _ = self.tx.send(());
+    }
 }
 
 impl NymIprBridge {
@@ -39,12 +53,17 @@ impl NymIprBridge {
         stream: IpMixStream,
         tx_receiver: mpsc::UnboundedReceiver<Vec<u8>>,
         rx_sender: mpsc::UnboundedSender<Vec<u8>>,
-    ) -> Self {
-        Self {
-            stream,
-            tx_receiver,
-            rx_sender,
-        }
+    ) -> (Self, BridgeShutdownHandle) {
+        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        (
+            Self {
+                stream,
+                tx_receiver,
+                rx_sender,
+                shutdown_rx,
+            },
+            BridgeShutdownHandle { tx: shutdown_tx },
+        )
     }
 
     /// Runs the bridge event loop.
@@ -54,7 +73,8 @@ impl NymIprBridge {
     /// - Polls for incoming packets from the mixnet
     /// - Maintains packet statistics
     ///
-    /// The loop exits when channels are closed or an error occurs.
+    /// The loop exits when a shutdown signal is received, channels are closed,
+    /// or an error occurs. On exit the mixnet client is disconnected gracefully.
     pub async fn run(mut self) -> Result<(), MixtcpError> {
         info!("Starting Nym IPR bridge");
         let mut packets_sent = 0;
@@ -62,23 +82,18 @@ impl NymIprBridge {
 
         loop {
             tokio::select! {
+                // Shutdown signal
+                _ = &mut self.shutdown_rx => {
+                    info!(
+                        "Bridge received shutdown signal. Packets sent to mixnet: {}, received from mixnet: {}",
+                        packets_sent, packets_received
+                    );
+                    break;
+                }
+
                 // Outgoing packets from smoltcp layer above.
                 Some(packet) = self.tx_receiver.recv() => {
-                    info!("Bridge sending {} byte packet to mixnet", packet.len());
-
-                    // Log packet details for debugging
-                    if packet.len() >= 20 {
-                        let version = (packet[0] >> 4) & 0xF;
-                        let proto = packet[9];
-                        let src_ip = &packet[12..16];
-                        let dst_ip = &packet[16..20];
-                        info!(
-                            "Outgoing IPv{} packet: proto={}, src={}.{}.{}.{}, dst={}.{}.{}.{}",
-                            version, proto,
-                            src_ip[0], src_ip[1], src_ip[2], src_ip[3],
-                            dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3]
-                        );
-                    }
+                    trace!("Bridge sending {} byte packet to mixnet", packet.len());
 
                     // Necessary to bundle for IPR! See stream_wrapper_ipr.rs tests.
                     let bundled = MultiIpPacketCodec::bundle_one_packet(packet.into());
@@ -86,16 +101,16 @@ impl NymIprBridge {
                         error!("Failed to send packet through mixnet: {}", e);
                     } else {
                         packets_sent += 1;
-                        info!("Total packets sent: {}", packets_sent);
+                        debug!("Total packets sent: {}", packets_sent);
                     }
                 }
 
                 // Poll for incoming packets from mixnet
                 Ok(packets) = self.stream.handle_incoming() => {
                     if !packets.is_empty() {
-                        info!("Bridge received {} packets from mixnet", packets.len());
+                        trace!("Bridge received {} packets from mixnet", packets.len());
                         for packet in packets {
-                            info!("Incoming packet: {} bytes", packet.len());
+                            trace!("Incoming packet: {} bytes", packet.len());
 
                             // Forward to device via channel
                             if self.rx_sender.send(packet.to_vec()).is_err() {
@@ -103,17 +118,26 @@ impl NymIprBridge {
                                 return Err(MixtcpError::ChannelClosed);
                             }
                             packets_received += 1;
-                            info!("Total packets received: {}", packets_received);
+                            debug!("Total packets received: {}", packets_received);
                         }
                     }
                 }
 
                 else => {
-                    info!("Bridge shutting down. Sent: {}, Received: {}", packets_sent, packets_received);
+                    info!(
+                        "Bridge shutting down. Packets sent to mixnet: {}, received from mixnet: {}",
+                        packets_sent, packets_received
+                    );
                     break;
                 }
             }
         }
+
+        // Brief delay to let SDK internal tasks drain before teardown.
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        info!("Disconnecting from mixnet...");
+        self.stream.disconnect_stream().await;
+        info!("Disconnected");
 
         Ok(())
     }

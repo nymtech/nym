@@ -10,8 +10,8 @@
 
 mod support;
 
-use mixtcp::create_device;
 use nym_sdk::stream_wrapper::{IpMixStream, NetworkEnvironment};
+use smolmix::create_device;
 use smoltcp::{
     iface::{Config, Interface, SocketSet},
     socket::tcp,

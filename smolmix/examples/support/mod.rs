@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-2.0-only
 
-//! Shared helpers for the TCP/TLS mixtcp examples.
+//! Shared helpers for the TCP/TLS smolmix examples.
 //!
 //! Provides a [`TlsOverTcp`] adapter that bridges rustls with smoltcp TCP
 //! sockets, plus common utilities like [`init_logging`].

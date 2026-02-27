@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-2.0-only
 
-use crate::error::MixtcpError;
+use crate::error::SmolmixError;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::stream_wrapper::IpMixStream;
 use tokio::sync::{mpsc, oneshot};
@@ -75,7 +75,7 @@ impl NymIprBridge {
     ///
     /// The loop exits when a shutdown signal is received, channels are closed,
     /// or an error occurs. On exit the mixnet client is disconnected gracefully.
-    pub async fn run(mut self) -> Result<(), MixtcpError> {
+    pub async fn run(mut self) -> Result<(), SmolmixError> {
         info!("Starting Nym IPR bridge");
         let mut packets_sent = 0;
         let mut packets_received = 0;
@@ -115,7 +115,7 @@ impl NymIprBridge {
                             // Forward to device via channel
                             if self.rx_sender.send(packet.to_vec()).is_err() {
                                 error!("Failed to send packet to device - receiver dropped");
-                                return Err(MixtcpError::ChannelClosed);
+                                return Err(SmolmixError::ChannelClosed);
                             }
                             packets_received += 1;
                             debug!("Total packets received: {}", packets_received);

@@ -9,9 +9,9 @@
 
 mod support;
 
-use mixtcp::{create_device, NymIprDevice};
 use nym_sdk::stream_wrapper::{IpMixStream, NetworkEnvironment};
 use reqwest::StatusCode;
+use smolmix::{create_device, NymIprDevice};
 use smoltcp::{
     iface::{Config, Interface, SocketSet},
     socket::tcp,
@@ -25,14 +25,14 @@ use support::{BoxError, TlsOverTcp};
 use tracing::info;
 
 /// Reqwest-ish client right now, just a handrolled GET request for the example
-pub struct MixtcpReqwestClient {
+pub struct SmolmixReqwestClient {
     device: Arc<tokio::sync::Mutex<(Interface, NymIprDevice)>>,
     bridge_handle: tokio::task::JoinHandle<()>,
-    shutdown_handle: Option<mixtcp::BridgeShutdownHandle>,
+    shutdown_handle: Option<smolmix::BridgeShutdownHandle>,
     _allocated_ip: Ipv4Address,
 }
 
-impl MixtcpReqwestClient {
+impl SmolmixReqwestClient {
     pub async fn new() -> Result<Self, BoxError> {
         let ipr_stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
         let (mut device, bridge, shutdown_handle, allocated_ips) =
@@ -74,7 +74,7 @@ impl MixtcpReqwestClient {
         let _ = self.bridge_handle.await;
     }
 
-    pub async fn get(&self, url: &str) -> Result<MixtcpResponse, BoxError> {
+    pub async fn get(&self, url: &str) -> Result<SmolmixResponse, BoxError> {
         let parsed_url = reqwest::Url::parse(url)?;
         let host = parsed_url.host_str().ok_or("URL has no host")?.to_string();
         let path = parsed_url.path().to_string();
@@ -83,7 +83,7 @@ impl MixtcpReqwestClient {
             self.simple_get_request(&host, &path).await?;
         let (status, body) = Self::parse_simple_response(&response_bytes)?;
 
-        Ok(MixtcpResponse {
+        Ok(SmolmixResponse {
             status,
             body,
             handshake_duration,
@@ -159,7 +159,7 @@ impl MixtcpReqwestClient {
 
                     request_start = tokio::time::Instant::now();
                     let request = format!(
-                        "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: mixtcp/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n",
+                        "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: smolmix/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n",
                         path, domain
                     );
                     tls_conn.send(request.as_bytes(), socket)?;
@@ -222,14 +222,14 @@ impl MixtcpReqwestClient {
     }
 }
 
-pub struct MixtcpResponse {
+pub struct SmolmixResponse {
     status: u16,
     body: String,
     handshake_duration: Duration,
     request_duration: Duration,
 }
 
-impl MixtcpResponse {
+impl SmolmixResponse {
     pub fn status(&self) -> StatusCode {
         StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
     }
@@ -258,7 +258,7 @@ async fn main() -> Result<(), BoxError> {
     );
 
     info!("Setting up mixnet client...");
-    let client = MixtcpReqwestClient::new().await?;
+    let client = SmolmixReqwestClient::new().await?;
     let mixnet_response = client.get(test_url).await?;
     let mixnet_status = mixnet_response.status();
     let handshake_duration = mixnet_response.handshake_duration;

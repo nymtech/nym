@@ -1,98 +1,42 @@
 #![allow(clippy::result_large_err)]
-use mixtcp::{create_device, MixtcpError, NymIprDevice};
+//! `reqwest`-like HTTPS `GET` client with timed clearnet comparison.
+//!
+//! Fetches the same URL over clearnet (via `reqwest`) and through the mixnet,
+//! then compares response fields and reports timing.
+//!
+//! Run with:
+//!   cargo run --example https_client
+
+mod support;
+
+use mixtcp::{create_device, NymIprDevice};
 use nym_sdk::stream_wrapper::{IpMixStream, NetworkEnvironment};
 use reqwest::StatusCode;
-use rustls::{pki_types::ServerName, ClientConfig, ClientConnection};
 use smoltcp::{
     iface::{Config, Interface, SocketSet},
     socket::tcp,
     time::Instant,
     wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address},
 };
-use std::sync::Once;
-use std::{
-    io::{self, Read, Write},
-    sync::Arc,
-    time::Duration,
-};
+use std::io::Read;
+use std::sync::Arc;
+use std::time::Duration;
+use support::{BoxError, TlsOverTcp};
 use tracing::info;
-
-static INIT: Once = Once::new();
-
-pub struct TlsOverTcp {
-    pub conn: ClientConnection,
-}
-
-impl TlsOverTcp {
-    pub fn new(domain: &str) -> Result<Self, MixtcpError> {
-        let mut root_store = rustls::RootCertStore::empty();
-        root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-
-        let config = ClientConfig::builder()
-            .with_root_certificates(root_store)
-            .with_no_client_auth();
-
-        let server_name = ServerName::try_from(domain)
-            .map_err(|_| MixtcpError::InvalidDnsName)?
-            .to_owned();
-
-        let conn = ClientConnection::new(Arc::new(config), server_name)
-            .map_err(|_| MixtcpError::TlsHandshakeFailed)?;
-
-        Ok(Self { conn })
-    }
-
-    pub fn write_tls(&mut self, socket: &mut tcp::Socket) -> Result<(), MixtcpError> {
-        let mut buf = [0u8; 4096];
-        while self.conn.wants_write() {
-            match self.conn.write_tls(&mut buf.as_mut_slice()) {
-                Ok(n) if n > 0 => {
-                    socket
-                        .send_slice(&buf[..n])
-                        .map_err(|_| MixtcpError::TlsHandshakeFailed)?;
-                }
-                _ => break,
-            }
-        }
-        Ok(())
-    }
-
-    pub fn read_tls(&mut self, socket: &mut tcp::Socket) -> Result<(), MixtcpError> {
-        if socket.can_recv() {
-            let _ = socket.recv(|chunk| {
-                if !chunk.is_empty() {
-                    let _ = self.conn.read_tls(&mut io::Cursor::new(&mut *chunk));
-                    let _ = self.conn.process_new_packets();
-                }
-                (chunk.len(), ())
-            });
-        }
-        Ok(())
-    }
-
-    pub fn send(&mut self, data: &[u8], socket: &mut tcp::Socket) -> Result<(), MixtcpError> {
-        self.conn
-            .writer()
-            .write_all(data)
-            .map_err(|_| MixtcpError::TlsHandshakeFailed)?;
-        self.write_tls(socket)
-    }
-}
 
 /// Reqwest-ish client right now, just a handrolled GET request for the example
 pub struct MixtcpReqwestClient {
-    device: Arc<tokio::sync::Mutex<(smoltcp::iface::Interface, NymIprDevice)>>,
-    _bridge: tokio::task::JoinHandle<()>,
+    device: Arc<tokio::sync::Mutex<(Interface, NymIprDevice)>>,
+    bridge_handle: tokio::task::JoinHandle<()>,
+    shutdown_handle: Option<mixtcp::BridgeShutdownHandle>,
     _allocated_ip: Ipv4Address,
 }
 
 impl MixtcpReqwestClient {
-    pub async fn new() -> Result<Self, MixtcpError> {
-        let ipr_stream = IpMixStream::new(NetworkEnvironment::Mainnet)
-            .await
-            .map_err(|_| MixtcpError::MixnetConnectionFailed)?;
-
-        let (mut device, bridge, allocated_ips) = create_device(ipr_stream).await?;
+    pub async fn new() -> Result<Self, BoxError> {
+        let ipr_stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
+        let (mut device, bridge, shutdown_handle, allocated_ips) =
+            create_device(ipr_stream).await?;
         info!("Allocated IP: {}", allocated_ips.ipv4);
 
         let bridge_handle = tokio::spawn(async move {
@@ -117,23 +61,41 @@ impl MixtcpReqwestClient {
 
         Ok(Self {
             device,
-            _bridge: bridge_handle,
+            bridge_handle,
+            shutdown_handle: Some(shutdown_handle),
             _allocated_ip: allocated_ips.ipv4,
         })
     }
 
-    pub async fn get(&self, url: &str) -> Result<MixtcpResponse, MixtcpError> {
-        let parsed_url = reqwest::Url::parse(url).map_err(|_| MixtcpError::InvalidUrl)?;
-        let host = parsed_url.host_str().ok_or(MixtcpError::InvalidUrl)?;
-        let path = parsed_url.path();
-
-        let response_bytes = self.simple_get_request(host, path).await?;
-        let (status, body) = self.parse_simple_response(&response_bytes)?;
-
-        Ok(MixtcpResponse { status, body })
+    pub async fn shutdown(mut self) {
+        if let Some(handle) = self.shutdown_handle.take() {
+            handle.shutdown();
+        }
+        let _ = self.bridge_handle.await;
     }
 
-    async fn simple_get_request(&self, domain: &str, path: &str) -> Result<Vec<u8>, MixtcpError> {
+    pub async fn get(&self, url: &str) -> Result<MixtcpResponse, BoxError> {
+        let parsed_url = reqwest::Url::parse(url)?;
+        let host = parsed_url.host_str().ok_or("URL has no host")?.to_string();
+        let path = parsed_url.path().to_string();
+
+        let (response_bytes, handshake_duration, request_duration) =
+            self.simple_get_request(&host, &path).await?;
+        let (status, body) = Self::parse_simple_response(&response_bytes)?;
+
+        Ok(MixtcpResponse {
+            status,
+            body,
+            handshake_duration,
+            request_duration,
+        })
+    }
+
+    async fn simple_get_request(
+        &self,
+        domain: &str,
+        path: &str,
+    ) -> Result<(Vec<u8>, Duration, Duration), BoxError> {
         let tcp_rx_buffer = tcp::SocketBuffer::new(vec![0; 16384]);
         let tcp_tx_buffer = tcp::SocketBuffer::new(vec![0; 4096]);
         let tcp_socket = tcp::Socket::new(tcp_rx_buffer, tcp_tx_buffer);
@@ -151,12 +113,15 @@ impl MixtcpReqwestClient {
         let mut request_sent = false;
         let mut response_data = Vec::new();
 
+        let mut handshake_duration = Duration::ZERO;
+        let mut request_start = tokio::time::Instant::now();
+
         let mut device_guard = self.device.lock().await;
         let (ref mut iface, ref mut device) = &mut *device_guard;
 
         loop {
             if start.elapsed() > Duration::from_secs(60) {
-                return Err(MixtcpError::Timeout);
+                return Err("request timeout".into());
             }
 
             iface.poll(timestamp, device, &mut sockets);
@@ -170,21 +135,14 @@ impl MixtcpReqwestClient {
                         connected = true;
                     }
                     Err(e) => {
-                        info!("TCP connect failed: {}", e);
-                        return Err(MixtcpError::TcpConnectionFailed);
+                        return Err(format!("TCP connect failed: {e}").into());
                     }
                 }
             }
 
             if socket.state() == tcp::State::Established && tls.is_none() {
                 info!("TCP established - creating TLS connection");
-                match TlsOverTcp::new(domain) {
-                    Ok(t) => tls = Some(t),
-                    Err(e) => {
-                        info!("TLS create failed: {}", e);
-                        return Err(MixtcpError::TlsHandshakeFailed);
-                    }
-                }
+                tls = Some(TlsOverTcp::new(domain)?);
             }
 
             if let Some(ref mut tls_conn) = tls {
@@ -193,8 +151,13 @@ impl MixtcpReqwestClient {
 
                 if !tls_conn.conn.is_handshaking() && !handshake_completed {
                     handshake_completed = true;
-                    info!("TLS handshake completed - ready for HTTPS");
+                    handshake_duration = start.elapsed();
+                    info!(
+                        "TCP+TLS handshake completed in {:?} - sending HTTP request",
+                        handshake_duration
+                    );
 
+                    request_start = tokio::time::Instant::now();
                     let request = format!(
                         "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: mixtcp/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n",
                         path, domain
@@ -211,37 +174,38 @@ impl MixtcpReqwestClient {
                             info!("Response complete");
                             break;
                         }
-                        Ok(n) if n > 0 => {
+                        Ok(n) => {
                             response_data.extend_from_slice(&buf[..n]);
                             if let Ok(response_str) = std::str::from_utf8(&response_data) {
                                 if response_str.contains("\r\n\r\n") {
-                                    return Ok(response_data);
+                                    let request_duration = request_start.elapsed();
+                                    info!("HTTP response received in {:?}", request_duration);
+                                    return Ok((
+                                        response_data,
+                                        handshake_duration,
+                                        request_duration,
+                                    ));
                                 }
                             }
                         }
                         Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
                         Err(e) => {
-                            info!("Read error: {}", e);
-                            return Err(MixtcpError::ResponseReadFailed);
+                            return Err(format!("read error: {e}").into());
                         }
-                        Ok(_) => continue,
                     }
                 }
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
 
-        Err(MixtcpError::NoResponseReceived)
+        Err("no response received".into())
     }
 
     /// Simple response - just extract status and body
-    fn parse_simple_response(&self, response_bytes: &[u8]) -> Result<(u16, String), MixtcpError> {
+    fn parse_simple_response(response_bytes: &[u8]) -> Result<(u16, String), BoxError> {
         let response_str = String::from_utf8_lossy(response_bytes);
 
-        let status_line = response_str
-            .lines()
-            .next()
-            .ok_or(MixtcpError::InvalidHttpResponse)?;
+        let status_line = response_str.lines().next().ok_or("empty HTTP response")?;
 
         let status: u16 = status_line
             .split_whitespace()
@@ -253,7 +217,7 @@ impl MixtcpReqwestClient {
             let body = response_str[body_start + 4..].to_string();
             Ok((status, body))
         } else {
-            Err(MixtcpError::InvalidHttpResponse)
+            Err("invalid HTTP response: no header/body separator".into())
         }
     }
 }
@@ -261,6 +225,8 @@ impl MixtcpReqwestClient {
 pub struct MixtcpResponse {
     status: u16,
     body: String,
+    handshake_duration: Duration,
+    request_duration: Duration,
 }
 
 impl MixtcpResponse {
@@ -273,20 +239,9 @@ impl MixtcpResponse {
     }
 }
 
-fn init_logging() {
-    INIT.call_once_force(|state| {
-        if state.is_poisoned() {
-            eprintln!("Logger initialization was poisoned, retrying");
-        }
-        if !tracing::dispatcher::has_been_set() {
-            nym_bin_common::logging::setup_tracing_logger();
-        }
-    });
-}
-
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init_logging();
+async fn main() -> Result<(), BoxError> {
+    support::init_logging();
 
     let test_url = "https://cloudflare.com/cdn-cgi/trace";
 
@@ -304,22 +259,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Setting up mixnet client...");
     let client = MixtcpReqwestClient::new().await?;
-    let start = tokio::time::Instant::now();
     let mixnet_response = client.get(test_url).await?;
     let mixnet_status = mixnet_response.status();
+    let handshake_duration = mixnet_response.handshake_duration;
+    let request_duration = mixnet_response.request_duration;
+    let mixnet_total = handshake_duration + request_duration;
     let mixnet_text = mixnet_response.text().await?;
-    let mixnet_duration = start.elapsed();
-
-    info!(
-        "Mixnet reqwest - Status: {}, Time: {:?}",
-        mixnet_status, mixnet_duration
-    );
 
     info!("Status codes match: {}", plain_status == mixnet_status);
-    info!(
-        "Response lengths match: {}",
-        plain_text.len() == mixnet_text.len()
-    );
 
     let key_fields = ["fl=", "ip=", "ts=", "visit_scheme="];
     for field in key_fields {
@@ -332,10 +279,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(plain_has, mixnet_has, "Field '{}' mismatch", field);
     }
 
-    info!("Plain reqwest time: {:?}", plain_duration);
-    info!("Mixnet reqwest time: {:?}", mixnet_duration);
-    let slowdown = mixnet_duration.as_millis() as f64 / plain_duration.as_millis() as f64;
-    info!("Mixnet slowdown: {:.1}x", slowdown);
-    info!("Both responses match");
+    info!("=== Timing ===");
+    info!("Clearnet (total):         {:?}", plain_duration);
+    info!("Mixnet TCP+TLS handshake: {:?}", handshake_duration);
+    info!("Mixnet HTTP request:      {:?}", request_duration);
+    info!("Mixnet total:             {:?}", mixnet_total);
+    let slowdown = mixnet_total.as_millis() as f64 / plain_duration.as_millis() as f64;
+    info!("Mixnet slowdown:          {:.1}x", slowdown);
+
+    client.shutdown().await;
     Ok(())
 }

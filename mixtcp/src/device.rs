@@ -7,7 +7,7 @@ use smoltcp::{
 };
 use std::collections::VecDeque;
 use tokio::sync::mpsc;
-use tracing::{info, warn};
+use tracing::{trace, warn};
 
 /// # Overview
 /// We need something to bridge the async / sync weirdness (Device trait fns are sync, IpMixStream fns are
@@ -65,22 +65,9 @@ impl NymIprDevice {
     fn poll_rx_queue(&mut self) {
         // Try to receive all available packets without blocking, queue them for smoltcp consumption.
         while let Ok(packet) = self.rx_receiver.try_recv() {
-            info!("Received packet of {} bytes from bridge", packet.len());
+            trace!("Received packet of {} bytes from bridge", packet.len());
             self.rx_queue.push_back(packet);
         }
-    }
-
-    pub fn tx_sender(&self) -> mpsc::UnboundedSender<Vec<u8>> {
-        self.tx_sender.clone()
-    }
-
-    /// Get the receiver for external use
-    pub fn rx_receiver(&self) -> mpsc::UnboundedReceiver<Vec<u8>> {
-        // Create a new channel and return the receiver
-        // This is a bit of a hack but necessary for the current architecture
-        let (_tx, rx) = mpsc::unbounded_channel();
-        // We just need the receiver for testing
-        rx
     }
 }
 
@@ -132,7 +119,7 @@ impl RxToken for NymRxToken {
     where
         F: FnOnce(&[u8]) -> R,
     {
-        info!("Consuming RX packet of {} bytes", self.buffer.len());
+        trace!("Consuming RX packet of {} bytes", self.buffer.len());
         f(&self.buffer)
     }
 }
@@ -157,7 +144,7 @@ impl TxToken for NymTxToken {
         if let Err(e) = self.tx_sender.send(buffer) {
             warn!("Failed to send packet to bridge: {}", e);
         } else {
-            info!("Sent {} byte packet to bridge", len);
+            trace!("Sent {} byte packet to bridge", len);
         }
 
         result

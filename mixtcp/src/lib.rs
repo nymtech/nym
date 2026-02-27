@@ -5,7 +5,7 @@ mod bridge;
 mod device;
 mod error;
 
-pub use bridge::NymIprBridge;
+pub use bridge::{BridgeShutdownHandle, NymIprBridge};
 pub use device::NymIprDevice;
 pub use error::MixtcpError;
 
@@ -21,16 +21,20 @@ use tokio::sync::mpsc;
 /// - Retrieves allocated IP addresses
 /// - Creates communication channels
 /// - Constructs the device and bridge components
+///
+/// Returns the device, bridge, shutdown handle, and allocated IP pair.
+/// Call `shutdown_handle.shutdown()` followed by awaiting the bridge task
+/// to disconnect from the mixnet cleanly.
 pub async fn create_device(
     mut ipr_stream: IpMixStream,
-) -> Result<(NymIprDevice, NymIprBridge, IpPair), MixtcpError> {
+) -> Result<(NymIprDevice, NymIprBridge, BridgeShutdownHandle, IpPair), MixtcpError> {
     // Ensure the stream is connected
     if !ipr_stream.is_connected() {
         ipr_stream.connect_tunnel().await?;
     }
 
     // Get the allocated IPs before moving the stream - need these for proper packet creation
-    // further 'up' the flow in the code calling this fn (see examples/tcp_connect.rs).
+    // further 'up' the flow in the code calling this fn.
     let allocated_ips = *ipr_stream
         .allocated_ips()
         .ok_or(MixtcpError::NotConnected)?;
@@ -43,7 +47,7 @@ pub async fn create_device(
     let device = NymIprDevice::new(tx_to_bridge, rx_from_bridge);
 
     // Create bridge (moves ipr_stream)
-    let bridge = NymIprBridge::new(ipr_stream, tx_from_device, rx_to_device);
+    let (bridge, shutdown_handle) = NymIprBridge::new(ipr_stream, tx_from_device, rx_to_device);
 
-    Ok((device, bridge, allocated_ips))
+    Ok((device, bridge, shutdown_handle, allocated_ips))
 }

@@ -14,17 +14,14 @@ smoltcp = { workspace = true, default-features = false, features = [
     "socket-icmp",
 ] }
 tokio = { workspace = true }
-bytes = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing"] }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
 thiserror.workspace = true
-rustls  = { workspace = true }
 
 [dev-dependencies]
+bytes = { workspace = true }
 reqwest.workspace = true
-dirs.workspace = true
 webpki-roots.workspace = true
-serde_json.workspace = true
+rustls = { workspace = true }
+nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing"] }

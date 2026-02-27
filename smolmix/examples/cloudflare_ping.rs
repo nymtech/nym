@@ -9,8 +9,8 @@
 
 mod support;
 
-use mixtcp::create_device;
 use nym_sdk::stream_wrapper::{IpMixStream, NetworkEnvironment};
+use smolmix::create_device;
 use smoltcp::{
     iface::{Config, Interface, SocketSet},
     socket::tcp,
@@ -119,7 +119,7 @@ async fn main() -> Result<(), BoxError> {
 
                 // Send simple HTTP request
                 request_start = tokio::time::Instant::now();
-                let request = b"GET /cdn-cgi/trace HTTP/1.1\r\nHost: cloudflare.com\r\nUser-Agent: mixtcp-test/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n";
+                let request = b"GET /cdn-cgi/trace HTTP/1.1\r\nHost: cloudflare.com\r\nUser-Agent: smolmix-test/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n";
                 match tls_conn.send(request, socket) {
                     Ok(_) => {
                         info!("HTTPS request sent");

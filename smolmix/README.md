@@ -1,6 +1,4 @@
-# MixTCP
-
-**TODO change name to smolmix**
+# SmolMix
 
 This is an initial proof of concept of a SmolTCP `device` that uses the Mixnet for transport. It relies on the `IpMixStream` module from the Rust SDK to set up a connection with an Exit Gateway's Ip-Packet-Router, meaning that this is the IP that is seen by the receiver of the request.
 

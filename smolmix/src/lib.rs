@@ -7,7 +7,7 @@ mod error;
 
 pub use bridge::{BridgeShutdownHandle, NymIprBridge};
 pub use device::NymIprDevice;
-pub use error::MixtcpError;
+pub use error::SmolmixError;
 
 use nym_ip_packet_requests::IpPair;
 use nym_sdk::stream_wrapper::IpMixStream;
@@ -27,7 +27,7 @@ use tokio::sync::mpsc;
 /// to disconnect from the mixnet cleanly.
 pub async fn create_device(
     mut ipr_stream: IpMixStream,
-) -> Result<(NymIprDevice, NymIprBridge, BridgeShutdownHandle, IpPair), MixtcpError> {
+) -> Result<(NymIprDevice, NymIprBridge, BridgeShutdownHandle, IpPair), SmolmixError> {
     // Ensure the stream is connected
     if !ipr_stream.is_connected() {
         ipr_stream.connect_tunnel().await?;
@@ -37,7 +37,7 @@ pub async fn create_device(
     // further 'up' the flow in the code calling this fn.
     let allocated_ips = *ipr_stream
         .allocated_ips()
-        .ok_or(MixtcpError::NotConnected)?;
+        .ok_or(SmolmixError::NotConnected)?;
 
     // Create channels for device <-> bridge communication
     let (tx_to_bridge, tx_from_device) = mpsc::unbounded_channel();

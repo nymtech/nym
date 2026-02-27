@@ -1,5 +1,5 @@
 [package]
-name = "mixtcp"
+name = "smolmix"
 version = "0.0.1"
 edition = "2021"
 license.workspace = true

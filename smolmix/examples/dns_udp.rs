@@ -15,8 +15,8 @@ use std::time::Duration;
 use hickory_proto::op::{Message, MessageType, OpCode, Query};
 use hickory_proto::rr::{Name, RData, RecordType};
 use hickory_resolver::TokioResolver;
-use mixtcp::create_device;
 use nym_sdk::stream_wrapper::{IpMixStream, NetworkEnvironment};
+use smolmix::create_device;
 use smoltcp::{
     iface::{Config, Interface, SocketSet},
     socket::udp,

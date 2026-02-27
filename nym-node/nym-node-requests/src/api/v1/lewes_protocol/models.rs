@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_crypto::asymmetric::x25519;
-use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
+use nym_crypto::asymmetric::x25519::serde_helpers::bs58_dh_public_key;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use strum_macros::{Display, EnumIter, EnumString};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
@@ -21,21 +21,16 @@ pub struct LewesProtocol {
     /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
     pub data_port: u16,
 
-    #[serde(with = "bs58_x25519_pubkey")]
+    #[serde(with = "bs58_dh_public_key")]
     #[schemars(with = "String")]
-    #[schema(value_type = String)]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     /// LP public key
-    pub x25519: x25519::PublicKey,
+    pub x25519: x25519::DHPublicKey,
 
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
     /// note: digests are hex encoded
-    pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
-
-    /// Digests of the signing keys available to this node alongside hashing algorithms used
-    /// for their computation.
-    /// note: digests are hex encoded
-    pub signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>>,
+    pub kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
 }
 
 impl LewesProtocol {
@@ -43,9 +38,8 @@ impl LewesProtocol {
         enabled: bool,
         control_port: u16,
         data_port: u16,
-        x25519: x25519::PublicKey,
-        kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
-        signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>>,
+        x25519: x25519::DHPublicKey,
+        kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
     ) -> Self {
         LewesProtocol {
             enabled,
@@ -53,7 +47,6 @@ impl LewesProtocol {
             data_port,
             x25519,
             kem_keys,
-            signing_keys,
         }
     }
 }
@@ -76,13 +69,12 @@ impl LewesProtocol {
     PartialOrd,
     Display,
     EnumString,
+    Ord,
 )]
 #[strum(serialize_all = "lowercase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum LPKEM {
     MlKem768,
-    XWing,
-    X25519,
     McEliece,
 }
 
@@ -90,8 +82,6 @@ impl From<LPKEM> for nym_kkt_ciphersuite::KEM {
     fn from(lpkem: LPKEM) -> Self {
         match lpkem {
             LPKEM::MlKem768 => nym_kkt_ciphersuite::KEM::MlKem768,
-            LPKEM::XWing => nym_kkt_ciphersuite::KEM::XWing,
-            LPKEM::X25519 => nym_kkt_ciphersuite::KEM::X25519,
             LPKEM::McEliece => nym_kkt_ciphersuite::KEM::McEliece,
         }
     }
@@ -101,8 +91,6 @@ impl From<nym_kkt_ciphersuite::KEM> for LPKEM {
     fn from(kem: nym_kkt_ciphersuite::KEM) -> Self {
         match kem {
             nym_kkt_ciphersuite::KEM::MlKem768 => LPKEM::MlKem768,
-            nym_kkt_ciphersuite::KEM::XWing => LPKEM::XWing,
-            nym_kkt_ciphersuite::KEM::X25519 => LPKEM::X25519,
             nym_kkt_ciphersuite::KEM::McEliece => LPKEM::McEliece,
         }
     }
@@ -122,6 +110,7 @@ impl From<nym_kkt_ciphersuite::KEM> for LPKEM {
     Display,
     EnumString,
     EnumIter,
+    Ord,
 )]
 #[strum(serialize_all = "lowercase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -199,8 +188,6 @@ mod tests {
     #[test]
     fn kem_display() {
         assert_eq!(LPKEM::MlKem768.to_string(), "mlkem768");
-        assert_eq!(LPKEM::XWing.to_string(), "xwing");
-        assert_eq!(LPKEM::X25519.to_string(), "x25519");
         assert_eq!(LPKEM::McEliece.to_string(), "mceliece");
     }
 

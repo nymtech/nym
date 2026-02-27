@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::lp_listener::ReceiverIndex;
 use crate::node::wireguard::new_peer_registration::helpers::{
     build_final_authenticator_response, build_pending_authenticator_response,
 };
@@ -9,6 +8,7 @@ use crate::node::wireguard::GatewayWireguardError;
 use defguard_wireguard_rs::key::Key;
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_crypto::asymmetric::x25519;
+use nym_lp::peer_config::LpReceiverIndex;
 use nym_registration_common::{LpRegistrationResponse, WireguardRegistrationData};
 use nym_sdk::mixnet::Recipient;
 use nym_wireguard::ip_pool::IpPair;
@@ -116,9 +116,8 @@ pub(crate) struct PendingRegistrations {
     pub(crate) authenticator: Arc<RwLock<HashMap<PeerPublicKey, PendingRegistration>>>,
 
     /// Registrations in progress received from the LP Listener via the
-    /// [`crate::node::lp_listener::handler::LpConnectionHandler`] and handle through
-    /// [`crate::node::lp_listener::registration::LpHandlerState`]
-    pub(crate) lp: Arc<RwLock<HashMap<ReceiverIndex, PendingRegistration>>>,
+    /// `LpConnectionHandler` and handle through `LpHandlerState`
+    pub(crate) lp: Arc<RwLock<HashMap<LpReceiverIndex, PendingRegistration>>>,
 }
 
 impl PendingRegistrations {
@@ -133,13 +132,13 @@ impl PendingRegistrations {
         self.authenticator.write().await.remove(peer);
     }
 
-    pub(crate) async fn remove_lp(&self, receiver_index: ReceiverIndex) {
+    pub(crate) async fn remove_lp(&self, receiver_index: LpReceiverIndex) {
         self.lp.write().await.remove(&receiver_index);
     }
 
     pub(crate) async fn check_lp(
         &self,
-        receiver_index: ReceiverIndex,
+        receiver_index: LpReceiverIndex,
     ) -> Option<PendingRegistration> {
         self.lp.read().await.get(&receiver_index).cloned()
     }

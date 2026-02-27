@@ -38,6 +38,16 @@ const N_WORDS: usize = 16;
 /// Total number of bits in the bitmap
 const N_BITS: usize = WORD_SIZE * N_WORDS;
 
+/// Current packet count statistics
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct PacketCount {
+    /// the next expected counter value
+    pub next: u64,
+
+    /// the total number of received packets
+    pub received: u64,
+}
+
 /// Validator for receiving key counters to prevent replay attacks.
 ///
 /// This structure maintains a bitmap of received packets and validates
@@ -205,11 +215,14 @@ impl ReceivingKeyCounterValidator {
 
     /// Returns the current packet count statistics.
     ///
-    /// Returns a tuple of `(next, receive_cnt)` where:
+    /// Returns a struct consisting of `(next, receive_cnt)` where:
     /// - `next` is the next expected counter value
     /// - `receive_cnt` is the total number of received packets
-    pub fn current_packet_cnt(&self) -> (u64, u64) {
-        (self.next, self.receive_cnt)
+    pub fn current_packet_cnt(&self) -> PacketCount {
+        PacketCount {
+            next: self.next,
+            received: self.receive_cnt,
+        }
     }
 
     #[inline(always)]
@@ -481,7 +494,10 @@ mod tests {
         let mut validator = ReceivingKeyCounterValidator::default();
 
         // Initial state
-        let (next, count) = validator.current_packet_cnt();
+        let PacketCount {
+            next,
+            received: count,
+        } = validator.current_packet_cnt();
         assert_eq!(next, 0);
         assert_eq!(count, 0);
 
@@ -490,21 +506,30 @@ mod tests {
         assert!(validator.mark_did_receive_branchless(1).is_ok());
         assert!(validator.mark_did_receive_branchless(2).is_ok());
 
-        let (next, count) = validator.current_packet_cnt();
+        let PacketCount {
+            next,
+            received: count,
+        } = validator.current_packet_cnt();
         assert_eq!(next, 3);
         assert_eq!(count, 3);
 
         // After an out of order packet
         assert!(validator.mark_did_receive_branchless(10).is_ok());
 
-        let (next, count) = validator.current_packet_cnt();
+        let PacketCount {
+            next,
+            received: count,
+        } = validator.current_packet_cnt();
         assert_eq!(next, 11);
         assert_eq!(count, 4);
 
         // After a packet from the past (within window)
         assert!(validator.mark_did_receive_branchless(5).is_ok());
 
-        let (next, count) = validator.current_packet_cnt();
+        let PacketCount {
+            next,
+            received: count,
+        } = validator.current_packet_cnt();
         assert_eq!(next, 11); // Next doesn't change
         assert_eq!(count, 5); // Count increases
     }
@@ -553,7 +578,7 @@ mod tests {
         assert!(validator.mark_did_receive_branchless(first_jump).is_ok());
 
         // Verify next counter is updated
-        let (next, _) = validator.current_packet_cnt();
+        let PacketCount { next, .. } = validator.current_packet_cnt();
         assert_eq!(next, first_jump + 1);
 
         // Second large jump, even further ahead
@@ -561,7 +586,7 @@ mod tests {
         assert!(validator.mark_did_receive_branchless(second_jump).is_ok());
 
         // Verify next counter is updated again
-        let (next, _) = validator.current_packet_cnt();
+        let PacketCount { next, .. } = validator.current_packet_cnt();
         assert_eq!(next, second_jump + 1);
 
         // Test packets within the new window
@@ -726,10 +751,10 @@ mod tests {
 
         // Check final state of the validator
         let final_state = validator.lock().unwrap();
-        let (_next, receive_cnt) = final_state.current_packet_cnt();
+        let count = final_state.current_packet_cnt();
 
         // Verify that the received count matches our successful operations
-        assert_eq!(receive_cnt, total_successes as u64);
+        assert_eq!(count.received, total_successes as u64);
     }
 
     #[test]

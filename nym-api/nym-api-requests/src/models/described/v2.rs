@@ -247,7 +247,7 @@ impl From<NymNodeDescriptionV1> for NymNodeDescriptionV2 {
 
 #[cfg(test)]
 pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
-    use crate::models::{LPHashFunction, LPSignatureScheme, LPKEM};
+    use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM};
     use nym_test_utils::helpers::{u64_seeded_rng, RngCore};
 
     let mut rng = u64_seeded_rng(seed);
@@ -257,22 +257,33 @@ pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
     // just reuse the same x25519 key for everything - this is just a data mock
     let x25519 = x25519::KeyPair::new(&mut rng);
 
-    let mut kem_hashes_wrapper = std::collections::HashMap::new();
-    let mut signing_keys_hashes_wrapper = std::collections::HashMap::new();
-    let mut kem_hashes = std::collections::HashMap::new();
-    let mut signing_keys_hashes = std::collections::HashMap::new();
+    let mut dummy_kems = std::collections::BTreeMap::new();
+    for kem in [LPKEM::McEliece, LPKEM::McEliece] {
+        let mut kem_digests = std::collections::BTreeMap::new();
+        for (i, sf) in [
+            LPHashFunction::Blake3,
+            LPHashFunction::Shake128,
+            LPHashFunction::Shake256,
+            LPHashFunction::Sha256,
+        ]
+        .iter()
+        .enumerate()
+        {
+            kem_digests.insert(*sf, hex::encode([((seed + i as u64) % 256) as u8; 32]));
+        }
+        dummy_kems.insert(kem, kem_digests);
+    }
 
-    kem_hashes.insert(
-        LPHashFunction::Sha256,
-        hex::encode([(seed % 256) as u8; 32]),
-    );
-    kem_hashes_wrapper.insert(LPKEM::X25519, kem_hashes);
-
-    signing_keys_hashes.insert(
-        LPHashFunction::Sha256,
-        hex::encode([(seed % 256) as u8; 32]),
-    );
-    signing_keys_hashes_wrapper.insert(LPSignatureScheme::Ed25519, signing_keys_hashes);
+    // make sure the serialisation stays the same and signature is still valid
+    let dummy_lp = nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol {
+        enabled: false,
+        control_port: 123,
+        data_port: 345,
+        x25519: (*x25519.public_key()).into(),
+        kem_keys: dummy_kems,
+    };
+    let dummy_signed_lp =
+        nym_node_requests::api::SignedLewesProtocol::new(dummy_lp, ed25519.private_key()).unwrap();
 
     NymNodeDescriptionV2 {
         node_id: rng.next_u32(),
@@ -339,14 +350,7 @@ pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
                 metadata_port: 456,
                 public_key: x25519.public_key().to_base58_string(),
             }),
-            lewes_protocol: Some(LewesProtocolDetailsV1 {
-                enabled: true,
-                control_port: 1234,
-                data_port: 2345,
-                x25519: *x25519.public_key(),
-                kem_keys: kem_hashes_wrapper,
-                signing_keys: signing_keys_hashes_wrapper,
-            }),
+            lewes_protocol: Some(dummy_signed_lp.into()),
             mixnet_websockets: WebSocketsV2 {
                 ws_port: 9000,
                 wss_port: None,

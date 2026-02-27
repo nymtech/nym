@@ -10,13 +10,13 @@ use nym_bin_common::logging::maybe_print_banner;
 use nym_config::defaults::setup_env;
 
 mod cli;
-pub(crate) mod config;
+pub mod config;
 mod env;
-pub(crate) mod error;
+pub mod error;
 mod logging;
-pub(crate) mod node;
+pub mod node;
 pub(crate) mod throughput_tester;
-pub(crate) mod wireguard;
+pub mod wireguard;
 
 fn main() -> anyhow::Result<()> {
     // std::env::set_var(

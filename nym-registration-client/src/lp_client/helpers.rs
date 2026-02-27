@@ -4,8 +4,7 @@
 #![allow(dead_code)]
 
 use crate::LpClientError;
-use nym_crypto::asymmetric::ed25519;
-use nym_lp::message::ForwardPacketData;
+use nym_lp::packet::ForwardPacketData;
 use nym_lp::peer::LpRemotePeer;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_registration_common::{
@@ -38,15 +37,11 @@ impl LpDataSendExt for LpRegistrationRequest {
 impl LpDataDeliverExt for LpRegistrationResponse {
     fn from_lp_data(data: LpData) -> Result<Self, LpClientError> {
         if data.kind != LpDataKind::Registration {
-            return Err(LpClientError::Transport(format!(
-                "did not receive a valid registration response. got {:?} instead",
-                data.kind
-            )));
+            return Err(LpClientError::UnexpectedLpPayload { typ: data.kind });
         }
 
-        let response = LpRegistrationResponse::try_deserialise(&data.content).map_err(|e| {
-            LpClientError::Transport(format!("Failed to deserialize registration response: {e}",))
-        })?;
+        let response = LpRegistrationResponse::try_deserialise(&data.content)
+            .map_err(|source| LpClientError::MalformedRegistrationData { source })?;
 
         Ok(response)
     }
@@ -72,30 +67,18 @@ pub(crate) fn convert_forward_data(request: ForwardPacketData) -> Result<LpInput
 pub(crate) fn try_convert_forward_response(action: LpAction) -> Result<Vec<u8>, LpClientError> {
     let response_data = match action {
         LpAction::DeliverData(data) => data,
-        other => {
-            return Err(LpClientError::Transport(format!(
-                "Unexpected action when receiving forward response: {:?}",
-                other
-            )));
-        }
+        action => return Err(LpClientError::UnexpectedStateMachineAction { action }),
     };
 
     if response_data.kind != LpDataKind::Forward {
-        return Err(LpClientError::Transport(format!(
-            "did not receive a valid forward response. got {:?} instead",
-            response_data.kind
-        )));
+        return Err(LpClientError::UnexpectedLpPayload {
+            typ: response_data.kind,
+        });
     }
 
     Ok(response_data.content.into())
 }
 
-pub(crate) fn to_lp_remote_peer(
-    identity: ed25519::PublicKey,
-    data: NymNodeLPInformation,
-) -> LpRemotePeer {
-    LpRemotePeer::new(identity, data.x25519).with_key_digests(
-        data.expected_kem_key_hashes,
-        data.expected_signing_key_hashes,
-    )
+pub(crate) fn to_lp_remote_peer(data: NymNodeLPInformation) -> LpRemotePeer {
+    LpRemotePeer::new(data.x25519).with_key_digests(data.expected_kem_key_hashes)
 }

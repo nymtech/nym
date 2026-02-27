@@ -20,7 +20,8 @@ use nym_sphinx_anonymous_replies::requests::{AnonymousSenderTag, RepliableMessag
 use nym_sphinx_anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
-use rand_chacha::rand_core::SeedableRng;
+use rand::SeedableRng;
+use rand09::SeedableRng as SeedableRng09;
 use rand_chacha::ChaCha8Rng;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -33,7 +34,7 @@ use tracing::{debug, info, trace};
 use crate::topology::{GatewayInfo, SpeedtestTopology};
 use nym_ip_packet_requests::v8::request::IpPacketRequest;
 use nym_lp::packet::version;
-use nym_lp::peer::LpRemotePeer;
+use nym_lp::peer::{DHKeyPair, LpRemotePeer};
 use nym_sphinx::forwarding::packet::MixPacket;
 
 /// Conv ID for KCP - hash of source and destination addresses
@@ -51,6 +52,8 @@ pub struct SpeedtestClient {
     identity_keypair: Arc<ed25519::KeyPair>,
     /// Client's x25519 encryption keypair (for SURBs)
     encryption_keypair: Arc<x25519::KeyPair>,
+    /// Client's LP keypair
+    lp_keypair: Arc<DHKeyPair>,
     /// Target gateway
     gateway: GatewayInfo,
     /// Network topology for routing
@@ -86,11 +89,14 @@ impl SpeedtestClient {
     pub fn new(gateway: GatewayInfo, topology: Arc<SpeedtestTopology>) -> Self {
         let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rand::rngs::OsRng));
         let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rand::rngs::OsRng));
+        let mut rng09 = rand09::rngs::StdRng::from_os_rng();
+        let lp_keypair = DHKeyPair::new(&mut rng09);
         let rng = ChaCha8Rng::from_entropy();
 
         Self {
             identity_keypair,
             encryption_keypair,
+            lp_keypair: Arc::new(lp_keypair),
             gateway,
             topology,
             socket: None,
@@ -118,16 +124,14 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let gw_peer = LpRemotePeer::new(self.gateway.identity, self.gateway.identity.to_x25519()?)
-            .with_key_digests(
-                self.gateway.kem_key_hashes.clone(),
-                self.gateway.signing_key_hashes.clone(),
-            );
+        let gw_peer = LpRemotePeer::new(self.gateway.lp_key)
+            .with_key_digests(self.gateway.kem_key_hashes.clone());
 
         let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
-            self.identity_keypair.clone(),
+            self.lp_keypair.clone(),
             gw_peer,
             self.gateway.lp_address,
+            self.gateway.ciphersuite,
             self.gateway.lp_version,
         );
 
@@ -165,16 +169,14 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let gw_peer = LpRemotePeer::new(self.gateway.identity, self.gateway.identity.to_x25519()?)
-            .with_key_digests(
-                self.gateway.kem_key_hashes.clone(),
-                self.gateway.signing_key_hashes.clone(),
-            );
+        let gw_peer = LpRemotePeer::new(self.gateway.lp_key)
+            .with_key_digests(self.gateway.kem_key_hashes.clone());
 
         let mut lp_client = LpRegistrationClient::new_with_default_config(
-            self.identity_keypair.clone(),
+            self.lp_keypair.clone(),
             gw_peer,
             self.gateway.lp_address,
+            self.gateway.ciphersuite,
             self.gateway.lp_version,
         );
 
@@ -440,61 +442,65 @@ impl SpeedtestClient {
         if !self.has_lp_session() {
             bail!("LP session not initialized - call init_lp_session() first");
         }
+        let _ = payload;
+        let _ = num_surbs;
+        bail!("lp transport channel is not yet implemented");
 
-        let prepared = self.prepare_sphinx_fragments(payload, num_surbs).await?;
-
-        // Now get mutable references after prepare_sphinx_fragments is done
-        let lp_client = self.lp_client.as_mut().unwrap(); // safe: checked above
-        let socket = self.socket.as_ref().context("socket not initialized")?;
-        let lp_data_address = self.gateway.lp_data_address;
-
-        let mut total_sent = 0usize;
-        let fragment_count = prepared.fragments.len();
-
-        for fragment in prepared.fragments {
-            let nym_packet = NymPacket::sphinx_build(
-                false,
-                PacketSize::RegularPacket.payload_size(),
-                fragment.into_bytes(),
-                &prepared.route,
-                &prepared.destination,
-                &prepared.delays,
-            )?;
-
-            // Wrap in MixPacket v2: packet_type || key_rotation || next_hop || sphinx_data
-            let mix_packet = MixPacket::new(
-                prepared.first_hop_addr,
-                nym_packet,
-                PacketType::Mix,
-                SphinxKeyRotation::Unknown,
-            );
-
-            let mix_bytes = mix_packet
-                .into_v2_bytes()
-                .context("failed to serialize MixPacket")?;
-
-            // Wrap in LP for UDP data plane
-            let lp_packet = lp_client
-                .wrap_data(&mix_bytes)
-                .context("failed to wrap in LP")?;
-
-            // Send to gateway's LP data port (51264) with timeout
-            tokio::time::timeout(
-                Duration::from_secs(5),
-                socket.send_to(&lp_packet, lp_data_address),
-            )
-            .await
-            .context("UDP send timed out")?
-            .context("UDP send failed")?;
-            total_sent += lp_packet.len();
-        }
-
-        info!(
-            "Sent {} bytes via LP ({} fragments, {} SURBs) to {}",
-            total_sent, fragment_count, num_surbs, lp_data_address
-        );
-
-        Ok(prepared.encryption_keys)
+        // leave the code for future reference
+        // let prepared = self.prepare_sphinx_fragments(payload, num_surbs).await?;
+        //
+        // // Now get mutable references after prepare_sphinx_fragments is done
+        // let lp_client = self.lp_client.as_mut().unwrap(); // safe: checked above
+        // let socket = self.socket.as_ref().context("socket not initialized")?;
+        // let lp_data_address = self.gateway.lp_data_address;
+        //
+        // let mut total_sent = 0usize;
+        // let fragment_count = prepared.fragments.len();
+        //
+        // for fragment in prepared.fragments {
+        //     let nym_packet = NymPacket::sphinx_build(
+        //         false,
+        //         PacketSize::RegularPacket.payload_size(),
+        //         fragment.into_bytes(),
+        //         &prepared.route,
+        //         &prepared.destination,
+        //         &prepared.delays,
+        //     )?;
+        //
+        //     // Wrap in MixPacket v2: packet_type || key_rotation || next_hop || sphinx_data
+        //     let mix_packet = MixPacket::new(
+        //         prepared.first_hop_addr,
+        //         nym_packet,
+        //         PacketType::Mix,
+        //         SphinxKeyRotation::Unknown,
+        //     );
+        //
+        //     let mix_bytes = mix_packet
+        //         .into_v2_bytes()
+        //         .context("failed to serialize MixPacket")?;
+        //
+        //     // Wrap in LP for UDP data plane
+        //     let lp_packet = lp_client
+        //         .wrap_data(&mix_bytes)
+        //         .context("failed to wrap in LP")?;
+        //
+        //     // Send to gateway's LP data port (51264) with timeout
+        //     tokio::time::timeout(
+        //         Duration::from_secs(5),
+        //         socket.send_to(&lp_packet, lp_data_address),
+        //     )
+        //     .await
+        //     .context("UDP send timed out")?
+        //     .context("UDP send failed")?;
+        //     total_sent += lp_packet.len();
+        // }
+        //
+        // info!(
+        //     "Sent {} bytes via LP ({} fragments, {} SURBs) to {}",
+        //     total_sent, fragment_count, num_surbs, lp_data_address
+        // );
+        //
+        // Ok(prepared.encryption_keys)
     }
 
     /// Receive UDP data with timeout

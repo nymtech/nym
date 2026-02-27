@@ -21,7 +21,7 @@ thiserror = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 [target.'cfg(target_env = "wasm32-unknown-unknown")'.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { workspace = true, features = ["js"] }
 
 [features]
 default = []

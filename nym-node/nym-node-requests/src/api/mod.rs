@@ -20,6 +20,7 @@ pub use client::Client;
 
 // create the type alias manually if openapi is not enabled
 pub type SignedHostInformation = SignedData<crate::api::v1::node::models::HostInformation>;
+pub type SignedLewesProtocol = SignedData<crate::api::v1::lewes_protocol::models::LewesProtocol>;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SignedDataHostInfo {
@@ -28,11 +29,20 @@ pub struct SignedDataHostInfo {
     pub signature: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct SignedLewesProtocolInfo {
+    // #[serde(flatten)]
+    pub data: crate::api::v1::lewes_protocol::models::LewesProtocol,
+    pub signature: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedData<T> {
     // #[serde(flatten)]
     pub data: T,
-    pub signature: String,
+
+    #[serde(with = "ed25519::bs58_ed25519_signature")]
+    pub signature: ed25519::Signature,
 }
 
 impl<T> SignedData<T> {
@@ -42,7 +52,7 @@ impl<T> SignedData<T> {
     {
         let plaintext = serde_json::to_string(&data)?;
 
-        let signature = key.sign(plaintext).to_base58_string();
+        let signature = key.sign(plaintext);
         Ok(SignedData { data, signature })
     }
 
@@ -54,11 +64,7 @@ impl<T> SignedData<T> {
             return false;
         };
 
-        let Ok(signature) = ed25519::Signature::from_base58_string(&self.signature) else {
-            return false;
-        };
-
-        key.verify(plaintext, &signature).is_ok()
+        key.verify(plaintext, &self.signature).is_ok()
     }
 }
 
@@ -72,7 +78,7 @@ impl SignedHostInformation {
 
         let legacy_v3 = SignedData {
             data: LegacyHostInformationV3::from(self.data.clone()),
-            signature: self.signature.clone(),
+            signature: self.signature,
         };
 
         if legacy_v3.verify(&self.keys.ed25519_identity) {
@@ -82,7 +88,7 @@ impl SignedHostInformation {
         // attempt to verify legacy signatures
         let legacy_v3 = SignedData {
             data: LegacyHostInformationV3::from(self.data.clone()),
-            signature: self.signature.clone(),
+            signature: self.signature,
         };
 
         if legacy_v3.verify(&self.keys.ed25519_identity) {
@@ -91,7 +97,7 @@ impl SignedHostInformation {
 
         let legacy_v2 = SignedData {
             data: LegacyHostInformationV2::from(legacy_v3.data),
-            signature: self.signature.clone(),
+            signature: self.signature,
         };
 
         if legacy_v2.verify(&self.keys.ed25519_identity) {
@@ -100,7 +106,7 @@ impl SignedHostInformation {
 
         SignedData {
             data: LegacyHostInformationV1::from(legacy_v2.data),
-            signature: self.signature.clone(),
+            signature: self.signature,
         }
         .verify(&self.keys.ed25519_identity)
     }
@@ -128,16 +134,15 @@ impl Display for ErrorResponse {
 #[allow(deprecated)]
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use crate::api::v1::node::models::{HostKeys, SphinxKey};
     use nym_crypto::asymmetric::{ed25519, x25519};
     use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
-    use rand_chacha::rand_core::SeedableRng;
+    use nym_test_utils::helpers::deterministic_rng;
 
     #[test]
     fn dummy_signed_host_verification() {
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
+        let mut rng = deterministic_rng();
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
         let x25519_sphinx2 = x25519::KeyPair::new(&mut rng);
@@ -237,7 +242,7 @@ mod tests {
 
     #[test]
     fn dummy_legacy_v3_signed_host_verification() {
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
+        let mut rng = deterministic_rng();
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
         let x25519_noise = x25519::KeyPair::new(&mut rng);
@@ -331,7 +336,7 @@ mod tests {
 
     #[test]
     fn dummy_legacy_v2_signed_host_verification() {
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
+        let mut rng = deterministic_rng();
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
         let x25519_noise = x25519::KeyPair::new(&mut rng);
@@ -420,7 +425,7 @@ mod tests {
 
     #[test]
     fn dummy_legacy_v1_signed_host_verification() {
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
+        let mut rng = deterministic_rng();
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
 

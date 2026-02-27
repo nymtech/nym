@@ -790,13 +790,7 @@ mod tests {
     use nym_compact_ecash::scheme::keygen::KeyPairUser;
     use nym_compact_ecash::withdrawal_request;
     use nym_ecash_time::{ecash_today_date, EcashTime};
-    use rand_chacha::rand_core::SeedableRng;
-    use rand_chacha::ChaCha20Rng;
-
-    pub fn test_rng() -> ChaCha20Rng {
-        let dummy_seed = [42u8; 32];
-        ChaCha20Rng::from_seed(dummy_seed)
-    }
+    use nym_test_utils::helpers::deterministic_rng;
 
     // had some issues with `Date` and serde...
     // so might as well leave this unit test in case we do something to the helper
@@ -821,7 +815,7 @@ mod tests {
 
     #[test]
     fn decoding_attribute_commitments() {
-        let mut rng = test_rng();
+        let mut rng = deterministic_rng();
         let keys = ed25519::KeyPair::new(&mut rng);
         let dummy_sig = keys.private_key().sign("foomp");
         let dummy_keypair = KeyPairUser::new();

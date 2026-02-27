@@ -13,10 +13,10 @@ use crate::types::{LpRegistrationResult, RegistrationResult};
 
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
-use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 use nym_crypto::asymmetric::ed25519;
 
-use rand::rngs::OsRng;
+use nym_lp::peer::DHKeyPair;
+use rand09::{CryptoRng, RngCore};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
@@ -54,19 +54,22 @@ impl LpBasedRegistrationClient {
         let entry_lp_protocol = entry_lp_data.lp_protocol_version;
         let exit_lp_protocol = exit_lp_data.lp_protocol_version;
 
+        let entry_ciphersuite = entry_lp_data.ciphersuite;
+        let exit_ciphersuite = exit_lp_data.ciphersuite;
+
         let entry_address = entry_lp_data.address;
         let exit_address = exit_lp_data.address;
 
         tracing::debug!("Entry gateway LP address: {entry_address}");
         tracing::debug!("Exit gateway LP address: {exit_address}");
 
-        // Generate fresh Ed25519 keypairs for LP registration
-        // These are ephemeral and used only for the LP handshake protocol
-        let entry_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
-        let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
+        // Generate fresh x25519 keypairs for LP registration
+        // TODO: persist them for the duration of the sessions
+        let entry_lp_keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
+        let exit_lp_keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
 
-        let entry_peer = to_lp_remote_peer(self.config.entry.node.identity, entry_lp_data);
-        let exit_peer = to_lp_remote_peer(self.config.exit.node.identity, exit_lp_data);
+        let entry_peer = to_lp_remote_peer(entry_lp_data);
+        let exit_peer = to_lp_remote_peer(exit_lp_data);
 
         // STEP 1: Establish outer session with entry gateway
         // This creates the LP session that will be used to forward packets to exit.
@@ -76,6 +79,7 @@ impl LpBasedRegistrationClient {
             entry_lp_keypair.clone(),
             entry_peer,
             entry_address,
+            entry_ciphersuite,
             entry_lp_protocol,
             self.config.lp_registration_config,
         );
@@ -94,8 +98,13 @@ impl LpBasedRegistrationClient {
         // STEP 2: Use nested session to register with exit gateway via forwarding
         // This hides the client's IP address from the exit gateway
         tracing::info!("Registering with exit gateway via entry forwarding");
-        let mut nested_session =
-            NestedLpSession::new(exit_address, exit_lp_keypair, exit_peer, exit_lp_protocol);
+        let mut nested_session = NestedLpSession::new(
+            exit_address,
+            exit_lp_keypair,
+            exit_peer,
+            exit_ciphersuite,
+            exit_lp_protocol,
+        );
 
         // Perform handshake and registration with exit gateway (all via entry forwarding)
         let exit_gateway_data = nested_session
@@ -149,7 +158,7 @@ impl LpBasedRegistrationClient {
     }
 
     async fn register_wg(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand09::rng();
 
         self.register_wg_with_rng(&mut rng).await
     }

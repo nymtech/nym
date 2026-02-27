@@ -10,13 +10,14 @@ use nym_api_requests::models::{LPHashFunction, LPKEM};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::UserAgent;
-use nym_kkt_ciphersuite::{KEMKeyDigests, SignatureScheme, SigningKeyDigests, KEM};
+use nym_kkt_ciphersuite::{Ciphersuite, KEMKeyDigests, SignatureScheme, KEM};
+use nym_lp::peer::DHPublicKey;
 use nym_sphinx_types::Node as SphinxNode;
 use nym_topology::{NymRouteProvider, NymTopology, NymTopologyMetadata};
 use nym_validator_client::nym_api::NymApiClientExt;
 use rand::prelude::IteratorRandom;
 use rand::{CryptoRng, Rng};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use tracing::{debug, info};
 use url::Url;
@@ -30,8 +31,9 @@ const LP_DATA_PORT: u16 = 51264;
 #[derive(Debug, Clone)]
 pub struct GatewayInfo {
     pub identity: ed25519::PublicKey,
-    pub kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
-    pub signing_key_hashes: HashMap<SignatureScheme, SigningKeyDigests>,
+    pub lp_key: DHPublicKey,
+    pub kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
+    pub ciphersuite: Ciphersuite,
 
     pub sphinx_key: nym_crypto::asymmetric::x25519::PublicKey,
     /// Mix host (IP:port for Sphinx mixing)

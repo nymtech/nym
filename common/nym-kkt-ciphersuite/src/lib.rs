@@ -49,6 +49,12 @@ pub mod xwing {
 
 pub type KEMKeyDigests = BTreeMap<HashFunction, Vec<u8>>;
 
+pub mod node_compatibility {
+    /// Indicates the initial version where kkt has been introduced
+    /// 1.27.0 Raclette release
+    pub const INTRODUCTION: semver::Version = semver::Version::new(1, 27, 0);
+}
+
 #[derive(
     Clone,
     Copy,
@@ -270,6 +276,23 @@ impl Ciphersuite {
             verification_key_length: signature_scheme.verification_key_length(),
             signature_length: signature_scheme.signature_length(),
         }
+    }
+
+    /// Determine optimal `Ciphersuite` based on remote's node's version
+    pub fn from_node_version(semver: semver::Version) -> Option<Self> {
+        if semver < node_compatibility::INTRODUCTION {
+            // node can't possibly support any Ciphersuite
+            return None;
+        }
+        // currently there are no other branches known to the client
+        // once changes to defaults are introduced, follow pattern similar to the one implemented in
+        // `common/authenticator-requests/src/version.rs`
+        Some(Ciphersuite::new(
+            KEM::MlKem768,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
+        ))
     }
 
     #[must_use]

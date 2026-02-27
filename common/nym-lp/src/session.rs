@@ -19,7 +19,6 @@ use crate::{LpError, replay::ReceivingKeyCounterValidator};
 use libcrux_psq::handshake::types::{Authenticator, DHPublicKey};
 use libcrux_psq::session::{Session, SessionBinding};
 use nym_kkt::keys::EncapsulationKey;
-use nym_kkt_ciphersuite::Ciphersuite;
 use std::fmt::{Debug, Formatter};
 
 pub type SessionId = [u8; 32];
@@ -123,13 +122,6 @@ impl LpSession {
             sending_counter: 0,
             receiving_counter: Default::default(),
         })
-    }
-
-    /// Create an instance of `Ciphersuite` using hardcoded defaults.
-    /// This is a temporary workaround until values can be properly inferred
-    /// from reported version
-    pub fn default_ciphersuite() -> Ciphersuite {
-        Ciphersuite::default()
     }
 
     /// Helper function to create `PSQHandshakeState` for the handshake initiator

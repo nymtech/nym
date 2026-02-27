@@ -6847,6 +6847,7 @@ dependencies = [
  "blake3",
  "libcrux-sha3",
  "num_enum",
+ "semver 1.0.26",
  "strum",
  "strum_macros",
  "thiserror 2.0.12",

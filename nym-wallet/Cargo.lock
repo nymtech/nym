@@ -4763,6 +4763,7 @@ name = "nym-kkt-ciphersuite"
 version = "1.20.4"
 dependencies = [
  "num_enum",
+ "semver",
  "strum",
  "strum_macros",
  "thiserror 2.0.12",

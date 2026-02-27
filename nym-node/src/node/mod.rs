@@ -50,7 +50,7 @@ use nym_kkt::key_utils::{
     generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
 };
 use nym_kkt::keys::{DHKeyPair, KEMKeys};
-use nym_lp::LpSession;
+use nym_lp::Ciphersuite;
 use nym_lp::peer::LpLocalPeer;
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -492,11 +492,8 @@ impl NymNode {
         mix_packet_sender: MixForwardingSender,
     ) -> Result<LpListener, NymNodeError> {
         let handler_state = LpHandlerState {
-            local_lp_peer: LpLocalPeer::new(
-                LpSession::default_ciphersuite(),
-                self.x25519_lp_keys.clone(),
-            )
-            .with_kem_keys(self.psq_kem_keys.clone()),
+            local_lp_peer: LpLocalPeer::new(Ciphersuite::default(), self.x25519_lp_keys.clone())
+                .with_kem_keys(self.psq_kem_keys.clone()),
             metrics: self.metrics.clone(),
             peer_registrator,
             lp_config: self.config.lp,

@@ -110,6 +110,12 @@ def main():
                 )
 
             if dep_workspace_name:
+                dep_info = package_info[dep_workspace_name]
+                if not dep_info["explicitly_publishable"]:
+                    direct_issues[name].add(
+                        f"{section}: depends on non-publishable workspace crate '{dep_workspace_name}' ({dep_info['publish_reason']})"
+                    )
+                    continue
                 workspace_deps[name].append((dep_workspace_name, section))
                 continue
 
@@ -151,36 +157,57 @@ def main():
     for crate_name in package_info:
         collect_effective_issues(crate_name, set())
 
-    unpublishable = []
-    for crate_name, info in sorted(package_info.items()):
-        issues = sorted(effective_issues.get(crate_name, set()))
-        if not issues:
-            continue
-        unpublishable.append((crate_name, info["member"], issues))
+    publish_targets = sorted(
+        name for name, info in package_info.items() if info["explicitly_publishable"]
+    )
+    root_blockers = sorted(
+        name
+        for name in publish_targets
+        if direct_issues.get(name)
+    )
+    transitive_blocked = sorted(
+        name
+        for name in publish_targets
+        if not direct_issues.get(name) and effective_issues.get(name)
+    )
 
-    print("Publishability report:")
+    disabled_by_config = sorted(
+        name for name, info in package_info.items() if not info["explicitly_publishable"]
+    )
+
+    print("Publishability preflight report:")
     print(f"- workspace crates inspected: {len(package_info)}")
-    print(f"- unpublishable crates: {len(unpublishable)}")
+    print(f"- crates configured for crates.io publish: {len(publish_targets)}")
+    print(f"- root blockers (direct issues): {len(root_blockers)}")
+    print(f"- downstream blocked crates (transitive): {len(transitive_blocked)}")
+    print(f"- crates excluded by config (publish = false / restricted): {len(disabled_by_config)}")
 
-    if unpublishable:
-        print("\nUnpublishable crate details:")
-        for crate_name, member, issues in unpublishable:
-            print(f"- {crate_name} ({member})")
-            for issue in issues:
+    if root_blockers:
+        print("\nAction required: root blockers")
+        for crate_name in root_blockers:
+            info = package_info[crate_name]
+            print(f"- {crate_name} ({info['member']})")
+            for issue in sorted(direct_issues[crate_name]):
                 print(f"  - {issue}")
 
-    blocking = []
-    for crate_name, info in package_info.items():
-        if not info["explicitly_publishable"]:
-            continue
-        if effective_issues.get(crate_name):
-            blocking.append(crate_name)
+    if transitive_blocked:
+        print("\nDownstream blocked crates")
+        print("- These crates have no direct issue; they are blocked by dependencies listed below.")
+        for crate_name in transitive_blocked:
+            info = package_info[crate_name]
+            blockers = set()
+            for dep_name, dep_section in workspace_deps.get(crate_name, []):
+                dep_info = package_info[dep_name]
+                if not dep_info["explicitly_publishable"] or effective_issues.get(dep_name):
+                    blockers.add(f"{dep_name} via {dep_section}")
 
-    if blocking:
+            print(f"- {crate_name} ({info['member']})")
+            for blocker in sorted(blockers):
+                print(f"  - blocked by {blocker}")
+
+    if root_blockers or transitive_blocked:
         print("\nPreflight checks failed:")
-        print(
-            f"- {len(blocking)} crate(s) configured for crates.io publish are currently blocked."
-        )
+        print(f"- {len(root_blockers) + len(transitive_blocked)} crate(s) configured for crates.io publish are blocked.")
         sys.exit(1)
 
     print("\nPreflight checks passed.")

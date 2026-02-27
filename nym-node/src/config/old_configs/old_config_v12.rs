@@ -581,7 +581,7 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
     let paths = updated_keys.mlkem768_key_paths();
     store_mlkem768_keypair(&mlkem, &paths)?;
 
-    info!("generating mceliece keypair");
+    info!("generating new mceliece keypair (this might take a while)");
     let mceliece = generate_keypair_mceliece(&mut rng);
     let paths = updated_keys.mceliece_key_paths();
     store_mceliece_keypair(&mceliece, &paths)?;

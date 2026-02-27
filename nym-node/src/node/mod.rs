@@ -419,11 +419,12 @@ impl NymNode {
         config: &Config,
         custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
     ) -> Result<(), NymNodeError> {
-        debug!("initialising nym-node with id: {}", config.id);
+        info!("initialising nym-node with id: {}", config.id);
         let mut rng = OsRng;
         let mut rng09 = rand09::rngs::StdRng::from_os_rng();
 
         // global initialisation
+        info!("generating new node keys (this might take a while)");
         let ed25519_identity_keys = ed25519::KeyPair::new(&mut rng);
         let x25519_noise_keys = x25519::KeyPair::new(&mut rng);
 

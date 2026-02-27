@@ -96,6 +96,23 @@ private_x25519_noise_key_file = '{{ storage_paths.keys.private_x25519_noise_key_
 # Path to file containing x25519 noise public key.
 public_x25519_noise_key_file = '{{ storage_paths.keys.public_x25519_noise_key_file }}'
 
+# Path to file containing x25519 lp private key.
+private_x25519_lp_key_file = '{{ storage_paths.keys.private_x25519_lp_key_file }}'
+
+# Path to file containing x25519 lp public key.
+public_x25519_lp_key_file = '{{ storage_paths.keys.public_x25519_lp_key_file }}'
+
+# Path to file containing mlkem768 lp private key.
+private_mlkem768_lp_key_file = '{{ storage_paths.keys.private_mlkem768_lp_key_file }}'
+
+# Path to file containing mlkem768 lp public key.
+public_mlkem768_lp_key_file = '{{ storage_paths.keys.public_mlkem768_lp_key_file }}'
+
+# Path to file containing mceliece lp private key.
+private_mceliece_lp_key_file = '{{ storage_paths.keys.private_mceliece_lp_key_file }}'
+
+# Path to file containing mceliece lp public key.
+public_mceliece_lp_key_file = '{{ storage_paths.keys.public_mceliece_lp_key_file }}'
 
 ##### http-API nym-node config options #####
 
@@ -165,6 +182,29 @@ private_diffie_hellman_key_file = '{{ wireguard.storage_paths.private_diffie_hel
 
 # Path to file containing wireguard x25519 diffie hellman public key.
 public_diffie_hellman_key_file = '{{ wireguard.storage_paths.public_diffie_hellman_key_file }}'
+
+##### Lewes Protocol config options #####
+
+[lp]
+# Bind address for the TCP LP control traffic.
+# default: `[::]:41264`
+control_bind_address = '{{ lp.control_bind_address }}'
+
+# Bind address for the UDP LP data traffic.
+# default: `[::]:51264`
+data_bind_address = '{{ lp.data_bind_address }}'
+
+# Custom announced port for listening for the TCP LP control traffic.
+# If unspecified, the value from the `control_bind_address` will be used instead
+# Useful when the node is behind a proxy.
+# (default: 0 - disabled)
+announce_control_port ={{#if lp.announce_control_port }} {{ lp.announce_control_port }} {{else}} 0 {{/if}}
+
+# Custom announced port for listening for the UDP LP data traffic.
+# If unspecified, the value from the `data_bind_address` will be used instead
+# Useful when the node is behind a proxy.
+# (default: 0 - disabled)
+announce_data_port ={{#if lp.announce_data_port }} {{ lp.announce_data_port }} {{else}} 0 {{/if}}
 
 
 ##### verloc config options #####

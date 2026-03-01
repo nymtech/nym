@@ -17,14 +17,9 @@ export async function run() {
 
   const mixFetchWebWorker: IMixFetchWebWorker = {
     mixFetch: async (url, args) => {
-      console.log('[Worker] --- mixFetch ---', { url, args });
-
       const response: Response = await mixFetch(url, args);
 
-      console.log('[Worker]', { response, json: JSON.stringify(response, null, 2) });
-
       const bodyResponse = await handleResponseMimeTypes(response, responseBodyConfigMap);
-      console.log('[Worker]', { bodyResponse });
 
       const headers: any = {};
       response.headers.forEach((value, key) => {
@@ -42,20 +37,15 @@ export async function run() {
         redirected: response.redirected,
       };
 
-      console.log('[Worker]', { output });
-
       return output;
     },
     setupMixFetch: async (opts) => {
-      console.log('[Worker] --- setupMixFetch ---', { opts });
       if (opts?.responseBodyConfigMap) {
         responseBodyConfigMap = opts.responseBodyConfigMap;
       }
       await setupMixFetch(opts || {});
     },
     disconnectMixFetch: async () => {
-      console.log('[Worker] --- disconnectMixFetch ---');
-
       await disconnectMixFetch();
     },
   };

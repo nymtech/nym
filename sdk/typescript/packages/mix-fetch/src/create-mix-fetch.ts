@@ -53,7 +53,6 @@ export const createMixFetch = async (): Promise<IMixFetch> => {
       if (!workerResponse) {
         throw new Error('No response received');
       }
-      console.log({ workerResponse });
       const { headers: headersRaw, status, statusText } = workerResponse;
 
       // reconstruct the Headers object instance from a plain object

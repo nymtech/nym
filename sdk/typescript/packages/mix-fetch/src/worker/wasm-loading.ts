@@ -72,11 +72,9 @@ export async function loadWasm() {
 
   // load rust WASM package
   await init(bytes);
-  console.log('Loaded RUST WASM');
 
   // load go WASM package
   await loadGoWasm();
-  console.log('Loaded GO WASM');
 
   // sets up better stack traces in case of in-rust panics
   set_panic_hook();

@@ -1,5 +1,6 @@
 {
   "nym-cli": "Nym-cli",
+  "diagnostic-tool": "Diagnostic Tool",
   "echo-server": "Echo Server",
   "standalone-tcpproxy": "TcpProxy Binaries (Standalone)"
 }

@@ -26,12 +26,13 @@ url = { workspace = true, features = ["serde"] }
 nym-crypto = { workspace = true, features = [
     "asymmetric",
     "serde",
+    "libcrux_x25519"
 ] }
 nym-exit-policy = { workspace = true }
 nym-noise-keys = { workspace = true }
 nym-wireguard-types = { workspace = true }
 nym-upgrade-mode-check = { workspace = true, features = ["openapi"] }
-nym-kkt-ciphersuite = { path = "../../common/nym-kkt-ciphersuite" }
+nym-kkt-ciphersuite = { workspace = true }
 
 # feature-specific dependencies:
 
@@ -47,7 +48,7 @@ nym-bin-common = { workspace = true, features = [
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
-rand_chacha = { workspace = true }
+nym-test-utils = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 
 

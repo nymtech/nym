@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-data-observatory"
-version = "1.0.0"
+version = "1.0.1"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -27,7 +27,7 @@ nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
 nyxd-scraper-psql = { path = "../common/nyxd-scraper-psql" }
 nyxd-scraper-shared = { workspace = true }
-reqwest = { workspace = true, features = ["rustls-tls"] }
+reqwest = { workspace = true, features = ["rustls"] }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

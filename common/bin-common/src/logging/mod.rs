@@ -4,16 +4,9 @@
 use serde::{Deserialize, Serialize};
 use std::io::IsTerminal;
 
-#[cfg(feature = "tracing")]
-pub use opentelemetry;
-#[cfg(feature = "tracing")]
-pub use opentelemetry_jaeger;
-#[cfg(feature = "tracing")]
-pub use tracing_opentelemetry;
-#[cfg(feature = "tracing")]
+// Re-export tracing_subscriber for consumers that need to compose layers
+#[cfg(feature = "basic_tracing")]
 pub use tracing_subscriber;
-#[cfg(feature = "tracing")]
-pub use tracing_tree;
 
 #[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -69,40 +62,106 @@ pub fn setup_tracing_logger() {
     build_tracing_logger().init()
 }
 
-// TODO: This has to be a macro, running it as a function does not work for the file_appender for some reason
-#[cfg(feature = "tracing")]
-#[macro_export]
-macro_rules! setup_tracing {
-    ($service_name: expr) => {
-        use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;
-        use nym_bin_common::logging::tracing_subscriber::util::SubscriberInitExt;
+/// Initialize an OpenTelemetry tracing layer that exports spans via OTLP/gRPC.
+///
+/// This produces a layer compatible with `tracing_subscriber::registry()` that
+/// sends traces to any OTLP-compatible collector (SigNoz, Grafana Tempo, etc).
+///
+/// Returns both the tracing layer and the [`SdkTracerProvider`] so the caller
+/// can invoke [`SdkTracerProvider::shutdown`] for graceful flush on exit.
+///
+/// # Arguments
+/// * `service_name` - The service name reported to the collector (e.g. "nym-node")
+/// * `endpoint` - The OTLP/gRPC collector endpoint (e.g. "http://localhost:4317"
+///   or "https://ingest.eu.signoz.cloud:443" for SigNoz Cloud)
+/// * `ingestion_key` - Optional SigNoz Cloud ingestion key. When provided, it is
+///   sent as the `signoz-ingestion-key` gRPC metadata header on every export.
+/// * `environment` - Deployment environment label (e.g. "sandbox", "mainnet", "canary").
+///   Attached as the `deployment.environment` OTel resource attribute.
+/// * `sample_ratio` - Trace sampling ratio in 0.0..=1.0 (e.g. 0.1 = 10% of traces).
+///   Used to limit cost when exporting from many nodes; clamped to [0.0, 1.0].
+/// * `export_timeout_secs` - Timeout in seconds for each OTLP export batch. Prevents
+///   unbounded blocking if the collector is slow or unreachable.
+#[cfg(feature = "otel-otlp")]
+pub fn init_otel_layer<S>(
+    service_name: &str,
+    endpoint: &str,
+    ingestion_key: Option<&str>,
+    environment: &str,
+    sample_ratio: f64,
+    export_timeout_secs: u64,
+) -> Result<
+    (
+        tracing_opentelemetry::OpenTelemetryLayer<S, opentelemetry_sdk::trace::SdkTracer>,
+        opentelemetry_sdk::trace::SdkTracerProvider,
+    ),
+    Box<dyn std::error::Error + Send + Sync>,
+>
+where
+    S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+{
+    use opentelemetry::trace::TracerProvider as _;
+    use opentelemetry_otlp::WithExportConfig;
+    use opentelemetry_otlp::WithTonicConfig;
+    use opentelemetry_sdk::trace::Sampler;
+    use std::time::Duration;
 
-        let registry = nym_bin_common::logging::tracing_subscriber::Registry::default()
-            .with(nym_bin_common::logging::tracing_subscriber::EnvFilter::from_default_env())
-            .with(
-                nym_bin_common::logging::tracing_tree::HierarchicalLayer::new(4)
-                    .with_targets(true)
-                    .with_bracketed_fields(true),
-            );
+    // Validate endpoint URI early to fail with a clear message
+    if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
+        return Err(format!(
+            "invalid OTLP endpoint URI: {endpoint} (must start with http:// or https://)"
+        )
+        .into());
+    }
 
-        let tracer = nym_bin_common::logging::opentelemetry_jaeger::new_collector_pipeline()
-            .with_endpoint("http://44.199.230.10:14268/api/traces")
-            .with_service_name($service_name)
-            .with_isahc()
-            .with_trace_config(
-                nym_bin_common::logging::opentelemetry::sdk::trace::config().with_sampler(
-                    nym_bin_common::logging::opentelemetry::sdk::trace::Sampler::TraceIdRatioBased(
-                        0.1,
-                    ),
-                ),
-            )
-            .install_batch(nym_bin_common::logging::opentelemetry::runtime::Tokio)
-            .expect("Could not init tracer");
+    let sample_ratio_clamped = sample_ratio.clamp(0.0, 1.0);
 
-        let telemetry = nym_bin_common::logging::tracing_opentelemetry::layer().with_tracer(tracer);
+    let mut builder = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .with_endpoint(endpoint)
+        .with_timeout(Duration::from_secs(export_timeout_secs));
 
-        registry.with(telemetry).init();
-    };
+    // Explicitly configure TLS when the endpoint uses HTTPS
+    if endpoint.starts_with("https://") {
+        builder =
+            builder.with_tls_config(tonic::transport::ClientTlsConfig::new().with_native_roots());
+    }
+
+    if let Some(key) = ingestion_key {
+        let mut metadata = tonic::metadata::MetadataMap::new();
+        metadata.insert(
+            "signoz-ingestion-key",
+            key.parse()
+                .map_err(|_| "invalid ingestion key format (value redacted)")?,
+        );
+        builder = builder.with_metadata(metadata);
+    }
+
+    let exporter = builder
+        .build()
+        .map_err(|e| format!("failed to build OTLP exporter for endpoint {endpoint}: {e}"))?;
+
+    let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+        .with_sampler(Sampler::TraceIdRatioBased(sample_ratio_clamped))
+        .with_batch_exporter(exporter)
+        .with_resource(
+            opentelemetry_sdk::Resource::builder()
+                .with_service_name(service_name.to_owned())
+                .with_attribute(opentelemetry::KeyValue::new(
+                    "deployment.environment",
+                    environment.to_owned(),
+                ))
+                .build(),
+        )
+        .build();
+
+    opentelemetry::global::set_tracer_provider(tracer_provider.clone());
+    let tracer = tracer_provider.tracer(service_name.to_owned());
+
+    Ok((
+        tracing_opentelemetry::layer().with_tracer(tracer),
+        tracer_provider,
+    ))
 }
 
 pub fn banner(crate_name: &str, crate_version: &str) -> String {

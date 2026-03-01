@@ -170,6 +170,18 @@ pub trait BandwidthGatewayStorage: dyn_clone::DynClone {
     /// * `peer_public_key`: wireguard public key of the peer to be removed.
     async fn remove_wireguard_peer(&self, peer_public_key: &str)
     -> Result<(), GatewayStorageError>;
+
+    /// Update the stored PSK of the wireguard peer.
+    ///
+    /// # Arguments
+    ///
+    /// * `public_key`: the unique public key of the wireguard peer.
+    /// * `psk`: the PSK of the wireguard peer.
+    async fn update_peer_psk(
+        &self,
+        public_key: &str,
+        psk: Option<&str>,
+    ) -> Result<(), GatewayStorageError>;
 }
 
 #[cfg(feature = "mock")]
@@ -505,6 +517,17 @@ pub mod mock {
             peer_public_key: &str,
         ) -> Result<(), GatewayStorageError> {
             self.write().await.wireguard_peers.remove(peer_public_key);
+            Ok(())
+        }
+
+        async fn update_peer_psk(
+            &self,
+            public_key: &str,
+            psk: Option<&str>,
+        ) -> Result<(), GatewayStorageError> {
+            if let Some(peer) = self.write().await.wireguard_peers.get_mut(public_key) {
+                peer.psk = psk.map(|psk| psk.to_owned())
+            }
             Ok(())
         }
     }

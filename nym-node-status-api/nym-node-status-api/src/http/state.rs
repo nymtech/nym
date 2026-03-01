@@ -9,10 +9,10 @@ use nym_node_status_client::auth::VerifiableRequest;
 use nym_validator_client::nym_api::SkimmedNode;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
 use time::UtcDateTime;
 use tokio::sync::RwLock;
-use tracing::{error, instrument, warn};
+use tracing::{error, instrument, trace, warn};
 use utoipa::ToSchema;
 
 use super::models::SessionStats;
@@ -20,7 +20,10 @@ use crate::{
     db::{DbPool, queries},
     http::{
         error::{HttpError, HttpResult},
-        models::{DVpnGateway, DailyStats, ExtendedNymNode, Gateway, NodeGeoData, SummaryHistory},
+        models::{
+            DVpnGateway, DailyStats, ExtendedNymNode, Gateway, NodeGeoData, SummaryHistory,
+            gw_probe::socks5_calc::calculate_socks5_percentiles,
+        },
     },
     monitor::{DelegationsCache, NodeGeoCache},
 };
@@ -150,6 +153,7 @@ impl AppState {
 
 static GATEWAYS_LIST_KEY: &str = "gateways";
 static DVPN_GATEWAYS_LIST_KEY: &str = "dvpn_gateways";
+static DVPN_EXIT_GATEWAY_IPS: &str = "dvpn_exit_gateway_ips";
 static NYM_NODES_LIST_KEY: &str = "nym_nodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
 static SUMMARY_HISTORY_LIST_KEY: &str = "summary-history";
@@ -161,6 +165,7 @@ const MIXNODE_STATS_HISTORY_DAYS: usize = 30;
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
     dvpn_gateways: Cache<String, Arc<RwLock<Vec<DVpnGateway>>>>,
+    exit_gateway_ips: Cache<String, Arc<RwLock<Vec<String>>>>,
     nym_nodes: Cache<String, Arc<RwLock<Vec<ExtendedNymNode>>>>,
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
     history: Cache<String, Arc<RwLock<Vec<SummaryHistory>>>>,
@@ -171,27 +176,31 @@ impl HttpCache {
     pub async fn new(ttl_seconds: u64) -> Self {
         HttpCache {
             gateways: Cache::builder()
-                .max_capacity(2)
+                .max_capacity(1)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             dvpn_gateways: Cache::builder()
-                .max_capacity(6)
+                .max_capacity(1)
+                .time_to_live(Duration::from_secs(ttl_seconds))
+                .build(),
+            exit_gateway_ips: Cache::builder()
+                .max_capacity(1)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             nym_nodes: Cache::builder()
-                .max_capacity(2)
+                .max_capacity(1)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             mixstats: Cache::builder()
-                .max_capacity(2)
+                .max_capacity(1)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             history: Cache::builder()
-                .max_capacity(2)
+                .max_capacity(1)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             session_stats: Cache::builder()
-                .max_capacity(2)
+                .max_capacity(1)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
         }
@@ -321,6 +330,8 @@ impl HttpCache {
                     }
                 };
 
+                let socks5_scores = calculate_socks5_percentiles(&gateways);
+
                 let res_gws = gateways
                     .iter()
                     .filter(|gw| gw.bonded)
@@ -335,7 +346,7 @@ impl HttpCache {
                         }
                     })
                     .filter_map(
-                        |(gw, skimmed_node)| match DVpnGateway::new(gw.clone(), skimmed_node) {
+                        |(gw, skimmed_node)| match DVpnGateway::new(gw.clone(), skimmed_node, socks5_scores.get(&gw.gateway_identity_key)) {
                             Ok(gw) => Some(gw),
                             Err(err) => {
                                 error!(
@@ -429,6 +440,63 @@ impl HttpCache {
             .into_iter()
             .filter(DVpnGateway::can_route_exit)
             .collect()
+    }
+
+    pub async fn get_exit_gateway_ips(
+        &self,
+        db: &DbPool,
+        min_node_version: &Version,
+    ) -> Vec<String> {
+        match self.exit_gateway_ips.get(DVPN_EXIT_GATEWAY_IPS).await {
+            Some(guard) => {
+                let read_lock = guard.read().await;
+                read_lock.clone()
+            }
+            None => {
+                trace!("No exit gateway IPs in cache, refreshing...");
+
+                let ips: Vec<String> = self
+                    .get_dvpn_gateway_list(db, min_node_version)
+                    .await
+                    .into_iter()
+                    .filter_map(|gw| {
+                        if gw.can_route_exit() {
+                            Some(gw.ip_addresses)
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .filter(IpAddr::is_ipv4)
+                    .map(|ip| ip.to_string())
+                    .sorted()
+                    .dedup()
+                    .collect();
+
+                self.upsert_exit_gateway_ips(ips.clone()).await;
+
+                ips
+            }
+        }
+    }
+
+    pub async fn upsert_exit_gateway_ips(
+        &self,
+        ip_list: Vec<String>,
+    ) -> Entry<String, Arc<RwLock<Vec<String>>>> {
+        self.exit_gateway_ips
+            .entry_by_ref(DVPN_EXIT_GATEWAY_IPS)
+            .and_upsert_with(|maybe_entry| async {
+                if let Some(entry) = maybe_entry {
+                    let v = entry.into_value();
+                    let mut guard = v.write().await;
+                    *guard = ip_list;
+                    v.clone()
+                } else {
+                    Arc::new(RwLock::new(ip_list))
+                }
+            })
+            .await
     }
 
     pub async fn upsert_nym_node_list(

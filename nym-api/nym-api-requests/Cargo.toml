@@ -49,10 +49,9 @@ nym-noise-keys = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-ticketbooks-merkle = { workspace = true }
 nym-ecash-signer-check-types = { workspace = true }
-
+nym-kkt-ciphersuite = { workspace = true }
 
 [dev-dependencies]
-rand_chacha = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-test-utils = { workspace = true }
 

@@ -1,83 +1,84 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(dead_code)]
+
 use crate::LpClientError;
-use nym_lp::message::ForwardPacketData;
+use nym_lp::packet::ForwardPacketData;
+use nym_lp::peer::LpRemotePeer;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
-use nym_registration_common::{LpRegistrationRequest, LpRegistrationResponse};
+use nym_registration_common::{
+    LpRegistrationRequest, LpRegistrationResponse, NymNodeLPInformation,
+};
 
-pub(crate) fn convert_registration_request(
-    request: LpRegistrationRequest,
-) -> Result<LpInput, LpClientError> {
-    let request_bytes = request.serialise().map_err(|e| {
-        LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {e}"))
-    })?;
-
-    tracing::debug!(
-        "Sending registration request ({} bytes)",
-        request_bytes.len()
-    );
-
-    let data = LpData::new_registration(request_bytes);
-    Ok(LpInput::SendData(data))
+pub(crate) trait LpDataSendExt {
+    fn to_lp_data(&self) -> Result<LpData, LpClientError>;
 }
 
-pub(crate) fn try_convert_registration_response(
-    action: LpAction,
-) -> Result<LpRegistrationResponse, LpClientError> {
-    let response_data = match action {
-        LpAction::DeliverData(data) => data,
-        other => {
-            return Err(LpClientError::Transport(format!(
-                "Unexpected action when receiving registration response: {other:?}"
-            )));
-        }
-    };
+pub(crate) trait LpDataDeliverExt: Sized {
+    fn from_lp_data(data: LpData) -> Result<Self, LpClientError>;
+}
 
-    if response_data.kind != LpDataKind::Registration {
-        return Err(LpClientError::Transport(format!(
-            "did not receive a valid registration response. got {:?} instead",
-            response_data.kind
-        )));
-    }
-
-    let response =
-        LpRegistrationResponse::try_deserialise(&response_data.content).map_err(|e| {
-            LpClientError::Transport(format!("Failed to deserialize registration response: {e}",))
+impl LpDataSendExt for LpRegistrationRequest {
+    fn to_lp_data(&self) -> Result<LpData, LpClientError> {
+        let request_bytes = self.serialise().map_err(|e| {
+            LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {e}"))
         })?;
 
-    Ok(response)
+        tracing::debug!(
+            "Sending registration request ({} bytes)",
+            request_bytes.len()
+        );
+
+        Ok(LpData::new_registration(request_bytes))
+    }
 }
 
-pub(crate) fn convert_forward_data(request: ForwardPacketData) -> LpInput {
-    let request_bytes = request.to_bytes();
+impl LpDataDeliverExt for LpRegistrationResponse {
+    fn from_lp_data(data: LpData) -> Result<Self, LpClientError> {
+        if data.kind != LpDataKind::Registration {
+            return Err(LpClientError::UnexpectedLpPayload { typ: data.kind });
+        }
 
-    tracing::trace!(
-        "Sending forward packet data request ({} bytes)",
-        request_bytes.len()
-    );
+        let response = LpRegistrationResponse::try_deserialise(&data.content)
+            .map_err(|source| LpClientError::MalformedRegistrationData { source })?;
 
-    let data = LpData::new_forward(request_bytes);
-    LpInput::SendData(data)
+        Ok(response)
+    }
+}
+
+impl LpDataSendExt for ForwardPacketData {
+    fn to_lp_data(&self) -> Result<LpData, LpClientError> {
+        let request_bytes = self.to_bytes();
+
+        tracing::trace!(
+            "Sending forward packet data request ({} bytes)",
+            request_bytes.len()
+        );
+
+        Ok(LpData::new_forward(request_bytes))
+    }
+}
+
+pub(crate) fn convert_forward_data(request: ForwardPacketData) -> Result<LpInput, LpClientError> {
+    Ok(LpInput::SendData(request.to_lp_data()?))
 }
 
 pub(crate) fn try_convert_forward_response(action: LpAction) -> Result<Vec<u8>, LpClientError> {
     let response_data = match action {
         LpAction::DeliverData(data) => data,
-        other => {
-            return Err(LpClientError::Transport(format!(
-                "Unexpected action when receiving forward response: {:?}",
-                other
-            )));
-        }
+        action => return Err(LpClientError::UnexpectedStateMachineAction { action }),
     };
 
     if response_data.kind != LpDataKind::Forward {
-        return Err(LpClientError::Transport(format!(
-            "did not receive a valid foreward response. got {:?} instead",
-            response_data.kind
-        )));
+        return Err(LpClientError::UnexpectedLpPayload {
+            typ: response_data.kind,
+        });
     }
 
     Ok(response_data.content.into())
+}
+
+pub(crate) fn to_lp_remote_peer(data: NymNodeLPInformation) -> LpRemotePeer {
+    LpRemotePeer::new(data.x25519).with_key_digests(data.expected_kem_key_hashes)
 }

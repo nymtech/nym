@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(test)]
-use mock_instant::thread_local::SystemTime;
+use mock_instant::thread_local::Instant;
 #[cfg(not(test))]
-use std::time::SystemTime;
+use std::time::Instant;
 use std::{collections::HashMap, time::Duration};
 
 use nym_credentials_interface::CredentialSpendingData;
@@ -15,7 +15,7 @@ const SEEN_CREDENTIAL_CACHE_TIME: Duration = Duration::from_secs(60 * 60); // 1 
 #[derive(Eq, Hash, PartialEq)]
 struct TimestampedPeerPubKey {
     peer_pub_key: PeerPublicKey,
-    timestamp: SystemTime,
+    timestamp: Instant,
 }
 
 pub(crate) struct SeenCredentialCache {
@@ -36,7 +36,7 @@ impl SeenCredentialCache {
     ) {
         let value = TimestampedPeerPubKey {
             peer_pub_key,
-            timestamp: SystemTime::now(),
+            timestamp: Instant::now(),
         };
         self.cached_credentials
             .insert(credential.serial_number_b58(), value);
@@ -52,12 +52,9 @@ impl SeenCredentialCache {
     }
 
     pub(crate) fn remove_stale(&mut self) {
-        let now = SystemTime::now();
+        let now = Instant::now();
         self.cached_credentials.retain(|_, value| {
-            let Ok(cache_time) = now.duration_since(value.timestamp) else {
-                tracing::warn!("Got decreasing consecutive system timestamps");
-                return false;
-            };
+            let cache_time = now.duration_since(value.timestamp);
             cache_time < SEEN_CREDENTIAL_CACHE_TIME
         });
     }
@@ -159,30 +156,9 @@ mod test {
         cache.remove_stale();
         assert!(cache.get_peer_pub_key(&credential).is_some());
 
-        MockClock::advance_system_time(SEEN_CREDENTIAL_CACHE_TIME * 2);
+        MockClock::advance(SEEN_CREDENTIAL_CACHE_TIME * 2);
 
         cache.remove_stale();
-        assert!(cache.get_peer_pub_key(&credential).is_none());
-    }
-
-    #[test]
-    fn invalid_time() {
-        assert!(MockClock::is_thread_local());
-        assert!(SystemTime::now().is_thread_local());
-
-        let mut cache = SeenCredentialCache::new();
-        let credential = CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap();
-        let peer_pub_key = PeerPublicKey::from_str(PUB_KEY).unwrap();
-
-        // set some value for time
-        MockClock::set_system_time(Duration::from_secs(10));
-        cache.insert_credential(credential.clone(), peer_pub_key);
-
-        // then set the time in the past
-        MockClock::set_system_time(Duration::ZERO);
-        cache.remove_stale();
-
-        // invalid time should remove the credential, just in case
         assert!(cache.get_peer_pub_key(&credential).is_none());
     }
 }

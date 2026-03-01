@@ -3,9 +3,11 @@
 
 use crate::error::KKTCiphersuiteError;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt::Display;
-use strum_macros::EnumIter;
+use strum_macros::{Display, EnumIter, EnumString};
+
+pub use strum::IntoEnumIterator;
 
 pub mod error;
 
@@ -45,14 +47,36 @@ pub mod xwing {
     pub const PUBLIC_KEY_LENGTH: usize = x25519::PUBLIC_KEY_LENGTH + ml_kem768::PUBLIC_KEY_LENGTH;
 }
 
-pub type KEMKeyDigests = HashMap<HashFunction, Vec<u8>>;
+pub type KEMKeyDigests = BTreeMap<HashFunction, Vec<u8>>;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive, EnumIter)]
+pub mod node_compatibility {
+    /// Indicates the initial version where kkt has been introduced
+    /// 1.27.0 Raclette release
+    pub const INTRODUCTION: semver::Version = semver::Version::new(1, 27, 0);
+}
+
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    IntoPrimitive,
+    TryFromPrimitive,
+    EnumIter,
+    EnumString,
+    Display,
+    Ord,
+    PartialOrd,
+)]
+#[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "lowercase")]
 #[repr(u8)]
 pub enum HashFunction {
     Blake3 = 0,
-    SHAKE256 = 1,
-    SHAKE128 = 2,
+    Shake256 = 1,
+    Shake128 = 2,
     SHA256 = 3,
 }
 
@@ -67,23 +91,12 @@ impl HashFunction {
                 hasher.finalize_xof().fill(&mut out);
                 hasher.reset();
             }
-            HashFunction::SHAKE256 => libcrux_sha3::shake256_ema(&mut out, data.as_ref()),
-            HashFunction::SHAKE128 => libcrux_sha3::shake128_ema(&mut out, data.as_ref()),
+            HashFunction::Shake256 => libcrux_sha3::shake256_ema(&mut out, data.as_ref()),
+            HashFunction::Shake128 => libcrux_sha3::shake128_ema(&mut out, data.as_ref()),
             HashFunction::SHA256 => libcrux_sha3::sha256_ema(&mut out, data.as_ref()),
         }
 
         out
-    }
-}
-
-impl Display for HashFunction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            HashFunction::Blake3 => "blake3",
-            HashFunction::SHAKE128 => "shake128",
-            HashFunction::SHAKE256 => "shake256",
-            HashFunction::SHA256 => "sha256",
-        })
     }
 }
 
@@ -143,7 +156,21 @@ impl HashLength {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    IntoPrimitive,
+    TryFromPrimitive,
+    EnumIter,
+    EnumString,
+    Display,
+)]
+#[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "lowercase")]
 #[repr(u8)]
 pub enum SignatureScheme {
     Ed25519 = 0,
@@ -172,42 +199,40 @@ impl SignatureScheme {
     }
 }
 
-impl Display for SignatureScheme {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            SignatureScheme::Ed25519 => "ed25519",
-        })
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    IntoPrimitive,
+    TryFromPrimitive,
+    EnumIter,
+    EnumString,
+    Display,
+    Default,
+    Ord,
+    PartialOrd,
+)]
+#[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "lowercase")]
 #[repr(u8)]
 pub enum KEM {
-    XWing = 0,
+    // unsupported
+    // XWing = 0,
+    #[default]
     MlKem768 = 1,
     McEliece = 2,
-    X25519 = 255,
 }
 
 impl KEM {
-    pub fn encapsulation_key_length(&self) -> usize {
+    pub const fn encapsulation_key_length(&self) -> usize {
         match self {
             KEM::MlKem768 => ml_kem768::PUBLIC_KEY_LENGTH,
-            KEM::XWing => xwing::PUBLIC_KEY_LENGTH,
-            KEM::X25519 => x25519::PUBLIC_KEY_LENGTH,
+            // KEM::XWing => xwing::PUBLIC_KEY_LENGTH,
             KEM::McEliece => mceliece::PUBLIC_KEY_LENGTH,
         }
-    }
-}
-
-impl Display for KEM {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            KEM::MlKem768 => "mlkem768",
-            KEM::XWing => "xwing",
-            KEM::X25519 => "x25519",
-            KEM::McEliece => "mceliece",
-        })
     }
 }
 
@@ -221,6 +246,17 @@ pub struct Ciphersuite {
     signing_key_length: usize,
     verification_key_length: usize,
     signature_length: usize,
+}
+
+impl Default for Ciphersuite {
+    fn default() -> Self {
+        Ciphersuite::new(
+            KEM::MlKem768,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
+        )
+    }
 }
 
 impl Ciphersuite {
@@ -240,6 +276,51 @@ impl Ciphersuite {
             verification_key_length: signature_scheme.verification_key_length(),
             signature_length: signature_scheme.signature_length(),
         }
+    }
+
+    /// Determine optimal `Ciphersuite` based on remote's node's version
+    pub fn from_node_version(semver: semver::Version) -> Option<Self> {
+        if semver < node_compatibility::INTRODUCTION {
+            // node can't possibly support any Ciphersuite
+            return None;
+        }
+        // currently there are no other branches known to the client
+        // once changes to defaults are introduced, follow pattern similar to the one implemented in
+        // `common/authenticator-requests/src/version.rs`
+        Some(Ciphersuite::new(
+            KEM::MlKem768,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            HashLength::Default,
+        ))
+    }
+
+    #[must_use]
+    pub fn with_kem(mut self, kem: KEM) -> Self {
+        self.kem = kem;
+        self.encapsulation_key_length = kem.encapsulation_key_length();
+        self
+    }
+
+    #[must_use]
+    pub fn with_signature_scheme(mut self, signature_scheme: SignatureScheme) -> Self {
+        self.signature_scheme = signature_scheme;
+        self.signing_key_length = signature_scheme.signing_key_length();
+        self.verification_key_length = signature_scheme.verification_key_length();
+        self.signature_length = signature_scheme.signature_length();
+        self
+    }
+
+    #[must_use]
+    pub fn with_hash_function(mut self, hash_function: HashFunction) -> Self {
+        self.hash_function = hash_function;
+        self
+    }
+
+    #[must_use]
+    pub fn with_hash_length(mut self, hash_length: HashLength) -> Self {
+        self.hash_length = hash_length;
+        self
     }
 
     pub fn kem_key_len(&self) -> usize {
@@ -333,5 +414,36 @@ impl Display for Ciphersuite {
             )
             .to_ascii_lowercase(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+    use strum::IntoEnumIterator;
+
+    #[test]
+    fn kem_display_consistency() {
+        for kem in KEM::iter() {
+            let display = format!("{kem}");
+            assert_eq!(kem, KEM::from_str(&display).unwrap());
+        }
+    }
+
+    #[test]
+    fn hash_function_display_consistency() {
+        for hash_fn in HashFunction::iter() {
+            let display = format!("{hash_fn}");
+            assert_eq!(hash_fn, HashFunction::from_str(&display).unwrap());
+        }
+    }
+
+    #[test]
+    fn signature_scheme_display_consistency() {
+        for scheme in SignatureScheme::iter() {
+            let display = format!("{scheme}");
+            assert_eq!(scheme, SignatureScheme::from_str(&display).unwrap());
+        }
     }
 }

@@ -1,3 +1,11 @@
+---
+title: "Nym Sandbox Testnet for Node Operators"
+description: "Run your Nym node in the Sandbox testnet environment. Test configurations, try new features, and experiment safely before deploying to mainnet."
+schemaType: "HowTo"
+section: "Operators"
+lastUpdated: "2026-02-01"
+---
+
 import { Callout } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';import { Tabs } from 'nextra/components'
@@ -56,7 +64,7 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 </Steps>
 
 <Callout>
-1. If you [built Nym from source](../binaries/building-nym.md), you already have `sandbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you are likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env-file ../../envs/sandbox.env`
+1. If you [built Nym from source](binaries/building-nym), you already have `sandbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you are likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env-file ../../envs/sandbox.env`
 
 2. You can export the path to `sandbox.env` to your environmental variables:
 ```sh

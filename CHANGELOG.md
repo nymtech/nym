@@ -4,6 +4,244 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.4-quark] (2026-02-24)
+
+- Enhance CI workflow with feature inputs ([#6462])
+- Chore/revert 6433 ([#6445])
+- Lp/stateless handshake ([#6437])
+- build(deps-dev): bump webpack from 5.98.0 to 5.105.0 in /wasm/client/internal-dev ([#6435])
+- build(deps-dev): bump webpack from 5.102.1 to 5.104.1 ([#6432])
+- build(deps-dev): bump webpack from 5.98.0 to 5.105.0 in /wasm/mix-fetch/internal-dev ([#6431])
+- build(deps-dev): bump webpack from 5.94.0 to 5.104.1 in /nym-credential-proxy/vpn-api-lib-wasm/internal-dev ([#6430])
+- build(deps-dev): bump webpack from 5.77.0 to 5.104.1 in /wasm/zknym-lib/internal-dev ([#6429])
+- build(deps-dev): bump webpack from 5.76.0 to 5.105.0 in /clients/native/examples/js-examples/websocket ([#6428])
+- HTTP & DNS Improvements ([#6423])
+- Endpoint for  exit GW IPs ([#6418])
+- build(deps): bump bytes from 1.6.0 to 1.11.1 in /contracts ([#6416])
+- build(deps): bump @isaacs/brace-expansion from 5.0.0 to 5.0.1 ([#6415])
+- build(deps): bump bytes from 1.11.0 to 1.11.1 ([#6414])
+- build(deps): bump mikefarah/yq from 4.50.1 to 4.52.2 ([#6407])
+- build(deps-dev): bump eslint from 8.57.1 to 9.26.0 ([#6405])
+- Update reqwest to v0.13.1 ([#6401])
+- build(deps): bump next from 15.5.9 to 16.1.5 in /documentation/docs ([#6387])
+- build(deps): bump next from 15.4.10 to 16.1.5 in /nym-node-status-api/nym-node-status-ui ([#6385])
+- build(deps): bump lodash from 4.17.21 to 4.17.23 ([#6369])
+- build(deps): bump lodash-es from 4.17.21 to 4.17.23 ([#6360])
+- build(deps-dev): bump lodash from 4.17.21 to 4.17.23 in /sdk/typescript/codegen/contract-clients ([#6359])
+- build(deps): bump lodash from 4.17.21 to 4.17.23 in /sdk/typescript/packages/nodejs-client ([#6354])
+- build(deps): bump lodash from 4.17.21 to 4.17.23 in /documentation/docs ([#6353])
+- build(deps): bump lodash from 4.17.21 to 4.17.23 in /clients/native/examples/js-examples/websocket ([#6351])
+- build(deps): bump lodash-es from 4.17.21 to 4.17.23 in /documentation/docs ([#6350])
+- build(deps): bump diff from 5.2.0 to 5.2.2 in /documentation/docs ([#6345])
+- Max/crates publishing tweaks ([#6343])
+- build(deps): bump h3 from 1.15.4 to 1.15.5 ([#6339])
+- build(deps): bump h3 from 1.15.4 to 1.15.5 in /documentation/docs ([#6332])
+- build(deps): bump undici from 6.21.3 to 6.23.0 in /documentation/docs ([#6325])
+- build(deps): bump rsa from 0.9.8 to 0.9.10 ([#6311])
+- build(deps): bump qs and express in /wasm/mix-fetch/internal-dev ([#6308])
+- build(deps): bump qs and express in /clients/native/examples/js-examples/websocket ([#6307])
+- feat: introduce on-disk cache persistance for major nym-api caches ([#6302])
+- Fix migrations in the Data Observatory ([#6271])
+
+[#6462]: https://github.com/nymtech/nym/pull/6462
+[#6445]: https://github.com/nymtech/nym/pull/6445
+[#6437]: https://github.com/nymtech/nym/pull/6437
+[#6435]: https://github.com/nymtech/nym/pull/6435
+[#6432]: https://github.com/nymtech/nym/pull/6432
+[#6431]: https://github.com/nymtech/nym/pull/6431
+[#6430]: https://github.com/nymtech/nym/pull/6430
+[#6429]: https://github.com/nymtech/nym/pull/6429
+[#6428]: https://github.com/nymtech/nym/pull/6428
+[#6423]: https://github.com/nymtech/nym/pull/6423
+[#6418]: https://github.com/nymtech/nym/pull/6418
+[#6416]: https://github.com/nymtech/nym/pull/6416
+[#6415]: https://github.com/nymtech/nym/pull/6415
+[#6414]: https://github.com/nymtech/nym/pull/6414
+[#6407]: https://github.com/nymtech/nym/pull/6407
+[#6405]: https://github.com/nymtech/nym/pull/6405
+[#6401]: https://github.com/nymtech/nym/pull/6401
+[#6387]: https://github.com/nymtech/nym/pull/6387
+[#6385]: https://github.com/nymtech/nym/pull/6385
+[#6369]: https://github.com/nymtech/nym/pull/6369
+[#6360]: https://github.com/nymtech/nym/pull/6360
+[#6359]: https://github.com/nymtech/nym/pull/6359
+[#6354]: https://github.com/nymtech/nym/pull/6354
+[#6353]: https://github.com/nymtech/nym/pull/6353
+[#6351]: https://github.com/nymtech/nym/pull/6351
+[#6350]: https://github.com/nymtech/nym/pull/6350
+[#6345]: https://github.com/nymtech/nym/pull/6345
+[#6343]: https://github.com/nymtech/nym/pull/6343
+[#6339]: https://github.com/nymtech/nym/pull/6339
+[#6332]: https://github.com/nymtech/nym/pull/6332
+[#6325]: https://github.com/nymtech/nym/pull/6325
+[#6311]: https://github.com/nymtech/nym/pull/6311
+[#6308]: https://github.com/nymtech/nym/pull/6308
+[#6307]: https://github.com/nymtech/nym/pull/6307
+[#6302]: https://github.com/nymtech/nym/pull/6302
+[#6271]: https://github.com/nymtech/nym/pull/6271
+
+## [2026.3-parmigiano] (2026-02-10)
+
+- chore: disable LP on parmigiano branch ([#6422])
+- revert mixnet-based client fautly changes from LP ([#6420])
+- [LP fix] Registration client with fallback ([#6419])
+- Lp/ip pool fixes ([#6412])
+- [LP-fix] expose wg psk for the vpn-client ([#6411])
+- LP-fix : configurable LP timeouts ([#6409])
+- LP-fix : add LP x25519 key to the description ([#6408])
+- use rng that is Send ([#6404])
+- use local kem key instead of local x25519 ([#6402])
+- [LP Gateway Probe] CLI and behavior improvements  ([#6400])
+- lp: attempt to negotiate (and use) protocol version ([#6399])
+- bugfix: use correct reserved bytes when parsing LpHeader ([#6398])
+- Lp/bugfix/share ip allocation ([#6395])
+- feat: use hex-encoding for lp key digests ([#6394])
+- Add socks5 test to gateway-probe ([#6393])
+- [LP Gateway probe] Improve file structure ([#6391])
+- Reduce the size of `HttpClientError` ([#6390])
+- Lp/two step dvpn reg ([#6386])
+- Add extra configured nym api url to env ([#6382])
+- Lp/dvpn psk injection ([#6378])
+- LP: include signing key digests to LP responses ([#6373])
+- Lp/use noise x25519 ([#6372])
+- Topology fallback ([#6363])
+- NS API socks5 support ([#6361])
+- LP: modified LPRemotePeer to dynamically choose required KEM key hash ([#6358])
+- Fix KKT Integration into LP ([#6357])
+- LP: mixnet reg fixes ([#6356])
+- LP: announced KEM key hashes ([#6349])
+- revert faulty drop changes ([#6346])
+- small qol changes ([#6340])
+- Apply configured api urls via env ([#6337])
+- lp chore: make sure to take reserved bytes straight from the header ([#6336])
+- LP: x25519/ed22519 cleanup round ([#6335])
+- Lp/encrypted kkt ([#6331])
+- ensure packets with incompatible versions are rejected ([#6326])
+- standarise lp serialisation: ([#6324])
+- Upgrade to def_guard_wireguard v0.8.0 ([#6315])
+- Max/crates io prep v2 ([#6270])
+
+[#6422]: https://github.com/nymtech/nym/pull/6422
+[#6420]: https://github.com/nymtech/nym/pull/6420
+[#6419]: https://github.com/nymtech/nym/pull/6419
+[#6412]: https://github.com/nymtech/nym/pull/6412
+[#6411]: https://github.com/nymtech/nym/pull/6411
+[#6409]: https://github.com/nymtech/nym/pull/6409
+[#6408]: https://github.com/nymtech/nym/pull/6408
+[#6404]: https://github.com/nymtech/nym/pull/6404
+[#6402]: https://github.com/nymtech/nym/pull/6402
+[#6400]: https://github.com/nymtech/nym/pull/6400
+[#6399]: https://github.com/nymtech/nym/pull/6399
+[#6398]: https://github.com/nymtech/nym/pull/6398
+[#6395]: https://github.com/nymtech/nym/pull/6395
+[#6394]: https://github.com/nymtech/nym/pull/6394
+[#6393]: https://github.com/nymtech/nym/pull/6393
+[#6391]: https://github.com/nymtech/nym/pull/6391
+[#6390]: https://github.com/nymtech/nym/pull/6390
+[#6386]: https://github.com/nymtech/nym/pull/6386
+[#6382]: https://github.com/nymtech/nym/pull/6382
+[#6378]: https://github.com/nymtech/nym/pull/6378
+[#6373]: https://github.com/nymtech/nym/pull/6373
+[#6372]: https://github.com/nymtech/nym/pull/6372
+[#6363]: https://github.com/nymtech/nym/pull/6363
+[#6361]: https://github.com/nymtech/nym/pull/6361
+[#6358]: https://github.com/nymtech/nym/pull/6358
+[#6357]: https://github.com/nymtech/nym/pull/6357
+[#6356]: https://github.com/nymtech/nym/pull/6356
+[#6349]: https://github.com/nymtech/nym/pull/6349
+[#6346]: https://github.com/nymtech/nym/pull/6346
+[#6340]: https://github.com/nymtech/nym/pull/6340
+[#6337]: https://github.com/nymtech/nym/pull/6337
+[#6336]: https://github.com/nymtech/nym/pull/6336
+[#6335]: https://github.com/nymtech/nym/pull/6335
+[#6331]: https://github.com/nymtech/nym/pull/6331
+[#6326]: https://github.com/nymtech/nym/pull/6326
+[#6324]: https://github.com/nymtech/nym/pull/6324
+[#6315]: https://github.com/nymtech/nym/pull/6315
+[#6270]: https://github.com/nymtech/nym/pull/6270
+
+## [2026.2-oscypek] (2026-01-27)
+
+- bugfix: downgrade gateway protocol to clients proposed version ([#6377])
+- bugfix: ack fix ([#6364])
+- Cherry pick/api urls oscypek ([#6348])
+- Update nix to v0.30.1 ([#6316])
+- Deriving Serialize for GatewayData ([#6314])
+- chore: remove repetitive words in comment ([#6313])
+- [bugfix] Sqlite transaction escalation was causing errors  ([#6299])
+- DNS static table pre-resolve ([#6297])
+- Add Copy+Clone to nym_api_provider::Config ([#6296])
+- [chore] clippy fixes and use fixed rust version from REQUIRED_RUSTC_VERSION ([#6295])
+- build(deps): bump SonarSource/sonarqube-scan-action from 6 to 7 ([#6294])
+- build(deps): bump mikefarah/yq from 4.49.2 to 4.50.1 ([#6293])
+- build(deps): bump actions/upload-artifact from 5 to 6 ([#6292])
+- build(deps): bump actions/download-artifact from 6 to 7 ([#6291])
+- build(deps): bump js-yaml from 3.14.1 to 3.14.2 in /documentation/docs ([#6290])
+- build(deps): bump next from 15.4.9 to 15.4.10 in /nym-node-status-api/nym-node-status-ui ([#6289])
+- build(deps): bump next from 14.2.33 to 14.2.35 ([#6288])
+- LP Registration + Telescoping + Gateway Probe Localnet Mode ([#6286])
+- build(deps): bump next from 15.5.7 to 15.5.9 in /documentation/docs ([#6285])
+- build(deps): bump next from 15.4.7 to 15.4.9 in /nym-node-status-api/nym-node-status-ui ([#6284])
+- Minor DNS improvements ([#6283])
+- HTTP client without default features ([#6281])
+- DNS: reduce number of attempts ([#6278])
+- [bugfix] use proper mixing delay instead of poisson delay in cover traffic ([#6269])
+- build(deps): bump node-forge from 1.3.1 to 1.3.3 in /wasm/zknym-lib/internal-dev ([#6261])
+- build(deps-dev): bump node-forge from 1.3.1 to 1.3.3 in /wasm/mix-fetch/internal-dev ([#6260])
+- build(deps-dev): bump node-forge from 1.3.1 to 1.3.2 in /wasm/client/internal-dev ([#6251])
+- build(deps): bump node-forge from 1.3.1 to 1.3.2 in /nym-credential-proxy/vpn-api-lib-wasm/internal-dev ([#6250])
+- [Feature] Fallback gateway listener and remove legacy key support ([#6249])
+- build(deps-dev): bump node-forge from 1.3.0 to 1.3.2 in /clients/native/examples/js-examples/websocket ([#6248])
+- build(deps): bump node-forge from 1.3.1 to 1.3.2 ([#6246])
+- build(deps): bump pnpm/action-setup from 4.1.0 to 4.2.0 ([#6245])
+- build(deps): bump actions/download-artifact from 5 to 6 ([#6244])
+- build(deps): bump actions/checkout from 4 to 6 ([#6243])
+- build(deps): bump mikefarah/yq from 4.48.1 to 4.49.2 ([#6242])
+- build(deps): bump actions/upload-artifact from 4 to 5 ([#6241])
+- fix: fix assertion ([#6238])
+- Initial changes to support extra configurable parameters and to print… ([#6237])
+- Data Observatory ([#6172])
+
+[#6377]: https://github.com/nymtech/nym/pull/6377
+[#6364]: https://github.com/nymtech/nym/pull/6364
+[#6348]: https://github.com/nymtech/nym/pull/6348
+[#6316]: https://github.com/nymtech/nym/pull/6316
+[#6314]: https://github.com/nymtech/nym/pull/6314
+[#6313]: https://github.com/nymtech/nym/pull/6313
+[#6299]: https://github.com/nymtech/nym/pull/6299
+[#6297]: https://github.com/nymtech/nym/pull/6297
+[#6296]: https://github.com/nymtech/nym/pull/6296
+[#6295]: https://github.com/nymtech/nym/pull/6295
+[#6294]: https://github.com/nymtech/nym/pull/6294
+[#6293]: https://github.com/nymtech/nym/pull/6293
+[#6292]: https://github.com/nymtech/nym/pull/6292
+[#6291]: https://github.com/nymtech/nym/pull/6291
+[#6290]: https://github.com/nymtech/nym/pull/6290
+[#6289]: https://github.com/nymtech/nym/pull/6289
+[#6288]: https://github.com/nymtech/nym/pull/6288
+[#6286]: https://github.com/nymtech/nym/pull/6286
+[#6285]: https://github.com/nymtech/nym/pull/6285
+[#6284]: https://github.com/nymtech/nym/pull/6284
+[#6283]: https://github.com/nymtech/nym/pull/6283
+[#6281]: https://github.com/nymtech/nym/pull/6281
+[#6278]: https://github.com/nymtech/nym/pull/6278
+[#6269]: https://github.com/nymtech/nym/pull/6269
+[#6261]: https://github.com/nymtech/nym/pull/6261
+[#6260]: https://github.com/nymtech/nym/pull/6260
+[#6251]: https://github.com/nymtech/nym/pull/6251
+[#6250]: https://github.com/nymtech/nym/pull/6250
+[#6249]: https://github.com/nymtech/nym/pull/6249
+[#6248]: https://github.com/nymtech/nym/pull/6248
+[#6246]: https://github.com/nymtech/nym/pull/6246
+[#6245]: https://github.com/nymtech/nym/pull/6245
+[#6244]: https://github.com/nymtech/nym/pull/6244
+[#6243]: https://github.com/nymtech/nym/pull/6243
+[#6242]: https://github.com/nymtech/nym/pull/6242
+[#6241]: https://github.com/nymtech/nym/pull/6241
+[#6238]: https://github.com/nymtech/nym/pull/6238
+[#6237]: https://github.com/nymtech/nym/pull/6237
+[#6172]: https://github.com/nymtech/nym/pull/6172
+
 ## [2026.1-niolo] (2026-01-13)
 
 - bugfix: mozzarella -> niolo config migration ([#6259])

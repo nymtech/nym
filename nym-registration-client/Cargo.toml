@@ -14,26 +14,28 @@ publish = false
 workspace = true
 
 [dependencies]
+bincode.workspace = true
 bytes.workspace = true
 futures.workspace = true
-rand.workspace = true
+rand09.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
 typed-builder.workspace = true
-url.workspace = true
-
 
 nym-authenticator-client = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-credential-storage = { workspace = true }
 nym-credentials-interface = { workspace = true }
-nym-crypto = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric", "libcrux_x25519"] }
 nym-ip-packet-client = { workspace = true }
 nym-lp = { path = "../common/nym-lp" }
-nym-lp-transport = { path = "../common/nym-lp-transport" }
 nym-registration-common = { workspace = true }
 nym-sdk = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-wireguard-types = { path = "../common/wireguard-types" }
+
+[dev-dependencies]
+nym-kkt.workspace = true
+nym-test-utils.workspace = true

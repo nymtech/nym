@@ -136,6 +136,7 @@
 //! ```
 #![warn(missing_docs)]
 
+use http::header::USER_AGENT;
 pub use inventory;
 pub use reqwest;
 pub use reqwest::ClientBuilder as ReqwestClientBuilder;
@@ -147,6 +148,7 @@ pub mod registry;
 use crate::path::RequestPath;
 use async_trait::async_trait;
 use bytes::Bytes;
+use cfg_if::cfg_if;
 use http::HeaderMap;
 use http::header::{ACCEPT, CONTENT_TYPE};
 use itertools::Itertools;
@@ -161,9 +163,7 @@ use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, instrument, warn};
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 #[cfg(feature = "tunneling")]
 mod fronted;
@@ -195,6 +195,8 @@ use nym_http_api_client_macro::client_defaults;
 /// high and chatty protocols take a while to complete.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
+const NYM_OUTER_SNI_HEADER: &str = "NYM-ORIGINAL-OUTER-SNI";
+
 #[cfg(not(target_arch = "wasm32"))]
 client_defaults!(
     priority = -100;
@@ -205,6 +207,24 @@ client_defaults!(
     timeout = DEFAULT_TIMEOUT,
     user_agent = format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION"))
 );
+
+static SHARED_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    tracing::info!("Initializing shared HTTP client");
+    cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            reqwest::ClientBuilder::new().build()
+                .expect("failed to initialize shared http client")
+        } else {
+            let mut builder = default_builder();
+
+            builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+
+            builder
+                .build()
+                .expect("failed to initialize shared http client")
+        }
+    }
+});
 
 /// Collection of URL Path Segments
 pub type PathSegments<'a> = &'a [&'a str];
@@ -327,16 +347,22 @@ pub enum HttpClientError {
         source: reqwest::Error,
     },
 
+    #[error("failed to parse header value: {source}")]
+    InvalidHeaderValue {
+        #[source]
+        source: http::Error,
+    },
+
     #[error("failed to send request for {url}: {source}")]
     RequestSendFailure {
-        url: reqwest::Url,
+        url: Box<reqwest::Url>,
         #[source]
         source: ReqwestErrorWrapper,
     },
 
     #[error("failed to read response body from {url}: {source}")]
     ResponseReadFailure {
-        url: reqwest::Url,
+        url: Box<reqwest::Url>,
         headers: Box<HeaderMap>,
         status: StatusCode,
         #[source]
@@ -353,7 +379,7 @@ pub enum HttpClientError {
     },
 
     #[error("the requested resource could not be found at {url}")]
-    NotFound { url: reqwest::Url },
+    NotFound { url: Box<reqwest::Url> },
 
     #[error("attempted to use domain fronting and clone a request containing stream data")]
     AttemptedToCloneStreamRequest,
@@ -365,7 +391,7 @@ pub enum HttpClientError {
         "the request for {url} failed with status '{status}'. no additional error message provided. response headers: {headers:?}"
     )]
     RequestFailure {
-        url: reqwest::Url,
+        url: Box<reqwest::Url>,
         status: StatusCode,
         headers: Box<HeaderMap>,
     },
@@ -374,7 +400,7 @@ pub enum HttpClientError {
         "the returned response from {url} was empty. status: '{status}'. response headers: {headers:?}"
     )]
     EmptyResponse {
-        url: reqwest::Url,
+        url: Box<reqwest::Url>,
         status: StatusCode,
         headers: Box<HeaderMap>,
     },
@@ -383,7 +409,7 @@ pub enum HttpClientError {
         "failed to resolve request for {url}. status: '{status}'. response headers: {headers:?}. additional error message: {error}"
     )]
     EndpointFailure {
-        url: reqwest::Url,
+        url: Box<reqwest::Url>,
         status: StatusCode,
         headers: Box<HeaderMap>,
         error: String,
@@ -453,7 +479,7 @@ impl HttpClientError {
 
     pub fn request_send_error(url: reqwest::Url, source: reqwest::Error) -> Self {
         HttpClientError::RequestSendFailure {
-            url,
+            url: Box::new(url),
             source: ReqwestErrorWrapper(source),
         }
     }
@@ -554,6 +580,19 @@ pub trait ApiClientCore {
         let req = self.create_request(method, path, params, json_body)?;
         self.send(req).await
     }
+
+    /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
+    ///
+    /// Takes an optional URL argument. If this is none, the current host will be updated automatically.
+    /// If a url is provided first check that the CURRENT host matches the hostname in the URL before
+    /// triggering a rotation. This is meant to prevent parallel requests that fail from rotating the host
+    /// multiple times.
+    fn maybe_rotate_hosts(&self, offending_url: Option<Url>);
+
+    /// If the fronting policy for the client is set to `OnRetry` this function will enable the
+    /// fronting if not already enabled.
+    #[cfg(feature = "tunneling")]
+    fn maybe_enable_fronting(&self, context: impl std::fmt::Debug);
 }
 
 /// A `ClientBuilder` can be used to create a [`Client`] with custom configuration applied consistently
@@ -562,16 +601,18 @@ pub struct ClientBuilder {
     urls: Vec<Url>,
 
     timeout: Option<Duration>,
-    custom_user_agent: bool,
-    reqwest_client_builder: reqwest::ClientBuilder,
+    custom_user_agent: Option<HeaderValue>,
+    reqwest_client_builder: Option<reqwest::ClientBuilder>,
     #[allow(dead_code)] // not dead code, just unused in wasm
     use_secure_dns: bool,
 
     #[cfg(feature = "tunneling")]
-    front: Option<fronted::Front>,
+    front: fronted::Front,
 
     retry_limit: usize,
     serialization: SerializationFormat,
+
+    error: Option<HttpClientError>,
 }
 
 impl ClientBuilder {
@@ -642,10 +683,10 @@ impl ClientBuilder {
 
         let mut builder = Self::new_with_urls(urls)?;
 
-        // Enable domain fronting by default (on retry)
+        // Enable domain fronting using the shared fronting policy
         #[cfg(feature = "tunneling")]
         {
-            builder = builder.with_fronting(FrontPolicy::OnRetry);
+            builder = builder.with_fronting(None);
         }
 
         Ok(builder)
@@ -659,24 +700,29 @@ impl ClientBuilder {
 
         let urls = Self::check_urls(urls);
 
-        #[cfg(target_arch = "wasm32")]
-        let reqwest_client_builder = reqwest::ClientBuilder::new();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let reqwest_client_builder = default_builder();
-
         Ok(ClientBuilder {
             urls,
             timeout: None,
-            custom_user_agent: false,
-            reqwest_client_builder,
+            custom_user_agent: None,
+            reqwest_client_builder: None,
             use_secure_dns: true,
             #[cfg(feature = "tunneling")]
-            front: None,
+            front: fronted::Front::off(),
 
             retry_limit: 0,
             serialization: SerializationFormat::Json,
+            error: None,
         })
+    }
+
+    /// Configure use of an independent HTTP request executor. This prevents use of beneficial
+    /// features like connection pooling under the hood.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn non_shared(mut self) -> Self {
+        if self.reqwest_client_builder.is_none() {
+            self.reqwest_client_builder = Some(default_builder());
+        }
+        self
     }
 
     /// Add an additional URL to the set usable by this constructed `Client`
@@ -723,7 +769,7 @@ impl ClientBuilder {
 
     /// Provide a pre-configured [`reqwest::ClientBuilder`]
     pub fn with_reqwest_builder(mut self, reqwest_builder: reqwest::ClientBuilder) -> Self {
-        self.reqwest_client_builder = reqwest_builder;
+        self.reqwest_client_builder = Some(reqwest_builder);
         self
     }
 
@@ -733,18 +779,12 @@ impl ClientBuilder {
         V: TryInto<HeaderValue>,
         V::Error: Into<http::Error>,
     {
-        self.custom_user_agent = true;
-        self.reqwest_client_builder = self.reqwest_client_builder.user_agent(value);
-        self
-    }
-
-    /// Override DNS resolution for specific domains to particular IP addresses.
-    ///
-    /// Set the port to `0` to use the conventional port for the given scheme (e.g. 80 for http).
-    /// Ports in the URL itself will always be used instead of the port in the overridden addr.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn resolve_to_addrs(mut self, domain: &str, addrs: &[SocketAddr]) -> ClientBuilder {
-        self.reqwest_client_builder = self.reqwest_client_builder.resolve_to_addrs(domain, addrs);
+        match value.try_into() {
+            Ok(v) => self.custom_user_agent = Some(v),
+            Err(err) => {
+                self.error = Some(HttpClientError::InvalidHeaderValue { source: err.into() })
+            }
+        }
         self
     }
 
@@ -761,30 +801,33 @@ impl ClientBuilder {
 
     /// Returns a Client that uses this ClientBuilder configuration.
     pub fn build(self) -> Result<Client, HttpClientError> {
+        if let Some(err) = self.error {
+            return Err(err);
+        }
+
         #[cfg(target_arch = "wasm32")]
-        let reqwest_client = self.reqwest_client_builder.build()?;
+        let reqwest_client = Some(reqwest::ClientBuilder::new().build()?);
 
-        // TODO: we should probably be propagating the error rather than panicking,
-        // but that'd break bunch of things due to type changes
         #[cfg(not(target_arch = "wasm32"))]
-        let reqwest_client = {
-            let mut builder = self.reqwest_client_builder;
+        let reqwest_client = self
+            .reqwest_client_builder
+            .map(|mut builder| {
+                // unless explicitly disabled use the DoT/DoH enabled resolver
+                if self.use_secure_dns {
+                    builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+                }
 
-            // unless explicitly disabled use the DoT/DoH enabled resolver
-            if self.use_secure_dns {
-                builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
-            }
-
-            builder
-                .build()
-                .map_err(HttpClientError::reqwest_client_build_error)?
-        };
+                builder
+                    .build()
+                    .map_err(HttpClientError::reqwest_client_build_error)
+            })
+            .transpose()?;
 
         let client = Client {
             base_urls: self.urls,
             current_idx: Arc::new(AtomicUsize::new(0)),
             reqwest_client,
-            using_secure_dns: self.use_secure_dns,
+            custom_user_agent: self.custom_user_agent,
 
             #[cfg(feature = "tunneling")]
             front: self.front,
@@ -804,11 +847,11 @@ impl ClientBuilder {
 pub struct Client {
     base_urls: Vec<Url>,
     current_idx: Arc<AtomicUsize>,
-    reqwest_client: reqwest::Client,
-    using_secure_dns: bool,
+    reqwest_client: Option<reqwest::Client>,
+    custom_user_agent: Option<HeaderValue>,
 
     #[cfg(feature = "tunneling")]
-    front: Option<fronted::Front>,
+    front: fronted::Front,
 
     #[cfg(target_arch = "wasm32")]
     request_timeout: Duration,
@@ -862,8 +905,8 @@ impl Client {
         Client {
             base_urls: vec![new_url],
             current_idx: Arc::new(Default::default()),
-            reqwest_client: self.reqwest_client.clone(),
-            using_secure_dns: self.using_secure_dns,
+            reqwest_client: None,
+            custom_user_agent: None,
 
             #[cfg(feature = "tunneling")]
             front: self.front.clone(),
@@ -897,9 +940,7 @@ impl Client {
 
     #[cfg(feature = "tunneling")]
     fn matches_current_host(&self, url: &Url) -> bool {
-        if let Some(ref front) = self.front
-            && front.is_enabled()
-        {
+        if self.front.is_enabled() {
             url.host_str() == self.current_url().front_str()
         } else {
             url.host_str() == self.current_url().host_str()
@@ -926,9 +967,7 @@ impl Client {
         }
 
         #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front
-            && front.is_enabled()
-        {
+        if self.front.is_enabled() {
             // if we are using fronting, try updating to the next front
             let url = self.current_url();
 
@@ -948,9 +987,7 @@ impl Client {
 
             // if fronting is enabled we want to update to a host that has fronts configured
             #[cfg(feature = "tunneling")]
-            if let Some(ref front) = self.front
-                && front.is_enabled()
-            {
+            if self.front.is_enabled() {
                 while next != orig {
                     if self.base_urls[next].has_front() {
                         // we have a front for the next host, so we can use it
@@ -981,14 +1018,12 @@ impl Client {
     /// this method. For example, if the client is configured to rotate hosts after each error, this
     /// method should be called after the host has been updated -- i.e. as part of the subsequent
     /// send.
-    fn apply_hosts_to_req(&self, r: &mut reqwest::Request) -> (&str, Option<&str>) {
+    pub(crate) fn apply_hosts_to_req(&self, r: &mut reqwest::Request) -> (&str, Option<&str>) {
         let url = self.current_url();
         r.url_mut().set_host(url.host_str()).unwrap();
 
         #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front
-            && front.is_enabled()
-        {
+        if self.front.is_enabled() {
             if let Some(front_host) = url.front_str() {
                 if let Some(actual_host) = url.host_str() {
                     tracing::debug!(
@@ -1007,6 +1042,13 @@ impl Client {
                     _ = r
                         .headers_mut()
                         .insert(reqwest::header::HOST, actual_host_header);
+
+                    // Set a custom header to capture the outer host (used in the SNI) of the request
+                    let front_host_header: HeaderValue =
+                        front_host.parse().unwrap_or(HeaderValue::from_static(""));
+                    _ = r
+                        .headers_mut()
+                        .insert(NYM_OUTER_SNI_HEADER, front_host_header);
 
                     return (url.as_str(), url.front_str());
                 } else {
@@ -1048,11 +1090,20 @@ impl ApiClientCore for Client {
 
         self.apply_hosts_to_req(&mut req);
 
-        let mut rb = RequestBuilder::from_parts(self.reqwest_client.clone(), req);
+        let client = if let Some(client) = &self.reqwest_client {
+            client.clone()
+        } else {
+            SHARED_CLIENT.clone()
+        };
+        let mut rb = RequestBuilder::from_parts(client, req);
 
         rb = rb
             .header(ACCEPT, self.serialization.content_type())
             .header(CONTENT_TYPE, self.serialization.content_type());
+
+        if let Some(user_agent) = &self.custom_user_agent {
+            rb = rb.header(USER_AGENT, user_agent.clone());
+        }
 
         if let Some(body) = body {
             match self.serialization {
@@ -1096,16 +1147,19 @@ impl ApiClientCore for Client {
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
-                Ok(wasmtimer::tokio::timeout(
-                    self.request_timeout,
-                    self.reqwest_client.execute(req),
+                let client = self.reqwest_client.as_ref().unwrap_or(&*SHARED_CLIENT);
+                Ok(
+                    wasmtimer::tokio::timeout(self.request_timeout, client.execute(req))
+                        .await
+                        .map_err(|_timeout| HttpClientError::RequestTimeout)??,
                 )
-                .await
-                .map_err(|_timeout| HttpClientError::RequestTimeout)??)
             };
 
             #[cfg(not(target_arch = "wasm32"))]
-            let response = self.reqwest_client.execute(req).await;
+            let response = {
+                let client = self.reqwest_client.as_ref().unwrap_or(&*SHARED_CLIENT);
+                client.execute(req).await
+            };
 
             match response {
                 Ok(resp) => return Ok(resp),
@@ -1121,20 +1175,10 @@ impl ApiClientCore for Client {
 
                     if is_network_err {
                         // if we have multiple urls, update to the next
-                        self.update_host(Some(url.clone()));
+                        self.maybe_rotate_hosts(Some(url.clone()));
 
                         #[cfg(feature = "tunneling")]
-                        if let Some(ref front) = self.front {
-                            // If fronting is set to be enabled on error, enable domain fronting as we
-                            // have encountered an error.
-                            let was_enabled = front.is_enabled();
-                            front.retry_enable();
-                            if !was_enabled && front.is_enabled() {
-                                tracing::info!(
-                                    "Domain fronting activated after connection failure: {err}",
-                                );
-                            }
-                        }
+                        self.maybe_enable_fronting(("network", url.as_str(), &err));
                     }
 
                     if attempts < self.retry_limit {
@@ -1156,6 +1200,21 @@ impl ApiClientCore for Client {
                     }
                 }
             }
+        }
+    }
+
+    fn maybe_rotate_hosts(&self, offending: Option<Url>) {
+        self.update_host(offending);
+    }
+
+    #[cfg(feature = "tunneling")]
+    fn maybe_enable_fronting(&self, context: impl std::fmt::Debug) {
+        // If fronting is set to be OnRetry, enable domain fronting as we
+        // have encountered an error.
+        let was_enabled = self.front.is_enabled();
+        self.front.retry_enable();
+        if !was_enabled && self.front.is_enabled() {
+            tracing::debug!("Domain fronting activated after failure: {context:?}",);
         }
     }
 }
@@ -1310,6 +1369,35 @@ pub trait ApiClient: ApiClientCore {
         self.get_response(path, params).await
     }
 
+    /// Attempt to parse a response object from an HTTP response
+    async fn parse_response<T>(
+        &self,
+        res: Response,
+        allow_empty: bool,
+    ) -> Result<T, HttpClientError>
+    where
+        T: DeserializeOwned,
+    {
+        let url = Url::from(res.url());
+        parse_response(res, allow_empty).await.inspect_err(|e| {
+            if matches!(
+                // if we encounter a read error while we attempt to parse it could be caused by censorship and we should
+                // rotate hosts / enable fronting.
+                e,
+                HttpClientError::ResponseReadFailure {
+                    url: _,
+                    headers: _,
+                    status: _,
+                    source: _,
+                }
+            ) {
+                self.maybe_rotate_hosts(Some(url.clone()));
+                #[cfg(feature = "tunneling")]
+                self.maybe_enable_fronting(("parse/read", url.as_str(), e));
+            }
+        })
+    }
+
     /// 'get' data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
     /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
     /// into the provided type `T` based on the content type header
@@ -1327,7 +1415,8 @@ pub trait ApiClient: ApiClientCore {
         let res = self
             .send_request(reqwest::Method::GET, path, params, None::<&()>)
             .await?;
-        parse_response(res, false).await
+
+        self.parse_response(res, false).await
     }
 
     /// 'post' json data to the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
@@ -1349,7 +1438,7 @@ pub trait ApiClient: ApiClientCore {
         let res = self
             .send_request(reqwest::Method::POST, path, params, Some(json_body))
             .await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// 'delete' json data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with
@@ -1369,7 +1458,7 @@ pub trait ApiClient: ApiClientCore {
         let res = self
             .send_request(reqwest::Method::DELETE, path, params, None::<&()>)
             .await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// 'patch' json data at the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
@@ -1391,7 +1480,7 @@ pub trait ApiClient: ApiClientCore {
         let res = self
             .send_request(reqwest::Method::PATCH, path, params, Some(json_body))
             .await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// `get` json data from the provided absolute endpoint, e.g. `"/api/v1/mixnodes?since=12345"`.
@@ -1403,7 +1492,7 @@ pub trait ApiClient: ApiClientCore {
     {
         let req = self.create_request_endpoint(reqwest::Method::GET, endpoint, None::<&()>)?;
         let res = self.send(req).await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// `post` json data to the provided absolute endpoint, e.g. `"/api/v1/mixnodes?since=12345"`.
@@ -1420,7 +1509,7 @@ pub trait ApiClient: ApiClientCore {
     {
         let req = self.create_request_endpoint(reqwest::Method::POST, endpoint, Some(json_body))?;
         let res = self.send(req).await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// `delete` json data from the provided absolute endpoint, e.g.
@@ -1432,7 +1521,7 @@ pub trait ApiClient: ApiClientCore {
     {
         let req = self.create_request_endpoint(reqwest::Method::DELETE, endpoint, None::<&()>)?;
         let res = self.send(req).await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 
     /// `patch` json data at the provided absolute endpoint, e.g. `"/api/v1/mixnodes?since=12345"`.
@@ -1450,7 +1539,7 @@ pub trait ApiClient: ApiClientCore {
         let req =
             self.create_request_endpoint(reqwest::Method::PATCH, endpoint, Some(json_body))?;
         let res = self.send(req).await?;
-        parse_response(res, false).await
+        self.parse_response(res, false).await
     }
 }
 
@@ -1517,7 +1606,7 @@ where
 
     if !allow_empty && let Some(0) = res.content_length() {
         return Err(HttpClientError::EmptyResponse {
-            url,
+            url: Box::new(url),
             status,
             headers: Box::new(headers),
         });
@@ -1530,25 +1619,25 @@ where
             .bytes()
             .await
             .map_err(|source| HttpClientError::ResponseReadFailure {
-                url,
+                url: Box::new(url),
                 headers: Box::new(headers.clone()),
                 status,
                 source: ReqwestErrorWrapper(source),
             })?;
         decode_raw_response(&headers, full)
     } else if res.status() == StatusCode::NOT_FOUND {
-        Err(HttpClientError::NotFound { url })
+        Err(HttpClientError::NotFound { url: Box::new(url) })
     } else {
         let Ok(plaintext) = res.text().await else {
             return Err(HttpClientError::RequestFailure {
-                url,
+                url: Box::new(url),
                 status,
                 headers: Box::new(headers),
             });
         };
 
         Err(HttpClientError::EndpointFailure {
-            url,
+            url: Box::new(url),
             status,
             headers: Box::new(headers),
             error: plaintext,

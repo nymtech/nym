@@ -21,7 +21,7 @@ pub struct MockBandwidthController {
 impl BandwidthTicketProvider for MockBandwidthController {
     async fn get_ecash_ticket(
         &self,
-        _ticket_type: TicketType,
+        ticket_type: TicketType,
         _gateway_id: PublicKey,
         tickets_to_spend: u32,
     ) -> Result<PreparedCredential, BandwidthControllerError> {
@@ -99,6 +99,10 @@ impl BandwidthTicketProvider for MockBandwidthController {
 
         let mut credential = CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES)
             .expect("Failed to deserialize test credential - this is a bug in the test harness");
+
+        // change the ticket type to the requested ticket
+        // note that verification outside mocks is going to fail
+        credential.payment.t_type = ticket_type.to_repr() as u8;
 
         // Update spend_date to today to pass validation
         credential.spend_date = OffsetDateTime::now_utc().date();

@@ -1,24 +1,24 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::v1::gateway::models::Wireguard;
+use super::v1::metrics::models::SessionStats;
+use crate::api::SignedLewesProtocol;
+use crate::api::v1::authenticator::models::Authenticator;
 use crate::api::v1::gateway::models::WebSockets;
+use crate::api::v1::health::models::NodeHealth;
+use crate::api::v1::ip_packet_router::models::IpPacketRouter;
+use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
+use crate::api::v1::network_requester::models::NetworkRequester;
 use crate::api::v1::node::models::{
     AuxiliaryDetails, NodeDescription, NodeRoles, SignedHostInformation,
 };
+use crate::api::v1::node_load::models::NodeLoad;
 use crate::routes;
 use async_trait::async_trait;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_http_api_client::{ApiClient, HttpClientError};
 
-use super::v1::gateway::models::Wireguard;
-use super::v1::metrics::models::SessionStats;
-use crate::api::v1::authenticator::models::Authenticator;
-use crate::api::v1::health::models::NodeHealth;
-use crate::api::v1::ip_packet_router::models::IpPacketRouter;
-use crate::api::v1::lewes_protocol::models::LewesProtocol;
-use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
-use crate::api::v1::network_requester::models::NetworkRequester;
-use crate::api::v1::node_load::models::NodeLoad;
 pub use nym_http_api_client::Client;
 
 pub type NymNodeApiClientError = HttpClientError;
@@ -98,7 +98,7 @@ pub trait NymNodeApiClientExt: ApiClient {
             .await
     }
 
-    async fn get_lewes_protocol(&self) -> Result<LewesProtocol, NymNodeApiClientError> {
+    async fn get_lewes_protocol(&self) -> Result<SignedLewesProtocol, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::lp_absolute()).await
     }
 }

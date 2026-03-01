@@ -6,8 +6,12 @@
 //! This module contains shared functionality used by multiple test modes:
 //! - WireGuard tunnel testing via netstack
 
-pub mod wireguard;
-
-pub use wireguard::{
-    TwoHopWgTunnelConfig, WgTunnelConfig, run_tunnel_tests, run_two_hop_tunnel_tests,
-};
+pub(crate) mod bandwidth_helpers;
+pub(crate) mod helpers;
+pub(crate) mod icmp;
+pub(crate) mod netstack;
+pub(crate) mod nodes;
+pub(crate) mod probe_tests;
+pub(crate) mod socks5_test;
+pub mod types;
+pub(crate) mod wireguard;

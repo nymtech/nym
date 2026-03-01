@@ -2,6 +2,8 @@
 
 # --- Configuration ---
 TEST_DATABASE_URL := postgres://testuser:testpass@localhost:5433/nym_node_status_api_test
+ENVIRONMENT ?= mainnet
+MONOREPO_ROOT := $(shell realpath ../..)
 
 # Docker compose service names
 DB_SERVICE_NAME := postgres-test
@@ -53,6 +55,20 @@ test-db-migrate: ## Run database migrations against PostgreSQL
 test-db-prepare: ## Run sqlx prepare for compile-time query verification
 	@echo "Running sqlx prepare for PostgreSQL..."
 	DATABASE_URL="$(TEST_DATABASE_URL)" cargo sqlx prepare
+
+# --- Run Targets ---
+.PHONY: run
+run: ## Run the service (assumes database is already running)
+	@echo "Starting nym-node-status-api with $(ENVIRONMENT) environment..."
+	@set -a && source "$(MONOREPO_ROOT)/envs/$(ENVIRONMENT).env" && set +a && \
+	DATABASE_URL="$(TEST_DATABASE_URL)" \
+	NYM_API_CLIENT_TIMEOUT="$${NYM_API_CLIENT_TIMEOUT:-60}" \
+	NODE_STATUS_API_AGENT_KEY_LIST="$${NODE_STATUS_API_AGENT_KEY_LIST:-H4z8kx5Kkf5JMQHhxaW1MwYndjKCDHC7HsVhHTFfBZ4J}" \
+	RUST_LOG="$${RUST_LOG:-debug}" \
+	cargo run --package nym-node-status-api
+
+.PHONY: run-with-db
+run-with-db: dev-db run ## Start database and run the service
 
 # --- Build and Test Targets ---
 .PHONY: test-db-run

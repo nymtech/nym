@@ -21,7 +21,7 @@ zeroize = { workspace = true }
 
 nym-bin-common = { workspace = true }
 nym-http-api-client = { workspace = true }
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["form"] }
 tracing = { workspace = true }
 
 [dev-dependencies]

@@ -13,7 +13,10 @@ use nym_validator_client::{
     nyxd::{Config as NyxdClientConfig, NyxdClient},
 };
 
-use crate::{RegistrationClient, config::RegistrationClientConfig, error::RegistrationClientError};
+use crate::{
+    RegistrationClient, clients::MixnetBasedRegistrationClient, config::RegistrationMode,
+    error::RegistrationClientError,
+};
 use config::BuilderConfig;
 
 pub(crate) mod config;
@@ -27,13 +30,41 @@ impl RegistrationClientBuilder {
         Self { config }
     }
 
+    pub fn use_lp(&self) -> bool {
+        let lp_enabled = self.config.enable_lp_regitration;
+        let lp_info_available = self.config.entry_node.node.lp_data.is_some()
+            && self.config.exit_node.node.lp_data.is_some();
+        // To remove when LP supports Mixnet registration
+        let wireguard_mode = self.config.mode == RegistrationMode::Wireguard;
+        let use_lp = lp_enabled && lp_info_available && wireguard_mode;
+        if !use_lp && lp_enabled {
+            tracing::warn!(
+                "LP is enabled but can't be used: Missing LP information: {lp_info_available}, wireguard mode: {wireguard_mode}"
+            );
+        }
+        use_lp
+    }
+
     pub async fn build(self) -> Result<RegistrationClient, RegistrationClientError> {
-        let storage = self.config.setup_storage().await?;
-        let config = RegistrationClientConfig {
-            entry: self.config.entry_node.clone(),
-            exit: self.config.exit_node.clone(),
-            mode: self.config.mode,
-        };
+        if self.use_lp() {
+            tracing::debug!("Using LP for registration");
+            Err(RegistrationClientError::LpRegistrationNotPossible {
+                node_id: "any".to_string(),
+            })
+            // Ok(RegistrationClient::Lp(Box::new(self.build_lp().await?)))
+        } else {
+            tracing::debug!("Using Mixnet for registration");
+            Ok(RegistrationClient::Mixnet(Box::new(
+                self.build_mixnet().await?,
+            )))
+        }
+    }
+
+    pub(crate) async fn build_mixnet(
+        self,
+    ) -> Result<MixnetBasedRegistrationClient, RegistrationClientError> {
+        let storage = self.config.setup_mixnet_client_storage().await?;
+        let config = self.config.registration_client_config();
         let cancel_token = self.config.cancel_token.clone();
         let (event_tx, event_rx) = mpsc::unbounded();
 
@@ -83,7 +114,7 @@ impl RegistrationClientBuilder {
         };
         let mixnet_client_address = *mixnet_client.nym_address();
 
-        Ok(RegistrationClient {
+        Ok(MixnetBasedRegistrationClient {
             mixnet_client,
             config,
             cancel_token,
@@ -92,6 +123,30 @@ impl RegistrationClientBuilder {
             event_rx,
         })
     }
+
+    // async fn build_lp(self) -> Result<LpBasedRegistrationClient, RegistrationClientError> {
+    //     let storage = self.config.setup_credential_storage().await?;
+    //     let config = self.config.registration_client_config();
+    //
+    //     let nyxd_client = get_nyxd_client(&self.config.network_env)?;
+    //
+    //     let bandwidth_controller: Box<dyn BandwidthTicketProvider> =
+    //         if let Some(credential_storage) = storage {
+    //             Box::new(BandwidthController::new(credential_storage, nyxd_client))
+    //         } else {
+    //             Box::new(BandwidthController::new(
+    //                 EphemeralCredentialStorage::default(),
+    //                 nyxd_client,
+    //             ))
+    //         };
+    //
+    //     Ok(LpBasedRegistrationClient {
+    //         config,
+    //         bandwidth_controller,
+    //         cancel_token: self.config.cancel_token.clone(),
+    //         fallback_client_builder: Some(self),
+    //     })
+    // }
 }
 
 // temporary while we use the legacy bandwidth-controller

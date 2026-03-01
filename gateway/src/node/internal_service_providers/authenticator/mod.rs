@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
+use crate::node::wireguard::PeerRegistrator;
 use futures::channel::oneshot;
-use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
+use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::ShutdownTracker;
 use nym_wireguard::WireguardGatewayData;
-use std::{net::IpAddr, path::Path, sync::Arc, time::SystemTime};
+use std::path::Path;
 
 pub use config::Config;
-use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 
 pub mod config;
 pub mod error;
 pub mod mixnet_client;
 pub mod mixnet_listener;
-mod peer_manager;
 mod seen_credential_cache;
 
 pub struct OnStartData {
@@ -34,13 +33,12 @@ impl OnStartData {
 pub struct Authenticator {
     #[allow(unused)]
     config: Config,
+    peer_registrator: PeerRegistrator,
     upgrade_mode_state: UpgradeModeDetails,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
-    ecash_verifier: Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
-    used_private_network_ips: Vec<IpAddr>,
     shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
@@ -48,23 +46,19 @@ pub struct Authenticator {
 impl Authenticator {
     pub fn new(
         config: Config,
+        peer_registrator: PeerRegistrator,
         upgrade_mode_state: UpgradeModeDetails,
         wireguard_gateway_data: WireguardGatewayData,
-        used_private_network_ips: Vec<IpAddr>,
-        ecash_verifier: Arc<
-            dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync,
-        >,
         shutdown: ShutdownTracker,
     ) -> Self {
         Self {
             config,
+            peer_registrator,
             upgrade_mode_state,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            ecash_verifier,
             wireguard_gateway_data,
-            used_private_network_ips,
             shutdown,
             on_start: None,
         }
@@ -135,30 +129,12 @@ impl Authenticator {
 
         let self_address = *mixnet_client.nym_address();
 
-        let used_private_network_ips =
-            std::collections::BTreeSet::from_iter(self.used_private_network_ips.iter());
-        let private_ip_network = IpNetwork::new(
-            self.config.authenticator.private_ipv4.into(),
-            self.config.authenticator.private_network_prefix_v4,
-        )?;
-        let now = SystemTime::now();
-        let free_private_network_ips = private_ip_network
-            .iter()
-            .map(|ip: IpAddr| {
-                if used_private_network_ips.contains(&ip) {
-                    (ip.into(), Some(now))
-                } else {
-                    (ip.into(), None)
-                }
-            })
-            .collect();
-        let mixnet_listener = crate::node::internal_service_providers::authenticator::mixnet_listener::MixnetListener::new(
+        let mixnet_listener = mixnet_listener::MixnetListener::new(
             self.config,
-            free_private_network_ips,
             self.wireguard_gateway_data,
             mixnet_client,
+            self.peer_registrator,
             self.upgrade_mode_state,
-            self.ecash_verifier,
         );
 
         tracing::info!("The address of this client is: {self_address}");

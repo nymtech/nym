@@ -1,4 +1,13 @@
+---
+title: "Nym Node Performance Monitoring & Testing Guide"
+description: "Monitor your Nym node performance with Prometheus, Grafana, and community tools. Covers key metrics, routing score analysis, and testing best practices."
+schemaType: "TechArticle"
+section: "Operators"
+lastUpdated: "2026-02-01"
+---
+
 import { Callout } from 'nextra/components';
+import { Steps } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
@@ -7,11 +16,11 @@ import NodePerfMixnet from 'components/operators/snippets/node-perf-mixnet.mdx';
 
 # Performance Monitoring & Testing
 
-As Nym developers constantly improve the software, the role of Node Operators is to keep their nodes up to date, monitor their performance and share feedback with the rest of the community and Nym team. Node performance measurements and [server monitoring](#monitoring) are an essential pillar of our common work. 
+As Nym developers constantly improve the software, the role of Node Operators is to keep their nodes up to date, monitor their performance and share feedback with the rest of the community and Nym team. Node performance measurements and [server monitoring](#monitoring) are an essential pillar of our common work.
 
-Nym Network is routed either through the Mixnet (5-hop) or through Wireguard (2-hop). In all cases Nym node operators always employ only one binary called [`nym-node`](/operators/nodes/nym-node). Through provided arguments (or changes in the config file), `nym-node` can be utilised for different [functionalities](/operators/nodes/nym-node/setup#functionality-mode). However, once it's [registered to Nym Network](/operators/nodes/nym-node/bonding) it's by default available for Nym Mixnet not for Wireguard routing. Only nodes with Wireguard enabled, are also available for Wireguard routing. This creates a situation where every Wireguard enabled `nym-node` is required to have a solid performance score in Mixnet to begin with, but not every Mixnet routing `nym-node` must have Wireguard enabled. 
+Nym Network is routed either through the Mixnet (5-hop) or through Wireguard (2-hop). In all cases Nym node operators always employ only one binary called [`nym-node`](/operators/nodes/nym-node). Through provided arguments (or changes in the config file), `nym-node` can be utilised for different [functionalities](/operators/nodes/nym-node/setup#functionality-mode). However, once it's [registered to Nym Network](/operators/nodes/nym-node/bonding) it's by default available for Nym Mixnet not for Wireguard routing. Only nodes with Wireguard enabled, are also available for Wireguard routing. This creates a situation where every Wireguard enabled `nym-node` is required to have a solid performance score in Mixnet to begin with, but not every Mixnet routing `nym-node` must have Wireguard enabled.
 
-Given this complexity, we divided the part below about perfromance calculation logic and node selection into two parallel tabs: Mixnet and Wireguard. 
+Given this complexity, we divided the part below about performance calculation logic and node selection into two parallel tabs: Mixnet and Wireguard.
 
 <div>
   <Tabs items={[
@@ -56,18 +65,53 @@ https://<HOSTNAME>/api/v1/roles
 ```
 </AccordionTemplate>
 
+## Socks5 Score Calculation
+
+Gateway probe also runs tests through a Network requester - a module build as a part of `nym-node`, active only in mode Exit Gateway, used for [Socks5](/developers/clients/socks5) proxy TCP connection.
+
+Socks5 score is displayed in [Nym Node Status Observatory](https://harbourmaster.nymtech.net) (if you open a page with a particular gateway) and in detail it can be previewed at [mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways](https://mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways) or when running own instance of [Gateway probe](/operators/performance-and-testing/gateway-probe).
+
+### Socks5 Score Calculation Process
+
+Socks5 score is defined in the json output of Gateway probe as `"socks5"` key. Here is an example of the dictionary:
+
+```json
+        "socks5": {
+          "can_proxy_https": true,
+          "score": "medium",
+          "errors": null
+        }
+```
+
+> Note: When we write *gateway* we refer to a `nym-node --mode exit-gateway` in this sub-chapter.
+
+<Steps>
+1. Gateway gets probed as part of a Gateway probe test where other components get tested as well
+
+2. Probe tries to connect to the Gateway through Socks5 10 times per testing instance
+
+3. Latency is calculated as an average of the successful attempts
+
+4. Gateway is scored as `"low"`, `"medium"`, `"high"` or `"offline"`, in numbers it means:
+    - `"offline"`: Gateway failed the test 3 or more times (out of 10 attempts)
+    - `"high"`: Top 50% of nodes with lowest average latency
+    - `"medium"`: Following 25% of nodes with lowest average latency below top 50% nodes
+    - `"low"`: Remaining 25% of nodes with the highest average latency time
+</Steps>
+
 ## Monitoring
 
 There are multiple ways to monitor performance of nodes and the machines on which they run. For the purpose of maximal privacy and decentralisation of the data - preventing Nym Mixnet from any global adversary takeover - we created these pages as a source of mutual empowerment, a place where operators can share and learn new skills to **setup metrics monitors on their own infrastructure**.
 
 ### Guides to Setup Own Metrics
 
-A list of different scripts, templates and guides for easier navigation:
+A list of different tools, templates and guides for easier navigation:
 
-* [`nym-gateway-probe`](performance-and-testing/gateway-probe.mdx) - a useful tool used under the hood of [Node Status Observatory](https://harbourmaster.nymtech.net)
+* [`nym-gateway-probe`](performance-and-testing/gateway-probe.mdx): a useful tool used under the hood of [Node Status Observatory](https://harbourmaster.nymtech.net)
+
+* [Diagnostic Tool](/developers/tools/diagnostic-tool): diagnose connectivity issues and provides insights into network performance
+
 * [Prometheus and Grafana](performance-and-testing/prometheus-grafana.mdx) self-hosted setup
-* [Nym-node CPU cron service](https://gist.github.com/tommyv1987/97e939a7adf491333d686a8eaa68d4bd) - an easy bash script by Nym core developer [@tommy1987](https://gist.github.com/tommyv1987), designed to monitor a CPU usage of your node, running locally
-* Nym's script [`prom_targets.py`](https://github.com/nymtech/nym/blob/develop/scripts/prom_targets.py) - a useful python program to request data from API and can be run on its own or plugged to more sophisticated flows
 
 ### Collecting Testing Metrics
 

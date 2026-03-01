@@ -16,7 +16,7 @@ use nym_credential_verification::ecash::{
 use nym_credential_verification::upgrade_mode::{
     UpgradeModeCheckConfig, UpgradeModeDetails, UpgradeModeState,
 };
-use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_router::IpPacketRouter;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
@@ -32,13 +32,12 @@ use rand::thread_rng;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Semaphore;
 use tracing::*;
 use zeroize::Zeroizing;
 
 pub use crate::node::upgrade_mode::watcher::UpgradeModeWatcher;
+use crate::node::wireguard::{PeerManager, PeerRegistrator};
 pub use client_handling::active_clients::ActiveClientsStore;
-pub use lp_listener::LpConfig;
 pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
@@ -46,14 +45,13 @@ pub use nym_gateway_storage::{
     traits::{BandwidthGatewayStorage, InboxGatewayStorage},
     GatewayStorage,
 };
-use nym_lp::peer::LpLocalPeer;
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
 pub(crate) mod client_handling;
 pub(crate) mod internal_service_providers;
-pub mod lp_listener;
 mod stale_data_cleaner;
 pub mod upgrade_mode;
+pub mod wireguard;
 
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
@@ -93,9 +91,6 @@ pub struct GatewayTasksBuilder {
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<ed25519::KeyPair>,
 
-    /// x25519 (for now, to be changed into MlKem) keypair used for the PSQ derivation
-    kem_psq_keys: Arc<x25519::KeyPair>,
-
     storage: GatewayStorage,
 
     mix_packet_sender: MixForwardingSender,
@@ -111,6 +106,8 @@ pub struct GatewayTasksBuilder {
     shutdown_tracker: ShutdownTracker,
 
     // populated and cached as necessary
+    use_mock_ecash: bool,
+
     ecash_manager:
         Option<Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>>,
 
@@ -124,7 +121,6 @@ impl GatewayTasksBuilder {
     pub fn new(
         config: Config,
         identity: Arc<ed25519::KeyPair>,
-        kem_psq_keys: Arc<x25519::KeyPair>,
         storage: GatewayStorage,
         mix_packet_sender: MixForwardingSender,
         metrics_sender: MetricEventsSender,
@@ -132,6 +128,7 @@ impl GatewayTasksBuilder {
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
         user_agent: UserAgent,
         upgrade_mode_state: UpgradeModeState,
+        use_mock_ecash: bool,
         shutdown_tracker: ShutdownTracker,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
@@ -142,7 +139,6 @@ impl GatewayTasksBuilder {
             wireguard_data: None,
             user_agent,
             identity_keypair: identity,
-            kem_psq_keys,
             storage,
             mix_packet_sender,
             metrics_sender,
@@ -150,6 +146,7 @@ impl GatewayTasksBuilder {
             upgrade_mode_state,
             mnemonic,
             shutdown_tracker,
+            use_mock_ecash,
             ecash_manager: None,
             wireguard_peers: None,
             wireguard_networks: None,
@@ -228,7 +225,7 @@ impl GatewayTasksBuilder {
         GatewayError,
     > {
         // Check if we should use mock ecash for testing
-        if self.config.lp.debug.use_mock_ecash {
+        if self.use_mock_ecash {
             warn!("Using MockEcashManager for LP testing (credentials NOT verified)");
             let mock_manager = MockEcashManager::new(Box::new(self.storage.clone()));
             return Ok(Arc::new(mock_manager)
@@ -292,6 +289,22 @@ impl GatewayTasksBuilder {
         }
     }
 
+    pub async fn build_peer_registrator(
+        &mut self,
+        upgrade_mode_details: UpgradeModeDetails,
+    ) -> Result<Option<PeerRegistrator>, GatewayError> {
+        let Some(wireguard_data) = &self.wireguard_data else {
+            return Ok(None);
+        };
+
+        let peer_manager = PeerManager::new(wireguard_data.inner.clone());
+        Ok(Some(PeerRegistrator::new(
+            self.ecash_manager().await?,
+            peer_manager,
+            upgrade_mode_details,
+        )))
+    }
+
     pub async fn build_websocket_listener(
         &mut self,
         active_clients_store: ActiveClientsStore,
@@ -317,50 +330,6 @@ impl GatewayTasksBuilder {
             self.config.gateway.websocket_bind_address,
             self.config.debug.maximum_open_connections,
             shared_state,
-            self.shutdown_tracker.clone(),
-        ))
-    }
-
-    pub async fn build_lp_listener(
-        &mut self,
-        active_clients_store: ActiveClientsStore,
-    ) -> Result<lp_listener::LpListener, GatewayError> {
-        // Get WireGuard peer controller if available
-        let wg_peer_controller = self
-            .wireguard_data
-            .as_ref()
-            .map(|wg_data| wg_data.inner.peer_tx().clone());
-
-        // We use standard RFC 7748 conversion to derive X25519 keys from Ed25519 identity keys.
-        // This allows callers to provide only Ed25519 keys (which they already have for signing/identity)
-        // without needing to manage separate X25519 keypairs.
-        //
-        // Security: Ed25519→X25519 conversion is cryptographically sound (RFC 7748).
-        // The derived X25519 keys are used for:
-        // - Noise protocol ephemeral DH
-        // - PSQ ECDH baseline security (pre-quantum)
-        let x25519_keys = Arc::new(self.identity_keypair.to_x25519());
-
-        let handler_state = lp_listener::LpHandlerState {
-            ecash_verifier: self.ecash_manager().await?,
-            storage: self.storage.clone(),
-            local_lp_peer: LpLocalPeer::new(self.identity_keypair.clone(), x25519_keys)
-                .with_kem_psq_key(self.kem_psq_keys.clone()),
-            metrics: self.metrics.clone(),
-            active_clients_store,
-            wg_peer_controller,
-            wireguard_data: self.wireguard_data.as_ref().map(|wd| wd.inner.clone()),
-            lp_config: self.config.lp,
-            outbound_mix_sender: self.mix_packet_sender.clone(),
-            handshake_states: Arc::new(dashmap::DashMap::new()),
-            session_states: Arc::new(dashmap::DashMap::new()),
-            forward_semaphore: Arc::new(Semaphore::new(
-                self.config.lp.debug.max_concurrent_forwards,
-            )),
-        };
-
-        Ok(lp_listener::LpListener::new(
-            handler_state,
             self.shutdown_tracker.clone(),
         ))
     }
@@ -487,26 +456,12 @@ impl GatewayTasksBuilder {
         Ok(peers)
     }
 
-    async fn get_wireguard_networks(&mut self) -> Result<Vec<IpAddr>, GatewayError> {
-        if let Some(cached) = self.wireguard_networks.take() {
-            return Ok(cached);
-        }
-
-        let (peers, used_private_network_ips) = self.build_wireguard_peers_and_networks().await?;
-        // cache peers for the other task
-
-        self.wireguard_peers = Some(peers);
-        Ok(used_private_network_ips)
-    }
-
     pub async fn build_wireguard_authenticator(
         &mut self,
+        peer_registrator: PeerRegistrator,
         upgrade_mode_common: UpgradeModeDetails,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Result<ServiceProviderBeingBuilt<Authenticator>, GatewayError> {
-        let ecash_manager = self.ecash_manager().await?;
-        let used_private_network_ips = self.get_wireguard_networks().await?;
-
         let Some(opts) = &self.authenticator_opts else {
             return Err(GatewayError::UnspecifiedAuthenticatorConfig);
         };
@@ -526,10 +481,9 @@ impl GatewayTasksBuilder {
 
         let mut authenticator_server = Authenticator::new(
             opts.config.clone(),
+            peer_registrator,
             upgrade_mode_common,
             wireguard_data.inner.clone(),
-            used_private_network_ips,
-            ecash_manager,
             self.shutdown_tracker.clone(),
         )
         .with_custom_gateway_transceiver(transceiver)

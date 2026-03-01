@@ -7,7 +7,11 @@ pub(crate) mod queries;
 #[cfg(test)]
 mod tests;
 
-use sqlx::{ConnectOptions, PgPool, Postgres, migrate::Migrator, postgres::PgConnectOptions};
+use sqlx::{
+    ConnectOptions, PgPool, Postgres,
+    migrate::Migrator,
+    postgres::{PgConnectOptions, PgPoolOptions},
+};
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations_pg");
 
@@ -21,7 +25,12 @@ pub(crate) struct Storage {
 }
 
 impl Storage {
-    pub async fn init(connection_url: String, _busy_timeout: Duration) -> Result<Self> {
+    pub async fn init(
+        connection_url: String,
+        acquire_timeout: Duration,
+        max_connections: u32,
+        min_connections: u32,
+    ) -> Result<Self> {
         use std::env;
         let mut connect_options =
             PgConnectOptions::from_str(&connection_url)?.disable_statement_logging();
@@ -33,7 +42,19 @@ impl Storage {
                 .ssl_mode(sqlx::postgres::PgSslMode::Require)
                 .ssl_root_cert(ssl_cert);
         }
-        let pool = sqlx::PgPool::connect_with(connect_options)
+
+        tracing::info!(
+            "Initializing DB pool: max_connections={}, min_connections={}, acquire_timeout={}s",
+            max_connections,
+            min_connections,
+            acquire_timeout.as_secs()
+        );
+
+        let pool = PgPoolOptions::new()
+            .max_connections(max_connections)
+            .min_connections(min_connections)
+            .acquire_timeout(acquire_timeout)
+            .connect_with(connect_options)
             .await
             .map_err(|err| anyhow!("Failed to connect to {}: {}", &connection_url, err))?;
 

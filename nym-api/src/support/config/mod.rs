@@ -21,7 +21,7 @@ use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tracing::debug;
+use tracing::{debug, warn};
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -166,7 +166,7 @@ impl Config {
         }
     }
 
-    pub fn validate(&self) -> anyhow::Result<()> {
+    pub fn validate_and_fixup(&mut self) -> anyhow::Result<()> {
         let can_sign = self.base.mnemonic.is_some();
 
         if !can_sign && self.rewarding.enabled {
@@ -175,6 +175,12 @@ impl Config {
 
         if !can_sign && self.ecash_signer.enabled {
             bail!("can't enable coconut signer without providing a mnemonic")
+        }
+
+        if self.base.storage_paths.persistent_cache_directory == PathBuf::default() {
+            warn!("[base.storage_paths].persistent_cache_directory has not been set correctly - using default value instead");
+            self.base.storage_paths.persistent_cache_directory =
+                NymApiPaths::new_default(&self.base.id).persistent_cache_directory;
         }
 
         self.ecash_signer.validate()?;

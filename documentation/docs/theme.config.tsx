@@ -13,52 +13,129 @@ const config: DocsThemeConfig = {
     const image = url + "/images/Nym_meta_Image.png";
     const favicon = url + "/favicon.svg";
 
-    // Define descriptions for different "books"
-    const bookDescriptions: Record<string, string> = {
-      "/developers":
-        "Nym's developer documentation covering core concepts of integrating with the Mixnet, interacting with the Nyx blockchain, an overview of the avaliable tools, and our SDK docs.",
-      "/network":
-        "Nym's network documentation covering network architecture, node types, tokenomics, and cryptography.",
-      "/operators":
-        "Nym's Operators guide containing information and setup guides for the various components of Nym network and Nyx blockchain validators.",
-      "/apis":
-        "Interactive APIs generated from the OpenAPI specs of various API endpoints offered by bits of Nym infrastructure run both by Nym and community operators for both Mainnet and the Sandbox testnet.",
-    };
-
     const defaultDescription =
       "Nym is a privacy platform. It provides strong network-level privacy against sophisticated end-to-end attackers, and anonymous access control using blinded, re-randomizable, decentralized credentials.";
 
-    const topLevel = "/" + route.split("/")[1];
-    const description =
-      config.frontMatter.description ||
-      bookDescriptions[topLevel] ||
-      defaultDescription;
+    // Frontmatter-first description
+    const description = config.frontMatter.description || defaultDescription;
 
-    const title = (route === "/" ? "Nym docs" : config.title + " - Nym docs");
+    const baseTitle = config.frontMatter.title || config.title || "";
+    const title =
+      route === "/"
+        ? "Nym Docs: Privacy Network Documentation"
+        : baseTitle.includes("| Nym Docs")
+        ? baseTitle
+        : `${baseTitle} | Nym Docs`;
+
+    const pageUrl = `${url}${route}`;
+
+    // Frontmatter fields
+    const section = config.frontMatter.section || "";
+    const lastUpdated = config.frontMatter.lastUpdated || "";
+    const schemaType = config.frontMatter.schemaType || "TechArticle";
+
+    // JSON-LD structured data
+    const org = {
+      "@id": "https://nym.com/#org",
+      "@type": "Organization",
+      name: "Nym Technologies SA",
+      url: "https://nym.com",
+      logo: {
+        "@id": "https://nym.com/#logo",
+        "@type": "ImageObject",
+        url: "https://nym.com/apple-touch-icon.png",
+      },
+      sameAs: ["https://x.com/nymproject", "https://github.com/nymtech"],
+    };
+
+    const website = {
+      "@id": "https://nym.com/docs#website",
+      "@type": "WebSite",
+      name: "Nym Docs",
+      url: "https://nym.com/docs",
+      publisher: { "@id": "https://nym.com/#org" },
+    };
+
+    const webpage = {
+      "@id": `${pageUrl}#webpage`,
+      "@type": "WebPage",
+      url: pageUrl,
+      name: title,
+      description: description,
+      inLanguage: "en",
+      isPartOf: { "@id": "https://nym.com/docs#website" },
+      breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+      potentialAction: { "@type": "ReadAction", target: pageUrl },
+    };
+
+    const articleSchema: Record<string, any> = {
+      "@id": `${pageUrl}#article`,
+      "@type": schemaType,
+      ...(schemaType === "HowTo"
+        ? { name: baseTitle }
+        : { headline: baseTitle }),
+      description: description,
+      url: pageUrl,
+      author: { "@id": "https://nym.com/#org" },
+      publisher: { "@id": "https://nym.com/#org" },
+      mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
+      ...(lastUpdated && {
+        datePublished: lastUpdated,
+        dateModified: lastUpdated,
+      }),
+    };
+
+    const pathParts = route.split("/").filter(Boolean);
+    const breadcrumb = {
+      "@id": `${pageUrl}#breadcrumb`,
+      "@type": "BreadcrumbList",
+      itemListElement: pathParts.map((part: string, i: number) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name:
+          config.frontMatter.breadcrumbLabel && i === pathParts.length - 1
+            ? config.frontMatter.breadcrumbLabel
+            : part.charAt(0).toUpperCase() + part.slice(1).replace(/-/g, " "),
+        item: `${url}/${pathParts.slice(0, i + 1).join("/")}`,
+      })),
+    };
+
+    const schema = {
+      "@context": "https://schema.org",
+      "@graph": [org, website, webpage, articleSchema, breadcrumb],
+    };
 
     return (
       <>
         <title>{title}</title>
         <meta name="author" content="Nym" />
-        <link rel="canonical" href={url + route} />
+        <link rel="canonical" href={pageUrl} />
         <link rel="icon" href={favicon} type="image/svg+xml" />
-        <meta property="og:title" content={title} />
-        <meta property="og:site_name" content="Nym docs"></meta>
         <meta name="description" content={description} />
+        <meta property="og:title" content={title} />
+        <meta property="og:site_name" content="Nym docs" />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={image} />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={url + route}></meta>
-
-        <meta property="twitter:title" content={title}></meta>
-        <meta property="twitter:description" content={description}></meta>
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content={pageUrl} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        {section && <meta property="article:section" content={section} />}
+        {lastUpdated && (
+          <meta property="article:modified_time" content={lastUpdated} />
+        )}
+        <meta property="twitter:title" content={title} />
+        <meta property="twitter:description" content={description} />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta property="twitter:image" content={image}></meta>
+        <meta property="twitter:image" content={image} />
         <meta name="twitter:site" content="@nymproject" />
         <meta name="twitter:site:domain" content={url} />
-        <meta name="twitter:url" content={url + route} />
-
+        <meta name="twitter:url" content={pageUrl} />
         <meta name="apple-mobile-web-app-title" content="Nym docs" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        />
       </>
     );
   },
@@ -72,6 +149,8 @@ const config: DocsThemeConfig = {
   //   text: Footer,
   // },
   darkMode: true,
+  primaryHue: 135,
+  primarySaturation: 64,
   nextThemes: {
     defaultTheme: "dark",
   },

@@ -52,10 +52,40 @@ pub(crate) async fn run_probe(
 
     // Run the probe
     let log = probe.run_and_get_log(
-        &Some(gateway_identity_key.clone()),
+        gateway_identity_key.clone(),
         probe_extra_args,
         testrun.ticket_materials,
     );
+
+    // Inspect the probe output for socks5 field
+    // Extract JSON from log output (probe outputs logs followed by JSON)
+    let json_str = extract_json_from_log(&log);
+    if json_str.is_empty() {
+        tracing::error!("Failed to extract JSON from probe output");
+    } else {
+        match serde_json::from_str::<serde_json::Value>(&json_str) {
+            Ok(json) => {
+                if let Some(outcome) = json.get("outcome") {
+                    match outcome.get("socks5") {
+                        Some(socks5) if socks5.is_null() => {
+                            tracing::warn!("🌐⚠️ socks5 field is NULL in probe output");
+                        }
+                        Some(socks5) => {
+                            tracing::info!("🌐 socks5 field present: {}", socks5);
+                        }
+                        None => {
+                            tracing::warn!("🌐⚠️ socks5 field is MISSING from probe output");
+                        }
+                    }
+                } else {
+                    tracing::warn!("🌐⚠️ outcome field is MISSING from probe output");
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to parse probe output as JSON: {e}");
+            }
+        }
+    }
 
     // Submit to ALL servers in parallel
     let handles = servers
@@ -121,4 +151,18 @@ pub(crate) async fn run_probe(
     }
 
     Ok(())
+}
+
+/// Extract JSON from probe log output.
+/// The probe outputs log lines followed by JSON starting with `\n{ `.
+fn extract_json_from_log(log: &str) -> String {
+    static RE: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r"\n\{\s").expect("Invalid regex pattern"));
+
+    let result: Vec<_> = RE.splitn(log, 2).collect();
+    if result.len() == 2 {
+        format!("{{ {}", result[1])
+    } else {
+        String::new()
+    }
 }

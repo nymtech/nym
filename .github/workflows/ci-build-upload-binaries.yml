@@ -3,13 +3,28 @@ name: ci-build-upload-binaries
 on:
   workflow_dispatch:
     inputs:
+      feature_profile:
+        description: "Select a predefined cargo feature profile"
+        required: false
+        default: "none"
+        type: choice
+        options:
+          - none
+          - tokio-console
+          - otel
+          - otel,tokio-console
+      extra_features:
+        description: "Additional comma-separated cargo features (e.g. feat1,feat2)"
+        required: false
+        default: ""
+        type: string
       add_tokio_unstable:
-        description: 'True to add RUSTFLAGS="--cfg tokio_unstable"'
-        required: true
+        description: 'Force RUSTFLAGS="--cfg tokio_unstable" (auto-set when tokio-console is selected)'
+        required: false
         default: false
         type: boolean
       enable_deb:
-        description: "True to enable cargo-deb installation and .deb package building"
+        description: "Enable cargo-deb installation and .deb package building"
         required: false
         default: false
         type: boolean
@@ -21,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ arc-linux-latest ]
+        platform: [arc-linux-latest]
 
     runs-on: ${{ matrix.platform }}
     env:
@@ -36,38 +51,62 @@ jobs:
           OUTPUT_DIR: ci-builds/${{ github.ref_name }}
         run: |
           rm -rf ci-builds || true
-          mkdir -p $OUTPUT_DIR
-          echo $OUTPUT_DIR
+          mkdir -p "$OUTPUT_DIR"
+          echo "$OUTPUT_DIR"
+
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get -y install libudev-dev
 
-      - name: Sets env vars for tokio if set in manual dispatch inputs
-        if: github.event_name == 'workflow_dispatch' && inputs.add_tokio_unstable == true
+      - name: Resolve cargo features and RUSTFLAGS
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
         run: |
-          echo "RUSTFLAGS=--cfg tokio_unstable" >> $GITHUB_ENV
-          echo "CARGO_FEATURES=--features tokio-console" >> $GITHUB_ENV
+          FEATURES=""
+          PROFILE="${{ inputs.feature_profile }}"
+          EXTRA="${{ inputs.extra_features }}"
+
+          if [[ "$PROFILE" != "none" && -n "$PROFILE" ]]; then
+            FEATURES="$PROFILE"
+          fi
+
+          if [[ -n "$EXTRA" ]]; then
+            if [[ -n "$FEATURES" ]]; then
+              FEATURES="${FEATURES},${EXTRA}"
+            else
+              FEATURES="$EXTRA"
+            fi
+          fi
+
+          if [[ -n "$FEATURES" ]]; then
+            echo "CARGO_FEATURES=--features ${FEATURES}" >> "$GITHUB_ENV"
+            echo "::notice::Selected cargo features: $FEATURES"
+          else
+            echo "::notice::No additional cargo features selected"
+          fi
+
+          if [[ "$FEATURES" == *"tokio-console"* ]] || [[ "${{ inputs.add_tokio_unstable }}" == "true" ]]; then
+            echo "RUSTFLAGS=--cfg tokio_unstable" >> "$GITHUB_ENV"
+            echo "::notice::Enabled RUSTFLAGS --cfg tokio_unstable"
+          fi
+
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
 
       - name: Build all binaries
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --workspace --release ${{ env.CARGO_FEATURES }}
+        shell: bash
+        run: cargo build --workspace --release ${{ env.CARGO_FEATURES }}
 
       - name: Install cargo-deb
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-deb
         if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
+        shell: bash
+        run: cargo install cargo-deb
 
       - name: Build deb packages
+        if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
         shell: bash
         run: make deb
-        if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
 
       - name: Upload Artifact
         if: github.event_name == 'workflow_dispatch'
@@ -84,24 +123,22 @@ jobs:
             target/release/nym-node
           retention-days: 30
 
-      # If this was a pull_request or nightly, upload to build server
-
       - name: Prepare build output
-        # if: github.event_name == 'schedule' || github.event_name == 'pull_request'
         shell: bash
         env:
           OUTPUT_DIR: ci-builds/${{ github.ref_name }}
         run: |
-          cp target/release/nym-client $OUTPUT_DIR
-          cp target/release/nym-socks5-client $OUTPUT_DIR
-          cp target/release/nym-api $OUTPUT_DIR
-          cp target/release/nym-network-requester $OUTPUT_DIR
-          cp target/release/nymvisor $OUTPUT_DIR
-          cp target/release/nym-node $OUTPUT_DIR
-          cp target/release/nym-cli $OUTPUT_DIR
-          if [ ${{ github.event_name == 'workflow_dispatch' && inputs.enable_deb == true }} = true ]; then
-            cp target/debian/*.deb $OUTPUT_DIR
+          cp target/release/nym-client "$OUTPUT_DIR"
+          cp target/release/nym-socks5-client "$OUTPUT_DIR"
+          cp target/release/nym-api "$OUTPUT_DIR"
+          cp target/release/nym-network-requester "$OUTPUT_DIR"
+          cp target/release/nymvisor "$OUTPUT_DIR"
+          cp target/release/nym-node "$OUTPUT_DIR"
+          cp target/release/nym-cli "$OUTPUT_DIR"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.enable_deb }}" == "true" ]]; then
+            cp target/debian/*.deb "$OUTPUT_DIR"
           fi
+
       - name: Deploy branch to CI www
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main

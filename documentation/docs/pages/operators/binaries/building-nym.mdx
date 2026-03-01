@@ -1,3 +1,12 @@
+---
+title: "Building Nym from Source: Linux, macOS & Windows"
+description: "How to build Nym platform binaries from source code. Covers dependencies for Debian, Arch, macOS, and Windows. Requires Rust toolchain and Git."
+schemaType: "HowTo"
+section: "Operators"
+lastUpdated: "2026-02-01"
+breadcrumbLabel: "Building from Source"
+---
+
 import { Callout } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 
@@ -12,7 +21,7 @@ Nym has two main codebases:
 - the [Nym platform](https://github.com/nymtech/nym), written in Rust. This contains all of our code _except_ for the validators.
 - the [Nym validators](https://github.com/nymtech/nyxd), written in Go.
 
-> This page details how to build the main Nym platform code. **If you want to build and run a validator, [go here](../nodes/validator-setup.md) instead.**
+> This page details how to build the main Nym platform code. **If you want to build and run a validator, [go here](../nodes/validator-setup) instead.**
 
 ## Prerequisites
 
@@ -64,7 +73,7 @@ cargo build --release # build your binaries with **mainnet** configuration
 
 Quite a bit of stuff gets built. The key working parts are:
 
-* [Nym Node](../nodes/nym-node/nym-node.mdx): `nym-node`
+* [Nym Node](../nodes/nym-node): `nym-node`
 * [Validator](../nodes/validator-setup.mdx)
 * [websocket client](../../developers/clients/websocket): `nym-client`
 * [socks5 client](../../developers/clients/socks5): `nym-socks5-client`

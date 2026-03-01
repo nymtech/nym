@@ -10,6 +10,7 @@ on:
       - 'nym-api/**'
       - 'nym-authenticator-client/**'
       - 'nym-credential-proxy/**'
+      - 'nym-gateway-probe/**'
       - 'nym-ip-packet-client/**'
       - 'nym-network-monitor/**'
       - 'nym-node/**'
@@ -89,7 +90,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --all-targets --exclude nym-gateway-probe -- -D warnings
+          args: --workspace --all-targets --exclude nym-gateway-probe --exclude nym-node-status-api -- -D warnings
 
       - name: Clippy (non-macos)
         if: contains(matrix.os, 'linux') || contains(matrix.os, 'windows')
@@ -103,6 +104,14 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
+
+        # only build on linux because of wg FFI bindings of its dependency (network probe)
+      - name: Build nym-node-status-api (linux only)
+        if: runner.os == 'Linux'
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: -p nym-node-status-api
 
       - name: Build all examples
         if: contains(matrix.os, 'linux')

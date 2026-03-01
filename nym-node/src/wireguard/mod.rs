@@ -5,3 +5,6 @@
 // but let's start putting everything in here
 
 pub mod error;
+
+pub use nym_gateway::node::wireguard::{PeerManager, PeerRegistrator};
+pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};

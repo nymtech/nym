@@ -150,17 +150,60 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
 
     let router = RouterBuilder::with_default_routes(config.network_monitor.enabled);
 
-    let mixnet_contract_cache_state = MixnetContractCache::new();
-    let node_status_cache_state = NodeStatusCache::new();
     let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
-    let described_nodes_cache = SharedCache::<DescribedNodes>::new();
-    let node_info_cache = unstable::NodeInfoCache::default();
+    let storage_cfg = &config.base.storage_paths;
 
+    // ===== START: attempt to build up initial caches based on prior data
+    //
+    // MIXNET CONTRACT
+    let mixnet_path = storage_cfg.cache_file("mixnet_contract");
+    let ttl = config.mixnet_contract_cache.debug.caching_interval;
+    let mixnet_contract_cache_state = MixnetContractCache::new(&mixnet_path, ttl);
     let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
         &config.mixnet_contract_cache,
         &mixnet_contract_cache_state.clone(),
         nyxd_client.clone(),
+        mixnet_path,
     );
+
+    // DESCRIBED NODES
+    let described_path = storage_cfg.cache_file("described_nodes");
+    let ttl = config.describe_cache.debug.caching_interval;
+    let described_nodes_cache =
+        SharedCache::<DescribedNodes>::new_with_persistent(&described_path, ttl, None);
+    let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
+        &config.describe_cache,
+        mixnet_contract_cache_state.clone(),
+        described_nodes_cache.clone(),
+        described_path,
+    );
+
+    // NODES ANNOTATIONS
+    let annotations_path = storage_cfg.cache_file("node_annotations");
+    let ttl = config.node_status_api.debug.caching_interval;
+    let node_status_cache_state = NodeStatusCache::new(&annotations_path, ttl);
+
+    // note: can't create the cache refresher the same way as above as it's using a different structure
+    // unfortunately
+
+    // ===== END: attempt to build up initial caches based on prior data
+
+    // not a 'persistent' cache that's updated on a timer like the above - it's just use for retrieving database information
+    // for unstable routes regarding test runs.
+    let node_info_cache = unstable::NodeInfoCache::default();
+
+    // not as data sensitive as others
+    // check if signers cache is enabled, and if so, start the refresher
+    let ecash_signers_cache = if config.signers_cache.enabled {
+        signers_cache::start_refresher(
+            &config.signers_cache,
+            nyxd_client.clone(),
+            &shutdown_manager,
+        )
+    } else {
+        SharedCache::new()
+    };
+
     let mixnet_contract_cache_refresh_requester =
         mixnet_contract_cache_refresher.refresh_requester();
 
@@ -211,17 +254,6 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
         None
     };
 
-    // check if signers cache is enabled, and if so, start the refresher
-    let ecash_signers_cache = if config.signers_cache.enabled {
-        signers_cache::start_refresher(
-            &config.signers_cache,
-            nyxd_client.clone(),
-            &shutdown_manager,
-        )
-    } else {
-        SharedCache::new()
-    };
-
     ecash_state.spawn_background_cleaner();
     let router = router.with_state(AppState {
         nyxd_client: nyxd_client.clone(),
@@ -242,17 +274,6 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
     });
-
-    // start note describe cache refresher
-    // we should be doing the below, but can't due to our current startup structure
-    // let refresher = node_describe_cache::new_refresher(&config.topology_cacher);
-    // let cache = refresher.get_shared_cache();
-    let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
-        &config.describe_cache,
-        mixnet_contract_cache_state.clone(),
-        described_nodes_cache.clone(),
-    )
-    .named("node-self-described-data-refresher");
 
     let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
 
@@ -300,6 +321,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
         performance_provider,
         contract_cache_watcher.clone(),
         describe_cache_watcher,
+        annotations_path,
         &shutdown_manager,
     );
 
@@ -379,11 +401,11 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
     // args take precedence over env
-    let config = try_load_current_config(&args.id)?
+    let mut config = try_load_current_config(&args.id)?
         .override_with_env()
         .override_with_args(args);
 
-    config.validate()?;
+    config.validate_and_fixup()?;
 
     let mut shutdown_manager = start_nym_api_tasks(&config).await?;
     shutdown_manager.run_until_shutdown().await;

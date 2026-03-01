@@ -5,8 +5,11 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::CacheNotification;
 use async_trait::async_trait;
 use nym_task::ShutdownToken;
+use serde::Serialize;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::futures::Notified;
 use tokio::sync::{watch, Notify};
 use tokio::time::interval;
 use tracing::{debug, error, info, trace, warn};
@@ -19,6 +22,10 @@ pub struct RefreshRequester(Arc<Notify>);
 impl RefreshRequester {
     pub(crate) fn request_cache_refresh(&self) {
         self.0.notify_waiters()
+    }
+
+    pub(crate) fn notified(&self) -> Notified<'_> {
+        self.0.notified()
     }
 }
 
@@ -37,6 +44,10 @@ impl Default for RefreshRequester {
 /// the entire value, and we might want to just insert a new entry
 pub struct CacheRefresher<T, E, S = T> {
     name: String,
+
+    /// Path to an on-disk location where the contents of the retrieved items should be written
+    /// upon refresh
+    on_disk_file: Option<PathBuf>,
     refreshing_interval: Duration,
     refresh_notification_sender: watch::Sender<CacheNotification>,
 
@@ -69,6 +80,7 @@ impl<T, E, S> CacheRefresher<T, E, S>
 where
     E: std::error::Error,
     S: Into<T>,
+    T: Serialize,
 {
     pub(crate) fn new_boxed(
         item_provider: Box<dyn CacheItemProvider<Error = E, Item = S> + Send + Sync>,
@@ -78,6 +90,7 @@ where
 
         CacheRefresher {
             name: "GenericCacheRefresher".to_string(),
+            on_disk_file: None,
             refreshing_interval,
             refresh_notification_sender,
             update_fn: None,
@@ -86,7 +99,6 @@ where
             refresh_requester: Default::default(),
         }
     }
-
     pub(crate) fn new<P>(item_provider: P, refreshing_interval: Duration) -> Self
     where
         P: CacheItemProvider<Error = E, Item = S> + Send + Sync + 'static,
@@ -103,6 +115,7 @@ where
 
         CacheRefresher {
             name: "GenericCacheRefresher".to_string(),
+            on_disk_file: None,
             refreshing_interval,
             refresh_notification_sender,
             update_fn: None,
@@ -126,6 +139,12 @@ where
     #[must_use]
     pub(crate) fn named(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
+        self
+    }
+
+    #[must_use]
+    pub(crate) fn with_persistent_cache(mut self, storage_path: PathBuf) -> Self {
+        self.on_disk_file = Some(storage_path);
         self
     }
 
@@ -194,6 +213,19 @@ where
         }
     }
 
+    async fn try_flush_to_disk(&self) {
+        // if specified, attempt to flush data onto disk
+        let Some(disk_cache) = self.on_disk_file.as_ref() else {
+            return;
+        };
+        let Ok(new_cached) = self.shared_cache.get().await else {
+            error!("the {} cache is still not initialised!", self.name);
+            return;
+        };
+        // error reporting is handled by the serialise function itself
+        let _ = new_cached.try_serialise_to_file(disk_cache);
+    }
+
     async fn do_refresh_cache(&mut self) {
         let updated_items = match self.provider.try_refresh().await {
             Err(err) => {
@@ -212,6 +244,8 @@ where
         } else {
             self.overwrite_cache(updated_items.into()).await;
         }
+
+        self.try_flush_to_disk().await;
 
         if !self.refresh_notification_sender.is_closed()
             && self

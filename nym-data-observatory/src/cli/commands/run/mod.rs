@@ -123,7 +123,6 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NymDataObs
             w.watch_for_chain_message_types
         );
     }
-    info!("nuke_db: {}", args.nuke_db);
 
     let storage = db::Storage::init(db_connection_string).await?;
     let watcher_pool = storage.pool_owned();

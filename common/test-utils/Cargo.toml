@@ -15,10 +15,11 @@ description = "Helpers, traits, and mock definitions for tests"
 anyhow = { workspace = true }
 futures = { workspace = true }
 rand_chacha = { workspace = true }
+rand_chacha09 = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "rt"] }
 tracing = { workspace = true }
 
-nym-bin-common = { workspace = true, features = ["tracing"] }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

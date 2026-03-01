@@ -113,14 +113,11 @@ impl PemStorableKey for SphinxPrivateKey {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::SeedableRng;
-    use rand_chacha::ChaCha20Rng;
+    use nym_test_utils::helpers::deterministic_rng;
 
     #[test]
     fn private_key_bytes_convertion() {
-        // Set up a deterministic RNG.
-        let seed = [42u8; 32];
-        let mut rng = ChaCha20Rng::from_seed(seed);
+        let mut rng = deterministic_rng();
 
         let key = SphinxPrivateKey {
             rotation_id: 42,

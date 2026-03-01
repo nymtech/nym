@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "4.0.12"
+version = "4.1.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -34,6 +34,7 @@ nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
 nym-bin-common = { workspace = true, features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
+nym-gateway-probe = { path = "../../nym-gateway-probe", features = ["utoipa"] }
 nym-http-api-client = { workspace = true }
 nym-http-api-common = { workspace = true, features = ["middleware"] }
 nym-network-defaults = { workspace = true }

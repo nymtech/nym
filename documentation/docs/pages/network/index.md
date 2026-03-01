@@ -1,3 +1,11 @@
+---
+title: "Nym Network Architecture: How the Mixnet Works"
+description: "Deep dive into Nym network architecture, cryptographic systems, and how the mixnet provides network-level privacy against end-to-end attackers."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-02-11"
+---
+
 # Introduction
 Nym's network documentation covering network architecture, node types, tokenomics, and crypto systems.
 

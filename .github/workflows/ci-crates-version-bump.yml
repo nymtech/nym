@@ -1,0 +1,74 @@
+name: Bump crate versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to set (e.g. 1.21.0)"
+        required: true
+        type: string
+
+env:
+  CI_BOT_AUTHOR: "Nym bot"
+  CI_BOT_EMAIL: "nym-bot@users.noreply.github.com"
+
+jobs:
+  version-bump:
+    runs-on: arc-linux-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "${{ env.CI_BOT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_BOT_EMAIL }}"
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-workspaces
+        run: cargo install cargo-workspaces
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate version format
+        run: |
+          if ! npx semver "${{ inputs.version }}"; then
+            echo "Error: '${{ inputs.version }}' is not valid semver"
+            exit 1
+          fi
+
+      - name: Get current version
+        id: current_version
+        run: |
+          VERSION=$(grep -oP '^\s*version\s*=\s*"\K[0-9]+\.[0-9]+\.[0-9]+' Cargo.toml | head -1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update workspace dependencies
+        run: |
+          sed -i '/path = /s/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
+
+      - name: Bump versions
+        run: |
+          cargo workspaces version custom ${{ inputs.version }} \
+            --no-git-commit \
+            --yes
+
+      - name: Commit and push version bump
+        run: |
+          git add -A
+          git commit -m "crates release: bump version to ${{ inputs.version }}"
+          git push
+
+      - name: Show package versions
+        run: cargo workspaces list --long

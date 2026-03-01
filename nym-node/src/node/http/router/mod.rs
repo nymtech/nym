@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::http::NymNodeHttpServer;
+use crate::node::http::api::v1::lewes_protocol;
 use crate::node::http::error::NymNodeHttpError;
 use crate::node::http::state::AppState;
 use axum::Router;
@@ -9,10 +10,10 @@ use axum::response::Redirect;
 use axum::routing::get;
 use nym_bin_common::bin_info_owned;
 use nym_http_api_common::middleware::logging;
+use nym_node_requests::api::SignedLewesProtocol;
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::{Bridges, Gateway};
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
-use nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol;
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
@@ -34,7 +35,7 @@ pub struct HttpServerConfig {
 }
 
 impl HttpServerConfig {
-    pub fn new() -> Self {
+    pub fn new(signed_lewes_protocol: SignedLewesProtocol) -> Self {
         HttpServerConfig {
             landing: Default::default(),
             api: api::Config {
@@ -53,7 +54,9 @@ impl HttpServerConfig {
                     network_requester: Default::default(),
                     ip_packet_router: Default::default(),
                     authenticator: Default::default(),
-                    lewes_protocol: Default::default(),
+                    lewes_protocol: lewes_protocol::Config {
+                        details: signed_lewes_protocol,
+                    },
                 },
             },
         }
@@ -133,11 +136,11 @@ impl HttpServerConfig {
         self
     }
 
-    #[must_use]
-    pub fn with_lewes_protocol(mut self, lewes_protocol: LewesProtocol) -> Self {
-        self.api.v1_config.lewes_protocol.details = Some(lewes_protocol);
-        self
-    }
+    // #[must_use]
+    // pub fn with_lewes_protocol(mut self, lewes_protocol: LewesProtocol) -> Self {
+    //     self.api.v1_config.lewes_protocol.details = Some(lewes_protocol);
+    //     self
+    // }
 }
 
 pub struct NymNodeRouter {

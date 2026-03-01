@@ -6,6 +6,10 @@ use crate::error::{KeyIOFailure, NymNodeError};
 use crate::node::key_rotation::key::{SphinxPrivateKey, SphinxPublicKey};
 use crate::node::nym_apis_client::NymApisClient;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_kkt::keys::storage_wrappers::StorableKey;
+use nym_kkt::keys::{
+    DHKeyPair, DHPrivateKey, MlKem768KeyPair, MlKem768PrivateKey, MlKem768PublicKey, mceliece,
+};
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_pemstore::KeyPairPath;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
@@ -169,6 +173,34 @@ pub(crate) fn load_x25519_wireguard_keypair(
     Ok(load_keypair(paths, "x25519-wireguard")?)
 }
 
+fn load_lp_key<S, P>(path: P, name: &'static str) -> Result<S, NymNodeError>
+where
+    P: AsRef<Path>,
+    S: StorableKey,
+{
+    let repr = load_key::<<S as StorableKey>::StorableRepresentation<'_>, _>(path, name)?;
+    Ok(S::from_storable(repr)?)
+}
+
+pub(crate) fn load_x25519_lp_keypair(paths: &KeyPairPath) -> Result<DHKeyPair, NymNodeError> {
+    let pk: DHPrivateKey = load_lp_key(&paths.private_key_path, "x25519-lp-private-key")?;
+    Ok(DHKeyPair::from(pk))
+}
+
+pub(crate) fn load_mlkem768_keypair(paths: &KeyPairPath) -> Result<MlKem768KeyPair, NymNodeError> {
+    let sk: MlKem768PrivateKey = load_lp_key(&paths.private_key_path, "mlkem768-private-key")?;
+    let pk: MlKem768PublicKey = load_lp_key(&paths.public_key_path, "mlkem768-public-key")?;
+    Ok(MlKem768KeyPair::from(sk, pk))
+}
+
+pub(crate) fn load_mceliece_keypair(
+    paths: &KeyPairPath,
+) -> Result<mceliece::KeyPair, NymNodeError> {
+    let sk: mceliece::SecretKey = load_lp_key(&paths.private_key_path, "mceliece-private-key")?;
+    let pk: mceliece::PublicKey = load_lp_key(&paths.public_key_path, "mceliece-public-key")?;
+    Ok(mceliece::KeyPair { sk, pk })
+}
+
 pub(crate) fn store_ed25519_identity_keypair(
     keys: &ed25519::KeyPair,
     paths: &KeyPairPath,
@@ -181,6 +213,57 @@ pub(crate) fn store_x25519_noise_keypair(
     paths: &KeyPairPath,
 ) -> Result<(), NymNodeError> {
     Ok(store_keypair(keys, paths, "x25519-noise")?)
+}
+
+pub(crate) fn store_x25519_lp_keypair(
+    keys: &DHKeyPair,
+    paths: &KeyPairPath,
+) -> Result<(), NymNodeError> {
+    store_key(
+        &keys.pk.to_storable(),
+        &paths.public_key_path,
+        "x25519-lp-public-key",
+    )?;
+    store_key(
+        &keys.sk().to_storable(),
+        &paths.private_key_path,
+        "x25519-lp-private-key",
+    )?;
+    Ok(())
+}
+
+pub(crate) fn store_mlkem768_keypair(
+    keys: &MlKem768KeyPair,
+    paths: &KeyPairPath,
+) -> Result<(), NymNodeError> {
+    store_key(
+        &keys.public_key().to_storable(),
+        &paths.public_key_path,
+        "mlkem768-public-key",
+    )?;
+    store_key(
+        &keys.private_key().to_storable(),
+        &paths.private_key_path,
+        "mlkem768-private-key",
+    )?;
+    Ok(())
+}
+
+pub(crate) fn store_mceliece_keypair(
+    keys: &mceliece::KeyPair,
+    paths: &KeyPairPath,
+) -> Result<(), NymNodeError> {
+    store_key(
+        &keys.pk.to_storable(),
+        &paths.public_key_path,
+        "mceliece-public-key",
+    )?;
+    store_key(
+        &keys.sk.to_storable(),
+        &paths.private_key_path,
+        "mceliece-private-key",
+    )?;
+    Ok(())
 }
 
 pub(crate) async fn get_current_rotation_id(

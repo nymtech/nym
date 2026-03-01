@@ -1,6 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::IpPoolError;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("{0}")]
@@ -22,7 +24,7 @@ pub enum Error {
     SystemTime(#[from] std::time::SystemTimeError),
 
     #[error("IP pool error: {0}")]
-    IpPool(String),
+    IpPool(#[from] IpPoolError),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

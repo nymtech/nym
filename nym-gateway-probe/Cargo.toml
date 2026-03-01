@@ -15,8 +15,6 @@ workspace = true
 [dependencies]
 anyhow.workspace = true
 base64.workspace = true
-bs58.workspace = true
-bincode.workspace = true
 bytes.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
 futures.workspace = true
@@ -24,9 +22,11 @@ hex.workspace = true
 tracing.workspace = true
 pnet_packet.workspace = true
 rand.workspace = true
+rand09.workspace = true
+reqwest = { workspace = true, features = ["socks"] }
 serde.workspace = true
 serde_json.workspace = true
-thiserror.workspace = true
+time = { workspace = true }
 tokio = { workspace = true, features = [
     "process",
     "rt-multi-thread",
@@ -37,41 +37,38 @@ tokio = { workspace = true, features = [
 tokio-util.workspace = true
 tracing-subscriber.workspace = true
 url = { workspace = true }
-x25519-dalek = { workspace = true, features = [
-    "reusable_secrets",
-    "static_secrets",
-] }
+utoipa = { workspace = true, optional = true }
 
 
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
+nym-authenticator-client = { workspace = true }
 nym-authenticator-requests = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-bin-common = { workspace = true }
 nym-client-core = { workspace = true }
-nym-crypto = { workspace = true }
 nym-config = { workspace = true }
 nym-connection-monitor = { path = "../common/nym-connection-monitor" }
+nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-credential-utils = { workspace = true }
-nym-ip-packet-client = { workspace = true }
-nym-authenticator-client = { workspace = true }
-nym-ip-packet-requests = { workspace = true }
-nym-sdk = { workspace = true }
-nym-validator-client = { workspace = true }
-nym-credentials = { workspace = true }
-nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
+nym-crypto = { workspace = true }
 nym-http-api-client = { path = "../common/http-api-client" }
-nym-node-status-client = { path = "../nym-node-status-api/nym-node-status-client" }
-nym-node-requests = { path = "../nym-node/nym-node-requests" }
-nym-registration-client = { path = "../nym-registration-client" }
+nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
+nym-ip-packet-client = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+nym-kkt-ciphersuite = { workspace = true }
 nym-lp = { path = "../common/nym-lp" }
-nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-network-defaults = { path = "../common/network-defaults" }
+nym-node-requests = { path = "../nym-node/nym-node-requests" }
+nym-node-status-client = { path = "../nym-node-status-api/nym-node-status-client" }
+nym-registration-client = { path = "../nym-registration-client" }
 nym-registration-common = { path = "../common/registration" }
-time = { workspace = true }
-
-# TEMP: REMOVE BEFORE PR
+nym-sdk = { workspace = true }
 nym-topology = { workspace = true }
+nym-validator-client = { workspace = true }
+
+[features]
+utoipa = ["dep:utoipa"]
 
 [build-dependencies]
 anyhow = { workspace = true }

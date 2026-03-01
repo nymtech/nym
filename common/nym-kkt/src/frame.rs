@@ -7,90 +7,158 @@
 // [2..=5] => Ciphersuite
 // [6] => Reserved
 
+use crate::context::{KKTMode, KKTRole};
+use crate::message::{
+    DecryptedRequestFrame, KKTRequest, KKTRequestEncryptionResult, KKTRequestPlaintext,
+};
 use crate::{
     context::{KKT_CONTEXT_LEN, KKTContext},
     error::KKTError,
 };
+use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
+use nym_kkt_ciphersuite::KEM;
+use rand09::{CryptoRng, RngCore};
 
-pub const KKT_SESSION_ID_LEN: usize = 16;
-
-pub type KKTSessionId = [u8; KKT_SESSION_ID_LEN];
+pub(crate) const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct KKTFrame {
-    context: [u8; KKT_CONTEXT_LEN],
-    session_id: KKTSessionId,
+    context: KKTContext,
     body: Vec<u8>,
-    signature: Vec<u8>,
+    payload: Vec<u8>,
 }
 
-// if oneway and message coming from initiator => body is empty, signature contains signature of context + session id (64 bytes).
-// if message coming from anonymous initiator => body is empty, there is no signature.
-// if mutual and message coming from initiator => body has the initiator's kem public key and the signature is over the context + body + session_id.
-// if coming from responder => body has the responder's kem public key and the signature is over the context + body + session_id.
+// if oneway and message coming from initiator => body is empty.
+// if mutual and message coming from initiator => body has the initiator's kem public key.
+// if coming from responder => body has the responder's kem public key.
 
 impl KKTFrame {
-    pub fn new(
-        context: [u8; KKT_CONTEXT_LEN],
-        body: &[u8],
-        session_id: [u8; KKT_SESSION_ID_LEN],
-        signature: &[u8],
-    ) -> Self {
+    pub fn new(context: KKTContext, body: &[u8], payload: Vec<u8>) -> Self {
         Self {
             context,
             body: Vec::from(body),
-            session_id,
-            signature: Vec::from(signature),
+            payload,
         }
     }
-    pub fn context_ref(&self) -> &[u8] {
+
+    pub const fn size_excluding_payload(role: KKTRole, mode: KKTMode, kem: KEM) -> usize {
+        match role {
+            KKTRole::Initiator => {
+                match mode {
+                    KKTMode::OneWay => {
+                        // if oneway and message coming from initiator => body is empty.
+                        KKT_CONTEXT_LEN
+                    }
+                    KKTMode::Mutual => {
+                        // if mutual and message coming from initiator => body has the initiator's kem public key.
+                        KKT_CONTEXT_LEN + kem.encapsulation_key_length()
+                    }
+                }
+            }
+            KKTRole::Responder => {
+                // if coming from responder => body has the responder's kem public key.
+                KKT_CONTEXT_LEN + kem.encapsulation_key_length()
+            }
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        self.payload.len()
+            + Self::size_excluding_payload(
+                self.context.role(),
+                self.context.mode(),
+                self.context.ciphersuite().kem(),
+            )
+    }
+
+    pub fn context(&self) -> &KKTContext {
         &self.context
     }
 
-    pub fn context(&self) -> Result<KKTContext, KKTError> {
-        KKTContext::try_decode(self.context)
+    pub fn payload(&self) -> &[u8] {
+        self.payload.as_ref()
     }
 
-    pub fn signature_ref(&self) -> &[u8] {
-        &self.signature
+    pub fn encrypt_initiator_frame<R>(
+        self,
+        rng: &mut R,
+        responder_public_key: &DHPublicKey,
+        version_byte: u8,
+    ) -> Result<KKTRequestEncryptionResult, KKTError>
+    where
+        R: CryptoRng + RngCore,
+    {
+        let ephemeral_keypair = DHKeyPair::new(rng);
+
+        let plaintext =
+            KKTRequestPlaintext::new(ephemeral_keypair.pk, responder_public_key, version_byte);
+
+        let mut carrier =
+            plaintext.derive_initiator_carrier(ephemeral_keypair.sk(), responder_public_key)?;
+        let full_kkt_message = plaintext.into_request(&mut carrier, self)?;
+
+        Ok(KKTRequestEncryptionResult {
+            carrier,
+            request: full_kkt_message,
+        })
+    }
+
+    pub fn decrypt_initiator_frame(
+        responder_keypair: &DHKeyPair,
+        message: KKTRequest,
+        supported_versions: &[u8],
+        request_payload_len: usize,
+    ) -> Result<DecryptedRequestFrame, KKTError> {
+        let mask = message.plaintext.version_mask(&responder_keypair.pk);
+
+        // check mask
+        // this could be used later when we have multiple versions
+        // if this call fails, it does before the server has to run a DH
+        let outer_protocol_version = message
+            .plaintext
+            .masked_version_bytes
+            .unmask_check_version(&mask, supported_versions)?;
+
+        // after verifying the version, we can perform the DH and continue processing the request
+        let mut carrier = message
+            .plaintext
+            .derive_responder_carrier(responder_keypair)?;
+
+        let decrypted_message = carrier.decrypt(&message.encrypted_frame)?;
+        let frame = KKTFrame::from_bytes(&decrypted_message, request_payload_len)?;
+
+        Ok(DecryptedRequestFrame {
+            carrier,
+            remote_frame: frame,
+            outer_protocol_version,
+        })
     }
 
     pub fn body_ref(&self) -> &[u8] {
         &self.body
     }
 
-    pub fn session_id_ref(&self) -> &[u8] {
-        &self.session_id
-    }
-    pub fn session_id(&self) -> [u8; KKT_SESSION_ID_LEN] {
-        self.session_id
+    pub fn body(self) -> Vec<u8> {
+        self.body
     }
 
-    pub fn signature_mut(&mut self) -> &mut [u8] {
-        &mut self.signature
-    }
     pub fn body_mut(&mut self) -> &mut [u8] {
         &mut self.body
     }
 
-    pub fn session_id_mut(&mut self) -> &mut [u8] {
-        &mut self.session_id
-    }
-
     pub fn frame_length(&self) -> usize {
-        self.context.len() + self.session_id.len() + self.body.len() + self.signature.len()
+        KKT_CONTEXT_LEN + self.body.len()
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn try_to_bytes(&self) -> Result<Vec<u8>, KKTError> {
         let mut bytes = Vec::with_capacity(self.frame_length());
-        bytes.extend_from_slice(&self.context);
+        bytes.extend_from_slice(&self.context.encode()?);
         bytes.extend_from_slice(&self.body);
-        bytes.extend_from_slice(&self.session_id);
-        bytes.extend_from_slice(&self.signature);
-        bytes
+        bytes.extend_from_slice(&self.payload);
+        Ok(bytes)
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<(Self, KKTContext), KKTError> {
+    pub fn from_bytes(bytes: &[u8], payload_len: usize) -> Result<Self, KKTError> {
         let len = bytes.len();
         if bytes.len() < KKT_CONTEXT_LEN {
             return Err(KKTError::FrameDecodingError {
@@ -105,7 +173,7 @@ impl KKTFrame {
         let context_bytes = bytes[0..KKT_CONTEXT_LEN].try_into().unwrap();
         let context = KKTContext::try_decode(context_bytes)?;
 
-        if bytes.len() != context.full_message_len() {
+        if bytes.len() != context.full_message_len() + payload_len {
             return Err(KKTError::FrameDecodingError {
                 info: format!(
                     "Frame is shorter than expected: actual {len} != expected {}",
@@ -115,7 +183,6 @@ impl KKTFrame {
         }
 
         let mut body = Vec::new();
-        let mut signature = Vec::new();
 
         // decode body
         if context.body_len() > 0 {
@@ -123,33 +190,9 @@ impl KKTFrame {
             body.extend_from_slice(body_bytes);
         }
 
-        let session_bytes = &bytes[KKT_CONTEXT_LEN + context.body_len()
-            ..KKT_CONTEXT_LEN + context.body_len() + KKT_SESSION_ID_LEN];
-        // SAFETY: we're using exactly KKT_SESSION_ID_LEN bytes and we checked for sufficient bytes
-        #[allow(clippy::unwrap_used)]
-        let session_id = session_bytes.try_into().unwrap();
+        // decode payload. this could be empty.
+        let payload: Vec<u8> = Vec::from(&bytes[KKT_CONTEXT_LEN + context.body_len()..]);
 
-        // // old code left for reference if session id becomes variable in length:
-        // if context.session_id_len() > 0 {
-        //     session_id.extend_from_slice(
-        //         &bytes[KKT_CONTEXT_LEN + context.body_len()
-        //             ..KKT_CONTEXT_LEN + context.body_len() + context.session_id_len()],
-        //     );
-        // }
-
-        // decode signature
-        if context.signature_len() > 0 {
-            let signature_bytes = &bytes[KKT_CONTEXT_LEN + context.body_len() + KKT_SESSION_ID_LEN
-                ..KKT_CONTEXT_LEN
-                    + context.body_len()
-                    + KKT_SESSION_ID_LEN
-                    + context.signature_len()];
-            signature.extend_from_slice(signature_bytes);
-        }
-
-        Ok((
-            KKTFrame::new(context_bytes, &body, session_id, &signature),
-            context,
-        ))
+        Ok(KKTFrame::new(context, &body, payload))
     }
 }

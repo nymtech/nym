@@ -2,31 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::internal_service_providers::authenticator::{
-    config::Config, error::AuthenticatorError, peer_manager::PeerManager,
-    seen_credential_cache::SeenCredentialCache,
+    config::Config, error::AuthenticatorError, seen_credential_cache::SeenCredentialCache,
 };
-use defguard_wireguard_rs::net::IpAddrMask;
-use defguard_wireguard_rs::{host::Peer, key::Key};
+use crate::node::wireguard::{PeerManager, PeerRegistrator};
 use futures::StreamExt;
-use nym_authenticator_requests::models::BandwidthClaim;
 use nym_authenticator_requests::traits::UpgradeModeMessage;
-use nym_authenticator_requests::{latest, v4::registration::IpPair};
 use nym_authenticator_requests::{
-    latest::registration::{GatewayClient, PendingRegistrations, PrivateIPs},
     request::AuthenticatorRequest,
     traits::{FinalMessage, InitMessage, QueryBandwidthMessage, TopUpMessage},
     v1, v2, v3, v4, v5, v6, AuthenticatorVersion, CURRENT_VERSION,
 };
-use nym_credential_verification::ecash::traits::EcashManager;
 use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
-use nym_credential_verification::{
-    bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
-    ClientBandwidth, CredentialVerifier,
-};
-use nym_credentials_interface::{BandwidthCredential, CredentialSpendingData};
-use nym_crypto::asymmetric::x25519::KeyPair;
-use nym_gateway_requests::models::CredentialSpendingRequest;
-use nym_gateway_storage::models::PersistedBandwidth;
 use nym_sdk::mixnet::{
     AnonymousSenderTag, InputMessage, MixnetMessageSender, Recipient, TransmissionLane,
 };
@@ -35,52 +21,29 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownToken;
 use nym_wireguard::WireguardGatewayData;
 use nym_wireguard_types::PeerPublicKey;
-use rand::{prelude::IteratorRandom, thread_rng};
 use std::cmp::max;
-use std::{
-    net::IpAddr,
-    sync::Arc,
-    time::{Duration, SystemTime},
-};
-use tokio::sync::RwLock;
+use std::time::Duration;
 use tokio_stream::wrappers::IntervalStream;
 
 type AuthenticatorHandleResult = Result<(Vec<u8>, Option<Recipient>), AuthenticatorError>;
-const DEFAULT_REGISTRATION_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
+const DEFAULT_CREDENTIAL_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
 
 // we need to be above MINIMUM_REMAINING_BANDWIDTH (500MB) plus we also have to trick the client
 // its depletion is low enough to not require sending new tickets
 const DEFAULT_WG_CLIENT_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024 * 1024;
 
-pub(crate) struct RegisteredAndFree {
-    registration_in_progres: PendingRegistrations,
-    free_private_network_ips: PrivateIPs,
-}
-
-impl RegisteredAndFree {
-    pub(crate) fn new(free_private_network_ips: PrivateIPs) -> Self {
-        RegisteredAndFree {
-            registration_in_progres: Default::default(),
-            free_private_network_ips,
-        }
-    }
-}
-
 pub(crate) struct MixnetListener {
     // The configuration for the mixnet listener
-    pub(crate) config: Config,
+    pub(crate) _config: Config,
 
     // The mixnet client that we use to send and receive packets from the mixnet
     pub(crate) mixnet_client: nym_sdk::mixnet::MixnetClient,
-
-    // Registrations awaiting confirmation
-    pub(crate) registered_and_free: RwLock<RegisteredAndFree>,
 
     pub(crate) peer_manager: PeerManager,
 
     pub(crate) upgrade_mode: UpgradeModeDetails,
 
-    pub(crate) ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
+    pub(crate) peer_registrator: PeerRegistrator,
 
     pub(crate) timeout_check_interval: IntervalStream,
 
@@ -90,21 +53,19 @@ pub(crate) struct MixnetListener {
 impl MixnetListener {
     pub fn new(
         config: Config,
-        free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
+        peer_registrator: PeerRegistrator,
         upgrade_mode: UpgradeModeDetails,
-        ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
     ) -> Self {
         let timeout_check_interval =
-            IntervalStream::new(tokio::time::interval(DEFAULT_REGISTRATION_TIMEOUT_CHECK));
+            IntervalStream::new(tokio::time::interval(DEFAULT_CREDENTIAL_TIMEOUT_CHECK));
         MixnetListener {
-            config,
+            _config: config,
             mixnet_client,
-            registered_and_free: RwLock::new(RegisteredAndFree::new(free_private_network_ips)),
             peer_manager: PeerManager::new(wireguard_gateway_data),
             upgrade_mode,
-            ecash_verifier,
+            peer_registrator,
             timeout_check_interval,
             seen_credential_cache: SeenCredentialCache::new(),
         }
@@ -112,10 +73,6 @@ impl MixnetListener {
 
     fn upgrade_mode_enabled(&self) -> bool {
         self.upgrade_mode.enabled()
-    }
-
-    fn keypair(&self) -> &Arc<KeyPair> {
-        self.peer_manager.wireguard_gateway_data.keypair()
     }
 
     async fn upgrade_mode_bandwidth(&self, peer: PeerPublicKey) -> Result<i64, AuthenticatorError> {
@@ -131,51 +88,6 @@ impl MixnetListener {
         ))
     }
 
-    async fn remove_stale_registrations(&self) -> Result<(), AuthenticatorError> {
-        let mut registered_and_free = self.registered_and_free.write().await;
-        let registered_values: Vec<_> = registered_and_free
-            .registration_in_progres
-            .values()
-            .cloned()
-            .collect();
-        for reg in registered_values {
-            let ip = registered_and_free
-                .free_private_network_ips
-                .get_mut(&reg.gateway_data.private_ips)
-                .ok_or(AuthenticatorError::InternalDataCorruption(format!(
-                    "IPs {} should be present",
-                    reg.gateway_data.private_ips
-                )))?;
-
-            let Some(timestamp) = ip else {
-                registered_and_free
-                    .registration_in_progres
-                    .remove(&reg.gateway_data.pub_key());
-                tracing::debug!(
-                    "Removed stale registration of {}",
-                    reg.gateway_data.pub_key()
-                );
-                continue;
-            };
-            let duration = SystemTime::now().duration_since(*timestamp).map_err(|_| {
-                AuthenticatorError::InternalDataCorruption(
-                    "set timestamp shouldn't have been set in the future".to_string(),
-                )
-            })?;
-            if duration > DEFAULT_REGISTRATION_TIMEOUT_CHECK {
-                *ip = None;
-                registered_and_free
-                    .registration_in_progres
-                    .remove(&reg.gateway_data.pub_key());
-                tracing::debug!(
-                    "Removed stale registration of {}",
-                    reg.gateway_data.pub_key()
-                );
-            }
-        }
-        Ok(())
-    }
-
     async fn on_initial_request(
         &mut self,
         init_message: Box<dyn InitMessage + Send + Sync + 'static>,
@@ -183,353 +95,12 @@ impl MixnetListener {
         request_id: u64,
         reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
-        let remote_public = init_message.pub_key();
-        let nonce: u64 = fastrand::u64(..);
-        let mut registered_and_free = self.registered_and_free.write().await;
-        if let Some(registration_data) = registered_and_free
-            .registration_in_progres
-            .get(&remote_public)
-        {
-            let gateway_data = registration_data.gateway_data.clone();
-            let bytes = match AuthenticatorVersion::from(protocol) {
-                AuthenticatorVersion::V1 => {
-                    v1::response::AuthenticatorResponse::new_pending_registration_success(
-                        v1::registration::RegistrationData {
-                            nonce: registration_data.nonce,
-                            gateway_data: v1::GatewayClient {
-                                pub_key: gateway_data.pub_key,
-                                private_ip: gateway_data.private_ips.ipv4.into(),
-                                mac: v1::ClientMac::new(gateway_data.mac.to_vec()),
-                            },
-                            wg_port: registration_data.wg_port,
-                        },
-                        request_id,
-                        reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                    )
-                    .to_bytes()
-                    .map_err(AuthenticatorError::response_serialisation)?
-                }
-                AuthenticatorVersion::V2 => {
-                    v2::response::AuthenticatorResponse::new_pending_registration_success(
-                        v2::registration::RegistrationData {
-                            nonce: registration_data.nonce,
-                            gateway_data: v2::registration::GatewayClient::new(
-                                self.keypair().private_key(),
-                                remote_public.inner(),
-                                registration_data.gateway_data.private_ips.ipv4.into(),
-                                registration_data.nonce,
-                            ),
-                            wg_port: registration_data.wg_port,
-                        },
-                        request_id,
-                        reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                    )
-                    .to_bytes()
-                    .map_err(AuthenticatorError::response_serialisation)?
-                }
-                AuthenticatorVersion::V3 => {
-                    v3::response::AuthenticatorResponse::new_pending_registration_success(
-                        v3::registration::RegistrationData {
-                            nonce: registration_data.nonce,
-                            gateway_data: v3::registration::GatewayClient::new(
-                                self.keypair().private_key(),
-                                remote_public.inner(),
-                                registration_data.gateway_data.private_ips.ipv4.into(),
-                                registration_data.nonce,
-                            ),
-                            wg_port: registration_data.wg_port,
-                        },
-                        request_id,
-                        reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                    )
-                    .to_bytes()
-                    .map_err(AuthenticatorError::response_serialisation)?
-                }
-                AuthenticatorVersion::V4 => {
-                    v4::response::AuthenticatorResponse::new_pending_registration_success(
-                        v4::registration::RegistrationData {
-                            nonce: registration_data.nonce,
-                            // convert current to v5 and then v5 to v4 (current as of 28.08.25)
-                            gateway_data: v5::registration::GatewayClient::from(
-                                registration_data.gateway_data.clone(),
-                            )
-                            .into(),
-                            wg_port: registration_data.wg_port,
-                        },
-                        request_id,
-                        reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                    )
-                    .to_bytes()
-                    .map_err(AuthenticatorError::response_serialisation)?
-                }
-                AuthenticatorVersion::V5 => {
-                    v5::response::AuthenticatorResponse::new_pending_registration_success(
-                        v5::registration::RegistrationData {
-                            nonce: registration_data.nonce,
-                            gateway_data: registration_data.gateway_data.clone().into(),
-                            wg_port: registration_data.wg_port,
-                        },
-                        request_id,
-                    )
-                    .to_bytes()
-                    .map_err(AuthenticatorError::response_serialisation)?
-                }
-                AuthenticatorVersion::V6 => {
-                    v6::response::AuthenticatorResponse::new_pending_registration_success(
-                        v6::registration::RegistrationData {
-                            nonce: registration_data.nonce,
-                            gateway_data: registration_data.gateway_data.clone(),
-                            wg_port: registration_data.wg_port,
-                        },
-                        request_id,
-                        self.upgrade_mode_enabled(),
-                    )
-                    .to_bytes()
-                    .map_err(AuthenticatorError::response_serialisation)?
-                }
-                AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
-            };
-            return Ok((bytes, reply_to));
-        }
+        let response = self
+            .peer_registrator
+            .on_initial_authenticator_request(init_message, protocol, request_id, reply_to)
+            .await?;
 
-        let peer = self.peer_manager.query_peer(remote_public).await?;
-        if let Some(peer) = peer {
-            let allowed_ipv4 = peer
-                .allowed_ips
-                .iter()
-                .find_map(|ip_mask| match ip_mask.address {
-                    IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
-                    _ => None,
-                })
-                .ok_or(AuthenticatorError::InternalError(
-                    "there should be one private IPv4 in the list".to_string(),
-                ))?;
-            let allowed_ipv6 = peer
-                .allowed_ips
-                .iter()
-                .find_map(|ip_mask| match ip_mask.address {
-                    IpAddr::V6(ipv6_addr) => Some(ipv6_addr),
-                    _ => None,
-                })
-                .unwrap_or(IpPair::from(IpAddr::from(allowed_ipv4)).ipv6);
-            let bytes = match AuthenticatorVersion::from(protocol) {
-                AuthenticatorVersion::V1 => v1::response::AuthenticatorResponse::new_registered(
-                    v1::registration::RegisteredData {
-                        pub_key: self.keypair().public_key().into(),
-                        private_ip: allowed_ipv4.into(),
-                        wg_port: self.config.authenticator.tunnel_announced_port,
-                    },
-                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                    request_id,
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?,
-                AuthenticatorVersion::V2 => v2::response::AuthenticatorResponse::new_registered(
-                    v2::registration::RegisteredData {
-                        pub_key: self.keypair().public_key().into(),
-                        private_ip: allowed_ipv4.into(),
-                        wg_port: self.config.authenticator.tunnel_announced_port,
-                    },
-                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                    request_id,
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?,
-                AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_registered(
-                    v3::registration::RegisteredData {
-                        pub_key: self.keypair().public_key().into(),
-                        private_ip: allowed_ipv4.into(),
-                        wg_port: self.config.authenticator.tunnel_announced_port,
-                    },
-                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                    request_id,
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?,
-                AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::new_registered(
-                    v4::registration::RegisteredData {
-                        pub_key: self.keypair().public_key().into(),
-                        private_ips: (allowed_ipv4, allowed_ipv6).into(),
-                        wg_port: self.config.authenticator.tunnel_announced_port,
-                    },
-                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                    request_id,
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?,
-                AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::new_registered(
-                    v5::registration::RegisteredData {
-                        pub_key: self.keypair().public_key().into(),
-                        private_ips: (allowed_ipv4, allowed_ipv6).into(),
-                        wg_port: self.config.authenticator.tunnel_announced_port,
-                    },
-                    request_id,
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?,
-                AuthenticatorVersion::V6 => v6::response::AuthenticatorResponse::new_registered(
-                    v6::registration::RegisteredData {
-                        pub_key: self.keypair().public_key().into(),
-                        private_ips: (allowed_ipv4, allowed_ipv6).into(),
-                        wg_port: self.config.authenticator.tunnel_announced_port,
-                    },
-                    request_id,
-                    self.upgrade_mode_enabled(),
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?,
-                AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
-            };
-            return Ok((bytes, reply_to));
-        }
-
-        let private_ip_ref = registered_and_free
-            .free_private_network_ips
-            .iter_mut()
-            .filter(|r| r.1.is_none())
-            .choose(&mut thread_rng())
-            .ok_or(AuthenticatorError::NoFreeIp)?;
-        let private_ips = *private_ip_ref.0;
-        // mark it as used, even though it's not final
-        *private_ip_ref.1 = Some(SystemTime::now());
-        let gateway_data = GatewayClient::new(
-            self.keypair().private_key(),
-            remote_public.inner(),
-            *private_ip_ref.0,
-            nonce,
-        );
-        let registration_data = latest::registration::RegistrationData {
-            nonce,
-            gateway_data: gateway_data.clone(),
-            wg_port: self.config.authenticator.tunnel_announced_port,
-        };
-        registered_and_free
-            .registration_in_progres
-            .insert(remote_public, registration_data.clone());
-        let bytes = match AuthenticatorVersion::from(protocol) {
-            AuthenticatorVersion::V1 => {
-                v1::response::AuthenticatorResponse::new_pending_registration_success(
-                    v1::registration::RegistrationData {
-                        nonce: registration_data.nonce,
-                        gateway_data: v1::registration::GatewayClient::new(
-                            self.keypair().private_key(),
-                            remote_public.inner(),
-                            private_ips.ipv4.into(),
-                            nonce,
-                        ),
-                        wg_port: registration_data.wg_port,
-                    },
-                    request_id,
-                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?
-            }
-            AuthenticatorVersion::V2 => {
-                v2::response::AuthenticatorResponse::new_pending_registration_success(
-                    v2::registration::RegistrationData {
-                        nonce: registration_data.nonce,
-                        gateway_data: v2::registration::GatewayClient::new(
-                            self.keypair().private_key(),
-                            remote_public.inner(),
-                            private_ips.ipv4.into(),
-                            nonce,
-                        ),
-                        wg_port: registration_data.wg_port,
-                    },
-                    request_id,
-                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?
-            }
-            AuthenticatorVersion::V3 => {
-                v3::response::AuthenticatorResponse::new_pending_registration_success(
-                    v3::registration::RegistrationData {
-                        nonce: registration_data.nonce,
-                        gateway_data: v3::registration::GatewayClient::new(
-                            self.keypair().private_key(),
-                            remote_public.inner(),
-                            private_ips.ipv4.into(),
-                            nonce,
-                        ),
-                        wg_port: registration_data.wg_port,
-                    },
-                    request_id,
-                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?
-            }
-            AuthenticatorVersion::V4 => {
-                v4::response::AuthenticatorResponse::new_pending_registration_success(
-                    v4::registration::RegistrationData {
-                        nonce: registration_data.nonce,
-                        // convert current to v5 and then v5 to v4 (current as of 28.08.25)
-                        gateway_data: v5::registration::GatewayClient::from(
-                            registration_data.gateway_data.clone(),
-                        )
-                        .into(),
-                        wg_port: registration_data.wg_port,
-                    },
-                    request_id,
-                    reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?
-            }
-            AuthenticatorVersion::V5 => {
-                v5::response::AuthenticatorResponse::new_pending_registration_success(
-                    v5::registration::RegistrationData {
-                        nonce: registration_data.nonce,
-                        gateway_data: registration_data.gateway_data.into(),
-                        wg_port: registration_data.wg_port,
-                    },
-                    request_id,
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?
-            }
-            AuthenticatorVersion::V6 => {
-                v6::response::AuthenticatorResponse::new_pending_registration_success(
-                    v6::registration::RegistrationData {
-                        nonce: registration_data.nonce,
-                        gateway_data: registration_data.gateway_data,
-                        wg_port: registration_data.wg_port,
-                    },
-                    request_id,
-                    self.upgrade_mode_enabled(),
-                )
-                .to_bytes()
-                .map_err(AuthenticatorError::response_serialisation)?
-            }
-            AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
-        };
-
-        Ok((bytes, reply_to))
-    }
-
-    async fn handle_final_credential_claim(
-        &self,
-        claim: BandwidthClaim,
-        client_id: i64,
-    ) -> Result<(), AuthenticatorError> {
-        match claim.credential {
-            BandwidthCredential::ZkNym(zk_nym) => {
-                // if we got zk-nym, we just try to verify it
-                credential_verification(self.ecash_verifier.clone(), *zk_nym, client_id).await?;
-                Ok(())
-            }
-            BandwidthCredential::UpgradeModeJWT { token } => {
-                // if we're already in the upgrade mode, don't bother validating the token
-                if self.upgrade_mode_enabled() {
-                    return Ok(());
-                }
-
-                self.upgrade_mode.try_enable_via_received_jwt(token).await?;
-                Ok(())
-            }
-        }
+        Ok((response.bytes, response.reply_to))
     }
 
     async fn on_final_request(
@@ -539,139 +110,12 @@ impl MixnetListener {
         request_id: u64,
         reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
-        let mut registered_and_free = self.registered_and_free.write().await;
-        let registration_data = registered_and_free
-            .registration_in_progres
-            .get(&final_message.gateway_client_pub_key())
-            .ok_or(AuthenticatorError::RegistrationNotInProgress)?
-            .clone();
-
-        if final_message
-            .verify(self.keypair().private_key(), registration_data.nonce)
-            .is_err()
-        {
-            return Err(AuthenticatorError::MacVerificationFailure);
-        }
-
-        let mut peer = Peer::new(Key::new(final_message.gateway_client_pub_key().to_bytes()));
-        peer.allowed_ips
-            .push(IpAddrMask::new(final_message.private_ips().ipv4.into(), 32));
-        peer.allowed_ips.push(IpAddrMask::new(
-            final_message.private_ips().ipv6.into(),
-            128,
-        ));
-
-        // ideally credential wouldn't have been required in upgrade mode,
-        // however, we need some basic information to insert valid wg peer
-        let Some(credential) = final_message.credential() else {
-            return Err(AuthenticatorError::NoCredentialReceived);
-        };
-
-        let typ = credential.kind;
-
-        let client_id = self
-            .ecash_verifier
-            .storage()
-            .insert_wireguard_peer(&peer, typ.into())
+        let response = self
+            .peer_registrator
+            .on_final_authenticator_request(final_message, protocol, request_id, reply_to)
             .await?;
 
-        if let Err(err) = self
-            .handle_final_credential_claim(credential, client_id)
-            .await
-        {
-            self.ecash_verifier
-                .storage()
-                .remove_wireguard_peer(&peer.public_key.to_string())
-                .await?;
-            return Err(err);
-        }
-
-        let public_key = peer.public_key.to_string();
-        if let Err(e) = self.peer_manager.add_peer(peer).await {
-            self.ecash_verifier
-                .storage()
-                .remove_wireguard_peer(&public_key)
-                .await?;
-            return Err(e);
-        }
-
-        registered_and_free
-            .registration_in_progres
-            .remove(&final_message.gateway_client_pub_key());
-
-        let bytes = match AuthenticatorVersion::from(protocol) {
-            AuthenticatorVersion::V1 => v1::response::AuthenticatorResponse::new_registered(
-                v1::registration::RegisteredData {
-                    pub_key: registration_data.gateway_data.pub_key,
-                    private_ip: registration_data.gateway_data.private_ips.ipv4.into(),
-                    wg_port: registration_data.wg_port,
-                },
-                reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                request_id,
-            )
-            .to_bytes()
-            .map_err(AuthenticatorError::response_serialisation)?,
-            AuthenticatorVersion::V2 => v2::response::AuthenticatorResponse::new_registered(
-                v2::registration::RegisteredData {
-                    pub_key: registration_data.gateway_data.pub_key,
-                    private_ip: registration_data.gateway_data.private_ips.ipv4.into(),
-                    wg_port: registration_data.wg_port,
-                },
-                reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                request_id,
-            )
-            .to_bytes()
-            .map_err(AuthenticatorError::response_serialisation)?,
-            AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_registered(
-                v3::registration::RegisteredData {
-                    pub_key: registration_data.gateway_data.pub_key,
-                    private_ip: registration_data.gateway_data.private_ips.ipv4.into(),
-                    wg_port: registration_data.wg_port,
-                },
-                reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                request_id,
-            )
-            .to_bytes()
-            .map_err(AuthenticatorError::response_serialisation)?,
-            AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::new_registered(
-                v4::registration::RegisteredData {
-                    pub_key: registration_data.gateway_data.pub_key,
-                    // convert current to v5 and then v5 to v4 (current as of 28.08.25)
-                    private_ips: v5::registration::IpPair::from(
-                        registration_data.gateway_data.private_ips,
-                    )
-                    .into(),
-                    wg_port: registration_data.wg_port,
-                },
-                reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
-                request_id,
-            )
-            .to_bytes()
-            .map_err(AuthenticatorError::response_serialisation)?,
-            AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::new_registered(
-                v5::registration::RegisteredData {
-                    pub_key: registration_data.gateway_data.pub_key,
-                    private_ips: registration_data.gateway_data.private_ips.into(),
-                    wg_port: registration_data.wg_port,
-                },
-                request_id,
-            )
-            .to_bytes()
-            .map_err(AuthenticatorError::response_serialisation)?,
-            AuthenticatorVersion::V6 => v6::response::AuthenticatorResponse::new_registered(
-                v6::registration::RegisteredData {
-                    pub_key: registration_data.gateway_data.pub_key,
-                    private_ips: registration_data.gateway_data.private_ips,
-                    wg_port: registration_data.wg_port,
-                },
-                request_id,
-                self.upgrade_mode_enabled(),
-            )
-            .to_bytes()
-            .map_err(AuthenticatorError::response_serialisation)?,
-            AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
-        };
-        Ok((bytes, reply_to))
+        Ok((response.bytes, response.reply_to))
     }
 
     async fn on_query_bandwidth_request(
@@ -962,9 +406,6 @@ impl MixnetListener {
                     break;
                 },
                 _ = self.timeout_check_interval.next() => {
-                    if let Err(e) = self.remove_stale_registrations().await {
-                        tracing::error!("Could not clear stale registrations. The registration process might get jammed soon - {e:?}");
-                    }
                     self.seen_credential_cache.remove_stale();
                 }
                 msg = self.mixnet_client.next() => {
@@ -992,45 +433,6 @@ impl MixnetListener {
         tracing::debug!("Authenticator: stopping");
         Ok(())
     }
-}
-
-pub async fn credential_storage_preparation(
-    ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
-    client_id: i64,
-) -> Result<PersistedBandwidth, AuthenticatorError> {
-    ecash_verifier
-        .storage()
-        .create_bandwidth_entry(client_id)
-        .await?;
-    let bandwidth = ecash_verifier
-        .storage()
-        .get_available_bandwidth(client_id)
-        .await?
-        .ok_or(AuthenticatorError::InternalError(
-            "bandwidth entry should have just been created".to_string(),
-        ))?;
-    Ok(bandwidth)
-}
-
-async fn credential_verification(
-    ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
-    credential: CredentialSpendingData,
-    client_id: i64,
-) -> Result<i64, AuthenticatorError> {
-    let bandwidth = credential_storage_preparation(ecash_verifier.clone(), client_id).await?;
-    let client_bandwidth = ClientBandwidth::new(bandwidth.into());
-    let mut verifier = CredentialVerifier::new(
-        CredentialSpendingRequest::new(credential),
-        ecash_verifier.clone(),
-        BandwidthStorageManager::new(
-            ecash_verifier.storage(),
-            client_bandwidth,
-            client_id,
-            BandwidthFlushingBehaviourConfig::default(),
-            true,
-        ),
-    );
-    Ok(verifier.verify().await?)
 }
 
 fn deserialize_request(

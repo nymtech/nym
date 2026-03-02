@@ -1,7 +1,7 @@
-//! A pool of pre-initialized mixnet clients for high-throughput applications.
+//! A variable-sized pool of ephemeral Mixnet clients for higher-throughput applications.
 //!
 //! This module provides [`ClientPool`], which maintains a configurable number of
-//! ready-to-use [`MixnetClient`](crate::mixnet::MixnetClient) instances. This is
+//! connected ephemeral [`MixnetClient`](crate::mixnet::MixnetClient) instances. This is
 //! useful for applications that need to handle many concurrent connections without
 //! the latency of creating new clients on-demand.
 //!

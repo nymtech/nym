@@ -10,9 +10,9 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 
-/// A pool of pre-initialized [`MixnetClient`] instances for higher-throughput applications.
+/// A pool of connected ephemeral [`MixnetClient`] instances for higher-throughput applications.
 ///
-/// `ClientPool` maintains a configurable number of ready-to-use mixnet clients in reserve,
+/// `ClientPool` maintains a configurable number of ready-to-use Mixnet clients in reserve,
 /// automatically creating new clients when the pool is depleted. This is useful for
 /// applications that need to handle many concurrent connections without the latency
 /// of creating new clients on-demand.
@@ -21,7 +21,7 @@ use tracing::{debug, info, warn};
 ///
 /// The pool operates as a background task that continuously maintains the configured
 /// number of clients. Clients are obtained via [`get_mixnet_client`](Self::get_mixnet_client)
-/// and are removed from the pool (not returned after use).
+/// and are removed from the pool (then disconnected).
 ///
 /// ## Example
 ///

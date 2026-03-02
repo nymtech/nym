@@ -5,8 +5,8 @@
 //! ## Overview
 //!
 //! This crate provides high-level abstractions for interacting with the Nym mixnet,
-//! a decentralized network that provides network-level privacy through mix node routing
-//! and Sphinx packet encryption.
+//! a decentralized network that provides network-level privacy through packet mixing,
+//! timing obfuscation, and Sphinx packet encryption.
 //!
 //! ## Key Modules
 //!

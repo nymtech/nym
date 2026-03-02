@@ -212,13 +212,13 @@ chmod +x network-tunnel-manager.sh
 
 - [Deriving `Serialize` for `GatewayData`](https://github.com/nymtech/nym/pull/6314): Deriving `Serialize` for gateway data, that will be used by the diagnostic tool in the `vpn-client` repo
 
-- [DNS static table pre-resolve](https://github.com/nymtech/nym/pull/6297): This PR adds pre-resolve stage that returns addres if we have used static table previously. This ensures that we don't continually suffer the penalty of a lookup timeout, while also allowing for the possibility of going back to the default internal secure resolver if one or more nameservers becomes usable again at a future time.
+- [DNS static table pre-resolve](https://github.com/nymtech/nym/pull/6297): This PR adds pre-resolve stage that returns address if we have used static table previously. This ensures that we don't continually suffer the penalty of a lookup timeout, while also allowing for the possibility of going back to the default internal secure resolver if one or more nameservers becomes usable again at a future time.
 
 - [Add `Copy+Clone` to `nym_api_provider::Config`](https://github.com/nymtech/nym/pull/6296): Add `Copy+Clone` to `nym_client_core::client::topology_control::nym_api_provider::Config`
 
 - [LP Registration + Telescoping + Gateway Probe Localnet Mode](https://github.com/nymtech/nym/pull/6286):  Combines LP registration protocol implementation, adds telescoping/nested sessions support, adds localnet mode for `gateway-probe` testing, integrates KKT & PSQ cryptographic primitives 
 
-- [Minor DNS improvements](https://github.com/nymtech/nym/pull/6283): Increase timeouts back to 10 seconds for overall lookup and 5 seconds per query, gnore unreliable test, remove JIT resolution in http client as it is at best not useful, and at worst increasing timeout
+- [Minor DNS improvements](https://github.com/nymtech/nym/pull/6283): Increase timeouts back to 10 seconds for overall lookup and 5 seconds per query, ignore unreliable test, remove JIT resolution in http client as it is at best not useful, and at worst increasing timeout
 
 - [HTTP client without default features](https://github.com/nymtech/nym/pull/6281): Fix compile issue caused when using the http client using `default-features=false`
 
@@ -250,7 +250,7 @@ chmod +x network-tunnel-manager.sh
 
 - [Update nix to `v0.30.1`](https://github.com/nymtech/nym/pull/6316)
 
-- [Rremove repetitive words in comment](https://github.com/nymtech/nym/pull/6313)
+- [Remove repetitive words in comment](https://github.com/nymtech/nym/pull/6313)
 
 - [Clippy fixes and use fixed rust version from `REQUIRED_RUSTC_VERSION`](https://github.com/nymtech/nym/pull/6295)
 

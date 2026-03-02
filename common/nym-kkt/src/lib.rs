@@ -18,6 +18,7 @@ pub use nym_kkt_context as context;
 mod test {
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
     use rand09::RngCore;
+    use std::collections::BTreeMap;
 
     use crate::keys::KEMKeys;
     use crate::{
@@ -78,9 +79,12 @@ mod test {
                 initiator_mceliece_keypair.pk.as_ref(),
             );
 
+            let init_hashes = BTreeMap::new();
+
             let responder = KKTResponder::new(
                 &responder_x25519_keypair,
                 &responder_kem,
+                &init_hashes,
                 &[
                     HashFunction::Blake3,
                     HashFunction::SHA256,

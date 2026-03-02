@@ -143,10 +143,7 @@ pub fn initiator_process(
     Ok(KKTFrame::new(
         context,
         body,
-        match payload {
-            Some(payload_vec) => payload_vec,
-            None => Vec::with_capacity(0),
-        },
+        payload.unwrap_or_else(|| Vec::with_capacity(0)),
     ))
 }
 

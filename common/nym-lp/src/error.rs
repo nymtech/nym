@@ -65,11 +65,11 @@ pub enum LpError {
     #[error("State machine not found for lp_id: {0}")]
     StateMachineNotFound(LpReceiverIndex),
 
-    // /// Ed25519 to X25519 conversion error.
-    // #[error("Ed25519 key conversion error: {0}")]
-    // Ed25519RecoveryError(#[from] Ed25519RecoveryError),
     #[error("attempted to create an LP responder without providing a valid KEM keys")]
     ResponderWithMissingKEMKeys,
+
+    #[error("attempted to create an LP mutual initiator without providing a valid KEM key")]
+    PSQMutualInitiatorMissingKemKey,
 
     #[error(
         "there are no known digests for remote's KEM key with {kem} KEM and {hash_function} hash function"

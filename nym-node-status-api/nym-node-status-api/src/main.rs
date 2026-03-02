@@ -10,7 +10,7 @@ use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_network_defaults::setup_env;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::NyxdClient;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 mod cli;
 mod db;
@@ -41,6 +41,13 @@ async fn main() -> anyhow::Result<()> {
         .map(|value| PublicKey::from_base58_string(value.trim()).map_err(anyhow::Error::from))
         .collect::<anyhow::Result<Vec<_>>>()?;
     tracing::info!("Registered {} agent keys", agent_key_list.len());
+    let agent_region_map = parse_agent_region_map(args.agent_region_map.as_deref())?;
+    let region_centroids = parse_region_centroids(args.region_centroids.as_deref())?;
+    tracing::info!(
+        "Configured {} agent region mappings and {} region centroids",
+        agent_region_map.len(),
+        region_centroids.len()
+    );
 
     let connection_url = args.database_url.clone();
     if std::env::var("SHOW_CONFIG").ok().is_some() {
@@ -186,6 +193,8 @@ async fn main() -> anyhow::Result<()> {
         args.http_port,
         args.nym_http_cache_ttl,
         agent_key_list.to_owned(),
+        agent_region_map,
+        region_centroids,
         args.max_agent_count,
         args.agent_request_freshness,
         geocache,
@@ -201,4 +210,134 @@ async fn main() -> anyhow::Result<()> {
     shutdown_manager.run_until_shutdown().await;
 
     Ok(())
+}
+
+fn parse_agent_region_map(raw: Option<&str>) -> anyhow::Result<HashMap<PublicKey, String>> {
+    let mut out = HashMap::new();
+    let Some(raw) = raw else {
+        return Ok(out);
+    };
+
+    for entry in raw.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        let (pubkey_raw, region_raw) = entry.split_once('=').ok_or_else(|| {
+            anyhow::anyhow!(
+                "malformed NODE_STATUS_API_AGENT_REGION_MAP entry '{entry}', expected '<pubkey>=<region>'"
+            )
+        })?;
+        let pubkey =
+            PublicKey::from_base58_string(pubkey_raw.trim()).map_err(anyhow::Error::from)?;
+        let region = region_raw.trim();
+        if region.is_empty() {
+            anyhow::bail!("empty region in NODE_STATUS_API_AGENT_REGION_MAP entry '{entry}'");
+        }
+        out.insert(pubkey, region.to_string());
+    }
+
+    Ok(out)
+}
+
+fn parse_region_centroids(
+    raw: Option<&str>,
+) -> anyhow::Result<HashMap<String, http::state::RegionCentroid>> {
+    let mut out = HashMap::new();
+    let Some(raw) = raw else {
+        return Ok(out);
+    };
+
+    for entry in raw.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        let (region_raw, lat_lon_raw) = entry.split_once('=').ok_or_else(|| {
+            anyhow::anyhow!(
+                "malformed NODE_STATUS_API_REGION_CENTROIDS entry '{entry}', expected '<region>=<lat>:<lon>'"
+            )
+        })?;
+        let region = region_raw.trim();
+        let (lat_raw, lon_raw) = lat_lon_raw.split_once(':').ok_or_else(|| {
+            anyhow::anyhow!(
+                "malformed NODE_STATUS_API_REGION_CENTROIDS entry '{entry}', expected '<region>=<lat>:<lon>'"
+            )
+        })?;
+        let lat = lat_raw.trim().parse::<f64>().map_err(|err| {
+            anyhow::anyhow!(
+                "invalid latitude '{}' in entry '{}': {err}",
+                lat_raw.trim(),
+                entry
+            )
+        })?;
+        let lon = lon_raw.trim().parse::<f64>().map_err(|err| {
+            anyhow::anyhow!(
+                "invalid longitude '{}' in entry '{}': {err}",
+                lon_raw.trim(),
+                entry
+            )
+        })?;
+
+        if region.is_empty() {
+            anyhow::bail!("empty region in NODE_STATUS_API_REGION_CENTROIDS entry '{entry}'");
+        }
+
+        out.insert(region.to_string(), http::state::RegionCentroid { lat, lon });
+    }
+
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_agent_region_map() {
+        let pubkey_a = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(&[1; 32])
+            .expect("failed to create test public key A")
+            .to_base58_string();
+        let pubkey_b = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(&[2; 32])
+            .expect("failed to create test public key B")
+            .to_base58_string();
+        let raw = format!("{pubkey_a}=eu-west,{pubkey_b}=asia-tokyo");
+
+        let parsed = parse_agent_region_map(Some(&raw)).expect("failed to parse map");
+
+        assert_eq!(parsed.len(), 2);
+        let key_a = PublicKey::from_base58_string(&pubkey_a).expect("failed to decode key A");
+        let key_b = PublicKey::from_base58_string(&pubkey_b).expect("failed to decode key B");
+        assert_eq!(parsed.get(&key_a).map(String::as_str), Some("eu-west"));
+        assert_eq!(parsed.get(&key_b).map(String::as_str), Some("asia-tokyo"));
+    }
+
+    #[test]
+    fn malformed_agent_region_map_entry_returns_error() {
+        let err = parse_agent_region_map(Some("this_is_not_valid")).expect_err("expected error");
+        assert!(
+            err.to_string()
+                .contains("malformed NODE_STATUS_API_AGENT_REGION_MAP entry"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn parses_region_centroids() {
+        let raw = "eu-west=50.1109:8.6821,asia-tokyo=35.6762:139.6503";
+
+        let parsed = parse_region_centroids(Some(raw)).expect("failed to parse centroids");
+
+        assert_eq!(parsed.len(), 2);
+        let eu = parsed.get("eu-west").expect("missing eu-west centroid");
+        let asia = parsed
+            .get("asia-tokyo")
+            .expect("missing asia-tokyo centroid");
+        assert!((eu.lat - 50.1109).abs() < 1e-9);
+        assert!((eu.lon - 8.6821).abs() < 1e-9);
+        assert!((asia.lat - 35.6762).abs() < 1e-9);
+        assert!((asia.lon - 139.6503).abs() < 1e-9);
+    }
+
+    #[test]
+    fn malformed_region_centroids_entry_returns_error() {
+        let err = parse_region_centroids(Some("eu-west=50.1|8.6")).expect_err("expected error");
+        assert!(
+            err.to_string()
+                .contains("malformed NODE_STATUS_API_REGION_CENTROIDS entry"),
+            "unexpected error: {err}"
+        );
+    }
 }

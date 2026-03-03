@@ -603,3 +603,6 @@ exit = "deny"
 panic = "deny"
 unimplemented = "deny"
 unreachable = "deny"
+
+[patch.crates-io]
+getrandom = { version = "=0.3.4" }

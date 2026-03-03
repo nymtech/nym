@@ -1,7 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::lp::{LpHandlerState, LpReceiverIndex};
+use crate::node::lp::state::SharedLpControlState;
+use nym_lp::peer_config::LpReceiverIndex;
 use nym_metrics::{add_histogram_obs, inc};
 use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
@@ -28,7 +29,7 @@ const LP_REGISTRATION_DURATION_BUCKETS: &[f64] = &[
     30.0, // 30s
 ];
 
-impl LpHandlerState {
+impl SharedLpControlState {
     async fn process_dvpn_initial_registration(
         &self,
         sender: LpReceiverIndex,

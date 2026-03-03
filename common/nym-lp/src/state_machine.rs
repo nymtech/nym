@@ -5,12 +5,11 @@
 //! State machine ensures protocol steps execute in correct order. Invalid transitions
 //! return LpError, preventing protocol violations.
 
-use crate::packet::{EncryptedLpPacket, LpMessage};
+use crate::packet::EncryptedLpPacket;
+use crate::packet::message::LpMessage;
 use crate::peer_config::LpReceiverIndex;
 use crate::session::SessionId;
 use crate::{LpError, session::LpSession};
-use bytes::{Buf, Bytes};
-use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::mem;
 
 #[derive(Debug)]
@@ -58,7 +57,7 @@ pub enum LpInput {
     ReceivePacket(EncryptedLpPacket),
 
     /// Application wants to send data (only valid in Transport state).
-    SendData(LpData),
+    SendData(LpMessage),
 
     /// Close the connection.
     Close,
@@ -71,79 +70,10 @@ pub enum LpAction {
     SendPacket(EncryptedLpPacket),
 
     /// Deliver decrypted application data received from the peer.
-    DeliverData(LpData),
+    DeliverData(LpMessage),
 
     /// Inform the environment that the connection is closed.
     ConnectionClosed,
-}
-
-/// Represent application data being sent in Transport mode
-#[derive(Debug, Clone, PartialEq)]
-pub struct LpData {
-    pub kind: LpDataKind,
-    pub content: Bytes,
-}
-
-impl AsRef<[u8]> for LpData {
-    fn as_ref(&self) -> &[u8] {
-        &self.content
-    }
-}
-
-impl LpData {
-    pub fn new(kind: LpDataKind, content: impl Into<Bytes>) -> Self {
-        Self {
-            kind,
-            content: content.into(),
-        }
-    }
-    pub fn new_opaque(content: impl Into<Bytes>) -> Self {
-        Self::new(LpDataKind::Opaque, content)
-    }
-
-    pub fn new_registration(data: impl Into<Bytes>) -> Self {
-        Self::new(LpDataKind::Registration, data)
-    }
-
-    pub fn new_forward(data: impl Into<Bytes>) -> Self {
-        Self::new(LpDataKind::Forward, data)
-    }
-
-    pub fn to_vec(self) -> Vec<u8> {
-        self.into()
-    }
-}
-
-impl From<LpData> for Vec<u8> {
-    fn from(data: LpData) -> Self {
-        let mut out = Vec::with_capacity(data.content.len() + 1);
-        out.push(data.kind as u8);
-        out.extend_from_slice(data.content.as_ref());
-        out
-    }
-}
-
-impl TryFrom<Vec<u8>> for LpData {
-    type Error = LpError;
-
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        let kind = LpDataKind::try_from(value[0]).map_err(|_| {
-            LpError::DeserializationError(format!("unknown data type: {}", value[0]))
-        })?;
-        let mut content = Bytes::from(value);
-        content.advance(1);
-
-        Ok(LpData::new(kind, content))
-    }
-}
-
-/// Represent kind of application data being sent in Transport mode
-#[derive(Clone, Copy, PartialEq, Eq, Debug, IntoPrimitive, TryFromPrimitive)]
-#[repr(u8)]
-pub enum LpDataKind {
-    Opaque = 0,
-    Registration = 1,
-    Forward = 2,
 }
 
 /// The Lewes Protocol State Machine.
@@ -234,31 +164,10 @@ impl LpStateMachine {
                     return (LpState::Transport(state), Some(Err(e)));
                 }
 
-                // Check message type
-                match packet.into_message() {
-                    // Normal encrypted data
-                    LpMessage::ApplicationData(payload) => {
-                        //  Deliver data
-                        match payload.0.try_into() {
-                            Ok(data) => {
-                                let result_action = Some(Ok(LpAction::DeliverData(data)));
-                                (LpState::Transport(state), result_action)
-                            }
-                            Err(e) => {
-                                let reason = e.to_string();
-                                (LpState::Closed { reason }, Some(Err(e)))
-                            }
-                        }
-                    }
-                    other => {
-                        // Unexpected message type in Transport state
-                        let err = LpError::InvalidStateTransition {
-                            state: "Transport".to_string(),
-                            input: format!("Unexpected message type: {other}"),
-                        };
-                        (LpState::Transport(state), Some(Err(err)))
-                    }
-                }
+                // 4. deliver the message
+                let message = packet.message;
+                let result_action = Some(Ok(LpAction::DeliverData(message)));
+                (LpState::Transport(state), result_action)
             }
             LpInput::SendData(data) => {
                 // Encrypt and send application data
@@ -339,9 +248,9 @@ impl LpStateMachine {
     fn prepare_data_packet(
         &self,
         session: &mut LpSession,
-        data: LpData,
+        data: LpMessage,
     ) -> Result<EncryptedLpPacket, LpError> {
-        session.encrypt_application_data(data.to_vec())
+        session.encrypt_application_data(data)
     }
 }
 
@@ -386,7 +295,7 @@ mod tests {
 
             // --- Transport Phase ---
             println!("--- Step 1: Initiator sends data ---");
-            let data_to_send_1 = LpData::new_opaque(b"hello responder".to_vec());
+            let data_to_send_1 = LpMessage::new_opaque(b"hello responder".to_vec());
             let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.clone()));
             let data_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_4 {
                 packet.clone()
@@ -405,7 +314,7 @@ mod tests {
             assert_eq!(resp_data_1, data_to_send_1);
 
             println!("--- Step 3: Responder sends data ---");
-            let data_to_send_2 = LpData::new_opaque(b"hello initiator".to_vec());
+            let data_to_send_2 = LpMessage::new_opaque(b"hello initiator".to_vec());
             let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.clone()));
             let data_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_6 {
                 packet.clone()

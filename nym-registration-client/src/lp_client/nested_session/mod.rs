@@ -25,10 +25,10 @@ use crate::lp_client::state_machine_helpers::{extract_forwarded_response, prepar
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::packet::EncryptedLpPacket;
 use nym_lp::packet::version;
+use nym_lp::packet::{EncryptedLpPacket, LpMessage};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
-use nym_lp::state_machine::{LpData, LpStateMachine};
+use nym_lp::state_machine::LpStateMachine;
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::{Ciphersuite, KEM, LpSession};
@@ -128,14 +128,17 @@ impl NestedLpSession {
 
     /// Attempt to wrap the provided `LpData` into a `EncryptedLpPacket`
     /// using the inner state machine.
-    fn prepare_transport_packet(&mut self, data: LpData) -> Result<EncryptedLpPacket> {
+    fn prepare_transport_packet(&mut self, data: LpMessage) -> Result<EncryptedLpPacket> {
         let state_machine = self.state_machine_mut()?;
         prepare_send_packet(data, state_machine)
     }
 
     /// Attempt to recover received `LpData` from the received `EncryptedLpPacket`
     /// using the inner state machine.
-    fn extract_forwarded_response(&mut self, response_packet: EncryptedLpPacket) -> Result<LpData> {
+    fn extract_forwarded_response(
+        &mut self,
+        response_packet: EncryptedLpPacket,
+    ) -> Result<LpMessage> {
         let state_machine = self.state_machine_mut()?;
         extract_forwarded_response(response_packet, state_machine)
     }

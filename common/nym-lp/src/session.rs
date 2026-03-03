@@ -6,7 +6,7 @@
 //! This module implements session management functionality, including replay protection
 
 use crate::codec::{decrypt_lp_packet, encrypt_lp_packet};
-use crate::packet::{ApplicationData, EncryptedLpPacket, LpHeader, LpMessage, LpPacket};
+use crate::packet::{EncryptedLpPacket, LpHeader, LpMessage, LpPacket};
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::peer_config::LpReceiverIndex;
 use crate::psq::{
@@ -174,12 +174,7 @@ impl LpSession {
 
     pub fn next_packet(&mut self, message: LpMessage) -> Result<LpPacket, LpError> {
         let counter = self.next_counter();
-        let header = LpHeader::new(
-            self.receiver_index(),
-            counter,
-            self.protocol_version,
-            message.typ(),
-        );
+        let header = LpHeader::new(self.receiver_index(), counter, self.protocol_version);
         let packet = LpPacket::new(header, message);
         Ok(packet)
     }
@@ -255,9 +250,9 @@ impl LpSession {
     /// * `Err(LpError)` if the session is not in transport mode or encryption fails.
     pub(crate) fn encrypt_application_data(
         &mut self,
-        data: Vec<u8>,
+        data: LpMessage,
     ) -> Result<EncryptedLpPacket, LpError> {
-        let packet = self.next_packet(LpMessage::ApplicationData(ApplicationData::new(data)))?;
+        let packet = self.next_packet(data)?;
         encrypt_lp_packet(packet, &mut self.active_transport)
     }
 

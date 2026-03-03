@@ -487,7 +487,7 @@ impl NymNode {
         config.save()
     }
 
-    pub async fn build_lp(
+    pub async fn build_lp_tasks(
         &self,
         peer_registrator: Option<PeerRegistrator>,
         mix_packet_sender: MixForwardingSender,
@@ -766,7 +766,7 @@ impl NymNode {
                 self.config.lp.control_bind_address, self.config.lp.data_bind_address,
             );
             let lp_tasks = self
-                .build_lp(wg_peer_registrator.clone(), mix_packet_sender)
+                .build_lp_tasks(wg_peer_registrator.clone(), mix_packet_sender)
                 .await?;
             lp_tasks.start_tasks();
         } else {

@@ -3,6 +3,7 @@
 
 use crate::context::KKTStatus;
 use nym_kkt_ciphersuite::error::KKTCiphersuiteError;
+use nym_kkt_ciphersuite::{HashFunction, KEM};
 use nym_kkt_context::KKTContextEncodingError;
 use std::fmt::Debug;
 use thiserror::Error;
@@ -61,6 +62,14 @@ pub enum KKTError {
 
     #[error("the received encapsulation key hash does not match the expected value")]
     MismatchedKEMHash,
+
+    #[error(
+        "there are no known digests for initiator's KEM key with {kem} KEM and {hash_function} hash function"
+    )]
+    NoKnownKEMKeyDigests {
+        kem: KEM,
+        hash_function: HashFunction,
+    },
 
     #[error(transparent)]
     MalformedContext(#[from] KKTContextEncodingError),

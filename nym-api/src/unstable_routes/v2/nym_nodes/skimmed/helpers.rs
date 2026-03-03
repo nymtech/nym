@@ -9,7 +9,7 @@ use axum::extract::{Query, State};
 use nym_api_requests::models::{
     NodeAnnotation, NymNodeDescriptionV2, OffsetDateTimeJsonSchemaWrapper,
 };
-use nym_api_requests::nym_nodes::{NodeRole, PaginatedCachedNodesResponseV2, SkimmedNode};
+use nym_api_requests::nym_nodes::{NodeRole, PaginatedCachedNodesResponseV2, SkimmedNodeV1};
 use nym_http_api_common::Output;
 use nym_mixnet_contract_common::{Interval, NodeId};
 use nym_topology::CachedEpochRewardedSet;
@@ -23,7 +23,7 @@ fn build_nym_nodes_response<'a, NI>(
     annotations: &HashMap<NodeId, NodeAnnotation>,
     current_key_rotation: u32,
     active_only: bool,
-) -> Vec<SkimmedNode>
+) -> Vec<SkimmedNodeV1>
 where
     NI: Iterator<Item = &'a NymNodeDescriptionV2> + 'a,
 {
@@ -56,7 +56,7 @@ fn maybe_add_expires_header(
     interval: Interval,
     current_key_rotation: u32,
     refreshed_at: OffsetDateTimeJsonSchemaWrapper,
-    nodes: Vec<SkimmedNode>,
+    nodes: Vec<SkimmedNodeV1>,
     active_only: bool,
 ) -> PaginatedSkimmedNodes {
     let base_response = output.to_response(

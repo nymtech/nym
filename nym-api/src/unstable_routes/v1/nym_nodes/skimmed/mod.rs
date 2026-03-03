@@ -3,7 +3,7 @@
 
 use crate::node_status_api::models::AxumResult;
 use nym_api_requests::models::OffsetDateTimeJsonSchemaWrapper;
-use nym_api_requests::nym_nodes::{PaginatedCachedNodesResponseV1, SkimmedNode};
+use nym_api_requests::nym_nodes::{PaginatedCachedNodesResponseV1, SkimmedNodeV1};
 use nym_api_requests::pagination::PaginatedResponse;
 use nym_http_api_common::FormattedResponse;
 use utoipa::ToSchema;
@@ -12,7 +12,7 @@ pub(crate) mod handlers;
 pub(crate) mod helpers;
 
 pub type PaginatedSkimmedNodes =
-    AxumResult<FormattedResponse<PaginatedCachedNodesResponseV1<SkimmedNode>>>;
+    AxumResult<FormattedResponse<PaginatedCachedNodesResponseV1<SkimmedNodeV1>>>;
 
 pub(crate) use handlers::*;
 
@@ -21,6 +21,6 @@ pub(crate) use handlers::*;
 #[schema(title = "PaginatedCachedNodesResponse")]
 pub struct PaginatedCachedNodesResponseSchema {
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
-    #[schema(value_type = SkimmedNode)]
-    pub nodes: PaginatedResponse<SkimmedNode>,
+    #[schema(value_type = SkimmedNodeV1)]
+    pub nodes: PaginatedResponse<SkimmedNodeV1>,
 }

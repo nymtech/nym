@@ -12,7 +12,7 @@ use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
     client::NodeId,
     models::{AuthenticatorDetailsV1, BinaryBuildInformationOwned, IpPacketRouterDetailsV1},
-    nym_api::SkimmedNode,
+    nym_api::SkimmedNodeV1,
     nym_nodes::{BasicEntryInformation, NodeRole},
 };
 use serde::{Deserialize, Serialize};
@@ -139,7 +139,7 @@ impl DVpnGateway {
     #[instrument(level = tracing::Level::INFO, name = "dvpn_gw_new", skip_all, fields(gateway_key = gateway.gateway_identity_key, node_id = skimmed_node.node_id))]
     pub(crate) fn new(
         gateway: Gateway,
-        skimmed_node: &SkimmedNode,
+        skimmed_node: &SkimmedNodeV1,
         socks5_score: Option<&ScoreValue>,
     ) -> anyhow::Result<Self> {
         let location = gateway

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_api_requests::models::DeclaredRolesV1;
-use nym_api_requests::nym_nodes::SkimmedNode;
+use nym_api_requests::nym_nodes::SkimmedNodeV1;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
@@ -146,10 +146,10 @@ impl<'a> From<&'a RoutingNode> for SphinxNode {
     }
 }
 
-impl<'a> TryFrom<&'a SkimmedNode> for RoutingNode {
+impl<'a> TryFrom<&'a SkimmedNodeV1> for RoutingNode {
     type Error = RoutingNodeError;
 
-    fn try_from(value: &'a SkimmedNode) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a SkimmedNodeV1) -> Result<Self, Self::Error> {
         // IF YOU EVER ADD "performance" TO RoutingNode,
         // MAKE SURE TO UPDATE THE LAZY IMPLEMENTATION OF
         // `impl NodeDescriptionTopologyExt for NymNodeDescription`!!!

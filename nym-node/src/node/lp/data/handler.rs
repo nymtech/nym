@@ -1,5 +1,5 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 //! LP Data Handler - UDP listener for LP data plane (port 51264)
 //!
@@ -15,90 +15,24 @@
 //! ```
 //!
 
-use super::LpHandlerState;
-use crate::error::NymNodeError;
 use crate::node::lp::error::LpHandlerError;
+use crate::node::lp::state::SharedLpDataState;
 use nym_lp::packet::OuterHeader;
 use nym_metrics::inc;
 use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::net::UdpSocket;
 use tracing::*;
-
-/// Maximum UDP packet size we'll accept
-/// Sphinx packets are typically ~2KB, LP overhead is ~50 bytes, so 4KB is plenty
-const MAX_UDP_PACKET_SIZE: usize = 4096;
 
 /// LP Data Handler for UDP data plane
 pub struct LpDataHandler {
-    /// UDP socket for receiving LP-wrapped Sphinx packets
-    socket: Arc<UdpSocket>,
-
-    /// Shared state with TCP control plane
+    /// State used for handling received requests
     #[allow(dead_code)]
-    state: LpHandlerState,
-
-    /// Shutdown token
-    shutdown: nym_task::ShutdownToken,
+    state: SharedLpDataState,
 }
 
 impl LpDataHandler {
     /// Create a new LP data handler
-    pub async fn new(
-        bind_addr: SocketAddr,
-        state: LpHandlerState,
-        shutdown: nym_task::ShutdownToken,
-    ) -> Result<Self, NymNodeError> {
-        let socket = UdpSocket::bind(bind_addr).await.map_err(|source| {
-            error!("Failed to bind LP data socket to {bind_addr}: {source}");
-            NymNodeError::LpBindFailure {
-                address: bind_addr,
-                source,
-            }
-        })?;
-
-        info!("LP data handler listening on UDP {bind_addr}");
-
-        Ok(Self {
-            socket: Arc::new(socket),
-            state,
-            shutdown,
-        })
-    }
-
-    /// Run the UDP packet receive loop
-    pub async fn run(self) -> Result<(), LpHandlerError> {
-        let mut buf = vec![0u8; MAX_UDP_PACKET_SIZE];
-
-        loop {
-            tokio::select! {
-                biased;
-
-                _ = self.shutdown.cancelled() => {
-                    info!("LP data handler: received shutdown signal");
-                    break;
-                }
-
-                result = self.socket.recv_from(&mut buf) => {
-                    match result {
-                        Ok((len, src_addr)) => {
-                            // Process packet in place (no spawn - UDP is fast)
-                            if let Err(e) = self.handle_packet(&buf[..len], src_addr).await {
-                                debug!("LP data packet error from {src_addr}: {e}");
-                                inc!("lp_data_packet_errors");
-                            }
-                        }
-                        Err(e) => {
-                            warn!("LP data socket recv error: {e}");
-                            inc!("lp_data_recv_errors");
-                        }
-                    }
-                }
-            }
-        }
-
-        info!("LP data handler shutdown complete");
-        Ok(())
+    pub fn new(state: SharedLpDataState) -> Self {
+        Self { state }
     }
 
     /// Handle a single UDP packet
@@ -115,7 +49,7 @@ impl LpDataHandler {
     /// - Marking counter as used after successful decryption
     ///
     /// This prevents replay attacks where captured packets are re-sent.
-    async fn handle_packet(
+    pub(crate) async fn handle_packet(
         &self,
         packet: &[u8],
         src_addr: SocketAddr,
@@ -222,16 +156,4 @@ impl LpDataHandler {
         //     }
         // }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Sphinx packets are typically around 2KB
-    // LP overhead is small (~50 bytes header + AEAD tag)
-    // 4KB should be plenty with room to spare
-    const _: () = {
-        assert!(MAX_UDP_PACKET_SIZE >= 2048 + 100);
-    };
 }

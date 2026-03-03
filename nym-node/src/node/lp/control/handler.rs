@@ -1,10 +1,12 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-use super::{LpHandlerState, LpReceiverIndex, TimestampedState};
+use crate::node::lp::cleanup::TimestampedState;
 use crate::node::lp::error::LpHandlerError;
+use crate::node::lp::state::SharedLpControlState;
 use dashmap::mapref::one::RefMut;
 use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData};
+use nym_lp::peer_config::LpReceiverIndex;
 use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
@@ -75,7 +77,7 @@ impl ConnectionStats {
 pub struct LpConnectionHandler<S = TcpStream> {
     stream: S,
     remote_addr: SocketAddr,
-    state: LpHandlerState,
+    state: SharedLpControlState,
     stats: ConnectionStats,
 
     // /// Flag indicating whether this is a connection from an entry gateway serving as a proxy
@@ -99,7 +101,7 @@ where
         stream: S,
         // forwarded_connection: bool,
         remote_addr: SocketAddr,
-        state: LpHandlerState,
+        state: SharedLpControlState,
     ) -> Self {
         Self {
             stream,
@@ -119,6 +121,7 @@ where
     ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpStateMachine>>, LpHandlerError> {
         let receiver_index = self.bound_receiver_index()?;
         self.state
+            .shared
             .session_states
             .get_mut(&receiver_index)
             .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })
@@ -143,7 +146,7 @@ where
 
         // 1. complete KKT/PSQ handshake before doing anything else.
         // bail if it takes too long
-        let timeout = self.state.lp_config.debug.handshake_ttl;
+        let timeout = self.state.shared.lp_config.debug.handshake_ttl;
         let local_peer = self.state.local_lp_peer.clone();
         let stream = &mut self.stream;
 
@@ -177,6 +180,7 @@ where
         // 2. insert the state machine into the shared state
         let state_machine = LpStateMachine::new(session);
         self.state
+            .shared
             .session_states
             .insert(receiver_idx, TimestampedState::new(state_machine));
         self.bound_receiver_idx = Some(receiver_idx);
@@ -663,8 +667,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::LpConfig;
     use crate::config::lp::LpDebug;
-    use crate::node::lp::LpConfig;
+    use crate::node::lp::state::SharedLpState;
     use nym_lp::peer::{KEMKeys, LpLocalPeer, generate_keypair_mceliece, generate_keypair_mlkem};
     use nym_lp::{Ciphersuite, SessionManager, sessions_for_tests};
     use nym_test_utils::helpers::{deterministic_rng, deterministic_rng_09};
@@ -672,7 +677,7 @@ mod tests {
     // ==================== Test Helpers ====================
 
     /// Create a minimal test state for handler tests
-    async fn create_minimal_test_state() -> LpHandlerState {
+    async fn create_minimal_test_state() -> SharedLpControlState {
         use nym_crypto::asymmetric::ed25519;
 
         let mut rng = deterministic_rng();
@@ -688,9 +693,6 @@ mod tests {
             lp_config.debug.max_concurrent_forwards,
         ));
 
-        // Create mix forwarding channel (unused in tests but required by struct)
-        let (mix_sender, _mix_receiver) = nym_mixnet_client::forwarder::mix_forwarding_channels();
-
         let id_keys = Arc::new(ed25519::KeyPair::new(&mut rng));
         let x_keys = Arc::new(id_keys.to_x25519().try_into().unwrap());
 
@@ -700,14 +702,15 @@ mod tests {
         );
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), x_keys).with_kem_keys(kem_keys);
 
-        LpHandlerState {
-            lp_config,
+        SharedLpControlState {
             local_lp_peer: lp_peer,
-            metrics: nym_node_metrics::NymNodeMetrics::default(),
-            outbound_mix_sender: mix_sender,
-            session_states: Arc::new(dashmap::DashMap::new()),
             peer_registrator: None,
             forward_semaphore,
+            shared: SharedLpState {
+                lp_config,
+                metrics: nym_node_metrics::NymNodeMetrics::default(),
+                session_states: Arc::new(dashmap::DashMap::new()),
+            },
         }
     }
 

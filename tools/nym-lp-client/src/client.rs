@@ -421,7 +421,7 @@ impl SpeedtestClient {
     /// This is the primary method for sending data through the mixnet via the LP transport.
     /// Requires `init_lp_session()` to be called first to establish the LP cryptographic session.
     ///
-    /// # Data Flow (see gateway/src/node/lp_listener/data_handler.rs)
+    /// # Data Flow (see gateway/src/node/lp_listener/handler)
     /// ```text
     /// LP Client → UDP:51264 → LP Data Handler → Mixnet Entry
     ///           LP(Sphinx)      decrypt LP      forward Sphinx

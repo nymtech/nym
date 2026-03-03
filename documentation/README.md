@@ -79,7 +79,7 @@ Outputs `sitemap.xml` and `robots.txt` to `/public`.
 ### Environment Variable
 Set in production:
 ```
-NEXT_PUBLIC_SITE_URL=https://nymtech.net/docs
+NEXT_PUBLIC_SITE_URL=https://nym.com/docs
 ```
 
 ### Schema Types

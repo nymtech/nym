@@ -7,7 +7,7 @@ jobs:
   build:
     runs-on: arc-ubuntu-22.04
     env:
-      NEXT_PUBLIC_SITE_URL: https://nymtech.net/docs
+      NEXT_PUBLIC_SITE_URL: https://nym.com/docs
     defaults:
       run:
         working-directory: documentation/docs

@@ -11,7 +11,7 @@ use crate::psq::{
 };
 use crate::session::PersistentSessionBinding;
 use crate::transport::traits::LpHandshakeChannel;
-use crate::{LpError, LpSession};
+use crate::{LpError, LpTransportSession};
 use libcrux_psq::handshake::RegistrationInitiator;
 use libcrux_psq::handshake::builders::{
     CiphersuiteBuilder, InitiatorCiphersuite, PrincipalBuilder,
@@ -113,7 +113,7 @@ where
         Ok(resp.into())
     }
 
-    pub async fn complete_handshake(self) -> Result<LpSession, LpError>
+    pub async fn complete_handshake(self) -> Result<LpTransportSession, LpError>
     where
         S: LpHandshakeChannel + Unpin,
     {
@@ -121,7 +121,10 @@ where
         self.complete_handshake_with_rng(&mut rng).await
     }
 
-    pub async fn complete_handshake_with_rng<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
+    pub async fn complete_handshake_with_rng<R>(
+        mut self,
+        rng: &mut R,
+    ) -> Result<LpTransportSession, LpError>
     where
         S: LpHandshakeChannel + Unpin,
         R: rand09::CryptoRng,
@@ -230,7 +233,7 @@ where
         };
 
         let psq_session = psq_initiator.into_session()?;
-        LpSession::new(psq_session, binding, receiver_index, protocol)
+        LpTransportSession::new(psq_session, binding, receiver_index, protocol)
     }
 }
 

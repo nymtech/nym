@@ -28,10 +28,9 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::packet::version;
 use nym_lp::packet::{EncryptedLpPacket, LpMessage};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
-use nym_lp::state_machine::LpStateMachine;
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
-use nym_lp::{Ciphersuite, KEM, LpSession};
+use nym_lp::{Ciphersuite, KEM, LpTransportSession};
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
@@ -79,8 +78,8 @@ pub struct NestedLpSession {
     /// Included in case we have to downgrade our version.
     gateway_supported_lp_protocol_version: u8,
 
-    /// LP state machine for exit gateway session (populated after handshake)
-    state_machine: Option<LpStateMachine>,
+    /// LP transport session for exit gateway session (populated after handshake)
+    transport_session: Option<LpTransportSession>,
 }
 
 impl NestedLpSession {
@@ -116,12 +115,12 @@ impl NestedLpSession {
             lp_local_peer,
             gateway_lp_peer,
             gateway_supported_lp_protocol_version: lp_protocol,
-            state_machine: None,
+            transport_session: None,
         }
     }
 
-    fn state_machine_mut(&mut self) -> Result<&mut LpStateMachine> {
-        self.state_machine
+    fn state_machine_mut(&mut self) -> Result<&mut LpTransportSession> {
+        self.transport_session
             .as_mut()
             .ok_or(LpClientError::IncompleteHandshake)
     }
@@ -181,7 +180,7 @@ impl NestedLpSession {
         let remote_peer = self.gateway_lp_peer.clone();
         let protocol_version = self.gateway_supported_lp_protocol_version;
 
-        let session = LpSession::psq_handshake_initiator(
+        let session = LpTransportSession::psq_handshake_initiator(
             &mut nested_connection,
             local_peer,
             remote_peer,
@@ -191,7 +190,7 @@ impl NestedLpSession {
         .await?;
 
         // Store the state machine (with established session) for later use
-        self.state_machine = Some(LpStateMachine::new(session));
+        self.transport_session = Some(session);
         debug!("completed nested handshake");
         Ok(())
     }
@@ -532,7 +531,7 @@ impl NestedLpSession {
                 tokio::time::sleep(delay).await;
 
                 // Clear state machine before retry - handshake needs fresh start
-                self.state_machine = None;
+                self.transport_session = None;
             }
 
             match self

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::packet::{EncryptedLpPacket, LpMessage};
-    use crate::state_machine::{LpAction, LpInput, LpStateBare};
+    use crate::session::{LpAction, LpInput};
     use crate::{LpError, SessionManager, SessionsMock};
     use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
 
@@ -62,7 +62,6 @@ mod tests {
                 let decrypted_payload = session_manager_2
                     .receive_packet(peer_b_sm, ciphertext_a)
                     .unwrap()
-                    .unwrap()
                     .data();
                 assert_eq!(decrypted_payload.content, plaintext_a);
 
@@ -76,7 +75,6 @@ mod tests {
                 // B parses and checks replay
                 let decrypted_payload = session_manager_1
                     .receive_packet(peer_a_sm, ciphertext_b)
-                    .unwrap()
                     .unwrap()
                     .data();
                 assert_eq!(decrypted_payload.content, plaintext_b);
@@ -183,16 +181,6 @@ mod tests {
             assert!(session_manager_1.state_machine_exists(session_id));
             assert!(session_manager_2.state_machine_exists(session_id));
 
-            // Verify initial states are Transport
-            assert_eq!(
-                session_manager_1.get_state(session_id).unwrap(),
-                LpStateBare::Transport
-            );
-            assert_eq!(
-                session_manager_2.get_state(session_id).unwrap(),
-                LpStateBare::Transport
-            );
-
             // --- 3. Simulate Data Transfer via process_input ---
             println!("Starting data transfer simulation via process_input...");
             let plaintext_a_to_b =
@@ -204,7 +192,6 @@ mod tests {
             println!("  A sends to B");
             let action_a_send = session_manager_1
                 .process_input(session_id, LpInput::SendData(plaintext_a_to_b.clone()))
-                .expect("A SendData should produce action")
                 .expect("A SendData failed");
 
             let data_packet_a = action_a_send.ciphertext();
@@ -213,7 +200,6 @@ mod tests {
             println!("  B receives from A");
             let action_b_recv = session_manager_2
                 .process_input(session_id, LpInput::ReceivePacket(data_packet_a))
-                .expect("B ReceivePacket (data) should produce action")
                 .expect("B ReceivePacket (data) failed");
 
             if let LpAction::DeliverData(data) = action_b_recv {
@@ -230,7 +216,6 @@ mod tests {
             println!("  B sends to A");
             let action_b_send = session_manager_2
                 .process_input(session_id, LpInput::SendData(plaintext_b_to_a.clone()))
-                .expect("B SendData should produce action")
                 .expect("B SendData failed");
 
             let data_packet_b = action_b_send.ciphertext();
@@ -242,7 +227,6 @@ mod tests {
             println!("  A receives from B");
             let action_a_recv = session_manager_1
                 .process_input(session_id, LpInput::ReceivePacket(data_packet_b))
-                .expect("A ReceivePacket (data) should produce action")
                 .expect("A ReceivePacket (data) failed");
 
             if let LpAction::DeliverData(data) = action_a_recv {
@@ -279,7 +263,6 @@ mod tests {
 
             let action_send_n1 = session_manager_1
                 .process_input(session_id, LpInput::SendData(data_n_plus_1.clone()))
-                .unwrap()
                 .unwrap();
             let packet_n1 = match action_send_n1 {
                 LpAction::SendPacket(p) => p,
@@ -288,7 +271,6 @@ mod tests {
 
             let action_send_n = session_manager_1
                 .process_input(session_id, LpInput::SendData(data_n.clone()))
-                .unwrap()
                 .unwrap();
             let packet_n = match action_send_n {
                 LpAction::SendPacket(p) => p,
@@ -300,7 +282,6 @@ mod tests {
             println!("  B receives N+1");
             let action_recv_n1 = session_manager_2
                 .process_input(session_id, LpInput::ReceivePacket(packet_n1))
-                .unwrap()
                 .unwrap();
             match action_recv_n1 {
                 LpAction::DeliverData(d) => assert_eq!(d, data_n_plus_1, "Data N+1 mismatch"),
@@ -311,7 +292,6 @@ mod tests {
             println!("  B receives N");
             let action_recv_n = session_manager_2
                 .process_input(session_id, LpInput::ReceivePacket(packet_n))
-                .unwrap()
                 .unwrap();
             match action_recv_n {
                 LpAction::DeliverData(d) => assert_eq!(d, data_n, "Data N mismatch"),
@@ -329,55 +309,7 @@ mod tests {
             );
             println!("Out-of-order test passed.");
 
-            // --- 6. Close Test ---
-            println!("Testing close via process_input...");
-
-            // A closes
-            let action_a_close = session_manager_1
-                .process_input(session_id, LpInput::Close)
-                .expect("A Close should produce action")
-                .expect("A Close failed");
-            assert!(matches!(action_a_close, LpAction::ConnectionClosed));
-            assert_eq!(
-                session_manager_1.get_state(session_id).unwrap(),
-                LpStateBare::Closed
-            );
-
-            // Further actions on A fail
-            let send_after_close_a = session_manager_1.process_input(
-                session_id,
-                LpInput::SendData(LpMessage::new_opaque(b"fail".to_vec())),
-            );
-            assert!(send_after_close_a.is_err());
-            assert!(matches!(
-                send_after_close_a.err().unwrap(),
-                LpError::LpSessionClosed
-            ));
-
-            // B closes
-            let action_b_close = session_manager_2
-                .process_input(session_id, LpInput::Close)
-                .expect("B Close should produce action")
-                .expect("B Close failed");
-            assert!(matches!(action_b_close, LpAction::ConnectionClosed));
-            assert_eq!(
-                session_manager_2.get_state(session_id).unwrap(),
-                LpStateBare::Closed
-            );
-
-            // Further actions on B fail
-            let send_after_close_b = session_manager_2.process_input(
-                session_id,
-                LpInput::SendData(LpMessage::new_opaque(b"fail".to_vec())),
-            );
-            assert!(send_after_close_b.is_err());
-            assert!(matches!(
-                send_after_close_b.err().unwrap(),
-                LpError::LpSessionClosed
-            ));
-            println!("Close test passed.");
-
-            // --- 7. Session Removal ---
+            // --- 6. Session Removal ---
             assert!(session_manager_1.remove_state_machine(session_id));
             assert_eq!(session_manager_1.session_count(), 0);
             assert!(!session_manager_1.state_machine_exists(session_id));

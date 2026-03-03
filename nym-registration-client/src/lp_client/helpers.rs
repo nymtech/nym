@@ -7,7 +7,7 @@ use crate::LpClientError;
 use nym_lp::packet::message::LpMessageType;
 use nym_lp::packet::{ForwardPacketData, LpMessage};
 use nym_lp::peer::LpRemotePeer;
-use nym_lp::state_machine::{LpAction, LpInput};
+use nym_lp::session::{LpAction, LpInput};
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, NymNodeLPInformation,
 };

@@ -8,18 +8,18 @@
 
 use crate::packet::{EncryptedLpPacket, LpMessage};
 use crate::peer_config::LpReceiverIndex;
-use crate::state_machine::{LpAction, LpInput, LpStateBare};
-use crate::{LpError, LpSession, LpStateMachine};
+use crate::{LpError, LpTransportSession};
 use std::collections::HashMap;
 
 pub use crate::replay::validator::PacketCount;
+use crate::session::{LpAction, LpInput};
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
 /// The SessionManager is responsible for creating, storing, and retrieving sessions
 pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
-    state_machines: HashMap<LpReceiverIndex, LpStateMachine>,
+    state_machines: HashMap<LpReceiverIndex, LpTransportSession>,
 }
 
 impl Default for SessionManager {
@@ -40,8 +40,8 @@ impl SessionManager {
         &mut self,
         lp_id: LpReceiverIndex,
         input: LpInput,
-    ) -> Result<Option<LpAction>, LpError> {
-        self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
+    ) -> Result<LpAction, LpError> {
+        self.with_state_machine_mut(lp_id, |sm| sm.process_input(input))?
     }
 
     pub fn send_data(
@@ -49,37 +49,24 @@ impl SessionManager {
         lp_id: LpReceiverIndex,
         data: LpMessage,
     ) -> Result<LpAction, LpError> {
-        self.process_input(lp_id, LpInput::SendData(data))?
-            .ok_or(LpError::NotInTransport)
+        self.process_input(lp_id, LpInput::SendData(data))
     }
 
     pub fn receive_packet(
         &mut self,
         lp_id: LpReceiverIndex,
         packet: EncryptedLpPacket,
-    ) -> Result<Option<LpAction>, LpError> {
+    ) -> Result<LpAction, LpError> {
         self.process_input(lp_id, LpInput::ReceivePacket(packet))
-    }
-
-    pub fn closed(&self, lp_id: LpReceiverIndex) -> Result<bool, LpError> {
-        Ok(self.get_state(lp_id)? == LpStateBare::Closed)
-    }
-
-    pub fn transport(&self, lp_id: LpReceiverIndex) -> Result<bool, LpError> {
-        Ok(self.get_state(lp_id)? == LpStateBare::Transport)
     }
 
     #[cfg(test)]
     fn get_state_machine_id(&self, lp_id: LpReceiverIndex) -> Result<LpReceiverIndex, LpError> {
-        self.with_state_machine(lp_id, |sm| sm.receiver_index())?
-    }
-
-    pub fn get_state(&self, lp_id: LpReceiverIndex) -> Result<LpStateBare, LpError> {
-        self.with_state_machine(lp_id, |sm| Ok(sm.bare_state()))?
+        self.with_state_machine(lp_id, |sm| sm.receiver_index())
     }
 
     pub fn current_packet_cnt(&self, lp_id: LpReceiverIndex) -> Result<PacketCount, LpError> {
-        self.with_state_machine(lp_id, |sm| Ok(sm.session()?.current_packet_cnt()))?
+        self.with_state_machine(lp_id, |sm| Ok(sm.current_packet_cnt()))?
     }
 
     pub fn session_count(&self) -> usize {
@@ -92,7 +79,7 @@ impl SessionManager {
 
     pub fn with_state_machine<F, R>(&self, lp_id: LpReceiverIndex, f: F) -> Result<R, LpError>
     where
-        F: FnOnce(&LpStateMachine) -> R,
+        F: FnOnce(&LpTransportSession) -> R,
     {
         if let Some(sm) = self.state_machines.get(&lp_id) {
             Ok(f(sm))
@@ -108,7 +95,7 @@ impl SessionManager {
         f: F,
     ) -> Result<R, LpError>
     where
-        F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
+        F: FnOnce(&mut LpTransportSession) -> R, // Closure takes mutable ref
     {
         if let Some(sm) = self.state_machines.get_mut(&lp_id) {
             Ok(f(sm))
@@ -119,7 +106,7 @@ impl SessionManager {
 
     pub fn create_session_state_machine(
         &mut self,
-        lp_session: LpSession,
+        lp_session: LpTransportSession,
     ) -> Result<LpReceiverIndex, LpError> {
         let session_id = lp_session.receiver_index();
 
@@ -127,8 +114,7 @@ impl SessionManager {
             return Err(LpError::DuplicateSessionId(session_id));
         }
 
-        let sm = LpStateMachine::new(lp_session);
-        self.state_machines.insert(session_id, sm);
+        self.state_machines.insert(session_id, lp_session);
         Ok(session_id)
     }
 

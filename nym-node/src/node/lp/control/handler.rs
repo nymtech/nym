@@ -8,10 +8,10 @@ use dashmap::mapref::one::RefMut;
 use nym_lp::packet::message::LpMessageType;
 use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData, LpMessage};
 use nym_lp::peer_config::LpReceiverIndex;
-use nym_lp::state_machine::{LpAction, LpInput};
+use nym_lp::session::{LpAction, LpInput};
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
-use nym_lp::{LpSession, LpStateMachine, packet::message::ExpectedResponseSize};
+use nym_lp::{LpTransportSession, packet::message::ExpectedResponseSize};
 use nym_metrics::{add_histogram_obs, inc};
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
@@ -119,7 +119,8 @@ where
     /// It is vital it's never held across await points or this might lead to a deadlock.
     fn state_entry_mut(
         &self,
-    ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpStateMachine>>, LpHandlerError> {
+    ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpTransportSession>>, LpHandlerError>
+    {
         let receiver_index = self.bound_receiver_index()?;
         self.state
             .shared
@@ -152,7 +153,7 @@ where
         let stream = &mut self.stream;
 
         let session = match tokio::time::timeout(timeout, async move {
-            LpSession::psq_handshake_responder(stream, local_peer)
+            LpTransportSession::psq_handshake_responder(stream, local_peer)
                 .complete_handshake()
                 .await
         })
@@ -179,11 +180,10 @@ where
         let receiver_idx = session.receiver_index();
 
         // 2. insert the state machine into the shared state
-        let state_machine = LpStateMachine::new(session);
         self.state
             .shared
             .session_states
-            .insert(receiver_idx, TimestampedState::new(state_machine));
+            .insert(receiver_idx, TimestampedState::new(session));
         self.bound_receiver_idx = Some(receiver_idx);
 
         // 3. handle any new incoming packet
@@ -277,27 +277,17 @@ where
         );
 
         // Process packet through state machine
-        let action = state_machine
-            .process_input(LpInput::ReceivePacket(encrypted_packet))
-            .ok_or(LpHandlerError::UnexpectedStateMachineHalt)??;
+        let action = state_machine.process_input(LpInput::ReceivePacket(encrypted_packet))?;
 
         drop(state_entry);
 
         match action {
             LpAction::SendPacket(response_packet) => {
-                self.send_serialised_packet(&response_packet).await?;
-                Ok(())
+                self.send_serialised_packet(&response_packet).await
             }
             LpAction::DeliverData(data) => {
                 // Decrypted application data - process as registration/forwarding
                 self.handle_decrypted_payload(receiver_index, data).await
-            }
-            other @ LpAction::ConnectionClosed => {
-                warn!(
-                    "Unexpected action in transport from {}: {other:?}",
-                    self.remote_addr
-                );
-                Err(LpHandlerError::UnexpectedStateMachineAction { action: other })
             }
         }
     }
@@ -357,9 +347,7 @@ where
         let wrapped_lp_data = LpMessage::new(response_kind, serialised_response);
 
         // Process packet through state machine
-        let action = state_machine
-            .process_input(LpInput::SendData(wrapped_lp_data))
-            .ok_or(LpHandlerError::UnexpectedStateMachineHalt)??;
+        let action = state_machine.process_input(LpInput::SendData(wrapped_lp_data))?;
 
         let packet = match action {
             LpAction::SendPacket(packet) => packet,

@@ -140,11 +140,7 @@ pub fn initiator_process(
         },
     };
 
-    Ok(KKTFrame::new(
-        context,
-        body,
-        payload.unwrap_or_else(|| Vec::with_capacity(0)),
-    ))
+    Ok(KKTFrame::new(context, body, payload.unwrap_or_default()))
 }
 
 pub fn initiator_ingest_response(

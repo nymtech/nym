@@ -6875,7 +6875,7 @@ dependencies = [
 
 [[package]]
 name = "nym-lp"
-version = "0.1.0"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "bs58",

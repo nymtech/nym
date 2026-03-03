@@ -23,7 +23,7 @@ use std::fmt::{Debug, Formatter};
 
 pub type SessionId = [u8; 32];
 
-/// A session in the Lewes Protocol, handling connection state with Noise.
+/// A session in the Lewes Protocol..
 ///
 /// Sessions manage connection state, including LP replay protection.
 /// Each session has a unique receiving index and sending index for connection identification.

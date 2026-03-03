@@ -40,16 +40,16 @@ pub enum KKTError {
     #[error("Local Function Input Error: {}", info)]
     FunctionInputError { info: &'static str },
 
-    #[error("{}", info)]
+    #[error("{info}")]
     X25519Error { info: &'static str },
 
-    #[error("{}", info)]
+    #[error("{info}")]
     AEADError { info: &'static str },
 
-    #[error("{}", info)]
+    #[error("{info}")]
     DecodingError { info: &'static str },
 
-    #[error("{}", info)]
+    #[error("{info}")]
     UnsupportedAlgorithm { info: &'static str },
 
     #[error("Generic libcrux error")]

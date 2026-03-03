@@ -17,15 +17,10 @@ pub use crate::replay::validator::PacketCount;
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
 /// The SessionManager is responsible for creating, storing, and retrieving sessions
+#[derive(Default)]
 pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
     state_machines: HashMap<LpReceiverIndex, LpStateMachine>,
-}
-
-impl Default for SessionManager {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl SessionManager {

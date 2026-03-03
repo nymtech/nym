@@ -11,7 +11,7 @@ use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::{LpSession, LpStateMachine, packet::message::ExpectedResponseSize};
-use nym_metrics::{add_histogram_obs, inc};
+use nym_metrics::{add_histogram_obs, inc, inc_by};
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -635,8 +635,6 @@ where
 
     /// Emit connection lifecycle metrics
     fn emit_lifecycle_metrics(&self, graceful: bool) {
-        use nym_metrics::inc_by;
-
         // Track connection duration
         let duration = self.stats.start_time.elapsed().as_secs_f64();
         add_histogram_obs!(

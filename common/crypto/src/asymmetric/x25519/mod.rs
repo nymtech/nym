@@ -511,14 +511,12 @@ mod tests {
 
     #[test]
     fn test_key_conversion() {
-        let dalek_kp = super::KeyPair::new(&mut rand::thread_rng());
+        let dalek_kp = KeyPair::new(&mut rand::thread_rng());
 
         let mut dalek_private_key_bytes = dalek_kp.private_key().as_bytes().to_owned();
 
         libcrux_curve25519::clamp(&mut dalek_private_key_bytes);
-        let libcrux_private_key =
-            libcrux_psq::handshake::types::DHPrivateKey::from_bytes(&dalek_private_key_bytes)
-                .unwrap();
+        let libcrux_private_key = DHPrivateKey::from_bytes(&dalek_private_key_bytes).unwrap();
         let libcrux_public_key = libcrux_private_key.to_public();
 
         assert_eq!(libcrux_public_key.as_ref(), dalek_kp.public_key.as_bytes());

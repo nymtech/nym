@@ -3,8 +3,10 @@
 
 use nym_authenticator_client::{AuthClientMixnetListenerHandle, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
+use nym_lp::peer::DHKeyPair;
 use nym_registration_common::{AssignedAddresses, WireguardConfiguration};
 use nym_sdk::mixnet::{EventReceiver, MixnetClient};
+use std::sync::Arc;
 
 pub enum RegistrationResult {
     Mixnet(Box<MixnetRegistrationResult>),
@@ -43,6 +45,12 @@ pub struct LpRegistrationResult {
 
     /// Gateway configuration data from exit gateway
     pub exit_gateway_data: WireguardConfiguration,
+
+    /// x25519 keypair used on the entry channel
+    pub entry_lp_keypair: Arc<DHKeyPair>,
+
+    /// x25519 keypair used on the exit channel
+    pub exit_lp_keypair: Arc<DHKeyPair>,
 
     /// Bandwidth controller for credential management
     pub bw_controller: Box<dyn BandwidthTicketProvider>,

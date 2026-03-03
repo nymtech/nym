@@ -5,7 +5,6 @@ use crate::packet::message::MessageType;
 use crate::packet::version;
 use crate::{packet::error::MalformedLpPacketError, peer_config::LpReceiverIndex};
 use bytes::{BufMut, BytesMut};
-// use nym_lp::peer_config::LpReceiverIndex;
 use tracing::warn;
 
 /// Outer header (12 bytes) - always cleartext, used for routing.

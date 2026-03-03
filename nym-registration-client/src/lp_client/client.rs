@@ -392,7 +392,6 @@ where
         let protocol_version = self.gateway_supported_lp_protocol_version;
         let connection = self.stream_mut()?;
 
-        // TODO:
         let session = LpSession::psq_handshake_initiator(
             connection,
             local_peer,

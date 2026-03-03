@@ -374,29 +374,62 @@ impl AsyncRead for MixnetClient {
         buf: &mut ReadBuf,
     ) -> Poll<tokio::io::Result<()>> {
         self.stream_mode.store(true, Ordering::SeqCst);
-        let mut codec = ReconstructedMessageCodec {};
 
+        // Return buffered bytes first
         if self._read.pending() {
             return self.read_buffer_to_slice(buf, cx);
         }
 
-        let msg = match self.as_mut().poll_next(cx) {
-            Poll::Ready(Some(msg)) => msg,
-            Poll::Ready(None) => return Poll::Ready(Ok(())),
-            Poll::Pending => return Poll::Pending,
-        };
-
-        match codec.encode(msg, &mut self._read.buffer) {
-            Ok(_) => {}
-            Err(e) => {
-                error!("failed to encode reconstructed message: {:?}", e);
-                return Poll::Ready(Err(tokio::io::Error::other(
-                    "failed to encode reconstructed message",
-                )));
+        // Return buffered messages one at a time
+        if let Some(msg) = self._buffered.pop() {
+            let mut codec = ReconstructedMessageCodec {};
+            match codec.encode(msg, &mut self._read.buffer) {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("failed to encode reconstructed message: {:?}", e);
+                    return Poll::Ready(Err(tokio::io::Error::other(
+                        "failed to encode reconstructed message",
+                    )));
+                }
+            };
+            if !self._buffered.is_empty() {
+                cx.waker().wake_by_ref();
             }
-        };
+            return self.read_buffer_to_slice(buf, cx);
+        }
 
-        self.read_buffer_to_slice(buf, cx)
+        // Poll the receiver directly — not via Stream::poll_next which is
+        // guarded by stream_mode and would immediately return None.
+        match ready!(Pin::new(&mut self.reconstructed_receiver).poll_next(cx)) {
+            None => Poll::Ready(Ok(())),
+            Some(mut msgs) => {
+                let msg = match msgs.pop() {
+                    Some(msg) => msg,
+                    None => {
+                        debug!("the reconstructed messages vector is empty");
+                        cx.waker().wake_by_ref();
+                        return Poll::Pending;
+                    }
+                };
+
+                if !msgs.is_empty() {
+                    self._buffered = msgs;
+                    cx.waker().wake_by_ref();
+                }
+
+                let mut codec = ReconstructedMessageCodec {};
+                match codec.encode(msg, &mut self._read.buffer) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        error!("failed to encode reconstructed message: {:?}", e);
+                        return Poll::Ready(Err(tokio::io::Error::other(
+                            "failed to encode reconstructed message",
+                        )));
+                    }
+                };
+                self.read_buffer_to_slice(buf, cx)
+            }
+        }
     }
 }
 
@@ -477,7 +510,6 @@ impl Sink<InputMessage> for MixnetClient {
     type Error = Error;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.stream_mode.store(true, Ordering::SeqCst);
         match self.sender().poll_ready_unpin(cx) {
             Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
             Poll::Ready(Err(_)) => Poll::Ready(Err(Error::MessageSendingFailure)),

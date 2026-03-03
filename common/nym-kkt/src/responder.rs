@@ -146,7 +146,7 @@ impl<'a> KKTResponder<'a> {
         };
 
         // for now the response payload is empty
-        let response_payload = Vec::with_capacity(0);
+        let response_payload = Vec::new();
 
         let frame = KKTFrame::new(local_context, kem_key, response_payload);
 

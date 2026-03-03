@@ -79,10 +79,11 @@ async fn read_n_bytes_async_read<R>(reader: &mut R, n: usize) -> Result<Vec<u8>,
 where
     R: AsyncRead + Unpin,
 {
-    let mut buf = vec![0u8; n];
     if n > MAX_HANDSHAKE_PACKET_SIZE {
         return Err(LpTransportError::PacketTooBig { size: n });
     }
+    let mut buf = vec![0u8; n];
+
     reader
         .read_exact(&mut buf)
         .await

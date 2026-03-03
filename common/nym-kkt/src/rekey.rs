@@ -4,15 +4,13 @@
 //! Post-Quantum Re-Key Protocol
 
 /// This module implements a stateless post-quantum re-keying protocol in one round-trip.
-/// We currently support MlKem768 and XWing.
+/// We currently support MlKem768.
 ///
 /// This protocol is safe if it runs under a trusted secure channel.
 ///
 /// Bandwidth costs:
 /// Request (MlKem768): 1216 bytes
 /// Response (MlKem768): 1088 bytes
-/// Request (XWing): 1248 bytes
-/// Response (XWing): 1120 bytes
 use libcrux_kem::*;
 use nym_crypto::hkdf::blake3::derive_key_blake3;
 use nym_kkt_ciphersuite::{KEM, mceliece, ml_kem768, x25519, xwing};
@@ -60,7 +58,7 @@ impl RekeyInitiator {
     ///
     /// Inputs:
     /// rng: something that implements CryptoRng + RngCore
-    /// kem: a KEM algorithm (we currently support MlKem768 and XWing)
+    /// kem: a KEM algorithm (we currently support MlKem768 only)
     ///
     /// Outputs:
     /// RekeyInitiator: A struct which contains the decapsulation key, the salt and the kem algorithm in use.
@@ -171,7 +169,7 @@ where
         Some(num) => match num {
             // If message length is 1216 (32 + 1184) then the algorithm should be MlKem768
             ml_kem768::PUBLIC_KEY_LENGTH => Algorithm::MlKem768,
-            // If message length is 1248 (32 + 1216) then the algorithm should be MlKem768
+            // If message length is 1248 (32 + 1216) then the algorithm should be xwing
             xwing::PUBLIC_KEY_LENGTH => Algorithm::XWingKemDraft06,
             // We don't support McEliece because the keys are massive.
             // If this is a deal-breaker, users can start a new session with PSQ which can use McEliece.

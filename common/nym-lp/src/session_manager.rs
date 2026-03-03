@@ -17,15 +17,10 @@ use crate::session::{LpAction, LpInput};
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
 /// The SessionManager is responsible for creating, storing, and retrieving sessions
+#[derive(Default)]
 pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
     sessions: HashMap<LpReceiverIndex, LpTransportSession>,
-}
-
-impl Default for SessionManager {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl SessionManager {

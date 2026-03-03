@@ -82,7 +82,10 @@ impl Debug for LpLocalPeer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LpLocalPeer")
             .field("ciphersuite", &self.ciphersuite)
-            .field("x25519", &self.x25519.pk)
+            .field(
+                "x25519",
+                &bs58::encode(self.x25519.pk.as_ref()).into_string(),
+            )
             .field("kem_keypairs", &self.kem_keypairs)
             .finish()
     }

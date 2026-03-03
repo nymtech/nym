@@ -105,9 +105,9 @@ pub struct GatewayTasksBuilder {
 
     shutdown_tracker: ShutdownTracker,
 
-    // populated and cached as necessary
     use_mock_ecash: bool,
 
+    // populated and cached as necessary
     ecash_manager:
         Option<Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>>,
 
@@ -226,7 +226,7 @@ impl GatewayTasksBuilder {
     > {
         // Check if we should use mock ecash for testing
         if self.use_mock_ecash {
-            warn!("Using MockEcashManager for LP testing (credentials NOT verified)");
+            warn!("Using MockEcashManager for testing (credentials NOT verified)");
             let mock_manager = MockEcashManager::new(Box::new(self.storage.clone()));
             return Ok(Arc::new(mock_manager)
                 as Arc<

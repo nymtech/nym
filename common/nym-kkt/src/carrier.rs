@@ -10,6 +10,7 @@ use crate::error::KKTError;
 pub const MAX_PAYLOAD_LEN: usize = 1_000_000;
 const CARRIER_KDF_INFO_TX: &str = "CARRIER_V1_KDF_TX";
 const CARRIER_KDF_INFO_RX: &str = "CARRIER_V1_KDF_RX";
+const CARRIER_KKT_AAD: &[u8] = b"kkt-carrier-v1";
 
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct Carrier {
@@ -107,7 +108,7 @@ impl Carrier {
             &self.tx_key,
             plaintext,
             &mut output_buffer,
-            b"kkt-carrier-v1",
+            CARRIER_KKT_AAD,
             &as_nonce_bytes(self.tx_counter),
         )?;
 
@@ -126,7 +127,7 @@ impl Carrier {
             &self.rx_key,
             &mut output_buffer,
             ciphertext,
-            b"kkt-carrier-v1",
+            CARRIER_KKT_AAD,
             &as_nonce_bytes(self.rx_counter),
         )?;
 

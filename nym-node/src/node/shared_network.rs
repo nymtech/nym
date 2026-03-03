@@ -20,7 +20,7 @@ use nym_topology::{
 use nym_validator_client::ValidatorClientError;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nym_nodes::{
-    NodesByAddressesResponse, SemiSkimmedNode, SemiSkimmedNodesWithMetadata,
+    NodesByAddressesResponse, SemiSkimmedNodeV1, SemiSkimmedNodesWithMetadata,
 };
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
@@ -200,7 +200,7 @@ impl CachedNetwork {
 struct CachedNetworkInner {
     rewarded_set: EpochRewardedSet,
     topology_metadata: NymTopologyMetadata,
-    network_nodes: Vec<SemiSkimmedNode>,
+    network_nodes: Vec<SemiSkimmedNodeV1>,
 }
 
 pub struct NetworkRefresher {

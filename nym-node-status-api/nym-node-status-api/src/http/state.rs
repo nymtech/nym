@@ -6,7 +6,7 @@ use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_status_client::auth::VerifiableRequest;
-use nym_validator_client::nym_api::SkimmedNode;
+use nym_validator_client::nym_api::SkimmedNodeV1;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
@@ -304,7 +304,7 @@ impl HttpCache {
                     Ok(records) => {
                         let mut nodes = HashMap::new();
                         for dto in records {
-                            match SkimmedNode::try_from(dto) {
+                            match SkimmedNodeV1::try_from(dto) {
                                 Ok(skimmed_node) => {
                                     let key =
                                         skimmed_node.ed25519_identity_pubkey.to_base58_string();
@@ -671,7 +671,7 @@ async fn aggregate_node_info_from_db(
     let skimmed_nodes = queries::get_all_nym_nodes(pool).await.map(|records| {
         records
             .into_iter()
-            .filter_map(|dto| SkimmedNode::try_from(dto).ok())
+            .filter_map(|dto| SkimmedNodeV1::try_from(dto).ok())
             .map(|skimmed_node| (skimmed_node.node_id, skimmed_node))
             .collect::<HashMap<_, _>>()
     })?;

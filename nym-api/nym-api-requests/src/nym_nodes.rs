@@ -1,7 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{DeclaredRolesV1, NymNodeDataV1, OffsetDateTimeJsonSchemaWrapper};
+use crate::models::{
+    DeclaredRolesV1, LewesProtocolDetailsV1, NymNodeDataV1, OffsetDateTimeJsonSchemaWrapper,
+};
 use crate::pagination::{PaginatedResponse, Pagination};
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
@@ -18,24 +20,24 @@ use utoipa::ToSchema;
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 pub struct SkimmedNodesWithMetadata {
-    pub nodes: Vec<SkimmedNode>,
+    pub nodes: Vec<SkimmedNodeV1>,
     pub metadata: NodesResponseMetadata,
 }
 
 impl SkimmedNodesWithMetadata {
-    pub fn new(nodes: Vec<SkimmedNode>, metadata: NodesResponseMetadata) -> Self {
+    pub fn new(nodes: Vec<SkimmedNodeV1>, metadata: NodesResponseMetadata) -> Self {
         SkimmedNodesWithMetadata { nodes, metadata }
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 pub struct SemiSkimmedNodesWithMetadata {
-    pub nodes: Vec<SemiSkimmedNode>,
+    pub nodes: Vec<SemiSkimmedNodeV1>,
     pub metadata: NodesResponseMetadata,
 }
 
 impl SemiSkimmedNodesWithMetadata {
-    pub fn new(nodes: Vec<SemiSkimmedNode>, metadata: NodesResponseMetadata) -> Self {
+    pub fn new(nodes: Vec<SemiSkimmedNodeV1>, metadata: NodesResponseMetadata) -> Self {
         SemiSkimmedNodesWithMetadata { nodes, metadata }
     }
 }
@@ -228,9 +230,7 @@ pub struct BasicEntryInformation {
 
 // the bare minimum information needed to construct sphinx packets
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
-pub struct SkimmedNode {
-    // in directory v3 all nodes (mixnodes AND gateways) will have a unique id
-    // but to keep structure consistent, introduce this field now
+pub struct SkimmedNodeV1 {
     #[schema(value_type = u32)]
     pub node_id: NodeId,
 
@@ -263,7 +263,7 @@ pub struct SkimmedNode {
     pub performance: Performance,
 }
 
-impl SkimmedNode {
+impl SkimmedNodeV1 {
     pub fn get_mix_layer(&self) -> Option<u8> {
         match self.role {
             NodeRole::Mixnode { layer } => Some(layer),
@@ -275,8 +275,8 @@ impl SkimmedNode {
 // an intermediate variant that exposes additional data such as noise keys but without
 // the full fat of the self-described data
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
-pub struct SemiSkimmedNode {
-    pub basic: SkimmedNode,
+pub struct SemiSkimmedNodeV1 {
+    pub basic: SkimmedNodeV1,
 
     pub x25519_noise_versioned_key: Option<VersionedNoiseKeyV1>,
     // pub location:
@@ -284,7 +284,7 @@ pub struct SemiSkimmedNode {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct FullFatNode {
-    pub expanded: SemiSkimmedNode,
+    pub expanded: SemiSkimmedNodeV1,
 
     // kinda temporary for now to make as few changes as possible for now
     pub self_described: Option<NymNodeDataV1>,
@@ -300,4 +300,20 @@ pub struct NodesByAddressesRequestBody {
 pub struct NodesByAddressesResponse {
     #[schema(value_type = HashMap<String, Option<u32>>)]
     pub existence: HashMap<IpAddr, Option<NodeId>>,
+}
+
+/// All the information required for sending packets between nodes (sphinx, noise, LP)
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct SemiSkimmedNodeV3 {
+    /// Basic node information required for mixnet routing
+    pub basic: SkimmedNodeV1,
+
+    /// Noise key of the node
+    pub noise_key: Option<VersionedNoiseKeyV1>,
+
+    /// Build version of this node used as a hint in inferring the Ciphersuite compatibility
+    pub build_version: String,
+
+    /// Information required for establishing an LP connection
+    pub lp: Option<LewesProtocolDetailsV1>,
 }

@@ -4,6 +4,7 @@
 use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{ecash, CORE_STATUS_COUNT, SINCE_ARG};
 use crate::nym_nodes::SkimmedNodesWithMetadata;
+use crate::ValidatorClientError;
 use async_trait::async_trait;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
@@ -20,11 +21,14 @@ use nym_api_requests::models::{
     NymNodeDescriptionV1, NymNodeDescriptionV2, PerformanceHistoryResponse, RewardedSetResponse,
     SignerInformationResponse,
 };
-use nym_api_requests::nym_nodes::{
-    NodesByAddressesRequestBody, NodesByAddressesResponse, PaginatedCachedNodesResponseV1,
-    PaginatedCachedNodesResponseV2, SemiSkimmedNodeV3,
-};
 use nym_api_requests::pagination::PaginatedResponse;
+use nym_http_api_client::{ApiClient, NO_PARAMS};
+use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
+use std::net::IpAddr;
+use time::format_description::BorrowedFormatItem;
+use time::Date;
+use tracing::instrument;
+
 pub use nym_api_requests::{
     ecash::{
         models::SpentCredentialsResponse, BlindSignRequestBody, BlindedSignatureResponse,
@@ -37,18 +41,13 @@ pub use nym_api_requests::{
         MixnodeUptimeHistoryResponse, StakeSaturationResponse, UptimeResponse,
     },
     nym_nodes::{
-        CachedNodesResponse, SemiSkimmedNodeV1, SemiSkimmedNodesWithMetadata, SkimmedNodeV1,
+        CachedNodesResponse, NodesByAddressesRequestBody, NodesByAddressesResponse,
+        PaginatedCachedNodesResponseV1, PaginatedCachedNodesResponseV2, SemiSkimmedNodeV1,
+        SemiSkimmedNodeV3, SemiSkimmedNodesWithMetadata, SkimmedNodeV1,
     },
     NymNetworkDetailsResponse,
 };
-use nym_http_api_client::{ApiClient, NO_PARAMS};
-use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
-use std::net::IpAddr;
-use time::format_description::BorrowedFormatItem;
-use time::Date;
-use tracing::instrument;
 
-use crate::ValidatorClientError;
 pub use nym_coconut_dkg_common::types::EpochId;
 
 pub mod error;

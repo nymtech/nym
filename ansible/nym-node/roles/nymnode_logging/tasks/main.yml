@@ -1,0 +1,26 @@
+---
+- name: Ensure systemd drop-in dir for nym-node exists
+  file:
+    path: "{{ nymnode_dropin_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Cap nym-node logs + apply per-unit rate limiting
+  copy:
+    dest: "{{ nymnode_dropin_dir }}/{{ nymnode_dropin_file }}"
+    mode: "0644"
+    content: |
+      [Service]
+      LogLevelMax={{ nymnode_log_level_max }}
+      LogRateLimitIntervalSec={{ nymnode_rate_limit_interval }}
+      LogRateLimitBurst={{ nymnode_rate_limit_burst }}
+
+- name: Reload systemd after nym-node drop-in
+  systemd:
+    daemon_reload: true
+
+- name: Restart nym-node to apply new logging limits (best-effort)
+  systemd:
+    name: "{{ nymnode_unit_name }}"
+    state: restarted
+  ignore_errors: true

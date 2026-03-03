@@ -1,0 +1,20 @@
+---
+- name: Remove classic /var/log files if present (optional)
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/log/syslog
+    - /var/log/syslog.1
+    - /var/log/kern.log
+    - /var/log/kern.log.1
+    - /var/log/auth.log
+    - /var/log/auth.log.1
+    - /var/log/ufw.log
+    - /var/log/ufw.log.1
+  ignore_errors: true
+
+# This is best-effort and may still fail if other packages' postrotate scripts assume services exist.
+- name: Force logrotate (best-effort)
+  command: "logrotate --force /etc/logrotate.conf"
+  ignore_errors: true

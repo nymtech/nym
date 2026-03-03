@@ -1,0 +1,10 @@
+---
+- name: Remove disabled snap revisions (best-effort)
+  shell: |
+    set -euo pipefail
+    snap list --all | awk '/disabled/{print $1, $3}' | while read -r name rev; do
+      snap remove "$name" --revision="$rev" || true
+    done
+  args:
+    executable: /bin/bash
+  ignore_errors: true

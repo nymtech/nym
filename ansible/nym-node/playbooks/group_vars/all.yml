@@ -1,32 +1,38 @@
 ---
 ansible_ssh_private_key_file: ~/.ssh/<SSH_KEY>
 
-# nym_version: "v2025.21-mozzarella"
-#
-# NOTE:
-# if you want to pin Nym to a specific version instead of using the
-# latest release from GitHub in /tasks/main.yml then
-# uncomment the line above and set the tag
-
 cli_url: "https://github.com/nymtech/nym/releases/download/nym-binaries-{{ nym_version }}/nym-cli"
 tunnel_manager_url: "https://github.com/nymtech/nym/raw/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh"
 quic_bridge_deployment_url: "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh"
 
-# NOTE: These values will be used globally unless overwritten per node in inventory/all
+###############################################################################
+## GLOBAL VARS
+## These values will be used globally unless overwritten per node in inventory/all
+###############################################################################
+
 ansible_user: root                         # used for ssh, like `ssh root@nym-exit.ch-1.mynodes.net`
 email: "<EMAIL>"                           # used in certbot, description.toml and landing page
 website: "<WEBSITE>"                       # it is used in the description.toml
 description: "<NODE_PUBLIC_DESCRIPTION>"   # or define per node in inventory/all
+# operator_name: "<OPERATOR_NAME>"         # used in landing page if provided
 
-# NOTE: Set these vars if you want them globally for all nodes
-# Per node changes in inventory/all will overwrite these global ones:
-hostname: ""                                # this is a fallback, keep it and setup hostname per node in inventory/all
+###############################################################################
+## GLOBAL VARS
+## These values will be used globally unless overwritten per node in inventory/all
+## Set these vars only if you want them globally for all nodes
+## Per node changes in inventory/all will overwrite these global vars
+###############################################################################
+
 # moniker: "<MONIKER>"                      # if not setup here not in inventory/all it get's derived from the hostname
 # mode: <MODE>                              # entry-gateway/exit-gateway/mixnode
 # wireguard_enabled: <WIREGUARD_ENABLED>    # true/false
+hostname: ""                                # this is a fallback, keep it and setup hostname per node in inventory/all
 
-# NOTE: Possible vars to incule on landing page, etc.
-# operator_name: "<OPERATOR_NAME>"
+###############################################################################
+## GLOBAL PACKAGES
+## These will be installed during deployment
+###############################################################################
+
 
 packages:
   - tmux
@@ -42,3 +48,73 @@ packages:
   - jq
   - wget
   - ufw
+
+
+###############################################################################
+## OPTIONAL OVERRIDES
+## All values below already have defaults in the playbook/roles
+## Uncomment only if you want to override them
+###############################################################################
+
+###############################################################################
+## SYSTEM MAINTENANCE PLAYBOOK KNOBS
+###############################################################################
+
+# nym_version: "v2025.21-mozzarella"
+
+## NOTE:
+## if you want to pin Nym to a specific version instead of using the
+## latest release from GitHub in /tasks/main.yml then
+## uncomment the line above and set the tag
+
+###############################################################################
+## SYSTEM MAINTENANCE PLAYBOOK KNOBS
+###############################################################################
+
+## JOURNALD LIMITS
+
+# journald_system_max_use: "100M"        # max persistent journal size
+# journald_runtime_max_use: "50M"        # max runtime journal size
+# journald_system_max_file_size: "25M"   # max single journal file
+# journald_runtime_max_file_size: "10M"  # max runtime journal file
+# journald_max_retention_sec: "3day"     # retention time
+
+# journald_rate_limit_interval: "30s"    # rate limit window
+# journald_rate_limit_burst: "1000"      # rate limit burst
+
+
+## NYM-NODE LOG CONTROL
+
+# nymnode_log_level_max: "warning"       # drop INFO logs
+# nymnode_rate_limit_interval: "30s"     # per nym-node rate limit window
+# nymnode_rate_limit_burst: "200"        # per nym-node rate limit burst
+
+
+## JOURNAL VACUUM TARGETS
+
+# journal_vacuum_size: "100M"
+# journal_vacuum_time: "3days"
+
+
+## RSYSLOG
+
+# disable_rsyslog: true
+
+
+## FSTRIM SCHEDULE
+
+# fstrim_every_calendar: "*:0/15"        # Aggressive
+# fstrim_every_calendar: "hourly"        # Less aggressive
+
+
+## OPTIONAL CLEANUPS
+
+# enable_apt_cleanup: true
+# enable_snap_cleanup: true
+
+
+## WRITEBACK TUNING
+
+# enable_writeback_tuning: true
+# writeback_dirty_writeback_centisecs: 1500
+# writeback_dirty_expire_centisecs: 6000

@@ -1,0 +1,31 @@
+---
+- name: Ensure systemd drop-in dir for fstrim.timer exists
+  file:
+    path: "{{ fstrim_timer_dropin_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Override fstrim.timer schedule
+  copy:
+    dest: "{{ fstrim_timer_dropin_dir }}/override.conf"
+    mode: "0644"
+    content: |
+      [Timer]
+      OnCalendar=
+      OnCalendar={{ fstrim_every_calendar }}
+      Persistent=true
+      RandomizedDelaySec=0
+
+- name: Reload systemd after fstrim override
+  systemd:
+    daemon_reload: true
+
+- name: Enable and start fstrim timer
+  systemd:
+    name: fstrim.timer
+    enabled: true
+    state: started
+
+- name: Run fstrim now (best-effort)
+  command: fstrim -av
+  ignore_errors: true

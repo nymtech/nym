@@ -1,0 +1,3 @@
+---
+fstrim_timer_dropin_dir: "/etc/systemd/system/fstrim.timer.d"
+fstrim_every_calendar: "*:0/15"

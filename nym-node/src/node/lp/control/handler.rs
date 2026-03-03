@@ -1,13 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::lp::cleanup::TimestampedState;
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::state::SharedLpControlState;
 use dashmap::mapref::one::RefMut;
-use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData};
+use nym_lp::packet::message::LpMessageType;
+use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData, LpMessage};
 use nym_lp::peer_config::LpReceiverIndex;
-use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
+use nym_lp::state_machine::{LpAction, LpInput};
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::{LpSession, LpStateMachine, packet::message::ExpectedResponseSize};
@@ -305,13 +306,14 @@ where
     async fn handle_decrypted_payload(
         &mut self,
         receiver_idx: LpReceiverIndex,
-        decrypted_data: LpData,
+        decrypted_data: LpMessage,
     ) -> Result<(), LpHandlerError> {
         let remote = self.remote_addr;
 
+        let header = decrypted_data.header;
         let bytes = decrypted_data.content;
-        match decrypted_data.kind {
-            LpDataKind::Registration => {
+        match header.kind {
+            LpMessageType::Registration => {
                 let request = LpRegistrationRequest::try_deserialise(&bytes)
                     .map_err(|source| LpHandlerError::MalformedRegistrationRequest { source })?;
 
@@ -323,13 +325,13 @@ where
                 self.handle_registration_request(receiver_idx, request)
                     .await
             }
-            LpDataKind::Forward => {
+            LpMessageType::Forward => {
                 let forward_data = ForwardPacketData::decode(&bytes)?;
 
                 self.handle_forwarding_request(receiver_idx, forward_data)
                     .await
             }
-            typ @ LpDataKind::Opaque => {
+            typ @ LpMessageType::Opaque => {
                 // Neither registration nor forwarding - unknown payload type
                 warn!(
                     "Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes",
@@ -345,14 +347,14 @@ where
     async fn send_response_packet(
         &mut self,
         serialised_response: Vec<u8>,
-        response_kind: LpDataKind,
+        response_kind: LpMessageType,
     ) -> Result<(), LpHandlerError> {
         let mut state_entry = self.state_entry_mut()?;
 
         // Access session via state machine for subsession support
         let state_machine = &mut state_entry.value_mut().state;
 
-        let wrapped_lp_data = LpData::new(response_kind, serialised_response);
+        let wrapped_lp_data = LpMessage::new(response_kind, serialised_response);
 
         // Process packet through state machine
         let action = state_machine
@@ -382,7 +384,7 @@ where
             .serialise()
             .map_err(|source| LpHandlerError::MalformedRegistrationRequest { source })?;
 
-        self.send_response_packet(response_bytes, LpDataKind::Registration)
+        self.send_response_packet(response_bytes, LpMessageType::Registration)
             .await?;
 
         match response.status {
@@ -419,7 +421,7 @@ where
         // Forward the packet to the target gateway and retrieve its response
         let response_bytes = self.handle_forward_packet(forward_data).await?;
 
-        self.send_response_packet(response_bytes, LpDataKind::Forward)
+        self.send_response_packet(response_bytes, LpMessageType::Forward)
             .await?;
 
         debug!(
@@ -753,7 +755,7 @@ mod tests {
 
         // Send a valid packet from client side
         let LpAction::SendPacket(packet) = init_sm
-            .send_data(id, LpData::new_opaque(b"foomp".to_vec()))
+            .send_data(id, LpMessage::new_opaque(b"foomp".to_vec()))
             .unwrap()
         else {
             panic!("illegal state")
@@ -789,7 +791,7 @@ mod tests {
             let (mut stream, _) = listener.accept().await.unwrap();
 
             let LpAction::SendPacket(packet) = resp_sm
-                .send_data(id, LpData::new_opaque(b"foomp".to_vec()))
+                .send_data(id, LpMessage::new_opaque(b"foomp".to_vec()))
                 .unwrap()
             else {
                 panic!("illegal state")

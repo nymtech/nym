@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::packet::EncryptedLpPacket;
-    use crate::state_machine::{LpAction, LpData, LpInput, LpStateBare};
+    use crate::packet::{EncryptedLpPacket, LpMessage};
+    use crate::state_machine::{LpAction, LpInput, LpStateBare};
     use crate::{LpError, SessionManager, SessionsMock};
     use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
 
@@ -9,7 +9,7 @@ mod tests {
     trait ActionExtract {
         fn ciphertext(self) -> EncryptedLpPacket;
 
-        fn data(self) -> LpData;
+        fn data(self) -> LpMessage;
     }
 
     impl ActionExtract for LpAction {
@@ -21,7 +21,7 @@ mod tests {
             }
         }
 
-        fn data(self) -> LpData {
+        fn data(self) -> LpMessage {
             if let LpAction::DeliverData(data) = self {
                 data
             } else {
@@ -54,7 +54,7 @@ mod tests {
                 // --- A sends to B ---
                 let plaintext_a = format!("A->B Message {i}").into_bytes();
                 let ciphertext_a = session_manager_1
-                    .send_data(peer_a_sm, LpData::new_opaque(plaintext_a.clone()))
+                    .send_data(peer_a_sm, LpMessage::new_opaque(plaintext_a.clone()))
                     .unwrap()
                     .ciphertext();
 
@@ -69,7 +69,7 @@ mod tests {
                 // --- B sends to A ---
                 let plaintext_b = format!("B->A Message {i}").into_bytes();
                 let ciphertext_b = session_manager_2
-                    .send_data(peer_b_sm, LpData::new_opaque(plaintext_b.clone()))
+                    .send_data(peer_b_sm, LpMessage::new_opaque(plaintext_b.clone()))
                     .unwrap()
                     .ciphertext();
 
@@ -195,8 +195,10 @@ mod tests {
 
             // --- 3. Simulate Data Transfer via process_input ---
             println!("Starting data transfer simulation via process_input...");
-            let plaintext_a_to_b = LpData::new_opaque(b"Hello from A via process_input!".to_vec());
-            let plaintext_b_to_a = LpData::new_opaque(b"Hello from B via process_input!".to_vec());
+            let plaintext_a_to_b =
+                LpMessage::new_opaque(b"Hello from A via process_input!".to_vec());
+            let plaintext_b_to_a =
+                LpMessage::new_opaque(b"Hello from B via process_input!".to_vec());
 
             // --- A sends to B ---
             println!("  A sends to B");
@@ -272,8 +274,8 @@ mod tests {
             println!("Testing out-of-order reception via process_input...");
 
             // A prepares N+1 then N
-            let data_n_plus_1 = LpData::new_opaque(b"Message N+1".to_vec());
-            let data_n = LpData::new_opaque(b"Message N".to_vec());
+            let data_n_plus_1 = LpMessage::new_opaque(b"Message N+1".to_vec());
+            let data_n = LpMessage::new_opaque(b"Message N".to_vec());
 
             let action_send_n1 = session_manager_1
                 .process_input(session_id, LpInput::SendData(data_n_plus_1.clone()))
@@ -344,7 +346,7 @@ mod tests {
             // Further actions on A fail
             let send_after_close_a = session_manager_1.process_input(
                 session_id,
-                LpInput::SendData(LpData::new_opaque(b"fail".to_vec())),
+                LpInput::SendData(LpMessage::new_opaque(b"fail".to_vec())),
             );
             assert!(send_after_close_a.is_err());
             assert!(matches!(
@@ -366,7 +368,7 @@ mod tests {
             // Further actions on B fail
             let send_after_close_b = session_manager_2.process_input(
                 session_id,
-                LpInput::SendData(LpData::new_opaque(b"fail".to_vec())),
+                LpInput::SendData(LpMessage::new_opaque(b"fail".to_vec())),
             );
             assert!(send_after_close_b.is_err());
             assert!(matches!(

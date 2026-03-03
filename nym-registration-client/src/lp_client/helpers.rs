@@ -4,23 +4,24 @@
 #![allow(dead_code)]
 
 use crate::LpClientError;
-use nym_lp::packet::ForwardPacketData;
+use nym_lp::packet::message::LpMessageType;
+use nym_lp::packet::{ForwardPacketData, LpMessage};
 use nym_lp::peer::LpRemotePeer;
-use nym_lp::state_machine::{LpAction, LpData, LpDataKind, LpInput};
+use nym_lp::state_machine::{LpAction, LpInput};
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, NymNodeLPInformation,
 };
 
 pub(crate) trait LpDataSendExt {
-    fn to_lp_data(&self) -> Result<LpData, LpClientError>;
+    fn to_lp_data(&self) -> Result<LpMessage, LpClientError>;
 }
 
 pub(crate) trait LpDataDeliverExt: Sized {
-    fn from_lp_data(data: LpData) -> Result<Self, LpClientError>;
+    fn from_lp_data(data: LpMessage) -> Result<Self, LpClientError>;
 }
 
 impl LpDataSendExt for LpRegistrationRequest {
-    fn to_lp_data(&self) -> Result<LpData, LpClientError> {
+    fn to_lp_data(&self) -> Result<LpMessage, LpClientError> {
         let request_bytes = self.serialise().map_err(|e| {
             LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {e}"))
         })?;
@@ -30,14 +31,14 @@ impl LpDataSendExt for LpRegistrationRequest {
             request_bytes.len()
         );
 
-        Ok(LpData::new_registration(request_bytes))
+        Ok(LpMessage::new_registration(request_bytes))
     }
 }
 
 impl LpDataDeliverExt for LpRegistrationResponse {
-    fn from_lp_data(data: LpData) -> Result<Self, LpClientError> {
-        if data.kind != LpDataKind::Registration {
-            return Err(LpClientError::UnexpectedLpPayload { typ: data.kind });
+    fn from_lp_data(data: LpMessage) -> Result<Self, LpClientError> {
+        if data.kind() != LpMessageType::Registration {
+            return Err(LpClientError::UnexpectedLpPayload { typ: data.kind() });
         }
 
         let response = LpRegistrationResponse::try_deserialise(&data.content)
@@ -48,7 +49,7 @@ impl LpDataDeliverExt for LpRegistrationResponse {
 }
 
 impl LpDataSendExt for ForwardPacketData {
-    fn to_lp_data(&self) -> Result<LpData, LpClientError> {
+    fn to_lp_data(&self) -> Result<LpMessage, LpClientError> {
         let request_bytes = self.to_bytes();
 
         tracing::trace!(
@@ -56,7 +57,7 @@ impl LpDataSendExt for ForwardPacketData {
             request_bytes.len()
         );
 
-        Ok(LpData::new_forward(request_bytes))
+        Ok(LpMessage::new_forward(request_bytes))
     }
 }
 
@@ -70,9 +71,9 @@ pub(crate) fn try_convert_forward_response(action: LpAction) -> Result<Vec<u8>, 
         action => return Err(LpClientError::UnexpectedStateMachineAction { action }),
     };
 
-    if response_data.kind != LpDataKind::Forward {
+    if response_data.kind() != LpMessageType::Forward {
         return Err(LpClientError::UnexpectedLpPayload {
-            typ: response_data.kind,
+            typ: response_data.kind(),
         });
     }
 

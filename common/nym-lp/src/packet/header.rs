@@ -1,11 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::packet::message::MessageType;
 use crate::packet::version;
 use crate::{packet::error::MalformedLpPacketError, peer_config::LpReceiverIndex};
 use bytes::{BufMut, BytesMut};
-// use nym_lp::peer_config::LpReceiverIndex;
 use tracing::warn;
 
 /// Outer header (12 bytes) - always cleartext, used for routing.
@@ -58,11 +56,10 @@ impl OuterHeader {
 pub struct InnerHeader {
     pub protocol_version: u8,
     pub reserved: [u8; 3],
-    pub message_type: MessageType,
 }
 
 impl InnerHeader {
-    pub const SIZE: usize = 8; // protocol_version(1) + reserved(3) + message_type(4)
+    pub const SIZE: usize = 4; // protocol_version(1) + reserved(3)
 
     pub fn encode(&self, dst: &mut BytesMut) {
         // protocol version
@@ -70,9 +67,6 @@ impl InnerHeader {
 
         // reserved
         dst.put_slice(&self.reserved);
-
-        // message type
-        dst.put_slice(&(self.message_type as u32).to_le_bytes());
     }
 
     pub fn parse(src: &[u8]) -> Result<Self, MalformedLpPacketError> {
@@ -104,14 +98,9 @@ impl InnerHeader {
             warn!("received non-zero reserved bytes. got: {reserved:?}");
         }
 
-        let msg_type_raw = u32::from_le_bytes([src[4], src[5], src[6], src[7]]);
-        let message_type = MessageType::from_u32(msg_type_raw)
-            .ok_or_else(|| MalformedLpPacketError::invalid_message_type(msg_type_raw))?;
-
         Ok(InnerHeader {
             protocol_version,
             reserved,
-            message_type,
         })
     }
 }
@@ -129,12 +118,7 @@ pub struct LpHeader {
 }
 
 impl LpHeader {
-    pub fn new(
-        receiver_idx: LpReceiverIndex,
-        counter: u64,
-        protocol_version: u8,
-        message_type: MessageType,
-    ) -> Self {
+    pub fn new(receiver_idx: LpReceiverIndex, counter: u64, protocol_version: u8) -> Self {
         Self {
             outer: OuterHeader {
                 receiver_idx,
@@ -143,7 +127,6 @@ impl LpHeader {
             inner: InnerHeader {
                 protocol_version,
                 reserved: [0u8; 3],
-                message_type,
             },
         }
     }

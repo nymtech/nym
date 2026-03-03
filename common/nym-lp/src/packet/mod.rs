@@ -7,7 +7,7 @@ use std::fmt::{Debug, Formatter};
 
 pub use error::MalformedLpPacketError;
 pub use header::{InnerHeader, LpHeader, OuterHeader};
-pub use message::{ApplicationData, ForwardPacketData, LpMessage, MessageType};
+pub use message::{ForwardPacketData, LpMessage};
 
 pub mod error;
 pub mod header;
@@ -78,7 +78,7 @@ impl EncryptedLpPacket {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq)]
 pub struct LpPacket {
     pub(crate) header: LpHeader,
     pub(crate) message: LpMessage,
@@ -93,10 +93,6 @@ impl Debug for LpPacket {
 impl LpPacket {
     pub fn new(header: LpHeader, message: LpMessage) -> Self {
         Self { header, message }
-    }
-
-    pub fn typ(&self) -> MessageType {
-        self.message.typ()
     }
 
     pub fn message(&self) -> &LpMessage {
@@ -119,8 +115,6 @@ impl LpPacket {
 
     pub(crate) fn dbg_encode(&self, dst: &mut BytesMut) {
         self.header.dbg_encode(dst);
-
-        dst.put_slice(&(self.message.typ() as u16).to_le_bytes());
-        self.message.encode_content(dst);
+        self.message.encode(dst)
     }
 }

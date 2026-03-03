@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpError;
+use nym_kkt::keys::EncapsulationKey;
 use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
@@ -39,6 +40,18 @@ impl LpLocalPeer {
     pub fn with_kem_keys(mut self, kem_keys: KEMKeys) -> Self {
         self.kem_keypairs = Some(kem_keys);
         self
+    }
+
+    pub fn kem_key(&self, kem: KEM) -> Option<EncapsulationKey> {
+        self.kem_keypairs
+            .as_ref()
+            .and_then(|k| k.encapsulation_key(kem))
+    }
+
+    pub fn encoded_kem_key(&self, kem: KEM) -> Option<&[u8]> {
+        self.kem_keypairs
+            .as_ref()
+            .and_then(|k| k.encoded_encapsulation_key(kem))
     }
 
     pub fn x25519(&self) -> &Arc<DHKeyPair> {

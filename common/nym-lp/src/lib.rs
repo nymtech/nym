@@ -109,6 +109,7 @@ impl SessionsMock {
             initiator_authenticator,
             responder_ecdh_pk: resp_remote.x25519_public,
             responder_pq_pk: Some(encapsulation_key),
+            initiator_pq_pk: None,
         };
 
         SessionsMock {

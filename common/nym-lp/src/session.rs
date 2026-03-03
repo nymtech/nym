@@ -62,6 +62,9 @@ pub struct PersistentSessionBinding {
 
     /// The responder's long term PQ-KEM public key (if any).
     pub responder_pq_pk: Option<EncapsulationKey>,
+
+    /// The initiator's long term PQ-KEM public key (if any).
+    pub initiator_pq_pk: Option<EncapsulationKey>,
 }
 
 impl Debug for PersistentSessionBinding {

@@ -36,6 +36,7 @@ import init, {
   mix_fetch_initialised,
   finish_mixnet_connection,
 } from '@nymproject/mix-fetch-wasm';
+import { runIfDebugEnabled } from '../debug';
 
 // see `typings/wasm_exec.d.ts` for the defintion of the `class Go` in global scope
 import '@nymproject/mix-fetch-wasm/wasm_exec';
@@ -72,9 +73,11 @@ export async function loadWasm() {
 
   // load rust WASM package
   await init(bytes);
+  runIfDebugEnabled(() => console.log('[Worker] Loaded RUST WASM'));
 
   // load go WASM package
   await loadGoWasm();
+  runIfDebugEnabled(() => console.log('[Worker] Loaded GO WASM'));
 
   // sets up better stack traces in case of in-rust panics
   set_panic_hook();

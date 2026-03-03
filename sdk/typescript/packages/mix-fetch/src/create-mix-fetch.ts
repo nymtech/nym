@@ -1,5 +1,6 @@
 import InlineWasmWebWorker from 'web-worker:./worker/worker';
 import * as Comlink from 'comlink';
+import { runIfDebugEnabled } from './debug';
 import type { IMixFetchWebWorker } from './types';
 import { EventKinds, IMixFetch } from './types';
 
@@ -53,6 +54,7 @@ export const createMixFetch = async (): Promise<IMixFetch> => {
       if (!workerResponse) {
         throw new Error('No response received');
       }
+      runIfDebugEnabled(() => console.log('[mixFetch]', { workerResponse }));
       const { headers: headersRaw, status, statusText } = workerResponse;
 
       // reconstruct the Headers object instance from a plain object

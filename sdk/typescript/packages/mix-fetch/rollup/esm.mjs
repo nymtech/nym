@@ -4,6 +4,7 @@ import webWorkerLoader from 'rollup-plugin-web-worker-loader';
 import replace from '@rollup/plugin-replace';
 
 const extensions = ['.js', '.jsx', '.ts', '.tsx'];
+const isDebugEnabled = process.env.MIX_FETCH_DEBUG === 'true';
 
 /**
  * Gets the config for bundling the package as an ES Module.
@@ -32,6 +33,7 @@ export const getConfig = (opts) => ({
       values: {
         "createURLWorkerFactory('web-worker-0.js')":
           "createURLWorkerFactory(new URL('web-worker-0.js', import.meta.url))",
+        'globalThis.__MIX_FETCH_DEBUG__': JSON.stringify(opts?.debug ?? isDebugEnabled),
       },
       delimiters: ['', ''],
       preventAssignment: true,

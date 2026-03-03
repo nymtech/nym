@@ -127,7 +127,7 @@ impl DailyMerkleTree {
     pub(crate) fn maybe_rebuild(&mut self) {
         // every 1000 leaves, rebuild the tree to purge the history
         // (I wish the API of the library allowed to do it without having to go through those extra steps...)
-        if !self.inserted_leaves.is_empty() && self.inserted_leaves.len() % 1000 == 0 {
+        if !self.inserted_leaves.is_empty() && self.inserted_leaves.len().is_multiple_of(1000) {
             self.rebuild_without_history();
         }
     }

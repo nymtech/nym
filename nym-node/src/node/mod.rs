@@ -32,6 +32,7 @@ use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
 use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgressPacketsUpdater;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
+use crate::node::mixnet::packet_ingest::MixPacketIngest;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
@@ -1289,7 +1290,16 @@ impl NymNode {
             self.shutdown_token(),
         );
 
-        let mut mixnet_listener = mixnet::Listener::new(self.config.mixnet.bind_address, shared);
+        let mut mix_packet_ingest = MixPacketIngest::new(&shared);
+        let ingest_sender = mix_packet_ingest.sender();
+        let ingest_shutdown = self.shutdown_token();
+        self.shutdown_tracker().try_spawn_named(
+            async move { mix_packet_ingest.run(ingest_shutdown).await },
+            "MixPacketIngest",
+        );
+
+        let mut mixnet_listener =
+            mixnet::Listener::new(self.config.mixnet.bind_address, shared, ingest_sender);
 
         let shutdown_token = self.shutdown_token();
         self.shutdown_tracker().try_spawn_named(

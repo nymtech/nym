@@ -21,7 +21,7 @@
 use super::client::LpRegistrationClient;
 use super::error::{LpClientError, Result};
 use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt};
-use crate::lp_client::state_machine_helpers::{extract_forwarded_response, prepare_send_packet};
+use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};

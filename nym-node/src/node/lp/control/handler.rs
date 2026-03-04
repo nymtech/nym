@@ -715,8 +715,8 @@ mod tests {
         let (init, resp) = sessions_for_tests();
         let mut init_sm = SessionManager::new();
         let mut resp_sm = SessionManager::new();
-        resp_sm.create_session_state_machine(resp).unwrap();
-        let id = init_sm.create_session_state_machine(init).unwrap();
+        resp_sm.insert_session(resp).unwrap();
+        let id = init_sm.insert_session(init).unwrap();
 
         // Bind to localhost
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -731,8 +731,7 @@ mod tests {
             let packet = handler.receive_raw_packet().await?;
             let header = packet.outer_header();
             assert_eq!(packet.outer_header().receiver_idx, id);
-            let Some(LpAction::DeliverData(data)) = resp_sm.receive_packet(id, packet).unwrap()
-            else {
+            let LpAction::DeliverData(data) = resp_sm.receive_packet(id, packet)? else {
                 panic!("illegal state")
             };
             Ok::<_, LpHandlerError>((header, data))
@@ -772,8 +771,8 @@ mod tests {
         let (init, resp) = sessions_for_tests();
         let mut init_sm = SessionManager::new();
         let mut resp_sm = SessionManager::new();
-        resp_sm.create_session_state_machine(resp).unwrap();
-        let id = init_sm.create_session_state_machine(init).unwrap();
+        resp_sm.insert_session(resp).unwrap();
+        let id = init_sm.insert_session(init).unwrap();
 
         let server_task = tokio::spawn(async move {
             let (mut stream, _) = listener.accept().await.unwrap();
@@ -802,8 +801,7 @@ mod tests {
             .await
             .unwrap();
         let header = received.outer_header();
-        let Some(LpAction::DeliverData(data)) = init_sm.receive_packet(id, received).unwrap()
-        else {
+        let LpAction::DeliverData(data) = init_sm.receive_packet(id, received).unwrap() else {
             panic!("illegal state")
         };
 

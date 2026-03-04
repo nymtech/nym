@@ -311,20 +311,13 @@ impl LpTransportSession {
                 let ctr = packet.outer_header().counter;
 
                 // 1. Check replay protection
-                if let Err(e) = self.receiving_counter_quick_check(ctr) {
-                    return Err(e);
-                }
+                self.receiving_counter_quick_check(ctr)?;
 
                 // 2. decrypt the packet and attempt to deliver data
-                let packet = match self.decrypt_packet(packet) {
-                    Ok(packet) => packet,
-                    Err(e) => return Err(e),
-                };
+                let packet = self.decrypt_packet(packet)?;
 
                 // 3. Mark counter as received
-                if let Err(e) = self.receiving_counter_mark(ctr) {
-                    return Err(e);
-                }
+                self.receiving_counter_mark(ctr)?;
 
                 // 4. deliver the message
                 Ok(LpAction::DeliverData(packet.message))

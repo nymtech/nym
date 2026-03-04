@@ -41,10 +41,10 @@ mod tests {
 
             // 2. Create sessions using the pre-built Noise states
             let peer_a_sm = session_manager_1
-                .create_session_state_machine(sessions.initiator)
+                .insert_session(sessions.initiator)
                 .unwrap();
             let peer_b_sm = session_manager_2
-                .create_session_state_machine(sessions.responder)
+                .insert_session(sessions.responder)
                 .unwrap();
 
             // 3. Send multiple encrypted messages both ways
@@ -129,24 +129,24 @@ mod tests {
             let session2 = sessions.responder;
 
             // 2. Create a session (using real noise state)
-            let _session = session_manager.create_session_state_machine(session1);
+            let _session = session_manager.insert_session(session1);
 
             // 3. Try to get a non-existent session
-            let result = session_manager.state_machine_exists(non_existent);
+            let result = session_manager.session_exists(non_existent);
             assert!(!result, "Non-existent session should return None");
 
             // 4. Try to remove a non-existent session
-            let result = session_manager.remove_state_machine(non_existent);
+            let result = session_manager.remove_session(non_existent);
             assert!(
                 !result,
                 "Remove session should not remove a non-existent session"
             );
 
             // 5. Create and immediately remove a session
-            let _temp_session = session_manager.create_session_state_machine(session2);
+            let _temp_session = session_manager.insert_session(session2);
 
             assert!(
-                session_manager.remove_state_machine(session_id),
+                session_manager.remove_session(session_id),
                 "Should remove the session"
             );
         }
@@ -170,16 +170,16 @@ mod tests {
 
             // 2. Create sessions state machines
             session_manager_1
-                .create_session_state_machine(sessions.initiator)
+                .insert_session(sessions.initiator)
                 .unwrap();
             session_manager_2
-                .create_session_state_machine(sessions.responder)
+                .insert_session(sessions.responder)
                 .unwrap();
 
             assert_eq!(session_manager_1.session_count(), 1);
             assert_eq!(session_manager_2.session_count(), 1);
-            assert!(session_manager_1.state_machine_exists(session_id));
-            assert!(session_manager_2.state_machine_exists(session_id));
+            assert!(session_manager_1.session_exists(session_id));
+            assert!(session_manager_2.session_exists(session_id));
 
             // --- 3. Simulate Data Transfer via process_input ---
             println!("Starting data transfer simulation via process_input...");
@@ -310,15 +310,15 @@ mod tests {
             println!("Out-of-order test passed.");
 
             // --- 6. Session Removal ---
-            assert!(session_manager_1.remove_state_machine(session_id));
+            assert!(session_manager_1.remove_session(session_id));
             assert_eq!(session_manager_1.session_count(), 0);
-            assert!(!session_manager_1.state_machine_exists(session_id));
+            assert!(!session_manager_1.session_exists(session_id));
 
             // B's session manager still has it until removed
-            assert!(session_manager_2.state_machine_exists(session_id));
-            assert!(session_manager_2.remove_state_machine(session_id));
+            assert!(session_manager_2.session_exists(session_id));
+            assert!(session_manager_2.remove_session(session_id));
             assert_eq!(session_manager_2.session_count(), 0);
-            assert!(!session_manager_2.state_machine_exists(session_id));
+            assert!(!session_manager_2.session_exists(session_id));
             println!("Session removal test passed.");
         }
     }

@@ -503,7 +503,7 @@ where
     /// sends the registration request, and receives the response
     /// on the same underlying connection.
     /// Do note that this method does **not** perform retries on network failures,
-    /// for that please use [`Self::register_with_retry`] instead
+    /// for that please use [`Self::handshake_and_register_with_retry`] instead
     ///
     /// # Arguments
     /// * `rng` - RNG instance for generating PSK
@@ -631,7 +631,7 @@ where
     /// # Note
     /// Unlike `register()`, this method handles the full flow including handshake.
     /// Do NOT call `perform_handshake()` before this method.
-    pub async fn register_with_retry<R>(
+    pub async fn handshake_and_register_with_retry<R>(
         &mut self,
         rng: &mut R,
         wg_keypair: &x25519::KeyPair,
@@ -645,6 +645,7 @@ where
     {
         tracing::debug!("Starting resilient registration (max_retries={max_retries})",);
 
+        // attempt to perform handshake with retries
         let mut last_error = None;
         for attempt in 0..=max_retries {
             let attempt_display = attempt + 1;
@@ -671,33 +672,23 @@ where
                     continue;
                 }
             }
-
-            match self
-                .register_dvpn(
-                    rng,
-                    wg_keypair,
-                    gateway_identity,
-                    bandwidth_controller,
-                    ticket_type,
-                )
-                .await
-            {
-                Ok(data) => {
-                    if attempt > 0 {
-                        tracing::info!("Registration succeeded on retry attempt {attempt_display}");
-                    }
-                    return Ok(data);
-                }
-                Err(e) => {
-                    tracing::warn!("Registration attempt {attempt_display} failed: {e}");
-                    last_error = Some(e);
-                }
-            }
         }
 
-        Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
-            message: "Registration failed after all retries".to_string(),
-        }))
+        if self.transport_session.is_none() {
+            return Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
+                message: "Registration failed after all retries".to_string(),
+            }));
+        }
+
+        self.register_dvpn(
+            rng,
+            wg_keypair,
+            gateway_identity,
+            bandwidth_controller,
+            ticket_type,
+        )
+        .await
+        .inspect_err(|e| tracing::warn!("Registration failed: {e}"))
     }
 
     /// Get the LP session ID (receiver_idx) for this client.

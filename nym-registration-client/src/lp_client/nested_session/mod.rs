@@ -284,7 +284,7 @@ impl NestedLpSession {
             LpDvpnRegistrationResponseMessageContent::RegistrationFailure(res) => {
                 let reason = res.error;
                 // the registration has failed
-                tracing::warn!("Gateway rejected registration: {reason}");
+                warn!("Gateway rejected registration: {reason}");
                 Err(LpClientError::RegistrationRejected { reason })
             }
             LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => Ok(res.config),
@@ -379,7 +379,7 @@ impl NestedLpSession {
             LpDvpnRegistrationResponseMessageContent::RegistrationFailure(res) => {
                 let reason = res.error;
                 // the registration has failed
-                tracing::warn!("Gateway rejected registration: {reason}");
+                warn!("Gateway rejected registration: {reason}");
                 return Err(LpClientError::RegistrationRejected { reason });
             }
             LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => res.config,
@@ -434,7 +434,7 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Response decryption/deserialization fails
     /// - Gateway rejects the registration
-    pub(crate) async fn handshake_and_register_dvpn<S, R>(
+    pub async fn handshake_and_register_dvpn<S, R>(
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,
         rng: &mut R,
@@ -509,8 +509,11 @@ impl NestedLpSession {
             max_retries
         );
 
+        // attempt to perform handshake with retries
         let mut last_error = None;
         for attempt in 0..=max_retries {
+            let attempt_display = attempt + 1;
+
             if attempt > 0 {
                 // Verify outer session is still usable before retry
                 if !outer_client.is_handshake_complete() {
@@ -524,45 +527,36 @@ impl NestedLpSession {
                 let jitter_ms: u64 = rand09::rng().random_range(0..(base_delay_ms / 4 + 1));
                 let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
                 tracing::info!(
-                    "Retrying exit registration (attempt {}) after {:?}",
-                    attempt + 1,
-                    delay
+                    "Retrying exit registration (attempt {attempt_display}) after {delay:?}",
                 );
                 tokio::time::sleep(delay).await;
 
                 // Clear state machine before retry - handshake needs fresh start
                 self.transport_session = None;
-            }
 
-            match self
-                .handshake_and_register_dvpn(
-                    outer_client,
-                    rng,
-                    wg_keypair,
-                    gateway_identity,
-                    bandwidth_controller,
-                    ticket_type,
-                )
-                .await
-            {
-                Ok(data) => {
-                    if attempt > 0 {
-                        tracing::info!(
-                            "Exit registration succeeded on retry attempt {}",
-                            attempt + 1
-                        );
-                    }
-                    return Ok(data);
-                }
-                Err(e) => {
-                    tracing::warn!("Exit registration attempt {} failed: {}", attempt + 1, e);
+                if let Err(e) = self.perform_handshake(outer_client).await {
+                    warn!("Handshake failed on attempt {attempt_display}: {e}");
                     last_error = Some(e);
+                    continue;
                 }
             }
         }
 
-        Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
-            message: "Exit Registration failed after all retries".to_string(),
-        }))
+        if self.transport_session.is_none() {
+            return Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
+                message: "Exit Registration failed after all retries".to_string(),
+            }));
+        }
+
+        self.register_dvpn(
+            outer_client,
+            rng,
+            wg_keypair,
+            gateway_identity,
+            bandwidth_controller,
+            ticket_type,
+        )
+        .await
+        .inspect_err(|e| warn!("Exit Registration failed: {e}"))
     }
 }

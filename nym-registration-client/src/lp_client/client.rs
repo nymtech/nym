@@ -5,7 +5,7 @@
 
 use super::config::LpRegistrationConfig;
 use super::error::{LpClientError, Result};
-use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt};
+use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt, exponential_backoff_with_jitter};
 use crate::lp_client::nested_session::connection::NestedConnection;
 use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
@@ -23,12 +23,12 @@ use nym_registration_common::{
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand09::{CryptoRng, Rng, RngCore};
+use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tracing::warn;
+use tracing::{debug, warn};
 
 /// LP (Lewes Protocol) registration client for direct gateway connections.
 ///
@@ -649,27 +649,21 @@ where
         let mut last_error = None;
         for attempt in 0..=max_retries {
             let attempt_display = attempt + 1;
+            debug!("registration attempt {attempt_display}");
 
             if attempt > 0 {
-                // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
-                let base_delay_ms = 100u64 * (1 << attempt.min(4));
-                let jitter_ms: u64 = rand09::rng().random_range(0..(base_delay_ms / 4 + 1));
-                let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
-                tracing::info!("Retrying registration (attempt {attempt_display}) after {delay:?}");
-                tokio::time::sleep(delay).await;
+                // Clear any stale state before re-handshaking
+                self.transport_session = None;
+                self.close();
+
+                exponential_backoff_with_jitter(attempt).await
             }
 
-            // Ensure fresh connection and handshake for each attempt
-            // (On retry, the old connection/session may be dead)
-            if self.stream.is_none() || attempt > 0 {
-                // Clear any stale state before re-handshaking
-                self.close();
-                self.transport_session = None;
-
-                if let Err(e) = self.perform_handshake().await {
+            match self.perform_handshake().await {
+                Ok(_) => break,
+                Err(e) => {
                     tracing::warn!("Handshake failed on attempt {attempt_display}: {e}");
                     last_error = Some(e);
-                    continue;
                 }
             }
         }

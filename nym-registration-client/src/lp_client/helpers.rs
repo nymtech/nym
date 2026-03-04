@@ -11,6 +11,7 @@ use nym_lp::session::{LpAction, LpInput};
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, NymNodeLPInformation,
 };
+use rand09::Rng;
 
 pub(crate) trait LpDataSendExt {
     fn to_lp_data(&self) -> Result<LpMessage, LpClientError>;
@@ -82,4 +83,13 @@ pub(crate) fn try_convert_forward_response(action: LpAction) -> Result<Vec<u8>, 
 
 pub(crate) fn to_lp_remote_peer(data: NymNodeLPInformation) -> LpRemotePeer {
     LpRemotePeer::new(data.x25519).with_key_digests(data.expected_kem_key_hashes)
+}
+
+pub(crate) async fn exponential_backoff_with_jitter(attempt: u32) {
+    // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
+    let base_delay_ms = 100u64 * (1 << attempt.min(4));
+    let jitter_ms: u64 = rand09::rng().random_range(0..(base_delay_ms / 4 + 1));
+    let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
+    tracing::info!("Retrying registration after the following delay {delay:?}");
+    tokio::time::sleep(delay).await;
 }

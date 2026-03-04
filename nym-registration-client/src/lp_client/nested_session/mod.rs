@@ -20,7 +20,7 @@
 
 use super::client::LpRegistrationClient;
 use super::error::{LpClientError, Result};
-use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt};
+use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt, exponential_backoff_with_jitter};
 use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
@@ -37,7 +37,7 @@ use nym_registration_common::{
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand09::{CryptoRng, Rng, RngCore};
+use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::{debug, warn};
@@ -513,31 +513,26 @@ impl NestedLpSession {
         let mut last_error = None;
         for attempt in 0..=max_retries {
             let attempt_display = attempt + 1;
+            debug!("registration attempt {attempt_display}");
+
+            // Verify outer session is still usable before retry
+            if !outer_client.is_handshake_complete() {
+                return Err(LpClientError::Other(
+                    "Outer session lost during retry - caller must re-establish entry gateway connection".to_string()
+                ));
+            }
 
             if attempt > 0 {
-                // Verify outer session is still usable before retry
-                if !outer_client.is_handshake_complete() {
-                    return Err(LpClientError::Other(
-                        "Outer session lost during retry - caller must re-establish entry gateway connection".to_string()
-                    ));
-                }
-
-                // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
-                let base_delay_ms = 100u64 * (1 << attempt.min(4));
-                let jitter_ms: u64 = rand09::rng().random_range(0..(base_delay_ms / 4 + 1));
-                let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
-                tracing::info!(
-                    "Retrying exit registration (attempt {attempt_display}) after {delay:?}",
-                );
-                tokio::time::sleep(delay).await;
-
                 // Clear state machine before retry - handshake needs fresh start
                 self.transport_session = None;
+                exponential_backoff_with_jitter(attempt).await
+            }
 
-                if let Err(e) = self.perform_handshake(outer_client).await {
+            match self.perform_handshake(outer_client).await {
+                Ok(_) => break,
+                Err(e) => {
                     warn!("Handshake failed on attempt {attempt_display}: {e}");
                     last_error = Some(e);
-                    continue;
                 }
             }
         }

@@ -803,7 +803,7 @@ impl EcashState {
         merkle_entry.maybe_rebuild();
 
         // toss a coin to check if we should clean memory of old merkle trees
-        if thread_rng().next_u32() % 10000 == 0 {
+        if thread_rng().next_u32().is_multiple_of(10000) {
             let mut values_to_clean = Vec::new();
             let cutoff = self.config.ticketbook_retention_cutoff();
             info!("attempting to remove old issued ticketbooks. the cutoff is set to {cutoff}");

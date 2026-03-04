@@ -64,7 +64,6 @@ impl LpBasedRegistrationClient {
         tracing::debug!("Exit gateway LP address: {exit_address}");
 
         // Generate fresh x25519 keypairs for LP registration
-        // TODO: persist them for the duration of the sessions
         let entry_lp_keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
         let exit_lp_keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
 
@@ -100,7 +99,7 @@ impl LpBasedRegistrationClient {
         tracing::info!("Registering with exit gateway via entry forwarding");
         let mut nested_session = NestedLpSession::new(
             exit_address,
-            exit_lp_keypair,
+            exit_lp_keypair.clone(),
             exit_peer,
             exit_ciphersuite,
             exit_lp_protocol,
@@ -153,6 +152,8 @@ impl LpBasedRegistrationClient {
         Ok(RegistrationResult::Lp(Box::new(LpRegistrationResult {
             entry_gateway_data,
             exit_gateway_data,
+            entry_lp_keypair,
+            exit_lp_keypair,
             bw_controller: self.bandwidth_controller,
         })))
     }

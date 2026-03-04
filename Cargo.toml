@@ -202,7 +202,7 @@ homepage = "https://nymtech.net"
 documentation = "https://nymtech.net"
 edition = "2024"
 license = "Apache-2.0"
-rust-version = "1.85"
+rust-version = "1.87.0"
 readme = "README.md"
 version = "1.20.4"
 
@@ -448,8 +448,10 @@ nym-http-api-common = { version = "1.20.4", path = "common/http-api-common", def
 nym-id = { version = "1.20.4", path = "common/nym-id" }
 nym-ip-packet-client = { version = "1.20.4", path = "nym-ip-packet-client" }
 nym-ip-packet-requests = { version = "1.20.4", path = "common/ip-packet-requests" }
+nym-lp = { version = "1.20.4", path = "common/nym-lp" }
 nym-kkt = { version = "0.1.0", path = "common/nym-kkt" }
 nym-kkt-ciphersuite = { version = "1.20.4", path = "common/nym-kkt-ciphersuite" }
+nym-kkt-context = { version = "1.20.4", path = "common/nym-kkt-context" }
 nym-metrics = { version = "1.20.4", path = "common/nym-metrics" }
 nym-mixnet-client = { version = "1.20.4", path = "common/client-libs/mixnet-client" }
 nym-mixnet-contract-common = { version = "1.20.4", path = "common/cosmwasm-smart-contracts/mixnet-contract" }

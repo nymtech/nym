@@ -5,7 +5,7 @@
 
 use super::config::LpRegistrationConfig;
 use super::error::{LpClientError, Result};
-use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt};
+use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt, exponential_backoff_with_jitter};
 use crate::lp_client::nested_session::connection::NestedConnection;
 use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
@@ -23,12 +23,12 @@ use nym_registration_common::{
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand09::{CryptoRng, Rng, RngCore};
+use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tracing::warn;
+use tracing::{debug, warn};
 
 /// LP (Lewes Protocol) registration client for direct gateway connections.
 ///
@@ -391,7 +391,6 @@ where
         let protocol_version = self.gateway_supported_lp_protocol_version;
         let connection = self.stream_mut()?;
 
-        // TODO:
         let session = LpTransportSession::psq_handshake_initiator(
             connection,
             local_peer,
@@ -504,7 +503,7 @@ where
     /// sends the registration request, and receives the response
     /// on the same underlying connection.
     /// Do note that this method does **not** perform retries on network failures,
-    /// for that please use [`Self::register_with_retry`] instead
+    /// for that please use [`Self::handshake_and_register_with_retry`] instead
     ///
     /// # Arguments
     /// * `rng` - RNG instance for generating PSK
@@ -632,7 +631,7 @@ where
     /// # Note
     /// Unlike `register()`, this method handles the full flow including handshake.
     /// Do NOT call `perform_handshake()` before this method.
-    pub async fn register_with_retry<R>(
+    pub async fn handshake_and_register_with_retry<R>(
         &mut self,
         rng: &mut R,
         wg_keypair: &x25519::KeyPair,
@@ -646,59 +645,44 @@ where
     {
         tracing::debug!("Starting resilient registration (max_retries={max_retries})",);
 
+        // attempt to perform handshake with retries
         let mut last_error = None;
         for attempt in 0..=max_retries {
             let attempt_display = attempt + 1;
+            debug!("registration attempt {attempt_display}");
 
             if attempt > 0 {
-                // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
-                let base_delay_ms = 100u64 * (1 << attempt.min(4));
-                let jitter_ms: u64 = rand09::rng().random_range(0..(base_delay_ms / 4 + 1));
-                let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
-                tracing::info!("Retrying registration (attempt {attempt_display}) after {delay:?}");
-                tokio::time::sleep(delay).await;
-            }
-
-            // Ensure fresh connection and handshake for each attempt
-            // (On retry, the old connection/session may be dead)
-            if self.stream.is_none() || attempt > 0 {
                 // Clear any stale state before re-handshaking
-                self.close();
                 self.transport_session = None;
+                self.close();
 
-                if let Err(e) = self.perform_handshake().await {
-                    tracing::warn!("Handshake failed on attempt {attempt_display}: {e}");
-                    last_error = Some(e);
-                    continue;
-                }
+                exponential_backoff_with_jitter(attempt).await
             }
 
-            match self
-                .register_dvpn(
-                    rng,
-                    wg_keypair,
-                    gateway_identity,
-                    bandwidth_controller,
-                    ticket_type,
-                )
-                .await
-            {
-                Ok(data) => {
-                    if attempt > 0 {
-                        tracing::info!("Registration succeeded on retry attempt {attempt_display}");
-                    }
-                    return Ok(data);
-                }
+            match self.perform_handshake().await {
+                Ok(_) => break,
                 Err(e) => {
-                    tracing::warn!("Registration attempt {attempt_display} failed: {e}");
+                    tracing::warn!("Handshake failed on attempt {attempt_display}: {e}");
                     last_error = Some(e);
                 }
             }
         }
 
-        Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
-            message: "Registration failed after all retries".to_string(),
-        }))
+        if self.transport_session.is_none() {
+            return Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
+                message: "Registration failed after all retries".to_string(),
+            }));
+        }
+
+        self.register_dvpn(
+            rng,
+            wg_keypair,
+            gateway_identity,
+            bandwidth_controller,
+            ticket_type,
+        )
+        .await
+        .inspect_err(|e| tracing::warn!("Registration failed: {e}"))
     }
 
     /// Get the LP session ID (receiver_idx) for this client.

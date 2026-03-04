@@ -3,8 +3,10 @@
 
 use nym_authenticator_client::{AuthClientMixnetListenerHandle, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
+use nym_lp::peer::DHKeyPair;
 use nym_registration_common::{AssignedAddresses, WireguardConfiguration};
 use nym_sdk::mixnet::{EventReceiver, MixnetClient};
+use std::sync::Arc;
 
 pub enum RegistrationResult {
     Mixnet(Box<MixnetRegistrationResult>),
@@ -36,6 +38,8 @@ pub struct WireguardRegistrationResult {
 /// # Fields
 /// * `entry_gateway_data` - WireGuard configuration from entry gateway
 /// * `exit_gateway_data` - WireGuard configuration from exit gateway
+/// * `entry_lp_keypair` - x25519 keypair used on the entry LP channel (persist to resume a pre-established session)
+/// * `exit_lp_keypair` - x25519 keypair used on the exit LP channel (persist to resume a pre-established session)
 /// * `bw_controller` - Bandwidth ticket provider for credential management
 pub struct LpRegistrationResult {
     /// Gateway configuration data from entry gateway
@@ -43,6 +47,14 @@ pub struct LpRegistrationResult {
 
     /// Gateway configuration data from exit gateway
     pub exit_gateway_data: WireguardConfiguration,
+
+    /// x25519 keypair used on the entry channel.
+    /// the purpose of persisting those keys is to be able to resume the pre-established session
+    pub entry_lp_keypair: Arc<DHKeyPair>,
+
+    /// x25519 keypair used on the exit channel
+    /// the purpose of persisting those keys is to be able to resume the pre-established session
+    pub exit_lp_keypair: Arc<DHKeyPair>,
 
     /// Bandwidth controller for credential management
     pub bw_controller: Box<dyn BandwidthTicketProvider>,

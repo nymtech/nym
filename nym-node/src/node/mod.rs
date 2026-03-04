@@ -453,16 +453,16 @@ impl NymNode {
             &config.storage_paths.keys.x25519_noise_storage_paths(),
         )?;
 
-        trace!("attempting to x25519 lp keypair");
+        trace!("attempting to store x25519 lp keypair");
         store_x25519_lp_keypair(
             &x25519_lp_keys,
             &config.storage_paths.keys.x25519_lp_key_paths(),
         )?;
 
-        trace!("attempting to mlkem768 keypair");
+        trace!("attempting to store mlkem768 keypair");
         store_mlkem768_keypair(&mlkem, &config.storage_paths.keys.mlkem768_key_paths())?;
 
-        trace!("attempting to mceliece keypair");
+        trace!("attempting to store mceliece keypair");
         store_mceliece_keypair(&mceliece, &config.storage_paths.keys.mceliece_key_paths())?;
 
         trace!("creating description file");

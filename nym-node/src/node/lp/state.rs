@@ -3,6 +3,7 @@
 
 use crate::config::LpConfig;
 use crate::node::lp::cleanup::TimestampedState;
+use crate::node::lp::directory::LpNodes;
 use dashmap::DashMap;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::LpTransportSession;
@@ -13,9 +14,9 @@ use nym_node_metrics::NymNodeMetrics;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
-/// Shared state for LP control connections
+/// Shared state for LP clients control connections
 #[derive(Clone)]
-pub struct SharedLpControlState {
+pub struct SharedLpClientControlState {
     /// Encapsulates all required key information of a local Lewes Protocol Peer.
     pub local_lp_peer: LpLocalPeer,
 
@@ -28,7 +29,21 @@ pub struct SharedLpControlState {
     /// telescope setup. When at capacity, forward requests return an error
     /// so clients can choose a different gateway.
     // this is temporary until there is persistent KKT/PSQ session between nodes
+    #[deprecated]
     pub forward_semaphore: Arc<Semaphore>,
+
+    /// Common shared data
+    pub shared: SharedLpState,
+}
+
+/// Shared state for LP nodes control connections
+#[derive(Clone)]
+pub struct SharedLpNodeControlState {
+    /// Encapsulates all required key information of a local Lewes Protocol Peer.
+    pub local_lp_peer: LpLocalPeer,
+
+    /// Information about all known LP nodes
+    pub nodes: LpNodes,
 
     /// Common shared data
     pub shared: SharedLpState,

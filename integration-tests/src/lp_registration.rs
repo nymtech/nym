@@ -17,7 +17,7 @@ mod tests {
     use nym_lp::peer::LpLocalPeer;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
-    use nym_node::node::lp::control::handler::LpConnectionHandler;
+    use nym_node::node::lp::control::client_handler::LpConnectionHandler;
     use nym_node::node::lp::error::LpHandlerError;
     use nym_node::node::lp::{SharedLpControlState, SharedLpState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};

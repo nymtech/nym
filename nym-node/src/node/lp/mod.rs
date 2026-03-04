@@ -9,7 +9,7 @@
 // ## Connection Metrics (via NetworkStats in nym-node-metrics)
 // - active_lp_connections: Gauge tracking current active LP connections (incremented on accept, decremented on close)
 //
-// ## Handler Metrics (in handler.rs)
+// ## Handler Metrics (in client_handler)
 // - lp_connections_total: Counter for total LP connections handled
 // - lp_client_hello_failed: Counter for ClientHello failures (timestamp validation, protocol errors)
 // - lp_handshakes_success: Counter for successful handshake completions
@@ -46,7 +46,7 @@
 // ## Error Categorization Metrics
 // - lp_errors_wg_peer_registration: Counter for WireGuard peer registration failures
 //
-// ## Connection Lifecycle Metrics (in handler.rs)
+// ## Connection Lifecycle Metrics (in client_handler)
 // - lp_connection_duration_seconds: Histogram of connection duration from start to end (buckets: 1s to 24h)
 // - lp_connection_bytes_received_total: Counter for total bytes received including protocol framing
 // - lp_connection_bytes_sent_total: Counter for total bytes sent including protocol framing
@@ -58,7 +58,7 @@
 // - lp_states_cleanup_session_removed: Counter for stale sessions removed by cleanup task
 // - lp_states_cleanup_demoted_removed: Counter for demoted (read-only) sessions removed by cleanup task
 //
-// ## Subsession/Rekeying Metrics (in handler.rs)
+// ## Subsession/Rekeying Metrics (in client_handler)
 // - lp_subsession_kk2_sent: Counter for SubsessionKK2 responses sent (indicates client initiated rekeying)
 // - lp_subsession_complete: Counter for successful subsession promotions
 // - lp_subsession_receiver_index_collision: Counter for subsession receiver_index collisions
@@ -83,11 +83,12 @@ use tokio::sync::Semaphore;
 use tracing::error;
 
 pub use nym_mixnet_client::forwarder::{MixForwardingReceiver, mix_forwarding_channels};
-pub use state::{SharedLpControlState, SharedLpDataState, SharedLpState};
+pub use state::{SharedLpClientControlState, SharedLpDataState, SharedLpState};
 
 mod cleanup;
 pub mod control;
 mod data;
+pub(crate) mod directory;
 pub mod error;
 mod registration;
 pub mod state;
@@ -119,40 +120,42 @@ impl LpSetup {
             session_states: session_states.clone(),
         };
 
-        let control_state = SharedLpControlState {
-            local_lp_peer,
-            peer_registrator,
-            forward_semaphore: Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards)),
-            shared: shared_lp_state.clone(),
-        };
+        todo!()
 
-        let data_state = SharedLpDataState {
-            outbound_mix_sender: mix_packet_sender,
-            shared: shared_lp_state,
-        };
-
-        let control_listener = LpControlListener::new(
-            lp_config.control_bind_address,
-            control_state,
-            shutdown.clone(),
-        );
-        let data_listener = LpDataListener::new(
-            lp_config.data_bind_address,
-            data_state,
-            shutdown.clone_shutdown_token(),
-        );
-        let cleanup_task = CleanupTask::new(
-            session_states,
-            lp_config.debug,
-            shutdown.clone_shutdown_token(),
-        );
-
-        Ok(LpSetup {
-            control_listener,
-            data_listener,
-            cleanup_task,
-            shutdown,
-        })
+        // let control_state = SharedLpControlState {
+        //     local_lp_peer,
+        //     peer_registrator,
+        //     forward_semaphore: Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards)),
+        //     shared: shared_lp_state.clone(),
+        // };
+        //
+        // let data_state = SharedLpDataState {
+        //     outbound_mix_sender: mix_packet_sender,
+        //     shared: shared_lp_state,
+        // };
+        //
+        // let control_listener = LpControlListener::new(
+        //     lp_config.control_bind_address,
+        //     control_state,
+        //     shutdown.clone(),
+        // );
+        // let data_listener = LpDataListener::new(
+        //     lp_config.data_bind_address,
+        //     data_state,
+        //     shutdown.clone_shutdown_token(),
+        // );
+        // let cleanup_task = CleanupTask::new(
+        //     session_states,
+        //     lp_config.debug,
+        //     shutdown.clone_shutdown_token(),
+        // );
+        //
+        // Ok(LpSetup {
+        //     control_listener,
+        //     data_listener,
+        //     cleanup_task,
+        //     shutdown,
+        // })
     }
 
     pub fn start_tasks(mut self) {

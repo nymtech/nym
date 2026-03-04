@@ -4,21 +4,44 @@
 use arc_swap::ArcSwap;
 use nym_lp::peer::DHPublicKey;
 use nym_lp::{KEM, KEMKeyDigests};
+use nym_topology::NodeId;
 use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
+use std::ops::Deref;
 use std::sync::Arc;
 
 /// Wrapper around all known LP nodes
-pub(crate) struct LpNodes {
+#[derive(Clone)]
+pub struct LpNodes {
     // map between all available ip addresses of other nodes and their details
-    nodes: ArcSwap<HashMap<IpAddr, LpNodeDetails>>,
+    nodes: Arc<ArcSwap<HashMap<IpAddr, LpNodeDetails>>>,
 }
 
-struct LpNodeDetails {
+impl LpNodes {
+    pub(crate) fn is_from_known_node(&self, node_ip: IpAddr) -> bool {
+        self.nodes.load().contains_key(&node_ip)
+    }
+
+    pub(crate) fn get_node_details(&self, node_ip: IpAddr) -> Option<LpNodeDetails> {
+        self.nodes.load().get(&node_ip).cloned()
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct LpNodeDetails {
     inner: Arc<LpNodeDetailsInner>,
 }
 
-struct LpNodeDetailsInner {
-    kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
-    x25519: DHPublicKey,
+impl Deref for LpNodeDetails {
+    type Target = LpNodeDetailsInner;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.deref()
+    }
+}
+
+pub(crate) struct LpNodeDetailsInner {
+    pub(crate) node_id: NodeId,
+    pub(crate) kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
+    pub(crate) x25519: DHPublicKey,
 }

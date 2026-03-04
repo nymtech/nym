@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::lp::cleanup::TimestampedState;
+use crate::node::lp::control::{
+    LP_CONNECTION_DURATION_BUCKETS, LP_DURATION_BUCKETS, LpConnectionStats,
+};
 use crate::node::lp::error::LpHandlerError;
-use crate::node::lp::state::SharedLpControlState;
+use crate::node::lp::state::SharedLpClientControlState;
 use dashmap::mapref::one::RefMut;
 use nym_lp::packet::message::LpMessageType;
 use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData, LpMessage};
@@ -13,6 +16,7 @@ use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::{LpTransportSession, packet::message::ExpectedResponseSize};
 use nym_metrics::{add_histogram_obs, inc, inc_by};
+use nym_node_metrics::NymNodeMetrics;
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -20,66 +24,15 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 use tracing::*;
 
-// Histogram buckets for LP operation duration (legacy - used by unused forwarding methods)
-const LP_DURATION_BUCKETS: &[f64] = &[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0];
-
 // Timeout for forward I/O operations (send + receive on exit stream)
 // Must be long enough to cover exit gateway processing time
 const FORWARD_IO_TIMEOUT_SECS: u64 = 30;
 
-// Histogram buckets for LP connection lifecycle duration
-// LP connections can be very short (registration only: ~1s) or very long (dVPN sessions: hours/days)
-// Covers full range from seconds to 24 hours
-const LP_CONNECTION_DURATION_BUCKETS: &[f64] = &[
-    1.0,     // 1 second
-    5.0,     // 5 seconds
-    10.0,    // 10 seconds
-    30.0,    // 30 seconds
-    60.0,    // 1 minute
-    300.0,   // 5 minutes
-    600.0,   // 10 minutes
-    1800.0,  // 30 minutes
-    3600.0,  // 1 hour
-    7200.0,  // 2 hours
-    14400.0, // 4 hours
-    28800.0, // 8 hours
-    43200.0, // 12 hours
-    86400.0, // 24 hours
-];
-
-/// Connection lifecycle statistics tracking
-struct ConnectionStats {
-    /// When the connection started
-    start_time: std::time::Instant,
-    /// Total bytes received (including protocol framing)
-    bytes_received: u64,
-    /// Total bytes sent (including protocol framing)
-    bytes_sent: u64,
-}
-
-impl ConnectionStats {
-    fn new() -> Self {
-        Self {
-            start_time: std::time::Instant::now(),
-            bytes_received: 0,
-            bytes_sent: 0,
-        }
-    }
-
-    fn record_bytes_received(&mut self, bytes: usize) {
-        self.bytes_received += bytes as u64;
-    }
-
-    fn record_bytes_sent(&mut self, bytes: usize) {
-        self.bytes_sent += bytes as u64;
-    }
-}
-
-pub struct LpConnectionHandler<S = TcpStream> {
+pub struct LpClientConnectionHandler<S = TcpStream> {
     stream: S,
     remote_addr: SocketAddr,
-    state: SharedLpControlState,
-    stats: ConnectionStats,
+    state: SharedLpClientControlState,
+    stats: LpConnectionStats,
 
     // /// Flag indicating whether this is a connection from an entry gateway serving as a proxy
     // forwarded_connection: bool,
@@ -94,7 +47,7 @@ pub struct LpConnectionHandler<S = TcpStream> {
     exit_stream: Option<(S, SocketAddr)>,
 }
 
-impl<S> LpConnectionHandler<S>
+impl<S> LpClientConnectionHandler<S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
@@ -102,17 +55,21 @@ where
         stream: S,
         // forwarded_connection: bool,
         remote_addr: SocketAddr,
-        state: SharedLpControlState,
+        state: SharedLpClientControlState,
     ) -> Self {
         Self {
             stream,
             remote_addr,
             // forwarded_connection,
             state,
-            stats: ConnectionStats::new(),
+            stats: LpConnectionStats::new(),
             bound_receiver_idx: None,
             exit_stream: None,
         }
+    }
+
+    pub(crate) fn metrics(&self) -> &NymNodeMetrics {
+        &self.state.shared.metrics
     }
 
     /// Get the mutable reference to the state machine associated with this client.
@@ -135,11 +92,12 @@ where
     /// First packet binds the connection to a receiver_idx (session-affine).
     /// Binding is set by handle_client_hello() from payload's receiver_index,
     /// or by validate_or_set_binding() for non-bootstrap first packets.
-    pub async fn handle(mut self) -> Result<(), LpHandlerError> {
-        debug!("Handling LP connection from {}", self.remote_addr);
+    pub async fn handle(&mut self) -> Result<(), LpHandlerError> {
+        let remote = self.remote_addr;
+        debug!("Handling LP connection from {remote}");
 
         // Track total LP connections handled
-        inc!("lp_connections_total");
+        inc!("lp_client_connections_total");
 
         // ============================================================
         // STREAM-ORIENTED PROCESSING: Loop until connection closes
@@ -160,18 +118,12 @@ where
         .await
         {
             Err(_timeout) => {
-                debug!(
-                    "timed out attempting to complete KTT/PSQ handshake with {}",
-                    self.remote_addr
-                );
+                debug!("timed out attempting to complete KTT/PSQ handshake with {remote}",);
                 self.emit_lifecycle_metrics(false);
                 return Ok(());
             }
             Ok(Err(handshake_failure)) => {
-                debug!(
-                    "failed to complete KKT/PSQ handshake with {}: {handshake_failure}",
-                    self.remote_addr
-                );
+                debug!("failed to complete KKT/PSQ handshake with {remote}: {handshake_failure}",);
                 self.emit_lifecycle_metrics(false);
                 return Ok(());
             }
@@ -194,7 +146,7 @@ where
                 Err(err) => {
                     if err.is_connection_closed() {
                         // Graceful EOF - client closed connection
-                        trace!("Connection closed by {} (EOF)", self.remote_addr);
+                        trace!("Connection closed by {remote} (EOF)");
                         break;
                     } else {
                         inc!("lp_errors_receive_packet");
@@ -625,30 +577,7 @@ where
 
     /// Emit connection lifecycle metrics
     fn emit_lifecycle_metrics(&self, graceful: bool) {
-        // Track connection duration
-        let duration = self.stats.start_time.elapsed().as_secs_f64();
-        add_histogram_obs!(
-            "lp_connection_duration_seconds",
-            duration,
-            LP_CONNECTION_DURATION_BUCKETS
-        );
-
-        // Track bytes transferred
-        inc_by!(
-            "lp_connection_bytes_received_total",
-            self.stats.bytes_received as i64
-        );
-        inc_by!(
-            "lp_connection_bytes_sent_total",
-            self.stats.bytes_sent as i64
-        );
-
-        // Track completion type
-        if graceful {
-            inc!("lp_connections_completed_gracefully");
-        } else {
-            inc!("lp_connections_completed_with_error");
-        }
+        self.stats.emit_lifecycle_client_metrics(graceful);
     }
 }
 
@@ -665,7 +594,7 @@ mod tests {
     // ==================== Test Helpers ====================
 
     /// Create a minimal test state for handler tests
-    async fn create_minimal_test_state() -> SharedLpControlState {
+    async fn create_minimal_test_state() -> SharedLpClientControlState {
         use nym_crypto::asymmetric::ed25519;
 
         let mut rng = deterministic_rng();
@@ -690,7 +619,7 @@ mod tests {
         );
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), x_keys).with_kem_keys(kem_keys);
 
-        SharedLpControlState {
+        SharedLpClientControlState {
             local_lp_peer: lp_peer,
             peer_registrator: None,
             forward_semaphore,
@@ -724,7 +653,7 @@ mod tests {
         let server_task = tokio::spawn(async move {
             let (stream, remote_addr) = listener.accept().await.unwrap();
             let state = create_minimal_test_state().await;
-            let mut handler = LpConnectionHandler::new(stream, remote_addr, state);
+            let mut handler = LpClientConnectionHandler::new(stream, remote_addr, state);
             // Two-phase: receive raw bytes + header, then parse full packet
             let packet = handler.receive_raw_packet().await?;
             let header = packet.outer_header();

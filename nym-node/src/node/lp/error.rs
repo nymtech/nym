@@ -6,7 +6,8 @@ use nym_lp::peer_config::LpReceiverIndex;
 use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
 use nym_lp::{LpError, packet::MalformedLpPacketError};
-use std::net::SocketAddr;
+use nym_topology::NodeId;
+use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -46,6 +47,9 @@ pub enum LpHandlerError {
 
     #[error("timed out while attempting to send to/receive from the connection")]
     ConnectionTimeout,
+
+    #[error("missing KEM key hashes for node {node_id} connected from {node_ip}")]
+    MissingNodeKEMKeyHashes { node_ip: IpAddr, node_id: NodeId },
 
     #[error("data channel is not yet implemented")]
     UnimplementedDataChannel,

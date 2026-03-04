@@ -8,18 +8,18 @@
 
 use crate::packet::{EncryptedLpPacket, LpMessage};
 use crate::peer_config::LpReceiverIndex;
-use crate::state_machine::{LpAction, LpInput, LpStateBare};
-use crate::{LpError, LpSession, LpStateMachine};
+use crate::{LpError, LpTransportSession};
 use std::collections::HashMap;
 
 pub use crate::replay::validator::PacketCount;
+use crate::session::{LpAction, LpInput};
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
 /// The SessionManager is responsible for creating, storing, and retrieving sessions
 pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
-    state_machines: HashMap<LpReceiverIndex, LpStateMachine>,
+    sessions: HashMap<LpReceiverIndex, LpTransportSession>,
 }
 
 impl Default for SessionManager {
@@ -32,7 +32,7 @@ impl SessionManager {
     /// Creates a new session manager with empty session storage.
     pub fn new() -> Self {
         Self {
-            state_machines: HashMap::new(),
+            sessions: HashMap::new(),
         }
     }
 
@@ -40,8 +40,8 @@ impl SessionManager {
         &mut self,
         lp_id: LpReceiverIndex,
         input: LpInput,
-    ) -> Result<Option<LpAction>, LpError> {
-        self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
+    ) -> Result<LpAction, LpError> {
+        self.with_session_mut(lp_id, |sm| sm.process_input(input))?
     }
 
     pub fn send_data(
@@ -49,52 +49,39 @@ impl SessionManager {
         lp_id: LpReceiverIndex,
         data: LpMessage,
     ) -> Result<LpAction, LpError> {
-        self.process_input(lp_id, LpInput::SendData(data))?
-            .ok_or(LpError::NotInTransport)
+        self.process_input(lp_id, LpInput::SendData(data))
     }
 
     pub fn receive_packet(
         &mut self,
         lp_id: LpReceiverIndex,
         packet: EncryptedLpPacket,
-    ) -> Result<Option<LpAction>, LpError> {
+    ) -> Result<LpAction, LpError> {
         self.process_input(lp_id, LpInput::ReceivePacket(packet))
     }
 
-    pub fn closed(&self, lp_id: LpReceiverIndex) -> Result<bool, LpError> {
-        Ok(self.get_state(lp_id)? == LpStateBare::Closed)
-    }
-
-    pub fn transport(&self, lp_id: LpReceiverIndex) -> Result<bool, LpError> {
-        Ok(self.get_state(lp_id)? == LpStateBare::Transport)
-    }
-
     #[cfg(test)]
-    fn get_state_machine_id(&self, lp_id: LpReceiverIndex) -> Result<LpReceiverIndex, LpError> {
-        self.with_state_machine(lp_id, |sm| sm.receiver_index())?
-    }
-
-    pub fn get_state(&self, lp_id: LpReceiverIndex) -> Result<LpStateBare, LpError> {
-        self.with_state_machine(lp_id, |sm| Ok(sm.bare_state()))?
+    fn get_session_id(&self, lp_id: LpReceiverIndex) -> Result<LpReceiverIndex, LpError> {
+        self.with_session(lp_id, |sm| sm.receiver_index())
     }
 
     pub fn current_packet_cnt(&self, lp_id: LpReceiverIndex) -> Result<PacketCount, LpError> {
-        self.with_state_machine(lp_id, |sm| Ok(sm.session()?.current_packet_cnt()))?
+        self.with_session(lp_id, |sm| Ok(sm.current_packet_cnt()))?
     }
 
     pub fn session_count(&self) -> usize {
-        self.state_machines.len()
+        self.sessions.len()
     }
 
-    pub fn state_machine_exists(&self, lp_id: LpReceiverIndex) -> bool {
-        self.state_machines.contains_key(&lp_id)
+    pub fn session_exists(&self, lp_id: LpReceiverIndex) -> bool {
+        self.sessions.contains_key(&lp_id)
     }
 
-    pub fn with_state_machine<F, R>(&self, lp_id: LpReceiverIndex, f: F) -> Result<R, LpError>
+    pub fn with_session<F, R>(&self, lp_id: LpReceiverIndex, f: F) -> Result<R, LpError>
     where
-        F: FnOnce(&LpStateMachine) -> R,
+        F: FnOnce(&LpTransportSession) -> R,
     {
-        if let Some(sm) = self.state_machines.get(&lp_id) {
+        if let Some(sm) = self.sessions.get(&lp_id) {
             Ok(f(sm))
         } else {
             Err(LpError::StateMachineNotFound(lp_id))
@@ -102,39 +89,34 @@ impl SessionManager {
     }
 
     // For mutable access (like running process_input)
-    pub fn with_state_machine_mut<F, R>(
-        &mut self,
-        lp_id: LpReceiverIndex,
-        f: F,
-    ) -> Result<R, LpError>
+    pub fn with_session_mut<F, R>(&mut self, lp_id: LpReceiverIndex, f: F) -> Result<R, LpError>
     where
-        F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
+        F: FnOnce(&mut LpTransportSession) -> R, // Closure takes mutable ref
     {
-        if let Some(sm) = self.state_machines.get_mut(&lp_id) {
+        if let Some(sm) = self.sessions.get_mut(&lp_id) {
             Ok(f(sm))
         } else {
             Err(LpError::StateMachineNotFound(lp_id))
         }
     }
 
-    pub fn create_session_state_machine(
+    pub fn insert_session(
         &mut self,
-        lp_session: LpSession,
+        lp_session: LpTransportSession,
     ) -> Result<LpReceiverIndex, LpError> {
         let session_id = lp_session.receiver_index();
 
-        if self.state_machines.contains_key(&session_id) {
+        if self.sessions.contains_key(&session_id) {
             return Err(LpError::DuplicateSessionId(session_id));
         }
 
-        let sm = LpStateMachine::new(lp_session);
-        self.state_machines.insert(session_id, sm);
+        self.sessions.insert(session_id, lp_session);
         Ok(session_id)
     }
 
     /// Method to remove a state machine
-    pub fn remove_state_machine(&mut self, lp_id: LpReceiverIndex) -> bool {
-        let removed = self.state_machines.remove(&lp_id);
+    pub fn remove_session(&mut self, lp_id: LpReceiverIndex) -> bool {
+        let removed = self.sessions.remove(&lp_id);
 
         removed.is_some()
     }
@@ -152,13 +134,13 @@ mod tests {
         let local_session = mock_session_for_test();
         let id = local_session.receiver_index();
 
-        let sm_1_id = manager.create_session_state_machine(local_session).unwrap();
+        let sm_1_id = manager.insert_session(local_session).unwrap();
         assert_eq!(sm_1_id, id);
 
-        let retrieved = manager.state_machine_exists(id);
+        let retrieved = manager.session_exists(id);
         assert!(retrieved);
 
-        let not_found = manager.state_machine_exists(123);
+        let not_found = manager.session_exists(123);
         assert!(!not_found);
     }
 
@@ -166,13 +148,13 @@ mod tests {
     fn test_session_manager_remove() {
         let mut manager = SessionManager::new();
         let local_session = mock_session_for_test();
-        let sm_1_id = manager.create_session_state_machine(local_session).unwrap();
+        let sm_1_id = manager.insert_session(local_session).unwrap();
 
-        let removed = manager.remove_state_machine(sm_1_id);
+        let removed = manager.remove_session(sm_1_id);
         assert!(removed);
         assert_eq!(manager.session_count(), 0);
 
-        let removed_again = manager.remove_state_machine(sm_1_id);
+        let removed_again = manager.remove_session(sm_1_id);
         assert!(!removed_again);
     }
 
@@ -184,15 +166,15 @@ mod tests {
             let session2 = SessionsMock::mock_seeded_post_handshake(124, kem).initiator;
             let session3 = SessionsMock::mock_seeded_post_handshake(125, kem).initiator;
 
-            let sm_1 = manager.create_session_state_machine(session1).unwrap();
-            let sm_2 = manager.create_session_state_machine(session2).unwrap();
-            let sm_3 = manager.create_session_state_machine(session3).unwrap();
+            let sm_1 = manager.insert_session(session1).unwrap();
+            let sm_2 = manager.insert_session(session2).unwrap();
+            let sm_3 = manager.insert_session(session3).unwrap();
 
             assert_eq!(manager.session_count(), 3);
 
-            let retrieved1 = manager.get_state_machine_id(sm_1).unwrap();
-            let retrieved2 = manager.get_state_machine_id(sm_2).unwrap();
-            let retrieved3 = manager.get_state_machine_id(sm_3).unwrap();
+            let retrieved1 = manager.get_session_id(sm_1).unwrap();
+            let retrieved2 = manager.get_session_id(sm_2).unwrap();
+            let retrieved3 = manager.get_session_id(sm_3).unwrap();
 
             assert_eq!(retrieved1, sm_1);
             assert_eq!(retrieved2, sm_2);
@@ -206,10 +188,10 @@ mod tests {
 
         let sesion = mock_session_for_test();
 
-        let sm = manager.create_session_state_machine(sesion).unwrap();
+        let sm = manager.insert_session(sesion).unwrap();
         assert_eq!(manager.session_count(), 1);
 
-        let retrieved = manager.get_state_machine_id(sm);
+        let retrieved = manager.get_session_id(sm);
         assert!(retrieved.is_ok());
         assert_eq!(retrieved.unwrap(), sm);
     }

@@ -11,7 +11,6 @@ pub mod replay;
 pub mod session;
 mod session_integration;
 pub mod session_manager;
-pub mod state_machine;
 pub mod transport;
 
 pub use error::LpError;
@@ -21,9 +20,8 @@ pub use nym_kkt_ciphersuite::{
 
 #[cfg(any(feature = "mock", test))]
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
-pub use session::LpSession;
+pub use session::LpTransportSession;
 pub use session_manager::SessionManager;
-pub use state_machine::LpStateMachine;
 
 #[cfg(any(feature = "mock", test))]
 use nym_test_utils::helpers::u64_seeded_rng_09;
@@ -39,8 +37,8 @@ use libcrux_psq::{Channel, IntoSession};
 
 #[cfg(any(feature = "mock", test))]
 pub struct SessionsMock {
-    pub initiator: LpSession,
-    pub responder: LpSession,
+    pub initiator: LpTransportSession,
+    pub responder: LpTransportSession,
 }
 
 #[cfg(any(feature = "mock", test))]
@@ -113,14 +111,14 @@ impl SessionsMock {
         };
 
         SessionsMock {
-            initiator: LpSession::new(
+            initiator: LpTransportSession::new(
                 initiator.into_session().unwrap(),
                 binding.clone(),
                 receiver_index,
                 1,
             )
             .unwrap(),
-            responder: LpSession::new(
+            responder: LpTransportSession::new(
                 responder.into_session().unwrap(),
                 binding,
                 receiver_index,
@@ -135,18 +133,18 @@ impl SessionsMock {
     }
 
     // we just need a dummy 'valid' session for simpler tests
-    pub fn mock_initiator() -> LpSession {
+    pub fn mock_initiator() -> LpTransportSession {
         Self::mock_post_handshake(KEM::default()).initiator
     }
 }
 
 #[cfg(any(feature = "mock", test))]
-pub fn sessions_for_tests() -> (LpSession, LpSession) {
+pub fn sessions_for_tests() -> (LpTransportSession, LpTransportSession) {
     let sessions = SessionsMock::mock_post_handshake(KEM::default());
     (sessions.initiator, sessions.responder)
 }
 
 #[cfg(any(feature = "mock", test))]
-pub fn mock_session_for_test() -> LpSession {
+pub fn mock_session_for_test() -> LpTransportSession {
     SessionsMock::mock_initiator()
 }

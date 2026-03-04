@@ -3,18 +3,16 @@
 
 use crate::LpClientError;
 use nym_lp::packet::LpMessage;
-use nym_lp::state_machine::{LpAction, LpInput};
-use nym_lp::{LpStateMachine, packet::EncryptedLpPacket};
+use nym_lp::session::{LpAction, LpInput};
+use nym_lp::{LpTransportSession, packet::EncryptedLpPacket};
 
 /// Attempt to prepare the provided data for sending by wrapping it in appropriate `LpAction`,
 /// and attempting to extract `EncryptedLpPacket` from the provided state machine.
 pub(crate) fn prepare_send_packet(
     data: LpMessage,
-    state_machine: &mut LpStateMachine,
+    state_machine: &mut LpTransportSession,
 ) -> Result<EncryptedLpPacket, LpClientError> {
-    let action = state_machine
-        .process_input(LpInput::SendData(data))
-        .ok_or(LpClientError::UnexpectedStateMachineHalt)??;
+    let action = state_machine.process_input(LpInput::SendData(data))?;
 
     match action {
         LpAction::SendPacket(packet) => Ok(packet),
@@ -26,11 +24,9 @@ pub(crate) fn prepare_send_packet(
 /// using the provided state machine.
 pub(crate) fn extract_forwarded_response(
     response_packet: EncryptedLpPacket,
-    state_machine: &mut LpStateMachine,
+    state_machine: &mut LpTransportSession,
 ) -> Result<LpMessage, LpClientError> {
-    let action = state_machine
-        .process_input(LpInput::ReceivePacket(response_packet))
-        .ok_or(LpClientError::UnexpectedStateMachineHalt)??;
+    let action = state_machine.process_input(LpInput::ReceivePacket(response_packet))?;
 
     match action {
         LpAction::DeliverData(data) => Ok(data),

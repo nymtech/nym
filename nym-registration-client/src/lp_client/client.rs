@@ -7,14 +7,13 @@ use super::config::LpRegistrationConfig;
 use super::error::{LpClientError, Result};
 use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt};
 use crate::lp_client::nested_session::connection::NestedConnection;
-use crate::lp_client::state_machine_helpers::{extract_forwarded_response, prepare_send_packet};
+use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::LpSession;
+use nym_lp::LpTransportSession;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::peer_config::LpReceiverIndex;
-use nym_lp::state_machine::LpStateMachine;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use nym_lp::{Ciphersuite, packet::EncryptedLpPacket, packet::version};
@@ -58,9 +57,9 @@ pub struct LpRegistrationClient<S = TcpStream> {
     /// Included in case we have to downgrade our version.
     gateway_supported_lp_protocol_version: u8,
 
-    /// LP state machine for managing connection lifecycle.
+    /// LP transport session
     /// Created during handshake initiation.
-    state_machine: Option<LpStateMachine>,
+    transport_session: Option<LpTransportSession>,
 
     /// Configuration for timeouts and TCP parameters.
     pub(crate) config: LpRegistrationConfig,
@@ -110,7 +109,7 @@ where
             gateway_lp_peer,
             gateway_lp_address,
             gateway_supported_lp_protocol_version: lp_protocol,
-            state_machine: None,
+            transport_session: None,
             config,
             stream: None,
         }
@@ -153,14 +152,14 @@ where
         )
     }
 
-    pub(crate) fn state_machine(&self) -> Result<&LpStateMachine> {
-        self.state_machine
+    pub(crate) fn transport_session(&self) -> Result<&LpTransportSession> {
+        self.transport_session
             .as_ref()
             .ok_or(LpClientError::IncompleteHandshake)
     }
 
-    pub(crate) fn state_machine_mut(&mut self) -> Result<&mut LpStateMachine> {
-        self.state_machine
+    pub(crate) fn transport_session_mut(&mut self) -> Result<&mut LpTransportSession> {
+        self.transport_session
             .as_mut()
             .ok_or(LpClientError::IncompleteHandshake)
     }
@@ -171,7 +170,7 @@ where
 
     /// Returns whether the client has completed the handshake and is ready for registration.
     pub fn is_handshake_complete(&self) -> bool {
-        self.state_machine.is_some()
+        self.transport_session.is_some()
     }
 
     /// Returns the gateway LP address this client is configured for.
@@ -393,7 +392,7 @@ where
         let connection = self.stream_mut()?;
 
         // TODO:
-        let session = LpSession::psq_handshake_initiator(
+        let session = LpTransportSession::psq_handshake_initiator(
             connection,
             local_peer,
             remote_peer,
@@ -403,7 +402,7 @@ where
         .await?;
 
         // Store the state machine (with established session) for later use
-        self.state_machine = Some(LpStateMachine::new(session));
+        self.transport_session = Some(session);
         Ok(())
     }
 
@@ -461,7 +460,7 @@ where
         let lp_data = request.to_lp_data()?;
 
         // 4. Encrypt and prepare packet via state machine
-        let state_machine = self.state_machine_mut()?;
+        let state_machine = self.transport_session_mut()?;
         let request_packet = prepare_send_packet(lp_data, state_machine)?;
 
         // 5. Send initial request and receive response on persistent connection with timeout
@@ -473,7 +472,7 @@ where
             .await?;
 
         // 6. Decrypt via state machine (re-borrow)
-        let state_machine = self.state_machine_mut()?;
+        let state_machine = self.transport_session_mut()?;
         let received_data = extract_forwarded_response(response_packet, state_machine)?;
 
         // 7. Extract decrypted data and deserialise the response
@@ -548,7 +547,7 @@ where
         let lp_data = request.to_lp_data()?;
 
         // 3. Encrypt and prepare packet via state machine
-        let state_machine = self.state_machine_mut()?;
+        let state_machine = self.transport_session_mut()?;
         let request_packet = prepare_send_packet(lp_data, state_machine)?;
 
         // 4. Send initial request and receive response on persistent connection with timeout
@@ -560,7 +559,7 @@ where
             .await?;
 
         // 5. Decrypt via state machine (re-borrow)
-        let state_machine = self.state_machine_mut()?;
+        let state_machine = self.transport_session_mut()?;
         let received_data = extract_forwarded_response(response_packet, state_machine)?;
 
         // 6. Extract decrypted data and deserialise the response
@@ -665,7 +664,7 @@ where
             if self.stream.is_none() || attempt > 0 {
                 // Clear any stale state before re-handshaking
                 self.close();
-                self.state_machine = None;
+                self.transport_session = None;
 
                 if let Err(e) = self.perform_handshake().await {
                     tracing::warn!("Handshake failed on attempt {attempt_display}: {e}");
@@ -713,10 +712,7 @@ where
     /// # Errors
     /// Returns an error if handshake has not been completed.
     pub fn session_id(&self) -> Result<LpReceiverIndex> {
-        self.state_machine()?
-            .session()
-            .map(|s| s.receiver_index())
-            .map_err(Into::into)
+        Ok(self.transport_session()?.receiver_index())
     }
 }
 

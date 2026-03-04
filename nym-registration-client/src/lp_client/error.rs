@@ -6,7 +6,7 @@
 use nym_lp::LpError;
 use nym_lp::packet::MalformedLpPacketError;
 use nym_lp::packet::message::LpMessageType;
-use nym_lp::state_machine::LpAction;
+use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
 use thiserror::Error;
 
@@ -32,9 +32,6 @@ pub enum LpClientError {
 
     #[error(transparent)]
     LpProtocolError(#[from] LpError),
-
-    #[error("no action has been emitted from the LP State Machine")]
-    UnexpectedStateMachineHalt,
 
     #[error("the state machine instructed an unexpected action: {action:?}")]
     UnexpectedStateMachineAction { action: LpAction },

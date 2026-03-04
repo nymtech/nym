@@ -5,7 +5,7 @@ use crate::config::LpConfig;
 use crate::node::lp::cleanup::TimestampedState;
 use dashmap::DashMap;
 use nym_gateway::node::wireguard::PeerRegistrator;
-use nym_lp::LpStateMachine;
+use nym_lp::LpTransportSession;
 use nym_lp::peer::LpLocalPeer;
 use nym_lp::peer_config::LpReceiverIndex;
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -60,5 +60,5 @@ pub struct SharedLpState {
     /// Established sessions keyed by receiver index
     ///
     /// Wrapped in TimestampedState for TTL-based cleanup of inactive sessions.
-    pub session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpStateMachine>>>,
+    pub session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>>,
 }

@@ -3,7 +3,7 @@
 
 use crate::config::LpDebug;
 use dashmap::DashMap;
-use nym_lp::LpStateMachine;
+use nym_lp::LpTransportSession;
 use nym_lp::peer_config::LpReceiverIndex;
 use nym_metrics::inc_by;
 use std::sync::Arc;
@@ -74,14 +74,14 @@ impl<T> TimestampedState<T> {
 }
 
 pub(crate) struct CleanupTask {
-    session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpStateMachine>>>,
+    session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>>,
     cfg: LpDebug,
     shutdown: nym_task::ShutdownToken,
 }
 
 impl CleanupTask {
     pub fn new(
-        session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpStateMachine>>>,
+        session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>>,
         cfg: LpDebug,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {

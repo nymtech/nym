@@ -71,7 +71,7 @@ nym-store-cipher = { path = "../../common/store-cipher", features = ["json"] }
 nym-crypto = { path = "../../common/crypto", features = ["rand"] }
 rand_chacha = "0.3"
 tempfile = "3.3.0"
-ts-rs = "10.0.0"
+ts-rs = "12.0.1"
 
 [features]
 default = ["custom-protocol"]

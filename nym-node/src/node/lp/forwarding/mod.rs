@@ -13,7 +13,6 @@ use tokio::sync::{Notify, oneshot};
 pub(crate) mod client_connection;
 pub(crate) mod controller;
 pub(crate) mod manager;
-pub(crate) mod node_connection;
 
 pub(crate) type NodeConnectionControllerReceiver = Receiver<GetConnectionHandler>;
 pub(crate) type NodeConnectionControllerSender = Sender<GetConnectionHandler>;

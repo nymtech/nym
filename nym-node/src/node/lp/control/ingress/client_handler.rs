@@ -1,10 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::node::lp::cleanup::TimestampedState;
-use crate::node::lp::control::{
-    LP_CONNECTION_DURATION_BUCKETS, LP_DURATION_BUCKETS, LpConnectionStats,
-};
+use crate::node::lp::control::ingress::{LP_DURATION_BUCKETS, LpConnectionStats};
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::state::SharedLpClientControlState;
 use dashmap::mapref::one::RefMut;

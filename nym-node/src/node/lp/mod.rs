@@ -70,7 +70,7 @@
 use crate::config::LpConfig;
 use crate::error::NymNodeError;
 use crate::node::lp::cleanup::CleanupTask;
-use crate::node::lp::control::listener::LpControlListener;
+use crate::node::lp::control::ingress::listener::LpControlListener;
 use crate::node::lp::data::listener::LpDataListener;
 use dashmap::DashMap;
 use nym_gateway::node::wireguard::PeerRegistrator;
@@ -90,6 +90,7 @@ pub mod control;
 mod data;
 pub(crate) mod directory;
 pub mod error;
+pub mod forwarding;
 mod registration;
 pub mod state;
 

@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
-use crate::node::lp::control::LpConnectionStats;
+use crate::node::lp::control::ingress::LpConnectionStats;
 use crate::node::lp::directory::LpNodeDetails;
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::state::SharedLpNodeControlState;
@@ -9,6 +9,7 @@ use nym_lp::LpTransportSession;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportChannel};
 use nym_metrics::inc;
 use nym_node_metrics::NymNodeMetrics;
+use nym_topology::NodeId;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tracing::debug;
@@ -25,7 +26,7 @@ pub struct InitialLpNodeConnectionHandler<S = TcpStream> {
 
 impl<S> InitialLpNodeConnectionHandler<S>
 where
-    S: LpHandshakeChannel + Unpin,
+    S: LpHandshakeChannel + LpTransportChannel + Unpin,
 {
     pub fn new(
         stream: S,
@@ -38,7 +39,7 @@ where
             remote_addr,
             initiator_details,
             state,
-            stats: Default::default(),
+            stats: LpConnectionStats::new(),
         }
     }
 
@@ -63,15 +64,12 @@ where
         let timeout = self.state.shared.lp_config.debug.handshake_ttl;
         let local_peer = self.state.local_lp_peer.clone();
         let stream = &mut self.stream;
+        let kem_hashes = self.initiator_details.kem_key_hashes.clone();
 
         let session = match tokio::time::timeout(timeout, async move {
-            LpTransportSession::psq_handshake_responder_mutual(
-                stream,
-                local_peer,
-                self.initiator_details.kem_key_hashes,
-            )
-            .complete_handshake()
-            .await
+            LpTransportSession::psq_handshake_responder_mutual(stream, local_peer, kem_hashes)
+                .complete_handshake()
+                .await
         })
         .await
         {
@@ -90,9 +88,15 @@ where
             Ok(Ok(session)) => session,
         };
 
+        debug!(
+            "completed KKT/PSQ handshake with node {}: {remote}",
+            self.initiator_details.node_id
+        );
+
         LpNodeConnectionHandler {
-            stream,
+            stream: self.stream,
             remote_addr: remote,
+            remote_node_id: self.initiator_details.node_id,
             state: self.state,
             stats: self.stats,
             transport_session: session,
@@ -106,6 +110,7 @@ where
 pub struct LpNodeConnectionHandler<S = TcpStream> {
     stream: S,
     remote_addr: SocketAddr,
+    remote_node_id: NodeId,
 
     state: SharedLpNodeControlState,
     stats: LpConnectionStats,
@@ -114,7 +119,7 @@ pub struct LpNodeConnectionHandler<S = TcpStream> {
 
 impl<S> LpNodeConnectionHandler<S>
 where
-    S: LpTransportChannel + Unpin,
+    S: LpHandshakeChannel + LpTransportChannel + Unpin,
 {
     async fn handle(mut self) -> Result<(), LpHandlerError> {
         todo!();

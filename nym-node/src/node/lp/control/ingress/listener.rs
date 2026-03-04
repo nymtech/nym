@@ -1,12 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::config::LpConfig;
 use crate::error::NymNodeError;
-use crate::node::lp::control::client_handler::LpClientConnectionHandler;
-use crate::node::lp::control::node_handler::{
-    InitialLpNodeConnectionHandler, LpNodeConnectionHandler,
-};
+use crate::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
+use crate::node::lp::control::ingress::node_handler::InitialLpNodeConnectionHandler;
 use crate::node::lp::directory::{LpNodeDetails, LpNodes};
 use crate::node::lp::state::{SharedLpClientControlState, SharedLpNodeControlState};
 use nym_task::ShutdownTracker;

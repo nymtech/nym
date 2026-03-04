@@ -8,7 +8,7 @@
     "generate:commands": "../scripts/next-scripts/autodoc.sh",
     "generate:tables": "../scripts/next-scripts/python-prebuild.sh",
     "predev": "../scripts/next-scripts/python-prebuild.sh",
-    "build": "next build",
+    "build": "next build && next-sitemap",
     "dev": " next dev",
     "lint": "next lint",
     "lint:fix": "next lint --fix",

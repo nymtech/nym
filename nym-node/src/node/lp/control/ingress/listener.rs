@@ -4,7 +4,7 @@
 use crate::config::LpConfig;
 use crate::error::NymNodeError;
 use crate::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
-use crate::node::lp::control::ingress::node_handler::InitialLpNodeConnectionHandler;
+use crate::node::lp::control::ingress::node_handler::InitialLpIngressNodeConnectionHandler;
 use crate::node::lp::directory::{LpNodeDetails, LpNodes};
 use crate::node::lp::state::{SharedLpClientControlState, SharedLpNodeControlState};
 use nym_task::ShutdownTracker;
@@ -89,7 +89,7 @@ impl LpControlListener {
         debug!("Accepting LP node connection from {remote_addr}");
 
         // Spawn handler task
-        let mut handler = InitialLpNodeConnectionHandler::new(
+        let mut handler = InitialLpIngressNodeConnectionHandler::new(
             stream,
             remote_addr,
             initiator_details,

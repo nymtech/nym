@@ -1,5 +1,5 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::LpError;
 use nym_kkt::keys::EncapsulationKey;
@@ -142,6 +142,10 @@ impl LpRemotePeer {
             .get(&hash_function)
             .ok_or(LpError::NoKnownKEMKeyDigests { kem, hash_function })
             .cloned()
+    }
+
+    pub fn kem_key_digests(&self) -> &BTreeMap<KEM, KEMKeyDigests> {
+        &self.expected_kem_key_digests
     }
 }
 

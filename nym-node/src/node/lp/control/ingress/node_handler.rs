@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::lp::control::ingress::LpConnectionStats;
+use crate::node::lp::control::LpConnectionStats;
 use crate::node::lp::directory::LpNodeDetails;
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::state::SharedLpNodeControlState;
@@ -14,8 +14,8 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tracing::debug;
 
-/// Initial connection handler for an LP node before completing the KKT/PSQ handshake.
-pub struct InitialLpNodeConnectionHandler<S = TcpStream> {
+/// Initial connection handler for an ingress LP node before completing the KKT/PSQ handshake.
+pub struct InitialLpIngressNodeConnectionHandler<S = TcpStream> {
     stream: S,
     remote_addr: SocketAddr,
     initiator_details: LpNodeDetails,
@@ -24,7 +24,7 @@ pub struct InitialLpNodeConnectionHandler<S = TcpStream> {
     stats: LpConnectionStats,
 }
 
-impl<S> InitialLpNodeConnectionHandler<S>
+impl<S> InitialLpIngressNodeConnectionHandler<S>
 where
     S: LpHandshakeChannel + LpTransportChannel + Unpin,
 {
@@ -47,16 +47,16 @@ where
         &self.state.shared.metrics
     }
 
-    pub async fn handle(mut self) -> Result<(), LpHandlerError> {
-        // Track total LP connections handled
-        inc!("lp_node_connections_total");
+    pub(crate) async fn complete_initial_handshake(
+        mut self,
+    ) -> Option<Result<LpIngressNodeConnectionHandler<S>, LpHandlerError>> {
         let remote = self.remote_addr;
 
         if self.initiator_details.kem_key_hashes.is_empty() {
-            return Err(LpHandlerError::MissingNodeKEMKeyHashes {
+            return Some(Err(LpHandlerError::MissingNodeKEMKeyHashes {
                 node_ip: self.remote_addr.ip(),
                 node_id: self.initiator_details.node_id,
-            });
+            }));
         }
 
         // 1. complete KKT/PSQ handshake before doing anything else.
@@ -76,38 +76,50 @@ where
             Err(_timeout) => {
                 debug!("timed out attempting to complete mutual KTT/PSQ handshake with {remote}");
                 self.stats.emit_lifecycle_node_metrics(false);
-                return Ok(());
+                return None;
             }
             Ok(Err(handshake_failure)) => {
                 debug!(
                     "failed to complete mutual KKT/PSQ handshake with {remote}: {handshake_failure}"
                 );
                 self.stats.emit_lifecycle_node_metrics(false);
-                return Ok(());
+                return None;
             }
             Ok(Ok(session)) => session,
         };
 
         debug!(
-            "completed KKT/PSQ handshake with node {}: {remote}",
+            "completed ingress KKT/PSQ handshake with node {}: {remote}",
             self.initiator_details.node_id
         );
 
-        LpNodeConnectionHandler {
+        Some(Ok(LpIngressNodeConnectionHandler {
             stream: self.stream,
             remote_addr: remote,
             remote_node_id: self.initiator_details.node_id,
             state: self.state,
             stats: self.stats,
             transport_session: session,
-        }
-        .handle()
-        .await
+        }))
+    }
+
+    pub async fn handle(mut self) -> Result<(), LpHandlerError> {
+        // Track total LP connections handled
+        inc!("lp_node_connections_total");
+
+        // attempt to complete initial handshake
+        let upgraded_handler = match self.complete_initial_handshake().await {
+            None => return Ok(()),
+            Some(handler_res) => handler_res?,
+        };
+
+        // continue handling the requests with the transport session
+        upgraded_handler.handle().await
     }
 }
 
 /// Connection handler for an LP node after completing the KKT/PSQ handshake.
-pub struct LpNodeConnectionHandler<S = TcpStream> {
+pub struct LpIngressNodeConnectionHandler<S = TcpStream> {
     stream: S,
     remote_addr: SocketAddr,
     remote_node_id: NodeId,
@@ -117,7 +129,7 @@ pub struct LpNodeConnectionHandler<S = TcpStream> {
     transport_session: LpTransportSession,
 }
 
-impl<S> LpNodeConnectionHandler<S>
+impl<S> LpIngressNodeConnectionHandler<S>
 where
     S: LpHandshakeChannel + LpTransportChannel + Unpin,
 {
@@ -126,5 +138,9 @@ where
 
         self.stats.emit_lifecycle_node_metrics(true);
         Ok(())
+    }
+
+    pub(crate) fn transport_session(&self) -> &LpTransportSession {
+        &self.transport_session
     }
 }

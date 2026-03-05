@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::LpDebug;
+use crate::node::lp::state::ActiveLpSessions;
 use dashmap::DashMap;
 use nym_lp::LpTransportSession;
 use nym_lp::peer_config::LpReceiverIndex;
@@ -74,14 +75,14 @@ impl<T> TimestampedState<T> {
 }
 
 pub(crate) struct CleanupTask {
-    session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>>,
+    session_states: ActiveLpSessions,
     cfg: LpDebug,
     shutdown: nym_task::ShutdownToken,
 }
 
 impl CleanupTask {
     pub fn new(
-        session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>>,
+        session_states: ActiveLpSessions,
         cfg: LpDebug,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {
@@ -100,7 +101,7 @@ impl CleanupTask {
 
         // Remove stale sessions (based on time since last activity)
         // Use shorter TTL for demoted (ReadOnlyTransport) sessions
-        self.session_states.retain(|_, timestamped| {
+        self.session_states.sessions.retain(|_, timestamped| {
             if timestamped.since_activity() > session_ttl {
                 ss_removed += 1;
                 false

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use arc_swap::ArcSwap;
-use nym_lp::peer::DHPublicKey;
+use nym_lp::peer::{DHPublicKey, LpRemotePeer};
 use nym_lp::{KEM, KEMKeyDigests};
 use nym_topology::NodeId;
 use std::collections::{BTreeMap, HashMap};
@@ -11,7 +11,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 /// Wrapper around all known LP nodes
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct LpNodes {
     // map between all available ip addresses of other nodes and their details
     nodes: Arc<ArcSwap<HashMap<IpAddr, LpNodeDetails>>>,
@@ -32,6 +32,24 @@ pub(crate) struct LpNodeDetails {
     inner: Arc<LpNodeDetailsInner>,
 }
 
+impl LpNodeDetails {
+    pub(crate) fn new(
+        node_id: NodeId,
+        kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
+        x25519: DHPublicKey,
+        supported_protocol: u8,
+    ) -> Self {
+        LpNodeDetails {
+            inner: Arc::new(LpNodeDetailsInner {
+                node_id,
+                kem_key_hashes,
+                x25519,
+                supported_protocol,
+            }),
+        }
+    }
+}
+
 impl Deref for LpNodeDetails {
     type Target = LpNodeDetailsInner;
 
@@ -44,4 +62,11 @@ pub(crate) struct LpNodeDetailsInner {
     pub(crate) node_id: NodeId,
     pub(crate) kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
     pub(crate) x25519: DHPublicKey,
+    pub(crate) supported_protocol: u8,
+}
+
+impl LpNodeDetailsInner {
+    pub(crate) fn to_lp_peer(&self) -> LpRemotePeer {
+        LpRemotePeer::new(self.x25519).with_key_digests(self.kem_key_hashes.clone())
+    }
 }

@@ -4,7 +4,9 @@
 use crate::config::LpConfig;
 use crate::node::lp::cleanup::TimestampedState;
 use crate::node::lp::directory::LpNodes;
+use crate::node::lp::error::LpHandlerError;
 use dashmap::DashMap;
+use dashmap::mapref::one::RefMut;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::LpTransportSession;
 use nym_lp::peer::LpLocalPeer;
@@ -63,6 +65,37 @@ pub struct SharedLpDataState {
     pub shared: SharedLpState,
 }
 
+/// Established sessions keyed by the receiver index
+///
+/// Wrapped in TimestampedState for TTL-based cleanup of inactive sessions.
+#[derive(Clone, Default)]
+pub struct ActiveLpSessions {
+    // TODO: this might require split between client and node sessions. TBD
+    pub(crate) sessions: Arc<DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>>,
+}
+
+impl ActiveLpSessions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub(crate) fn get_state_entry_mut(
+        &self,
+        receiver_index: LpReceiverIndex,
+    ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpTransportSession>>, LpHandlerError>
+    {
+        self.sessions
+            .get_mut(&receiver_index)
+            .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })
+    }
+
+    pub(crate) fn insert_new_session(&self, session: LpTransportSession) {
+        let receiver_index = session.receiver_index();
+        self.sessions
+            .insert(receiver_index, TimestampedState::new(session));
+    }
+}
+
 /// Shared state for LP connection handlers
 #[derive(Clone)]
 pub struct SharedLpState {
@@ -72,8 +105,6 @@ pub struct SharedLpState {
     /// LP configuration (for timestamp validation, etc.)
     pub lp_config: LpConfig,
 
-    /// Established sessions keyed by receiver index
-    ///
-    /// Wrapped in TimestampedState for TTL-based cleanup of inactive sessions.
-    pub session_states: Arc<DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>>,
+    /// Currently active LP sessions    
+    pub session_states: ActiveLpSessions,
 }

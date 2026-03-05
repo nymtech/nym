@@ -82,6 +82,7 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tracing::error;
 
+use crate::node::lp::state::ActiveLpSessions;
 pub use nym_mixnet_client::forwarder::{MixForwardingReceiver, mix_forwarding_channels};
 pub use state::{SharedLpClientControlState, SharedLpDataState, SharedLpState};
 
@@ -113,7 +114,7 @@ impl LpSetup {
         shutdown: ShutdownTracker,
     ) -> Result<Self, NymNodeError> {
         // TODO: this will require loading old states from disk in the future
-        let session_states = Arc::new(DashMap::new());
+        let session_states = ActiveLpSessions::new();
 
         let shared_lp_state = SharedLpState {
             metrics,

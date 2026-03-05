@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::lp::cleanup::TimestampedState;
-use crate::node::lp::control::ingress::{LP_DURATION_BUCKETS, LpConnectionStats};
+use crate::node::lp::control::{LP_DURATION_BUCKETS, LpConnectionStats};
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::state::SharedLpClientControlState;
 use dashmap::mapref::one::RefMut;
@@ -80,8 +80,7 @@ where
         self.state
             .shared
             .session_states
-            .get_mut(&receiver_index)
-            .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })
+            .get_state_entry_mut(receiver_index)
     }
 
     /// AIDEV-NOTE: Stream-oriented packet loop
@@ -130,10 +129,7 @@ where
         let receiver_idx = session.receiver_index();
 
         // 2. insert the state machine into the shared state
-        self.state
-            .shared
-            .session_states
-            .insert(receiver_idx, TimestampedState::new(session));
+        self.state.shared.session_states.insert_new_session(session);
         self.bound_receiver_idx = Some(receiver_idx);
 
         // 3. handle any new incoming packet
@@ -584,7 +580,7 @@ mod tests {
     use super::*;
     use crate::config::LpConfig;
     use crate::config::lp::LpDebug;
-    use crate::node::lp::state::SharedLpState;
+    use crate::node::lp::state::{ActiveLpSessions, SharedLpState};
     use nym_lp::peer::{KEMKeys, LpLocalPeer, generate_keypair_mceliece, generate_keypair_mlkem};
     use nym_lp::{Ciphersuite, SessionManager, sessions_for_tests};
     use nym_test_utils::helpers::{deterministic_rng, deterministic_rng_09};
@@ -623,8 +619,8 @@ mod tests {
             forward_semaphore,
             shared: SharedLpState {
                 lp_config,
-                metrics: nym_node_metrics::NymNodeMetrics::default(),
-                session_states: Arc::new(dashmap::DashMap::new()),
+                metrics: NymNodeMetrics::default(),
+                session_states: ActiveLpSessions::new(),
             },
         }
     }

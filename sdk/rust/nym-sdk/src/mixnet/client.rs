@@ -42,8 +42,8 @@ use std::sync::Arc;
 use url::Url;
 use zeroize::Zeroizing;
 
-// The number of surbs to include in a message by default
-const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
+/// The number of reply SURBs to include in a message by default.
+pub(crate) const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
 
 #[derive(Default)]
 pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {

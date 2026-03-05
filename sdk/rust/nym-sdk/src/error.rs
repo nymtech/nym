@@ -102,6 +102,9 @@ pub enum Error {
 
     #[error("Cannot use message-based functions after stream mode is activated")]
     StreamModeActive,
+
+    #[error("Stream listener has already been taken — listener() can only be called once")]
+    ListenerAlreadyTaken,
 }
 
 impl Error {

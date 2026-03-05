@@ -22,7 +22,7 @@ use super::StreamMap;
 enum Destination {
     /// We know the peer's Nym address.
     Address {
-        recipient: Recipient,
+        recipient: Box<Recipient>,
         reply_surbs: u32,
     },
     /// We reply via the opener's anonymous sender tag.
@@ -60,7 +60,7 @@ impl MixnetStream {
         Self {
             id,
             destination: Destination::Address {
-                recipient,
+                recipient: Box::new(recipient),
                 reply_surbs,
             },
             client_input,
@@ -110,7 +110,7 @@ impl MixnetStream {
                 recipient,
                 reply_surbs,
             } => InputMessage::new_anonymous(
-                *recipient,
+                **recipient,
                 data,
                 *reply_surbs,
                 TransmissionLane::General,

@@ -9,6 +9,7 @@
 //! stream's channel (or to the listener for `Open` messages).
 
 mod protocol;
+#[allow(clippy::module_inception)]
 mod stream;
 
 pub use protocol::StreamId;

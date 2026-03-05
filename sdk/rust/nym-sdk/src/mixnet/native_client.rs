@@ -1,12 +1,12 @@
 use crate::mixnet::client::MixnetClientBuilder;
+use crate::mixnet::client::DEFAULT_NUMBER_OF_SURBS;
+use crate::mixnet::stream::{MixnetListener, MixnetStream};
 use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
-use bytes::BytesMut;
-use futures::{ready, Future, FutureExt, Sink, SinkExt, Stream, StreamExt};
+use futures::{ready, Sink, SinkExt, Stream, StreamExt};
 use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
-use nym_client_core::client::inbound_messages::{InputMessageCodec, ReconstructedMessageCodec};
 use nym_client_core::client::mix_traffic::ClientRequestSender;
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
@@ -26,9 +26,7 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::RwLockReadGuard;
-use tokio_util::codec::{Encoder, FramedRead};
 use tokio_util::sync::CancellationToken;
 
 /// Client connected to the Nym mixnet.
@@ -67,41 +65,12 @@ pub struct MixnetClient {
     pub(crate) forget_me: ForgetMe,
     pub(crate) remember_me: RememberMe,
 
-    /// Internal state used for AsyncRead
-    _read: ReadBuffer,
+    /// Set to `true` when the stream router is active, preventing
+    /// message-based functions from being used concurrently.
+    pub(crate) stream_mode: Arc<AtomicBool>,
 
-    /// Internal state used for AsyncWrite
-    _write: Option<PendingWrite>,
-
-    /// Set to `true` when AsyncRead/AsyncWrite is used to
-    /// prevent mixing stream- and message-based functions.
-    stream_mode: Arc<AtomicBool>,
-}
-
-#[derive(Debug, Default)]
-struct ReadBuffer {
-    buffer: BytesMut,
-}
-
-impl ReadBuffer {
-    fn clear(&mut self) {
-        self.buffer.clear();
-    }
-
-    fn pending(&self) -> bool {
-        !self.buffer.is_empty()
-    }
-}
-
-struct PendingWrite {
-    future: Pin<
-        Box<
-            dyn Future<Output = Result<(), tokio_util::sync::PollSendError<InputMessage>>>
-                + Send
-                + Sync,
-        >,
-    >,
-    bytes_to_report: usize,
+    /// Opaque stream multiplexing state (lazily initialized by stream module).
+    pub(crate) streams: Option<super::stream::StreamState>,
 }
 
 impl MixnetClient {
@@ -132,9 +101,8 @@ impl MixnetClient {
             _buffered: Vec::new(),
             forget_me,
             remember_me,
-            _read: ReadBuffer::default(),
-            _write: None,
             stream_mode: Arc::new(AtomicBool::new(false)),
+            streams: None,
         }
     }
 
@@ -201,7 +169,6 @@ impl MixnetClient {
         MixnetClientSender {
             client_input: self.client_input.clone(),
             packet_type: self.packet_type,
-            _write: None,
             stream_mode: self.stream_mode.clone(),
         }
     }
@@ -245,6 +212,10 @@ impl MixnetClient {
 
     /// Wait for messages from the mixnet
     pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            tracing::warn!("wait_for_messages() called after stream mode activated");
+            return None;
+        }
         self.reconstructed_receiver.next().await
     }
 
@@ -328,31 +299,35 @@ impl MixnetClient {
         }
     }
 
-    fn read_buffer_to_slice(
+    /// Open a stream to a remote peer.
+    ///
+    /// Returns a [`MixnetStream`] implementing `AsyncRead + AsyncWrite`.
+    /// `reply_surbs` controls how many reply SURBs are included with each
+    /// outbound message so the peer can reply. Defaults to 10 if `None`.
+    pub async fn open_stream(
         &mut self,
-        buf: &mut ReadBuf,
-        cx: &mut Context<'_>,
-    ) -> Poll<tokio::io::Result<()>> {
-        let available = self._read.buffer.len();
-        let capacity = buf.capacity();
+        recipient: Recipient,
+        reply_surbs: Option<u32>,
+    ) -> Result<MixnetStream> {
+        super::stream::open_stream(
+            self,
+            recipient,
+            reply_surbs.unwrap_or(DEFAULT_NUMBER_OF_SURBS),
+        )
+        .await
+    }
 
-        if available <= capacity {
-            buf.put_slice(&self._read.buffer);
-            self._read.clear();
-            Poll::Ready(Ok(()))
-        } else {
-            let chunk = self._read.buffer.split_to(capacity);
-            buf.put_slice(&chunk);
-            cx.waker().wake_by_ref();
-            Poll::Ready(Ok(()))
-        }
+    /// Create a listener that accepts inbound streams from remote peers.
+    ///
+    /// Can only be called once.
+    pub fn listener(&mut self) -> Result<MixnetListener> {
+        super::stream::listener(self)
     }
 }
 
 pub struct MixnetClientSender {
     client_input: ClientInput,
     packet_type: Option<PacketType>,
-    _write: Option<PendingWrite>,
     stream_mode: Arc<AtomicBool>,
 }
 
@@ -361,148 +336,8 @@ impl Clone for MixnetClientSender {
         Self {
             client_input: self.client_input.clone(),
             packet_type: self.packet_type,
-            _write: None, // Don't clone pending write state
             stream_mode: self.stream_mode.clone(),
         }
-    }
-}
-
-impl AsyncRead for MixnetClient {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf,
-    ) -> Poll<tokio::io::Result<()>> {
-        self.stream_mode.store(true, Ordering::SeqCst);
-
-        // Return buffered bytes first
-        if self._read.pending() {
-            return self.read_buffer_to_slice(buf, cx);
-        }
-
-        // Return buffered messages one at a time
-        if let Some(msg) = self._buffered.pop() {
-            let mut codec = ReconstructedMessageCodec {};
-            match codec.encode(msg, &mut self._read.buffer) {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("failed to encode reconstructed message: {:?}", e);
-                    return Poll::Ready(Err(tokio::io::Error::other(
-                        "failed to encode reconstructed message",
-                    )));
-                }
-            };
-            if !self._buffered.is_empty() {
-                cx.waker().wake_by_ref();
-            }
-            return self.read_buffer_to_slice(buf, cx);
-        }
-
-        // Poll the receiver directly — not via Stream::poll_next which is
-        // guarded by stream_mode and would immediately return None.
-        match ready!(Pin::new(&mut self.reconstructed_receiver).poll_next(cx)) {
-            None => Poll::Ready(Ok(())),
-            Some(mut msgs) => {
-                let msg = match msgs.pop() {
-                    Some(msg) => msg,
-                    None => {
-                        debug!("the reconstructed messages vector is empty");
-                        cx.waker().wake_by_ref();
-                        return Poll::Pending;
-                    }
-                };
-
-                if !msgs.is_empty() {
-                    self._buffered = msgs;
-                    cx.waker().wake_by_ref();
-                }
-
-                let mut codec = ReconstructedMessageCodec {};
-                match codec.encode(msg, &mut self._read.buffer) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        error!("failed to encode reconstructed message: {:?}", e);
-                        return Poll::Ready(Err(tokio::io::Error::other(
-                            "failed to encode reconstructed message",
-                        )));
-                    }
-                };
-                self.read_buffer_to_slice(buf, cx)
-            }
-        }
-    }
-}
-
-impl AsyncWrite for MixnetClient {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<Result<usize, std::io::Error>> {
-        self.stream_mode.store(true, Ordering::SeqCst);
-        // Complete any pending write first
-        if let Some(pending) = &mut self._write {
-            match pending.future.as_mut().poll(cx) {
-                Poll::Ready(Ok(())) => {
-                    let bytes = pending.bytes_to_report;
-                    self._write = None;
-                    return Poll::Ready(Ok(bytes));
-                }
-                Poll::Ready(Err(_)) => {
-                    self._write = None;
-                    return Poll::Ready(Err(std::io::Error::other(
-                        "failed to send message to mixnet",
-                    )));
-                }
-                Poll::Pending => return Poll::Pending,
-            }
-        }
-
-        // No pending write, parse new message from buffer
-        let codec = InputMessageCodec {};
-        let mut reader = FramedRead::new(buf, codec);
-        let mut fut = reader.next();
-        let msg = match fut.poll_unpin(cx) {
-            Poll::Ready(Some(Ok(msg))) => msg,
-            Poll::Ready(Some(Err(_))) => {
-                return Poll::Ready(Err(std::io::Error::other(
-                    "failed to read message from input",
-                )))
-            }
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(None) => return Poll::Ready(Ok(0)),
-        };
-
-        let msg_size = msg.serialized_size() as usize;
-
-        // Create and store the send future
-        let mut client_input = self.client_input.clone();
-        let future = Box::pin(async move { client_input.send(msg).await });
-
-        self._write = Some(PendingWrite {
-            future,
-            bytes_to_report: msg_size,
-        });
-
-        // Poll new future immediately
-        self.poll_write(cx, buf)
-    }
-
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
-        if self._write.is_some() {
-            ready!(self.as_mut().poll_write(cx, &[]))?;
-        }
-        Poll::Ready(Ok(()))
-    }
-
-    fn poll_shutdown(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
-        AsyncWrite::poll_flush(self, cx)
     }
 }
 
@@ -510,6 +345,9 @@ impl Sink<InputMessage> for MixnetClient {
     type Error = Error;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            return Poll::Ready(Err(Error::StreamModeActive));
+        }
         match self.sender().poll_ready_unpin(cx) {
             Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
             Poll::Ready(Err(_)) => Poll::Ready(Err(Error::MessageSendingFailure)),
@@ -536,84 +374,13 @@ impl Sink<InputMessage> for MixnetClient {
     }
 }
 
-// TODO: there should be a better way of implementing Sink and AsyncWrite over T: MixnetMessageSender
-impl AsyncWrite for MixnetClientSender {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<Result<usize, std::io::Error>> {
-        self.stream_mode.store(true, Ordering::SeqCst);
-        // Complete any pending write first
-        if let Some(pending) = &mut self._write {
-            match pending.future.as_mut().poll(cx) {
-                Poll::Ready(Ok(())) => {
-                    let bytes = pending.bytes_to_report;
-                    self._write = None;
-                    return Poll::Ready(Ok(bytes));
-                }
-                Poll::Ready(Err(_)) => {
-                    self._write = None;
-                    return Poll::Ready(Err(std::io::Error::other(
-                        "failed to send message to mixnet",
-                    )));
-                }
-                Poll::Pending => return Poll::Pending,
-            }
-        }
-
-        // No pending write, parse new message from buffer
-        let codec = InputMessageCodec {};
-        let mut reader = FramedRead::new(buf, codec);
-        let mut fut = reader.next();
-        let msg = match fut.poll_unpin(cx) {
-            Poll::Ready(Some(Ok(msg))) => msg,
-            Poll::Ready(Some(Err(_))) => {
-                return Poll::Ready(Err(std::io::Error::other(
-                    "failed to read message from input",
-                )))
-            }
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(None) => return Poll::Ready(Ok(0)),
-        };
-
-        let msg_size = msg.serialized_size() as usize;
-
-        // Create and store the send future
-        let mut client_input = self.client_input.clone();
-        let future = Box::pin(async move { client_input.send(msg).await });
-
-        self._write = Some(PendingWrite {
-            future,
-            bytes_to_report: msg_size,
-        });
-
-        // Poll the new future immediately
-        self.poll_write(cx, buf)
-    }
-
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
-        if self._write.is_some() {
-            ready!(self.as_mut().poll_write(cx, &[]))?;
-        }
-        Poll::Ready(Ok(()))
-    }
-
-    fn poll_shutdown(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
-        AsyncWrite::poll_flush(self, cx)
-    }
-}
-
 impl Sink<InputMessage> for MixnetClientSender {
     type Error = Error;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            return Poll::Ready(Err(Error::StreamModeActive));
+        }
         match self.sender().poll_ready_unpin(cx) {
             Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
             Poll::Ready(Err(_)) => Poll::Ready(Err(Error::MessageSendingFailure)),

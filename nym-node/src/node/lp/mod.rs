@@ -72,7 +72,6 @@ use crate::error::NymNodeError;
 use crate::node::lp::cleanup::CleanupTask;
 use crate::node::lp::control::ingress::listener::LpControlListener;
 use crate::node::lp::data::listener::LpDataListener;
-use dashmap::DashMap;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::peer::LpLocalPeer;
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -82,7 +81,10 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tracing::error;
 
-use crate::node::lp::state::ActiveLpSessions;
+use crate::node::lp::directory::LpNodes;
+use crate::node::lp::forwarding::controller::NestedConnectionsController;
+use crate::node::lp::forwarding::manager::NestedConnectionsManager;
+use crate::node::lp::state::{ActiveLpSessions, SharedLpNodeControlState};
 pub use nym_mixnet_client::forwarder::{MixForwardingReceiver, mix_forwarding_channels};
 pub use state::{SharedLpClientControlState, SharedLpDataState, SharedLpState};
 
@@ -99,6 +101,7 @@ pub struct LpSetup {
     control_listener: LpControlListener,
     data_listener: LpDataListener,
     cleanup_task: CleanupTask,
+    nested_connections_controller: NestedConnectionsController,
 
     /// Shutdown coordination
     shutdown: ShutdownTracker,
@@ -110,11 +113,17 @@ impl LpSetup {
         lp_config: LpConfig,
         metrics: NymNodeMetrics,
         peer_registrator: Option<PeerRegistrator>,
+        network_nodes: LpNodes,
         mix_packet_sender: MixForwardingSender,
         shutdown: ShutdownTracker,
     ) -> Result<Self, NymNodeError> {
         // TODO: this will require loading old states from disk in the future
         let session_states = ActiveLpSessions::new();
+
+        let nested_connections_controller = NestedConnectionsController::new(
+            network_nodes.clone(),
+            shutdown.clone_shutdown_token(),
+        );
 
         let shared_lp_state = SharedLpState {
             metrics,
@@ -122,42 +131,51 @@ impl LpSetup {
             session_states: session_states.clone(),
         };
 
-        todo!()
+        let client_control_state = SharedLpClientControlState {
+            local_lp_peer: local_lp_peer.clone(),
+            peer_registrator,
+            nested_connections_manager: NestedConnectionsManager::new(
+                nested_connections_controller.request_sender(),
+            ),
+            forward_semaphore: Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards)),
+            shared: shared_lp_state.clone(),
+        };
 
-        // let control_state = SharedLpControlState {
-        //     local_lp_peer,
-        //     peer_registrator,
-        //     forward_semaphore: Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards)),
-        //     shared: shared_lp_state.clone(),
-        // };
-        //
-        // let data_state = SharedLpDataState {
-        //     outbound_mix_sender: mix_packet_sender,
-        //     shared: shared_lp_state,
-        // };
-        //
-        // let control_listener = LpControlListener::new(
-        //     lp_config.control_bind_address,
-        //     control_state,
-        //     shutdown.clone(),
-        // );
-        // let data_listener = LpDataListener::new(
-        //     lp_config.data_bind_address,
-        //     data_state,
-        //     shutdown.clone_shutdown_token(),
-        // );
-        // let cleanup_task = CleanupTask::new(
-        //     session_states,
-        //     lp_config.debug,
-        //     shutdown.clone_shutdown_token(),
-        // );
-        //
-        // Ok(LpSetup {
-        //     control_listener,
-        //     data_listener,
-        //     cleanup_task,
-        //     shutdown,
-        // })
+        let nodes_control_state = SharedLpNodeControlState {
+            local_lp_peer,
+            nodes: network_nodes,
+            shared: shared_lp_state.clone(),
+        };
+
+        let data_state = SharedLpDataState {
+            outbound_mix_sender: mix_packet_sender,
+            shared: shared_lp_state,
+        };
+
+        let control_listener = LpControlListener::new(
+            lp_config.control_bind_address,
+            client_control_state,
+            nodes_control_state,
+            shutdown.clone(),
+        );
+        let data_listener = LpDataListener::new(
+            lp_config.data_bind_address,
+            data_state,
+            shutdown.clone_shutdown_token(),
+        );
+        let cleanup_task = CleanupTask::new(
+            session_states,
+            lp_config.debug,
+            shutdown.clone_shutdown_token(),
+        );
+
+        Ok(LpSetup {
+            control_listener,
+            data_listener,
+            cleanup_task,
+            nested_connections_controller,
+            shutdown,
+        })
     }
 
     pub fn start_tasks(mut self) {
@@ -191,6 +209,12 @@ impl LpSetup {
         self.shutdown.try_spawn_named(
             async move { self.cleanup_task.run().await },
             "LP::CleanupTask",
+        );
+
+        // nested connections controller
+        self.shutdown.try_spawn_named(
+            async move { self.nested_connections_controller.run().await },
+            "LP::NestedConnectionsController",
         );
     }
 }

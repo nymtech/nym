@@ -18,12 +18,15 @@ pub struct LpNodes {
 }
 
 impl LpNodes {
-    pub(crate) fn is_from_known_node(&self, node_ip: IpAddr) -> bool {
-        self.nodes.load().contains_key(&node_ip)
-    }
-
     pub(crate) fn get_node_details(&self, node_ip: IpAddr) -> Option<LpNodeDetails> {
         self.nodes.load().get(&node_ip).cloned()
+    }
+
+    pub(crate) fn get_node_id(&self, node_ip: IpAddr) -> Option<NodeId> {
+        self.nodes
+            .load()
+            .get(&node_ip)
+            .map(|details| details.node_id)
     }
 }
 

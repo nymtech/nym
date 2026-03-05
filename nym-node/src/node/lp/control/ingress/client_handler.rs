@@ -4,6 +4,7 @@
 use crate::node::lp::cleanup::TimestampedState;
 use crate::node::lp::control::{LP_DURATION_BUCKETS, LpConnectionStats};
 use crate::node::lp::error::LpHandlerError;
+use crate::node::lp::forwarding::client_connection::NestedClientConnection;
 use crate::node::lp::state::SharedLpClientControlState;
 use dashmap::mapref::one::RefMut;
 use nym_lp::packet::message::LpMessageType;
@@ -13,7 +14,7 @@ use nym_lp::session::{LpAction, LpInput};
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::{LpTransportSession, packet::message::ExpectedResponseSize};
-use nym_metrics::{add_histogram_obs, inc, inc_by};
+use nym_metrics::{add_histogram_obs, inc};
 use nym_node_metrics::NymNodeMetrics;
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
@@ -32,8 +33,6 @@ pub struct LpClientConnectionHandler<S = TcpStream> {
     state: SharedLpClientControlState,
     stats: LpConnectionStats,
 
-    // /// Flag indicating whether this is a connection from an entry gateway serving as a proxy
-    // forwarded_connection: bool,
     /// Bound receiver_idx for this connection (set after first packet).
     /// All subsequent packets on this connection must use this receiver_idx.
     /// Set from ClientHello's proposed receiver_index, or from header for non-bootstrap packets.
@@ -43,26 +42,24 @@ pub struct LpClientConnectionHandler<S = TcpStream> {
     /// Opened on first forward, reused for subsequent forwards, closed when client disconnects.
     /// Tuple contains (stream, target_address) to verify subsequent forwards go to same exit.
     exit_stream: Option<(S, SocketAddr)>,
+
+    #[allow(dead_code)]
+    forwarding_channel: Option<NestedClientConnection>,
 }
 
 impl<S> LpClientConnectionHandler<S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
-    pub fn new(
-        stream: S,
-        // forwarded_connection: bool,
-        remote_addr: SocketAddr,
-        state: SharedLpClientControlState,
-    ) -> Self {
+    pub fn new(stream: S, remote_addr: SocketAddr, state: SharedLpClientControlState) -> Self {
         Self {
             stream,
             remote_addr,
-            // forwarded_connection,
             state,
             stats: LpConnectionStats::new(),
             bound_receiver_idx: None,
             exit_stream: None,
+            forwarding_channel: None,
         }
     }
 

@@ -45,8 +45,8 @@ mod tests {
         nym_test_utils::helpers::setup_test_logger();
 
         let (init, resp) = mock_peers();
-        let init_remote = resp.as_remote();
-        let resp_remote = init.as_remote();
+        let init_remote = init.as_remote();
+        let resp_remote = resp.as_remote();
 
         let conn_init = MockIOStream::default();
         let conn_resp = conn_init.try_get_remote_handle();

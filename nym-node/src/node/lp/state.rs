@@ -5,6 +5,7 @@ use crate::config::LpConfig;
 use crate::node::lp::cleanup::TimestampedState;
 use crate::node::lp::directory::LpNodes;
 use crate::node::lp::error::LpHandlerError;
+use crate::node::lp::forwarding::manager::NestedConnectionsManager;
 use dashmap::DashMap;
 use dashmap::mapref::one::RefMut;
 use nym_gateway::node::wireguard::PeerRegistrator;
@@ -25,13 +26,16 @@ pub struct SharedLpClientControlState {
     /// Handle registering new wireguard peers
     pub peer_registrator: Option<PeerRegistrator>,
 
+    /// Controller for obtaining handles to forwarding channels
+    pub nested_connections_manager: NestedConnectionsManager,
+
     /// Semaphore limiting concurrent forward connections
     ///
     /// Prevents file descriptor exhaustion when forwarding LP packets during
     /// telescope setup. When at capacity, forward requests return an error
     /// so clients can choose a different gateway.
     // this is temporary until there is persistent KKT/PSQ session between nodes
-    #[deprecated]
+    // #[deprecated]
     pub forward_semaphore: Arc<Semaphore>,
 
     /// Common shared data

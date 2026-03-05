@@ -8,7 +8,7 @@ use crate::node::lp::forwarding::client_connection::NestedClientConnectionSender
 use crate::node::lp::state::SharedLpNodeControlState;
 use nym_lp::LpTransportSession;
 use nym_lp::peer_config::LpReceiverIndex;
-use nym_lp::transport::LpHandshakeChannel;
+use nym_lp::transport::{LpHandshakeChannel, LpTransportChannel};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use tracing::{debug, warn};
@@ -103,7 +103,7 @@ where
             self.responder_details.node_id
         );
 
-        // TODO: return session, etc.
+        // TODO: change return type into complete handler
         Some(Ok(session))
     }
 }
@@ -128,7 +128,7 @@ pub(crate) struct NestedNodeConnectionHandler<S> {
 
 impl<S> NestedNodeConnectionHandler<S>
 where
-// S: LpTransport + Unpin,
+    S: LpTransportChannel + Unpin,
 {
     /// Attempt to extract outer receiver index from the received message
     /// (that is meant to be an `LpPacket`)

@@ -84,6 +84,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, trace};
 use zeroize::Zeroizing;
 
+use crate::node::lp::directory::LpNodes;
 pub use nym_gateway::node::ActiveClientsStore;
 pub use nym_gateway::node::GatewayStorage;
 
@@ -491,6 +492,7 @@ impl NymNode {
         &self,
         peer_registrator: Option<PeerRegistrator>,
         mix_packet_sender: MixForwardingSender,
+        network_nodes: LpNodes,
     ) -> Result<LpSetup, NymNodeError> {
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), self.x25519_lp_keys.clone())
             .with_kem_keys(self.psq_kem_keys.clone());
@@ -500,6 +502,7 @@ impl NymNode {
             self.config.lp,
             self.metrics.clone(),
             peer_registrator,
+            network_nodes,
             mix_packet_sender,
             self.shutdown_manager.shutdown_tracker().clone(),
         )
@@ -683,6 +686,7 @@ impl NymNode {
     async fn start_gateway_tasks(
         &mut self,
         cached_network: CachedNetwork,
+        lp_nodes: LpNodes,
         metrics_sender: MetricEventsSender,
         active_clients_store: ActiveClientsStore,
         mix_packet_sender: MixForwardingSender,
@@ -766,7 +770,7 @@ impl NymNode {
                 self.config.lp.control_bind_address, self.config.lp.data_bind_address,
             );
             let lp_tasks = self
-                .build_lp_tasks(wg_peer_registrator.clone(), mix_packet_sender)
+                .build_lp_tasks(wg_peer_registrator.clone(), mix_packet_sender, lp_nodes)
                 .await?;
             lp_tasks.start_tasks();
         } else {
@@ -1355,6 +1359,7 @@ impl NymNode {
 
         let network_refresher = self.build_network_refresher().await?;
         let active_clients_store = ActiveClientsStore::new();
+        let lp_nodes = network_refresher.lp_nodes();
 
         let bloomfilters_manager = self.setup_replay_detection().await?;
 
@@ -1381,6 +1386,7 @@ impl NymNode {
 
         self.start_gateway_tasks(
             network_refresher.cached_network(),
+            lp_nodes,
             metrics_sender,
             active_clients_store,
             mix_packet_sender,

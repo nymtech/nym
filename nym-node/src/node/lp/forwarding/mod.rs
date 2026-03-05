@@ -3,7 +3,6 @@
 
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::forwarding::client_connection::NestedClientConnection;
-use nym_crypto::asymmetric::ed25519;
 use nym_lp::peer_config::LpReceiverIndex;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -14,8 +13,8 @@ pub(crate) mod client_connection;
 pub(crate) mod controller;
 pub(crate) mod manager;
 
-pub(crate) type NodeConnectionControllerReceiver = Receiver<GetConnectionHandler>;
-pub(crate) type NodeConnectionControllerSender = Sender<GetConnectionHandler>;
+pub(crate) type NodeConnectionControllerReceiver = Receiver<NestedConnectionControllerRequest>;
+pub(crate) type NodeConnectionControllerSender = Sender<NestedConnectionControllerRequest>;
 
 pub(crate) enum ConnectionControllerResponse<T> {
     /// The response is immediately available
@@ -24,6 +23,16 @@ pub(crate) enum ConnectionControllerResponse<T> {
     /// The response is in the process of being resolved. It will be ready once the returned
     /// notify resolves. At this point the caller should repeat the query
     Pending(Arc<Notify>),
+}
+
+impl<T> ConnectionControllerResponse<T> {
+    pub fn new_pending() -> (Self, Arc<Notify>) {
+        let notify = Arc::new(Notify::new());
+        (
+            ConnectionControllerResponse::Pending(notify.clone()),
+            notify,
+        )
+    }
 }
 
 pub(crate) type ControllerResponse<T> = Result<ConnectionControllerResponse<T>, LpHandlerError>;
@@ -39,10 +48,8 @@ pub(crate) enum NestedConnectionControllerRequest {
     },
 }
 
+#[derive(Copy, Clone)]
 pub(crate) struct GetConnectionHandler {
-    /// Target gateway's Ed25519 identity
-    pub target_gateway: ed25519::PublicKey,
-
     /// Target gateway's LP address
     pub target_gateway_lp_address: SocketAddr,
 

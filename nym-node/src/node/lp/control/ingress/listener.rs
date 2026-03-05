@@ -5,7 +5,7 @@ use crate::config::LpConfig;
 use crate::error::NymNodeError;
 use crate::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
 use crate::node::lp::control::ingress::node_handler::InitialLpIngressNodeConnectionHandler;
-use crate::node::lp::directory::{LpNodeDetails, LpNodes};
+use crate::node::lp::directory::LpNodeDetails;
 use crate::node::lp::state::{SharedLpClientControlState, SharedLpNodeControlState};
 use nym_task::ShutdownTracker;
 use std::net::SocketAddr;
@@ -30,15 +30,16 @@ pub struct LpControlListener {
 impl LpControlListener {
     pub fn new(
         bind_address: SocketAddr,
-        handler_state: SharedLpClientControlState,
+        clients_handler_state: SharedLpClientControlState,
+        nodes_handler_state: SharedLpNodeControlState,
         shutdown: ShutdownTracker,
     ) -> Self {
-        todo!()
-        // Self {
-        //     bind_address,
-        //     handler_state,
-        //     shutdown,
-        // }
+        Self {
+            bind_address,
+            clients_handler_state,
+            nodes_handler_state,
+            shutdown,
+        }
     }
 
     fn lp_config(&self) -> LpConfig {

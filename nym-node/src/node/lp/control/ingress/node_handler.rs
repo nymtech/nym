@@ -134,7 +134,7 @@ where
     S: LpHandshakeChannel + LpTransportChannel + Unpin,
 {
     async fn handle(mut self) -> Result<(), LpHandlerError> {
-        todo!();
+        // handle all the forwarding here
 
         self.stats.emit_lifecycle_node_metrics(true);
         Ok(())

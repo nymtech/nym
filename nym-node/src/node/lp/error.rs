@@ -54,6 +54,12 @@ pub enum LpHandlerError {
     #[error("data channel is not yet implemented")]
     UnimplementedDataChannel,
 
+    #[error("{ip_addr} does not correspond to any known LP node")]
+    NotLpNode { ip_addr: IpAddr },
+
+    #[error("{0}")]
+    Internal(String),
+
     #[error("{0}")]
     Other(String),
 }
@@ -66,6 +72,10 @@ impl LpHandlerError {
             }
             _ => false,
         }
+    }
+
+    pub fn internal(msg: impl Into<String>) -> Self {
+        LpHandlerError::Internal(msg.into())
     }
 
     pub fn other(msg: impl Into<String>) -> Self {

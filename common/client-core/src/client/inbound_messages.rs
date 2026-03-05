@@ -203,19 +203,6 @@ impl InputMessage {
         self.set_max_retransmissions(max_retransmissions);
         self
     }
-
-    /// Returns the serialized size of this message including the 4-byte length prefix.
-    ///
-    /// Used by the `AsyncWrite` implementation on `MixnetClient` (in `nym-sdk`) to report
-    /// how many bytes were consumed from the input buffer, as required by the
-    /// `poll_write` contract.
-    #[allow(clippy::expect_used)]
-    pub fn serialized_size(&self) -> u64 {
-        make_bincode_serializer()
-            .serialized_size(self)
-            .expect("failed to get serialized InputMessage size")
-            + LENGHT_ENCODING_PREFIX_SIZE as u64
-    }
 }
 
 pub struct AdressedInputMessageCodec(pub Recipient);

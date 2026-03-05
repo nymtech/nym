@@ -5844,7 +5844,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
- "thiserror 2.0.17",
+ "thiserror 2.0.12",
  "tokio",
  "tokio_with_wasm",
  "tsify",
@@ -7793,7 +7793,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "rand_distr",
  "serde",
- "thiserror 2.0.17",
+ "thiserror 2.0.12",
  "tokio",
  "tracing",
 ]
@@ -7843,7 +7843,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
- "thiserror 2.0.17",
+ "thiserror 2.0.12",
  "tracing",
  "wasm-bindgen",
 ]
@@ -7892,7 +7892,7 @@ dependencies = [
  "nym-sphinx-params",
  "nym-sphinx-types",
  "serde",
- "thiserror 2.0.17",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -8033,7 +8033,7 @@ dependencies = [
  "log",
  "nym-test-utils",
  "serde",
- "thiserror 2.0.17",
+ "thiserror 2.0.12",
  "tokio",
  "tokio-util",
  "tracing",

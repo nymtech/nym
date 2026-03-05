@@ -106,8 +106,8 @@ async fn main() {
             inbound
         },
     );
-    let mut inbound_a = res_a;
-    let mut inbound_b = res_b;
+    let inbound_a = res_a;
+    let inbound_b = res_b;
 
     println!("\nSender reading replies...");
     tokio::join!(

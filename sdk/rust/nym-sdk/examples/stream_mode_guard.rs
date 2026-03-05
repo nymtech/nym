@@ -4,7 +4,6 @@
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sdk::Error;
-use tokio::io::AsyncWriteExt;
 
 #[tokio::main]
 async fn main() {
@@ -22,11 +21,9 @@ async fn main() {
         .unwrap();
     println!("Message sent successfully via message-based API");
 
-    // Now activate stream mode by using AsyncWrite
-    println!("\nActivating stream mode via AsyncWrite");
-    // Note: This write will likely fail since we're not sending valid framed data,
-    // but it will still activate stream mode
-    let _ = client.write_all(&[0u8; 10]).await;
+    // Now activate stream mode by creating a listener
+    println!("\nActivating stream mode via listener()");
+    let _listener = client.listener().unwrap();
     println!("Stream mode is now active");
 
     // Message-based API should now fail

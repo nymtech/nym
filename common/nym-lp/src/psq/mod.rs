@@ -12,6 +12,8 @@ mod helpers;
 pub mod initiator;
 pub mod responder;
 
+use crate::LpError;
+use crate::psq::initiator::HandshakeMode;
 pub use initiator::PSQHandshakeStateInitiator;
 pub use responder::PSQHandshakeStateResponder;
 
@@ -107,12 +109,20 @@ where
         }
     }
 
-    pub fn as_initiator(self, initiator_data: InitiatorData) -> PSQHandshakeStateInitiator<'a, S> {
-        PSQHandshakeStateInitiator {
+    pub fn as_initiator(
+        self,
+        initiator_data: InitiatorData,
+        mode: HandshakeMode,
+    ) -> Result<PSQHandshakeStateInitiator<'a, S>, LpError> {
+        if mode.is_mutual() && self.local_peer.kem_keypairs.is_none() {
+            return Err(LpError::PSQMutualInitiatorMissingKemKey);
+        }
+
+        Ok(PSQHandshakeStateInitiator {
             initiator_data,
             inner_state: self,
-            mutual: false,
-        }
+            mode,
+        })
     }
 
     pub fn as_responder(self, responder_data: ResponderData) -> PSQHandshakeStateResponder<'a, S> {
@@ -160,8 +170,10 @@ mod tests {
             resp.ciphersuite = ciphersuite;
             let resp_remote = resp.as_remote();
 
-            let handshake_init = PSQHandshakeState::new(conn_init, init)
-                .as_initiator(InitiatorData::new(1, resp_remote));
+            let handshake_init = PSQHandshakeState::new(conn_init, init).as_initiator(
+                InitiatorData::new(1, resp_remote),
+                HandshakeMode::OneWayEntry,
+            )?;
             let handshake_resp =
                 PSQHandshakeState::new(conn_resp, resp).as_responder(ResponderData::default());
 
@@ -232,9 +244,10 @@ mod tests {
             let resp_remote = resp.as_remote();
             let init_remote = init.as_remote();
 
-            let handshake_init = PSQHandshakeState::new(conn_init, init)
-                .as_initiator(InitiatorData::new(1, resp_remote))
-                .set_mutual_kkt()?;
+            let handshake_init = PSQHandshakeState::new(conn_init, init).as_initiator(
+                InitiatorData::new(1, resp_remote),
+                HandshakeMode::MutualInternode,
+            )?;
             let handshake_resp = PSQHandshakeState::new(conn_resp, resp).as_responder(
                 ResponderData::default()
                     .with_initiator_kem_hashes(init_remote.expected_kem_key_digests),

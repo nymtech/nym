@@ -28,6 +28,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::packet::version;
 use nym_lp::packet::{EncryptedLpPacket, LpMessage};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
+use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::{Ciphersuite, KEM, LpTransportSession};
@@ -185,7 +186,8 @@ impl NestedLpSession {
             local_peer,
             remote_peer,
             protocol_version,
-        )
+            HandshakeMode::OneWayExit,
+        )?
         .complete_handshake()
         .await?;
 

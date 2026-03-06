@@ -3,9 +3,9 @@
 
 use nym_metrics::{add_histogram_obs, inc, inc_by};
 
+mod control_tests;
 pub mod egress;
 pub mod ingress;
-mod tests;
 
 // Histogram buckets for LP operation duration (legacy - used by unused forwarding methods)
 const LP_DURATION_BUCKETS: &[f64] = &[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0];

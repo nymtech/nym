@@ -103,7 +103,7 @@ where
         }))
     }
 
-    pub async fn handle(mut self) -> Result<(), LpHandlerError> {
+    pub async fn handle(self) -> Result<(), LpHandlerError> {
         // Track total LP connections handled
         inc!("lp_node_connections_total");
 
@@ -119,6 +119,7 @@ where
 }
 
 /// Connection handler for an LP node after completing the KKT/PSQ handshake.
+#[allow(dead_code)]
 pub struct LpIngressNodeConnectionHandler<S = TcpStream> {
     stream: S,
     remote_addr: SocketAddr,
@@ -136,13 +137,15 @@ impl<S> LpIngressNodeConnectionHandler<S>
 where
     S: LpHandshakeChannel + LpTransportChannel + Unpin,
 {
-    async fn handle(mut self) -> Result<(), LpHandlerError> {
+    async fn handle(self) -> Result<(), LpHandlerError> {
         // handle all the forwarding here
 
         self.stats.emit_lifecycle_node_metrics(true);
         Ok(())
     }
 
+    // used in a unit test
+    #[allow(dead_code)]
     pub(crate) fn transport_session(&self) -> &LpTransportSession {
         &self.transport_session
     }

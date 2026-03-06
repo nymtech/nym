@@ -35,14 +35,14 @@ mod tests {
         LpNodeDetails::new(
             rng.next_u32(),
             peer.kem_key_digests().clone(),
-            peer.x25519().clone(),
+            *peer.x25519(),
             version::CURRENT,
         )
     }
 
     #[tokio::test]
     async fn basic_node_to_node_handshake() -> anyhow::Result<()> {
-        nym_test_utils::helpers::setup_test_logger();
+        // nym_test_utils::helpers::setup_test_logger();
 
         let (init, resp) = mock_peers();
         let init_remote = init.as_remote();

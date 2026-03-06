@@ -19,7 +19,7 @@ mod tests {
     use nym_node::node::GatewayStorage;
     use nym_node::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
     use nym_node::node::lp::error::LpHandlerError;
-    use nym_node::node::lp::state::{ActiveLpSessions, NestedConnectionsManager};
+    use nym_node::node::lp::state::ActiveLpSessions;
     use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{LpClientError, LpRegistrationClient};
@@ -36,7 +36,7 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
     use std::sync::Arc;
     use tokio::sync::Semaphore;
-    use tokio::sync::mpsc::{Receiver, channel};
+    use tokio::sync::mpsc::Receiver;
     use tokio::task::JoinHandle;
     use tokio_util::sync::CancellationToken;
     use tracing::error;
@@ -217,9 +217,6 @@ mod tests {
             let (mock_peer_controller, peer_controller_state) =
                 mock_peer_controller(peer_request_rx);
 
-            let (connection_ctrl_sender, _connection_manager_receiver) = channel(42);
-            let nested_connections_manager = NestedConnectionsManager::new(connection_ctrl_sender);
-
             // registering particular responses for peer controller is up to given test
             let ecash_verifier = Arc::new(ecash_verifier);
 
@@ -241,7 +238,6 @@ mod tests {
                     lp_config,
                     session_states: ActiveLpSessions::new(),
                 },
-                nested_connections_manager,
             };
 
             Ok(Gateway {

@@ -21,22 +21,15 @@ impl LpNodes {
     pub(crate) fn get_node_details(&self, node_ip: IpAddr) -> Option<LpNodeDetails> {
         self.nodes.load().get(&node_ip).cloned()
     }
-
-    pub(crate) fn get_node_id(&self, node_ip: IpAddr) -> Option<NodeId> {
-        self.nodes
-            .load()
-            .get(&node_ip)
-            .map(|details| details.node_id)
-    }
 }
 
 #[derive(Clone)]
-pub(crate) struct LpNodeDetails {
+pub struct LpNodeDetails {
     inner: Arc<LpNodeDetailsInner>,
 }
 
 impl LpNodeDetails {
-    pub(crate) fn new(
+    pub fn new(
         node_id: NodeId,
         kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
         x25519: DHPublicKey,
@@ -61,11 +54,11 @@ impl Deref for LpNodeDetails {
     }
 }
 
-pub(crate) struct LpNodeDetailsInner {
-    pub(crate) node_id: NodeId,
-    pub(crate) kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
-    pub(crate) x25519: DHPublicKey,
-    pub(crate) supported_protocol: u8,
+pub struct LpNodeDetailsInner {
+    pub node_id: NodeId,
+    pub kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
+    pub x25519: DHPublicKey,
+    pub supported_protocol: u8,
 }
 
 impl LpNodeDetailsInner {

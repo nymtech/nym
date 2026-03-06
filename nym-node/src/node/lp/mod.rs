@@ -72,7 +72,6 @@ use crate::error::NymNodeError;
 use crate::node::lp::cleanup::CleanupTask;
 use crate::node::lp::data::listener::LpDataListener;
 use control::ingress::listener::LpControlListener;
-use dashmap::DashMap;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::peer::LpLocalPeer;
 use nym_mixnet_client::forwarder::MixForwardingSender;

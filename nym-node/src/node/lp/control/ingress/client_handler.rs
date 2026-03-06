@@ -13,7 +13,7 @@ use nym_lp::session::{LpAction, LpInput};
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::{LpTransportSession, packet::message::ExpectedResponseSize};
-use nym_metrics::{add_histogram_obs, inc, inc_by};
+use nym_metrics::{add_histogram_obs, inc};
 use nym_node_metrics::NymNodeMetrics;
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;

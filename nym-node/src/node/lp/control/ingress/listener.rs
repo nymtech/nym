@@ -88,13 +88,13 @@ impl LpControlListener {
         initiator_details: LpNodeDetails,
     ) {
         warn!(
-            "received an incoming LP node connection - we can't support this yet beyond the handshake!"
+            "received an incoming LP node connection - we don't support this yet beyond the handshake!"
         );
 
         debug!("Accepting LP node connection from {remote_addr}");
 
         // Spawn handler task
-        let mut handler = InitialLpIngressNodeConnectionHandler::new(
+        let handler = InitialLpIngressNodeConnectionHandler::new(
             stream,
             remote_addr,
             initiator_details,

@@ -3,8 +3,6 @@
 
 use crate::config::LpDebug;
 use crate::node::lp::state::ActiveLpSessions;
-use nym_lp::LpTransportSession;
-use nym_lp::peer_config::LpReceiverIndex;
 use nym_metrics::inc_by;
 use std::time::Duration;
 use tracing::{debug, info};

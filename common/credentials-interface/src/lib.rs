@@ -4,6 +4,7 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use strum::IntoEnumIterator as _;
 use thiserror::Error;
 use time::{Date, OffsetDateTime};
 
@@ -314,6 +315,10 @@ impl TicketType {
             }
             _ => Err(UnknownTicketType),
         }
+    }
+
+    pub fn exposed_iter() -> impl Iterator<Item = TicketType> {
+        TicketType::iter()
     }
 }
 

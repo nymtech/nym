@@ -127,6 +127,8 @@ pub struct LpIngressNodeConnectionHandler<S = TcpStream> {
     state: SharedLpNodeControlState,
     stats: LpConnectionStats,
     transport_session: LpTransportSession,
+    // LOCAL receiver index to stream id
+    // client_streams: HashMap<ReceiverIndex, ClientStreamId>,
 }
 
 impl<S> LpIngressNodeConnectionHandler<S>

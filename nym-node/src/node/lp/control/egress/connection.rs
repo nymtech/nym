@@ -124,6 +124,7 @@ pub(crate) struct NestedNodeConnectionHandler<S> {
 
     /// Channel for adding new client handle and handling control requests from `NestedConnectionsController`
     control_receiver: NestedNodeControlReceiver,
+    // client_streams: HashMap<StreamId, LpClientStream>,
 }
 
 impl<S> NestedNodeConnectionHandler<S>

@@ -43,6 +43,7 @@ pub struct LpClientConnectionHandler<S = TcpStream> {
     /// Tuple contains (stream, target_address) to verify subsequent forwards go to same exit.
     exit_stream: Option<(S, SocketAddr)>,
 
+    /// Forwarding channel for sending requests to the exit gateway and receiving responses.
     #[allow(dead_code)]
     forwarding_channel: Option<NestedClientConnection>,
 }

@@ -14,6 +14,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+use tokio_util::sync::PollSender;
 
 use super::protocol::{encode_stream_message, StreamId, StreamMessageType};
 use super::StreamMap;
@@ -38,6 +39,7 @@ pub struct MixnetStream {
     id: StreamId,
     destination: Destination,
     client_input: ClientInput,
+    sender: PollSender<InputMessage>,
     packet_type: Option<PacketType>,
     streams: StreamMap,
 
@@ -57,6 +59,7 @@ impl MixnetStream {
         streams: StreamMap,
         inbound_rx: mpsc::UnboundedReceiver<Vec<u8>>,
     ) -> Self {
+        let sender = PollSender::new(client_input.input_sender.clone());
         Self {
             id,
             destination: Destination::Address {
@@ -64,6 +67,7 @@ impl MixnetStream {
                 reply_surbs,
             },
             client_input,
+            sender,
             packet_type,
             streams,
             inbound_rx,
@@ -86,10 +90,12 @@ impl MixnetStream {
         if !initial_data.is_empty() {
             read_buf.extend_from_slice(&initial_data);
         }
+        let sender = PollSender::new(client_input.input_sender.clone());
         Self {
             id,
             destination: Destination::Anonymous { sender_tag },
             client_input,
+            sender,
             packet_type,
             streams,
             inbound_rx,
@@ -174,14 +180,13 @@ impl AsyncWrite for MixnetStream {
             return Poll::Ready(Ok(0));
         }
 
-        ready!(self.client_input.input_sender.poll_ready_unpin(cx))
+        ready!(self.sender.poll_ready_unpin(cx))
             .map_err(|_| std::io::Error::other("mixnet input channel closed"))?;
 
         let wire = encode_stream_message(&self.id, StreamMessageType::Data, buf);
         let msg = self.make_input_message(wire);
 
-        self.client_input
-            .input_sender
+        self.sender
             .start_send_unpin(msg)
             .map_err(|_| std::io::Error::other("failed to send stream message"))?;
 

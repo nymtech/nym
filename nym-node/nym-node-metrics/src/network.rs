@@ -16,7 +16,14 @@ pub struct NetworkStats {
     // the call stack
     active_egress_mixnet_connections: Arc<AtomicUsize>,
 
-    active_lp_connections: AtomicUsize,
+    // incoming LP control connections from clients
+    active_lp_ingress_client_connections: AtomicUsize,
+
+    // incoming LP control connections from nodes
+    active_lp_ingress_node_connections: AtomicUsize,
+
+    // outgoing LP control connections to nodes
+    active_lp_egress_node_connections: AtomicUsize,
 }
 
 impl NetworkStats {
@@ -59,15 +66,38 @@ impl NetworkStats {
             .load(Ordering::Relaxed)
     }
 
-    pub fn new_lp_connection(&self) {
-        self.active_lp_connections.fetch_add(1, Ordering::Relaxed);
+    pub fn new_ingress_lp_client_connection(&self) {
+        self.active_lp_ingress_client_connections
+            .fetch_add(1, Ordering::Relaxed);
     }
 
-    pub fn lp_connection_closed(&self) {
-        self.active_lp_connections.fetch_sub(1, Ordering::Relaxed);
+    pub fn closed_ingress_lp_client_connection(&self) {
+        self.active_lp_ingress_client_connections
+            .fetch_sub(1, Ordering::Relaxed);
     }
 
-    pub fn active_lp_connections_count(&self) -> usize {
-        self.active_lp_connections.load(Ordering::Relaxed)
+    pub fn new_ingress_lp_node_connection(&self) {
+        self.active_lp_ingress_node_connections
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn closed_ingress_lp_node_connection(&self) {
+        self.active_lp_ingress_node_connections
+            .fetch_sub(1, Ordering::Relaxed);
+    }
+
+    pub fn new_egress_lp_node_connection(&self) {
+        self.active_lp_egress_node_connections
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn closed_egress_lp_node_connection(&self) {
+        self.active_lp_egress_node_connections
+            .fetch_sub(1, Ordering::Relaxed);
+    }
+
+    pub fn active_lp_client_connections_count(&self) -> usize {
+        self.active_lp_ingress_client_connections
+            .load(Ordering::Relaxed)
     }
 }

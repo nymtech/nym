@@ -139,6 +139,7 @@ harness = false
 cargo_metadata = { workspace = true }
 
 [dev-dependencies]
+nym-lp = { workspace = true, features = ["mock"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 nym-test-utils = { workspace = true }
 

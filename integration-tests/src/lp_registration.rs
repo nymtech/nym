@@ -17,9 +17,10 @@ mod tests {
     use nym_lp::peer::LpLocalPeer;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
-    use nym_node::node::lp::control::client_handler::LpConnectionHandler;
+    use nym_node::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
     use nym_node::node::lp::error::LpHandlerError;
-    use nym_node::node::lp::{SharedLpControlState, SharedLpState};
+    use nym_node::node::lp::state::{ActiveLpSessions, NestedConnectionsManager};
+    use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{LpClientError, LpRegistrationClient};
     use nym_test_utils::helpers::{CryptoRng09, seeded_rng};
@@ -35,7 +36,7 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
     use std::sync::Arc;
     use tokio::sync::Semaphore;
-    use tokio::sync::mpsc::Receiver;
+    use tokio::sync::mpsc::{Receiver, channel};
     use tokio::task::JoinHandle;
     use tokio_util::sync::CancellationToken;
     use tracing::error;
@@ -120,7 +121,7 @@ mod tests {
     enum SpawnedLpConnectionHandlerState {
         NotCreated,
         Ready {
-            handler: LpConnectionHandler<MockIOStream>,
+            handler: LpClientConnectionHandler<MockIOStream>,
         },
         Running {
             handle: JoinHandle<Option<Result<(), LpHandlerError>>>,
@@ -130,7 +131,7 @@ mod tests {
 
     struct Gateway {
         base: Party,
-        lp_state: SharedLpControlState,
+        lp_state: SharedLpClientControlState,
         ip_pool: IpPool,
         mock_peer_controller: SpawnedPeerController,
 
@@ -216,6 +217,9 @@ mod tests {
             let (mock_peer_controller, peer_controller_state) =
                 mock_peer_controller(peer_request_rx);
 
+            let (connection_ctrl_sender, _connection_manager_receiver) = channel(42);
+            let nested_connections_manager = NestedConnectionsManager::new(connection_ctrl_sender);
+
             // registering particular responses for peer controller is up to given test
             let ecash_verifier = Arc::new(ecash_verifier);
 
@@ -225,7 +229,7 @@ mod tests {
                 upgrade_mode_details,
             );
 
-            let lp_state = SharedLpControlState {
+            let lp_state = SharedLpClientControlState {
                 local_lp_peer: base.peer.clone(),
 
                 forward_semaphore,
@@ -235,8 +239,9 @@ mod tests {
                 shared: SharedLpState {
                     metrics: Default::default(),
                     lp_config,
-                    session_states: Arc::new(Default::default()),
+                    session_states: ActiveLpSessions::new(),
                 },
+                nested_connections_manager,
             };
 
             Ok(Gateway {
@@ -262,7 +267,7 @@ mod tests {
             };
 
             self.lp_connection_handler = SpawnedLpConnectionHandlerState::Ready {
-                handler: LpConnectionHandler::new(
+                handler: LpClientConnectionHandler::new(
                     client_connection,
                     client_address,
                     self.lp_state.clone(),
@@ -290,7 +295,7 @@ mod tests {
         }
 
         fn spawn_lp_handler(&mut self) {
-            let SpawnedLpConnectionHandlerState::Ready { handler } = mem::replace(
+            let SpawnedLpConnectionHandlerState::Ready { mut handler } = mem::replace(
                 &mut self.lp_connection_handler,
                 SpawnedLpConnectionHandlerState::NotCreated,
             ) else {

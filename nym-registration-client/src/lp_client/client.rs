@@ -14,6 +14,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpTransportSession;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::peer_config::LpReceiverIndex;
+use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use nym_lp::{Ciphersuite, packet::EncryptedLpPacket, packet::version};
@@ -396,7 +397,8 @@ where
             local_peer,
             remote_peer,
             protocol_version,
-        )
+            HandshakeMode::OneWayEntry,
+        )?
         .complete_handshake()
         .await?;
 

@@ -91,7 +91,7 @@ pub use state::{SharedLpClientControlState, SharedLpDataState, SharedLpState};
 mod cleanup;
 pub mod control;
 mod data;
-pub(crate) mod directory;
+pub mod directory;
 pub mod error;
 pub mod forwarding;
 mod registration;

@@ -5,7 +5,6 @@ use crate::config::LpConfig;
 use crate::node::lp::cleanup::TimestampedState;
 use crate::node::lp::directory::LpNodes;
 use crate::node::lp::error::LpHandlerError;
-use crate::node::lp::forwarding::manager::NestedConnectionsManager;
 use dashmap::DashMap;
 use dashmap::mapref::one::RefMut;
 use nym_gateway::node::wireguard::PeerRegistrator;
@@ -16,6 +15,8 @@ use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
+
+pub use crate::node::lp::forwarding::manager::NestedConnectionsManager;
 
 /// Shared state for LP clients control connections
 #[derive(Clone)]

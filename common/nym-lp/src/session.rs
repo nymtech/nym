@@ -9,6 +9,7 @@ use crate::codec::{decrypt_lp_packet, encrypt_lp_packet};
 use crate::packet::{EncryptedLpPacket, LpHeader, LpMessage, LpPacket};
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::peer_config::LpReceiverIndex;
+use crate::psq::initiator::HandshakeMode;
 use crate::psq::{
     InitiatorData, PSQHandshakeState, PSQHandshakeStateInitiator, PSQHandshakeStateResponder,
     ResponderData,
@@ -156,16 +157,19 @@ impl LpTransportSession {
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
         remote_protocol_version: u8,
-    ) -> PSQHandshakeStateInitiator<'_, S>
+        mode: HandshakeMode,
+    ) -> Result<PSQHandshakeStateInitiator<'_, S>, LpError>
     where
         S: LpHandshakeChannel + Unpin,
     {
-        PSQHandshakeState::new(connection, local_peer)
-            .as_initiator(InitiatorData::new(remote_protocol_version, remote_peer))
+        PSQHandshakeState::new(connection, local_peer).as_initiator(
+            InitiatorData::new(remote_protocol_version, remote_peer),
+            mode,
+        )
     }
 
     /// Helper function to create `PSQHandshakeState` for the handshake initiator for mutual KKT
-    pub fn psq_handshake_initiator_mutual<S>(
+    pub fn psq_handshake_initiator_mutual_internode<S>(
         connection: &'_ mut S,
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
@@ -174,9 +178,13 @@ impl LpTransportSession {
     where
         S: LpHandshakeChannel + Unpin,
     {
-        PSQHandshakeState::new(connection, local_peer)
-            .as_initiator(InitiatorData::new(remote_protocol_version, remote_peer))
-            .set_mutual_kkt()
+        Self::psq_handshake_initiator(
+            connection,
+            local_peer,
+            remote_peer,
+            remote_protocol_version,
+            HandshakeMode::MutualInternode,
+        )
     }
 
     /// Helper function to create `PSQHandshakeState` for the handshake responder

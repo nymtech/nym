@@ -9,12 +9,12 @@ use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{Notify, oneshot};
 
-pub(crate) mod client_connection;
-pub(crate) mod controller;
-pub(crate) mod manager;
+pub mod client_connection;
+pub mod controller;
+pub mod manager;
 
-pub(crate) type NodeConnectionControllerReceiver = Receiver<NestedConnectionControllerRequest>;
-pub(crate) type NodeConnectionControllerSender = Sender<NestedConnectionControllerRequest>;
+pub type NodeConnectionControllerReceiver = Receiver<NestedConnectionControllerRequest>;
+pub type NodeConnectionControllerSender = Sender<NestedConnectionControllerRequest>;
 
 pub(crate) enum ConnectionControllerResponse<T> {
     /// The response is immediately available
@@ -35,11 +35,11 @@ impl<T> ConnectionControllerResponse<T> {
     }
 }
 
-pub(crate) type ControllerResponse<T> = Result<ConnectionControllerResponse<T>, LpHandlerError>;
+pub type ControllerResponse<T> = Result<ConnectionControllerResponse<T>, LpHandlerError>;
 
-pub(crate) type ConnectionHandlerResponse = ControllerResponse<NestedClientConnection>;
+pub type ConnectionHandlerResponse = ControllerResponse<NestedClientConnection>;
 
-pub(crate) enum NestedConnectionControllerRequest {
+pub enum NestedConnectionControllerRequest {
     /// Attempt to retrieve or create a handle to an exit gateway connection.
     /// If the connection doesn't exist, it will be established
     ConnectionHandler {

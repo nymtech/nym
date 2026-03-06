@@ -22,7 +22,7 @@ pub(crate) enum NodeHandle {
 }
 
 /// Keep track of connections to the exit gateway
-pub(crate) struct NestedConnectionsController {
+pub struct NestedConnectionsController {
     /// Handle channel for sending requests to this controller
     sender: super::NodeConnectionControllerSender,
 
@@ -40,7 +40,7 @@ pub(crate) struct NestedConnectionsController {
 }
 
 impl NestedConnectionsController {
-    pub(crate) fn new(lp_nodes: LpNodes, shutdown: nym_task::ShutdownToken) -> Self {
+    pub fn new(lp_nodes: LpNodes, shutdown: nym_task::ShutdownToken) -> Self {
         let (sender, receiver) = tokio::sync::mpsc::channel(CONTROL_CHANNEL_SIZE);
 
         Self {
@@ -52,7 +52,7 @@ impl NestedConnectionsController {
         }
     }
 
-    pub(crate) fn request_sender(&self) -> super::NodeConnectionControllerSender {
+    pub fn request_sender(&self) -> super::NodeConnectionControllerSender {
         self.sender.clone()
     }
 
@@ -98,7 +98,7 @@ impl NestedConnectionsController {
         }
     }
 
-    pub(crate) async fn run(&mut self) {
+    pub async fn run(&mut self) {
         loop {
             tokio::select! {
                 biased;

@@ -66,7 +66,7 @@ where
         let timeout = self.state.shared.lp_config.debug.handshake_ttl;
         let stream = &mut self.stream;
 
-        let handshake_state = match LpTransportSession::psq_handshake_initiator_mutual(
+        let handshake_state = match LpTransportSession::psq_handshake_initiator_mutual_internode(
             stream,
             self.state.local_lp_peer.clone(),
             self.responder_details.to_lp_peer(),

@@ -24,10 +24,31 @@ use nym_kkt::message::{KKTRequest, KKTResponse};
 use rand09::SeedableRng;
 use tracing::debug;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandshakeMode {
+    // Client <> Entry
+    OneWayEntry,
+
+    // Client <> Exit
+    OneWayExit,
+
+    // Entry <> Exit
+    MutualInternode,
+    // in the future more variants will be supported (such as individual mix hops)
+}
+
+impl HandshakeMode {
+    pub fn is_mutual(&self) -> bool {
+        matches!(self, HandshakeMode::MutualInternode)
+    }
+}
+
 pub struct PSQHandshakeStateInitiator<'a, S> {
     pub(super) inner_state: PSQHandshakeState<'a, S>,
     pub(super) initiator_data: InitiatorData,
-    pub(super) mutual: bool,
+
+    /// The mode of the handshake (mutual node-node, client-entry, entry-exit)
+    pub(super) mode: HandshakeMode,
 }
 
 pub(crate) fn build_psq_principal<R>(
@@ -78,13 +99,23 @@ impl<'a, S> PSQHandshakeStateInitiator<'a, S>
 where
     S: LpHandshakeChannel + Unpin,
 {
-    pub fn set_mutual_kkt(mut self) -> Result<Self, LpError> {
-        if self.inner_state.local_peer.kem_keypairs.is_none() {
-            return Err(LpError::PSQMutualInitiatorMissingKemKey);
-        }
+    fn lp_peer_config<R>(&self, rng: &mut R) -> Result<LpPeerConfig, LpError>
+    where
+        R: rand09::CryptoRng,
+    {
+        // for now we don't support censorship resistance flag
+        let censorship_resistance = false;
 
-        self.mutual = true;
-        Ok(self)
+        match self.mode {
+            HandshakeMode::OneWayEntry => Ok(LpPeerConfig::new_client_to_entry(
+                rng,
+                censorship_resistance,
+            )),
+            HandshakeMode::OneWayExit => {
+                LpPeerConfig::new_client_to_exit(rng, 1, censorship_resistance)
+            }
+            HandshakeMode::MutualInternode => LpPeerConfig::new_node_to_node(rng),
+        }
     }
 
     /// Attempt to send KKT request to begin the handshake
@@ -132,7 +163,7 @@ where
         let ciphersuite = self.inner_state.local_peer.ciphersuite();
         let kem = ciphersuite.kem();
 
-        let lp_peer_config = LpPeerConfig::new_client_to_entry(rng, false);
+        let lp_peer_config = self.lp_peer_config(rng)?;
 
         // 1. retrieve the expected kem key hash. if we don't know it,
         let dir_hash = self
@@ -141,7 +172,7 @@ where
             .expected_kem_key_hash(ciphersuite)?;
 
         // 2. prepare and send KKT request
-        let (mut initiator, kkt_request) = if self.mutual {
+        let (mut initiator, kkt_request) = if self.mode.is_mutual() {
             // this has been verified when setting the mutual flag
             let Some(local_encapsulation_key) = self.inner_state.local_peer.encoded_kem_key(kem)
             else {
@@ -273,8 +304,8 @@ mod tests {
             resp.ciphersuite = ciphersuite;
             let initiator_data = InitiatorData::new(1, resp_remote);
 
-            let handshake_init =
-                PSQHandshakeState::new(conn_init, init).as_initiator(initiator_data);
+            let handshake_init = PSQHandshakeState::new(conn_init, init)
+                .as_initiator(initiator_data, HandshakeMode::OneWayEntry)?;
 
             let mut init_rng = DeterministicRng09Send::new(u64_seeded_rng_09(1));
 
@@ -396,8 +427,7 @@ mod tests {
             let initiator_data = InitiatorData::new(1, resp_remote);
 
             let handshake_init = PSQHandshakeState::new(conn_init, init)
-                .as_initiator(initiator_data)
-                .set_mutual_kkt()?;
+                .as_initiator(initiator_data, HandshakeMode::MutualInternode)?;
 
             let mut init_rng = DeterministicRng09Send::new(u64_seeded_rng_09(1));
 

@@ -45,25 +45,7 @@ where
         }
     }
 
-    async fn handle_premade_packets(&mut self, packet_bytes: Vec<Vec<u8>>, lane: TransmissionLane) {
-        // Deserialize packet bytes back to MixPacket
-        let packets: Vec<MixPacket> = packet_bytes
-            .into_iter()
-            .filter_map(|bytes| {
-                MixPacket::try_from_v2_bytes(&bytes)
-                    .map_err(|e| {
-                        warn!("Failed to deserialize premade packet: {}", e);
-                        e
-                    })
-                    .ok()
-            })
-            .collect();
-
-        if packets.is_empty() {
-            warn!("No valid premade packets to send");
-            return;
-        }
-
+    async fn handle_premade_packets(&mut self, packets: Vec<MixPacket>, lane: TransmissionLane) {
         self.message_handler
             .send_premade_mix_packets(
                 packets
@@ -174,9 +156,7 @@ where
                 self.handle_reply(recipient_tag, data, lane, max_retransmissions)
                     .await;
             }
-            InputMessage::Premade { packet_bytes, lane } => {
-                self.handle_premade_packets(packet_bytes, lane).await
-            }
+            InputMessage::Premade { msgs, lane } => self.handle_premade_packets(msgs, lane).await,
             InputMessage::MessageWrapper {
                 message,
                 packet_type,
@@ -222,8 +202,8 @@ where
                     self.handle_reply(recipient_tag, data, lane, max_retransmissions)
                         .await;
                 }
-                InputMessage::Premade { packet_bytes, lane } => {
-                    self.handle_premade_packets(packet_bytes, lane).await
+                InputMessage::Premade { msgs, lane } => {
+                    self.handle_premade_packets(msgs, lane).await
                 }
                 // MessageWrappers can't be nested
                 InputMessage::MessageWrapper { .. } => {

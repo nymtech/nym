@@ -4,7 +4,7 @@
 [package]
 name = "nym-network-requester"
 license = "GPL-3.0"
-version = "1.1.72"
+version = "1.1.73"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.85"
@@ -38,7 +38,6 @@ tap = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["net", "rt-multi-thread", "macros"] }
 tokio-tungstenite = { workspace = true }
-tokio-util = { workspace = true }
 url = { workspace = true }
 time = { workspace = true }
 zeroize = { workspace = true }

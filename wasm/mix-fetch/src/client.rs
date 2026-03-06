@@ -8,7 +8,6 @@ use crate::go_bridge::goWasmSetMixFetchRequestTimeout;
 use crate::request_writer::RequestWriter;
 use crate::socks_helpers::{socks5_connect_request, socks5_data_request};
 use crate::{config, RequestId};
-use futures::SinkExt;
 use js_sys::Promise;
 use nym_bin_common::bin_info;
 use nym_socks5_requests::RemoteAddress;
@@ -25,9 +24,7 @@ use nym_wasm_client_core::{IdentityKey, QueryReqwestRpcNyxdClient, Recipient};
 use nym_wasm_utils::console_log;
 use nym_wasm_utils::error::PromisableResult;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::sync::RwLock;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
@@ -39,7 +36,7 @@ pub struct MixFetchClient {
 
     self_address: Recipient,
 
-    client_input: Arc<RwLock<ClientInput>>,
+    client_input: ClientInput,
 
     requests: ActiveRequests,
 
@@ -188,7 +185,7 @@ impl MixFetchClientBuilder {
             invalidated: AtomicBool::new(false),
             mix_fetch_config: self.config.mix_fetch,
             self_address,
-            client_input: Arc::new(RwLock::new(client_input)),
+            client_input,
             requests: active_requests,
             _shutdown_manager: Mutex::new(started_client.shutdown_handle),
         })
@@ -266,8 +263,6 @@ impl MixFetchClient {
         // the expect here is fine as it implies an unrecoverable failure since one of the client core
         // tasks has terminated
         self.client_input
-            .write()
-            .await
             .input_sender
             .send(input)
             .await
@@ -295,8 +290,6 @@ impl MixFetchClient {
         // the expect here is fine as it implies an unrecoverable failure since one of the client core
         // tasks has terminated
         self.client_input
-            .write()
-            .await
             .input_sender
             .send(input)
             .await

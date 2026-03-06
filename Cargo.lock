@@ -5715,7 +5715,6 @@ version = "1.20.4"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
- "bincode",
  "bs58",
  "cfg-if",
  "clap",
@@ -5762,7 +5761,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
- "tokio-util",
  "tokio_with_wasm",
  "tracing",
  "tungstenite 0.20.1",
@@ -5845,7 +5843,6 @@ dependencies = [
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
  "thiserror 2.0.12",
- "tokio",
  "tokio_with_wasm",
  "tsify",
  "wasm-bindgen",
@@ -7079,7 +7076,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.72"
+version = "1.1.73"
 dependencies = [
  "addr",
  "anyhow",
@@ -7123,7 +7120,6 @@ dependencies = [
  "time",
  "tokio",
  "tokio-tungstenite",
- "tokio-util",
  "url",
  "zeroize",
 ]
@@ -7736,7 +7732,6 @@ dependencies = [
  "tap",
  "thiserror 2.0.12",
  "tokio",
- "tokio-util",
  "url",
 ]
 
@@ -7774,7 +7769,6 @@ dependencies = [
 name = "nym-sphinx"
 version = "1.20.4"
 dependencies = [
- "log",
  "nym-crypto",
  "nym-metrics",
  "nym-mixnet-contract-common",
@@ -7792,7 +7786,6 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_distr",
- "serde",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
@@ -7891,7 +7884,6 @@ dependencies = [
  "nym-sphinx-anonymous-replies",
  "nym-sphinx-params",
  "nym-sphinx-types",
- "serde",
  "thiserror 2.0.12",
 ]
 
@@ -8032,7 +8024,6 @@ dependencies = [
  "futures",
  "log",
  "nym-test-utils",
- "serde",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",

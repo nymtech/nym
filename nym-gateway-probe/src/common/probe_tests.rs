@@ -172,13 +172,11 @@ pub async fn lp_registration_probe(
 
     let mut lp_outcome = LpProbeResults::default();
 
-    // Generate Ed25519 keypair for this connection (X25519 will be derived internally by LP)
+    // Generate X25519 keypair for this connection
     let mut rng09 = rand09::rngs::StdRng::from_os_rng();
     let client_x25519_keypair = Arc::new(DHKeyPair::new(&mut rng09));
 
-    // Step 0: Derive X25519 keys from Ed25519 for the gateways
-
-    // Create LP registration client (uses Ed25519 keys directly, derives X25519 internally)
+    // Create LP registration client
     let mut client = LpRegistrationClient::<TcpStream>::new_with_default_config(
         client_x25519_keypair,
         peer,
@@ -212,16 +210,13 @@ pub async fn lp_registration_probe(
     let mut rng = rand::thread_rng();
     let wg_keypair = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rng);
 
-    // Convert gateway identity to ed25519 public key
-    let gateway_ed25519_pubkey = gateway_identity;
-
     // Register using the new packet-per-connection API (returns GatewayData directly)
     let ticket_type = TicketType::V1WireguardEntry;
     let gateway_data = match client
         .register_dvpn(
             &mut rng09,
             &wg_keypair,
-            &gateway_ed25519_pubkey,
+            &gateway_identity,
             bandwidth_controller,
             ticket_type,
         )
@@ -538,7 +533,7 @@ pub async fn do_ping_exit(
 }
 
 async fn send_icmp_pings(
-    mixnet_client: &mut MixnetClient,
+    mixnet_client: &MixnetClient,
     our_ips: IpPair,
     exit_router_address: Recipient,
 ) -> anyhow::Result<()> {

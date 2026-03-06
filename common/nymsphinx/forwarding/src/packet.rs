@@ -174,15 +174,13 @@ impl MixPacket {
         })
     }
 
-    pub fn to_v2_bytes(&self) -> Result<Vec<u8>, MixPacketFormattingError> {
+    pub fn into_v2_bytes(self) -> Result<Vec<u8>, MixPacketFormattingError> {
         Ok(std::iter::once(self.packet_type as u8)
             .chain(std::iter::once(self.key_rotation as u8))
             .chain(self.next_hop.as_bytes())
             .chain(self.packet.to_bytes()?)
             .collect())
     }
-
-    pub fn into_v2_bytes(self) -> Result<Vec<u8>, MixPacketFormattingError> {
-        self.to_v2_bytes()
-    }
 }
+
+// TODO: test for serialization and errors!

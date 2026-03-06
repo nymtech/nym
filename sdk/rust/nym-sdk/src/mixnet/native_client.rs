@@ -4,7 +4,7 @@ use crate::mixnet::stream::{MixnetListener, MixnetStream};
 use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
-use futures::{ready, Sink, SinkExt, Stream, StreamExt};
+use futures::{ready, Stream, StreamExt};
 use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
 use nym_client_core::client::mix_traffic::ClientRequestSender;
@@ -341,72 +341,6 @@ impl Clone for MixnetClientSender {
     }
 }
 
-impl Sink<InputMessage> for MixnetClient {
-    type Error = Error;
-
-    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        if self.stream_mode.load(Ordering::SeqCst) {
-            return Poll::Ready(Err(Error::StreamModeActive));
-        }
-        match self.sender().poll_ready_unpin(cx) {
-            Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
-            Poll::Ready(Err(_)) => Poll::Ready(Err(Error::MessageSendingFailure)),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-
-    fn start_send(mut self: Pin<&mut Self>, item: InputMessage) -> Result<()> {
-        self.sender()
-            .start_send_unpin(item)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.sender()
-            .poll_flush_unpin(cx)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.sender()
-            .poll_close_unpin(cx)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-}
-
-impl Sink<InputMessage> for MixnetClientSender {
-    type Error = Error;
-
-    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        if self.stream_mode.load(Ordering::SeqCst) {
-            return Poll::Ready(Err(Error::StreamModeActive));
-        }
-        match self.sender().poll_ready_unpin(cx) {
-            Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
-            Poll::Ready(Err(_)) => Poll::Ready(Err(Error::MessageSendingFailure)),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-
-    fn start_send(mut self: Pin<&mut Self>, item: InputMessage) -> Result<()> {
-        self.sender()
-            .start_send_unpin(item)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.sender()
-            .poll_flush_unpin(cx)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.sender()
-            .poll_close_unpin(cx)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-}
-
 impl Stream for MixnetClient {
     type Item = ReconstructedMessage;
 
@@ -449,7 +383,7 @@ impl MixnetMessageSender for MixnetClient {
         self.packet_type
     }
 
-    async fn send(&mut self, message: InputMessage) -> Result<()> {
+    async fn send(&self, message: InputMessage) -> Result<()> {
         if self.stream_mode.load(Ordering::SeqCst) {
             tracing::warn!("send() called after stream mode activated");
             return Err(Error::StreamModeActive);
@@ -458,10 +392,6 @@ impl MixnetMessageSender for MixnetClient {
             .send(message)
             .await
             .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn sender(&mut self) -> &mut tokio_util::sync::PollSender<InputMessage> {
-        &mut self.client_input.input_sender
     }
 }
 
@@ -471,7 +401,7 @@ impl MixnetMessageSender for MixnetClientSender {
         self.packet_type
     }
 
-    async fn send(&mut self, message: InputMessage) -> Result<()> {
+    async fn send(&self, message: InputMessage) -> Result<()> {
         if self.stream_mode.load(Ordering::SeqCst) {
             tracing::warn!("send() called after stream mode activated");
             return Err(Error::StreamModeActive);
@@ -480,9 +410,5 @@ impl MixnetMessageSender for MixnetClientSender {
             .send(message)
             .await
             .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn sender(&mut self) -> &mut tokio_util::sync::PollSender<InputMessage> {
-        &mut self.client_input.input_sender
     }
 }

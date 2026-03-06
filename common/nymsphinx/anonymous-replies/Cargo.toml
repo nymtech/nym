@@ -12,7 +12,6 @@ rand = { workspace = true }
 bs58 = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-serde = { workspace = true }
 
 nym-crypto = { workspace = true, features = ["stream_cipher", "rand"] }
 nym-sphinx-addressing = { workspace = true }

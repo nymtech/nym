@@ -38,7 +38,6 @@ enum Destination {
 pub struct MixnetStream {
     id: StreamId,
     destination: Destination,
-    client_input: ClientInput,
     sender: PollSender<InputMessage>,
     packet_type: Option<PacketType>,
     streams: StreamMap,
@@ -66,7 +65,6 @@ impl MixnetStream {
                 recipient: Box::new(recipient),
                 reply_surbs,
             },
-            client_input,
             sender,
             packet_type,
             streams,
@@ -94,7 +92,6 @@ impl MixnetStream {
         Self {
             id,
             destination: Destination::Anonymous { sender_tag },
-            client_input,
             sender,
             packet_type,
             streams,

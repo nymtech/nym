@@ -7464,6 +7464,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-network-monitors-contract-common"
+version = "1.20.4"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-network-requester"
 version = "1.1.77"
 dependencies = [

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::NETWORK_MONITORS_CONTRACT_STORAGE;
-use cosmwasm_std::{DepsMut, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use nym_network_monitors_contract_common::NetworkMonitorsContractError;
+use std::net::IpAddr;
 
 pub fn try_update_contract_admin(
     deps: DepsMut<'_>,
@@ -17,6 +18,76 @@ pub fn try_update_contract_admin(
         .execute_update_admin(deps, info, Some(new_admin))?;
 
     Ok(res)
+}
+
+pub fn try_authorise_network_monitor_orchestrator(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    orchestrator_address: String,
+) -> Result<Response, NetworkMonitorsContractError> {
+    let orchestrator_address = deps.api.addr_validate(&orchestrator_address)?;
+    NETWORK_MONITORS_CONTRACT_STORAGE.authorise_orchestrator(
+        deps,
+        &env,
+        &info.sender,
+        orchestrator_address,
+    )?;
+
+    Ok(Response::new())
+}
+
+pub fn try_revoke_network_monitor_orchestrator(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    orchestrator_address: String,
+) -> Result<Response, NetworkMonitorsContractError> {
+    let orchestrator_address = deps.api.addr_validate(&orchestrator_address)?;
+
+    NETWORK_MONITORS_CONTRACT_STORAGE.remove_orchestrator_authorisation(
+        deps,
+        &info.sender,
+        orchestrator_address,
+    )?;
+
+    Ok(Response::new())
+}
+
+pub fn try_authorise_network_monitor(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    network_monitor_address: IpAddr,
+) -> Result<Response, NetworkMonitorsContractError> {
+    NETWORK_MONITORS_CONTRACT_STORAGE.authorise_monitor(
+        deps,
+        &env,
+        &info.sender,
+        network_monitor_address,
+    )?;
+
+    Ok(Response::new())
+}
+
+pub fn try_revoke_network_monitor(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    network_monitor_address: IpAddr,
+) -> Result<Response, NetworkMonitorsContractError> {
+    NETWORK_MONITORS_CONTRACT_STORAGE.remove_monitor_authorisation(
+        deps,
+        &info.sender,
+        network_monitor_address,
+    )?;
+    Ok(Response::new())
+}
+
+pub fn try_revoke_all_network_monitors(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+) -> Result<Response, NetworkMonitorsContractError> {
+    NETWORK_MONITORS_CONTRACT_STORAGE.remove_all_monitors(deps, &info.sender)?;
+    Ok(Response::new())
 }
 
 #[cfg(test)]

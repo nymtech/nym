@@ -65,6 +65,7 @@ impl LpPeerConfig {
             rng.random(),
         )
     }
+
     /// Creates a new client to exit config.
     /// Inputs:
     /// hop_id: this value must be in the range (1..=15). This function returns an error if this is not the case.
@@ -79,6 +80,7 @@ impl LpPeerConfig {
     {
         Self::new(rng, hop_id, true, false, censorship_resistance)
     }
+
     /// Creates a new client to an intermediate node config.
     /// Inputs:
     /// hop_id: this value must be in the range (1..=14). This function returns an error if this is not the case.
@@ -130,6 +132,7 @@ impl LpPeerConfig {
             rng.random(),
         )
     }
+
     fn build(
         hop_id: u8,
         is_exit: bool,
@@ -147,6 +150,7 @@ impl LpPeerConfig {
             seed,
         }
     }
+
     fn build_checked(
         hop_id: u8,
         is_exit: bool,
@@ -203,6 +207,7 @@ impl LpPeerConfig {
         output_bytes[4..].copy_from_slice(&self.seed);
         output_bytes
     }
+
     pub fn deserialize(bytes: &[u8]) -> Result<Self, LpError> {
         if bytes.len() != LP_PEER_CONFIG_SIZE {
             return Err(LpError::DeserializationError(format!(

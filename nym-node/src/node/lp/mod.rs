@@ -9,7 +9,7 @@
 // ## Connection Metrics (via NetworkStats in nym-node-metrics)
 // - active_lp_connections: Gauge tracking current active LP connections (incremented on accept, decremented on close)
 //
-// ## Handler Metrics (in handler.rs)
+// ## Handler Metrics (in client_handler)
 // - lp_connections_total: Counter for total LP connections handled
 // - lp_client_hello_failed: Counter for ClientHello failures (timestamp validation, protocol errors)
 // - lp_handshakes_success: Counter for successful handshake completions
@@ -46,7 +46,7 @@
 // ## Error Categorization Metrics
 // - lp_errors_wg_peer_registration: Counter for WireGuard peer registration failures
 //
-// ## Connection Lifecycle Metrics (in handler.rs)
+// ## Connection Lifecycle Metrics (in client_handler)
 // - lp_connection_duration_seconds: Histogram of connection duration from start to end (buckets: 1s to 24h)
 // - lp_connection_bytes_received_total: Counter for total bytes received including protocol framing
 // - lp_connection_bytes_sent_total: Counter for total bytes sent including protocol framing
@@ -58,7 +58,7 @@
 // - lp_states_cleanup_session_removed: Counter for stale sessions removed by cleanup task
 // - lp_states_cleanup_demoted_removed: Counter for demoted (read-only) sessions removed by cleanup task
 //
-// ## Subsession/Rekeying Metrics (in handler.rs)
+// ## Subsession/Rekeying Metrics (in client_handler)
 // - lp_subsession_kk2_sent: Counter for SubsessionKK2 responses sent (indicates client initiated rekeying)
 // - lp_subsession_complete: Counter for successful subsession promotions
 // - lp_subsession_receiver_index_collision: Counter for subsession receiver_index collisions
@@ -70,9 +70,8 @@
 use crate::config::LpConfig;
 use crate::error::NymNodeError;
 use crate::node::lp::cleanup::CleanupTask;
-use crate::node::lp::control::listener::LpControlListener;
 use crate::node::lp::data::listener::LpDataListener;
-use dashmap::DashMap;
+use control::ingress::listener::LpControlListener;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::peer::LpLocalPeer;
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -82,12 +81,15 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tracing::error;
 
+use crate::node::lp::directory::LpNodes;
+use crate::node::lp::state::{ActiveLpSessions, SharedLpNodeControlState};
 pub use nym_mixnet_client::forwarder::{MixForwardingReceiver, mix_forwarding_channels};
-pub use state::{SharedLpControlState, SharedLpDataState, SharedLpState};
+pub use state::{SharedLpClientControlState, SharedLpDataState, SharedLpState};
 
 mod cleanup;
 pub mod control;
 mod data;
+pub mod directory;
 pub mod error;
 mod registration;
 pub mod state;
@@ -107,11 +109,12 @@ impl LpSetup {
         lp_config: LpConfig,
         metrics: NymNodeMetrics,
         peer_registrator: Option<PeerRegistrator>,
+        network_nodes: LpNodes,
         mix_packet_sender: MixForwardingSender,
         shutdown: ShutdownTracker,
     ) -> Result<Self, NymNodeError> {
         // TODO: this will require loading old states from disk in the future
-        let session_states = Arc::new(DashMap::new());
+        let session_states = ActiveLpSessions::new();
 
         let shared_lp_state = SharedLpState {
             metrics,
@@ -119,10 +122,16 @@ impl LpSetup {
             session_states: session_states.clone(),
         };
 
-        let control_state = SharedLpControlState {
-            local_lp_peer,
+        let client_control_state = SharedLpClientControlState {
+            local_lp_peer: local_lp_peer.clone(),
             peer_registrator,
             forward_semaphore: Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards)),
+            shared: shared_lp_state.clone(),
+        };
+
+        let nodes_control_state = SharedLpNodeControlState {
+            local_lp_peer,
+            nodes: network_nodes,
             shared: shared_lp_state.clone(),
         };
 
@@ -133,7 +142,8 @@ impl LpSetup {
 
         let control_listener = LpControlListener::new(
             lp_config.control_bind_address,
-            control_state,
+            client_control_state,
+            nodes_control_state,
             shutdown.clone(),
         );
         let data_listener = LpDataListener::new(

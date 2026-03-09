@@ -143,6 +143,10 @@ impl LpRemotePeer {
             .ok_or(LpError::NoKnownKEMKeyDigests { kem, hash_function })
             .cloned()
     }
+
+    pub fn kem_key_digests(&self) -> &BTreeMap<KEM, KEMKeyDigests> {
+        &self.expected_kem_key_digests
+    }
 }
 
 impl From<DHPublicKey> for LpRemotePeer {

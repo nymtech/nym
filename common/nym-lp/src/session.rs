@@ -9,6 +9,7 @@ use crate::codec::{decrypt_lp_packet, encrypt_lp_packet};
 use crate::packet::{EncryptedLpPacket, LpHeader, LpMessage, LpPacket};
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::peer_config::LpReceiverIndex;
+use crate::psq::initiator::HandshakeMode;
 use crate::psq::{
     InitiatorData, PSQHandshakeState, PSQHandshakeStateInitiator, PSQHandshakeStateResponder,
     ResponderData,
@@ -19,6 +20,8 @@ use crate::{LpError, replay::ReceivingKeyCounterValidator};
 use libcrux_psq::handshake::types::{Authenticator, DHPublicKey};
 use libcrux_psq::session::{Session, SessionBinding};
 use nym_kkt::keys::EncapsulationKey;
+use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 
 /// Represents inputs that drive the state machine transitions.
@@ -154,12 +157,34 @@ impl LpTransportSession {
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
         remote_protocol_version: u8,
-    ) -> PSQHandshakeStateInitiator<'_, S>
+        mode: HandshakeMode,
+    ) -> Result<PSQHandshakeStateInitiator<'_, S>, LpError>
     where
         S: LpHandshakeChannel + Unpin,
     {
-        PSQHandshakeState::new(connection, local_peer)
-            .as_initiator(InitiatorData::new(remote_protocol_version, remote_peer))
+        PSQHandshakeState::new(connection, local_peer).as_initiator(
+            InitiatorData::new(remote_protocol_version, remote_peer),
+            mode,
+        )
+    }
+
+    /// Helper function to create `PSQHandshakeState` for the handshake initiator for mutual KKT
+    pub fn psq_handshake_initiator_mutual_internode<S>(
+        connection: &'_ mut S,
+        local_peer: LpLocalPeer,
+        remote_peer: LpRemotePeer,
+        remote_protocol_version: u8,
+    ) -> Result<PSQHandshakeStateInitiator<'_, S>, LpError>
+    where
+        S: LpHandshakeChannel + Unpin,
+    {
+        Self::psq_handshake_initiator(
+            connection,
+            local_peer,
+            remote_peer,
+            remote_protocol_version,
+            HandshakeMode::MutualInternode,
+        )
     }
 
     /// Helper function to create `PSQHandshakeState` for the handshake responder
@@ -171,6 +196,19 @@ impl LpTransportSession {
         S: LpHandshakeChannel + Unpin,
     {
         PSQHandshakeState::new(connection, local_peer).as_responder(ResponderData::default())
+    }
+
+    /// Helper function to create `PSQHandshakeState` for the handshake responder for mutual KKT
+    pub fn psq_handshake_responder_mutual<S>(
+        connection: &'_ mut S,
+        local_peer: LpLocalPeer,
+        initiator_kem_hashes: BTreeMap<KEM, KEMKeyDigests>,
+    ) -> PSQHandshakeStateResponder<'_, S>
+    where
+        S: LpHandshakeChannel + Unpin,
+    {
+        PSQHandshakeState::new(connection, local_peer)
+            .as_responder(ResponderData::default().with_initiator_kem_hashes(initiator_kem_hashes))
     }
 
     pub fn session_binding(&self) -> &PersistentSessionBinding {

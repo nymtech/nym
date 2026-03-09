@@ -3,6 +3,7 @@
 
 use crate::error::NymNodeError;
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
+use crate::node::lp::directory::LpNodes;
 use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
@@ -212,6 +213,7 @@ pub struct NetworkRefresher {
     network: CachedNetwork,
     routing_filter: NetworkRoutingFilter,
     noise_view: NoiseNetworkView,
+    lp_nodes: LpNodes,
 }
 
 impl NetworkRefresher {
@@ -240,6 +242,7 @@ impl NetworkRefresher {
             network: CachedNetwork::new_empty(),
             routing_filter: NetworkRoutingFilter::new_empty(testnet),
             noise_view: NoiseNetworkView::new_empty(),
+            lp_nodes: Default::default(),
         };
 
         this.obtain_initial_network().await?;
@@ -334,6 +337,7 @@ impl NetworkRefresher {
             })
             .collect::<HashMap<_, _>>();
         self.noise_view.swap_view(noise_nodes);
+        debug!("unimplemented: update LP nodes data");
 
         let mut network_guard = self.network.inner.write().await;
         network_guard.topology_metadata = metadata.to_topology_metadata();
@@ -371,6 +375,10 @@ impl NetworkRefresher {
 
     pub(crate) fn noise_view(&self) -> NoiseNetworkView {
         self.noise_view.clone()
+    }
+
+    pub(crate) fn lp_nodes(&self) -> LpNodes {
+        self.lp_nodes.clone()
     }
 
     pub(crate) async fn run(&mut self) {

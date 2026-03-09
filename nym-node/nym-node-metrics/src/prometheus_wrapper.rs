@@ -24,6 +24,18 @@ const CLIENT_SESSION_DURATION_BUCKETS: &[f64] = &[
     259200., // 72h+ (implicitly)
 ];
 
+const REG_LATENCY_BUCKETS: &[f64] = &[
+    0.001, // 1ms
+    0.005, // 5ms
+    0.01,  // 10ms
+    0.05,  // 50ms
+    0.1,   // 100ms
+    0.25,  // 250ms
+    0.5,   // 500ms
+    1.0,   // 1s
+    2.0,   // 2s
+];
+
 #[derive(Clone, Debug, EnumIter, Display, EnumProperty, EnumCount, Eq, Hash, PartialEq)]
 #[strum(serialize_all = "snake_case", prefix = "nym_node_")]
 pub enum PrometheusMetric {
@@ -138,6 +150,34 @@ pub enum PrometheusMetric {
 
     #[strum(props(help = "The current receiving rate of wireguard"))]
     WireguardBytesRxRate,
+
+    #[strum(props(help = "The distribution of defguard peer creation time"))]
+    WireguardDefguardPeerCreation,
+
+    #[strum(props(
+        help = "The distribution of time it takes to verify a credential during peer registration"
+    ))]
+    PeerRegistrationCredentialVerification,
+
+    #[strum(props(
+        help = "The distribution of time for client dvpn registration through the authenticator for msg1"
+    ))]
+    DvpnAuthenticatorClientRegistrationMsg1,
+
+    #[strum(props(
+        help = "The distribution of time for client dvpn registration through the authenticator for msg2"
+    ))]
+    DvpnAuthenticatorClientRegistrationMsg2,
+
+    #[strum(props(
+        help = "The distribution of time for client dvpn registration through the lp for msg1"
+    ))]
+    DvpnLpClientRegistrationMsg1,
+
+    #[strum(props(
+        help = "The distribution of time for client dvpn registration through the lp for msg2"
+    ))]
+    DvpnLpClientRegistrationMsg2,
 
     // # NETWORK
     #[strum(props(help = "The number of active ingress mixnet connections"))]
@@ -271,6 +311,24 @@ impl PrometheusMetric {
             PrometheusMetric::WireguardActivePeers => Metric::new_int_gauge(&name, help),
             PrometheusMetric::WireguardBytesTxRate => Metric::new_float_gauge(&name, help),
             PrometheusMetric::WireguardBytesRxRate => Metric::new_float_gauge(&name, help),
+            PrometheusMetric::WireguardDefguardPeerCreation => {
+                Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
+            }
+            PrometheusMetric::DvpnAuthenticatorClientRegistrationMsg1 => {
+                Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
+            }
+            PrometheusMetric::DvpnAuthenticatorClientRegistrationMsg2 => {
+                Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
+            }
+            PrometheusMetric::DvpnLpClientRegistrationMsg1 => {
+                Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
+            }
+            PrometheusMetric::DvpnLpClientRegistrationMsg2 => {
+                Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
+            }
+            PrometheusMetric::PeerRegistrationCredentialVerification => {
+                Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
+            }
             PrometheusMetric::NetworkActiveIngressMixnetConnections => {
                 Metric::new_int_gauge(&name, help)
             }
@@ -388,7 +446,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(39, PrometheusMetric::COUNT)
+        assert_eq!(45, PrometheusMetric::COUNT)
     }
 
     #[test]

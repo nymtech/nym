@@ -32,6 +32,7 @@ use nym_crypto::asymmetric::x25519;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::PersistedBandwidth;
 use nym_lp::peer_config::LpReceiverIndex;
+use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
 use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
 };
@@ -126,6 +127,9 @@ impl PeerRegistrator {
         credential: CredentialSpendingData,
         client_id: i64,
     ) -> Result<i64, GatewayWireguardError> {
+        let _metric_timer = PROMETHEUS_METRICS
+            .start_timer(PrometheusMetric::PeerRegistrationCredentialVerification);
+
         let bandwidth = self.credential_storage_preparation(client_id).await?;
         let client_bandwidth = ClientBandwidth::new(bandwidth.into());
         let mut verifier = CredentialVerifier::new(
@@ -232,6 +236,9 @@ impl PeerRegistrator {
         request_id: u64,
         reply_to: Option<Recipient>,
     ) -> Result<SerialisedResponse, GatewayWireguardError> {
+        let _metric_timer = PROMETHEUS_METRICS
+            .start_timer(PrometheusMetric::DvpnAuthenticatorClientRegistrationMsg1);
+
         let remote_public = init_message.pub_key();
 
         // 1. check if there's any pending registration already in progress,
@@ -269,6 +276,9 @@ impl PeerRegistrator {
         request_id: u64,
         reply_to: Option<Recipient>,
     ) -> Result<SerialisedResponse, GatewayWireguardError> {
+        let _metric_timer = PROMETHEUS_METRICS
+            .start_timer(PrometheusMetric::DvpnAuthenticatorClientRegistrationMsg2);
+
         let peer = final_message.gateway_client_pub_key();
         // 1. check if there's any pending registration associated with this peer
         let pending_data = self
@@ -312,6 +322,9 @@ impl PeerRegistrator {
         init_msg: LpDvpnRegistrationInitialRequest,
         receiver_index: LpReceiverIndex,
     ) -> Result<LpRegistrationResponse, GatewayWireguardError> {
+        let _metric_timer =
+            PROMETHEUS_METRICS.start_timer(PrometheusMetric::DvpnLpClientRegistrationMsg1);
+
         let remote_public = init_msg.wg_public_key;
         let psk = Key::new(init_msg.psk);
 
@@ -343,6 +356,9 @@ impl PeerRegistrator {
         final_msg: LpDvpnRegistrationFinalisation,
         receiver_index: LpReceiverIndex,
     ) -> Result<LpRegistrationResponse, GatewayWireguardError> {
+        let _metric_timer =
+            PROMETHEUS_METRICS.start_timer(PrometheusMetric::DvpnLpClientRegistrationMsg2);
+
         // 1. check if there's any pending registration associated with this peer
         let pending_data = self
             .pending_registrations

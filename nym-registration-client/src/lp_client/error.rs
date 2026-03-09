@@ -5,7 +5,7 @@
 
 use nym_lp::LpError;
 use nym_lp::packet::MalformedLpPacketError;
-use nym_lp::packet::message::LpMessageType;
+use nym_lp::packet::frame::LpFrameKind;
 use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
 use thiserror::Error;
@@ -43,7 +43,7 @@ pub enum LpClientError {
     MalformedLpPacket(#[from] MalformedLpPacketError),
 
     #[error("received payload type of an unexpected type: {typ:?}")]
-    UnexpectedLpPayload { typ: LpMessageType },
+    UnexpectedLpPayload { typ: LpFrameKind },
 
     #[error("timed out while attempting to finish the KKT/PSQ handshake")]
     HandshakeTimeout,

@@ -7,32 +7,32 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct LpMessageHeader {
-    pub kind: LpMessageType,
-    pub message_attributes: [u8; 14],
+pub struct LpFrameHeader {
+    pub kind: LpFrameKind,
+    pub frame_attributes: [u8; 14],
 }
 
-impl LpMessageHeader {
+impl LpFrameHeader {
     pub const SIZE: usize = 16; // message_kind(2) + message_attributes(14)
 
-    pub fn new(kind: LpMessageType, message_attributes: [u8; 14]) -> Self {
+    pub fn new(kind: LpFrameKind, frame_attributes: [u8; 14]) -> Self {
         Self {
             kind,
-            message_attributes,
+            frame_attributes,
         }
     }
 
-    pub fn new_no_attributes(kind: LpMessageType) -> Self {
+    pub fn new_no_attributes(kind: LpFrameKind) -> Self {
         Self {
             kind,
-            message_attributes: [0; 14],
+            frame_attributes: [0; 14],
         }
     }
 
     /// Encode directly into a BytesMut buffer
     pub fn encode(&self, dst: &mut BytesMut) {
         dst.put_u16_le(self.kind as u16);
-        dst.put_slice(&self.message_attributes);
+        dst.put_slice(&self.frame_attributes);
     }
 
     pub fn parse(src: &[u8]) -> Result<Self, MalformedLpPacketError> {
@@ -41,35 +41,35 @@ impl LpMessageHeader {
         }
         let raw_kind = u16::from_le_bytes([src[0], src[1]]);
 
-        let kind = LpMessageType::try_from(raw_kind)
+        let kind = LpFrameKind::try_from(raw_kind)
             .map_err(|_| MalformedLpPacketError::invalid_data_kind(raw_kind))?;
 
         #[allow(clippy::unwrap_used)]
         let message_attributes = src[2..16].try_into().unwrap();
         Ok(Self {
             kind,
-            message_attributes,
+            frame_attributes: message_attributes,
         })
     }
 }
 
 /// Represent application data being sent in Transport mode
 #[derive(Debug, Clone, PartialEq)]
-pub struct LpMessage {
-    pub header: LpMessageHeader,
+pub struct LpFrame {
+    pub header: LpFrameHeader,
     pub content: Bytes,
 }
 
-impl AsRef<[u8]> for LpMessage {
+impl AsRef<[u8]> for LpFrame {
     fn as_ref(&self) -> &[u8] {
         &self.content
     }
 }
 
-impl LpMessage {
-    pub fn new(kind: LpMessageType, content: impl Into<Bytes>) -> Self {
+impl LpFrame {
+    pub fn new(kind: LpFrameKind, content: impl Into<Bytes>) -> Self {
         Self {
-            header: LpMessageHeader::new_no_attributes(kind),
+            header: LpFrameHeader::new_no_attributes(kind),
             content: content.into(),
         }
     }
@@ -81,37 +81,37 @@ impl LpMessage {
     }
 
     pub fn decode(src: &[u8]) -> Result<Self, MalformedLpPacketError> {
-        let header = LpMessageHeader::parse(src)?;
-        let content = src[LpMessageHeader::SIZE..].to_vec().into();
+        let header = LpFrameHeader::parse(src)?;
+        let content = src[LpFrameHeader::SIZE..].to_vec().into();
 
         Ok(Self { header, content })
     }
 
-    pub fn kind(&self) -> LpMessageType {
+    pub fn kind(&self) -> LpFrameKind {
         self.header.kind
     }
 
     pub fn new_opaque(content: impl Into<Bytes>) -> Self {
-        Self::new(LpMessageType::Opaque, content)
+        Self::new(LpFrameKind::Opaque, content)
     }
 
     pub fn new_registration(data: impl Into<Bytes>) -> Self {
-        Self::new(LpMessageType::Registration, data)
+        Self::new(LpFrameKind::Registration, data)
     }
 
     pub fn new_forward(data: impl Into<Bytes>) -> Self {
-        Self::new(LpMessageType::Forward, data)
+        Self::new(LpFrameKind::Forward, data)
     }
 
     pub(crate) fn len(&self) -> usize {
-        LpMessageHeader::SIZE + self.content.len()
+        LpFrameHeader::SIZE + self.content.len()
     }
 }
 
 /// Represent kind of application data being sent in Transport mode
 #[derive(Clone, Copy, PartialEq, Eq, Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
-pub enum LpMessageType {
+pub enum LpFrameKind {
     Opaque = 0,
     Registration = 1,
     Forward = 2,

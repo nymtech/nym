@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::packet::{EncryptedLpPacket, LpMessage};
+    use crate::packet::{EncryptedLpPacket, LpFrame};
     use crate::session::{LpAction, LpInput};
     use crate::{LpError, SessionManager, SessionsMock};
     use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
@@ -9,7 +9,7 @@ mod tests {
     trait ActionExtract {
         fn ciphertext(self) -> EncryptedLpPacket;
 
-        fn data(self) -> LpMessage;
+        fn data(self) -> LpFrame;
     }
 
     impl ActionExtract for LpAction {
@@ -21,8 +21,8 @@ mod tests {
             }
         }
 
-        fn data(self) -> LpMessage {
-            if let LpAction::DeliverData(data) = self {
+        fn data(self) -> LpFrame {
+            if let LpAction::DeliverFrame(data) = self {
                 data
             } else {
                 panic!("invalid action");
@@ -54,7 +54,7 @@ mod tests {
                 // --- A sends to B ---
                 let plaintext_a = format!("A->B Message {i}").into_bytes();
                 let ciphertext_a = session_manager_1
-                    .send_data(peer_a_sm, LpMessage::new_opaque(plaintext_a.clone()))
+                    .send_frame(peer_a_sm, LpFrame::new_opaque(plaintext_a.clone()))
                     .unwrap()
                     .ciphertext();
 
@@ -68,7 +68,7 @@ mod tests {
                 // --- B sends to A ---
                 let plaintext_b = format!("B->A Message {i}").into_bytes();
                 let ciphertext_b = session_manager_2
-                    .send_data(peer_b_sm, LpMessage::new_opaque(plaintext_b.clone()))
+                    .send_frame(peer_b_sm, LpFrame::new_opaque(plaintext_b.clone()))
                     .unwrap()
                     .ciphertext();
 
@@ -183,15 +183,13 @@ mod tests {
 
             // --- 3. Simulate Data Transfer via process_input ---
             println!("Starting data transfer simulation via process_input...");
-            let plaintext_a_to_b =
-                LpMessage::new_opaque(b"Hello from A via process_input!".to_vec());
-            let plaintext_b_to_a =
-                LpMessage::new_opaque(b"Hello from B via process_input!".to_vec());
+            let plaintext_a_to_b = LpFrame::new_opaque(b"Hello from A via process_input!".to_vec());
+            let plaintext_b_to_a = LpFrame::new_opaque(b"Hello from B via process_input!".to_vec());
 
             // --- A sends to B ---
             println!("  A sends to B");
             let action_a_send = session_manager_1
-                .process_input(session_id, LpInput::SendData(plaintext_a_to_b.clone()))
+                .process_input(session_id, LpInput::SendFrame(plaintext_a_to_b.clone()))
                 .expect("A SendData failed");
 
             let data_packet_a = action_a_send.ciphertext();
@@ -202,7 +200,7 @@ mod tests {
                 .process_input(session_id, LpInput::ReceivePacket(data_packet_a))
                 .expect("B ReceivePacket (data) failed");
 
-            if let LpAction::DeliverData(data) = action_b_recv {
+            if let LpAction::DeliverFrame(data) = action_b_recv {
                 assert_eq!(data, plaintext_a_to_b, "Decrypted data mismatch A->B");
                 println!(
                     "    B successfully decrypted: {:?}",
@@ -215,7 +213,7 @@ mod tests {
             // --- B sends to A ---
             println!("  B sends to A");
             let action_b_send = session_manager_2
-                .process_input(session_id, LpInput::SendData(plaintext_b_to_a.clone()))
+                .process_input(session_id, LpInput::SendFrame(plaintext_b_to_a.clone()))
                 .expect("B SendData failed");
 
             let data_packet_b = action_b_send.ciphertext();
@@ -229,7 +227,7 @@ mod tests {
                 .process_input(session_id, LpInput::ReceivePacket(data_packet_b))
                 .expect("A ReceivePacket (data) failed");
 
-            if let LpAction::DeliverData(data) = action_a_recv {
+            if let LpAction::DeliverFrame(data) = action_a_recv {
                 assert_eq!(data, plaintext_b_to_a, "Decrypted data mismatch B->A");
                 println!(
                     "    A successfully decrypted: {:?}",
@@ -258,11 +256,11 @@ mod tests {
             println!("Testing out-of-order reception via process_input...");
 
             // A prepares N+1 then N
-            let data_n_plus_1 = LpMessage::new_opaque(b"Message N+1".to_vec());
-            let data_n = LpMessage::new_opaque(b"Message N".to_vec());
+            let data_n_plus_1 = LpFrame::new_opaque(b"Message N+1".to_vec());
+            let data_n = LpFrame::new_opaque(b"Message N".to_vec());
 
             let action_send_n1 = session_manager_1
-                .process_input(session_id, LpInput::SendData(data_n_plus_1.clone()))
+                .process_input(session_id, LpInput::SendFrame(data_n_plus_1.clone()))
                 .unwrap();
             let packet_n1 = match action_send_n1 {
                 LpAction::SendPacket(p) => p,
@@ -270,7 +268,7 @@ mod tests {
             };
 
             let action_send_n = session_manager_1
-                .process_input(session_id, LpInput::SendData(data_n.clone()))
+                .process_input(session_id, LpInput::SendFrame(data_n.clone()))
                 .unwrap();
             let packet_n = match action_send_n {
                 LpAction::SendPacket(p) => p,
@@ -284,7 +282,7 @@ mod tests {
                 .process_input(session_id, LpInput::ReceivePacket(packet_n1))
                 .unwrap();
             match action_recv_n1 {
-                LpAction::DeliverData(d) => assert_eq!(d, data_n_plus_1, "Data N+1 mismatch"),
+                LpAction::DeliverFrame(d) => assert_eq!(d, data_n_plus_1, "Data N+1 mismatch"),
                 _ => panic!("Expected DeliverData for N+1"),
             }
 
@@ -294,7 +292,7 @@ mod tests {
                 .process_input(session_id, LpInput::ReceivePacket(packet_n))
                 .unwrap();
             match action_recv_n {
-                LpAction::DeliverData(d) => assert_eq!(d, data_n, "Data N mismatch"),
+                LpAction::DeliverFrame(d) => assert_eq!(d, data_n, "Data N mismatch"),
                 _ => panic!("Expected DeliverData for N"),
             }
 

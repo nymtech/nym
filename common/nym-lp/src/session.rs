@@ -6,7 +6,7 @@
 //! This module implements session management functionality, including replay protection
 
 use crate::codec::{decrypt_lp_packet, encrypt_lp_packet};
-use crate::packet::{EncryptedLpPacket, LpHeader, LpMessage, LpPacket};
+use crate::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket};
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::peer_config::LpReceiverIndex;
 use crate::psq::initiator::HandshakeMode;
@@ -32,7 +32,7 @@ pub enum LpInput {
     ReceivePacket(EncryptedLpPacket),
 
     /// Application wants to send data (only valid in Transport state).
-    SendData(LpMessage),
+    SendFrame(LpFrame),
 }
 
 /// Represents actions the state machine requests the environment to perform.
@@ -42,7 +42,7 @@ pub enum LpAction {
     SendPacket(EncryptedLpPacket),
 
     /// Deliver decrypted application data received from the peer.
-    DeliverData(LpMessage),
+    DeliverFrame(LpFrame),
 }
 
 pub type SessionId = [u8; 32];
@@ -234,10 +234,10 @@ impl LpTransportSession {
         self.protocol_version
     }
 
-    pub fn next_packet(&mut self, message: LpMessage) -> Result<LpPacket, LpError> {
+    pub fn next_packet(&mut self, frame: LpFrame) -> Result<LpPacket, LpError> {
         let counter = self.next_counter();
         let header = LpHeader::new(self.receiver_index(), counter, self.protocol_version);
-        let packet = LpPacket::new(header, message);
+        let packet = LpPacket::new(header, frame);
         Ok(packet)
     }
 
@@ -299,22 +299,19 @@ impl LpTransportSession {
         self.receiving_counter.current_packet_cnt()
     }
 
-    /// Encrypts a produced application using the established transport session
-    /// and produce an `EncryptedLpPacket`
+    /// Wrap the provided `LpFrame` into an `LpPacket` and encrypt its content using the established transport session
+    /// to produce an `EncryptedLpPacket`
     ///
     /// # Arguments
     ///
-    /// * `data` - plaintext data to encrypt
+    /// * `frame` - structured `LpFrame` to wrap and encrypt
     ///
     /// # Returns
     ///
     /// * `Ok(EncryptedLpPacket)` containing the encrypted message ciphertext.
     /// * `Err(LpError)` if the session is not in transport mode or encryption fails.
-    pub(crate) fn encrypt_application_data(
-        &mut self,
-        data: LpMessage,
-    ) -> Result<EncryptedLpPacket, LpError> {
-        let packet = self.next_packet(data)?;
+    pub(crate) fn wrap_lp_frame(&mut self, frame: LpFrame) -> Result<EncryptedLpPacket, LpError> {
+        let packet = self.next_packet(frame)?;
         encrypt_lp_packet(packet, &mut self.active_transport)
     }
 
@@ -322,7 +319,7 @@ impl LpTransportSession {
     ///
     /// # Arguments
     ///
-    /// * `ciphertext` - The encrypted packet
+    /// * `packet` - The encrypted packet
     ///
     /// # Returns
     ///
@@ -358,11 +355,11 @@ impl LpTransportSession {
                 self.receiving_counter_mark(ctr)?;
 
                 // 4. deliver the message
-                Ok(LpAction::DeliverData(packet.message))
+                Ok(LpAction::DeliverFrame(packet.frame))
             }
-            LpInput::SendData(data) => {
+            LpInput::SendFrame(data) => {
                 // Encrypt and send application data
-                match self.encrypt_application_data(data) {
+                match self.wrap_lp_frame(data) {
                     Ok(packet) => Ok(LpAction::SendPacket(packet)),
                     Err(e) => Err(e),
                 }
@@ -476,8 +473,9 @@ mod tests {
 
             // --- Transport Phase ---
             println!("--- Step 1: Initiator sends data ---");
-            let data_to_send_1 = LpMessage::new_opaque(b"hello responder".to_vec());
-            let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.clone()));
+            let data_to_send_1 = LpFrame::new_opaque(b"hello responder".to_vec());
+            let init_actions_4 =
+                initiator.process_input(LpInput::SendFrame(data_to_send_1.clone()));
             let data_packet_1 = if let Ok(LpAction::SendPacket(packet)) = init_actions_4 {
                 packet.clone()
             } else {
@@ -487,7 +485,7 @@ mod tests {
 
             println!("--- Step 2: Responder receives data ---");
             let resp_actions_5 = responder.process_input(LpInput::ReceivePacket(data_packet_1));
-            let resp_data_1 = if let Ok(LpAction::DeliverData(data)) = resp_actions_5 {
+            let resp_data_1 = if let Ok(LpAction::DeliverFrame(data)) = resp_actions_5 {
                 data
             } else {
                 panic!("Responder should deliver data");
@@ -495,8 +493,9 @@ mod tests {
             assert_eq!(resp_data_1, data_to_send_1);
 
             println!("--- Step 3: Responder sends data ---");
-            let data_to_send_2 = LpMessage::new_opaque(b"hello initiator".to_vec());
-            let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.clone()));
+            let data_to_send_2 = LpFrame::new_opaque(b"hello initiator".to_vec());
+            let resp_actions_6 =
+                responder.process_input(LpInput::SendFrame(data_to_send_2.clone()));
             let data_packet_2 = if let Ok(LpAction::SendPacket(packet)) = resp_actions_6 {
                 packet.clone()
             } else {
@@ -506,7 +505,7 @@ mod tests {
 
             println!("--- Step 4: Initiator receives data ---");
             let init_actions_5 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
-            if let Ok(LpAction::DeliverData(data)) = init_actions_5 {
+            if let Ok(LpAction::DeliverFrame(data)) = init_actions_5 {
                 assert_eq!(data, data_to_send_2);
             } else {
                 panic!("Initiator should deliver data");

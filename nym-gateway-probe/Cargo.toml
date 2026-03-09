@@ -1,6 +1,6 @@
 [package]
 name = "nym-gateway-probe"
-version = "1.18.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -69,6 +69,7 @@ nym-validator-client = { workspace = true }
 
 [features]
 utoipa = ["dep:utoipa"]
+test-utils = []
 
 [build-dependencies]
 anyhow = { workspace = true }

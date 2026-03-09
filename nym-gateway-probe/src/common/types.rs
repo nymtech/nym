@@ -180,6 +180,17 @@ impl Socks5ProbeResults {
     pub fn https_connectivity(&self) -> &HttpsConnectivityResult {
         &self.https_connectivity
     }
+
+    #[cfg(feature = "test-utils")]
+    pub fn from_dummy_values(
+        can_connect_socks5: bool,
+        https_connectivity: HttpsConnectivityResult,
+    ) -> Self {
+        Self {
+            can_connect_socks5,
+            https_connectivity,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]

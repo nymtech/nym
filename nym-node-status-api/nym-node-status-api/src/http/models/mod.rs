@@ -2,7 +2,8 @@ use std::net::IpAddr;
 
 use crate::{
     http::models::gw_probe::{
-        DvpnGwProbe, DvpnProbeOutcome, LastProbeResult, ScoreValue, calculate_load, calculate_score,
+        DvpnGwProbe, DvpnProbeOutcome, LastProbeResult, ScoreValue, calc_gateway_visual_score,
+        calculate_load,
     },
     monitor::ExplorerPrettyBond,
 };
@@ -184,7 +185,7 @@ impl DVpnGateway {
 
                 tracing::trace!("🌈 gateway probe parsed: {:?}", parsed);
                 let mixnet_score = calculate_mixnet_score(&gateway);
-                let score = calculate_score(&gateway, &parsed);
+                let score = calc_gateway_visual_score(&gateway, &parsed);
                 let mut load = calculate_load(&parsed);
                 let socks5_score = socks5_score.unwrap_or(&ScoreValue::Offline).to_owned();
                 let dvpn_probe_result =

@@ -6482,7 +6482,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway-probe"
-version = "1.18.0"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

@@ -316,7 +316,10 @@ pub enum ScoreValue {
 }
 
 /// calculates a visual score for the gateway using weighted metrics
-pub(super) fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreValue {
+pub(super) fn calc_gateway_visual_score(
+    gateway: &Gateway,
+    probe_outcome: &LastProbeResult,
+) -> ScoreValue {
     let mixnet_performance = gateway.performance as f64 / 100.0;
 
     let node_score = probe_outcome

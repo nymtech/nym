@@ -296,6 +296,7 @@ fn translate_digests(
     ToSchema,
     Ord,
 )]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 #[non_exhaustive]
 pub enum LPKEM {
@@ -319,6 +320,7 @@ pub enum LPKEM {
     ToSchema,
     Ord,
 )]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 #[non_exhaustive]
 pub enum LPHashFunction {
@@ -343,6 +345,7 @@ pub enum LPHashFunction {
     EnumString,
     ToSchema,
 )]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 #[non_exhaustive]
 pub enum LPSignatureScheme {

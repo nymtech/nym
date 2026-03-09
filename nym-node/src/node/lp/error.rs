@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_lp::packet::message::LpMessageType;
+use nym_lp::packet::frame::LpFrameKind;
 use nym_lp::peer_config::LpReceiverIndex;
 use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
@@ -43,7 +43,7 @@ pub enum LpHandlerError {
     MalformedLpPacket(#[from] MalformedLpPacketError),
 
     #[error("received payload type of an unexpected type: {typ:?}")]
-    UnexpectedLpPayload { typ: LpMessageType },
+    UnexpectedLpPayload { typ: LpFrameKind },
 
     #[error("timed out while attempting to send to/receive from the connection")]
     ConnectionTimeout,

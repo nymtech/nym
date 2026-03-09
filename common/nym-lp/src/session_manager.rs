@@ -6,7 +6,7 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
-use crate::packet::{EncryptedLpPacket, LpMessage};
+use crate::packet::{EncryptedLpPacket, LpFrame};
 use crate::peer_config::LpReceiverIndex;
 use crate::{LpError, LpTransportSession};
 use std::collections::HashMap;
@@ -39,12 +39,12 @@ impl SessionManager {
         self.with_session_mut(lp_id, |sm| sm.process_input(input))?
     }
 
-    pub fn send_data(
+    pub fn send_frame(
         &mut self,
         lp_id: LpReceiverIndex,
-        data: LpMessage,
+        frame: LpFrame,
     ) -> Result<LpAction, LpError> {
-        self.process_input(lp_id, LpInput::SendData(data))
+        self.process_input(lp_id, LpInput::SendFrame(frame))
     }
 
     pub fn receive_packet(

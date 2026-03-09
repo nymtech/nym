@@ -20,13 +20,15 @@
 
 use super::client::LpRegistrationClient;
 use super::error::{LpClientError, Result};
-use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt, exponential_backoff_with_jitter};
+use crate::lp_client::helpers::{
+    LpFrameDeliverExt, LpFrameSendExt, exponential_backoff_with_jitter,
+};
 use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::packet::version;
-use nym_lp::packet::{EncryptedLpPacket, LpMessage};
+use nym_lp::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::LpHandshakeChannel;
@@ -126,19 +128,19 @@ impl NestedLpSession {
             .ok_or(LpClientError::IncompleteHandshake)
     }
 
-    /// Attempt to wrap the provided `LpData` into a `EncryptedLpPacket`
+    /// Attempt to wrap the provided `LpFrame` into a `EncryptedLpPacket`
     /// using the inner state machine.
-    fn prepare_transport_packet(&mut self, data: LpMessage) -> Result<EncryptedLpPacket> {
+    fn prepare_transport_packet(&mut self, frame: LpFrame) -> Result<EncryptedLpPacket> {
         let state_machine = self.state_machine_mut()?;
-        prepare_send_packet(data, state_machine)
+        prepare_send_packet(frame, state_machine)
     }
 
-    /// Attempt to recover received `LpData` from the received `EncryptedLpPacket`
+    /// Attempt to recover received `LpFrame` from the received `EncryptedLpPacket`
     /// using the inner state machine.
     fn extract_forwarded_response(
         &mut self,
         response_packet: EncryptedLpPacket,
-    ) -> Result<LpMessage> {
+    ) -> Result<LpFrame> {
         let state_machine = self.state_machine_mut()?;
         extract_forwarded_response(response_packet, state_machine)
     }
@@ -255,7 +257,7 @@ impl NestedLpSession {
         tracing::trace!("Built dVPN registration finalisation request");
 
         // Step 3: Serialize the request
-        let send_data = request.to_lp_data()?;
+        let send_data = request.to_lp_frame()?;
 
         // Step 4: Encrypt and prepare packet via state machine
         let forward_packet = self.prepare_transport_packet(send_data)?;
@@ -274,7 +276,7 @@ impl NestedLpSession {
         let response_data = self.extract_forwarded_response(response)?;
 
         // Step 8: Extract decrypted data and deserialise the response
-        let response = LpRegistrationResponse::from_lp_data(response_data)?;
+        let response = LpRegistrationResponse::from_lp_frame(response_data)?;
         let Some(dvpn_response) = response.into_dvpn_response() else {
             return Err(LpClientError::unexpected_response(
                 "did not get a dvpn registration response after sending initial request",
@@ -349,7 +351,7 @@ impl NestedLpSession {
         let request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk);
 
         // Step 3: Serialize the request
-        let send_data = request.to_lp_data()?;
+        let send_data = request.to_lp_frame()?;
 
         // Step 4: Encrypt and prepare packet via state machine
         let forward_packet = self.prepare_transport_packet(send_data)?;
@@ -369,7 +371,7 @@ impl NestedLpSession {
         let response_data = self.extract_forwarded_response(response)?;
 
         // Step 8: Extract decrypted data and deserialise the response
-        let response = LpRegistrationResponse::from_lp_data(response_data)?;
+        let response = LpRegistrationResponse::from_lp_frame(response_data)?;
         let Some(dvpn_response) = response.into_dvpn_response() else {
             return Err(LpClientError::unexpected_response(
                 "did not get a dvpn registration response after sending initial request",

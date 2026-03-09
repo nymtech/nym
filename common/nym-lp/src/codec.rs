@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpError;
-use crate::packet::{EncryptedLpPacket, InnerHeader, LpHeader, LpMessage, LpPacket};
+use crate::packet::{EncryptedLpPacket, InnerHeader, LpFrame, LpHeader, LpPacket};
 use bytes::BytesMut;
 use libcrux_psq::Channel;
 
@@ -46,9 +46,9 @@ pub(crate) fn encrypt_lp_packet(
     packet: LpPacket,
     transport: &mut libcrux_psq::session::Transport,
 ) -> Result<EncryptedLpPacket, LpError> {
-    let mut plaintext = BytesMut::with_capacity(InnerHeader::SIZE + packet.message().len());
+    let mut plaintext = BytesMut::with_capacity(InnerHeader::SIZE + packet.frame().len());
     packet.header().inner.encode(&mut plaintext);
-    packet.message().encode(&mut plaintext);
+    packet.frame().encode(&mut plaintext);
 
     let ciphertext = encrypt_data(plaintext.as_ref(), transport)?;
 
@@ -67,14 +67,14 @@ pub(crate) fn decrypt_lp_packet(
 
     let inner_header = InnerHeader::parse(&plaintext)?;
     let payload = &plaintext[InnerHeader::SIZE..];
-    let message = LpMessage::decode(payload)?;
+    let frame = LpFrame::decode(payload)?;
 
     Ok(LpPacket::new(
         LpHeader {
             outer: packet.outer_header(),
             inner: inner_header,
         },
-        message,
+        frame,
     ))
 }
 
@@ -82,7 +82,7 @@ pub(crate) fn decrypt_lp_packet(
 mod tests {
     use crate::LpError;
     use crate::codec::{decrypt_data, decrypt_lp_packet, encrypt_data, encrypt_lp_packet};
-    use crate::packet::{EncryptedLpPacket, LpHeader, LpMessage, LpPacket};
+    use crate::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket};
     use crate::peer::mock_peers;
     use crate::psq::initiator::{build_psq_ciphersuite, build_psq_principal};
     use crate::psq::{PSQ_MSG2_SIZE, psq_msg1_size, responder};
@@ -261,7 +261,7 @@ mod tests {
         // happy path
         let packet = LpPacket::new(
             LpHeader::new(123, 0, 1),
-            LpMessage::new_opaque(b"foomp".to_vec()),
+            LpFrame::new_opaque(b"foomp".to_vec()),
         );
 
         let ciphertext = encrypt_lp_packet(packet.clone(), &mut init_transport).unwrap();
@@ -273,7 +273,7 @@ mod tests {
         // incomplete ciphertext
         let packet = LpPacket::new(
             LpHeader::new(123, 1, 1),
-            LpMessage::new_opaque(b"foomp".to_vec()),
+            LpFrame::new_opaque(b"foomp".to_vec()),
         );
         let ciphertext2 = encrypt_lp_packet(packet, &mut init_transport).unwrap();
         let l = ciphertext2.ciphertext().len();
@@ -285,7 +285,7 @@ mod tests {
         // too small buffer
         let packet = LpPacket::new(
             LpHeader::new(123, 1, 1),
-            LpMessage::new_opaque(b"foomp".to_vec()),
+            LpFrame::new_opaque(b"foomp".to_vec()),
         );
         let ciphertext3 = encrypt_lp_packet(packet, &mut resp_transport).unwrap();
         let malformed = EncryptedLpPacket::new(ciphertext3.outer_header(), vec![]);

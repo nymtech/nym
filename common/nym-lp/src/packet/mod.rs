@@ -6,12 +6,12 @@ use bytes::{BufMut, BytesMut};
 use std::fmt::{Debug, Formatter};
 
 pub use error::MalformedLpPacketError;
+pub use frame::{ForwardPacketData, LpFrame};
 pub use header::{InnerHeader, LpHeader, OuterHeader};
-pub use message::{ForwardPacketData, LpMessage};
 
 pub mod error;
+pub mod frame;
 pub mod header;
-pub mod message;
 pub mod replay;
 pub mod utils;
 
@@ -81,7 +81,7 @@ impl EncryptedLpPacket {
 #[derive(Clone, PartialEq)]
 pub struct LpPacket {
     pub(crate) header: LpHeader,
-    pub(crate) message: LpMessage,
+    pub(crate) frame: LpFrame,
 }
 
 impl Debug for LpPacket {
@@ -91,16 +91,16 @@ impl Debug for LpPacket {
 }
 
 impl LpPacket {
-    pub fn new(header: LpHeader, message: LpMessage) -> Self {
-        Self { header, message }
+    pub fn new(header: LpHeader, frame: LpFrame) -> Self {
+        Self { header, frame }
     }
 
-    pub fn message(&self) -> &LpMessage {
-        &self.message
+    pub fn frame(&self) -> &LpFrame {
+        &self.frame
     }
 
-    pub fn into_message(self) -> LpMessage {
-        self.message
+    pub fn into_frame(self) -> LpFrame {
+        self.frame
     }
 
     pub fn header(&self) -> &LpHeader {
@@ -115,6 +115,6 @@ impl LpPacket {
 
     pub(crate) fn dbg_encode(&self, dst: &mut BytesMut) {
         self.header.dbg_encode(dst);
-        self.message.encode(dst)
+        self.frame.encode(dst)
     }
 }

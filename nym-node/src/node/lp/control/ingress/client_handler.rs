@@ -6,13 +6,13 @@ use crate::node::lp::control::{LP_DURATION_BUCKETS, LpConnectionStats};
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::state::SharedLpClientControlState;
 use dashmap::mapref::one::RefMut;
-use nym_lp::packet::message::LpMessageType;
-use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData, LpMessage};
+use nym_lp::packet::frame::LpFrameKind;
+use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData, LpFrame};
 use nym_lp::peer_config::LpReceiverIndex;
 use nym_lp::session::{LpAction, LpInput};
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
-use nym_lp::{LpTransportSession, packet::message::ExpectedResponseSize};
+use nym_lp::{LpTransportSession, packet::frame::ExpectedResponseSize};
 use nym_metrics::{add_histogram_obs, inc};
 use nym_node_metrics::NymNodeMetrics;
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
@@ -225,7 +225,7 @@ where
             LpAction::SendPacket(response_packet) => {
                 self.send_serialised_packet(&response_packet).await
             }
-            LpAction::DeliverData(data) => {
+            LpAction::DeliverFrame(data) => {
                 // Decrypted application data - process as registration/forwarding
                 self.handle_decrypted_payload(receiver_index, data).await
             }
@@ -236,14 +236,14 @@ where
     async fn handle_decrypted_payload(
         &mut self,
         receiver_idx: LpReceiverIndex,
-        decrypted_data: LpMessage,
+        decrypted_data: LpFrame,
     ) -> Result<(), LpHandlerError> {
         let remote = self.remote_addr;
 
         let header = decrypted_data.header;
         let bytes = decrypted_data.content;
         match header.kind {
-            LpMessageType::Registration => {
+            LpFrameKind::Registration => {
                 let request = LpRegistrationRequest::try_deserialise(&bytes)
                     .map_err(|source| LpHandlerError::MalformedRegistrationRequest { source })?;
 
@@ -255,13 +255,13 @@ where
                 self.handle_registration_request(receiver_idx, request)
                     .await
             }
-            LpMessageType::Forward => {
+            LpFrameKind::Forward => {
                 let forward_data = ForwardPacketData::decode(&bytes)?;
 
                 self.handle_forwarding_request(receiver_idx, forward_data)
                     .await
             }
-            typ @ LpMessageType::Opaque => {
+            typ @ LpFrameKind::Opaque => {
                 // Neither registration nor forwarding - unknown payload type
                 warn!(
                     "Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes",
@@ -277,17 +277,17 @@ where
     async fn send_response_packet(
         &mut self,
         serialised_response: Vec<u8>,
-        response_kind: LpMessageType,
+        response_kind: LpFrameKind,
     ) -> Result<(), LpHandlerError> {
         let mut state_entry = self.state_entry_mut()?;
 
         // Access session via state machine for subsession support
         let state_machine = &mut state_entry.value_mut().state;
 
-        let wrapped_lp_data = LpMessage::new(response_kind, serialised_response);
+        let wrapped_lp_data = LpFrame::new(response_kind, serialised_response);
 
         // Process packet through state machine
-        let action = state_machine.process_input(LpInput::SendData(wrapped_lp_data))?;
+        let action = state_machine.process_input(LpInput::SendFrame(wrapped_lp_data))?;
 
         let packet = match action {
             LpAction::SendPacket(packet) => packet,
@@ -312,7 +312,7 @@ where
             .serialise()
             .map_err(|source| LpHandlerError::MalformedRegistrationRequest { source })?;
 
-        self.send_response_packet(response_bytes, LpMessageType::Registration)
+        self.send_response_packet(response_bytes, LpFrameKind::Registration)
             .await?;
 
         match response.status {
@@ -349,7 +349,7 @@ where
         // Forward the packet to the target gateway and retrieve its response
         let response_bytes = self.handle_forward_packet(forward_data).await?;
 
-        self.send_response_packet(response_bytes, LpMessageType::Forward)
+        self.send_response_packet(response_bytes, LpFrameKind::Forward)
             .await?;
 
         debug!(
@@ -646,7 +646,7 @@ mod tests {
             let packet = handler.receive_raw_packet().await?;
             let header = packet.outer_header();
             assert_eq!(packet.outer_header().receiver_idx, id);
-            let LpAction::DeliverData(data) = resp_sm.receive_packet(id, packet)? else {
+            let LpAction::DeliverFrame(data) = resp_sm.receive_packet(id, packet)? else {
                 panic!("illegal state")
             };
             Ok::<_, LpHandlerError>((header, data))
@@ -657,7 +657,7 @@ mod tests {
 
         // Send a valid packet from client side
         let LpAction::SendPacket(packet) = init_sm
-            .send_data(id, LpMessage::new_opaque(b"foomp".to_vec()))
+            .send_frame(id, LpFrame::new_opaque(b"foomp".to_vec()))
             .unwrap()
         else {
             panic!("illegal state")
@@ -693,7 +693,7 @@ mod tests {
             let (mut stream, _) = listener.accept().await.unwrap();
 
             let LpAction::SendPacket(packet) = resp_sm
-                .send_data(id, LpMessage::new_opaque(b"foomp".to_vec()))
+                .send_frame(id, LpFrame::new_opaque(b"foomp".to_vec()))
                 .unwrap()
             else {
                 panic!("illegal state")
@@ -716,7 +716,7 @@ mod tests {
             .await
             .unwrap();
         let header = received.outer_header();
-        let LpAction::DeliverData(data) = init_sm.receive_packet(id, received).unwrap() else {
+        let LpAction::DeliverFrame(data) = init_sm.receive_packet(id, received).unwrap() else {
             panic!("illegal state")
         };
 

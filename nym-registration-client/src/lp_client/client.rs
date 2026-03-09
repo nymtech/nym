@@ -5,7 +5,9 @@
 
 use super::config::LpRegistrationConfig;
 use super::error::{LpClientError, Result};
-use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt, exponential_backoff_with_jitter};
+use crate::lp_client::helpers::{
+    LpFrameDeliverExt, LpFrameSendExt, exponential_backoff_with_jitter,
+};
 use crate::lp_client::nested_session::connection::NestedConnection;
 use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
@@ -458,7 +460,7 @@ where
         tracing::trace!("Built dVPN registration finalisation request");
 
         // 3. Serialize the request
-        let lp_data = request.to_lp_data()?;
+        let lp_data = request.to_lp_frame()?;
 
         // 4. Encrypt and prepare packet via state machine
         let state_machine = self.transport_session_mut()?;
@@ -477,7 +479,7 @@ where
         let received_data = extract_forwarded_response(response_packet, state_machine)?;
 
         // 7. Extract decrypted data and deserialise the response
-        let response = LpRegistrationResponse::from_lp_data(received_data)?;
+        let response = LpRegistrationResponse::from_lp_frame(received_data)?;
         let Some(dvpn_response) = response.into_dvpn_response() else {
             return Err(LpClientError::unexpected_response(
                 "did not get a dvpn registration response after sending initial request",
@@ -545,7 +547,7 @@ where
         tracing::trace!("Built dVPN registration request: {request:?}");
 
         // 2. Serialize the request
-        let lp_data = request.to_lp_data()?;
+        let lp_data = request.to_lp_frame()?;
 
         // 3. Encrypt and prepare packet via state machine
         let state_machine = self.transport_session_mut()?;
@@ -564,7 +566,7 @@ where
         let received_data = extract_forwarded_response(response_packet, state_machine)?;
 
         // 6. Extract decrypted data and deserialise the response
-        let response = LpRegistrationResponse::from_lp_data(received_data)?;
+        let response = LpRegistrationResponse::from_lp_frame(received_data)?;
         let Some(dvpn_response) = response.into_dvpn_response() else {
             return Err(LpClientError::unexpected_response(
                 "did not get a dvpn registration response after sending initial request",

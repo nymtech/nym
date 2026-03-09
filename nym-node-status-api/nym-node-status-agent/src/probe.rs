@@ -104,9 +104,13 @@ impl GwProbe {
         match command.spawn() {
             Ok(child) => {
                 if let Ok(output) = child.wait_with_output() {
+                    let err = String::from_utf8_lossy(&output.stderr);
+                    if !err.trim().is_empty() {
+                        tracing::info!("Probe stderr:\n{}", err);
+                    }
+
                     if !output.status.success() {
                         let out = String::from_utf8_lossy(&output.stdout);
-                        let err = String::from_utf8_lossy(&output.stderr);
                         tracing::error!("Probe exited with {:?}:\n{}\n{}", output.status, out, err);
                     }
 

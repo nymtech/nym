@@ -62,6 +62,12 @@ pub(crate) async fn run_probe(
     let json_str = extract_json_from_log(&log);
     if json_str.is_empty() {
         tracing::error!("Failed to extract JSON from probe output");
+        let preview: String = log.chars().take(400).collect();
+        tracing::error!(
+            "Probe output preview (first {} chars): {}",
+            preview.len(),
+            preview
+        );
     } else {
         match serde_json::from_str::<serde_json::Value>(&json_str) {
             Ok(json) => {
@@ -83,6 +89,12 @@ pub(crate) async fn run_probe(
             }
             Err(e) => {
                 tracing::error!("Failed to parse probe output as JSON: {e}");
+                let preview: String = json_str.chars().take(400).collect();
+                tracing::error!(
+                    "Extracted JSON preview (first {} chars): {}",
+                    preview.len(),
+                    preview
+                );
             }
         }
     }

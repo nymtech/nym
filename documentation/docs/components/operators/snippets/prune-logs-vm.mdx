@@ -1,0 +1,267 @@
+import { Steps } from 'nextra/components';
+import { Callout } from 'nextra/components';
+
+### Self-Managed VM Host + Guest Disk Stability Guide
+
+This chapter covers both:
+- Guest VM configuration
+- Host libvirt qcow2 behavior
+
+If you run [KVM/libvirt](/operators/nodes/preliminary-steps/vps-setup/advanced), this chapter comes as an essential part of your server hygiene procedure.
+
+**Verify disk usage**
+
+You can always identify what is consuming disk space
+
+```sh
+df -h
+du -xhd1 /var | sort -h
+du -xhd1 /var/log | sort -h
+find /var -type f -exec ls -lh {} + 2>/dev/null | sort -k 5 -h | tail -n 30
+journalctl --disk-usage
+```
+
+#### Inside each VM
+
+<Callout>
+**This part can be automated via [Ansible](/operators/orchestration/ansible), using the playbook [`system-maintenance.yml`](/operators/orchestration/ansible#4-system-maintenance). If this is your way, then proceed with Ansible and skip directly to the part called [*On the Hypervisor (host machine)*](#on-the-hypervisor-host-machine).**
+</ Callout>
+
+<Steps >
+###### 1. Ensure root FS is *not* mounted with continuous discard
+
+- This step is to enable `fstrim` to work in the next step and prevent two same logic processes fighting each other
+
+```sh
+mount | grep " / "
+```
+
+- If you see:
+```sh
+type ext4 (... discard ...)
+```
+
+- Remove discard from `/etc/fstab` and `remount`:
+
+```sh
+mount -o remount,nodiscard /
+mount | grep " / "
+```
+
+Continuous discard can cause problematic allocation behavior.
+
+
+###### 2. Enable frequent `fstrim`
+
+- This service will trim free space every 15 minutes
+
+```sh
+mkdir -p /etc/systemd/system/fstrim.timer.d
+```
+
+```sh
+cat >/etc/systemd/system/fstrim.timer.d/override.conf <<'EOF'
+[Timer]
+OnCalendar=
+OnCalendar=*:0/15
+Persistent=true
+RandomizedDelaySec=0
+EOF
+```
+
+- Reload and restart the daemon:
+```sh
+systemctl daemon-reload
+systemctl enable --now fstrim.timer
+fstrim -av
+```
+
+###### 3. Prune `journald`
+- Trim logs by running these commands
+
+```sh
+journalctl --vacuum-size=100M
+journalctl --vacuum-time=3days
+journalctl --disk-usage
+```
+- Compare the outcoma of the last one with the previous check
+
+###### 4. Make `journald` limits persistent
+
+- Create a new file `journald.conf` with these hard caps:
+```sh
+cat >/etc/systemd/journald.conf <<'EOF'
+[Journal]
+Storage=persistent
+Compress=yes
+Seal=yes
+
+SystemMaxUse=100M
+RuntimeMaxUse=50M
+SystemMaxFileSize=25M
+RuntimeMaxFileSize=10M
+MaxRetentionSec=3day
+
+RateLimitIntervalSec=30s
+RateLimitBurst=1000
+EOF
+
+systemctl restart systemd-journald
+```
+
+###### 5. Disable classic `rsyslog`
+
+Prevent duplicate logging as most Ubuntu VPS images run both `journald` and `rsyslog` by default.
+That duplicates logs into `/var/log/syslog`.
+
+- Disable rsyslog by these commands:
+
+```sh
+systemctl disable --now rsyslog.service || true
+systemctl mask rsyslog.service || true
+pgrep -x rsyslogd >/dev/null 2>&1 && pkill -9 -x rsyslogd || true
+```
+
+- Optional cleanup of `syslog`:
+
+```sh
+rm -f /var/log/syslog /var/log/syslog.1
+rm -f /var/log/kern.log /var/log/kern.log.1
+rm -f /var/log/auth.log /var/log/auth.log.1
+rm -f /var/log/ufw.log /var/log/ufw.log.1
+```
+> Note: Running `logrotate --force /etc/logrotate.conf` may fail after disabling `rsyslog`. That is expected and safe.
+
+###### 6. Reduce `nym-node` log growth
+
+- Create a new dir for a service file controlling `nym-node` logs:
+
+```sh
+mkdir -p /etc/systemd/system/nym-node.service.d
+```
+
+- Create the service file:
+```sh
+cat >/etc/systemd/system/nym-node.service.d/10-logging.conf <<'EOF'
+[Service]
+LogLevelMax=warning
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=300
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nym-node
+EOF
+
+systemctl daemon-reload
+systemctl restart nym-node
+```
+
+</ Steps>
+
+
+#### On the Hypervisor (host machine)
+
+<Callout type="warning" emoji="⚠️">
+**Do *NOT* shrink the disk size with a `nym-node` on it - this would ireversibly corrupt your data! Instead follow the steps in this sub-chapter.**
+</ Callout>
+
+**All the steps below are done from the host machine.**
+
+<Steps>
+###### 1. Verify `qcow2` actual allocation vs virtual size
+
+- The allocation defined by creating VMs is not equal to the actual usage
+
+```sh
+qemu-img info --force-share /var/lib/libvirt/images/<IMAGE_NAME>.img
+
+# for example:
+# qemu-img info --force-share /var/lib/libvirt/images/ubuntu1.img
+```
+
+- Look at:
+```
+virtual size
+file length
+disk size
+```
+
+###### 5. Monitor actual host allocation growth
+
+- Watch how your disks allocation changes in 5 minutes
+- This provides you an easy calculation how much gets your space eaten in a day, week or month
+
+```sh
+watch -n 300 'du -sh /var/lib/libvirt/images'
+df -h
+```
+
+###### 6. `Spartify`
+
+- If images grew previously, sparsify once
+- Shutdown a VM first:
+```sh
+virsh shutdown <IMAGE_NAME>
+
+# for example:
+# virsh shutdown ubuntu1
+```
+- Then `spartify`:
+
+```sh
+virt-sparsify --in-place /var/lib/libvirt/images/<IMAGE_NAME>.img
+
+# for example:
+# virt-sparsify --in-place /var/lib/libvirt/images/ubuntu1.img
+```
+- Finally re-start the machine 
+```sh
+virsh start <IMAGE_NAME>
+
+# for example:
+# virsh shutdown ubuntu1
+```
+
+- Repeat per VM if necessary
+
+- If you want to spartify all of them, you can run it in a loop
+```sh
+for vm in $(virsh list --all --name); do
+  virsh shutdown "$vm"
+  sleep 15
+  virt-sparsify --in-place /var/lib/libvirt/images/${vm}.img
+  sleep 5
+  virsh start "$vm"
+done
+```
+
+- Then use same logic to start them all
+
+```sh
+for vm in $(virsh list --all --name); do
+  virsh start "$vm"
+done
+```
+- Finally make sure that they are all running:
+```sh
+virsh list all
+```
+
+###### 7. Ensure host filesystem supports hole punching
+
+```sh
+df -T /var/lib/libvirt/images
+stat -f -c %T /var/lib/libvirt/images
+```
+
+- The reccomended output is `ext4` or `xfs`
+
+
+###### 8. Final validation
+
+- Finally check that how much space is on your host disk:
+```sh
+df -h
+du -sh /var/lib/libvirt/images
+```
+</ Steps>

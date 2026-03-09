@@ -1,0 +1,140 @@
+import { Steps } from 'nextra/components';
+
+### VPS Disk Usage & Log Control Guide 
+
+The steps below are for manual cleanup and space reclaim on a VPS hosting a `nym-node`.
+
+<Steps>
+
+###### 1. Identify what is consuming disk space
+
+```sh
+df -h
+du -xhd1 /var | sort -h
+du -xhd1 /var/log | sort -h
+find /var -type f -exec ls -lh {} + 2>/dev/null | sort -k 5 -h | tail -n 30
+journalctl --disk-usage
+```
+
+###### 2. Prune `journald`
+- Trim logs by running these commands
+
+```sh
+journalctl --vacuum-size=100M
+journalctl --vacuum-time=3days
+journalctl --disk-usage
+```
+- Compare the outcoma of the last one with the previous check
+
+###### 3. Make `journald` limits persistent
+
+- Create a new file `journald.conf` with these hard caps:
+```sh
+cat >/etc/systemd/journald.conf <<'EOF'
+[Journal]
+Storage=persistent
+Compress=yes
+Seal=yes
+
+SystemMaxUse=100M
+RuntimeMaxUse=50M
+SystemMaxFileSize=25M
+RuntimeMaxFileSize=10M
+MaxRetentionSec=3day
+
+RateLimitIntervalSec=30s
+RateLimitBurst=1000
+EOF
+
+systemctl restart systemd-journald
+```
+
+
+###### 4. Disable classic `rsyslog`
+
+Prevent duplicate logging as most Ubuntu VPS images run both `journald` and `rsyslog` by default.
+That duplicates logs into `/var/log/syslog`.
+
+- Disable rsyslog by these commands:
+
+```sh
+systemctl disable --now rsyslog.service || true
+systemctl mask rsyslog.service || true
+pgrep -x rsyslogd >/dev/null 2>&1 && pkill -9 -x rsyslogd || true
+```
+
+- Optional cleanup of `syslog`:
+
+```sh
+rm -f /var/log/syslog /var/log/syslog.1
+rm -f /var/log/kern.log /var/log/kern.log.1
+rm -f /var/log/auth.log /var/log/auth.log.1
+rm -f /var/log/ufw.log /var/log/ufw.log.1
+```
+> Note: Running `logrotate --force /etc/logrotate.conf` may fail after disabling `rsyslog`. That is expected and safe.
+
+###### 5. Reduce `nym-node` log growth
+
+- Create a new dir for a service file controlling `nym-node` logs:
+
+```sh
+mkdir -p /etc/systemd/system/nym-node.service.d
+```
+
+- Create the service file:
+```sh
+cat >/etc/systemd/system/nym-node.service.d/10-logging.conf <<'EOF'
+[Service]
+LogLevelMax=warning
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=300
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nym-node
+EOF
+
+systemctl daemon-reload
+systemctl restart nym-node
+```
+
+###### 6. Optional: Tune kernel writeback
+
+- This config reduces burst disk pressure
+
+```sh
+cat >/etc/sysctl.d/99-writeback-tuning.conf <<'EOF'
+vm.dirty_writeback_centisecs=1500
+vm.dirty_expire_centisecs=6000
+EOF
+
+sysctl --system
+```
+
+###### 7. Enable periodic Trim
+
+- This reclaims the free space
+
+```sh
+systemctl enable --now fstrim.timer
+fstrim -av
+```
+
+###### 8. Reclaim apt cache space
+
+- APT cache can become heavy too, reclaim that space by these commands:
+
+```sh
+apt-get clean
+apt-get -y autoremove
+rm -rf /var/lib/apt/lists/*
+mkdir -p /var/lib/apt/lists
+```
+
+###### 9. Verify final state
+
+- Check disk space now after the cleanup
+```sh
+df -h
+journalctl --disk-usage
+```
+</ Steps>

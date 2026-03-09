@@ -3,10 +3,42 @@ import { Callout } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
+import PruneLogsVM from 'components/operators/snippets/prune-logs-vm.mdx';
+import PruneLogsVPS from 'components/operators/snippets/prune-logs-vps.mdx';
 
 # Troubleshooting VPS Setup
 
 <VarInfo/>
+
+
+## System Hygiene
+
+Maintaining a Nym node requires keeping a good care of the hosting server. Running a `nym-node` as a standalone process or wrapped in a service can produce gigabytes of logs. Eventually your operation can malfunction due to the logs chewing up too much disk space or memory. 
+
+This chapter guides operators to address these points:
+
+- Sudden *disk full* crashes
+- `journald` runaway growth
+- Duplicate `rsyslog` logs
+- `nym-node` log growth
+- `qcow2` like allocation growth inside VPS storage
+
+Choose if you administer VPS based node manually, or self-administered VMs on a hypervizor, using [Ansible](/operators/orchestration/ansible).
+
+<Callout type="warning" emoji="⚠️">
+`rm` is a powerful tool, without an easy way of revoking. If you need to extract or backup anything, do it now. Make sure you understand what you removing before you execute these commands.
+</Callout>
+
+
+<div>
+  <Tabs items={[
+    <strong>Prune logs - VPS</strong>,
+    <strong>Prune logs - VM</strong>,
+    ]} defaultIndex="0">
+    <MyTab><PruneLogsVPS /></MyTab>
+    <MyTab><PruneLogsVM /></MyTab>
+  </Tabs>
+</div>
 
 ## IPv6 troubleshooting
 
@@ -105,54 +137,3 @@ To find the right IP configuration, contact your VPS provider for support to fin
 On self-hosted machine it's a bit more tricky. In that case as an operator you must be sure that your ISP allows for public IPv4 and IPv6 and then it may be a bit of playing around to find the right configuration. One way may be to bind your binary with the `--host` flag to local address `127.0.0.1` and run `echo "$(curl -4 https://ifconfig.me)"` to get a public address which you use to bond your Mix Node to `nym-api` via Nym wallet.
 
 It's up to you as a node operator to ensure that your public and private IPs match up properly.
-
-### Pruning Logs
-
-Running a `nym-node` as a standalone process or wrapped in a service can produce gigabytes of logs. Eventually your operation can malfunction due to the logs chewing up too much disk space or memory. Below are two scripts that can help you clean this up.
-
-<Callout type="warning" emoji="⚠️">
-`rm` is a powerful tool, without an easy way of revoking. If you need to extract or backup anything, do it now. Make sure you understand what you removing before you execute these commands.
-</Callout>
-
-
-<Steps>
-
-###### 1. See what's eating all your diskspace
-
-```sh
-sudo find /var -type f -printf "%s\t%p\n" | sort -n -r | head -n 20 | ls -lh
-sudo find /var -type f -exec ls -lh {} + 2>/dev/null | sort -k 5 -n -r | head -n 20
-
-sudo du -h --max-depth=1 /var
-sudo du -h /var/log
-```
-###### 2. Prune those logs
-```sh
-sudo rm -f /var/log/syslog.1
-sudo rm -f /var/log/syslog
-journalctl --disk-usage
-sudo journalctl --vacuum-time=3d
-sudo journalctl --vacuum-size=50M
-```
-
-###### 3.Enforce log rotation
-```sh
-sudo logrotate --force /etc/logrotate.conf
-sudo service rsyslog restart
-```
-
-###### 4. Remove all old packages
-```sh
-sudo apt-get clean
-sudo apt-get autoremove
-
-sudo apt-get clean
-sudo rm -rf /var/lib/apt/lists/*
-sudo apt-get update
-
-for snap in $(sudo snap list --all | awk '/disabled/{print $1, $3}'); do
-    sudo snap remove $snap
-done
-```
-
-</Steps>

@@ -1,0 +1,35 @@
+[package]
+name = "network-monitors"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "schema"
+required-features = ["schema-gen"]
+
+[lib]
+name = "network_monitors_contract"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cw2 = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw-controllers = { workspace = true }
+
+cosmwasm-schema = { workspace = true, optional = true }
+
+nym-network-monitors-contract-common = { workspace = true }
+nym-contracts-common = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+nym-contracts-common-testing = { workspace = true }
+
+[lints]
+workspace = true

@@ -19,9 +19,7 @@ use nym_sphinx_framing::processing::{
 use nym_sphinx_params::SphinxKeyRotation;
 use nym_sphinx_types::Delay;
 use nym_task::ShutdownToken;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::error::TrySendError;
-use tracing::{Span, debug, error, instrument, trace, warn};
+use tracing::{Span, debug, error, info, instrument, trace, warn};
 
 pub(crate) struct IngressNymPacket {
     packet: FramedNymPacket,
@@ -46,6 +44,7 @@ impl IngressNymPacket {
 pub struct MixPacketIngest {
     shared: SharedData,
 
+    // Keep a copy of the channel to prevent accidental exit
     packet_sender: MixIngestSender,
     packet_receiver: MixIngestReceiver,
 }
@@ -76,6 +75,51 @@ impl MixPacketIngest {
     }
 
     pub async fn run(&mut self, shutdown_token: ShutdownToken) {
+        let num_threads = std::thread::available_parallelism()
+            .expect("unable to query available parallelism")
+            .get();
+
+        let mut workers = tokio::task::JoinSet::new();
+
+        for i in 0..num_threads {
+            let recv = self.packet_receiver.clone();
+            let worker = MixPacketIngestWorker {
+                packet_receiver: recv,
+                shared: SharedData {
+                    processing_config: self.shared.processing_config,
+                    sphinx_keys: self.shared.sphinx_keys.clone(),
+                    replay_protection_filter: self.shared.replay_protection_filter.clone(),
+                    mixnet_forwarder: self.shared.mixnet_forwarder.clone(),
+                    final_hop: self.shared.final_hop.clone(),
+                    noise_config: self.shared.noise_config.clone(),
+                    metrics: self.shared.metrics.clone(),
+                    shutdown_token: self.shared.shutdown_token.child_token(),
+                },
+            };
+
+            let worker_token = shutdown_token.child_token();
+            workers.spawn(worker.run(worker_token));
+        }
+        info!("launched {num_threads} mix ingest workers");
+
+        while let Some(res) = workers.join_next().await {
+            if let Err(err) = res {
+                warn!("ingest worker closed with error: {err}");
+            } else if !shutdown_token.is_cancelled() {
+                warn!("ingest worker closed unexpectedly!");
+            }
+        }
+    }
+}
+
+struct MixPacketIngestWorker {
+    shared: SharedData,
+
+    packet_receiver: MixIngestReceiver,
+}
+
+impl MixPacketIngestWorker {
+    pub async fn run(mut self, shutdown_token: ShutdownToken) {
         trace!("starting PacketIngest");
         loop {
             tokio::select! {
@@ -84,10 +128,12 @@ impl MixPacketIngest {
                     debug!("PacketIngest: Received shutdown");
                     break;
                 }
-                new_packet = self.packet_receiver.recv() => {
-                    let Some(new_packet) = new_packet else {
-                        todo!("the ingest receiver closed somehow")
-                    };
+                new_packet = self.packet_receiver.recv_async() => {
+                    // this one is impossible to ever panic - the parent struct maintains a sender
+                    // and waits for this process to end. Therefore it can't happen that ALL senders
+                    // are dropped
+                    #[allow(clippy::unwrap_used)]
+                    let new_packet = new_packet.expect("the ingest receiver closed somehow");
                     self.handle_ingest_packet(new_packet).await;
                 }
             }
@@ -465,25 +511,26 @@ fn convert_to_metrics_version(processed: MixPacketVersion) -> PacketKind {
 pub fn mix_ingest_channels(
     processing_config: &ProcessingConfig,
 ) -> (MixIngestSender, MixIngestReceiver) {
-    let (tx, rx) = mpsc::channel(processing_config.ingress_channel_maximum_capacity);
+    let (tx, rx) = flume::bounded(processing_config.ingress_channel_maximum_capacity);
     (MixIngestSender(tx), rx)
 }
 
 #[derive(Clone)]
-pub struct MixIngestSender(mpsc::Sender<IngressNymPacket>);
+pub struct MixIngestSender(flume::Sender<IngressNymPacket>);
 
 impl MixIngestSender {
     pub fn ingest_packet(&self, packet: impl Into<IngressNymPacket>) -> io::Result<()> {
         let sender = &self.0;
 
-        let channel_capacity = sender.max_capacity();
-        let channel_available = sender.capacity();
-        let channel_used = channel_capacity - channel_available;
+        // we are using a bounded channel so unwrap is safe
+        #[allow(clippy::unwrap_used)]
+        let channel_capacity = sender.capacity().unwrap();
+        let channel_used = sender.len();
 
         let sending_res = sender.try_send(packet.into());
 
         sending_res.map_err(|err| match err {
-            TrySendError::Full(_) => {
+            flume::TrySendError::Full(_) => {
                 warn!(
                     event = "mixnode.ingress_try_send",
                     result = "full_dropped",
@@ -493,7 +540,7 @@ impl MixIngestSender {
                 );
                 io::Error::new(io::ErrorKind::WouldBlock, "ingress queue is full")
             }
-            TrySendError::Closed(_) => {
+            flume::TrySendError::Disconnected(_) => {
                 debug!(
                     event = "mixnode.ingress_try_send",
                     result = "closed",
@@ -507,4 +554,4 @@ impl MixIngestSender {
     }
 }
 
-pub type MixIngestReceiver = mpsc::Receiver<IngressNymPacket>;
+pub type MixIngestReceiver = flume::Receiver<IngressNymPacket>;

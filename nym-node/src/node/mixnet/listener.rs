@@ -82,9 +82,8 @@ impl Listener {
                     remote_addr,
                     self.ingest_sender.clone(),
                 );
-                let join_handle = tokio::spawn(async move {
-                    conn_handler.handle_connection(socket).await
-                });
+                let join_handle =
+                    tokio::spawn(async move { conn_handler.handle_connection(socket).await });
                 self.shared_data.log_connected_clients();
                 Some(join_handle)
             }
@@ -152,7 +151,10 @@ impl ConnectionHandler {
             "noise_handshake_ms",
             handshake_start.elapsed().as_millis() as u64,
         );
-        debug!("Noise responder handshake completed for {:?}", self.remote_addr);
+        debug!(
+            "Noise responder handshake completed for {:?}",
+            self.remote_addr
+        );
         self.handle_stream(Framed::new(noise_stream, NymCodec))
             .await
     }

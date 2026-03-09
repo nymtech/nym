@@ -293,7 +293,6 @@ impl IngressMixingStats {
         self.final_hop_packets_dropped.load(Ordering::Relaxed)
     }
 
-
     pub fn overflow_packets_dropped(&self) -> usize {
         self.overflow_packets_dropped.load(Ordering::Relaxed)
     }

@@ -614,7 +614,8 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
                 },
                 debug: ReplayProtectionDebug {
                     unsafe_disabled: old_cfg.mixnet.replay_protection.debug.unsafe_disabled,
-                    ingress_channel_maximum_capacity: ReplayProtectionDebug::DEFAULT_INGRESS_CHANNEL_MAXIMUM_CAPACITY,
+                    ingress_channel_maximum_capacity:
+                        ReplayProtectionDebug::DEFAULT_INGRESS_CHANNEL_MAXIMUM_CAPACITY,
                     false_positive_rate: old_cfg.mixnet.replay_protection.debug.false_positive_rate,
                     initial_expected_packets_per_second: old_cfg
                         .mixnet

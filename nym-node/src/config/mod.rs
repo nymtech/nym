@@ -659,7 +659,7 @@ pub struct ReplayProtectionDebug {
 
     /// Channel capacity for the mixnet ingress channel. This determines the maximum number of
     /// packets that can be queued waiting for ingest processing. Once the queue is full packets
-    /// will still be taken off the wire, but dropped as the node is too busy to handle them. 
+    /// will still be taken off the wire, but dropped as the node is too busy to handle them.
     pub ingress_channel_maximum_capacity: usize,
 
     /// Probability of false positives, fraction between 0 and 1 or a number indicating 1-in-p

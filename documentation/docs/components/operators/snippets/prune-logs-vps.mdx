@@ -28,9 +28,11 @@ journalctl --disk-usage
 
 ###### 3. Make `journald` limits persistent
 
-- Create a new file `journald.conf` with these hard caps:
+- Create a new file `/etc/systemd/journald.conf` with these hard caps:
 ```sh
-cat >/etc/systemd/journald.conf <<'EOF'
+mkdir -p /etc/systemd/journald.conf.d
+
+cat >/etc/systemd/journald.conf.d/limits.conf <<'EOF'
 [Journal]
 Storage=persistent
 Compress=yes

@@ -7,7 +7,7 @@ This chapter covers both:
 - Guest VM configuration
 - Host libvirt qcow2 behavior
 
-If you run [KVM/libvirt](/operators/nodes/preliminary-steps/vps-setup/advanced), this chapter comes as an essential part of your server hygiene procedure.
+If you run [KVM/libvirt](/operators/nodes/preliminary-steps/vps-setup/advanced), then this chapter is an essential part of your server hygiene procedure.
 
 **Verify disk usage**
 
@@ -24,7 +24,7 @@ journalctl --disk-usage
 #### Inside each VM
 
 <Callout type="info" emoji="ℹ️">
-In case your VMs are paused on the hypervizor (the host server), with no disk space left, start with [freeing some space on the hypervizor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine) and then return to this chapter, when the VMs are running again. 
+In case your VMs are paused on the hypervisor (the host server), with no disk space left, start with [freeing some space on the hypervisor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine) and then return to this chapter, when the VMs are running again. 
 </ Callout>
 
 <Callout>
@@ -88,13 +88,15 @@ journalctl --vacuum-size=100M
 journalctl --vacuum-time=3days
 journalctl --disk-usage
 ```
-- Compare the outcoma of the last one with the previous check
+- Compare the outcome of the last one with the previous check
 
 ###### 4. Make `journald` limits persistent
 
-- Create a new file `journald.conf` with these hard caps:
+- Create a new file `/etc/systemd/journald.conf.d/limits.conf` with these hard caps:
 ```sh
-cat >/etc/systemd/journald.conf <<'EOF'
+mkdir -p /etc/systemd/journald.conf.d
+
+cat >/etc/systemd/journald.conf.d/limits.conf <<'EOF'
 [Journal]
 Storage=persistent
 Compress=yes
@@ -166,13 +168,21 @@ systemctl restart nym-node
 #### On the Hypervisor (host machine)
 
 <Callout type="warning" emoji="⚠️">
-**Do *NOT* shrink the disk size with a `nym-node` on it - this would ireversibly corrupt your data! Instead follow the steps in this sub-chapter.**
+**Do *NOT* shrink the disk size with a `nym-node` on it - this would irreversibly corrupt your data! Instead follow the steps in this sub-chapter.**
 </ Callout>
 
 **All the steps below are done from the host machine.**
 
 <Steps>
-###### 1. Verify `qcow2` actual allocation vs virtual size
+###### 1. Check your VMs state
+
+- These two commands give you a quick overview of your VMs
+```sh
+virsh list --all
+ls -lh /var/lib/libvirt/images
+```
+
+###### 2. Verify `qcow2` actual allocation vs virtual size
 
 - The allocation defined by creating VMs is not equal to the actual usage
 
@@ -190,17 +200,17 @@ file length
 disk size
 ```
 
-###### 5. Monitor actual host allocation growth
+###### 3. Monitor actual host allocation growth
 
-- Watch how your disks allocation changes in 5 minutes
-- This provides you an easy calculation how much gets your space eaten in a day, week or month
+- Watch how disk allocation changes in 5 minutes
+- This provides you an easy calculation how much disk space is consumed in a day, week or month
 
 ```sh
 watch -n 300 'du -sh /var/lib/libvirt/images'
 df -h
 ```
 
-###### 6. `Spartify`
+###### 4. Sparsify
 
 - If images grew previously, sparsify once
 - Shutdown a VM first:
@@ -210,7 +220,7 @@ virsh shutdown <IMAGE_NAME>
 # for example:
 # virsh shutdown ubuntu1
 ```
-- Then `spartify`:
+- Then `sparsify`:
 
 ```sh
 virt-sparsify --in-place /var/lib/libvirt/images/<IMAGE_NAME>.img
@@ -223,19 +233,21 @@ virt-sparsify --in-place /var/lib/libvirt/images/<IMAGE_NAME>.img
 virsh start <IMAGE_NAME>
 
 # for example:
-# virsh shutdown ubuntu1
+# virsh start ubuntu1
 ```
 
 - Repeat per VM if necessary
 
-- If you want to spartify all of them, you can run it in a loop
+- If you want to sparsify all of them, you can run it in a loop
 ```sh
 for vm in $(virsh list --all --name); do
   virsh shutdown "$vm"
-  sleep 15
+
+  while [ "$(virsh domstate "$vm")" != "shut off" ]; do
+      sleep 5
+  done
+
   virt-sparsify --in-place /var/lib/libvirt/images/${vm}.img
-  sleep 5
-  virsh start "$vm"
 done
 ```
 
@@ -248,20 +260,20 @@ done
 ```
 - Finally make sure that they are all running:
 ```sh
-virsh list all
+virsh list --all
 ```
 
-###### 7. Ensure host filesystem supports hole punching
+###### 5. Ensure host filesystem supports hole punching
 
 ```sh
 df -T /var/lib/libvirt/images
 stat -f -c %T /var/lib/libvirt/images
 ```
 
-- The reccomended output is `ext4` or `xfs`
+- The filesystem must support hole punching (fallocate) such as `ext4` or `xfs`
 
 
-###### 8. Final validation
+###### 6. Final validation
 
 - Finally check that how much space is on your host disk:
 ```sh

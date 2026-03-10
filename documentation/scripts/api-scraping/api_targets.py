@@ -100,7 +100,7 @@ def _get_stake_saturation():
 def _get_desc_column():
     supply = "Maximum amount of NYM token in existence"
     reserve = "Tokens releasing for operators rewards"
-    vesting = "Tokens locked outside of cicrulation for future claim"
+    vesting = "Tokens locked outside of circulation for future claim"
     circulating = "Amount of unlocked tokens"
     desc_column = [supply, reserve, vesting, circulating]
     return desc_column

@@ -171,7 +171,7 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
-    #    "nym-gateway-probe",
+    "nym-gateway-probe",
     "integration-tests",
     "common/nym-kkt-ciphersuite",
     "common/nym-kkt-context",
@@ -439,6 +439,7 @@ nym-ecash-time = { version = "1.20.4", path = "common/ecash-time" }
 nym-exit-policy = { version = "1.20.4", path = "common/exit-policy" }
 nym-ffi-shared = { version = "1.20.4", path = "sdk/ffi/shared" }
 nym-gateway-client = { version = "1.20.4", path = "common/client-libs/gateway-client", default-features = false }
+nym-gateway-probe = { version = "1.18.0", path = "nym-gateway-probe" }
 nym-gateway-requests = { version = "1.20.4", path = "common/gateway-requests" }
 nym-gateway-storage = { version = "1.20.4", path = "common/gateway-storage" }
 nym-gateway-stats-storage = { version = "1.20.4", path = "common/gateway-stats-storage" }

@@ -163,4 +163,21 @@ impl HttpsConnectivityResult {
     pub fn errors(&self) -> Option<&Vec<String>> {
         self.errors.as_ref()
     }
+
+    #[cfg(feature = "test-utils")]
+    pub fn from_dummy_values(
+        https_success: bool,
+        https_status_code: Option<u16>,
+        https_latency_ms: Option<u64>,
+        endpoint_used: Option<String>,
+        errors: Option<Vec<String>>,
+    ) -> Self {
+        Self {
+            https_success,
+            https_status_code,
+            https_latency_ms,
+            endpoint_used,
+            errors,
+        }
+    }
 }

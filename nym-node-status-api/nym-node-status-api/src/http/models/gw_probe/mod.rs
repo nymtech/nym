@@ -103,6 +103,7 @@ pub struct DvpnProbeOutcome {
     pub as_exit: Option<Exit>,
     pub wg: Option<WgProbeResults>,
     pub socks5: Option<Socks5>,
+    pub lp: Option<LpProbeResults>,
 }
 
 impl DvpnProbeOutcome {
@@ -127,6 +128,7 @@ impl DvpnProbeOutcome {
                 score,
                 errors,
             }),
+            lp: outcome.lp,
         }
     }
 }
@@ -137,6 +139,7 @@ pub struct ProbeOutcome {
     pub as_exit: Option<Exit>,
     pub wg: Option<WgProbeResults>,
     pub socks5: Option<Socks5ProbeResults>,
+    pub lp: Option<LpProbeResults>,
 }
 
 use nym_gateway_probe::types::ProbeOutcome as ProbeOutcomeLatest;
@@ -148,6 +151,7 @@ impl From<ProbeOutcomeLatest> for ProbeOutcome {
             as_exit: value.as_exit.map(From::from),
             wg: value.wg.map(From::from),
             socks5: value.socks5.map(From::from),
+            lp: value.lp.map(From::from),
         }
     }
 }
@@ -312,7 +316,10 @@ pub enum ScoreValue {
 }
 
 /// calculates a visual score for the gateway using weighted metrics
-pub(super) fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreValue {
+pub(super) fn calc_gateway_visual_score(
+    gateway: &Gateway,
+    probe_outcome: &LastProbeResult,
+) -> ScoreValue {
     let mixnet_performance = gateway.performance as f64 / 100.0;
 
     let node_score = probe_outcome
@@ -414,7 +421,7 @@ impl From<Socks5ProbeResultsLatest> for Socks5ProbeResults {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct HttpsConnectivityResult {
     /// successfully completed HTTPS request
     https_success: bool,
@@ -442,6 +449,28 @@ impl From<HttpsConnectivityResultLatest> for HttpsConnectivityResult {
             https_latency_ms: value.https_latency_ms().cloned(),
             endpoint_used: value.endpoint_used().cloned(),
             errors: value.errors().cloned(),
+        }
+    }
+}
+
+use nym_gateway_probe::types::LpProbeResults as LpProbeResultsLatest;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[serde(rename = "lp")]
+pub struct LpProbeResults {
+    pub can_connect: bool,
+    pub can_handshake: bool,
+    pub can_register: bool,
+    pub error: Option<String>,
+}
+
+impl From<LpProbeResultsLatest> for LpProbeResults {
+    fn from(value: LpProbeResultsLatest) -> Self {
+        Self {
+            can_connect: value.can_connect,
+            can_handshake: value.can_handshake,
+            can_register: value.can_register,
+            error: value.error,
         }
     }
 }

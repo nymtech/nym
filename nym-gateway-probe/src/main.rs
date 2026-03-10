@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
             println!("{json}");
         }
         Err(err) => {
-            eprintln!("An error occurred: {err}");
+            eprintln!("An error occurred: {err:#}");
             std::process::exit(1)
         }
     }

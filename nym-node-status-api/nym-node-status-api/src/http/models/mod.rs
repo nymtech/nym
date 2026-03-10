@@ -15,6 +15,7 @@ use nym_validator_client::{
     client::NodeId,
     models::{
         AuthenticatorDetailsV1, BinaryBuildInformationOwned, IpPacketRouterDetailsV1,
+        LewesProtocolDetailsDataV1 as LewesProtocolDetailsDataV1Validator,
         LewesProtocolDetailsV1 as LewesProtocolDetailsV1Validator,
     },
     nym_api::SkimmedNodeV1,
@@ -97,28 +98,49 @@ pub struct DVpnGatewayPerformance {
     uptime_percentage_last_24_hours: f32,
 }
 
-// maps from a type in nym validator client
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-pub struct LewesProtocolDetails {
+pub struct LewesProtocolDetailsV1 {
+    pub content: LewesProtocolDetailsDataV1,
+    pub signature: String,
+}
+
+impl From<&LewesProtocolDetailsV1Validator> for LewesProtocolDetailsV1 {
+    fn from(value: &LewesProtocolDetailsV1Validator) -> Self {
+        Self {
+            content: (&value.content).into(),
+            signature: value.signature.to_base58_string(),
+        }
+    }
+}
+
+// maps from a type in nym validator client: copied over doc comments for a prettier OpenAPI spec :)
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct LewesProtocolDetailsDataV1 {
+    /// Helper field that specifies whether the LP listener(s) is enabled on this node.
+    /// It is directly controlled by the node's role (i.e. it is enabled if it supports 'entry' mode)
     pub enabled: bool,
+    /// LP TCP control address (default: 41264) for establishing LP sessions
     pub control_port: u16,
+    /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
     pub data_port: u16,
+    /// LP public key
     pub x25519: String,
-    /// <algo name<hash function name, hex-encoded digest>
+    /// Digests of the KEM keys available to this node alongside hashing algorithms used
+    /// for their computation.
+    /// note: digests are hex encoded
     pub kem_keys: HashMap<String, HashMap<String, String>>,
 }
 
-impl From<&LewesProtocolDetailsV1Validator> for LewesProtocolDetails {
-    fn from(value: &LewesProtocolDetailsV1Validator) -> Self {
-        let content = &value.content;
-        let x25519_pk: nym_crypto::asymmetric::x25519::PublicKey = content.x25519.into();
+impl From<&LewesProtocolDetailsDataV1Validator> for LewesProtocolDetailsDataV1 {
+    fn from(value: &LewesProtocolDetailsDataV1Validator) -> Self {
+        let x25519_pk: nym_crypto::asymmetric::x25519::PublicKey = value.x25519.into();
 
-        LewesProtocolDetails {
-            enabled: content.enabled,
-            control_port: content.control_port,
-            data_port: content.data_port,
+        LewesProtocolDetailsDataV1 {
+            enabled: value.enabled,
+            control_port: value.control_port,
+            data_port: value.data_port,
             x25519: x25519_pk.to_base58_string(),
-            kem_keys: content
+            kem_keys: value
                 .kem_keys
                 .iter()
                 .map(|(kem, digests)| {
@@ -159,7 +181,7 @@ pub struct DVpnGateway {
     // about the node in a user-friendly way
     pub performance_v2: Option<DVpnGatewayPerformance>,
 
-    pub lewes_protocol_details: Option<LewesProtocolDetails>,
+    pub lewes_protocol_details: Option<LewesProtocolDetailsV1>,
 
     pub build_information: BinaryBuildInformationOwned,
 }
@@ -298,7 +320,7 @@ impl DVpnGateway {
             lewes_protocol_details: self_described
                 .lewes_protocol
                 .as_ref()
-                .map(LewesProtocolDetails::from),
+                .map(LewesProtocolDetailsV1::from),
             build_information: self_described.build_information,
         })
     }

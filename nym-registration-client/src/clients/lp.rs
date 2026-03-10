@@ -1,8 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#![allow(dead_code)]
-
 use crate::builder::RegistrationClientBuilder;
 use crate::config::RegistrationClientConfig;
 use crate::config::RegistrationMode;
@@ -16,7 +14,7 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 
 use nym_lp::peer::DHKeyPair;
-use rand09::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore, SeedableRng};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
@@ -158,7 +156,7 @@ impl LpBasedRegistrationClient {
     }
 
     async fn register_wg(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let mut rng = rand09::rng();
+        let mut rng = rand09::rngs::StdRng::from_os_rng();
 
         self.register_wg_with_rng(&mut rng).await
     }

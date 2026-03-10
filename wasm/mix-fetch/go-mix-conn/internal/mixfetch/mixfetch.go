@@ -5,6 +5,8 @@ package mixfetch
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"go-mix-conn/internal/bridge/rust_bridge"
@@ -15,7 +17,6 @@ import (
 	"go-mix-conn/internal/types"
 	"net"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -154,8 +155,8 @@ func dialContext(_ctx context.Context, requestURL string, _network, addr string)
 	}
 
 	conn, inj := state.NewFakeConnection(requestId, addr)
-	// Use requestURL (full URL) as the mapping key, meaning we can now
-	// have concurrent requests to different paths on the same domain.
+	// Use requestURL (URL + random suffix) as the mapping key, allowing
+	// concurrent requests to the same URL.
 	state.ActiveRequests.Insert(requestId, requestURL, inj)
 
 	return conn, nil
@@ -173,8 +174,8 @@ func dialTLSContext(_ctx context.Context, requestURL string, _network, addr stri
 	}
 
 	conn, inj := state.NewFakeTlsConn(requestId, addr)
-	// Use requestURL (full URL) as the mapping key, meaning we can now
-	// have concurrent requests to different paths on the same domain.
+	// Use requestURL (URL + random suffix) as the mapping key, allowing
+	// concurrent requests to the same URL.
 	state.ActiveRequests.Insert(requestId, requestURL, inj)
 
 	if err := conn.Handshake(); err != nil {
@@ -325,13 +326,9 @@ func performRequest(req *conv.ParsedRequest, requestURL string) (*conv.ResponseW
 	return &wrapper, err
 }
 
-func onErrCleanup(url *url.URL) {
+func onErrCleanup(requestURL string) {
 	// TODO: cancel stuff here.... somehow...
 
-	// Use full URL string to match the key used in MixFetch for request deduplication.
-	// Makes sure we clean up the correct request when multiple requests to
-	// different paths on the same domain are in process.
-	requestURL := url.String()
 	id := state.ActiveRequests.GetId(requestURL)
 	// TODO: can we guarantee that rust is not holding any references to that id (that we don't know on this side)?
 	if id == 0 {
@@ -347,18 +344,20 @@ func onErrCleanup(url *url.URL) {
 	}
 }
 
+// generateMappingKey creates a unique key for the address mapping by appending
+// random bytes to the URL. This allows concurrent requests to the same URL.
+func generateMappingKey(rawURL string) string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return rawURL + "#" + hex.EncodeToString(b)
+}
+
 func MixFetch(request *conv.ParsedRequest) (any, error) {
 	log.Info("_mixFetch: start")
 
-	// Use the full URL (inc path and query params) as the deduplication key.
-	// Allows concurrent requests to different paths on the same domain
-	// (e.g., foo.com/index.html and foo.com/index.js) while still preventing
-	// duplicate requests to the exact same URL.
-	requestURL := request.Request.URL.String()
-
-	if state.ActiveRequests.ExistsCanonical(requestURL) {
-		return nil, errors.New(fmt.Sprintf("there is already an active request for %s", requestURL))
-	}
+	// Generate a unique mapping key per request so that concurrent requests
+	// to the same URL each get their own entry in the address mapping.
+	requestURL := generateMappingKey(request.Request.URL.String())
 
 	resCh := make(chan *conv.ResponseWrapper)
 	errCh := make(chan error)
@@ -378,7 +377,7 @@ func MixFetch(request *conv.ParsedRequest) (any, error) {
 		return conv.IntoJSResponse(res, request.Options)
 	case err := <-errCh:
 		log.Warn("request failure: %s", err)
-		onErrCleanup(request.Request.URL)
+		onErrCleanup(requestURL)
 		return nil, err
 	}
 }

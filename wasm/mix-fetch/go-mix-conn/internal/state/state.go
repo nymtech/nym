@@ -25,18 +25,16 @@ func InitialiseGlobalState() {
 	}
 }
 
-// CurrentActiveRequests tracks ongoign requests for thread-safe access.
-// The AddressMapping uses full URLs (inc path and query params) as keys,
-// allowing concurrent requests to different paths on the same domain while
-// preventing duplicate requests to the *exact* same URL.
+// CurrentActiveRequests tracks ongoing requests for thread-safe access.
+// The AddressMapping uses unique keys (URL + random suffix) so that
+// concurrent requests to the same URL each get their own entry.
 type CurrentActiveRequests struct {
 	sync.Mutex
 	Requests       map[types.RequestId]*ActiveRequest
-	AddressMapping map[string]types.RequestId // key is full URL string
+	AddressMapping map[string]types.RequestId // key is URL + random suffix
 }
 
-// GetId returns the request ID associated with the given URL string.
-// The URL should be the full URL including path and query params.
+// GetId returns the request ID associated with the given mapping key.
 func (ar *CurrentActiveRequests) GetId(requestURL string) types.RequestId {
 	log.Trace("getting id associated with request for %s", requestURL)
 	ar.Lock()
@@ -52,15 +50,8 @@ func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
 	return exists
 }
 
-// ExistsCanonical checks if there's already an active request for the given URL.
-// The URL should be the full URL including path and query params.
-// Allows concurrent requests to different paths on the same domain.
-func (ar *CurrentActiveRequests) ExistsCanonical(requestURL string) bool {
-	return ar.GetId(requestURL) != 0
-}
-
 // Insert adds a new active request to the tracking maps.
-// The requestURL should be the full URL including path and query params.
+// The requestURL should be a unique mapping key (URL + random suffix).
 func (ar *CurrentActiveRequests) Insert(id types.RequestId, requestURL string, inj ConnectionInjector) {
 	log.Trace("inserting request %d for %s", id, requestURL)
 	ar.Lock()
@@ -131,5 +122,5 @@ func (ar *CurrentActiveRequests) SendError(id types.RequestId, err error) {
 
 type ActiveRequest struct {
 	injector   ConnectionInjector
-	requestURL string // Full URL including path and query params
+	requestURL string // Unique mapping key (URL + random suffix)
 }

@@ -41,7 +41,7 @@ pub struct BuilderConfig {
 
     // Toggle
     #[builder(default)]
-    pub enable_lp_regitration: bool,
+    pub enable_lp_registration: bool,
 
     // Mixnet based only option
     pub mixnet_client_config: MixnetClientConfig,

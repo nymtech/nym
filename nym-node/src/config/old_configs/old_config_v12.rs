@@ -980,14 +980,29 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
         },
         metrics: MetricsConfig {
             debug: metrics::Debug {
-                log_stats_to_console: false,
-                aggregator_update_rate: Default::default(),
-                stale_mixnet_metrics_cleaner_rate: Default::default(),
-                global_prometheus_counters_update_rate: Default::default(),
-                pending_egress_packets_update_rate: Default::default(),
-                clients_sessions_update_rate: Default::default(),
-                console_logging_update_interval: Default::default(),
-                legacy_mixing_metrics_update_rate: Default::default(),
+                log_stats_to_console: old_cfg.metrics.debug.log_stats_to_console,
+                aggregator_update_rate: old_cfg.metrics.debug.aggregator_update_rate,
+                stale_mixnet_metrics_cleaner_rate: old_cfg
+                    .metrics
+                    .debug
+                    .stale_mixnet_metrics_cleaner_rate,
+                global_prometheus_counters_update_rate: old_cfg
+                    .metrics
+                    .debug
+                    .global_prometheus_counters_update_rate,
+                pending_egress_packets_update_rate: old_cfg
+                    .metrics
+                    .debug
+                    .pending_egress_packets_update_rate,
+                clients_sessions_update_rate: old_cfg.metrics.debug.clients_sessions_update_rate,
+                console_logging_update_interval: old_cfg
+                    .metrics
+                    .debug
+                    .console_logging_update_interval,
+                legacy_mixing_metrics_update_rate: old_cfg
+                    .metrics
+                    .debug
+                    .legacy_mixing_metrics_update_rate,
             },
         },
         logging: LoggingSettings {},

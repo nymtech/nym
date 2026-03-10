@@ -23,6 +23,10 @@ journalctl --disk-usage
 
 #### Inside each VM
 
+<Callout type="info" emoji="ℹ️">
+In case your VMs are paused on the hypervizor (the host server), with no disk space left, start with [freeing some space on the hypervizor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine) and then return to this chapter, when the VMs are running again. 
+</ Callout>
+
 <Callout>
 **This part can be automated via [Ansible](/operators/orchestration/ansible), using the playbook [`system-maintenance.yml`](/operators/orchestration/ansible#4-system-maintenance). If this is your way, then proceed with Ansible and skip directly to the part called [*On the Hypervisor (host machine)*](#on-the-hypervisor-host-machine).**
 </ Callout>

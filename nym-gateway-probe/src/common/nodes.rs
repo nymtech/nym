@@ -3,25 +3,26 @@
 
 use anyhow::{Context, anyhow, bail};
 use nym_api_requests::models::{
-    AuthenticatorDetailsV1, DeclaredRolesV1, DescribedNodeTypeV1, HostInformationV1,
-    IpPacketRouterDetailsV1, NetworkRequesterDetailsV1, NymNodeDataV1,
-    OffsetDateTimeJsonSchemaWrapper, WebSocketsV1, WireguardDetailsV1,
+    AuthenticatorDetailsV2, DeclaredRolesV2, DescribedNodeTypeV2, HostInformationV2,
+    IpPacketRouterDetailsV2, NetworkRequesterDetailsV2, NymNodeDataV2,
+    OffsetDateTimeJsonSchemaWrapper, WebSocketsV2, WireguardDetailsV2,
 };
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
-use nym_crypto::asymmetric::x25519;
 use nym_http_api_client::UserAgent;
-use nym_kkt_ciphersuite::SignatureScheme;
+use nym_kkt_ciphersuite::Ciphersuite;
 use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
+use nym_lp::packet::version;
+use nym_lp::peer::{DHPublicKey, LpRemotePeer};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::v1::node::models::AuxiliaryDetails as NodeAuxiliaryDetails;
 use nym_sdk::mixnet::NodeIdentity;
 use nym_sdk::mixnet::Recipient;
 use nym_validator_client::client::NymApiClientExt;
-use nym_validator_client::models::NymNodeDescriptionV1;
+use nym_validator_client::models::NymNodeDescriptionV2;
 use rand::prelude::IteratorRandom;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -90,7 +91,7 @@ use url::Url;
 
 #[derive(Clone)]
 pub struct DirectoryNode {
-    described: NymNodeDescriptionV1,
+    described: NymNodeDescriptionV2,
 }
 
 impl DirectoryNode {
@@ -129,16 +130,32 @@ impl DirectoryNode {
             .copied()
             .ok_or_else(|| anyhow!("no ip address known"))?;
 
-        // let lp_data = description.lewes_protocol.as_ref().and_then(|lp_data| {
-        //     Some(TestedNodeLpDetails {
-        //         address: SocketAddr::new(ip_address, lp_data.control_port),
-        //         expected_kem_key_hashes: lp_data.kem_keys().ok()?,
-        //         expected_signing_key_hashes: lp_data.signing_keys().ok()?,
-        //         x25519: lp_data.x25519,
-        //         // \/ TODO: proper derivation from build version
-        //         lp_version: version::CURRENT,
-        //     })
-        // });
+        let identity = self.identity();
+
+        let lp_data = match description.lewes_protocol.as_ref() {
+            Some(lp_data) => {
+                // 1. verify the signature, if it's invalid, completely bail on the node
+                if !lp_data.verify(&identity) {
+                    warn!("{identity} provided malformed lp data");
+                    bail!("{identity} provided malformed lp data");
+                }
+
+                let version: semver::Version =
+                    description.build_information.build_version.parse()?;
+                let Some(ciphersuite) = Ciphersuite::from_node_version(version) else {
+                    bail!("failed to identify valid ciphersuite for {identity}");
+                };
+
+                Some(TestedNodeLpDetails {
+                    address: SocketAddr::new(ip_address, lp_data.content.control_port),
+                    expected_kem_key_hashes: lp_data.content.kem_keys()?,
+                    x25519: lp_data.content.x25519,
+                    lp_version: version::CURRENT,
+                    ciphersuite,
+                })
+            }
+            None => None,
+        };
 
         Ok(TestedNodeDetails {
             identity: self.identity(),
@@ -147,7 +164,7 @@ impl DirectoryNode {
             authenticator_address,
             authenticator_version,
             ip_address: Some(ip_address),
-            lp_data: None,
+            lp_data,
         })
     }
 }
@@ -237,11 +254,11 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                     .await
                     .inspect_err(|e| error!("Failed to get wireguard information : {e}"))
                     .ok();
-                // let lp_result = client
-                //     .get_lewes_protocol()
-                //     .await
-                //     .inspect_err(|e| error!("Failed to get LP information : {e}"))
-                //     .ok();
+                let lp_result = client
+                    .get_lewes_protocol()
+                    .await
+                    .inspect_err(|e| error!("Failed to get LP information : {e}"))
+                    .ok();
 
                 // Check required fields
                 let host_info = host_info_result.context("Failed to get host information")?;
@@ -261,22 +278,22 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                 }
 
                 // Convert to our internal types
-                let network_requester: Option<NetworkRequesterDetailsV1> =
-                    nr_result.map(|nr| NetworkRequesterDetailsV1 {
+                let network_requester: Option<NetworkRequesterDetailsV2> =
+                    nr_result.map(|nr| NetworkRequesterDetailsV2 {
                         address: nr.address,
                         uses_exit_policy: false, // Field not availabe, to change if it becomes useful here
                     });
-                let ip_packet_router: Option<IpPacketRouterDetailsV1> =
-                    ipr_result.map(|ipr| IpPacketRouterDetailsV1 {
+                let ip_packet_router: Option<IpPacketRouterDetailsV2> =
+                    ipr_result.map(|ipr| IpPacketRouterDetailsV2 {
                         address: ipr.address,
                     });
-                let authenticator: Option<AuthenticatorDetailsV1> =
-                    authenticator_result.map(|auth| AuthenticatorDetailsV1 {
+                let authenticator: Option<AuthenticatorDetailsV2> =
+                    authenticator_result.map(|auth| AuthenticatorDetailsV2 {
                         address: auth.address,
                     });
                 #[allow(deprecated)]
-                let wireguard: Option<WireguardDetailsV1> =
-                    wireguard_result.map(|wg| WireguardDetailsV1 {
+                let wireguard: Option<WireguardDetailsV2> =
+                    wireguard_result.map(|wg| WireguardDetailsV2 {
                         port: wg.tunnel_port, // Use tunnel_port for deprecated port field
                         tunnel_port: wg.tunnel_port,
                         metadata_port: wg.metadata_port,
@@ -284,14 +301,14 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                     });
 
                 // Construct NymNodeData
-                let node_data = NymNodeDataV1 {
+                let node_data = NymNodeDataV2 {
                     last_polled: OffsetDateTimeJsonSchemaWrapper(OffsetDateTime::now_utc()),
-                    host_information: HostInformationV1 {
+                    host_information: HostInformationV2 {
                         ip_address: host_info.data.ip_address,
                         hostname: host_info.data.hostname,
                         keys: host_info.data.keys.into(),
                     },
-                    declared_role: DeclaredRolesV1 {
+                    declared_role: DeclaredRolesV2 {
                         mixnode: roles.mixnode_enabled,
                         entry: roles.gateway_enabled,
                         exit_nr: roles.network_requester_enabled,
@@ -314,17 +331,17 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                     ip_packet_router,
                     authenticator,
                     wireguard,
-                    // lewes_protocol: lp_result.map(Into::into),
-                    mixnet_websockets: WebSocketsV1 {
+                    lewes_protocol: lp_result.map(Into::into),
+                    mixnet_websockets: WebSocketsV2 {
                         ws_port: websockets.ws_port,
                         wss_port: websockets.wss_port,
                     },
                 };
 
                 // Create NymNodeDescription
-                let described = NymNodeDescriptionV1 {
+                let described = NymNodeDescriptionV2 {
                     node_id: 0, // We don't have a node_id from direct query
-                    contract_node_type: DescribedNodeTypeV1::NymNode, // All new nodes are NymNode type
+                    contract_node_type: DescribedNodeTypeV2::NymNode, // All new nodes are NymNode type
                     description: node_data,
                 };
 
@@ -361,7 +378,7 @@ impl NymApiDirectory {
 
         debug!("Fetching all described nodes from nym-api...");
         let described_nodes = api_client
-            .get_all_described_nodes()
+            .get_all_described_nodes_v2()
             .await
             .context("nym api query failure")?;
 
@@ -482,8 +499,14 @@ pub struct TestedNodeDetails {
 #[derive(Debug, Clone)]
 pub struct TestedNodeLpDetails {
     pub address: SocketAddr,
-    pub expected_kem_key_hashes: HashMap<KEM, KEMKeyDigests>,
-    pub expected_signing_key_hashes: HashMap<SignatureScheme, KEMKeyDigests>,
-    pub x25519: x25519::PublicKey,
+    pub expected_kem_key_hashes: BTreeMap<KEM, KEMKeyDigests>,
+    pub x25519: DHPublicKey,
     pub lp_version: u8,
+    pub ciphersuite: Ciphersuite,
+}
+
+impl TestedNodeLpDetails {
+    pub fn into_remote_peer(self) -> LpRemotePeer {
+        LpRemotePeer::new(self.x25519).with_key_digests(self.expected_kem_key_hashes)
+    }
 }

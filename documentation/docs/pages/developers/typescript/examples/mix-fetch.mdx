@@ -13,7 +13,7 @@ Sounds great, are there any catches? Well, there are a few (for now):
 
 - For now, `mixfetch` doesn't work with SURBS, although this will change in the future.
 
-- For now, `mixFetch` cannot deal with concurrent requests with the same base URL.
+- `mixFetch` supports concurrent requests (up to 10) to either different URLs on the same domain or different domains. Duplicate requests to the exact same URL will be deduplicated.
 
 <Callout type="info" emoji="ℹ️">
   Right now Gateways are not required to run a Secure Websocket (WSS) listener, so only a subset of nodes running in Gateway mode have configured their nodes to do so.
@@ -33,6 +33,7 @@ curl -X 'GET' \
 import type { SetupMixFetchOps } from '@nymproject/mix-fetch';
 
 const mixFetchOptions: SetupMixFetchOps = {
+  clientId: "my-mixfetch-client", // explicit ID to avoid stale default IndexedDB storage
   preferredGateway: "q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1", // with WSS
   mixFetchOverride: {
     requestTimeoutMs: 60_000,
@@ -78,7 +79,7 @@ import { mixFetch } from '@nymproject/mix-fetch-full-fat';
 
 ##### Example: using the `mixFetch` client:
 
-`Get` and `Post` outputs will be observable from your console.
+`Get`, `Post`, and `Concurrent` outputs will be observable from your console. MixFetch auto-initializes on the first request. Individual concurrent results are logged as they arrive.
 
 ```ts
 import './App.css';
@@ -86,6 +87,7 @@ import { mixFetch, SetupMixFetchOps } from '@nymproject/mix-fetch-full-fat';
 import React from 'react';
 
 const mixFetchOptions: SetupMixFetchOps = {
+  clientId: "my-mixfetch-client", // explicit ID to avoid stale default IndexedDB storage
   preferredGateway: '23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb', // with WSS
   preferredNetworkRequester:
     'HuNL1pFprNSKW6jdqppibXP5KNKCNJxDh7ivpYcoULN9.C62NahRTUf6kqpNtDVHXoVriQr6yyaU5LtxdgpbsGrtA@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb',
@@ -103,7 +105,7 @@ export function HttpGET() {
     const response = await mixFetch('https://nym.com/favicon.svg', { mode: 'unsafe-ignore-cors' }, mixFetchOptions);
     const text = await response.text();
     console.log('response was', text);
-    setHtml(html);
+    setHtml(text);
   }
 
   return (
@@ -146,11 +148,63 @@ export function HttpPOST() {
   );
 }
 
+// Send 5 concurrent requests to different URLs on the same domain using Promise.all
+export function HttpConcurrent() {
+  const [results, setResults] = React.useState<string[]>([]);
+  const [busy, setBusy] = React.useState(false);
+
+  async function fetchConcurrent() {
+    const baseUrl = 'https://jsonplaceholder.typicode.com/posts/';
+    const count = 5;
+    setBusy(true);
+    setResults([]);
+    console.log(`Starting ${count} concurrent requests to ${baseUrl}1-${count}...`);
+
+    try {
+      // Fire off all requests at once with Promise.all
+      const requests = Array.from({ length: count }, (_, i) => {
+        const url = `${baseUrl}${i + 1}`;
+        return mixFetch(url, { mode: 'unsafe-ignore-cors' }, mixFetchOptions)
+          .then((res) => res.json())
+          .then((json: { id: number; title: string }) => {
+            const entry = `[${json.id}] ${json.title}`;
+            console.log(entry);
+            return entry;
+          });
+      });
+
+      const allResults = await Promise.all(requests);
+      setResults(allResults);
+      console.log('All concurrent requests completed!', allResults);
+    } catch (err) {
+      console.error('Concurrent fetch error:', err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <button onClick={fetchConcurrent} disabled={busy}>
+        {busy ? 'Fetching...' : 'Send 5 Concurrent Requests'}
+      </button>
+      {results.length > 0 && (
+        <ul>
+          {results.map((r, i) => (
+            <li key={i}>{r}</li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 export default function App() {
   return (
     <>
       <HttpGET />
       <HttpPOST />
+      <HttpConcurrent />
     </>
   );
 }

@@ -56,6 +56,39 @@ pnpm run build
 ## CI/CD
 - **Link checking**: Runs on every push to `documentation/docs/` via `.github/workflows/ci-docs-linkcheck.yml`
 
+## SEO & Structured Data
+### Frontmatter
+Every `.mdx` page supports frontmatter fields that control meta tags, Open Graph, and JSON-LD schema:
+```yaml
+---
+title: "Page Title for Search Engines"
+description: "Unique meta description for this page."
+schemaType: "TechArticle"    # TechArticle (default), HowTo, or FAQPage
+section: "Operators"          # Operators, Developers, Network, APIs
+lastUpdated: "2026-02-11"    # Feeds dateModified schema
+breadcrumbLabel: "Custom Label" # Optional, overrides URL slug in breadcrumbs
+---
+```
+
+### Sitemap
+```bash
+npx next-sitemap
+```
+Outputs `sitemap.xml` and `robots.txt` to `/public`.
+
+### Environment Variable
+Set in production:
+```
+NEXT_PUBLIC_SITE_URL=https://nymtech.net/docs
+```
+
+### Schema Types
+| Type | Use When |
+|------|----------|
+| TechArticle | Reference docs, config guides, overviews (default) |
+| HowTo | Step-by-step install/setup guides |
+| FAQPage | Question-answer pages |
+
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.
 

@@ -1,12 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::common::nodes::TestedNodeLpDetails;
-use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_requests::v8::response::{
     ControlResponse, DataResponse, InfoLevel, IpPacketResponse, IpPacketResponseData,
 };
-use nym_lp::peer::LpRemotePeer;
 use nym_sdk::{
     DebugConfig, NymApiTopologyProvider, NymApiTopologyProviderConfig, NymNetworkDetails,
     TopologyProvider, mixnet::ReconstructedMessage,
@@ -14,13 +11,6 @@ use nym_sdk::{
 use nym_topology::NymTopology;
 use tracing::*;
 use url::Url;
-
-pub fn to_lp_remote_peer(identity: ed25519::PublicKey, data: TestedNodeLpDetails) -> LpRemotePeer {
-    LpRemotePeer::new(identity, data.x25519).with_key_digests(
-        data.expected_kem_key_hashes,
-        data.expected_signing_key_hashes,
-    )
-}
 
 pub fn mixnet_debug_config(
     min_gateway_performance: Option<u8>,

@@ -21,29 +21,27 @@
 use super::client::LpRegistrationClient;
 use super::error::{LpClientError, Result};
 use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt};
-use crate::lp_client::state_machine_helpers::{
-    extract_forwarded_response, prepare_serialised_send_packet,
-};
+use crate::lp_client::state_machine_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::codec::{OuterAeadKey, parse_lp_packet};
-use nym_lp::message::ForwardPacketData;
 use nym_lp::packet::version;
-use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
-use nym_lp::state_machine::{LpData, LpStateMachine};
-use nym_lp::{LpPacket, LpSession};
-use nym_lp_transport::traits::LpTransport;
+use nym_lp::packet::{EncryptedLpPacket, LpMessage};
+use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
+use nym_lp::state_machine::LpStateMachine;
+use nym_lp::transport::LpHandshakeChannel;
+use nym_lp::transport::traits::LpTransportChannel;
+use nym_lp::{Ciphersuite, KEM, LpSession};
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, Rng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{debug, warn};
 
 pub(crate) mod connection;
 
@@ -90,17 +88,18 @@ impl NestedLpSession {
     ///
     /// # Arguments
     /// * `exit_address` - Exit gateway's LP address (e.g., "2.2.2.2:41264")
-    /// * `client_keypair` - Client's Ed25519 keypair
+    /// * `client_keypair` - Client's x25519 keypair
     /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
+    /// * `ciphersuite` - the set of cryptographic protocols to use when negotiating the session with the node
     /// * `gateway_supported_lp_protocol_version` - Gateway's LP protocol version
     pub fn new(
         exit_address: SocketAddr,
-        client_keypair: Arc<ed25519::KeyPair>,
+        client_keypair: Arc<DHKeyPair>,
         gateway_lp_peer: LpRemotePeer,
+        ciphersuite: Ciphersuite,
         gateway_supported_lp_protocol_version: u8,
     ) -> Self {
-        let local_x25519_keypair = client_keypair.to_x25519();
-        let lp_local_peer = LpLocalPeer::new(client_keypair, Arc::new(local_x25519_keypair));
+        let lp_local_peer = LpLocalPeer::new(ciphersuite, client_keypair);
 
         let lp_protocol = if gateway_supported_lp_protocol_version > version::CURRENT {
             warn!(
@@ -121,44 +120,25 @@ impl NestedLpSession {
         }
     }
 
-    fn state_machine(&self) -> Result<&LpStateMachine> {
-        self.state_machine.as_ref().ok_or_else(|| {
-            LpClientError::transport(
-                "State machine not available - has the handshake been completed?",
-            )
-        })
-    }
-
     fn state_machine_mut(&mut self) -> Result<&mut LpStateMachine> {
-        self.state_machine.as_mut().ok_or_else(|| {
-            LpClientError::transport(
-                "State machine not available - has the handshake been completed?",
-            )
-        })
+        self.state_machine
+            .as_mut()
+            .ok_or(LpClientError::IncompleteHandshake)
     }
 
-    /// Attempt to parse received bytes into an LpPacket
-    fn parse_received_lp_packet(&self, response_bytes: Vec<u8>) -> Result<LpPacket> {
-        let state_machine = self.state_machine()?;
-        let outer_key = state_machine.session()?.outer_aead_key();
-        Self::parse_packet(&response_bytes, Some(outer_key))
-    }
-
-    /// Attempt to wrap the provided `LpData` into a `ForwardPacketData`
+    /// Attempt to wrap the provided `LpData` into a `EncryptedLpPacket`
     /// using the inner state machine.
-    fn prepare_forward_packet(&mut self, data: LpData) -> Result<ForwardPacketData> {
+    fn prepare_transport_packet(&mut self, data: LpMessage) -> Result<EncryptedLpPacket> {
         let state_machine = self.state_machine_mut()?;
-        let inner_packet_bytes = prepare_serialised_send_packet(data, state_machine)?;
-        Ok(ForwardPacketData::new(
-            self.gateway_lp_peer.ed25519(),
-            self.exit_address,
-            inner_packet_bytes,
-        ))
+        prepare_send_packet(data, state_machine)
     }
 
-    /// Attempt to recover received `LpData` from the received `LpPacket`
+    /// Attempt to recover received `LpData` from the received `EncryptedLpPacket`
     /// using the inner state machine.
-    fn extract_forwarded_response(&mut self, response_packet: LpPacket) -> Result<LpData> {
+    fn extract_forwarded_response(
+        &mut self,
+        response_packet: EncryptedLpPacket,
+    ) -> Result<LpMessage> {
         let state_machine = self.state_machine_mut()?;
         extract_forwarded_response(response_packet, state_machine)
     }
@@ -167,10 +147,8 @@ impl NestedLpSession {
     /// through the entry gateway.
     ///
     /// This method:
-    /// 1. Generates ClientHello for exit gateway
-    /// 2. Creates LP state machine for exit handshake
-    /// 3. Runs handshake loop, forwarding all packets through entry gateway
-    /// 4. Stores established session in internal state machine
+    /// 1. Runs handshake loop, forwarding all packets through entry gateway
+    /// 2. Stores established session in internal state machine
     ///
     /// # Arguments
     /// * `outer_client` - Connected LP client with established outer session to entry gateway
@@ -181,38 +159,40 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Exit gateway handshake fails
     /// - Cryptographic operations fail
-    async fn perform_handshake<S>(
+    pub async fn perform_handshake<S>(
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,
     ) -> Result<()>
     where
-        S: LpTransport + Unpin,
+        S: LpTransportChannel + LpHandshakeChannel + Unpin,
     {
+        if self.lp_local_peer.ciphersuite().kem() == KEM::McEliece {
+            return Err(LpClientError::UnsupportedNestedMcEliece);
+        }
+
         tracing::debug!(
             "Starting nested LP handshake with exit gateway {}",
             self.exit_address
         );
 
-        let mut nested_connection =
-            outer_client.as_nested_connection(self.gateway_lp_peer.ed25519(), self.exit_address);
+        let mut nested_connection = outer_client.as_nested_connection(self.exit_address);
 
         let local_peer = self.lp_local_peer.clone();
         let remote_peer = self.gateway_lp_peer.clone();
         let protocol_version = self.gateway_supported_lp_protocol_version;
 
-        let ciphersuite = LpSession::default_ciphersuite();
-        let session = LpSession::complete_as_initiator(
+        let session = LpSession::psq_handshake_initiator(
             &mut nested_connection,
-            ciphersuite,
             local_peer,
             remote_peer,
             protocol_version,
         )
-        .complete_as_initiator()
+        .complete_handshake()
         .await?;
 
         // Store the state machine (with established session) for later use
         self.state_machine = Some(LpStateMachine::new(session));
+        debug!("completed nested handshake");
         Ok(())
     }
 
@@ -246,9 +226,10 @@ impl NestedLpSession {
         ticket_type: TicketType,
     ) -> Result<WireguardRegistrationData>
     where
-        S: LpTransport + Unpin,
+        S: LpTransportChannel + LpHandshakeChannel + Unpin,
     {
         tracing::debug!("Acquiring bandwidth credential for registration");
+        let mut nested_connection = outer_client.as_nested_connection(self.exit_address);
 
         // Step 1: Get bandwidth credential from controller
         let credential_spending = bandwidth_controller
@@ -276,18 +257,20 @@ impl NestedLpSession {
         let send_data = request.to_lp_data()?;
 
         // Step 4: Encrypt and prepare packet via state machine
-        let forward_packet = self.prepare_forward_packet(send_data)?;
+        let forward_packet = self.prepare_transport_packet(send_data)?;
 
         // Step 5: Send the encrypted packet via forwarding
-        let response_bytes = outer_client
-            .send_forward_packet_with_response(forward_packet)
+        nested_connection
+            .send_length_prefixed_transport_packet(&forward_packet)
             .await?;
 
-        // Step 6: Parse response bytes to LP packet
-        let response_packet = self.parse_received_lp_packet(response_bytes)?;
+        // Step 6: wait for response
+        let response = nested_connection
+            .receive_length_prefixed_transport_packet()
+            .await?;
 
-        // Step 7: Decrypt via state machine
-        let response_data = self.extract_forwarded_response(response_packet)?;
+        // Step 7: Process via state machine
+        let response_data = self.extract_forwarded_response(response)?;
 
         // Step 8: Extract decrypted data and deserialise the response
         let response = LpRegistrationResponse::from_lp_data(response_data)?;
@@ -314,13 +297,12 @@ impl NestedLpSession {
         }
     }
 
-    /// Performs handshake and registration with the exit gateway via forwarding.
+    /// Performs dVPN registration with the exit gateway via forwarding.
     ///
     /// This is the main entry point for nested LP registration. It:
-    /// 1. Performs handshake with exit gateway (via `perform_handshake`)
-    /// 2. Builds and sends registration request through the forwarded connection
-    /// 3. Receives and processes registration response
-    /// 4. Returns gateway data on successful registration
+    /// 1. Builds and sends registration request through the forwarded connection
+    /// 2. Receives and processes registration response
+    /// 3. Returns gateway data on successful registration
     ///
     /// # Arguments
     /// * `outer_client` - Connected LP client with established outer session to entry gateway
@@ -341,7 +323,7 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Response decryption/deserialization fails
     /// - Gateway rejects the registration
-    pub async fn handshake_and_register_dvpn<S, R>(
+    pub async fn register_dvpn<S, R>(
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,
         rng: &mut R,
@@ -351,11 +333,10 @@ impl NestedLpSession {
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
-        S: LpTransport + Unpin,
+        S: LpTransportChannel + LpHandshakeChannel + Unpin,
         R: RngCore + CryptoRng,
     {
-        // Step 1: Perform handshake with exit gateway via forwarding
-        self.perform_handshake(outer_client).await?;
+        let mut nested_connection = outer_client.as_nested_connection(self.exit_address);
 
         tracing::debug!("Building registration request for exit gateway");
 
@@ -370,20 +351,21 @@ impl NestedLpSession {
         let send_data = request.to_lp_data()?;
 
         // Step 4: Encrypt and prepare packet via state machine
-        let forward_packet = self.prepare_forward_packet(send_data)?;
+        let forward_packet = self.prepare_transport_packet(send_data)?;
 
         // Step 5: Send the encrypted packet via forwarding
-        let response_bytes = outer_client
-            .send_forward_packet_with_response(forward_packet)
+        nested_connection
+            .send_length_prefixed_transport_packet(&forward_packet)
             .await?;
 
+        // Step 6: wait for response
+        let response = nested_connection
+            .receive_length_prefixed_transport_packet()
+            .await?;
         tracing::trace!("Received registration response from exit gateway");
 
-        // Step 6: Parse response bytes to LP packet
-        let response_packet = self.parse_received_lp_packet(response_bytes)?;
-
-        // Step 7: Decrypt via state machine
-        let response_data = self.extract_forwarded_response(response_packet)?;
+        // Step 7: Process via state machine
+        let response_data = self.extract_forwarded_response(response)?;
 
         // Step 8: Extract decrypted data and deserialise the response
         let response = LpRegistrationResponse::from_lp_data(response_data)?;
@@ -426,6 +408,60 @@ impl NestedLpSession {
         })
     }
 
+    /// Performs handshake and registration with the exit gateway via forwarding.
+    ///
+    /// This is the main entry point for nested LP registration. It:
+    /// 1. Performs handshake with exit gateway (via `perform_handshake`)
+    /// 2. Builds and sends registration request through the forwarded connection
+    /// 3. Receives and processes registration response
+    /// 4. Returns gateway data on successful registration
+    ///
+    /// # Arguments
+    /// * `outer_client` - Connected LP client with established outer session to entry gateway
+    /// * `wg_keypair` - Client's WireGuard x25519 keypair
+    /// * `gateway_identity` - Exit gateway's Ed25519 identity (for credential verification)
+    /// * `bandwidth_controller` - Provider for bandwidth credentials
+    /// * `ticket_type` - Type of bandwidth ticket to use
+    /// * `client_ip` - Client IP address for registration metadata
+    ///
+    /// # Returns
+    /// * `Ok(GatewayData)` - Exit gateway configuration data on successful registration
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - Handshake fails
+    /// - Credential acquisition fails
+    /// - Request serialization/encryption fails
+    /// - Forwarding through entry gateway fails
+    /// - Response decryption/deserialization fails
+    /// - Gateway rejects the registration
+    pub(crate) async fn handshake_and_register_dvpn<S, R>(
+        &mut self,
+        outer_client: &mut LpRegistrationClient<S>,
+        rng: &mut R,
+        wg_keypair: &x25519::KeyPair,
+        gateway_identity: &ed25519::PublicKey,
+        bandwidth_controller: &dyn BandwidthTicketProvider,
+        ticket_type: TicketType,
+    ) -> Result<WireguardConfiguration>
+    where
+        S: LpTransportChannel + LpHandshakeChannel + Unpin,
+        R: RngCore + CryptoRng,
+    {
+        // Step 1: Perform handshake with exit gateway via forwarding
+        self.perform_handshake(outer_client).await?;
+
+        self.register_dvpn(
+            outer_client,
+            rng,
+            wg_keypair,
+            gateway_identity,
+            bandwidth_controller,
+            ticket_type,
+        )
+        .await
+    }
+
     /// Performs handshake and registration with the exit gateway via forwarding,
     /// with automatic retry on network failure.
     ///
@@ -466,7 +502,7 @@ impl NestedLpSession {
         max_retries: u32,
     ) -> Result<WireguardConfiguration>
     where
-        S: LpTransport + Unpin,
+        S: LpTransportChannel + LpHandshakeChannel + Unpin,
         R: RngCore + CryptoRng,
     {
         tracing::debug!(
@@ -479,14 +515,14 @@ impl NestedLpSession {
             if attempt > 0 {
                 // Verify outer session is still usable before retry
                 if !outer_client.is_handshake_complete() {
-                    return Err(LpClientError::Transport(
+                    return Err(LpClientError::Other(
                         "Outer session lost during retry - caller must re-establish entry gateway connection".to_string()
                     ));
                 }
 
                 // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
                 let base_delay_ms = 100u64 * (1 << attempt.min(4));
-                let jitter_ms = rand::random::<u64>() % (base_delay_ms / 4 + 1);
+                let jitter_ms: u64 = rand09::rng().random_range(0..(base_delay_ms / 4 + 1));
                 let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
                 tracing::info!(
                     "Retrying exit registration (attempt {}) after {:?}",
@@ -526,24 +562,8 @@ impl NestedLpSession {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| {
-            LpClientError::Transport("Exit registration failed after all retries".to_string())
+        Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
+            message: "Exit Registration failed after all retries".to_string(),
         }))
-    }
-
-    /// Parses an LP packet from bytes.
-    ///
-    /// # Arguments
-    /// * `bytes` - The bytes to parse
-    ///
-    /// # Returns
-    /// * `Ok(LpPacket)` - Parsed LP packet
-    ///
-    /// # Errors
-    /// Returns an error if parsing fails
-    fn parse_packet(bytes: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<LpPacket> {
-        // Use outer AEAD key when available (after PSK derivation)
-        parse_lp_packet(bytes, outer_key)
-            .map_err(|e| LpClientError::Transport(format!("Failed to parse LP packet: {e}")))
     }
 }

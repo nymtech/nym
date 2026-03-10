@@ -106,6 +106,8 @@ pub mod verloc {
         #[serde(with = "bs58_ed25519_pubkey")]
         #[cfg_attr(feature = "openapi", schema(value_type = String))]
         pub node_identity: ed25519::PublicKey,
+
+        pub latest_measurement: Option<VerlocMeasurement>,
     }
 
     #[derive(Serialize, Deserialize, Default, Debug, Clone)]

@@ -38,7 +38,7 @@
     "@nextui-org/accordion": "^2.0.40",
     "@nextui-org/react": "^2.4.8",
     "@nymproject/contract-clients": ">=1.2.4-rc.2 || ^1",
-    "@nymproject/mix-fetch-full-fat": ">=1.5.1-rc.0 || ^1.4.1",
+    "@nymproject/mix-fetch-full-fat": "^1.4.2",
     "@nymproject/sdk-full-fat": ">=1.5.1-rc.0 || ^1.4.1",
     "@redocly/cli": "^1.25.15",
     "@types/mdx": "^2.0.13",
@@ -61,6 +61,7 @@
     "copy-webpack-plugin": "^11.0.0",
     "eslint": "8.46.0",
     "eslint-config-next": "13.4.13",
+    "next-sitemap": "4.2.3",
     "raw-loader": "^4.0.2",
     "typescript": "^5.9.3"
   },

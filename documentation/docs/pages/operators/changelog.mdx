@@ -1,3 +1,11 @@
+---
+title: "Nym Node Changelog & Release History"
+description: "Complete changelog for Nym node releases, binary updates, SDK changes, and network upgrades. Sorted newest first with links to relevant documentation."
+schemaType: "TechArticle"
+section: "Operators"
+lastUpdated: "2026-02-01"
+---
+
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
@@ -49,6 +57,37 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.4-quark`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.4-quark)
+- [`nym-node`](nodes/nym-node.mdx) version `1.26.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-02-24T13:43:24.098285047Z
+Build Version:      1.26.0
+Commit SHA:         a2081af6038ef3ef40b3d9368299d2676a2fbb6a
+Commit Date:        2026-02-24T12:02:35.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+### Features
+
+- [Stateless handshake improvements for LP Gateway](https://github.com/nymtech/nym/pull/6437)
+- [HTTP & DNS improvements](https://github.com/nymtech/nym/pull/6423)
+- [Endpoint support for exit gateway IPs](https://github.com/nymtech/nym/pull/6418)
+
+### Tools
+
+- **Diagnostic Tool** - a standalone binary for network diagnostics. It performs DNS, HTTP, and gateway connectivity tests, helping developers identify connectivity issues and monitor network performance. It can also be run via the daemon CLI. Read the full guide [here](https://nym.com/docs/developers/tools/diagnostic-tool).  
+- **Socks5 Score Calculation** - performed by the Gateway probe, which tests `nym-node --mode exit-gateway` instances over Socks5. The probe assigns a latency-based rating: high, medium, low, or offline. Full guide [here](https://nym.com/docs/operators/performance-and-testing#socks5-score-calculation-process).
+
 ## `v2026.3-parmigiano`
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.3-parmigiano)
 - [`nym-node`](nodes/nym-node.mdx) version `1.25.0`
@@ -66,9 +105,9 @@ rustc Channel:      stable
 cargo Profile:      release
 ```
 
-### Key updates for operators include:
+### Operator & Developer Updates
 
-LP Gateway and Client fixes:
+### Features
 
 - [Registration client now properly supports fallback](https://github.com/nymtech/nym/pull/6419)
 - [Exposed WireGuard PSK for vpn-client](https://github.com/nymtech/nym/pull/6411)
@@ -77,28 +116,14 @@ LP Gateway and Client fixes:
 
 Note: This code is currently deactivated and doesn’t involve any changes for operators right now, but it will in the future.
 
-Mixnet & Networking Enhancements:
-
-- [NS API Socks5 support](https://github.com/nymtech/nym/pull/6361)
-- [Two-step dvpn registration flow](https://github.com/nymtech/nym/pull/6386)
-- [DVPN PSK injection](https://github.com/nymtech/nym/pull/6378)
-
-Security & Encoding Improvements:
-
-- [Hex-encoding for LP key digests](https://github.com/nymtech/nym/pull/6394)
-- [Encrypted KKT](https://github.com/nymtech/nym/pull/6331)
-- [Reject packets with incompatible versions](https://github.com/nymtech/nym/pull/6326)
-
-Bugfixes & Quality-of-Life:
+### Bugfix
 
 - [Share IP allocation fixes](https://github.com/nymtech/nym/pull/6395)
 - [Mixnet registration fixes](https://github.com/nymtech/nym/pull/6356)
-- [Small QoL changes](https://github.com/nymtech/nym/pull/6340)
 
-Chores & Maintenance:
+### Refactors & Maintenance
 
 - [Cleanup x25519/ed22519 usage](https://github.com/nymtech/nym/pull/6335)
-- [Upgrade to def_guard_wireguard v0.8.0](https://github.com/nymtech/nym/pull/6315)
 
 ## `v2026.2-oscypek`
 
@@ -130,7 +155,7 @@ Secondly, the outcome of [NIP-7: Nym Exit Policy Update - Opening Ports for Stea
 
 This release brings changes which would lead into a *foreign constraint bug* if operators just switched binaries and restarted the node. To prevent it we need to do a little `sqlite` tweak on the node database.
 
-To simplify this, we made **a build in command, which operators must run after getting the new binary, but beofre restarting the node.**
+To simplify this, we made **a build in command, which operators must run after getting the new binary, but before restarting the node.**
 
 These are the steps to follow:
 
@@ -154,7 +179,7 @@ chmod +x nym-node
 ```sh
 systemctl restart nym-node
 ```
-- Additionaly look for starus or serivice journal
+- Additionally look for status or service journal
 ```sh
 service nym-node status
 # or
@@ -1294,7 +1319,7 @@ cargo Profile:      release
 
 - [Listen for shutdown signals during nym-node startup](https://github.com/nymtech/nym/pull/5879): This is to avoid situation where the process can't be killed without 'kill -9' because the logic to listen to shutdown signals hasn't been hit yet
 
-### Bugfixes
+### Bugfix
 
 - [Don't allow mixnode running in exit mode](https://github.com/nymtech/nym/pull/5898)
 

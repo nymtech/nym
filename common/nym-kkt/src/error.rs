@@ -3,17 +3,17 @@
 
 use crate::context::KKTStatus;
 use nym_kkt_ciphersuite::error::KKTCiphersuiteError;
+use nym_kkt_context::KKTContextEncodingError;
 use std::fmt::Debug;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum KKTError {
-    #[error("Signature constructor error")]
-    SigConstructorError,
-    #[error("Signature verification error")]
-    SigVerifError,
     #[error(transparent)]
     CiphersuiteDecodingError(#[from] KKTCiphersuiteError),
+
+    #[error(transparent)]
+    MaskedByteError(#[from] MaskedByteError),
 
     #[error("KEM mapping failure: {}", info)]
     KEMMapping { info: &'static str },
@@ -33,9 +33,6 @@ pub enum KKTError {
     #[error("KKT Responder Flagged Error: {}", status)]
     ResponderFlaggedError { status: KKTStatus },
 
-    #[error("KKT Message Count Limit Reached")]
-    MessageCountLimitReached,
-
     #[error("PSQ KEM Error: {}", info)]
     KEMError { info: &'static str },
 
@@ -48,8 +45,40 @@ pub enum KKTError {
     #[error("{}", info)]
     AEADError { info: &'static str },
 
+    #[error("{}", info)]
+    DecodingError { info: &'static str },
+
+    #[error("{}", info)]
+    UnsupportedAlgorithm { info: &'static str },
+
     #[error("Generic libcrux error")]
     LibcruxError,
+
+    #[error("failed to derive shared secret: {inner:?}")]
+    SharedSecretDerivationFailure {
+        inner: libcrux_psq::handshake::HandshakeError,
+    },
+
+    #[error("the received encapsulation key hash does not match the expected value")]
+    MismatchedKEMHash,
+
+    #[error(transparent)]
+    MalformedContext(#[from] KKTContextEncodingError),
+}
+
+impl KKTError {
+    pub fn shared_secret_derivation_failure(inner: libcrux_psq::handshake::HandshakeError) -> Self {
+        KKTError::SharedSecretDerivationFailure { inner }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum MaskedByteError {
+    #[error("invalid Masked Byte Length: Expected({expected}), Actual({actual})")]
+    InvalidLength { expected: usize, actual: usize },
+
+    #[error("failed to Unmask Byte")]
+    Failure,
 }
 
 impl From<libcrux_kem::Error> for KKTError {

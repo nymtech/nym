@@ -18,7 +18,7 @@ pub const DEFAULT_PSK_TTL_SECS: u64 = 3600;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LpConfig {
     /// KEM algorithm for PSQ key encapsulation.
-    /// X25519 = classical (testing), MlKem768 = PQ, XWing = hybrid.
+    /// Supported KEMs: MlKem768, McEliece
     #[serde(with = "kem_serde")]
     pub kem_algorithm: KEM,
 
@@ -32,7 +32,7 @@ pub struct LpConfig {
 impl Default for LpConfig {
     fn default() -> Self {
         Self {
-            kem_algorithm: KEM::X25519,
+            kem_algorithm: KEM::MlKem768,
             psk_ttl_secs: DEFAULT_PSK_TTL_SECS,
             enable_kkt: true,
         }
@@ -55,10 +55,10 @@ mod kem_serde {
         S: Serializer,
     {
         match kem {
-            KEM::X25519 => "X25519",
             KEM::MlKem768 => "MlKem768",
-            KEM::XWing => "XWing",
             KEM::McEliece => "McEliece",
+            KEM::X25519 => return Err(serde::ser::Error::custom("Unsupported KEM: X25519")),
+            KEM::XWing => return Err(serde::ser::Error::custom("Unsupported KEM: XWing")),
         }
         .serialize(serializer)
     }
@@ -69,10 +69,10 @@ mod kem_serde {
     {
         let s = String::deserialize(deserializer)?;
         match s.as_str() {
-            "X25519" => Ok(KEM::X25519),
             "MlKem768" => Ok(KEM::MlKem768),
-            "XWing" => Ok(KEM::XWing),
             "McEliece" => Ok(KEM::McEliece),
+            "X25519" => Err(serde::de::Error::custom("Unsupported KEM: X25519")),
+            "XWing" => Err(serde::de::Error::custom("Unsupported KEM: XWing")),
             _ => Err(serde::de::Error::custom(format!("Unknown KEM: {}", s))),
         }
     }

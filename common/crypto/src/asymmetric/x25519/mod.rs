@@ -17,6 +17,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")]
 pub mod serde_helpers;
 
+#[cfg(feature = "libcrux_x25519")]
+pub use libcrux_psq::handshake::types::{DHKeyPair, DHPrivateKey, DHPublicKey};
+
 /// Size of a X25519 private key
 pub const PRIVATE_KEY_SIZE: usize = 32;
 
@@ -45,6 +48,9 @@ pub enum KeyRecoveryError {
         #[source]
         source: bs58::decode::Error,
     },
+
+    #[error("the x25519 private key could not be converted to its PSQ representation")]
+    IncompatiblePSQPrivateKey,
 }
 
 #[derive(Zeroize, ZeroizeOnDrop)]
@@ -413,6 +419,88 @@ impl AsRef<[u8]> for PrivateKey {
     }
 }
 
+// libcrux-psq conversion
+#[cfg(feature = "libcrux_x25519")]
+impl TryFrom<PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
+    type Error = KeyRecoveryError;
+
+    fn try_from(
+        key: PrivateKey,
+    ) -> Result<libcrux_psq::handshake::types::DHPrivateKey, Self::Error> {
+        Self::try_from(&key)
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<libcrux_psq::handshake::types::DHPrivateKey> for PrivateKey {
+    fn from(key: libcrux_psq::handshake::types::DHPrivateKey) -> PrivateKey {
+        // SAFETY: the DHPrivateKey is guaranteed to be 32 bytes in length
+        #[allow(clippy::unwrap_used)]
+        PrivateKey::from_bytes(key.as_ref()).unwrap()
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl TryFrom<&PrivateKey> for libcrux_psq::handshake::types::DHPrivateKey {
+    type Error = KeyRecoveryError;
+
+    fn try_from(
+        key: &PrivateKey,
+    ) -> Result<libcrux_psq::handshake::types::DHPrivateKey, Self::Error> {
+        let mut private_key_bytes = zeroize::Zeroizing::new(key.to_bytes());
+        libcrux_curve25519::clamp(&mut private_key_bytes);
+        match libcrux_psq::handshake::types::DHPrivateKey::from_bytes(&private_key_bytes) {
+            Ok(key) => Ok(key),
+            Err(_) => Err(KeyRecoveryError::IncompatiblePSQPrivateKey),
+        }
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<&libcrux_psq::handshake::types::DHPrivateKey> for PrivateKey {
+    fn from(key: &libcrux_psq::handshake::types::DHPrivateKey) -> PrivateKey {
+        // SAFETY: the DHPrivateKey is guaranteed to be 32 bytes in length
+        #[allow(clippy::unwrap_used)]
+        PrivateKey::from_bytes(key.as_ref()).unwrap()
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<PublicKey> for libcrux_psq::handshake::types::DHPublicKey {
+    fn from(key: PublicKey) -> libcrux_psq::handshake::types::DHPublicKey {
+        libcrux_psq::handshake::types::DHPublicKey::from_bytes(key.as_bytes())
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<libcrux_psq::handshake::types::DHPublicKey> for PublicKey {
+    fn from(key: libcrux_psq::handshake::types::DHPublicKey) -> PublicKey {
+        // SAFETY: the DHPublicKey is guaranteed to be 32 bytes in length
+        #[allow(clippy::unwrap_used)]
+        PublicKey::from_bytes(key.as_ref()).unwrap()
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl TryFrom<KeyPair> for libcrux_psq::handshake::types::DHKeyPair {
+    type Error = KeyRecoveryError;
+
+    fn try_from(
+        key: KeyPair,
+    ) -> Result<libcrux_psq::handshake::types::DHKeyPair, KeyRecoveryError> {
+        Ok(libcrux_psq::handshake::types::DHKeyPair::from(
+            libcrux_psq::handshake::types::DHPrivateKey::try_from(&key.private_key)?,
+        ))
+    }
+}
+
+#[cfg(feature = "libcrux_x25519")]
+impl From<libcrux_psq::handshake::types::DHKeyPair> for KeyPair {
+    fn from(key: libcrux_psq::handshake::types::DHKeyPair) -> KeyPair {
+        KeyPair::from(PrivateKey::from(key.sk()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -420,6 +508,21 @@ mod tests {
     fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
 
     fn assert_zeroize<T: Zeroize>() {}
+
+    #[test]
+    fn test_key_conversion() {
+        let dalek_kp = super::KeyPair::new(&mut rand::thread_rng());
+
+        let mut dalek_private_key_bytes = dalek_kp.private_key().as_bytes().to_owned();
+
+        libcrux_curve25519::clamp(&mut dalek_private_key_bytes);
+        let libcrux_private_key =
+            libcrux_psq::handshake::types::DHPrivateKey::from_bytes(&dalek_private_key_bytes)
+                .unwrap();
+        let libcrux_public_key = libcrux_private_key.to_public();
+
+        assert_eq!(libcrux_public_key.as_ref(), dalek_kp.public_key.as_bytes());
+    }
 
     #[test]
     fn private_key_is_zeroized() {

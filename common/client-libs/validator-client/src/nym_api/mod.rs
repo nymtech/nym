@@ -17,7 +17,7 @@ use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainBlocksStatusResponse,
     ChainStatusResponse, KeyRotationInfoResponse, NodePerformanceResponse, NodeRefreshBody,
-    NymNodeDescriptionV1, PerformanceHistoryResponse, RewardedSetResponse,
+    NymNodeDescriptionV1, NymNodeDescriptionV2, PerformanceHistoryResponse, RewardedSetResponse,
     SignerInformationResponse,
 };
 use nym_api_requests::nym_nodes::{
@@ -117,7 +117,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
-    // #[deprecated(note = "use .get_nodes_described_v2 instead")]
+    #[deprecated(note = "use .get_nodes_described_v2 instead")]
     async fn get_nodes_described(
         &self,
         page: Option<u32>,
@@ -144,32 +144,32 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    // #[tracing::instrument(level = "debug", skip_all)]
-    // async fn get_nodes_described_v2(
-    //     &self,
-    //     page: Option<u32>,
-    //     per_page: Option<u32>,
-    // ) -> Result<PaginatedResponse<NymNodeDescriptionV2>, NymAPIError> {
-    //     let mut params = Vec::new();
-    //
-    //     if let Some(page) = page {
-    //         params.push(("page", page.to_string()))
-    //     }
-    //
-    //     if let Some(per_page) = per_page {
-    //         params.push(("per_page", per_page.to_string()))
-    //     }
-    //
-    //     self.get_json(
-    //         &[
-    //             routes::V2_API_VERSION,
-    //             routes::NYM_NODES_ROUTES,
-    //             routes::NYM_NODES_DESCRIBED,
-    //         ],
-    //         &params,
-    //     )
-    //     .await
-    // }
+    #[tracing::instrument(level = "debug", skip_all)]
+    async fn get_nodes_described_v2(
+        &self,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedResponse<NymNodeDescriptionV2>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(
+            &[
+                routes::V2_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_DESCRIBED,
+            ],
+            &params,
+        )
+        .await
+    }
 
     async fn get_current_rewarded_set(&self) -> Result<RewardedSetResponse, NymAPIError> {
         self.get_rewarded_set().await
@@ -302,8 +302,8 @@ pub trait NymApiClientExt: ApiClient {
         Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
     }
 
-    // #[deprecated(note = "use .get_all_described_nodes_v2 instead")]
-    // #[allow(deprecated)]
+    #[deprecated(note = "use .get_all_described_nodes_v2 instead")]
+    #[allow(deprecated)]
     async fn get_all_described_nodes(&self) -> Result<Vec<NymNodeDescriptionV1>, NymAPIError> {
         // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
         let mut page = 0;
@@ -323,24 +323,24 @@ pub trait NymApiClientExt: ApiClient {
         Ok(descriptions)
     }
 
-    // async fn (&self) -> Result<Vec<NymNodeDescriptionV2>, NymAPIError> {
-    //     // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
-    //     let mut page = 0;
-    //     let mut descriptions = Vec::new();
-    //
-    //     loop {
-    //         let mut res = self.get_nodes_described_v2(Some(page), None).await?;
-    //
-    //         descriptions.append(&mut res.data);
-    //         if descriptions.len() < res.pagination.total {
-    //             page += 1
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(descriptions)
-    // }
+    async fn get_all_described_nodes_v2(&self) -> Result<Vec<NymNodeDescriptionV2>, NymAPIError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut descriptions = Vec::new();
+
+        loop {
+            let mut res = self.get_nodes_described_v2(Some(page), None).await?;
+
+            descriptions.append(&mut res.data);
+            if descriptions.len() < res.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(descriptions)
+    }
 
     #[tracing::instrument(level = "debug", skip_all)]
     async fn get_nym_nodes(

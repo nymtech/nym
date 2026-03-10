@@ -56,11 +56,17 @@ impl<C, F> PacketForwarder<C, F> {
         if let Err(err) = self.mixnet_client.send_without_response(packet) {
             if err.kind() == io::ErrorKind::WouldBlock {
                 // we only know for sure if we dropped a packet if our sending queue was full
-                // in any other case the connection might still be re-established (or created for the first time)
-                // and the packet might get sent, but we won't know about it
+                warn!(
+                    event = "packet.dropped.buffer_full",
+                    next_hop = %next_hop,
+                    "dropping packet: egress connection buffer full (WouldBlock)"
+                );
                 self.metrics.mixnet.egress_dropped_forward_packet(next_hop)
             } else if err.kind() == io::ErrorKind::NotConnected {
-                // let's give the benefit of the doubt and assume we manage to establish connection
+                debug!(
+                    next_hop = %next_hop,
+                    "packet queued for not-yet-connected peer"
+                );
                 self.metrics.mixnet.egress_sent_forward_packet(next_hop)
             }
         } else {
@@ -86,7 +92,11 @@ impl<C, F> PacketForwarder<C, F> {
         let next_hop = new_packet.packet.next_hop();
 
         if !self.routing_filter.should_route(next_hop.as_ref().ip()) {
-            debug!("dropping packet as the egress address does not belong to any known node");
+            warn!(
+                event = "packet.dropped.routing_filter",
+                next_hop = %next_hop,
+                "dropping packet: egress address does not belong to any known node"
+            );
             self.metrics
                 .mixnet
                 .egress_dropped_forward_packet(next_hop.into());
@@ -125,7 +135,7 @@ impl<C, F> PacketForwarder<C, F> {
         C: SendWithoutResponse,
         F: RoutingFilter,
     {
-        let mut processed = 0;
+        let mut processed: u64 = 0;
         trace!("starting PacketForwarder");
         loop {
             tokio::select! {
@@ -145,11 +155,29 @@ impl<C, F> PacketForwarder<C, F> {
                     #[allow(clippy::unwrap_used)]
                     self.handle_new_packet(new_packet.unwrap());
                     let channel_len = self.packet_sender.len();
-                    if processed % 1000 == 0 {
+                    let delay_queue_len = self.delay_queue.len();
+                    if processed.is_multiple_of(1000) {
                         match channel_len {
-                            n if n > 1000 => error!("there are currently {n} mix packets waiting to get forwarded - the node seems to be significantly overloaded!"),
-                            n if n > 500 => warn!("there are currently {n} mix packets waiting to get forwarded - is the node overloaded?"),
-                            n => trace!("there are currently {n} mix packets waiting to get forwarded"),
+                            n if n > 1000 => error!(
+                                event = "forwarder.queue_overload",
+                                channel_depth = n,
+                                delay_queue_depth = delay_queue_len,
+                                packets_processed = processed,
+                                "there are currently {n} mix packets waiting to get forwarded - the node seems to be significantly overloaded!"
+                            ),
+                            n if n > 500 => warn!(
+                                event = "forwarder.queue_high",
+                                channel_depth = n,
+                                delay_queue_depth = delay_queue_len,
+                                packets_processed = processed,
+                                "there are currently {n} mix packets waiting to get forwarded - is the node overloaded?"
+                            ),
+                            n => trace!(
+                                channel_depth = n,
+                                delay_queue_depth = delay_queue_len,
+                                packets_processed = processed,
+                                "forwarder queue status"
+                            ),
                         }
                     }
                     self.update_channel_size_metric(channel_len);

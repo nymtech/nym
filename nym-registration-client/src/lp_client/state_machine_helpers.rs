@@ -2,85 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpClientError;
-use bytes::BytesMut;
-use nym_lp::codec::{OuterAeadKey, serialize_lp_packet};
-use nym_lp::state_machine::{LpAction, LpData, LpInput};
-use nym_lp::{LpPacket, LpStateMachine};
-
-/// Serializes an LP packet to bytes.
-///
-/// # Arguments
-/// * `packet` - The LP packet to serialize
-///
-/// # Returns
-/// * `Ok(Vec<u8>)` - Serialized packet bytes
-///
-/// # Errors
-/// Returns an error if serialization fails
-pub(crate) fn serialize_packet(
-    packet: &LpPacket,
-    outer_key: Option<&OuterAeadKey>,
-) -> Result<Vec<u8>, LpClientError> {
-    let mut buf = BytesMut::new();
-    // Use outer AEAD key when available (after PSK derivation)
-    serialize_lp_packet(packet, &mut buf, outer_key)
-        .map_err(|e| LpClientError::Transport(format!("Failed to serialize LP packet: {}", e)))?;
-    Ok(buf.to_vec())
-}
+use nym_lp::packet::LpMessage;
+use nym_lp::state_machine::{LpAction, LpInput};
+use nym_lp::{LpStateMachine, packet::EncryptedLpPacket};
 
 /// Attempt to prepare the provided data for sending by wrapping it in appropriate `LpAction`,
-/// and attempting to extract `LpPacket` from the provided srtate machine.
+/// and attempting to extract `EncryptedLpPacket` from the provided state machine.
 pub(crate) fn prepare_send_packet(
-    data: LpData,
+    data: LpMessage,
     state_machine: &mut LpStateMachine,
-) -> Result<LpPacket, LpClientError> {
+) -> Result<EncryptedLpPacket, LpClientError> {
     let action = state_machine
         .process_input(LpInput::SendData(data))
-        .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
-        .map_err(|e| {
-            LpClientError::SendRegistrationRequest(format!(
-                "Failed to encrypt registration request: {e}",
-            ))
-        })?;
+        .ok_or(LpClientError::UnexpectedStateMachineHalt)??;
 
     match action {
         LpAction::SendPacket(packet) => Ok(packet),
-        other => Err(LpClientError::Transport(format!(
-            "Unexpected action when trying to send packet data: {other:?}",
-        ))),
+        action => Err(LpClientError::UnexpectedStateMachineAction { action }),
     }
-}
-
-/// Attempt to prepare the provided data for sending by wrapping it in appropriate `LpAction`,
-/// serialising and finally encrypting (if appropriate key is available) the resultant `LpPacket`
-/// It uses the provided state machine.
-pub(crate) fn prepare_serialised_send_packet(
-    data: LpData,
-    state_machine: &mut LpStateMachine,
-) -> Result<Vec<u8>, LpClientError> {
-    let packet = prepare_send_packet(data, state_machine)?;
-    let send_key = state_machine.session()?.outer_aead_key();
-
-    serialize_packet(&packet, Some(send_key))
 }
 
 /// Attempt to recover received `LpData` from the received `LpPacket`
 /// using the provided state machine.
 pub(crate) fn extract_forwarded_response(
-    response_packet: LpPacket,
+    response_packet: EncryptedLpPacket,
     state_machine: &mut LpStateMachine,
-) -> Result<LpData, LpClientError> {
+) -> Result<LpMessage, LpClientError> {
     let action = state_machine
         .process_input(LpInput::ReceivePacket(response_packet))
-        .ok_or_else(|| LpClientError::Transport("State machine returned no action".to_string()))?
-        .map_err(|e| {
-            LpClientError::Transport(format!("Failed to decrypt received response: {e}"))
-        })?;
+        .ok_or(LpClientError::UnexpectedStateMachineHalt)??;
 
     match action {
         LpAction::DeliverData(data) => Ok(data),
-        other => Err(LpClientError::Transport(format!(
-            "Unexpected action when receiving response: {other:?}"
-        ))),
+        action => Err(LpClientError::UnexpectedStateMachineAction { action }),
     }
 }

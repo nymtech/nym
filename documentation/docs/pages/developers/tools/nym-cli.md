@@ -1,3 +1,11 @@
+---
+title: "Nym CLI: Mixnet & Blockchain Commands"
+description: "Use nym-cli to interact with the Nym mixnet and Nyx blockchain. Manage nodes, delegate stake, and query network state from the command line."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-02-11"
+---
+
 # Nym-CLI
 
 This is a CLI tool for interacting with:

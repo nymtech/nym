@@ -5,15 +5,16 @@
 //! and defines required conversion methods
 
 use celes::Country;
-use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
-use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
+use nym_crypto::asymmetric::ed25519::serde_helpers::{bs58_ed25519_pubkey, bs58_ed25519_signature};
+use nym_crypto::asymmetric::x25519::serde_helpers::{bs58_dh_public_key, bs58_x25519_pubkey};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt_ciphersuite::{HashFunction, SignatureScheme, KEM};
 use nym_network_defaults::{WG_METADATA_PORT, WG_TUNNEL_PORT};
+use nym_node_requests::api::SignedData;
 use nym_noise_keys::VersionedNoiseKeyV1;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::net::IpAddr;
 use strum_macros::{Display, EnumString};
 use thiserror::Error;
@@ -200,6 +201,26 @@ pub struct WireguardDetailsV1 {
 // even if you put `#[serde(default)]` all over the place
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq)]
 pub struct LewesProtocolDetailsV1 {
+    pub content: LewesProtocolDetailsDataV1,
+
+    #[serde(with = "bs58_ed25519_signature")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    pub signature: ed25519::Signature,
+}
+
+impl LewesProtocolDetailsV1 {
+    pub fn verify(&self, key: &ed25519::PublicKey) -> bool {
+        let Ok(plaintext) = serde_json::to_string(&self.content) else {
+            return false;
+        };
+
+        key.verify(plaintext, &self.signature).is_ok()
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq)]
+pub struct LewesProtocolDetailsDataV1 {
     /// Helper field that specifies whether the LP listener(s) is enabled on this node.
     /// It is directly controlled by the node's role (i.e. it is enabled if it supports 'entry' mode)
     pub enabled: bool,
@@ -210,28 +231,23 @@ pub struct LewesProtocolDetailsV1 {
     /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
     pub data_port: u16,
 
-    #[serde(with = "bs58_x25519_pubkey")]
+    #[serde(with = "bs58_dh_public_key")]
     #[schemars(with = "String")]
     #[schema(value_type = String)]
     /// LP public key
-    pub x25519: x25519::PublicKey,
+    pub x25519: x25519::DHPublicKey,
 
     /// Digests of the KEM keys available to this node alongside hashing algorithms used
     /// for their computation.
     /// note: digests are hex encoded
-    pub kem_keys: HashMap<LPKEM, HashMap<LPHashFunction, String>>,
-
-    /// Digests of the signing keys available to this node alongside hashing algorithms used
-    /// for their computation.
-    /// note: digests are hex encoded
-    pub signing_keys: HashMap<LPSignatureScheme, HashMap<LPHashFunction, String>>,
+    pub kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
 }
 
-impl LewesProtocolDetailsV1 {
+impl LewesProtocolDetailsDataV1 {
     fn decode_digests(
-        digests: &HashMap<LPHashFunction, String>,
-    ) -> Result<HashMap<HashFunction, Vec<u8>>, MalformedLPData> {
-        let mut kem_digests = HashMap::new();
+        digests: &BTreeMap<LPHashFunction, String>,
+    ) -> Result<BTreeMap<HashFunction, Vec<u8>>, MalformedLPData> {
+        let mut kem_digests = BTreeMap::new();
         for (hash_function, digest) in digests {
             let digest = hex::decode(digest).map_err(|source| MalformedLPData::MalformedHash {
                 value: digest.to_string(),
@@ -244,31 +260,20 @@ impl LewesProtocolDetailsV1 {
 
     pub fn kem_keys(
         &self,
-    ) -> Result<HashMap<KEM, HashMap<HashFunction, Vec<u8>>>, MalformedLPData> {
-        let mut kem_keys = HashMap::new();
+    ) -> Result<BTreeMap<KEM, BTreeMap<HashFunction, Vec<u8>>>, MalformedLPData> {
+        let mut kem_keys = BTreeMap::new();
         for (kem, digests) in &self.kem_keys {
             let kem_digests = Self::decode_digests(digests)?;
             kem_keys.insert((*kem).try_into()?, kem_digests);
         }
         Ok(kem_keys)
     }
-
-    pub fn signing_keys(
-        &self,
-    ) -> Result<HashMap<SignatureScheme, HashMap<HashFunction, Vec<u8>>>, MalformedLPData> {
-        let mut signing_keys = HashMap::new();
-        for (signature_scheme, digests) in &self.signing_keys {
-            let kem_digests = Self::decode_digests(digests)?;
-            signing_keys.insert((*signature_scheme).try_into()?, kem_digests);
-        }
-        Ok(signing_keys)
-    }
 }
 
 /// Convert map of digests from `nym_node_requests` types into `nym-api-requests` types
 fn translate_digests(
-    digests: HashMap<nym_node_requests::api::v1::lewes_protocol::models::LPHashFunction, String>,
-) -> HashMap<LPHashFunction, String> {
+    digests: BTreeMap<nym_node_requests::api::v1::lewes_protocol::models::LPHashFunction, String>,
+) -> BTreeMap<LPHashFunction, String> {
     digests
         .into_iter()
         .map(|(hash_fn, digest)| (hash_fn.into(), digest))
@@ -289,13 +294,13 @@ fn translate_digests(
     Display,
     EnumString,
     ToSchema,
+    Ord,
 )]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 #[non_exhaustive]
 pub enum LPKEM {
     MlKem768,
-    XWing,
-    X25519,
     McEliece,
 }
 
@@ -313,7 +318,9 @@ pub enum LPKEM {
     Display,
     EnumString,
     ToSchema,
+    Ord,
 )]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 #[non_exhaustive]
 pub enum LPHashFunction {
@@ -338,6 +345,7 @@ pub enum LPHashFunction {
     EnumString,
     ToSchema,
 )]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 #[non_exhaustive]
 pub enum LPSignatureScheme {
@@ -455,25 +463,26 @@ impl From<nym_node_requests::api::v1::gateway::models::Wireguard> for WireguardD
     }
 }
 
-impl From<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>
+impl From<SignedData<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>>
     for LewesProtocolDetailsV1
 {
-    fn from(value: nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol) -> Self {
+    fn from(
+        value: SignedData<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>,
+    ) -> Self {
         LewesProtocolDetailsV1 {
-            enabled: value.enabled,
-            control_port: value.control_port,
-            data_port: value.data_port,
-            x25519: value.x25519,
-            kem_keys: value
-                .kem_keys
-                .into_iter()
-                .map(|(kem, digests)| (kem.into(), translate_digests(digests)))
-                .collect(),
-            signing_keys: value
-                .signing_keys
-                .into_iter()
-                .map(|(scheme, digests)| (scheme.into(), translate_digests(digests)))
-                .collect(),
+            signature: value.signature,
+            content: LewesProtocolDetailsDataV1 {
+                enabled: value.enabled,
+                control_port: value.control_port,
+                data_port: value.data_port,
+                x25519: value.x25519,
+                kem_keys: value
+                    .data
+                    .kem_keys
+                    .into_iter()
+                    .map(|(kem, digests)| (kem.into(), translate_digests(digests)))
+                    .collect(),
+            },
         }
     }
 }
@@ -482,8 +491,6 @@ impl From<nym_node_requests::api::v1::lewes_protocol::models::LPKEM> for LPKEM {
     fn from(value: nym_node_requests::api::v1::lewes_protocol::models::LPKEM) -> Self {
         match value {
             nym_node_requests::api::v1::lewes_protocol::models::LPKEM::MlKem768 => LPKEM::MlKem768,
-            nym_node_requests::api::v1::lewes_protocol::models::LPKEM::XWing => LPKEM::XWing,
-            nym_node_requests::api::v1::lewes_protocol::models::LPKEM::X25519 => LPKEM::X25519,
             nym_node_requests::api::v1::lewes_protocol::models::LPKEM::McEliece => LPKEM::McEliece,
         }
     }
@@ -543,8 +550,6 @@ impl TryFrom<LPKEM> for KEM {
     fn try_from(value: LPKEM) -> Result<Self, Self::Error> {
         match value {
             LPKEM::MlKem768 => Ok(KEM::MlKem768),
-            LPKEM::XWing => Ok(KEM::XWing),
-            LPKEM::X25519 => Ok(KEM::X25519),
             LPKEM::McEliece => Ok(KEM::McEliece),
             // TODO: for backwards compatibility once variants within the LP crate change
             // other => Err(MalformedLPData::UnknownLpKEM { value: other }),
@@ -574,5 +579,50 @@ impl TryFrom<LPSignatureScheme> for SignatureScheme {
             // TODO: for backwards compatibility once variants within the LP crate change
             // other => Err(MalformedLPData::UnknownLpSignatureScheme { value: other }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_node_requests::api::SignedLewesProtocol;
+
+    #[test]
+    fn signature_validity_after_conversion() {
+        use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM};
+
+        let signing_key = ed25519::PrivateKey::from_bytes(&[42u8; 32]).unwrap();
+        let verification_key = signing_key.public_key();
+
+        let x25519_key = x25519::DHPublicKey::from_bytes(&[42u8; 32]);
+
+        let mut dummy_kems = BTreeMap::new();
+        for kem in [LPKEM::McEliece, LPKEM::McEliece] {
+            let mut kem_digests = BTreeMap::new();
+            for sf in [
+                LPHashFunction::Blake3,
+                LPHashFunction::Shake128,
+                LPHashFunction::Shake256,
+                LPHashFunction::Sha256,
+            ] {
+                kem_digests.insert(sf, "0xdeadbeef".to_string());
+            }
+            dummy_kems.insert(kem, kem_digests);
+        }
+
+        // make sure the serialisation stays the same and signature is still valid
+        let dummy_lp = nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol {
+            enabled: false,
+            control_port: 123,
+            data_port: 345,
+            x25519: x25519_key,
+            kem_keys: dummy_kems,
+        };
+        let dummy_signed_lp = SignedLewesProtocol::new(dummy_lp, &signing_key).unwrap();
+        // sanity check
+        assert!(dummy_signed_lp.verify(&verification_key));
+
+        let converted = LewesProtocolDetailsV1::from(dummy_signed_lp);
+        assert!(converted.verify(&verification_key));
     }
 }

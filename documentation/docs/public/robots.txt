@@ -1,0 +1,15 @@
+# *
+User-agent: *
+Allow: /
+
+# *
+User-agent: *
+Disallow: /api/
+Disallow: /_next/
+
+# Host
+Host: https://nymtech.net/docs
+
+# Sitemaps
+Sitemap: https://nymtech.net/docs/sitemap.xml
+Sitemap: https://nymtech.net/docs/sitemap-docs.xml

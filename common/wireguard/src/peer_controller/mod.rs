@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub use crate::ip_pool::IpPair;
 use crate::ip_pool::allocated_ip_pair;
 use crate::{
     IpPool,
@@ -23,6 +24,7 @@ use nym_credentials_interface::CredentialSpendingData;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_node_metrics::NymNodeMetrics;
+use nym_node_metrics::prometheus_wrapper::{PROMETHEUS_METRICS, PrometheusMetric};
 use nym_wireguard_types::{
     DEFAULT_IP_CLEANUP_INTERVAL, DEFAULT_IP_STALE_AGE, DEFAULT_PEER_TIMEOUT_CHECK,
 };
@@ -34,8 +36,6 @@ use std::{
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
 use tracing::{debug, error, info, trace};
-
-pub use crate::ip_pool::IpPair;
 
 #[cfg(feature = "mock")]
 pub mod mock;
@@ -261,6 +261,10 @@ impl PeerController {
     }
 
     async fn handle_add_request(&mut self, peer: &Peer) -> Result<()> {
+        // observation will get automatically added once dropped
+        let _metric_timer =
+            PROMETHEUS_METRICS.start_timer(PrometheusMetric::WireguardDefguardPeerCreation);
+
         nym_metrics::inc!("wg_peer_addition_attempts");
 
         // confirm ip allocation so that it wouldn't be released for as long as the peer exists

@@ -6,17 +6,20 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
+use crate::packet::{EncryptedLpPacket, LpMessage};
+use crate::peer_config::LpReceiverIndex;
 use crate::state_machine::{LpAction, LpInput, LpStateBare};
-use crate::{LpError, LpMessage, LpSession, LpStateMachine};
+use crate::{LpError, LpSession, LpStateMachine};
 use std::collections::HashMap;
+
+pub use crate::replay::validator::PacketCount;
 
 /// Manages the lifecycle of Lewes Protocol sessions.
 ///
-/// The SessionManager is responsible for creating, storing, and retrieving sessions,
-/// ensuring proper thread-safety for concurrent access.
+/// The SessionManager is responsible for creating, storing, and retrieving sessions
 pub struct SessionManager {
     /// Manages state machines directly, keyed by lp_id
-    state_machines: HashMap<u32, LpStateMachine>,
+    state_machines: HashMap<LpReceiverIndex, LpStateMachine>,
 }
 
 impl Default for SessionManager {
@@ -35,62 +38,47 @@ impl SessionManager {
 
     pub fn process_input(
         &mut self,
-        lp_id: u32,
+        lp_id: LpReceiverIndex,
         input: LpInput,
     ) -> Result<Option<LpAction>, LpError> {
         self.with_state_machine_mut(lp_id, |sm| sm.process_input(input).transpose())?
     }
 
-    pub fn closed(&self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn send_data(
+        &mut self,
+        lp_id: LpReceiverIndex,
+        data: LpMessage,
+    ) -> Result<LpAction, LpError> {
+        self.process_input(lp_id, LpInput::SendData(data))?
+            .ok_or(LpError::NotInTransport)
+    }
+
+    pub fn receive_packet(
+        &mut self,
+        lp_id: LpReceiverIndex,
+        packet: EncryptedLpPacket,
+    ) -> Result<Option<LpAction>, LpError> {
+        self.process_input(lp_id, LpInput::ReceivePacket(packet))
+    }
+
+    pub fn closed(&self, lp_id: LpReceiverIndex) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Closed)
     }
 
-    pub fn transport(&self, lp_id: u32) -> Result<bool, LpError> {
+    pub fn transport(&self, lp_id: LpReceiverIndex) -> Result<bool, LpError> {
         Ok(self.get_state(lp_id)? == LpStateBare::Transport)
     }
 
     #[cfg(test)]
-    fn get_state_machine_id(&self, lp_id: u32) -> Result<u32, LpError> {
-        self.with_state_machine(lp_id, |sm| sm.id())?
+    fn get_state_machine_id(&self, lp_id: LpReceiverIndex) -> Result<LpReceiverIndex, LpError> {
+        self.with_state_machine(lp_id, |sm| sm.receiver_index())?
     }
 
-    pub fn get_state(&self, lp_id: u32) -> Result<LpStateBare, LpError> {
+    pub fn get_state(&self, lp_id: LpReceiverIndex) -> Result<LpStateBare, LpError> {
         self.with_state_machine(lp_id, |sm| Ok(sm.bare_state()))?
     }
 
-    pub fn receiving_counter_quick_check(&self, lp_id: u32, counter: u64) -> Result<(), LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?.receiving_counter_quick_check(counter)
-        })?
-    }
-
-    pub fn receiving_counter_mark(&mut self, lp_id: u32, counter: u64) -> Result<(), LpError> {
-        self.with_state_machine_mut(lp_id, |sm| {
-            sm.session_mut()?.receiving_counter_mark(counter)
-        })?
-    }
-
-    pub fn next_counter(&mut self, lp_id: u32) -> Result<u64, LpError> {
-        self.with_state_machine_mut(lp_id, |sm| Ok(sm.session_mut()?.next_counter()))?
-    }
-
-    pub fn decrypt_data(&mut self, lp_id: u32, message: &LpMessage) -> Result<Vec<u8>, LpError> {
-        self.with_state_machine_mut(lp_id, |sm| {
-            sm.session_mut()?
-                .decrypt_data(message)
-                .map_err(LpError::NoiseError)
-        })?
-    }
-
-    pub fn encrypt_data(&mut self, lp_id: u32, message: &[u8]) -> Result<LpMessage, LpError> {
-        self.with_state_machine_mut(lp_id, |sm| {
-            sm.session_mut()?
-                .encrypt_data(message)
-                .map_err(LpError::NoiseError)
-        })?
-    }
-
-    pub fn current_packet_cnt(&self, lp_id: u32) -> Result<(u64, u64), LpError> {
+    pub fn current_packet_cnt(&self, lp_id: LpReceiverIndex) -> Result<PacketCount, LpError> {
         self.with_state_machine(lp_id, |sm| Ok(sm.session()?.current_packet_cnt()))?
     }
 
@@ -98,43 +86,54 @@ impl SessionManager {
         self.state_machines.len()
     }
 
-    pub fn state_machine_exists(&self, lp_id: u32) -> bool {
+    pub fn state_machine_exists(&self, lp_id: LpReceiverIndex) -> bool {
         self.state_machines.contains_key(&lp_id)
     }
 
-    pub fn with_state_machine<F, R>(&self, lp_id: u32, f: F) -> Result<R, LpError>
+    pub fn with_state_machine<F, R>(&self, lp_id: LpReceiverIndex, f: F) -> Result<R, LpError>
     where
         F: FnOnce(&LpStateMachine) -> R,
     {
         if let Some(sm) = self.state_machines.get(&lp_id) {
             Ok(f(sm))
         } else {
-            Err(LpError::StateMachineNotFound { lp_id })
+            Err(LpError::StateMachineNotFound(lp_id))
         }
-        // self.state_machines.get(&lp_id).map(|sm_ref| f(&*sm_ref)) // Lock held only during closure execution
     }
 
     // For mutable access (like running process_input)
-    pub fn with_state_machine_mut<F, R>(&mut self, lp_id: u32, f: F) -> Result<R, LpError>
+    pub fn with_state_machine_mut<F, R>(
+        &mut self,
+        lp_id: LpReceiverIndex,
+        f: F,
+    ) -> Result<R, LpError>
     where
         F: FnOnce(&mut LpStateMachine) -> R, // Closure takes mutable ref
     {
         if let Some(sm) = self.state_machines.get_mut(&lp_id) {
             Ok(f(sm))
         } else {
-            Err(LpError::StateMachineNotFound { lp_id })
+            Err(LpError::StateMachineNotFound(lp_id))
         }
     }
 
-    pub fn create_session_state_machine(&mut self, lp_session: LpSession) -> u32 {
-        let receiver_index = lp_session.id();
+    pub fn create_session_state_machine(
+        &mut self,
+        lp_session: LpSession,
+    ) -> Result<LpReceiverIndex, LpError> {
+        let session_id = lp_session.receiver_index();
+
+        if self.state_machines.contains_key(&session_id) {
+            return Err(LpError::DuplicateSessionId(session_id));
+        }
+
         let sm = LpStateMachine::new(lp_session);
-        self.state_machines.insert(receiver_index, sm);
-        receiver_index
+        self.state_machines.insert(session_id, sm);
+        Ok(session_id)
     }
 
     /// Method to remove a state machine
-    pub fn remove_state_machine(&mut self, lp_id: u32) -> bool {
+    pub fn remove_state_machine(&mut self, lp_id: LpReceiverIndex) -> bool {
         let removed = self.state_machines.remove(&lp_id);
 
         removed.is_some()
@@ -145,21 +144,21 @@ impl SessionManager {
 mod tests {
     use super::*;
     use crate::{SessionsMock, mock_session_for_test};
+    use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
 
     #[test]
     fn test_session_manager_get() {
         let mut manager = SessionManager::new();
-
         let local_session = mock_session_for_test();
-        let id = local_session.id();
+        let id = local_session.receiver_index();
 
-        let sm_1_id = manager.create_session_state_machine(local_session);
+        let sm_1_id = manager.create_session_state_machine(local_session).unwrap();
         assert_eq!(sm_1_id, id);
 
         let retrieved = manager.state_machine_exists(id);
         assert!(retrieved);
 
-        let not_found = manager.state_machine_exists(99);
+        let not_found = manager.state_machine_exists(123);
         assert!(!not_found);
     }
 
@@ -167,8 +166,7 @@ mod tests {
     fn test_session_manager_remove() {
         let mut manager = SessionManager::new();
         let local_session = mock_session_for_test();
-
-        let sm_1_id = manager.create_session_state_machine(local_session);
+        let sm_1_id = manager.create_session_state_machine(local_session).unwrap();
 
         let removed = manager.remove_state_machine(sm_1_id);
         assert!(removed);
@@ -180,24 +178,26 @@ mod tests {
 
     #[test]
     fn test_multiple_sessions() {
-        let mut manager = SessionManager::new();
-        let session1 = SessionsMock::mock_post_handshake(123).initiator;
-        let session2 = SessionsMock::mock_post_handshake(124).initiator;
-        let session3 = SessionsMock::mock_post_handshake(125).initiator;
+        for kem in KEM::iter() {
+            let mut manager = SessionManager::new();
+            let session1 = SessionsMock::mock_seeded_post_handshake(123, kem).initiator;
+            let session2 = SessionsMock::mock_seeded_post_handshake(124, kem).initiator;
+            let session3 = SessionsMock::mock_seeded_post_handshake(125, kem).initiator;
 
-        let sm_1 = manager.create_session_state_machine(session1);
-        let sm_2 = manager.create_session_state_machine(session2);
-        let sm_3 = manager.create_session_state_machine(session3);
+            let sm_1 = manager.create_session_state_machine(session1).unwrap();
+            let sm_2 = manager.create_session_state_machine(session2).unwrap();
+            let sm_3 = manager.create_session_state_machine(session3).unwrap();
 
-        assert_eq!(manager.session_count(), 3);
+            assert_eq!(manager.session_count(), 3);
 
-        let retrieved1 = manager.get_state_machine_id(sm_1).unwrap();
-        let retrieved2 = manager.get_state_machine_id(sm_2).unwrap();
-        let retrieved3 = manager.get_state_machine_id(sm_3).unwrap();
+            let retrieved1 = manager.get_state_machine_id(sm_1).unwrap();
+            let retrieved2 = manager.get_state_machine_id(sm_2).unwrap();
+            let retrieved3 = manager.get_state_machine_id(sm_3).unwrap();
 
-        assert_eq!(retrieved1, sm_1);
-        assert_eq!(retrieved2, sm_2);
-        assert_eq!(retrieved3, sm_3);
+            assert_eq!(retrieved1, sm_1);
+            assert_eq!(retrieved2, sm_2);
+            assert_eq!(retrieved3, sm_3);
+        }
     }
 
     #[test]
@@ -206,7 +206,7 @@ mod tests {
 
         let sesion = mock_session_for_test();
 
-        let sm = manager.create_session_state_machine(sesion);
+        let sm = manager.create_session_state_machine(sesion).unwrap();
         assert_eq!(manager.session_count(), 1);
 
         let retrieved = manager.get_state_machine_id(sm);

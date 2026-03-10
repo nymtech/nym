@@ -44,6 +44,7 @@ nym-node-tester-wasm = { path = "../node-tester", optional = true }
 
 tokio_with_wasm = { workspace = true, features = ["full"] }
 
+
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
 

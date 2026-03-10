@@ -5,29 +5,26 @@
 
 use super::config::LpRegistrationConfig;
 use super::error::{LpClientError, Result};
-use crate::lp_client::helpers::{
-    LpDataDeliverExt, LpDataSendExt, convert_forward_data, try_convert_forward_response,
-};
+use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt};
 use crate::lp_client::nested_session::connection::NestedConnection;
 use crate::lp_client::state_machine_helpers::{extract_forwarded_response, prepare_send_packet};
-use bytes::BytesMut;
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
-use nym_lp::message::ForwardPacketData;
-use nym_lp::packet::version;
-use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
-use nym_lp::state_machine::{LpAction, LpData, LpInput, LpStateMachine};
-use nym_lp::{LpPacket, LpSession};
-use nym_lp_transport::traits::LpTransport;
+use nym_lp::LpSession;
+use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
+use nym_lp::peer_config::LpReceiverIndex;
+use nym_lp::state_machine::LpStateMachine;
+use nym_lp::transport::traits::LpTransportChannel;
+use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
+use nym_lp::{Ciphersuite, packet::EncryptedLpPacket, packet::version};
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand::{CryptoRng, RngCore};
+use rand09::{CryptoRng, Rng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -62,7 +59,7 @@ pub struct LpRegistrationClient<S = TcpStream> {
     gateway_supported_lp_protocol_version: u8,
 
     /// LP state machine for managing connection lifecycle.
-    /// Created during handshake initiation. Persists across packet-per-connection calls.
+    /// Created during handshake initiation.
     state_machine: Option<LpStateMachine>,
 
     /// Configuration for timeouts and TCP parameters.
@@ -75,23 +72,25 @@ pub struct LpRegistrationClient<S = TcpStream> {
 
 impl<S> LpRegistrationClient<S>
 where
-    S: LpTransport + Unpin,
+    S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
     /// Creates a new LP registration client.
     ///
     /// # Arguments
-    /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair
+    /// * `local_x25519_keypair` - Client's x25519 keypair
     /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
     /// * `gateway_lp_address` - Gateway's LP listener socket address
+    /// * `ciphersuite` - the set of cryptographic protocols to use when negotiating the session with the node
     /// * `gateway_supported_lp_protocol_version` - Gateway's LP protocol version
     /// * `config` - Configuration for timeouts and TCP parameters (use `LpConfig::default()`)
     ///
     /// # Note
     /// This creates the client. Call `perform_handshake()` to establish the LP session.
     pub fn new(
-        local_ed25519_keypair: Arc<ed25519::KeyPair>,
+        local_x25519_keypair: Arc<DHKeyPair>,
         gateway_lp_peer: LpRemotePeer,
         gateway_lp_address: SocketAddr,
+        ciphersuite: Ciphersuite,
         gateway_supported_lp_protocol_version: u8,
         config: LpRegistrationConfig,
     ) -> Self {
@@ -105,8 +104,7 @@ where
             gateway_supported_lp_protocol_version
         };
 
-        let local_x25519_keypair = local_ed25519_keypair.to_x25519();
-        let lp_local_peer = LpLocalPeer::new(local_ed25519_keypair, Arc::new(local_x25519_keypair));
+        let lp_local_peer = LpLocalPeer::new(ciphersuite, local_x25519_keypair);
         Self {
             lp_local_peer,
             gateway_lp_peer,
@@ -119,13 +117,8 @@ where
     }
 
     /// Attempt to use this `LpRegistrationClient` as transport for `NestedSession`
-    pub fn as_nested_connection(
-        &mut self,
-        exit_identity: ed25519::PublicKey,
-        exit_address: SocketAddr,
-    ) -> NestedConnection<'_, S> {
+    pub fn as_nested_connection(&mut self, exit_address: SocketAddr) -> NestedConnection<'_, S> {
         NestedConnection {
-            exit_identity,
             exit_address,
             outer_client: self,
         }
@@ -134,41 +127,46 @@ where
     /// Creates a new LP registration client with default configuration.
     ///
     /// # Arguments
-    /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair
+    /// * `local_x25519_keypair` - Client's x25519 keypair
     /// * `gateway_lp_peer` - Encapsulates all the gateway keys needed for the Lewes Protocol
     /// * `gateway_lp_address` - Gateway's LP listener socket address
+    /// * `ciphersuite` - the set of cryptographic protocols to use when negotiating the session with the node
     /// * `gateway_supported_lp_protocol_version` - Gateway's LP protocol version
     ///
     /// Uses default config (LpConfig::default()) with sane timeout and TCP parameters.
     /// PSK is derived automatically during handshake inside the state machine.
     /// For custom config, use `new()` directly.
     pub fn new_with_default_config(
-        local_ed25519_keypair: Arc<ed25519::KeyPair>,
+        local_x25519_keypair: Arc<DHKeyPair>,
         gateway_lp_peer: LpRemotePeer,
         gateway_lp_address: SocketAddr,
+        ciphersuite: Ciphersuite,
         gateway_supported_lp_protocol_version: u8,
     ) -> Self {
         Self::new(
-            local_ed25519_keypair,
+            local_x25519_keypair,
             gateway_lp_peer,
             gateway_lp_address,
+            ciphersuite,
             gateway_supported_lp_protocol_version,
             LpRegistrationConfig::default(),
         )
     }
 
+    pub(crate) fn state_machine(&self) -> Result<&LpStateMachine> {
+        self.state_machine
+            .as_ref()
+            .ok_or(LpClientError::IncompleteHandshake)
+    }
+
     pub(crate) fn state_machine_mut(&mut self) -> Result<&mut LpStateMachine> {
-        self.state_machine.as_mut().ok_or_else(|| {
-            LpClientError::transport(
-                "State machine not available - has the handshake been completed?",
-            )
-        })
+        self.state_machine
+            .as_mut()
+            .ok_or(LpClientError::IncompleteHandshake)
     }
 
     fn stream_mut(&mut self) -> Result<&mut S> {
-        self.stream
-            .as_mut()
-            .ok_or_else(|| LpClientError::transport("Cannot send: not connected"))
+        self.stream.as_mut().ok_or(LpClientError::NotConnected)
     }
 
     /// Returns whether the client has completed the handshake and is ready for registration.
@@ -216,10 +214,10 @@ where
         .await
         .map_err(|_| LpClientError::TcpConnection {
             address: self.gateway_lp_address.to_string(),
-            source: std::io::Error::new(
-                std::io::ErrorKind::TimedOut,
-                format!("Connection timeout after {:?}", self.config.connect_timeout),
-            ),
+            source: LpTransportError::ConnectionFailure(format!(
+                "Connection timeout after {:?}",
+                self.config.connect_timeout
+            )),
         })?
         .map_err(|source| LpClientError::TcpConnection {
             address: self.gateway_lp_address.to_string(),
@@ -253,7 +251,10 @@ where
     ///
     /// # Errors
     /// Returns an error if not connected or if send or receive fails.
-    async fn send_and_receive_packet(&mut self, packet: &LpPacket) -> Result<LpPacket> {
+    async fn send_and_receive_packet(
+        &mut self,
+        packet: &EncryptedLpPacket,
+    ) -> Result<EncryptedLpPacket> {
         self.try_send_packet(packet).await?;
         self.try_receive_packet().await
     }
@@ -262,22 +263,21 @@ where
     /// and attempt to immediately read a response
     /// within the provided timeout.
     ///
-    /// Both packets are going to be optionally encrypted/decrypted based on the availability of keys
-    /// within the internal `LpStateMachine`
+    /// Both packets are going to be encrypted
     ///
     /// # Arguments
-    /// * `packet` - The LP packet to send
+    /// * `packet` - The encrypted LP packet to send
     ///
     /// # Errors
     /// Returns an error if not connected, the timeout has been reached, or if send or receive fails.
-    async fn send_and_receive_packet_with_timeout(
+    async fn send_and_receive_data_packet_with_timeout(
         &mut self,
-        packet: &LpPacket,
+        packet: &EncryptedLpPacket,
         timeout: Duration,
-    ) -> Result<LpPacket> {
+    ) -> Result<EncryptedLpPacket> {
         tokio::time::timeout(timeout, self.send_and_receive_packet(packet))
             .await
-            .map_err(|_| LpClientError::ResponseReceiveTimeout { timeout })?
+            .map_err(|_| LpClientError::ConnectionTimeout)?
     }
 
     /// Sends an LP packet on the persistent stream.
@@ -287,42 +287,25 @@ where
     ///
     /// # Errors
     /// Returns an error if not connected or if send fails.
-    pub(crate) async fn try_send_packet(&mut self, packet: &LpPacket) -> Result<()> {
+    pub(crate) async fn try_send_packet(&mut self, packet: &EncryptedLpPacket) -> Result<()> {
         // can't use getters due to borrow checker (i.e. requiring full borrows for function calls)
-        let stream = self
-            .stream
-            .as_mut()
-            .ok_or_else(|| LpClientError::transport("Cannot send: not connected"))?;
-
-        let state_machine = self.state_machine.as_ref().ok_or_else(|| {
-            LpClientError::transport(
-                "State machine not available - has the handshake been completed?",
-            )
-        })?;
-
-        let outer_key = state_machine.session()?.outer_aead_key();
-        Self::send_packet_with_key(stream, packet, outer_key).await
+        self.stream_mut()?
+            .send_length_prefixed_transport_packet(packet)
+            .await?;
+        Ok(())
     }
 
     /// Receives an LP packet from the persistent stream.
     ///
     /// # Errors
     /// Returns an error if not connected or if receive fails.
-    pub(crate) async fn try_receive_packet(&mut self) -> Result<LpPacket> {
-        let stream = self
-            .stream
-            .as_mut()
-            .ok_or_else(|| LpClientError::transport("Cannot send: not connected"))?;
+    pub(crate) async fn try_receive_packet(&mut self) -> Result<EncryptedLpPacket> {
+        let encrypted_packet = self
+            .stream_mut()?
+            .receive_length_prefixed_transport_packet()
+            .await?;
 
-        let state_machine = self.state_machine.as_ref().ok_or_else(|| {
-            LpClientError::transport(
-                "State machine not available - has the handshake been completed?",
-            )
-        })?;
-
-        let outer_key = state_machine.session()?.outer_aead_key();
-
-        Self::receive_packet_with_key(stream, outer_key).await
+        Ok(encrypted_packet)
     }
 
     /// Closes the persistent connection.
@@ -372,7 +355,7 @@ where
     ///
     /// The connection remains open after handshake for registration/forwarding.
     pub async fn perform_handshake(&mut self) -> Result<()> {
-        // Apply handshake timeout (nym-102)
+        // Apply handshake timeout
         let result = tokio::time::timeout(
             self.config.handshake_timeout,
             self.perform_handshake_inner(),
@@ -388,10 +371,7 @@ where
             }
             Err(_) => {
                 self.close();
-                Err(LpClientError::Transport(format!(
-                    "Handshake timeout after {:?}",
-                    self.config.handshake_timeout
-                )))
+                Err(LpClientError::HandshakeTimeout)
             }
         }
     }
@@ -413,71 +393,18 @@ where
         let connection = self.stream_mut()?;
 
         // TODO:
-        let ciphersuite = LpSession::default_ciphersuite();
-        let session = LpSession::complete_as_initiator(
+        let session = LpSession::psq_handshake_initiator(
             connection,
-            ciphersuite,
             local_peer,
             remote_peer,
             protocol_version,
         )
-        .complete_as_initiator()
+        .complete_handshake()
         .await?;
 
         // Store the state machine (with established session) for later use
         self.state_machine = Some(LpStateMachine::new(session));
         Ok(())
-    }
-
-    /// Sends an LP packet over a TCP stream with length-prefixed framing.
-    ///
-    /// Format: 4-byte big-endian u32 length + packet bytes
-    ///
-    /// # Arguments
-    /// * `stream` - TCP stream to send on
-    /// * `packet` - The LP packet to send
-    /// * `outer_key` - Optional outer AEAD key for encryption
-    ///
-    /// # Errors
-    /// Returns an error if serialization or network transmission fails.
-    async fn send_packet_with_key(
-        stream: &mut S,
-        packet: &LpPacket,
-        outer_key: &OuterAeadKey,
-    ) -> Result<()> {
-        let mut packet_buf = BytesMut::new();
-        serialize_lp_packet(packet, &mut packet_buf, Some(outer_key))
-            .map_err(|e| LpClientError::Transport(format!("Failed to serialize packet: {e}")))?;
-
-        stream
-            .send_serialised_packet(&packet_buf)
-            .await
-            .map_err(|err| LpClientError::Transport(err.to_string()))
-    }
-
-    /// Receives an LP packet from a TCP stream with length-prefixed framing.
-    ///
-    /// Format: 4-byte big-endian u32 length + packet bytes
-    ///
-    /// # Arguments
-    /// * `stream` - TCP stream to receive from
-    /// * `outer_key` - Optional outer AEAD key for decryption
-    ///
-    /// # Errors
-    /// Returns an error if:
-    /// - Network read fails
-    /// - Packet size exceeds maximum (64KB)
-    /// - Packet parsing/decryption fails
-    async fn receive_packet_with_key(stream: &mut S, outer_key: &OuterAeadKey) -> Result<LpPacket> {
-        let packet_buf = stream
-            .receive_raw_packet()
-            .await
-            .map_err(|err| LpClientError::transport(err.to_string()))?;
-
-        let packet = parse_lp_packet(&packet_buf, Some(outer_key))
-            .map_err(|e| LpClientError::Transport(format!("Failed to parse packet: {e}")))?;
-
-        Ok(packet)
     }
 
     /// This is an internal method only meant to be called by `Self::register_dvpn` if the gateway
@@ -539,7 +466,10 @@ where
 
         // 5. Send initial request and receive response on persistent connection with timeout
         let response_packet = self
-            .send_and_receive_packet_with_timeout(&request_packet, self.config.registration_timeout)
+            .send_and_receive_data_packet_with_timeout(
+                &request_packet,
+                self.config.registration_timeout,
+            )
             .await?;
 
         // 6. Decrypt via state machine (re-borrow)
@@ -623,7 +553,10 @@ where
 
         // 4. Send initial request and receive response on persistent connection with timeout
         let response_packet = self
-            .send_and_receive_packet_with_timeout(&request_packet, self.config.registration_timeout)
+            .send_and_receive_data_packet_with_timeout(
+                &request_packet,
+                self.config.registration_timeout,
+            )
             .await?;
 
         // 5. Decrypt via state machine (re-borrow)
@@ -721,7 +654,7 @@ where
             if attempt > 0 {
                 // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
                 let base_delay_ms = 100u64 * (1 << attempt.min(4));
-                let jitter_ms = rand::random::<u64>() % (base_delay_ms / 4 + 1);
+                let jitter_ms: u64 = rand09::rng().random_range(0..(base_delay_ms / 4 + 1));
                 let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
                 tracing::info!("Retrying registration (attempt {attempt_display}) after {delay:?}");
                 tokio::time::sleep(delay).await;
@@ -764,174 +697,9 @@ where
             }
         }
 
-        Err(last_error
-            .unwrap_or_else(|| LpClientError::transport("Registration failed after all retries")))
-    }
-
-    /// Sends a ForwardPacket message to the entry gateway for forwarding to the exit gateway.
-    ///
-    /// This method constructs a ForwardPacket containing the target gateway's identity,
-    /// address, and the inner LP packet bytes, encrypts it through the outer session
-    /// (client-entry), and receives the response from the exit gateway via the entry gateway.
-    ///
-    /// Uses the persistent TCP connection established during handshake.
-    /// Multiple forward packets can be sent on the same connection.
-    ///
-    /// # Arguments
-    /// * `forward_data` - encapsulated target gateway's ed25519 identity, socket address and serialised inner LP packet
-    ///
-    /// # Returns
-    /// * `Ok(Vec<u8>)` - Decrypted response bytes from the exit gateway
-    ///
-    /// # Errors
-    /// Returns an error if:
-    /// - Handshake has not been completed
-    /// - Serialization fails
-    /// - Encryption or network transmission fails
-    /// - Response decryption fails
-    ///
-    /// # Example Flow
-    /// ```ignore
-    /// // Construct inner packet for exit gateway (ClientHello, handshake, etc.)
-    /// let inner_packet = LpPacket::new(...);
-    /// let inner_bytes = serialize_lp_packet(&inner_packet, &mut BytesMut::new())?;
-    ///
-    /// // Forward through entry gateway
-    /// let response_bytes = client.send_forward_packet(
-    ///     exit_identity,
-    ///     "2.2.2.2:41264".to_string(),
-    ///     inner_bytes.to_vec(),
-    /// ).await?;
-    /// ```
-    pub async fn send_forward_packet_with_response(
-        &mut self,
-        forward_data: ForwardPacketData,
-    ) -> Result<Vec<u8>> {
-        let target_address = forward_data.target_lp_address;
-
-        tracing::debug!(
-            "Sending ForwardPacket to {target_address} ({} inner bytes, persistent connection)",
-            forward_data.inner_packet_bytes.len()
-        );
-
-        // 1. Serialize the ForwardPacketData
-        let input = convert_forward_data(forward_data)?;
-
-        // 2. Encrypt and prepare packet via state machine
-        let state_machine = self.state_machine_mut()?;
-
-        let action = state_machine
-            .process_input(input)
-            .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
-            .map_err(|e| {
-                LpClientError::Transport(format!("Failed to encrypt ForwardPacket: {e}"))
-            })?;
-
-        let forward_packet = match action {
-            LpAction::SendPacket(packet) => packet,
-            other => {
-                return Err(LpClientError::Transport(format!(
-                    "Unexpected action when sending ForwardPacket: {:?}",
-                    other
-                )));
-            }
-        };
-
-        // 3. Send and receive on persistent connection with timeout
-        let response_packet = tokio::time::timeout(self.config.forward_timeout, async {
-            self.try_send_packet(&forward_packet).await?;
-            self.try_receive_packet().await
-        })
-        .await
-        .map_err(|_| {
-            LpClientError::Transport(format!(
-                "Forward packet timeout after {:?}",
-                self.config.forward_timeout
-            ))
-        })??;
-        tracing::trace!("Received response packet from entry gateway");
-
-        // 4. Decrypt via state machine (re-borrow)
-        let state_machine = self
-            .state_machine
-            .as_mut()
-            .ok_or_else(|| LpClientError::transport("State machine disappeared unexpectedly"))?;
-        let action = state_machine
-            .process_input(LpInput::ReceivePacket(response_packet))
-            .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
-            .map_err(|e| {
-                LpClientError::Transport(format!("Failed to decrypt forward response: {e}"))
-            })?;
-
-        // 5. Extract decrypted response data
-        let response_data = try_convert_forward_response(action)?;
-
-        tracing::debug!(
-            "Successfully received forward response from {target_address} ({} bytes)",
-            response_data.len()
-        );
-
-        Ok(response_data)
-    }
-
-    /// Wrap data in an LP packet for UDP transmission to the data plane (port 51264).
-    ///
-    /// This method encrypts the provided data using the established LP session
-    /// and returns serialized LP packet bytes ready to send over UDP.
-    ///
-    /// # Prerequisites
-    /// - Handshake must be completed (`perform_handshake()`)
-    ///
-    /// # Arguments
-    /// * `data` - Raw application data to wrap (e.g., Sphinx packet bytes)
-    ///
-    /// # Returns
-    /// * `Ok(Vec<u8>)` - Serialized LP packet bytes (outer header + encrypted payload)
-    ///
-    /// # Wire Format
-    /// The returned bytes are in LP wire format:
-    /// - Outer header (12B): receiver_idx(4) + counter(8) - always cleartext
-    /// - Encrypted payload: proto(1) + reserved(3) + msg_type(4) + content + tag(16)
-    ///
-    /// # Usage
-    /// After LP handshake, wrap Sphinx packets before sending to gateway's LP data port:
-    /// ```ignore
-    /// client.perform_handshake().await?;
-    /// let sphinx_bytes = build_sphinx_packet(...);
-    /// let lp_bytes = client.wrap_data(&sphinx_bytes)?;
-    /// socket.send_to(&lp_bytes, gateway_lp_data_address).await?; // UDP:51264
-    /// ```
-    pub fn wrap_data(&mut self, data: &[u8]) -> Result<Vec<u8>> {
-        let state_machine = self
-            .state_machine
-            .as_mut()
-            .ok_or_else(|| LpClientError::transport("Cannot wrap data: handshake not completed"))?;
-
-        // Process data through state machine to create LP packet
-        let action = state_machine
-            .process_input(LpInput::SendData(LpData::new_opaque(data.to_vec())))
-            .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
-            .map_err(|e| LpClientError::Transport(format!("Failed to encrypt data: {e}")))?;
-
-        let packet = match action {
-            LpAction::SendPacket(packet) => packet,
-            other => {
-                return Err(LpClientError::Transport(format!(
-                    "Unexpected action when wrapping data: {:?}",
-                    other
-                )));
-            }
-        };
-
-        // Get outer AEAD key for encryption
-        let outer_key = state_machine.session()?.outer_aead_key();
-
-        // Serialize the packet with outer AEAD encryption
-        let mut buf = BytesMut::new();
-        serialize_lp_packet(&packet, &mut buf, Some(outer_key))
-            .map_err(|e| LpClientError::Transport(format!("Failed to serialize LP packet: {e}")))?;
-
-        Ok(buf.to_vec())
+        Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
+            message: "Registration failed after all retries".to_string(),
+        }))
     }
 
     /// Get the LP session ID (receiver_idx) for this client.
@@ -940,41 +708,39 @@ where
     /// the gateway to look up the session for decryption.
     ///
     /// # Returns
-    /// * `Ok(u32)` - The session ID
+    /// * `Ok(LpReceiverIndex)` - The session ID
     ///
     /// # Errors
     /// Returns an error if handshake has not been completed.
-    pub fn session_id(&self) -> Result<u32> {
-        let state_machine = self.state_machine.as_ref().ok_or_else(|| {
-            LpClientError::transport("Cannot get session ID: handshake not completed")
-        })?;
-
-        state_machine
+    pub fn session_id(&self) -> Result<LpReceiverIndex> {
+        self.state_machine()?
             .session()
-            .map(|s| s.id())
-            .map_err(|e| LpClientError::Transport(format!("Failed to get session: {e}")))
+            .map(|s| s.receiver_index())
+            .map_err(Into::into)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_kkt::key_utils::generate_lp_keypair_x25519;
     use nym_lp::packet::version;
+    use nym_test_utils::helpers::deterministic_rng_09;
 
     #[test]
     fn test_client_creation() {
-        let mut rng = rand::thread_rng();
-        let keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
-        let gateway_ed_keys = ed25519::KeyPair::new(&mut rng);
-        let gateway_x_keys = gateway_ed_keys.to_x25519();
-        let gateway_peer =
-            LpRemotePeer::new(*gateway_ed_keys.public_key(), *gateway_x_keys.public_key());
+        let mut rng09 = deterministic_rng_09();
+        let keypair = Arc::new(generate_lp_keypair_x25519(&mut rng09));
+
+        let gateway_x_keys = generate_lp_keypair_x25519(&mut rng09);
+        let gateway_peer = LpRemotePeer::from(gateway_x_keys.pk);
         let address = "127.0.0.1:41264".parse().unwrap();
 
         let client = LpRegistrationClient::<TcpStream>::new_with_default_config(
             keypair,
             gateway_peer,
             address,
+            Ciphersuite::default(),
             version::CURRENT,
         );
 

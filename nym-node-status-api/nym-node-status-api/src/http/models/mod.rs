@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::IpAddr;
 
 use crate::{
@@ -12,7 +13,10 @@ use nym_mixnet_contract_common::CoinSchema;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
     client::NodeId,
-    models::{AuthenticatorDetailsV1, BinaryBuildInformationOwned, IpPacketRouterDetailsV1},
+    models::{
+        AuthenticatorDetailsV1, BinaryBuildInformationOwned, IpPacketRouterDetailsV1,
+        LewesProtocolDetailsV1 as LewesProtocolDetailsV1Validator,
+    },
     nym_api::SkimmedNodeV1,
     nym_nodes::{BasicEntryInformation, NodeRole},
 };
@@ -93,6 +97,44 @@ pub struct DVpnGatewayPerformance {
     uptime_percentage_last_24_hours: f32,
 }
 
+// maps from a type in nym validator client
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct LewesProtocolDetails {
+    pub enabled: bool,
+    pub control_port: u16,
+    pub data_port: u16,
+    pub x25519: String,
+    /// <algo name<hash function name, hex-encoded digest>
+    pub kem_keys: HashMap<String, HashMap<String, String>>,
+}
+
+impl From<&LewesProtocolDetailsV1Validator> for LewesProtocolDetails {
+    fn from(value: &LewesProtocolDetailsV1Validator) -> Self {
+        let content = &value.content;
+        let x25519_pk: nym_crypto::asymmetric::x25519::PublicKey = content.x25519.into();
+
+        LewesProtocolDetails {
+            enabled: content.enabled,
+            control_port: content.control_port,
+            data_port: content.data_port,
+            x25519: x25519_pk.to_base58_string(),
+            kem_keys: content
+                .kem_keys
+                .iter()
+                .map(|(kem, digests)| {
+                    (
+                        kem.to_string(),
+                        digests
+                            .iter()
+                            .map(|(hash_fn, digest)| (hash_fn.to_string(), digest.clone()))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct DVpnGateway {
     pub identity_key: String,
@@ -116,6 +158,8 @@ pub struct DVpnGateway {
     // Node performance information needed by the NymVPN UI / Explorer to show more information
     // about the node in a user-friendly way
     pub performance_v2: Option<DVpnGatewayPerformance>,
+
+    pub lewes_protocol_details: Option<LewesProtocolDetails>,
 
     pub build_information: BinaryBuildInformationOwned,
 }
@@ -251,6 +295,10 @@ impl DVpnGateway {
             bridges,
             performance,
             performance_v2,
+            lewes_protocol_details: self_described
+                .lewes_protocol
+                .as_ref()
+                .map(LewesProtocolDetails::from),
             build_information: self_described.build_information,
         })
     }

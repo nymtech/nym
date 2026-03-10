@@ -122,6 +122,8 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
     setup_env(args.config_env_file.as_ref());
     let network = nym_sdk::NymNetworkDetails::new_from_env();
 
+    info!("{:#?}", network);
+
     match args.command {
         Commands::RunLocal {
             config_dir,

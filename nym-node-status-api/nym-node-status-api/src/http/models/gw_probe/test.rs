@@ -210,7 +210,7 @@ fn conversion_from_gw_probe_latest() {
 
     let socks5 = result.outcome.socks5.as_ref().expect("lp should be Some");
     assert!(socks5.can_connect_socks5);
-    assert_eq!(socks5.https_connectivity.https_success, true);
+    assert!(socks5.https_connectivity.https_success);
     assert_eq!(socks5.https_connectivity.https_status_code, Some(200));
     assert_eq!(socks5.https_connectivity.https_latency_ms, Some(123));
     assert_eq!(

@@ -648,6 +648,7 @@ apply_port_allowlist() {
     ["HTTP"]="80-81"
     ["Kerberos"]="88"
     ["POP3"]="110"
+    ["UseNet1"]="119"
     ["NTP"]="123"
     ["IMAP"]="143"
     ["IMAP3"]="220"
@@ -659,6 +660,7 @@ apply_port_allowlist() {
     # this port is opened and rate limited in apply_smtps_465_rate_limit
     # ["SMTP"]="465"
     ["RTSP"]="554"
+    ["UseNet2"]="563"
     ["SMTPSubmission"]="587"
     ["LDAPS"]="636"
     ["SILC"]="706"

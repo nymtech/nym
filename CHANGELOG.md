@@ -4,6 +4,52 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.5-raclette] (2026-03-10)
+
+- bugfix: correctly populate gateway probe LP data ([#6533])
+- chore: introduce additional prometheus metrics for registration times ([#6532])
+- bugfix: lp information to have proper snake_case on API endpoints ([#6531])
+- removed redundant LP states ([#6509])
+- chore: removed all matrix notifications from github actions ([#6495])
+- feat: Lewes Protocol with PSQv2 ([#6491])
+- build(deps): bump minimatch from 3.1.2 to 3.1.4 in /documentation/docs ([#6486])
+- build(deps): bump bn.js from 4.12.2 to 4.12.3 in /documentation/docs ([#6484])
+- build(deps): bump bn.js from 4.12.2 to 4.12.3 ([#6483])
+- build(deps): bump ajv from 8.17.1 to 8.18.0 in /clients/native/examples/js-examples/websocket ([#6478])
+- build(deps): bump ajv from 6.12.6 to 6.14.0 in /documentation/docs ([#6477])
+- build(deps): bump minimatch and glob in /documentation/scripts/post-process ([#6476])
+- build(deps): bump hono from 4.11.9 to 4.12.0 ([#6475])
+- build(deps): bump keccak from 0.1.5 to 0.1.6 ([#6472])
+- build(deps-dev): bump qs from 6.14.1 to 6.14.2 in /clients/native/examples/js-examples/websocket ([#6466])
+- build(deps): bump mikefarah/yq from 4.52.2 to 4.52.4 ([#6465])
+- Otel minimal v2 ([#6464])
+- build(deps): bump qs and express in /wasm/client/internal-dev ([#6461])
+- bugfix: restore 'latest_measurement' field for nym-node /verloc endpoint ([#6452])
+- build(deps-dev): bump webpack from 5.77.0 to 5.104.1 in /wasm/node-tester/internal-dev ([#6451])
+- Max/mixfetch concurrent test ([#6417])
+
+[#6533]: https://github.com/nymtech/nym/pull/6533
+[#6532]: https://github.com/nymtech/nym/pull/6532
+[#6531]: https://github.com/nymtech/nym/pull/6531
+[#6509]: https://github.com/nymtech/nym/pull/6509
+[#6495]: https://github.com/nymtech/nym/pull/6495
+[#6491]: https://github.com/nymtech/nym/pull/6491
+[#6486]: https://github.com/nymtech/nym/pull/6486
+[#6484]: https://github.com/nymtech/nym/pull/6484
+[#6483]: https://github.com/nymtech/nym/pull/6483
+[#6478]: https://github.com/nymtech/nym/pull/6478
+[#6477]: https://github.com/nymtech/nym/pull/6477
+[#6476]: https://github.com/nymtech/nym/pull/6476
+[#6475]: https://github.com/nymtech/nym/pull/6475
+[#6472]: https://github.com/nymtech/nym/pull/6472
+[#6466]: https://github.com/nymtech/nym/pull/6466
+[#6465]: https://github.com/nymtech/nym/pull/6465
+[#6464]: https://github.com/nymtech/nym/pull/6464
+[#6461]: https://github.com/nymtech/nym/pull/6461
+[#6452]: https://github.com/nymtech/nym/pull/6452
+[#6451]: https://github.com/nymtech/nym/pull/6451
+[#6417]: https://github.com/nymtech/nym/pull/6417
+
 ## [2026.4-quark] (2026-02-24)
 
 - Enhance CI workflow with feature inputs ([#6462])

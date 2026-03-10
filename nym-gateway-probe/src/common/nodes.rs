@@ -12,6 +12,7 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_http_api_client::UserAgent;
 use nym_kkt_ciphersuite::Ciphersuite;
 use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
+use nym_lp::packet::version;
 use nym_lp::peer::{DHPublicKey, LpRemotePeer};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::client::NymNodeApiClientExt;
@@ -129,16 +130,32 @@ impl DirectoryNode {
             .copied()
             .ok_or_else(|| anyhow!("no ip address known"))?;
 
-        // let lp_data = description.lewes_protocol.as_ref().and_then(|lp_data| {
-        //     Some(TestedNodeLpDetails {
-        //         address: SocketAddr::new(ip_address, lp_data.control_port),
-        //         expected_kem_key_hashes: lp_data.kem_keys().ok()?,
-        //         expected_signing_key_hashes: lp_data.signing_keys().ok()?,
-        //         x25519: lp_data.x25519,
-        //         // \/ TODO: proper derivation from build version
-        //         lp_version: version::CURRENT,
-        //     })
-        // });
+        let identity = self.identity();
+
+        let lp_data = match description.lewes_protocol.as_ref() {
+            Some(lp_data) => {
+                // 1. verify the signature, if it's invalid, completely bail on the node
+                if !lp_data.verify(&identity) {
+                    warn!("{identity} provided malformed lp data");
+                    bail!("{identity} provided malformed lp data");
+                }
+
+                let version: semver::Version =
+                    description.build_information.build_version.parse()?;
+                let Some(ciphersuite) = Ciphersuite::from_node_version(version) else {
+                    bail!("failed to identify valid ciphersuite for {identity}");
+                };
+
+                Some(TestedNodeLpDetails {
+                    address: SocketAddr::new(ip_address, lp_data.content.control_port),
+                    expected_kem_key_hashes: lp_data.content.kem_keys()?,
+                    x25519: lp_data.content.x25519,
+                    lp_version: version::CURRENT,
+                    ciphersuite,
+                })
+            }
+            None => None,
+        };
 
         Ok(TestedNodeDetails {
             identity: self.identity(),
@@ -147,7 +164,7 @@ impl DirectoryNode {
             authenticator_address,
             authenticator_version,
             ip_address: Some(ip_address),
-            lp_data: None,
+            lp_data,
         })
     }
 }

@@ -46,17 +46,23 @@ use nym_wallet_types::interval::Interval;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
 use std::path::Path;
+use std::sync::OnceLock;
 use ts_rs::TS;
 use walkdir::WalkDir;
 
+fn ts_rs_config() -> &'static ts_rs::Config {
+    static TS_RS_CONFIG: OnceLock<ts_rs::Config> = OnceLock::new();
+    TS_RS_CONFIG.get_or_init(ts_rs::Config::default)
+}
+
 macro_rules! do_export {
     ($a:ty) => {{
-        match <$a>::export() {
+        match <$a>::export(ts_rs_config()) {
             Ok(()) => {
-                println!("✅ {}", <$a>::name());
+                println!("✅ {}", <$a>::name(ts_rs_config()));
             }
             Err(e) => {
-                println!("❌ {} failed: {}", <$a>::name(), e);
+                println!("❌ {} failed: {}", <$a>::name(ts_rs_config()), e);
             }
         }
     }};

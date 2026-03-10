@@ -1,0 +1,13 @@
+---
+- name: Stop/disable rsyslog if installed (best-effort)
+  systemd:
+    name: rsyslog
+    state: stopped
+    enabled: false
+  ignore_errors: true
+
+- name: Remove rsyslog logrotate stanza if present (prevents logrotate failures)
+  file:
+    path: /etc/logrotate.d/rsyslog
+    state: absent
+  ignore_errors: true

@@ -1,0 +1,8 @@
+---
+- name: Show journal disk usage
+  command: journalctl --disk-usage
+  register: journal_usage
+  changed_when: false
+
+- debug:
+    var: journal_usage.stdout

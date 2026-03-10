@@ -11,7 +11,7 @@ positional arguments:
     version_count (v, version)
                         Sum of nodes in given version(s)
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -V, --version         show program's version number and exit
 ```

@@ -1,0 +1,7 @@
+---
+nymnode_log_level_max: "warning"
+nymnode_rate_limit_interval: "30s"
+nymnode_rate_limit_burst: "200"
+nymnode_unit_name: "nym-node"   # set to "nym-node.service" if your distro expects it
+nymnode_dropin_dir: "/etc/systemd/system/nym-node.service.d"
+nymnode_dropin_file: "10-logging.conf"

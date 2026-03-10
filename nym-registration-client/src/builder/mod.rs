@@ -33,7 +33,7 @@ impl RegistrationClientBuilder {
     }
 
     pub fn use_lp(&self) -> bool {
-        let lp_enabled = self.config.enable_lp_regitration;
+        let lp_enabled = self.config.enable_lp_registration;
         let lp_info_available = self.config.entry_node.node.lp_data.is_some()
             && self.config.exit_node.node.lp_data.is_some();
         // To remove when LP supports Mixnet registration

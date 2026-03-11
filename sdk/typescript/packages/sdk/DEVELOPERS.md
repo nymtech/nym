@@ -27,6 +27,16 @@ yarn build:dev:esm   # ESM-only (faster iteration)
 yarn start:dev       # watch mode, rebuilds ESM on changes
 ```
 
+## Local mixFetch development
+
+To do a clean build of mix-fetch and launch the test app in the browser:
+
+```bash
+./wasm/mix-fetch/scripts/clean-build.sh
+```
+
+This removes all build artifacts, rebuilds the Go and Rust WASM (debug mode), installs the internal-dev dependencies, and starts the webpack dev server.
+
 ## Publishing
 
 ### Via CI 

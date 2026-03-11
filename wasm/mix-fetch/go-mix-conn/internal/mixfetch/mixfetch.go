@@ -143,7 +143,10 @@ func schemeFetch(req *conv.ParsedRequest) error {
 	}
 }
 
-func dialContext(_ctx context.Context, requestURL string, _network, addr string) (net.Conn, error) {
+// dialContext is called by Go's HTTP transport with addr derived from the real
+// request URL. mappingKey is only used for tracking in ActiveRequests — it is
+// never sent over the wire.
+func dialContext(_ctx context.Context, mappingKey string, _network, addr string) (net.Conn, error) {
 	log.Debug("dialing plain connection to %s", addr)
 
 	requestId, err := rust_bridge.RsStartNewMixnetRequest(addr)
@@ -155,14 +158,15 @@ func dialContext(_ctx context.Context, requestURL string, _network, addr string)
 	}
 
 	conn, inj := state.NewFakeConnection(requestId, addr)
-	// Use requestURL (URL + random suffix) as the mapping key, allowing
-	// concurrent requests to the same URL.
-	state.ActiveRequests.Insert(requestId, requestURL, inj)
+	state.ActiveRequests.Insert(requestId, mappingKey, inj)
 
 	return conn, nil
 }
 
-func dialTLSContext(_ctx context.Context, requestURL string, _network, addr string) (net.Conn, error) {
+// dialTLSContext is called by Go's HTTP transport with addr derived from the
+// real request URL. mappingKey is only used for tracking in ActiveRequests —
+// it is never sent over the wire.
+func dialTLSContext(_ctx context.Context, mappingKey string, _network, addr string) (net.Conn, error) {
 	log.Debug("dialing TLS connection to %s", addr)
 
 	requestId, err := rust_bridge.RsStartNewMixnetRequest(addr)
@@ -174,9 +178,7 @@ func dialTLSContext(_ctx context.Context, requestURL string, _network, addr stri
 	}
 
 	conn, inj := state.NewFakeTlsConn(requestId, addr)
-	// Use requestURL (URL + random suffix) as the mapping key, allowing
-	// concurrent requests to the same URL.
-	state.ActiveRequests.Insert(requestId, requestURL, inj)
+	state.ActiveRequests.Insert(requestId, mappingKey, inj)
 
 	if err := conn.Handshake(); err != nil {
 		return nil, err
@@ -185,7 +187,11 @@ func dialTLSContext(_ctx context.Context, requestURL string, _network, addr stri
 	return conn, nil
 }
 
-func buildHttpClient(reqCtx *types.RequestContext, opts *types.RequestOptions, requestURL string) *http.Client {
+// buildHttpClient creates an HTTP client with custom dial functions that route
+// connections through the mixnet. mappingKey is captured by the dial closures
+// for request tracking only — the actual destination comes from addr, which
+// Go's HTTP transport derives from the real request URL.
+func buildHttpClient(reqCtx *types.RequestContext, opts *types.RequestOptions, mappingKey string) *http.Client {
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return checkRedirect(reqCtx, opts, req, via)
@@ -193,10 +199,10 @@ func buildHttpClient(reqCtx *types.RequestContext, opts *types.RequestOptions, r
 
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialContext(ctx, requestURL, network, addr)
+				return dialContext(ctx, mappingKey, network, addr)
 			},
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialTLSContext(ctx, requestURL, network, addr)
+				return dialTLSContext(ctx, mappingKey, network, addr)
 			},
 
 			//TLSClientConfig: &tlsConfig,
@@ -277,7 +283,10 @@ func doCorsCheck(reqOpts *types.RequestOptions, resp *http.Response) error {
 	return errors.New("failed cors check")
 }
 
-func performRequest(req *conv.ParsedRequest, requestURL string) (*conv.ResponseWrapper, error) {
+// performRequest executes the HTTP request. mappingKey is threaded through to
+// buildHttpClient for request tracking only. The actual HTTP request is made
+// with req.Request (the original, unmodified URL) at reqClient.Do(req.Request).
+func performRequest(req *conv.ParsedRequest, mappingKey string) (*conv.ResponseWrapper, error) {
 	err := mainFetchChecks(req)
 	if err != nil {
 		return nil, err
@@ -285,7 +294,8 @@ func performRequest(req *conv.ParsedRequest, requestURL string) (*conv.ResponseW
 
 	reqCtx := &types.RequestContext{}
 
-	reqClient := buildHttpClient(reqCtx, req.Options, requestURL)
+	// mappingKey is only captured by the dial closures for ActiveRequests tracking.
+	reqClient := buildHttpClient(reqCtx, req.Options, mappingKey)
 
 	if req.Options.ReferrerPolicy == "" {
 		// 4.1.8
@@ -307,6 +317,8 @@ func performRequest(req *conv.ParsedRequest, requestURL string) (*conv.ResponseW
 	log.Debug("%v: %v", req.Options, *req.Request)
 	// TODO: CORS preflight...
 
+	// This is where the actual HTTP request is made. req.Request contains the
+	// original, unmodified URL — mappingKey is NOT used here.
 	resp, err := reqClient.Do(req.Request)
 	if err != nil {
 		return nil, err
@@ -326,14 +338,14 @@ func performRequest(req *conv.ParsedRequest, requestURL string) (*conv.ResponseW
 	return &wrapper, err
 }
 
-func onErrCleanup(requestURL string) {
+func onErrCleanup(mappingKey string) {
 	// TODO: cancel stuff here.... somehow...
 
-	id := state.ActiveRequests.GetId(requestURL)
+	id := state.ActiveRequests.GetId(mappingKey)
 	// TODO: can we guarantee that rust is not holding any references to that id (that we don't know on this side)?
 	if id == 0 {
 		// if id doesn't exist it [probably] means the error was thrown before the request was properly created
-		log.Debug("there doesn't seem to exist a request associated with URL %s", requestURL)
+		log.Debug("there doesn't seem to exist a request associated with mapping key %s", mappingKey)
 		return
 	}
 	state.ActiveRequests.Remove(id)
@@ -352,17 +364,27 @@ func generateMappingKey(rawURL string) string {
 	return rawURL + "#" + hex.EncodeToString(b)
 }
 
+// MixFetch performs an HTTP request over the Mixnet.
+//
+// Two separate values flow through this function:
+//   - request.Request: the actual HTTP request (with the real URL). This is
+//     what gets sent over the wire via reqClient.Do(). It is never modified.
+//   - mappingKey: a unique internal key (URL + random suffix) used only for
+//     tracking the request in ActiveRequests.AddressMapping. It is never
+//     sent over the wire. This allows concurrent requests to the same URL.
 func MixFetch(request *conv.ParsedRequest) (any, error) {
 	log.Info("_mixFetch: start")
 
-	// Generate a unique mapping key per request so that concurrent requests
-	// to the same URL each get their own entry in the address mapping.
-	requestURL := generateMappingKey(request.Request.URL.String())
+	// Generate a unique mapping key for internal request tracking.
+	mappingKey := generateMappingKey(request.Request.URL.String())
+	for state.ActiveRequests.GetId(mappingKey) != 0 {
+		mappingKey = generateMappingKey(request.Request.URL.String())
+	}
 
 	resCh := make(chan *conv.ResponseWrapper)
 	errCh := make(chan error)
 	go func(resCh chan *conv.ResponseWrapper, errCh chan error) {
-		resp, err := performRequest(request, requestURL)
+		resp, err := performRequest(request, mappingKey)
 		if err != nil {
 			errCh <- err
 		} else {
@@ -377,7 +399,7 @@ func MixFetch(request *conv.ParsedRequest) (any, error) {
 		return conv.IntoJSResponse(res, request.Options)
 	case err := <-errCh:
 		log.Warn("request failure: %s", err)
-		onErrCleanup(requestURL)
+		onErrCleanup(mappingKey)
 		return nil, err
 	}
 }

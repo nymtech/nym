@@ -35,11 +35,11 @@ type CurrentActiveRequests struct {
 }
 
 // GetId returns the request ID associated with the given mapping key.
-func (ar *CurrentActiveRequests) GetId(requestURL string) types.RequestId {
-	log.Trace("getting id associated with request for %s", requestURL)
+func (ar *CurrentActiveRequests) GetId(mappingKey string) types.RequestId {
+	log.Trace("getting id associated with mapping key %s", mappingKey)
 	ar.Lock()
 	defer ar.Unlock()
-	return ar.AddressMapping[requestURL]
+	return ar.AddressMapping[mappingKey]
 }
 
 func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
@@ -51,22 +51,22 @@ func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
 }
 
 // Insert adds a new active request to the tracking maps.
-// The requestURL should be a unique mapping key (URL + random suffix).
-func (ar *CurrentActiveRequests) Insert(id types.RequestId, requestURL string, inj ConnectionInjector) {
-	log.Trace("inserting request %d for %s", id, requestURL)
+// The mappingKey should be a unique key (URL + random suffix) for this request.
+func (ar *CurrentActiveRequests) Insert(id types.RequestId, mappingKey string, inj ConnectionInjector) {
+	log.Trace("inserting request %d with mapping key %s", id, mappingKey)
 	ar.Lock()
 	defer ar.Unlock()
 	_, exists := ar.Requests[id]
 	if exists {
 		panic("attempted to overwrite active connection id")
 	}
-	_, exists = ar.AddressMapping[requestURL]
+	_, exists = ar.AddressMapping[mappingKey]
 	if exists {
-		panic("attempted to overwrite active connection for URL")
+		panic("attempted to overwrite active connection mapping key")
 	}
 
-	ar.Requests[id] = &ActiveRequest{injector: inj, requestURL: requestURL}
-	ar.AddressMapping[requestURL] = id
+	ar.Requests[id] = &ActiveRequest{injector: inj, mappingKey: mappingKey}
+	ar.AddressMapping[mappingKey] = id
 }
 
 func (ar *CurrentActiveRequests) Remove(id types.RequestId) {
@@ -77,13 +77,13 @@ func (ar *CurrentActiveRequests) Remove(id types.RequestId) {
 	if !exists {
 		panic("attempted to remove active connection id that doesn't exist")
 	}
-	_, exists = ar.AddressMapping[req.requestURL]
+	_, exists = ar.AddressMapping[req.mappingKey]
 	if !exists {
-		panic("attempted to remove active connection URL that doesn't exist")
+		panic("attempted to remove active connection mapping key that doesn't exist")
 	}
 
 	delete(ar.Requests, id)
-	delete(ar.AddressMapping, req.requestURL)
+	delete(ar.AddressMapping, req.mappingKey)
 }
 
 func (ar *CurrentActiveRequests) InjectData(id types.RequestId, data []byte) {
@@ -122,5 +122,5 @@ func (ar *CurrentActiveRequests) SendError(id types.RequestId, err error) {
 
 type ActiveRequest struct {
 	injector   ConnectionInjector
-	requestURL string // Unique mapping key (URL + random suffix)
+	mappingKey string // Unique key for AddressMapping (URL + random suffix)
 }

@@ -47,7 +47,13 @@ impl Default for TicketbookManagerConfig {
             check_interval: Duration::from_secs(60),
             tickets_buffer_size: 50,
             max_concurrent_deposits: 32,
-            buffered_ticket_types: vec![V1MixnetEntry, V1WireguardEntry, V1WireguardExit],
+            buffered_ticket_types: vec![
+                V1MixnetEntry,
+                V1WireguardEntry,
+                V1WireguardExit,
+                // additional wg entry for lp tests
+                V1WireguardEntry,
+            ],
         }
     }
 }

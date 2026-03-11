@@ -56,7 +56,7 @@ pub struct AttachedTicketMaterials {
 
     pub master_verification_keys: Vec<VersionSerialised<EpochVerificationKey>>,
 
-    // we need one ticket per type
+    // two V1WireguardEntry tickets needed: one for WG registration, one for LP registration
     pub attached_tickets: Vec<AttachedTicket>,
 }
 

@@ -36,6 +36,9 @@ jobs:
         with:
           go-version: "1.24.6"
 
+      - name: Update root CA certificate bundle
+        run: ./wasm/mix-fetch/go-mix-conn/scripts/update-root-certs.sh
+
       - name: Install dependencies
         run: yarn
 

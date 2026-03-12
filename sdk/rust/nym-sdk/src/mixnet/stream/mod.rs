@@ -8,12 +8,11 @@
 //! parses the stream header, and dispatches each payload to the right
 //! stream's channel (or to the listener for `Open` messages).
 
+mod mixnet_stream;
 mod protocol;
-#[allow(clippy::module_inception)]
-mod stream;
 
+pub use mixnet_stream::MixnetStream;
 pub use protocol::StreamId;
-pub use stream::MixnetStream;
 
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;

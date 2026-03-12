@@ -31,7 +31,8 @@ pub fn instantiate(
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     set_build_information!(deps.storage)?;
 
-    NETWORK_MONITORS_CONTRACT_STORAGE.initialise(deps, env, info.sender, msg)?;
+    let orchestrator = deps.api.addr_validate(&msg.orchestrator_address)?;
+    NETWORK_MONITORS_CONTRACT_STORAGE.initialise(deps, env, info.sender, orchestrator)?;
 
     Ok(Response::default())
 }
@@ -62,7 +63,7 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, NetworkMonitorsContractError> {
+pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary, NetworkMonitorsContractError> {
     match msg {
         QueryMsg::Admin {} => Ok(to_json_binary(&query_admin(deps)?)?),
         QueryMsg::NetworkMonitorOrchestrators {} => {
@@ -99,6 +100,7 @@ mod tests {
     mod contract_instantiation {
         use super::*;
         use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
+        use cosmwasm_std::Addr;
 
         #[test]
         fn sets_contract_admin_to_the_message_sender() -> anyhow::Result<()> {
@@ -119,6 +121,44 @@ mod tests {
             NETWORK_MONITORS_CONTRACT_STORAGE
                 .contract_admin
                 .assert_admin(deps.as_ref(), &some_sender)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn sets_the_initial_orchestrator() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let admin = deps.api.addr_make("some_sender");
+
+            let bad_addr = "foo".to_string();
+            let good_addr = deps.api.addr_make("foo").to_string();
+
+            let bad_init_msg = InstantiateMsg {
+                orchestrator_address: bad_addr.clone(),
+            };
+
+            let good_init_msg = InstantiateMsg {
+                orchestrator_address: good_addr.clone(),
+            };
+
+            let res = instantiate(
+                deps.as_mut(),
+                env.clone(),
+                message_info(&admin, &[]),
+                bad_init_msg,
+            );
+            assert!(res.is_err());
+
+            let is_orchestrator = NETWORK_MONITORS_CONTRACT_STORAGE
+                .is_orchestrator(deps.as_ref(), &Addr::unchecked(&good_addr))?;
+            assert!(!is_orchestrator);
+
+            instantiate(deps.as_mut(), env, message_info(&admin, &[]), good_init_msg)?;
+
+            let is_orchestrator = NETWORK_MONITORS_CONTRACT_STORAGE
+                .is_orchestrator(deps.as_ref(), &Addr::unchecked(&good_addr))?;
+            assert!(is_orchestrator);
 
             Ok(())
         }

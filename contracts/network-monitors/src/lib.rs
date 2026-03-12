@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod contract;
+pub mod queries;
 pub mod queued_migrations;
 pub mod storage;
+pub mod transactions;
 
-mod queries;
 #[cfg(test)]
 pub mod testing;
-mod transactions;

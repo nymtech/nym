@@ -178,21 +178,19 @@ where
         // let the modules do whatever they want
         // the ones wanting the full block:
         for block_module in &mut self.block_modules {
-            block_module.handle_block(&full_info, &mut tx).await?;
+            block_module.handle_block(&full_info).await?;
         }
 
         // the ones wanting transactions:
         for block_tx in full_info.transactions {
             for tx_module in &mut self.tx_modules {
-                tx_module.handle_tx(&block_tx, &mut tx).await?;
+                tx_module.handle_tx(&block_tx).await?;
             }
             // the ones concerned with individual messages
             for (index, msg) in block_tx.tx.body.messages.iter().enumerate() {
                 for msg_module in &mut self.msg_modules {
                     if msg.type_url == msg_module.type_url() {
-                        msg_module
-                            .handle_msg(index, msg, &block_tx, &mut tx)
-                            .await?
+                        msg_module.handle_msg(index, msg, &block_tx).await?
                     }
                 }
             }

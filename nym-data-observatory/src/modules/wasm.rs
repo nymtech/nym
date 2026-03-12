@@ -37,7 +37,6 @@ impl MsgModule for WasmModule {
         index: usize,
         msg: &Any,
         tx: &ParsedTransactionResponse,
-        _storage_tx: &mut dyn NyxdScraperTransaction,
     ) -> Result<(), ScraperError> {
         let message = serde_json::to_value(tx.parsed_messages.get(&index)).unwrap_or_default();
         let value = serde_json::to_value(message.clone()).unwrap_or_default();

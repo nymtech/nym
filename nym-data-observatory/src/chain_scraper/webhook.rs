@@ -29,11 +29,7 @@ impl WebhookModule {
 
 #[async_trait]
 impl TxModule for WebhookModule {
-    async fn handle_tx(
-        &mut self,
-        tx: &ParsedTransactionResponse,
-        _: &mut dyn NyxdScraperTransaction,
-    ) -> Result<(), ScraperError> {
+    async fn handle_tx(&mut self, tx: &ParsedTransactionResponse) -> Result<(), ScraperError> {
         for (index, msg) in &tx.parsed_messages {
             if let Some(parsed_message_type_url) = tx.parsed_message_urls.get(index) {
                 let payload = WebhookPayload {

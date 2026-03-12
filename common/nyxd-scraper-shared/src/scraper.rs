@@ -1,4 +1,4 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::PruningOptions;
@@ -8,8 +8,8 @@ use crate::block_requester::{BlockRequest, BlockRequester};
 use crate::error::ScraperError;
 use crate::modules::{BlockModule, MsgModule, TxModule};
 use crate::rpc_client::RpcClient;
-use crate::scraper::subscriber::ChainSubscriber;
 use crate::storage::NyxdScraperStorage;
+use crate::subscriber::ChainSubscriber;
 use futures::future::join_all;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -21,8 +21,6 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::{error, info};
 use url::Url;
-
-mod subscriber;
 
 #[derive(Default, Clone, Copy)]
 pub struct StartingBlockOpts {

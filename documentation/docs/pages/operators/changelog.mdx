@@ -80,13 +80,26 @@ cargo Profile:      release
 **This release has breaking changes, please read and follow up this section to ensure smooth functionality of your `nym-node`.**
 </ Callout>
 
-1. [NIP-8](https://governator.nym.com/proposal/prop-706369bb-9964-40cf-96a1-224c6e862fe2) & [NIP-9](https://governator.nym.com/proposal/prop-29027e02-50e0-46d9-a096-7334b67efc94) are finished and implemented in the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) as well as in [`network-tunnel-manager.sh` (NTM)](/operators/nodes/nym-node/configuration#routing-configuration)
+<br />
+<Steps>
+
+###### 1. [NIP-8](https://governator.nym.com/proposal/prop-706369bb-9964-40cf-96a1-224c6e862fe2) & [NIP-9](https://governator.nym.com/proposal/prop-29027e02-50e0-46d9-a096-7334b67efc94) are finished
+
+-  These decisions are implemented in the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) as well as in [`network-tunnel-manager.sh` (NTM)](/operators/nodes/nym-node/configuration#routing-configuration)
+
 - **Follow the [steps to update your node exit policy](#update-nym-exit-policy)**, required for operators running wireguard or Exit gateway
 
-2. **[Lewes Protocol (LP)](#lewes-protocol-lp) is out. **Follow [these steps](#lewes-protocol-lp) to open your ports for the protocol to work**
+###### 2. [Lewes Protocol (LP)](#lewes-protocol-lp) is out 
 
-3. Updated guides for [system maintenance](/operators/troubleshooting/vps-isp#system-hygiene) including new guides for [self virtualising design](/operators/troubleshooting/vps-isp#self-managed-vms-hypervisor-host-cleanup--ansible-automated-maintenance), with a new [Ansible playbook](/operators/orchestration/ansible#4-system-maintenance)
-- In case of running out of disk space, follow the [*System Hygiene* chapter](/operators/troubleshooting/vps-isp#system-hygiene)
+- **Follow [these steps](#lewes-protocol-lp) to open your ports for the protocol to work**
+
+###### 3. New and updated guides for [system maintenance](/operators/troubleshooting/vps-isp#system-hygiene)
+
+- Including new guides for [self virtualising design](/operators/troubleshooting/vps-isp#self-managed-vms-hypervisor-host-cleanup--ansible-automated-maintenance), with a new [Ansible playbook](/operators/orchestration/ansible#4-system-maintenance)
+
+- **In case of running out of disk space, follow the [*System Hygiene* chapter](/operators/troubleshooting/vps-isp#system-hygiene)**
+
+</Steps>
 
 #### Update Nym exit policy
 
@@ -127,9 +140,6 @@ ufw allow 41264/tcp && ufw allow 51264/udp
 Nym nodes send more than encrypted messages. They also transmit control information between clients and other nodes. Users want to send both messages and streams of data (e.g., IP streams).
 
 The current Layer 7 (websocket-based) implementation handles registration, control, and user data at the application level. Lewes Protocol moves these concerns to Layer 3, enabling a packet-based network rather than purely an application-based one.
-
-Separately, as a result of [NIP-8: Nym Exit Policy Update - Opening Ports for XMR Mining, Zwift, Gaming & Voice/Video Services](https://governator.nym.com/proposal/prop-706369bb-9964-40cf-96a1-224c6e862fe2) and [NIP-9: Nym Exit Policy Update - Opening Ports 119 & 563 for Usenet](https://governator.nym.com/proposal/prop-29027e02-50e0-46d9-a096-7334b67efc94) we updated [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh). Every operator must download and re-run the current version of NTM on all servers hosting Nym nodes.
-
 
 ### Features
 

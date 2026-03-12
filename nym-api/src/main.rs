@@ -24,6 +24,7 @@ mod signers_cache;
 mod status;
 pub(crate) mod support;
 mod unstable_routes;
+pub(crate) mod utility_routes;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {

@@ -16,10 +16,10 @@ use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::{
+    Delay as SphinxDelay,
     acknowledgements::AckKey,
     addressing::clients::Recipient,
     chunking::fragment::{Fragment, FragmentIdentifier},
-    Delay as SphinxDelay,
 };
 use nym_statistics_common::clients::ClientStatsSender;
 use rand::{CryptoRng, Rng};

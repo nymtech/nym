@@ -32,6 +32,7 @@ const DEFAULT_MIN_MIXNODE_PERFORMANCE: u8 = 50;
 const DEFAULT_MIN_GATEWAY_PERFORMANCE: u8 = 50;
 
 const DEFAULT_MAX_STARTUP_GATEWAY_WAITING_PERIOD: Duration = Duration::from_secs(70 * 60); // 70min -> full epoch (1h) + a bit of overhead
+const DEFAULT_MAX_STARTUP_TOPOLOGY_WAITING_PERIOD: Duration = Duration::from_secs(70 * 60); // 70min -> full epoch (1h) + a bit of overhead
 
 // Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
 // bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
@@ -555,6 +556,11 @@ pub struct Topology {
     #[serde(with = "humantime_serde")]
     pub max_startup_gateway_waiting_period: Duration,
 
+    /// Defines how long the client is going to wait on startup for minimal topology to become online,
+    /// before abandoning the procedure.
+    #[serde(with = "humantime_serde")]
+    pub max_startup_network_waiting_period: Duration,
+
     /// Specifies a minimum performance of a mixnode that is used on route construction.
     /// This setting is only applicable when `NymApi` topology is used.
     pub minimum_mixnode_performance: u8,
@@ -583,6 +589,7 @@ impl Default for Topology {
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_refreshing: false,
             max_startup_gateway_waiting_period: DEFAULT_MAX_STARTUP_GATEWAY_WAITING_PERIOD,
+            max_startup_network_waiting_period: DEFAULT_MAX_STARTUP_TOPOLOGY_WAITING_PERIOD,
             minimum_mixnode_performance: DEFAULT_MIN_MIXNODE_PERFORMANCE,
             minimum_gateway_performance: DEFAULT_MIN_GATEWAY_PERFORMANCE,
             use_extended_topology: false,

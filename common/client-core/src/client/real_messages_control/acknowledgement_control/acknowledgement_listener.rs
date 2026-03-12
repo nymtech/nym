@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::action_controller::{AckActionSender, Action};
-use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
+use nym_statistics_common::clients::{ClientStatsSender, packet_statistics::PacketStatisticsEvent};
 
 use futures::StreamExt;
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::{
-    acknowledgements::{identifier::recover_identifier, AckKey},
-    chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},
+    acknowledgements::{AckKey, identifier::recover_identifier},
+    chunking::fragment::{COVER_FRAG_ID, FragmentIdentifier},
 };
 use nym_task::ShutdownToken;
 use std::sync::Arc;

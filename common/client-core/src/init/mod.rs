@@ -7,8 +7,8 @@ use crate::client::base_client::storage::helpers::{
     has_gateway_details, load_active_gateway_details, load_client_keys, load_gateway_details,
     store_gateway_details, update_stored_published_data_gateway,
 };
-use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
+use crate::client::key_manager::persistence::KeyStore;
 use crate::error::ClientCoreError;
 use crate::init::helpers::{
     choose_gateway_by_latency, get_specified_gateway, uniformly_random_gateway,

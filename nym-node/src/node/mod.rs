@@ -645,6 +645,11 @@ impl NymNode {
             self.config.mixnet.nym_api_urls.clone(),
             self.config.debug.topology_cache_ttl,
             self.config.debug.routing_nodes_check_interval,
+            self.config
+                .gateway_tasks
+                .debug
+                .maximum_initial_topology_waiting_time,
+            self.config.gateway_tasks.debug.minimum_mix_performance,
             self.shutdown_manager.clone_shutdown_token(),
         )
         .await
@@ -1384,8 +1389,11 @@ impl NymNode {
             active_egress_mixnet_connections,
         );
 
+        let network = network_refresher.cached_network();
+        network_refresher.start();
+
         self.start_gateway_tasks(
-            network_refresher.cached_network(),
+            network,
             lp_nodes,
             metrics_sender,
             active_clients_store,
@@ -1396,7 +1404,6 @@ impl NymNode {
         self.setup_key_rotation(nym_apis_client, bloomfilters_manager)
             .await?;
 
-        network_refresher.start();
         self.shutdown_manager.close_tracker();
 
         Ok(self.shutdown_manager)

@@ -63,7 +63,9 @@ impl TopologyRefresher {
         trace!("Refreshing the topology");
 
         if self.topology_accessor.controlled_manually() {
-            info!("topology is being controlled manually - we're going to wait until the control is released...");
+            info!(
+                "topology is being controlled manually - we're going to wait until the control is released..."
+            );
             self.topology_accessor
                 .wait_for_released_manual_control()
                 .await;
@@ -132,6 +134,35 @@ impl TopologyRefresher {
                         return Ok(())
                     }
                     info!("gateway '{gateway}' is still not online...");
+                    sleep(self.refresh_rate).await
+                }
+            }
+        }
+    }
+
+    pub async fn wait_for_initial_network(
+        &mut self,
+        timeout_duration: Duration,
+    ) -> Result<(), NymTopologyError> {
+        info!(
+            "going to wait for at most {timeout_duration:?} for initial network to become online"
+        );
+
+        let deadline = sleep(timeout_duration);
+        tokio::pin!(deadline);
+
+        loop {
+            tokio::select! {
+                _ = &mut deadline => {
+                    return Err(NymTopologyError::TimedOutWaitingForTopology)
+                }
+                _ = self.try_refresh() => {
+                    if let Err(err) = self.ensure_topology_is_routable().await {
+                        info!("network is still not routable...: {err}");
+                    } else {
+                        return Ok(())
+                    }
+
                     sleep(self.refresh_rate).await
                 }
             }

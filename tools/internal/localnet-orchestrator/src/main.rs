@@ -1,14 +1,19 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// Allow dead code for not(unix)
-#![cfg_attr(not(unix), allow(dead_code))]
-extern crate core;
-
+#[cfg(unix)]
 pub mod cli;
+
+#[cfg(unix)]
 pub mod constants;
+
+#[cfg(unix)]
 pub mod helpers;
+
+#[cfg(unix)]
 pub mod orchestrator;
+
+#[cfg(unix)]
 pub mod serde_helpers;
 
 #[cfg(unix)]

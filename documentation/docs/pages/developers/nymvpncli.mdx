@@ -134,6 +134,37 @@ Account mode: Some(Api)
 Account state: Error(BandwidthExceeded { context: "SYNCING_STATE" })
 ```
 
+### Account Summary & Balance
+
+```sh
+nym-vpnc account summary
+nym-vpnc account balance
+```
+
+### Account Links
+
+Get URLs for managing your NymVPN account:
+
+```sh
+nym-vpnc account links
+```
+
+### Forget Account
+
+Remove the stored passphrase, device keys, and local credentials from this device:
+
+```sh
+nym-vpnc account forget
+```
+
+### Device Information
+
+View the current device identity:
+
+```sh
+nym-vpnc device get
+```
+
 ## Tunnel Configuration
 
 Print current tunnel configuration:
@@ -154,14 +185,20 @@ Enable Mixnet (5-hop) — disable two-hop to route traffic through the full mixn
 nym-vpnc tunnel set --two-hop off
 ```
 
+Enable or disable IPv6:
+
+```sh
+nym-vpnc tunnel set --ipv6 on
+```
+
 Enable censorship circumvention transports (currently QUIC):
 
 ```sh
-nym-vpnc tunnel set --ct on
+nym-vpnc tunnel set --circumvention-transports on
 ```
 
 <Callout type="info">
-  Run `nym-vpnc tunnel set --help` for all available tunnel options.
+  Run `nym-vpnc tunnel set --help` for all available tunnel options including mixnet timing parameters.
 </Callout>
 
 ## Gateway Configuration
@@ -186,10 +223,25 @@ Exit point: Country { two_letter_iso_country_code: "JP" }
 Residential exit: off
 ```
 
+Only use residential exit nodes:
+
+```sh
+nym-vpnc gateway set --residential-exit on
+```
+
+### List Available Gateways
+
 List available WireGuard gateways (use a wide terminal window for the table output):
 
 ```sh
 nym-vpnc gateway list wg
+```
+
+You can also list mixnet entry and exit gateways:
+
+```sh
+nym-vpnc gateway list mixnet-entry
+nym-vpnc gateway list mixnet-exit
 ```
 
 ## Connect & Disconnect
@@ -241,8 +293,73 @@ nym-vpnc ad-block set disabled
 ```
 
 <Callout type="info">
-  Some browsers cache DNS internally, so toggling ad-block on/off at runtime may not have an immediate effect — a browser restart may be needed. Use `nslookup` or `dig` to verify that domains are being blocked.
+  You can test ad-blocking with [adblock.turtlecute.org](https://adblock.turtlecute.org/). Some browsers cache DNS internally, so toggling ad-block on/off at runtime may not have an immediate effect — a browser restart may be needed. Use `nslookup` or `dig` to verify that domains are being blocked.
 </Callout>
+
+## DNS
+
+View current DNS configuration:
+
+```sh
+nym-vpnc dns get
+nym-vpnc dns get-default
+```
+
+Set custom DNS servers:
+
+```sh
+nym-vpnc dns set 1.1.1.1 9.9.9.9
+nym-vpnc dns enable
+```
+
+Disable custom DNS and revert to defaults:
+
+```sh
+nym-vpnc dns disable
+```
+
+Clear custom DNS servers:
+
+```sh
+nym-vpnc dns clear
+```
+
+## Local Network Access
+
+Control whether local network (LAN) traffic is allowed while the tunnel is active:
+
+```sh
+nym-vpnc lan get
+nym-vpnc lan set allow
+nym-vpnc lan set block
+```
+
+## SOCKS5 Proxy
+
+NymVPN can expose a local SOCKS5 proxy:
+
+```sh
+nym-vpnc socks5 enable
+nym-vpnc socks5 disable
+nym-vpnc socks5 status
+```
+
+## Network
+
+View or change the Nym network (requires a daemon restart):
+
+```sh
+nym-vpnc network get
+nym-vpnc network set mainnet
+```
+
+## Diagnostic
+
+Run connectivity diagnostics:
+
+```sh
+nym-vpnc diagnostic run
+```
 
 ## Getting Help
 

@@ -5,13 +5,13 @@ use crate::error::ClientCoreError;
 use crate::init::types::RegistrationResult;
 use futures::{SinkExt, StreamExt};
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::client::GatewayListeners;
 use nym_gateway_client::GatewayClient;
+use nym_gateway_client::client::GatewayListeners;
 use nym_topology::node::RoutingNode;
+use nym_validator_client::UserAgent;
 use nym_validator_client::client::{IdentityKeyRef, NymApiClientExt};
 use nym_validator_client::nym_nodes::SkimmedNodesWithMetadata;
-use nym_validator_client::UserAgent;
-use rand::{seq::SliceRandom, Rng};
+use rand::{Rng, seq::SliceRandom};
 #[cfg(unix)]
 use std::os::fd::RawFd;
 use std::{sync::Arc, time::Duration};
@@ -28,9 +28,9 @@ use nym_wasm_utils::websocket::JSWebsocket;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
-use tokio::time::sleep;
-#[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 #[cfg(target_arch = "wasm32")]

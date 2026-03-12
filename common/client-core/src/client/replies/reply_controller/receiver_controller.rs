@@ -5,15 +5,15 @@ use crate::client::real_messages_control::acknowledgement_control::PendingAcknow
 use crate::client::real_messages_control::message_handler::{
     FragmentWithMaxRetransmissions, MessageHandler, PreparationError,
 };
-use crate::client::replies::reply_controller::key_rotation_helpers::SurbRefreshState;
 use crate::client::replies::reply_controller::Config;
+use crate::client::replies::reply_controller::key_rotation_helpers::SurbRefreshState;
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
 use futures::channel::oneshot;
 use nym_client_core_surb_storage::{ReceivedReplySurb, ReceivedReplySurbsMap};
 use nym_crypto::aes::cipher::crypto_common::rand_core::CryptoRng;
-use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_task::connections::{ConnectionId, TransmissionLane};
 use nym_topology::NymTopologyMetadata;
@@ -50,7 +50,9 @@ impl SenderData {
         let pending_retransmissions = self.pending_retransmissions.len();
         let total_pending = pending_retransmissions + pending_replies;
 
-        debug!("total queue size: {total_pending} = pending data {pending_replies} + pending retransmission {pending_retransmissions}");
+        debug!(
+            "total queue size: {total_pending} = pending data {pending_replies} + pending retransmission {pending_retransmissions}"
+        );
 
         total_pending
     }
@@ -200,7 +202,9 @@ where
         let total_required_surbs = total_queue + target_surbs_after_clearing_queue;
         let total_available_surbs = pending_surbs + available_surbs;
 
-        debug!("available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..+{min_surbs_threshold_buffer}..{max_surbs_threshold}");
+        debug!(
+            "available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..+{min_surbs_threshold_buffer}..{max_surbs_threshold}"
+        );
 
         // We should request more surbs if:
         // 1. We haven't hit the maximum surb threshold, and
@@ -225,9 +229,13 @@ where
                 .is_none()
             {
                 // don't report it every single time
-                warn!("received reply request for {recipient_tag} but we don't have any surbs stored for that recipient!");
+                warn!(
+                    "received reply request for {recipient_tag} but we don't have any surbs stored for that recipient!"
+                );
             } else {
-                trace!("received reply request for {recipient_tag} but we don't have any surbs stored for that recipient!");
+                trace!(
+                    "received reply request for {recipient_tag} but we don't have any surbs stored for that recipient!"
+                );
             }
             return;
         }
@@ -383,7 +391,9 @@ where
         let (surbs_for_reply, _) = self.surbs_storage.get_reply_surbs(&target, to_take.len());
 
         let Some(surbs_for_reply) = surbs_for_reply else {
-            error!("somehow different task has stolen our reply surbs! - this should have been impossible");
+            error!(
+                "somehow different task has stolen our reply surbs! - this should have been impossible"
+            );
             self.re_insert_pending_retransmission(&target, to_take);
             return;
         };
@@ -459,7 +469,9 @@ where
                 .get_reply_surbs(&target, to_send_clone.len());
 
             let Some(surbs_for_reply) = surbs_for_reply else {
-                error!("somehow different task has stolen our reply surbs! - this should have been impossible");
+                error!(
+                    "somehow different task has stolen our reply surbs! - this should have been impossible"
+                );
                 self.re_insert_pending_replies(&target, to_send);
                 return;
             };
@@ -543,7 +555,9 @@ where
         let ack_ref = match timed_out_ack.upgrade() {
             Some(ack) => ack,
             None => {
-                debug!("we received the ack for one of the reply packets as we were putting it in the retransmission queue");
+                debug!(
+                    "we received the ack for one of the reply packets as we were putting it in the retransmission queue"
+                );
                 return;
             }
         };
@@ -657,9 +671,13 @@ where
 
             // only log at higher level if it's the first time this error has occurred in a while
             if now - last_failure > time::Duration::seconds(30) {
-                warn!("failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}")
+                warn!(
+                    "failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}"
+                )
             } else {
-                debug!("failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}")
+                debug!(
+                    "failed to request more surbs to clear pending queue of size {total_queue} (attempted to request: {request_size}): {err}"
+                )
             }
         }
     }
@@ -681,7 +699,10 @@ where
                 .surbs_storage
                 .surbs_last_received_at(pending_reply_target)
             else {
-                error!("we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!", retransmission_buf.total_size());
+                error!(
+                    "we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!",
+                    retransmission_buf.total_size()
+                );
                 to_remove.push(*pending_reply_target);
                 continue;
             };
@@ -702,7 +723,9 @@ where
             // if client is offline)
             if vals.current_clear_rerequest_counter > max_rerequests {
                 to_remove.push(*pending_reply_target);
-                debug!("we have reached the maximum threshold of attempting to request surbs from {pending_reply_target}. dropping the sender");
+                debug!(
+                    "we have reached the maximum threshold of attempting to request surbs from {pending_reply_target}. dropping the sender"
+                );
                 continue;
             }
 
@@ -710,7 +733,10 @@ where
                 if diff > max_drop_wait {
                     to_remove.push(*pending_reply_target)
                 } else {
-                    debug!("We haven't received any surbs in {} from {pending_reply_target}. Going to explicitly ask for more", humantime::format_duration(diff.unsigned_abs()));
+                    debug!(
+                        "We haven't received any surbs in {} from {pending_reply_target}. Going to explicitly ask for more",
+                        humantime::format_duration(diff.unsigned_abs())
+                    );
                     vals.increment_current_clear_rerequest_counter();
                     to_request.push(*pending_reply_target);
                 }

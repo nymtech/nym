@@ -354,6 +354,7 @@ impl GatewayTasksBuilder {
             NRServiceProviderBuilder::new(nr_opts.config.clone(), self.shutdown_tracker.clone())
                 .with_custom_gateway_transceiver(transceiver)
                 .with_wait_for_gateway(true)
+                .with_wait_for_initial_topology(true)
                 .with_minimum_gateway_performance(0)
                 .with_custom_topology_provider(topology_provider)
                 .with_on_start(on_start_tx);
@@ -389,6 +390,7 @@ impl GatewayTasksBuilder {
             IpPacketRouter::new(ip_opts.config.clone(), self.shutdown_tracker.clone())
                 .with_custom_gateway_transceiver(Box::new(transceiver))
                 .with_wait_for_gateway(true)
+                .with_wait_for_initial_topology(true)
                 .with_minimum_gateway_performance(0)
                 .with_custom_topology_provider(topology_provider)
                 .with_on_start(on_start_tx);
@@ -488,6 +490,7 @@ impl GatewayTasksBuilder {
         )
         .with_custom_gateway_transceiver(transceiver)
         .with_wait_for_gateway(true)
+        .with_wait_for_initial_topology(true)
         .with_minimum_gateway_performance(0)
         .with_custom_topology_provider(topology_provider)
         .with_on_start(on_start_tx);

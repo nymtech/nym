@@ -57,6 +57,106 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.5-raclette`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.5-raclette)
+- [`nym-node`](nodes/nym-node.mdx) version `1.27.0`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2026-03-10T10:14:03.446553605Z
+Build Version:      1.27.0
+Commit SHA:         7cccf3cfff448f1b38324f7655930a2b621588c6
+Commit Date:        2026-03-10T10:46:12.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+<Callout type="warning" emoji="⚠️">
+**This release has breaking changes, please read and follow up this section to ensure smooth functionality of your `nym-node`.**
+</ Callout>
+
+<br />
+<Steps>
+
+###### 1. [NIP-8](https://governator.nym.com/proposal/prop-706369bb-9964-40cf-96a1-224c6e862fe2) & [NIP-9](https://governator.nym.com/proposal/prop-29027e02-50e0-46d9-a096-7334b67efc94) are finished
+
+-  These decisions are implemented in the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) as well as in [`network-tunnel-manager.sh` (NTM)](/operators/nodes/nym-node/configuration#routing-configuration)
+
+- **Follow the [steps to update your node exit policy](#update-nym-exit-policy)**, required for operators running wireguard or Exit gateway
+
+###### 2. [Lewes Protocol (LP)](#lewes-protocol-lp) is out 
+
+- **Follow [these steps](#lewes-protocol-lp) to open your ports for the protocol to work**
+
+###### 3. New and updated guides for [system maintenance](/operators/troubleshooting/vps-isp#system-hygiene)
+
+- Including new guides for [self virtualising design](/operators/troubleshooting/vps-isp#self-managed-vms-hypervisor-host-cleanup--ansible-automated-maintenance), with a new [Ansible playbook](/operators/orchestration/ansible#4-system-maintenance)
+
+- **In case of running out of disk space, follow the [*System Hygiene* chapter](/operators/troubleshooting/vps-isp#system-hygiene)**
+
+</Steps>
+
+#### Update Nym exit policy
+
+<Callout type="info" emoji="ℹ️">
+Nym team is testing an unreleased version of [Gateway Probe](/operators/performance-and-testing/gateway-probe). This new version checks whether the ports opened align with the governance decision about exit policy. If they don't, the nodes will be taken out of Service grant program and [Delegation program](https://nym.com/network/DP).
+</ Callout>
+
+**Follow these steps to update the exit policy using NTM.**
+
+<Steps>
+###### 1. Download the new NTM
+- Download the latest NTM and make it executable:
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh
+```
+
+###### 2. Update the exit policy
+- To ensure your routing is clean, run:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+</ Steps>
+
+#### Lewes Protocol (LP)
+
+<Callout type="info" emoji="ℹ️">
+**Operators must open the following ports to enable LP on their nodes:**
+
+```sh
+ufw allow 41264/tcp && ufw allow 51264/udp
+```
+**Failing to open these ports will prevent LP registration from functioning correctly.**
+</ Callout>
+
+Nym nodes send more than encrypted messages. They also transmit control information between clients and other nodes. Users want to send both messages and streams of data (e.g., IP streams).
+
+The current Layer 7 (websocket-based) implementation handles registration, control, and user data at the application level. Lewes Protocol moves these concerns to Layer 3, enabling a packet-based network rather than purely an application-based one.
+
+### Features
+
+- [Lewes Protocol with PSQv2](https://github.com/nymtech/nym/pull/6491)
+
+
+### Bugfix
+
+- [Correctly populate gateway probe LP data](https://github.com/nymtech/nym/pull/6533)
+
+- [Restore latest_measurement field for nym-node /verloc endpoint](https://github.com/nymtech/nym/pull/6452)
+
+
+### Refactors & Maintenance
+
+- [Removed redundant LP states](https://github.com/nymtech/nym/pull/6509)
+- [Operator & system maintenance guides](https://nym.com/docs/operators/troubleshooting/vps-isp#system-hygiene) - Practical tips for keeping Nym nodes healthy. Covers VPS hygiene, log management, IPv6 setup, and general system upkeep. Helps prevent disk full crashes, runaway logs, and other operational issues for both VPS and self-hosted nodes.
+
+
 ## `v2026.4-quark`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.4-quark)

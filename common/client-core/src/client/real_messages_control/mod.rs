@@ -25,9 +25,9 @@ use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_statistics_common::clients::ClientStatsSender;
-use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use nym_task::ShutdownToken;
-use rand::{rngs::OsRng, CryptoRng, Rng};
+use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
+use rand::{CryptoRng, Rng, rngs::OsRng};
 use std::sync::Arc;
 
 use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;

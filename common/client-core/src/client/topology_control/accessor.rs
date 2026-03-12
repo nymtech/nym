@@ -5,8 +5,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError, NymTopologyMetadata};
 use nym_validator_client::models::KeyRotationId;
 use std::ops::Deref;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::{Notify, RwLock, RwLockReadGuard};
 
 #[derive(Debug)]

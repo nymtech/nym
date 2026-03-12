@@ -4,8 +4,8 @@
 use async_trait::async_trait;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::GatewayClient;
+use nym_gateway_client::error::GatewayClientError;
 pub use nym_gateway_client::{GatewayPacketRouter, PacketRouter};
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;

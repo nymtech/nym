@@ -765,6 +765,10 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
                 message_retrieval_limit: old_cfg.gateway_tasks.debug.message_retrieval_limit,
                 maximum_open_connections: old_cfg.gateway_tasks.debug.maximum_open_connections,
                 minimum_mix_performance: old_cfg.gateway_tasks.debug.minimum_mix_performance,
+                // \/ ADDED
+                maximum_initial_topology_waiting_time: gateway_tasks::Debug::default()
+                    .maximum_initial_topology_waiting_time,
+                // /\ ADDED
                 max_request_timestamp_skew: old_cfg.gateway_tasks.debug.max_request_timestamp_skew,
                 stale_messages: StaleMessageDebug {
                     cleaner_run_interval: old_cfg

@@ -149,6 +149,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
                 debug: config.service_providers.ip_packet_router.debug.client_debug,
             },
             ip_packet_router: nym_ip_packet_router::config::IpPacketRouter {
+                open_proxy: config.service_providers.open_proxy,
                 disable_poisson_rate: config
                     .service_providers
                     .ip_packet_router

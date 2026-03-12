@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::helpers::{get_time_now, Instant};
+use crate::client::helpers::{Instant, get_time_now};
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_task::connections::TransmissionLane;
-use rand::{seq::SliceRandom, Rng};
+use rand::{Rng, seq::SliceRandom};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     time::Duration,

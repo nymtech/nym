@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::common::helpers::mixnet_debug_config;
-use crate::common::nodes::{TestedNodeDetails, TestedNodeLpDetails};
+use crate::common::nodes::TestedNodeLpDetails;
 use crate::common::socks5_test::HttpsConnectivityTest;
 use crate::common::types::{
     Entry, Exit, IpPingReplies, LpProbeResults, ProbeOutcome, Socks5ProbeResults, WgProbeResults,
 };
-use crate::common::wireguard::{
-    TwoHopWgTunnelConfig, WgTunnelConfig, run_tunnel_tests, run_two_hop_tunnel_tests,
-};
+use crate::common::wireguard::{WgTunnelConfig, run_tunnel_tests};
 use crate::common::{helpers, icmp};
 use crate::config::{NetstackArgs, Socks5Args};
 use anyhow::bail;
@@ -25,11 +23,10 @@ use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_config::defaults::mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6};
 use nym_connection_monitor::self_ping_and_wait;
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
-use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_lp::peer::DHKeyPair;
-use nym_registration_client::{LpRegistrationClient, NestedLpSession};
+use nym_registration_client::LpRegistrationClient;
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
@@ -245,199 +242,6 @@ pub async fn lp_registration_probe(
     lp_outcome.can_register = true;
 
     Ok(lp_outcome)
-}
-
-/// LP-based WireGuard probe: Tests LP nested session registration + WireGuard tunnel connectivity
-///
-/// This function tests the full VPN flow using LP registration instead of mixnet+authenticator:
-/// 1. Connects to entry gateway (outer LP session)
-/// 2. Registers with exit gateway via entry forwarding (nested LP session)
-/// 3. Receives WireGuard configuration from both gateways
-/// 4. Tests WireGuard tunnel connectivity (IPv4/IPv6)
-///
-/// This validates that IP hiding works (exit sees entry IP, not client IP) and that the
-/// full VPN tunnel operates correctly after LP registration.
-///
-// Known issue in localnet mode - After this probe runs, container networking
-// to the external internet becomes unstable while internal container-to-container traffic
-// continues to work. The two-hop WireGuard tunnel itself succeeds (handshake completes),
-// but subsequent DNS/ping tests may timeout. This appears to be related to Apple Container
-// Runtime networking quirks combined with our NAT/iptables configuration. Tracked in
-// beads issue nym-vbdo. Workaround: restart the localnet containers between probe runs.
-pub async fn wg_probe_lp(
-    entry_gateway: &TestedNodeDetails,
-    exit_gateway: &TestedNodeDetails,
-    bandwidth_controller: &dyn BandwidthTicketProvider,
-    awg_args: Option<String>,
-    netstack_args: NetstackArgs,
-) -> anyhow::Result<WgProbeResults> {
-    // Validate that both gateways have required information
-    let entry_lp_data = entry_gateway
-        .lp_data
-        .clone()
-        .ok_or_else(|| anyhow::anyhow!("Entry gateway missing LP data"))?;
-
-    let exit_lp_data = exit_gateway
-        .lp_data
-        .clone()
-        .ok_or_else(|| anyhow::anyhow!("Exit gateway missing LP data"))?;
-
-    let entry_address = entry_lp_data.address;
-    let exit_address = exit_lp_data.address;
-
-    let entry_lp_version = entry_lp_data.lp_version;
-    let exit_lp_version = exit_lp_data.lp_version;
-
-    let entry_lp_ciphersuite = entry_lp_data.ciphersuite;
-    let exit_lp_ciphersuite = exit_lp_data.ciphersuite;
-
-    info!("Starting LP-based WireGuard probe (entry→exit via forwarding)");
-
-    let mut wg_outcome = WgProbeResults::default();
-
-    // Generate x25519 keypairs for LP protocol
-    let mut rng09 = rand09::rngs::StdRng::from_os_rng();
-
-    let entry_lp_keypair = Arc::new(DHKeyPair::new(&mut rng09));
-    let exit_lp_keypair = Arc::new(DHKeyPair::new(&mut rng09));
-
-    // Generate WireGuard keypairs for VPN registration
-    let mut rng = rand::rngs::OsRng;
-    let entry_wg_keypair = x25519::KeyPair::new(&mut rng);
-    let exit_wg_keypair = x25519::KeyPair::new(&mut rng);
-
-    let entry_peer = entry_lp_data.into_remote_peer();
-    let exit_peer = exit_lp_data.into_remote_peer();
-
-    // STEP 1: Establish outer LP session with entry gateway
-    // LpRegistrationClient uses packet-per-connection model - connect() is gone,
-    // connection is established automatically during handshake.
-    info!("Establishing outer LP session with entry gateway...");
-    let mut entry_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
-        entry_lp_keypair,
-        entry_peer,
-        entry_address,
-        entry_lp_ciphersuite,
-        entry_lp_version,
-    );
-
-    // Perform handshake with entry gateway (connection is implicit)
-    if let Err(e) = entry_client.perform_handshake().await {
-        error!("Failed to handshake with entry gateway: {}", e);
-        return Ok(wg_outcome);
-    }
-    info!("Outer LP session with entry gateway established");
-
-    // STEP 2: Use nested session to register with exit gateway via forwarding
-    info!("Registering with exit gateway via entry forwarding...");
-    let mut nested_session = NestedLpSession::new(
-        exit_address,
-        exit_lp_keypair,
-        exit_peer,
-        exit_lp_ciphersuite,
-        exit_lp_version,
-    );
-
-    let exit_gateway_pubkey = exit_gateway.identity;
-
-    // Perform handshake and registration with exit gateway via forwarding
-    if let Err(err) = nested_session.perform_handshake(&mut entry_client).await {
-        error!("Failed to perform handshake with exit gateway: {err}");
-        return Ok(wg_outcome);
-    };
-
-    let exit_gateway_data = match nested_session
-        .register_dvpn(
-            &mut entry_client,
-            &mut rng09,
-            &exit_wg_keypair,
-            &exit_gateway_pubkey,
-            bandwidth_controller,
-            TicketType::V1WireguardExit,
-        )
-        .await
-    {
-        Ok(data) => data,
-        Err(e) => {
-            error!("Failed to register with exit gateway: {}", e);
-            return Ok(wg_outcome);
-        }
-    };
-
-    info!("Exit gateway registration successful via forwarding");
-
-    // STEP 3: Register with entry gateway
-    info!("Registering with entry gateway...");
-    let entry_gateway_pubkey =
-        ed25519::PublicKey::from_bytes(&entry_gateway.identity.to_bytes())
-            .map_err(|e| anyhow::anyhow!("Invalid entry gateway identity: {}", e))?;
-
-    // Use packet-per-connection register() which returns GatewayData directly
-    let entry_gateway_data = match entry_client
-        .register_dvpn(
-            &mut rng09,
-            &entry_wg_keypair,
-            &entry_gateway_pubkey,
-            bandwidth_controller,
-            TicketType::V1WireguardEntry,
-        )
-        .await
-    {
-        Ok(data) => data,
-        Err(e) => {
-            error!("Failed to register with entry gateway: {}", e);
-            return Ok(wg_outcome);
-        }
-    };
-    info!("Entry gateway registration successful");
-
-    info!("LP registration successful for both gateways!");
-    wg_outcome.can_register = true;
-
-    // STEP 4: Test WireGuard tunnels using two-hop configuration
-    // Traffic flows: Exit tunnel -> UDP Forwarder -> Entry tunnel -> Exit Gateway -> Internet
-    // The exit gateway endpoint is not directly reachable from the host in localnet.
-    // We must tunnel through the entry gateway using the UDP forwarder pattern.
-
-    // Convert keys to hex for netstack
-    let entry_private_key_hex = hex::encode(entry_wg_keypair.private_key().to_bytes());
-    let entry_public_key_hex = hex::encode(entry_gateway_data.public_key.to_bytes());
-    let exit_private_key_hex = hex::encode(exit_wg_keypair.private_key().to_bytes());
-    let exit_public_key_hex = hex::encode(exit_gateway_data.public_key.to_bytes());
-
-    // Build WireGuard endpoint addresses
-    // Entry endpoint uses entry_ip (host-reachable) + port from registration
-    let entry_wg_endpoint = entry_gateway_data.endpoint;
-    // Exit endpoint uses exit_ip + port from registration (forwarded via entry)
-    let exit_wg_endpoint = exit_gateway_data.endpoint;
-
-    info!("Two-hop WireGuard configuration:");
-    info!("  Entry gateway:");
-    info!("    Private IPv4: {}", entry_gateway_data.private_ipv4);
-    info!("    Endpoint: {}", entry_wg_endpoint);
-    info!("  Exit gateway:");
-    info!("    Private IPv4: {}", exit_gateway_data.private_ipv4);
-    info!("    Endpoint (via forwarder): {}", exit_wg_endpoint);
-
-    // Build two-hop tunnel configuration
-    let two_hop_config = TwoHopWgTunnelConfig::new(
-        entry_gateway_data.private_ipv4.to_string(),
-        entry_private_key_hex,
-        entry_public_key_hex,
-        entry_wg_endpoint,
-        awg_args.clone().unwrap_or_default(), // Entry AWG args
-        exit_gateway_data.private_ipv4.to_string(),
-        exit_private_key_hex,
-        exit_public_key_hex,
-        exit_wg_endpoint,
-        awg_args.unwrap_or_default(), // Exit AWG args
-    );
-
-    // Run two-hop tunnel connectivity tests
-    run_two_hop_tunnel_tests(&two_hop_config, &netstack_args, &mut wg_outcome);
-
-    info!("LP-based two-hop WireGuard probe completed");
-    Ok(wg_outcome)
 }
 
 pub async fn do_ping(

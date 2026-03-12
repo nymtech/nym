@@ -9,8 +9,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
-use nym_task::connections::TransmissionLane;
 use nym_task::ShutdownToken;
+use nym_task::connections::TransmissionLane;
 use rand::{CryptoRng, Rng};
 use tracing::*;
 

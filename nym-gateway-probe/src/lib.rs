@@ -5,7 +5,7 @@ use crate::common::bandwidth_helpers::build_bandwidth_controller;
 use crate::common::helpers;
 use crate::common::nodes::TestedNodeDetails;
 use crate::common::probe_tests::{
-    do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe, wg_probe_lp,
+    do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe,
 };
 use crate::common::types::{Entry, LpProbeResults};
 use crate::config::{CredentialArgs, CredentialMode, NetstackArgs, ProbeConfig};

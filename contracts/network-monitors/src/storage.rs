@@ -6,8 +6,8 @@ use cw_controllers::Admin;
 use cw_storage_plus::Map;
 use nym_network_monitors_contract_common::constants::storage_keys;
 use nym_network_monitors_contract_common::{
-    AuthorisedNetworkMonitor, AuthorisedNetworkMonitorOrchestrator, InstantiateMsg,
-    NetworkMonitorAddress, NetworkMonitorsContractError, OrchestratorAddress,
+    AuthorisedNetworkMonitor, AuthorisedNetworkMonitorOrchestrator, NetworkMonitorAddress,
+    NetworkMonitorsContractError, OrchestratorAddress,
 };
 use std::net::IpAddr;
 
@@ -40,13 +40,11 @@ impl NetworkMonitorsStorage {
         mut deps: DepsMut,
         env: Env,
         admin: Addr,
-        msg: InstantiateMsg,
+        orchestrator: Addr,
     ) -> Result<(), NetworkMonitorsContractError> {
         // set the contract admin
         self.contract_admin
             .set(deps.branch(), Some(admin.clone()))?;
-
-        let orchestrator = deps.api.addr_validate(&msg.orchestrator_address)?;
 
         // set the initial orchestrator authorisation
         self.authorised_orchestrators.save(
@@ -71,7 +69,7 @@ impl NetworkMonitorsStorage {
             .map_err(Into::into)
     }
 
-    fn is_orchestrator(
+    pub(crate) fn is_orchestrator(
         &self,
         deps: Deps,
         addr: &Addr,
@@ -87,9 +85,10 @@ impl NetworkMonitorsStorage {
         deps: Deps,
         addr: &Addr,
     ) -> Result<(), NetworkMonitorsContractError> {
-        self.contract_admin
-            .assert_admin(deps, addr)
-            .map_err(Into::into)
+        if !self.is_orchestrator(deps, addr)? {
+            return Err(NetworkMonitorsContractError::NotAnOrchestrator { addr: addr.clone() });
+        }
+        Ok(())
     }
 
     pub fn authorise_orchestrator(
@@ -204,14 +203,53 @@ mod tests {
                 let mut deps = mock_dependencies();
                 let env = mock_env();
                 let admin1 = deps.api.addr_make("first-admin");
-                let admin2 = deps.api.addr_make("secod-admin");
+                let admin2 = deps.api.addr_make("second-admin");
+                let orchestrator = deps.api.addr_make("orchestrator");
 
-                storage.initialise(deps.as_mut(), env.clone(), admin1.clone())?;
+                storage.initialise(
+                    deps.as_mut(),
+                    env.clone(),
+                    admin1.clone(),
+                    orchestrator.clone().clone(),
+                )?;
                 assert!(storage.ensure_is_admin(deps.as_ref(), &admin1).is_ok());
 
                 let mut deps = mock_dependencies();
-                storage.initialise(deps.as_mut(), env.clone(), admin2.clone())?;
+                storage.initialise(deps.as_mut(), env.clone(), admin2.clone(), orchestrator)?;
                 assert!(storage.ensure_is_admin(deps.as_ref(), &admin2).is_ok());
+
+                Ok(())
+            }
+
+            #[test]
+            fn sets_the_initial_orchestrator() -> anyhow::Result<()> {
+                let storage = NetworkMonitorsStorage::new();
+                let mut deps = mock_dependencies();
+                let env = mock_env();
+                let admin = deps.api.addr_make("admin");
+                let orchestrator1 = deps.api.addr_make("orchestrator");
+                let orchestrator2 = deps.api.addr_make("orchestrator");
+
+                storage.initialise(
+                    deps.as_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    orchestrator1.clone(),
+                )?;
+                assert!(storage
+                    .ensure_is_orchestrator(deps.as_ref(), &orchestrator1)
+                    .is_ok());
+
+                let mut deps = mock_dependencies();
+                storage.initialise(
+                    deps.as_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    orchestrator2.clone(),
+                )?;
+                assert!(storage
+                    .ensure_is_orchestrator(deps.as_ref(), &orchestrator2)
+                    .is_ok());
 
                 Ok(())
             }
@@ -224,8 +262,9 @@ mod tests {
             let env = mock_env();
             let admin = deps.api.addr_make("admin");
             let non_admin = deps.api.addr_make("non-admin");
+            let orchestrator = deps.api.addr_make("orchestrator");
 
-            storage.initialise(deps.as_mut(), env, admin.clone())?;
+            storage.initialise(deps.as_mut(), env, admin.clone(), orchestrator)?;
             assert!(storage.is_admin(deps.as_ref(), &admin)?);
             assert!(!storage.is_admin(deps.as_ref(), &non_admin)?);
 
@@ -239,12 +278,635 @@ mod tests {
             let env = mock_env();
             let admin = deps.api.addr_make("admin");
             let non_admin = deps.api.addr_make("non-admin");
+            let orchestrator = deps.api.addr_make("orchestrator");
 
-            storage.initialise(deps.as_mut(), env, admin.clone())?;
+            storage.initialise(deps.as_mut(), env, admin.clone(), orchestrator)?;
             assert!(storage.ensure_is_admin(deps.as_ref(), &admin).is_ok());
             assert!(storage.ensure_is_admin(deps.as_ref(), &non_admin).is_err());
 
             Ok(())
+        }
+
+        #[test]
+        fn checking_for_orchestrator() -> anyhow::Result<()> {
+            let storage = NetworkMonitorsStorage::new();
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let admin = deps.api.addr_make("admin");
+            let non_orchestrator = deps.api.addr_make("non-orchestrator");
+            let orchestrator = deps.api.addr_make("orchestrator");
+
+            storage.initialise(deps.as_mut(), env, admin, orchestrator.clone())?;
+            assert!(storage.is_orchestrator(deps.as_ref(), &orchestrator)?);
+            assert!(!storage.is_orchestrator(deps.as_ref(), &non_orchestrator)?);
+
+            Ok(())
+        }
+
+        #[test]
+        fn ensuring_orchestrator_privileges() -> anyhow::Result<()> {
+            let storage = NetworkMonitorsStorage::new();
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let admin = deps.api.addr_make("admin");
+            let non_orchestrator = deps.api.addr_make("non-orchestrator");
+            let orchestrator = deps.api.addr_make("orchestrator");
+
+            storage.initialise(deps.as_mut(), env, admin, orchestrator.clone())?;
+            assert!(storage
+                .ensure_is_orchestrator(deps.as_ref(), &orchestrator)
+                .is_ok());
+            assert!(storage
+                .ensure_is_orchestrator(deps.as_ref(), &non_orchestrator)
+                .is_err());
+
+            Ok(())
+        }
+
+        #[cfg(test)]
+        mod authorising_orchestrator {
+            use super::*;
+            use crate::testing::init_contract_tester;
+            use cw_controllers::AdminError;
+            use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, RandExt};
+            use nym_network_monitors_contract_common::NetworkMonitorsContractError;
+
+            #[test]
+            fn can_only_be_done_by_admin() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let admin = tester.admin_unchecked();
+                let non_admin = tester.generate_account();
+                let orchestrator = tester.generate_account();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                let res = storage
+                    .authorise_orchestrator(deps, &env, &non_admin, orchestrator.clone())
+                    .unwrap_err();
+                assert_eq!(
+                    NetworkMonitorsContractError::Admin(AdminError::NotAdmin {}),
+                    res
+                );
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                let res2 = storage.authorise_orchestrator(deps, &env, &admin, orchestrator.clone());
+                assert_eq!(res2, Ok(()));
+
+                Ok(())
+            }
+
+            #[test]
+            fn inserts_new_entry_for_fresh_accounts() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let admin = tester.admin_unchecked();
+                let orchestrator = tester.generate_account();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+
+                assert!(storage
+                    .authorised_orchestrators
+                    .may_load(deps.storage, &orchestrator)?
+                    .is_none());
+                storage.authorise_orchestrator(deps, &env, &admin, orchestrator.clone())?;
+
+                let info = storage
+                    .authorised_orchestrators
+                    .load(&tester, &orchestrator)?;
+
+                assert_eq!(info.address, orchestrator);
+                assert_eq!(info.authorised_at, env.block.time);
+
+                Ok(())
+            }
+
+            #[test]
+            fn no_op_for_older_accounts() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let admin = tester.admin_unchecked();
+                let orchestrator = tester.generate_account();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+
+                storage.authorise_orchestrator(deps, &env, &admin, orchestrator.clone())?;
+                let info = storage
+                    .authorised_orchestrators
+                    .load(&tester, &orchestrator)?;
+
+                tester.advance_day_of_blocks();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_orchestrator(deps, &env, &admin, orchestrator.clone())?;
+
+                let updated_info = storage
+                    .authorised_orchestrators
+                    .load(&tester, &orchestrator)?;
+
+                assert_eq!(info, updated_info);
+
+                Ok(())
+            }
+        }
+
+        #[cfg(test)]
+        mod removing_orchestrator_authorisation {
+            use super::*;
+            use crate::testing::init_contract_tester;
+            use cw_controllers::AdminError;
+            use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
+            use nym_network_monitors_contract_common::NetworkMonitorsContractError;
+
+            #[test]
+            fn can_only_be_done_by_admin() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let admin = tester.admin_unchecked();
+                let non_admin = tester.generate_account();
+                let orchestrator = tester.generate_account();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_orchestrator(deps, &env, &admin, orchestrator.clone())?;
+
+                let deps = tester.deps_mut();
+                let res = storage
+                    .remove_orchestrator_authorisation(deps, &non_admin, orchestrator.clone())
+                    .unwrap_err();
+                assert_eq!(
+                    NetworkMonitorsContractError::Admin(AdminError::NotAdmin {}),
+                    res
+                );
+
+                let deps = tester.deps_mut();
+                let res2 = storage.remove_orchestrator_authorisation(deps, &admin, orchestrator);
+                assert_eq!(res2, Ok(()));
+
+                Ok(())
+            }
+
+            #[test]
+            fn deletes_entry_from_storage() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let admin = tester.admin_unchecked();
+                let orchestrator = tester.generate_account();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_orchestrator(deps, &env, &admin, orchestrator.clone())?;
+
+                assert!(storage
+                    .authorised_orchestrators
+                    .may_load(&tester, &orchestrator)?
+                    .is_some());
+
+                let deps = tester.deps_mut();
+                storage.remove_orchestrator_authorisation(deps, &admin, orchestrator.clone())?;
+
+                assert!(storage
+                    .authorised_orchestrators
+                    .may_load(&tester, &orchestrator)?
+                    .is_none());
+
+                Ok(())
+            }
+
+            #[test]
+            fn no_op_for_non_existent_entries() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let admin = tester.admin_unchecked();
+                let orchestrator = tester.generate_account();
+
+                assert!(storage
+                    .authorised_orchestrators
+                    .may_load(&tester, &orchestrator)?
+                    .is_none());
+
+                let deps = tester.deps_mut();
+                let res =
+                    storage.remove_orchestrator_authorisation(deps, &admin, orchestrator.clone());
+                assert_eq!(res, Ok(()));
+
+                assert!(storage
+                    .authorised_orchestrators
+                    .may_load(&tester, &orchestrator)?
+                    .is_none());
+
+                Ok(())
+            }
+        }
+
+        #[cfg(test)]
+        mod authorising_monitors {
+            use super::*;
+            use crate::testing::{init_contract_tester, NetworkMonitorsContractTesterExt};
+            use nym_contracts_common_testing::{ChainOpts, ContractOpts, RandExt};
+            use nym_network_monitors_contract_common::NetworkMonitorsContractError;
+
+            #[test]
+            fn can_only_be_done_by_an_orchestrator() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let orchestrator = tester.add_orchestrator()?;
+                let non_orchestrator = tester.generate_account();
+                let agent = tester.random_ip();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                let res = storage
+                    .authorise_monitor(deps, &env, &non_orchestrator, agent)
+                    .unwrap_err();
+                assert_eq!(
+                    NetworkMonitorsContractError::NotAnOrchestrator {
+                        addr: non_orchestrator.clone()
+                    },
+                    res
+                );
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                let res2 = storage.authorise_monitor(deps, &env, &orchestrator, agent);
+                assert_eq!(res2, Ok(()));
+
+                Ok(())
+            }
+
+            #[test]
+            fn inserts_new_entry_for_fresh_accounts() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let orchestrator = tester.add_orchestrator()?;
+                let agent = tester.random_ip();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+
+                assert!(storage
+                    .authorised_agents
+                    .may_load(deps.storage, agent.to_string())?
+                    .is_none());
+                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+
+                let info = storage.authorised_agents.load(&tester, agent.to_string())?;
+
+                assert_eq!(info.address, agent);
+                assert_eq!(info.authorised_by, orchestrator);
+                assert_eq!(info.authorised_at, env.block.time);
+
+                Ok(())
+            }
+
+            #[test]
+            fn updates_timestamp_for_older_accounts() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let orchestrator = tester.add_orchestrator()?;
+                let agent = tester.random_ip();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+
+                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+
+                let initial_time = env.block.time;
+                tester.advance_day_of_blocks();
+                let new_expected_time = tester.env().block.time;
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+
+                let updated_info = storage.authorised_agents.load(&tester, agent.to_string())?;
+
+                assert_eq!(updated_info.address, agent);
+                assert_eq!(updated_info.authorised_by, orchestrator);
+                assert_ne!(updated_info.authorised_at, initial_time);
+                assert_eq!(updated_info.authorised_at, new_expected_time);
+
+                Ok(())
+            }
+        }
+
+        #[cfg(test)]
+        mod removing_monitor_authorisation {
+            use super::*;
+            use crate::testing::{init_contract_tester, NetworkMonitorsContractTesterExt};
+            use nym_contracts_common_testing::{ContractOpts, RandExt};
+            use nym_network_monitors_contract_common::NetworkMonitorsContractError;
+
+            #[test]
+            fn can_only_be_done_by_an_orchestrator() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let orchestrator = tester.add_orchestrator()?;
+                let non_orchestrator = tester.generate_account();
+                let agent = tester.random_ip();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+
+                let deps = tester.deps_mut();
+                let res = storage
+                    .remove_monitor_authorisation(deps, &non_orchestrator, agent)
+                    .unwrap_err();
+                assert_eq!(
+                    NetworkMonitorsContractError::NotAnOrchestrator {
+                        addr: non_orchestrator.clone()
+                    },
+                    res
+                );
+
+                let deps = tester.deps_mut();
+                let res2 = storage.remove_monitor_authorisation(deps, &orchestrator, agent);
+                assert_eq!(res2, Ok(()));
+
+                Ok(())
+            }
+
+            #[test]
+            fn deletes_entry_from_storage() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let orchestrator = tester.add_orchestrator()?;
+                let agent = tester.random_ip();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent.to_string())?
+                    .is_some());
+
+                let deps = tester.deps_mut();
+                storage.remove_monitor_authorisation(deps, &orchestrator, agent)?;
+
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent.to_string())?
+                    .is_none());
+
+                Ok(())
+            }
+
+            #[test]
+            fn no_op_for_non_existent_entries() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let orchestrator = tester.add_orchestrator()?;
+                let agent = tester.random_ip();
+
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent.to_string())?
+                    .is_none());
+
+                let deps = tester.deps_mut();
+                let res = storage.remove_monitor_authorisation(deps, &orchestrator, agent);
+                assert_eq!(res, Ok(()));
+
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent.to_string())?
+                    .is_none());
+
+                Ok(())
+            }
+        }
+
+        #[cfg(test)]
+        mod removing_all_monitors {
+            use super::*;
+            use crate::testing::{
+                init_contract_tester, NetworkMonitorsContract, NetworkMonitorsContractTesterExt,
+            };
+            use cosmwasm_std::Addr;
+            use nym_contracts_common_testing::{AdminExt, ContractOpts, ContractTester, RandExt};
+            use nym_network_monitors_contract_common::NetworkMonitorsContractError;
+
+            fn setup_prepopulated_tester() -> (ContractTester<NetworkMonitorsContract>, Addr) {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+                let orchestrator = tester.add_orchestrator().unwrap();
+
+                // Prepopulate with several agents
+                let agent1 = tester.random_ip();
+                let agent2 = tester.random_ip();
+                let agent3 = tester.random_ip();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage
+                    .authorise_monitor(deps, &env, &orchestrator, agent1)
+                    .unwrap();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage
+                    .authorise_monitor(deps, &env, &orchestrator, agent2)
+                    .unwrap();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage
+                    .authorise_monitor(deps, &env, &orchestrator, agent3)
+                    .unwrap();
+
+                // sanity check to make sure all agents got added
+                let all_agents = tester.all_agents();
+                assert_eq!(all_agents.len(), 3);
+                assert!(all_agents.contains(&agent1));
+                assert!(all_agents.contains(&agent2));
+                assert!(all_agents.contains(&agent3));
+
+                (tester, orchestrator)
+            }
+
+            #[test]
+            fn can_be_done_by_admin() -> anyhow::Result<()> {
+                let storage = NetworkMonitorsStorage::new();
+
+                let (mut tester, _) = setup_prepopulated_tester();
+                let admin = tester.admin_unchecked();
+
+                let all_agents = tester.all_agents();
+
+                // Admin can call this method
+                let deps = tester.deps_mut();
+                storage.remove_all_monitors(deps, &admin)?;
+
+                // Verify all agents are cleared
+                for agent in all_agents {
+                    assert!(storage
+                        .authorised_agents
+                        .may_load(&tester, agent.to_string())?
+                        .is_none());
+                }
+
+                assert!(tester.all_agents().is_empty());
+
+                Ok(())
+            }
+
+            #[test]
+            fn can_be_done_by_orchestrator() -> anyhow::Result<()> {
+                let storage = NetworkMonitorsStorage::new();
+                let (mut tester, orchestrator) = setup_prepopulated_tester();
+
+                let all_agents = tester.all_agents();
+
+                let deps = tester.deps_mut();
+                storage.remove_all_monitors(deps, &orchestrator)?;
+
+                // Verify all agents are cleared
+                for agent in all_agents {
+                    assert!(storage
+                        .authorised_agents
+                        .may_load(&tester, agent.to_string())?
+                        .is_none());
+                }
+
+                assert!(tester.all_agents().is_empty());
+
+                Ok(())
+            }
+
+            #[test]
+            fn cannot_be_done_by_non_privileged_account() -> anyhow::Result<()> {
+                let storage = NetworkMonitorsStorage::new();
+                let (mut tester, _) = setup_prepopulated_tester();
+
+                let non_privileged = tester.generate_account();
+
+                // Non-privileged account cannot call this method
+                let deps = tester.deps_mut();
+                let res = storage
+                    .remove_all_monitors(deps, &non_privileged)
+                    .unwrap_err();
+                assert_eq!(NetworkMonitorsContractError::Unauthorized, res);
+
+                Ok(())
+            }
+
+            #[test]
+            fn cannot_be_done_by_revoked_orchestrator() -> anyhow::Result<()> {
+                let storage = NetworkMonitorsStorage::new();
+                let (mut tester, orchestrator) = setup_prepopulated_tester();
+
+                let admin = tester.admin_unchecked();
+                let pre_all_agents = tester.all_agents();
+
+                let deps = tester.deps_mut();
+
+                // Revoke orchestrator privileges
+                storage.remove_orchestrator_authorisation(deps, &admin, orchestrator.clone())?;
+
+                // Verify revoked orchestrator cannot call remove_all_monitors
+                let deps = tester.deps_mut();
+                let res = storage
+                    .remove_all_monitors(deps, &orchestrator)
+                    .unwrap_err();
+                assert_eq!(NetworkMonitorsContractError::Unauthorized, res);
+
+                // Verify agent is still present after failed attempt
+                assert_eq!(tester.all_agents(), pre_all_agents);
+
+                Ok(())
+            }
+
+            #[test]
+            fn clears_all_agents() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let admin = tester.admin_unchecked();
+                let orchestrator = tester.add_orchestrator()?;
+
+                // Prepopulate with multiple agents
+                let agent1 = tester.random_ip();
+                let agent2 = tester.random_ip();
+                let agent3 = tester.random_ip();
+                let agent4 = tester.random_ip();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator, agent1)?;
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator, agent2)?;
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator, agent3)?;
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator, agent4)?;
+
+                // Verify agents are present
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent1.to_string())?
+                    .is_some());
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent2.to_string())?
+                    .is_some());
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent3.to_string())?
+                    .is_some());
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent4.to_string())?
+                    .is_some());
+
+                // Remove all monitors
+                let deps = tester.deps_mut();
+                storage.remove_all_monitors(deps, &admin)?;
+
+                // Verify all agents are cleared
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent1.to_string())?
+                    .is_none());
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent2.to_string())?
+                    .is_none());
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent3.to_string())?
+                    .is_none());
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent4.to_string())?
+                    .is_none());
+
+                Ok(())
+            }
         }
     }
 }

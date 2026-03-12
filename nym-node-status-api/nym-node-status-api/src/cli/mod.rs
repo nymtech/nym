@@ -137,7 +137,6 @@ pub(crate) struct TicketbookArgs {
 
     /// Specify the maximum number of deposits the node status api can make in a single transaction.
     /// Note that each deposit batch is followed by the same number of sequential signing requests
-    /// (default: 5)
     #[clap(
         long,
         env = "NYM_NODE_STATUS_API_MAX_CONCURRENT_DEPOSITS",
@@ -147,12 +146,10 @@ pub(crate) struct TicketbookArgs {
 
     /// Specify the size of the tickets buffer the node status api should have available at any time
     /// for each ticket type.
-    /// (default: 50)
     #[clap(long, env = "NYM_NODE_STATUS_API_TICKETS_BUFFER", default_value_t = 50)]
     pub(crate) tickets_buffer_size: usize,
 
     /// Specify interval at which the node status api should check if it has sufficient number of tickets buffered.
-    /// (default: 1 minute)
     #[clap(
         long,
         env = "NYM_NODE_STATUS_API_TICKETS_CHECK_INTERVAL",
@@ -162,7 +159,6 @@ pub(crate) struct TicketbookArgs {
     pub(crate) tickets_buffer_check_interval: Duration,
 
     /// Specify interval at which the node status api should check if signing quorum is available
-    /// (default: 5 minutes)
     #[clap(
         long,
         env = "NYM_NODE_STATUS_API_QUORUM_CHECK_INTERVAL",
@@ -172,11 +168,11 @@ pub(crate) struct TicketbookArgs {
     pub(crate) quorum_check_interval: Duration,
 
     /// Specify types of tickets to buffer
-    /// (default: V1MixnetEntry, V1WireguardEntry, V1WireguardExit)
+    /// one V1WireguardEntry for wg test, additional for lp tests
     #[clap(
         long,
         env = "NYM_NODE_STATUS_BUFFERED_TICKET_TYPES",
-        default_values_t = [TicketType::V1MixnetEntry, TicketType::V1WireguardEntry, TicketType::V1WireguardExit]
+        default_values_t = [TicketType::V1MixnetEntry, TicketType::V1WireguardEntry, TicketType::V1WireguardExit, TicketType::V1WireguardEntry]
     )]
     #[arg(value_delimiter = ',')]
     pub(crate) buffered_ticket_types: Vec<TicketType>,

@@ -280,7 +280,7 @@ fn ensure_init(client: &mut MixnetClient) -> Result<&mut StreamState> {
             _router_handle: router_handle,
         });
     }
-    Ok(client.streams.as_mut().ok_or(Error::StreamInitFailure)?)
+    client.streams.as_mut().ok_or(Error::StreamInitFailure)
 }
 
 /// Open a stream to a remote peer.
@@ -303,7 +303,7 @@ pub(crate) async fn open_stream(
         TransmissionLane::General,
         client.packet_type,
     );
-    if let Err(_) = client.client_input.send(msg).await {
+    if (client.client_input.send(msg).await).is_err() {
         streams.remove(&stream_id).await;
         return Err(Error::MessageSendingFailure);
     }

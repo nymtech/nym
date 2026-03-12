@@ -234,7 +234,7 @@ impl PacketPreparer {
             LegacyMixLayer::Three,
         ];
 
-        if layers.into_iter().any(|l| layered_mixes.get(&l).is_none()) {
+        if layers.into_iter().any(|l| !layered_mixes.contains_key(&l)) {
             info!("insufficient number of nodes on layers - attempting to fallback to naive assignment");
             self.naive_rearrange(layered_mixes)
         } else {

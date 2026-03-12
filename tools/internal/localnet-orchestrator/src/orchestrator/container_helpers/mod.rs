@@ -242,6 +242,8 @@ async fn run_container_cmd_fallible<T>(
         .await
 }
 
+// makes code more readable due to the target specific code
+#[allow(clippy::vec_init_then_push)]
 pub(crate) fn attach_run_container_args<S, I>(base_args: I) -> Vec<OsString>
 where
     I: IntoIterator<Item = S>,

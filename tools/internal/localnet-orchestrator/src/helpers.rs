@@ -293,21 +293,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orchestrator::cosmwasm_contract::ContractBeingInitialised;
     use crate::orchestrator::network::NymContractsBeingInitialised;
 
     #[test]
     fn all_contracts_are_included() {
-        let contracts = NymContractsBeingInitialised {
-            mixnet: ContractBeingInitialised::new("mixnet"),
-            vesting: ContractBeingInitialised::new("vesting"),
-            ecash: ContractBeingInitialised::new("ecash"),
-            cw3_multisig: ContractBeingInitialised::new("cw3-multisig"),
-            cw4_group: ContractBeingInitialised::new("cw4-group"),
-            dkg: ContractBeingInitialised::new("dkg"),
-            performance: ContractBeingInitialised::new("performance"),
-        };
-
         assert_eq!(
             nym_cosmwasm_contract_names().len(),
             NymContractsBeingInitialised::COUNT

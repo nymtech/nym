@@ -198,7 +198,6 @@ impl TryFrom<ContainerInformation> for super::CommonContainerInformation {
 mod tests {
     use super::container_network_inspect::NetworkInspect;
     use crate::serde_helpers::linux::ContainerInspect;
-    use std::net::{IpAddr, Ipv4Addr};
 
     #[test]
     fn sample_network_inspect_response_parsing() {

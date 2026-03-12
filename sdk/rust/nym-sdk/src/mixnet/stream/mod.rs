@@ -16,7 +16,7 @@ pub use protocol::StreamId;
 
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use futures::StreamExt;
 use tokio::sync::mpsc;
@@ -34,9 +34,56 @@ use protocol::{decode_stream_message, encode_stream_message, StreamMessageType};
 use crate::mixnet::native_client::MixnetClient;
 use crate::{Error, Result};
 
-/// The shared stream routing table. The router task reads it to dispatch
-/// incoming data; streams insert/remove themselves directly.
-pub(crate) type StreamMap = Arc<Mutex<HashMap<StreamId, mpsc::UnboundedSender<Vec<u8>>>>>;
+/// The shared stream routing table.
+///
+/// Wraps the map of active streams behind an async mutex with focused
+/// methods so callers never touch the lock directly.
+#[derive(Clone)]
+pub(crate) struct StreamMap {
+    inner: Arc<tokio::sync::Mutex<HashMap<StreamId, mpsc::UnboundedSender<Vec<u8>>>>>,
+}
+
+impl StreamMap {
+    fn new() -> Self {
+        Self {
+            inner: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// Register a new stream, returning the receiver end of its data channel.
+    async fn register_stream(&self, stream_id: StreamId) -> mpsc::UnboundedReceiver<Vec<u8>> {
+        let (tx, rx) = mpsc::unbounded_channel();
+        self.inner.lock().await.insert(stream_id, tx);
+        rx
+    }
+
+    /// Remove a stream from the map.
+    async fn remove(&self, stream_id: &StreamId) {
+        self.inner.lock().await.remove(stream_id);
+    }
+
+    /// Remove a stream without awaiting — for use in `Drop` and `poll_shutdown`
+    /// where we cannot `.await`. Spawns a lightweight background task.
+    fn remove_background(&self, stream_id: StreamId) {
+        let inner = self.inner.clone();
+        tokio::spawn(async move {
+            inner.lock().await.remove(&stream_id);
+        });
+    }
+
+    /// Dispatch data to a stream's channel. Removes the entry if the
+    /// receiver has been dropped.
+    async fn send_to_stream(&self, stream_id: &StreamId, data: Vec<u8>) {
+        let mut map = self.inner.lock().await;
+        let should_remove = map
+            .get(stream_id)
+            .map(|tx| tx.send(data).is_err())
+            .unwrap_or(false);
+        if should_remove {
+            map.remove(stream_id);
+        }
+    }
+}
 
 /// Delivered to the listener when a remote peer opens a new stream.
 struct InboundOpen {
@@ -92,11 +139,7 @@ impl MixnetListener {
                 }
             };
 
-            let (tx, rx) = mpsc::unbounded_channel();
-            self.streams
-                .lock()
-                .expect("stream map poisoned")
-                .insert(req.stream_id, tx);
+            let rx = self.streams.register_stream(req.stream_id).await;
 
             return Some(MixnetStream::new_inbound(
                 req.stream_id,
@@ -128,7 +171,7 @@ async fn run_router(
         };
 
         for msg in messages {
-            let Some((stream_id, msg_type, payload)) = decode_stream_message(&msg.message) else {
+            let Some(frame) = decode_stream_message(&msg.message) else {
                 trace!(
                     "Router: non-stream message ({} bytes), dropping",
                     msg.message.len()
@@ -136,24 +179,20 @@ async fn run_router(
                 continue;
             };
 
-            match msg_type {
+            let stream_id = frame.header.stream_id;
+            match frame.header.message_type {
                 StreamMessageType::Open => {
                     let _ = listener_tx.send(InboundOpen {
                         stream_id,
                         sender_tag: msg.sender_tag,
-                        initial_data: payload.to_vec(),
+                        initial_data: frame.data.to_vec(),
                     });
                 }
                 StreamMessageType::Data => {
-                    let mut map = streams.lock().expect("stream map poisoned");
-                    let should_remove = map
-                        .get(&stream_id)
-                        .map(|tx| tx.send(payload.to_vec()).is_err())
-                        .unwrap_or(false);
-                    if should_remove {
-                        map.remove(&stream_id);
-                    }
-                } // MAX TODO if we decide we need close logic add another enum member
+                    streams
+                        .send_to_stream(&stream_id, frame.data.to_vec())
+                        .await;
+                } // TODO: if we decide we need close logic add another enum member
             }
         }
     }
@@ -167,7 +206,7 @@ fn ensure_init(client: &mut MixnetClient) -> &mut StreamState {
         let (_, dummy_rx) = futures::channel::mpsc::unbounded();
         let real_rx = std::mem::replace(&mut client.reconstructed_receiver, dummy_rx);
 
-        let streams: StreamMap = Arc::new(Mutex::new(HashMap::new()));
+        let streams = StreamMap::new();
         let (listener_tx, listener_rx) = mpsc::unbounded_channel();
         let shutdown = CancellationToken::new();
 
@@ -197,11 +236,7 @@ pub(crate) async fn open_stream(
     let streams = ensure_init(client).streams.clone();
 
     let stream_id = StreamId::random();
-    let (tx, rx) = mpsc::unbounded_channel();
-    streams
-        .lock()
-        .expect("stream map poisoned")
-        .insert(stream_id, tx);
+    let rx = streams.register_stream(stream_id).await;
 
     // Send Open to the peer
     let wire = encode_stream_message(&stream_id, StreamMessageType::Open, &[]);
@@ -212,13 +247,10 @@ pub(crate) async fn open_stream(
         TransmissionLane::General,
         client.packet_type,
     );
-    client.client_input.send(msg).await.map_err(|_| {
-        streams
-            .lock()
-            .expect("stream map poisoned")
-            .remove(&stream_id);
-        Error::MessageSendingFailure
-    })?;
+    if let Err(_) = client.client_input.send(msg).await {
+        streams.remove(&stream_id).await;
+        return Err(Error::MessageSendingFailure);
+    }
 
     Ok(MixnetStream::new_outbound(
         stream_id,

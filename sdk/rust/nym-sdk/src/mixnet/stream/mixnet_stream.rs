@@ -132,10 +132,7 @@ impl MixnetStream {
 impl Drop for MixnetStream {
     fn drop(&mut self) {
         if !self.deregistered {
-            self.streams
-                .lock()
-                .expect("stream map poisoned")
-                .remove(&self.id);
+            self.streams.remove_background(self.id);
         }
     }
 }
@@ -196,10 +193,7 @@ impl AsyncWrite for MixnetStream {
 
     fn poll_shutdown(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         if !self.deregistered {
-            self.streams
-                .lock()
-                .expect("stream map poisoned")
-                .remove(&self.id);
+            self.streams.remove_background(self.id);
             self.deregistered = true;
         }
         Poll::Ready(Ok(()))

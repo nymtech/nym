@@ -26,6 +26,7 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 use tokio::sync::RwLockReadGuard;
 use tokio_util::sync::CancellationToken;
 
@@ -72,6 +73,9 @@ pub struct MixnetClient {
 
     /// Opaque stream multiplexing state (lazily initialized by stream module).
     pub(crate) streams: Option<super::stream::StreamState>,
+
+    /// How long a stream can be idle before the router cleans it up.
+    pub(crate) stream_idle_timeout: Duration,
 }
 
 impl MixnetClient {
@@ -104,6 +108,7 @@ impl MixnetClient {
             remember_me,
             stream_mode: Arc::new(AtomicBool::new(false)),
             streams: None,
+            stream_idle_timeout: super::stream::DEFAULT_STREAM_IDLE_TIMEOUT,
         }
     }
 

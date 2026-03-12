@@ -17,6 +17,9 @@ pub use protocol::StreamId;
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Duration;
+
+use tokio::time::Instant;
 
 use futures::StreamExt;
 use tokio::sync::mpsc;
@@ -34,13 +37,27 @@ use protocol::{decode_stream_message, encode_stream_message, StreamMessageType};
 use crate::mixnet::native_client::MixnetClient;
 use crate::{Error, Result};
 
+/// Default idle timeout before a stream is considered stale and cleaned up.
+pub(crate) const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
+/// Maximum interval between stale-stream checks. The actual check interval
+/// is `min(idle_timeout, MAX_CLEANUP_INTERVAL)` so that short idle timeouts
+/// are respected promptly rather than waiting up to 60 s for the next sweep.
+const MAX_CLEANUP_INTERVAL: Duration = Duration::from_secs(10);
+
+/// Per-stream state stored in the routing table.
+struct StreamEntry {
+    sender: mpsc::UnboundedSender<Vec<u8>>,
+    last_activity: Instant,
+}
+
 /// The shared stream routing table.
 ///
 /// Wraps the map of active streams behind an async mutex with focused
 /// methods so callers never touch the lock directly.
 #[derive(Clone)]
 pub(crate) struct StreamMap {
-    inner: Arc<tokio::sync::Mutex<HashMap<StreamId, mpsc::UnboundedSender<Vec<u8>>>>>,
+    inner: Arc<tokio::sync::Mutex<HashMap<StreamId, StreamEntry>>>,
 }
 
 impl StreamMap {
@@ -53,7 +70,13 @@ impl StreamMap {
     /// Register a new stream, returning the receiver end of its data channel.
     async fn register_stream(&self, stream_id: StreamId) -> mpsc::UnboundedReceiver<Vec<u8>> {
         let (tx, rx) = mpsc::unbounded_channel();
-        self.inner.lock().await.insert(stream_id, tx);
+        self.inner.lock().await.insert(
+            stream_id,
+            StreamEntry {
+                sender: tx,
+                last_activity: Instant::now(),
+            },
+        );
         rx
     }
 
@@ -71,17 +94,36 @@ impl StreamMap {
         });
     }
 
-    /// Dispatch data to a stream's channel. Removes the entry if the
-    /// receiver has been dropped.
+    /// Dispatch data to a stream's channel. Updates `last_activity` on
+    /// success. Removes the entry if the receiver has been dropped.
     async fn send_to_stream(&self, stream_id: &StreamId, data: Vec<u8>) {
         let mut map = self.inner.lock().await;
-        let should_remove = map
-            .get(stream_id)
-            .map(|tx| tx.send(data).is_err())
-            .unwrap_or(false);
+        let should_remove = if let Some(entry) = map.get_mut(stream_id) {
+            if entry.sender.send(data).is_err() {
+                true
+            } else {
+                entry.last_activity = Instant::now();
+                false
+            }
+        } else {
+            false
+        };
         if should_remove {
             map.remove(stream_id);
         }
+    }
+
+    /// Remove streams that have been idle longer than `max_idle`.
+    async fn cleanup_stale(&self, max_idle: Duration) {
+        let now = Instant::now();
+        let mut map = self.inner.lock().await;
+        map.retain(|id, entry| {
+            let stale = now.duration_since(entry.last_activity) >= max_idle;
+            if stale {
+                trace!("Cleaning up stale stream {id} (idle > {max_idle:?})");
+            }
+            !stale
+        });
     }
 }
 
@@ -160,10 +202,19 @@ async fn run_router(
     streams: StreamMap,
     listener_tx: mpsc::UnboundedSender<InboundOpen>,
     shutdown: CancellationToken,
+    idle_timeout: Duration,
 ) {
+    let check_every = std::cmp::min(idle_timeout, MAX_CLEANUP_INTERVAL);
+    let mut cleanup_interval = tokio::time::interval(check_every);
+    cleanup_interval.tick().await; // consume the immediate first tick
+
     loop {
         let messages = tokio::select! {
             _ = shutdown.cancelled() => break,
+            _ = cleanup_interval.tick() => {
+                streams.cleanup_stale(idle_timeout).await;
+                continue;
+            }
             msg = reconstructed_rx.next() => match msg {
                 Some(messages) => messages,
                 None => break,
@@ -219,6 +270,7 @@ fn ensure_init(client: &mut MixnetClient) -> Result<&mut StreamState> {
             streams.clone(),
             listener_tx,
             shutdown.clone(),
+            client.stream_idle_timeout,
         ));
 
         client.streams = Some(StreamState {
@@ -282,4 +334,71 @@ pub(crate) fn listener(client: &mut MixnetClient) -> Result<MixnetListener> {
         packet_type: client.packet_type,
         streams,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test(start_paused = true)]
+    async fn cleanup_stale_removes_idle_streams() {
+        let map = StreamMap::new();
+        let timeout = Duration::from_secs(10);
+
+        // Register two streams
+        let _rx_a = map.register_stream(StreamId::random()).await;
+        let _rx_b = map.register_stream(StreamId::random()).await;
+
+        // Advance time past the timeout
+        tokio::time::advance(timeout + Duration::from_secs(1)).await;
+
+        // Register a fresh stream (should survive cleanup)
+        let id_c = StreamId::random();
+        let _rx_c = map.register_stream(id_c).await;
+
+        map.cleanup_stale(timeout).await;
+
+        let inner = map.inner.lock().await;
+        assert_eq!(inner.len(), 1);
+        assert!(inner.contains_key(&id_c));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn send_to_stream_updates_last_activity() {
+        let map = StreamMap::new();
+        let timeout = Duration::from_secs(10);
+        let id = StreamId::random();
+
+        let _rx = map.register_stream(id).await;
+
+        // Advance most of the way through the timeout
+        tokio::time::advance(Duration::from_secs(8)).await;
+
+        // Activity on the stream resets its timer
+        map.send_to_stream(&id, vec![1, 2, 3]).await;
+
+        // Advance past the original timeout, but only 5s since last activity
+        tokio::time::advance(Duration::from_secs(5)).await;
+
+        map.cleanup_stale(timeout).await;
+
+        // Stream should survive — last activity was 5s ago, not 13s
+        assert_eq!(map.inner.lock().await.len(), 1);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn cleanup_does_not_remove_active_streams() {
+        let map = StreamMap::new();
+        let timeout = Duration::from_secs(10);
+
+        let id = StreamId::random();
+        let _rx = map.register_stream(id).await;
+
+        // Advance less than the timeout
+        tokio::time::advance(Duration::from_secs(5)).await;
+
+        map.cleanup_stale(timeout).await;
+
+        assert_eq!(map.inner.lock().await.len(), 1);
+    }
 }

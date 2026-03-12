@@ -23,12 +23,12 @@ cd dist
 #react/sdk-react
 #)
 packages=(
-"wasm/client"
+# "wasm/client"
 "wasm/mix-fetch"
-"wasm/node-tester"
-"wasm/extension-storage"
+# "wasm/node-tester"
+# "wasm/extension-storage"
 
-"node/wasm/client"
+# "node/wasm/client"
 #"node/wasm/mix-fetch"
 
 "ts/sdk/mix-fetch/cjs"
@@ -36,18 +36,18 @@ packages=(
 "ts/sdk/mix-fetch/esm"
 "ts/sdk/mix-fetch/esm-full-fat"
 
-"ts/sdk/nodejs-client/cjs"
+# "ts/sdk/nodejs-client/cjs"
 "ts/sdk/mix-fetch-node/cjs"
 
-"ts/sdk/node-tester/cjs"
-"ts/sdk/node-tester/cjs-full-fat"
-"ts/sdk/node-tester/esm"
-"ts/sdk/node-tester/esm-full-fat"
+# "ts/sdk/node-tester/cjs"
+# "ts/sdk/node-tester/cjs-full-fat"
+# "ts/sdk/node-tester/esm"
+# "ts/sdk/node-tester/esm-full-fat"
 
-"ts/sdk/sdk/cjs"
-"ts/sdk/sdk/cjs-full-fat"
-"ts/sdk/sdk/esm"
-"ts/sdk/sdk/esm-full-fat"
+# "ts/sdk/sdk/cjs"
+# "ts/sdk/sdk/cjs-full-fat"
+# "ts/sdk/sdk/esm"
+# "ts/sdk/sdk/esm-full-fat"
 
 #"ts/sdk/contract-clients"
 )

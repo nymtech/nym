@@ -28,6 +28,10 @@ pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
 pub(crate) const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
 
+// \/ TODO: this has to be updated once the contract is deployed
+pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str = "";
+// /\ TODO: this has to be updated once the contract is deployed
+
 // -- Constructor functions --
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
@@ -51,6 +55,9 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             mixnet_contract_address: parse_optional_str(MIXNET_CONTRACT_ADDRESS),
             vesting_contract_address: parse_optional_str(VESTING_CONTRACT_ADDRESS),
             performance_contract_address: parse_optional_str(PERFORMANCE_CONTRACT_ADDRESS),
+            network_monitors_contract_address: parse_optional_str(
+                NETWORK_MONITORS_CONTRACT_ADDRESS,
+            ),
             ecash_contract_address: parse_optional_str(ECASH_CONTRACT_ADDRESS),
             group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),

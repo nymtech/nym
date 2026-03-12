@@ -4823,6 +4823,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-network-monitors-contract-common"
+version = "1.20.4"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-node-requests"
 version = "1.20.4"
 dependencies = [
@@ -4997,6 +5009,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
+ "nym-network-monitors-contract-common",
  "nym-performance-contract-common",
  "nym-serde-helpers",
  "nym-vesting-contract-common",

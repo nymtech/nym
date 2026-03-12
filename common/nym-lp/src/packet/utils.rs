@@ -8,7 +8,7 @@ pub fn format_debug_bytes(bytes: &[u8]) -> Result<String, fmt::Error> {
         write!(out, "{line_prefix:12}")?;
         let mut line = String::new();
         for b in chunk {
-            line.push_str(format!("{:02x} ", b).as_str());
+            line.push_str(format!("{:02X} ", b).as_str());
         }
         write!(
             out,

@@ -105,6 +105,9 @@ pub enum Error {
 
     #[error("Stream listener has already been taken — listener() can only be called once")]
     ListenerAlreadyTaken,
+
+    #[error("Stream subsystem failed to initialise: reconstructed_receiver unavailable")]
+    StreamInitFailure,
 }
 
 impl Error {

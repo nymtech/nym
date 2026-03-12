@@ -50,7 +50,8 @@ pub struct MixnetClient {
     pub(crate) client_state: ClientState,
 
     /// A channel for messages arriving from the mixnet after they have been reconstructed.
-    pub(crate) reconstructed_receiver: ReconstructedMessagesReceiver,
+    /// Taken by the stream router on stream mode activation, `None` thereafter.
+    pub(crate) reconstructed_receiver: Option<ReconstructedMessagesReceiver>,
 
     /// A channel for sending stats event to be reported.
     pub(crate) stats_events_reporter: ClientStatsSender,
@@ -94,7 +95,7 @@ impl MixnetClient {
             client_input,
             client_output,
             client_state,
-            reconstructed_receiver,
+            reconstructed_receiver: Some(reconstructed_receiver),
             stats_events_reporter,
             shutdown_handle: task_handle,
             packet_type,
@@ -216,7 +217,7 @@ impl MixnetClient {
             tracing::warn!("wait_for_messages() called after stream mode activated");
             return None;
         }
-        self.reconstructed_receiver.next().await
+        self.reconstructed_receiver.as_mut()?.next().await
     }
 
     /// Provide a callback to execute on incoming messages from the mixnet.
@@ -353,7 +354,11 @@ impl Stream for MixnetClient {
             cx.waker().wake_by_ref();
             return Poll::Ready(Some(next));
         }
-        match ready!(Pin::new(&mut self.reconstructed_receiver).poll_next(cx)) {
+        let receiver = match self.reconstructed_receiver.as_mut() {
+            Some(rx) => rx,
+            None => return Poll::Ready(None),
+        };
+        match ready!(Pin::new(receiver).poll_next(cx)) {
             None => Poll::Ready(None),
             Some(mut msgs) => {
                 // the vector itself should never be empty

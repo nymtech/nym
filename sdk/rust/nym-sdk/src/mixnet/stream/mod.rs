@@ -199,12 +199,16 @@ async fn run_router(
 }
 
 /// Lazily initialise the stream subsystem and router on first use.
-fn ensure_init(client: &mut MixnetClient) -> &mut StreamState {
+fn ensure_init(client: &mut MixnetClient) -> Result<&mut StreamState> {
     if client.streams.is_none() {
-        client.stream_mode.store(true, Ordering::SeqCst);
+        let real_rx = client
+            .reconstructed_receiver
+            .take()
+            .ok_or(Error::StreamInitFailure)?;
 
-        let (_, dummy_rx) = futures::channel::mpsc::unbounded();
-        let real_rx = std::mem::replace(&mut client.reconstructed_receiver, dummy_rx);
+        // Set after take() succeeds so we don't leave the client in a
+        // broken state (stream_mode=true but no router) on failure.
+        client.stream_mode.store(true, Ordering::SeqCst);
 
         let streams = StreamMap::new();
         let (listener_tx, listener_rx) = mpsc::unbounded_channel();
@@ -224,7 +228,7 @@ fn ensure_init(client: &mut MixnetClient) -> &mut StreamState {
             _router_handle: router_handle,
         });
     }
-    client.streams.as_mut().unwrap()
+    Ok(client.streams.as_mut().ok_or(Error::StreamInitFailure)?)
 }
 
 /// Open a stream to a remote peer.
@@ -233,7 +237,7 @@ pub(crate) async fn open_stream(
     recipient: Recipient,
     reply_surbs: u32,
 ) -> Result<MixnetStream> {
-    let streams = ensure_init(client).streams.clone();
+    let streams = ensure_init(client)?.streams.clone();
 
     let stream_id = StreamId::random();
     let rx = streams.register_stream(stream_id).await;
@@ -265,7 +269,7 @@ pub(crate) async fn open_stream(
 
 /// Create a listener that accepts inbound streams. Can only be called once.
 pub(crate) fn listener(client: &mut MixnetClient) -> Result<MixnetListener> {
-    let state = ensure_init(client);
+    let state = ensure_init(client)?;
     let listener_rx = state
         .listener_rx
         .take()

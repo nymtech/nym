@@ -1,6 +1,5 @@
 {
- "bundling": "General troubleshooting",
- "esbuild": "ESbuild",
- "webpack": "Webpack"
+  "bundling": "General",
+  "esbuild": "ESBuild",
+  "webpack": "Webpack"
 }
-  

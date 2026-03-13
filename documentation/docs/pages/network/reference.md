@@ -1,9 +1,9 @@
 # Reference
 
-Technical specifications and protocol details for the Nym Network.
+Technical specifications and protocol details that apply across the Nym Network regardless of mode.
 
-[Addressing](/network/reference/addressing) covers the Nym address format—how clients and nodes are identified for routing.
+## In this section
 
-[Epochs](/network/reference/epochs) explains time divisions in the network and what happens at epoch boundaries.
-
-[Acknowledgements](/network/reference/acks) describes the packet delivery confirmation system that ensures reliability.
+- [Addressing](/network/reference/addressing) — the `identity.encryption@gateway` address format and how routing works
+- [Epochs](/network/reference/epochs) — time divisions in the network, reward distribution, and topology reshuffling
+- [Acknowledgements](/network/reference/acks) — the hop-by-hop packet delivery confirmation system

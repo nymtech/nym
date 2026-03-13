@@ -1,9 +1,8 @@
 # Infrastructure
 
-The Nym Network runs on decentralized infrastructure coordinated by a blockchain. This section covers the supporting systems—the Nyx blockchain and the nodes that route traffic.
+The Nym Network runs on decentralized infrastructure — a set of independently operated nodes coordinated by the Nyx blockchain. No single party controls routing, key management, or credential issuance.
 
-## What's covered
+## In this section
 
-[Nyx Blockchain](/network/infrastructure/nyx) explains the Cosmos SDK chain that coordinates the network. It maintains the topology registry, manages NYM token staking, distributes rewards, and hosts the smart contracts for credentials.
-
-[Nym Nodes](/network/infrastructure/nym-nodes) covers the unified binary that runs all traffic-routing infrastructure. The same binary operates as Entry Gateways, Mix Nodes, or Exit Gateways depending on configuration.
+- [Nyx Blockchain](/network/infrastructure/nyx) — the Cosmos SDK chain that maintains the node registry, manages token economics, and hosts the smart contracts for credentials and rewards
+- [Nym Nodes](/network/infrastructure/nym-nodes) — the unified `nym-node` binary that operates as Entry Gateways, Mix Nodes, or Exit Gateways depending on network demand

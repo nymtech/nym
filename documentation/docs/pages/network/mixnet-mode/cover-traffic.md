@@ -12,14 +12,14 @@ Cover traffic maintains a constant rate of packet transmission. When you have re
 
 ```
 Without cover traffic:
-              │         │││        │
-Time ─────────┴─────────┴┴┴────────┴──────▶
+              |         |||        |
+Time ---------+---------+++---------+------>
             Idle    Activity    Idle
                     (visible)
 
 With cover traffic:
-    ││││││││││││││││││││││││││││││││││││││
-Time ────────────────────────────────────▶
+    ||||||||||||||||||||||||||||||||||||||
+Time -------------------------------------->
          Constant rate (activity hidden)
 ```
 

@@ -83,7 +83,7 @@ anyhow = { workspace = true }
 dotenvy = { workspace = true }
 reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true, features = ["full", "test-util"] }
 time = { workspace = true }
 nym-bin-common = {workspace = true, features = ["basic_tracing"] }
 

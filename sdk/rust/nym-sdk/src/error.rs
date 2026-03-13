@@ -99,6 +99,15 @@ pub enum Error {
 
     #[error("Failed to get shutdown tracker from the task runtime registry: {0}")]
     RegistryAccess(#[from] nym_task::RegistryAccessError),
+
+    #[error("Cannot use message-based functions after stream mode is activated")]
+    StreamModeActive,
+
+    #[error("Stream listener has already been taken — listener() can only be called once")]
+    ListenerAlreadyTaken,
+
+    #[error("Stream subsystem failed to initialise: reconstructed_receiver unavailable")]
+    StreamInitFailure,
 }
 
 impl Error {

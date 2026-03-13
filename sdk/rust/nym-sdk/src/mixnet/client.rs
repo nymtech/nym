@@ -42,8 +42,8 @@ use std::sync::Arc;
 use url::Url;
 use zeroize::Zeroizing;
 
-// The number of surbs to include in a message by default
-const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
+/// The number of reply SURBs to include in a message by default.
+pub(crate) const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
 
 #[derive(Default)]
 pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
@@ -70,6 +70,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     forget_me: ForgetMe,
     remember_me: RememberMe,
     derivation_material: Option<DerivationMaterial>,
+    stream_idle_timeout: Option<std::time::Duration>,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -112,6 +113,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             forget_me: Default::default(),
             remember_me: Default::default(),
             derivation_material: None,
+            stream_idle_timeout: None,
         })
     }
 }
@@ -149,6 +151,7 @@ where
             forget_me: Default::default(),
             remember_me: Default::default(),
             derivation_material: None,
+            stream_idle_timeout: None,
         }
     }
 
@@ -175,6 +178,7 @@ where
             forget_me: self.forget_me,
             remember_me: self.remember_me,
             derivation_material: self.derivation_material,
+            stream_idle_timeout: self.stream_idle_timeout,
         }
     }
 
@@ -202,6 +206,15 @@ where
     #[must_use]
     pub fn with_remember_me(mut self, remember_me: RememberMe) -> Self {
         self.remember_me = remember_me;
+        self
+    }
+
+    /// Set the idle timeout for streams. Streams with no activity for this
+    /// duration are automatically cleaned up by the router.
+    /// Defaults to 30 minutes if not set.
+    #[must_use]
+    pub fn with_stream_idle_timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.stream_idle_timeout = Some(timeout);
         self
     }
 
@@ -352,6 +365,7 @@ where
     }
 
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
+    #[allow(clippy::result_large_err)]
     pub fn build(self) -> Result<DisconnectedMixnetClient<S>> {
         let mut client = DisconnectedMixnetClient::new(
             self.config,
@@ -375,6 +389,7 @@ where
         client.forget_me = self.forget_me;
         client.remember_me = self.remember_me;
         client.derivation_material = self.derivation_material;
+        client.stream_idle_timeout = self.stream_idle_timeout;
         Ok(client)
     }
 }
@@ -443,6 +458,8 @@ where
     remember_me: RememberMe,
     /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
     derivation_material: Option<DerivationMaterial>,
+
+    stream_idle_timeout: Option<std::time::Duration>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -462,6 +479,7 @@ where
     /// Callers have the option of supplying further parameters to:
     /// - store persistent identities at a location on-disk, if desired;
     /// - use SOCKS5 mode
+    #[allow(clippy::result_large_err)]
     fn new(
         config: Config,
         socks5_config: Option<Socks5>,
@@ -504,6 +522,7 @@ where
             forget_me,
             remember_me,
             derivation_material: None,
+            stream_idle_timeout: None,
         })
     }
 
@@ -906,6 +925,7 @@ where
         if self.socks5_config.is_some() {
             return Err(Error::Socks5Config { set: true });
         }
+        let stream_idle_timeout = self.stream_idle_timeout;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let client_input = started_client.client_input.register_producer();
         let mut client_output = started_client.client_output.register_consumer();
@@ -916,7 +936,7 @@ where
         let identity_keys = started_client.identity_keys.clone();
         let reconstructed_receiver = client_output.register_receiver()?;
 
-        Ok(MixnetClient::new(
+        let mut client = MixnetClient::new(
             nym_address,
             identity_keys,
             client_input,
@@ -928,7 +948,11 @@ where
             None,
             started_client.forget_me,
             started_client.remember_me,
-        ))
+        );
+        if let Some(timeout) = stream_idle_timeout {
+            client.stream_idle_timeout = timeout;
+        }
+        Ok(client)
     }
 }
 

@@ -23,7 +23,7 @@ env:
 jobs:
   check-milestone:
     name: Check Milestone
-    runs-on: ubuntu-latest
+    runs-on: arc-linux-latest
     steps:
       - if: github.event.pull_request.milestone == null && contains( env.LABELS, 'no-milestone' ) == false
         run: exit 1

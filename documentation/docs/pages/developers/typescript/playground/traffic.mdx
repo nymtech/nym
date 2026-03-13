@@ -1,15 +1,22 @@
 # Traffic
+
 import { Callout } from 'nextra/components'
 import { Traffic } from '../../../../components/traffic';
 import Box from '@mui/material/Box';
 import FormattedTrafficExampleCode from '../../../../code-examples/sdk/typescript/traffic-example-code.mdx';
 
+Send and receive messages through the Nym Mixnet directly in your browser. This demo creates a Mixnet client, connects to the network, and lets you send a message to yourself (or any Nym address) to see the full round-trip.
 
-Use this tool to experiment with the mixnet: send and receive messages!
+**Try it:** Click Connect, wait for the client to initialize, then send a message. You'll see it arrive back through the Mixnet after traversing 5 hops.
 
 <Callout type="info">
     Open your browser's console to see the connection and send/receive logging for this example.
 </Callout>
 
 <Traffic />
+
+## How this works
+
+The component creates a `NymMixnetClient`, subscribes to incoming messages via event listeners, and uses `client.send()` to dispatch messages through the Mixnet. When sending to your own address, the message travels through the full 5-hop route (Entry Gateway → 3 Mix Nodes → Exit Gateway) before arriving back at your client.
+
 <FormattedTrafficExampleCode />

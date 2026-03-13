@@ -5,12 +5,14 @@ import Box from '@mui/material/Box';
 import FormattedExampleCode from '../../../../code-examples/sdk/typescript/mixnodes-example-code.mdx';
 import { Callout } from 'nextra/components'
 
+Query the Nym Mixnet smart contract for a live list of registered mix nodes. This demo uses `@nymproject/contract-clients` to read on-chain data directly from your browser — no backend required.
 
-
-The Nym Mixnet contract keeps a directory of all mixnodes that can be used to mix traffic.
-
-Here is a live example of querying the Mixnet Contract for a paged list of mixnodes:
+**Try it:** Click the button to fetch the current page of mix nodes from the Mixnet Contract. Each entry shows the node's identity key, owner address, and bonding details.
 
 <Mixnodes />
+
+## How this works
+
+The component creates a `MixnetContractClient` connected to the Nyx blockchain and calls `getMixNodesPaged()` to retrieve a paginated list of bonded mix nodes. This is a read-only query — no wallet or signing is needed.
 
 <FormattedExampleCode />

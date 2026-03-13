@@ -6,24 +6,27 @@ import FormattedCosmoskitExampleCode from '../../../../code-examples/sdk/typescr
 
 import { Callout } from 'nextra/components'
 
-Below is an example that uses [CosmosKit](https://cosmoskit.com/) to connect and sign a fake transaction with your [Keplr wallet](https://www.keplr.app/) or
-[Ledger hardware wallet](https://www.ledger.com/) to this page:
+Sign a transaction using [CosmosKit](https://cosmoskit.com/) wallet adapters. This demo connects a [Keplr](https://www.keplr.app/) browser wallet or [Ledger](https://www.ledger.com/) hardware wallet and signs a test message — no transaction is broadcast.
+
+**Try it:** Click Connect to link your wallet, then click Sign to sign a test message. The resulting signature hash is displayed.
 
 <CosmosKit />
-
-Once you connect either Keplr or your hardware Ledger, you can request the fake transaction to be signed. The hash
-of the message will be displayed.
 
 <Callout type="info" emoji="ℹ️">
   No transactions will be broadcast. You will only be signing a transaction.
 </Callout>
 
-If you are using the Ledger hardware wallet, please make sure:
+## Ledger setup
 
-- You have the `cosmoshub` app installed on the Ledger;
-- It is connected to your computer;
-- It is unlocked;
-- The Cosmos Hub app is open;
-- Grant permissions to your browser when you click the button above to connect to the Ledger (if you do not see a prompt, try another browser);
+If you are using a Ledger hardware wallet:
+
+- Install the `cosmoshub` app on the Ledger
+- Connect it to your computer and unlock it
+- Open the Cosmos Hub app
+- Grant browser permissions when prompted (try another browser if no prompt appears)
+
+## How this works
+
+The component uses CosmosKit to manage wallet connections across different wallet providers (Keplr, Ledger). When you click Sign, it constructs a message, requests your wallet to sign it, and displays the signature hash. This demonstrates how to integrate Cosmos-compatible wallets into a web application that interacts with the Nyx blockchain.
 
 <FormattedCosmoskitExampleCode />

@@ -5,14 +5,18 @@ import Box from '@mui/material/Box';
 import FormattedMixFetchExampleCode from '../../../../code-examples/sdk/typescript/mixfetch-example-code.mdx';
 import { Callout } from 'nextra/components'
 
+Fetch a URL through the Nym Mixnet. This demo creates a mixFetch client in your browser, routes your HTTP request through the Mixnet, and displays the response. Your IP address is hidden from the destination server.
 
-
-
+**Try it:** Enter a URL and click Send. The default URL fetches a plaintext exit policy file — try replacing it with any public HTTP endpoint.
 
 <MixFetch />
 
 <Callout type="info">
     Open your browser's console to see the connection and send/receive logging for this example.
 </Callout>
+
+## How this works
+
+The component calls `createMixFetch()` to initialize a Mixnet client in the browser, then uses the returned `mixFetch()` function as a drop-in replacement for `window.fetch()`. The request is routed through the Mixnet to a Network Requester, which makes the HTTP request on your behalf and returns the response anonymously.
 
 <FormattedMixFetchExampleCode />

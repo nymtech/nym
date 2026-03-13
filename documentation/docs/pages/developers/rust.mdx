@@ -1,11 +1,33 @@
 ---
 title: "Nym Rust SDK: Privacy Apps for the Mixnet"
-description: "Rust SDK reference for building privacy applications on the Nym mixnet. Covers TcpProxy, Mixnet module, Client Pool, FFI bindings, and code examples."
+description: "Rust SDK reference for building privacy applications on the Nym mixnet. Covers the Mixnet client, Stream multiplexing, Client Pool, and code examples."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-02-01"
+lastUpdated: "2026-03-13"
 ---
 
-# Introduction
+# Rust SDK
 
-The Rust SDK allows exposes a few different modules, some more plug and play than others. Each of which handles exposes a Nym Client, which handles finding and using a route for packets through the Mixnet, encryption, and cover traffic, all under the hood.
+import { Callout } from 'nextra/components'
+
+The Rust SDK provides high-level abstractions for building privacy-preserving applications on the Nym Mixnet. All modules share a common `MixnetClient` that handles gateway connections, Sphinx packet encryption, routing, and cover traffic under the hood.
+
+<Callout type="info">
+Full API reference, architecture documentation, and type details are available on [**docs.rs/nym-sdk**](https://docs.rs/nym-sdk/latest/nym_sdk/).
+</Callout>
+
+## Modules
+
+- **[Mixnet](./rust/mixnet)** — Core client for sending and receiving individual message payloads through the Mixnet. This is the Mixnet's native communication model — no connections, no ordering, just individually routed payloads.
+
+- **[Stream](./rust/stream)** — Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet. This is the abstraction layer that bridges the gap between the Mixnet's message-based model and familiar socket-based networking. **If you're used to TCP sockets, start here.**
+
+- **[TcpProxy](./rust/tcpproxy)** *(deprecated)* — TCP socket proxying through the Mixnet with session management and message ordering. For new projects, use the Stream module instead.
+
+- **[Client Pool](./rust/client-pool)** — A connection pool that maintains ready-to-use `MixnetClient` instances for high-throughput applications.
+
+- **[FFI](./rust/ffi)** — Foreign function interface bindings for using the SDK from Go and C/C++.
+
+## Getting started
+
+New to the SDK? Start with the **[Tour](./rust/tour)** for a quick overview of what you can do, then see [Installation](./rust/importing) for how to add `nym-sdk` to your project.

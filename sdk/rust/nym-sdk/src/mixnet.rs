@@ -1,22 +1,24 @@
-//! The mixnet component of the Rust SDK for the Nym platform
+//! The mixnet component of the Rust SDK for the Nym platform.
 //!
+//! **Start here:** [`MixnetClient::connect_new`] for an ephemeral client, or
+//! [`MixnetClientBuilder`] for full configuration. See the
+//! [tutorial](https://nymtech.net/docs/developers/rust/mixnet/tutorial) for a
+//! step-by-step walkthrough.
 //!
-//! # Basic example
+//! # Message example
+//!
+//! Send and receive raw message payloads through the Mixnet:
 //!
 //! ```no_run
 //! use nym_sdk::mixnet::{self, MixnetMessageSender};
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     // Passing no config makes the client fire up an ephemeral session and figure stuff out on
-//!     // its own
-//! let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+//!     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
 //!
-//!     // Be able to get our client address
 //!     let our_address = client.nym_address();
 //!     println!("Our client nym address is: {our_address}");
 //!
-//!     // Send a message throught the mixnet to ourselves
 //!     client.send_plain_message(*our_address, "hello there").await.unwrap();
 //!
 //!     println!("Waiting for message");
@@ -29,6 +31,47 @@
 //!     client.disconnect().await;
 //! }
 //! ```
+//!
+//! # Stream example
+//!
+//! Persistent bidirectional byte channels using `AsyncRead + AsyncWrite`:
+//!
+//! ```no_run
+//! use nym_sdk::mixnet;
+//! use tokio::io::{AsyncReadExt, AsyncWriteExt};
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
+//!     let mut receiver = mixnet::MixnetClient::connect_new().await.unwrap();
+//!     let receiver_addr = *receiver.nym_address();
+//!
+//!     // Receiver creates a listener (activates stream mode)
+//!     let mut listener = receiver.listener().unwrap();
+//!
+//!     // Sender opens a stream to the receiver
+//!     let mut outbound = sender.open_stream(receiver_addr, None).await.unwrap();
+//!
+//!     // Receiver accepts the incoming stream
+//!     let mut inbound = listener.accept().await.unwrap();
+//!
+//!     // Write and read — just like a TCP socket
+//!     outbound.write_all(b"hello").await.unwrap();
+//!     outbound.flush().await.unwrap();
+//!
+//!     let mut buf = vec![0u8; 1024];
+//!     let n = inbound.read(&mut buf).await.unwrap();
+//!     println!("Got: {}", String::from_utf8_lossy(&buf[..n]));
+//!
+//!     // Streams deregister on drop, then disconnect clients
+//!     drop(outbound);
+//!     drop(inbound);
+//!     sender.disconnect().await;
+//!     receiver.disconnect().await;
+//! }
+//! ```
+//!
+#![doc = include_str!("mixnet/ARCHITECTURE.md")]
 
 mod client;
 mod config;

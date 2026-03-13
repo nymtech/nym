@@ -5,6 +5,9 @@
 //! useful for applications that need to handle many concurrent connections without
 //! the latency of creating new clients on-demand.
 //!
+//! See the [tutorial](https://nymtech.net/docs/developers/rust/client-pool/tutorial)
+//! for a step-by-step guide.
+//!
 //! # Example
 //!
 //! ```rust,no_run
@@ -32,6 +35,8 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+#![doc = include_str!("client_pool/ARCHITECTURE.md")]
 
 mod mixnet_client_pool;
 

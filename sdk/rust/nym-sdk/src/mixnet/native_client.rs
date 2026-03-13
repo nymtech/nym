@@ -31,6 +31,13 @@ use tokio::sync::RwLockReadGuard;
 use tokio_util::sync::CancellationToken;
 
 /// Client connected to the Nym mixnet.
+///
+/// # Shutdown
+///
+/// **Always call [`disconnect`](Self::disconnect) before dropping.** The client
+/// runs background tasks (gateway connection, topology refresh, SURB management)
+/// that need a coordinated shutdown. Dropping without disconnecting will leak
+/// these tasks and may leave state files in an inconsistent state.
 pub struct MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
@@ -216,7 +223,12 @@ impl MixnetClient {
         self.client_state.topology_accessor.release_manual_control()
     }
 
-    /// Wait for messages from the mixnet
+    /// Wait for messages from the mixnet.
+    ///
+    /// # Cancel safety
+    ///
+    /// This method is cancel safe. If cancelled before a batch is available,
+    /// no messages are lost — they remain in the channel for the next call.
     pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
         if self.stream_mode.load(Ordering::SeqCst) {
             tracing::warn!("wait_for_messages() called after stream mode activated");
@@ -248,6 +260,12 @@ impl MixnetClient {
 
     /// Disconnect from the mixnet. Currently, it is not supported to reconnect a disconnected
     /// client.
+    ///
+    /// # Cancel safety
+    ///
+    /// This method is **not** cancel safe. If cancelled mid-shutdown,
+    /// background tasks may be left running and state files may not be
+    /// flushed. Always let this future run to completion.
     pub async fn disconnect(self) {
         if self.forget_me.any() {
             log::debug!("Sending forget me request: {:?}", self.forget_me);
@@ -310,6 +328,12 @@ impl MixnetClient {
     /// Returns a [`MixnetStream`] implementing `AsyncRead + AsyncWrite`.
     /// `reply_surbs` controls how many reply SURBs are included with each
     /// outbound message so the peer can reply. Defaults to 10 if `None`.
+    ///
+    /// # Cancel safety
+    ///
+    /// This method is **not** cancel safe. Cancelling after the `Open`
+    /// message is sent but before the `MixnetStream` is returned will
+    /// leave the stream registered in the routing table with no owner.
     pub async fn open_stream(
         &mut self,
         recipient: Recipient,
@@ -331,6 +355,10 @@ impl MixnetClient {
     }
 }
 
+/// A clonable handle for sending messages through a connected [`MixnetClient`].
+///
+/// Obtained via [`MixnetClient::split_sender`]. Implements [`MixnetMessageSender`]
+/// so it can send messages independently while another task handles receiving.
 pub struct MixnetClientSender {
     client_input: ClientInput,
     packet_type: Option<PacketType>,

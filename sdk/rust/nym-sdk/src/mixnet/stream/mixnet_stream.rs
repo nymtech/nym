@@ -33,8 +33,16 @@ enum Destination {
 /// A byte stream to a single remote Nym client.
 ///
 /// Provides `AsyncRead + AsyncWrite`. Created via
-/// [`MixnetClient::open_stream`] (outbound) or
-/// [`MixnetListener::accept`] (inbound).
+/// [`MixnetClient::open_stream`](crate::mixnet::MixnetClient::open_stream) (outbound) or
+/// [`MixnetListener::accept`](super::MixnetListener::accept) (inbound).
+///
+/// # Drop behavior
+///
+/// Dropping a `MixnetStream` deregisters it from the client's internal
+/// routing table. No close message is sent over the wire — the Mixnet does
+/// not guarantee message ordering, so a close could arrive before the final
+/// data. The remote side will see EOF (read returns 0) once the stream's
+/// idle timeout expires.
 pub struct MixnetStream {
     id: StreamId,
     destination: Destination,

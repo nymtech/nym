@@ -45,6 +45,27 @@ use zeroize::Zeroizing;
 /// The number of reply SURBs to include in a message by default.
 pub(crate) const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
 
+/// Configures and builds a [`MixnetClient`].
+///
+/// Use [`new_ephemeral`](Self::new_ephemeral) for in-memory keys (discarded on disconnect),
+/// or [`new_with_default_storage`](MixnetClientBuilder::<OnDiskPersistent>::new_with_default_storage)
+/// for persistent identity that survives restarts.
+///
+/// # Example
+///
+/// ```no_run
+/// use nym_sdk::mixnet::MixnetClientBuilder;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let client = MixnetClientBuilder::new_ephemeral()
+///     .build()
+///     .unwrap()
+///     .connect_to_mixnet()
+///     .await
+///     .unwrap();
+/// # }
+/// ```
 #[derive(Default)]
 pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     config: Config,

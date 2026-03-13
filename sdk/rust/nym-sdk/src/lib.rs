@@ -1,70 +1,52 @@
 //! # Nym SDK
 //!
-//! Rust SDK for building privacy-preserving applications on the Nym platform.
-//!
-//! ## Overview
-//!
-//! This crate provides high-level abstractions for interacting with the Nym mixnet,
+//! Rust SDK for building privacy-preserving applications on the [Nym mixnet](https://nymtech.net),
 //! a decentralized network that provides network-level privacy through packet mixing,
 //! timing obfuscation, and Sphinx packet encryption.
 //!
-//! ## Key Modules
+//! For tutorials and conceptual guides, see the
+//! [Nym developer portal](https://nymtech.net/docs/developers/rust).
 //!
-//! - [`mixnet`] - Core mixnet client functionality for sending and receiving messages
-//!   through the Nym network. Use [`mixnet::MixnetClient`] for direct mixnet interaction
-//!   or [`mixnet::MixnetClientBuilder`] to configure client options.
+//! # Getting started
 //!
-//! - [`tcp_proxy`] - TCP proxy components for tunneling existing TCP traffic through the
-//!   mixnet. Use [`tcp_proxy::NymProxyClient`] on the client side and
-//!   [`tcp_proxy::NymProxyServer`] on the server side. This is the recommended starting
-//!   point for integrating existing applications.
+//! **Start with [`mixnet::MixnetClient::connect_new`]** for a quick ephemeral client, or
+//! [`mixnet::MixnetClientBuilder`] when you need to configure storage, gateway selection,
+//! or network settings.
 //!
-//! - [`client_pool`] - A connection pool for managing multiple [`mixnet::MixnetClient`]
-//!   instances. Useful for high-throughput applications that need to handle many
-//!   concurrent connections.
+//! ```no_run
+//! use nym_sdk::mixnet::{self, MixnetMessageSender};
 //!
-//! - [`bandwidth`] - Bandwidth credential management for importing ticketbooks and
-//!   verification keys needed for paid network access.
+//! # #[tokio::main]
+//! # async fn main() {
+//! let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+//! let addr = *client.nym_address();
 //!
-//! ## Quick Start
+//! client.send_plain_message(addr, "hello mixnet!").await.unwrap();
 //!
-//! ### Basic Mixnet Client
-//!
-//! ```rust,no_run
-//! use nym_sdk::mixnet;
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create an ephemeral client (keys discarded on shutdown)
-//!     let mut client = mixnet::MixnetClient::connect_new().await?;
-//!
-//!     println!("Client address: {}", client.nym_address());
-//!
-//!     // Send a message to another Nym address
-//!     // client.send_plain_message(recipient, "Hello!").await?;
-//!
-//!     client.disconnect().await;
-//!     Ok(())
-//! }
+//! // Always disconnect for clean shutdown
+//! client.disconnect().await;
+//! # }
 //! ```
 //!
-//! ### TCP Proxy
+//! # Modules
 //!
-//! For tunneling existing TCP applications, see the [`tcp_proxy`] module documentation
-//! which provides detailed examples of client and server setup.
+//! | Module | Purpose |
+//! |--------|---------|
+//! | [`mixnet`] | Core client — messages, streams, builder, storage |
+//! | [`client_pool`] | Pre-warmed pool of ephemeral clients |
+//! | [`tcp_proxy`] | TCP tunnelling over the mixnet (deprecated — prefer streams) |
+//! | [`bandwidth`] | Bandwidth credential management |
 //!
-//! ## Network Configuration
+//! # Feature flags
 //!
-//! By default, the SDK connects to the Nym mainnet. Network configuration can be
-//! customized using [`NymNetworkDetails`] or by setting environment variables.
+//! **Feature gates are not yet implemented.** Importing `nym-sdk` currently pulls in all
+//! modules and their full dependency trees. Work is planned to gate modules behind Cargo
+//! features so you can import only what you need.
 //!
-//! ## Re-exports
+//! # Network configuration
 //!
-//! This crate re-exports commonly used types from underlying Nym crates for convenience:
-//! - Network configuration types from `nym-network-defaults`
-//! - Shutdown handling from `nym-task`
-//! - Topology providers from `nym-client-core`
-//! - Gateway communication traits and types from `nym-client-core`
+//! By default, the SDK connects to the Nym mainnet. Customize with
+//! [`NymNetworkDetails`] or environment variables.
 
 mod error;
 

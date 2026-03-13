@@ -1,0 +1,16 @@
+# Examples
+
+Annotated walkthroughs of the stream module examples from the SDK repository.
+
+Each example is a standalone binary in [`sdk/rust/nym-sdk/examples/`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples). Run them with:
+
+```bash
+cargo run --example <example_name>
+```
+
+| Example | What it demonstrates |
+|---|---|
+| [Simple Read/Write](./examples/simple) | Opening streams to multiple peers, bidirectional communication, concurrent reads |
+| [Idle Timeout](./examples/idle-timeout) | Configuring stream cleanup, observing EOF after timeout |
+| [Mode Guard](./examples/mode-guard) | How stream mode blocks the message-based API |
+| [Throughput](./examples/throughput) | Sending 1 MB over a single stream, verifying integrity |

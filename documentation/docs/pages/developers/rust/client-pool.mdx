@@ -1,9 +1,60 @@
 # Client Pool
 
-import { Callout } from 'nextra/components';
+import { Callout } from 'nextra/components'
 
-We have a configurable-size Client Pool for processes that require multiple clients in quick succession (this is used by default by the [`TcpProxyClient`](./tcpproxy) for instance)
+The `ClientPool` maintains a configurable number of connected ephemeral `MixnetClient` instances, ready for immediate use. This eliminates the connection latency (gateway handshake, key generation, topology fetch) that comes with creating a new client on each request.
 
-This will be useful for developers looking to build connection logic, or just are using raw SDK clients in a sitatuation where there are multiple connections with a lot of churn.
+## How it works
 
-> You can find this code [here](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/client_pool.rs)
+```mermaid
+---
+config:
+  theme: neo-dark
+---
+flowchart LR
+    BG["Background loop"] -->|creates clients| P["Pool (Vec)"]
+    P -->|"get_mixnet_client()"| APP["Your application"]
+    APP -->|uses and disconnects| D["Done"]
+    BG -->|"pool < reserve? create another"| P
+```
+
+1. **Create** the pool with a target reserve size: `ClientPool::new(5)`
+2. **Start** the background loop: `pool.start()` — it immediately begins connecting clients
+3. **Pop** a client when needed: `pool.get_mixnet_client()` returns `Some(client)` or `None` if the pool is empty
+4. **Use** the client normally — send messages, open streams, etc.
+5. **Disconnect** the client when done — the background loop notices the pool is below reserve and creates a replacement
+
+Clients are **consumed, not returned**. The pool creates new ones to maintain the reserve. If the pool is empty, you can fall back to `MixnetClient::connect_new()` (slower, but keeps things working).
+
+<Callout type="info">
+The `NymProxyClient` (TcpProxy) uses a `ClientPool` internally — one client per incoming TCP connection.
+</Callout>
+
+## Quick example
+
+```rust
+use nym_sdk::client_pool::ClientPool;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let pool = ClientPool::new(5); // maintain 5 clients in reserve
+
+    let pool_clone = pool.clone();
+    tokio::spawn(async move { pool_clone.start().await });
+
+    // Get a client when needed
+    if let Some(client) = pool.get_mixnet_client().await {
+        println!("Got client: {}", client.nym_address());
+        client.disconnect().await;
+    }
+
+    pool.disconnect_pool().await;
+    Ok(())
+}
+```
+
+## Further reading
+
+- [Tutorial: Handle bursty traffic](./client-pool/tutorial) — step-by-step guide covering pool creation, burst handling, and fallback logic
+- [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/client_pool/) — type details, method signatures, and architecture docs
+- [Example source on GitHub](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/client_pool.rs) — complete working example

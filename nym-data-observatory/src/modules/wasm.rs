@@ -8,9 +8,7 @@ use cosmrs::proto::cosmwasm::wasm::v1::MsgExecuteContract;
 use cosmrs::proto::prost::Message;
 use nym_validator_client::nyxd::{Any, Name};
 use nyxd_scraper_psql::models::DbCoin;
-use nyxd_scraper_psql::{
-    MsgModule, NyxdScraperTransaction, ParsedTransactionResponse, ScraperError,
-};
+use nyxd_scraper_psql::{MsgModule, ParsedTransactionResponse, ScraperError};
 use serde_json::Value;
 use time::{OffsetDateTime, PrimitiveDateTime};
 use tracing::{error, trace};

@@ -5,9 +5,7 @@ use crate::config::data_observatory::{HttpAuthenticationOptions, WebhookConfig};
 use crate::models::WebhookPayload;
 use anyhow::Context;
 use async_trait::async_trait;
-use nyxd_scraper_psql::{
-    NyxdScraperTransaction, ParsedTransactionResponse, ScraperError, TxModule,
-};
+use nyxd_scraper_psql::{ParsedTransactionResponse, ScraperError, TxModule};
 use reqwest::{Client, Url};
 use tracing::{error, info};
 

@@ -1,8 +1,49 @@
+import { RedocStandalone } from 'redoc'
 import { Callout } from 'nextra/components'
 
 # Node Status API
-The Node Status API serves information about individual `nym-nodes` in the Mixnet, such as which role they are operating in, statistics about them, services such as Network Requesters, as well as summaries of the state of the Mixnet.
+
+The Node Status API serves information about individual `nym-node` instances in the Nym network: which role they are operating in, performance statistics, Network Requester services, and summaries of the overall mixnet state. It is the primary API for anyone building explorers, analytics dashboards, or monitoring tools.
+
+**Key endpoint categories:**
+- **Node information** — identity, bonding status, declared roles, build version, host details
+- **Performance scores** — routing reliability, configuration scores, probe results
+- **Mixnet summaries** — active set composition, role distribution, network health
 
 <Callout type="info">
-We recommend that developers building applications such as explorers or analytics interfaces about the Mixnet run their own instance of the API, in order to promote a robust network of downstream services, and spread the load of API calls amongst as many endpoints as possible.
+If you're building a service that makes heavy use of this API, consider [running your own instance](/operators/performance-and-testing/ns-api-deployment) to distribute load and promote a robust network of downstream services.
 </Callout>
+
+## Quick examples
+
+**Get a summary of all gateways:**
+```bash
+curl https://mainnet-node-status-api.nymtech.cc/api/v1/gateways
+```
+
+**Get details for a specific node by identity key:**
+```bash
+curl https://mainnet-node-status-api.nymtech.cc/api/v1/gateways/23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb
+```
+
+## Mainnet endpoints
+
+- **OpenAPI spec:** [mainnet-node-status-api.nymtech.cc/api-docs/openapi.json](https://mainnet-node-status-api.nymtech.cc/api-docs/openapi.json)
+- **Swagger UI:** [mainnet-node-status-api.nymtech.cc/swagger/](https://mainnet-node-status-api.nymtech.cc/swagger/)
+
+## Full API reference
+
+<br />
+
+<RedocStandalone
+  specUrl="https://mainnet-node-status-api.nymtech.cc/api-docs/openapi.json"
+  options={{
+    nativeScrollbars: true,
+    theme: {
+      sidebar: {
+        backgroundColor: '#273239',
+        textColor: '#FCFDFE'
+      }
+    }
+  }}
+/>

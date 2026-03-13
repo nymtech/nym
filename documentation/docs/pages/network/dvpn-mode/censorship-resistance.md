@@ -14,8 +14,6 @@ dVPN mode uses [AmneziaWG](https://docs.amnezia.org/documentation/amnezia-wg/), 
 
 AmneziaWG modifies the WireGuard handshake by introducing decoy packets before the handshake initiation. These decoy packets disrupt DPI rules that rely on matching the standard WireGuard handshake sequence. The actual WireGuard protocol behaviour is preserved — the modifications sit around the handshake rather than replacing it, so all of WireGuard's security properties (Curve25519 key exchange, ChaCha20-Poly1305 encryption, forward secrecy) remain intact.
 
-AmneziaWG implementation: [`nym-vpn-core/crates/nym-wg-go`](https://github.com/nymtech/nym-vpn-client/tree/main/nym-vpn-core/crates/nym-wg-go)
-
 ## Limitations
 
 AmneziaWG raises the bar for censors relying on simple protocol fingerprinting, but it doesn't help against deeper analysis — statistical fingerprinting of packet timing and sizes, IP-based blocking of known Gateway addresses, or active probing where the censor sends packets to suspected VPN servers to confirm their identity.

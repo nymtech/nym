@@ -1,5 +1,3 @@
-import { Callout } from 'nextra/components'
-
 # Anonymous Replies
 
 SURBs (Single Use Reply Blocks) enable anonymous bidirectional communication. A receiver can reply to a sender without learning the sender's identity or address.
@@ -18,9 +16,7 @@ A SURB contains the address of the first hop (Alice's Entry Gateway), encrypted 
 
 Each SURB can only be used once. This prevents replay attacks and ensures forward secrecy. For conversations requiring multiple exchanges, Alice sends multiple SURBs with her initial message.
 
-<Callout type="warning">
-SURBs are currently valid indefinitely, but future updates will limit validity to key rotation epochs. Build applications assuming SURBs have limited lifetime.
-</Callout>
+SURB validity is tied to key rotation. Node keys rotate on an odd/even schedule with a default validity of 24 epochs (roughly 25 hours at the current 1-hour epoch length). After that window, the routing keys a SURB was built with are no longer accepted. Clients automatically purge stale SURBs and request fresh ones. Reply keys also expire after 24 hours independently of rotation cycles.
 
 ## SURB replenishment
 

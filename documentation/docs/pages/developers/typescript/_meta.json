@@ -2,5 +2,5 @@
   "examples": "Step-by-step Examples",
   "playground": "Live Playground",
   "bundling": "Bundling & Troubleshooting",
-  "api": "API Reference"
+  "api": "TypeDoc Reference"
 }

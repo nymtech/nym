@@ -35,12 +35,12 @@ There are two integration models available via the SDKs:
 
 **As a proxy** (traffic exits to the internet):
 ```
-Your App ──▶ Entry ──▶ Mix Nodes ──▶ Exit ──▶ Internet
+Your App --> Entry --> Mix Nodes --> Exit --> Internet
 ```
 
 **End-to-end** (traffic stays within the Mixnet):
 ```
-Your App ──▶ Entry ──▶ Mix Nodes ──▶ Exit ──▶ Nym Client
+Your App --> Entry --> Mix Nodes --> Exit --> Nym Client
 ```
 
 The proxy model uses the Mixnet similarly to Tor's exit relay model, whereas the end-to-end model sends Sphinx packets the entire way. See the [integration overview](/developers/integrations) for more detail on choosing between these approaches.

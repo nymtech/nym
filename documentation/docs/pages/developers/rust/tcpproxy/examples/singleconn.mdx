@@ -1,6 +1,9 @@
 # Single Connection Example
 import { Callout } from 'nextra/components'
 
+<Callout type="error">
+**This module is unmaintained.** See the [Stream module](../../stream) for the actively developed replacement.
+</Callout>
 
 This is a basic example which opens a single TCP connection and writes a bunch of messages between a client and some 'echo server' logic, so only uses a single session under the hood and doesn't really show off the message ordering capabilities; this is mainly just a quick introductory illustration on how:
 - the mixnet does message ordering
@@ -169,7 +172,7 @@ async fn main() -> anyhow::Result<()> {
     let (read, mut write) = stream.into_split();
 
     // 'Client side' thread; lets just send a bunch of messages to the server with variable delays between them, with an id to keep track of ordering in the printlns; the mixnet only guarantees message delivery, not ordering. You might not be necessarily streaming traffic in this manner IRL, but this example is a good illustration of how messages travel through the mixnet.
-    // - On the level of individual messages broken into multiple packets, the Proxy abstraction deals with making sure that everything is sent between the sockets in the corrent order.
+    // - On the level of individual messages broken into multiple packets, the Proxy abstraction deals with making sure that everything is sent between the sockets in the correct order.
     // - On the level of different messages, this is not enforced: you might see in the logs that message 1 arrives at the server and is reconstructed after message 2.
     tokio::spawn(async move {
         let mut rng = SmallRng::from_entropy();

@@ -1,7 +1,9 @@
 {
-  "importing": "Importing",
-  "tcpproxy": "TcpProxy Module",
+  "tour": "Tour",
+  "importing": "Installation",
   "mixnet": "Mixnet Module",
+  "stream": "Stream Module",
+  "tcpproxy": "TcpProxy Module (Deprecated)",
   "client-pool": "Client Pool Module",
   "ffi": "FFI"
 }

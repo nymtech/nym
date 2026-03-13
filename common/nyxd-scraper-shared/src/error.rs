@@ -172,16 +172,20 @@ pub enum ScraperError {
         #[source]
         error: base64::DecodeError,
     },
+
+    #[error("no modules configured for the chain watcher")]
+    NoModulesConfigured,
+
+    #[error("no storage configured for the chain watcher")]
+    NoStorageConfigured,
 }
 
 impl ScraperError {
-    pub fn tx_begin_failure(source: NyxdScraperStorageError) -> ScraperError
-where {
+    pub fn tx_begin_failure(source: NyxdScraperStorageError) -> ScraperError {
         ScraperError::StorageTxBeginFailure { source }
     }
 
-    pub fn tx_commit_failure(source: NyxdScraperStorageError) -> ScraperError
-where {
+    pub fn tx_commit_failure(source: NyxdScraperStorageError) -> ScraperError {
         ScraperError::StorageTxCommitFailure { source }
     }
 }

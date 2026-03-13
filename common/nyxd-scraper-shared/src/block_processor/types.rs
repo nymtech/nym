@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ScraperError;
-use crate::helpers;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use tendermint::{Block, Hash, abci, block, tx};
 use tendermint_rpc::endpoint::{block as block_endpoint, block_results, validators};
 use tendermint_rpc::event::{Event, EventData};
@@ -28,9 +27,9 @@ pub struct ParsedTransactionResponse {
 
     pub proof: Option<tx::Proof>,
 
-    pub parsed_messages: HashMap<usize, serde_json::Value>,
+    pub parsed_messages: BTreeMap<usize, serde_json::Value>,
 
-    pub parsed_message_urls: HashMap<usize, String>,
+    pub parsed_message_urls: BTreeMap<usize, String>,
 
     pub block: Block,
 }
@@ -41,32 +40,13 @@ pub struct FullBlockInformation {
     pub block: Block,
 
     /// All of the emitted events alongside any tx results.
-    pub results: block_results::Response,
+    pub results: Option<block_results::Response>,
 
     /// Validator set for this particular block
-    pub validators: validators::Response,
+    pub validators: Option<validators::Response>,
 
     /// Transaction results from this particular block
-    pub transactions: Vec<ParsedTransactionResponse>,
-}
-
-impl FullBlockInformation {
-    pub fn ensure_proposer(&self) -> Result<(), ScraperError> {
-        let block_proposer = self.block.header.proposer_address;
-        if !self
-            .validators
-            .validators
-            .iter()
-            .any(|v| v.address == block_proposer)
-        {
-            let proposer = helpers::validator_consensus_address(block_proposer)?;
-            return Err(ScraperError::BlockProposerNotInValidatorSet {
-                height: self.block.header.height.value() as u32,
-                proposer: proposer.to_string(),
-            });
-        }
-        Ok(())
-    }
+    pub transactions: Option<Vec<ParsedTransactionResponse>>,
 }
 
 pub(crate) struct BlockToProcess {

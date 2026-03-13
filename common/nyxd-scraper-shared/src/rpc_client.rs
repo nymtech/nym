@@ -9,14 +9,31 @@ use crate::helpers::tx_hash;
 use crate::{Any, MessageRegistry, default_message_registry};
 use futures::StreamExt;
 use futures::future::join3;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
-use tendermint::Hash;
+use tendermint::{Block, Hash};
 use tendermint_rpc::endpoint::{block, block_results, tx, validators};
 use tendermint_rpc::{Client, HttpClient, Paging};
 use tokio::sync::Mutex;
 use tracing::{debug, instrument, warn};
 use url::Url;
+
+#[derive(Debug, Clone, Copy)]
+pub struct RetrievalConfig {
+    pub get_validators: bool,
+    pub get_transactions: bool,
+    pub get_block_results: bool,
+}
+
+impl Default for RetrievalConfig {
+    fn default() -> Self {
+        Self {
+            get_validators: true,
+            get_transactions: true,
+            get_block_results: true,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct RpcClient {
@@ -53,27 +70,15 @@ impl RpcClient {
         }
     }
 
-    #[instrument(skip(self, block), fields(height = block.height))]
-    pub async fn try_get_full_details(
+    fn parse_transactions(
         &self,
-        block: BlockToProcess,
-    ) -> Result<FullBlockInformation, ScraperError> {
-        debug!("getting complete block details");
-        let height = block.height;
-
-        // make all the http requests concurrently
-        let (results, validators, raw_transactions) = join3(
-            self.get_block_results(height),
-            self.get_validators_details(height),
-            self.get_transaction_results(&block.block.data),
-        )
-        .await;
-
-        let raw_transactions = raw_transactions?;
+        raw_transactions: Vec<tx::Response>,
+        block: &Block,
+    ) -> Result<Vec<ParsedTransactionResponse>, ScraperError> {
         let mut transactions = Vec::with_capacity(raw_transactions.len());
         for raw_tx in raw_transactions {
-            let mut parsed_messages = HashMap::new();
-            let mut parsed_message_urls = HashMap::new();
+            let mut parsed_messages = BTreeMap::new();
+            let mut parsed_message_urls = BTreeMap::new();
             let tx = cosmrs::Tx::from_bytes(&raw_tx.tx).map_err(|source| {
                 ScraperError::TxParseFailure {
                     hash: raw_tx.hash,
@@ -97,9 +102,33 @@ impl RpcClient {
                 proof: raw_tx.proof,
                 parsed_messages,
                 parsed_message_urls,
-                block: block.block.clone(),
+                block: block.clone(),
             })
         }
+        Ok(transactions)
+    }
+
+    #[instrument(skip(self, block), fields(height = block.height))]
+    pub async fn try_get_full_details(
+        &self,
+        block: BlockToProcess,
+        config: RetrievalConfig,
+    ) -> Result<FullBlockInformation, ScraperError> {
+        debug!("getting complete block details");
+        let height = block.height;
+
+        // make all the http requests run concurrently
+        let (results, validators, raw_transactions) = join3(
+            self.maybe_get_block_results(height, config.get_block_results),
+            self.maybe_get_validators_details(height, config.get_validators),
+            self.maybe_get_transaction_results(&block.block.data, config.get_transactions),
+        )
+        .await;
+
+        let transactions = match raw_transactions? {
+            Some(raw) => Some(self.parse_transactions(raw, &block.block)?),
+            None => None,
+        };
 
         Ok(FullBlockInformation {
             block: block.block,
@@ -138,6 +167,18 @@ impl RpcClient {
                 source: Box::new(source),
             }
         })
+    }
+
+    async fn maybe_get_block_results(
+        &self,
+        height: u32,
+        retrieve: bool,
+    ) -> Result<Option<block_results::Response>, ScraperError> {
+        if retrieve {
+            self.get_block_results(height).await.map(Some)
+        } else {
+            Ok(None)
+        }
     }
 
     pub(crate) async fn current_block_height(&self) -> Result<u64, ScraperError> {
@@ -196,6 +237,18 @@ impl RpcClient {
         inner.into_values().collect()
     }
 
+    async fn maybe_get_transaction_results(
+        &self,
+        raw: &[Vec<u8>],
+        retrieve: bool,
+    ) -> Result<Option<Vec<tx::Response>>, ScraperError> {
+        if retrieve {
+            self.get_transaction_results(raw).await.map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
     #[instrument(skip(self, tx_hash), fields(tx_hash = %tx_hash), err(Display))]
     async fn get_transaction_result(&self, tx_hash: Hash) -> Result<tx::Response, ScraperError> {
         debug!("getting tx results");
@@ -223,5 +276,17 @@ impl RpcClient {
                 height,
                 source: Box::new(source),
             })
+    }
+
+    async fn maybe_get_validators_details(
+        &self,
+        height: u32,
+        retrieve: bool,
+    ) -> Result<Option<validators::Response>, ScraperError> {
+        if retrieve {
+            self.get_validators_details(height).await.map(Some)
+        } else {
+            Ok(None)
+        }
     }
 }

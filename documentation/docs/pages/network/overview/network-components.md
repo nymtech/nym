@@ -20,7 +20,7 @@ The blockchain is secured by validators using proof-of-stake consensus. Having t
 
 ## Nym API
 
-Nyx validators operate **Nym API** [instances](/apis/nym-api/mainnet) which provide cached blockchain state. A subset of these also form the "Quorum", handling credential issuance—generating the partial blind signatures that form [zk-nyms](/network/cryptography/zk-nym)- and zk-nym validation.
+Nyx validators operate **Nym API** [instances](/apis/nym-api) which provide cached blockchain state. A subset of these also form the "Quorum", handling credential issuance—generating the partial blind signatures that form [zk-nyms](/network/cryptography/zk-nym)- and zk-nym validation.
 
 Credential generation relies on threshold cryptography. No single member can issue credentials alone, and the system remains functional even if some members are offline. This distributes trust across multiple independent parties. See the [zk-nym docs](/network/cryptography/zk-nym) for more on this.
 

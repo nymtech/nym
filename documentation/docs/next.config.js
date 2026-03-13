@@ -1104,16 +1104,10 @@ const config = {
         basePath: false,
       },
 
-      // --- Rust SDK: deleted mixnet example pages ---
-      {
-        source: "/docs/developers/rust/mixnet/examples",
-        destination: "/docs/developers/rust/mixnet",
-        permanent: true,
-        basePath: false,
-      },
+      // --- Rust SDK: deleted mixnet example subpages ---
       {
         source: "/docs/developers/rust/mixnet/examples/:path*",
-        destination: "/docs/developers/rust/mixnet",
+        destination: "/docs/developers/rust/mixnet/examples",
         permanent: true,
         basePath: false,
       },

@@ -12,11 +12,11 @@ Each Mix Node adds a random delay before forwarding. Packets don't flow through 
 
 ```
 Input sequence:  A B C D E
-                 │ │ │ │ │
-                 ▼ ▼ ▼ ▼ ▼
+                 | | | | |
+                 v v v v v
               [   Mixing   ]
-                 │ │ │ │ │
-                 ▼ ▼ ▼ ▼ ▼
+                 | | | | |
+                 v v v v v
 Output sequence: C A E B D
 ```
 

@@ -7,7 +7,7 @@ NymVPN has two modes, each using the same underlying network infrastructure but 
 dVPN mode routes traffic through 2 hops—an Entry Gateway and an Exit Gateway. Traffic flows from your device to the Entry Gateway, then to the Exit Gateway, then to the destination.
 
 ```
-User ──▶ Entry Gateway ──▶ Exit Gateway ──▶ Internet
+User --> Entry Gateway --> Exit Gateway --> Internet
 ```
 
 This mode uses [AmneziaWG](https://docs.amnezia.org/documentation/amnezia-wg/), a WireGuard fork that adds traffic obfuscation to help evade some forms of protocol detection. It creates a tunnel between you and the Entry Gateway, which then creates another tunnel to the Exit Gateway.
@@ -21,8 +21,8 @@ See [Choosing a Mode](/network/overview/choosing-a-mode) for when to use dVPN vs
 Mixnet mode routes traffic through 5 hops—an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway. Each Mix Node adds a random delay and mixes your traffic with other packets passing through.
 
 ```
-User ──▶ Entry ──▶ Mix L1 ──▶ Mix L2 ──▶ Mix L3 ──▶ Exit ──▶ Internet
-                     │           │           │
+User --> Entry --> Mix L1 --> Mix L2 --> Mix L3 --> Exit --> Internet
+                    |           |           |
                   delay       delay       delay
                     +           +           +
                   mixing      mixing      mixing

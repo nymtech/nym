@@ -7,15 +7,15 @@ This page covers the technical details of dVPN mode's protocol stack and encrypt
 dVPN mode combines WireGuard with additional layer encryption. The client-to-Entry Gateway connection uses WireGuard, providing fast handshakes, efficient encryption, and graceful reconnection. The Entry-to-Exit Gateway connection adds another encryption layer using AES-GCM-SIV-256.
 
 ```
-┌─────────────────────────────────────────┐
-│           Application Data              │
-├─────────────────────────────────────────┤
-│    Layer Encryption (Entry → Exit)      │
-├─────────────────────────────────────────┤
-│    WireGuard (Client → Entry)           │
-├─────────────────────────────────────────┤
-│              UDP/IP                     │
-└─────────────────────────────────────────┘
++-----------------------------------------+
+|           Application Data              |
++-----------------------------------------+
+|    Layer Encryption (Entry -> Exit)      |
++-----------------------------------------+
+|    WireGuard (Client -> Entry)           |
++-----------------------------------------+
+|              UDP/IP                      |
++-----------------------------------------+
 ```
 
 ## Encryption

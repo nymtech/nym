@@ -14,7 +14,7 @@ In upcoming releases, epochs will trigger automatic role assignment. Nodes will 
 
 ## SURB validity
 
-Currently, SURBs remain valid across epoch boundaries since node keys don't change. When key rotation is implemented, SURBs will expire at epoch boundaries, and applications will need to handle this gracefully.
+SURBs are tied to key rotation cycles. Node keys rotate on an odd/even schedule with a default validity of 24 epochs. A SURB remains usable for `(validity_epochs + 1) * epoch_duration` — roughly 25 hours at the current 1-hour epoch. After that, the routing keys it was built with are no longer accepted by the network. Clients automatically purge stale SURBs and request fresh ones.
 
 ## Querying epoch information
 

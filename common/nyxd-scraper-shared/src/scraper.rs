@@ -1,15 +1,15 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::PruningOptions;
 use crate::block_processor::types::BlockToProcess;
-use crate::block_processor::{BlockProcessor, BlockProcessorConfig};
+use crate::block_processor::{BlockProcessor, BlockProcessorConfig, BlockProcessorPersistence};
 use crate::block_requester::{BlockRequest, BlockRequester};
 use crate::error::ScraperError;
 use crate::modules::{BlockModule, MsgModule, TxModule};
 use crate::rpc_client::RpcClient;
-use crate::scraper::subscriber::ChainSubscriber;
 use crate::storage::NyxdScraperStorage;
+use crate::subscriber::ChainSubscriber;
 use futures::future::join_all;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -21,8 +21,6 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::{error, info};
 use url::Url;
-
-mod subscriber;
 
 #[derive(Default, Clone, Copy)]
 pub struct StartingBlockOpts {
@@ -72,7 +70,7 @@ where
         let (processing_tx, processing_rx) = unbounded_channel();
         let (req_tx, req_rx) = channel(5);
 
-        let rpc_client = RpcClient::new(&scraper.config.rpc_url)?;
+        let rpc_client = scraper.rpc_client.clone();
 
         // create the tasks
         let block_requester = BlockRequester::new(
@@ -90,13 +88,18 @@ where
         );
 
         let mut block_processor = BlockProcessor::new(
-            block_processor_config,
             scraper.cancel_token.clone(),
-            scraper.startup_sync.clone(),
             processing_rx,
             req_tx,
-            scraper.storage.clone(),
             rpc_client,
+        )
+        .with_persistence(
+            BlockProcessorPersistence::new(
+                block_processor_config,
+                scraper.startup_sync.clone(),
+                scraper.storage.clone(),
+            )
+            .await?,
         )
         .await?;
         block_processor.set_block_modules(self.block_modules);
@@ -126,16 +129,19 @@ where
         }
     }
 
+    #[must_use]
     pub fn with_block_module<M: BlockModule + Send + 'static>(mut self, module: M) -> Self {
         self.block_modules.push(Box::new(module));
         self
     }
 
+    #[must_use]
     pub fn with_tx_module<M: TxModule + Send + 'static>(mut self, module: M) -> Self {
         self.tx_modules.push(Box::new(module));
         self
     }
 
+    #[must_use]
     pub fn with_msg_module<M: MsgModule + Send + 'static>(mut self, module: M) -> Self {
         self.msg_modules.push(Box::new(module));
         self
@@ -209,9 +215,12 @@ where
         let (req_tx, _) = channel(5);
 
         let mut block_processor = self
-            .new_block_processor(req_tx.clone(), processing_rx)
-            .await?
-            .with_pruning(PruningOptions::nothing());
+            .new_block_processor_with_persistence(
+                req_tx.clone(),
+                processing_rx,
+                PruningOptions::nothing(),
+            )
+            .await?;
 
         let block = self.rpc_client.get_basic_block_details(height).await?;
 
@@ -234,9 +243,12 @@ where
         let (req_tx, _) = channel(5);
 
         let mut block_processor = self
-            .new_block_processor(req_tx.clone(), processing_rx)
-            .await?
-            .with_pruning(PruningOptions::nothing());
+            .new_block_processor_with_persistence(
+                req_tx.clone(),
+                processing_rx,
+                PruningOptions::nothing(),
+            )
+            .await?;
 
         let mut current_height = self.rpc_client.current_block_height().await? as u32;
         let last_processed = block_processor.last_process_height();
@@ -345,10 +357,24 @@ where
         )
     }
 
-    async fn new_block_processor(
+    fn new_block_processor(
         &self,
         req_tx: Sender<BlockRequest>,
         processing_rx: UnboundedReceiver<BlockToProcess>,
+    ) -> BlockProcessor<S> {
+        BlockProcessor::<S>::new(
+            self.cancel_token.clone(),
+            processing_rx,
+            req_tx,
+            self.rpc_client.clone(),
+        )
+    }
+
+    async fn new_block_processor_with_persistence(
+        &self,
+        req_tx: Sender<BlockRequest>,
+        processing_rx: UnboundedReceiver<BlockToProcess>,
+        pruning_options: impl Into<Option<PruningOptions>>,
     ) -> Result<BlockProcessor<S>, ScraperError> {
         let block_processor_config = BlockProcessorConfig::new(
             self.config.pruning_options,
@@ -357,16 +383,27 @@ where
             self.config.start_block.use_best_effort_start_height,
         );
 
-        BlockProcessor::<S>::new(
-            block_processor_config,
-            self.cancel_token.clone(),
-            self.startup_sync.clone(),
-            processing_rx,
-            req_tx,
-            self.storage.clone(),
-            self.rpc_client.clone(),
-        )
-        .await
+        let persistence = match pruning_options.into() {
+            Some(options) => BlockProcessorPersistence::new(
+                block_processor_config,
+                self.startup_sync.clone(),
+                self.storage.clone(),
+            )
+            .await?
+            .with_pruning(options),
+            None => {
+                BlockProcessorPersistence::new(
+                    block_processor_config,
+                    self.startup_sync.clone(),
+                    self.storage.clone(),
+                )
+                .await?
+            }
+        };
+
+        self.new_block_processor(req_tx, processing_rx)
+            .with_persistence(persistence)
+            .await
     }
 
     async fn new_chain_subscriber(
@@ -388,7 +425,9 @@ where
 
         // create the tasks
         let block_requester = self.new_block_requester(req_rx, processing_tx.clone());
-        let block_processor = self.new_block_processor(req_tx, processing_rx).await?;
+        let block_processor = self
+            .new_block_processor_with_persistence(req_tx, processing_rx, None)
+            .await?;
         let chain_subscriber = self.new_chain_subscriber(processing_tx).await?;
 
         // spawn them

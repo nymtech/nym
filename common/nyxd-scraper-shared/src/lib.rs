@@ -11,6 +11,8 @@ pub mod modules;
 pub(crate) mod rpc_client;
 pub(crate) mod scraper;
 pub mod storage;
+pub(crate) mod subscriber;
+pub mod watcher;
 
 pub use block_processor::pruning::{PruningOptions, PruningStrategy};
 pub use block_processor::types::ParsedTransactionResponse;

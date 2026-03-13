@@ -1,6 +1,9 @@
 # Multi Connection Example
 import { Callout } from 'nextra/components'
 
+<Callout type="error">
+**This module is unmaintained.** See the [Stream module](../../stream) for the actively developed replacement.
+</Callout>
 
 This example starts off several Tcp connections on a loop to a remote endpoint: in this case the `TcpListener` behind the `NymProxyServer` instance on the echo server found in
 [`nym/tools/echo-server/`](https://github.com/nymtech/nym/tree/develop/tools/echo-server). It pipes a few messages to it, logs the replies, and keeps track of the number of replies received per connection.

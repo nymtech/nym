@@ -1,13 +1,26 @@
 # Installation
+
 import { Callout } from 'nextra/components';
 
-The `nym-sdk` crate is **not yet available via [crates.io](https://crates.io)**. As such, in order to import the crate you must specify the Nym monorepo in your `Cargo.toml` file. Since the `HEAD` of `master` is always the most recent release, we recommend developers use that for their imports, unless they have a reason to pull in a specific historic version of the code.
+The `nym-sdk` crate is available on [crates.io](https://crates.io/crates/nym-sdk):
 
 ```toml
-# importing HEAD of master branch
-nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
-# importing HEAD of the third release of 2023, codename 'kinder'
-nym-sdk = { git = "https://github.com/nymtech/nym", branch = "release/2023.3-kinder" }
+[dependencies]
+nym-sdk = "1.20.4"
 ```
 
-Work will occur in the future to break the monorepo down into importable features, in order to reduce the number of dependencies imported by developers.
+You can also import directly from the Git repository if you need unreleased changes:
+
+```toml
+# development branch (latest changes, may be unstable)
+nym-sdk = { git = "https://github.com/nymtech/nym", branch = "develop" }
+
+# latest stable release
+nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
+```
+
+**Minimum Rust version:** 1.70+
+
+<Callout type="warning">
+**Feature gates are not yet implemented.** Importing `nym-sdk` currently pulls in all modules (mixnet, tcp_proxy, client_pool, etc.) and their full dependency trees. Work is planned to gate modules behind Cargo feature flags so you can import only what you need.
+</Callout>

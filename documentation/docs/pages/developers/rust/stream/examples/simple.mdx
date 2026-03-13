@@ -1,0 +1,111 @@
+# Simple Read/Write
+
+import { Callout } from 'nextra/components'
+
+> Source: [`examples/stream_simple_read_write.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_simple_read_write.rs)
+
+This example demonstrates the core stream workflow: one sender opens streams to two receivers, writes data, reads replies — all concurrently over the Mixnet.
+
+## What this example shows
+
+- Opening outbound streams with `client.open_stream()`
+- Accepting inbound streams with `listener.accept()`
+- Bidirectional communication: the opener writes, the acceptor reads and replies
+- Multiple concurrent streams on a single client
+- Clean shutdown via `drop` and `disconnect()`
+
+## Setup: three clients
+
+Each participant needs its own `MixnetClient`. The sender opens streams; the two receivers each set up a `MixnetListener`.
+
+```rust
+let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
+
+let mut receiver_a = mixnet::MixnetClient::connect_new().await.unwrap();
+let addr_a = *receiver_a.nym_address();
+
+let mut receiver_b = mixnet::MixnetClient::connect_new().await.unwrap();
+let addr_b = *receiver_b.nym_address();
+
+// Each receiver creates a listener. This activates stream mode —
+// message-based methods are disabled from this point.
+let mut listener_a = receiver_a.listener().unwrap();
+let mut listener_b = receiver_b.listener().unwrap();
+```
+
+<Callout type="info">
+`listener()` can only be called once per client. A second call returns `Error::ListenerAlreadyTaken`.
+</Callout>
+
+## Opening streams
+
+The sender opens a stream to each receiver's Nym address. The second argument (`None`) uses the default number of reply SURBs.
+
+```rust
+let mut stream_to_a = sender.open_stream(addr_a, None).await.unwrap();
+let mut stream_to_b = sender.open_stream(addr_b, None).await.unwrap();
+```
+
+Under the hood, `open_stream` generates a random `StreamId`, registers it in the routing table, and sends an `Open` message through the Mixnet to the recipient.
+
+## Accepting streams
+
+On the receiver side, `listener.accept()` blocks until an `Open` message arrives from a remote peer. The returned `MixnetStream` is ready for reading and writing.
+
+```rust
+let (inbound_a, inbound_b) = tokio::try_join!(
+    async {
+        tokio::time::timeout(TIMEOUT, listener_a.accept())
+            .await
+            .expect("timed out waiting for A to accept")
+            .ok_or("listener A shut down")
+    },
+    async {
+        tokio::time::timeout(TIMEOUT, listener_b.accept())
+            .await
+            .expect("timed out waiting for B to accept")
+            .ok_or("listener B shut down")
+    },
+)
+.unwrap();
+```
+
+<Callout type="info">
+Inbound streams reply via the sender's `AnonymousSenderTag` (reply SURBs), so the receiver doesn't need to know the sender's Nym address to write back.
+</Callout>
+
+## Reading and writing
+
+`MixnetStream` implements `AsyncRead` and `AsyncWrite`, so you use the standard tokio traits:
+
+```rust
+// Sender writes
+stream_to_a.write_all(b"hello receiver A").await.unwrap();
+stream_to_a.flush().await.unwrap();
+
+// Receiver reads
+let mut buf = vec![0u8; 1024];
+let n = inbound_a.read(&mut buf).await.unwrap();
+println!("Got: {:?}", String::from_utf8_lossy(&buf[..n]));
+
+// Receiver replies
+inbound_a.write_all(b"reply from A").await.unwrap();
+inbound_a.flush().await.unwrap();
+```
+
+## Cleanup
+
+Streams deregister from the router when dropped. No close message is sent over the wire — see the [architecture page](../architecture) for why.
+
+```rust
+drop(stream_to_a);
+drop(inbound_a);
+sender.disconnect().await;
+receiver_a.disconnect().await;
+```
+
+## Running it
+
+```bash
+cargo run --example stream_simple_read_write
+```

@@ -8,8 +8,11 @@ use nym_client_core::client::inbound_messages::InputMessage;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 
-// defined to guarantee common interface regardless of whether you're using the full client
-// or just the sending handler
+/// Trait for sending messages through the Nym mixnet.
+///
+/// Implemented by both [`MixnetClient`](crate::mixnet::MixnetClient) and
+/// [`MixnetClientSender`](crate::mixnet::MixnetClientSender), allowing code
+/// to be generic over the sender type.
 #[async_trait]
 pub trait MixnetMessageSender {
     fn packet_type(&self) -> Option<PacketType> {
@@ -18,6 +21,11 @@ pub trait MixnetMessageSender {
 
     /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
     /// full customization.
+    ///
+    /// # Cancel safety
+    ///
+    /// This method is cancel safe. The message is either fully queued or not
+    /// sent at all.
     async fn send(&self, message: InputMessage) -> Result<()>;
 
     /// Sends data to the supplied Nym address with the default surb behaviour.

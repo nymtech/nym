@@ -7,8 +7,8 @@ Mixnet mode routes traffic through 5 hops — an Entry Gateway, three layers of 
 Traffic passes through five hops: an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway. Each Mix Node adds a random delay before forwarding, mixing your packets with others passing through.
 
 ```
-User ──▶ Entry ──▶ Mix L1 ──▶ Mix L2 ──▶ Mix L3 ──▶ Exit ──▶ Internet
-                     │           │           │
+User --> Entry --> Mix L1 --> Mix L2 --> Mix L3 --> Exit --> Internet
+                    |           |           |
                   delay       delay       delay
 ```
 

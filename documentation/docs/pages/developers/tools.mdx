@@ -1,6 +1,6 @@
 ---
-title: "Nym Developer Tools: CLI, Echo & TcpProxy"
-description: "Overview of Nym developer tools including nym-cli for blockchain interaction, echo server for traffic testing, and standalone TcpProxy binary downloads."
+title: "Nym Developer Tools: CLI, Diagnostics & TcpProxy"
+description: "Overview of Nym developer tools including nym-cli for blockchain interaction, diagnostic tool for troubleshooting, and standalone TcpProxy binary downloads."
 schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-02-01"
@@ -13,6 +13,5 @@ Standalone binaries for development and testing. These don't require an SDK — 
 | Tool | Use case |
 |---|---|
 | [nym-cli](./tools/nym-cli) | Command-line interface for interacting with the Nyx blockchain — querying state, submitting transactions, managing keys. An easier-to-use wrapper around `nyxd`. |
-| [Echo Server](./tools/echo-server) | A simple Mixnet endpoint that echoes back whatever you send it. Useful for testing that your client can send and receive through the Mixnet without setting up your own server. |
 | [Diagnostic Tool](./tools/diagnostic-tool) | Network diagnostic utility for troubleshooting connectivity issues. |
 | [Standalone TcpProxy](./tools/standalone-tcpproxy) | Pre-built binaries of the TcpProxy client and server for proxying TCP traffic through the Mixnet. Note: the TcpProxy module is unmaintained — use the [Stream module](./rust/stream) for new projects. |

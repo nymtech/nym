@@ -1,0 +1,119 @@
+# Tutorial: Tunnel TCP Through the Mixnet
+
+import { Callout } from 'nextra/components'
+
+<Callout type="warning">
+The TcpProxy module is **unmaintained**. For new projects, use the [Stream module](../stream) instead. This tutorial exists for users working with existing TcpProxy-based code.
+</Callout>
+
+Build two programs — a proxy server that forwards TCP traffic to a local service, and a proxy client that tunnels connections through the Mixnet.
+
+<Callout type="info">
+Add `nym-sdk`, `tokio`, and `anyhow` to your `Cargo.toml`. See [Installation](../importing) if needed.
+</Callout>
+
+## The server
+
+The server connects to the Mixnet and forwards incoming traffic to a local TCP service (e.g. a web server on port 3000):
+
+```rust
+// src/bin/proxy_server.rs
+use nym_sdk::tcp_proxy::NymProxyServer;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Forward traffic to localhost:3000 (your upstream service).
+    let server = NymProxyServer::new(
+        "127.0.0.1",  // upstream host
+        "3000",       // upstream port
+        None,         // use default network
+        None,         // auto-generate keys
+    ).await?;
+
+    // Print the Nym address — the client needs this to connect.
+    println!("Proxy server address: {}", server.nym_address());
+
+    // Blocks until shutdown. Traffic from the Mixnet is forwarded to
+    // localhost:3000, and responses are sent back via reply SURBs.
+    server.run_with_shutdown().await?;
+    Ok(())
+}
+```
+
+## The client
+
+The client opens a localhost TCP socket and tunnels all traffic through the Mixnet to the server:
+
+```rust
+// src/bin/proxy_client.rs
+use nym_sdk::tcp_proxy::NymProxyClient;
+use nym_sphinx::addressing::Recipient;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Parse the server's Nym address from the command line.
+    let server_addr: Recipient = std::env::args()
+        .nth(1).expect("Usage: proxy_client <SERVER_NYM_ADDRESS>")
+        .parse()?;
+
+    // Create the proxy client — listens on localhost:1080.
+    let client = NymProxyClient::new(
+        server_addr,
+        "127.0.0.1",  // listen host
+        "1080",       // listen port
+        60,           // close timeout (seconds)
+        None,         // use default network
+        2,            // client pool size
+    ).await?;
+
+    // Spawn the proxy in the background.
+    let proxy = tokio::spawn(async move { client.run().await });
+
+    // Give the proxy a moment to start listening.
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+    // Connect to the local proxy socket — traffic goes through the Mixnet.
+    let mut stream = TcpStream::connect("127.0.0.1:1080").await?;
+    stream.write_all(b"GET / HTTP/1.0\r\nHost: localhost\r\n\r\n").await?;
+
+    let mut response = Vec::new();
+    stream.read_to_end(&mut response).await?;
+    println!("Response:\n{}", String::from_utf8_lossy(&response));
+
+    drop(stream);
+    proxy.abort();
+    Ok(())
+}
+```
+
+## Run it
+
+Start a simple upstream service (e.g. Python's HTTP server):
+
+```sh
+cd /tmp && echo "hello from upstream" > index.html
+python3 -m http.server 3000
+```
+
+Terminal 1 — start the proxy server:
+```sh
+cargo run --bin proxy_server
+# Proxy server address: 8gk4Y...@2xU4d...
+```
+
+Terminal 2 — start the proxy client:
+```sh
+cargo run --bin proxy_client 8gk4Y...@2xU4d...
+# Response:
+# HTTP/1.0 200 OK
+# ...
+# hello from upstream
+```
+
+The HTTP request travelled through the Mixnet — the upstream server only sees a connection from `localhost`, not the client's real IP.
+
+## How it differs from streams
+
+TcpProxy handles **message ordering** internally using session IDs and sequence numbers, which the [Stream module](../stream) does not yet provide. This means TcpProxy can work with protocols that depend on byte ordering (HTTP, TLS). The trade-off is higher overhead: each side runs a localhost TCP socket, and ordering adds latency. For new code, the stream API is simpler and more efficient.

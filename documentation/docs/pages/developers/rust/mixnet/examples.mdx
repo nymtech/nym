@@ -1,0 +1,15 @@
+# Examples
+
+Runnable examples in [`sdk/rust/nym-sdk/examples/`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples). Each file is self-contained with step-by-step comments.
+
+```bash
+cargo run --example <name>
+```
+
+| Example | Source | What it demonstrates |
+|---|---|---|
+| Simple | [`simple.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/simple.rs) | Send a message to yourself and print it |
+| SURB Reply | [`surb_reply.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/surb_reply.rs) | Anonymous replies using `AnonymousSenderTag` and `send_reply()` |
+| Builder | [`builder.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/builder.rs) | Using `MixnetClientBuilder` with ephemeral keys |
+| Builder with Storage | [`builder_with_storage.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/builder_with_storage.rs) | Persisting keys to disk with `StoragePaths` |
+| Parallel Send/Receive | [`parallel_sending_and_receiving.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/parallel_sending_and_receiving.rs) | Using `split_sender()` for concurrent tasks |

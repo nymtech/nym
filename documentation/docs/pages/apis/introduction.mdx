@@ -1,13 +1,50 @@
----
-title: "Nym API Reference: Network Infrastructure"
-description: "Interactive API documentation for Nym network infrastructure. Query node status, network topology, blockchain state & mixnet performance programmatically."
-schemaType: "TechArticle"
-section: "APIs"
-lastUpdated: "2026-02-01"
----
+import { Callout } from 'nextra/components'
 
-# Introduction
+# APIs
 
-This site contains interactive APIs generated from the OpenAPI specs of various API endpoints offered by bits of Nym infrastructure run both by Nym and community operators for both Mainnet and the Sandbox testnet.
+The Nym network exposes several HTTP APIs for querying network state, node performance, blockchain data, and credential information. Each API serves a different purpose.
 
-You can find links to the generated specs for each API on their respective pages as well as their different uses for operators and developers.
+## Which API should I use?
+
+| I want to... | API |
+|---|---|
+| Query node performance, roles, and mixnet statistics | [Node Status API](/apis/ns-api) |
+| Query circulating NYM supply or zk-nym credential data | [NymAPI](/apis/nym-api) |
+| Query blockchain state, account balances, or transactions | [Validator REST API](/apis/cosmos-sdk-nyx) |
+| Query legacy explorer data | [Explorer API](/apis/explorer-api) *(deprecated)* |
+
+## Node Status API
+
+The primary API for querying node information. It serves data about individual `nym-node` instances — their roles, statistics, Network Requester services, and overall mixnet summaries. If you're building an explorer, analytics dashboard, or monitoring tool, this is the API to use.
+
+<Callout type="info">
+If you're building a service that makes heavy use of the Node Status API, consider [running your own instance](/operators/performance-and-testing/ns-api-deployment) to distribute load across the network.
+</Callout>
+
+- [OpenAPI spec](https://mainnet-node-status-api.nymtech.cc/api-docs/openapi.json) · [Swagger](https://mainnet-node-status-api.nymtech.cc/swagger/)
+
+## NymAPI
+
+A sidecar binary operated by Nyx Validators. It caches smart contract data and exposes endpoints for circulating NYM supply, zk-nym credential data, and ticketbook information. Use this when you need token economics or credential data.
+
+- [OpenAPI spec](https://validator.nymtech.net/api-docs/openapi.json) · [Swagger](https://validator.nymtech.net/api/swagger/index.html)
+
+Other NymAPI instances are listed at [cosmos.directory/nyx](https://cosmos.directory/nyx).
+
+## Validator REST API
+
+The standard Cosmos SDK REST API exposed by Nyx Validators. Use this for direct chain queries — account balances, transaction history, governance proposals, and staking information.
+
+- [OpenAPI spec](https://api.nymtech.net/swagger/swagger.yaml) · [Swagger](https://api.nymtech.net/swagger/)
+
+Other validator endpoints are listed at [cosmos.directory/nyx](https://cosmos.directory/nyx).
+
+## Explorer API
+
+<Callout type="warning">
+The Explorer API is deprecated. Use the [Node Status API](/apis/ns-api) instead.
+</Callout>
+
+The legacy backend for the [Mixnet Explorer](https://nym.com/explorer). This API is being replaced by the Node Status API, which provides the same data and more.
+
+- [OpenAPI spec](https://explorer.nymtech.net/api/v1/openapi.json) · [Swagger](https://explorer.nymtech.net/api/swagger/index.html)

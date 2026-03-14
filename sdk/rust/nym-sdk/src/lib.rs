@@ -31,6 +31,39 @@
 //! # }
 //! ```
 //!
+//! ## Stream I/O
+//!
+//! For persistent bidirectional byte channels (like a TCP socket), use
+//! [`MixnetClient::open_stream`](mixnet::MixnetClient::open_stream) and
+//! [`MixnetClient::listener`](mixnet::MixnetClient::listener).
+//! Streams implement [`AsyncRead`](tokio::io::AsyncRead) +
+//! [`AsyncWrite`](tokio::io::AsyncWrite) — see [`mixnet::stream`] for
+//! the full API:
+//!
+//! ```no_run
+//! use nym_sdk::mixnet;
+//! use tokio::io::{AsyncReadExt, AsyncWriteExt};
+//!
+//! # #[tokio::main]
+//! # async fn main() {
+//! let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+//! let peer: mixnet::Recipient = "peer_nym_address...".parse().unwrap();
+//!
+//! // Open a stream -- returns AsyncRead + AsyncWrite
+//! let mut stream = client.open_stream(peer, None).await.unwrap();
+//! stream.write_all(b"hello via stream").await.unwrap();
+//!
+//! let mut buf = vec![0u8; 1024];
+//! let n = stream.read(&mut buf).await.unwrap();
+//!
+//! client.disconnect().await;
+//! # }
+//! ```
+//!
+//! See [`mixnet::stream`] for the full stream API, and the
+//! [stream tutorial](https://nymtech.net/docs/developers/rust/stream/tutorial)
+//! for a step-by-step walkthrough.
+//!
 //! # Modules
 //!
 //! | Module | Purpose |

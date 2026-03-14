@@ -31,7 +31,7 @@ enum Destination {
         recipient: Box<Recipient>,
         reply_surbs: u32,
     },
-    /// We reply via the opener's anonymous sender tag.
+    /// We reply via the dialer's anonymous sender tag.
     Anonymous { sender_tag: AnonymousSenderTag },
 }
 

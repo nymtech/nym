@@ -3,31 +3,113 @@ title: "Nym Rust SDK: Privacy Apps for the Mixnet"
 description: "Rust SDK reference for building privacy applications on the Nym mixnet. Covers the Mixnet client, Stream multiplexing, Client Pool, and code examples."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-03-13"
+lastUpdated: "2026-03-14"
 ---
 
 # Rust SDK
 
 import { Callout } from 'nextra/components'
 
-The Rust SDK provides high-level abstractions for building privacy-preserving applications on the Nym Mixnet. All modules share a common `MixnetClient` that handles gateway connections, Sphinx packet encryption, routing, and cover traffic under the hood.
+The Rust SDK provides high-level abstractions for building privacy-preserving applications on the Nym Mixnet. All modules share a common `MixnetClient` that handles gateway connections, Sphinx packet encryption, routing, and cover traffic.
 
 <Callout type="info">
-Full API reference, architecture documentation, and type details are available on [**docs.rs/nym-sdk**](https://docs.rs/nym-sdk/latest/nym_sdk/).
+Full API reference and architecture docs are on [**docs.rs/nym-sdk**](https://docs.rs/nym-sdk/latest/nym_sdk/).
+</Callout>
+
+<Callout type="warning">
+**The Mixnet is not like regular networking.** There are no persistent connections, no guaranteed message ordering, and no TCP. The raw [message API](./rust/mixnet) exposes this directly. The [Stream module](./rust/stream) bridges the gap with familiar `AsyncRead + AsyncWrite` byte streams — **if you're coming from socket-based networking, start with streams.**
 </Callout>
 
 ## Modules
 
-- **[Mixnet](./rust/mixnet)** — Core client for sending and receiving individual message payloads through the Mixnet. This is the Mixnet's native communication model — no connections, no ordering, just individually routed payloads.
+- **[Mixnet](./rust/mixnet)** — Send and receive individual message payloads. The Mixnet's native model: no connections, no ordering, just individually routed payloads.
+- **[Stream](./rust/stream)** — Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet. Start here if you're used to TCP sockets.
+- **[TcpProxy](./rust/tcpproxy)** *(deprecated)* — TCP socket proxying through the Mixnet. Use Stream instead for new projects.
+- **[Client Pool](./rust/client-pool)** — Pre-warmed pool of `MixnetClient` instances for high-throughput applications.
+- **[FFI](./rust/ffi)** — Bindings for Go and C/C++.
 
-- **[Stream](./rust/stream)** — Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet. This is the abstraction layer that bridges the gap between the Mixnet's message-based model and familiar socket-based networking. **If you're used to TCP sockets, start here.**
+## Quick tour
 
-- **[TcpProxy](./rust/tcpproxy)** *(deprecated)* — TCP socket proxying through the Mixnet with session management and message ordering. For new projects, use the Stream module instead.
+### Send a message
 
-- **[Client Pool](./rust/client-pool)** — A connection pool that maintains ready-to-use `MixnetClient` instances for high-throughput applications.
+```rust
+use nym_sdk::mixnet::{self, MixnetMessageSender};
 
-- **[FFI](./rust/ffi)** — Foreign function interface bindings for using the SDK from Go and C/C++.
+#[tokio::main]
+async fn main() {
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    let addr = *client.nym_address();
+
+    client.send_plain_message(addr, "hello mixnet!").await.unwrap();
+
+    if let Some(msgs) = client.wait_for_messages().await {
+        for msg in msgs.iter().filter(|m| !m.message.is_empty()) {
+            println!("Got: {}", String::from_utf8_lossy(&msg.message));
+        }
+    }
+
+    client.disconnect().await;
+}
+```
+
+### Reply anonymously with SURBs
+
+Every received message carries a `sender_tag` that lets you reply **without knowing the sender's address**:
+
+```rust
+let tag = received_msg.sender_tag.expect("includes sender tag");
+client.send_reply(tag, "anonymous reply!").await.unwrap();
+```
+
+### Open a bidirectional stream
+
+```rust
+use nym_sdk::mixnet;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+#[tokio::main]
+async fn main() {
+    let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
+    let mut receiver = mixnet::MixnetClient::connect_new().await.unwrap();
+    let recv_addr = *receiver.nym_address();
+
+    let mut listener = receiver.listener().unwrap();
+    let mut out = sender.open_stream(recv_addr, None).await.unwrap();
+    let mut inc = listener.accept().await.unwrap();
+
+    out.write_all(b"hello stream").await.unwrap();
+    out.flush().await.unwrap();
+
+    let mut buf = vec![0u8; 1024];
+    let n = inc.read(&mut buf).await.unwrap();
+    println!("{}", String::from_utf8_lossy(&buf[..n]));
+
+    drop(out);
+    drop(inc);
+    sender.disconnect().await;
+    receiver.disconnect().await;
+}
+```
+
+### Persist your identity
+
+By default, `connect_new()` creates ephemeral keys discarded on disconnect. To keep the same Nym address across restarts:
+
+```rust
+use nym_sdk::mixnet::{MixnetClientBuilder, StoragePaths};
+use std::path::PathBuf;
+
+let storage = StoragePaths::new_from_dir(&PathBuf::from("/tmp/my-nym-client")).unwrap();
+let client = MixnetClientBuilder::new_with_default_storage(storage)
+    .await.unwrap()
+    .build().unwrap()
+    .connect_to_mixnet().await.unwrap();
+println!("Persistent address: {}", client.nym_address());
+```
 
 ## Getting started
 
-New to the SDK? Start with the **[Tour](./rust/tour)** for a quick overview of what you can do, then see [Installation](./rust/importing) for how to add `nym-sdk` to your project.
+- **[Installation](./rust/importing)** — Add `nym-sdk` to your project
+- **[Mixnet Tutorial](./rust/mixnet/tutorial)** — Send, receive, and reply with SURBs
+- **[Stream Tutorial](./rust/stream/tutorial)** — Build a private echo server
+- **[Client Pool Tutorial](./rust/client-pool/tutorial)** — Handle bursty traffic

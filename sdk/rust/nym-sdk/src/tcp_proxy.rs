@@ -1,8 +1,15 @@
 //! TCP proxy functionality for routing socket connections through the Nym mixnet.
 //!
-//! **Deprecated:** For new projects, use the [`stream`](crate::mixnet::stream) module
-//! instead, which provides `AsyncRead + AsyncWrite` streams directly over the Mixnet
-//! without the TCP socket overhead.
+//! # Deprecated
+//!
+//! <div class="warning">
+//!
+//! This module is deprecated. For new projects, use the
+//! [`stream`](crate::mixnet::stream) module instead, which provides
+//! `AsyncRead + AsyncWrite` streams directly over the mixnet without the
+//! TCP socket overhead.
+//!
+//! </div>
 //!
 //! This module provides [`NymProxyClient`] and [`NymProxyServer`] for creating
 //! TCP proxy tunnels that route traffic through the Nym mixnet for enhanced privacy.

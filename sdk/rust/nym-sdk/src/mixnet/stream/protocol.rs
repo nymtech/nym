@@ -52,11 +52,10 @@ impl fmt::Display for StreamId {
 
 /// Message types within the stream protocol.
 ///
-/// Note: there is no Close variant. Without message sequencing, a close
-/// message races ahead of in-flight data and arrives before the data is
-/// reconstructed. Streams clean up locally via Drop. If ordered close/EOF
-/// is needed in future, add sequencing + reorder buffering (see the
-/// tcp_proxy's `MessageBuffer` for a working example).
+/// There is no `Close` variant. Because the mixnet does not currently
+/// guarantee message ordering, a close could arrive before the final
+/// data. Streams clean up locally via `Drop`. Message ordering (and
+/// with it, proper close/EOF signalling) is planned for a future release.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum StreamMessageType {

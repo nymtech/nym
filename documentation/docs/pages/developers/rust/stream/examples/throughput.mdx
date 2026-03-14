@@ -50,7 +50,7 @@ assert_eq!(buf, payload);
 ```
 
 <Callout type="warning">
-**No message ordering.** The Mixnet does not guarantee packet ordering. For this example, `read_exact` will block until all bytes arrive, but they may arrive out-of-order internally. For small payloads this works because each write fits in a single Sphinx packet. For large payloads, you may need a reordering layer (like the one in `tcp_proxy`) if byte-level ordering matters.
+**No message ordering yet.** The mixnet does not currently guarantee packet ordering. For this example, `read_exact` will block until all bytes arrive, but they may arrive out-of-order internally. For small payloads this works because each write fits in a single Sphinx packet. Message ordering is planned for a future release.
 </Callout>
 
 ## Running it

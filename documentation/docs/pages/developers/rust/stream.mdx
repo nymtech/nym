@@ -17,7 +17,7 @@ The two sides of a stream connection follow a client/server pattern:
 1. **Dialer** calls `client.open_stream(recipient, surbs)` — this generates a random `StreamId`, registers the stream locally, and sends an `Open` message through the Mixnet.
 2. **Listener** calls `listener.accept()` — this blocks until an `Open` arrives, registers the new stream, and returns a `MixnetStream` ready for reading and writing.
 3. Both sides read and write using standard `AsyncRead`/`AsyncWrite` — bytes are wrapped with a 10-byte stream header, routed through the Mixnet, and demultiplexed on arrival.
-4. **Cleanup** happens on `drop` — the stream deregisters from the local router. No close message is sent over the wire (the Mixnet doesn't guarantee message ordering, so a close could arrive before the final data).
+4. **Cleanup** happens on `drop` — the stream deregisters from the local router. No close message is sent over the wire (the mixnet does not currently guarantee message ordering, so a close could arrive before the final data). Message ordering is planned for a future release.
 
 ```mermaid
 ---

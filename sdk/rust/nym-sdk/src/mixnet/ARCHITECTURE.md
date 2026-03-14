@@ -48,6 +48,10 @@ MixnetClientBuilder::new_with_default_storage(path)  ← on-disk keys
 The shorthand `MixnetClient::connect_new().await` does all of the above
 with ephemeral storage and default settings.
 
+Both modes (messages and streams) use the same builder. The mode is
+determined by which methods you call after connection — there is no
+builder-time flag.
+
 ### Connected State
 
 Once connected, a `MixnetClient` owns:
@@ -81,6 +85,33 @@ Stream mode is activated on the first call to `open_stream()` or
 `Error::StreamModeActive`. This is a one-way transition — there is no
 way to switch back to message mode without disconnecting.
 
+### Stream Quick Reference
+
+The stream API provides `AsyncRead + AsyncWrite` channels, making it
+natural for socket-oriented code (HTTP clients, database drivers,
+custom protocols):
+
+```text
+Dialer (outbound):               Listener (inbound):
+client.open_stream(peer, None)   let listener = client.listener()
+     |                                |
+     v                                v
+MixnetStream                     listener.accept()
+(AsyncRead + AsyncWrite)              |
+                                      v
+                                 MixnetStream
+                                 (AsyncRead + AsyncWrite)
+```
+
+Key points:
+- **One-way transition** — once stream mode is active, message-mode
+  methods return `Error::StreamModeActive`
+- **Multiplexed** — a single client can hold many concurrent streams
+  to different peers
+- **Idle cleanup** — streams inactive for longer than
+  `stream_idle_timeout` (default: 30 min) are automatically removed
+- See the [`stream`] submodule for the full architecture
+
 ### Disconnecting
 
 `client.disconnect().await` shuts down all background tasks (gateway
@@ -93,6 +124,9 @@ connection, cover traffic, topology refresh) and drops the client.
 - **`MixnetClientBuilder`** — configures and connects a client
 - **`DisconnectedMixnetClient`** — intermediate state after `build()`, before `connect_to_mixnet()`
 - **`MixnetMessageSender`** — trait shared by `MixnetClient` and `MixnetClientSender`
+- **[`MixnetStream`](stream::MixnetStream)** — a single `AsyncRead + AsyncWrite` byte channel
+- **[`MixnetListener`](stream::MixnetListener)** — accepts inbound streams from remote peers
+- **[`StreamId`](stream::StreamId)** — 8-byte random identifier for stream multiplexing
 - **`Recipient`** — a Nym network address (`identity.encryption@gateway`)
 - **`ReconstructedMessage`** — an inbound message after Sphinx decryption
 

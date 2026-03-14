@@ -34,7 +34,9 @@
 //!
 //! # Stream example
 //!
-//! Persistent bidirectional byte channels using `AsyncRead + AsyncWrite`:
+//! Persistent bidirectional byte channels using
+//! [`AsyncRead`](tokio::io::AsyncRead) + [`AsyncWrite`](tokio::io::AsyncWrite)
+//! — see the [`stream`] submodule for the full API:
 //!
 //! ```no_run
 //! use nym_sdk::mixnet;

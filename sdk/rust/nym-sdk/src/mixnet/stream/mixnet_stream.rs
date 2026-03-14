@@ -39,10 +39,11 @@ enum Destination {
 /// # Drop behavior
 ///
 /// Dropping a `MixnetStream` deregisters it from the client's internal
-/// routing table. No close message is sent over the wire — the Mixnet does
-/// not guarantee message ordering, so a close could arrive before the final
-/// data. The remote side will see EOF (read returns 0) once the stream's
-/// idle timeout expires.
+/// routing table. No close message is sent over the wire — the mixnet
+/// does not currently guarantee message ordering, so a close could
+/// arrive before the final data. The remote side will see EOF (read
+/// returns 0) once the stream's idle timeout expires. Message ordering
+/// is planned for a future release.
 pub struct MixnetStream {
     id: StreamId,
     destination: Destination,

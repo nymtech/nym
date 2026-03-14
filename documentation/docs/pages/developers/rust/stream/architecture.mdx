@@ -70,12 +70,12 @@ There is no switching back without disconnecting and creating a new client.
 ## Known limitations
 
 <Callout type="warning">
-**No message ordering.** The Mixnet does not guarantee message ordering. Messages on a stream can arrive out of order. This means:
+**No message ordering yet.** The mixnet does not currently guarantee message ordering. Messages on a stream can arrive out of order. This means:
 - Large writes that span multiple Sphinx packets may arrive shuffled
-- There is no `Close` message — a close could race ahead of in-flight data
+- There is no `Close` message -- a close could arrive before the final data
 - Protocols that depend on byte ordering (HTTP, TLS, protobuf) may not work correctly over streams yet
 
-Sequencing (similar to the `MessageBuffer` in the TcpProxy module) is planned for a future release.
+Message ordering is planned for a future release.
 </Callout>
 
 <Callout type="warning">

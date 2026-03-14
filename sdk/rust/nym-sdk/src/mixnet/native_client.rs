@@ -32,6 +32,61 @@ use tokio_util::sync::CancellationToken;
 
 /// Client connected to the Nym mixnet.
 ///
+/// `MixnetClient` operates in one of two mutually exclusive modes:
+///
+/// - **Message mode** (default) — send/receive discrete payloads via
+///   [`send_plain_message`](MixnetMessageSender::send_plain_message) and
+///   [`wait_for_messages`](Self::wait_for_messages).
+/// - **[Stream mode](super::stream)** — persistent
+///   [`AsyncRead`](tokio::io::AsyncRead) + [`AsyncWrite`](tokio::io::AsyncWrite)
+///   byte channels via [`open_stream`](Self::open_stream) and
+///   [`listener`](Self::listener). Activated on first stream call;
+///   message-mode methods return
+///   [`Error::StreamModeActive`](crate::Error::StreamModeActive) thereafter.
+///
+/// # Quick start — messages
+///
+/// ```no_run
+/// use nym_sdk::mixnet::{self, MixnetMessageSender};
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+/// let addr = *client.nym_address();
+///
+/// client.send_plain_message(addr, "hello").await.unwrap();
+///
+/// if let Some(msgs) = client.wait_for_messages().await {
+///     for m in msgs {
+///         println!("{}", String::from_utf8_lossy(&m.message));
+///     }
+/// }
+/// client.disconnect().await;
+/// # }
+/// ```
+///
+/// # Quick start — streams
+///
+/// ```no_run
+/// use nym_sdk::mixnet;
+/// use tokio::io::{AsyncReadExt, AsyncWriteExt};
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+/// let peer: mixnet::Recipient = "peer_address...".parse().unwrap();
+///
+/// let mut stream = client.open_stream(peer, None).await.unwrap();
+/// stream.write_all(b"hello stream").await.unwrap();
+///
+/// let mut buf = vec![0u8; 1024];
+/// let n = stream.read(&mut buf).await.unwrap();
+/// println!("read {} bytes", n);
+///
+/// client.disconnect().await;
+/// # }
+/// ```
+///
 /// # Shutdown
 ///
 /// **Always call [`disconnect`](Self::disconnect) before dropping.** The client
@@ -329,6 +384,26 @@ impl MixnetClient {
     /// `reply_surbs` controls how many reply SURBs are included with each
     /// outbound message so the peer can reply. Defaults to 10 if `None`.
     ///
+    /// This is a one-way transition: once stream mode is active,
+    /// message-mode methods like [`send_plain_message`](MixnetMessageSender::send_plain_message)
+    /// return [`Error::StreamModeActive`](crate::Error::StreamModeActive).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use nym_sdk::mixnet;
+    /// use tokio::io::AsyncWriteExt;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    /// let peer: mixnet::Recipient = "peer_address...".parse().unwrap();
+    ///
+    /// let mut stream = client.open_stream(peer, None).await.unwrap();
+    /// stream.write_all(b"hello").await.unwrap();
+    /// # }
+    /// ```
+    ///
     /// # Cancel safety
     ///
     /// This method is **not** cancel safe. Cancelling after the `Open`
@@ -349,7 +424,28 @@ impl MixnetClient {
 
     /// Create a listener that accepts inbound streams from remote peers.
     ///
-    /// Can only be called once.
+    /// Can only be called once per client. Returns
+    /// [`Error::ListenerAlreadyTaken`](crate::Error::ListenerAlreadyTaken) on subsequent calls.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use nym_sdk::mixnet;
+    /// use tokio::io::AsyncReadExt;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    /// let mut listener = client.listener().unwrap();
+    ///
+    /// // Blocks until a remote peer opens a stream
+    /// if let Some(mut stream) = listener.accept().await {
+    ///     let mut buf = vec![0u8; 1024];
+    ///     let n = stream.read(&mut buf).await.unwrap();
+    ///     println!("received: {}", String::from_utf8_lossy(&buf[..n]));
+    /// }
+    /// # }
+    /// ```
     pub fn listener(&mut self) -> Result<MixnetListener> {
         super::stream::listener(self)
     }

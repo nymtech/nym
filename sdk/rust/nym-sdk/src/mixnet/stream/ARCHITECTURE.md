@@ -62,10 +62,10 @@ Every mixnet message body carrying stream data has a fixed 10-byte header:
 The header is represented by `MixStreamHeader` and decoded messages are
 returned as `MixStreamFrame` (header + borrowed payload slice).
 
-No `Close` variant exists. Without message sequencing, a close message can
-race ahead of in-flight data. Streams clean up locally via `Drop`. See the
-doc comment on `StreamMessageType` for more detail - if we want proper EOF
-/ stream closing, we need to implement message ordering.
+There is no `Close` variant. Because the mixnet does not guarantee
+message ordering, a close could arrive before the final data. Streams
+clean up locally via `Drop`. Message ordering (and with it, proper
+close/EOF signalling) is planned for a future release.
 
 ### Initialization (`ensure_init`)
 
@@ -260,10 +260,11 @@ The struct is `Clone` (inner `Arc`). Callers never touch the lock directly.
 
 ## Known Limitations
 
-- **No message ordering** — the Mixnet does not guarantee message ordering.
-  Large writes spanning multiple Sphinx packets may arrive out of order.
-  There is no `Close` message type (a close could race ahead of in-flight
-  data). Sequencing is planned for a future release.
+- **No message ordering** — the mixnet does not currently guarantee
+  message ordering. Large writes spanning multiple Sphinx packets may
+  arrive out of order, and there is no `Close` message type (a close
+  could arrive before the final data). Message ordering is planned for
+  a future release.
 
 - **No protocol discriminator** — there is currently no way to distinguish
   a stream message from a regular Mixnet message. Sending to a non-stream

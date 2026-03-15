@@ -92,12 +92,15 @@ html.dark .nextra-nav-container {
   border-bottom: 1px solid var(--border-dark) !important;
 }
 
-html.dark .nextra-nav-container nav a {
+html.dark .nextra-nav-container nav a,
+html.dark .nextra-nav-container nav button,
+html.dark .nextra-nav-container nav ul a {
   font-family: var(--font-mono);
   font-size: 0.85rem;
 }
 
-html.dark .nextra-nav-container nav a:hover {
+html.dark .nextra-nav-container nav a:hover,
+html.dark .nextra-nav-container nav ul a:hover {
   color: var(--colorPrimary) !important;
 }
 
@@ -305,4 +308,10 @@ input:focus-visible {
 
 .MuiPaper-root.MuiAccordion-root {
   border-radius: 0;
+}
+
+/* ── Landing page cards ── */
+
+.landing-card:hover {
+  background-color: rgba(255, 255, 255, 0.03) !important;
 }

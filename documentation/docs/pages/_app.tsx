@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import type { AppProps } from 'next/app';
 import './styles.css';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -20,6 +20,17 @@ const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {
       }),
     [],
   );
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const img = e.target as HTMLElement;
+      if (img.tagName === 'IMG' && img.closest('.nextra-content')) {
+        img.classList.toggle('img-expanded');
+      }
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
+
   const AnyComponent = Component as any;
   return (
     <ThemeProvider theme={muiTheme}>

@@ -3,7 +3,7 @@ import { Callout } from 'nextra/components'
 # Message Queue
 
 <Callout type="info">
-    Although good to understand how the Nym Client works under the hood, this information is only of practical use if you're using the `Mixnet` module of the RustSDK and interacting with the SDK Mixnet Client at a low level. This is all mostly abstracted away with the `MixSocket`, `MixStream`, and `IpMixStream` abstractions.
+    Although good to understand how the Nym Client works under the hood, this information is only of practical use if you're using the [`Mixnet`](../rust/mixnet) module of the Rust SDK and interacting with the client at a low level. Most of this is abstracted away by the [`Stream`](../rust/stream) module (`AsyncRead + AsyncWrite` channels) and the [`TcpProxy`](../rust/tcpproxy) module (TCP tunnelling with message ordering).
 </Callout>
 
 ## Sphinx Packet Streams

@@ -2,7 +2,7 @@
 
 import { Callout } from 'nextra/components'
 
-Build a program that connects to the Nym Mixnet, sends a message to itself, receives it, and replies anonymously using SURBs.
+Build a program that connects to the Nym Mixnet, sends a message, receives it, replies anonymously using SURBs, and persists its identity to disk.
 
 <Callout type="info">
 This tutorial assumes you've already added `nym-sdk` and `tokio` to your project. See [Installation](../importing) if not.
@@ -15,11 +15,15 @@ use nym_sdk::mixnet::{self, MixnetMessageSender};
 
 #[tokio::main]
 async fn main() {
+    // connect_new() creates an ephemeral client — keys are generated in
+    // memory and discarded on disconnect.
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     let our_address = client.nym_address();
     println!("Connected: {our_address}");
 
     // The message is Sphinx-encrypted and mixed across 5 nodes.
+    // send_plain_message only blocks until the message is queued —
+    // encryption and mixing happen in background tasks.
     client
         .send_plain_message(*our_address, "hello from the mixnet!")
         .await
@@ -28,11 +32,10 @@ async fn main() {
     println!("Sent — waiting for arrival...");
 ```
 
-`send_plain_message` only blocks until the message is queued — encryption and mixing happen in background tasks. The round trip takes a few seconds.
-
 ## Receive
 
 ```rust
+    // wait_for_messages() returns the next batch of incoming messages.
     // Filter empty messages — these are SURB replenishment requests.
     let message = loop {
         if let Some(msgs) = client.wait_for_messages().await {
@@ -47,13 +50,14 @@ async fn main() {
 
 ## Reply anonymously
 
-Every message includes a `sender_tag` — an opaque token that lets you reply **without knowing the sender's address**:
+Every message includes a `sender_tag` — an opaque `AnonymousSenderTag` that lets you reply **without knowing the sender's address**. The SDK includes SURBs (Single Use Reply Blocks) with every message by default:
 
 ```rust
     let sender_tag = message.sender_tag.expect("should have sender tag");
+
+    // send_reply uses the SURB — the sender's address is never revealed.
     client.send_reply(sender_tag, "hello back, anonymously!").await.unwrap();
 
-    // Receive the reply
     let reply = loop {
         if let Some(msgs) = client.wait_for_messages().await {
             if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
@@ -79,4 +83,81 @@ Connected: 8gk4Y...@2xU4d...
 Sent — waiting for arrival...
 Received: hello from the mixnet!
 Reply: hello back, anonymously!
+```
+
+## Next: persist your identity
+
+The ephemeral client above generates a new address on every run. To keep the same address across restarts, use `MixnetClientBuilder` with on-disk storage:
+
+```rust
+use nym_sdk::mixnet::{self, MixnetMessageSender, StoragePaths};
+
+#[tokio::main]
+async fn main() {
+    // Keys are generated on first run, then loaded from disk on subsequent runs.
+    let paths = StoragePaths::new_from_dir("./my-client-data").unwrap();
+
+    let mut client = mixnet::MixnetClientBuilder::new_with_default_storage(paths)
+        .await
+        .unwrap()
+        .build()
+        .unwrap()
+        .connect_to_mixnet()
+        .await
+        .unwrap();
+
+    println!("Address: {}", client.nym_address());
+
+    // Same API as before — send, receive, reply.
+    client
+        .send_plain_message(*client.nym_address(), "persistent identity!")
+        .await
+        .unwrap();
+
+    if let Some(msgs) = client.wait_for_messages().await {
+        for m in msgs.into_iter().filter(|m| !m.message.is_empty()) {
+            println!("Received: {}", String::from_utf8_lossy(&m.message));
+        }
+    }
+
+    // Always disconnect for clean shutdown — background tasks need to be
+    // stopped and state files flushed.
+    client.disconnect().await;
+}
+```
+
+Run it twice — the address stays the same.
+
+## Next: send and receive from different tasks
+
+Use `split_sender()` to get a clone-able send handle for use in separate tasks:
+
+```rust
+use futures::StreamExt;
+use nym_sdk::mixnet::{self, MixnetMessageSender};
+
+#[tokio::main]
+async fn main() {
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    let addr = *client.nym_address();
+
+    // split_sender() returns a clone-able MixnetClientSender.
+    let sender = client.split_sender();
+
+    // Spawn a receiver — the original client implements futures::Stream.
+    let rx = tokio::spawn(async move {
+        if let Some(msg) = client.next().await {
+            println!("Received: {}", String::from_utf8_lossy(&msg.message));
+        }
+        client.disconnect().await;
+    });
+
+    // Spawn a sender on a different task.
+    let tx = tokio::spawn(async move {
+        sender.send_plain_message(addr, "hello from another task!").await.unwrap();
+    });
+
+    tx.await.unwrap();
+    rx.await.unwrap();
+}
 ```

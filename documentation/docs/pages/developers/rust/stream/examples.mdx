@@ -1,16 +1,14 @@
 # Examples
 
-Annotated walkthroughs of the stream module examples from the SDK repository.
-
-Each example is a standalone binary in [`sdk/rust/nym-sdk/examples/`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples). Run them with:
+Runnable examples in [`sdk/rust/nym-sdk/examples/`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples). Each file is self-contained with step-by-step comments.
 
 ```bash
-cargo run --example <example_name>
+cargo run --example <name>
 ```
 
-| Example | What it demonstrates |
-|---|---|
-| [Simple Read/Write](./examples/simple) | Opening streams to multiple peers, bidirectional communication, concurrent reads |
-| [Idle Timeout](./examples/idle-timeout) | Configuring stream cleanup, observing EOF after timeout |
-| [Mode Guard](./examples/mode-guard) | How stream mode blocks the message-based API |
-| [Throughput](./examples/throughput) | Sending 1 MB over a single stream, verifying integrity |
+| Example | Source | What it demonstrates |
+|---|---|---|
+| Simple Read/Write | [`stream_simple_read_write.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_simple_read_write.rs) | Multiple concurrent streams, bidirectional communication |
+| Idle Timeout | [`stream_idle_timeout.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_idle_timeout.rs) | Configuring `with_stream_idle_timeout`, observing EOF after cleanup |
+| Mode Guard | [`stream_mode_guard.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_mode_guard.rs) | Mutual exclusion between stream and message modes |
+| Throughput | [`stream_throughput.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_throughput.rs) | Sending 1 MB over a single stream, verifying data integrity |

@@ -345,3 +345,143 @@ input:focus-visible {
 .landing-card:hover {
   background-color: rgba(255, 255, 255, 0.03) !important;
 }
+
+/* ── Invert diagrams in dark mode ── */
+
+html.dark .nextra-content img:not([src*="landing"]) {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(1.1);
+  mix-blend-mode: lighten;
+  cursor: zoom-in;
+}
+
+/* Expanded image overlay */
+.nextra-content img.img-expanded {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  cursor: zoom-out;
+  padding: 2rem;
+  mix-blend-mode: normal;
+  filter: none;
+}
+
+html.dark .nextra-content img.img-expanded {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(1.1);
+  mix-blend-mode: normal;
+}
+
+/* ── Light mode ── */
+
+html:not(.dark) {
+  --colorPrimary-light: #1a7a32;
+  --bg-light: #F5F5F5;
+  --border-light: #E0E0E0;
+  --textMuted-light: #6B7280;
+}
+
+html:not(.dark) body {
+  background-color: var(--bg-light);
+}
+
+html:not(.dark) .nextra-nav-container,
+html:not(.dark) .nextra-sidebar-container,
+html:not(.dark) .nextra-content,
+html:not(.dark) .nx-bg-white {
+  background-color: var(--bg-light) !important;
+}
+
+/* Light mode links: darker green */
+html:not(.dark) .nx-text-primary-600 {
+  color: var(--colorPrimary-light) !important;
+}
+
+html:not(.dark) .nx-text-primary-600.nx-underline.nx-decoration-from-font {
+  color: var(--colorPrimary-light) !important;
+}
+
+/* Light mode sidebar */
+html:not(.dark) .nextra-sidebar-container {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  border-right: 1px solid var(--border-light);
+}
+
+html:not(.dark) .nextra-sidebar-container a {
+  color: var(--textMuted-light) !important;
+}
+
+html:not(.dark) .nextra-sidebar-container a:hover {
+  color: #111 !important;
+}
+
+/* Light mode nav */
+html:not(.dark) .nextra-nav-container {
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+html:not(.dark) .nextra-nav-container nav a,
+html:not(.dark) .nextra-nav-container nav button,
+html:not(.dark) .nextra-nav-container nav ul a {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+html:not(.dark) .nextra-nav-container nav a:hover,
+html:not(.dark) .nextra-nav-container nav ul a:hover {
+  color: var(--colorPrimary-light) !important;
+}
+
+/* Light mode code */
+html:not(.dark) code:not(pre code) {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border: none !important;
+  padding: 0.15em 0.4em;
+  font-size: 0.88em;
+}
+
+/* Light mode callouts */
+html:not(.dark) .nextra-callout {
+  border: none;
+  border-left: 3px solid;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Light mode tables */
+html:not(.dark) th {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--textMuted-light);
+}
+
+/* Light mode search */
+html:not(.dark) .nextra-search input {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  border: 1px solid var(--border-light);
+  background-color: #FFFFFF !important;
+}
+
+html:not(.dark) .nextra-search input::placeholder {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+}
+
+/* Light mode h2 border */
+html:not(.dark) h2 {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Light mode landing cards */
+html:not(.dark) .landing-card:hover {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}

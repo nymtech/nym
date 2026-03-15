@@ -1,3 +1,11 @@
+---
+title: "Native and Desktop App Integration"
+description: "Integrate privacy into native desktop apps and CLIs using the Nym Rust SDK. Choose between end-to-end mixnet messaging or TCP proxy approaches."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-03-15"
+---
+
 import { Callout } from 'nextra/components';
 
 # Native / Desktop Apps
@@ -51,3 +59,7 @@ This option has fewer protections than the E2E option against a global passive a
 Developers with apps that support SOCKS4, 4a, or 5 can use the Socks Client exposed by the Mixnet module. This uses the Network Requester service of the chosen Exit Gateway to interact with the remote host via the chosen SOCKS proxy protocol. The Network Requester uses SURBs to anonymously reply to the original sender.
 
 - [docs](./rust/mixnet)
+
+<Callout type="info">
+Development is in progress to allow for this proxy method from native Rust, C, and Go without requiring a separate SOCKS client. Stay tuned.
+</Callout>

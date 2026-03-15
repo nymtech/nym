@@ -1,3 +1,11 @@
+---
+title: "Choosing Between dVPN and Mixnet Mode"
+description: "When to use NymVPN's dVPN mode for low-latency browsing versus Mixnet mode for metadata protection against sophisticated adversaries."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Choosing a Mode
 
 Both dVPN and Mixnet mode run on the same Nym infrastructure but protect against different things — dVPN keeps your IP hidden from destinations and splits trust across two operators, while Mixnet mode goes further by trying to make your traffic patterns invisible even to someone watching the entire network.

@@ -265,12 +265,12 @@ export const LandingPage = () => {
           Matrix
         </a>
         <a
-          href="https://nymtech.net"
+          href="https://nym.com"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "var(--textMuted)", textDecoration: "none" }}
         >
-          nymtech.net
+          nym.com
         </a>
       </div>
     </div>

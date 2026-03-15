@@ -1,3 +1,11 @@
+---
+title: "Packet Mixing and Random Delays"
+description: "How Mix Nodes use exponential random delays to reorder packets and break timing correlations, preventing traffic analysis by network observers."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Packet Mixing
 
 Packet mixing breaks timing correlations by adding random delays at each Mix Node. It's the core mechanism that prevents traffic analysis.

@@ -1,3 +1,11 @@
+---
+title: "The Privacy Problem: Why Metadata Matters"
+description: "Why metadata exposure is a critical privacy threat, how adversaries exploit traffic patterns, and why traditional solutions like VPNs, Tor, and E2EE fall short."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # The Privacy Problem
 
 ## Metadata is the message

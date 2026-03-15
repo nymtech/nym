@@ -1,3 +1,11 @@
+---
+title: "Sphinx Packet Format"
+description: "How Sphinx packets provide layered encryption for anonymous mixnet routing, with fixed-size payloads, per-hop key derivation, and integrity verification via HMACs."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Sphinx Packets
 
 Sphinx is the cryptographic packet format used for all mixnet traffic. It provides layered encryption where each hop can only decrypt its own routing information, ensuring that no single node knows both the source and destination of a packet.

@@ -1,3 +1,11 @@
+---
+title: "Nym Network Infrastructure"
+description: "Overview of the Nym Network's decentralized infrastructure: independently operated nodes coordinated by the Nyx blockchain for routing, key management, and credential issuance."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Infrastructure
 
 The Nym Network runs on decentralized infrastructure — a set of independently operated nodes coordinated by the Nyx blockchain. No single party controls routing, key management, or credential issuance.

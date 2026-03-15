@@ -1,3 +1,11 @@
+---
+title: "Epochs in the Nym Network"
+description: "How epochs organize time in the Nym Network: reward distribution, topology reshuffling, SURB validity windows, and future automatic role assignment."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Epochs
 
 Time in the Nym Network is organized into epochs—discrete periods during which certain network operations occur. The current epoch length is one hour.

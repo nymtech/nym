@@ -1,3 +1,11 @@
+---
+title: "Mixnet Mode"
+description: "How Nym's Mixnet mode works: 5-hop routing through Mix Nodes with random delays, packet reordering, and cover traffic for unlinkability and unobservability."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Mixnet Mode
 
 Mixnet mode routes traffic through 5 hops — an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway — with random delays, packet reordering, and cover traffic at each mixing layer. It is available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).

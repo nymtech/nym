@@ -20,7 +20,7 @@ const WAIT_TIMEOUT: Duration = Duration::from_secs(60);
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Build a client with a short stream idle timeout.
+    // Step 1: Build a client with a short stream idle timeout (default is 30 min).
     let mut client = mixnet::MixnetClientBuilder::new_ephemeral()
         .with_stream_idle_timeout(IDLE_TIMEOUT)
         .build()
@@ -32,7 +32,7 @@ async fn main() {
     let our_address = *client.nym_address();
     println!("Client address: {our_address}");
 
-    // Set up a listener and open a stream to ourselves.
+    // Step 2: Open a stream to ourselves (useful for testing).
     let mut listener = client.listener().unwrap();
     let mut outbound = client.open_stream(our_address, None).await.unwrap();
     println!("Opened outbound stream: {}", outbound.id());
@@ -43,7 +43,7 @@ async fn main() {
         .expect("listener shut down");
     println!("Accepted inbound stream: {}", inbound.id());
 
-    // Use the stream.
+    // Step 3: Use the stream — send and receive.
     let msg = b"hello from idle timeout example";
     outbound.write_all(msg).await.unwrap();
     outbound.flush().await.unwrap();
@@ -56,15 +56,15 @@ async fn main() {
     println!("Received: {:?}", String::from_utf8_lossy(&buf[..n]));
     assert_eq!(&buf[..n], msg);
 
-    // Now stop using the stream and wait for the idle timeout.
+    // Step 4: Stop using the stream. The router's periodic cleanup task
+    // will remove it after the idle timeout elapses.
     println!(
         "\nStream is idle. Waiting {}s for cleanup...",
         IDLE_TIMEOUT.as_secs()
     );
     tokio::time::sleep(IDLE_TIMEOUT + Duration::from_secs(2)).await;
 
-    // The router should have cleaned up the stream. The inbound receiver
-    // is closed, so a read returns 0 bytes (EOF).
+    // Step 5: Read returns 0 bytes (EOF) — the router cleaned up the stream.
     let n = inbound.read(&mut buf).await.expect("read failed");
     if n == 0 {
         println!("Inbound stream returned EOF — cleaned up by idle timeout.");

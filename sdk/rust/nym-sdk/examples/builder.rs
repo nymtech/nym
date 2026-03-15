@@ -1,3 +1,10 @@
+//! Using `MixnetClientBuilder` with ephemeral (in-memory) keys.
+//!
+//! The builder lets you configure the client before connecting.
+//! Ephemeral keys are generated in memory and discarded on disconnect.
+//!
+//! Run with: cargo run --example builder
+
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 
@@ -5,20 +12,18 @@ use nym_sdk::mixnet::MixnetMessageSender;
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Create client builder, including ephemeral keys. The builder can be usable in the context
-    // where you don't want to connect just yet.
+    // Step 1: Create a builder with ephemeral keys.
+    // The builder lets you configure the client before connecting.
     let client = mixnet::MixnetClientBuilder::new_ephemeral()
         .build()
         .unwrap();
 
-    // Now we connect to the mixnet, using ephemeral keys already created
+    // Step 2: Connect to the mixnet.
     let mut client = client.connect_to_mixnet().await.unwrap();
-
-    // Be able to get our client address
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Send a message through the mixnet to ourselves
+    // Step 3: Send a message and wait for it.
     client
         .send_plain_message(*our_address, "hello there")
         .await
@@ -31,5 +36,6 @@ async fn main() {
         }
     }
 
+    // Step 4: Always disconnect for clean shutdown.
     client.disconnect().await;
 }

@@ -1,3 +1,11 @@
+---
+title: "dVPN Protocol Stack and Encryption"
+description: "Technical details of Nym dVPN mode's protocol layers, including WireGuard tunnels, AES-GCM-SIV-256 layer encryption, and packet format tradeoffs."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # dVPN Protocol
 
 This page covers the technical details of dVPN mode's protocol stack and encryption.

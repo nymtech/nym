@@ -1,3 +1,11 @@
+---
+title: "Packet Acknowledgements"
+description: "How the Nym Network uses hop-by-hop acknowledgements and retransmission to ensure reliable packet delivery despite network congestion or node failures."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Acknowledgements
 
 The Nym Network uses acknowledgements to ensure reliable packet delivery. When a node receives a packet, it sends an ack back to the sender. If no ack arrives within a timeout, the packet is retransmitted.

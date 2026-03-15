@@ -1,3 +1,11 @@
+---
+title: "Censorship Resistance in dVPN Mode"
+description: "How AmneziaWG obfuscation, QUIC transport mode, and Stealth API Connect help Nym dVPN users evade deep packet inspection and protocol blocking."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Censorship Resistance
 
 dVPN mode incorporates several techniques to help users connect in restrictive network environments where VPN protocols are actively detected and blocked.

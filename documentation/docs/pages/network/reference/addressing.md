@@ -1,3 +1,11 @@
+---
+title: "Nym Network Addressing"
+description: "How Nym addresses work: the identity.encryption@gateway format, key components, routing mechanics, and privacy considerations for client addressing."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Addressing
 
 All clients and nodes in the Nym Network have an address that uniquely identifies them for routing.

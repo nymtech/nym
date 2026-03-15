@@ -1,3 +1,11 @@
+---
+title: "Two Modes: dVPN and Mixnet"
+description: "How NymVPN's two operating modes differ: dVPN mode for fast 2-hop routing, and Mixnet mode for 5-hop traffic mixing with timing obfuscation and cover traffic."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Two Modes: dVPN and Mixnet
 
 NymVPN has two modes, each using the same underlying network infrastructure but handling traffic very differently.

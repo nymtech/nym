@@ -1,3 +1,11 @@
+---
+title: "Cover Traffic"
+description: "How constant dummy packet streams hide real communication patterns in the Nym mixnet, achieving unobservability even against global network observers."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Cover Traffic
 
 Cover traffic is dummy packets that hide when real communication is occurring. It's a fundamental mechanism for achieving **unobservability**.

@@ -1,3 +1,11 @@
+---
+title: "Nym Network Cryptography"
+description: "Overview of the cryptographic systems powering Nym: transport encryption, Sphinx packet format, per-hop encryption, and zk-nym anonymous credentials."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Cryptography
 
 The Nym Network relies on several cryptographic systems working together. This section covers the algorithms, packet formats, and credential systems that provide privacy guarantees.

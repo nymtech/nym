@@ -1,3 +1,11 @@
+---
+title: "Loopix Design"
+description: "The academic Loopix mixnet design behind Nym: stratified topology, continuous-time mixing with exponential delays, and cover traffic loops for unlinkability and unobservability."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Loopix Design
 
 The Nym mixnet is based on the [Loopix](https://arxiv.org/pdf/1703.00536) academic design, with modifications for decentralized operation and economic incentives.

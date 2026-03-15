@@ -1,3 +1,11 @@
+---
+title: "Nym vs VPNs, Tor, I2P, and E2EE"
+description: "How the Nym Network compares to traditional VPNs, Tor, I2P, and end-to-end encryption in terms of privacy guarantees, metadata protection, and threat models."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Nym vs Other Systems
 
 There are several existing approaches to network privacy, each with different assumptions about who the adversary is and what they can do.

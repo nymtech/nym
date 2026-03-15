@@ -1,3 +1,11 @@
+---
+title: "Nym Network Components"
+description: "Architecture of the Nym Network: Entry Gateways, Mix Nodes, Exit Gateways, the Nyx blockchain, and the Nym API for credential issuance."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
 # Network Components
 
 The Nym Network is made up of traffic-routing nodes, a Cosmos SDK blockchain for coordination, and an API layer that handles credential issuance.

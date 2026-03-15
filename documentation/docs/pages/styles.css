@@ -1,28 +1,23 @@
-/* nym docs – angular, clean styling */
+/* nym docs – angular, clean styling (oxide-inspired) */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
   --colorPrimary: #85E89D;
-  --textPrimary: #FFFFFF;
-  --bg-dark: #1E2426;
-  --border-dark: #2E3538;
-  --font-mono: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+  --textPrimary: #E0E0E0;
+  --textMuted: #8B9295;
+  --bg-dark: #181C1E;
+  --bg-code: #1C2022;
+  --border-dark: #2A2F32;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
 }
 
 /* ── Global: kill all rounded corners ── */
 
-.nx-rounded,
-.nx-rounded-lg,
-.nx-rounded-md,
-.nx-rounded-sm,
-.nx-rounded-xl,
-.nx-rounded-t,
-.nx-rounded-t-xl,
-[class*="nx-rounded"] {
+*,
+*::before,
+*::after {
   border-radius: 0 !important;
-}
-
-.MuiPaper-root.MuiAccordion-root {
-  border-radius: 0;
 }
 
 /* ── Dark mode backgrounds ── */
@@ -33,6 +28,7 @@ html.dark {
 
 html.dark body {
   background-color: var(--bg-dark);
+  color: var(--textPrimary);
 }
 
 html.dark .nextra-nav-container,
@@ -46,7 +42,25 @@ html.dark .dark\:nx-bg-dark {
 /* ── Typography ── */
 
 h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-mono);
   letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+html.dark h1 {
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+html.dark h2 {
+  color: #F0F0F0;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border-dark);
+}
+
+html.dark p, html.dark li {
+  color: var(--textPrimary);
+  line-height: 1.7;
 }
 
 /* ── Layout ── */
@@ -62,7 +76,6 @@ footer {
 
 .nx-mx-auto.nx-flex.nx-max-w-\[90rem\] {
   max-width: 110rem;
-  left-padding: 1%;
 }
 
 .nextra-content {
@@ -71,6 +84,21 @@ footer {
   padding-bottom: 0 !important;
   padding-left: 0 !important;
   margin: 0 !important;
+}
+
+/* ── Nav bar ── */
+
+html.dark .nextra-nav-container {
+  border-bottom: 1px solid var(--border-dark) !important;
+}
+
+html.dark .nextra-nav-container nav a {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+html.dark .nextra-nav-container nav a:hover {
+  color: var(--colorPrimary) !important;
 }
 
 /* ── Sidebar ── */
@@ -84,15 +112,41 @@ footer {
   column-width: 500px;
 }
 
-/* Active sidebar item: flat left-border accent, no background blob */
+/* Sidebar font */
+html.dark .nextra-sidebar-container {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+/* Sidebar text: muted by default */
+html.dark .nextra-sidebar-container a {
+  color: var(--textMuted) !important;
+}
+
+html.dark .nextra-sidebar-container a:hover {
+  color: var(--textPrimary) !important;
+}
+
+/* Sidebar separator labels (not active items) */
+html.dark .nextra-sidebar-container li.nx-mt-5 .nx-font-semibold {
+  color: var(--textMuted) !important;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+/* Active sidebar item: left-border accent + subtle tint */
 :is(html .dark\:nx-bg-primary-400\/10) {
-  background: transparent !important;
+  background: rgba(133, 232, 157, 0.06) !important;
   border-left: 2px solid var(--colorPrimary);
   color: #FFFFFF !important;
 }
 
+html.dark .nextra-sidebar-container :is(.dark\:nx-bg-primary-400\/10) a {
+  color: #FFFFFF !important;
+}
+
 :is(html:not(.dark) .dark\:nx-bg-primary-400\/10) {
-  background: transparent !important;
+  background: rgba(74, 158, 92, 0.08) !important;
   border-left: 2px solid #4A9E5C;
   color: #242B2D !important;
 }
@@ -101,58 +155,87 @@ footer {
   background-color: transparent !important;
 }
 
-/* ── TOC ── */
+/* ── TOC (hidden — subsections live in sidebar) ── */
 
 .nextra-toc {
-  width: 10px !important;
-  padding-right: 0px;
-  padding-left: 0px;
-  border-left: 1px solid var(--border-dark);
+  display: none !important;
 }
 
-/* ── Code blocks: sharp, bordered ── */
+/* ── Code blocks ── */
 
 html.dark .nextra-code-block > pre {
+  background-color: var(--bg-code) !important;
   border: 1px solid var(--border-dark);
 }
 
-/* Inline code */
+/* Language tag in code blocks */
+html.dark .nextra-code-block [class*="nx-absolute"] {
+  color: var(--textMuted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Inline code: subtle background, no border */
 html.dark code:not(pre code) {
-  border: 1px solid var(--border-dark);
-  border-radius: 0 !important;
-  padding: 0.1em 0.3em;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border: none !important;
+  padding: 0.15em 0.4em;
+  font-size: 0.88em;
+  color: var(--textPrimary);
 }
 
-/* ── Callouts: left-border accent, no rounded pill ── */
+/* ── Callouts: left-border accent ── */
 
 html.dark .nextra-callout {
   border: none;
   border-left: 3px solid;
-  border-radius: 0 !important;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.02);
 }
 
-/* ── Tables: clean grid lines ── */
+/* ── Tables: monospace uppercase headers ── */
 
 html.dark table {
   border-collapse: collapse;
+  width: 100%;
 }
 
 html.dark th {
-  border-bottom: 2px solid var(--border-dark);
+  border-bottom: 1px solid var(--border-dark);
   text-align: left;
   font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--textMuted);
+  padding: 0.6em 1em;
 }
 
 html.dark td {
   border-bottom: 1px solid var(--border-dark);
+  padding: 0.6em 1em;
+  color: var(--textPrimary);
+}
+
+html.dark tr:hover td {
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
 /* ── Search box ── */
 
 html.dark .nextra-search input {
-  border-radius: 0 !important;
   border: 1px solid var(--border-dark);
+  background-color: var(--bg-dark) !important;
+  color: var(--textMuted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+html.dark .nextra-search input::placeholder {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
 }
 
 /* ── Links ── */
@@ -169,6 +252,21 @@ html.dark .nextra-search input {
   color: var(--colorPrimary) !important;
 }
 
+/* ── Breadcrumbs / navigation links ── */
+
+html.dark .nextra-breadcrumb {
+  color: var(--textMuted);
+}
+
+/* Prev/next page links */
+html.dark a.nx-flex.nx-items-center {
+  border-color: var(--border-dark) !important;
+}
+
+html.dark a.nx-flex.nx-items-center:hover {
+  border-color: var(--colorPrimary) !important;
+}
+
 /* ── Material UI overrides ── */
 
 .MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineAlways {
@@ -182,7 +280,6 @@ html.dark .nextra-search input {
 .MuiButton-root {
   color: var(--colorPrimary) !important;
   border-color: var(--colorPrimary) !important;
-  border-radius: 0 !important;
 }
 
 .MuiButton-root:hover {
@@ -204,4 +301,8 @@ input:focus-visible {
 
 .Mui-focused > fieldset {
   border-color: var(--colorPrimary) !important;
+}
+
+.MuiPaper-root.MuiAccordion-root {
+  border-radius: 0;
 }

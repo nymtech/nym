@@ -1,12 +1,32 @@
-/* nym.com-aligned colour tokens */
+/* nym docs – angular, clean styling */
+
 :root {
   --colorPrimary: #85E89D;
   --textPrimary: #FFFFFF;
   --bg-dark: #1E2426;
   --border-dark: #2E3538;
+  --font-mono: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
 }
 
-/* dark mode background override */
+/* ── Global: kill all rounded corners ── */
+
+.nx-rounded,
+.nx-rounded-lg,
+.nx-rounded-md,
+.nx-rounded-sm,
+.nx-rounded-xl,
+.nx-rounded-t,
+.nx-rounded-t-xl,
+[class*="nx-rounded"] {
+  border-radius: 0 !important;
+}
+
+.MuiPaper-root.MuiAccordion-root {
+  border-radius: 0;
+}
+
+/* ── Dark mode backgrounds ── */
+
 html.dark {
   background-color: var(--bg-dark);
 }
@@ -15,7 +35,6 @@ html.dark body {
   background-color: var(--bg-dark);
 }
 
-/* nextra main content area bg */
 html.dark .nextra-nav-container,
 html.dark .nextra-sidebar-container,
 html.dark .nextra-content,
@@ -24,28 +43,26 @@ html.dark .dark\:nx-bg-dark {
   background-color: var(--bg-dark) !important;
 }
 
+/* ── Typography ── */
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em;
+}
+
+/* ── Layout ── */
+
 footer {
   text-align: center;
 }
 
 .nextra-code-block > pre {
-  /* max-height: 350px !important; */
   max-height: none !important;
   scroll-y: auto !important;
 }
 
-/* set width entire div */
 .nx-mx-auto.nx-flex.nx-max-w-\[90rem\] {
   max-width: 110rem;
   left-padding: 1%;
-}
-
-.nextra-toc {
-  width: 10px !important;
-  padding-right: 0px;
-  padding-left: 0px;
-  /* text-align: right; */
-  border-left: 1px solid var(--border-dark);
 }
 
 .nextra-content {
@@ -56,22 +73,7 @@ footer {
   margin: 0 !important;
 }
 
-:is(html[class~="dark"] .dark\:nx-bg-primary-300\/10) {
-  background-color: hsl(var(black) 100% 77%/0.1) !important;
-}
-
-/* Sidebar active item */
-:is(html .dark\:nx-bg-primary-400\/10) {
-  background: transparent !important;
-  border-left: 2px solid #85E89D;
-  color: #FFFFFF !important;
-}
-
-:is(html:not(.dark) .dark\:nx-bg-primary-400\/10) {
-  background: transparent !important;
-  border-left: 2px solid #4A9E5C;
-  color: #242B2D !important;
-}
+/* ── Sidebar ── */
 
 .nextra-sidebar-container {
   border-right: 1px solid var(--border-dark);
@@ -82,24 +84,105 @@ footer {
   column-width: 500px;
 }
 
-/* Links*/
+/* Active sidebar item: flat left-border accent, no background blob */
+:is(html .dark\:nx-bg-primary-400\/10) {
+  background: transparent !important;
+  border-left: 2px solid var(--colorPrimary);
+  color: #FFFFFF !important;
+}
+
+:is(html:not(.dark) .dark\:nx-bg-primary-400\/10) {
+  background: transparent !important;
+  border-left: 2px solid #4A9E5C;
+  color: #242B2D !important;
+}
+
+:is(html[class~="dark"] .dark\:nx-bg-primary-300\/10) {
+  background-color: transparent !important;
+}
+
+/* ── TOC ── */
+
+.nextra-toc {
+  width: 10px !important;
+  padding-right: 0px;
+  padding-left: 0px;
+  border-left: 1px solid var(--border-dark);
+}
+
+/* ── Code blocks: sharp, bordered ── */
+
+html.dark .nextra-code-block > pre {
+  border: 1px solid var(--border-dark);
+}
+
+/* Inline code */
+html.dark code:not(pre code) {
+  border: 1px solid var(--border-dark);
+  border-radius: 0 !important;
+  padding: 0.1em 0.3em;
+}
+
+/* ── Callouts: left-border accent, no rounded pill ── */
+
+html.dark .nextra-callout {
+  border: none;
+  border-left: 3px solid;
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ── Tables: clean grid lines ── */
+
+html.dark table {
+  border-collapse: collapse;
+}
+
+html.dark th {
+  border-bottom: 2px solid var(--border-dark);
+  text-align: left;
+  font-weight: 600;
+}
+
+html.dark td {
+  border-bottom: 1px solid var(--border-dark);
+}
+
+/* ── Search box ── */
+
+html.dark .nextra-search input {
+  border-radius: 0 !important;
+  border: 1px solid var(--border-dark);
+}
+
+/* ── Links ── */
+
 .nx-text-primary-600.nx-underline.nx-decoration-from-font {
   color: var(--colorPrimary) !important;
 }
 
-.MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineAlways.css-1xr3c94-MuiTypography-root-MuiLink-root {
+.nx-text-primary-600 {
   color: var(--colorPrimary) !important;
 }
 
-/* Chips*/
+.nextra-scrollbar.nx-sticky {
+  color: var(--colorPrimary) !important;
+}
+
+/* ── Material UI overrides ── */
+
+.MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineAlways {
+  color: var(--colorPrimary) !important;
+}
+
 .chipContained {
   background-color: var(--colorPrimary) !important;
 }
 
-/* Buttons */
 .MuiButton-root {
   color: var(--colorPrimary) !important;
   border-color: var(--colorPrimary) !important;
+  border-radius: 0 !important;
 }
 
 .MuiButton-root:hover {
@@ -111,11 +194,7 @@ footer {
   color: var(--colorPrimary) !important;
 }
 
-.nextra-scrollbar.nx-sticky {
-  color: var(--colorPrimary) !important;
-}
-
-.nx-text-primary-600 {
+a.MuiLink-root {
   color: var(--colorPrimary) !important;
 }
 
@@ -125,12 +204,4 @@ input:focus-visible {
 
 .Mui-focused > fieldset {
   border-color: var(--colorPrimary) !important;
-}
-
-a.MuiLink-root {
-  color: var(--colorPrimary) !important;
-}
-
-.MuiPaper-root.MuiAccordion-root {
-  border-radius: 8px;
 }

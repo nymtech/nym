@@ -1,8 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// use nym_client::client::config::{BaseClientConfig, Config, GatewayEndpointConfig};
-// use nym_client::client::{DirectClient, KeyManager, Recipient, ReconstructedMessage, SocketClient};
+//! Sending control requests to a service provider via the mixnet.
+//!
+//! Demonstrates `send_message` with explicit SURB counts and the
+//! `nym-service-providers-common` request/response protocol. Sends
+//! Health, BinaryInfo, and SupportedRequestVersions queries.
+//!
+//! Run with: cargo run --example control_requests
+
 use nym_sdk::mixnet::{
     IncludedSurbs, MixnetClient, MixnetMessageSender, Recipient, ReconstructedMessage,
 };
@@ -32,13 +38,11 @@ async fn wait_for_control_response(client: &mut MixnetClient) -> ControlResponse
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // technically we don't need to start the entire client with all the subroutines,
-    // but I needed an easy way of sending to and receiving from the mixnet
-    // and that was the most straightforward way of achieving it
+    // Step 1: Connect an ephemeral client.
     let mut client = MixnetClient::connect_new().await.unwrap();
     let provider: Recipient = "8YF6f8x17j3fviBdU87EGD9g9MAgn9DARxunwLEVM7Bm.4ydfpjbTjCmzj58hWdQjxU2gT6CRVnTbnKajr2hAGBBM@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW".parse().unwrap();
 
-    // generic service provider request, so we don't even need to care it's to the socks5 provider
+    // Step 2: Build control requests using the service-provider interface.
     let request_health = ControlRequest::Health;
     let request_binary_info = ControlRequest::BinaryInfo;
     let request_versions = ControlRequest::SupportedRequestVersions;
@@ -50,7 +54,7 @@ async fn main() -> anyhow::Result<()> {
     let full_request_versions: Request =
         Request::new_control(ProviderInterfaceVersion::new_current(), request_versions);
 
-    // TODO: currently we HAVE TO use surbs unfortunately
+    // Step 3: Send a Health request with 10 reply SURBs and wait for the response.
     println!("Sending 'Health' request...");
     client
         .send_message(
@@ -62,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'Health' request: {response:#?}");
 
+    // Step 4: Send a BinaryInfo request (no SURBs — replies won't work).
     println!("Sending 'BinaryInfo' request...");
     client
         .send_message(
@@ -73,6 +78,7 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'BinaryInfo' request: {response:#?}");
 
+    // Step 5: Send a SupportedRequestVersions request.
     println!("Sending 'SupportedRequestVersions' request...");
     client
         .send_message(
@@ -84,6 +90,7 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'SupportedRequestVersions' request: {response:#?}");
 
+    // Step 6: Disconnect for clean shutdown.
     client.disconnect().await;
     Ok(())
 }

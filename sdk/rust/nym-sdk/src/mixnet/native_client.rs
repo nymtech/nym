@@ -129,7 +129,7 @@ impl MixnetClient {
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mut client = mixnet::MixnetClient::connect_new().await;
+    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     /// }
     ///
     /// ```
@@ -317,7 +317,7 @@ impl MixnetClient {
         {
             Ok(_) => Ok(()),
             Err(e) => {
-                error!("Failed to send forget me request: {e}");
+                error!("Failed to send remember me request: {e}");
                 Err(Error::MessageSendingFailure)
             }
         }

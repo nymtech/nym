@@ -1,12 +1,21 @@
+//! SOCKS5 proxy client that routes HTTP requests through the mixnet.
+//!
+//! Connects a `Socks5MixnetClient` to a receiving `MixnetClient` acting
+//! as the service provider, then sends an HTTP GET via the SOCKS5 proxy.
+//!
+//! Run with: cargo run --example socks5
+
 use nym_sdk::mixnet;
 
 #[tokio::main]
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
+    // Step 1: Connect a receiving client (acts as the "network requester").
     println!("Connecting receiver");
     let mut receiving_client = mixnet::MixnetClient::connect_new().await.unwrap();
 
+    // Step 2: Build and connect a SOCKS5 sending client pointed at the receiver.
     let socks5_config = mixnet::Socks5::new(receiving_client.nym_address().to_string());
     let sending_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .socks5_config(socks5_config)
@@ -16,15 +25,19 @@ async fn main() {
     println!("Connecting sender");
     let sending_client = sending_client.connect_to_mixnet_via_socks5().await.unwrap();
 
+    // Step 3: Configure an HTTP client to use the SOCKS5 proxy.
     let proxy = reqwest::Proxy::all(sending_client.socks5_url()).unwrap();
     let reqwest_client = reqwest::Client::builder().proxy(proxy).build().unwrap();
+
+    // Step 4: Send an HTTP request through the mixnet via SOCKS5.
+    // No network requester is running on the other end, so we won't
+    // get a real HTTP response — but the receiver sees the raw bytes.
     tokio::spawn(async move {
         println!("Sending socks5-wrapped http request");
-        // Message should be sent through the mixnet, via socks5
-        // We don't expect to get anything, as there is no network requester on the other end
         reqwest_client.get("https://nymtech.net").send().await.ok()
     });
 
+    // Step 5: The receiver sees the raw SOCKS5/HTTP bytes arrive.
     println!("Waiting for message");
     if let Some(received) = receiving_client.wait_for_messages().await {
         for r in received {
@@ -35,6 +48,7 @@ async fn main() {
         }
     }
 
+    // Step 6: Disconnect both clients.
     receiving_client.disconnect().await;
     sending_client.disconnect().await;
 }

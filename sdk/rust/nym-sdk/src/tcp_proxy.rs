@@ -66,7 +66,7 @@
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     // Create a proxy server that forwards to localhost:3000
-//!     let server = NymProxyServer::new("127.0.0.1", "3000", None, None).await?;
+//!     let server = NymProxyServer::new("127.0.0.1:3000", "./nym-proxy-data", None, None).await?;
 //!
 //!     println!("Server listening at: {}", server.nym_address());
 //!
@@ -83,7 +83,7 @@
 //! - [`ProxiedMessage`] - A message with session ID and sequence number
 //! - [`MessageBuffer`] - Orders out-of-order messages before delivery
 //! - [`Payload`] - Message payload (data or close signal)
-//! - [`DecayWrapper`] - Handles stale message cleanup
+//! - [`DecayWrapper`] - Tracks message age for time-based delivery
 
 mod tcp_proxy_client;
 mod tcp_proxy_server;

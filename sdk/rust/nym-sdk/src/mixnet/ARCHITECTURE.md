@@ -4,8 +4,8 @@
 
 The `mixnet` module is the core of the Nym SDK. It provides `MixnetClient`,
 which handles connecting to the Nym mixnet, sending messages through Sphinx
-packet encryption and 5-hop routing, and receiving reconstructed messages
-on the other side.
+packet encryption and multi-hop routing (3 layers of mix nodes, plus entry
+and exit gateways), and receiving reconstructed messages on the other side.
 
 ```text
                       User code

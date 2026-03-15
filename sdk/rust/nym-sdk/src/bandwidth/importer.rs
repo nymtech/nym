@@ -33,10 +33,12 @@ use nym_credentials::{
 ///     .build()?;
 ///
 /// // Import credentials before connecting
-/// let importer = client.begin_bandwidth_import();
-/// // importer.import_ticketbook(&ticketbook).await?;
-/// // importer.import_master_verification_key(&key).await?;
-/// // ...
+/// {
+///     let importer = client.begin_bandwidth_import();
+///     // importer.import_ticketbook(&ticketbook).await?;
+///     // importer.import_master_verification_key(&key).await?;
+///     // ...
+/// } // importer dropped here, releasing the borrow on client
 ///
 /// // Now connect with credentials available
 /// let connected = client.connect_to_mixnet().await?;

@@ -231,7 +231,7 @@ client_input.input_sender
   `CancellationToken`.
 - **Idle timeout** — each `StreamEntry` tracks `last_activity`
   (updated on every successful `send_to_stream`). The router runs a
-  periodic cleanup (every 60 s) that removes streams idle longer than
+  periodic cleanup (every 10 s) that removes streams idle longer than
   the configured timeout (default: 30 minutes). Configurable via
   `MixnetClientBuilder::with_stream_idle_timeout()`. This prevents
   leaked entries when the remote side drops without the local side

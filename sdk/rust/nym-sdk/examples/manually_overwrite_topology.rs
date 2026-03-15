@@ -1,6 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Manually overwriting the network topology at runtime.
+//!
+//! Connects an ephemeral client, then replaces its topology with a
+//! hand-picked set of mix nodes while keeping the original gateways.
+//! All subsequent traffic is routed through these specific nodes.
+//!
+//! Run with: cargo run --example manually_overwrite_topology
+
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_topology::{NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles};
@@ -9,11 +17,11 @@ use nym_topology::{NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
+    // Step 1: Connect an ephemeral client and grab the current topology.
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     let starting_topology = client.read_current_route_provider().await.unwrap().clone();
 
-    // but we don't like our default topology, we want to use only those very specific, hardcoded, nodes:
+    // Step 2: Define a custom set of hardcoded mix nodes.
     let nodes = vec![
         RoutingNode {
             node_id: 63,
@@ -65,32 +73,31 @@ async fn main() {
         },
     ];
 
-    // make sure our custom nodes are in the fake rewarded set (so they'd be used by default by the client)
+    // Step 3: Build a custom topology using these nodes plus the original gateways.
+    // Inject our custom nodes into the rewarded set so the client will use them.
     let mut rewarded_set = starting_topology.topology.rewarded_set().clone();
     rewarded_set.layer1.insert(nodes[0].node_id);
     rewarded_set.layer2.insert(nodes[1].node_id);
     rewarded_set.layer3.insert(nodes[2].node_id);
 
-    // but we like the available gateways, so keep using them!
-    // (we like them because the author of this example is too lazy to use the same hardcoded gateway
-    // during client initialisation to make sure we are able to send to ourselves : )  )
+    // Keep the original gateways so we can still send to ourselves.
     let gateways = starting_topology.topology.entry_capable_nodes();
 
-    // you should have obtained valid metadata information, in particular the key rotation ID!
+    // In production, obtain valid metadata (especially the key rotation ID).
     let metadata = NymTopologyMetadata::new(u32::MAX, 123, time::OffsetDateTime::now_utc());
 
     let mut custom_topology = NymTopology::new(metadata, rewarded_set, Vec::new());
     custom_topology.add_routing_nodes(nodes);
     custom_topology.add_routing_nodes(gateways);
 
+    // Step 4: Apply the custom topology. All subsequent traffic goes
+    // through these specific nodes.
     client.manually_overwrite_topology(custom_topology).await;
-
-    // and everything we send now should only ever go via those nodes
 
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Send a message through the mixnet to ourselves
+    // Step 5: Send a message to ourselves through the custom topology.
     client
         .send_plain_message(*our_address, "hello there")
         .await

@@ -71,60 +71,12 @@ const sdks = [
   },
 ];
 
-const getStarted = [
-  {
-    label: "What is the Mixnet?",
-    description:
-      "Understand how Nym protects network traffic from surveillance.",
-    href: "/network/traffic",
-  },
-  {
-    label: "Send your first message",
-    description:
-      "Build a simple Rust app that sends and receives through the Mixnet.",
-    href: "/developers/rust/mixnet/tutorial",
-  },
-  {
-    label: "Run a node",
-    description:
-      "Set up a mix node and join the Nym network as an operator.",
-    href: "/operators/introduction",
-  },
-];
 
 export const LandingPage = () => {
   return (
     <div
       style={{ maxWidth: "64rem", margin: "0 auto", padding: "3rem 1.5rem" }}
     >
-      {/* ── Hero ── */}
-      <div style={{ marginBottom: "3.5rem" }}>
-        <h1
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "2.5rem",
-            fontWeight: 700,
-            color: "#FFFFFF",
-            marginBottom: "0.75rem",
-            letterSpacing: "-0.03em",
-            border: "none",
-          }}
-        >
-          Nym Docs
-        </h1>
-        <p
-          style={{
-            fontSize: "1.1rem",
-            color: "var(--textMuted)",
-            lineHeight: 1.6,
-            maxWidth: "54rem",
-          }}
-        >
-          Learn how the Mixnet works, build privacy-enhanced applications, run
-          infrastructure nodes, and explore our APIs.
-        </p>
-      </div>
-
       {/* ── Section cards ── */}
       <div
         style={{
@@ -245,8 +197,7 @@ export const LandingPage = () => {
                 style={{
                   padding: "1rem 1.2rem",
                   border: "1px solid var(--border-dark)",
-                  borderBottom:
-                    i === 0 ? "none" : "1px solid var(--border-dark)",
+                  marginTop: i > 0 ? "-1px" : undefined,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -286,104 +237,41 @@ export const LandingPage = () => {
         </div>
       </div>
 
-      {/* ── Get started ── */}
-      <div style={{ marginBottom: "3.5rem" }}>
-        <h2
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "1.2rem",
-            fontWeight: 600,
-            color: "#FFFFFF",
-            marginBottom: "1rem",
-            border: "none",
-            padding: 0,
-          }}
-        >
-          Get started
-        </h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "0",
-          }}
-        >
-          {getStarted.map((item, i) => (
-            <Link key={i} href={item.href} style={{ textDecoration: "none" }}>
-              <div
-                className="landing-card"
-                style={{
-                  padding: "1.2rem",
-                  border: "1px solid var(--border-dark)",
-                  borderLeft:
-                    i > 0 ? "none" : "1px solid var(--border-dark)",
-                  minHeight: "120px",
-                  display: "flex",
-                  flexDirection: "column",
-                  transition: "background-color 0.15s",
-                  cursor: "pointer",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "0.88rem",
-                    fontWeight: 600,
-                    color: "#FFFFFF",
-                    marginBottom: "0.4rem",
-                  }}
-                >
-                  {item.label}
-                </span>
-                <p
-                  style={{
-                    fontSize: "0.8rem",
-                    color: "var(--textMuted)",
-                    lineHeight: 1.5,
-                    margin: 0,
-                  }}
-                >
-                  {item.description}
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Footer links ── */}
+      {/* ── Links ── */}
       <div
         style={{
           borderTop: "1px solid var(--border-dark)",
           paddingTop: "1.5rem",
           display: "flex",
-          flexDirection: "column",
-          gap: "0.5rem",
-          fontSize: "0.85rem",
+          gap: "2rem",
+          fontSize: "0.82rem",
+          fontFamily: "var(--font-mono)",
         }}
       >
-        <span style={{ color: "var(--textMuted)" }}>
-          Our software is open source.{" "}
-          <a
-            href="https://github.com/nymtech"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "var(--colorPrimary)" }}
-          >
-            View repos
-          </a>
-        </span>
-        <span style={{ color: "var(--textMuted)" }}>
-          Need help?{" "}
-          <a
-            href="https://matrix.to/#/%23dev:nymtech.net"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "var(--colorPrimary)" }}
-          >
-            Join us on Matrix
-          </a>
-        </span>
+        <a
+          href="https://github.com/nymtech"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--textMuted)", textDecoration: "none" }}
+        >
+          GitHub
+        </a>
+        <a
+          href="https://matrix.to/#/%23dev:nymtech.net"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--textMuted)", textDecoration: "none" }}
+        >
+          Matrix
+        </a>
+        <a
+          href="https://nymtech.net"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--textMuted)", textDecoration: "none" }}
+        >
+          nymtech.net
+        </a>
       </div>
     </div>
   );

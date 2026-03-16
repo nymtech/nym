@@ -7505,6 +7505,7 @@ dependencies = [
  "nym-verloc",
  "nym-wireguard",
  "nym-wireguard-types",
+ "nyxd-scraper-shared",
  "opentelemetry",
  "opentelemetry_sdk",
  "rand 0.8.5",

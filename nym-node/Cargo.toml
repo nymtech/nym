@@ -109,6 +109,7 @@ nym-node-requests = { workspace = true, default-features = false, features = [
     "openapi",
 ] }
 nym-node-metrics = { workspace = true }
+nyxd-scraper-shared = { workspace = true }
 
 # nodes:
 nym-gateway = { path = "../gateway" }

@@ -7,7 +7,7 @@ use axum::extract::FromRef;
 use nym_bin_common::bin_info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_validator_client::nyxd::{Coin, MsgSend};
-use nyxd_scraper_sqlite::ParsedTransactionResponse;
+use nyxd_scraper_sqlite::{ParsedTransactionDetails, ParsedTransactionResponse};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -289,7 +289,7 @@ impl BankScraperModuleState {
 
     pub(crate) async fn new_bank_msg(
         &self,
-        tx: &ParsedTransactionResponse,
+        tx: &ParsedTransactionDetails,
         index: usize,
         msg: &MsgSend,
         is_watched: bool,
@@ -300,7 +300,7 @@ impl BankScraperModuleState {
         let details = BankMsgDetails {
             processed_at: OffsetDateTime::now_utc(),
             tx_hash: tx.hash.to_string(),
-            height: tx.height.value(),
+            height: tx.height().value(),
             index: index as u32,
             from: msg.from_address.to_string(),
             to: msg.to_address.to_string(),

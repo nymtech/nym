@@ -1,4 +1,4 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2025-2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymNodeError;
@@ -7,15 +7,20 @@ use futures::{StreamExt, stream};
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::Client;
 use nym_task::ShutdownToken;
+use nym_topology::EpochRewardedSet;
+use nym_validator_client::ValidatorClientError;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{KeyRotationInfoResponse, NodeRefreshBody};
 use nym_validator_client::nym_api::error::NymAPIError;
+use nym_validator_client::nym_api::{NodesByAddressesResponse, SemiSkimmedNodesWithMetadata};
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::time::sleep;
+use tracing::log::error;
 use tracing::{debug, warn};
 use url::Url;
 
@@ -60,17 +65,9 @@ impl NymApisClient {
         })
     }
 
-    // async fn use_next_endpoint(&self) {
-    //     let mut guard = self.inner.write().await;
-    //     if guard.available_urls.len() == 1 {
-    //         return;
-    //     }
-    //
-    //     let next_index = (guard.currently_used_api + 1) % guard.available_urls.len();
-    //     let next = guard.available_urls[next_index].clone();
-    //     guard.currently_used_api = next_index;
-    //     guard.active_client.change_nym_api(next)
-    // }
+    async fn active_client(&self) -> RwLockReadGuard<'_, Client> {
+        RwLockReadGuard::map(self.inner.read().await, |inner| &inner.active_client)
+    }
 
     pub(crate) async fn query_exhaustively<R, T>(
         &self,
@@ -121,6 +118,38 @@ impl NymApisClient {
             Duration::from_secs(5),
         )
         .await
+    }
+
+    // non-critical best-effort queries to the current available endpoint:
+
+    pub(crate) async fn rewarded_set(&mut self) -> Result<EpochRewardedSet, NymAPIError> {
+        self.active_client()
+            .await
+            .get_current_rewarded_set()
+            .await
+            .inspect_err(|err| error!("failed to get current rewarded set: {err}"))
+            .map(Into::into)
+    }
+
+    pub(crate) async fn current_nymnodes(
+        &mut self,
+    ) -> Result<SemiSkimmedNodesWithMetadata, NymAPIError> {
+        self.active_client()
+            .await
+            .get_all_expanded_nodes()
+            .await
+            .inspect_err(|err| error!("failed to get network nodes: {err}"))
+    }
+
+    pub(crate) async fn query_nym_nodes_addresses(
+        &mut self,
+        ips: Vec<IpAddr>,
+    ) -> Result<NodesByAddressesResponse, NymAPIError> {
+        self.active_client()
+            .await
+            .nodes_by_addresses(ips)
+            .await
+            .inspect_err(|err| error!("failed to obtain node information: {err}"))
     }
 }
 

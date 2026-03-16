@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::channel::mpsc;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // const LANE_CONSIDERED_CLEAR: usize = 10;
 
 pub type ConnectionId = u64;
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum TransmissionLane {
     General,
     // we need to treat surb-related requests and responses at higher priority

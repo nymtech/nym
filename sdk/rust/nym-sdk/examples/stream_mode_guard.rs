@@ -47,7 +47,7 @@ async fn main() {
 
     // split_sender shares the stream_mode flag
     println!("\nTesting split_sender (shares stream_mode)");
-    let sender = client.split_sender();
+    let mut sender = client.split_sender();
     let result = sender
         .send_plain_message(our_address, "this should also fail")
         .await;

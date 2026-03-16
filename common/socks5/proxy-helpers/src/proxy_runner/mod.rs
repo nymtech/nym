@@ -9,7 +9,6 @@ use nym_task::ShutdownTracker;
 use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
 use tokio::{net::TcpStream, sync::Notify};
-use tokio_util::sync::PollSender;
 
 mod inbound;
 mod outbound;
@@ -36,7 +35,7 @@ impl From<(Vec<u8>, bool)> for ProxyMessage {
     }
 }
 
-pub type MixProxySender<S> = PollSender<S>;
+pub type MixProxySender<S> = tokio::sync::mpsc::Sender<S>;
 pub type MixProxyReader<S> = tokio::sync::mpsc::Receiver<S>;
 
 // TODO: when we finally get to implementing graceful shutdown,

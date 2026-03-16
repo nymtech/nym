@@ -1,7 +1,6 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use futures::SinkExt;
 use js_sys::Promise;
 use nym_wasm_client_core::client::base_client::{ClientInput, ClientState};
 use nym_wasm_client_core::client::inbound_messages::InputMessage;
@@ -11,7 +10,6 @@ use nym_wasm_client_core::NymTopology;
 use nym_wasm_utils::error::simple_js_error;
 use nym_wasm_utils::{check_promise_result, console_log};
 use std::sync::Arc;
-use tokio_with_wasm::sync::RwLock;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
 
@@ -50,11 +48,10 @@ pub(crate) trait InputSender {
     fn send_messages(&self, messages: Vec<InputMessage>) -> Promise;
 }
 
-impl InputSender for Arc<RwLock<ClientInput>> {
+impl InputSender for Arc<ClientInput> {
     fn send_message(&self, message: InputMessage) -> Promise {
         let this = Arc::clone(self);
         future_to_promise(async move {
-            let mut this = this.write().await;
             match this.input_sender.send(message).await {
                 Ok(_) => Ok(JsValue::null()),
                 Err(_) => Err(simple_js_error(
@@ -67,7 +64,6 @@ impl InputSender for Arc<RwLock<ClientInput>> {
     fn send_messages(&self, messages: Vec<InputMessage>) -> Promise {
         let this = Arc::clone(self);
         future_to_promise(async move {
-            let mut this = this.write().await;
             for message in messages {
                 if this.input_sender.send(message).await.is_err() {
                     return Err(simple_js_error(

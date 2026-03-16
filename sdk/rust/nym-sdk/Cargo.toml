@@ -49,8 +49,6 @@ nym-sphinx-addressing = { workspace = true }
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
 ] }
-nym-gateway-directory = { path = "../../../nym-gateway-directory" }
-
 bytecodec = { workspace = true }
 httpcodec = { workspace = true }
 bytes = { workspace = true }
@@ -67,7 +65,8 @@ toml = { workspace = true }
 tempfile = { workspace = true }
 
 nym-ip-packet-requests = { path = "../../../common/ip-packet-requests" }
-
+pnet_packet = { workspace = true }
+nym-config = { path = "../../../common/config" }
 
 # tcpproxy dependencies
 clap = { workspace = true, features = ["derive"] }

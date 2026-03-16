@@ -100,7 +100,7 @@ async fn retrieve_exit_nodes_with_performance(
     // annoyingly there's no convenient way of doing this in a single query
     // retrieve performance scores of all exit gateways
     let exit_gateways = client
-        .get_all_basic_exit_assigned_nodes_with_metadata()
+        .get_all_basic_nodes_with_metadata()
         .await?
         .nodes;
 

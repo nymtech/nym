@@ -4,11 +4,9 @@ use crate::mixnet::stream::{MixnetListener, MixnetStream};
 use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
-use bytes::{Buf as _, BytesMut};
-use futures::{ready, FutureExt, Sink, SinkExt, Stream, StreamExt};
+use futures::{ready, Stream, StreamExt};
 use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
-use nym_client_core::client::inbound_messages::InputMessageCodec;
 use nym_client_core::client::mix_traffic::ClientRequestSender;
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
@@ -19,20 +17,17 @@ use nym_client_core::config::{ForgetMe, RememberMe};
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::receiver::ReconstructedMessageCodec;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_statistics_common::clients::{ClientStatsEvents, ClientStatsSender};
 use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use nym_task::ShutdownTracker;
 use nym_topology::{NymRouteProvider, NymTopology};
-use std::pin::{pin, Pin};
+use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::RwLockReadGuard;
-use tokio_util::codec::{Encoder, FramedRead};
 use tokio_util::sync::CancellationToken;
 
 /// Client connected to the Nym mixnet.
@@ -81,24 +76,6 @@ pub struct MixnetClient {
 
     /// How long a stream can be idle before the router cleans it up.
     pub(crate) stream_idle_timeout: Duration,
-
-    // internal state used for the `AsyncRead` implementation
-    _read: ReadBuffer,
-}
-
-#[derive(Debug, Default)]
-struct ReadBuffer {
-    buffer: BytesMut,
-}
-
-impl ReadBuffer {
-    fn clear(&mut self) {
-        self.buffer.clear();
-    }
-
-    fn pending(&self) -> bool {
-        !self.buffer.is_empty()
-    }
 }
 
 impl MixnetClient {
@@ -132,7 +109,6 @@ impl MixnetClient {
             stream_mode: Arc::new(AtomicBool::new(false)),
             streams: None,
             stream_idle_timeout: super::stream::DEFAULT_STREAM_IDLE_TIMEOUT,
-            _read: ReadBuffer::default(),
         }
     }
 
@@ -353,25 +329,6 @@ impl MixnetClient {
     pub fn listener(&mut self) -> Result<MixnetListener> {
         super::stream::listener(self)
     }
-
-    fn read_buffer_to_slice(
-        &mut self,
-        buf: &mut ReadBuf,
-        cx: &mut Context<'_>,
-    ) -> Poll<tokio::io::Result<()>> {
-        if self._read.buffer.len() < buf.capacity() {
-            // let written = self._read.buffer.len();
-            buf.put_slice(&self._read.buffer);
-            self._read.clear();
-            Poll::Ready(Ok(()))
-        } else {
-            let written = buf.capacity();
-            buf.put_slice(&self._read.buffer[..written]);
-            self._read.buffer.advance(written);
-            cx.waker().wake_by_ref();
-            Poll::Ready(Ok(()))
-        }
-    }
 }
 
 pub struct MixnetClientSender {
@@ -387,193 +344,6 @@ impl Clone for MixnetClientSender {
             packet_type: self.packet_type,
             stream_mode: self.stream_mode.clone(),
         }
-    }
-}
-
-impl AsyncRead for MixnetClient {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf,
-    ) -> Poll<tokio::io::Result<()>> {
-        let mut codec = ReconstructedMessageCodec {};
-
-        if self._read.pending() {
-            return self.read_buffer_to_slice(buf, cx);
-        }
-
-        let msg = match self.as_mut().poll_next(cx) {
-            Poll::Ready(Some(msg)) => msg,
-            Poll::Ready(None) => return Poll::Ready(Ok(())),
-            Poll::Pending => return Poll::Pending,
-        };
-
-        match codec.encode(msg, &mut self._read.buffer) {
-            Ok(_) => {}
-            Err(e) => {
-                error!("failed to encode reconstructed message: {:?}", e);
-                return Poll::Ready(Err(tokio::io::Error::other(
-                    "failed to encode reconstructed message",
-                )));
-            }
-        };
-
-        self.read_buffer_to_slice(buf, cx)
-    }
-}
-
-impl AsyncWrite for MixnetClient {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<Result<usize, std::io::Error>> {
-        let codec = InputMessageCodec {};
-        let mut reader = FramedRead::new(buf, codec);
-        let mut fut = reader.next();
-        let msg = match fut.poll_unpin(cx) {
-            Poll::Ready(Some(Ok(msg))) => msg,
-            Poll::Ready(Some(Err(_))) => {
-                return Poll::Ready(Err(std::io::Error::other(
-                    "failed to read message from input",
-                )))
-            }
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(None) => return Poll::Ready(Ok(0)),
-        };
-
-        let msg_size = msg.serialized_size();
-
-        let mut fut = pin!(self.client_input.send(msg));
-        match fut.poll_unpin(cx) {
-            Poll::Ready(Ok(())) => Poll::Ready(Ok(msg_size as usize)),
-            Poll::Ready(Err(_)) => Poll::Ready(Err(std::io::Error::other(
-                "failed to send message to mixnet",
-            ))),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
-        Sink::poll_flush(self, cx).map_err(|_| std::io::Error::other("failed to flush the sink"))
-    }
-
-    fn poll_shutdown(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
-        AsyncWrite::poll_flush(self, cx)
-    }
-}
-
-impl Sink<InputMessage> for MixnetClient {
-    type Error = Error;
-
-    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        match self.sender().poll_ready_unpin(cx) {
-            Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
-            Poll::Ready(Err(_)) => Poll::Ready(Err(Error::MessageSendingFailure)),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-
-    fn start_send(mut self: Pin<&mut Self>, item: InputMessage) -> Result<()> {
-        self.sender()
-            .start_send_unpin(item)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.sender()
-            .poll_flush_unpin(cx)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.sender()
-            .poll_close_unpin(cx)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-}
-
-// TODO: there should be a better way of implementing Sink and AsyncWrite over T: MixnetMessageSender
-impl AsyncWrite for MixnetClientSender {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<Result<usize, std::io::Error>> {
-        let codec = InputMessageCodec {};
-        let mut reader = FramedRead::new(buf, codec);
-        let mut fut = reader.next();
-        let msg = match fut.poll_unpin(cx) {
-            Poll::Ready(Some(Ok(msg))) => msg,
-            Poll::Ready(Some(Err(_))) => {
-                return Poll::Ready(Err(std::io::Error::other(
-                    "failed to read message from input",
-                )))
-            }
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(None) => return Poll::Ready(Ok(0)),
-        };
-
-        let msg_size = msg.serialized_size();
-
-        let mut fut = pin!(self.client_input.send(msg));
-        match fut.poll_unpin(cx) {
-            Poll::Ready(Ok(())) => Poll::Ready(Ok(msg_size as usize)),
-            Poll::Ready(Err(_)) => Poll::Ready(Err(std::io::Error::other(
-                "failed to send message to mixnet",
-            ))),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
-        Sink::poll_flush(self, cx).map_err(|_| std::io::Error::other("failed to flush the sink"))
-    }
-
-    fn poll_shutdown(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::prelude::v1::Result<(), std::io::Error>> {
-        AsyncWrite::poll_flush(self, cx)
-    }
-}
-
-impl Sink<InputMessage> for MixnetClientSender {
-    type Error = Error;
-
-    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        match self.sender().poll_ready_unpin(cx) {
-            Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
-            Poll::Ready(Err(_)) => Poll::Ready(Err(Error::MessageSendingFailure)),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-
-    fn start_send(mut self: Pin<&mut Self>, item: InputMessage) -> Result<()> {
-        self.sender()
-            .start_send_unpin(item)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.sender()
-            .poll_flush_unpin(cx)
-            .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.sender()
-            .poll_close_unpin(cx)
-            .map_err(|_| Error::MessageSendingFailure)
     }
 }
 
@@ -623,7 +393,7 @@ impl MixnetMessageSender for MixnetClient {
         self.packet_type
     }
 
-    async fn send(&mut self, message: InputMessage) -> Result<()> {
+    async fn send(&self, message: InputMessage) -> Result<()> {
         if self.stream_mode.load(Ordering::SeqCst) {
             tracing::warn!("send() called after stream mode activated");
             return Err(Error::StreamModeActive);
@@ -632,10 +402,6 @@ impl MixnetMessageSender for MixnetClient {
             .send(message)
             .await
             .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn sender(&mut self) -> &mut tokio_util::sync::PollSender<InputMessage> {
-        &mut self.client_input.input_sender
     }
 }
 
@@ -645,7 +411,7 @@ impl MixnetMessageSender for MixnetClientSender {
         self.packet_type
     }
 
-    async fn send(&mut self, message: InputMessage) -> Result<()> {
+    async fn send(&self, message: InputMessage) -> Result<()> {
         if self.stream_mode.load(Ordering::SeqCst) {
             tracing::warn!("send() called after stream mode activated");
             return Err(Error::StreamModeActive);
@@ -654,9 +420,5 @@ impl MixnetMessageSender for MixnetClientSender {
             .send(message)
             .await
             .map_err(|_| Error::MessageSendingFailure)
-    }
-
-    fn sender(&mut self) -> &mut tokio_util::sync::PollSender<InputMessage> {
-        &mut self.client_input.input_sender
     }
 }

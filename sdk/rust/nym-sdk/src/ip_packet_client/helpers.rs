@@ -6,9 +6,7 @@ use crate::ip_packet_client::current::VERSION as CURRENT_VERSION;
 pub use crate::mixnet::ReconstructedMessage;
 use nym_config::defaults::mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6};
 
-use crate::stream_wrapper::IpMixStream;
-
-use nym_ip_packet_requests::{codec::MultiIpPacketCodec, IpPair};
+use nym_ip_packet_requests::IpPair;
 
 use bytes::Bytes;
 use pnet_packet::{
@@ -254,48 +252,8 @@ pub fn icmp_identifier() -> u16 {
     8475
 }
 
-// The only real change here is that we don't have to use the wrap() function to turn the incoming data in an InputMessage as this is done by the stream abstraction's write_bytes() via `send_ip_packet()`.
-pub async fn send_ping_v4(
-    stream: &mut IpMixStream,
-    our_ips: &IpPair,
-    sequence_number: u16,
-    identifier: u16,
-    destination: Ipv4Addr,
-) -> Result<()> {
-    let icmp_echo_request = create_icmpv4_echo_request(sequence_number, identifier)?;
-    let ipv4_packet = wrap_icmp_in_ipv4(icmp_echo_request, our_ips.ipv4, destination)?;
-
-    let bundled_packet =
-        MultiIpPacketCodec::bundle_one_packet(ipv4_packet.packet().to_vec().into());
-
-    stream.send_ip_packet(&bundled_packet).await?;
-    Ok(())
-}
-
-// One difference to note here is that since the IPR address is part of the stream (stored on connection) we don't have to pass it manually as in the original version of this code. The other diff is the same as the v4 function above re: not having to wrap the incoming in an InputMessage manually.
-pub async fn send_ping_v6(
-    stream: &mut IpMixStream,
-    our_ips: &IpPair,
-    sequence_number: u16,
-    destination: Ipv6Addr,
-) -> Result<()> {
-    let icmp_identifier = icmp_identifier();
-    let icmp_echo_request = create_icmpv6_echo_request(
-        sequence_number,
-        icmp_identifier,
-        &our_ips.ipv6,
-        &destination,
-    )?;
-    let ipv6_packet = wrap_icmp_in_ipv6(icmp_echo_request, our_ips.ipv6, destination)?;
-
-    // Wrap the IPv6 packet in a MultiIpPacket
-    let bundled_packet =
-        MultiIpPacketCodec::bundle_one_packet(ipv6_packet.packet().to_vec().into());
-
-    stream.send_ip_packet(&bundled_packet).await?;
-
-    Ok(())
-}
+// TODO: send_ping_v4 and send_ping_v6 removed temporarily — will be re-added
+// when IpMixStream is rebuilt on top of MixnetStream + LP frame envelope
 
 pub fn check_for_icmp_beacon_reply(
     packet: &Bytes,

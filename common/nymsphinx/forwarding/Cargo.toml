@@ -13,4 +13,3 @@ nym-sphinx-params = { workspace = true }
 nym-sphinx-types = { workspace = true, features = ["sphinx", "outfox"] }
 nym-sphinx-anonymous-replies = { workspace = true }
 thiserror = { workspace = true }
-serde = { workspace = true }

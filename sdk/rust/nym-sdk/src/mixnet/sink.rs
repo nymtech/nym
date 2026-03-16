@@ -176,7 +176,7 @@ where
     }
 
     fn start_sender_task<Sender>(
-        mut mixnet_client_sender: Sender,
+        mixnet_client_sender: Sender,
     ) -> (mpsc::Sender<InputMessage>, JoinHandle<()>)
     where
         Sender: MixnetMessageSender + Send + 'static,

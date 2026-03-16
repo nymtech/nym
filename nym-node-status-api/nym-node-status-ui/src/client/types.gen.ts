@@ -514,6 +514,14 @@ export type ProbeOutcome = {
   as_entry: Entry;
   as_exit?: null | Exit;
   wg?: null | ProbeOutcomeV1;
+  lp?: null | LpProbeResults;
+};
+
+export type LpProbeResults = {
+  can_connect: boolean;
+  can_handshake: boolean;
+  can_register: boolean;
+  error?: string | null;
 };
 
 export type ProbeOutcomeV1 = {

@@ -7,17 +7,22 @@ use tendermint::{Block, Hash, abci, block, tx};
 use tendermint_rpc::endpoint::{block as block_endpoint, block_results, validators};
 use tendermint_rpc::event::{Event, EventData};
 
-// just get all everything out of tx::Response, but parse raw `tx` bytes
+/// Message decoded from the raw transaction and converted into json.
+/// Note that it might have gone through additional processing as set by the `MessageRegistry`
 #[derive(Clone, Debug)]
-pub struct ParsedTransactionResponse {
+pub struct DecodedMessage {
+    pub type_url: String,
+    pub decoded_content: serde_json::Value,
+}
+
+#[derive(Clone, Debug)]
+pub struct ParsedTransactionDetails {
     /// The hash of the transaction.
     ///
     /// Deserialized from a hex-encoded string (there is a discrepancy between
     /// the format used for the request and the format used for the response in
     /// the Tendermint RPC).
     pub hash: Hash,
-
-    pub height: block::Height,
 
     pub index: u32,
 
@@ -27,11 +32,26 @@ pub struct ParsedTransactionResponse {
 
     pub proof: Option<tx::Proof>,
 
-    pub parsed_messages: BTreeMap<usize, serde_json::Value>,
+    pub block: Block,
+}
+
+impl ParsedTransactionDetails {
+    pub fn height(&self) -> block::Height {
+        self.block.header.height
+    }
+}
+
+// just get all everything out of tx::Response, but parse raw `tx` bytes
+#[derive(Clone, Debug)]
+pub struct ParsedTransactionResponse {
+    pub tx_details: ParsedTransactionDetails,
+
+    pub decoded_messages: BTreeMap<usize, DecodedMessage>,
+    /*
+        pub parsed_messages: BTreeMap<usize, serde_json::Value>,
 
     pub parsed_message_urls: BTreeMap<usize, String>,
-
-    pub block: Block,
+     */
 }
 
 #[derive(Debug)]

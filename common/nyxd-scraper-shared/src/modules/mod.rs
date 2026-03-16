@@ -6,5 +6,5 @@ mod msg_module;
 mod tx_module;
 
 pub use block_module::BlockModule;
-pub use msg_module::MsgModule;
+pub use msg_module::{MsgModule, parse_msg};
 pub use tx_module::TxModule;

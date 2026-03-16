@@ -291,8 +291,13 @@ where
         if let Some(tx_info) = &full_info.transactions {
             debug!("this block has {} transaction(s)", tx_info.len());
             for tx in tx_info {
-                debug!("{} has {} message(s)", tx.hash, tx.tx.body.messages.len());
-                for (index, msg) in tx.tx.body.messages.iter().enumerate() {
+                let details = &tx.tx_details;
+                debug!(
+                    "{} has {} message(s)",
+                    details.hash,
+                    details.tx.body.messages.len()
+                );
+                for (index, msg) in details.tx.body.messages.iter().enumerate() {
                     debug!("{index}: {:?}", msg.type_url)
                 }
             }
@@ -315,11 +320,24 @@ where
                 for tx_module in &mut self.tx_modules {
                     tx_module.handle_tx(block_tx).await?;
                 }
+                let tx_details = &block_tx.tx_details;
+
                 // the ones concerned with individual messages
-                for (index, msg) in block_tx.tx.body.messages.iter().enumerate() {
+                for (index, msg) in tx_details.tx.body.messages.iter().enumerate() {
+                    let Some(decoded) = block_tx.decoded_messages.get(&index) else {
+                        warn!(
+                            "height: {} tx: {} tx_index: {}, msg_index: {index}: message failed to get decoded",
+                            tx_details.height(),
+                            tx_details.hash,
+                            tx_details.index,
+                        );
+                        continue;
+                    };
                     for msg_module in &mut self.msg_modules {
                         if msg.type_url == msg_module.type_url() {
-                            msg_module.handle_msg(index, msg, block_tx).await?
+                            msg_module
+                                .handle_msg(index, msg, decoded, tx_details)
+                                .await?
                         }
                     }
                 }

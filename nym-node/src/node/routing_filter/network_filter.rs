@@ -40,23 +40,42 @@ impl NetworkRoutingFilter {
         }
     }
 
+    #[must_use]
+    pub(crate) fn with_known_network_monitors(
+        self,
+        known_network_monitors: HashSet<IpAddr>,
+    ) -> Self {
+        self.resolved.network_monitors.swap(known_network_monitors);
+        self
+    }
+
+    pub(crate) fn known_network_monitors_handle(&self) -> DeclaredNetworkMonitors {
+        self.resolved.network_monitors.clone()
+    }
+
     pub(crate) fn attempt_resolve(&self, ip: IpAddr) -> Resolution {
-        if self.resolved.inner.allowed.load().contains(&ip) {
+        if self.resolved.nym_nodes.inner.allowed.load().contains(&ip) {
+            // accept any traffic from known and resolved nym-nodes
             Resolution::Accept
-        } else if self.resolved.inner.denied.load().contains(&ip) {
+        } else if self.resolved.nym_nodes.inner.denied.load().contains(&ip) {
+            // deny any traffic from confirmed non-nym nodes
             Resolution::Deny
+        } else if self.resolved.network_monitors.is_known(&ip) {
+            // accept any traffic from known network monitors
+            Resolution::Accept
         } else {
+            // put any unknown sources into resolution queue
             self.pending.try_insert(ip);
             Resolution::Unknown
         }
     }
 
     pub(crate) fn allowed_nodes_copy(&self) -> HashSet<IpAddr> {
-        self.resolved.inner.allowed.load_full().as_ref().clone()
+        self.resolved.nym_nodes.clone_allowed()
     }
 
     pub(crate) fn denied_nodes_copy(&self) -> HashSet<IpAddr> {
-        self.resolved.inner.denied.load_full().as_ref().clone()
+        self.resolved.nym_nodes.clone_denied()
     }
 }
 
@@ -84,13 +103,97 @@ impl UnknownNodes {
 
 // for now we don't care about keys, etc.
 // we only want to know if given ip belongs to a known node
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct KnownNodes {
-    inner: Arc<KnownNodesInner>,
+    nym_nodes: KnownNymNodes,
+    network_monitors: DeclaredNetworkMonitors,
+}
+
+impl KnownNodes {
+    pub(crate) fn swap_allowed(&self, new: HashSet<IpAddr>) {
+        self.nym_nodes.swap_allowed(new)
+    }
+
+    pub(crate) fn swap_denied(&self, new: HashSet<IpAddr>) {
+        self.nym_nodes.swap_denied(new)
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct DeclaredNetworkMonitors {
+    inner: Arc<DeclaredNetworkMonitorsInner>,
+}
+
+impl DeclaredNetworkMonitors {
+    pub(crate) fn new(known: HashSet<IpAddr>) -> Self {
+        Self {
+            inner: Arc::new(DeclaredNetworkMonitorsInner {
+                known: ArcSwap::from_pointee(known),
+            }),
+        }
+    }
+
+    fn swap(&self, new: HashSet<IpAddr>) {
+        self.inner.known.store(Arc::new(new))
+    }
+
+    pub(crate) fn add_known(&self, address: IpAddr) {
+        if self.is_known(&address) {
+            return;
+        }
+        let mut known = self.inner.known.load().as_ref().clone();
+        known.insert(address);
+        self.swap(known);
+    }
+
+    pub(crate) fn remove_known(&self, address: IpAddr) {
+        if !self.is_known(&address) {
+            return;
+        }
+        let mut known = self.inner.known.load().as_ref().clone();
+        known.remove(&address);
+        self.swap(known);
+    }
+
+    pub(crate) fn reset(&self) {
+        self.swap(HashSet::new())
+    }
+
+    pub(crate) fn is_known(&self, address: &IpAddr) -> bool {
+        self.inner.known.load().contains(address)
+    }
 }
 
 #[derive(Debug, Default)]
-struct KnownNodesInner {
+struct DeclaredNetworkMonitorsInner {
+    known: ArcSwap<HashSet<IpAddr>>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct KnownNymNodes {
+    inner: Arc<KnownNymNodesInner>,
+}
+
+impl KnownNymNodes {
+    fn clone_allowed(&self) -> HashSet<IpAddr> {
+        self.inner.allowed.load_full().as_ref().clone()
+    }
+
+    fn clone_denied(&self) -> HashSet<IpAddr> {
+        self.inner.denied.load_full().as_ref().clone()
+    }
+
+    fn swap_allowed(&self, new: HashSet<IpAddr>) {
+        self.inner.allowed.store(Arc::new(new))
+    }
+
+    fn swap_denied(&self, new: HashSet<IpAddr>) {
+        self.inner.denied.store(Arc::new(new))
+    }
+}
+
+#[derive(Debug, Default)]
+struct KnownNymNodesInner {
     allowed: ArcSwap<HashSet<IpAddr>>,
     denied: ArcSwap<HashSet<IpAddr>>,
 }
@@ -114,15 +217,5 @@ impl From<bool> for Resolution {
 impl Resolution {
     pub(crate) fn should_route(&self) -> bool {
         matches!(self, Resolution::Accept)
-    }
-}
-
-impl KnownNodes {
-    pub(crate) fn swap_allowed(&self, new: HashSet<IpAddr>) {
-        self.inner.allowed.store(Arc::new(new))
-    }
-
-    pub(crate) fn swap_denied(&self, new: HashSet<IpAddr>) {
-        self.inner.denied.store(Arc::new(new))
     }
 }

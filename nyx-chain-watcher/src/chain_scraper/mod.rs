@@ -7,7 +7,8 @@ use crate::http::state::BankScraperModuleState;
 use async_trait::async_trait;
 use nym_validator_client::nyxd::{Any, Coin, CosmosCoin, Hash, Msg, MsgSend, Name};
 use nyxd_scraper_sqlite::{
-    MsgModule, ParsedTransactionResponse, PruningOptions, ScraperError, SqliteNyxdScraper,
+    DecodedMessage, MsgModule, ParsedTransactionDetails, PruningOptions, ScraperError,
+    SqliteNyxdScraper, parse_msg,
 };
 use sqlx::SqlitePool;
 use std::fs;
@@ -130,22 +131,8 @@ impl BankScraperModule {
             .find(|coin| coin.denom.as_ref() == "unym")
             .map(|c| c.clone().into())
     }
-
-    // TODO: ideally this should be done by the scraper itself
-    fn recover_bank_msg(
-        &self,
-        tx_hash: Hash,
-        index: usize,
-        msg: &Any,
-    ) -> Result<MsgSend, ScraperError> {
-        MsgSend::from_any(msg).map_err(|source| ScraperError::MsgParseFailure {
-            hash: tx_hash,
-            index,
-            type_url: self.type_url(),
-            source,
-        })
-    }
 }
+
 #[async_trait]
 impl MsgModule for BankScraperModule {
     fn type_url(&self) -> String {
@@ -156,7 +143,8 @@ impl MsgModule for BankScraperModule {
         &mut self,
         index: usize,
         msg: &Any,
-        tx: &ParsedTransactionResponse,
+        _: &DecodedMessage,
+        tx: &ParsedTransactionDetails,
     ) -> Result<(), ScraperError> {
         let memo = tx.tx.body.memo.clone();
 
@@ -165,7 +153,7 @@ impl MsgModule for BankScraperModule {
             return Ok(());
         }
 
-        let msg = self.recover_bank_msg(tx.hash, index, msg)?;
+        let msg: MsgSend = parse_msg(msg)?;
 
         // Check if any watcher is watching this recipient
         let is_watched = self
@@ -184,7 +172,7 @@ impl MsgModule for BankScraperModule {
                 );
                 warn!("{warn}");
                 self.shared_state
-                    .new_rejection(tx.hash.to_string(), tx.height.value(), index as u32, warn)
+                    .new_rejection(tx.hash.to_string(), tx.height().value(), index as u32, warn)
                     .await;
 
                 // we don't want to fail the whole processing - this is not a failure in that sense!
@@ -194,7 +182,7 @@ impl MsgModule for BankScraperModule {
             if let Err(err) = self
                 .store_transfer_event(
                     &tx.hash.to_string(),
-                    tx.height.value() as i64,
+                    tx.height().value() as i64,
                     index as i64,
                     msg.from_address.to_string(),
                     msg.to_address.to_string(),
@@ -207,7 +195,7 @@ impl MsgModule for BankScraperModule {
                 self.shared_state
                     .new_rejection(
                         tx.hash.to_string(),
-                        tx.height.value(),
+                        tx.height().value(),
                         index as u32,
                         format!("storage failure: {err}"),
                     )

@@ -23,6 +23,7 @@ use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::controller::KeyRotationController;
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::lp::LpSetup;
+use crate::node::lp::directory::LpNodes;
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
 use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
@@ -34,16 +35,21 @@ use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::nym_apis_client::NymApisClient;
+use crate::node::nyxd_watcher::network_monitor_agents::NetworkMonitorAgentsModule;
 use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
+use crate::node::routing_filter::network_filter::{DeclaredNetworkMonitors, NetworkRoutingFilter};
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
-use crate::node::shared_network::{
-    CachedNetwork, CachedTopologyProvider, LocalGatewayNode, NetworkRefresher,
-};
+use crate::node::shared_network::CachedNetwork;
+use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
+use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
 use nym_bin_common::bin_info;
+use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
+pub use nym_gateway::node::ActiveClientsStore;
+pub use nym_gateway::node::GatewayStorage;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_kkt::key_utils::{
@@ -68,25 +74,23 @@ use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
-use nym_validator_client::UserAgent;
+use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
+use nym_validator_client::{QueryHttpRpcNyxdClient, QueryHttpRpcValidatorClient, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
+use nyxd_scraper_shared::watcher::{NyxdWatcher, WatcherConfig};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use rand09::SeedableRng;
-use std::collections::BTreeMap;
-use std::net::SocketAddr;
+use std::collections::{BTreeMap, HashSet};
+use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, info, trace};
 use zeroize::Zeroizing;
-
-use crate::node::lp::directory::LpNodes;
-pub use nym_gateway::node::ActiveClientsStore;
-pub use nym_gateway::node::GatewayStorage;
 
 pub mod bonding_information;
 pub mod description;
@@ -97,6 +101,7 @@ pub mod lp;
 pub(crate) mod metrics;
 pub(crate) mod mixnet;
 mod nym_apis_client;
+mod nyxd_watcher;
 pub(crate) mod replay_protection;
 mod routing_filter;
 mod shared_network;
@@ -391,6 +396,8 @@ pub struct NymNode {
     accepted_operator_terms_and_conditions: bool,
     shutdown_manager: ShutdownManager,
 
+    network: NymNetworkDetails,
+
     description: NodeDescription,
 
     metrics: NymNodeMetrics,
@@ -434,7 +441,7 @@ impl NymNode {
         let mceliece = generate_keypair_mceliece(&mut rng09);
 
         let current_rotation_id =
-            get_current_rotation_id(&config.mixnet.nym_api_urls, &config.mixnet.nyxd_urls).await?;
+            get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;
         let _ = SphinxKeyManager::initialise_new(
             &mut rng,
             current_rotation_id,
@@ -512,7 +519,7 @@ impl NymNode {
     pub(crate) async fn new(config: Config) -> Result<Self, NymNodeError> {
         let wireguard_data = WireguardData::new(&config.wireguard)?;
         let current_rotation_id =
-            get_current_rotation_id(&config.mixnet.nym_api_urls, &config.mixnet.nyxd_urls).await?;
+            get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;
 
         let ed25519_identity_keys = load_ed25519_identity_keypair(
             &config.storage_paths.keys.ed25519_identity_storage_paths(),
@@ -549,6 +556,7 @@ impl NymNode {
             shutdown_manager: ShutdownManager::build_new_default()
                 .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
             x25519_lp_keys: Arc::new(x25519_lp_keys),
+            network: NymNetworkDetails::new_from_env(),
         })
     }
 
@@ -638,11 +646,12 @@ impl NymNode {
         Ok(self.sphinx_keys()?.keys.clone())
     }
 
-    async fn build_network_refresher(&self) -> Result<NetworkRefresher, NymNodeError> {
-        NetworkRefresher::initialise_new(
-            self.config.debug.testnet,
-            Self::user_agent(),
-            self.config.mixnet.nym_api_urls.clone(),
+    async fn build_network_refresher(
+        &self,
+        routing_filter: NetworkRoutingFilter,
+        client: NymApisClient,
+    ) -> Result<NetworkRefresher, NymNodeError> {
+        let config = NetworkRefresherConfig::new(
             self.config.debug.topology_cache_ttl,
             self.config.debug.routing_nodes_check_interval,
             self.config
@@ -650,6 +659,11 @@ impl NymNode {
                 .debug
                 .maximum_initial_topology_waiting_time,
             self.config.gateway_tasks.debug.minimum_mix_performance,
+        );
+        NetworkRefresher::initialise_new(
+            config,
+            client,
+            routing_filter,
             self.shutdown_manager.clone_shutdown_token(),
         )
         .await
@@ -706,6 +720,7 @@ impl NymNode {
 
         let mut gateway_tasks_builder = GatewayTasksBuilder::new(
             config.gateway,
+            self.network.clone(),
             self.ed25519_identity_keys.clone(),
             self.entry_gateway.client_storage.clone(),
             mix_packet_sender.clone(),
@@ -1331,6 +1346,55 @@ impl NymNode {
         Ok(())
     }
 
+    async fn known_network_monitors(&self) -> Result<HashSet<IpAddr>, NymNodeError> {
+        // 1. create a nyx rpc client
+        // (TODO: we should have unified client later on for all chain interactions)
+        let client = QueryHttpRpcNyxdClient::connect_with_network_details(
+            self.config.nyx.nyxd_urls[0].as_str(),
+            self.network.clone(),
+        )?;
+
+        // 2. run the queries to retrieve all known ip addresses of the agents
+        Ok(client
+            .get_all_network_monitor_agents()
+            .await?
+            .into_iter()
+            .map(|agent| agent.address)
+            .collect())
+    }
+
+    async fn setup_nyx_chain_watcher(
+        &self,
+        network_monitors_handle: DeclaredNetworkMonitors,
+    ) -> Result<(), NymNodeError> {
+        // START: module creation
+        let Some(Ok(contract_address)) = self
+            .network
+            .contracts
+            .network_monitors_contract_address
+            .map(|addr| addr.parse())
+        else {
+            // **THEORETICALLY** this should be impossible, for we have already created a nyxd client and
+            // queried this very contract before
+            return Err(NymNodeError::MissingNetworkMonitorsContractAddress);
+        };
+        let nm_agents = NetworkMonitorAgentsModule::new(contract_address, network_monitors_handle);
+
+        // END: module creation
+        let cancellation = self.shutdown_manager.clone_shutdown_token();
+
+        let config = WatcherConfig {
+            websocket_url: self.config.nyx.nyxd_websocket_url.clone(),
+            rpc_url: self.config.nyx.nyxd_urls[0].clone(),
+        };
+        let watcher = NyxdWatcher::builder(config)
+            .with_msg_module(nm_agents)
+            .with_custom_shutdown(cancellation.to_cancellation_token());
+
+        watcher.build_and_start().await?;
+        Ok(())
+    }
+
     async fn start_nym_node_tasks(mut self) -> Result<ShutdownManager, NymNodeError> {
         info!(
             "starting Nym Node {} with the following modes: mixnode: {}, entry: {}, exit: {}, wireguard: {}",
@@ -1342,6 +1406,7 @@ impl NymNode {
         );
         debug!("config: {:#?}", self.config);
 
+        // ##### START HTTP SERVER #####
         let http_server = self.build_http_server().await?;
         let bind_address = self.config.http.bind_address;
         let server_shutdown = self.shutdown_manager.clone_shutdown_token();
@@ -1355,31 +1420,53 @@ impl NymNode {
             },
             "HttpApi",
         );
+        // ##### END HTTP SERVER #####
 
+        // shared client for querying nym-apis
         let nym_apis_client = self.setup_nym_apis_client()?;
 
+        // announce current sphinx key to all nym apis
         self.try_refresh_remote_nym_api_cache(&nym_apis_client)
             .await?;
+
+        // start verloc
         self.start_verloc_measurements();
 
-        let network_refresher = self.build_network_refresher().await?;
+        // obtain the initial list of known network monitors
+        let known_network_monitors = self.known_network_monitors().await?;
+
+        // build routing filter
+        let routing_filter = NetworkRoutingFilter::new_empty(self.config.debug.testnet)
+            .with_known_network_monitors(known_network_monitors);
+        let network_monitors_ref = routing_filter.known_network_monitors_handle();
+
+        // retrieve the initial view of the network and update the known set of nym nodes in the routing filter
+        let network_refresher = self
+            .build_network_refresher(routing_filter.clone(), nym_apis_client.clone())
+            .await?;
+
+        // setup nyx chain watcher (currently only used for updating the network monitors view)
+        self.setup_nyx_chain_watcher(network_monitors_ref).await?;
+
         let active_clients_store = ActiveClientsStore::new();
         let lp_nodes = network_refresher.lp_nodes();
 
+        // start building a replay detection manager (bloomfilters, etc.)
         let bloomfilters_manager = self.setup_replay_detection().await?;
 
-        let noise_config = nym_noise::config::NoiseConfig::new(
+        let noise_config = NoiseConfig::new(
             self.x25519_noise_keys.clone(),
             network_refresher.noise_view(),
             self.config.mixnet.debug.initial_connection_timeout,
         )
         .with_unsafe_disabled(self.config.mixnet.debug.unsafe_disable_noise);
 
+        // start the listener for the mixnet packet(s)
         let (mix_packet_sender, active_egress_mixnet_connections) = self
             .start_mixnet_listener(
                 &active_clients_store,
                 bloomfilters_manager.bloomfilters(),
-                network_refresher.routing_filter(),
+                routing_filter,
                 noise_config,
             )
             .await?;
@@ -1392,6 +1479,7 @@ impl NymNode {
         let network = network_refresher.cached_network();
         network_refresher.start();
 
+        // setup all gateway-related tasks (client websocket, wireguard, lp, etc.)
         self.start_gateway_tasks(
             network,
             lp_nodes,
@@ -1401,6 +1489,7 @@ impl NymNode {
         )
         .await?;
 
+        // start watching for key rotation and update the keys accordingly
         self.setup_key_rotation(nym_apis_client, bloomfilters_manager)
             .await?;
 

@@ -141,6 +141,11 @@ pub fn read_parsed_var_if_not_default<T: std::str::FromStr>(
         .map(std::str::FromStr::from_str)
 }
 
+#[cfg(feature = "env")]
+pub fn read_parsed_var<T: std::str::FromStr>(var: &str) -> Result<T, T::Err> {
+    std::env::var(var).unwrap_or_default().parse()
+}
+
 #[cfg(all(feature = "env", feature = "network"))]
 pub fn export_to_env() {
     use crate::var_names;

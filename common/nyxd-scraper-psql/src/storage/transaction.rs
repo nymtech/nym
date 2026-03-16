@@ -147,6 +147,7 @@ impl PostgresStorageTransaction {
         for chain_tx in txs {
             // bdjuno style, base64 encode them
             let signatures = chain_tx
+                .tx_details
                 .tx
                 .signatures
                 .iter()
@@ -154,12 +155,14 @@ impl PostgresStorageTransaction {
                 .collect();
 
             let messages = chain_tx
-                .parsed_messages
+                .decoded_messages
                 .values()
+                .map(|msg| &msg.decoded_content)
                 .cloned()
                 .collect::<Vec<_>>();
 
             let signer_infos = chain_tx
+                .tx_details
                 .tx
                 .auth_info
                 .signer_infos
@@ -167,28 +170,28 @@ impl PostgresStorageTransaction {
                 .map(|info| proto::cosmos::tx::v1beta1::SignerInfo::from(info.clone()))
                 .collect::<Vec<_>>();
 
-            let hash = chain_tx.hash.to_string();
-            let height = chain_tx.height.into();
-            let index = chain_tx.index as i32;
+            let hash = chain_tx.tx_details.hash.to_string();
+            let height = chain_tx.tx_details.height().into();
+            let index = chain_tx.tx_details.index as i32;
 
-            let log = serde_json::to_value(chain_tx.tx_result.log.clone())
+            let log = serde_json::to_value(chain_tx.tx_details.tx_result.log.clone())
                 .inspect_err(|e| error!(hash, height, index, "Failed to parse logs: {e}"))
                 .unwrap_or_default();
-            let events = &chain_tx.tx_result.events;
+            let events = &chain_tx.tx_details.tx_result.events;
 
             insert_transaction(
                 hash,
                 height,
                 index,
-                chain_tx.tx_result.code.is_ok(),
+                chain_tx.tx_details.tx_result.code.is_ok(),
                 serde_json::Value::Array(messages),
-                chain_tx.tx.body.memo.clone(),
+                chain_tx.tx_details.tx.body.memo.clone(),
                 signatures,
                 serde_json::to_value(signer_infos)?,
-                serde_json::to_value(&chain_tx.tx.auth_info.fee)?,
-                chain_tx.tx_result.gas_wanted,
-                chain_tx.tx_result.gas_used,
-                chain_tx.tx_result.log.clone(),
+                serde_json::to_value(&chain_tx.tx_details.tx.auth_info.fee)?,
+                chain_tx.tx_details.tx_result.gas_wanted,
+                chain_tx.tx_details.tx_result.gas_used,
+                chain_tx.tx_details.tx_result.log.clone(),
                 json!(log),
                 json!(events),
                 self.inner.as_mut(),
@@ -207,17 +210,20 @@ impl PostgresStorageTransaction {
 
         for chain_tx in txs {
             let involved_addresses = parse_addresses_from_events(chain_tx);
-            for (index, msg) in chain_tx.tx.body.messages.iter().enumerate() {
-                let parsed_message = chain_tx.parsed_messages.get(&index);
+            for (index, msg) in chain_tx.tx_details.tx.body.messages.iter().enumerate() {
+                let parsed_message = chain_tx
+                    .decoded_messages
+                    .get(&index)
+                    .map(|msg| &msg.decoded_content);
                 let value = serde_json::to_value(parsed_message)?;
 
                 insert_message(
-                    chain_tx.hash.to_string(),
+                    chain_tx.tx_details.hash.to_string(),
                     index as i64,
                     msg.type_url.clone(),
                     value,
                     involved_addresses.clone(),
-                    chain_tx.height.into(),
+                    chain_tx.tx_details.height().into(),
                     self.inner.as_mut(),
                 )
                 .await?

@@ -24,6 +24,8 @@ use async_trait::async_trait;
 use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
 use cosmrs::tx::{Raw, SignDoc};
 use cosmwasm_std::Addr;
+use nym_contracts_common::build_information::CONTRACT_BUILD_INFO_STORAGE_KEY;
+use nym_contracts_common::ContractBuildInformation;
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
@@ -70,14 +72,19 @@ pub use tendermint_rpc::{
     Paging, Request, Response, SimpleRequest,
 };
 
+pub use nym_ecash_contract_common;
+pub use nym_mixnet_contract_common;
+pub use nym_multisig_contract_common;
+pub use nym_network_monitors_contract_common;
+pub use nym_performance_contract_common;
+pub use nym_vesting_contract_common;
+
 #[cfg(feature = "http-client")]
 use crate::http_client;
 #[cfg(feature = "http-client")]
 use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
-use nym_contracts_common::build_information::CONTRACT_BUILD_INFO_STORAGE_KEY;
-use nym_contracts_common::ContractBuildInformation;
 
 pub mod coin;
 pub mod contract_traits;

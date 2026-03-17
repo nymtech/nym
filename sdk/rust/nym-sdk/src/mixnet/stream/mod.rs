@@ -32,7 +32,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
 
-use protocol::{decode_stream_message, encode_stream_message, StreamMessageType};
+use nym_lp::packet::frame::StreamMsgType;
+use protocol::{decode_stream_message, encode_stream_message};
 
 use crate::mixnet::native_client::MixnetClient;
 use crate::{Error, Result};
@@ -230,20 +231,20 @@ async fn run_router(
                 continue;
             };
 
-            let stream_id = frame.header.stream_id;
-            match frame.header.message_type {
-                StreamMessageType::Open => {
+            let stream_id = frame.stream_id;
+            match frame.msg_type {
+                StreamMsgType::Open => {
                     let _ = listener_tx.send(InboundOpen {
                         stream_id,
                         sender_tag: msg.sender_tag,
                         initial_data: frame.data.to_vec(),
                     });
                 }
-                StreamMessageType::Data => {
+                StreamMsgType::Data => {
                     streams
                         .send_to_stream(&stream_id, frame.data.to_vec())
                         .await;
-                } // TODO: if we decide we need close logic add another enum member
+                }
             }
         }
     }
@@ -295,7 +296,7 @@ pub(crate) async fn open_stream(
     let rx = streams.register_stream(stream_id).await;
 
     // Send Open to the peer
-    let wire = encode_stream_message(&stream_id, StreamMessageType::Open, &[]);
+    let wire = encode_stream_message(&stream_id, StreamMsgType::Open, 0, &[]);
     let msg = InputMessage::new_anonymous(
         recipient,
         wire,

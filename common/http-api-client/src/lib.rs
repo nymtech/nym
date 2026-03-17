@@ -1168,7 +1168,12 @@ impl ApiClientCore for Client {
             match response {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
-                    if is_network_error(&err) {
+                    #[cfg(target_arch = "wasm32")]
+                    let is_network_err = err.is_timeout();
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let is_network_err = is_network_error(&err);
+
+                    if is_network_err {
                         // if we have multiple urls, update to the next
                         self.maybe_rotate_hosts(Some(url.clone()));
 

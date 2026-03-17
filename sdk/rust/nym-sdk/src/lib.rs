@@ -3,15 +3,16 @@
 //! The main component currently is [`mixnet`].
 //! [`client_pool`] is a configurable client pool.
 //! [`tcp_proxy`] is a soon to be deprecated wrapper around the mixnet client which exposes a localhost port.
-//! [`stream_wrapper`] is the v2 of the tcp_proxy, exposing a socket-like abstraction around the mixnet client.
+//! [`ipr_wrapper`] tunnels IP packets through the mixnet to an IPR exit gateway.
 
 mod error;
 
 pub mod bandwidth;
 pub mod client_pool;
 pub mod ip_packet_client;
+pub mod ipr_wrapper;
 pub mod mixnet;
-// TODO: rewrite stream_wrapper to use MixnetStream + LP frame envelope
+// stream_wrapper is superseded by ipr_wrapper (LP frame envelope over mixnet)
 // pub mod stream_wrapper;
 pub mod tcp_proxy;
 

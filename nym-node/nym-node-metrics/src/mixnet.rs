@@ -53,6 +53,12 @@ impl MixingStats {
         self.ingress.senders.entry(source).or_default().replayed += 1;
     }
 
+    pub fn ingress_network_monitor_packet(&self) {
+        self.ingress
+            .test_packets_received
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
     pub fn ingress_malformed_packet(&self, source: IpAddr) {
         self.ingress
             .malformed_packets_received
@@ -243,6 +249,9 @@ pub struct IngressMixingStats {
     // packets that were already received and processed before
     replayed_packets_received: AtomicUsize,
 
+    // packets that were received from a globally known network monitor agent
+    test_packets_received: AtomicUsize,
+
     // (forward) packets that had invalid, i.e. too large, delays
     excessive_delay_packets: AtomicUsize,
 
@@ -266,6 +275,10 @@ impl IngressMixingStats {
 
     pub fn replayed_packets_received(&self) -> usize {
         self.replayed_packets_received.load(Ordering::Relaxed)
+    }
+
+    pub fn test_packets_received(&self) -> usize {
+        self.test_packets_received.load(Ordering::Relaxed)
     }
 
     pub fn malformed_packets_received(&self) -> usize {

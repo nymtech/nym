@@ -110,6 +110,7 @@ impl ConnectionHandler {
                 final_hop: shared.final_hop.clone(),
                 noise_config: shared.noise_config.clone(),
                 metrics: shared.metrics.clone(),
+                authorised_network_monitor_agents: shared.authorised_network_monitor_agents.clone(),
                 shutdown_token: shared.shutdown_token.child_token(),
             },
             remote_address,
@@ -117,8 +118,14 @@ impl ConnectionHandler {
         }
     }
 
+    fn is_from_authorised_network_monitor_agent(&self) -> bool {
+        self.shared
+            .authorised_network_monitor_agents
+            .is_known(&self.remote_address.ip())
+    }
+
     /// Determine instant at which packet should get forwarded to the next hop.
-    /// By using [`Instant`] rather than explicit [`Duration`] we minimise effects of
+    /// By using [`Instant`] rather than explicit [`Duration`], we minimise the effects of
     /// the skew caused by being stuck in the channel queue.
     /// This method also clamps the maximum allowed delay so that nobody could send a bunch of packets
     /// with, for example, delays of 1 year thus causing denial of service

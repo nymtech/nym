@@ -1214,6 +1214,8 @@ impl ApiClientCore for Client {
     }
 }
 
+const MAX_ERR_SOURCE_ITERATIONS: usize = 4;
+
 /// only if there was a network issue should we consider updating the host info
 pub(crate) fn is_network_error(err: &reqwest::Error) -> bool {
     if err.is_timeout() {
@@ -1225,31 +1227,32 @@ pub(crate) fn is_network_error(err: &reqwest::Error) -> bool {
         return false;
     }
 
-    // reqwest::Error -> hyper_util::Error
-    if let Some(inner1) = err.source() {
-        // hyper_util::Error -> hyper_util::ClientError
-        if let Some(inner2) = inner1.source() {
-            // hyper_util::ClientError -> io::Error
-            if let Some(inner3) = inner2.source() {
-                // downcase from dyn
-                if let Some(io_err) = inner3.downcast_ref::<std::io::Error>() {
-                    match io_err.kind() {
-                        // device not connected to the internet
-                        ErrorKind::NetworkUnreachable | ErrorKind::NetworkDown => return false,
-                        // custom errors may be case by case, but in general not DF related
-                        // -- includes DNS errors for hyper_util
-                        ErrorKind::Other => return false,
-                        // timeouts can indicate packet drops or adress blocklisting
-                        // -- this should hit the timeout conditional above
-                        ErrorKind::TimedOut => return true,
-                        // connection errors can indicate connection interference
-                        ErrorKind::ConnectionReset
-                        | ErrorKind::HostUnreachable
-                        | ErrorKind::ConnectionRefused => return true,
-                        _ => return false,
-                    }
+    // The io::Error source is several layers deep, for clarity this is done as a loop
+    // * reqwest::Error -> hyper_util::Error
+    // * hyper_util::Error -> hyper_util::ClientError
+    // * hyper_util::ClientError -> io::Error
+    let mut inner = err.source();
+    for _ in 0..MAX_ERR_SOURCE_ITERATIONS {
+        if let Some(e) = inner {
+            // try downcast to io::Error from <dyn std::error:Error>
+            if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                match io_err.kind() {
+                    // device not connected to the internet
+                    ErrorKind::NetworkUnreachable | ErrorKind::NetworkDown => return false,
+                    // custom errors may be case by case, but in general not DF related
+                    // -- includes DNS errors for hyper_util
+                    ErrorKind::Other => return false,
+                    // connection errors can indicate connection interference
+                    ErrorKind::ConnectionReset
+                    | ErrorKind::HostUnreachable
+                    | ErrorKind::ConnectionRefused => return true,
+                    _ => return false,
                 }
+            } else {
+                inner = e.source();
             }
+        } else {
+            break;
         }
     }
 

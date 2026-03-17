@@ -110,6 +110,12 @@ pub enum PacketProcessingError {
     PacketReplay,
 }
 
+impl PacketProcessingError {
+    pub fn is_replay(&self) -> bool {
+        matches!(self, PacketProcessingError::PacketReplay)
+    }
+}
+
 pub struct PartialyUnwrappedPacketWithKeyRotation {
     pub packet: PartiallyUnwrappedPacket,
     pub used_key_rotation: u32,

@@ -145,10 +145,22 @@ impl SharedData {
         processing_result: &Result<MixProcessingResult, PacketProcessingError>,
         source: IpAddr,
     ) {
-        let Ok(processing_result) = processing_result else {
-            self.metrics.mixnet.ingress_malformed_packet(source);
-            return;
+        let processing_result = match processing_result {
+            Ok(processing_result) => processing_result,
+            Err(err) => {
+                if err.is_replay() {
+                    self.metrics.mixnet.ingress_replayed_packet(source);
+                } else {
+                    self.metrics.mixnet.ingress_malformed_packet(source);
+                }
+
+                return;
+            }
         };
+
+        if self.authorised_network_monitor_agents.is_known(&source) {
+            self.metrics.mixnet.ingress_network_monitor_packet();
+        }
 
         let packet_version = convert_to_metrics_version(processing_result.packet_version);
 

@@ -6,21 +6,16 @@ use crate::node::lp::directory::LpNodes;
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use crate::node::shared_network::CachedNetwork;
-use nym_http_api_client::UserAgent;
 use nym_node_metrics::prometheus_wrapper::{PROMETHEUS_METRICS, PrometheusMetric};
 use nym_noise::config::NoiseNetworkView;
 use nym_task::ShutdownToken;
-use nym_topology::EpochRewardedSet;
 use nym_topology::provider_trait::ToTopologyMetadata;
 use nym_validator_client::ValidatorClientError;
-use nym_validator_client::nym_api::{NodesByAddressesResponse, SemiSkimmedNodesWithMetadata};
 use std::collections::{HashMap, HashSet};
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::time::{Instant, interval, sleep};
-use tracing::log::error;
-use tracing::{debug, trace, warn};
-use url::Url;
+use tracing::{debug, trace};
 
 pub struct NetworkRefresher {
     config: NetworkRefresherConfig,

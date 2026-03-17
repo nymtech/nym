@@ -8,7 +8,6 @@ use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::Client;
 use nym_task::ShutdownToken;
 use nym_topology::EpochRewardedSet;
-use nym_validator_client::ValidatorClientError;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{KeyRotationInfoResponse, NodeRefreshBody};
 use nym_validator_client::nym_api::error::NymAPIError;

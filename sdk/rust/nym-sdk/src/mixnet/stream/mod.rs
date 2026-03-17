@@ -9,7 +9,7 @@
 //! stream's channel (or to the listener for `Open` messages).
 
 mod mixnet_stream;
-mod protocol;
+pub(crate) mod protocol;
 
 pub use mixnet_stream::MixnetStream;
 pub use protocol::StreamId;

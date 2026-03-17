@@ -119,6 +119,9 @@ pub enum IpPacketRouterError {
 
     #[error("KCP protocol error: {0}")]
     KcpError(String),
+
+    #[error("{0}")]
+    Other(String),
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

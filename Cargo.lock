@@ -7074,6 +7074,7 @@ dependencies = [
  "nym-id",
  "nym-ip-packet-requests",
  "nym-kcp",
+ "nym-lp",
  "nym-network-defaults",
  "nym-network-requester",
  "nym-sdk",

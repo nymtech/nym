@@ -22,8 +22,12 @@ use crate::{
     request_filter::RequestFilter,
     util::parse_ip::ParsedPacket,
 };
+use bytes::BytesMut;
 use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
+use nym_lp::packet::frame::{
+    LpFrame, LpFrameHeader, LpFrameKind, StreamFrameAttributes, StreamMsgType,
+};
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownToken;
@@ -63,6 +67,10 @@ pub(crate) struct MixnetListener {
 
     // KCP session manager for LP clients sending KCP-wrapped messages
     pub(crate) kcp_session_manager: KcpSessionManager,
+
+    // When processing an LP Stream frame, this holds the stream_id so connect
+    // handlers can pass it to ConnectedClientHandler for LP-wrapping TUN responses.
+    pub(crate) current_stream_id: Option<u64>,
 }
 
 /// Check if a message payload appears to be KCP-wrapped.
@@ -233,6 +241,7 @@ impl MixnetListener {
                     buffer_timeout,
                     version,
                     self.mixnet_client.split_sender(),
+                    self.current_stream_id,
                 );
 
                 // Register the new client in the set of connected clients
@@ -318,6 +327,7 @@ impl MixnetListener {
             buffer_timeout,
             version,
             self.mixnet_client.split_sender(),
+            self.current_stream_id,
         );
 
         // Register the new client in the set of connected clients
@@ -436,6 +446,15 @@ impl MixnetListener {
                 .unwrap_or("missing".to_owned())
         );
 
+        // Check if this is an LP Stream frame
+        if reconstructed.message.len() >= LpFrameHeader::SIZE {
+            if let Ok(header) = LpFrameHeader::parse(&reconstructed.message) {
+                if header.kind == LpFrameKind::Stream {
+                    return self.on_stream_frame(reconstructed).await;
+                }
+            }
+        }
+
         // Check if this is a KCP-wrapped message from an LP client
         if is_kcp_message(&reconstructed.message) {
             return self.on_kcp_message(reconstructed).await;
@@ -443,6 +462,111 @@ impl MixnetListener {
 
         // Regular IPR protocol message (websocket clients)
         self.on_ipr_message(reconstructed).await
+    }
+
+    /// Handle LP Stream-framed messages.
+    ///
+    /// LP Stream frames carry IPR requests in the frame content. We parse the
+    /// stream attributes, process the inner payload, and handle responses inline
+    /// (wrapped in LP Stream frames) — the same pattern used by the KCP handler.
+    ///
+    /// The `current_stream_id` field is set during processing so that connect
+    /// handlers can pass it to `ConnectedClientHandler`, which wraps async TUN
+    /// responses in LP Stream frames too.
+    async fn on_stream_frame(
+        &mut self,
+        reconstructed: ReconstructedMessage,
+    ) -> Result<Vec<PacketHandleResult>> {
+        log::debug!(
+            "Received LP Stream frame ({} bytes)",
+            reconstructed.message.len()
+        );
+
+        // Parse stream attributes from the LP header
+        let header = LpFrameHeader::parse(&reconstructed.message)
+            .map_err(|e| IpPacketRouterError::Other(format!("Invalid LP frame header: {e}")))?;
+        let attrs = StreamFrameAttributes::parse(&header.frame_attributes).map_err(|e| {
+            IpPacketRouterError::Other(format!("Invalid stream frame attributes: {e}"))
+        })?;
+
+        let stream_id = attrs.stream_id;
+        log::debug!(
+            "LP Stream: stream_id={stream_id:#018x}, msg_type={:?}, seq={}",
+            attrs.msg_type,
+            attrs.sequence_num
+        );
+
+        // Set context so connect handlers thread stream_id to ConnectedClientHandler
+        self.current_stream_id = Some(stream_id);
+
+        let payload = &reconstructed.message[LpFrameHeader::SIZE..];
+
+        // Open frames may carry an empty payload (stream handshake only)
+        if payload.is_empty() {
+            log::debug!("LP Stream: empty payload (Open handshake), skipping");
+            self.current_stream_id = None;
+            return Ok(vec![]);
+        }
+
+        // Strip LP header, process inner payload as IPR message
+        let inner_reconstructed = ReconstructedMessage {
+            message: payload.to_vec(),
+            sender_tag: reconstructed.sender_tag,
+        };
+
+        match self.on_ipr_message(inner_reconstructed).await {
+            Ok(results) => {
+                for result in results {
+                    #[allow(clippy::collapsible_if)]
+                    if let Ok(Some(response)) = result {
+                        if let Err(e) = self.handle_stream_response(stream_id, response).await {
+                            log::warn!(
+                                "Error sending LP Stream response for stream_id={stream_id:#018x}: {e}"
+                            );
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                log::warn!("Error processing LP Stream inner message: {e}");
+            }
+        }
+
+        self.current_stream_id = None;
+
+        // Return empty — we handled responses directly above
+        Ok(vec![])
+    }
+
+    /// Wrap a response in an LP Stream frame and send it via the mixnet.
+    ///
+    /// Used for inline responses to LP Stream clients (connect handshake, pong, etc.).
+    async fn handle_stream_response(
+        &mut self,
+        stream_id: u64,
+        response: VersionedResponse,
+    ) -> Result<()> {
+        let reply_to = response.reply_to.clone();
+        let response_bytes = response.try_into_bytes()?;
+
+        // Wrap in LP Stream frame (seq=0 for inline responses)
+        let attrs = StreamFrameAttributes {
+            stream_id,
+            msg_type: StreamMsgType::Data,
+            sequence_num: 0,
+        };
+        let frame = LpFrame::new_stream(attrs, response_bytes);
+        let mut buf = BytesMut::with_capacity(LpFrameHeader::SIZE + frame.content.len());
+        frame.encode(&mut buf);
+
+        let input_message =
+            crate::util::create_message::create_input_message(&reply_to, buf.to_vec());
+
+        self.mixnet_client.send(input_message).await.map_err(|err| {
+            IpPacketRouterError::FailedToSendPacketToMixnet {
+                source: Box::new(err),
+            }
+        })
     }
 
     /// Handle KCP-wrapped messages from LP clients.
@@ -812,5 +936,33 @@ mod tests {
             !is_kcp_message(&message),
             "Invalid KCP command 85 should be rejected"
         );
+    }
+
+    #[test]
+    fn test_lp_stream_frame_detected() {
+        use bytes::BytesMut;
+        use nym_lp::packet::frame::{
+            LpFrameHeader, LpFrameKind, StreamFrameAttributes, StreamMsgType,
+        };
+
+        let attrs = StreamFrameAttributes {
+            stream_id: 0x1234,
+            msg_type: StreamMsgType::Data,
+            sequence_num: 42,
+        };
+        let frame = nym_lp::packet::frame::LpFrame::new_stream(attrs, vec![8, 1, 0]); // fake IPR payload
+        let mut buf = BytesMut::new();
+        frame.encode(&mut buf);
+
+        let header = LpFrameHeader::parse(&buf).unwrap();
+        assert_eq!(header.kind, LpFrameKind::Stream);
+
+        let parsed_attrs = StreamFrameAttributes::parse(&header.frame_attributes).unwrap();
+        assert_eq!(parsed_attrs.stream_id, 0x1234);
+        assert_eq!(parsed_attrs.msg_type, StreamMsgType::Data);
+        assert_eq!(parsed_attrs.sequence_num, 42);
+
+        // Content is everything after the header
+        assert_eq!(&buf[LpFrameHeader::SIZE..], &[8, 1, 0]);
     }
 }

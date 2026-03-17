@@ -1,6 +1,25 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+//! Background task that periodically refreshes network topology and routing information.
+//!
+//! # Responsibilities
+//!
+//! - Fetches the current Nym node list from nym-api
+//! - Resolves pending (unknown) IP addresses from ingress mixnet packets
+//! - Updates routing filter with allowed/denied node lists
+//! - Maintains Noise protocol key mappings
+//! - Ensures minimally routable topology at startup
+//!
+//! # Refresh Strategy
+//!
+//! Two independent refresh cycles run in parallel:
+//! 1. **Full refresh** (typically every 60s): Complete network state from nym-api
+//! 2. **Pending check** (typically every 5s): Quick resolution of recently seen unknown IPs
+//!
+//! The pending check uses an optimized nym-api endpoint when available, falling back to
+//! full refresh if the endpoint is not supported.
+
 use crate::error::NymNodeError;
 use crate::node::lp::directory::LpNodes;
 use crate::node::nym_apis_client::NymApisClient;
@@ -77,6 +96,29 @@ impl NetworkRefresher {
         Ok(this)
     }
 
+    /// Attempt to resolve pending (unknown) IP addresses that were recently seen in packet traffic.
+    ///
+    /// # Algorithm
+    ///
+    /// 1. Collect all pending IPs that need resolution (lock required)
+    /// 2. Short-circuit if all pending IPs are already in allowed/denied sets (race condition check)
+    /// 3. Try optimised nym-api query: `query_nym_nodes_addresses(ips)` for bulk lookup
+    ///    - If supported: Get immediate results, update allowed/denied sets, clear pending queue
+    ///    - If not supported (404): Fall back to full network refresh
+    ///
+    /// # Performance
+    ///
+    /// The optimised query avoids fetching the entire network topology (~1000 nodes) when we only
+    /// need to check a handful of IPs. This is crucial for minimising latency between when a new
+    /// node joins and when it can successfully route packets.
+    ///
+    /// # Fallback Behaviour
+    ///
+    /// If nym-api doesn't support the optimised endpoint, we do a full refresh. This is acceptable
+    /// because:
+    /// - Full refresh is needed anyway for topology updates
+    /// - The pending queue typically has <10 entries
+    /// - This only affects older nym-api versions
     async fn inspect_pending(&mut self) {
         let to_resolve = self.routing_filter.pending.nodes().await;
 
@@ -187,6 +229,30 @@ impl NetworkRefresher {
         }
     }
 
+    /// Block until we obtain a minimally routable network topology at startup.
+    ///
+    /// # Startup Sequence
+    ///
+    /// 1. Query nym-api for full network state (nodes + rewarded set)
+    /// 2. Check if topology has sufficient mixnodes in each layer for routing
+    /// 3. If not routable: wait `STARTUP_REFRESH_INTERVAL` (30s) and retry
+    /// 4. If still not routable after `max_startup_waiting_period`: return error and abort startup
+    ///
+    /// # Why Block Startup?
+    ///
+    /// We MUST have a routable topology before accepting packets, otherwise:
+    /// - Packets would be dropped due to incomplete routing tables
+    /// - The node would appear non-functional to the network
+    /// - Internal service providers would be unable to construct return packets
+    ///
+    /// # Timeout Behavior
+    ///
+    /// If the network remains non-routable for too long, this indicates:
+    /// - Network-wide outage (not enough mixnodes online)
+    /// - nym-api connectivity issues
+    /// - Configuration error (wrong nym-api URL)
+    ///
+    /// In any case, the node should NOT start packet processing.
     pub(crate) async fn obtain_initial_network(
         &mut self,
         max_startup_waiting_period: Duration,

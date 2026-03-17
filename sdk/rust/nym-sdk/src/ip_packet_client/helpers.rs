@@ -4,7 +4,9 @@
 use super::error::{Error, Result};
 use crate::ip_packet_client::current::VERSION as CURRENT_VERSION;
 pub use crate::mixnet::ReconstructedMessage;
-use nym_config::defaults::mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6};
+use nym_network_defaults::constants::mixnet_vpn::{
+    NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6,
+};
 
 use nym_ip_packet_requests::IpPair;
 

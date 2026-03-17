@@ -74,7 +74,7 @@ async fn retrieve_exit_nodes_with_performance(
     client: nym_http_api_client::Client,
 ) -> Result<Vec<IprWithPerformance>, Error> {
     let all_nodes = client
-        .get_all_described_nodes()
+        .get_all_described_nodes_v2()
         .await?
         .into_iter()
         .map(|described| (described.ed25519_identity_key(), described))

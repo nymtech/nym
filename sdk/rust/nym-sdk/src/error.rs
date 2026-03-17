@@ -1,3 +1,5 @@
+use nym_ip_packet_requests::v8::response::{ConnectFailureReason, IpPacketResponseData};
+use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use std::path::PathBuf;
 
@@ -108,6 +110,37 @@ pub enum Error {
 
     #[error("Stream subsystem failed to initialise: reconstructed_receiver unavailable")]
     StreamInitFailure,
+
+    #[error("client not connected")]
+    IprStreamClientNotConnected,
+
+    #[error("client already connected or connecting")]
+    IprStreamClientAlreadyConnectedOrConnecting,
+
+    #[error("listening for connection response timed out")]
+    IPRConnectResponseTimeout,
+
+    #[error("stream closed")]
+    IPRClientStreamClosed,
+
+    #[error("expected control response, got {0:?}")]
+    UnexpectedResponseType(IpPacketResponseData),
+
+    #[error("connect denied: {0:?}")]
+    ConnectDenied(ConnectFailureReason),
+
+    #[allow(clippy::result_large_err)]
+    #[error("api directory error: {0}")]
+    GatewayDirectoryError(#[from] NymAPIError),
+
+    #[error("did not receive Nym API URL")]
+    NoNymAPIUrl,
+
+    #[error("no available gateway")]
+    NoGatewayAvailable,
+
+    #[error("message version check failed: {0}")]
+    IPRMessageVersionCheckFailed(String),
 }
 
 impl Error {

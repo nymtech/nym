@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 mod connect;
+pub mod discovery;
 mod error;
 pub mod helpers;
 pub mod listener;

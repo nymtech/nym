@@ -114,9 +114,6 @@ pub enum Error {
     #[error("client not connected")]
     IprStreamClientNotConnected,
 
-    #[error("client already connected or connecting")]
-    IprStreamClientAlreadyConnectedOrConnecting,
-
     #[error("listening for connection response timed out")]
     IPRConnectResponseTimeout,
 

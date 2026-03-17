@@ -111,6 +111,17 @@ impl MixnetStream {
         self.id
     }
 
+    /// Receive a single message payload directly from the stream channel.
+    ///
+    /// Returns `None` on EOF (channel closed). Drains any leftover from
+    /// a prior `AsyncRead` call first.
+    pub async fn recv(&mut self) -> Option<Vec<u8>> {
+        if !self.read_buf.is_empty() {
+            return Some(self.read_buf.split().to_vec());
+        }
+        self.inbound_rx.recv().await
+    }
+
     /// Wrap `data` in the appropriate `InputMessage` for this stream's destination.
     fn make_input_message(&self, data: Vec<u8>) -> InputMessage {
         match &self.destination {

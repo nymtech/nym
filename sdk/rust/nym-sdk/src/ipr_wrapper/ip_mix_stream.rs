@@ -3,123 +3,24 @@
 
 use super::network_env::NetworkEnvironment;
 use crate::ip_packet_client::{
-    helpers::check_ipr_message_version, IprListener, MixnetMessageOutcome,
+    discovery::{create_nym_api_client, get_random_ipr, parse_connect_response},
+    helpers::check_ipr_message_version,
+    IprListener, MixnetMessageOutcome,
 };
 use crate::mixnet::{MixnetClient, MixnetStream, Recipient};
 use crate::Error;
 
 use bytes::Bytes;
-use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_requests::{
-    v8::{
-        request::IpPacketRequest,
-        response::{ConnectResponseReply, ControlResponse, IpPacketResponse, IpPacketResponseData},
-    },
+    v8::{request::IpPacketRequest, response::IpPacketResponse},
     IpPair,
 };
-use nym_network_defaults::ApiUrl;
 use nym_sphinx::receiver::ReconstructedMessage;
-use nym_validator_client::nym_api::NymApiClientExt;
-use std::collections::HashMap;
 use std::time::Duration;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tracing::{debug, error, info};
 
 const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
-
-/// Maximum size for a single IPR response read from the stream.
-/// IPR responses fit within one Sphinx packet payload (~1.8 KB) so 64 KB
-/// provides ample headroom.
-const READ_BUF_SIZE: usize = 64 * 1024;
-
-#[derive(Clone)]
-pub struct IprWithPerformance {
-    pub(crate) address: Recipient,
-    pub(crate) identity: ed25519::PublicKey,
-    pub(crate) performance: u8,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ConnectionState {
-    Disconnected,
-    Connecting,
-    Connected,
-}
-
-#[allow(clippy::result_large_err)]
-fn create_nym_api_client(nym_api_urls: Vec<ApiUrl>) -> Result<nym_http_api_client::Client, Error> {
-    let user_agent = format!("nym-sdk/{}", env!("CARGO_PKG_VERSION"));
-
-    let urls = nym_api_urls
-        .into_iter()
-        .map(|url| url.url.parse())
-        .collect::<Result<Vec<nym_http_api_client::Url>, _>>()
-        .map_err(|err| {
-            error!("malformed nym-api url: {err}");
-            Error::NoNymAPIUrl
-        })?;
-
-    if urls.is_empty() {
-        return Err(Error::NoNymAPIUrl);
-    }
-
-    let client = nym_http_api_client::ClientBuilder::new_with_urls(urls)?
-        .with_user_agent(user_agent)
-        .build()?;
-
-    Ok(client)
-}
-
-async fn retrieve_exit_nodes_with_performance(
-    client: nym_http_api_client::Client,
-) -> Result<Vec<IprWithPerformance>, Error> {
-    let all_nodes = client
-        .get_all_described_nodes_v2()
-        .await?
-        .into_iter()
-        .map(|described| (described.ed25519_identity_key(), described))
-        .collect::<HashMap<_, _>>();
-
-    let exit_gateways = client.get_all_basic_nodes_with_metadata().await?.nodes;
-
-    let mut described = Vec::new();
-
-    for exit in exit_gateways {
-        if let Some(ipr_info) = all_nodes
-            .get(&exit.ed25519_identity_pubkey)
-            .and_then(|n| n.description.ip_packet_router.clone())
-        {
-            if let Ok(parsed_address) = ipr_info.address.parse() {
-                described.push(IprWithPerformance {
-                    address: parsed_address,
-                    identity: exit.ed25519_identity_pubkey,
-                    performance: exit.performance.round_to_integer(),
-                })
-            }
-        }
-    }
-
-    Ok(described)
-}
-
-async fn get_random_ipr(client: nym_http_api_client::Client) -> Result<Recipient, Error> {
-    let nodes = retrieve_exit_nodes_with_performance(client).await?;
-    info!("Found {} Exit Gateways", nodes.len());
-
-    let selected_gateway = nodes
-        .into_iter()
-        .max_by_key(|gw| gw.performance)
-        .ok_or_else(|| Error::NoGatewayAvailable)?;
-
-    let ipr_address = selected_gateway.address;
-
-    info!(
-        "Using IPR: {} (Gateway: {}, Performance: {:?})",
-        ipr_address, selected_gateway.identity, selected_gateway.performance
-    );
-
-    Ok(ipr_address)
-}
 
 /// A bidirectional tunnel for sending and receiving IP packets through the mixnet.
 ///
@@ -138,27 +39,21 @@ async fn get_random_ipr(client: nym_http_api_client::Client) -> Result<Recipient
 /// IPR processes request → TUN → internet → response
 ///   → IPR wraps in LP Stream frame → Sphinx → mixnet → client
 ///       → stream router dispatches by stream_id
-///       → MixnetStream.read() → IpPacketResponse bytes
+///       → MixnetStream.recv() → IpPacketResponse bytes
 ///       → IprListener → extract IP packets
 /// ```
 pub struct IpMixStream {
-    /// The underlying multiplexed stream to the IPR gateway.
     stream: MixnetStream,
-    /// Kept for `nym_address()` and `disconnect()`.
     client: MixnetClient,
-    /// Parses incoming IPR protocol responses.
     listener: IprListener,
-    read_buf: Vec<u8>,
-    allocated_ips: Option<IpPair>,
-    connection_state: ConnectionState,
+    allocated_ips: IpPair,
+    connected: bool,
 }
 
 impl IpMixStream {
-    /// Create a new IP packet router stream connected to the mixnet.
+    /// Discover an IPR, connect through the mixnet, and establish the IP tunnel.
     ///
-    /// Discovers an IPR gateway, connects a MixnetClient, and opens a
-    /// `MixnetStream` to the IPR. Call [`connect_tunnel`](Self::connect_tunnel)
-    /// to establish the IP tunnel.
+    /// Returns a ready-to-use tunnel with allocated IP addresses.
     pub async fn new(env: NetworkEnvironment) -> Result<Self, Error> {
         let network_defaults = env.network_defaults();
         let api_client = create_nym_api_client(network_defaults.nym_api_urls.unwrap_or_default())?;
@@ -166,67 +61,55 @@ impl IpMixStream {
 
         nym_network_defaults::setup_env(Some(env.env_file_path()));
         let mut client = MixnetClient::connect_new().await?;
+        let mut stream = client.open_stream(ipr_address, Some(10)).await?;
 
-        // Open a stream to the IPR — this sends the LP Stream Open handshake
-        // and starts the background stream router.
-        let stream = client.open_stream(ipr_address, Some(10)).await?;
+        info!("Connecting to IP packet router");
+        let allocated_ips = Self::connect_tunnel(&mut stream).await?;
+        info!(
+            "Connected to IPv4: {}, IPv6: {}",
+            allocated_ips.ipv4, allocated_ips.ipv6
+        );
 
         Ok(Self {
             stream,
             client,
             listener: IprListener::new(),
-            read_buf: vec![0u8; READ_BUF_SIZE],
-            allocated_ips: None,
-            connection_state: ConnectionState::Disconnected,
+            allocated_ips,
+            connected: true,
         })
     }
 
-    /// Get the Nym network address of this stream.
     pub fn nym_address(&self) -> &Recipient {
         self.client.nym_address()
     }
 
-    /// Establish tunnel connection with the IPR and allocate IP addresses.
-    pub async fn connect_tunnel(&mut self) -> Result<IpPair, Error> {
-        if self.connection_state != ConnectionState::Disconnected {
-            return Err(Error::IprStreamClientAlreadyConnectedOrConnecting);
-        }
+    pub fn allocated_ips(&self) -> &IpPair {
+        &self.allocated_ips
+    }
 
-        self.connection_state = ConnectionState::Connecting;
-        info!("Connecting to IP packet router");
+    pub fn is_connected(&self) -> bool {
+        self.connected
+    }
 
-        match self.connect_inner().await {
-            Ok(ip_pair) => {
-                self.allocated_ips = Some(ip_pair);
-                self.connection_state = ConnectionState::Connected;
-                info!(
-                    "Connected to IPv4: {}, IPv6: {}",
-                    ip_pair.ipv4, ip_pair.ipv6
-                );
-                Ok(ip_pair)
-            }
-            Err(e) => {
-                self.connection_state = ConnectionState::Disconnected;
-                error!("Failed to connect: {:?}", e);
-                Err(e)
-            }
+    /// Check that the tunnel is connected, returning an error if not.
+    pub fn check_connected(&self) -> Result<(), Error> {
+        if self.connected {
+            Ok(())
+        } else {
+            Err(Error::IprStreamClientNotConnected)
         }
     }
 
-    async fn connect_inner(&mut self) -> Result<IpPair, Error> {
+    async fn connect_tunnel(stream: &mut MixnetStream) -> Result<IpPair, Error> {
         let (request, request_id) = IpPacketRequest::new_connect_request(None);
         debug!("Sending connect request with ID: {}", request_id);
 
         let request_bytes = request.to_bytes()?;
-        self.stream
+        stream
             .write_all(&request_bytes)
             .await
             .map_err(|_| Error::MessageSendingFailure)?;
 
-        self.listen_for_connect_response(request_id).await
-    }
-
-    async fn listen_for_connect_response(&mut self, request_id: u64) -> Result<IpPair, Error> {
         let timeout = tokio::time::sleep(IPR_CONNECT_TIMEOUT);
         tokio::pin!(timeout);
 
@@ -235,52 +118,26 @@ impl IpMixStream {
                 _ = &mut timeout => {
                     return Err(Error::IPRConnectResponseTimeout);
                 }
-                result = self.stream.read(&mut self.read_buf) => {
-                    match result {
-                        Ok(0) => return Err(Error::IPRClientStreamClosed),
-                        Ok(n) => {
-                            let msg = ReconstructedMessage {
-                                message: self.read_buf[..n].to_vec(),
-                                sender_tag: None,
-                            };
-                            if let Err(e) = check_ipr_message_version(&msg) {
-                                return Err(Error::IPRMessageVersionCheckFailed(e.to_string()));
-                            }
-                            if let Ok(response) = IpPacketResponse::from_reconstructed_message(&msg) {
-                                if response.id() == Some(request_id) {
-                                    return self.handle_connect_response(response);
-                                }
-                            }
+                result = stream.recv() => {
+                    let data = result.ok_or(Error::IPRClientStreamClosed)?;
+                    let msg = ReconstructedMessage { message: data, sender_tag: None };
+
+                    if let Err(e) = check_ipr_message_version(&msg) {
+                        return Err(Error::IPRMessageVersionCheckFailed(e.to_string()));
+                    }
+                    if let Ok(response) = IpPacketResponse::from_reconstructed_message(&msg) {
+                        if response.id() == Some(request_id) {
+                            return parse_connect_response(response);
                         }
-                        Err(_) => return Err(Error::IPRClientStreamClosed),
                     }
                 }
             }
         }
     }
 
-    fn handle_connect_response(&self, response: IpPacketResponse) -> Result<IpPair, Error> {
-        let control_response = match response.data {
-            IpPacketResponseData::Control(c) => c,
-            other => return Err(Error::UnexpectedResponseType(other)),
-        };
-
-        match *control_response {
-            ControlResponse::Connect(connect_resp) => match connect_resp.reply {
-                ConnectResponseReply::Success(success) => Ok(success.ips),
-                ConnectResponseReply::Failure(reason) => Err(Error::ConnectDenied(reason)),
-            },
-            _ => Err(Error::UnexpectedResponseType(
-                IpPacketResponseData::Control(control_response.clone()),
-            )),
-        }
-    }
-
     /// Send an IP packet through the tunnel.
     pub async fn send_ip_packet(&mut self, packet: &[u8]) -> Result<(), Error> {
-        if self.connection_state != ConnectionState::Connected {
-            return Err(Error::IprStreamClientNotConnected);
-        }
+        self.check_connected()?;
         let request = IpPacketRequest::new_data_request(packet.to_vec().into());
         let request_bytes = request.to_bytes()?;
         self.stream
@@ -294,64 +151,43 @@ impl IpMixStream {
     /// Reads from the underlying `MixnetStream`, parses IPR responses, and
     /// extracts IP packets. Returns an empty vec on timeout (10 s).
     pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
-        match tokio::time::timeout(
-            Duration::from_secs(10),
-            self.stream.read(&mut self.read_buf),
-        )
-        .await
-        {
-            // Timeout — no data yet, not an error
-            Err(_) => Ok(Vec::new()),
-            // EOF — stream router shut down, channel dead
-            Ok(Ok(0)) => {
-                self.connection_state = ConnectionState::Disconnected;
-                Err(Error::IPRClientStreamClosed)
+        let data = match tokio::time::timeout(Duration::from_secs(10), self.stream.recv()).await {
+            Err(_) => return Ok(Vec::new()),
+            Ok(None) => {
+                self.connected = false;
+                return Err(Error::IPRClientStreamClosed);
             }
-            // IO error
-            Ok(Err(_)) => {
-                self.connection_state = ConnectionState::Disconnected;
-                Err(Error::IPRClientStreamClosed)
+            Ok(Some(data)) => data,
+        };
+
+        let msg = ReconstructedMessage {
+            message: data,
+            sender_tag: None,
+        };
+        match self.listener.handle_reconstructed_message(msg).await {
+            Ok(Some(MixnetMessageOutcome::IpPackets(packets))) => {
+                debug!("Extracted {} IP packets", packets.len());
+                Ok(packets)
             }
-            Ok(Ok(n)) => {
-                let msg = ReconstructedMessage {
-                    message: self.read_buf[..n].to_vec(),
-                    sender_tag: None,
-                };
-                match self.listener.handle_reconstructed_message(msg).await {
-                    Ok(Some(MixnetMessageOutcome::IpPackets(packets))) => {
-                        debug!("Extracted {} IP packets", packets.len());
-                        Ok(packets)
-                    }
-                    Ok(Some(MixnetMessageOutcome::Disconnect)) => {
-                        info!("Received disconnect");
-                        self.connection_state = ConnectionState::Disconnected;
-                        self.allocated_ips = None;
-                        Ok(Vec::new())
-                    }
-                    Ok(Some(MixnetMessageOutcome::MixnetSelfPing)) => {
-                        debug!("Received mixnet self ping");
-                        Ok(Vec::new())
-                    }
-                    Ok(None) => Ok(Vec::new()),
-                    Err(e) => {
-                        error!("Failed to handle message: {}", e);
-                        Ok(Vec::new())
-                    }
-                }
+            Ok(Some(MixnetMessageOutcome::Disconnect)) => {
+                info!("Received disconnect");
+                self.connected = false;
+                Ok(Vec::new())
+            }
+            Ok(Some(MixnetMessageOutcome::MixnetSelfPing)) => {
+                debug!("Received mixnet self ping");
+                Ok(Vec::new())
+            }
+            Ok(None) => Ok(Vec::new()),
+            Err(e) => {
+                error!("Failed to handle message: {}", e);
+                Ok(Vec::new())
             }
         }
     }
 
-    pub fn allocated_ips(&self) -> Option<&IpPair> {
-        self.allocated_ips.as_ref()
-    }
-
-    pub fn is_connected(&self) -> bool {
-        self.connection_state == ConnectionState::Connected
-    }
-
     /// Disconnect from the Mixnet. Disconnected clients cannot be reconnected.
-    pub async fn disconnect_stream(self) {
+    pub async fn disconnect(self) {
         debug!("Disconnecting");
         self.client.disconnect().await;
         debug!("Disconnected");
@@ -369,22 +205,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn connect_to_ipr() -> Result<(), Box<dyn std::error::Error>> {
-        let mut stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
-        let ip_pair = stream.connect_tunnel().await?;
+        let stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
 
-        let ipv4: Ipv4Addr = ip_pair.ipv4;
+        let ipv4: Ipv4Addr = stream.allocated_ips().ipv4;
         assert!(!ipv4.is_unspecified(), "IPv4 address should not be 0.0.0.0");
 
-        let ipv6: Ipv6Addr = ip_pair.ipv6;
+        let ipv6: Ipv6Addr = stream.allocated_ips().ipv6;
         assert!(!ipv6.is_unspecified(), "IPv6 address should not be ::");
 
-        assert!(stream.is_connected(), "Stream should be connected");
-        assert!(
-            stream.allocated_ips().is_some(),
-            "Should have allocated IPs"
-        );
-
-        stream.disconnect_stream().await;
+        stream.disconnect().await;
 
         Ok(())
     }
@@ -400,7 +229,7 @@ mod tests {
         use pnet_packet::Packet;
 
         let mut stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
-        let ip_pair = stream.connect_tunnel().await?;
+        let ip_pair = *stream.allocated_ips();
 
         info!(
             "Connected with IPs - IPv4: {}, IPv6: {}",
@@ -501,7 +330,7 @@ mod tests {
         assert!(successful_v6_pings > 0, "No IPv6 pings successful");
         assert!(v6_success_rate >= 75.0, "IPv6 success rate < 75%");
 
-        stream.disconnect_stream().await;
+        stream.disconnect().await;
         Ok(())
     }
 }

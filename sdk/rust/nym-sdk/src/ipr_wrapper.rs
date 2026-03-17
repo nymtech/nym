@@ -11,5 +11,5 @@
 mod ip_mix_stream;
 pub mod network_env;
 
-pub use ip_mix_stream::{ConnectionState, IpMixStream, IprWithPerformance};
+pub use ip_mix_stream::IpMixStream;
 pub use network_env::NetworkEnvironment;

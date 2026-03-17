@@ -79,6 +79,20 @@ impl NetworkRoutingFilter {
     }
 }
 
+/// Temporary queue of IP addresses that need resolution (are they Nym nodes or not?).
+///
+/// # Behaviour
+///
+/// - Packets from unknown IPs are denied initially and the IP is queued here
+/// - A background task periodically processes this queue via nym-api lookups
+/// - Once resolved, IPs are moved to either `allowed` or `denied` sets
+///
+/// # Lock Strategy
+///
+/// Uses `try_insert()` to avoid blocking the packet processing path:
+/// - If lock is immediately available: insert the IP
+/// - If lock is contended: skip insertion, will retry on next packet from same IP
+/// - This is acceptable because resolution happens periodically anyway
 #[derive(Clone, Default)]
 pub(crate) struct UnknownNodes(Arc<RwLock<HashSet<IpAddr>>>);
 
@@ -119,6 +133,20 @@ impl KnownNodes {
     }
 }
 
+/// Thread-safe, lock-free storage for authorised Network Monitor agents IP addresses.
+///
+/// # Concurrency Strategy
+///
+/// Uses `ArcSwap` for lock-free reads on the hot path (packet processing). Writes are rare
+/// (only when blockchain authorisation events occur)
+/// and involve cloning the HashSet, but this is acceptable because:
+/// - Network monitor authorisations change extremely infrequently (on orchestrator startup with >5s per block)
+/// - Read performance is critical (happens on every packet from unknown IPs)
+/// - The HashSet is typically very small (<100 entries)
+///
+/// # Cloning
+///
+/// Cloning `DeclaredNetworkMonitors` is cheap (only clones the `Arc`), not the underlying data.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DeclaredNetworkMonitors {
     inner: Arc<DeclaredNetworkMonitorsInner>,
@@ -198,6 +226,13 @@ struct KnownNymNodesInner {
     denied: ArcSwap<HashSet<IpAddr>>,
 }
 
+/// Result of attempting to resolve whether an IP address should be allowed to route packets.
+///
+/// # Semantics
+///
+/// - `Accept`: IP is a known Nym node OR authorised network monitor - route the packet
+/// - `Deny`: IP has been confirmed as NOT a Nym node - drop the packet
+/// - `Unknown`: IP hasn't been resolved yet - queue for lookup but DENY the packet
 pub(crate) enum Resolution {
     Unknown,
     Deny,

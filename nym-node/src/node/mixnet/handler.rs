@@ -118,6 +118,27 @@ impl ConnectionHandler {
         }
     }
 
+    /// Check if the current connection is from an authorised Network Monitor agent.
+    ///
+    /// # Replay Protection Bypass
+    ///
+    /// Network Monitor agents are granted special privileges to bypass replay protection.
+    /// This allows them to intentionally send replayed packets for testing purposes to reduce
+    /// the processing required to generate enough packets required for stress testing.
+    ///
+    /// # Security
+    ///
+    /// - Authorisation is controlled on-chain via the Network Monitors smart contract
+    /// - Only specific IP addresses can bypass replay protection (not public keys or other identifiers)
+    /// - All bypass events are logged and tracked via Prometheus metrics
+    /// - Regular nodes cannot bypass replay protection under any circumstances
+    ///
+    /// # Authorisation Source
+    ///
+    /// The list of authorised IPs is:
+    /// 1. Initially loaded from the contract at node startup
+    /// 2. Updated in real-time via blockchain subscription (see `NetworkMonitorAgentsModule`)
+    /// 3. Shared across all connection handlers via lock-free `ArcSwap`
     fn is_from_authorised_network_monitor_agent(&self) -> bool {
         self.shared
             .authorised_network_monitor_agents
@@ -453,8 +474,24 @@ impl ConnectionHandler {
                 continue;
             };
             for (packet, &replayed) in packets.into_iter().zip(replay_checks) {
-                // if the packet has been replayed and is NOT from a known network monitor agent,
-                // do not process it any further
+                // CRITICAL SECURITY DECISION POINT: Replay Protection Bypass for Network Monitors
+                //
+                // This is where we decide whether to enforce replay protection for this packet.
+                // The decision tree is:
+                //
+                // 1. Is packet replayed? (bloomfilter check already completed)
+                //    NO  → Process normally (finalise_unwrapping)
+                //    YES → Go to step 2
+                //
+                // 2. Is source IP an authorised network monitor?
+                //    YES → BYPASS replay protection, process packet normally
+                //    NO  → DROP packet, increment metrics, log warning
+                //
+                // Why we allow network monitors to replay:
+                // - They need to be able to generate high volumes of packets in short bursts
+                // - Authorisation is on-chain and strictly controlled
+                //
+                // All bypass activity is tracked via `ingress_network_monitor_packet` metric.
                 if replayed && !self.is_from_authorised_network_monitor_agent() {
                     replays_detected += 1;
                     warn!(

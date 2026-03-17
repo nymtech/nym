@@ -35,7 +35,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install cosmwasm-check
-        run: cargo install cosmwasm-check
+        run: cargo install cosmwasm-check --locked
 
       - name: Install wasm-opt
         uses: ./.github/actions/install-wasm-opt

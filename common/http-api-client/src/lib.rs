@@ -161,6 +161,7 @@ use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::io::ErrorKind;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use thiserror::Error;
@@ -1167,16 +1168,7 @@ impl ApiClientCore for Client {
             match response {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
-                    // only if there was a network issue should we consider updating the host info
-                    //
-                    // note: for now this includes DNS resolution failure, I am not sure how I would go about
-                    // segregating that based on the interface provided by request for errors.
-                    #[cfg(target_arch = "wasm32")]
-                    let is_network_err = err.is_timeout();
-                    #[cfg(not(target_arch = "wasm32"))]
-                    let is_network_err = err.is_timeout() || err.is_connect();
-
-                    if is_network_err {
+                    if network_error(&err) {
                         // if we have multiple urls, update to the next
                         self.maybe_rotate_hosts(Some(url.clone()));
 
@@ -1220,6 +1212,48 @@ impl ApiClientCore for Client {
             tracing::debug!("Domain fronting activated after failure: {context:?}",);
         }
     }
+}
+
+/// only if there was a network issue should we consider updating the host info
+pub(crate) fn network_error(err: &reqwest::Error) -> bool {
+    if err.is_timeout() {
+        return true;
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if !(err.is_connect() || err.is_request()) {
+        return false;
+    }
+
+    // reqwest::Error -> hyper_util::Error
+    if let Some(inner1) = err.source() {
+        // hyper_util::Error -> hyper_util::ClientError
+        if let Some(inner2) = inner1.source() {
+            // hyper_util::ClientError -> io::Error
+            if let Some(inner3) = inner2.source() {
+                // downcase from dyn
+                if let Some(io_err) = inner3.downcast_ref::<std::io::Error>() {
+                    match io_err.kind() {
+                        // device not connected to the internet
+                        ErrorKind::NetworkUnreachable | ErrorKind::NetworkDown => return false,
+                        // custom errors may be case by case, but in general not DF related
+                        // -- includes DNS errors for hyper_util
+                        ErrorKind::Other => return false,
+                        // timeouts can indicate packet drops or adress blocklisting
+                        // -- this should hit the timeout conditional above
+                        ErrorKind::TimedOut => return true,
+                        // connection errors can indicate connection interference
+                        ErrorKind::ConnectionReset
+                        | ErrorKind::HostUnreachable
+                        | ErrorKind::ConnectionRefused => return true,
+                        _ => return false,
+                    }
+                }
+            }
+        }
+    }
+
+    false
 }
 
 /// Common usage functionality for the http client.

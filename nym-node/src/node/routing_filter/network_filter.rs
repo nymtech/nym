@@ -42,10 +42,10 @@ impl NetworkRoutingFilter {
 
     #[must_use]
     pub(crate) fn with_known_network_monitors(
-        self,
+        mut self,
         known_network_monitors: HashSet<IpAddr>,
     ) -> Self {
-        self.resolved.network_monitors.swap(known_network_monitors);
+        self.resolved.network_monitors = DeclaredNetworkMonitors::new(known_network_monitors);
         self
     }
 

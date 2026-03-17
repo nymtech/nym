@@ -1255,6 +1255,7 @@ impl NymNode {
         active_clients_store: &ActiveClientsStore,
         replay_protection_bloomfilter: ReplayProtectionBloomfilters,
         routing_filter: F,
+        authorised_network_monitor_agents: DeclaredNetworkMonitors,
         noise_config: NoiseConfig,
     ) -> Result<(MixForwardingSender, ActiveConnections), NymNodeError>
     where
@@ -1310,6 +1311,7 @@ impl NymNode {
             final_hop_data,
             noise_config,
             self.metrics.clone(),
+            authorised_network_monitor_agents,
             self.shutdown_token(),
         );
 
@@ -1336,6 +1338,7 @@ impl NymNode {
             &ActiveClientsStore::new(),
             ReplayProtectionBloomfilters::new_disabled(),
             OpenFilter,
+            DeclaredNetworkMonitors::default(),
             noise_config,
         )
         .await?;
@@ -1463,11 +1466,13 @@ impl NymNode {
         .with_unsafe_disabled(self.config.mixnet.debug.unsafe_disable_noise);
 
         // start the listener for the mixnet packet(s)
+        let authorised_network_monitor_agents = routing_filter.known_network_monitors_handle();
         let (mix_packet_sender, active_egress_mixnet_connections) = self
             .start_mixnet_listener(
                 &active_clients_store,
                 bloomfilters_manager.bloomfilters(),
                 routing_filter,
+                authorised_network_monitor_agents,
                 noise_config,
             )
             .await?;

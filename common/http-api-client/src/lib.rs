@@ -1219,9 +1219,11 @@ impl ApiClientCore for Client {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 const MAX_ERR_SOURCE_ITERATIONS: usize = 4;
 
 /// only if there was a network issue should we consider updating the host info
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn is_network_error(err: &reqwest::Error) -> bool {
     if err.is_timeout() {
         return true;

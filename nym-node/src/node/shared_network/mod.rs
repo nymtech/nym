@@ -1,11 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_topology::provider_trait::ToTopologyMetadata;
-use nym_topology::{EpochRewardedSet, NymTopology, NymTopologyMetadata, TopologyProvider};
-use nym_validator_client::nym_api::NymApiClientExt;
+use nym_topology::{EpochRewardedSet, NymTopology, NymTopologyMetadata};
 use nym_validator_client::nym_nodes::SemiSkimmedNodeV1;
-use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

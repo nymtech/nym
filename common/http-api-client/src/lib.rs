@@ -161,6 +161,7 @@ use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::ErrorKind;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -1229,7 +1230,6 @@ pub(crate) fn is_network_error(err: &reqwest::Error) -> bool {
         return true;
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     if !(err.is_connect() || err.is_request()) {
         return false;
     }

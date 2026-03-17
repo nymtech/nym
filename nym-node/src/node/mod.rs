@@ -75,7 +75,7 @@ use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
 use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
-use nym_validator_client::{QueryHttpRpcNyxdClient, QueryHttpRpcValidatorClient, UserAgent};
+use nym_validator_client::{QueryHttpRpcNyxdClient, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
@@ -1372,6 +1372,7 @@ impl NymNode {
             .network
             .contracts
             .network_monitors_contract_address
+            .as_ref()
             .map(|addr| addr.parse())
         else {
             // **THEORETICALLY** this should be impossible, for we have already created a nyxd client and

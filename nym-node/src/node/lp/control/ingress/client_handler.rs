@@ -261,7 +261,7 @@ where
                 self.handle_forwarding_request(receiver_idx, forward_data)
                     .await
             }
-            typ @ LpFrameKind::Opaque => {
+            typ @ (LpFrameKind::Opaque | LpFrameKind::Stream) => {
                 // Neither registration nor forwarding - unknown payload type
                 warn!(
                     "Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes",

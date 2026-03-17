@@ -230,7 +230,6 @@ impl MixnetMessageSinkTranslator for ToIprDataResponse {
         &self,
         bundled_ip_packets: &[u8],
     ) -> std::result::Result<InputMessage, nym_sdk::Error> {
-        // Create an IPR packet response that the recipient can understand
         let response_packet = create_ip_packet_response(bundled_ip_packets, self.client_version)?;
 
         // Optionally wrap in LP Stream frame for stream-mode clients
@@ -249,7 +248,6 @@ impl MixnetMessageSinkTranslator for ToIprDataResponse {
             response_packet
         };
 
-        // Wrap in a mixnet input message
         let input_message =
             crate::util::create_message::create_input_message(&self.send_to, final_packet)
                 .with_max_retransmissions(0);

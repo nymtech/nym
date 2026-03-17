@@ -32,10 +32,6 @@ const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
 /// provides ample headroom.
 const READ_BUF_SIZE: usize = 64 * 1024;
 
-// ---------------------------------------------------------------------------
-// Gateway discovery helpers
-// ---------------------------------------------------------------------------
-
 #[derive(Clone)]
 pub struct IprWithPerformance {
     pub(crate) address: Recipient,
@@ -125,10 +121,6 @@ async fn get_random_ipr(client: nym_http_api_client::Client) -> Result<Recipient
     Ok(ipr_address)
 }
 
-// ---------------------------------------------------------------------------
-// IpMixStream
-// ---------------------------------------------------------------------------
-
 /// A bidirectional tunnel for sending and receiving IP packets through the mixnet.
 ///
 /// Wraps a [`MixnetStream`] (opened to an IPR exit gateway) and provides a
@@ -156,7 +148,6 @@ pub struct IpMixStream {
     client: MixnetClient,
     /// Parses incoming IPR protocol responses.
     listener: IprListener,
-    /// Reusable read buffer to avoid allocating per `handle_incoming()` call.
     read_buf: Vec<u8>,
     allocated_ips: Option<IpPair>,
     connection_state: ConnectionState,
@@ -226,8 +217,6 @@ impl IpMixStream {
         let (request, request_id) = IpPacketRequest::new_connect_request(None);
         debug!("Sending connect request with ID: {}", request_id);
 
-        // Write the connect request — MixnetStream wraps it in an LP Stream
-        // Data frame automatically.
         let request_bytes = request.to_bytes()?;
         self.stream
             .write_all(&request_bytes)
@@ -353,12 +342,10 @@ impl IpMixStream {
         }
     }
 
-    /// Get the allocated IP addresses for this tunnel.
     pub fn allocated_ips(&self) -> Option<&IpPair> {
         self.allocated_ips.as_ref()
     }
 
-    /// Check if the tunnel is currently connected.
     pub fn is_connected(&self) -> bool {
         self.connection_state == ConnectionState::Connected
     }

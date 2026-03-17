@@ -7371,6 +7371,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-network-monitor-agent"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "futures",
+ "humantime",
+ "nym-bin-common",
+ "nym-task",
+ "serde",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "nym-network-monitor-orchestrator"
+version = "1.20.4"
+
+[[package]]
 name = "nym-network-monitors-contract-common"
 version = "1.20.4"
 dependencies = [

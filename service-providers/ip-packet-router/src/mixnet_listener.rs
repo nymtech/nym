@@ -466,13 +466,8 @@ impl MixnetListener {
 
     /// Handle LP Stream-framed messages.
     ///
-    /// LP Stream frames carry IPR requests in the frame content. We parse the
-    /// stream attributes, process the inner payload, and handle responses inline
-    /// (wrapped in LP Stream frames) — the same pattern used by the KCP handler.
-    ///
-    /// The `current_stream_id` field is set during processing so that connect
-    /// handlers can pass it to `ConnectedClientHandler`, which wraps async TUN
-    /// responses in LP Stream frames too.
+    /// Parses stream attributes, processes the inner IPR payload, and handles
+    /// responses inline (wrapped in LP Stream frames) — same pattern as KCP.
     async fn on_stream_frame(
         &mut self,
         reconstructed: ReconstructedMessage,
@@ -482,7 +477,6 @@ impl MixnetListener {
             reconstructed.message.len()
         );
 
-        // Parse stream attributes from the LP header
         let header = LpFrameHeader::parse(&reconstructed.message)
             .map_err(|e| IpPacketRouterError::Other(format!("Invalid LP frame header: {e}")))?;
         let attrs = StreamFrameAttributes::parse(&header.frame_attributes).map_err(|e| {
@@ -508,7 +502,6 @@ impl MixnetListener {
             return Ok(vec![]);
         }
 
-        // Strip LP header, process inner payload as IPR message
         let inner_reconstructed = ReconstructedMessage {
             message: payload.to_vec(),
             sender_tag: reconstructed.sender_tag,

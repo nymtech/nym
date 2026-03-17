@@ -453,7 +453,9 @@ impl ConnectionHandler {
                 continue;
             };
             for (packet, &replayed) in packets.into_iter().zip(replay_checks) {
-                let unwrapped_packet = if replayed {
+                // if the packet has been replayed and is NOT from a known network monitor agent,
+                // do not process it any further
+                if replayed && !self.is_from_authorised_network_monitor_agent() {
                     replays_detected += 1;
                     warn!(
                         event = "packet.dropped.replay",
@@ -461,11 +463,12 @@ impl ConnectionHandler {
                         rotation_id,
                         "dropping replayed packet"
                     );
-                    Err(PacketProcessingError::PacketReplay)
-                } else {
-                    packet.finalise_unwrapping()
-                };
+                    self.handle_unwrapped_packet(now, Err(PacketProcessingError::PacketReplay))
+                        .await;
+                    continue;
+                }
 
+                let unwrapped_packet = packet.finalise_unwrapping();
                 self.handle_unwrapped_packet(now, unwrapped_packet).await;
             }
         }

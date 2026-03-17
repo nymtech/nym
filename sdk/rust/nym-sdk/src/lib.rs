@@ -12,8 +12,6 @@ pub mod client_pool;
 pub mod ip_packet_client;
 pub mod ipr_wrapper;
 pub mod mixnet;
-// stream_wrapper is superseded by ipr_wrapper (LP frame envelope over mixnet)
-// pub mod stream_wrapper;
 pub mod tcp_proxy;
 
 pub use error::{Error, Result};

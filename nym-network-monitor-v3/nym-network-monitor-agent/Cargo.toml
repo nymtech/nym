@@ -1,0 +1,31 @@
+[package]
+name = "nym-network-monitor-agent"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+version = "1.0.0"
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["cargo", "env"] }
+futures = { workspace = true }
+humantime = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
+tracing = { workspace = true }
+url = { workspace = true }
+
+nym-bin-common = { workspace = true, features = [
+    "basic_tracing",
+    "output_format",
+] }
+nym-task = { workspace = true }
+
+[lints]
+workspace = true

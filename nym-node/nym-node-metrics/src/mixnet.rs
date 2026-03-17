@@ -46,6 +46,7 @@ impl MixingStats {
             .store(update_timestamp, Ordering::Release);
     }
 
+    /// Record a packet that was dropped due to replay detection.
     pub fn ingress_replayed_packet(&self, source: IpAddr) {
         self.ingress
             .replayed_packets_received
@@ -53,6 +54,14 @@ impl MixingStats {
         self.ingress.senders.entry(source).or_default().replayed += 1;
     }
 
+    /// Record a packet received from an authorised Network Monitor agent.
+    ///
+    /// # Purpose
+    ///
+    /// This metric tracks test traffic from network monitors, which is useful for:
+    /// - Distinguishing legitimate traffic from test traffic in dashboards
+    /// - Monitoring network monitor activity levels
+    /// - Debugging issues with network monitor authorisation
     pub fn ingress_network_monitor_packet(&self) {
         self.ingress
             .test_packets_received

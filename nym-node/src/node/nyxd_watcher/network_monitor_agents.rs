@@ -1,6 +1,24 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Real-time blockchain watcher for Network Monitor agents changes.
+//!
+//! This module processes blockchain transactions involving the Network Monitors smart contract
+//! and automatically updates the list of authorised network monitor agents whenever it is invoked.
+//!
+//! # Authorisation Flow
+//!
+//! 1. Network Monitor orchestrator submits `AuthoriseNetworkMonitor { address }` to the contract
+//! 2. Transaction is committed to Nyx blockchain
+//! 3. This module receives the message via `MsgModule::handle_msg()`
+//! 4. The IP address is added to `DeclaredNetworkMonitors` (lock-free via ArcSwap)
+//! 5. Future packets from that IP can bypass replay protection until revoked
+//!
+//! # Security
+//!
+//! Only transactions executed against the configured Network Monitors contract address are
+//! processed.
+
 use crate::node::routing_filter::network_filter::DeclaredNetworkMonitors;
 use async_trait::async_trait;
 use nym_validator_client::nyxd::cosmwasm::MsgExecuteContract;
@@ -10,8 +28,21 @@ use nyxd_scraper_shared::error::ScraperError;
 use nyxd_scraper_shared::{DecodedMessage, MsgModule, ParsedTransactionDetails, parse_msg};
 use tracing::error;
 
+/// Blockchain message handler for Network Monitor agent authorisation events.
+///
+/// Watches for `MsgExecuteContract` messages targeting the Network Monitors smart contract
+/// and updates the runtime list of authorised agents accordingly.
+///
+/// # Thread Safety
+///
+/// Safe to use across threads - updates to `network_monitors` use lock-free ArcSwap internally.
 pub(crate) struct NetworkMonitorAgentsModule {
+    /// The on-chain address of the Network Monitors smart contract.
+    /// Only messages to this contract are processed.
     pub(crate) contract_address: AccountId,
+
+    /// Shared handle to the runtime list of authorised network monitor IPs.
+    /// Updates are immediately visible to all packet processing threads.
     pub(crate) network_monitors: DeclaredNetworkMonitors,
 }
 

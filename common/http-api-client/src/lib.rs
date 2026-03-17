@@ -1168,7 +1168,7 @@ impl ApiClientCore for Client {
             match response {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
-                    if network_error(&err) {
+                    if is_network_error(&err) {
                         // if we have multiple urls, update to the next
                         self.maybe_rotate_hosts(Some(url.clone()));
 
@@ -1215,7 +1215,7 @@ impl ApiClientCore for Client {
 }
 
 /// only if there was a network issue should we consider updating the host info
-pub(crate) fn network_error(err: &reqwest::Error) -> bool {
+pub(crate) fn is_network_error(err: &reqwest::Error) -> bool {
     if err.is_timeout() {
         return true;
     }

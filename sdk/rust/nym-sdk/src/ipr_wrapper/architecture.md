@@ -8,34 +8,7 @@ which handles LP Stream framing and Sphinx packet transport automatically.
 
 ## Data Flow
 
-```text
-Client                              IPR (exit gateway)
-------                              ------------------
-IpMixStream.send_ip_packet(bytes)
-  IpPacketRequest.to_bytes()
-    MixnetStream.write()
-      LP Stream frame
-        Sphinx packets
-          mixnet ──────────────────> on_reconstructed_message()
-                                      detect LpFrameKind::Stream
-                                        strip LP header
-                                          parse IpPacketRequest
-                                            write IP packet to TUN
-                                              ──> internet
-
-                                    internet response arrives on TUN
-                                      ConnectedClientHandler
-                                        wrap in IpPacketResponse
-                                        wrap in LP Stream frame
-          mixnet <──────────────────      send via Sphinx/SURBs
-
-      stream router dispatches
-        by stream_id
-    MixnetStream.read()
-  IprListener parses response
-IpMixStream.handle_incoming()
-  returns Vec<ip_packet_bytes>
-```
+TODO
 
 ## Layer Stack
 
@@ -61,19 +34,4 @@ All messages between client and IPR are wrapped in LP Stream frames:
 
 ## Connection Lifecycle
 
-1. `IpMixStream::new(env)` -- discover IPR, connect MixnetClient, open MixnetStream
-2. `connect_tunnel()` -- send connect request, receive allocated IPs
-3. `send_ip_packet()` / `handle_incoming()` -- steady-state data transfer
-4. `disconnect_stream()` -- tear down MixnetClient
-
-## Key Design Decisions
-
-- **MixnetStream over MixnetClient**: One stream per IPR tunnel. LP framing is
-  handled by MixnetStream internally, no manual frame construction needed.
-
-- **Multiplexing at IP layer**: Different remote hosts are addressed by IP
-  packet destination headers, not by opening multiple streams.
-
-- **stream_id threading**: The IPR stores stream_id in each client's
-  `ConnectedClientHandler` so async TUN responses are wrapped in matching LP
-  Stream frames for correct dispatch at the client.
+TODO

@@ -5,7 +5,7 @@ use crate::env::vars::{
 };
 use crate::http::state::BankScraperModuleState;
 use async_trait::async_trait;
-use nym_validator_client::nyxd::{Any, Coin, CosmosCoin, Hash, Msg, MsgSend, Name};
+use nym_validator_client::nyxd::{Any, Coin, CosmosCoin, Msg, MsgSend, Name};
 use nyxd_scraper_sqlite::{
     DecodedMessage, MsgModule, ParsedTransactionDetails, PruningOptions, ScraperError,
     SqliteNyxdScraper, parse_msg,

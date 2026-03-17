@@ -6,6 +6,7 @@ use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::handler::ConnectionHandler;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
+use crate::node::routing_filter::network_filter::DeclaredNetworkMonitors;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
 use nym_node_metrics::NymNodeMetrics;
@@ -66,7 +67,9 @@ impl ProcessingConfig {
 // explicitly do NOT derive clone as we want the childs to use CHILD shutdown tokens
 pub(crate) struct SharedData {
     pub(super) processing_config: ProcessingConfig,
+
     pub(super) sphinx_keys: ActiveSphinxKeys,
+
     pub(super) replay_protection_filter: ReplayProtectionBloomfilters,
 
     // used for FORWARD mix packets and FINAL ack packets
@@ -79,6 +82,10 @@ pub(crate) struct SharedData {
     pub(super) noise_config: NoiseConfig,
 
     pub(super) metrics: NymNodeMetrics,
+
+    // list of all known network monitor agents that are permitted
+    // to forward packets even if they replay them
+    pub(super) authorised_network_monitor_agents: DeclaredNetworkMonitors,
 
     pub(super) shutdown_token: ShutdownToken,
 }
@@ -100,6 +107,7 @@ impl SharedData {
         final_hop: SharedFinalHopData,
         noise_config: NoiseConfig,
         metrics: NymNodeMetrics,
+        authorised_network_monitor_agents: DeclaredNetworkMonitors,
         shutdown_token: ShutdownToken,
     ) -> Self {
         SharedData {
@@ -110,6 +118,7 @@ impl SharedData {
             final_hop,
             noise_config,
             metrics,
+            authorised_network_monitor_agents,
             shutdown_token,
         }
     }

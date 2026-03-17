@@ -1,24 +1,22 @@
 //! Wire protocol for stream multiplexing.
 //!
-//! Every message between streams carries a fixed header prepended to
+//! Every message between streams carries an LP frame header prepended to
 //! the payload inside the mixnet message body:
 //!
 //! ```text
-//! [Version: 1 byte][StreamId: 8 bytes][MessageType: 1 byte][payload: N bytes]
+//! [LpFrameKind: 2 bytes LE][StreamFrameAttributes: 14 bytes][payload: N bytes]
 //! ```
 //!
-//! This header sits inside the sphinx packet payload.
+//! The `StreamFrameAttributes` encode stream_id, message type, and sequence
+//! number inside the LP header's `frame_attributes` field. This is the same
+//! LP frame format used across the system (IPR detection, gateway dispatch).
 
 use std::fmt;
 
-/// Current stream protocol version.
-pub const STREAM_PROTOCOL_VERSION: u8 = 1;
-
-/// Length of a StreamId in bytes (u64, big-endian).
-pub const STREAM_ID_LEN: usize = 8;
-
-/// Total header length: Version (1) + StreamId (8) + MessageType (1).
-pub const STREAM_HEADER_LEN: usize = 1 + STREAM_ID_LEN + 1;
+use bytes::BytesMut;
+use nym_lp::packet::frame::{
+    LpFrame, LpFrameHeader, LpFrameKind, StreamFrameAttributes, StreamMsgType,
+};
 
 /// Identifies a stream within a MixnetClient.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -29,12 +27,12 @@ impl StreamId {
         Self(rand::random::<u64>())
     }
 
-    pub fn to_bytes(self) -> [u8; STREAM_ID_LEN] {
-        self.0.to_be_bytes()
+    pub fn as_u64(self) -> u64 {
+        self.0
     }
 
-    pub fn from_bytes(bytes: [u8; STREAM_ID_LEN]) -> Self {
-        Self(u64::from_be_bytes(bytes))
+    pub fn from_u64(v: u64) -> Self {
+        Self(v)
     }
 }
 
@@ -50,88 +48,55 @@ impl fmt::Display for StreamId {
     }
 }
 
-/// Message types within the stream protocol.
-///
-/// Note: there is no Close variant. Without message sequencing, a close
-/// message races ahead of in-flight data and arrives before the data is
-/// reconstructed. Streams clean up locally via Drop. If ordered close/EOF
-/// is needed in future, add sequencing + reorder buffering (see the
-/// tcp_proxy's `MessageBuffer` for a working example).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum StreamMessageType {
-    /// Open a new stream. Payload is optional initial data.
-    Open = 0,
-    /// Data on an existing stream.
-    Data = 1,
-}
-
-impl StreamMessageType {
-    pub fn from_byte(b: u8) -> Option<Self> {
-        match b {
-            0 => Some(Self::Open),
-            1 => Some(Self::Data),
-            _ => None,
-        }
-    }
-}
-
-/// The fixed-size header prepended to every stream message.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MixStreamHeader {
-    pub version: u8,
-    pub stream_id: StreamId,
-    pub message_type: StreamMessageType,
-}
-
-/// A decoded stream frame: header + payload reference.
+/// A decoded stream frame: LP header fields + payload reference.
 #[derive(Debug)]
-pub struct MixStreamFrame<'a> {
-    pub header: MixStreamHeader,
+pub struct StreamFrame<'a> {
+    pub stream_id: StreamId,
+    pub msg_type: StreamMsgType,
+    #[allow(dead_code)] // will be used for reordering
+    pub sequence_num: u32,
     pub data: &'a [u8],
 }
 
-/// Encode a stream message: `[version][stream_id][msg_type][payload]`.
+/// Encode a stream message as an LP frame: `[LpFrameHeader][payload]`.
 pub fn encode_stream_message(
     id: &StreamId,
-    msg_type: StreamMessageType,
+    msg_type: StreamMsgType,
+    sequence_num: u32,
     payload: &[u8],
 ) -> Vec<u8> {
-    let mut buf = Vec::with_capacity(STREAM_HEADER_LEN + payload.len());
-    buf.push(STREAM_PROTOCOL_VERSION);
-    buf.extend_from_slice(&id.to_bytes());
-    buf.push(msg_type as u8);
-    buf.extend_from_slice(payload);
-    buf
+    let attrs = StreamFrameAttributes {
+        stream_id: id.as_u64(),
+        msg_type,
+        sequence_num,
+    };
+    let frame = LpFrame::new_stream(attrs, payload.to_vec());
+    let mut buf = BytesMut::with_capacity(LpFrameHeader::SIZE + payload.len());
+    frame.encode(&mut buf);
+    buf.to_vec()
 }
 
-/// Decode a stream message into a [`MixStreamFrame`].
+/// Decode a stream message from LP frame bytes.
 ///
-/// Returns `None` if the buffer is too short, the version is unknown,
-/// or the message type byte is invalid.
-pub fn decode_stream_message(bytes: &[u8]) -> Option<MixStreamFrame<'_>> {
-    if bytes.len() < STREAM_HEADER_LEN {
+/// Returns `None` if the buffer is too short, the frame kind is not `Stream`,
+/// or the stream attributes are invalid.
+pub fn decode_stream_message(bytes: &[u8]) -> Option<StreamFrame<'_>> {
+    if bytes.len() < LpFrameHeader::SIZE {
         return None;
     }
 
-    let version = bytes[0];
-    if version != STREAM_PROTOCOL_VERSION {
+    let header = LpFrameHeader::parse(bytes).ok()?;
+    if header.kind != LpFrameKind::Stream {
         return None;
     }
 
-    let mut id_bytes = [0u8; STREAM_ID_LEN];
-    id_bytes.copy_from_slice(&bytes[1..1 + STREAM_ID_LEN]);
-    let stream_id = StreamId::from_bytes(id_bytes);
+    let attrs = StreamFrameAttributes::parse(&header.frame_attributes).ok()?;
+    let data = &bytes[LpFrameHeader::SIZE..];
 
-    let message_type = StreamMessageType::from_byte(bytes[1 + STREAM_ID_LEN])?;
-    let data = &bytes[STREAM_HEADER_LEN..];
-
-    Some(MixStreamFrame {
-        header: MixStreamHeader {
-            version,
-            stream_id,
-            message_type,
-        },
+    Some(StreamFrame {
+        stream_id: StreamId::from_u64(attrs.stream_id),
+        msg_type: attrs.msg_type,
+        sequence_num: attrs.sequence_num,
         data,
     })
 }
@@ -144,11 +109,11 @@ mod tests {
     fn roundtrip() {
         let id = StreamId::random();
         let payload = b"hello world";
-        let encoded = encode_stream_message(&id, StreamMessageType::Data, payload);
+        let encoded = encode_stream_message(&id, StreamMsgType::Data, 42, payload);
         let frame = decode_stream_message(&encoded).unwrap();
-        assert_eq!(frame.header.version, STREAM_PROTOCOL_VERSION);
-        assert_eq!(frame.header.stream_id, id);
-        assert_eq!(frame.header.message_type, StreamMessageType::Data);
+        assert_eq!(frame.stream_id, id);
+        assert_eq!(frame.msg_type, StreamMsgType::Data);
+        assert_eq!(frame.sequence_num, 42);
         assert_eq!(frame.data, payload);
     }
 
@@ -158,41 +123,70 @@ mod tests {
     }
 
     #[test]
-    fn bad_version() {
-        let id = StreamId::random();
-        let mut encoded = encode_stream_message(&id, StreamMessageType::Data, b"x");
-        encoded[0] = 0xFF;
-        assert!(decode_stream_message(&encoded).is_none());
+    fn wrong_frame_kind() {
+        // Opaque frame kind (0x00, 0x00) should not parse as stream
+        let mut buf = vec![0u8; LpFrameHeader::SIZE + 1];
+        buf[LpFrameHeader::SIZE] = 0xAA;
+        assert!(decode_stream_message(&buf).is_none());
     }
 
     #[test]
-    fn bad_message_type() {
-        let mut buf = [0u8; STREAM_HEADER_LEN];
-        buf[0] = STREAM_PROTOCOL_VERSION;
-        buf[1 + STREAM_ID_LEN] = 0xFF;
-        assert!(decode_stream_message(&buf).is_none());
+    fn bad_msg_type() {
+        let id = StreamId::random();
+        let mut encoded = encode_stream_message(&id, StreamMsgType::Data, 0, b"x");
+        // msg_type is at byte offset 2 + 8 = 10 (inside frame_attributes)
+        encoded[10] = 0xFF;
+        assert!(decode_stream_message(&encoded).is_none());
     }
 
     #[test]
     fn empty_payload() {
         let id = StreamId::random();
-        let encoded = encode_stream_message(&id, StreamMessageType::Open, &[]);
+        let encoded = encode_stream_message(&id, StreamMsgType::Open, 0, &[]);
         let frame = decode_stream_message(&encoded).unwrap();
-        assert_eq!(frame.header.message_type, StreamMessageType::Open);
+        assert_eq!(frame.msg_type, StreamMsgType::Open);
+        assert_eq!(frame.sequence_num, 0);
         assert!(frame.data.is_empty());
     }
 
     #[test]
     fn header_wire_format() {
-        let id = StreamId::from_bytes([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
-        let encoded = encode_stream_message(&id, StreamMessageType::Open, &[0xAA]);
-        assert_eq!(encoded.len(), STREAM_HEADER_LEN + 1);
-        assert_eq!(encoded[0], STREAM_PROTOCOL_VERSION);
+        let id = StreamId::from_u64(0x0011223344556677);
+        let encoded = encode_stream_message(&id, StreamMsgType::Open, 1, &[0xAA]);
+
+        // LpFrameHeader::SIZE (16) + 1 byte payload
+        assert_eq!(encoded.len(), LpFrameHeader::SIZE + 1);
+
+        // First 2 bytes: LpFrameKind::Stream = 3, LE
+        assert_eq!(encoded[0], 0x03);
+        assert_eq!(encoded[1], 0x00);
+
+        // Bytes 2..10: stream_id BE
         assert_eq!(
-            &encoded[1..9],
+            &encoded[2..10],
             &[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]
         );
-        assert_eq!(encoded[9], StreamMessageType::Open as u8);
-        assert_eq!(encoded[10], 0xAA);
+
+        // Byte 10: msg_type = Open = 0
+        assert_eq!(encoded[10], StreamMsgType::Open as u8);
+
+        // Bytes 11..15: sequence_num = 1, BE
+        assert_eq!(&encoded[11..15], &[0x00, 0x00, 0x00, 0x01]);
+
+        // Byte 15: reserved = 0
+        assert_eq!(encoded[15], 0x00);
+
+        // Byte 16: payload
+        assert_eq!(encoded[16], 0xAA);
+    }
+
+    #[test]
+    fn sequence_num_roundtrip() {
+        let id = StreamId::random();
+        for seq in [0, 1, 255, 65535, u32::MAX] {
+            let encoded = encode_stream_message(&id, StreamMsgType::Data, seq, b"test");
+            let frame = decode_stream_message(&encoded).unwrap();
+            assert_eq!(frame.sequence_num, seq);
+        }
     }
 }

@@ -52,8 +52,10 @@ impl KeyDeserialize for AgentStorageKey {
         // SAFETY: we're using the correct number of bytes for the conversion
         #[allow(clippy::unwrap_used)]
         let ip = match value.len() {
-            4 => IpAddr::V4(Ipv4Addr::from_octets(value.try_into().unwrap())),
-            16 => IpAddr::V6(Ipv6Addr::from_octets(value.try_into().unwrap())),
+            4 => IpAddr::V4(Ipv4Addr::from(TryInto::<[u8; 4]>::try_into(value).unwrap())),
+            16 => IpAddr::V6(Ipv6Addr::from(
+                TryInto::<[u8; 16]>::try_into(value).unwrap(),
+            )),
             _ => return Err(StdError::generic_err("invalid IP address length")),
         };
         Ok(AgentStorageKey(ip))

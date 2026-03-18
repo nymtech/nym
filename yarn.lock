@@ -3391,10 +3391,10 @@
   resolved "https://registry.yarnpkg.com/@nymproject/contract-clients/-/contract-clients-1.4.1.tgz#ae2644387b518eb13e8825fa8021d4c81ffe7852"
   integrity sha512-HuJZ4Hv+Rl6ZZEtCHKgurNLJapM+QQRJlGkevFH2a4UdqUqF9omUkUi3AVes4679dPoSFgvA7plyVSDBdbgV6w==
 
-"@nymproject/mix-fetch@>=1.4.1-rc1 || ^1":
-  version "1.4.1"
-  resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch/-/mix-fetch-1.4.1.tgz#6a923b40e09c4a571fb947297a3afd41cd2d5ea6"
-  integrity sha512-FN5UeCkje6fauCt2pd8kFGFYXj2kaNewEJVKRLWzI2/suxD+J2bmg/YvXBGLWMWglXNA3+YFHA/1Vjh6OGtgig==
+"@nymproject/mix-fetch@>=1.4.2-rc.0 || ^1":
+  version "1.4.3"
+  resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch/-/mix-fetch-1.4.3.tgz#bee246da3f29db6be48fba4e48656f3b1da9cf8b"
+  integrity sha512-+Q8W2p5JP6T7gk/GSynPabbDHe0hJ+FADTT0VSDQG7rstNSpTvMRz2RjKFuv5+Ufb4ufoEHYhYd8r1l6rrZ/sQ==
 
 "@nymproject/node-tester@^1.3.1":
   version "1.3.1"
@@ -13001,9 +13001,9 @@ graphemer@^1.4.0:
   integrity sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==
 
 h3@^1.15.4:
-  version "1.15.5"
-  resolved "https://registry.yarnpkg.com/h3/-/h3-1.15.5.tgz#e2f28d4a66a249973bb050eaddb06b9ab55506f8"
-  integrity sha512-xEyq3rSl+dhGX2Lm0+eFQIAzlDN6Fs0EcC4f7BNUmzaRX/PTzeuM+Tr2lHB8FoXggsQIeXLj8EDVgs5ywxyxmg==
+  version "1.15.8"
+  resolved "https://registry.yarnpkg.com/h3/-/h3-1.15.8.tgz#bf90969bc1141a88be0940b7290f8353456b9f2a"
+  integrity sha512-iOH6Vl8mGd9nNfu9C0IZ+GuOAfJHcyf3VriQxWaSWIB76Fg4BnFuk4cxBxjmQSSxJS664+pgjP6e7VBnUzFfcg==
   dependencies:
     cookie-es "^1.2.2"
     crossws "^0.3.5"

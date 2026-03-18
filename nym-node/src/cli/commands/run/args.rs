@@ -3,7 +3,7 @@
 
 use crate::cli::helpers::{
     ConfigArgs, EntryGatewayArgs, ExitGatewayArgs, HostArgs, HttpArgs, LpArgs, MetricsArgs,
-    MixnetArgs, VerlocArgs, WireguardArgs,
+    MixnetArgs, NyxArgs, VerlocArgs, WireguardArgs,
 };
 use crate::config::persistence::NymNodePaths;
 use crate::config::{Config, ConfigBuilder, NodeMode, NodeModes};
@@ -109,6 +109,9 @@ pub(crate) struct Args {
     http: HttpArgs,
 
     #[clap(flatten)]
+    nyx: NyxArgs,
+
+    #[clap(flatten)]
     mixnet: MixnetArgs,
 
     #[clap(flatten)]
@@ -170,6 +173,7 @@ impl Args {
             )
             .with_host(self.host.build_config_section())
             .with_http(self.http.build_config_section())
+            .with_nyx(self.nyx.build_config_section())
             .with_mixnet(self.mixnet.build_config_section(&data_dir))
             .with_wireguard(self.wireguard.build_config_section(&data_dir))
             .with_storage_paths(NymNodePaths::new(&data_dir))
@@ -189,6 +193,7 @@ impl Args {
         config.host = self.host.override_config_section(config.host);
         config.http = self.http.override_config_section(config.http);
         config.mixnet = self.mixnet.override_config_section(config.mixnet);
+        config.nyx = self.nyx.override_config_section(config.nyx);
         config.wireguard = self.wireguard.override_config_section(config.wireguard);
         config.metrics = self.metrics.override_config_section(config.metrics);
         config.gateway_tasks = self

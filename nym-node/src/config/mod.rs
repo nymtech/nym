@@ -174,6 +174,8 @@ pub struct ConfigBuilder {
 
     pub host: Option<Host>,
 
+    pub nyx: Option<Nyx>,
+
     pub http: Option<Http>,
 
     pub verloc: Option<Verloc>,
@@ -200,6 +202,7 @@ impl ConfigBuilder {
             config_path,
             data_dir,
             host: None,
+            nyx: None,
             http: None,
             mixnet: None,
             verloc: None,
@@ -214,56 +217,73 @@ impl ConfigBuilder {
         }
     }
 
+    #[must_use]
     pub fn with_modes(mut self, mode: impl Into<NodeModes>) -> Self {
         self.modes = mode.into();
         self
     }
 
+    #[must_use]
+    pub fn with_nyx(mut self, section: impl Into<Option<Nyx>>) -> Self {
+        self.nyx = section.into();
+        self
+    }
+
+    #[must_use]
     pub fn with_host(mut self, section: impl Into<Option<Host>>) -> Self {
         self.host = section.into();
         self
     }
 
+    #[must_use]
     pub fn with_http(mut self, section: impl Into<Option<Http>>) -> Self {
         self.http = section.into();
         self
     }
 
+    #[must_use]
     pub fn with_verloc(mut self, section: impl Into<Option<Verloc>>) -> Self {
         self.verloc = section.into();
         self
     }
 
+    #[must_use]
     pub fn with_mixnet(mut self, section: impl Into<Option<Mixnet>>) -> Self {
         self.mixnet = section.into();
         self
     }
 
+    #[must_use]
     pub fn with_lp(mut self, section: impl Into<Option<LpConfig>>) -> Self {
         self.lp = section.into();
         self
     }
 
+    #[must_use]
     pub fn with_wireguard(mut self, section: impl Into<Option<Wireguard>>) -> Self {
         self.wireguard = section.into();
         self
     }
 
+    #[must_use]
     pub fn with_storage_paths(mut self, section: impl Into<Option<NymNodePaths>>) -> Self {
         self.storage_paths = section.into();
         self
     }
 
+    #[must_use]
     pub fn with_metrics(mut self, section: impl Into<Option<MetricsConfig>>) -> Self {
         self.metrics = section.into();
         self
     }
 
+    #[must_use]
     pub fn with_gateway_tasks(mut self, section: impl Into<Option<GatewayTasksConfig>>) -> Self {
         self.gateway_tasks = section.into();
         self
     }
 
+    #[must_use]
     pub fn with_service_providers(
         mut self,
         section: impl Into<Option<ServiceProvidersConfig>>,
@@ -302,6 +322,7 @@ impl ConfigBuilder {
             logging: self.logging.unwrap_or_default(),
             save_path: Some(self.config_path),
             debug: Default::default(),
+            nyx: self.nyx.unwrap_or_default(),
         })
     }
 }
@@ -325,6 +346,9 @@ pub struct Config {
 
     /// Storage paths to persistent nym-node data, such as its long term keys.
     pub storage_paths: NymNodePaths,
+
+    #[serde(default)]
+    pub nyx: Nyx,
 
     #[serde(default)]
     pub http: Http,
@@ -443,6 +467,7 @@ impl Config {
     }
 
     pub fn validate(&self) -> Result<(), NymNodeError> {
+        self.nyx.validate()?;
         self.mixnet.validate()?;
 
         // it's not allowed to run mixnode mode alongside entry mode
@@ -540,6 +565,58 @@ impl Default for Http {
     }
 }
 
+/// Configuration relevant to any interaction involving nyx chain
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct Nyx {
+    /// Url to the websocket endpoint of a nyx validator, for example `wss://rpc.nymtech.net/websocket`.
+    /// It is used for subscribing to new block events.
+    pub nyxd_websocket_url: Url,
+
+    /// Addresses to nyxd which the node uses to interact with the nyx chain.
+    pub nyxd_urls: Vec<Url>,
+    // pub watcher: NyxdWatcher,
+}
+
+impl Nyx {
+    pub fn validate(&self) -> Result<(), NymNodeError> {
+        if self.nyxd_urls.is_empty() {
+            return Err(NymNodeError::config_validation_failure(
+                "no nyxd urls provided",
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl Default for Nyx {
+    fn default() -> Self {
+        // SAFETY:
+        // our hardcoded values should always be valid
+        // is if there's anything set in the environment, otherwise fallback to mainnet
+        #[allow(clippy::expect_used)]
+        let nyxd_urls = if let Ok(env_value) = env::var(var_names::NYXD) {
+            parse_urls(&env_value)
+        } else {
+            vec![mainnet::NYXD_URL.parse().expect("invalid default nyxd URL")]
+        };
+
+        #[allow(clippy::expect_used)]
+        let nyxd_websocket_url = if let Ok(env_value) = env::var(var_names::NYXD_WEBSOCKET) {
+            env_value
+                .parse()
+                .expect("malformed default nyxd websocket URL")
+        } else {
+            mainnet::NYXD_WS
+                .parse()
+                .expect("invalid default nyxd websocket URL")
+        };
+        Nyx {
+            nyxd_websocket_url,
+            nyxd_urls,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Mixnet {
@@ -557,9 +634,6 @@ pub struct Mixnet {
     /// Addresses to nym APIs from which the node gets the view of the network.
     pub nym_api_urls: Vec<Url>,
 
-    /// Addresses to nyxd which the node uses to interact with the nyx chain.
-    pub nyxd_urls: Vec<Url>,
-
     /// Settings for controlling replay detection
     pub replay_protection: ReplayProtection,
 
@@ -575,12 +649,6 @@ impl Mixnet {
         if self.nym_api_urls.is_empty() {
             return Err(NymNodeError::config_validation_failure(
                 "no nym api urls provided",
-            ));
-        }
-
-        if self.nyxd_urls.is_empty() {
-            return Err(NymNodeError::config_validation_failure(
-                "no nyxd urls provided",
             ));
         }
 
@@ -821,29 +889,21 @@ impl Default for MixnetDebug {
 }
 
 impl Mixnet {
+    // SAFETY:
+    // our hardcoded values should always be valid
+    #[allow(clippy::expect_used)]
     pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
-        // SAFETY:
-        // our hardcoded values should always be valid
-        #[allow(clippy::expect_used)]
         // is if there's anything set in the environment, otherwise fallback to mainnet
         let nym_api_urls = if let Ok(env_value) = env::var(var_names::NYM_API) {
             parse_urls(&env_value)
         } else {
-            vec![mainnet::NYM_API.parse().expect("Invalid default API URL")]
-        };
-
-        #[allow(clippy::expect_used)]
-        let nyxd_urls = if let Ok(env_value) = env::var(var_names::NYXD) {
-            parse_urls(&env_value)
-        } else {
-            vec![mainnet::NYXD_URL.parse().expect("Invalid default nyxd URL")]
+            vec![mainnet::NYM_API.parse().expect("invalid default API URL")]
         };
 
         Mixnet {
             bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_MIXNET_PORT),
             announce_port: None,
             nym_api_urls,
-            nyxd_urls,
             replay_protection: ReplayProtection::new_default(data_dir),
             key_rotation: Default::default(),
             debug: Default::default(),

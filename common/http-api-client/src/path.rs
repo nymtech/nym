@@ -10,7 +10,9 @@ fn sanitize_fragment(segment: &str) -> &str {
     segment.trim_matches(|c: char| c.is_whitespace() || c == '/')
 }
 
+/// Defines a path that can be used to make a request to an API.
 pub trait RequestPath: Debug {
+    /// Sanitise the request path by removing empty segments and trimming whitespace and slashes
     fn to_sanitized_segments(&self) -> Vec<&str>;
 }
 

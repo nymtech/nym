@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use dashmap::DashMap;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use nym_noise::config::NoiseConfig;
 use nym_noise::upgrade_noise_initiator;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -14,6 +14,7 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TrySendError;
@@ -90,13 +91,17 @@ impl Deref for ActiveConnections {
 pub struct ConnectionSender {
     channel: mpsc::Sender<FramedNymPacket>,
     current_reconnection_attempt: Arc<AtomicU32>,
+    // Identifies the `ManagedConnection` task currently owning this entry; used
+    // to ensure drop-time eviction only fires on the still-owning task.
+    handle_token: Arc<()>,
 }
 
 impl ConnectionSender {
-    fn new(channel: mpsc::Sender<FramedNymPacket>) -> Self {
+    fn new(channel: mpsc::Sender<FramedNymPacket>, handle_token: Arc<()>) -> Self {
         ConnectionSender {
             channel,
             current_reconnection_attempt: Arc::new(AtomicU32::new(0)),
+            handle_token,
         }
     }
 }
@@ -107,6 +112,31 @@ struct ManagedConnection {
     message_receiver: ReceiverStream<FramedNymPacket>,
     connection_timeout: Duration,
     current_reconnection: Arc<AtomicU32>,
+    active_connections: ActiveConnections,
+    handle_token: Arc<()>,
+}
+
+// Evicts the cache entry on task exit (only if still owned by this task).
+// Without this, a stale `ConnectionSender` survives after the peer disconnects
+// and the next outbound packet is silently swallowed by the dead TCP.
+struct EvictOnDrop {
+    active_connections: ActiveConnections,
+    address: SocketAddr,
+    handle_token: Arc<()>,
+}
+
+impl Drop for EvictOnDrop {
+    fn drop(&mut self) {
+        let address = self.address;
+        let handle_token = &self.handle_token;
+        self.active_connections.remove_if(&address, |_, sender| {
+            Arc::ptr_eq(&sender.handle_token, handle_token)
+        });
+        trace!(
+            peer = %address,
+            "managed connection task exited; evicted owning cache entry"
+        );
+    }
 }
 
 impl ManagedConnection {
@@ -116,6 +146,8 @@ impl ManagedConnection {
         message_receiver: mpsc::Receiver<FramedNymPacket>,
         connection_timeout: Duration,
         current_reconnection: Arc<AtomicU32>,
+        active_connections: ActiveConnections,
+        handle_token: Arc<()>,
     ) -> Self {
         ManagedConnection {
             address,
@@ -123,69 +155,27 @@ impl ManagedConnection {
             message_receiver: ReceiverStream::new(message_receiver),
             connection_timeout,
             current_reconnection,
+            active_connections,
+            handle_token,
         }
     }
 
     async fn run(self) {
         let address = self.address;
+        let _evict_guard = EvictOnDrop {
+            active_connections: self.active_connections,
+            address,
+            handle_token: self.handle_token,
+        };
+
         let reconnection_attempt = self.current_reconnection.load(Ordering::Acquire);
         let connect_start = tokio::time::Instant::now();
         let connection_fut = TcpStream::connect(address);
 
-        let conn = match tokio::time::timeout(self.connection_timeout, connection_fut).await {
-            Ok(stream_res) => match stream_res {
-                Ok(stream) => {
-                    let connect_ms = connect_start.elapsed().as_millis() as u64;
-                    debug!(
-                        peer = %address,
-                        connect_ms,
-                        "Managed to establish connection to {}", self.address
-                    );
-
-                    let noise_start = tokio::time::Instant::now();
-                    let noise_stream =
-                        match upgrade_noise_initiator(stream, &self.noise_config).await {
-                            Ok(noise_stream) => noise_stream,
-                            Err(err) => {
-                                let noise_handshake_ms = noise_start.elapsed().as_millis() as u64;
-                                warn!(
-                                    event = "connection.failed.noise",
-                                    peer = %address,
-                                    error = %err,
-                                    connect_ms,
-                                    noise_handshake_ms,
-                                    reconnection_attempt,
-                                    exit_reason = "noise_error",
-                                    "Failed to perform Noise initiator handshake with {address}"
-                                );
-                                self.current_reconnection.fetch_add(1, Ordering::SeqCst);
-                                return;
-                            }
-                        };
-                    let noise_handshake_ms = noise_start.elapsed().as_millis() as u64;
-                    self.current_reconnection.store(0, Ordering::Release);
-                    debug!(
-                        peer = %address,
-                        connect_ms,
-                        noise_handshake_ms,
-                        "Noise initiator handshake completed for {:?}", address
-                    );
-                    Framed::new(noise_stream, NymCodec)
-                }
-                Err(err) => {
-                    let connect_ms = connect_start.elapsed().as_millis() as u64;
-                    warn!(
-                        event = "connection.failed.connect",
-                        peer = %address,
-                        error = %err,
-                        connect_ms,
-                        reconnection_attempt,
-                        exit_reason = "connect_error",
-                        "failed to establish connection to {address}"
-                    );
-                    return;
-                }
-            },
+        // 1. attempt to establish the connection with timeout
+        let maybe_stream = match tokio::time::timeout(self.connection_timeout, connection_fut).await
+        {
+            Ok(stream) => stream,
             Err(_) => {
                 let connect_ms = connect_start.elapsed().as_millis() as u64;
                 warn!(
@@ -203,21 +193,133 @@ impl ManagedConnection {
             }
         };
 
-        if let Err(err) = self.message_receiver.map(Ok).forward(conn).await {
-            warn!(
-                event = "connection.forward_error",
-                peer = %address,
-                error = %err,
-                exit_reason = "forward_error",
-                "Failed to forward packets to {address}: {err}"
-            );
-        }
+        // 2. check if it actually succeeded
+        let stream = match maybe_stream {
+            Ok(stream) => stream,
+            Err(err) => {
+                let connect_ms = connect_start.elapsed().as_millis() as u64;
+                warn!(
+                    event = "connection.failed.connect",
+                    peer = %address,
+                    error = %err,
+                    connect_ms,
+                    reconnection_attempt,
+                    exit_reason = "connect_error",
+                    "failed to establish connection to {address}"
+                );
+                return;
+            }
+        };
 
+        let connect_ms = connect_start.elapsed().as_millis() as u64;
         debug!(
             peer = %address,
-            exit_reason = "sender_dropped",
-            "connection manager to {address} finished"
+            connect_ms,
+            "Managed to establish connection to {}", self.address
         );
+
+        // 3. perform noise handshake (if applicable)
+        let noise_start = tokio::time::Instant::now();
+        let noise_stream = match upgrade_noise_initiator(stream, &self.noise_config).await {
+            Ok(noise_stream) => noise_stream,
+            Err(err) => {
+                let noise_handshake_ms = noise_start.elapsed().as_millis() as u64;
+                warn!(
+                    event = "connection.failed.noise",
+                    peer = %address,
+                    error = %err,
+                    connect_ms,
+                    noise_handshake_ms,
+                    reconnection_attempt,
+                    exit_reason = "noise_error",
+                    "Failed to perform Noise initiator handshake with {address}"
+                );
+                self.current_reconnection.fetch_add(1, Ordering::SeqCst);
+                return;
+            }
+        };
+        let noise_handshake_ms = noise_start.elapsed().as_millis() as u64;
+        self.current_reconnection.store(0, Ordering::Release);
+        debug!(
+            peer = %address,
+            connect_ms,
+            noise_handshake_ms,
+            "Noise initiator handshake completed for {:?}", address
+        );
+        let conn = Framed::new(noise_stream, NymCodec);
+
+        // 4. start handling the framed stream
+        run_io_loop(conn, self.message_receiver, address).await;
+    }
+}
+
+// The connection is unidirectional (send-only); we read from it solely to
+// notice peer FIN/RST while idle so we can evict the cache entry before the
+// next outbound send finds it stale.
+async fn run_io_loop<T>(
+    conn: Framed<T, NymCodec>,
+    mut receiver: ReceiverStream<FramedNymPacket>,
+    address: SocketAddr,
+) where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    let (mut sink, mut stream) = conn.split();
+
+    loop {
+        tokio::select! {
+            msg = stream.next() => {
+                match msg {
+                    None => {
+                        debug!(
+                            peer = %address,
+                            exit_reason = "peer_closed",
+                            "peer closed mixnet connection to {address}"
+                        );
+                        break;
+                    }
+                    Some(Err(err)) => {
+                        warn!(
+                            event = "connection.read_error",
+                            peer = %address,
+                            error = %err,
+                            exit_reason = "read_error",
+                            "read error on mixnet connection to {address}: {err}"
+                        );
+                        break;
+                    }
+                    Some(Ok(_)) => {
+                        trace!(
+                            peer = %address,
+                            "unexpected inbound packet on mixnet connection to {address}; discarding"
+                        );
+                    }
+                }
+            }
+            outgoing = receiver.next() => {
+                match outgoing {
+                    None => {
+                        debug!(
+                            peer = %address,
+                            exit_reason = "sender_dropped",
+                            "connection manager to {address} finished"
+                        );
+                        break;
+                    }
+                    Some(packet) => {
+                        if let Err(err) = sink.send(packet).await {
+                            warn!(
+                                event = "connection.forward_error",
+                                peer = %address,
+                                error = %err,
+                                exit_reason = "forward_error",
+                                "Failed to forward packet to {address}: {err}"
+                            );
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -264,13 +366,18 @@ impl Client {
             sender.try_send(pending_packet).unwrap();
         }
 
+        // Ownership token for the task we're about to spawn; lets it tell
+        // on exit whether the cache entry still names it.
+        let handle_token = Arc::new(());
+
         // if we already tried to connect to `address` before, grab the current attempt count
         let current_reconnection_attempt =
             if let Some(mut existing) = self.active_connections.get_mut(&address) {
                 existing.channel = sender;
+                existing.handle_token = Arc::clone(&handle_token);
                 Arc::clone(&existing.current_reconnection_attempt)
             } else {
-                let new_entry = ConnectionSender::new(sender);
+                let new_entry = ConnectionSender::new(sender, Arc::clone(&handle_token));
                 let current_attempt = Arc::clone(&new_entry.current_reconnection_attempt);
                 self.active_connections.insert(address, new_entry);
                 current_attempt
@@ -285,6 +392,7 @@ impl Client {
 
         let connections_count = self.connections_count.clone();
         let noise_config = self.noise_config.clone();
+        let active_connections = self.active_connections.clone();
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything
             if let Some(backoff) = backoff {
@@ -299,6 +407,8 @@ impl Client {
                 receiver,
                 initial_connection_timeout,
                 current_reconnection_attempt,
+                active_connections,
+                handle_token,
             )
             .run()
             .await;
@@ -427,5 +537,103 @@ mod tests {
             client.determine_backoff(u32::MAX).unwrap(),
             client.config.maximum_reconnection_backoff
         );
+    }
+
+    fn test_addr() -> SocketAddr {
+        "127.0.0.1:1".parse().unwrap()
+    }
+
+    fn insert_with_token(
+        active: &ActiveConnections,
+        addr: SocketAddr,
+        token: Arc<()>,
+    ) -> mpsc::Receiver<FramedNymPacket> {
+        let (tx, rx) = mpsc::channel(1);
+        active.insert(addr, ConnectionSender::new(tx, token));
+        rx
+    }
+
+    #[test]
+    fn evict_on_drop_removes_entry_when_token_still_matches() {
+        let active = ActiveConnections::default();
+        let addr = test_addr();
+        let token = Arc::new(());
+        let _rx = insert_with_token(&active, addr, Arc::clone(&token));
+
+        assert!(active.get(&addr).is_some());
+
+        {
+            let _guard = EvictOnDrop {
+                active_connections: active.clone(),
+                address: addr,
+                handle_token: token,
+            };
+        }
+
+        assert!(
+            active.get(&addr).is_none(),
+            "owning task's drop should evict the entry"
+        );
+    }
+
+    #[test]
+    fn evict_on_drop_preserves_entry_replaced_by_newer_make_connection() {
+        // Simulates the race: old task's run() has returned, but before its
+        // drop guard fires, a concurrent `make_connection` replaced the
+        // entry's channel + handle_token with a fresh task's token.
+        let active = ActiveConnections::default();
+        let addr = test_addr();
+        let old_token = Arc::new(());
+        let new_token = Arc::new(());
+        let _rx_new = insert_with_token(&active, addr, Arc::clone(&new_token));
+
+        {
+            let _guard = EvictOnDrop {
+                active_connections: active.clone(),
+                address: addr,
+                handle_token: old_token,
+            };
+        }
+
+        assert!(
+            active.get(&addr).is_some(),
+            "old task's drop must not clobber the newer entry"
+        );
+    }
+
+    #[tokio::test]
+    async fn io_loop_exits_when_peer_closes_idle_connection() {
+        // The fix's second half: while no packets are flowing, peer FIN/RST
+        // must still be observed so the cache entry can be evicted before the
+        // next send finds it stale.
+        let (a, b) = tokio::io::duplex(64);
+        let conn = Framed::new(a, NymCodec);
+        let (_tx, rx) = mpsc::channel(1);
+
+        let task = tokio::spawn(run_io_loop(conn, ReceiverStream::new(rx), test_addr()));
+
+        // Simulate peer closing both directions of the connection.
+        drop(b);
+
+        tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("io_loop must notice peer close while idle")
+            .expect("io_loop task must not panic");
+    }
+
+    #[tokio::test]
+    async fn io_loop_exits_when_sender_dropped() {
+        let (a, _b) = tokio::io::duplex(64);
+        let conn = Framed::new(a, NymCodec);
+        let (tx, rx) = mpsc::channel(1);
+
+        let task = tokio::spawn(run_io_loop(conn, ReceiverStream::new(rx), test_addr()));
+
+        drop(tx);
+
+        tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("io_loop must exit when the upstream sender is dropped")
+            .expect("io_loop task must not panic");
     }
 }

@@ -34,3 +34,4 @@ client = ["tokio-util", "nym-task", "tokio/net", "tokio/rt"]
 [dev-dependencies]
 nym-crypto = { workspace = true }
 rand = { workspace = true }
+tokio = { workspace = true, features = ["macros", "io-util", "rt", "rt-multi-thread"] }

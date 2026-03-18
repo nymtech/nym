@@ -89,7 +89,10 @@ impl<C, F> PacketForwarder<C, F> {
     {
         let next_hop = new_packet.packet.next_hop();
 
-        if !self.routing_filter.should_route(next_hop.as_ref().ip()) {
+        if !self
+            .routing_filter
+            .should_route(next_hop.as_ref().ip(), new_packet.network_monitor_packet)
+        {
             warn!(
                 event = "packet.dropped.routing_filter",
                 next_hop = %next_hop,

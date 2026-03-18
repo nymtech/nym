@@ -3,12 +3,9 @@
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Timestamp};
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 pub type OrchestratorAddress = Addr;
-
-// Unfortunately `IpAddr` does not implement `PrimaryKey`, so we store its stringified representation instead
-pub type NetworkMonitorAddress = String;
 
 #[cw_serde]
 pub struct AuthorisedNetworkMonitorOrchestrator {
@@ -21,8 +18,10 @@ pub struct AuthorisedNetworkMonitorOrchestrator {
 
 #[cw_serde]
 pub struct AuthorisedNetworkMonitor {
-    /// The Ip address associated with the network monitor agent.
-    pub address: IpAddr,
+    /// Mixnet address of the agent.
+    /// The underlying ip address is going to be used as ingress to the nodes,
+    /// and the full socket address announces the egress and the association with the noise key
+    pub mixnet_address: SocketAddr,
 
     /// The address of the orchestrator that authorised the network monitor agent.
     pub authorised_by: OrchestratorAddress,

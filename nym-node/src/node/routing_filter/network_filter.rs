@@ -45,11 +45,11 @@ impl NetworkRoutingFilter {
         mut self,
         known_network_monitors: HashSet<IpAddr>,
     ) -> Self {
-        self.resolved.network_monitors = DeclaredNetworkMonitors::new(known_network_monitors);
+        self.resolved.network_monitors = RoutableNetworkMonitors::new(known_network_monitors);
         self
     }
 
-    pub(crate) fn known_network_monitors_handle(&self) -> DeclaredNetworkMonitors {
+    pub(crate) fn known_network_monitors_handle(&self) -> RoutableNetworkMonitors {
         self.resolved.network_monitors.clone()
     }
 
@@ -120,7 +120,7 @@ impl UnknownNodes {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct KnownNodes {
     nym_nodes: KnownNymNodes,
-    network_monitors: DeclaredNetworkMonitors,
+    network_monitors: RoutableNetworkMonitors,
 }
 
 impl KnownNodes {
@@ -148,11 +148,11 @@ impl KnownNodes {
 ///
 /// Cloning `DeclaredNetworkMonitors` is cheap (only clones the `Arc`), not the underlying data.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct DeclaredNetworkMonitors {
+pub(crate) struct RoutableNetworkMonitors {
     inner: Arc<DeclaredNetworkMonitorsInner>,
 }
 
-impl DeclaredNetworkMonitors {
+impl RoutableNetworkMonitors {
     pub(crate) fn new(known: HashSet<IpAddr>) -> Self {
         Self {
             inner: Arc::new(DeclaredNetworkMonitorsInner {

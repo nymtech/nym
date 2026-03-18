@@ -139,8 +139,7 @@ async fn main() {
 
     println!("\nConcurrent round-trips successful!");
 
-    // Streams clean up on drop (unregister from router).
-    // No close message is sent over the wire — see stream.rs.
+    // Step 8: Clean up.
     drop(stream_to_a);
     drop(stream_to_b);
     drop(inbound_a);

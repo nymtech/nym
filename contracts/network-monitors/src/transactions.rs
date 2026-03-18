@@ -58,12 +58,16 @@ pub fn try_authorise_network_monitor(
     env: Env,
     info: MessageInfo,
     network_monitor_address: IpAddr,
+    bs58_x25519_noise: String,
+    noise_version: u8,
 ) -> Result<Response, NetworkMonitorsContractError> {
     NETWORK_MONITORS_CONTRACT_STORAGE.authorise_monitor(
         deps,
         &env,
         &info.sender,
         network_monitor_address,
+        bs58_x25519_noise,
+        noise_version,
     )?;
 
     Ok(Response::new())
@@ -393,7 +397,7 @@ mod tests {
             let res = test
                 .execute_raw(
                     non_orchestrator.clone(),
-                    ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+                    ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
                 )
                 .unwrap_err();
 
@@ -407,7 +411,7 @@ mod tests {
             let orchestrator = test.add_orchestrator()?;
             let res = test.execute_raw(
                 orchestrator,
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
             );
             assert!(res.is_ok());
 
@@ -427,7 +431,7 @@ mod tests {
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
             )?;
 
             let info = NETWORK_MONITORS_CONTRACT_STORAGE
@@ -448,7 +452,7 @@ mod tests {
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
             )?;
 
             let initial = NETWORK_MONITORS_CONTRACT_STORAGE
@@ -459,7 +463,7 @@ mod tests {
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
             )?;
 
             let updated = NETWORK_MONITORS_CONTRACT_STORAGE
@@ -488,7 +492,7 @@ mod tests {
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
             )?;
 
             let res = test
@@ -522,7 +526,7 @@ mod tests {
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
             )?;
 
             assert!(NETWORK_MONITORS_CONTRACT_STORAGE
@@ -586,15 +590,15 @@ mod tests {
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent1 },
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent1, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
             )?;
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent2 },
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent2, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
             )?;
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent3 },
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent3, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
             )?;
 
             Ok((test, orchestrator))

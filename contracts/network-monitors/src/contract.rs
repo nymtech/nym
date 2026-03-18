@@ -52,9 +52,11 @@ pub fn execute(
         ExecuteMsg::RevokeNetworkMonitorOrchestrator { address } => {
             try_revoke_network_monitor_orchestrator(deps, info, address)
         }
-        ExecuteMsg::AuthoriseNetworkMonitor { address } => {
-            try_authorise_network_monitor(deps, env, info, address)
-        }
+        ExecuteMsg::AuthoriseNetworkMonitor {
+            address,
+            bs58_x25519_noise,
+            noise_version,
+        } => try_authorise_network_monitor(deps, env, info, address, bs58_x25519_noise, noise_version),
         ExecuteMsg::RevokeNetworkMonitor { address } => {
             try_revoke_network_monitor(deps, info, address)
         }

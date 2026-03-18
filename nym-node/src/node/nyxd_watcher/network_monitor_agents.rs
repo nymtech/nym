@@ -99,9 +99,11 @@ impl MsgModule for NetworkMonitorAgentsModule {
         };
 
         match exec_msg {
-            ExecuteMsg::AuthoriseNetworkMonitor { address } => {
-                self.network_monitors.add_known(address)
-            }
+            ExecuteMsg::AuthoriseNetworkMonitor {
+                address,
+                bs58_x25519_noise: _,
+                noise_version: _,
+            } => self.network_monitors.add_known(address),
             ExecuteMsg::RevokeNetworkMonitor { address } => {
                 self.network_monitors.remove_known(address)
             }

@@ -29,6 +29,12 @@ pub struct AuthorisedNetworkMonitor {
 
     /// Timestamp of when the network monitor was authorised or the authorisation was renewed.
     pub authorised_at: Timestamp,
+
+    /// Base-58 encoded noise key of the agent.
+    pub bs58_x25519_noise: String,
+
+    /// Version of the noise protocol used by the agent.
+    pub noise_version: u8,
 }
 
 #[cw_serde]

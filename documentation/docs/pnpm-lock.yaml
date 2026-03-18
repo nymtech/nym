@@ -78,8 +78,8 @@ importers:
         specifier: '>=1.2.4-rc.2 || ^1'
         version: 1.4.1
       '@nymproject/mix-fetch-full-fat':
-        specifier: ^1.4.2
-        version: 1.4.2
+        specifier: ^1.4.3
+        version: 1.4.3
       '@nymproject/sdk-full-fat':
         specifier: '>=1.5.1-rc.0 || ^1.4.1'
         version: 1.4.1
@@ -104,9 +104,6 @@ importers:
       next:
         specifier: 15.5.10
         version: 15.5.10(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      next-sitemap:
-        specifier: 4.2.3
-        version: 4.2.3(next@15.5.10(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
       nextra:
         specifier: '2'
         version: 2.13.4(next@15.5.10(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1778,8 +1775,8 @@ packages:
   '@nymproject/contract-clients@1.4.1':
     resolution: {integrity: sha512-HuJZ4Hv+Rl6ZZEtCHKgurNLJapM+QQRJlGkevFH2a4UdqUqF9omUkUi3AVes4679dPoSFgvA7plyVSDBdbgV6w==}
 
-  '@nymproject/mix-fetch-full-fat@1.4.2':
-    resolution: {integrity: sha512-QHPwa7A+c/2VUm4Imq2I21toFiZhbZxcjHud1sFsE9hN5BWxZ+QJKV2bg9oBUzulzoQabsk48RA13/hqU7c4KA==}
+  '@nymproject/mix-fetch-full-fat@1.4.3':
+    resolution: {integrity: sha512-r3WVZDDFv+eFWPxhkMDg2VvLWd3ws1OK6kFT6bEt6/qTpfA21vV2MouuuyVkBy8DEUKqyU4z/8MiVFxfpkWlsg==}
 
   '@nymproject/sdk-full-fat@1.4.1':
     resolution: {integrity: sha512-dh5bvMUj3m8nEssvO8Nl66WpcJAjwRZrGNwqfczJWLG4nX3Vt95tPLv4v0/Z1W3DQWQFW6WmEPPYHNjl18V/fA==}
@@ -9536,7 +9533,7 @@ snapshots:
 
   '@nymproject/contract-clients@1.4.1': {}
 
-  '@nymproject/mix-fetch-full-fat@1.4.2': {}
+  '@nymproject/mix-fetch-full-fat@1.4.3': {}
 
   '@nymproject/sdk-full-fat@1.4.1': {}
 

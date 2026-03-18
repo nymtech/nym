@@ -23,7 +23,9 @@ Internally it uses the WASM client.
 
     ### Current Limitations of `mixFetch`
 
-    `mixFetch` can currently only perform 10 concurrent requests (i.e. in-flight requests where a request has been sent to a remote endpoint, but no result has been recieved) and you cannot send a second request for **exactly the same** endpoint before the result of the first has been received, or the request times out. `mixFetchv2` - which will act more like a general-purpose userspace IP stack - is currently in development.
+    `mixFetch` can currently only perform 10 concurrent requests (i.e. in-flight requests where a request has been sent to a remote endpoint, but no result has been recieved).
+
+    `mixFetchv2` - which will act more like a general-purpose userspace IP stack - is currently in development.
 
     It is shipped with a pre-bundled CA store.
 

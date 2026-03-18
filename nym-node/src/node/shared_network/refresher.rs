@@ -198,14 +198,20 @@ impl NetworkRefresher {
         // update noise Nodes
         let mut new_noise_nodes = HashMap::new();
 
-        // 1. include all existing agents
+        // Rebuild the noise map in two passes to respect the two independent data sources:
+        //
+        // 1. Preserve existing NM agent entries — these come from blockchain events processed
+        //    by `NetworkMonitorAgentsModule` and are NOT available from nym-api. Dropping them
+        //    here would leave agents unable to perform noise handshakes until their
+        //    registration is renewed.
         for (ip, node) in current_nodes {
             if !node.is_nym_node() {
                 new_noise_nodes.insert(ip, node);
             }
         }
 
-        // 2. iterate through the newly retrieved list of nym nodes
+        // 2. Replace all nym-node entries with fresh data from nym-api.
+        //    (Stale nym-node keys are safe to overwrite — the source of truth is always nym-api)
         for node in &nodes {
             let Some(noise_key) = node.x25519_noise_versioned_key else {
                 continue;

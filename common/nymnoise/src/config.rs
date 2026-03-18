@@ -53,6 +53,14 @@ pub struct NoiseNetworkView {
     inner: Arc<NoiseNetworkViewInner>,
 }
 
+/// Inner state of [`NoiseNetworkView`], shared behind an `Arc`.
+///
+/// # Concurrency model
+///
+/// Reads (on the packet-processing hot path) use `ArcSwap` and are fully lock-free.
+/// Writers must first acquire `update_lock` to serialise concurrent updates, then call
+/// `swap_view` to atomically publish the new map.  The lock is intentionally *not* wrapping
+/// the map itself so that readers are never blocked.
 #[derive(Debug)]
 struct NoiseNetworkViewInner {
     update_lock: Mutex<()>,
@@ -63,7 +71,11 @@ struct NoiseNetworkViewInner {
 pub struct NoiseNode {
     key: VersionedNoiseKeyV1,
 
-    // flag indicating whether this node is a nym node or a network monitor agent
+    // Distinguishes nym-node entries (sourced from nym-api topology refreshes) from
+    // network-monitor agent entries (sourced from blockchain events).
+    // This is needed because the two sources have independent lifecycles:
+    // `revoked_all_agents` must wipe NM entries while preserving nym-node entries,
+    // and `refresh_network_nodes` must rebuild nym-node entries without touching NM entries.
     is_nym_node: bool,
 }
 
@@ -101,9 +113,14 @@ impl NoiseNetworkView {
         self.inner.update_lock.lock().await
     }
 
-    // this MUST not be called without obtaining the permit first.
-    // the reason the data is not wrapped in mutex itself is to reduce the overhead
-    // for the reading tasks performing packet routing
+    /// Atomically replace the noise key map.
+    ///
+    /// # Precondition
+    ///
+    /// The caller **must** hold the permit returned by [`NoiseNetworkView::get_update_permit`].
+    /// Passing the `MutexGuard` by value enforces this at the type level — the guard is dropped
+    /// (releasing the lock) only after the swap completes, preventing torn writes from concurrent
+    /// update calls.
     pub fn swap_view(&self, _permit: MutexGuard<'_, ()>, new: HashMap<IpAddr, NoiseNode>) {
         self.inner.nodes.store(Arc::new(new));
     }
@@ -152,9 +169,11 @@ impl NoiseConfig {
     }
 
     pub(crate) fn get_noise_key(&self, address: IpAddr) -> Option<VersionedNoiseKeyV1> {
-        // with the default bind address being `[::]:1789`,
-        // it can happen that a responder sees the ipv6-mapped address of the initiator,
-        // this checks for that
+        // When a nym-node binds on `[::]:1789` (the default), it will accept connections on both
+        // IPv4 and IPv6.  If an IPv4 initiator connects, the kernel may present its address to the
+        // responder as an IPv4-mapped IPv6 address (e.g. `::ffff:1.2.3.4`) rather than the plain
+        // IPv4 address (`1.2.3.4`) that was registered in the noise map.
+        // `to_canonical()` strips that mapping so we can find the entry either way.
         let base_ip = address;
         let canonical_ip = base_ip.to_canonical();
 

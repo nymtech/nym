@@ -19,7 +19,7 @@
 //! Only transactions executed against the configured Network Monitors contract address are
 //! processed.
 
-use crate::node::routing_filter::network_filter::DeclaredNetworkMonitors;
+use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
 use async_trait::async_trait;
 use nym_validator_client::nyxd::cosmwasm::MsgExecuteContract;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::ExecuteMsg;
@@ -39,17 +39,17 @@ pub(crate) struct NetworkMonitorAgentsModule {
 
     /// Shared handle to the runtime list of authorised network monitor IPs.
     /// Updates are immediately visible to all packet processing threads.
-    pub(crate) network_monitors: DeclaredNetworkMonitors,
+    pub(crate) routable_network_monitors: RoutableNetworkMonitors,
 }
 
 impl NetworkMonitorAgentsModule {
     pub(crate) fn new(
         contract_address: AccountId,
-        network_monitors: DeclaredNetworkMonitors,
+        routable_network_monitors: RoutableNetworkMonitors,
     ) -> Self {
         Self {
             contract_address,
-            network_monitors,
+            routable_network_monitors,
         }
     }
 }
@@ -96,14 +96,16 @@ impl MsgModule for NetworkMonitorAgentsModule {
 
         match exec_msg {
             ExecuteMsg::AuthoriseNetworkMonitor {
-                address,
-                bs58_x25519_noise: _,
-                noise_version: _,
-            } => self.network_monitors.add_known(address),
+                mixnet_address,
+                bs58_x25519_noise,
+                noise_version,
+            } => self
+                .routable_network_monitors
+                .add_known(mixnet_address.ip()),
             ExecuteMsg::RevokeNetworkMonitor { address } => {
-                self.network_monitors.remove_known(address)
+                self.routable_network_monitors.remove_known(address)
             }
-            ExecuteMsg::RevokeAllNetworkMonitors => self.network_monitors.reset(),
+            ExecuteMsg::RevokeAllNetworkMonitors => self.routable_network_monitors.reset(),
 
             // we're not interested in those messages
             ExecuteMsg::UpdateAdmin { .. }

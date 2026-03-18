@@ -1,15 +1,15 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Addr, Deps, DepsMut, Env};
+use cosmwasm_std::{Addr, Deps, DepsMut, Env, StdError, StdResult};
 use cw_controllers::Admin;
-use cw_storage_plus::Map;
+use cw_storage_plus::{Key, KeyDeserialize, Map, PrimaryKey};
 use nym_network_monitors_contract_common::constants::storage_keys;
 use nym_network_monitors_contract_common::{
-    AuthorisedNetworkMonitor, AuthorisedNetworkMonitorOrchestrator, NetworkMonitorAddress,
-    NetworkMonitorsContractError, OrchestratorAddress,
+    AuthorisedNetworkMonitor, AuthorisedNetworkMonitorOrchestrator, NetworkMonitorsContractError,
+    OrchestratorAddress,
 };
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 pub const NETWORK_MONITORS_CONTRACT_STORAGE: NetworkMonitorsStorage = NetworkMonitorsStorage::new();
 
@@ -22,7 +22,54 @@ pub struct NetworkMonitorsStorage {
     pub(crate) contract_admin: Admin,
     pub(crate) authorised_orchestrators:
         Map<&'static OrchestratorAddress, AuthorisedNetworkMonitorOrchestrator>,
-    pub(crate) authorised_agents: Map<NetworkMonitorAddress, AuthorisedNetworkMonitor>,
+    pub(crate) authorised_agents: Map<AgentStorageKey, AuthorisedNetworkMonitor>,
+}
+
+// implement explicit wrapper for the storage key rather than use string representation
+// to make use of type safety and avoid accidentally mixing up `IpAddr` and `SocketAddr`
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct AgentStorageKey(IpAddr);
+
+impl<'a> PrimaryKey<'a> for AgentStorageKey {
+    type Prefix = ();
+    type SubPrefix = ();
+    type Suffix = Self;
+    type SuperSuffix = Self;
+
+    fn key(&'_ self) -> Vec<Key<'_>> {
+        match self.0 {
+            IpAddr::V4(ipv4) => vec![Key::Val32(ipv4.octets())],
+            IpAddr::V6(ipv6) => vec![Key::Val128(ipv6.octets())],
+        }
+    }
+}
+
+impl KeyDeserialize for AgentStorageKey {
+    type Output = AgentStorageKey;
+    const KEY_ELEMS: u16 = 1;
+
+    fn from_vec(value: Vec<u8>) -> StdResult<Self::Output> {
+        // SAFETY: we're using correct number of bytes for the conversion
+        #[allow(clippy::unwrap_used)]
+        let ip = match value.len() {
+            4 => IpAddr::V4(Ipv4Addr::from_octets(value.try_into().unwrap())),
+            16 => IpAddr::V6(Ipv6Addr::from_octets(value.try_into().unwrap())),
+            _ => return Err(StdError::generic_err("invalid IP address length")),
+        };
+        Ok(AgentStorageKey(ip))
+    }
+}
+
+impl From<IpAddr> for AgentStorageKey {
+    fn from(ip: IpAddr) -> Self {
+        Self(ip)
+    }
+}
+
+impl From<SocketAddr> for AgentStorageKey {
+    fn from(addr: SocketAddr) -> Self {
+        Self(addr.ip())
+    }
 }
 
 impl NetworkMonitorsStorage {
@@ -152,7 +199,7 @@ impl NetworkMonitorsStorage {
         deps: DepsMut,
         env: &Env,
         sender: &Addr,
-        monitor_address: IpAddr,
+        monitor_address: SocketAddr,
         bs58_x25519_noise: String,
         noise_version: u8,
     ) -> Result<(), NetworkMonitorsContractError> {
@@ -161,9 +208,9 @@ impl NetworkMonitorsStorage {
 
         self.authorised_agents.save(
             deps.storage,
-            monitor_address.to_string(),
+            monitor_address.into(),
             &AuthorisedNetworkMonitor {
-                address: monitor_address,
+                mixnet_address: monitor_address,
                 authorised_by: sender.clone(),
                 authorised_at: env.block.time,
                 bs58_x25519_noise,
@@ -185,7 +232,7 @@ impl NetworkMonitorsStorage {
         }
 
         self.authorised_agents
-            .remove(deps.storage, monitor_address.to_string());
+            .remove(deps.storage, monitor_address.into());
         Ok(())
     }
 
@@ -541,8 +588,8 @@ mod tests {
                 let admin = tester.admin_unchecked();
                 let orchestrator = tester.add_orchestrator()?;
 
-                let agent1 = tester.random_ip();
-                let agent2 = tester.random_ip();
+                let agent1 = tester.random_socket();
+                let agent2 = tester.random_socket();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
@@ -555,11 +602,11 @@ mod tests {
                 // sanity: both agents present
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent1.to_string())?
+                    .may_load(&tester, agent1.into())?
                     .is_some());
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent2.to_string())?
+                    .may_load(&tester, agent2.into())?
                     .is_some());
 
                 let deps = tester.deps_mut();
@@ -574,11 +621,11 @@ mod tests {
                 // its agents are cascade-removed
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent1.to_string())?
+                    .may_load(&tester, agent1.into())?
                     .is_none());
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent2.to_string())?
+                    .may_load(&tester, agent2.into())?
                     .is_none());
 
                 Ok(())
@@ -593,8 +640,8 @@ mod tests {
                 let orchestrator_a = tester.add_orchestrator()?;
                 let orchestrator_b = tester.add_orchestrator()?;
 
-                let agent_a = tester.random_ip();
-                let agent_b = tester.random_ip();
+                let agent_a = tester.random_socket();
+                let agent_b = tester.random_socket();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
@@ -610,14 +657,14 @@ mod tests {
                 // orchestrator_a's agent is gone
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent_a.to_string())?
+                    .may_load(&tester, agent_a.into())?
                     .is_none());
 
                 // orchestrator_b's agent is untouched
                 let remaining = storage
                     .authorised_agents
-                    .load(&tester, agent_b.to_string())?;
-                assert_eq!(remaining.address, agent_b);
+                    .load(&tester, agent_b.into())?;
+                assert_eq!(remaining.mixnet_address, agent_b);
                 assert_eq!(remaining.authorised_by, orchestrator_b);
 
                 // orchestrator_b itself is untouched
@@ -644,12 +691,19 @@ mod tests {
 
                 let orchestrator = tester.add_orchestrator()?;
                 let non_orchestrator = tester.generate_account();
-                let agent = tester.random_ip();
+                let agent = tester.random_socket();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
                 let res = storage
-                    .authorise_monitor(deps, &env, &non_orchestrator, agent, "test_noise_key".to_string(), 1)
+                    .authorise_monitor(
+                        deps,
+                        &env,
+                        &non_orchestrator,
+                        agent,
+                        "test_noise_key".to_string(),
+                        1,
+                    )
                     .unwrap_err();
                 assert_eq!(
                     NetworkMonitorsContractError::NotAnOrchestrator {
@@ -660,7 +714,14 @@ mod tests {
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                let res2 = storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1);
+                let res2 = storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                );
                 assert_eq!(res2, Ok(()));
 
                 Ok(())
@@ -671,21 +732,56 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let storage = NetworkMonitorsStorage::new();
 
+                // IPV4:
                 let orchestrator = tester.add_orchestrator()?;
-                let agent = tester.random_ip();
+                let agent = tester.random_socket_ipv4();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
 
                 assert!(storage
                     .authorised_agents
-                    .may_load(deps.storage, agent.to_string())?
+                    .may_load(deps.storage, agent.into())?
                     .is_none());
-                storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
-                let info = storage.authorised_agents.load(&tester, agent.to_string())?;
+                let info = storage.authorised_agents.load(&tester, agent.into())?;
 
-                assert_eq!(info.address, agent);
+                assert_eq!(info.mixnet_address, agent);
+                assert_eq!(info.authorised_by, orchestrator);
+                assert_eq!(info.authorised_at, env.block.time);
+
+                tester.advance_day_of_blocks();
+
+                // IPV6:
+                let agent = tester.random_socket_ipv6();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+
+                assert!(storage
+                    .authorised_agents
+                    .may_load(deps.storage, agent.into())?
+                    .is_none());
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
+
+                let info = storage.authorised_agents.load(&tester, agent.into())?;
+
+                assert_eq!(info.mixnet_address, agent);
                 assert_eq!(info.authorised_by, orchestrator);
                 assert_eq!(info.authorised_at, env.block.time);
 
@@ -697,13 +793,21 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let storage = NetworkMonitorsStorage::new();
 
+                // IPV4:
                 let orchestrator = tester.add_orchestrator()?;
-                let agent = tester.random_ip();
+                let agent = tester.random_socket_ipv4();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
 
-                storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 let initial_time = env.block.time;
                 tester.advance_day_of_blocks();
@@ -711,11 +815,57 @@ mod tests {
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
-                let updated_info = storage.authorised_agents.load(&tester, agent.to_string())?;
+                let updated_info = storage.authorised_agents.load(&tester, agent.into())?;
 
-                assert_eq!(updated_info.address, agent);
+                assert_eq!(updated_info.mixnet_address, agent);
+                assert_eq!(updated_info.authorised_by, orchestrator);
+                assert_ne!(updated_info.authorised_at, initial_time);
+                assert_eq!(updated_info.authorised_at, new_expected_time);
+
+                tester.advance_day_of_blocks();
+
+                // IPV6:
+                let agent = tester.random_socket_ipv6();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
+
+                let initial_time = env.block.time;
+                tester.advance_day_of_blocks();
+                let new_expected_time = tester.env().block.time;
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
+
+                let updated_info = storage.authorised_agents.load(&tester, agent.into())?;
+
+                assert_eq!(updated_info.mixnet_address, agent);
                 assert_eq!(updated_info.authorised_by, orchestrator);
                 assert_ne!(updated_info.authorised_at, initial_time);
                 assert_eq!(updated_info.authorised_at, new_expected_time);
@@ -728,7 +878,7 @@ mod tests {
         mod removing_monitor_authorisation {
             use super::*;
             use crate::testing::{init_contract_tester, NetworkMonitorsContractTesterExt};
-            use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
+            use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, RandExt};
             use nym_network_monitors_contract_common::NetworkMonitorsContractError;
 
             #[test]
@@ -738,20 +888,27 @@ mod tests {
 
                 let orchestrator = tester.add_orchestrator()?;
                 let non_privileged = tester.generate_account();
-                let agent = tester.random_ip();
+                let agent = tester.random_socket();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 let deps = tester.deps_mut();
                 let res = storage
-                    .remove_monitor_authorisation(deps, &non_privileged, agent)
+                    .remove_monitor_authorisation(deps, &non_privileged, agent.ip())
                     .unwrap_err();
                 assert_eq!(NetworkMonitorsContractError::Unauthorized, res);
 
                 let deps = tester.deps_mut();
-                let res2 = storage.remove_monitor_authorisation(deps, &orchestrator, agent);
+                let res2 = storage.remove_monitor_authorisation(deps, &orchestrator, agent.ip());
                 assert_eq!(res2, Ok(()));
 
                 Ok(())
@@ -764,7 +921,7 @@ mod tests {
 
                 let admin = tester.admin_unchecked();
                 let orchestrator = tester.add_orchestrator()?;
-                let agent = tester.random_ip();
+                let agent = tester.random_socket();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
@@ -775,7 +932,7 @@ mod tests {
 
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent.to_string())?
+                    .may_load(&tester, agent.into())?
                     .is_none());
 
                 Ok(())
@@ -786,24 +943,61 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let storage = NetworkMonitorsStorage::new();
 
+                // IPV4:
                 let orchestrator = tester.add_orchestrator()?;
-                let agent = tester.random_ip();
+                let agent = tester.random_socket_ipv4();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent.to_string())?
+                    .may_load(&tester, agent.into())?
                     .is_some());
 
                 let deps = tester.deps_mut();
-                storage.remove_monitor_authorisation(deps, &orchestrator, agent)?;
+                storage.remove_monitor_authorisation(deps, &orchestrator, agent.ip())?;
 
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent.to_string())?
+                    .may_load(&tester, agent.into())?
+                    .is_none());
+
+                tester.advance_day_of_blocks();
+
+                // IPV6:
+                let agent = tester.random_socket_ipv6();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
+
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent.into())?
+                    .is_some());
+
+                let deps = tester.deps_mut();
+                storage.remove_monitor_authorisation(deps, &orchestrator, agent.ip())?;
+
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent.into())?
                     .is_none());
 
                 Ok(())
@@ -815,20 +1009,20 @@ mod tests {
                 let storage = NetworkMonitorsStorage::new();
 
                 let orchestrator = tester.add_orchestrator()?;
-                let agent = tester.random_ip();
+                let agent = tester.random_socket();
 
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent.to_string())?
+                    .may_load(&tester, agent.into())?
                     .is_none());
 
                 let deps = tester.deps_mut();
-                let res = storage.remove_monitor_authorisation(deps, &orchestrator, agent);
+                let res = storage.remove_monitor_authorisation(deps, &orchestrator, agent.ip());
                 assert_eq!(res, Ok(()));
 
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent.to_string())?
+                    .may_load(&tester, agent.into())?
                     .is_none());
 
                 Ok(())
@@ -851,26 +1045,47 @@ mod tests {
                 let orchestrator = tester.add_orchestrator().unwrap();
 
                 // Prepopulate with several agents
-                let agent1 = tester.random_ip();
-                let agent2 = tester.random_ip();
-                let agent3 = tester.random_ip();
+                let agent1 = tester.random_socket();
+                let agent2 = tester.random_socket();
+                let agent3 = tester.random_socket();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
                 storage
-                    .authorise_monitor(deps, &env, &orchestrator, agent1, "test_noise_key".to_string(), 1)
+                    .authorise_monitor(
+                        deps,
+                        &env,
+                        &orchestrator,
+                        agent1,
+                        "test_noise_key".to_string(),
+                        1,
+                    )
                     .unwrap();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
                 storage
-                    .authorise_monitor(deps, &env, &orchestrator, agent2, "test_noise_key".to_string(), 1)
+                    .authorise_monitor(
+                        deps,
+                        &env,
+                        &orchestrator,
+                        agent2,
+                        "test_noise_key".to_string(),
+                        1,
+                    )
                     .unwrap();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
                 storage
-                    .authorise_monitor(deps, &env, &orchestrator, agent3, "test_noise_key".to_string(), 1)
+                    .authorise_monitor(
+                        deps,
+                        &env,
+                        &orchestrator,
+                        agent3,
+                        "test_noise_key".to_string(),
+                        1,
+                    )
                     .unwrap();
 
                 // sanity check to make sure all agents got added
@@ -900,7 +1115,7 @@ mod tests {
                 for agent in all_agents {
                     assert!(storage
                         .authorised_agents
-                        .may_load(&tester, agent.to_string())?
+                        .may_load(&tester, agent.into())?
                         .is_none());
                 }
 
@@ -923,7 +1138,7 @@ mod tests {
                 for agent in all_agents {
                     assert!(storage
                         .authorised_agents
-                        .may_load(&tester, agent.to_string())?
+                        .may_load(&tester, agent.into())?
                         .is_none());
                 }
 
@@ -987,43 +1202,71 @@ mod tests {
                 let orchestrator = tester.add_orchestrator()?;
 
                 // Prepopulate with multiple agents
-                let agent1 = tester.random_ip();
-                let agent2 = tester.random_ip();
-                let agent3 = tester.random_ip();
-                let agent4 = tester.random_ip();
+                let agent1 = tester.random_socket();
+                let agent2 = tester.random_socket();
+                let agent3 = tester.random_socket();
+                let agent4 = tester.random_socket();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent1, "test_noise_key".to_string(), 1)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent1,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent2, "test_noise_key".to_string(), 1)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent2,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent3, "test_noise_key".to_string(), 1)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent3,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent4, "test_noise_key".to_string(), 1)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent4,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 // Verify agents are present
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent1.to_string())?
+                    .may_load(&tester, agent1.into())?
                     .is_some());
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent2.to_string())?
+                    .may_load(&tester, agent2.into())?
                     .is_some());
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent3.to_string())?
+                    .may_load(&tester, agent3.into())?
                     .is_some());
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent4.to_string())?
+                    .may_load(&tester, agent4.into())?
                     .is_some());
 
                 // Remove all monitors
@@ -1033,19 +1276,19 @@ mod tests {
                 // Verify all agents are cleared
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent1.to_string())?
+                    .may_load(&tester, agent1.into())?
                     .is_none());
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent2.to_string())?
+                    .may_load(&tester, agent2.into())?
                     .is_none());
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent3.to_string())?
+                    .may_load(&tester, agent3.into())?
                     .is_none());
                 assert!(storage
                     .authorised_agents
-                    .may_load(&tester, agent4.to_string())?
+                    .may_load(&tester, agent4.into())?
                     .is_none());
 
                 Ok(())

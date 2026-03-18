@@ -8,7 +8,7 @@ use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use nym_network_monitors_contract_common::ExecuteMsg as NetworkMonitorsExecuteMsg;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -68,13 +68,13 @@ pub trait NetworkMonitorsSigningClient {
 
     async fn authorise_network_monitor(
         &self,
-        address: IpAddr,
+        mixnet_address: SocketAddr,
         bs58_x25519_noise: String,
         noise_version: u8,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let msg = NetworkMonitorsExecuteMsg::AuthoriseNetworkMonitor {
-            address,
+            mixnet_address,
             bs58_x25519_noise,
             noise_version,
         };
@@ -166,7 +166,7 @@ mod tests {
                 .revoke_network_monitor_orchestrator(address, None)
                 .ignore(),
             ExecuteMsg::AuthoriseNetworkMonitor {
-                address,
+                mixnet_address: address,
                 bs58_x25519_noise,
                 noise_version,
             } => client

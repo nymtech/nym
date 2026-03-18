@@ -26,12 +26,11 @@ use crate::node::nym_apis_client::NymApisClient;
 use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use crate::node::shared_network::CachedNetwork;
 use nym_node_metrics::prometheus_wrapper::{PROMETHEUS_METRICS, PrometheusMetric};
-use nym_noise::config::NoiseNetworkView;
+use nym_noise::config::{NoiseNetworkView, NoiseNode};
 use nym_task::ShutdownToken;
 use nym_topology::provider_trait::ToTopologyMetadata;
 use nym_validator_client::ValidatorClientError;
 use std::collections::{HashMap, HashSet};
-use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::time::{Instant, interval, sleep};
 use tracing::{debug, trace};
@@ -76,6 +75,7 @@ impl NetworkRefresher {
         config: NetworkRefresherConfig,
         client: NymApisClient,
         routing_filter: NetworkRoutingFilter,
+        noise_view: NoiseNetworkView,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
         let mut this = NetworkRefresher {
@@ -84,7 +84,7 @@ impl NetworkRefresher {
             shutdown_token,
             network: CachedNetwork::new_empty(),
             routing_filter,
-            noise_view: NoiseNetworkView::new_empty(),
+            noise_view,
             lp_nodes: Default::default(),
         };
 
@@ -192,21 +192,31 @@ impl NetworkRefresher {
         self.routing_filter.resolved.swap_denied(current_denied);
         self.routing_filter.pending.clear().await;
 
+        let noise_update_permit = self.noise_view.get_update_permit().await;
+        let current_nodes = self.noise_view.all_nodes();
+
         // update noise Nodes
-        let noise_nodes = nodes
-            .iter()
-            .filter(|n| n.x25519_noise_versioned_key.is_some())
-            .flat_map(|n| {
-                n.basic.ip_addresses.iter().map(|ip_addr| {
-                    (
-                        SocketAddr::new(*ip_addr, n.basic.mix_port),
-                        #[allow(clippy::unwrap_used)]
-                        n.x25519_noise_versioned_key.unwrap(), // SAFETY: we filtered out nodes where this option can be None
-                    )
-                })
-            })
-            .collect::<HashMap<_, _>>();
-        self.noise_view.swap_view(noise_nodes);
+        let mut new_noise_nodes = HashMap::new();
+
+        // 1. include all existing agents
+        for (ip, node) in current_nodes {
+            if !node.is_nym_node() {
+                new_noise_nodes.insert(ip, node);
+            }
+        }
+
+        // 2. iterate through the newly retrieved list of nym nodes
+        for node in &nodes {
+            let Some(noise_key) = node.x25519_noise_versioned_key else {
+                continue;
+            };
+            let entry = NoiseNode::new_nym_node(noise_key);
+            for ip_addr in &node.basic.ip_addresses {
+                new_noise_nodes.insert(*ip_addr, entry.clone());
+            }
+        }
+        self.noise_view
+            .swap_view(noise_update_permit, new_noise_nodes);
         debug!("unimplemented: update LP nodes data - will work very similarly to noise nodes");
 
         let mut network_guard = self.network.inner.write().await;
@@ -283,10 +293,6 @@ impl NetworkRefresher {
 
     pub(crate) fn cached_network(&self) -> CachedNetwork {
         self.network.clone()
-    }
-
-    pub(crate) fn noise_view(&self) -> NoiseNetworkView {
-        self.noise_view.clone()
     }
 
     pub(crate) fn lp_nodes(&self) -> LpNodes {

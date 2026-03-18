@@ -650,6 +650,7 @@ impl NymNode {
         &self,
         routing_filter: NetworkRoutingFilter,
         client: NymApisClient,
+        noise_view: NoiseNetworkView,
     ) -> Result<NetworkRefresher, NymNodeError> {
         let config = NetworkRefresherConfig::new(
             self.config.debug.topology_cache_ttl,
@@ -664,6 +665,7 @@ impl NymNode {
             config,
             client,
             routing_filter,
+            noise_view,
             self.shutdown_manager.clone_shutdown_token(),
         )
         .await
@@ -1369,6 +1371,7 @@ impl NymNode {
     async fn setup_nyx_chain_watcher(
         &self,
         network_monitors_handle: RoutableNetworkMonitors,
+        noise_network_view: NoiseNetworkView,
     ) -> Result<(), NymNodeError> {
         // START: module creation
         let Some(Ok(contract_address)) = self
@@ -1382,7 +1385,11 @@ impl NymNode {
             // queried this very contract before
             return Err(NymNodeError::MissingNetworkMonitorsContractAddress);
         };
-        let nm_agents = NetworkMonitorAgentsModule::new(contract_address, network_monitors_handle);
+        let nm_agents = NetworkMonitorAgentsModule::new(
+            contract_address,
+            network_monitors_handle,
+            noise_network_view,
+        );
 
         // END: module creation
         let cancellation = self.shutdown_manager.clone_shutdown_token();
@@ -1444,13 +1451,19 @@ impl NymNode {
             .with_known_network_monitors(known_network_monitors);
         let network_monitors_ref = routing_filter.known_network_monitors_handle();
 
+        let noise_view = NoiseNetworkView::new_empty();
         // retrieve the initial view of the network and update the known set of nym nodes in the routing filter
         let network_refresher = self
-            .build_network_refresher(routing_filter.clone(), nym_apis_client.clone())
+            .build_network_refresher(
+                routing_filter.clone(),
+                nym_apis_client.clone(),
+                noise_view.clone(),
+            )
             .await?;
 
         // setup nyx chain watcher (currently only used for updating the network monitors view)
-        self.setup_nyx_chain_watcher(network_monitors_ref).await?;
+        self.setup_nyx_chain_watcher(network_monitors_ref, noise_view.clone())
+            .await?;
 
         let active_clients_store = ActiveClientsStore::new();
         let lp_nodes = network_refresher.lp_nodes();
@@ -1460,7 +1473,7 @@ impl NymNode {
 
         let noise_config = NoiseConfig::new(
             self.x25519_noise_keys.clone(),
-            network_refresher.noise_view(),
+            noise_view,
             self.config.mixnet.debug.initial_connection_timeout,
         )
         .with_unsafe_disabled(self.config.mixnet.debug.unsafe_disable_noise);

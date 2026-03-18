@@ -69,9 +69,15 @@ pub trait NetworkMonitorsSigningClient {
     async fn authorise_network_monitor(
         &self,
         address: IpAddr,
+        bs58_x25519_noise: String,
+        noise_version: u8,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let msg = NetworkMonitorsExecuteMsg::AuthoriseNetworkMonitor { address };
+        let msg = NetworkMonitorsExecuteMsg::AuthoriseNetworkMonitor {
+            address,
+            bs58_x25519_noise,
+            noise_version,
+        };
         self.execute_network_monitors_contract(
             fee,
             msg,
@@ -159,9 +165,13 @@ mod tests {
             ExecuteMsg::RevokeNetworkMonitorOrchestrator { address } => client
                 .revoke_network_monitor_orchestrator(address, None)
                 .ignore(),
-            ExecuteMsg::AuthoriseNetworkMonitor { address } => {
-                client.authorise_network_monitor(address, None).ignore()
-            }
+            ExecuteMsg::AuthoriseNetworkMonitor {
+                address,
+                bs58_x25519_noise,
+                noise_version,
+            } => client
+                .authorise_network_monitor(address, bs58_x25519_noise, noise_version, None)
+                .ignore(),
             ExecuteMsg::RevokeNetworkMonitor { address } => {
                 client.revoke_network_monitor(address, None).ignore()
             }

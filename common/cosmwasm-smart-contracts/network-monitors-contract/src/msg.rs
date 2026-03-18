@@ -28,7 +28,16 @@ pub enum ExecuteMsg {
 
     /// Authorise new network monitor (or renew authorisation)
     /// granting additional privileges when sending mixnet packets to Nym nodes.
-    AuthoriseNetworkMonitor { address: IpAddr },
+    AuthoriseNetworkMonitor {
+        /// Ip address of the agent
+        address: IpAddr,
+
+        /// Base-58 encoded noise key of the agent.
+        bs58_x25519_noise: String,
+
+        /// Version of the noise protocol used by the agent.
+        noise_version: u8,
+    },
 
     /// Revoke network monitor authorisation.
     RevokeNetworkMonitor { address: IpAddr },

@@ -153,6 +153,8 @@ impl NetworkMonitorsStorage {
         env: &Env,
         sender: &Addr,
         monitor_address: IpAddr,
+        bs58_x25519_noise: String,
+        noise_version: u8,
     ) -> Result<(), NetworkMonitorsContractError> {
         // only orchestrators can authorise new monitors
         self.ensure_is_orchestrator(deps.as_ref(), sender)?;
@@ -164,6 +166,8 @@ impl NetworkMonitorsStorage {
                 address: monitor_address,
                 authorised_by: sender.clone(),
                 authorised_at: env.block.time,
+                bs58_x25519_noise,
+                noise_version,
             },
         )?;
         Ok(())
@@ -645,7 +649,7 @@ mod tests {
                 let env = tester.env();
                 let deps = tester.deps_mut();
                 let res = storage
-                    .authorise_monitor(deps, &env, &non_orchestrator, agent)
+                    .authorise_monitor(deps, &env, &non_orchestrator, agent, "test_noise_key".to_string(), 1)
                     .unwrap_err();
                 assert_eq!(
                     NetworkMonitorsContractError::NotAnOrchestrator {
@@ -656,7 +660,7 @@ mod tests {
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                let res2 = storage.authorise_monitor(deps, &env, &orchestrator, agent);
+                let res2 = storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1);
                 assert_eq!(res2, Ok(()));
 
                 Ok(())
@@ -677,7 +681,7 @@ mod tests {
                     .authorised_agents
                     .may_load(deps.storage, agent.to_string())?
                     .is_none());
-                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+                storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1)?;
 
                 let info = storage.authorised_agents.load(&tester, agent.to_string())?;
 
@@ -699,7 +703,7 @@ mod tests {
                 let env = tester.env();
                 let deps = tester.deps_mut();
 
-                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+                storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1)?;
 
                 let initial_time = env.block.time;
                 tester.advance_day_of_blocks();
@@ -707,7 +711,7 @@ mod tests {
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+                storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1)?;
 
                 let updated_info = storage.authorised_agents.load(&tester, agent.to_string())?;
 
@@ -738,7 +742,7 @@ mod tests {
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+                storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1)?;
 
                 let deps = tester.deps_mut();
                 let res = storage
@@ -787,7 +791,7 @@ mod tests {
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+                storage.authorise_monitor(deps, &env, &orchestrator, agent, "test_noise_key".to_string(), 1)?;
 
                 assert!(storage
                     .authorised_agents
@@ -854,19 +858,19 @@ mod tests {
                 let env = tester.env();
                 let deps = tester.deps_mut();
                 storage
-                    .authorise_monitor(deps, &env, &orchestrator, agent1)
+                    .authorise_monitor(deps, &env, &orchestrator, agent1, "test_noise_key".to_string(), 1)
                     .unwrap();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
                 storage
-                    .authorise_monitor(deps, &env, &orchestrator, agent2)
+                    .authorise_monitor(deps, &env, &orchestrator, agent2, "test_noise_key".to_string(), 1)
                     .unwrap();
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
                 storage
-                    .authorise_monitor(deps, &env, &orchestrator, agent3)
+                    .authorise_monitor(deps, &env, &orchestrator, agent3, "test_noise_key".to_string(), 1)
                     .unwrap();
 
                 // sanity check to make sure all agents got added
@@ -990,19 +994,19 @@ mod tests {
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent1)?;
+                storage.authorise_monitor(deps, &env, &orchestrator, agent1, "test_noise_key".to_string(), 1)?;
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent2)?;
+                storage.authorise_monitor(deps, &env, &orchestrator, agent2, "test_noise_key".to_string(), 1)?;
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent3)?;
+                storage.authorise_monitor(deps, &env, &orchestrator, agent3, "test_noise_key".to_string(), 1)?;
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent4)?;
+                storage.authorise_monitor(deps, &env, &orchestrator, agent4, "test_noise_key".to_string(), 1)?;
 
                 // Verify agents are present
                 assert!(storage

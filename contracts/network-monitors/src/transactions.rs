@@ -4,7 +4,7 @@
 use crate::storage::NETWORK_MONITORS_CONTRACT_STORAGE;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use nym_network_monitors_contract_common::NetworkMonitorsContractError;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 pub fn try_update_contract_admin(
     deps: DepsMut<'_>,
@@ -57,7 +57,7 @@ pub fn try_authorise_network_monitor(
     deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
-    network_monitor_address: IpAddr,
+    network_monitor_address: SocketAddr,
     bs58_x25519_noise: String,
     noise_version: u8,
 ) -> Result<Response, NetworkMonitorsContractError> {
@@ -392,12 +392,16 @@ mod tests {
             let mut test = init_contract_tester();
 
             let non_orchestrator = test.generate_account();
-            let agent = test.random_ip();
+            let agent = test.random_socket();
 
             let res = test
                 .execute_raw(
                     non_orchestrator.clone(),
-                    ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
+                    ExecuteMsg::AuthoriseNetworkMonitor {
+                        mixnet_address: agent,
+                        bs58_x25519_noise: "test_noise_key".to_string(),
+                        noise_version: 1,
+                    },
                 )
                 .unwrap_err();
 
@@ -411,7 +415,11 @@ mod tests {
             let orchestrator = test.add_orchestrator()?;
             let res = test.execute_raw(
                 orchestrator,
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             );
             assert!(res.is_ok());
 
@@ -422,23 +430,27 @@ mod tests {
         fn inserts_new_entry_for_fresh_agents() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
             let orchestrator = test.add_orchestrator()?;
-            let agent = test.random_ip();
+            let agent = test.random_socket();
 
             assert!(NETWORK_MONITORS_CONTRACT_STORAGE
                 .authorised_agents
-                .may_load(test.storage(), agent.to_string())?
+                .may_load(test.storage(), agent.into())?
                 .is_none());
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             )?;
 
             let info = NETWORK_MONITORS_CONTRACT_STORAGE
                 .authorised_agents
-                .load(test.storage(), agent.to_string())?;
+                .load(test.storage(), agent.into())?;
 
-            assert_eq!(info.address, agent);
+            assert_eq!(info.mixnet_address, agent);
             assert_eq!(info.authorised_by, orchestrator);
 
             Ok(())
@@ -448,29 +460,37 @@ mod tests {
         fn renews_existing_agent_authorisation() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
             let orchestrator = test.add_orchestrator()?;
-            let agent = test.random_ip();
+            let agent = test.random_socket();
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             )?;
 
             let initial = NETWORK_MONITORS_CONTRACT_STORAGE
                 .authorised_agents
-                .load(test.storage(), agent.to_string())?;
+                .load(test.storage(), agent.into())?;
 
             test.advance_day_of_blocks();
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             )?;
 
             let updated = NETWORK_MONITORS_CONTRACT_STORAGE
                 .authorised_agents
-                .load(test.storage(), agent.to_string())?;
+                .load(test.storage(), agent.into())?;
 
-            assert_eq!(updated.address, agent);
+            assert_eq!(updated.mixnet_address, agent);
             assert_eq!(updated.authorised_by, orchestrator);
             assert!(updated.authorised_at > initial.authorised_at);
 
@@ -487,16 +507,22 @@ mod tests {
             let mut test = init_contract_tester();
 
             let orchestrator = test.add_orchestrator()?;
-            let agent = test.random_ip();
+            let agent = test.random_socket();
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             )?;
 
             let res = test.execute_raw(
                 orchestrator,
-                ExecuteMsg::RevokeNetworkMonitor { address: agent },
+                ExecuteMsg::RevokeNetworkMonitor {
+                    address: agent.ip(),
+                },
             );
             assert!(res.is_ok());
 
@@ -509,19 +535,28 @@ mod tests {
 
             let admin = test.admin_unchecked();
             let orchestrator = test.add_orchestrator()?;
-            let agent = test.random_ip();
+            let agent = test.random_socket();
 
             test.execute_raw(
                 orchestrator,
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             )?;
 
-            let res = test.execute_raw(admin, ExecuteMsg::RevokeNetworkMonitor { address: agent });
+            let res = test.execute_raw(
+                admin,
+                ExecuteMsg::RevokeNetworkMonitor {
+                    address: agent.ip(),
+                },
+            );
             assert!(res.is_ok());
 
             assert!(NETWORK_MONITORS_CONTRACT_STORAGE
                 .authorised_agents
-                .may_load(test.storage(), agent.to_string())?
+                .may_load(test.storage(), agent.into())?
                 .is_none());
 
             Ok(())
@@ -533,17 +568,23 @@ mod tests {
 
             let orchestrator = test.add_orchestrator()?;
             let non_privileged = test.generate_account();
-            let agent = test.random_ip();
+            let agent = test.random_socket();
 
             test.execute_raw(
                 orchestrator,
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             )?;
 
             let res = test
                 .execute_raw(
                     non_privileged,
-                    ExecuteMsg::RevokeNetworkMonitor { address: agent },
+                    ExecuteMsg::RevokeNetworkMonitor {
+                        address: agent.ip(),
+                    },
                 )
                 .unwrap_err();
 
@@ -556,26 +597,32 @@ mod tests {
         fn deletes_entry_from_storage() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
             let orchestrator = test.add_orchestrator()?;
-            let agent = test.random_ip();
+            let agent = test.random_socket();
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             )?;
 
             assert!(NETWORK_MONITORS_CONTRACT_STORAGE
                 .authorised_agents
-                .may_load(test.storage(), agent.to_string())?
+                .may_load(test.storage(), agent.into())?
                 .is_some());
 
             test.execute_raw(
                 orchestrator,
-                ExecuteMsg::RevokeNetworkMonitor { address: agent },
+                ExecuteMsg::RevokeNetworkMonitor {
+                    address: agent.ip(),
+                },
             )?;
 
             assert!(NETWORK_MONITORS_CONTRACT_STORAGE
                 .authorised_agents
-                .may_load(test.storage(), agent.to_string())?
+                .may_load(test.storage(), agent.into())?
                 .is_none());
 
             Ok(())
@@ -585,22 +632,24 @@ mod tests {
         fn is_noop_for_non_existent_entries() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
             let orchestrator = test.add_orchestrator()?;
-            let agent = test.random_ip();
+            let agent = test.random_socket();
 
             assert!(NETWORK_MONITORS_CONTRACT_STORAGE
                 .authorised_agents
-                .may_load(test.storage(), agent.to_string())?
+                .may_load(test.storage(), agent.into())?
                 .is_none());
 
             let res = test.execute_raw(
                 orchestrator,
-                ExecuteMsg::RevokeNetworkMonitor { address: agent },
+                ExecuteMsg::RevokeNetworkMonitor {
+                    address: agent.ip(),
+                },
             );
             assert!(res.is_ok());
 
             assert!(NETWORK_MONITORS_CONTRACT_STORAGE
                 .authorised_agents
-                .may_load(test.storage(), agent.to_string())?
+                .may_load(test.storage(), agent.into())?
                 .is_none());
 
             Ok(())
@@ -618,21 +667,33 @@ mod tests {
             let mut test = init_contract_tester();
             let orchestrator = test.add_orchestrator()?;
 
-            let agent1 = test.random_ip();
-            let agent2 = test.random_ip();
-            let agent3 = test.random_ip();
+            let agent1 = test.random_socket();
+            let agent2 = test.random_socket();
+            let agent3 = test.random_socket();
 
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent1, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent1,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             )?;
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent2, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent2,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             )?;
             test.execute_raw(
                 orchestrator.clone(),
-                ExecuteMsg::AuthoriseNetworkMonitor { address: agent3, bs58_x25519_noise: "test_noise_key".to_string(), noise_version: 1 },
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent3,
+                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    noise_version: 1,
+                },
             )?;
 
             Ok((test, orchestrator))
@@ -648,7 +709,7 @@ mod tests {
             for agent in agents {
                 assert!(NETWORK_MONITORS_CONTRACT_STORAGE
                     .authorised_agents
-                    .may_load(test.storage(), agent.to_string())?
+                    .may_load(test.storage(), agent.into())?
                     .is_none());
             }
 
@@ -667,7 +728,7 @@ mod tests {
             for agent in agents {
                 assert!(NETWORK_MONITORS_CONTRACT_STORAGE
                     .authorised_agents
-                    .may_load(test.storage(), agent.to_string())?
+                    .may_load(test.storage(), agent.into())?
                     .is_none());
             }
 
@@ -727,7 +788,7 @@ mod tests {
             for agent in agents {
                 assert!(NETWORK_MONITORS_CONTRACT_STORAGE
                     .authorised_agents
-                    .may_load(test.storage(), agent.to_string())?
+                    .may_load(test.storage(), agent.into())?
                     .is_none());
             }
 

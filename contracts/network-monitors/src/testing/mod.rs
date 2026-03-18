@@ -130,7 +130,7 @@ pub trait NetworkMonitorsContractTesterExt:
         let rng = self.raw_rng();
 
         // toss a coin, if even => ipv4, if odd => ipv6
-        if rng.next_u32().is_multiple_of(2) {
+        if rng.next_u32() % 2 == 0 {
             self.random_ipv4()
         } else {
             self.random_ipv6()

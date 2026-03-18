@@ -19,11 +19,16 @@ Internally it uses the WASM client.
 - [docs](./typescript/start#mixfetch)
 - [example](./typescript/playground/mixfetch)
 
-<Callout type="warning">
+<Callout type="info">
 
     ### Current Limitations of `mixFetch`
 
-    It cannot currently handle concurrent requests, and comes with a pre-bundled CA store. `mixFetchv2` - which will act more like a general-purpose userspace IP stack - is currently in development.
+    `mixFetch` can currently only perform 10 concurrent requests (i.e. in-flight requests where a request has been sent to a remote endpoint, but no result has been recieved).
+
+    `mixFetchv2` - which will act more like a general-purpose userspace IP stack - is currently in development.
+
+    It is shipped with a pre-bundled CA store.
+
 </Callout>
 
 

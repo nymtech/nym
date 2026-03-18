@@ -39,7 +39,7 @@ use crate::node::nyxd_watcher::network_monitor_agents::NetworkMonitorAgentsModul
 use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
-use crate::node::routing_filter::network_filter::{DeclaredNetworkMonitors, NetworkRoutingFilter};
+use crate::node::routing_filter::network_filter::{NetworkRoutingFilter, RoutableNetworkMonitors};
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::CachedNetwork;
 use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
@@ -1255,7 +1255,7 @@ impl NymNode {
         active_clients_store: &ActiveClientsStore,
         replay_protection_bloomfilter: ReplayProtectionBloomfilters,
         routing_filter: F,
-        authorised_network_monitor_agents: DeclaredNetworkMonitors,
+        authorised_network_monitor_agents: RoutableNetworkMonitors,
         noise_config: NoiseConfig,
     ) -> Result<(MixForwardingSender, ActiveConnections), NymNodeError>
     where
@@ -1338,7 +1338,7 @@ impl NymNode {
             &ActiveClientsStore::new(),
             ReplayProtectionBloomfilters::new_disabled(),
             OpenFilter,
-            DeclaredNetworkMonitors::default(),
+            RoutableNetworkMonitors::default(),
             noise_config,
         )
         .await?;
@@ -1362,13 +1362,13 @@ impl NymNode {
             .get_all_network_monitor_agents()
             .await?
             .into_iter()
-            .map(|agent| agent.address)
+            .map(|agent| agent.mixnet_address.ip())
             .collect())
     }
 
     async fn setup_nyx_chain_watcher(
         &self,
-        network_monitors_handle: DeclaredNetworkMonitors,
+        network_monitors_handle: RoutableNetworkMonitors,
     ) -> Result<(), NymNodeError> {
         // START: module creation
         let Some(Ok(contract_address)) = self

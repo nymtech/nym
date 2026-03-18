@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::{retrieval_limits, NETWORK_MONITORS_CONTRACT_STORAGE};
+use crate::storage::{retrieval_limits, AgentStorageKey, NETWORK_MONITORS_CONTRACT_STORAGE};
 use cosmwasm_std::{Deps, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
@@ -40,7 +40,7 @@ pub fn query_network_monitor_agents(
         .unwrap_or(retrieval_limits::AGENTS_DEFAULT_LIMIT)
         .min(retrieval_limits::AGENTS_MAX_LIMIT) as usize;
 
-    let start = start_after.map(|addr| Bound::exclusive(addr.to_string()));
+    let start = start_after.map(|addr| Bound::exclusive(AgentStorageKey::from(addr)));
 
     let authorised = NETWORK_MONITORS_CONTRACT_STORAGE
         .authorised_agents
@@ -49,7 +49,7 @@ pub fn query_network_monitor_agents(
         .map(|record| record.map(|(_, details)| details))
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = authorised.last().map(|last| last.address);
+    let start_next_after = authorised.last().map(|last| last.mixnet_address.ip());
 
     Ok(AuthorisedNetworkMonitorsPagedResponse {
         authorised,
@@ -187,22 +187,24 @@ mod tests {
     mod network_monitor_agents_query {
         use super::*;
         use crate::testing::{
-            init_contract_tester, NetworkMonitorsContract, NetworkMonitorsContractTesterExt,
+            init_contract_tester, storage_ip_comp, NetworkMonitorsContract,
+            NetworkMonitorsContractTesterExt,
         };
         use nym_contracts_common_testing::{ContractOpts, ContractTester};
-        use nym_network_monitors_contract_common::ExecuteMsg;
+        use std::net::SocketAddr;
 
-        fn string_sorted_ips(
+        fn storage_sorted_addresses(
             test: &mut ContractTester<NetworkMonitorsContract>,
             n: usize,
-        ) -> Vec<IpAddr> {
+        ) -> Vec<SocketAddr> {
             let mut ips = Vec::new();
             for _ in 0..n {
-                ips.push(test.random_ip().to_string());
+                ips.push(test.random_socket());
             }
 
-            ips.sort_unstable();
-            ips.into_iter().map(|ip| ip.parse().unwrap()).collect()
+            ips.sort_by(|a, b| storage_ip_comp(a.ip(), b.ip()));
+            // ips.into_iter().map(|ip| ip.parse().unwrap()).collect()
+            ips
         }
 
         #[test]
@@ -220,23 +222,19 @@ mod tests {
         #[test]
         fn returns_all_authorised_agents_below_default_limit() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
-            let orchestrator = test.add_orchestrator()?;
-            let agents = string_sorted_ips(&mut test, 5);
+            let agents = storage_sorted_addresses(&mut test, 5);
 
             for agent in &agents {
-                test.execute_raw(
-                    orchestrator.clone(),
-                    ExecuteMsg::AuthoriseNetworkMonitor { address: *agent },
-                )?;
+                test.add_dummy_agent(*agent)
             }
 
             let res = query_network_monitor_agents(test.deps(), None, None)?;
 
             assert_eq!(res.authorised.len(), agents.len());
-            assert_eq!(res.start_next_after, agents.last().copied());
+            assert_eq!(res.start_next_after, agents.last().map(|a| a.ip()));
 
             for agent in &agents {
-                assert!(res.authorised.iter().any(|a| a.address == *agent));
+                assert!(res.authorised.iter().any(|a| a.mixnet_address == *agent));
             }
 
             Ok(())
@@ -245,22 +243,18 @@ mod tests {
         #[test]
         fn respects_explicit_limit() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
-            let orchestrator = test.add_orchestrator()?;
-            let agents = string_sorted_ips(&mut test, 5);
+            let agents = storage_sorted_addresses(&mut test, 5);
 
             for agent in &agents {
-                test.execute_raw(
-                    orchestrator.clone(),
-                    ExecuteMsg::AuthoriseNetworkMonitor { address: *agent },
-                )?;
+                test.add_dummy_agent(*agent)
             }
 
             let res = query_network_monitor_agents(test.deps(), None, Some(2))?;
 
             assert_eq!(res.authorised.len(), 2);
-            assert_eq!(res.authorised[0].address, agents[0]);
-            assert_eq!(res.authorised[1].address, agents[1]);
-            assert_eq!(res.start_next_after, Some(agents[1]));
+            assert_eq!(res.authorised[0].mixnet_address, agents[0]);
+            assert_eq!(res.authorised[1].mixnet_address, agents[1]);
+            assert_eq!(res.start_next_after, Some(agents[1].ip()));
 
             Ok(())
         }
@@ -268,22 +262,18 @@ mod tests {
         #[test]
         fn respects_start_after_for_pagination() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
-            let orchestrator = test.add_orchestrator()?;
-            let agents = string_sorted_ips(&mut test, 5);
+            let agents = storage_sorted_addresses(&mut test, 5);
 
             for agent in &agents {
-                test.execute_raw(
-                    orchestrator.clone(),
-                    ExecuteMsg::AuthoriseNetworkMonitor { address: *agent },
-                )?;
+                test.add_dummy_agent(*agent)
             }
 
-            let res = query_network_monitor_agents(test.deps(), Some(agents[1]), Some(2))?;
+            let res = query_network_monitor_agents(test.deps(), Some(agents[1].ip()), Some(2))?;
 
             assert_eq!(res.authorised.len(), 2);
-            assert_eq!(res.authorised[0].address, agents[2]);
-            assert_eq!(res.authorised[1].address, agents[3]);
-            assert_eq!(res.start_next_after, Some(agents[3]));
+            assert_eq!(res.authorised[0].mixnet_address, agents[2]);
+            assert_eq!(res.authorised[1].mixnet_address, agents[3]);
+            assert_eq!(res.start_next_after, Some(agents[3].ip()));
 
             Ok(())
         }
@@ -291,15 +281,11 @@ mod tests {
         #[test]
         fn caps_limit_at_maximum() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
-            let orchestrator = test.add_orchestrator()?;
             let total = retrieval_limits::AGENTS_MAX_LIMIT as usize + 20;
-            let agents = string_sorted_ips(&mut test, total);
+            let agents = storage_sorted_addresses(&mut test, total);
 
             for agent in &agents {
-                test.execute_raw(
-                    orchestrator.clone(),
-                    ExecuteMsg::AuthoriseNetworkMonitor { address: *agent },
-                )?;
+                test.add_dummy_agent(*agent)
             }
 
             let res = query_network_monitor_agents(
@@ -314,7 +300,7 @@ mod tests {
             );
             assert_eq!(
                 res.start_next_after,
-                Some(agents[retrieval_limits::AGENTS_MAX_LIMIT as usize - 1])
+                Some(agents[retrieval_limits::AGENTS_MAX_LIMIT as usize - 1].ip())
             );
 
             Ok(())
@@ -323,17 +309,13 @@ mod tests {
         #[test]
         fn start_next_after_is_none_for_empty_page() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
-            let orchestrator = test.add_orchestrator()?;
-            let agents = string_sorted_ips(&mut test, 3);
+            let agents = storage_sorted_addresses(&mut test, 3);
 
             for agent in &agents {
-                test.execute_raw(
-                    orchestrator.clone(),
-                    ExecuteMsg::AuthoriseNetworkMonitor { address: *agent },
-                )?;
+                test.add_dummy_agent(*agent)
             }
 
-            let res = query_network_monitor_agents(test.deps(), Some(agents[2]), Some(10))?;
+            let res = query_network_monitor_agents(test.deps(), Some(agents[2].ip()), Some(10))?;
 
             assert!(res.authorised.is_empty());
             assert_eq!(res.start_next_after, None);
@@ -344,22 +326,19 @@ mod tests {
         #[test]
         fn returns_entries_in_ascending_order() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
-            let orchestrator = test.add_orchestrator()?;
-            let agents = string_sorted_ips(&mut test, 6);
+            let agents = storage_sorted_addresses(&mut test, 6);
 
             for agent in &agents {
-                test.execute_raw(
-                    orchestrator.clone(),
-                    ExecuteMsg::AuthoriseNetworkMonitor { address: *agent },
-                )?;
+                test.add_dummy_agent(*agent)
             }
 
             let res = query_network_monitor_agents(test.deps(), None, None)?;
 
-            assert!(res
-                .authorised
-                .windows(2)
-                .all(|window| window[0].address.to_string() <= window[1].address.to_string()));
+            assert!(res.authorised.windows(2).all(|window| storage_ip_comp(
+                window[0].mixnet_address.ip(),
+                window[1].mixnet_address.ip()
+            )
+            .is_le()));
 
             Ok(())
         }

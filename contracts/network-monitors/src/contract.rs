@@ -53,10 +53,17 @@ pub fn execute(
             try_revoke_network_monitor_orchestrator(deps, info, address)
         }
         ExecuteMsg::AuthoriseNetworkMonitor {
+            mixnet_address: address,
+            bs58_x25519_noise,
+            noise_version,
+        } => try_authorise_network_monitor(
+            deps,
+            env,
+            info,
             address,
             bs58_x25519_noise,
             noise_version,
-        } => try_authorise_network_monitor(deps, env, info, address, bs58_x25519_noise, noise_version),
+        ),
         ExecuteMsg::RevokeNetworkMonitor { address } => {
             try_revoke_network_monitor(deps, info, address)
         }

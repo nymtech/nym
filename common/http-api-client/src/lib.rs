@@ -1172,7 +1172,7 @@ impl ApiClientCore for Client {
                     #[cfg(target_arch = "wasm32")]
                     let is_network_err = err.is_timeout();
                     #[cfg(not(target_arch = "wasm32"))]
-                    let is_network_err = is_network_error(&err);
+                    let is_network_err = might_be_network_interference(&err);
 
                     if is_network_err {
                         // if we have multiple urls, update to the next
@@ -1223,9 +1223,16 @@ impl ApiClientCore for Client {
 #[cfg(not(target_arch = "wasm32"))]
 const MAX_ERR_SOURCE_ITERATIONS: usize = 4;
 
-/// only if there was a network issue should we consider updating the host info
+/// This functions attempts to check the error returned by reqwest to see if
+/// rotating host informtion (for clients with mutliple hosts defined) could be
+/// helpful. This looks for situations where the error could plausibly be caused
+/// by a network adversary, or where rotating to an equival hostname might help.
+///
+/// For example --> NetworkUnreachable will not be helped by rotating domains,
+/// but ConnectionReset might be caused by a network adversary blocking by SNI
+/// which could possibly benefit from rotating domains.
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn is_network_error(err: &reqwest::Error) -> bool {
+pub(crate) fn might_be_network_interference(err: &reqwest::Error) -> bool {
     if err.is_timeout() {
         return true;
     }

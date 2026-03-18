@@ -62,6 +62,7 @@ impl NetworkMonitorAgentsModule {
         }
     }
 
+    /// Register a newly authorised NM agent in both the routing filter and the noise key map.
     async fn new_agent(&self, address: SocketAddr, bs58_x25519_noise: String, noise_version: u8) {
         debug!("adding new NM agent {address}");
 
@@ -106,6 +107,10 @@ impl NetworkMonitorAgentsModule {
         // remove all noise keys from the known nodes
         let update_permit = self.noise_view.get_update_permit().await;
         let mut nodes = self.noise_view.all_nodes();
+
+        // Only remove NM agent entries; nym-node entries must be preserved because they are
+        // managed by a completely separate code path (the nym-api topology refresher) and
+        // would not be restored until the next full topology refresh cycle.
         nodes.retain(|_, node| node.is_nym_node());
         self.noise_view.swap_view(update_permit, nodes);
     }

@@ -2,10 +2,9 @@
 
 ## Overview
 
-The `mixnet` module is the core of the Nym SDK. It provides `MixnetClient`,
-which handles connecting to the Nym mixnet, sending messages through Sphinx
-packet encryption and multi-hop routing (3 layers of mix nodes, plus entry
-and exit gateways), and receiving reconstructed messages on the other side.
+The `mixnet` module provides `MixnetClient` — the main handle for
+connecting to the Nym mixnet, sending messages through Sphinx-encrypted
+multi-hop routing, and receiving reconstructed messages.
 
 ```text
                       User code
@@ -24,95 +23,52 @@ and exit gateways), and receiving reconstructed messages on the other side.
 
 ## Client Lifecycle
 
-### Building
+1. **Build** — `MixnetClientBuilder` configures endpoints, storage,
+   gateway preference, and optional stream settings.
+   Shorthand: `MixnetClient::connect_new().await`.
+2. **Connect** — `.build()?.connect_to_mixnet().await?` yields a
+   connected `MixnetClient`.
+3. **Use** — send/receive in one of two modes (see below).
+4. **Disconnect** — `client.disconnect().await` shuts down all
+   background tasks.
 
-`MixnetClientBuilder` configures the client before connection:
+## Two Operating Modes
 
-```text
-MixnetClientBuilder::new_ephemeral()     ← in-memory keys, no persistence
-MixnetClientBuilder::new_with_default_storage(path)  ← on-disk keys
-    │
-    ├─ .network_details(...)             ← API endpoints, contract addresses
-    ├─ .custom_topology_provider(...)    ← override topology source
-    ├─ .request_gateway("identity")      ← pick a specific gateway
-    ├─ .with_stream_idle_timeout(dur)    ← configure stream cleanup
-    ├─ .debug_config(...)                ← tuning knobs
-    │
-    ▼
-    .build()?                            → DisconnectedMixnetClient
-    │
-    ▼
-    .connect_to_mixnet().await?          → MixnetClient (connected)
-```
+**Message mode** (default): raw payload send/receive.
+- `send_plain_message`, `send_message`, `send_reply`
+- `wait_for_messages` / `Stream<Item = ReconstructedMessage>`
 
-The shorthand `MixnetClient::connect_new().await` does all of the above
-with ephemeral storage and default settings.
-
-### Connected State
-
-Once connected, a `MixnetClient` owns:
-
-| Field | Purpose |
-|---|---|
-| `client_input` | Channel to inject outbound messages |
-| `reconstructed_receiver` | Channel delivering inbound messages after Sphinx reconstruction |
-| `client_state` | Topology, queue lengths, connection info |
-| `shutdown_handle` | Manages all background tasks |
-| `nym_address` | This client's `Recipient` address (`identity.encryption@gateway`) |
-
-### Two Operating Modes
-
-The client operates in one of two mutually exclusive modes:
-
-**Message mode** (default) — send and receive raw message payloads:
-- `send_plain_message(recipient, data)` — send with default SURBs
-- `send_message(recipient, data, surbs)` — send with explicit SURB count
-- `send_reply(sender_tag, data)` — reply via SURBs
-- `wait_for_messages()` — poll for incoming messages
-- Also implements `futures::Stream<Item = ReconstructedMessage>`
-
-**Stream mode** — persistent `AsyncRead + AsyncWrite` channels:
-- `open_stream(recipient, reply_surbs)` — open a stream to a peer
-- `listener()` — accept inbound streams
-- See the [`stream`] submodule for details
-
-Stream mode is activated on the first call to `open_stream()` or
-`listener()`. Once active, message-mode methods return
-`Error::StreamModeActive`. This is a one-way transition — there is no
-way to switch back to message mode without disconnecting.
-
-### Disconnecting
-
-`client.disconnect().await` shuts down all background tasks (gateway
-connection, cover traffic, topology refresh) and drops the client.
+**Stream mode**: persistent `AsyncRead + AsyncWrite` channels.
+- `open_stream(recipient, reply_surbs)` → `MixnetStream`
+- `client.listener()` → `MixnetListener` → `.accept()`
+- One-way transition — message-mode methods return
+  `Error::StreamModeActive` once activated.
+- See the [`stream`] submodule for details.
 
 ## Key Types
 
-- **`MixnetClient`** — the connected client handle
-- **`MixnetClientSender`** — a clone-able send-only handle (via `client.split_sender()`)
-- **`MixnetClientBuilder`** — configures and connects a client
-- **`DisconnectedMixnetClient`** — intermediate state after `build()`, before `connect_to_mixnet()`
-- **`MixnetMessageSender`** — trait shared by `MixnetClient` and `MixnetClientSender`
-- **`Recipient`** — a Nym network address (`identity.encryption@gateway`)
-- **`ReconstructedMessage`** — an inbound message after Sphinx decryption
+| Type | Role |
+|---|---|
+| `MixnetClient` | Connected client handle |
+| `MixnetClientSender` | Clone-able send-only handle (`split_sender()`) |
+| `MixnetClientBuilder` | Configures and connects a client |
+| `DisconnectedMixnetClient` | After `build()`, before `connect_to_mixnet()` |
+| `MixnetMessageSender` | Trait shared by `MixnetClient` and `MixnetClientSender` |
+| `MixnetStream` | Single `AsyncRead + AsyncWrite` byte channel |
+| `MixnetListener` | Accepts inbound streams |
+| `Recipient` | Nym address (`identity.encryption@gateway`) |
 
 ## Storage
 
-Two storage backends:
-
 - **`Ephemeral`** — in-memory, keys discarded on disconnect
-- **`OnDiskPersistent`** — keys and gateway registration saved to disk,
-  survives restarts with the same identity
+- **`OnDiskPersistent`** — keys and gateway registration persisted to disk
 
 ## Sub-modules
 
 | Module | Purpose |
 |---|---|
-| `client` | `MixnetClientBuilder` and `DisconnectedMixnetClient` |
-| `native_client` | `MixnetClient` and `MixnetClientSender` implementation |
+| `client` | `MixnetClientBuilder`, `DisconnectedMixnetClient` |
+| `native_client` | `MixnetClient`, `MixnetClientSender` |
 | `stream` | Stream multiplexing (`MixnetStream`, `MixnetListener`) |
 | `traits` | `MixnetMessageSender` trait |
-| `config` | Client configuration |
-| `sink` | `MixnetMessageSink` for use with tokio codec pipelines |
 | `socks5_client` | SOCKS5 proxy client variant |
-| `paths` | Storage path helpers |

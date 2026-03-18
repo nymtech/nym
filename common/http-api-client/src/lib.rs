@@ -1241,20 +1241,29 @@ pub(crate) fn is_network_error(err: &reqwest::Error) -> bool {
     let mut inner = err.source();
     for _ in 0..MAX_ERR_SOURCE_ITERATIONS {
         if let Some(e) = inner {
-            // try downcast to io::Error from <dyn std::error:Error>
             if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                // try downcast to io::Error from <dyn std::error:Error>
                 match io_err.kind() {
                     // device not connected to the internet
                     ErrorKind::NetworkUnreachable | ErrorKind::NetworkDown => return false,
-                    // custom errors may be case by case, but in general not DF related
-                    // -- includes DNS errors for hyper_util
-                    ErrorKind::Other => return false,
                     // connection errors can indicate connection interference
                     ErrorKind::ConnectionReset
                     | ErrorKind::HostUnreachable
                     | ErrorKind::ConnectionRefused => return true,
+                    // TLS errors get wrapped in custom io::Errors
+                    ErrorKind::Other | ErrorKind::InvalidData => {
+                        // io::Error get_ref works while source doesn't here -_-
+                        //   if you don't like it take it up with the rust devs https://users.rust-lang.org/t/question-about-implementation-of-std-source/121117
+                        inner = io_err.get_ref().map(|e| e as &dyn std::error::Error);
+                    }
                     _ => return false,
                 }
+            } else if let Some(_tls_err) = e.downcast_ref::<rustls::Error>() {
+                // try downcast to TLS error
+                return true;
+            } else if let Some(resolve_err) = e.downcast_ref::<hickory_resolver::ResolveError>() {
+                // try downcast to DNS error
+                return resolve_err.is_nx_domain();
             } else {
                 inner = e.source();
             }

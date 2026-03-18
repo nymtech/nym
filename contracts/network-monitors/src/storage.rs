@@ -49,7 +49,7 @@ impl KeyDeserialize for AgentStorageKey {
     const KEY_ELEMS: u16 = 1;
 
     fn from_vec(value: Vec<u8>) -> StdResult<Self::Output> {
-        // SAFETY: we're using correct number of bytes for the conversion
+        // SAFETY: we're using the correct number of bytes for the conversion
         #[allow(clippy::unwrap_used)]
         let ip = match value.len() {
             4 => IpAddr::V4(Ipv4Addr::from_octets(value.try_into().unwrap())),

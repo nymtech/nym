@@ -6,7 +6,7 @@ use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::handler::ConnectionHandler;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
-use crate::node::routing_filter::network_filter::DeclaredNetworkMonitors;
+use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
 use nym_node_metrics::NymNodeMetrics;
@@ -85,7 +85,7 @@ pub(crate) struct SharedData {
 
     // list of all known network monitor agents that are permitted
     // to forward packets even if they replay them
-    pub(super) authorised_network_monitor_agents: DeclaredNetworkMonitors,
+    pub(super) authorised_network_monitor_agents: RoutableNetworkMonitors,
 
     pub(super) shutdown_token: ShutdownToken,
 }
@@ -107,7 +107,7 @@ impl SharedData {
         final_hop: SharedFinalHopData,
         noise_config: NoiseConfig,
         metrics: NymNodeMetrics,
-        authorised_network_monitor_agents: DeclaredNetworkMonitors,
+        authorised_network_monitor_agents: RoutableNetworkMonitors,
         shutdown_token: ShutdownToken,
     ) -> Self {
         SharedData {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::cw_serde;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 #[cfg(feature = "schema")]
 use crate::{
@@ -29,8 +29,10 @@ pub enum ExecuteMsg {
     /// Authorise new network monitor (or renew authorisation)
     /// granting additional privileges when sending mixnet packets to Nym nodes.
     AuthoriseNetworkMonitor {
-        /// Ip address of the agent
-        address: IpAddr,
+        /// Mixnet address of the agent.
+        /// The underlying ip address is going to be used as ingress to the nodes,
+        /// and the full socket address announces the egress and the association with the noise key
+        mixnet_address: SocketAddr,
 
         /// Base-58 encoded noise key of the agent.
         bs58_x25519_noise: String,

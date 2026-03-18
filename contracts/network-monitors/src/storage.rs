@@ -30,7 +30,7 @@ pub struct NetworkMonitorsStorage {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct AgentStorageKey(IpAddr);
 
-impl<'a> PrimaryKey<'a> for AgentStorageKey {
+impl PrimaryKey<'_> for AgentStorageKey {
     type Prefix = ();
     type SubPrefix = ();
     type Suffix = Self;

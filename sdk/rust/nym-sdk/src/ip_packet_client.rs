@@ -1,13 +1,16 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-mod connect;
+//! Minimal fork of `nym-ip-packet-client` for use by [`IpMixStream`].
+//!
+//! Contains only what IpMixStream needs: IPR discovery, response parsing,
+//! and ICMP test helpers. The full crate lives in `nym-vpn-client`.
+
 pub mod discovery;
 mod error;
 pub mod helpers;
 pub mod listener;
 
-pub use connect::IprClientConnect;
 pub use error::Error;
 pub use listener::{IprListener, MixnetMessageOutcome};
 

@@ -4,21 +4,16 @@
 use bytes::Bytes;
 use futures::StreamExt;
 use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v8::response::ControlResponse};
-use nym_sphinx::receiver::ReconstructedMessage;
 use tokio_util::codec::FramedRead;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
-use crate::{
-    ip_packet_client::current::{
-        request::{ControlRequest, IpPacketRequest, IpPacketRequestData},
-        response::{InfoLevel, IpPacketResponse, IpPacketResponseData},
-    },
-    ip_packet_client::helpers::check_ipr_message_version,
+use crate::ip_packet_client::current::response::{
+    InfoLevel, IpPacketResponse, IpPacketResponseData,
 };
+use crate::ip_packet_client::helpers::check_ipr_message_version;
 
 pub enum MixnetMessageOutcome {
     IpPackets(Vec<Bytes>),
-    MixnetSelfPing,
     Disconnect,
 }
 
@@ -47,79 +42,55 @@ impl IprListener {
         Self {}
     }
 
-    fn is_mix_ping(&self, request: &IpPacketRequest) -> bool {
-        match request.data {
-            IpPacketRequestData::Control(ref control) => {
-                matches!(**control, ControlRequest::Ping(_))
-            }
-            _ => {
-                debug!("Received unexpected request: {request:?}");
-                false
-            }
-        }
-    }
-
-    pub async fn handle_reconstructed_message(
+    /// Parse raw IPR response bytes into an outcome.
+    pub async fn handle_response(
         &mut self,
-        message: ReconstructedMessage,
+        data: &[u8],
     ) -> Result<Option<MixnetMessageOutcome>, IprListenerError> {
-        check_ipr_message_version(&message)?;
+        check_ipr_message_version(data)?;
 
-        match IpPacketResponse::from_reconstructed_message(&message) {
-            Ok(response) => {
-                match response.data {
-                    IpPacketResponseData::Data(data_response) => {
-                        // Un-bundle the mixnet message and send the individual IP packets
-                        // to the tun device
-                        let framed_reader = FramedRead::new(
-                            data_response.ip_packet.as_ref(),
-                            MultiIpPacketCodec::new(),
-                        );
-                        let responses: Vec<Bytes> = framed_reader
-                            .filter_map(|res| async { res.ok().map(|packet| packet.into_bytes()) })
-                            .collect()
-                            .await;
-                        return Ok(Some(MixnetMessageOutcome::IpPackets(responses)));
-                    }
-                    IpPacketResponseData::Control(control_response) => match *control_response {
-                        ControlResponse::Connect(_) => {
-                            info!("Received connect response when already connected - ignoring");
-                        }
-                        ControlResponse::Disconnect(_) => {
-                            info!("Received disconnect response");
-                            return Ok(Some(MixnetMessageOutcome::Disconnect));
-                        }
-                        ControlResponse::UnrequestedDisconnect(_) => {
-                            info!("Received unrequested disconnect response, ignoring for now");
-                        }
-                        ControlResponse::Pong(_) => {
-                            info!("Received pong response, ignoring for now");
-                        }
-                        ControlResponse::Health(_) => {
-                            info!("Received health response, ignoring for now");
-                        }
-                        ControlResponse::Info(info) => {
-                            let msg =
-                                format!("Received info response from the mixnet: {}", info.reply);
-                            match info.level {
-                                InfoLevel::Info => info!("{msg}"),
-                                InfoLevel::Warn => warn!("{msg}"),
-                                InfoLevel::Error => error!("{msg}"),
-                            }
-                        }
-                    },
+        match IpPacketResponse::from_bytes(data) {
+            Ok(response) => match response.data {
+                IpPacketResponseData::Data(data_response) => {
+                    let framed_reader = FramedRead::new(
+                        data_response.ip_packet.as_ref(),
+                        MultiIpPacketCodec::new(),
+                    );
+                    let responses: Vec<Bytes> = framed_reader
+                        .filter_map(|res| async { res.ok().map(|packet| packet.into_bytes()) })
+                        .collect()
+                        .await;
+                    return Ok(Some(MixnetMessageOutcome::IpPackets(responses)));
                 }
-            }
+                IpPacketResponseData::Control(control_response) => match *control_response {
+                    ControlResponse::Connect(_) => {
+                        info!("Received connect response when already connected - ignoring");
+                    }
+                    ControlResponse::Disconnect(_) => {
+                        info!("Received disconnect response");
+                        return Ok(Some(MixnetMessageOutcome::Disconnect));
+                    }
+                    ControlResponse::UnrequestedDisconnect(_) => {
+                        info!("Received unrequested disconnect response, ignoring for now");
+                    }
+                    ControlResponse::Pong(_) => {
+                        info!("Received pong response, ignoring for now");
+                    }
+                    ControlResponse::Health(_) => {
+                        info!("Received health response, ignoring for now");
+                    }
+                    ControlResponse::Info(info) => {
+                        let msg = format!("Received info response from the mixnet: {}", info.reply);
+                        match info.level {
+                            InfoLevel::Info => info!("{msg}"),
+                            InfoLevel::Warn => warn!("{msg}"),
+                            InfoLevel::Error => error!("{msg}"),
+                        }
+                    }
+                },
+            },
             Err(err) => {
-                // The exception to when we are not expecting a response, is when we
-                // are sending a ping to ourselves.
-                if let Ok(request) = IpPacketRequest::from_reconstructed_message(&message) {
-                    if self.is_mix_ping(&request) {
-                        return Ok(Some(MixnetMessageOutcome::MixnetSelfPing));
-                    }
-                } else {
-                    warn!("Failed to deserialize reconstructed message: {err}");
-                }
+                warn!("Failed to deserialize IPR response: {err}");
             }
         }
         Ok(None)

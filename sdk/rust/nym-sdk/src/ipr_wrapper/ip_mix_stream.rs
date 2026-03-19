@@ -15,7 +15,6 @@ use nym_ip_packet_requests::{
     v8::{request::IpPacketRequest, response::IpPacketResponse},
     IpPair,
 };
-use nym_sphinx::receiver::ReconstructedMessage;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tracing::{debug, error, info};
@@ -120,12 +119,11 @@ impl IpMixStream {
                 }
                 result = stream.recv() => {
                     let data = result.ok_or(Error::IPRClientStreamClosed)?;
-                    let msg = ReconstructedMessage { message: data, sender_tag: None };
 
-                    if let Err(e) = check_ipr_message_version(&msg) {
+                    if let Err(e) = check_ipr_message_version(&data) {
                         return Err(Error::IPRMessageVersionCheckFailed(e.to_string()));
                     }
-                    if let Ok(response) = IpPacketResponse::from_reconstructed_message(&msg) {
+                    if let Ok(response) = IpPacketResponse::from_bytes(&data) {
                         if response.id() == Some(request_id) {
                             return parse_connect_response(response);
                         }
@@ -160,11 +158,7 @@ impl IpMixStream {
             Ok(Some(data)) => data,
         };
 
-        let msg = ReconstructedMessage {
-            message: data,
-            sender_tag: None,
-        };
-        match self.listener.handle_reconstructed_message(msg).await {
+        match self.listener.handle_response(&data).await {
             Ok(Some(MixnetMessageOutcome::IpPackets(packets))) => {
                 debug!("Extracted {} IP packets", packets.len());
                 Ok(packets)
@@ -172,10 +166,6 @@ impl IpMixStream {
             Ok(Some(MixnetMessageOutcome::Disconnect)) => {
                 info!("Received disconnect");
                 self.connected = false;
-                Ok(Vec::new())
-            }
-            Ok(Some(MixnetMessageOutcome::MixnetSelfPing)) => {
-                debug!("Received mixnet self ping");
                 Ok(Vec::new())
             }
             Ok(None) => Ok(Vec::new()),

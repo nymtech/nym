@@ -3,17 +3,9 @@
 
 use super::error::{Error, Result};
 use crate::ip_packet_client::current::VERSION as CURRENT_VERSION;
-pub use crate::mixnet::ReconstructedMessage;
-use nym_network_defaults::constants::mixnet_vpn::{
-    NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6,
-};
 
-use nym_ip_packet_requests::IpPair;
-
-use bytes::Bytes;
 use pnet_packet::{
     icmp::{
-        echo_reply::EchoReplyPacket,
         echo_request::{EchoRequestPacket, MutableEchoRequestPacket},
         IcmpPacket,
     },
@@ -25,12 +17,9 @@ use pnet_packet::{
 use std::cmp::Ordering;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-/**
- * This function is from the original nym-ip-packet-client crate.
- */
-pub(crate) fn check_ipr_message_version(message: &ReconstructedMessage) -> Result<()> {
-    // Assuming it's a IPR message, it will have a version as its first byte
-    if let Some(version) = message.message.first() {
+/// Check that the first byte of an IPR message matches the expected protocol version.
+pub(crate) fn check_ipr_message_version(data: &[u8]) -> Result<()> {
+    if let Some(version) = data.first() {
         match version.cmp(&CURRENT_VERSION) {
             Ordering::Greater => Err(Error::ReceivedResponseWithNewVersion {
                 expected: CURRENT_VERSION,
@@ -40,19 +29,15 @@ pub(crate) fn check_ipr_message_version(message: &ReconstructedMessage) -> Resul
                 expected: CURRENT_VERSION,
                 received: *version,
             }),
-            Ordering::Equal => {
-                // We're good
-                Ok(())
-            }
+            Ordering::Equal => Ok(()),
         }
     } else {
         Err(Error::NoVersionInMessage)
     }
 }
 
-/**
- * Functions below are from the nym-connection-monitor crate.
- */
+// ICMP helpers — used by IpMixStream integration tests
+
 pub fn create_icmpv4_echo_request(
     sequence_number: u16,
     identifier: u16,
@@ -61,13 +46,11 @@ pub fn create_icmpv4_echo_request(
     let mut icmp_echo_request = MutableEchoRequestPacket::owned(buffer)
         .ok_or(Error::IcmpEchoRequestPacketCreationFailure)?;
 
-    // Configure the ICMP echo request packet
     icmp_echo_request.set_identifier(identifier);
     icmp_echo_request.set_sequence_number(sequence_number);
     icmp_echo_request.set_icmp_type(pnet_packet::icmp::IcmpTypes::EchoRequest);
     icmp_echo_request.set_icmp_code(pnet_packet::icmp::IcmpCode::new(0));
 
-    // Calculate checksum once we've set all the fields
     let icmp_packet =
         IcmpPacket::new(icmp_echo_request.packet()).ok_or(Error::IcmpPacketCreationFailure)?;
     let checksum = pnet_packet::icmp::checksum(&icmp_packet);
@@ -83,17 +66,14 @@ pub fn create_icmpv6_echo_request(
     destination: &Ipv6Addr,
 ) -> Result<icmpv6::echo_request::EchoRequestPacket<'static>> {
     let buffer = vec![0; 64];
-    // let mut icmp_echo_request = MutableEchoRequestPacket::owned(buffer)
     let mut icmp_echo_request = icmpv6::echo_request::MutableEchoRequestPacket::owned(buffer)
         .ok_or(Error::IcmpEchoRequestPacketCreationFailure)?;
 
-    // Configure the ICMP echo request packet
     icmp_echo_request.set_identifier(identifier);
     icmp_echo_request.set_sequence_number(sequence_number);
     icmp_echo_request.set_icmpv6_type(pnet_packet::icmpv6::Icmpv6Types::EchoRequest);
     icmp_echo_request.set_icmpv6_code(pnet_packet::icmpv6::Icmpv6Code::new(0));
 
-    // Calculate checksum once we've set all the fields
     let icmp_packet = icmpv6::Icmpv6Packet::new(icmp_echo_request.packet())
         .ok_or(Error::IcmpPacketCreationFailure)?;
     let checksum = pnet_packet::icmpv6::checksum(&icmp_packet, source, destination);
@@ -107,10 +87,8 @@ pub fn wrap_icmp_in_ipv4(
     source: Ipv4Addr,
     destination: Ipv4Addr,
 ) -> Result<Ipv4Packet> {
-    // 20 bytes for IPv4 header + ICMP payload
     let total_length = 20 + icmp_echo_request.packet().len();
-    // IPv4 header + ICMP payload
-    let ipv4_buffer = vec![0u8; 20 + icmp_echo_request.packet().len()];
+    let ipv4_buffer = vec![0u8; total_length];
     let mut ipv4_packet =
         MutableIpv4Packet::owned(ipv4_buffer).ok_or(Error::Ipv4PacketCreationFailure)?;
 
@@ -151,9 +129,8 @@ pub fn wrap_icmp_in_ipv6(
     Ok(ipv6_packet.consume_to_immutable())
 }
 
-// Compute IPv4 checksum: sum all 16-bit words, add carry, take one's complement
-pub(crate) fn compute_ipv4_checksum(header: &Ipv4Packet) -> u16 {
-    // Header length in 16-bit words
+/// IPv4 header checksum: sum 16-bit words, fold carries, ones-complement.
+fn compute_ipv4_checksum(header: &Ipv4Packet) -> u16 {
     let len = header.get_header_length() as usize * 2;
     let mut sum = 0u32;
 
@@ -162,167 +139,38 @@ pub(crate) fn compute_ipv4_checksum(header: &Ipv4Packet) -> u16 {
         sum += word;
     }
 
-    // Add the carry
     while (sum >> 16) > 0 {
         sum = (sum & 0xFFFF) + (sum >> 16);
     }
 
-    // One's complement
     !sum as u16
 }
 
-pub(crate) fn is_icmp_echo_reply(packet: &Bytes) -> Option<(u16, Ipv4Addr, Ipv4Addr)> {
-    if let Some(ipv4_packet) = Ipv4Packet::new(packet) {
-        if let Some(icmp_packet) = IcmpPacket::new(ipv4_packet.payload()) {
-            if let Some(echo_reply) = EchoReplyPacket::new(icmp_packet.packet()) {
-                return Some((
-                    echo_reply.get_identifier(),
-                    ipv4_packet.get_source(),
-                    ipv4_packet.get_destination(),
-                ));
-            }
-        }
-    }
-    None
+#[cfg(test)]
+pub(crate) fn is_icmp_echo_reply(packet: &bytes::Bytes) -> Option<(u16, Ipv4Addr, Ipv4Addr)> {
+    use pnet_packet::icmp::echo_reply::EchoReplyPacket;
+    let ipv4_packet = Ipv4Packet::new(packet)?;
+    let icmp_packet = IcmpPacket::new(ipv4_packet.payload())?;
+    let echo_reply = EchoReplyPacket::new(icmp_packet.packet())?;
+    Some((
+        echo_reply.get_identifier(),
+        ipv4_packet.get_source(),
+        ipv4_packet.get_destination(),
+    ))
 }
 
-pub(crate) fn is_icmp_v6_echo_reply(packet: &Bytes) -> Option<(u16, Ipv6Addr, Ipv6Addr)> {
-    if let Some(ipv6_packet) = Ipv6Packet::new(packet) {
-        if let Some(icmp_packet) = IcmpPacket::new(ipv6_packet.payload()) {
-            if let Some(echo_reply) =
-                pnet_packet::icmpv6::echo_reply::EchoReplyPacket::new(icmp_packet.packet())
-            {
-                return Some((
-                    echo_reply.get_identifier(),
-                    ipv6_packet.get_source(),
-                    ipv6_packet.get_destination(),
-                ));
-            }
-        }
-    }
-    None
-}
-
-/**
- * Types and functions below are from the nym-connection-monitor crate.
- * The `send_ping_v4` + `_v6` functions have been modified to work with the IPMixStream wrapper instead of relying on a shared MixnetClient.
- */
-#[derive(Debug)]
-pub enum ConnectionStatusEvent {
-    MixnetSelfPing,
-    Icmpv4IprTunDevicePingReply,
-    Icmpv6IprTunDevicePingReply,
-    Icmpv4IprExternalPingReply,
-    Icmpv6IprExternalPingReply,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct IpPingReplies {
-    pub ipr_tun_ip_v4: bool,
-    pub ipr_tun_ip_v6: bool,
-    pub external_ip_v4: bool,
-    pub external_ip_v6: bool,
-}
-
-impl IpPingReplies {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn register_event(&mut self, event: &ConnectionStatusEvent) {
-        match event {
-            ConnectionStatusEvent::MixnetSelfPing => {}
-            ConnectionStatusEvent::Icmpv4IprTunDevicePingReply => self.ipr_tun_ip_v4 = true,
-            ConnectionStatusEvent::Icmpv6IprTunDevicePingReply => self.ipr_tun_ip_v6 = true,
-            ConnectionStatusEvent::Icmpv4IprExternalPingReply => self.external_ip_v4 = true,
-            ConnectionStatusEvent::Icmpv6IprExternalPingReply => self.external_ip_v6 = true,
-        }
-    }
-}
-
-pub enum IcmpBeaconReply {
-    TunDeviceReply,
-    ExternalPingReply(Ipv4Addr),
-}
-
-pub enum Icmpv6BeaconReply {
-    TunDeviceReply,
-    ExternalPingReply(Ipv6Addr),
+#[cfg(test)]
+pub(crate) fn is_icmp_v6_echo_reply(packet: &bytes::Bytes) -> Option<(u16, Ipv6Addr, Ipv6Addr)> {
+    let ipv6_packet = Ipv6Packet::new(packet)?;
+    let icmp_packet = IcmpPacket::new(ipv6_packet.payload())?;
+    let echo_reply = pnet_packet::icmpv6::echo_reply::EchoReplyPacket::new(icmp_packet.packet())?;
+    Some((
+        echo_reply.get_identifier(),
+        ipv6_packet.get_source(),
+        ipv6_packet.get_destination(),
+    ))
 }
 
 pub fn icmp_identifier() -> u16 {
     8475
-}
-
-// TODO: send_ping_v4 and send_ping_v6 removed temporarily — will be re-added
-// when IpMixStream is rebuilt on top of MixnetStream + LP frame envelope
-
-pub fn check_for_icmp_beacon_reply(
-    packet: &Bytes,
-    icmp_beacon_identifier: u16,
-    our_ips: IpPair,
-) -> Option<ConnectionStatusEvent> {
-    match is_icmp_beacon_reply(packet, icmp_beacon_identifier, our_ips.ipv4) {
-        Some(IcmpBeaconReply::TunDeviceReply) => {
-            tracing::debug!("Received ping response from ipr tun device");
-            return Some(ConnectionStatusEvent::Icmpv4IprTunDevicePingReply);
-        }
-        Some(IcmpBeaconReply::ExternalPingReply(_source)) => {
-            tracing::debug!("Received ping response from an external ip through the ipr");
-            return Some(ConnectionStatusEvent::Icmpv4IprExternalPingReply);
-        }
-        None => {}
-    }
-
-    match is_icmp_v6_beacon_reply(packet, icmp_beacon_identifier, our_ips.ipv6) {
-        Some(Icmpv6BeaconReply::TunDeviceReply) => {
-            tracing::debug!("Received ping v6 response from ipr tun device");
-            return Some(ConnectionStatusEvent::Icmpv6IprTunDevicePingReply);
-        }
-        Some(Icmpv6BeaconReply::ExternalPingReply(_source)) => {
-            tracing::debug!("Received ping v6 response from an external ip through the ipr");
-            return Some(ConnectionStatusEvent::Icmpv6IprExternalPingReply);
-        }
-        None => {}
-    }
-
-    None
-}
-
-pub fn is_icmp_beacon_reply(
-    packet: &Bytes,
-    identifier: u16,
-    destination: Ipv4Addr,
-) -> Option<IcmpBeaconReply> {
-    if let Some((reply_identifier, reply_source, reply_destination)) = is_icmp_echo_reply(packet) {
-        if reply_identifier == identifier && reply_destination == destination {
-            if reply_source == NYM_TUN_DEVICE_ADDRESS_V4 {
-                return Some(IcmpBeaconReply::TunDeviceReply);
-            } else {
-                // For external replies, we check if the source is NOT the TUN device
-                // and NOT our own IP (since external hosts reply from their own IPs)
-                return Some(IcmpBeaconReply::ExternalPingReply(reply_source));
-            }
-        }
-    }
-    None
-}
-
-pub fn is_icmp_v6_beacon_reply(
-    packet: &Bytes,
-    identifier: u16,
-    destination: Ipv6Addr,
-) -> Option<Icmpv6BeaconReply> {
-    if let Some((reply_identifier, reply_source, reply_destination)) = is_icmp_v6_echo_reply(packet)
-    {
-        if reply_identifier == identifier && reply_destination == destination {
-            if reply_source == NYM_TUN_DEVICE_ADDRESS_V6 {
-                return Some(Icmpv6BeaconReply::TunDeviceReply);
-            } else {
-                // For external replies, check if source is NOT the TUN device
-                return Some(Icmpv6BeaconReply::ExternalPingReply(reply_source));
-            }
-        }
-    }
-    None
 }

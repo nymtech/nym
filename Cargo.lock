@@ -7375,9 +7375,12 @@ name = "nym-network-monitor-agent"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "arrayref",
  "clap",
  "futures",
+ "hkdf",
  "humantime",
+ "lioness",
  "nym-bin-common",
  "nym-crypto",
  "nym-noise",
@@ -7387,13 +7390,16 @@ dependencies = [
  "nym-sphinx-params",
  "nym-sphinx-types",
  "nym-task",
+ "nym-test-utils",
  "rand 0.8.5",
  "serde",
+ "sha2 0.10.9",
  "time",
  "tokio",
  "tokio-util",
  "tracing",
  "url",
+ "x25519-dalek",
 ]
 
 [[package]]

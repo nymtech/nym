@@ -1,104 +1,83 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use bytes::Bytes;
-use futures::StreamExt;
+use bytes::{Bytes, BytesMut};
 use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v8::response::ControlResponse};
-use tokio_util::codec::FramedRead;
+use tokio_util::codec::Decoder;
 use tracing::{error, info, warn};
 
-use crate::ip_packet_client::current::response::{
-    InfoLevel, IpPacketResponse, IpPacketResponseData,
+use crate::ip_packet_client::current::{
+    response::{InfoLevel, IpPacketResponse, IpPacketResponseData},
+    VERSION as CURRENT_VERSION,
 };
-use crate::ip_packet_client::helpers::check_ipr_message_version;
 
 pub enum MixnetMessageOutcome {
     IpPackets(Vec<Bytes>),
     Disconnect,
 }
 
-pub struct IprListener {}
-
-#[derive(Debug, thiserror::Error)]
-pub enum IprListenerError {
-    #[error(transparent)]
-    IprClientError(#[from] crate::Error),
+/// Check that the first byte of an IPR message matches the expected protocol version.
+pub(crate) fn check_ipr_message_version(data: &[u8]) -> Result<(), crate::Error> {
+    let version = data.first().ok_or_else(|| {
+        crate::Error::IPRMessageVersionCheckFailed("no version byte in message".into())
+    })?;
+    if *version != CURRENT_VERSION {
+        return Err(crate::Error::IPRMessageVersionCheckFailed(format!(
+            "received v{version}, expected v{CURRENT_VERSION}"
+        )));
+    }
+    Ok(())
 }
 
-impl From<super::error::Error> for IprListenerError {
-    fn from(err: super::error::Error) -> Self {
-        match err {
-            super::error::Error::SdkError(sdk_err) => IprListenerError::IprClientError(*sdk_err),
-            other => IprListenerError::IprClientError(crate::Error::new_unsupported(format!(
-                "IP packet error: {}",
-                other
-            ))),
-        }
-    }
-}
+/// Parse raw IPR response bytes into an outcome.
+pub fn handle_ipr_response(data: &[u8]) -> Result<Option<MixnetMessageOutcome>, crate::Error> {
+    check_ipr_message_version(data)?;
 
-impl IprListener {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    /// Parse raw IPR response bytes into an outcome.
-    pub async fn handle_response(
-        &mut self,
-        data: &[u8],
-    ) -> Result<Option<MixnetMessageOutcome>, IprListenerError> {
-        check_ipr_message_version(data)?;
-
-        match IpPacketResponse::from_bytes(data) {
-            Ok(response) => match response.data {
-                IpPacketResponseData::Data(data_response) => {
-                    let framed_reader = FramedRead::new(
-                        data_response.ip_packet.as_ref(),
-                        MultiIpPacketCodec::new(),
-                    );
-                    let responses: Vec<Bytes> = framed_reader
-                        .filter_map(|res| async { res.ok().map(|packet| packet.into_bytes()) })
-                        .collect()
-                        .await;
-                    return Ok(Some(MixnetMessageOutcome::IpPackets(responses)));
-                }
-                IpPacketResponseData::Control(control_response) => match *control_response {
-                    ControlResponse::Connect(_) => {
-                        info!("Received connect response when already connected - ignoring");
-                    }
-                    ControlResponse::Disconnect(_) => {
-                        info!("Received disconnect response");
-                        return Ok(Some(MixnetMessageOutcome::Disconnect));
-                    }
-                    ControlResponse::UnrequestedDisconnect(_) => {
-                        info!("Received unrequested disconnect response, ignoring for now");
-                    }
-                    ControlResponse::Pong(_) => {
-                        info!("Received pong response, ignoring for now");
-                    }
-                    ControlResponse::Health(_) => {
-                        info!("Received health response, ignoring for now");
-                    }
-                    ControlResponse::Info(info) => {
-                        let msg = format!("Received info response from the mixnet: {}", info.reply);
-                        match info.level {
-                            InfoLevel::Info => info!("{msg}"),
-                            InfoLevel::Warn => warn!("{msg}"),
-                            InfoLevel::Error => error!("{msg}"),
+    match IpPacketResponse::from_bytes(data) {
+        Ok(response) => match response.data {
+            IpPacketResponseData::Data(data_response) => {
+                let mut codec = MultiIpPacketCodec::new();
+                let mut buf = BytesMut::from(data_response.ip_packet.as_ref());
+                let mut packets = Vec::new();
+                loop {
+                    match codec.decode(&mut buf) {
+                        Ok(Some(packet)) => packets.push(packet.into_bytes()),
+                        Ok(None) => break,
+                        Err(e) => {
+                            warn!("Failed to decode bundled IP packet: {e}");
+                            break;
                         }
                     }
-                },
-            },
-            Err(err) => {
-                warn!("Failed to deserialize IPR response: {err}");
+                }
+                return Ok(Some(MixnetMessageOutcome::IpPackets(packets)));
             }
+            IpPacketResponseData::Control(control_response) => match *control_response {
+                ControlResponse::Connect(_) => {
+                    info!("Received connect response when already connected - ignoring");
+                }
+                ControlResponse::Disconnect(_) | ControlResponse::UnrequestedDisconnect(_) => {
+                    info!("Received disconnect from IPR");
+                    return Ok(Some(MixnetMessageOutcome::Disconnect));
+                }
+                ControlResponse::Pong(_) => {
+                    info!("Received pong response");
+                }
+                ControlResponse::Health(_) => {
+                    info!("Received health response");
+                }
+                ControlResponse::Info(info) => {
+                    let msg = format!("Received info response from the mixnet: {}", info.reply);
+                    match info.level {
+                        InfoLevel::Info => info!("{msg}"),
+                        InfoLevel::Warn => warn!("{msg}"),
+                        InfoLevel::Error => error!("{msg}"),
+                    }
+                }
+            },
+        },
+        Err(err) => {
+            warn!("Failed to deserialize IPR response: {err}");
         }
-        Ok(None)
     }
-}
-
-impl Default for IprListener {
-    fn default() -> Self {
-        Self::new()
-    }
+    Ok(None)
 }

@@ -1,15 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! IPR gateway discovery helpers.
-//!
-//! Similar "find an IPR" logic exists in `nym-gateway-probe`, but that
-//! crate depends on `nym-sdk` — so the SDK cannot import from it without
-//! creating a circular dependency. `nym-node-status-api` also queries
-//! described nodes but has no reusable IPR discovery function. The raw
-//! API calls (`get_all_described_nodes_v2`, etc.) come from
-//! `nym-validator-client` / `nym-http-api-client`; the business logic of
-//! filtering for IPR-enabled gateways is assembled here.
+//! IPR gateway discovery — find and rank IPR-enabled exit gateways via the Nym API.
 
 use std::collections::HashMap;
 
@@ -27,9 +19,6 @@ use nym_ip_packet_requests::{
 use crate::Error;
 
 /// Parse an IPR connect response, returning allocated IPs on success.
-///
-/// Shared between `IpMixStream` (stream-based) and `IprClientConnect`
-/// (raw mixnet client) since both need the same response parsing logic.
 #[allow(clippy::result_large_err)]
 pub fn parse_connect_response(response: IpPacketResponse) -> Result<IpPair, Error> {
     let control_response = match response.data {
@@ -113,7 +102,8 @@ pub async fn retrieve_exit_nodes_with_performance(
     Ok(described)
 }
 
-pub async fn get_random_ipr(client: nym_http_api_client::Client) -> Result<Recipient, Error> {
+/// Select the highest-performance IPR gateway from the directory.
+pub async fn get_best_ipr(client: nym_http_api_client::Client) -> Result<Recipient, Error> {
     let nodes = retrieve_exit_nodes_with_performance(client).await?;
     info!("Found {} Exit Gateways", nodes.len());
 

@@ -136,8 +136,14 @@ pub enum Error {
     #[error("no available gateway")]
     NoGatewayAvailable,
 
+    #[error("tunnel disconnected by IPR")]
+    IprTunnelDisconnected,
+
     #[error("message version check failed: {0}")]
     IPRMessageVersionCheckFailed(String),
+
+    #[error("could not find workspace root from CARGO_MANIFEST_DIR")]
+    WorkspaceRootNotFound,
 }
 
 impl Error {

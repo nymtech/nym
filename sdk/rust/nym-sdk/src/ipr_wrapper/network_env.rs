@@ -1,14 +1,15 @@
 use std::fs;
 use std::path::PathBuf;
 
+use crate::Error;
+
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NetworkEnvironment {
     #[default]
     Mainnet,
-    // Sandbox,
 }
 
-fn find_workspace_root() -> PathBuf {
+fn find_workspace_root() -> Result<PathBuf, Error> {
     let mut current = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
     loop {
@@ -16,40 +17,29 @@ fn find_workspace_root() -> PathBuf {
 
         if cargo_toml.exists() {
             if let Ok(contents) = fs::read_to_string(&cargo_toml) {
-                // Check if this Cargo.toml defines a workspace
                 if contents.contains("[workspace]") {
-                    return current;
+                    return Ok(current);
                 }
             }
         }
 
         if !current.pop() {
-            panic!("Could not find workspace root");
+            return Err(Error::WorkspaceRootNotFound);
         }
     }
 }
 
 impl NetworkEnvironment {
-    pub fn env_file_path(&self) -> PathBuf {
-        let root = find_workspace_root();
+    pub fn env_file_path(&self) -> Result<PathBuf, Error> {
+        let root = find_workspace_root()?;
         match self {
-            Self::Mainnet => root.join("envs/mainnet.env"),
-            // Self::Sandbox => root.join("envs/sandbox.env"),
+            Self::Mainnet => Ok(root.join("envs/mainnet.env")),
         }
     }
 
     pub fn network_defaults(&self) -> crate::NymNetworkDetails {
         match self {
             Self::Mainnet => crate::NymNetworkDetails::new_mainnet(),
-            // Self::Sandbox => crate::NymNetworkDetails::new_sandbox(), // TODO
-        }
-    }
-
-    pub fn parse_network(s: &str) -> Result<Self, String> {
-        match s.to_lowercase().as_str() {
-            "mainnet" | "main" => Ok(Self::Mainnet),
-            // "sandbox" | "sand" => Ok(Self::Sandbox),
-            _ => Err(format!("Unknown env: {}", s)),
         }
     }
 }

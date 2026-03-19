@@ -35,6 +35,8 @@ pub(crate) struct MixnetListener {
     /// Channel used to forward received packets to the [`PacketReceiver`](received).
     received_packets_sender: MixnetPacketsSender,
 
+    pub(crate) last_noise_handshake_duration: Option<std::time::Duration>,
+
     /// Global shutdown token
     shutdown: ShutdownToken,
 }
@@ -61,6 +63,7 @@ impl MixnetListener {
             tested_node_address,
             noise_config,
             received_packets_sender,
+            last_noise_handshake_duration: None,
             shutdown,
         })
     }
@@ -94,7 +97,7 @@ impl MixnetListener {
 
     /// Validates the source address, performs the Noise handshake, then delegates to
     /// [`handle_stream`](Self::handle_stream) for the lifetime of the connection.
-    async fn handle_connection(&self, (socket, source): (TcpStream, SocketAddr)) {
+    async fn handle_connection(&mut self, (socket, source): (TcpStream, SocketAddr)) {
         if source != self.tested_node_address {
             warn!(
                 "received a connection from a source that's not the node being tested. Ignoring it. Source: {source}, tested node: {}",
@@ -112,7 +115,6 @@ impl MixnetListener {
                 return;
             }
         };
-        // TODO: return with the result
         let noise_handshake_duration = noise_handshake_start.elapsed();
 
         if !noise_stream.is_noise() {
@@ -121,13 +123,14 @@ impl MixnetListener {
             );
             return;
         }
+        self.last_noise_handshake_duration = Some(noise_handshake_duration);
 
         self.handle_stream(Framed::new(noise_stream, NymCodec))
             .await
     }
 
     /// Binds the TCP listener and processes one connection at a time until the shutdown token is cancelled.
-    pub(crate) async fn run(&mut self) {
+    pub(crate) async fn run(mut self) -> Self {
         // only handle a single connection at once
         // (we don't need more than that)
         loop {
@@ -135,7 +138,7 @@ impl MixnetListener {
                 biased;
                 _ = self.shutdown.cancelled() => {
                     tracing::debug!("mixnet listener: received shutdown");
-                    break
+                    return self
                 }
                 connection = self.tcp_listener.accept() => {
                     if let Ok(connection) = connection {

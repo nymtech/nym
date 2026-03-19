@@ -17,21 +17,18 @@ use tokio_util::codec::Framed;
 use tracing::{error, info};
 
 /// Timing statistics collected over the lifetime of an [`EgressConnection`].
-struct ConnectionStatistics {
+pub(crate) struct EgressConnectionStatistics {
     /// Duration of the Noise handshake performed when the connection was established.
-    noise_handshake_duration: std::time::Duration,
-
-    /// Per-packet send durations, one entry for each call to [`send_packet`](EgressConnection::send_packet).
-    packet_sending_duration: Vec<std::time::Duration>,
+    pub(crate) noise_handshake_duration: std::time::Duration,
 
     /// Per-batch send durations, one entry for each call to [`send_packet_batch`](EgressConnection::send_packet_batch).
-    packet_batches_sending_duration: Vec<std::time::Duration>,
+    pub(crate) packet_batches_sending_duration: Vec<std::time::Duration>,
 }
 
 /// An outbound, noise-encrypted TCP connection to the node under test used for sending sphinx packets.
 pub(crate) struct EgressConnection {
     /// Timing statistics accumulated while the connection is active.
-    connection_statistics: ConnectionStatistics,
+    pub(crate) connection_statistics: EgressConnectionStatistics,
 
     /// The key rotation at the time of starting the agent.
     key_rotation: SphinxKeyRotation,
@@ -68,9 +65,8 @@ impl EgressConnection {
         let noise_handshake_duration = noise_handshake_start.elapsed();
 
         Ok(Self {
-            connection_statistics: ConnectionStatistics {
+            connection_statistics: EgressConnectionStatistics {
                 noise_handshake_duration,
-                packet_sending_duration: vec![],
                 packet_batches_sending_duration: vec![],
             },
             key_rotation,
@@ -78,9 +74,8 @@ impl EgressConnection {
         })
     }
 
-    /// Sends a single sphinx packet and records the send duration in [`ConnectionStatistics`].
+    /// Sends a single sphinx packet and records the send duration in [`EgressConnectionStatistics`].
     pub(crate) async fn send_packet(&mut self, packet: SphinxPacket) -> anyhow::Result<()> {
-        let send_start = Instant::now();
         self.mixnet_connection
             .send(FramedNymPacket::new(
                 NymPacket::Sphinx(packet),
@@ -89,9 +84,7 @@ impl EgressConnection {
                 false,
             ))
             .await?;
-        self.connection_statistics
-            .packet_sending_duration
-            .push(send_start.elapsed());
+
         Ok(())
     }
 
@@ -117,8 +110,8 @@ impl EgressConnection {
         Ok(())
     }
 
-    /// Consumes the connection and returns the accumulated [`ConnectionStatistics`].
-    fn finish(self) -> ConnectionStatistics {
+    /// Consumes the connection and returns the accumulated [`EgressConnectionStatistics`].
+    fn finish(self) -> EgressConnectionStatistics {
         self.connection_statistics
     }
 }

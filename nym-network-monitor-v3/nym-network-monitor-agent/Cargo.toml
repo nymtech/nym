@@ -29,6 +29,14 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 
+# methods to recreate lioness
+# we don't care about particular versions - just pull whatever is used by sphinx
+lioness = "*"
+arrayref = "*"
+sha2 = { workspace = true }
+hkdf = { workspace = true }
+x25519-dalek = { workspace = true }
+
 
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
@@ -37,6 +45,9 @@ nym-bin-common = { workspace = true, features = [
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
+
+[dev-dependencies]
+nym-test-utils = { workspace = true }
 
 [lints]
 workspace = true

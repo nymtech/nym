@@ -59,6 +59,7 @@ test-db-prepare: ## Run sqlx prepare for compile-time query verification
 # --- Run Targets ---
 .PHONY: run
 run: ## Run the service (assumes database is already running)
+	@test -n "$$NYM_NODE_STATUS_API_MNEMONIC" || { echo "Error: NYM_NODE_STATUS_API_MNEMONIC is not set"; exit 1; }
 	@echo "Starting nym-node-status-api with $(ENVIRONMENT) environment..."
 	@set -a && source "$(MONOREPO_ROOT)/envs/$(ENVIRONMENT).env" && set +a && \
 	DATABASE_URL="$(TEST_DATABASE_URL)" \

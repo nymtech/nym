@@ -21,7 +21,8 @@ pub(crate) struct Config {
     /// Timeout for the completing the noise handshake.
     pub(crate) noise_handshake_timeout: Duration,
 
-    /// Number of packets sent in a single batch per unit time.
+    /// Number of packets dispatched in a single batch. Together with `target_rate` this
+    /// determines the inter-batch interval: `sending_batch_size / target_rate` seconds.
     pub(crate) sending_batch_size: usize,
 
     /// Target rate of packets (per second) to be sent.
@@ -30,15 +31,18 @@ pub(crate) struct Config {
     /// Whether the agent should reuse the same header for all packets, and consequently replay them.
     pub(crate) reuse_header: bool,
 
-    /// Address of the mixnet listener on this agent
+    /// Local socket address the agent binds its mixnet listener on to receive returning packets.
     pub(crate) mixnet_address: SocketAddr,
 }
 
 impl Config {
+    /// Total number of packets the agent intends to send: `floor(target_rate * sending_duration)`.
     pub(crate) fn expected_packets(&self) -> usize {
         (self.target_rate as f32 * self.sending_duration.as_secs_f32()).floor() as usize
     }
 
+    /// Time between consecutive batch dispatches needed to sustain `target_rate`:
+    /// `sending_batch_size / target_rate` seconds.
     pub(crate) fn batch_interval(&self) -> Duration {
         Duration::from_secs_f64(self.sending_batch_size as f64 / self.target_rate as f64)
     }

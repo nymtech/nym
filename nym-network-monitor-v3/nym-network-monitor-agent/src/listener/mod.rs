@@ -130,7 +130,9 @@ impl MixnetListener {
             .await
     }
 
-    /// Binds the TCP listener and processes one connection at a time until the shutdown token is cancelled.
+    /// Processes one connection at a time until the shutdown token is cancelled.
+    /// Returns `self` so that the caller can inspect fields such as
+    /// [`last_noise_handshake_duration`](Self::last_noise_handshake_duration) after the run.
     pub(crate) async fn run(mut self) -> Self {
         // only handle a single connection at once
         // (we don't need more than that)

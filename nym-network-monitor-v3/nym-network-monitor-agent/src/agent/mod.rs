@@ -28,9 +28,9 @@ use tokio::pin;
 use tokio::time::{Instant, sleep};
 use tracing::{debug, error, info, warn};
 
-mod config;
-mod result;
-mod tested_node;
+pub(crate) mod config;
+pub(crate) mod result;
+pub(crate) mod tested_node;
 
 pub(crate) struct NetworkMonitorAgent {
     config: Config,
@@ -385,7 +385,7 @@ impl NetworkMonitorAgent {
         // 2. spawn the mixnet packet listener that forwards received packets to the processor
         let mut processor = self.build_packet_processor();
         let shutdown_token = ShutdownToken::new();
-        let mut listener = self
+        let listener = self
             .build_mixnet_listener(processor.sender(), shutdown_token.clone())
             .await?;
         let listener_join = tokio::spawn(async move { listener.run().await });

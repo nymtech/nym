@@ -407,7 +407,6 @@ impl Probe {
                     self.entry_node.identity,
                     self.network.clone(),
                     self.config.socks5_args,
-                    self.topology,
                 )
                 .await
                 {

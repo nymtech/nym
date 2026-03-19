@@ -447,7 +447,6 @@ pub(crate) async fn do_socks5_connectivity_test(
     entry_gateway_id: NodeIdentity,
     network_details: NymNetworkDetails,
     socks5_args: Socks5Args,
-    maybe_topology: Option<NymTopology>,
 ) -> anyhow::Result<Socks5ProbeResults> {
     info!(
         "Starting SOCKS5 test through Network Requester: {}",
@@ -474,31 +473,17 @@ pub(crate) async fn do_socks5_connectivity_test(
     // create ephemeral SOCKS5 client
     let socks5_config = Socks5::new(nr_recipient.to_string());
 
-    // debug config similar to main probe
     let debug_config = mixnet_debug_config(min_gw_performance, true);
 
-    let maybe_topology = None;
-    // use existing topology if available, otherwise fetch it
-    let topology_provider: Box<HardcodedTopologyProvider> = match maybe_topology {
-        Some(t) => {
-            info!("✔️ Reusing topology from main mixnet client");
-            Box::new(HardcodedTopologyProvider::new(t))
-        }
-        None => {
-            info!("Fetching topology for SOCKS5 client...");
-            match hardcoded_topology(&network_details, &debug_config).await {
-                Ok(provider) => provider,
-                Err(e) => return Ok(Socks5ProbeResults::error_before_connecting(e)),
-            }
-        }
-    };
+    // don't reuse topology: our gateway might be filtered out in it
+    info!("Fetching topology for SOCKS5 client...");
+    let topology_provider: Box<HardcodedTopologyProvider> =
+        match helpers::fetch_topology(&network_details, &debug_config).await {
+            Ok(topology) => Box::new(HardcodedTopologyProvider::new(topology)),
+            Err(e) => return Ok(Socks5ProbeResults::error_before_connecting(e)),
+        };
 
-    // if let Some(topology) = maybe_topology {
-    //     socks5_client_builder = socks5_client_builder
-    //         .custom_topology_provider(Box::new(HardcodedTopologyProvider::new(topology)));
-    // }
-
-    let mut socks5_client_builder = MixnetClientBuilder::new_ephemeral()
+    let socks5_client_builder = MixnetClientBuilder::new_ephemeral()
         // Specify entry gateway explicitly
         .request_gateway(entry_gateway_id.to_base58_string())
         .socks5_config(socks5_config)
@@ -514,9 +499,8 @@ pub(crate) async fn do_socks5_connectivity_test(
         .await
     {
         Ok(client) => {
-            info!("🌐 Successfully connected to mixnet via SOCKS5 proxy");
             info!(
-                "Connected via entry gateway: {}",
+                "🌐 Successfully connected to mixnet via SOCKS5 on entry gateway: {}",
                 client.nym_address().gateway().to_base58_string()
             );
             client
@@ -552,46 +536,4 @@ pub(crate) async fn do_socks5_connectivity_test(
     socks5_client.disconnect().await;
 
     Ok(Socks5ProbeResults::with_http_result(result))
-}
-
-async fn hardcoded_topology(
-    network_details: &NymNetworkDetails,
-    debug_config: &DebugConfig,
-) -> Result<Box<HardcodedTopologyProvider>, String> {
-    // get Nym API URLs from network_details
-    let nym_api_urls: Vec<Url> = network_details
-        .nym_api_urls
-        .as_ref()
-        .map(|urls| urls.iter().filter_map(|u| u.url.parse().ok()).collect())
-        .or_else(|| {
-            network_details
-                .endpoints
-                .first()
-                .and_then(|e| e.api_url())
-                .map(|url| vec![url])
-        })
-        .unwrap_or_default();
-
-    if nym_api_urls.is_empty() {
-        return Err(String::from("No nym-api URLs available to fetch topology"));
-    }
-
-    let topology_config = NymApiTopologyProviderConfig {
-        min_mixnode_performance: debug_config.topology.minimum_mixnode_performance,
-        min_gateway_performance: debug_config.topology.minimum_gateway_performance,
-        use_extended_topology: debug_config.topology.use_extended_topology,
-        ignore_egress_epoch_role: debug_config.topology.ignore_egress_epoch_role,
-    };
-
-    let api_client = nym_http_api_client::Client::new_url(nym_api_urls[0].clone(), None)
-        .map_err(|e| e.to_string())?;
-    let mut provider = NymApiTopologyProvider::new(topology_config, nym_api_urls, api_client);
-
-    match provider.get_new_topology().await {
-        Some(topology) => {
-            info!("Fetched network topology");
-            Ok(Box::new(HardcodedTopologyProvider::new(topology)))
-        }
-        None => Err(String::from("Failed to fetch network topology")),
-    }
 }

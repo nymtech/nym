@@ -27,12 +27,9 @@ use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_lp::peer::DHKeyPair;
 use nym_registration_client::LpRegistrationClient;
+use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
-use nym_sdk::{
-    DebugConfig, NymApiTopologyProvider, NymApiTopologyProviderConfig, NymNetworkDetails,
-    TopologyProvider,
-};
-use nym_topology::{HardcodedTopologyProvider, NymTopology};
+use nym_topology::HardcodedTopologyProvider;
 use rand09::SeedableRng;
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
@@ -42,7 +39,6 @@ use std::{
 use tokio::net::TcpStream;
 use tokio_util::{codec::Decoder, sync::CancellationToken};
 use tracing::*;
-use url::Url;
 
 pub async fn wg_probe(
     mut auth_client: AuthenticatorClient,

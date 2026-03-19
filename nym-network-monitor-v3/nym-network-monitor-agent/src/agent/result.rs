@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::egress_connection::EgressConnectionStatistics;
 use std::time::Duration;
 
 // TODO: once created, move this struct to a shared models library
@@ -29,7 +30,9 @@ pub(crate) struct TestRunResult {
     pub(crate) approximate_latency: Option<Duration>,
 
     /// RTT statistics computed over all received packets, or `None` if no packets were received.
-    pub(crate) packets_statistics: Option<PacketsStatistics>,
+    pub(crate) packets_statistics: Option<LatencyDistribution>,
+
+    pub(crate) sending_statistics: Option<LatencyDistribution>,
 
     /// Whether any packet was received with an ID that had already been seen in this test run.
     /// Duplicates should never occur under normal operation; their presence may indicate a
@@ -71,7 +74,7 @@ impl TestRunResult {
     }
 
     /// Attaches pre-computed RTT statistics for the received packets.
-    pub(crate) fn set_packets_statistics(&mut self, stats: PacketsStatistics) {
+    pub(crate) fn set_packets_statistics(&mut self, stats: LatencyDistribution) {
         self.packets_statistics = Some(stats);
     }
 
@@ -84,25 +87,35 @@ impl TestRunResult {
     pub(crate) fn set_error(&mut self, error: impl Into<String>) {
         self.error = Some(error.into());
     }
+
+    pub(crate) fn set_egress_connection_statistics(&mut self, stats: EgressConnectionStatistics) {
+        self.set_egress_noise_handshake(stats.noise_handshake_duration);
+
+        if !stats.packet_batches_sending_duration.is_empty() {
+            self.sending_statistics = Some(LatencyDistribution::compute(
+                &stats.packet_batches_sending_duration,
+            ))
+        }
+    }
 }
 
-/// RTT statistics computed over the set of test packets received during a stress test.
+/// Latency statistics computed over the set of test packets received or sent during a stress test.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct PacketsStatistics {
-    /// Minimum RTT duration it took to receive a test packet.
+pub struct LatencyDistribution {
+    /// Minimum latency duration it took to send or receive a test packet.
     pub minimum: Duration,
 
-    /// Average RTT duration it took to receive a test packet.
+    /// Average latency duration it took to send or receive a test packet.
     pub mean: Duration,
 
-    /// Maximum RTT duration it took to receive a test packet.
+    /// Maximum latency duration it took to send or receive a test packet.
     pub maximum: Duration,
 
-    /// The standard deviation of the RTT duration it took to receive the test packets.
+    /// The standard deviation of the latency duration it took to send or receive the test packets.
     pub standard_deviation: Duration,
 }
 
-impl PacketsStatistics {
+impl LatencyDistribution {
     /// Computes statistics from a slice of per-packet RTT durations.
     /// Returns zeroed statistics if `raw_results` is empty.
     pub fn compute(raw_results: &[Duration]) -> Self {
@@ -112,7 +125,7 @@ impl PacketsStatistics {
         let mean = Self::duration_mean(raw_results);
         let standard_deviation = Self::duration_standard_deviation(raw_results, mean);
 
-        PacketsStatistics {
+        LatencyDistribution {
             minimum,
             mean,
             maximum,
@@ -169,7 +182,7 @@ mod tests {
 
     #[test]
     fn empty_slice_gives_zero_stats() {
-        let stats = PacketsStatistics::compute(&[]);
+        let stats = LatencyDistribution::compute(&[]);
         assert_eq!(stats.minimum, Duration::ZERO);
         assert_eq!(stats.maximum, Duration::ZERO);
         assert_eq!(stats.mean, Duration::ZERO);
@@ -178,7 +191,7 @@ mod tests {
 
     #[test]
     fn single_value_has_zero_deviation() {
-        let stats = PacketsStatistics::compute(&[ms(42)]);
+        let stats = LatencyDistribution::compute(&[ms(42)]);
         assert_eq!(stats.minimum, ms(42));
         assert_eq!(stats.maximum, ms(42));
         assert_eq!(stats.mean, ms(42));
@@ -187,7 +200,7 @@ mod tests {
 
     #[test]
     fn two_equal_values_have_zero_deviation() {
-        let stats = PacketsStatistics::compute(&[ms(10), ms(10)]);
+        let stats = LatencyDistribution::compute(&[ms(10), ms(10)]);
         assert_eq!(stats.mean, ms(10));
         assert_eq!(stats.standard_deviation, Duration::ZERO);
     }
@@ -195,7 +208,7 @@ mod tests {
     #[test]
     fn min_max_are_correct() {
         let data = [ms(30), ms(10), ms(50), ms(20)];
-        let stats = PacketsStatistics::compute(&data);
+        let stats = LatencyDistribution::compute(&data);
         assert_eq!(stats.minimum, ms(10));
         assert_eq!(stats.maximum, ms(50));
     }
@@ -204,7 +217,7 @@ mod tests {
     fn mean_is_correct() {
         // mean of 10, 20, 30, 40 = 25 ms
         let data = [ms(10), ms(20), ms(30), ms(40)];
-        let stats = PacketsStatistics::compute(&data);
+        let stats = LatencyDistribution::compute(&data);
         assert_eq!(stats.mean, ms(25));
     }
 
@@ -215,7 +228,7 @@ mod tests {
         //   variance = (225 + 25 + 25 + 225) / 4 = 125
         //   std-dev = sqrt(125) ≈ 11.180 ms → truncated to microseconds = 11180 µs
         let data = [ms(10), ms(20), ms(30), ms(40)];
-        let stats = PacketsStatistics::compute(&data);
+        let stats = LatencyDistribution::compute(&data);
         let expected = Duration::from_micros(11180);
         // allow ±1 µs for floating-point rounding
         let diff = stats.standard_deviation.abs_diff(expected);
@@ -236,7 +249,7 @@ mod tests {
         result.set_packets_received(95);
         result.set_error("timeout");
 
-        let stats = PacketsStatistics::compute(&[ms(10), ms(20)]);
+        let stats = LatencyDistribution::compute(&[ms(10), ms(20)]);
         result.set_packets_statistics(stats);
 
         assert_eq!(result.ingress_noise_handshake, Some(ms(5)));

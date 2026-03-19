@@ -70,10 +70,10 @@ fn dummy_destination() -> Destination {
     )
 }
 
-pub(crate) fn build_test_sphinx_packet<'a>(
+pub(crate) fn build_test_sphinx_packet(
     route: &[Node],
     delay: Duration,
-    initial_secret: Option<&'a StaticSecret>,
+    initial_secret: Option<&StaticSecret>,
     message: &[u8],
 ) -> anyhow::Result<SphinxPacket> {
     // and the packet route is test node -> this client
@@ -88,11 +88,11 @@ pub(crate) fn build_test_sphinx_packet<'a>(
     let packet = match initial_secret {
         None => SphinxPacketBuilder::new()
             .with_payload_size(payload)
-            .build_packet(message, &route, &destination, &delays),
+            .build_packet(message, route, &destination, &delays),
         Some(initial_secret) => SphinxPacketBuilder::new()
             .with_payload_size(payload)
-            .with_initial_secret(&initial_secret)
-            .build_packet(message, &route, &destination, &delays),
+            .with_initial_secret(initial_secret)
+            .build_packet(message, route, &destination, &delays),
     }?;
 
     Ok(packet)

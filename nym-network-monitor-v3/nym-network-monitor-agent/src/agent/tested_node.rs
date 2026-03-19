@@ -19,11 +19,15 @@ pub(crate) struct TestedNodeDetails {
 }
 
 impl TestedNodeDetails {
-    pub(crate) fn as_sphinx_node(&self) -> anyhow::Result<nym_sphinx_types::Node> {
-        Ok(nym_sphinx_types::Node::new(
-            NymNodeRoutingAddress::from(self.address).try_into()?,
+    pub(crate) fn as_sphinx_node(&self) -> nym_sphinx_types::Node {
+        // SAFETY: we know that the address is valid, so we can safely unwrap it
+        #[allow(clippy::unwrap_used)]
+        nym_sphinx_types::Node::new(
+            NymNodeRoutingAddress::from(self.address)
+                .try_into()
+                .unwrap(),
             self.sphinx_key.into(),
-        ))
+        )
     }
 
     pub(crate) fn as_noise_node(&self) -> NoiseNode {

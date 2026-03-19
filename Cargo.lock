@@ -7087,6 +7087,7 @@ dependencies = [
  "criterion",
  "libcrux-psq",
  "num_enum",
+ "nym-common",
  "nym-crypto",
  "nym-kkt",
  "nym-kkt-ciphersuite",

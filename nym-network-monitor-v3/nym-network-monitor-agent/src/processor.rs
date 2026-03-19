@@ -13,9 +13,15 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
 
+/// A decoded test packet together with its measured round-trip time.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ProcessedPacket {
+    /// The packet ID copied from the embedded [`TestPacketContent`].
     pub(crate) id: u64,
+
+    /// Round-trip time measured from when the packet was created to when it was received.
+    /// This includes both the sphinx delay and the network transit time; callers should
+    /// subtract `config.packet_delay` to obtain the network-only latency.
     pub(crate) rtt: Duration,
 }
 
@@ -25,8 +31,18 @@ impl Display for ProcessedPacket {
     }
 }
 
+/// Strategy used to decrypt a returning sphinx packet and extract its [`TestPacketContent`].
+///
+/// When the agent operates with a reusable header it already holds the payload key, so
+/// only the payload needs unwrapping. When it builds a fresh header per-packet the full
+/// sphinx processing path (DH + decryption) must be performed using the agent's private key.
 pub(crate) enum PayloadRecovery {
+    /// The agent holds a pre-built [`TestPacketHeader`] whose payload key can be used to
+    /// unwrap the payload directly, skipping the full sphinx processing step.
     ReusableHeader(TestPacketHeader),
+
+    /// The agent must perform full sphinx processing using its private key to decrypt
+    /// the payload, as no pre-built header is available.
     FullProcessing(Arc<x25519::KeyPair>),
 }
 
@@ -43,6 +59,8 @@ impl From<Arc<x25519::KeyPair>> for PayloadRecovery {
 }
 
 impl PayloadRecovery {
+    /// Decrypts `received` and deserialises its payload into a [`TestPacketContent`].
+    /// Returns an error if decryption fails or the packet is not addressed to the final hop.
     pub(crate) fn recover_test_payload(
         &self,
         received: SphinxPacket,
@@ -61,14 +79,28 @@ impl PayloadRecovery {
     }
 }
 
+/// Receives raw sphinx packets forwarded by the [`MixnetListener`](crate::listener::MixnetListener),
+/// decrypts them, and exposes them as [`ProcessedPacket`]s with RTT measurements.
+///
+/// The processor owns one half of an unbounded channel; the sender half is cloned and handed
+/// to the listener via [`sender`](Self::sender). Packets can be consumed one at a time with
+/// [`next_packet`](Self::next_packet) or drained in bulk with [`all_available`](Self::all_available).
 pub(crate) struct MixnetPacketProcessor {
+    /// Decryption strategy: either reuse a pre-built header or perform full sphinx processing.
     payload_recovery: PayloadRecovery,
+
+    /// How long [`next_packet`](Self::next_packet) will wait before returning a timeout error.
     receive_timeout: Duration,
+
+    /// Sender half kept alive so the channel stays open as long as the processor exists.
     sender: MixnetPacketsSender,
+
+    /// Receiver half polled by [`next_packet`](Self::next_packet) and [`all_available`](Self::all_available).
     receiver: MixnetPacketsReceiver,
 }
 
 impl MixnetPacketProcessor {
+    /// Creates a new processor along with an internal channel for receiving packets.
     pub(crate) fn new(payload_recovery: PayloadRecovery, receive_timeout: Duration) -> Self {
         let (sender, receiver) = unbounded();
 
@@ -80,10 +112,12 @@ impl MixnetPacketProcessor {
         }
     }
 
+    /// Returns a clone of the sender half so the listener can forward packets to this processor.
     pub(crate) fn sender(&self) -> MixnetPacketsSender {
         self.sender.clone()
     }
 
+    /// Decrypts a [`ReceivedPacket`] and computes its RTT from the embedded send timestamp.
     fn process_received(&self, packet: ReceivedPacket) -> anyhow::Result<ProcessedPacket> {
         let sphinx_packet = packet
             .received
@@ -99,6 +133,9 @@ impl MixnetPacketProcessor {
         })
     }
 
+    /// Drains all packets currently available in the channel without blocking.
+    /// Returns a vec of results — decryption failures are included as `Err` entries rather
+    /// than causing the entire drain to abort.
     pub(crate) fn all_available(&mut self) -> Vec<anyhow::Result<ProcessedPacket>> {
         let mut packets = Vec::new();
         while let Ok(Some(pending)) = self.receiver.try_next() {
@@ -108,6 +145,8 @@ impl MixnetPacketProcessor {
         packets
     }
 
+    /// Waits for the next packet, up to `receive_timeout`.
+    /// Returns `Err` on timeout, channel exhaustion, or decryption failure.
     pub(crate) async fn next_packet(&mut self) -> anyhow::Result<ProcessedPacket> {
         let packet = timeout(self.receive_timeout, self.receiver.next())
             .await?

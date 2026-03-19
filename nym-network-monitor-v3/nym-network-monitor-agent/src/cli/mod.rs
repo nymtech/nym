@@ -18,6 +18,7 @@ fn pretty_build_info_static() -> &'static str {
     PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
+/// Top-level CLI entry point for the network monitor agent.
 #[derive(Parser, Debug)]
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
@@ -26,6 +27,7 @@ pub(crate) struct Cli {
 }
 
 impl Cli {
+    /// Dispatches execution to the subcommand selected by the user.
     pub(crate) async fn execute(self) -> anyhow::Result<()> {
         match self.command {
             Command::BuildInfo(args) => build_info::execute(args),

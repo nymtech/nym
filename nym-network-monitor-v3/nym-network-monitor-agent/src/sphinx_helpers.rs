@@ -1,8 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::agent::test_packet::TestPacketContent;
-use anyhow::Context;
+use crate::test_packet::TestPacketHeader;
 use arrayref::array_ref;
 use hkdf::Hkdf;
 use nym_crypto::aes::cipher::crypto_common::rand_core::OsRng;
@@ -14,59 +13,11 @@ use nym_sphinx_types::constants::{
 use nym_sphinx_types::crypto::STREAM_CIPHER_KEY_SIZE;
 use nym_sphinx_types::{
     DESTINATION_ADDRESS_LENGTH, Delay, Destination, DestinationAddressBytes, IDENTIFIER_LENGTH,
-    Node, PAYLOAD_KEY_SIZE, Payload, PayloadKey, SphinxHeader, SphinxPacket, SphinxPacketBuilder,
-    derive_payload_key,
+    Node, PAYLOAD_KEY_SIZE, PayloadKey, SphinxPacket, SphinxPacketBuilder, derive_payload_key,
 };
 use sha2::Sha256;
 use std::time::Duration;
 use x25519_dalek::{PublicKey, StaticSecret};
-
-pub(crate) struct TestPacketHeader {
-    pub(crate) header: SphinxHeader,
-    pub(crate) payload_key: Vec<PayloadKey>,
-}
-
-impl Clone for TestPacketHeader {
-    fn clone(&self) -> Self {
-        TestPacketHeader {
-            header: SphinxHeader {
-                shared_secret: self.header.shared_secret,
-                routing_info: self.header.routing_info.clone(),
-            },
-            payload_key: self.payload_key.clone(),
-        }
-    }
-}
-
-impl TestPacketHeader {
-    pub(crate) fn create_test_packet(
-        &self,
-        content: TestPacketContent,
-    ) -> anyhow::Result<SphinxPacket> {
-        let payload = Payload::encapsulate_message(
-            &content.to_bytes(),
-            &self.payload_key,
-            PacketSize::AckPacket.payload_size(),
-        )?;
-        Ok(SphinxPacket {
-            header: SphinxHeader {
-                shared_secret: self.header.shared_secret,
-                routing_info: self.header.routing_info.clone(),
-            },
-            payload,
-        })
-    }
-
-    pub(crate) fn recover_payload(&self, received: Payload) -> anyhow::Result<TestPacketContent> {
-        let key = self
-            .payload_key
-            .last()
-            .context("no payload keys generated")?;
-
-        let payload = received.unwrap(key)?.recover_plaintext()?;
-        TestPacketContent::from_bytes(&payload)
-    }
-}
 
 pub(crate) struct ExpandedSharedSecretWrapper(pub(crate) [u8; EXPANDED_SHARED_SECRET_LENGTH]);
 
@@ -119,11 +70,12 @@ fn dummy_destination() -> Destination {
     )
 }
 
-pub(crate) fn create_test_sphinx_packet_header(
-    route: Vec<Node>,
+pub(crate) fn build_test_sphinx_packet<'a>(
+    route: &[Node],
     delay: Duration,
-) -> anyhow::Result<TestPacketHeader> {
-    // we don't want any delays
+    initial_secret: Option<&'a StaticSecret>,
+    message: &[u8],
+) -> anyhow::Result<SphinxPacket> {
     // and the packet route is test node -> this client
     let delays = [
         Delay::new_from_nanos(delay.as_nanos() as u64),
@@ -133,11 +85,26 @@ pub(crate) fn create_test_sphinx_packet_header(
     // we use acks for their reduced size
     let payload = PacketSize::AckPacket.payload_size();
 
+    let packet = match initial_secret {
+        None => SphinxPacketBuilder::new()
+            .with_payload_size(payload)
+            .build_packet(message, &route, &destination, &delays),
+        Some(initial_secret) => SphinxPacketBuilder::new()
+            .with_payload_size(payload)
+            .with_initial_secret(&initial_secret)
+            .build_packet(message, &route, &destination, &delays),
+    }?;
+
+    Ok(packet)
+}
+
+pub(crate) fn create_test_sphinx_packet_header(
+    route: Vec<Node>,
+    delay: Duration,
+) -> anyhow::Result<TestPacketHeader> {
     let initial_secret = StaticSecret::random_from_rng(OsRng);
-    let packet = SphinxPacketBuilder::new()
-        .with_payload_size(payload)
-        .with_initial_secret(&initial_secret)
-        .build_packet("dummy-content", &route, &destination, &delays)?;
+
+    let packet = build_test_sphinx_packet(&route, delay, Some(&initial_secret), b"dummy-message")?;
 
     let header = packet.header;
 
@@ -173,6 +140,7 @@ pub(crate) fn create_test_sphinx_packet_header(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_packet::TestPacketContent;
     use nym_crypto::asymmetric::x25519;
     use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_types::ProcessedPacketData;

@@ -1,16 +1,19 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::agent::receiver::{MixnetPacketsReceiver, MixnetPacketsSender, ReceivedPacket};
-use crate::agent::sphinx_helpers::TestPacketHeader;
-use anyhow::Context;
+use crate::listener::received::{MixnetPacketsReceiver, MixnetPacketsSender, ReceivedPacket};
+use crate::test_packet::{TestPacketContent, TestPacketHeader};
+use anyhow::{Context, bail};
 use futures::StreamExt;
 use futures::channel::mpsc::unbounded;
+use nym_crypto::asymmetric::x25519;
+use nym_sphinx_types::{ProcessedPacketData, SphinxPacket};
 use std::fmt::Display;
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc::unbounded_channel;
 use tokio::time::timeout;
 
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct ProcessedPacket {
     pub(crate) id: u64,
     pub(crate) rtt: Duration,
@@ -22,19 +25,55 @@ impl Display for ProcessedPacket {
     }
 }
 
+pub(crate) enum PayloadRecovery {
+    ReusableHeader(TestPacketHeader),
+    FullProcessing(Arc<x25519::KeyPair>),
+}
+
+impl From<TestPacketHeader> for PayloadRecovery {
+    fn from(header: TestPacketHeader) -> Self {
+        PayloadRecovery::ReusableHeader(header)
+    }
+}
+
+impl From<Arc<x25519::KeyPair>> for PayloadRecovery {
+    fn from(private_key: Arc<x25519::KeyPair>) -> Self {
+        PayloadRecovery::FullProcessing(private_key)
+    }
+}
+
+impl PayloadRecovery {
+    pub(crate) fn recover_test_payload(
+        &self,
+        received: SphinxPacket,
+    ) -> anyhow::Result<TestPacketContent> {
+        match self {
+            PayloadRecovery::ReusableHeader(header) => header.recover_payload(received.payload),
+            PayloadRecovery::FullProcessing(private_key) => {
+                let ProcessedPacketData::FinalHop { payload, .. } =
+                    received.process(private_key.private_key().inner())?.data
+                else {
+                    bail!("received non final hop data")
+                };
+                TestPacketContent::from_bytes(&payload.recover_plaintext()?)
+            }
+        }
+    }
+}
+
 pub(crate) struct MixnetPacketProcessor {
-    test_header: TestPacketHeader,
+    payload_recovery: PayloadRecovery,
     receive_timeout: Duration,
     sender: MixnetPacketsSender,
     receiver: MixnetPacketsReceiver,
 }
 
 impl MixnetPacketProcessor {
-    pub(crate) fn new(test_header: TestPacketHeader, receive_timeout: Duration) -> Self {
+    pub(crate) fn new(payload_recovery: PayloadRecovery, receive_timeout: Duration) -> Self {
         let (sender, receiver) = unbounded();
 
         Self {
-            test_header,
+            payload_recovery,
             receive_timeout,
             sender,
             receiver,
@@ -51,7 +90,7 @@ impl MixnetPacketProcessor {
             .into_inner()
             .to_sphinx_packet()
             .context("the received packet was not a sphinx packet!")?;
-        let received_content = self.test_header.recover_payload(sphinx_packet.payload)?;
+        let received_content = self.payload_recovery.recover_test_payload(sphinx_packet)?;
         let latency = packet.received_at - received_content.sending_timestamp;
 
         Ok(ProcessedPacket {

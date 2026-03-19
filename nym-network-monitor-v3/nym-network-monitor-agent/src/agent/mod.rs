@@ -1,115 +1,124 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::agent::egress_connection::EgressConnection;
-use crate::agent::listener::MixnetListener;
-use crate::agent::processor::MixnetPacketProcessor;
-use crate::agent::sphinx_helpers::{TestPacketHeader, create_test_sphinx_packet_header};
-use crate::agent::test_packet::TestPacketContent;
+use crate::agent::config::Config;
+use crate::agent::result::{PacketsStatistics, TestRunResult};
+use crate::agent::tested_node::TestedNodeDetails;
+use crate::egress_connection::EgressConnection;
+use crate::listener::MixnetListener;
+use crate::listener::received::MixnetPacketsSender;
+use crate::processor::{MixnetPacketProcessor, PayloadRecovery, ProcessedPacket};
+use crate::sphinx_helpers::{build_test_sphinx_packet, create_test_sphinx_packet_header};
+use crate::test_packet::{TestPacketContent, TestPacketHeader};
 use humantime::format_duration;
 use nym_crypto::asymmetric::x25519;
-use nym_noise::config::{NoiseConfig, NoiseNetworkView, NoiseNode};
+use nym_noise::config::{NoiseConfig, NoiseNetworkView};
+use nym_pemstore::load_key;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
-use nym_sphinx_params::SphinxKeyRotation;
+use nym_sphinx_types::SphinxPacket;
 use nym_task::ShutdownToken;
-use std::collections::HashMap;
+use rand::rngs::OsRng;
+use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::pin;
 use tokio::time::{Instant, sleep};
-use tracing::{info, warn};
+use tracing::{debug, error, info, warn};
 
-mod egress_connection;
-pub(crate) mod listener;
-mod processor;
-pub(crate) mod receiver;
-mod sphinx_helpers;
-pub(crate) mod test_packet;
-
-/// Configuration for the [`NetworkMonitorAgent`], controlling packet sending behaviour during a test run.
-pub(crate) struct Config {
-    /// How long the agent should be sending test packets with the specified rate.
-    pub(crate) sending_duration: Duration,
-
-    /// How long the agent will wait to receive any leftover packets after finishing sending.
-    pub(crate) waiting_duration: Duration,
-
-    /// How long the target node should delay the packet (i.e. the sphinx delay)
-    pub(crate) packet_delay: Duration,
-
-    /// Timeout for establishing the egress connection to the node under test.
-    pub(crate) egress_connection_timeout: Duration,
-
-    /// Timeout for the completing the noise handshake.
-    pub(crate) noise_handshake_timeout: Duration,
-
-    /// Number of packets sent in a single batch per unit time.
-    pub(crate) sending_batch_size: usize,
-
-    /// Target rate of packets (per second) to be sent.
-    pub(crate) target_rate: usize,
-
-    /// Whether the agent should reuse the same header for all packets, and consequently replay them.
-    pub(crate) reuse_header: bool,
-
-    /// Address of the mixnet listener on this agent
-    pub(crate) mixnet_address: SocketAddr,
-}
-
-impl Config {
-    pub(crate) fn expected_packets(&self) -> usize {
-        (self.target_rate as f32 * self.sending_duration.as_secs_f32()).floor() as usize
-    }
-
-    pub(crate) fn batches(&self) -> usize {
-        self.expected_packets().div_ceil(self.sending_batch_size)
-    }
-
-    pub(crate) fn batch_interval(&self) -> Duration {
-        Duration::from_secs_f64(self.sending_batch_size as f64 / self.target_rate as f64)
-    }
-}
-
-pub(crate) struct TestedNodeDetails {
-    pub(crate) address: SocketAddr,
-
-    pub(crate) noise_key: x25519::PublicKey,
-
-    /// Key rotation associated with the current sphinx key of the node
-    pub(crate) key_rotation: SphinxKeyRotation,
-
-    pub(crate) sphinx_key: x25519::PublicKey,
-}
-
-impl TestedNodeDetails {
-    pub(crate) fn as_sphinx_node(&self) -> anyhow::Result<nym_sphinx_types::Node> {
-        Ok(nym_sphinx_types::Node::new(
-            NymNodeRoutingAddress::from(self.address).try_into()?,
-            self.sphinx_key.into(),
-        ))
-    }
-
-    pub(crate) fn as_noise_node(&self) -> NoiseNode {
-        NoiseNode::new_from_inner_key(self.noise_key, 1, true)
-    }
-}
+mod config;
+mod result;
+mod tested_node;
 
 pub(crate) struct NetworkMonitorAgent {
     config: Config,
 
+    packet_counter: u64,
+
+    reusable_test_header: Option<TestPacketHeader>,
+
     noise_key: Arc<x25519::KeyPair>,
 
-    sphinx_key: x25519::PrivateKey,
+    sphinx_key: Arc<x25519::KeyPair>,
 
     tested_node: TestedNodeDetails,
 }
 
-pub(crate) struct TestRunResult {
-    //
+fn as_sphinx_node(
+    address: SocketAddr,
+    pub_key: x25519::PublicKey,
+) -> anyhow::Result<nym_sphinx_types::Node> {
+    Ok(nym_sphinx_types::Node::new(
+        NymNodeRoutingAddress::from(address).try_into()?,
+        pub_key.into(),
+    ))
 }
 
 impl NetworkMonitorAgent {
+    fn new<P: AsRef<Path>>(
+        config: Config,
+        noise_key_path: P,
+        tested_node: TestedNodeDetails,
+    ) -> anyhow::Result<Self> {
+        let noise_key: x25519::PrivateKey = load_key(noise_key_path)?;
+        let sphinx_key = x25519::PrivateKey::new(&mut OsRng);
+
+        let reusable_test_header = if config.reuse_header {
+            // we don't want any delays
+            // and the packet route is test node -> this client
+            let route = vec![
+                tested_node.as_sphinx_node()?,
+                as_sphinx_node(config.mixnet_address, sphinx_key.public_key())?,
+            ];
+            let delay = config.packet_delay;
+            Some(create_test_sphinx_packet_header(route, delay)?)
+        } else {
+            None
+        };
+
+        todo!()
+        // Self {
+        //     config,
+        //     reusable_test_header,
+        //     noise_key,
+        //     sphinx_key,
+        //     tested_node,
+        // }
+    }
+    async fn establish_egress_connection(&self) -> anyhow::Result<EgressConnection> {
+        EgressConnection::establish(
+            self.config.mixnet_address,
+            self.config.egress_connection_timeout,
+            self.tested_node.key_rotation,
+            &self.noise_config(),
+        )
+        .await
+    }
+
+    fn build_packet_processor(&self) -> MixnetPacketProcessor {
+        let packet_recovery = match &self.reusable_test_header {
+            Some(header) => header.clone().into(),
+            None => self.sphinx_key.clone().into(),
+        };
+        MixnetPacketProcessor::new(packet_recovery, self.config.waiting_duration)
+    }
+
+    async fn build_mixnet_listener(
+        &self,
+        received_sender: MixnetPacketsSender,
+        shutdown_token: ShutdownToken,
+    ) -> anyhow::Result<MixnetListener> {
+        MixnetListener::new(
+            self.config.mixnet_address,
+            self.tested_node.address,
+            self.noise_config(),
+            received_sender,
+            shutdown_token.clone(),
+        )
+        .await
+    }
+
     fn noise_config(&self) -> NoiseConfig {
         let mut nodes = HashMap::new();
         nodes.insert(
@@ -126,91 +135,104 @@ impl NetworkMonitorAgent {
     }
 
     fn as_sphinx_node(&self) -> anyhow::Result<nym_sphinx_types::Node> {
-        Ok(nym_sphinx_types::Node::new(
-            NymNodeRoutingAddress::from(self.config.mixnet_address).try_into()?,
-            self.sphinx_key.public_key().into(),
-        ))
+        as_sphinx_node(self.config.mixnet_address, *self.sphinx_key.public_key())
     }
 
-    fn create_test_sphinx_packet_header(&self) -> anyhow::Result<TestPacketHeader> {
-        // we don't want any delays
-        // and the packet route is test node -> this client
-        let route = vec![self.tested_node.as_sphinx_node()?, self.as_sphinx_node()?];
-        let delay = self.config.packet_delay;
-        create_test_sphinx_packet_header(route, delay)
+    fn create_test_sphinx_packet(&mut self) -> anyhow::Result<SphinxPacket> {
+        let content = TestPacketContent::new(self.packet_counter);
+        self.packet_counter += 1;
+
+        match &self.reusable_test_header {
+            Some(header) => header.create_test_packet(content),
+            None => {
+                let route = vec![self.tested_node.as_sphinx_node()?, self.as_sphinx_node()?];
+                build_test_sphinx_packet(
+                    &route,
+                    self.config.packet_delay,
+                    None,
+                    &content.to_bytes(),
+                )
+            }
+        }
     }
 
-    pub(crate) async fn run_stress_test(&self) -> anyhow::Result<TestRunResult> {
-        let noise_config = self.noise_config();
+    fn create_packet_batch(&mut self, batch_size: usize) -> anyhow::Result<Vec<SphinxPacket>> {
+        let mut packets = Vec::with_capacity(batch_size);
+        for _ in 0..batch_size {
+            let packet = self.create_test_sphinx_packet()?;
+            packets.push(packet);
+        }
+        Ok(packets)
+    }
+
+    fn packet_latency(&self, received: ProcessedPacket) -> Duration {
+        // make sure to subtract the sphinx delay from the RTT
+        received.rtt - self.config.packet_delay
+    }
+
+    // only return error on critical, agent, failure. not on tested node issues
+    pub(crate) async fn run_stress_test(&mut self) -> anyhow::Result<TestRunResult> {
+        let mut test_result = TestRunResult::new_empty();
 
         // 1. establish the connection - if it fails, there's no point in continuing
-        let mut egress_connection = match EgressConnection::establish(
-            self.config.mixnet_address,
-            self.config.egress_connection_timeout,
-            self.tested_node.key_rotation,
-            &noise_config,
-        )
-        .await
-        {
+        let mut egress_connection = match self.establish_egress_connection().await {
             Ok(conn) => conn,
             Err(err) => {
-                todo!()
+                test_result.set_error(
+                    err.context("failed to establish egress node connection")
+                        .to_string(),
+                );
+                return Ok(test_result);
             }
         };
 
-        let mut id = 0;
-        let test_header = self.create_test_sphinx_packet_header()?;
-
-        let mut processor =
-            MixnetPacketProcessor::new(test_header.clone(), self.config.waiting_duration);
+        let mut processor = self.build_packet_processor();
         let shutdown_token = ShutdownToken::new();
-        let mut listener = MixnetListener::new(
-            self.config.mixnet_address,
-            self.tested_node.address,
-            noise_config,
-            processor.sender(),
-            shutdown_token.clone(),
-        );
+        let mut listener = self
+            .build_mixnet_listener(processor.sender(), shutdown_token.clone())
+            .await?;
 
         // 2. spawn the mixnet packet listener that forwards any received packets to the processor
         let listener_join = tokio::spawn(async move { listener.run().await });
 
-        let content = TestPacketContent::new(id);
-        let test_packet = test_header.create_test_packet(content)?;
-
         // 3. send a single packet to see if the node is even going to respond to it
+        let test_packet = self.create_test_sphinx_packet()?;
+
         info!("sending initial packet");
         egress_connection.send_packet(test_packet).await?;
         match processor.next_packet().await {
             Ok(res) => {
-                info!(
-                    "received packet {} after {}",
-                    res.id,
-                    humantime::format_duration(res.rtt)
-                )
+                info!("received {res}");
+                let latency = self.packet_latency(res);
+                test_result.set_approximate_latency(latency);
             }
-            Err(err) => todo!(),
+            Err(err) => {
+                test_result.set_error(
+                    err.context("failed to receive a valid initial packet back")
+                        .to_string(),
+                );
+                return Ok(test_result);
+            }
         }
 
         // 4. send it again to check if the node is configured correctly for testing
         // (i.e. whether the agent can bypass the bloomfilter)
         if self.config.reuse_header {
             info!("repeating the packet to check bloomfilter bypass configuration");
-
-            id += 1;
-            let content = TestPacketContent::new(id);
-            let test_packet = test_header.create_test_packet(content)?;
+            let test_packet = self.create_test_sphinx_packet()?;
             egress_connection.send_packet(test_packet).await?;
 
             match processor.next_packet().await {
                 Ok(res) => {
-                    info!(
-                        "received packet {} after {}",
-                        res.id,
-                        humantime::format_duration(res.rtt)
-                    )
+                    info!("received {res}")
                 }
-                Err(err) => todo!(),
+                Err(err) => {
+                    test_result.set_error(
+                        err.context("failed to receive a valid secondary packet back - the node might not have a working chain subscriber (or the agent might be misconfigured)")
+                            .to_string(),
+                    );
+                    return Ok(test_result);
+                }
             }
         }
 
@@ -243,13 +265,7 @@ impl NetworkMonitorAgent {
             // the last batch may be smaller than other batches
             let remaining = total_packets - sent;
             let batch_size = self.config.sending_batch_size.min(remaining);
-
-            let mut batch = Vec::with_capacity(batch_size);
-            for _ in 0..batch_size {
-                id += 1;
-                let content = TestPacketContent::new(id);
-                batch.push(test_header.create_test_packet(content)?);
-            }
+            let batch = self.create_packet_batch(batch_size)?;
 
             egress_connection.send_packet_batch(batch).await?;
             sent += batch_size;
@@ -278,6 +294,33 @@ impl NetworkMonitorAgent {
             }
         }
 
-        todo!()
+        // process received
+        let mut valid_received = HashMap::new();
+        for packet in received {
+            let Ok(packet) = packet else {
+                debug!("received packet was malformed");
+                continue;
+            };
+            if valid_received.insert(packet.id, packet).is_some() {
+                error!(
+                    "‼️ received duplicate packet for id {} - something nasty is going on!",
+                    packet.id
+                );
+                test_result.set_received_duplicates();
+            }
+        }
+
+        let latencies = valid_received
+            .values()
+            .map(|p| self.packet_latency(*p))
+            .collect::<Vec<_>>();
+
+        let stats = PacketsStatistics::compute(&latencies);
+
+        test_result.set_packets_statistics(stats);
+        test_result.set_packets_sent(sent);
+        test_result.set_packets_received(valid_received.len());
+
+        Ok(test_result)
     }
 }

@@ -38,6 +38,23 @@ pub(crate) struct MixnetListener {
 }
 
 impl MixnetListener {
+    /// Creates a new [`MixnetListener`] ready to be started with [`run`](Self::run).
+    pub(crate) fn new(
+        bind_address: SocketAddr,
+        tested_node_address: SocketAddr,
+        noise_config: NoiseConfig,
+        received_packets_sender: MixnetPacketsSender,
+        shutdown: ShutdownToken,
+    ) -> Self {
+        Self {
+            bind_address,
+            tested_node_address,
+            noise_config,
+            received_packets_sender,
+            shutdown,
+        }
+    }
+
     /// Reads sphinx packets from an established, noise-encrypted stream and forwards
     /// each one to the receiver until the connection is closed or an error occurs.
     async fn handle_stream(&self, mut mixnet_connection: Framed<Connection<TcpStream>, NymCodec>) {
@@ -56,7 +73,7 @@ impl MixnetListener {
 
             if self
                 .received_packets_sender
-                .send(ReceivedPacket::new(next_packet))
+                .unbounded_send(ReceivedPacket::new(next_packet))
                 .is_err()
             {
                 warn!("mixnet packet receiver has shut down - is the agent still running?");
@@ -75,7 +92,7 @@ impl MixnetListener {
             );
             return;
         }
-        info!("accepted connection from {source}. beginning the noise handshake");
+        info!("accepted connection from {source}. beginning the noise handshake (responder)");
 
         let noise_handshake_start = Instant::now();
         let noise_stream = match upgrade_noise_responder(socket, &self.noise_config).await {
@@ -100,7 +117,7 @@ impl MixnetListener {
     }
 
     /// Binds the TCP listener and processes one connection at a time until the shutdown token is cancelled.
-    pub(crate) async fn run(&mut self, shutdown: ShutdownToken) {
+    pub(crate) async fn run(&mut self) {
         let bind_address = self.bind_address;
         info!("attempting to run mixnet listener on {bind_address}");
 
@@ -108,7 +125,7 @@ impl MixnetListener {
             Ok(listener) => listener,
             Err(err) => {
                 error!("Failed to the mixnet listener bind to {bind_address}: {err}");
-                shutdown.cancel();
+                self.shutdown.cancel();
                 return;
             }
         };
@@ -118,7 +135,7 @@ impl MixnetListener {
         loop {
             tokio::select! {
                 biased;
-                _ = shutdown.cancelled() => {
+                _ = self.shutdown.cancelled() => {
                     tracing::debug!("mixnet listener: received shutdown");
                     break
                 }

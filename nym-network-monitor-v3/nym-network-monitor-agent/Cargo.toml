@@ -16,15 +16,26 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 futures = { workspace = true }
 humantime = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+nym-sphinx-types = { workspace = true }
+nym-sphinx-params = { workspace = true }
+nym-sphinx-framing = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+nym-noise = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
+
 
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
     "output_format",
 ] }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
+nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
 
 [lints]

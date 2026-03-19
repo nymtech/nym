@@ -1,3 +1,5 @@
+use tracing::instrument;
+
 use crate::cli::{GwProbe, ServerConfig};
 
 pub(crate) async fn run_probe(
@@ -46,7 +48,7 @@ pub(crate) async fn run_probe(
 
     let testrun_id = testrun.assignment.testrun_id;
     let testrun_assigned_at = testrun.assignment.assigned_at_utc;
-    let gateway_identity_key = testrun.assignment.gateway_identity_key;
+    let gateway_identity_key = testrun.assignment.gateway_identity_key.clone();
 
     tracing::info!("Received testrun {testrun_id} for gateway {gateway_identity_key} from primary",);
 
@@ -61,7 +63,7 @@ pub(crate) async fn run_probe(
     // Extract JSON from log output (probe outputs logs followed by JSON)
     let json_str = extract_json_from_log(&log);
     if json_str.is_empty() {
-        tracing::error!("Failed to extract JSON from probe output");
+        tracing::warn!("Failed to extract JSON from probe output");
     } else {
         match serde_json::from_str::<serde_json::Value>(&json_str) {
             Ok(json) => {
@@ -87,13 +89,32 @@ pub(crate) async fn run_probe(
         }
     }
 
-    // Submit to ALL servers in parallel
+    submit_results_to_servers(
+        servers,
+        testrun_id,
+        testrun_assigned_at,
+        &gateway_identity_key,
+        log,
+    )
+    .await;
+
+    Ok(())
+}
+
+#[instrument(level = "info", skip_all, fields(gateway_id = %gateway_identity_key, testrun = testrun_id))]
+async fn submit_results_to_servers(
+    servers: &[ServerConfig],
+    testrun_id: i32,
+    testrun_assigned_at: i64,
+    gateway_identity_key: &str,
+    log: String,
+) {
     let handles = servers
         .iter()
         .enumerate()
-        .map(move |(idx, server)| {
+        .map(|(idx, server)| {
             let log = log.clone();
-            let gateway_identity_key = gateway_identity_key.clone();
+            let gateway_identity_key = gateway_identity_key.to_string();
 
             async move {
                 let auth_key = nym_crypto::asymmetric::ed25519::PrivateKey::from_bytes(
@@ -139,7 +160,7 @@ pub(crate) async fn run_probe(
         match result {
             Ok(()) => {
                 tracing::info!(
-                    "✅ Successfully submitted {method} to server[{index}] {server_address}:{server_port}"
+                    "✅ Successfully submitted {method} to server[{index}] {server_address}:{server_port}",
                 );
             }
             Err(e) => {
@@ -149,8 +170,6 @@ pub(crate) async fn run_probe(
             }
         }
     }
-
-    Ok(())
 }
 
 /// Extract JSON from probe log output.

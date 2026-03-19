@@ -179,11 +179,15 @@ impl IpPacketResponse {
         make_bincode_serializer().serialize(self)
     }
 
+    pub fn from_bytes(data: &[u8]) -> Result<Self, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().deserialize(data)
+    }
+
     pub fn from_reconstructed_message(
         message: &nym_sphinx::receiver::ReconstructedMessage,
     ) -> Result<Self, bincode::Error> {
-        use bincode::Options;
-        make_bincode_serializer().deserialize(&message.message)
+        Self::from_bytes(&message.message)
     }
 }
 

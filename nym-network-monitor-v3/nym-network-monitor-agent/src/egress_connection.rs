@@ -3,6 +3,7 @@
 
 use anyhow::bail;
 use futures::{SinkExt, stream};
+use humantime::format_duration;
 use nym_noise::config::NoiseConfig;
 use nym_noise::connection::Connection;
 use nym_noise::upgrade_noise_initiator;
@@ -14,7 +15,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::{Instant, timeout};
 use tokio_util::codec::Framed;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 /// Timing statistics collected over the lifetime of an [`EgressConnection`].
 pub(crate) struct EgressConnectionStatistics {
@@ -63,6 +64,10 @@ impl EgressConnection {
         }
 
         let noise_handshake_duration = noise_handshake_start.elapsed();
+        info!(
+            "noise handshake with {address} completed in {}",
+            format_duration(noise_handshake_duration)
+        );
 
         Ok(Self {
             connection_statistics: EgressConnectionStatistics {
@@ -93,6 +98,7 @@ impl EgressConnection {
         &mut self,
         packets: Vec<SphinxPacket>,
     ) -> anyhow::Result<()> {
+        let count = packets.len();
         let send_start = Instant::now();
         self.mixnet_connection
             .send_all(&mut stream::iter(packets.into_iter().map(|p| {
@@ -104,9 +110,14 @@ impl EgressConnection {
                 ))
             })))
             .await?;
+        let elapsed = send_start.elapsed();
         self.connection_statistics
             .packet_batches_sending_duration
-            .push(send_start.elapsed());
+            .push(elapsed);
+        debug!(
+            "sent batch of {count} packets in {}",
+            format_duration(elapsed)
+        );
         Ok(())
     }
 }

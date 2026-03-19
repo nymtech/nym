@@ -4,11 +4,11 @@
 use crate::sphinx_helpers::as_sphinx_node;
 use nym_crypto::asymmetric::x25519;
 use nym_noise::config::NoiseNode;
-use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_params::SphinxKeyRotation;
 use std::net::SocketAddr;
 
 /// Identity and addressing information for the node being tested in a stress-test run.
+#[derive(Debug)]
 pub(crate) struct TestedNodeDetails {
     /// TCP socket address of the node's mixnet listener, used for the egress connection.
     pub(crate) address: SocketAddr,

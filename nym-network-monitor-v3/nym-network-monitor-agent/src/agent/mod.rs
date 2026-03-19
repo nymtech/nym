@@ -17,12 +17,10 @@ use humantime::format_duration;
 use nym_crypto::asymmetric::x25519;
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_pemstore::load_key;
-use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::SphinxPacket;
 use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -82,6 +80,12 @@ impl NetworkMonitorAgent {
         noise_key_path: P,
         tested_node: TestedNodeDetails,
     ) -> anyhow::Result<Self> {
+        info!("using the following agent config");
+        info!("{config:#?}");
+
+        info!("testing the following node");
+        info!("{tested_node:#?}");
+
         let noise_key: x25519::PrivateKey = load_key(noise_key_path)?;
         let sphinx_key = x25519::PrivateKey::new(&mut OsRng);
 
@@ -404,8 +408,16 @@ impl NetworkMonitorAgent {
             .map(|p| self.packet_latency(*p))
             .collect::<Vec<_>>();
 
-        result.set_packets_received(valid_received.len());
+        let received_count = valid_received.len();
+        result.set_packets_received(received_count);
         result.set_packets_statistics(LatencyDistribution::compute(&latencies));
+
+        info!(
+            sent = result.packets_sent,
+            received = received_count,
+            recv_pct = format!("{:.1}", result.received_percentage()),
+            "load test complete"
+        );
     }
 
     /// Runs a full stress-test against the configured node and returns the collected results.

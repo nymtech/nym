@@ -3,6 +3,7 @@
 
 use super::env::vars::*;
 use nym_crypto::asymmetric::x25519;
+use tracing::info;
 
 /// Arguments for the `keygen` subcommand.
 #[derive(clap::Args, Debug)]
@@ -18,5 +19,6 @@ pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
     let noise_key = x25519::PrivateKey::new(&mut rng);
 
     nym_pemstore::store_key(&noise_key, &args.noise_key_path)?;
+    info!("noise key written to '{}'", args.noise_key_path);
     Ok(())
 }

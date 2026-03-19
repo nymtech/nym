@@ -181,7 +181,6 @@ impl IpPacketRouter {
             shutdown_token: self.shutdown.clone_shutdown_token(),
             connected_clients,
             kcp_session_manager: crate::kcp_session_manager::KcpSessionManager::new(),
-            current_stream_id: None,
         };
 
         log::info!("The address of this client is: {self_address}");

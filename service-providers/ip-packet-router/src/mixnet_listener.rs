@@ -22,12 +22,9 @@ use crate::{
     request_filter::RequestFilter,
     util::parse_ip::ParsedPacket,
 };
-use bytes::BytesMut;
 use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
-use nym_lp::packet::frame::{
-    LpFrame, LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
-};
+use nym_lp::packet::frame::{LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes};
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownToken;
@@ -67,10 +64,6 @@ pub(crate) struct MixnetListener {
 
     // KCP session manager for LP clients sending KCP-wrapped messages
     pub(crate) kcp_session_manager: KcpSessionManager,
-
-    // When processing an LP Stream frame, this holds the stream_id so connect
-    // handlers can pass it to ConnectedClientHandler for LP-wrapping TUN responses.
-    pub(crate) current_stream_id: Option<u64>,
 }
 
 /// Check if a message payload appears to be KCP-wrapped.
@@ -180,11 +173,19 @@ impl MixnetListener {
         let decoder = MultiIpPacketCodec::new();
         let mut framed_reader = FramedRead::new(data_request.ip_packets.as_ref(), decoder);
 
-        while let Some(Ok(packet)) = framed_reader.next().await {
-            let result = self
-                .handle_packet(packet.as_bytes(), data_request.version)
-                .await;
-            responses.push(result);
+        while let Some(result) = framed_reader.next().await {
+            match result {
+                Ok(packet) => {
+                    let result = self
+                        .handle_packet(packet.as_bytes(), data_request.version)
+                        .await;
+                    responses.push(result);
+                }
+                Err(e) => {
+                    log::warn!("Failed to decode bundled IP packet: {e}");
+                    break;
+                }
+            }
         }
 
         Ok(responses)
@@ -195,6 +196,7 @@ impl MixnetListener {
     async fn on_static_connect_request(
         &mut self,
         connect_request: StaticConnectRequest,
+        stream_id: Option<u64>,
     ) -> PacketHandleResult {
         log::info!(
             "Received static connect request from {}",
@@ -217,6 +219,31 @@ impl MixnetListener {
         let is_client_id_taken = self.connected_clients.is_client_connected(&sent_by);
 
         let response = match (is_ip_taken, is_client_id_taken) {
+            (true, true) if stream_id.is_some() => {
+                // Stream-mode reconnect: tear down the old handler (which has a
+                // stale stream_id) and create a fresh one for the new stream.
+                log::info!("Stream-mode client reconnecting, replacing handler");
+                self.connected_clients.disconnect_client(&sent_by);
+
+                let (forward_from_tun_tx, close_tx, handle) = ConnectedClientHandler::start(
+                    sent_by.clone(),
+                    buffer_timeout,
+                    version,
+                    self.mixnet_client.split_sender(),
+                    stream_id,
+                );
+                self.connected_clients.connect(
+                    requested_ips,
+                    sent_by.clone(),
+                    forward_from_tun_tx,
+                    close_tx,
+                    handle,
+                );
+                Response::StaticConnect {
+                    request_id,
+                    reply: StaticConnectResponse::Success,
+                }
+            }
             (true, true) => {
                 log::info!("Connecting an already connected client");
                 if self
@@ -241,7 +268,7 @@ impl MixnetListener {
                     buffer_timeout,
                     version,
                     self.mixnet_client.split_sender(),
-                    self.current_stream_id,
+                    stream_id,
                 );
 
                 // Register the new client in the set of connected clients
@@ -283,6 +310,7 @@ impl MixnetListener {
     fn on_dynamic_connect_request(
         &mut self,
         connect_request: DynamicConnectRequest,
+        stream_id: Option<u64>,
     ) -> PacketHandleResult {
         log::info!(
             "Received dynamic connect request from {}",
@@ -298,15 +326,22 @@ impl MixnetListener {
             .unwrap_or(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
 
         if let Some(ips) = self.connected_clients.lookup_ip_from_client_id(&reply_to) {
-            log::debug!("Reconnecting to the previous session");
-            return Ok(Some(VersionedResponse {
-                version,
-                reply_to,
-                response: Response::DynamicConnect {
-                    request_id,
-                    reply: DynamicConnectSuccess { ips }.into(),
-                },
-            }));
+            if stream_id.is_some() {
+                // Stream-mode reconnect: tear down old handler (stale stream_id)
+                // and create a fresh one below with the new stream.
+                log::info!("Stream-mode client reconnecting, replacing handler");
+                self.connected_clients.disconnect_client(&reply_to);
+            } else {
+                log::debug!("Reconnecting to the previous session");
+                return Ok(Some(VersionedResponse {
+                    version,
+                    reply_to,
+                    response: Response::DynamicConnect {
+                        request_id,
+                        reply: DynamicConnectSuccess { ips }.into(),
+                    },
+                }));
+            }
         }
 
         let Some(new_ips) = self.connected_clients.find_new_ip() else {
@@ -327,7 +362,7 @@ impl MixnetListener {
             buffer_timeout,
             version,
             self.mixnet_client.split_sender(),
-            self.current_stream_id,
+            stream_id,
         );
 
         // Register the new client in the set of connected clients
@@ -413,10 +448,14 @@ impl MixnetListener {
         }))
     }
 
-    async fn on_control_request(&mut self, control_request: ControlRequest) -> PacketHandleResult {
+    async fn on_control_request(
+        &mut self,
+        control_request: ControlRequest,
+        stream_id: Option<u64>,
+    ) -> PacketHandleResult {
         match control_request {
-            ControlRequest::StaticConnect(r) => self.on_static_connect_request(r).await,
-            ControlRequest::DynamicConnect(r) => self.on_dynamic_connect_request(r),
+            ControlRequest::StaticConnect(r) => self.on_static_connect_request(r, stream_id).await,
+            ControlRequest::DynamicConnect(r) => self.on_dynamic_connect_request(r, stream_id),
             ControlRequest::Disconnect(r) => self.on_disconnect_request(r),
             ControlRequest::Ping(r) => self.on_ping_request(r),
             ControlRequest::Health(r) => self.on_health_request(r),
@@ -451,7 +490,7 @@ impl MixnetListener {
             && let Ok(header) = LpFrameHeader::parse(&reconstructed.message)
             && header.kind == LpFrameKind::SphinxStream
         {
-            return self.on_stream_frame(reconstructed).await;
+            return self.on_stream_frame(reconstructed, header).await;
         }
 
         // Check if this is a KCP-wrapped message from an LP client
@@ -460,7 +499,7 @@ impl MixnetListener {
         }
 
         // Regular IPR protocol message (websocket clients)
-        self.on_ipr_message(reconstructed).await
+        self.on_ipr_message(reconstructed, None).await
     }
 
     /// Handle LP Stream-framed messages.
@@ -470,14 +509,13 @@ impl MixnetListener {
     async fn on_stream_frame(
         &mut self,
         reconstructed: ReconstructedMessage,
+        header: LpFrameHeader,
     ) -> Result<Vec<PacketHandleResult>> {
         log::debug!(
             "Received LP Stream frame ({} bytes)",
             reconstructed.message.len()
         );
 
-        let header = LpFrameHeader::parse(&reconstructed.message)
-            .map_err(|e| IpPacketRouterError::Other(format!("Invalid LP frame header: {e}")))?;
         let attrs = SphinxStreamFrameAttributes::parse(&header.frame_attributes).map_err(|e| {
             IpPacketRouterError::Other(format!("Invalid stream frame attributes: {e}"))
         })?;
@@ -489,15 +527,11 @@ impl MixnetListener {
             attrs.sequence_num
         );
 
-        // Set context so connect handlers thread stream_id to ConnectedClientHandler
-        self.current_stream_id = Some(stream_id);
-
         let payload = &reconstructed.message[LpFrameHeader::SIZE..];
 
-        // Open frames may carry an empty payload (stream handshake only)
+        // Open frames may carry an empty payload (stream handshake).
         if payload.is_empty() {
             log::debug!("LP Stream: empty payload (Open handshake), skipping");
-            self.current_stream_id = None;
             return Ok(vec![]);
         }
 
@@ -506,7 +540,10 @@ impl MixnetListener {
             sender_tag: reconstructed.sender_tag,
         };
 
-        match self.on_ipr_message(inner_reconstructed).await {
+        match self
+            .on_ipr_message(inner_reconstructed, Some(stream_id))
+            .await
+        {
             Ok(results) => {
                 for result in results {
                     #[allow(clippy::collapsible_if)]
@@ -524,15 +561,27 @@ impl MixnetListener {
             }
         }
 
-        self.current_stream_id = None;
-
         // Return empty — we handled responses directly above
         Ok(vec![])
     }
 
     /// Wrap a response in an LP Stream frame and send it via the mixnet.
     ///
-    /// Used for inline responses to LP Stream clients (connect handshake, pong, etc.).
+    /// Used for inline control responses (connect handshake, pong, health)
+    /// that are sent directly from the message handler — outside the
+    /// `ConnectedClientHandler` which owns the data-path sequence counter.
+    ///
+    /// # Sequence numbering
+    ///
+    /// These inline responses always use **seq=0**. The data-path counter in
+    /// `ConnectedClientHandler` starts at 1 and skips 0 on wrap-around, so
+    /// the two paths never collide.
+    ///
+    /// Limitation: if multiple inline responses are sent on the same stream
+    /// (e.g. connect + later pong), they share seq=0. This is fine today
+    /// because the client doesn't order by sequence number yet. When
+    /// ordering is added, control responses will need their own counter or
+    /// be routed through the handler's counter.
     async fn handle_stream_response(
         &mut self,
         stream_id: u64,
@@ -541,18 +590,9 @@ impl MixnetListener {
         let reply_to = response.reply_to.clone();
         let response_bytes = response.try_into_bytes()?;
 
-        // Wrap in LP Stream frame (seq=0 for inline responses)
-        let attrs = SphinxStreamFrameAttributes {
-            stream_id,
-            msg_type: SphinxStreamMsgType::Data,
-            sequence_num: 0,
-        };
-        let frame = LpFrame::new_stream(attrs, response_bytes);
-        let mut buf = BytesMut::with_capacity(LpFrameHeader::SIZE + frame.content.len());
-        frame.encode(&mut buf);
+        let wrapped = crate::clients::encode_stream_frame(stream_id, 0, response_bytes);
 
-        let input_message =
-            crate::util::create_message::create_input_message(&reply_to, buf.to_vec());
+        let input_message = crate::util::create_message::create_input_message(&reply_to, wrapped);
 
         self.mixnet_client.send(input_message).await.map_err(|err| {
             IpPacketRouterError::FailedToSendPacketToMixnet {
@@ -576,20 +616,13 @@ impl MixnetListener {
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0);
 
-        // Process the KCP data through the session manager.
-        // AIDEV-NOTE: Reply mechanism for LP clients:
-        // 1. LP clients MUST send SURBs (in RepliableMessage) when connecting/sending data
-        // 2. The SDK's client-core layer (ReceivedMessagesBuffer + ReplyController) automatically
-        //    extracts SURBs from incoming RepliableMessages and stores them keyed by sender_tag
-        // 3. When we call InputMessage::new_reply(sender_tag, ...), the SDK looks up stored SURBs
-        // 4. The vec![] here is for KcpSessionManager's internal SURB storage (currently unused)
-        //    since the SDK handles SURB storage at a lower layer
-        // 5. If replies fail, check that LP client is sending SURBs in its messages
+        // LP clients send SURBs via RepliableMessage; the SDK's ReplyController
+        // stores them keyed by sender_tag, so vec![] here is unused.
         let processing_result = self
             .kcp_session_manager
             .process_incoming(
                 &reconstructed.message,
-                vec![], // SDK handles SURB extraction/storage automatically
+                vec![],
                 reconstructed.sender_tag,
                 current_time_ms,
             )
@@ -614,7 +647,7 @@ impl MixnetListener {
                 sender_tag: reconstructed.sender_tag,
             };
 
-            match self.on_ipr_message(inner_reconstructed).await {
+            match self.on_ipr_message(inner_reconstructed, None).await {
                 Ok(results) => {
                     // Handle responses by wrapping in KCP and sending directly
                     for result in results {
@@ -663,14 +696,6 @@ impl MixnetListener {
             self.kcp_session_manager
                 .wrap_response(conv_id, &response_bytes, current_time_ms)?;
 
-        log::debug!(
-            "KCP conv_id={}: wrapped {} byte response into {} bytes",
-            conv_id,
-            response_bytes.len(),
-            kcp_wrapped.len()
-        );
-
-        // Send via mixnet using the sender_tag reply mechanism
         let input_message =
             crate::util::create_message::create_input_message(&reply_to, kcp_wrapped);
 
@@ -682,9 +707,14 @@ impl MixnetListener {
     }
 
     /// Handle regular IPR protocol messages (from websocket clients).
+    ///
+    /// `stream_id` is `Some` when processing a payload extracted from an LP
+    /// Stream frame, so that connect handlers can thread the id to the
+    /// `ConnectedClientHandler` for LP-wrapping TUN responses.
     async fn on_ipr_message(
         &mut self,
         reconstructed: ReconstructedMessage,
+        stream_id: Option<u64>,
     ) -> Result<Vec<PacketHandleResult>> {
         // First deserialize the request
         let request = match IpPacketRequest::try_from(&reconstructed) {
@@ -699,7 +729,9 @@ impl MixnetListener {
 
         match request {
             IpPacketRequest::Data(request) => self.on_data_request(request).await,
-            IpPacketRequest::Control(request) => Ok(vec![self.on_control_request(request).await]),
+            IpPacketRequest::Control(request) => {
+                Ok(vec![self.on_control_request(request, stream_id).await])
+            }
         }
     }
 

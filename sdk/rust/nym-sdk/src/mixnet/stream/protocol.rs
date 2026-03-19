@@ -4,10 +4,10 @@
 //! the payload inside the mixnet message body:
 //!
 //! ```text
-//! [LpFrameKind: 2 bytes LE][StreamFrameAttributes: 14 bytes][payload: N bytes]
+//! [LpFrameKind: 2 bytes LE][SphinxStreamFrameAttributes: 14 bytes][payload: N bytes]
 //! ```
 //!
-//! The `StreamFrameAttributes` encode stream_id, message type, and sequence
+//! The `SphinxStreamFrameAttributes` encode stream_id, message type, and sequence
 //! number inside the LP header's `frame_attributes` field. This is the same
 //! LP frame format used across the system (IPR detection, gateway dispatch).
 
@@ -15,7 +15,7 @@ use std::fmt;
 
 use bytes::BytesMut;
 use nym_lp::packet::frame::{
-    LpFrame, LpFrameHeader, LpFrameKind, StreamFrameAttributes, StreamMsgType,
+    LpFrame, LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
 
 /// Identifies a stream within a MixnetClient.
@@ -52,7 +52,7 @@ impl fmt::Display for StreamId {
 #[derive(Debug)]
 pub struct StreamFrame<'a> {
     pub stream_id: StreamId,
-    pub msg_type: StreamMsgType,
+    pub msg_type: SphinxStreamMsgType,
     #[allow(dead_code)] // will be used for reordering
     pub sequence_num: u32,
     pub data: &'a [u8],
@@ -61,11 +61,11 @@ pub struct StreamFrame<'a> {
 /// Encode a stream message as an LP frame: `[LpFrameHeader][payload]`.
 pub fn encode_stream_message(
     id: &StreamId,
-    msg_type: StreamMsgType,
+    msg_type: SphinxStreamMsgType,
     sequence_num: u32,
     payload: &[u8],
 ) -> Vec<u8> {
-    let attrs = StreamFrameAttributes {
+    let attrs = SphinxStreamFrameAttributes {
         stream_id: id.as_u64(),
         msg_type,
         sequence_num,
@@ -86,11 +86,11 @@ pub fn decode_stream_message(bytes: &[u8]) -> Option<StreamFrame<'_>> {
     }
 
     let header = LpFrameHeader::parse(bytes).ok()?;
-    if header.kind != LpFrameKind::Stream {
+    if header.kind != LpFrameKind::SphinxStream {
         return None;
     }
 
-    let attrs = StreamFrameAttributes::parse(&header.frame_attributes).ok()?;
+    let attrs = SphinxStreamFrameAttributes::parse(&header.frame_attributes).ok()?;
     let data = &bytes[LpFrameHeader::SIZE..];
 
     Some(StreamFrame {
@@ -109,10 +109,10 @@ mod tests {
     fn roundtrip() {
         let id = StreamId::random();
         let payload = b"hello world";
-        let encoded = encode_stream_message(&id, StreamMsgType::Data, 42, payload);
+        let encoded = encode_stream_message(&id, SphinxStreamMsgType::Data, 42, payload);
         let frame = decode_stream_message(&encoded).unwrap();
         assert_eq!(frame.stream_id, id);
-        assert_eq!(frame.msg_type, StreamMsgType::Data);
+        assert_eq!(frame.msg_type, SphinxStreamMsgType::Data);
         assert_eq!(frame.sequence_num, 42);
         assert_eq!(frame.data, payload);
     }
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn bad_msg_type() {
         let id = StreamId::random();
-        let mut encoded = encode_stream_message(&id, StreamMsgType::Data, 0, b"x");
+        let mut encoded = encode_stream_message(&id, SphinxStreamMsgType::Data, 0, b"x");
         // msg_type is at byte offset 2 + 8 = 10 (inside frame_attributes)
         encoded[10] = 0xFF;
         assert!(decode_stream_message(&encoded).is_none());
@@ -142,9 +142,9 @@ mod tests {
     #[test]
     fn empty_payload() {
         let id = StreamId::random();
-        let encoded = encode_stream_message(&id, StreamMsgType::Open, 0, &[]);
+        let encoded = encode_stream_message(&id, SphinxStreamMsgType::Open, 0, &[]);
         let frame = decode_stream_message(&encoded).unwrap();
-        assert_eq!(frame.msg_type, StreamMsgType::Open);
+        assert_eq!(frame.msg_type, SphinxStreamMsgType::Open);
         assert_eq!(frame.sequence_num, 0);
         assert!(frame.data.is_empty());
     }
@@ -152,12 +152,12 @@ mod tests {
     #[test]
     fn header_wire_format() {
         let id = StreamId::from_u64(0x0011223344556677);
-        let encoded = encode_stream_message(&id, StreamMsgType::Open, 1, &[0xAA]);
+        let encoded = encode_stream_message(&id, SphinxStreamMsgType::Open, 1, &[0xAA]);
 
         // LpFrameHeader::SIZE (16) + 1 byte payload
         assert_eq!(encoded.len(), LpFrameHeader::SIZE + 1);
 
-        // First 2 bytes: LpFrameKind::Stream = 3, LE
+        // First 2 bytes: LpFrameKind::SphinxStream = 3, LE
         assert_eq!(encoded[0], 0x03);
         assert_eq!(encoded[1], 0x00);
 
@@ -168,7 +168,7 @@ mod tests {
         );
 
         // Byte 10: msg_type = Open = 0
-        assert_eq!(encoded[10], StreamMsgType::Open as u8);
+        assert_eq!(encoded[10], SphinxStreamMsgType::Open as u8);
 
         // Bytes 11..15: sequence_num = 1, BE
         assert_eq!(&encoded[11..15], &[0x00, 0x00, 0x00, 0x01]);
@@ -184,7 +184,7 @@ mod tests {
     fn sequence_num_roundtrip() {
         let id = StreamId::random();
         for seq in [0, 1, 255, 65535, u32::MAX] {
-            let encoded = encode_stream_message(&id, StreamMsgType::Data, seq, b"test");
+            let encoded = encode_stream_message(&id, SphinxStreamMsgType::Data, seq, b"test");
             let frame = decode_stream_message(&encoded).unwrap();
             assert_eq!(frame.sequence_num, seq);
         }

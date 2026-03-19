@@ -32,7 +32,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
 
-use nym_lp::packet::frame::StreamMsgType;
+use nym_lp::packet::frame::SphinxStreamMsgType;
 use protocol::{decode_stream_message, encode_stream_message};
 
 use crate::mixnet::native_client::MixnetClient;
@@ -233,14 +233,14 @@ async fn run_router(
 
             let stream_id = frame.stream_id;
             match frame.msg_type {
-                StreamMsgType::Open => {
+                SphinxStreamMsgType::Open => {
                     let _ = listener_tx.send(InboundOpen {
                         stream_id,
                         sender_tag: msg.sender_tag,
                         initial_data: frame.data.to_vec(),
                     });
                 }
-                StreamMsgType::Data => {
+                SphinxStreamMsgType::Data => {
                     streams
                         .send_to_stream(&stream_id, frame.data.to_vec())
                         .await;
@@ -295,8 +295,11 @@ pub(crate) async fn open_stream(
     let stream_id = StreamId::random();
     let rx = streams.register_stream(stream_id).await;
 
-    // Send Open to the peer
-    let wire = encode_stream_message(&stream_id, StreamMsgType::Open, 0, &[]);
+    // Currently hardcoded as we don't have message ordering in place *yet* in the SDK
+    // streams - when it *is* added then it will set the receiver's expected starting seq
+    // number. Gives us the ability down the road to e.g. pick up a dropped stream from
+    // where it left off.
+    let wire = encode_stream_message(&stream_id, SphinxStreamMsgType::Open, 0, &[]);
     let msg = InputMessage::new_anonymous(
         recipient,
         wire,

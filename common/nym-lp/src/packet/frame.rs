@@ -103,9 +103,9 @@ impl LpFrame {
         Self::new(LpFrameKind::Forward, data)
     }
 
-    pub fn new_stream(attrs: StreamFrameAttributes, content: impl Into<Bytes>) -> Self {
+    pub fn new_stream(attrs: SphinxStreamFrameAttributes, content: impl Into<Bytes>) -> Self {
         Self {
-            header: LpFrameHeader::new(LpFrameKind::Stream, attrs.encode()),
+            header: LpFrameHeader::new(LpFrameKind::SphinxStream, attrs.encode()),
             content: content.into(),
         }
     }
@@ -122,20 +122,20 @@ pub enum LpFrameKind {
     Opaque = 0,
     Registration = 1,
     Forward = 2,
-    Stream = 3,
+    SphinxStream = 3,
 }
 
-/// Message type within a `LpFrameKind::Stream` frame.
+/// Message type within a `LpFrameKind::SphinxStream` frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum StreamMsgType {
+pub enum SphinxStreamMsgType {
     /// Open a new stream. Content is optional initial data.
     Open = 0,
     /// Data on an existing stream.
     Data = 1,
 }
 
-/// Parsed form of the 14-byte `frame_attributes` for `LpFrameKind::Stream`.
+/// Parsed form of the 14-byte `frame_attributes` for `LpFrameKind::SphinxStream`.
 ///
 /// Wire layout (big-endian):
 /// ```text
@@ -145,13 +145,13 @@ pub enum StreamMsgType {
 /// [13   ) reserved      : u8
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StreamFrameAttributes {
+pub struct SphinxStreamFrameAttributes {
     pub stream_id: u64,
-    pub msg_type: StreamMsgType,
+    pub msg_type: SphinxStreamMsgType,
     pub sequence_num: u32,
 }
 
-impl StreamFrameAttributes {
+impl SphinxStreamFrameAttributes {
     pub fn encode(&self) -> [u8; 14] {
         let mut buf = [0u8; 14];
         buf[0..8].copy_from_slice(&self.stream_id.to_be_bytes());
@@ -163,8 +163,8 @@ impl StreamFrameAttributes {
     pub fn parse(attrs: &[u8; 14]) -> Result<Self, MalformedLpPacketError> {
         let stream_id = u64::from_be_bytes(attrs[0..8].try_into().unwrap());
         let msg_type = match attrs[8] {
-            0 => StreamMsgType::Open,
-            1 => StreamMsgType::Data,
+            0 => SphinxStreamMsgType::Open,
+            1 => SphinxStreamMsgType::Data,
             other => {
                 return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                     "invalid stream msg_type: {other}"

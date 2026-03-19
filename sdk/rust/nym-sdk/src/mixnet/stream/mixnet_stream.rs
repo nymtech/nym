@@ -16,7 +16,7 @@ use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use tokio_util::sync::PollSender;
 
-use nym_lp::packet::frame::StreamMsgType;
+use nym_lp::packet::frame::SphinxStreamMsgType;
 
 use super::protocol::{encode_stream_message, StreamId};
 use super::StreamMap;
@@ -184,7 +184,7 @@ impl AsyncWrite for MixnetStream {
 
         let seq = self.next_seq;
         self.next_seq = self.next_seq.wrapping_add(1);
-        let wire = encode_stream_message(&self.id, StreamMsgType::Data, seq, buf);
+        let wire = encode_stream_message(&self.id, SphinxStreamMsgType::Data, seq, buf);
         let msg = self.make_input_message(wire);
 
         self.sender

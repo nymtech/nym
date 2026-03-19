@@ -12,6 +12,7 @@ use std::fmt::Display;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
+use tracing::{debug, warn};
 
 /// A decoded test packet together with its measured round-trip time.
 #[derive(Debug, Clone, Copy)]
@@ -142,6 +143,7 @@ impl MixnetPacketProcessor {
             packets.push(self.process_received(pending));
         }
 
+        debug!("drained {} immediately available packets", packets.len());
         packets
     }
 
@@ -149,7 +151,13 @@ impl MixnetPacketProcessor {
     /// Returns `Err` on timeout, channel exhaustion, or decryption failure.
     pub(crate) async fn next_packet(&mut self) -> anyhow::Result<ProcessedPacket> {
         let packet = timeout(self.receive_timeout, self.receiver.next())
-            .await?
+            .await
+            .inspect_err(|_| {
+                warn!(
+                    "timed out waiting for next packet after {}",
+                    humantime::format_duration(self.receive_timeout)
+                )
+            })?
             .context("stream has been exhausted")?;
 
         self.process_received(packet)

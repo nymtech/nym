@@ -3,7 +3,7 @@
 
 use arc_swap::ArcSwap;
 use nym_crypto::asymmetric::x25519;
-use nym_noise_keys::VersionedNoiseKeyV1;
+use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
 use snow::params::NoiseParams;
 use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
 
@@ -80,6 +80,20 @@ pub struct NoiseNode {
 }
 
 impl NoiseNode {
+    pub fn new_from_inner_key(
+        key: x25519::PublicKey,
+        noise_version: impl Into<NoiseVersion>,
+        is_nym_node: bool,
+    ) -> Self {
+        NoiseNode {
+            key: VersionedNoiseKeyV1 {
+                supported_version: noise_version.into(),
+                x25519_pubkey: key,
+            },
+            is_nym_node,
+        }
+    }
+
     pub fn new_nym_node(key: VersionedNoiseKeyV1) -> Self {
         NoiseNode {
             key,
@@ -100,6 +114,15 @@ impl NoiseNode {
 }
 
 impl NoiseNetworkView {
+    pub fn new(nodes: HashMap<IpAddr, NoiseNode>) -> Self {
+        NoiseNetworkView {
+            inner: Arc::new(NoiseNetworkViewInner {
+                update_lock: Mutex::new(()),
+                nodes: ArcSwap::from_pointee(nodes),
+            }),
+        }
+    }
+
     pub fn new_empty() -> Self {
         NoiseNetworkView {
             inner: Arc::new(NoiseNetworkViewInner {

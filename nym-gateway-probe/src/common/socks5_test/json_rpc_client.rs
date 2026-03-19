@@ -102,7 +102,7 @@ impl JsonRpcClient {
                     .text()
                     .await
                     .context("Failed to extract response text")
-                    .unwrap_or_else(ToString::to_string);
+                    .unwrap_or_else(|e| e.to_string());
                 if status.is_success() {
                     // Deserialize body into JsonRpcResponse
                     serde_json::from_str::<JsonRpcResponse>(&response_text)
@@ -118,8 +118,12 @@ impl JsonRpcClient {
                 }
             }
             Err(e) => {
+                let status = e
+                    .status()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "no HTTP status".to_string());
                 error!("HTTPS request failed: {}", e);
-                bail!("HTTPS request failed: {}", e);
+                bail!("HTTPS request failed: {} ({})", e, status);
             }
         }
     }

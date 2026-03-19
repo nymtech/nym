@@ -4,6 +4,7 @@
 use super::env::vars::*;
 use nym_crypto::asymmetric::x25519;
 
+/// Arguments for the `keygen` subcommand.
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
     /// Specifies the path to the noise key file used for establishing tunnel with the node being tested
@@ -11,6 +12,7 @@ pub(crate) struct Args {
     noise_key_path: String,
 }
 
+/// Generates a fresh x25519 Noise private key and writes it to the path specified in `args`.
 pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
     let noise_key = x25519::PrivateKey::new(&mut rng);

@@ -1,35 +1,36 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::sphinx_helpers::as_sphinx_node;
 use nym_crypto::asymmetric::x25519;
 use nym_noise::config::NoiseNode;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_params::SphinxKeyRotation;
 use std::net::SocketAddr;
 
+/// Identity and addressing information for the node being tested in a stress-test run.
 pub(crate) struct TestedNodeDetails {
+    /// TCP socket address of the node's mixnet listener, used for the egress connection.
     pub(crate) address: SocketAddr,
 
+    /// Node's static Noise public key, used to authenticate and encrypt the egress connection.
     pub(crate) noise_key: x25519::PublicKey,
 
-    /// Key rotation associated with the current sphinx key of the node
+    /// Key rotation associated with the current sphinx key of the node.
     pub(crate) key_rotation: SphinxKeyRotation,
 
+    /// Node's current sphinx public key, used to build the sphinx packet header.
     pub(crate) sphinx_key: x25519::PublicKey,
 }
 
 impl TestedNodeDetails {
+    /// Returns a sphinx [`Node`](nym_sphinx_types::Node) representation of this node,
+    /// suitable for use as a hop in a sphinx route.
     pub(crate) fn as_sphinx_node(&self) -> nym_sphinx_types::Node {
-        // SAFETY: we know that the address is valid, so we can safely unwrap it
-        #[allow(clippy::unwrap_used)]
-        nym_sphinx_types::Node::new(
-            NymNodeRoutingAddress::from(self.address)
-                .try_into()
-                .unwrap(),
-            self.sphinx_key.into(),
-        )
+        as_sphinx_node(self.address, self.sphinx_key)
     }
 
+    /// Returns a [`NoiseNode`] representation of this node for use in the Noise network view.
     pub(crate) fn as_noise_node(&self) -> NoiseNode {
         NoiseNode::new_from_inner_key(self.noise_key, 1, true)
     }

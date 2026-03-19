@@ -11,6 +11,7 @@ use nym_sphinx_params::SphinxKeyRotation;
 use std::net::SocketAddr;
 use tracing::info;
 
+/// Arguments for the `test-node` subcommand.
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
     #[clap(flatten)]
@@ -38,10 +39,12 @@ pub(crate) struct Args {
 }
 
 impl Args {
+    /// Builds the agent [`Config`] from the flattened common args and the local mixnet listener address.
     pub(crate) fn build_agent_config(&self) -> Config {
         self.common_args.build_config(self.agent_mixnet_listener)
     }
 
+    /// Builds the [`TestedNodeDetails`] from the node address and key arguments.
     pub(crate) fn build_tested_node_details(&self) -> TestedNodeDetails {
         TestedNodeDetails {
             address: self.tested_node_address,
@@ -53,6 +56,7 @@ impl Args {
         }
     }
 
+    /// Constructs a fully initialised [`NetworkMonitorAgent`] from the parsed arguments.
     pub(crate) fn build_agent(&self) -> anyhow::Result<NetworkMonitorAgent> {
         NetworkMonitorAgent::new(
             self.build_agent_config(),
@@ -62,6 +66,7 @@ impl Args {
     }
 }
 
+/// Runs a one-shot stress test against the specified node and logs the result.
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
     let result = args.build_agent()?.run_stress_test().await?;
 

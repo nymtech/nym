@@ -15,7 +15,7 @@ pub(crate) mod cli;
 mod egress_connection;
 pub(crate) mod listener;
 mod processor;
-mod sphinx_helpers;
+pub(crate) mod sphinx_helpers;
 pub(crate) mod test_packet;
 
 fn setup_logger() -> anyhow::Result<()> {

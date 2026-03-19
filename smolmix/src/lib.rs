@@ -4,10 +4,17 @@
 mod bridge;
 mod device;
 mod error;
+pub mod tunnel;
 
 pub use bridge::{BridgeShutdownHandle, NymIprBridge};
 pub use device::NymIprDevice;
 pub use error::SmolmixError;
+pub use tunnel::{NetworkEnvironment, TcpStream, Tunnel, UdpSocket};
+
+/// Initialise the default tracing/logging subscriber.
+pub fn init_logging() {
+    nym_bin_common::logging::setup_tracing_logger();
+}
 
 use nym_ip_packet_requests::IpPair;
 use nym_sdk::stream_wrapper::IpMixStream;

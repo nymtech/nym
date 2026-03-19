@@ -7,6 +7,8 @@ use std::sync::OnceLock;
 
 mod build_info;
 mod common;
+mod env;
+mod keygen;
 mod run_agent;
 mod test_node;
 
@@ -29,6 +31,7 @@ impl Cli {
             Command::BuildInfo(args) => build_info::execute(args),
             Command::TestNode(args) => test_node::execute(args).await?,
             Command::RunAgent(args) => run_agent::execute(args).await?,
+            Command::Keygen(args) => keygen::execute(args)?,
         }
         Ok(())
     }
@@ -40,9 +43,12 @@ pub(crate) enum Command {
     BuildInfo(build_info::Args),
 
     /// One-shot manual testing of a specified node
-    /// without interactint with the orchestrator.
+    /// without interacting with the orchestrator.
     TestNode(test_node::Args),
 
     /// Test a node by contacting the orchestrator for the work assignment
     RunAgent(run_agent::Args),
+
+    /// Generate all required keys for the agent to work
+    Keygen(keygen::Args),
 }

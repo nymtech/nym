@@ -26,8 +26,23 @@ pub(crate) struct TestPacketHeader {
     pub(crate) payload_key: Vec<PayloadKey>,
 }
 
+impl Clone for TestPacketHeader {
+    fn clone(&self) -> Self {
+        TestPacketHeader {
+            header: SphinxHeader {
+                shared_secret: self.header.shared_secret,
+                routing_info: self.header.routing_info.clone(),
+            },
+            payload_key: self.payload_key.clone(),
+        }
+    }
+}
+
 impl TestPacketHeader {
-    fn create_test_packet(&self, content: TestPacketContent) -> anyhow::Result<SphinxPacket> {
+    pub(crate) fn create_test_packet(
+        &self,
+        content: TestPacketContent,
+    ) -> anyhow::Result<SphinxPacket> {
         let payload = Payload::encapsulate_message(
             &content.to_bytes(),
             &self.payload_key,
@@ -42,7 +57,7 @@ impl TestPacketHeader {
         })
     }
 
-    fn recover_payload(&self, received: Payload) -> anyhow::Result<TestPacketContent> {
+    pub(crate) fn recover_payload(&self, received: Payload) -> anyhow::Result<TestPacketContent> {
         let key = self
             .payload_key
             .last()

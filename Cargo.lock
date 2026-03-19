@@ -7792,6 +7792,7 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-requests",
  "nym-http-api-client",
+ "nym-lp",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-service-providers-common",

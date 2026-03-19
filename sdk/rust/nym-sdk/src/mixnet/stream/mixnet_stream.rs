@@ -16,7 +16,9 @@ use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use tokio_util::sync::PollSender;
 
-use super::protocol::{encode_stream_message, StreamId, StreamMessageType};
+use nym_lp::packet::frame::SphinxStreamMsgType;
+
+use super::protocol::{encode_stream_message, StreamId};
 use super::StreamMap;
 
 /// How to address outbound messages on this stream.
@@ -45,6 +47,7 @@ pub struct MixnetStream {
     inbound_rx: mpsc::UnboundedReceiver<Vec<u8>>,
     read_buf: BytesMut,
     deregistered: bool,
+    next_seq: u32,
 }
 
 impl MixnetStream {
@@ -71,6 +74,7 @@ impl MixnetStream {
             inbound_rx,
             read_buf: BytesMut::new(),
             deregistered: false,
+            next_seq: 0,
         }
     }
 
@@ -98,6 +102,7 @@ impl MixnetStream {
             inbound_rx,
             read_buf,
             deregistered: false,
+            next_seq: 0,
         }
     }
 
@@ -177,7 +182,9 @@ impl AsyncWrite for MixnetStream {
         ready!(self.sender.poll_ready_unpin(cx))
             .map_err(|_| std::io::Error::other("mixnet input channel closed"))?;
 
-        let wire = encode_stream_message(&self.id, StreamMessageType::Data, buf);
+        let seq = self.next_seq;
+        self.next_seq = self.next_seq.wrapping_add(1);
+        let wire = encode_stream_message(&self.id, SphinxStreamMsgType::Data, seq, buf);
         let msg = self.make_input_message(wire);
 
         self.sender

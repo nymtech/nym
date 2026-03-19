@@ -447,12 +447,11 @@ impl MixnetListener {
         );
 
         // Check if this is an LP Stream frame
-        if reconstructed.message.len() >= LpFrameHeader::SIZE {
-            if let Ok(header) = LpFrameHeader::parse(&reconstructed.message) {
-                if header.kind == LpFrameKind::SphinxStream {
-                    return self.on_stream_frame(reconstructed).await;
-                }
-            }
+        if reconstructed.message.len() >= LpFrameHeader::SIZE
+            && let Ok(header) = LpFrameHeader::parse(&reconstructed.message)
+            && header.kind == LpFrameKind::SphinxStream
+        {
+            return self.on_stream_frame(reconstructed).await;
         }
 
         // Check if this is a KCP-wrapped message from an LP client

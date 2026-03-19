@@ -198,6 +198,7 @@ impl Probe {
         }
 
         let disconnected_mixnet_client = mixnet_client_builder.build()?;
+        disconnected_mixnet_client.setup_client_keys().await?;
 
         // Acquire credential if needed
         credential

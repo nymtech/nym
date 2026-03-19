@@ -8,7 +8,9 @@ use crate::egress_connection::EgressConnection;
 use crate::listener::MixnetListener;
 use crate::listener::received::MixnetPacketsSender;
 use crate::processor::{MixnetPacketProcessor, ProcessedPacket};
-use crate::sphinx_helpers::{build_test_sphinx_packet, create_test_sphinx_packet_header};
+use crate::sphinx_helpers::{
+    as_sphinx_node, build_test_sphinx_packet, create_test_sphinx_packet_header,
+};
 use crate::test_packet::{TestPacketContent, TestPacketHeader};
 use anyhow::Context;
 use humantime::format_duration;
@@ -32,30 +34,49 @@ pub(crate) mod config;
 pub(crate) mod result;
 pub(crate) mod tested_node;
 
+/// The core agent responsible for executing a stress-test run against a single node.
+///
+/// A test run proceeds in five ordered steps (see [`run_stress_test`](Self::run_stress_test)):
+///
+/// 1. Establish an outbound (egress) Noise-encrypted TCP connection to the node.
+/// 2. Bind a local TCP listener (ingress) that receives sphinx packets the node sends back.
+/// 3. Send a single probe packet to verify basic connectivity and record baseline latency.
+/// 4. Replay the same packet (when `reuse_header` is enabled) to confirm the node's
+///    bloomfilter bypass is correctly configured.
+/// 5. Send packets at the configured rate for the configured duration, then collect and
+///    summarise the results.
+///
+/// Only critical, agent-level failures (e.g. failing to bind a port) are returned as
+/// `Err`; node-level failures (e.g. the node not responding) are captured inside the
+/// returned [`TestRunResult`] so the caller can still inspect partial data.
 pub(crate) struct NetworkMonitorAgent {
+    /// Agent configuration controlling rates, timeouts, and addressing.
     config: Config,
 
+    /// Monotonically increasing counter embedded in each outgoing packet as its ID.
     packet_counter: u64,
 
+    /// Pre-built sphinx packet header reused across all packets when `config.reuse_header`
+    /// is set. Allows the node's bloomfilter bypass to be exercised. `None` means a fresh
+    /// header is built for every packet.
     reusable_test_header: Option<TestPacketHeader>,
 
+    /// The agent's own Noise key pair, used to authenticate the egress connection.
     noise_key: Arc<x25519::KeyPair>,
 
+    /// An ephemeral sphinx key pair generated at construction time. Used both to build the
+    /// return-route sphinx header (so packets come back to this agent) and to decrypt
+    /// returning packets when `reuse_header` is disabled.
     sphinx_key: Arc<x25519::KeyPair>,
 
+    /// Identity and addressing information for the node being tested.
     tested_node: TestedNodeDetails,
 }
 
-fn as_sphinx_node(address: SocketAddr, pub_key: x25519::PublicKey) -> nym_sphinx_types::Node {
-    // SAFETY: we know that the address is valid, so we can safely unwrap it
-    #[allow(clippy::unwrap_used)]
-    nym_sphinx_types::Node::new(
-        NymNodeRoutingAddress::from(address).try_into().unwrap(),
-        pub_key.into(),
-    )
-}
-
 impl NetworkMonitorAgent {
+    /// Creates a new agent, loading the Noise private key from `noise_key_path` and
+    /// generating a fresh ephemeral sphinx key. If `config.reuse_header` is set, the
+    /// sphinx packet header is pre-built here so it can be reused across all test packets.
     pub(crate) fn new<P: AsRef<Path>>(
         config: Config,
         noise_key_path: P,
@@ -65,8 +86,7 @@ impl NetworkMonitorAgent {
         let sphinx_key = x25519::PrivateKey::new(&mut OsRng);
 
         let reusable_test_header = if config.reuse_header {
-            // we don't want any delays
-            // and the packet route is test node -> this client
+            // Route: tested node → this agent (so packets come back to us).
             let route = vec![
                 tested_node.as_sphinx_node(),
                 as_sphinx_node(config.mixnet_address, sphinx_key.public_key()),
@@ -86,6 +106,8 @@ impl NetworkMonitorAgent {
             tested_node,
         })
     }
+
+    /// Opens the outbound Noise-encrypted TCP connection to the node under test.
     async fn establish_egress_connection(&self) -> anyhow::Result<EgressConnection> {
         EgressConnection::establish(
             self.config.mixnet_address,
@@ -96,6 +118,9 @@ impl NetworkMonitorAgent {
         .await
     }
 
+    /// Constructs the [`MixnetPacketProcessor`] used to decode and time-stamp returning packets.
+    /// When a reusable header is available it is used for decryption; otherwise the agent's
+    /// sphinx private key is used directly.
     fn build_packet_processor(&self) -> MixnetPacketProcessor {
         let packet_recovery = match &self.reusable_test_header {
             Some(header) => header.clone().into(),
@@ -104,6 +129,8 @@ impl NetworkMonitorAgent {
         MixnetPacketProcessor::new(packet_recovery, self.config.waiting_duration)
     }
 
+    /// Binds the local TCP listener and wraps it in a [`MixnetListener`] that will forward
+    /// decoded packets to `received_sender`.
     async fn build_mixnet_listener(
         &self,
         received_sender: MixnetPacketsSender,
@@ -119,6 +146,8 @@ impl NetworkMonitorAgent {
         .await
     }
 
+    /// Builds a [`NoiseConfig`] that contains the default configuration for the protocol
+    /// and the key associated with the tested node to accept its connection.
     fn noise_config(&self) -> NoiseConfig {
         let mut nodes = HashMap::new();
         nodes.insert(
@@ -134,10 +163,15 @@ impl NetworkMonitorAgent {
         )
     }
 
+    /// Returns a sphinx node representation of this agent's own mixnet listener address,
+    /// used as the final hop in the packet route so packets are delivered back here.
     fn as_sphinx_node(&self) -> nym_sphinx_types::Node {
         as_sphinx_node(self.config.mixnet_address, *self.sphinx_key.public_key())
     }
 
+    /// Builds the next test sphinx packet, incrementing the internal packet counter.
+    /// Reuses the pre-built header when available; otherwise builds a fresh header and
+    /// encrypts it with a new sphinx key each time.
     fn create_test_sphinx_packet(&mut self) -> anyhow::Result<SphinxPacket> {
         let content = TestPacketContent::new(self.packet_counter);
         self.packet_counter += 1;
@@ -156,6 +190,7 @@ impl NetworkMonitorAgent {
         }
     }
 
+    /// Builds a batch of `batch_size` test sphinx packets with consecutive IDs.
     fn create_packet_batch(&mut self, batch_size: usize) -> anyhow::Result<Vec<SphinxPacket>> {
         let mut packets = Vec::with_capacity(batch_size);
         for _ in 0..batch_size {
@@ -165,11 +200,14 @@ impl NetworkMonitorAgent {
         Ok(packets)
     }
 
+    /// Computes the network latency for a received packet by subtracting the configured
+    /// sphinx delay from its measured round-trip time.
     fn packet_latency(&self, received: ProcessedPacket) -> Duration {
-        // make sure to subtract the sphinx delay from the RTT
         received.rtt - self.config.packet_delay
     }
 
+    /// Creates and sends a single test sphinx packet over `egress`.
+    /// On send failure, records an error on `result` and returns `false`.
     async fn send_test_packet(
         &mut self,
         egress: &mut EgressConnection,
@@ -185,6 +223,8 @@ impl NetworkMonitorAgent {
         Ok(true)
     }
 
+    /// Creates and sends a batch of `batch_size` test packets over `egress`.
+    /// On send failure, records an error on `result` and returns `false`.
     async fn send_test_packet_batch(
         &mut self,
         batch_size: usize,
@@ -262,6 +302,9 @@ impl NetworkMonitorAgent {
     }
 
     /// Sends packets at the configured rate for the configured duration.
+    /// Dispatches one batch every `batch_interval` seconds; if the egress falls behind,
+    /// ticks are delayed rather than bunched up to avoid unintended bursts.
+    /// Updates `result.packets_sent` after every batch and returns `false` on send failure.
     async fn send_load_test(
         &mut self,
         egress: &mut EgressConnection,
@@ -294,7 +337,6 @@ impl NetworkMonitorAgent {
 
             // the last batch may be smaller than other batches
             let remaining = total_packets - sent;
-
             let batch_size = self.config.sending_batch_size.min(remaining);
             if !self
                 .send_test_packet_batch(batch_size, egress, result)
@@ -304,7 +346,7 @@ impl NetworkMonitorAgent {
             }
 
             sent += batch_size;
-            // update send count each batch
+            // update send count after each batch so partial results are visible on early exit
             result.set_packets_sent(sent);
         }
 
@@ -341,7 +383,7 @@ impl NetworkMonitorAgent {
             }
         }
 
-        // deduplicate by packet ID
+        // deduplicate by packet ID; duplicates indicate possible node misbehaviour
         let mut valid_received = HashMap::new();
         for packet in received {
             let Ok(packet) = packet else {
@@ -366,7 +408,11 @@ impl NetworkMonitorAgent {
         result.set_packets_statistics(LatencyDistribution::compute(&latencies));
     }
 
-    // only return error on critical, agent-level failures — not on tested node issues
+    /// Runs a full stress-test against the configured node and returns the collected results.
+    ///
+    /// Only returns `Err` for critical agent-level failures (e.g. unable to bind the listener
+    /// port). Node-level failures (no response, bloomfilter misconfiguration, etc.) are
+    /// recorded inside the returned [`TestRunResult`] so the caller always gets partial data.
     pub(crate) async fn run_stress_test(&mut self) -> anyhow::Result<TestRunResult> {
         let mut result = TestRunResult::new_empty();
 
@@ -414,7 +460,7 @@ impl NetworkMonitorAgent {
         // 6. collect and summarise results
         self.collect_test_results(&mut processor, &mut result).await;
 
-        // 7. finally add missing stats
+        // 7. shut down the listener and harvest its stats
         shutdown_token.cancel();
         let mixnet_listener = listener_join.await?;
         let ingress_noise = mixnet_listener

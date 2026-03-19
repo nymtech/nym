@@ -32,6 +32,9 @@ pub(crate) struct TestRunResult {
     /// RTT statistics computed over all received packets, or `None` if no packets were received.
     pub(crate) packets_statistics: Option<LatencyDistribution>,
 
+    /// Latency distribution of individual batch send operations recorded during the load test.
+    /// Reflects how long each batch took to flush to the OS socket, giving a rough measure of
+    /// egress throughput. `None` if no batches were sent.
     pub(crate) sending_statistics: Option<LatencyDistribution>,
 
     /// Whether any packet was received with an ID that had already been seen in this test run.
@@ -88,6 +91,9 @@ impl TestRunResult {
         self.error = Some(error.into());
     }
 
+    /// Populates egress-side statistics from the finished [`EgressConnection`](crate::egress_connection::EgressConnection).
+    /// Sets the egress Noise handshake duration and, if any batches were sent, the batch send
+    /// latency distribution.
     pub(crate) fn set_egress_connection_statistics(&mut self, stats: EgressConnectionStatistics) {
         self.set_egress_noise_handshake(stats.noise_handshake_duration);
 

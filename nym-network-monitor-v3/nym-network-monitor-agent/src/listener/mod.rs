@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::agent::receiver::{MixnetPacketsSender, ReceivedPacket};
+use crate::listener::received::{MixnetPacketsSender, ReceivedPacket};
 use futures::StreamExt;
 use nym_noise::config::NoiseConfig;
 use nym_noise::connection::Connection;
@@ -14,15 +14,17 @@ use tokio::time::Instant;
 use tokio_util::codec::Framed;
 use tracing::{error, info, warn};
 
+pub(crate) mod received;
+
 /// Listens for inbound sphinx packets returned by the node under test.
 ///
 /// Binds a TCP listener on `bind_address`, accepts a single connection at a time,
 /// performs a Noise handshake as the responder, then forwards every decoded
-/// [`NymPacket`] to the [`receiver`](crate::agent::receiver) via `received_packets_sender`.
+/// [`NymPacket`] to the [`receiver`](received) via `received_packets_sender`.
 /// Connections from any address other than `tested_node_address` are rejected.
 pub(crate) struct MixnetListener {
-    /// Local address to bind the TCP listener on.
-    bind_address: SocketAddr,
+    /// Local TCP listener.
+    tcp_listener: tokio::net::TcpListener,
 
     /// Address of the node being tested; connections from any other source are rejected.
     tested_node_address: SocketAddr,
@@ -30,7 +32,7 @@ pub(crate) struct MixnetListener {
     /// Noise protocol configuration used when upgrading incoming TCP connections.
     noise_config: NoiseConfig,
 
-    /// Channel used to forward received packets to the [`PacketReceiver`](crate::agent::receiver).
+    /// Channel used to forward received packets to the [`PacketReceiver`](received).
     received_packets_sender: MixnetPacketsSender,
 
     /// Global shutdown token
@@ -39,20 +41,28 @@ pub(crate) struct MixnetListener {
 
 impl MixnetListener {
     /// Creates a new [`MixnetListener`] ready to be started with [`run`](Self::run).
-    pub(crate) fn new(
+    pub(crate) async fn new(
         bind_address: SocketAddr,
         tested_node_address: SocketAddr,
         noise_config: NoiseConfig,
         received_packets_sender: MixnetPacketsSender,
         shutdown: ShutdownToken,
-    ) -> Self {
-        Self {
-            bind_address,
+    ) -> anyhow::Result<Self> {
+        info!("attempting to run mixnet listener on {bind_address}");
+
+        let tcp_listener = tokio::net::TcpListener::bind(bind_address)
+            .await
+            .inspect_err(|err| {
+                error!("Failed to the mixnet listener bind to {bind_address}: {err}")
+            })?;
+
+        Ok(Self {
+            tcp_listener,
             tested_node_address,
             noise_config,
             received_packets_sender,
             shutdown,
-        }
+        })
     }
 
     /// Reads sphinx packets from an established, noise-encrypted stream and forwards
@@ -118,18 +128,6 @@ impl MixnetListener {
 
     /// Binds the TCP listener and processes one connection at a time until the shutdown token is cancelled.
     pub(crate) async fn run(&mut self) {
-        let bind_address = self.bind_address;
-        info!("attempting to run mixnet listener on {bind_address}");
-
-        let tcp_listener = match tokio::net::TcpListener::bind(bind_address).await {
-            Ok(listener) => listener,
-            Err(err) => {
-                error!("Failed to the mixnet listener bind to {bind_address}: {err}");
-                self.shutdown.cancel();
-                return;
-            }
-        };
-
         // only handle a single connection at once
         // (we don't need more than that)
         loop {
@@ -139,7 +137,7 @@ impl MixnetListener {
                     tracing::debug!("mixnet listener: received shutdown");
                     break
                 }
-                connection = tcp_listener.accept() => {
+                connection = self.tcp_listener.accept() => {
                     if let Ok(connection) = connection {
                         self.handle_connection(connection).await;
                     } else {

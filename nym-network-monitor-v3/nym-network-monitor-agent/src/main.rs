@@ -10,6 +10,7 @@ use nym_bin_common::logging::{
 };
 use tracing::info;
 
+mod agent;
 pub(crate) mod cli;
 
 fn setup_logger() -> anyhow::Result<()> {

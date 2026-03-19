@@ -161,6 +161,8 @@ use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::ErrorKind;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use thiserror::Error;
@@ -1167,14 +1169,10 @@ impl ApiClientCore for Client {
             match response {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
-                    // only if there was a network issue should we consider updating the host info
-                    //
-                    // note: for now this includes DNS resolution failure, I am not sure how I would go about
-                    // segregating that based on the interface provided by request for errors.
                     #[cfg(target_arch = "wasm32")]
                     let is_network_err = err.is_timeout();
                     #[cfg(not(target_arch = "wasm32"))]
-                    let is_network_err = err.is_timeout() || err.is_connect();
+                    let is_network_err = might_be_network_interference(&err);
 
                     if is_network_err {
                         // if we have multiple urls, update to the next
@@ -1220,6 +1218,68 @@ impl ApiClientCore for Client {
             tracing::debug!("Domain fronting activated after failure: {context:?}",);
         }
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+const MAX_ERR_SOURCE_ITERATIONS: usize = 4;
+
+/// This functions attempts to check the error returned by reqwest to see if
+/// rotating host informtion (for clients with mutliple hosts defined) could be
+/// helpful. This looks for situations where the error could plausibly be caused
+/// by a network adversary, or where rotating to an equival hostname might help.
+///
+/// For example --> NetworkUnreachable will not be helped by rotating domains,
+/// but ConnectionReset might be caused by a network adversary blocking by SNI
+/// which could possibly benefit from rotating domains.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn might_be_network_interference(err: &reqwest::Error) -> bool {
+    if err.is_timeout() {
+        return true;
+    }
+
+    if !(err.is_connect() || err.is_request()) {
+        return false;
+    }
+
+    // The io::Error source is several layers deep, for clarity this is done as a loop
+    // * reqwest::Error -> hyper_util::Error
+    // * hyper_util::Error -> hyper_util::ClientError
+    // * hyper_util::ClientError -> io::Error
+    let mut inner = err.source();
+    for _ in 0..MAX_ERR_SOURCE_ITERATIONS {
+        if let Some(e) = inner {
+            if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                // try downcast to io::Error from <dyn std::error:Error>
+                match io_err.kind() {
+                    // device not connected to the internet
+                    ErrorKind::NetworkUnreachable | ErrorKind::NetworkDown => return false,
+                    // connection errors can indicate connection interference
+                    ErrorKind::ConnectionReset
+                    | ErrorKind::HostUnreachable
+                    | ErrorKind::ConnectionRefused => return true,
+                    // TLS errors get wrapped in custom io::Errors
+                    ErrorKind::Other | ErrorKind::InvalidData => {
+                        // io::Error get_ref works while source doesn't here -_-
+                        //   if you don't like it take it up with the rust devs https://users.rust-lang.org/t/question-about-implementation-of-std-source/121117
+                        inner = io_err.get_ref().map(|e| e as &dyn std::error::Error);
+                    }
+                    _ => return false,
+                }
+            } else if let Some(_tls_err) = e.downcast_ref::<rustls::Error>() {
+                // try downcast to TLS error
+                return true;
+            } else if let Some(resolve_err) = e.downcast_ref::<hickory_resolver::ResolveError>() {
+                // try downcast to DNS error
+                return resolve_err.is_nx_domain();
+            } else {
+                inner = e.source();
+            }
+        } else {
+            break;
+        }
+    }
+
+    false
 }
 
 /// Common usage functionality for the http client.

@@ -35,6 +35,7 @@ pub(crate) struct MixnetListener {
     /// Channel used to forward received packets to the [`PacketReceiver`](received).
     received_packets_sender: MixnetPacketsSender,
 
+    /// Duration it took to complete the last Noise handshake as the responder.
     pub(crate) last_noise_handshake_duration: Option<std::time::Duration>,
 
     /// Global shutdown token

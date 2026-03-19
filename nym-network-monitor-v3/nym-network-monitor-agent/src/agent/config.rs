@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::agent::NetworkMonitorAgent;
 use std::net::SocketAddr;
 use std::time::Duration;
 
@@ -38,10 +37,6 @@ pub(crate) struct Config {
 impl Config {
     pub(crate) fn expected_packets(&self) -> usize {
         (self.target_rate as f32 * self.sending_duration.as_secs_f32()).floor() as usize
-    }
-
-    pub(crate) fn batches(&self) -> usize {
-        self.expected_packets().div_ceil(self.sending_batch_size)
     }
 
     pub(crate) fn batch_interval(&self) -> Duration {

@@ -26,7 +26,7 @@ use bytes::BytesMut;
 use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_lp::packet::frame::{
-    LpFrame, LpFrameHeader, LpFrameKind, StreamFrameAttributes, StreamMsgType,
+    LpFrame, LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
@@ -449,7 +449,7 @@ impl MixnetListener {
         // Check if this is an LP Stream frame
         if reconstructed.message.len() >= LpFrameHeader::SIZE {
             if let Ok(header) = LpFrameHeader::parse(&reconstructed.message) {
-                if header.kind == LpFrameKind::Stream {
+                if header.kind == LpFrameKind::SphinxStream {
                     return self.on_stream_frame(reconstructed).await;
                 }
             }
@@ -479,7 +479,7 @@ impl MixnetListener {
 
         let header = LpFrameHeader::parse(&reconstructed.message)
             .map_err(|e| IpPacketRouterError::Other(format!("Invalid LP frame header: {e}")))?;
-        let attrs = StreamFrameAttributes::parse(&header.frame_attributes).map_err(|e| {
+        let attrs = SphinxStreamFrameAttributes::parse(&header.frame_attributes).map_err(|e| {
             IpPacketRouterError::Other(format!("Invalid stream frame attributes: {e}"))
         })?;
 
@@ -543,9 +543,9 @@ impl MixnetListener {
         let response_bytes = response.try_into_bytes()?;
 
         // Wrap in LP Stream frame (seq=0 for inline responses)
-        let attrs = StreamFrameAttributes {
+        let attrs = SphinxStreamFrameAttributes {
             stream_id,
-            msg_type: StreamMsgType::Data,
+            msg_type: SphinxStreamMsgType::Data,
             sequence_num: 0,
         };
         let frame = LpFrame::new_stream(attrs, response_bytes);
@@ -935,12 +935,12 @@ mod tests {
     fn test_lp_stream_frame_detected() {
         use bytes::BytesMut;
         use nym_lp::packet::frame::{
-            LpFrameHeader, LpFrameKind, StreamFrameAttributes, StreamMsgType,
+            LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
         };
 
-        let attrs = StreamFrameAttributes {
+        let attrs = SphinxStreamFrameAttributes {
             stream_id: 0x1234,
-            msg_type: StreamMsgType::Data,
+            msg_type: SphinxStreamMsgType::Data,
             sequence_num: 42,
         };
         let frame = nym_lp::packet::frame::LpFrame::new_stream(attrs, vec![8, 1, 0]); // fake IPR payload
@@ -948,11 +948,11 @@ mod tests {
         frame.encode(&mut buf);
 
         let header = LpFrameHeader::parse(&buf).unwrap();
-        assert_eq!(header.kind, LpFrameKind::Stream);
+        assert_eq!(header.kind, LpFrameKind::SphinxStream);
 
-        let parsed_attrs = StreamFrameAttributes::parse(&header.frame_attributes).unwrap();
+        let parsed_attrs = SphinxStreamFrameAttributes::parse(&header.frame_attributes).unwrap();
         assert_eq!(parsed_attrs.stream_id, 0x1234);
-        assert_eq!(parsed_attrs.msg_type, StreamMsgType::Data);
+        assert_eq!(parsed_attrs.msg_type, SphinxStreamMsgType::Data);
         assert_eq!(parsed_attrs.sequence_num, 42);
 
         // Content is everything after the header

@@ -11,7 +11,9 @@ use nym_ip_packet_requests::{
     v7::response::IpPacketResponse as IpPacketResponseV7,
     v8::response::IpPacketResponse as IpPacketResponseV8,
 };
-use nym_lp::packet::frame::{LpFrame, LpFrameHeader, StreamFrameAttributes, StreamMsgType};
+use nym_lp::packet::frame::{
+    LpFrame, LpFrameHeader, SphinxStreamFrameAttributes, SphinxStreamMsgType,
+};
 use nym_sdk::mixnet::{
     InputMessage, MixnetClientSender, MixnetMessageSender, MixnetMessageSinkTranslator,
 };
@@ -235,9 +237,9 @@ impl MixnetMessageSinkTranslator for ToIprDataResponse {
         // Optionally wrap in LP Stream frame for stream-mode clients
         let final_packet = if let Some(stream_id) = self.stream_id {
             let seq = self.next_response_seq.fetch_add(1, Ordering::Relaxed);
-            let attrs = StreamFrameAttributes {
+            let attrs = SphinxStreamFrameAttributes {
                 stream_id,
-                msg_type: StreamMsgType::Data,
+                msg_type: SphinxStreamMsgType::Data,
                 sequence_num: seq,
             };
             let frame = LpFrame::new_stream(attrs, response_packet);

@@ -5,6 +5,7 @@ use crate::agent::TestedNodeDetails;
 use anyhow::bail;
 use time::OffsetDateTime;
 
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub(crate) struct TestPacketContent {
     id: u64,
     sending_timestamp: u64,

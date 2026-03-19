@@ -51,6 +51,15 @@ impl TestRunResult {
         Default::default()
     }
 
+    /// Calculates the percentage of packets received out of the total sent.
+    pub(crate) fn received_percentage(&self) -> f64 {
+        if self.packets_sent > 0 {
+            (self.packets_received as f64 / self.packets_sent as f64) * 100.0
+        } else {
+            0.0
+        }
+    }
+
     /// Records the duration of the ingress Noise handshake.
     pub(crate) fn set_ingress_noise_handshake(&mut self, duration: Duration) {
         self.ingress_noise_handshake = Some(duration);

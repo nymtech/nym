@@ -9,13 +9,13 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 #[derive(Debug, Clone, PartialEq)]
 pub struct LpFrameHeader {
     pub kind: LpFrameKind,
-    pub frame_attributes: [u8; 14],
+    pub frame_attributes: LpFrameAttributes,
 }
 
 impl LpFrameHeader {
     pub const SIZE: usize = 16; // message_kind(2) + message_attributes(14)
 
-    pub fn new(kind: LpFrameKind, frame_attributes: [u8; 14]) -> Self {
+    pub fn new(kind: LpFrameKind, frame_attributes: LpFrameAttributes) -> Self {
         Self {
             kind,
             frame_attributes,
@@ -151,8 +151,12 @@ pub struct SphinxStreamFrameAttributes {
     pub sequence_num: u32,
 }
 
+/// Raw 14-byte frame attributes field in every [`LpFrameHeader`].
+/// Interpretation depends on the [`LpFrameKind`].
+pub type LpFrameAttributes = [u8; 14];
+
 impl SphinxStreamFrameAttributes {
-    pub fn encode(&self) -> [u8; 14] {
+    pub fn encode(&self) -> LpFrameAttributes {
         let mut buf = [0u8; 14];
         buf[0..8].copy_from_slice(&self.stream_id.to_be_bytes());
         buf[8] = self.msg_type as u8;
@@ -160,7 +164,7 @@ impl SphinxStreamFrameAttributes {
         buf
     }
 
-    pub fn parse(attrs: &[u8; 14]) -> Result<Self, MalformedLpPacketError> {
+    pub fn parse(attrs: &LpFrameAttributes) -> Result<Self, MalformedLpPacketError> {
         let stream_id = u64::from_be_bytes(attrs[0..8].try_into().unwrap());
         let msg_type = match attrs[8] {
             0 => SphinxStreamMsgType::Open,

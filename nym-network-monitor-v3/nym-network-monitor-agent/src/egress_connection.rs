@@ -109,9 +109,4 @@ impl EgressConnection {
             .push(send_start.elapsed());
         Ok(())
     }
-
-    /// Consumes the connection and returns the accumulated [`EgressConnectionStatistics`].
-    fn finish(self) -> EgressConnectionStatistics {
-        self.connection_statistics
-    }
 }

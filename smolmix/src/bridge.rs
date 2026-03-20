@@ -5,61 +5,53 @@ use crate::error::SmolmixError;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::stream_wrapper::IpMixStream;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
-/// Asynchronous bridge between smoltcp device and Mixnet.
+/// Asynchronous bridge between the smoltcp device and the Nym mixnet.
 ///
-/// This component runs in a separate task and handles all asynchronous
-/// operations required for outbound communication. It receives packets
-/// from the device via channels, bundles them according to IPR protocol
-/// (MultiIpPacketCodec) and transmits them through the Mixnet.
+/// Runs as a background task, shuttling raw IP packets in both directions:
 ///
-/// # Packet Processing Flow
+/// **Outgoing** (smoltcp → mixnet): receives packets from the device via channel,
+/// bundles them with [`MultiIpPacketCodec`] (required by the IPR protocol), and
+/// sends them through the mixnet.
 ///
-/// Outgoing packets:
-/// - Receive from device via channel
-/// - Bundle using MultiIpPacketCodec
-/// - Send through mixnet via send_ip_packet()
-///
-/// Incoming packets:
-/// - Poll mixnet with handle_incoming()
-/// - Forward to device via channel
-/// - Device queues for smoltcp consumption
-pub struct NymIprBridge {
-    /// Connected IPR stream for mixnet communication
+/// **Incoming** (mixnet → smoltcp): polls the mixnet for packets and forwards
+/// them to the device via channel for smoltcp consumption.
+pub(crate) struct NymIprBridge {
     stream: IpMixStream,
-    /// Channel for receiving outgoing packets from device
-    tx_receiver: mpsc::UnboundedReceiver<Vec<u8>>,
-    /// Channel for sending incoming packets to device
-    rx_sender: mpsc::UnboundedSender<Vec<u8>>,
-    /// Shutdown signal receiver
+    /// Receives outgoing packets from the device (smoltcp → bridge → mixnet).
+    outgoing_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+    /// Sends incoming packets to the device (mixnet → bridge → smoltcp).
+    ///
+    /// Unbounded: backpressure is handled at the mixnet layer (IPR protocol),
+    /// not here. If that changes, consider bounded channels with a drop policy.
+    incoming_tx: mpsc::UnboundedSender<Vec<u8>>,
     shutdown_rx: oneshot::Receiver<()>,
 }
 
 /// Handle for signaling the bridge to shut down gracefully.
-pub struct BridgeShutdownHandle {
+pub(crate) struct BridgeShutdownHandle {
     tx: oneshot::Sender<()>,
 }
 
 impl BridgeShutdownHandle {
-    /// Signal the bridge to shut down and disconnect from the mixnet.
-    pub fn shutdown(self) {
+    pub(crate) fn shutdown(self) {
         let _ = self.tx.send(());
     }
 }
 
 impl NymIprBridge {
-    pub fn new(
+    pub(crate) fn new(
         stream: IpMixStream,
-        tx_receiver: mpsc::UnboundedReceiver<Vec<u8>>,
-        rx_sender: mpsc::UnboundedSender<Vec<u8>>,
+        outgoing_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+        incoming_tx: mpsc::UnboundedSender<Vec<u8>>,
     ) -> (Self, BridgeShutdownHandle) {
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         (
             Self {
                 stream,
-                tx_receiver,
-                rx_sender,
+                outgoing_rx,
+                incoming_tx,
                 shutdown_rx,
             },
             BridgeShutdownHandle { tx: shutdown_tx },
@@ -68,73 +60,71 @@ impl NymIprBridge {
 
     /// Runs the bridge event loop.
     ///
-    /// This method should be spawned in a separate task. It continuously:
-    /// - Processes outgoing packets from the device
-    /// - Polls for incoming packets from the mixnet
-    /// - Maintains packet statistics
+    /// Should be spawned via `tokio::spawn`. The loop exits when a shutdown
+    /// signal is received, channels close, or an unrecoverable error occurs.
     ///
-    /// The loop exits when a shutdown signal is received, channels are closed,
-    /// or an error occurs. On exit the mixnet client is disconnected gracefully.
-    pub async fn run(mut self) -> Result<(), SmolmixError> {
-        info!("Starting Nym IPR bridge");
-        let mut packets_sent = 0;
-        let mut packets_received = 0;
+    /// # Cancel safety
+    ///
+    /// `IpMixStream::handle_incoming()` is **not** cancel-safe — its internal
+    /// `FramedRead` buffers partial frames, and it mutates connection state after
+    /// awaiting. In `tokio::select!`, the shutdown branch can cancel a pending
+    /// `handle_incoming()` call, potentially losing buffered data. This is
+    /// acceptable during shutdown but worth noting for future changes.
+    pub(crate) async fn run(mut self) -> Result<(), SmolmixError> {
+        info!("Starting bridge");
+        let mut packets_sent: u64 = 0;
+        let mut packets_received: u64 = 0;
 
         loop {
             tokio::select! {
-                // Shutdown signal
                 _ = &mut self.shutdown_rx => {
-                    info!(
-                        "Bridge received shutdown signal. Packets sent to mixnet: {}, received from mixnet: {}",
-                        packets_sent, packets_received
-                    );
+                    info!(packets_sent, packets_received, "Bridge received shutdown signal");
                     break;
                 }
 
-                // Outgoing packets from smoltcp layer above.
-                Some(packet) = self.tx_receiver.recv() => {
-                    trace!("Bridge sending {} byte packet to mixnet", packet.len());
+                Some(packet) = self.outgoing_rx.recv() => {
+                    trace!(len = packet.len(), "Sending packet to mixnet");
 
-                    // Necessary to bundle for IPR! See stream_wrapper_ipr.rs tests.
+                    // IPR expects packets wrapped in MultiIpPacketCodec framing.
                     let bundled = MultiIpPacketCodec::bundle_one_packet(packet.into());
                     if let Err(e) = self.stream.send_ip_packet(&bundled).await {
-                        error!("Failed to send packet through mixnet: {}", e);
+                        error!("Failed to send packet through mixnet: {e}");
                     } else {
                         packets_sent += 1;
-                        debug!("Total packets sent: {}", packets_sent);
+                        debug!(packets_sent, "Packet sent");
                     }
                 }
 
-                // Poll for incoming packets from mixnet
-                Ok(packets) = self.stream.handle_incoming() => {
-                    if !packets.is_empty() {
-                        trace!("Bridge received {} packets from mixnet", packets.len());
-                        for packet in packets {
-                            trace!("Incoming packet: {} bytes", packet.len());
-
-                            // Forward to device via channel
-                            if self.rx_sender.send(packet.to_vec()).is_err() {
-                                error!("Failed to send packet to device - receiver dropped");
-                                return Err(SmolmixError::ChannelClosed);
+                result = self.stream.handle_incoming() => {
+                    match result {
+                        Ok(packets) if !packets.is_empty() => {
+                            trace!(count = packets.len(), "Received packets from mixnet");
+                            for packet in packets {
+                                if self.incoming_tx.send(packet.to_vec()).is_err() {
+                                    error!("Device channel closed");
+                                    return Err(SmolmixError::ChannelClosed);
+                                }
+                                packets_received += 1;
                             }
-                            packets_received += 1;
-                            debug!("Total packets received: {}", packets_received);
+                            debug!(packets_received, "Packets received");
+                        }
+                        Ok(_) => {} // empty batch, keep polling
+                        Err(e) => {
+                            // handle_incoming() internally uses a 10-second timeout,
+                            // so this won't busy-loop on persistent errors.
+                            warn!("Mixnet receive error: {e}");
                         }
                     }
                 }
 
                 else => {
-                    info!(
-                        "Bridge shutting down. Packets sent to mixnet: {}, received from mixnet: {}",
-                        packets_sent, packets_received
-                    );
+                    info!(packets_sent, packets_received, "All channels closed, shutting down");
                     break;
                 }
             }
         }
 
-        // Brief delay to let SDK internal tasks drain before teardown.
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        // disconnect_stream() internally waits for all SDK tasks via TaskTracker.
         info!("Disconnecting from mixnet...");
         self.stream.disconnect_stream().await;
         info!("Disconnected");

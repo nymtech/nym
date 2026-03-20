@@ -3,40 +3,11 @@
 
 //! High-level tunnel providing TCP and UDP sockets over the Nym mixnet.
 //!
-//! # Architecture
-//!
-//! ```text
-//! ┌──────────────────────────────────────────────────────────────────┐
-//! │  User code                                                       │
-//! │  tunnel.tcp_connect() → TcpStream (AsyncRead + AsyncWrite)       │
-//! │  tunnel.udp_socket()  → UdpSocket (send_to / recv_from)          │
-//! ├──────────────────────────────────────────────────────────────────┤
-//! │  tokio-smoltcp::Net                                              │
-//! │  Owns the smoltcp Interface + SocketSet + async poll loop.       │
-//! │  Manages TCP state machines, retransmits, port allocation.       │
-//! ├──────────────────────────────────────────────────────────────────┤
-//! │  NymAsyncDevice  (this module's device.rs)                       │
-//! │  Adapts mpsc channels into Stream + Sink of raw IP packets.      │
-//! ├──────────────────────────────────────────────────────────────────┤
-//! │  NymIprBridge  (bridge.rs)                                       │
-//! │  Shuttles packets between the channels and the mixnet.           │
-//! │  Bundles outgoing packets with MultiIpPacketCodec for the IPR.   │
-//! ├──────────────────────────────────────────────────────────────────┤
-//! │  IpMixStream → MixnetStream → Nym mixnet → IPR exit node         │
-//! └──────────────────────────────────────────────────────────────────┘
-//! ```
-//!
-//! The key insight is that tokio-smoltcp handles all the hard parts (smoltcp polling,
-//! TCP state machines, port allocation, waker management) — we just need to give it
-//! a device that produces and consumes raw IP packets. Our [`NymAsyncDevice`] does
-//! exactly that by wrapping the mpsc channels that [`NymIprBridge`] already uses.
+//! See the [crate-level docs](crate) for the full architecture diagram.
 //!
 //! The returned [`TcpStream`] implements `tokio::io::AsyncRead + AsyncWrite`, so it
 //! works transparently with the entire async Rust ecosystem: tokio-rustls for TLS,
-//! tokio-tungstenite for WebSockets, hyper for HTTP, etc. Code using these sockets
-//! doesn't need to know it's going through the mixnet.
-
-mod device;
+//! tokio-tungstenite for WebSockets, hyper for HTTP, etc.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -50,8 +21,8 @@ use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::bridge::{BridgeShutdownHandle, NymIprBridge};
+use crate::device::NymAsyncDevice;
 use crate::SmolmixError;
-use device::NymAsyncDevice;
 use tokio_smoltcp::{Net, NetConfig};
 
 // Re-export so users only need `use smolmix::*` — no direct dep on nym-sdk or tokio-smoltcp.
@@ -180,6 +151,15 @@ impl Tunnel {
     ///
     /// Signals the bridge to disconnect from the mixnet and waits for it to finish.
     /// The smoltcp reactor stops when all `Tunnel` clones are dropped.
+    ///
+    /// If the `Tunnel` is dropped without calling `shutdown()`, cleanup still happens:
+    /// dropping the `Arc<TunnelInner>` drops the oneshot sender inside `ShutdownState`,
+    /// which resolves the bridge's `shutdown_rx` and triggers its shutdown path. However,
+    /// the drop path is fire-and-forget — call `shutdown()` explicitly if you need to
+    /// wait for the mixnet disconnect to complete.
+    ///
+    /// After shutdown, new socket operations (`tcp_connect`, `udp_socket`) will fail
+    /// with IO errors — the bridge channels are closed.
     pub async fn shutdown(&self) {
         let mut state = self.inner.shutdown.lock().await;
         if let Some(s) = state.take() {

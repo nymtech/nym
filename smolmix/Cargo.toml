@@ -5,14 +5,12 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-smoltcp = { workspace = true, default-features = false, features = [
+smoltcp = { workspace = true, features = [
     "std",
     "medium-ip",
     "proto-ipv4",
-    "proto-ipv6",
     "socket-tcp",
     "socket-udp",
-    "socket-icmp",
 ] }
 tokio = { workspace = true }
 tokio-smoltcp = "0.5"
@@ -36,20 +34,3 @@ hyper-util = { workspace = true, features = ["tokio"] }
 http-body-util.workspace = true
 hickory-proto.workspace = true
 hickory-resolver.workspace = true
-
-# Raw smoltcp examples (power-user, in examples/raw/)
-[[example]]
-name = "raw_cloudflare_ping"
-path = "examples/raw/cloudflare_ping.rs"
-
-[[example]]
-name = "raw_dns_udp"
-path = "examples/raw/dns_udp.rs"
-
-[[example]]
-name = "raw_https_client"
-path = "examples/raw/https_client.rs"
-
-[[example]]
-name = "raw_tls"
-path = "examples/raw/tls.rs"

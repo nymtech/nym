@@ -1,152 +1,88 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-2.0-only
 
-use smoltcp::{
-    phy::{Device, DeviceCapabilities, Medium, RxToken, TxToken},
-    time::Instant,
-};
-use std::collections::VecDeque;
+//! Async device adapter for tokio-smoltcp.
+//!
+//! Wraps mpsc channel ends (connected to [`NymIprBridge`](crate::bridge::NymIprBridge))
+//! in the [`Stream`]/[`Sink`] traits that tokio-smoltcp requires. See the
+//! [crate-level docs](crate) for how this fits into the full stack.
+
+use std::io;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
+use futures::{Sink, Stream};
+use smoltcp::phy::{DeviceCapabilities, Medium};
 use tokio::sync::mpsc;
-use tracing::{trace, warn};
+use tokio_smoltcp::device::AsyncDevice;
 
-/// # Overview
-/// We need something to bridge the async / sync weirdness (Device trait fns are sync, IpMixStream fns are
-/// async) in a way that allows for the `NymIprDevice` to look and act like any other device.
+/// Async adapter bridging mpsc channels to tokio-smoltcp's [`AsyncDevice`] trait.
 ///
-/// We need to be polling the queue to/from the NymIprBridge, hence the addition of the
-/// mpsc channels in the Device struct and the extra fns.
-///
-/// # Architecture
-/// smoltcp (sync) <-> NymIprDevice <-> channels <-> NymIprBridge <-> Mixnet (async)
-///
-/// The device maintains a receive queue for packets coming from the mixnet and
-/// uses unbounded channels to communicate with the bridge task that handles the
-/// actual mixnet I/O. We poll the channel in receive() to move packets via mpsc
-/// from async to sync world.
-///
-/// This way no blocking from smoltcp + allows for concurrency.
-///
-/// Adapter pattern between sync polling-based I/O and async event-based I/O.
-pub struct NymIprDevice {
-    // Receive queue for packets coming from the mixnet
-    rx_queue: VecDeque<Vec<u8>>,
-
-    // Channel to send packets to the bridge task
-    tx_sender: mpsc::UnboundedSender<Vec<u8>>,
-
-    // Device capabilities
+/// Incoming packets (mixnet → smoltcp) arrive via the `rx` channel as a [`Stream`].
+/// Outgoing packets (smoltcp → mixnet) are sent via the `tx` channel as a [`Sink`].
+pub(crate) struct NymAsyncDevice {
+    rx: mpsc::UnboundedReceiver<Vec<u8>>,
+    tx: mpsc::UnboundedSender<Vec<u8>>,
     capabilities: DeviceCapabilities,
-
-    // Channel to receive packets from the bridge task
-    rx_receiver: mpsc::UnboundedReceiver<Vec<u8>>,
 }
 
-impl NymIprDevice {
-    pub fn new(
-        tx_sender: mpsc::UnboundedSender<Vec<u8>>,
-        rx_receiver: mpsc::UnboundedReceiver<Vec<u8>>,
+impl NymAsyncDevice {
+    pub(crate) fn new(
+        rx: mpsc::UnboundedReceiver<Vec<u8>>,
+        tx: mpsc::UnboundedSender<Vec<u8>>,
     ) -> Self {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
-        // Standard MTU for IP packets - TODO make configurable
         capabilities.max_transmission_unit = 1500;
-        // Process one packet at a time. TODO experiment with this
         capabilities.max_burst_size = Some(1);
 
         Self {
-            rx_queue: VecDeque::new(),
-            tx_sender,
+            rx,
+            tx,
             capabilities,
-            rx_receiver,
-        }
-    }
-
-    /// Poll for new packets from the bridge
-    fn poll_rx_queue(&mut self) {
-        // Try to receive all available packets without blocking, queue them for smoltcp consumption.
-        while let Ok(packet) = self.rx_receiver.try_recv() {
-            trace!("Received packet of {} bytes from bridge", packet.len());
-            self.rx_queue.push_back(packet);
         }
     }
 }
 
-impl Device for NymIprDevice {
-    type RxToken<'a>
-        = NymRxToken
-    where
-        Self: 'a;
-    type TxToken<'a>
-        = NymTxToken
-    where
-        Self: 'a;
+// tokio-smoltcp calls poll_next() in its reactor loop to feed packets into the
+// smoltcp Interface for processing.
+impl Stream for NymAsyncDevice {
+    type Item = io::Result<Vec<u8>>;
 
-    fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
-        // Poll for new packets from the async bridge
-        self.poll_rx_queue();
-
-        // Check if we have a packet to deliver
-        let packet = self.rx_queue.pop_front()?;
-
-        // Create tokens - RxToken owns the packet data
-        let rx_token = NymRxToken { buffer: packet };
-        let tx_token = NymTxToken {
-            tx_sender: self.tx_sender.clone(),
-        };
-
-        Some((rx_token, tx_token))
-    }
-
-    fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
-        // We can always transmit (channel will buffer)
-        Some(NymTxToken {
-            tx_sender: self.tx_sender.clone(),
-        })
-    }
-
-    fn capabilities(&self) -> DeviceCapabilities {
-        self.capabilities.clone()
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.rx.poll_recv(cx).map(|opt| opt.map(Ok))
     }
 }
 
-/// Receive token - owns the packet buffer
-pub struct NymRxToken {
-    buffer: Vec<u8>,
-}
+// When smoltcp produces a packet (e.g. TCP SYN, data segment, UDP datagram),
+// tokio-smoltcp sends it here and we forward it to the bridge for mixnet delivery.
+//
+// All methods are trivial — the unbounded channel is always ready and never blocks.
+// Backpressure is handled at the mixnet layer, not here.
+impl Sink<Vec<u8>> for NymAsyncDevice {
+    type Error = io::Error;
 
-impl RxToken for NymRxToken {
-    fn consume<R, F>(self, f: F) -> R
-    where
-        F: FnOnce(&[u8]) -> R,
-    {
-        trace!("Consuming RX packet of {} bytes", self.buffer.len());
-        f(&self.buffer)
+    fn poll_ready(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: Vec<u8>) -> Result<(), Self::Error> {
+        self.tx
+            .send(item)
+            .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "bridge channel closed"))
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
     }
 }
 
-/// Transmit token - holds channel sender
-pub struct NymTxToken {
-    tx_sender: mpsc::UnboundedSender<Vec<u8>>,
-}
-
-impl TxToken for NymTxToken {
-    fn consume<R, F>(self, len: usize, f: F) -> R
-    where
-        F: FnOnce(&mut [u8]) -> R,
-    {
-        // Create buffer for the packet
-        let mut buffer = vec![0u8; len];
-
-        // Let smoltcp fill the packet
-        let result = f(&mut buffer);
-
-        // Send raw packet to the bridge task for transmission
-        if let Err(e) = self.tx_sender.send(buffer) {
-            warn!("Failed to send packet to bridge: {}", e);
-        } else {
-            trace!("Sent {} byte packet to bridge", len);
-        }
-
-        result
+impl AsyncDevice for NymAsyncDevice {
+    fn capabilities(&self) -> &DeviceCapabilities {
+        &self.capabilities
     }
 }

@@ -1,60 +1,17 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-2.0-only
 
+#![doc = include_str!("ARCHITECTURE.md")]
+
 mod bridge;
 mod device;
 mod error;
-pub mod tunnel;
+mod tunnel;
 
-pub use bridge::{BridgeShutdownHandle, NymIprBridge};
-pub use device::NymIprDevice;
 pub use error::SmolmixError;
 pub use tunnel::{NetworkEnvironment, TcpStream, Tunnel, UdpSocket};
 
 /// Initialise the default tracing/logging subscriber.
 pub fn init_logging() {
     nym_bin_common::logging::setup_tracing_logger();
-}
-
-use nym_ip_packet_requests::IpPair;
-use nym_sdk::stream_wrapper::IpMixStream;
-use tokio::sync::mpsc;
-
-/// Create a connected smoltcp device and async bridge for the tunneling packets through the
-/// Mixnet to remote hosts via an IPR.
-///
-/// This function handles the complete setup process:
-/// - Ensures the IPR stream is connected
-/// - Retrieves allocated IP addresses
-/// - Creates communication channels
-/// - Constructs the device and bridge components
-///
-/// Returns the device, bridge, shutdown handle, and allocated IP pair.
-/// Call `shutdown_handle.shutdown()` followed by awaiting the bridge task
-/// to disconnect from the mixnet cleanly.
-pub async fn create_device(
-    mut ipr_stream: IpMixStream,
-) -> Result<(NymIprDevice, NymIprBridge, BridgeShutdownHandle, IpPair), SmolmixError> {
-    // Ensure the stream is connected
-    if !ipr_stream.is_connected() {
-        ipr_stream.connect_tunnel().await?;
-    }
-
-    // Get the allocated IPs before moving the stream - need these for proper packet creation
-    // further 'up' the flow in the code calling this fn.
-    let allocated_ips = *ipr_stream
-        .allocated_ips()
-        .ok_or(SmolmixError::NotConnected)?;
-
-    // Create channels for device <-> bridge communication
-    let (tx_to_bridge, tx_from_device) = mpsc::unbounded_channel();
-    let (rx_to_device, rx_from_bridge) = mpsc::unbounded_channel();
-
-    // Create device
-    let device = NymIprDevice::new(tx_to_bridge, rx_from_bridge);
-
-    // Create bridge (moves ipr_stream)
-    let (bridge, shutdown_handle) = NymIprBridge::new(ipr_stream, tx_from_device, rx_to_device);
-
-    Ok((device, bridge, shutdown_handle, allocated_ips))
 }

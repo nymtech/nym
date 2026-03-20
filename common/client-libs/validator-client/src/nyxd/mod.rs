@@ -42,6 +42,7 @@ pub use crate::nyxd::{
     fee::Fee,
 };
 pub use crate::rpc::TendermintRpcClient;
+pub use bip39;
 pub use coin::Coin;
 pub use cosmrs::{
     bank::MsgSend,

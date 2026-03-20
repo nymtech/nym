@@ -53,7 +53,6 @@ impl fmt::Display for StreamId {
 pub struct StreamFrame<'a> {
     pub stream_id: StreamId,
     pub msg_type: SphinxStreamMsgType,
-    #[allow(dead_code)] // will be used for ordering when we add reliability
     pub sequence_num: u32,
     pub data: &'a [u8],
 }

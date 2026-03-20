@@ -8,7 +8,15 @@ which handles LP Stream framing and Sphinx packet transport automatically.
 
 ## Data Flow
 
-TODO
+```text
+Client                                              IPR
+  |                                                  |
+  |-- IpPacketRequest (connect) ---- LP Stream ----->|
+  |<--- IpPacketResponse (ips) ---- LP Stream (s=0) -|
+  |                                                  |
+  |-- IpPacketRequest (data) ------- LP Stream ----->| -> TUN -> internet
+  |<--- IpPacketResponse (data) --- LP Stream (s=1+) | <- TUN <- internet
+```
 
 ## Layer Stack
 
@@ -34,4 +42,8 @@ All messages between client and IPR are wrapped in LP Stream frames:
 
 ## Connection Lifecycle
 
-TODO
+1. `IpMixStream::new()` discovers the best IPR via Nym API
+2. Opens a `MixnetStream` to the IPR (`client.open_stream()`)
+3. Sends a connect request, waits for IP allocation response
+4. Ready for `send_ip_packet()` / `handle_incoming()` loop
+5. `disconnect()` shuts down the mixnet client

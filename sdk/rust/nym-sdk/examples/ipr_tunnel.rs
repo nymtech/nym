@@ -87,9 +87,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
 // ICMP helpers (from the nym-vpn-client helper crates, adapted for examples)
-// ---------------------------------------------------------------------------
 
 fn create_icmpv4_echo_request(
     sequence_number: u16,

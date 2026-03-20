@@ -321,10 +321,9 @@ pub(crate) async fn open_stream(
     let stream_id = StreamId::random();
     let rx = streams.register_stream(stream_id).await;
 
-    // Currently hardcoded as we don't have message ordering in place *yet* in the SDK
-    // streams - when it *is* added then it will set the receiver's expected starting seq
-    // number. Gives us the ability down the road to e.g. pick up a dropped stream from
-    // where it left off.
+    // Open message with seq=0. The receiver's reorder buffer starts at
+    // next_seq=0 so this could later carry an initial seq to resume a
+    // dropped stream from where it left off.
     let wire = encode_stream_message(&stream_id, SphinxStreamMsgType::Open, 0, &[]);
     let msg = InputMessage::new_anonymous(
         recipient,

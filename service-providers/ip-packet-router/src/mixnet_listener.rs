@@ -546,13 +546,11 @@ impl MixnetListener {
         {
             Ok(results) => {
                 for result in results {
-                    #[allow(clippy::collapsible_if)]
-                    if let Ok(Some(response)) = result {
-                        if let Err(e) = self.handle_stream_response(stream_id, response).await {
-                            log::warn!(
-                                "Error sending LP Stream response for stream_id={stream_id:#018x}: {e}"
-                            );
-                        }
+                    let Ok(Some(response)) = result else { continue };
+                    if let Err(e) = self.handle_stream_response(stream_id, response).await {
+                        log::warn!(
+                            "Error sending LP Stream response for stream_id={stream_id:#018x}: {e}"
+                        );
                     }
                 }
             }
@@ -561,7 +559,6 @@ impl MixnetListener {
             }
         }
 
-        // Return empty — we handled responses directly above
         Ok(vec![])
     }
 
@@ -578,10 +575,10 @@ impl MixnetListener {
     /// the two paths never collide.
     ///
     /// Limitation: if multiple inline responses are sent on the same stream
-    /// (e.g. connect + later pong), they share seq=0. This is fine today
-    /// because the client doesn't order by sequence number yet. When
-    /// ordering is added, control responses will need their own counter or
-    /// be routed through the handler's counter.
+    /// (e.g. connect + later pong), they share seq=0. The client's reorder
+    /// buffer will see the second as a duplicate and drop it. In practice
+    /// this is fine because control responses are rare and idempotent, but
+    /// if it becomes a problem, give inline responses their own counter.
     async fn handle_stream_response(
         &mut self,
         stream_id: u64,
@@ -649,26 +646,20 @@ impl MixnetListener {
 
             match self.on_ipr_message(inner_reconstructed, None).await {
                 Ok(results) => {
-                    // Handle responses by wrapping in KCP and sending directly
                     for result in results {
-                        // false positive: this if can't be collapsed due to `response` being moved
-                        // between calls
-                        #[allow(clippy::collapsible_if)]
-                        if let Ok(Some(response)) = result {
-                            if let Err(e) = self
-                                .handle_kcp_response(conv_id, response, current_time_ms)
-                                .await
-                            {
-                                log::warn!(
-                                    "Error sending KCP-wrapped response for conv_id={conv_id}: {e}",
-                                );
-                            }
+                        let Ok(Some(response)) = result else { continue };
+                        if let Err(e) = self
+                            .handle_kcp_response(conv_id, response, current_time_ms)
+                            .await
+                        {
+                            log::warn!(
+                                "Error sending KCP-wrapped response for conv_id={conv_id}: {e}",
+                            );
                         }
                     }
                 }
                 Err(e) => {
-                    log::warn!("Error processing KCP inner message: {}", e);
-                    // Continue processing other messages
+                    log::warn!("Error processing KCP inner message: {e}");
                 }
             }
         }

@@ -603,7 +603,9 @@ impl Default for Nyx {
 
         #[allow(clippy::expect_used)]
         let nyxd_websocket_url = if let Ok(env_value) = env::var(var_names::NYXD_WEBSOCKET) {
-            read_parsed_var(&env_value).expect("malformed default nyxd websocket URL")
+            env_value
+                .parse()
+                .expect("malformed default nyxd websocket URL")
         } else {
             mainnet::NYXD_WS
                 .parse()

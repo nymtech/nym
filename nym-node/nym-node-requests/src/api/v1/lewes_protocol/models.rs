@@ -71,11 +71,14 @@ impl LewesProtocol {
     EnumString,
     Ord,
 )]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum LPKEM {
+    #[serde(alias = "ml_kem768")]
     MlKem768,
+
+    #[serde(alias = "mc_eliece")]
     McEliece,
 }
 
@@ -113,7 +116,7 @@ impl From<nym_kkt_ciphersuite::KEM> for LPKEM {
     EnumIter,
     Ord,
 )]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum LPHashFunction {
@@ -160,7 +163,7 @@ impl From<nym_kkt_ciphersuite::HashFunction> for LPHashFunction {
     EnumString,
     EnumIter,
 )]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum LPSignatureScheme {

@@ -4950,7 +4950,6 @@ version = "1.20.4"
 dependencies = [
  "cargo_metadata 0.19.2",
  "dotenvy",
- "log",
  "regex",
  "schemars",
  "serde",

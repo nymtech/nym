@@ -7418,7 +7418,6 @@ version = "1.20.4"
 dependencies = [
  "cargo_metadata 0.19.2",
  "dotenvy",
- "log",
  "regex",
  "schemars 0.8.22",
  "serde",
@@ -7485,7 +7484,6 @@ dependencies = [
  "nym-task",
  "nym-test-utils",
  "rand 0.8.5",
- "serde",
  "sha2 0.10.9",
  "time",
  "tokio",
@@ -7497,7 +7495,20 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitor-orchestrator"
-version = "1.20.4"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "futures",
+ "nym-bin-common",
+ "nym-network-defaults",
+ "nym-task",
+ "nym-test-utils",
+ "sqlx",
+ "time",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "nym-network-monitors-contract-common"

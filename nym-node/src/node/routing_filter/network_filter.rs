@@ -202,7 +202,14 @@ impl RoutableNetworkMonitors {
     }
 
     pub(crate) fn is_known(&self, address: &IpAddr) -> bool {
-        self.inner.known.load().contains(address)
+        let guard = self.inner.known.load();
+        if guard.contains(address) {
+            return true;
+        }
+        if address.is_ipv6() {
+            return guard.contains(&address.to_canonical());
+        }
+        false
     }
 }
 

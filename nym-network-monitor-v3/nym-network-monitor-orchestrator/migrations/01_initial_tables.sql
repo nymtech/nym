@@ -87,7 +87,8 @@ CREATE TABLE nym_node
     key_rotation_id        INTEGER,
 
     -- The most recent test run performed against this node. NULL if never tested.
-    last_testrun           INTEGER REFERENCES testrun (id),
+    -- Set to NULL automatically when the referenced testrun row is evicted.
+    last_testrun           INTEGER REFERENCES testrun (id) ON DELETE SET NULL,
 
     CHECK ((sphinx_key IS NULL) = (key_rotation_id IS NULL))
 );

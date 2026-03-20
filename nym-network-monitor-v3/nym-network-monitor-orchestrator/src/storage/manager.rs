@@ -136,14 +136,25 @@ impl StorageManager {
 
     /// Atomically selects the most stale idle node and marks it as having a test run in progress.
     ///
-    /// "Most stale" is defined as: nodes that have never been tested come first (NULL
-    /// `last_testrun`), followed by nodes whose last test run has the oldest timestamp.
+    /// "Most stale" is defined as: nodes that have never been tested come first, followed by
+    /// nodes whose last test run has the oldest timestamp.
+    ///
+    /// `last_tested_before` acts as a minimum-staleness gate: a node that has already been
+    /// tested is only eligible if its last test run completed before this timestamp. Nodes
+    /// that have never been tested are always eligible regardless of this value. The caller
+    /// is expected to pass `now - min_test_interval`.
+    ///
+    /// `now` is recorded as the `started_at` timestamp on the resulting `testrun_in_progress`
+    /// row. It is accepted as an argument rather than read from the clock internally so that
+    /// callers can use a consistent timestamp across related operations.
+    ///
     /// Nodes with a row in `testrun_in_progress` are excluded entirely.
     ///
-    /// Returns `None` if all nodes are either currently being tested or no nodes exist.
+    /// Returns `None` if no eligible idle node exists.
     pub(crate) async fn assign_next_testrun(
         &self,
-        started_at: OffsetDateTime,
+        now: OffsetDateTime,
+        last_tested_before: OffsetDateTime,
     ) -> anyhow::Result<Option<NymNode>> {
         let mut tx = self.connection_pool.begin().await?;
 
@@ -162,10 +173,12 @@ impl StorageManager {
             LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
             LEFT JOIN testrun             tr  ON tr.id       = n.last_testrun
             WHERE tip.node_id IS NULL
+              AND (n.last_testrun IS NULL OR tr.test_timestamp < ?)
             ORDER BY tr.test_timestamp ASC NULLS FIRST
             LIMIT 1
             "#,
         )
+        .bind(last_tested_before)
         .fetch_optional(&mut *tx)
         .await?;
 
@@ -173,7 +186,7 @@ impl StorageManager {
             sqlx::query!(
                 "INSERT INTO testrun_in_progress (node_id, started_at) VALUES (?, ?)",
                 node.inner.node_id,
-                started_at,
+                now,
             )
             .execute(&mut *tx)
             .await?;
@@ -433,11 +446,17 @@ mod tests {
     mod assign_next_testrun {
         use super::*;
 
+        // A far-future cutoff that effectively disables the staleness gate,
+        // used in tests that are not concerned with that behaviour.
+        fn no_staleness_gate() -> OffsetDateTime {
+            datetime!(9999-12-31 23:59:59 UTC)
+        }
+
         #[tokio::test]
         async fn returns_none_when_no_nodes() {
             let db = setup().await;
             let result = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC))
+                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
                 .await
                 .unwrap();
             assert!(result.is_none());
@@ -447,12 +466,12 @@ mod tests {
         async fn returns_none_when_all_nodes_in_progress() {
             let db = setup().await;
             db.insert_nym_node(&node(1, "key_a")).await.unwrap();
-            db.assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC))
+            db.assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
                 .await
                 .unwrap();
 
             let result = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:01 UTC))
+                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
                 .await
                 .unwrap();
             assert!(result.is_none());
@@ -463,7 +482,7 @@ mod tests {
             let db = setup().await;
             db.insert_nym_node(&node(1, "key_a")).await.unwrap();
             let assigned = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC))
+                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
                 .await
                 .unwrap();
             assert!(assigned.is_some());
@@ -488,7 +507,7 @@ mod tests {
 
             // node 2 has never been tested — it should be picked first
             let assigned = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC))
+                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
                 .await
                 .unwrap()
                 .unwrap();
@@ -513,7 +532,7 @@ mod tests {
 
             // node 1 has the older run — it should be picked
             let assigned = db
-                .assign_next_testrun(datetime!(2025-06-01 13:00:00 UTC))
+                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
                 .await
                 .unwrap()
                 .unwrap();
@@ -532,7 +551,74 @@ mod tests {
                 .unwrap();
 
             let assigned = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC))
+                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(assigned.inner.node_id, 2);
+        }
+
+        #[tokio::test]
+        async fn skips_node_tested_too_recently() {
+            let db = setup().await;
+            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+
+            let mut run = minimal_test_run();
+            run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
+            let run_id = db.insert_test_run(&run).await.unwrap();
+            db.set_node_last_testrun(1, run_id).await.unwrap();
+
+            // cutoff is before the last test — node is not stale enough
+            let result = db
+                .assign_next_testrun(
+                    datetime!(2025-06-01 13:00:00 UTC),
+                    datetime!(2025-06-01 11:00:00 UTC),
+                )
+                .await
+                .unwrap();
+            assert!(result.is_none());
+        }
+
+        #[tokio::test]
+        async fn returns_node_tested_sufficiently_long_ago() {
+            let db = setup().await;
+            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+
+            let mut run = minimal_test_run();
+            run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
+            let run_id = db.insert_test_run(&run).await.unwrap();
+            db.set_node_last_testrun(1, run_id).await.unwrap();
+
+            // cutoff is after the last test — node is eligible
+            let assigned = db
+                .assign_next_testrun(
+                    datetime!(2025-06-01 14:00:00 UTC),
+                    datetime!(2025-06-01 13:00:00 UTC),
+                )
+                .await
+                .unwrap();
+            assert!(assigned.is_some());
+        }
+
+        #[tokio::test]
+        async fn never_tested_node_bypasses_staleness_gate() {
+            let db = setup().await;
+            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_nym_node(&node(2, "key_b")).await.unwrap();
+
+            // node 1 was tested very recently
+            let mut run = minimal_test_run();
+            run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
+            let run_id = db.insert_test_run(&run).await.unwrap();
+            db.set_node_last_testrun(1, run_id).await.unwrap();
+
+            // cutoff is before node 1's last test — it is filtered out
+            // node 2 has never been tested and must still be returned
+            let assigned = db
+                .assign_next_testrun(
+                    datetime!(2025-06-01 13:00:00 UTC),
+                    datetime!(2025-06-01 11:00:00 UTC),
+                )
                 .await
                 .unwrap()
                 .unwrap();

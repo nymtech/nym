@@ -57,15 +57,15 @@ impl IpMixStream {
         let network_defaults = env.network_defaults();
         let api_client = create_nym_api_client(network_defaults.nym_api_urls.unwrap_or_default())?;
         let ipr_address = get_best_ipr(api_client).await?;
-        Self::new_with_gateway(env, ipr_address).await
+        Self::new_with_ipr(env, ipr_address).await
     }
 
-    /// Connect to a specific IPR gateway address.
+    /// Connect to a specific IPR address.
     ///
     /// Use this when you already know the IPR `Recipient` address (e.g. for
     /// testing against a specific exit node). For automatic discovery, use
     /// [`IpMixStream::new`] instead.
-    pub async fn new_with_gateway(
+    pub async fn new_with_ipr(
         env: NetworkEnvironment,
         ipr_address: Recipient,
     ) -> Result<Self, Error> {

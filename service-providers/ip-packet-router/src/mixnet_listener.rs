@@ -531,7 +531,7 @@ impl MixnetListener {
 
         // Open frames may carry an empty payload (stream handshake).
         if payload.is_empty() {
-            log::debug!("LP Stream: empty payload (Open handshake), skipping");
+            log::info!("LP Stream: new stream opened (stream_id={stream_id:#018x})");
             return Ok(vec![]);
         }
 

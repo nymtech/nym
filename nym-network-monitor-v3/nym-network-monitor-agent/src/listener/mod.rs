@@ -73,25 +73,33 @@ impl MixnetListener {
     /// each one to the receiver until the connection is closed or an error occurs.
     async fn handle_stream(&self, mut mixnet_connection: Framed<Connection<TcpStream>, NymCodec>) {
         loop {
-            let next_packet = match mixnet_connection.next().await {
-                None => {
-                    info!("mixnet connection closed");
-                    return;
+            tokio::select! {
+                biased;
+                _ = self.shutdown.cancelled() => {
+                    tracing::debug!("mixnet listener: received shutdown");
+                    return
                 }
-                Some(Ok(packet)) => packet,
-                Some(Err(err)) => {
-                    error!("failed to read a packet from the mixnet connection: {err}");
-                    return;
+                next_packet = mixnet_connection.next() => {
+                    let next_packet = match next_packet {
+                        None => {
+                            info!("mixnet connection closed");
+                            return;
+                        }
+                        Some(Ok(packet)) => packet,
+                        Some(Err(err)) => {
+                            error!("failed to read a packet from the mixnet connection: {err}");
+                            return;
+                        }
+                    };
+                    if self
+                        .received_packets_sender
+                        .unbounded_send(ReceivedPacket::new(next_packet))
+                        .is_err()
+                    {
+                        warn!("mixnet packet receiver has shut down - is the agent still running?");
+                        return;
+                    }
                 }
-            };
-
-            if self
-                .received_packets_sender
-                .unbounded_send(ReceivedPacket::new(next_packet))
-                .is_err()
-            {
-                warn!("mixnet packet receiver has shut down - is the agent still running?");
-                return;
             }
         }
     }
@@ -99,7 +107,7 @@ impl MixnetListener {
     /// Validates the source address, performs the Noise handshake, then delegates to
     /// [`handle_stream`](Self::handle_stream) for the lifetime of the connection.
     async fn handle_connection(&mut self, (socket, source): (TcpStream, SocketAddr)) {
-        if source != self.tested_node_address {
+        if source.ip() != self.tested_node_address.ip() {
             warn!(
                 "received a connection from a source that's not the node being tested. Ignoring it. Source: {source}, tested node: {}",
                 self.tested_node_address

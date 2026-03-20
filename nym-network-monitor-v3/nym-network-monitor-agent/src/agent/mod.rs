@@ -114,7 +114,7 @@ impl NetworkMonitorAgent {
     /// Opens the outbound Noise-encrypted TCP connection to the node under test.
     async fn establish_egress_connection(&self) -> anyhow::Result<EgressConnection> {
         EgressConnection::establish(
-            self.config.mixnet_address,
+            self.tested_node.address,
             self.config.egress_connection_timeout,
             self.tested_node.key_rotation,
             &self.noise_config(),
@@ -221,7 +221,7 @@ impl NetworkMonitorAgent {
             .create_test_sphinx_packet()
             .context("sphinx packet creation failure!")?;
         if let Err(err) = egress.send_packet(packet).await {
-            result.set_error(err.context("failed to send test packet").to_string());
+            result.set_error(format!("{:#}", err.context("failed to send test packet")));
             return Ok(false);
         };
         Ok(true)
@@ -240,7 +240,7 @@ impl NetworkMonitorAgent {
             .context("sphinx packet batch creation failure!")?;
 
         if let Err(err) = egress.send_packet_batch(batch).await {
-            result.set_error(err.context("failed to send test packet").to_string());
+            result.set_error(format!("{:#}", err.context("failed to send test packet")));
             return Ok(false);
         };
         Ok(true)
@@ -267,10 +267,10 @@ impl NetworkMonitorAgent {
                 Ok(true)
             }
             Err(err) => {
-                result.set_error(
+                result.set_error(format!(
+                    "{:#}",
                     err.context("failed to receive a valid initial packet back")
-                        .to_string(),
-                );
+                ));
                 Ok(false)
             }
         }
@@ -296,9 +296,9 @@ impl NetworkMonitorAgent {
                 Ok(true)
             }
             Err(err) => {
-                result.set_error(
-                    err.context("failed to receive a valid secondary packet back - the node might not have a working chain subscriber (or the agent might be misconfigured)")
-                        .to_string(),
+                result.set_error(format!(
+                    "{:#}",
+                    err.context("failed to receive a valid secondary packet back - the node might not have a working chain subscriber (or the agent might be misconfigured)"))
                 );
                 Ok(false)
             }
@@ -415,7 +415,7 @@ impl NetworkMonitorAgent {
         info!(
             sent = result.packets_sent,
             received = received_count,
-            recv_pct = format!("{:.1}", result.received_percentage()),
+            recv_pct = format!("{:.1}%", result.received_percentage()),
             "load test complete"
         );
     }
@@ -432,10 +432,10 @@ impl NetworkMonitorAgent {
         let mut egress = match self.establish_egress_connection().await {
             Ok(conn) => conn,
             Err(err) => {
-                result.set_error(
+                result.set_error(format!(
+                    "{:#}",
                     err.context("failed to establish egress node connection")
-                        .to_string(),
-                );
+                ));
                 return Ok(result);
             }
         };
@@ -462,6 +462,13 @@ impl NetworkMonitorAgent {
                 .send_bloomfilter_probe(&mut egress, &mut processor, &mut result)
                 .await?
         {
+            shutdown_token.cancel();
+            let mixnet_listener = listener_join.await?;
+            let ingress_noise = mixnet_listener
+                .last_noise_handshake_duration
+                .context("missing ingress noise duration after completing entire test run!")?;
+
+            result.set_ingress_noise_handshake(ingress_noise);
             result.set_egress_connection_statistics(egress.connection_statistics);
             return Ok(result);
         }
@@ -473,6 +480,7 @@ impl NetworkMonitorAgent {
         self.collect_test_results(&mut processor, &mut result).await;
 
         // 7. shut down the listener and harvest its stats
+        info!("shutting down the mixnet listener");
         shutdown_token.cancel();
         let mixnet_listener = listener_join.await?;
         let ingress_noise = mixnet_listener

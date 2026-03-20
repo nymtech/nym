@@ -67,8 +67,9 @@ impl TestPacketHeader {
 
 /// The payload embedded in every test sphinx packet.
 ///
-/// Serialises to exactly 24 bytes: 8 bytes for `id` (big-endian `u64`) followed by
-/// 16 bytes for `sending_timestamp` (big-endian Unix timestamp in nanoseconds as `i128`).
+/// Serialises to exactly 16 bytes: 8 bytes for `id` (big-endian `u64`) followed by
+/// 8 bytes for `sending_timestamp` (big-endian Unix timestamp in nanoseconds as `i64`).
+/// Nanosecond precision is preserved for dates up to year 2262 (i64 max ≈ 9.2*10^18 ns).
 /// The timestamp is used to compute the packet's round-trip time on receipt.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub(crate) struct TestPacketContent {
@@ -89,27 +90,31 @@ impl TestPacketContent {
         }
     }
 
-    /// Serialises the content to 24 bytes: `id` as big-endian u64, then
-    /// `sending_timestamp` as a big-endian i128 Unix timestamp in nanoseconds.
+    /// Serialises the content to 16 bytes: `id` as big-endian u64, then
+    /// `sending_timestamp` as a big-endian i64 Unix timestamp in nanoseconds.
     pub(crate) fn to_bytes(self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(24);
+        let mut bytes = Vec::with_capacity(16);
         bytes.extend_from_slice(&self.id.to_be_bytes());
-        bytes.extend_from_slice(&self.sending_timestamp.unix_timestamp_nanos().to_be_bytes());
+        // unix_timestamp_nanos() returns i128, but the value fits in i64 for dates up to year 2262.
+        #[allow(clippy::cast_possible_truncation)]
+        bytes.extend_from_slice(
+            &(self.sending_timestamp.unix_timestamp_nanos() as i64).to_be_bytes(),
+        );
         bytes
     }
 
-    /// Deserialises content from a 24-byte slice produced by [`to_bytes`](Self::to_bytes).
-    /// Returns an error if the slice is not exactly 24 bytes or the timestamp is out of range.
+    /// Deserialises content from a 16-byte slice produced by [`to_bytes`](Self::to_bytes).
+    /// Returns an error if the slice is not exactly 16 bytes or the timestamp is out of range.
     pub(crate) fn from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
-        if bytes.len() != 24 {
+        if bytes.len() != 16 {
             bail!("malformed test packet received")
         }
 
         let id = u64::from_be_bytes(bytes[0..8].try_into()?);
-        let sending_timestamp = i128::from_be_bytes(bytes[8..24].try_into()?);
+        let nanos = i64::from_be_bytes(bytes[8..16].try_into()?);
         Ok(Self {
             id,
-            sending_timestamp: OffsetDateTime::from_unix_timestamp_nanos(sending_timestamp)?,
+            sending_timestamp: OffsetDateTime::from_unix_timestamp_nanos(nanos as i128)?,
         })
     }
 }
@@ -127,9 +132,9 @@ mod tests {
     }
 
     #[test]
-    fn serialised_length_is_always_24_bytes() {
+    fn serialised_length_is_always_16_bytes() {
         let content = TestPacketContent::new(0);
-        assert_eq!(content.to_bytes().len(), 24);
+        assert_eq!(content.to_bytes().len(), 16);
     }
 
     #[test]
@@ -171,22 +176,25 @@ mod tests {
     }
 
     #[test]
-    fn timestamp_is_encoded_in_last_16_bytes_big_endian() {
+    fn timestamp_is_encoded_in_last_8_bytes_big_endian() {
         let ts = datetime!(2025-01-01 00:00:00 UTC);
         let content = content_with_timestamp(0, ts);
         let bytes = content.to_bytes();
-        let ts_bytes: [u8; 16] = bytes[8..24].try_into().unwrap();
-        assert_eq!(i128::from_be_bytes(ts_bytes), ts.unix_timestamp_nanos());
+        let ts_bytes: [u8; 8] = bytes[8..16].try_into().unwrap();
+        assert_eq!(
+            i64::from_be_bytes(ts_bytes),
+            ts.unix_timestamp_nanos() as i64
+        );
     }
 
     #[test]
     fn from_bytes_rejects_too_short() {
-        assert!(TestPacketContent::from_bytes(&[0u8; 23]).is_err());
+        assert!(TestPacketContent::from_bytes(&[0u8; 15]).is_err());
     }
 
     #[test]
     fn from_bytes_rejects_too_long() {
-        assert!(TestPacketContent::from_bytes(&[0u8; 25]).is_err());
+        assert!(TestPacketContent::from_bytes(&[0u8; 17]).is_err());
     }
 
     #[test]

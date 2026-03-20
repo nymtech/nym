@@ -52,7 +52,6 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::SocketAddr;
     use std::time::Duration;
 
     fn config(target_rate: usize, sending_duration: Duration, batch_size: usize) -> Config {

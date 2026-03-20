@@ -3,6 +3,7 @@
 
 use super::env::vars::*;
 use crate::cli::common::CommonArgs;
+use tracing::error;
 use url::Url;
 
 #[derive(clap::Args, Debug)]
@@ -21,5 +22,7 @@ pub(crate) struct Args {
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
-    todo!()
+    let _ = args;
+    error!("this command hasn't been implemented yet");
+    Ok(())
 }

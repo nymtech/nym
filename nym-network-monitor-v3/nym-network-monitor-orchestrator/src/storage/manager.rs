@@ -196,6 +196,21 @@ impl StorageManager {
         Ok(node)
     }
 
+    /// Deletes all `testrun` rows whose `test_timestamp` is older than `cutoff`.
+    ///
+    /// Intended to be called periodically with `now - eviction_age` as the cutoff to keep
+    /// the local database from growing unboundedly. Rows that are evicted are assumed to
+    /// have already been submitted to the nym-api for persistent storage.
+    ///
+    /// Any `nym_node.last_testrun` foreign key that pointed at an evicted row is automatically
+    /// set to `NULL` by the database (`ON DELETE SET NULL`).
+    pub(crate) async fn evict_old_testruns(&self, cutoff: OffsetDateTime) -> anyhow::Result<()> {
+        sqlx::query!("DELETE FROM testrun WHERE test_timestamp < ?", cutoff)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
     /// Updates `nym_node.last_testrun` to point at the given test run ID.
     pub(crate) async fn set_node_last_testrun(
         &self,
@@ -440,6 +455,91 @@ mod tests {
                     .await
                     .unwrap();
             assert_eq!(remaining, vec![2]);
+        }
+    }
+
+    mod evict_old_testruns {
+        use super::*;
+
+        #[tokio::test]
+        async fn evicts_runs_older_than_cutoff() {
+            let db = setup().await;
+            let mut old_run = minimal_test_run();
+            old_run.test_timestamp = datetime!(2025-01-01 00:00:00 UTC);
+            let old_id = db.insert_test_run(&old_run).await.unwrap();
+
+            let mut recent_run = minimal_test_run();
+            recent_run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
+            let recent_id = db.insert_test_run(&recent_run).await.unwrap();
+
+            db.evict_old_testruns(datetime!(2025-03-01 00:00:00 UTC))
+                .await
+                .unwrap();
+
+            let ids: Vec<i64> = sqlx::query_scalar!("SELECT id FROM testrun ORDER BY id")
+                .fetch_all(&db.connection_pool)
+                .await
+                .unwrap();
+            assert!(!ids.contains(&old_id));
+            assert!(ids.contains(&recent_id));
+        }
+
+        #[tokio::test]
+        async fn preserves_runs_at_or_after_cutoff() {
+            let db = setup().await;
+            let mut run = minimal_test_run();
+            run.test_timestamp = datetime!(2025-03-01 00:00:00 UTC);
+            let id = db.insert_test_run(&run).await.unwrap();
+
+            // cutoff is exactly at the run's timestamp — should NOT be evicted (strict <)
+            db.evict_old_testruns(datetime!(2025-03-01 00:00:00 UTC))
+                .await
+                .unwrap();
+
+            let count = sqlx::query_scalar!("SELECT COUNT(*) FROM testrun WHERE id = ?", id)
+                .fetch_one(&db.connection_pool)
+                .await
+                .unwrap();
+            assert_eq!(count, 1);
+        }
+
+        #[tokio::test]
+        async fn nullifies_node_last_testrun_on_eviction() {
+            let db = setup().await;
+            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+
+            let mut run = minimal_test_run();
+            run.test_timestamp = datetime!(2025-01-01 00:00:00 UTC);
+            let run_id = db.insert_test_run(&run).await.unwrap();
+            db.set_node_last_testrun(1, run_id).await.unwrap();
+
+            db.evict_old_testruns(datetime!(2025-06-01 00:00:00 UTC))
+                .await
+                .unwrap();
+
+            let row = sqlx::query!("SELECT last_testrun FROM nym_node WHERE node_id = 1")
+                .fetch_one(&db.connection_pool)
+                .await
+                .unwrap();
+            assert!(row.last_testrun.is_none());
+        }
+
+        #[tokio::test]
+        async fn does_nothing_when_no_old_runs() {
+            let db = setup().await;
+            db.insert_test_run(&minimal_test_run()).await.unwrap();
+
+            // cutoff is well in the past — nothing should be evicted
+            let result = db
+                .evict_old_testruns(datetime!(2000-01-01 00:00:00 UTC))
+                .await;
+            assert!(result.is_ok());
+
+            let count = sqlx::query_scalar!("SELECT COUNT(*) FROM testrun")
+                .fetch_one(&db.connection_pool)
+                .await
+                .unwrap();
+            assert_eq!(count, 1);
         }
     }
 

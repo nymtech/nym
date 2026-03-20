@@ -18,7 +18,6 @@ clap = { workspace = true, features = ["cargo", "env"] }
 futures = { workspace = true }
 humantime = { workspace = true }
 rand = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
 nym-sphinx-types = { workspace = true }
 nym-sphinx-params = { workspace = true }
 nym-sphinx-framing = { workspace = true }

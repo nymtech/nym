@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO reply_surb_storage_metadata(min_reply_surb_threshold, max_reply_surb_threshold)\n            VALUES (?, ?);\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "b6ce77fcffda2ee24ba181213e04adec312abffa604fa805cc362a2c206107b4"
+}

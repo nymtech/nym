@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT OR IGNORE INTO expiration_date_signatures(expiration_date, epoch_id, serialised_signatures, serialization_revision)\n                VALUES (?, ?, ?, ?);\n                UPDATE expiration_date_signatures\n                    SET\n                        serialised_signatures = ?,\n                        serialization_revision = ?\n                     WHERE expiration_date = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "16d10f0ac0ed9ce4239937f46df3797a6a9ee7db2aab9f1b5e55f7c13c53bcc1"
+}

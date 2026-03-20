@@ -76,9 +76,9 @@ pub async fn fetch_topology(
         })
         .unwrap_or_default();
 
-    if nym_api_urls.is_empty() {
+    let Some(nym_api_url) = nym_api_urls.first() else {
         return Err(String::from("No nym-api URLs available to fetch topology"));
-    }
+    };
 
     let topology_config = NymApiTopologyProviderConfig {
         min_mixnode_performance: debug_config.topology.minimum_mixnode_performance,
@@ -87,7 +87,7 @@ pub async fn fetch_topology(
         ignore_egress_epoch_role: debug_config.topology.ignore_egress_epoch_role,
     };
 
-    let api_client = nym_http_api_client::Client::new_url(nym_api_urls[0].clone(), None)
+    let api_client = nym_http_api_client::Client::new_url(nym_api_url.clone(), None)
         .map_err(|e| e.to_string())?;
     let mut provider = NymApiTopologyProvider::new(topology_config, nym_api_urls, api_client);
 

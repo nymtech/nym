@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO reply_surb_sender(tag, last_sent) VALUES (?, ?);\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "bdaf8e8dd711ff420807659456f5ebe0222a2a0ba96f28e3a3aa58fdc4b689db"
+}

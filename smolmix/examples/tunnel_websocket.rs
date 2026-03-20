@@ -31,8 +31,7 @@ const WS_HOST: &str = "ws.postman-echo.com";
 const WS_PATH: &str = "/raw";
 const ECHO_MSG: &str = "Hello from the Nym mixnet!";
 
-/// Build a reusable TLS config with the system root certificates.
-fn tls_config() -> tokio_rustls::TlsConnector {
+fn tls_connector() -> tokio_rustls::TlsConnector {
     let mut root_store = rustls::RootCertStore::empty();
     root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
     let config = rustls::ClientConfig::builder()
@@ -55,7 +54,7 @@ async fn main() -> Result<(), BoxError> {
         .ok_or("DNS resolution failed")?;
     info!("Resolved {WS_HOST} -> {addr}");
 
-    let connector = tls_config();
+    let connector = tls_connector();
     let domain = ServerName::try_from(WS_HOST)?.to_owned();
 
     // --- Clearnet baseline: tokio TCP → rustls → tungstenite ---

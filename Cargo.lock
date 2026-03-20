@@ -7407,14 +7407,18 @@ dependencies = [
  "anyhow",
  "clap",
  "futures",
+ "humantime",
  "nym-bin-common",
+ "nym-crypto",
  "nym-network-defaults",
  "nym-task",
  "nym-test-utils",
+ "nym-validator-client",
  "sqlx",
  "time",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]

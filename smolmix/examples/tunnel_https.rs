@@ -15,10 +15,18 @@ use hyper::Request;
 use hyper_util::rt::TokioIo;
 use rustls::pki_types::ServerName;
 use smolmix::{NetworkEnvironment, Tunnel};
-use tokio_rustls::TlsConnector;
 use tracing::info;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
+
+fn tls_connector() -> tokio_rustls::TlsConnector {
+    let mut root_store = rustls::RootCertStore::empty();
+    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let config = rustls::ClientConfig::builder()
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
+    tokio_rustls::TlsConnector::from(Arc::new(config))
+}
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
@@ -45,12 +53,7 @@ async fn main() -> Result<(), BoxError> {
     let mixnet_start = tokio::time::Instant::now();
     let tcp = tunnel.tcp_connect("1.1.1.1:443".parse()?).await?;
 
-    let mut root_store = rustls::RootCertStore::empty();
-    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    let tls_config = rustls::ClientConfig::builder()
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
-    let connector = TlsConnector::from(Arc::new(tls_config));
+    let connector = tls_connector();
     let domain = ServerName::try_from(host)?.to_owned();
     let tls = connector.connect(domain, tcp).await?;
 

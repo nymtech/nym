@@ -139,7 +139,7 @@ const config: DocsThemeConfig = {
       </>
     );
   },
-  logo: <span>Nym Docs</span>,
+  logo: <span style={{ fontFamily: "var(--font-mono)", fontSize: "1.1rem", fontWeight: 700 }}>Nym Docs</span>,
   project: {
     link: "https://github.com/nymtech/nym",
   },

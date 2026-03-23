@@ -82,7 +82,7 @@ export const LandingPage = () => {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, 1fr)",
-          border: "1px solid var(--border-dark)",
+          border: "1px solid var(--border)",
           marginBottom: "3.5rem",
         }}
       >
@@ -96,9 +96,9 @@ export const LandingPage = () => {
               style={{
                 padding: "1.5rem",
                 borderBottom:
-                  i < 2 ? "1px solid var(--border-dark)" : undefined,
+                  i < 2 ? "1px solid var(--border)" : undefined,
                 borderRight:
-                  i % 2 === 0 ? "1px solid var(--border-dark)" : undefined,
+                  i % 2 === 0 ? "1px solid var(--border)" : undefined,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
@@ -118,11 +118,11 @@ export const LandingPage = () => {
                   }}
                 >
                   <h2
+                    className="landing-heading"
                     style={{
                       fontFamily: "var(--font-mono)",
-                      fontSize: "1.1rem",
+                      fontSize: "1.25rem",
                       fontWeight: 600,
-                      color: "#FFFFFF",
                       margin: 0,
                       padding: 0,
                       border: "none",
@@ -166,11 +166,11 @@ export const LandingPage = () => {
       >
         <div style={{ paddingRight: "2rem" }}>
           <h2
+            className="landing-heading"
             style={{
               fontFamily: "var(--font-mono)",
-              fontSize: "1.2rem",
+              fontSize: "1.35rem",
               fontWeight: 600,
-              color: "#FFFFFF",
               marginBottom: "0.5rem",
               border: "none",
               padding: 0,
@@ -196,7 +196,7 @@ export const LandingPage = () => {
                 className="landing-card"
                 style={{
                   padding: "1rem 1.2rem",
-                  border: "1px solid var(--border-dark)",
+                  border: "1px solid var(--border)",
                   marginTop: i > 0 ? "-1px" : undefined,
                   display: "flex",
                   alignItems: "center",
@@ -207,11 +207,11 @@ export const LandingPage = () => {
               >
                 <div>
                   <span
+                    className="landing-heading"
                     style={{
                       fontFamily: "var(--font-mono)",
-                      fontSize: "0.9rem",
+                      fontSize: "1rem",
                       fontWeight: 600,
-                      color: "#FFFFFF",
                     }}
                   >
                     {sdk.name}
@@ -240,7 +240,7 @@ export const LandingPage = () => {
       {/* ── Links ── */}
       <div
         style={{
-          borderTop: "1px solid var(--border-dark)",
+          borderTop: "1px solid var(--border)",
           paddingTop: "1.5rem",
           display: "flex",
           gap: "2rem",

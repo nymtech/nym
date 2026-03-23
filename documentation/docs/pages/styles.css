@@ -39,6 +39,7 @@
   --bg-dark: #181C1E;
   --bg-code: #1C2022;
   --border-dark: #2A2F32;
+  --border: #2A2F32;
   --font-mono: 'JetBrains Mono', 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
 }
 
@@ -340,7 +341,11 @@ input:focus-visible {
   border-radius: 0;
 }
 
-/* ── Landing page cards ── */
+/* ── Landing page ── */
+
+.landing-heading {
+  color: #FFFFFF;
+}
 
 .landing-card:hover {
   background-color: rgba(255, 255, 255, 0.03) !important;
@@ -379,9 +384,12 @@ html.dark .nextra-content img.img-expanded {
 /* ── Light mode ── */
 
 html:not(.dark) {
+  --colorPrimary: #1a7a32;
   --colorPrimary-light: #1a7a32;
   --bg-light: #F5F5F5;
   --border-light: #E0E0E0;
+  --border: #E0E0E0;
+  --textMuted: #6B7280;
   --textMuted-light: #6B7280;
 }
 
@@ -481,7 +489,15 @@ html:not(.dark) h2 {
   border-bottom: 1px solid var(--border-light);
 }
 
-/* Light mode landing cards */
+/* Light mode landing page */
+html:not(.dark) .landing-heading {
+  color: #1a1a1a !important;
+}
+
 html:not(.dark) .landing-card:hover {
   background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+html:not(.dark) .landing-card {
+  border-color: var(--border-light) !important;
 }

@@ -9,7 +9,7 @@ fallback_extensions = ["mdx", "md"]
 
 # Remap /images to public/images for NextJS static assets
 # Lychee resolves /images to pages/images, but Next.js serves from public/images
-remap = ["pages/images public/images"]
+remap = ["pages/images public/images", "pages/docs/fonts public/fonts"]
 
 # Exclude component snippets (TODO: verify which are still in use)
 exclude_path = ["components/"]

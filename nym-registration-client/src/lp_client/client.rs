@@ -595,7 +595,7 @@ where
 
         Ok(WireguardConfiguration {
             public_key: final_response.public_key,
-            psk: Some(psk),
+            psk: Some(psk.into()),
             endpoint: SocketAddr::new(self.gateway_lp_address.ip(), final_response.port),
             private_ipv4: final_response.private_ipv4,
             private_ipv6: final_response.private_ipv6,

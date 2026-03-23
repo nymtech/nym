@@ -7,7 +7,7 @@ use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
 use crate::lp_client::helpers::to_lp_remote_peer;
 use crate::lp_client::{LpRegistrationClient, NestedLpSession};
-use crate::types::{LpRegistrationResult, RegistrationResult};
+use crate::types::{RegistrationResult, WireguardRegistrationResult};
 
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
@@ -148,11 +148,11 @@ impl LpBasedRegistrationClient {
         // All data flows through WireGuard after this point.
         // Each LP packet used its own TCP connection which was closed after the exchange.
         // Exit registration was completed via forwarding through entry gateway.
-        Ok(RegistrationResult::Lp(Box::new(LpRegistrationResult {
+        Ok(RegistrationResult::wireguard_lp(
             entry_gateway_data,
             exit_gateway_data,
-            bw_controller: self.bandwidth_controller,
-        })))
+            self.bandwidth_controller,
+        ))
     }
 
     async fn register_wg(self) -> Result<RegistrationResult, RegistrationClientError> {

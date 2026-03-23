@@ -3,12 +3,14 @@
 
 pub mod config;
 pub mod error;
+pub mod preshared_key;
 pub mod public_key;
 
 use std::time::Duration;
 
 pub use config::Config;
 pub use error::Error;
+pub use preshared_key::PresharedKey;
 pub use public_key::PeerPublicKey;
 
 pub const DEFAULT_PEER_TIMEOUT_CHECK: Duration = Duration::from_secs(5); // 5 seconds

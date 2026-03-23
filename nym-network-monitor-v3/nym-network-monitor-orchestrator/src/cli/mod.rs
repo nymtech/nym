@@ -33,7 +33,7 @@ impl Cli {
     pub(crate) async fn execute(self) -> anyhow::Result<()> {
         match self.command {
             Command::BuildInfo(args) => build_info::execute(args),
-            Command::RunOrchestrator(args) => run_orchestrator::execute(args).await?,
+            Command::RunOrchestrator(args) => run_orchestrator::execute(*args).await?,
         }
         Ok(())
     }
@@ -46,5 +46,5 @@ pub(crate) enum Command {
 
     /// Run the network monitor orchestrator which will periodically
     /// issue work assignments for stress testing mixnodes
-    RunOrchestrator(run_orchestrator::Args),
+    RunOrchestrator(Box<run_orchestrator::Args>),
 }

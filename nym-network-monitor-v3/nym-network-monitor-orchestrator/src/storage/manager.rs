@@ -14,7 +14,7 @@ impl StorageManager {
     /// all fields except `identity_key` are updated — `identity_key` is intentionally left
     /// unchanged because a given `node_id` always corresponds to exactly one identity key
     /// and is never reassigned.
-    pub(crate) async fn insert_nym_node(&self, node: &NewNymNode) -> anyhow::Result<()> {
+    pub(crate) async fn insert_or_update_nym_node(&self, node: &NewNymNode) -> anyhow::Result<()> {
         sqlx::query!(
             r#"
             INSERT INTO nym_node (
@@ -96,6 +96,7 @@ impl StorageManager {
 
     /// Marks a node as having a test run in progress by inserting into `testrun_in_progress`.
     /// Returns an error if the node already has a run in progress (PRIMARY KEY conflict).
+    #[cfg(test)]
     pub(crate) async fn mark_testrun_in_progress(
         &self,
         node_id: i64,
@@ -291,7 +292,9 @@ mod tests {
         #[tokio::test]
         async fn inserts_new_node() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
 
             let row = sqlx::query!("SELECT identity_key FROM nym_node WHERE node_id = 1")
                 .fetch_one(&db.connection_pool)
@@ -303,12 +306,14 @@ mod tests {
         #[tokio::test]
         async fn updates_fields_on_conflict() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
 
             let mut updated = node(1, "key_a");
             updated.mixnet_socket_address = "5.5.5.5:9000".to_string();
             updated.noise_key = Some("noise123".to_string());
-            db.insert_nym_node(&updated).await.unwrap();
+            db.insert_or_update_nym_node(&updated).await.unwrap();
 
             let row = sqlx::query!(
                 "SELECT mixnet_socket_address, noise_key FROM nym_node WHERE node_id = 1"
@@ -363,7 +368,9 @@ mod tests {
         #[tokio::test]
         async fn links_run_to_node() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
             let run_id = db.insert_test_run(&minimal_test_run()).await.unwrap();
             db.set_node_last_testrun(1, run_id).await.unwrap();
 
@@ -381,7 +388,9 @@ mod tests {
         #[tokio::test]
         async fn inserts_row() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
             db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
                 .await
                 .unwrap();
@@ -397,7 +406,9 @@ mod tests {
         #[tokio::test]
         async fn rejects_duplicate() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
             db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
                 .await
                 .unwrap();
@@ -414,7 +425,9 @@ mod tests {
         #[tokio::test]
         async fn removes_row() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
             db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
                 .await
                 .unwrap();
@@ -435,8 +448,12 @@ mod tests {
         #[tokio::test]
         async fn removes_only_old_entries() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
-            db.insert_nym_node(&node(2, "key_b")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
+            db.insert_or_update_nym_node(&node(2, "key_b"))
+                .await
+                .unwrap();
             db.mark_testrun_in_progress(1, datetime!(2025-06-01 08:00:00 UTC))
                 .await
                 .unwrap();
@@ -506,7 +523,9 @@ mod tests {
         #[tokio::test]
         async fn nullifies_node_last_testrun_on_eviction() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
 
             let mut run = minimal_test_run();
             run.test_timestamp = datetime!(2025-01-01 00:00:00 UTC);
@@ -565,7 +584,9 @@ mod tests {
         #[tokio::test]
         async fn returns_none_when_all_nodes_in_progress() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
             db.assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
                 .await
                 .unwrap();
@@ -580,7 +601,9 @@ mod tests {
         #[tokio::test]
         async fn inserts_in_progress_row() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
             let assigned = db
                 .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
                 .await
@@ -598,8 +621,12 @@ mod tests {
         #[tokio::test]
         async fn prefers_never_tested_node_over_stale_one() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
-            db.insert_nym_node(&node(2, "key_b")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
+            db.insert_or_update_nym_node(&node(2, "key_b"))
+                .await
+                .unwrap();
 
             // give node 1 a completed test run
             let run_id = db.insert_test_run(&minimal_test_run()).await.unwrap();
@@ -617,8 +644,12 @@ mod tests {
         #[tokio::test]
         async fn prefers_older_testrun_over_newer_one() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
-            db.insert_nym_node(&node(2, "key_b")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
+            db.insert_or_update_nym_node(&node(2, "key_b"))
+                .await
+                .unwrap();
 
             let mut old_run = minimal_test_run();
             old_run.test_timestamp = datetime!(2025-01-01 00:00:00 UTC);
@@ -642,8 +673,12 @@ mod tests {
         #[tokio::test]
         async fn skips_node_already_in_progress() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
-            db.insert_nym_node(&node(2, "key_b")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
+            db.insert_or_update_nym_node(&node(2, "key_b"))
+                .await
+                .unwrap();
 
             // both have no test run; node 1 is manually put in progress
             db.mark_testrun_in_progress(1, datetime!(2025-06-01 11:00:00 UTC))
@@ -661,7 +696,9 @@ mod tests {
         #[tokio::test]
         async fn skips_node_tested_too_recently() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
 
             let mut run = minimal_test_run();
             run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
@@ -682,7 +719,9 @@ mod tests {
         #[tokio::test]
         async fn returns_node_tested_sufficiently_long_ago() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
 
             let mut run = minimal_test_run();
             run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
@@ -703,8 +742,12 @@ mod tests {
         #[tokio::test]
         async fn never_tested_node_bypasses_staleness_gate() {
             let db = setup().await;
-            db.insert_nym_node(&node(1, "key_a")).await.unwrap();
-            db.insert_nym_node(&node(2, "key_b")).await.unwrap();
+            db.insert_or_update_nym_node(&node(1, "key_a"))
+                .await
+                .unwrap();
+            db.insert_or_update_nym_node(&node(2, "key_b"))
+                .await
+                .unwrap();
 
             // node 1 was tested very recently
             let mut run = minimal_test_run();

@@ -42,7 +42,7 @@ All messages between client and IPR are wrapped in LP Stream frames:
 
 ## IP Allocation
 
-The IPR owns a subnet (`10.0.0.0/16` for IPv4, `fc00::/64` for IPv6) and
+The IPR owns a subnet (`10.0.0.0/16` for IPv4, `fc00::/112` for IPv6) and
 allocates addresses to clients on connect. Two modes are supported:
 
 - **Dynamic** (used by `IpMixStream`): The IPR picks a random unused `IpPair`
@@ -52,8 +52,9 @@ allocates addresses to clients on connect. Two modes are supported:
 On dynamic connect:
 
 1. IPR calls `find_new_ip()` — random selection from the subnet
-2. Registers the client (keyed by anonymous sender tag for v8, Nym address
-   for v6/v7) with that IP pair in dual `HashMap<Ipv4Addr/Ipv6Addr, Client>`
+2. Registers the client in dual `HashMap<Ipv4Addr, Client>` / `HashMap<Ipv6Addr, Client>`
+   maps (keyed by allocated IP). The client identity (anonymous sender tag
+   for v8, Nym address for v6/v7) is stored inside the `ConnectedClient` value.
 3. Returns `DynamicConnectSuccess { ips }` to the client
 
 The client uses the allocated IPv4/IPv6 as its source address when constructing

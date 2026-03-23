@@ -9,7 +9,54 @@ use nym_sdk::mixnet::{EventReceiver, MixnetClient};
 pub enum RegistrationResult {
     Mixnet(Box<MixnetRegistrationResult>),
     Wireguard(Box<WireguardRegistrationResult>),
-    Lp(Box<LpRegistrationResult>),
+}
+
+impl RegistrationResult {
+    pub fn mixnet(
+        mixnet_client: MixnetClient,
+        assigned_addresses: AssignedAddresses,
+        event_rx: EventReceiver,
+    ) -> Self {
+        RegistrationResult::Mixnet(Box::new(MixnetRegistrationResult {
+            assigned_addresses,
+            mixnet_client,
+            event_rx,
+        }))
+    }
+
+    pub fn wireguard_legacy(
+        entry_gateway_client: AuthenticatorClient,
+        exit_gateway_client: AuthenticatorClient,
+        entry_gateway_data: WireguardConfiguration,
+        exit_gateway_data: WireguardConfiguration,
+        authenticator_listener_handle: AuthClientMixnetListenerHandle,
+        bw_controller: Box<dyn BandwidthTicketProvider>,
+    ) -> Self {
+        RegistrationResult::Wireguard(Box::new(WireguardRegistrationResult::Legacy(Box::new(
+            AuthenticatorRegistrationResult {
+                entry_gateway_client,
+                exit_gateway_client,
+                entry_gateway_data,
+                exit_gateway_data,
+                authenticator_listener_handle,
+                bw_controller,
+            },
+        ))))
+    }
+
+    pub fn wireguard_lp(
+        entry_gateway_data: WireguardConfiguration,
+        exit_gateway_data: WireguardConfiguration,
+        bw_controller: Box<dyn BandwidthTicketProvider>,
+    ) -> Self {
+        RegistrationResult::Wireguard(Box::new(WireguardRegistrationResult::LewesProtocol(
+            Box::new(LpRegistrationResult {
+                entry_gateway_data,
+                exit_gateway_data,
+                bw_controller,
+            }),
+        )))
+    }
 }
 
 pub struct MixnetRegistrationResult {
@@ -18,7 +65,28 @@ pub struct MixnetRegistrationResult {
     pub event_rx: EventReceiver,
 }
 
-pub struct WireguardRegistrationResult {
+pub enum WireguardRegistrationResult {
+    Legacy(Box<AuthenticatorRegistrationResult>),
+    LewesProtocol(Box<LpRegistrationResult>),
+}
+
+impl WireguardRegistrationResult {
+    pub fn entry_gateway_data(&self) -> &WireguardConfiguration {
+        match self {
+            Self::Legacy(res) => &res.entry_gateway_data,
+            Self::LewesProtocol(res) => &res.entry_gateway_data,
+        }
+    }
+
+    pub fn exit_gateway_data(&self) -> &WireguardConfiguration {
+        match self {
+            Self::Legacy(res) => &res.exit_gateway_data,
+            Self::LewesProtocol(res) => &res.exit_gateway_data,
+        }
+    }
+}
+
+pub struct AuthenticatorRegistrationResult {
     pub entry_gateway_client: AuthenticatorClient,
     pub exit_gateway_client: AuthenticatorClient,
     pub entry_gateway_data: WireguardConfiguration,

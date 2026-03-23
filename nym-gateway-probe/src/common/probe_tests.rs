@@ -242,7 +242,7 @@ pub async fn lp_registration_probe(
         "  - PSK: {:?}",
         gateway_data
             .psk
-            .map(|k| general_purpose::STANDARD.encode(k))
+            .map(|k| general_purpose::STANDARD.encode(k.as_bytes()))
     );
     info!("  - Private IPv4: {}", gateway_data.private_ipv4);
     info!("  - Private IPv6: {}", gateway_data.private_ipv6);

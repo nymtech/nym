@@ -15,6 +15,7 @@ description = "Wireguard public key and config definitions"
 base64 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+zeroize.workspace = true
 
 x25519-dalek = { workspace = true, features = ["static_secrets"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }

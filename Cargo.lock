@@ -8671,6 +8671,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]

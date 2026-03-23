@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::AuthenticatorRegistrationResult;
 use crate::config::RegistrationClientConfig;
 use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
@@ -84,19 +85,17 @@ impl MixnetBasedRegistrationClient {
             }
         };
 
-        Ok(RegistrationResult::Mixnet(Box::new(
-            MixnetRegistrationResult {
-                mixnet_client: ipr_client.into_mixnet_client(),
-                assigned_addresses: AssignedAddresses {
-                    interface_addresses,
-                    exit_mix_address: ipr_address,
-                    mixnet_client_address: self.mixnet_client_address,
-                    entry_mixnet_gateway_ip,
-                    exit_mixnet_gateway_ip,
-                },
-                event_rx: self.event_rx,
+        Ok(RegistrationResult::mixnet(
+            ipr_client.into_mixnet_client(),
+            AssignedAddresses {
+                interface_addresses,
+                exit_mix_address: ipr_address,
+                mixnet_client_address: self.mixnet_client_address,
+                entry_mixnet_gateway_ip,
+                exit_mixnet_gateway_ip,
             },
-        )))
+            self.event_rx,
+        ))
     }
 
     async fn register_wg(self) -> Result<RegistrationResult, RegistrationError> {
@@ -199,16 +198,14 @@ impl MixnetBasedRegistrationClient {
             }
         };
 
-        Ok(RegistrationResult::Wireguard(Box::new(
-            WireguardRegistrationResult {
-                entry_gateway_client: entry_auth_client,
-                exit_gateway_client: exit_auth_client,
-                entry_gateway_data: entry,
-                exit_gateway_data: exit,
-                authenticator_listener_handle: mixnet_listener,
-                bw_controller: self.bandwidth_controller,
-            },
-        )))
+        Ok(RegistrationResult::wireguard_legacy(
+            entry_auth_client,
+            exit_auth_client,
+            entry,
+            exit,
+            mixnet_listener,
+            self.bandwidth_controller,
+        ))
     }
 
     pub(crate) async fn register(self) -> Result<RegistrationResult, RegistrationClientError> {

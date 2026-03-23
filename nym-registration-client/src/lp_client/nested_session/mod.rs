@@ -401,10 +401,9 @@ impl NestedLpSession {
             }
         };
 
-        // JS/SW TODO Adapt this to new gateway response
         Ok(WireguardConfiguration {
             public_key: final_response.public_key,
-            psk: Some(psk),
+            psk: Some(psk.into()),
             endpoint: SocketAddr::new(self.exit_address.ip(), final_response.port),
             private_ipv4: final_response.private_ipv4,
             private_ipv6: final_response.private_ipv6,

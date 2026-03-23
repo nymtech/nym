@@ -12,7 +12,8 @@ pub use lp_client::{
     LpRegistrationClient, LpRegistrationConfig, NestedLpSession, error::LpClientError,
 };
 pub use types::{
-    LpRegistrationResult, MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult,
+    AuthenticatorRegistrationResult, LpRegistrationResult, MixnetRegistrationResult,
+    RegistrationResult, WireguardRegistrationResult,
 };
 
 mod builder;

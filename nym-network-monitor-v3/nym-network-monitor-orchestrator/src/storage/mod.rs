@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::storage::manager::StorageManager;
+use crate::storage::models::{NewNymNode, NewTestRun, NymNode};
 use anyhow::Context;
+use nym_validator_client::client::NodeId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use std::path::Path;
 use std::time::Duration;
-use tracing::log::{LevelFilter, debug, error};
+use time::OffsetDateTime;
+use tracing::log::{LevelFilter, debug};
 
 mod manager;
-mod models;
+pub(crate) mod models;
 
 #[derive(Clone)]
 pub(crate) struct NetworkMonitorStorage {
@@ -45,5 +48,80 @@ impl NetworkMonitorStorage {
         Ok(Self {
             storage_manager: StorageManager { connection_pool },
         })
+    }
+
+    /// Inserts a new node record. If a node with the same `node_id` already exists,
+    /// all fields except `identity_key` are updated — `identity_key` is intentionally left
+    /// unchanged because a given `node_id` always corresponds to exactly one identity key
+    /// and is never reassigned.
+    pub(crate) async fn insert_or_update_nym_node(&self, node: &NewNymNode) -> anyhow::Result<()> {
+        self.storage_manager.insert_or_update_nym_node(node).await
+    }
+
+    /// Inserts a completed test run.
+    pub(crate) async fn insert_test_run(
+        &self,
+        run: &NewTestRun,
+        node_id: NodeId,
+    ) -> anyhow::Result<()> {
+        let run_id = self.storage_manager.insert_test_run(run).await?;
+        self.storage_manager
+            .set_node_last_testrun(node_id as i64, run_id)
+            .await?;
+        self.storage_manager
+            .clear_testrun_in_progress(node_id as i64)
+            .await?;
+        Ok(())
+    }
+
+    /// Removes all in-progress markers whose `started_at` is older than `timeout`, on the
+    /// assumption that those runs have timed out and will never complete.
+    pub(crate) async fn clear_timed_out_testruns_in_progress(
+        &self,
+        timeout: Duration,
+    ) -> anyhow::Result<()> {
+        let cutoff = OffsetDateTime::now_utc() - timeout;
+        self.storage_manager
+            .clear_timed_out_testruns_in_progress(cutoff)
+            .await
+    }
+
+    /// Atomically selects the most stale idle node and marks it as having a test run in progress.
+    ///
+    /// "Most stale" is defined as: nodes that have never been tested come first, followed by
+    /// nodes whose last test run has the oldest timestamp.
+    ///
+    /// `staleness_age` acts as a minimum-staleness gate: a node that has already been tested
+    /// is only eligible if its last test run completed more than `staleness_age` ago. Nodes
+    /// that have never been tested are always eligible regardless of this value.
+    ///
+    /// The current time is used as the `started_at` timestamp on the resulting
+    /// `testrun_in_progress` row.
+    ///
+    /// Nodes with a row in `testrun_in_progress` are excluded entirely.
+    ///
+    /// Returns `None` if no eligible idle node exists.
+    pub(crate) async fn assign_next_testrun(
+        &self,
+        staleness_age: Duration,
+    ) -> anyhow::Result<Option<NymNode>> {
+        let now = OffsetDateTime::now_utc();
+        let last_tested_before = now - staleness_age;
+        self.storage_manager
+            .assign_next_testrun(now, last_tested_before)
+            .await
+    }
+
+    /// Deletes all `testrun` rows older than `eviction_age` relative to the current time.
+    ///
+    /// Intended to be called periodically to keep the local database from growing unboundedly.
+    /// Rows that are evicted are assumed to have already been submitted to the nym-api for
+    /// persistent storage.
+    ///
+    /// Any `nym_node.last_testrun` foreign key that pointed at an evicted row is automatically
+    /// set to `NULL` by the database (`ON DELETE SET NULL`).
+    pub(crate) async fn evict_old_testruns(&self, eviction_age: Duration) -> anyhow::Result<()> {
+        let cutoff = OffsetDateTime::now_utc() - eviction_age;
+        self.storage_manager.evict_old_testruns(cutoff).await
     }
 }

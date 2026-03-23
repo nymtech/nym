@@ -11,8 +11,8 @@ use nym_bin_common::logging::{
 use nym_network_defaults::setup_env;
 use tracing::info;
 
-mod cli;
-mod orchestrator;
+pub(crate) mod cli;
+pub(crate) mod orchestrator;
 mod storage;
 
 fn setup_logger() -> anyhow::Result<()> {

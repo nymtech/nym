@@ -3,6 +3,7 @@
   "entryPoints": ["./src/index.ts"],
   "out": "../../../../documentation/docs/pages/developers/typescript/api/sdk",
   "plugin": ["typedoc-plugin-markdown"],
+  "entryFileName": "globals",
   "exclude": ["./src/**/node-tester/*", "./src/**/wasm/types-from-wasm-pack.ts"],
   "kindSortOrder": [
     "Function",

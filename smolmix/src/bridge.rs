@@ -3,7 +3,7 @@
 
 use crate::error::SmolmixError;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
-use nym_sdk::stream_wrapper::IpMixStream;
+use nym_sdk::ipr_wrapper::IpMixStream;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, trace, warn};
 
@@ -126,7 +126,7 @@ impl NymIprBridge {
 
         // disconnect_stream() internally waits for all SDK tasks via TaskTracker.
         info!("Disconnecting from mixnet...");
-        self.stream.disconnect_stream().await;
+        self.stream.disconnect().await;
         info!("Disconnected");
 
         Ok(())

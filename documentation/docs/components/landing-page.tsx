@@ -496,7 +496,7 @@ export const LandingPage = () => {
           rel="noopener noreferrer"
           style={{ color: "var(--textMuted)", textDecoration: "none" }}
         >
-          nymtech.net
+          nym.com
         </a>
       </div>
     </div>

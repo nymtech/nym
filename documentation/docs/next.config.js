@@ -64,19 +64,19 @@ const config = {
       },
       {
         source: "/docs/architecture/nym-vs-others.html",
-        destination: "/docs/network/architecture/nym-vs-others",
+        destination: "/docs/network/overview/comparisons",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/architecture/traffic-flow.html",
-        destination: "/docs/network/traffic", // testing difference
+        destination: "/docs/network/mixnet-mode/traffic-flow",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/architecture/addressing-system.html",
-        destination: "/docs/network/traffic/addressing-system",
+        destination: "/docs/network/reference/addressing",
         permanent: true,
         basePath: false,
       },
@@ -100,7 +100,7 @@ const config = {
       },
       {
         source: "/docs/nodes/overview.html ",
-        destination: "/docs/network/architecture/mixnet#nym-nodes",
+        destination: "/docs/network/infrastructure/nym-nodes",
         permanent: true,
         basePath: false,
       },
@@ -132,19 +132,19 @@ const config = {
       },
       {
         source: "/docs/nyx/smart-contracts.html",
-        destination: "/docs/network/architecture/nyx#smart-contracts",
+        destination: "/docs/network/infrastructure/nyx#smart-contracts",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/nyx/mixnet-contract.html",
-        destination: "/docs/network/architecture/nyx#mixnet-contract",
+        destination: "/docs/network/infrastructure/nyx#mixnet-contract",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/nyx/vesting-contract.html",
-        destination: "/docs/network/architecture/nyx#vesting-contract",
+        destination: "/docs/network/infrastructure/nyx#vesting-contract",
         permanent: true,
         basePath: false,
       },
@@ -616,7 +616,7 @@ const config = {
       },
       {
         source: "/docs/architecture/network-overview.html",
-        destination: "/docs/network/architecture",
+        destination: "/docs/network/overview",
         permanent: true,
         basePath: false,
       },
@@ -634,7 +634,7 @@ const config = {
       },
       {
         source: "/docs/network/architecture/nyx/smart-contracts/ecash",
-        destination: "/docs/network/architecture/nyx#zk-nym-contract",
+        destination: "/docs/network/infrastructure/nyx#zk-nym-contract",
         permanent: true,
         basePath: false,
       },

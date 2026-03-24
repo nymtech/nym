@@ -1,4 +1,6 @@
 import { Callout } from 'nextra/components'
+import { TimeNow } from 'components/time-now.tsx';
+import stats from 'components/outputs/api-scraping-outputs/nodes-count.json';
 
 # Nym Nodes
 
@@ -8,7 +10,7 @@ All traffic-routing infrastructure runs on the `nym-node` binary. This unified b
 To run a node, see the [Operator Documentation](/operators/introduction).
 </Callout>
 
-## Node roles
+## Node modes
 
 **Entry Gateways** are the user's first point of contact with the network. They accept WebSocket connections from clients, verify zk-nym credentials to confirm payment, and store messages for clients that go offline (up to 24 hours). Entry Gateways know the client's IP address but cannot see message contents or final destinations.
 
@@ -20,7 +22,7 @@ To run a node, see the [Operator Documentation](/operators/introduction).
 
 The various components were originally separate binaries. They've been consolidated into a single `nym-node` binary where the role is specified at runtime. This simplifies operation and makes configuration consistent across roles.
 
-In the future, nodes will automatically switch roles based on network conditions. Operators won't need to manually set whether a node is a Gateway or Mix Node—the network will assign roles dynamically each epoch.
+In the future, nodes will automatically switch modes based on network conditions. Operators won't need to manually set whether a node is a Gateway or Mix Node—the network will assign modes dynamically each epoch.
 
 ## Nym clients
 
@@ -34,4 +36,6 @@ Client types include native Rust clients, WASM clients for browsers, the SOCKS5 
 
 ## Running infrastructure
 
-The current deployment includes over 600 active nodes across approximately 60 countries, operated by independent parties worldwide. Running a node requires meeting minimum hardware specifications, staking NYM tokens as collateral, and maintaining high uptime for rewards.
+<TimeNow />
+
+The current deployment includes {stats.nodes} active nodes across {stats.locations} countries, operated by independent parties worldwide. This includes {stats.mixnodes} Mix Nodes and {stats.exit_gateways} Exit Gateways. Running a node requires meeting minimum hardware specifications, bonding NYM tokens as collateral, and maintaining high uptime for rewards.

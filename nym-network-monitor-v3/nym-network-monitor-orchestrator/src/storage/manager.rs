@@ -10,39 +10,52 @@ pub(crate) struct StorageManager {
 }
 
 impl StorageManager {
-    /// Inserts a new node record. If a node with the same `node_id` already exists,
-    /// all fields except `identity_key` are updated — `identity_key` is intentionally left
-    /// unchanged because a given `node_id` always corresponds to exactly one identity key
-    /// and is never reassigned.
-    pub(crate) async fn insert_or_update_nym_node(&self, node: &NewNymNode) -> anyhow::Result<()> {
-        sqlx::query!(
-            r#"
-            INSERT INTO nym_node (
-                node_id,
-                identity_key,
-                last_seen_bonded,
-                mixnet_socket_address,
-                noise_key,
-                sphinx_key,
-                key_rotation_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (node_id) DO UPDATE SET
-                last_seen_bonded      = excluded.last_seen_bonded,
-                mixnet_socket_address = excluded.mixnet_socket_address,
-                noise_key             = excluded.noise_key,
-                sphinx_key            = excluded.sphinx_key,
-                key_rotation_id       = excluded.key_rotation_id
-            "#,
-            node.node_id,
-            node.identity_key,
-            node.last_seen_bonded,
-            node.mixnet_socket_address,
-            node.noise_key,
-            node.sphinx_key,
-            node.key_rotation_id,
-        )
-        .execute(&self.connection_pool)
-        .await?;
+    /// Inserts or updates multiple node records in a single transaction.
+    ///
+    /// For each node, if a row with the same `node_id` already exists, all fields except
+    /// `identity_key` are updated — `identity_key` is intentionally left unchanged because
+    /// a given `node_id` always corresponds to exactly one identity key and is never reassigned.
+    ///
+    /// Wrapping the entire batch in one transaction means SQLite performs a single WAL sync
+    /// rather than one per row.
+    pub(crate) async fn batch_insert_or_update_nym_nodes(
+        &self,
+        nodes: &[NewNymNode],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for node in nodes {
+            sqlx::query!(
+                r#"
+                INSERT INTO nym_node (
+                    node_id,
+                    identity_key,
+                    last_seen_bonded,
+                    mixnet_socket_address,
+                    noise_key,
+                    sphinx_key,
+                    key_rotation_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (node_id) DO UPDATE SET
+                    last_seen_bonded      = excluded.last_seen_bonded,
+                    mixnet_socket_address = excluded.mixnet_socket_address,
+                    noise_key             = excluded.noise_key,
+                    sphinx_key            = excluded.sphinx_key,
+                    key_rotation_id       = excluded.key_rotation_id
+                "#,
+                node.node_id,
+                node.identity_key,
+                node.last_seen_bonded,
+                node.mixnet_socket_address,
+                node.noise_key,
+                node.sphinx_key,
+                node.key_rotation_id,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
         Ok(())
     }
 
@@ -258,7 +271,7 @@ mod tests {
             node_id: id,
             identity_key: identity_key.to_string(),
             last_seen_bonded: datetime!(2025-01-01 00:00:00 UTC),
-            mixnet_socket_address: "1.2.3.4:1789".to_string(),
+            mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
             noise_key: None,
             sphinx_key: None,
             key_rotation_id: None,
@@ -287,34 +300,35 @@ mod tests {
         }
     }
 
-    mod upsert_nym_node {
+    mod batch_insert_or_update_nym_nodes {
         use super::*;
 
         #[tokio::test]
-        async fn inserts_new_node() {
+        async fn inserts_multiple_nodes() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
-                .await
-                .unwrap();
+            let nodes = vec![node(1, "key_a"), node(2, "key_b"), node(3, "key_c")];
+            db.batch_insert_or_update_nym_nodes(&nodes).await.unwrap();
 
-            let row = sqlx::query!("SELECT identity_key FROM nym_node WHERE node_id = 1")
+            let count = sqlx::query_scalar!("SELECT COUNT(*) FROM nym_node")
                 .fetch_one(&db.connection_pool)
                 .await
                 .unwrap();
-            assert_eq!(row.identity_key, "key_a");
+            assert_eq!(count, 3);
         }
 
         #[tokio::test]
-        async fn updates_fields_on_conflict() {
+        async fn updates_existing_nodes_in_batch() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
 
             let mut updated = node(1, "key_a");
-            updated.mixnet_socket_address = "5.5.5.5:9000".to_string();
-            updated.noise_key = Some("noise123".to_string());
-            db.insert_or_update_nym_node(&updated).await.unwrap();
+            updated.mixnet_socket_address = Some("9.9.9.9:1789".to_string());
+            updated.noise_key = Some("new_noise".to_string());
+
+            let nodes = vec![updated, node(2, "key_b")];
+            db.batch_insert_or_update_nym_nodes(&nodes).await.unwrap();
 
             let row = sqlx::query!(
                 "SELECT mixnet_socket_address, noise_key FROM nym_node WHERE node_id = 1"
@@ -322,8 +336,26 @@ mod tests {
             .fetch_one(&db.connection_pool)
             .await
             .unwrap();
-            assert_eq!(row.mixnet_socket_address, "5.5.5.5:9000");
-            assert_eq!(row.noise_key.as_deref(), Some("noise123"));
+            assert_eq!(row.mixnet_socket_address.as_deref(), Some("9.9.9.9:1789"));
+            assert_eq!(row.noise_key.as_deref(), Some("new_noise"));
+
+            let count = sqlx::query_scalar!("SELECT COUNT(*) FROM nym_node")
+                .fetch_one(&db.connection_pool)
+                .await
+                .unwrap();
+            assert_eq!(count, 2);
+        }
+
+        #[tokio::test]
+        async fn empty_batch_is_noop() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[]).await.unwrap();
+
+            let count = sqlx::query_scalar!("SELECT COUNT(*) FROM nym_node")
+                .fetch_one(&db.connection_pool)
+                .await
+                .unwrap();
+            assert_eq!(count, 0);
         }
     }
 
@@ -369,7 +401,7 @@ mod tests {
         #[tokio::test]
         async fn links_run_to_node() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
             let run_id = db.insert_test_run(&minimal_test_run()).await.unwrap();
@@ -389,7 +421,7 @@ mod tests {
         #[tokio::test]
         async fn inserts_row() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
             db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
@@ -407,7 +439,7 @@ mod tests {
         #[tokio::test]
         async fn rejects_duplicate() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
             db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
@@ -426,7 +458,7 @@ mod tests {
         #[tokio::test]
         async fn removes_row() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
             db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
@@ -449,10 +481,10 @@ mod tests {
         #[tokio::test]
         async fn removes_only_old_entries() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
-            db.insert_or_update_nym_node(&node(2, "key_b"))
+            db.batch_insert_or_update_nym_nodes(&[node(2, "key_b")])
                 .await
                 .unwrap();
             db.mark_testrun_in_progress(1, datetime!(2025-06-01 08:00:00 UTC))
@@ -524,7 +556,7 @@ mod tests {
         #[tokio::test]
         async fn nullifies_node_last_testrun_on_eviction() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
 
@@ -585,7 +617,7 @@ mod tests {
         #[tokio::test]
         async fn returns_none_when_all_nodes_in_progress() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
             db.assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
@@ -602,7 +634,7 @@ mod tests {
         #[tokio::test]
         async fn inserts_in_progress_row() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
             let assigned = db
@@ -622,10 +654,10 @@ mod tests {
         #[tokio::test]
         async fn prefers_never_tested_node_over_stale_one() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
-            db.insert_or_update_nym_node(&node(2, "key_b"))
+            db.batch_insert_or_update_nym_nodes(&[node(2, "key_b")])
                 .await
                 .unwrap();
 
@@ -645,10 +677,10 @@ mod tests {
         #[tokio::test]
         async fn prefers_older_testrun_over_newer_one() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
-            db.insert_or_update_nym_node(&node(2, "key_b"))
+            db.batch_insert_or_update_nym_nodes(&[node(2, "key_b")])
                 .await
                 .unwrap();
 
@@ -674,10 +706,10 @@ mod tests {
         #[tokio::test]
         async fn skips_node_already_in_progress() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
-            db.insert_or_update_nym_node(&node(2, "key_b"))
+            db.batch_insert_or_update_nym_nodes(&[node(2, "key_b")])
                 .await
                 .unwrap();
 
@@ -697,7 +729,7 @@ mod tests {
         #[tokio::test]
         async fn skips_node_tested_too_recently() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
 
@@ -720,7 +752,7 @@ mod tests {
         #[tokio::test]
         async fn returns_node_tested_sufficiently_long_ago() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
 
@@ -743,10 +775,10 @@ mod tests {
         #[tokio::test]
         async fn never_tested_node_bypasses_staleness_gate() {
             let db = setup().await;
-            db.insert_or_update_nym_node(&node(1, "key_a"))
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
-            db.insert_or_update_nym_node(&node(2, "key_b"))
+            db.batch_insert_or_update_nym_nodes(&[node(2, "key_b")])
                 .await
                 .unwrap();
 

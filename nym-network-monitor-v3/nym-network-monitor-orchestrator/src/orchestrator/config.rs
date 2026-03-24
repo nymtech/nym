@@ -48,6 +48,9 @@ pub(crate) struct Config {
     /// Rows older than this are assumed to have already been submitted to the nym-api
     /// (e.g. `7d`, `24h`).
     pub(crate) testrun_eviction_age: Duration,
+
+    /// Maximum number of nodes queried concurrently during a node refresh cycle.
+    pub(crate) number_of_concurrent_node_queries: usize,
 }
 
 impl Config {

@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use time::OffsetDateTime;
 
 /// Discriminator for the type of node targeted by a [`TestRun`].
@@ -74,7 +75,7 @@ pub(crate) struct NewNymNode {
 
     /// Mixnet socket address (host:port) at which the node accepts sphinx packets.
     /// Stored as a string; parse with `str::parse::<SocketAddr>()` when needed.
-    pub(crate) mixnet_socket_address: String,
+    pub(crate) mixnet_socket_address: Option<String>,
 
     /// X25519 public key used for Noise handshakes, base58-encoded.
     /// `None` if retrieval from the node failed.
@@ -89,6 +90,20 @@ pub(crate) struct NewNymNode {
     /// `None` if retrieval from the node failed.
     /// Always `None`/`Some` together with `sphinx_key`.
     pub(crate) key_rotation_id: Option<i64>,
+}
+
+impl NewNymNode {
+    pub(crate) fn from_bond(bond: &NymNodeBond) -> Self {
+        NewNymNode {
+            node_id: bond.node_id as i64,
+            identity_key: bond.identity().to_string(),
+            last_seen_bonded: OffsetDateTime::now_utc(),
+            mixnet_socket_address: None,
+            noise_key: None,
+            sphinx_key: None,
+            key_rotation_id: None,
+        }
+    }
 }
 
 /// A row from the `testrun_in_progress` table.

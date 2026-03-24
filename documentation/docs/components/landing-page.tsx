@@ -311,6 +311,7 @@ export const LandingPage = () => {
     >
       {/* ── Section cards ── */}
       <div
+        className="landing-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, 1fr)",
@@ -325,6 +326,7 @@ export const LandingPage = () => {
             style={{ textDecoration: "none", display: "flex" }}
           >
             <div
+              data-index={i}
               style={{
                 padding: "1.5rem",
                 borderBottom: i < 2 ? "1px solid var(--border)" : undefined,
@@ -385,6 +387,7 @@ export const LandingPage = () => {
 
       {/* ── SDKs ── */}
       <div
+        className="landing-sdk-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",

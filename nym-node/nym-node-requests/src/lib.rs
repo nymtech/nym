@@ -1,11 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#![warn(clippy::expect_used)]
-#![warn(clippy::unwrap_used)]
-
 pub mod api;
 pub mod error;
+
+#[cfg(feature = "client")]
+pub use crate::api::helpers::try_get_valid_nym_node_api_client;
+
 macro_rules! absolute_route {
     ( $name:ident, $parent:expr, $suffix:expr ) => {
         pub fn $name() -> String {

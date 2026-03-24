@@ -78,6 +78,10 @@ pub(crate) struct Args {
     /// (e.g. `7d`, `24h`).
     #[clap(long, env = NYM_NETWORK_MONITOR_TESTRUN_EVICTION_AGE_ARG, value_parser = humantime::parse_duration)]
     testrun_eviction_age: Duration,
+
+    /// Maximum number of nodes queried concurrently during a node refresh cycle.
+    #[clap(long, env = NYM_NETWORK_MONITOR_CONCURRENT_NODE_QUERIES_ARG, default_value_t = 32)]
+    number_of_concurrent_node_queries: usize,
 }
 
 impl Args {
@@ -109,6 +113,7 @@ impl Args {
                 .transpose()
                 .map_err(|err| anyhow!("invalid mixnet contract address: {err}"))?,
             testrun_eviction_age: self.testrun_eviction_age,
+            number_of_concurrent_node_queries: self.number_of_concurrent_node_queries,
         })
     }
 

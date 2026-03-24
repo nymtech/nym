@@ -483,7 +483,7 @@ export const LandingPage = () => {
           GitHub
         </a>
         <a
-          href="https://matrix.to/#/%23dev:nymtech.net"
+          href="https://matrix.to/#/#operators:nymtech.chat"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "var(--textMuted)", textDecoration: "none" }}
@@ -491,7 +491,7 @@ export const LandingPage = () => {
           Matrix
         </a>
         <a
-          href="https://nymtech.net"
+          href="https://nym.com"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "var(--textMuted)", textDecoration: "none" }}

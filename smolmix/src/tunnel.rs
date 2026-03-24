@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use nym_ip_packet_requests::IpPair;
-use nym_sdk::stream_wrapper::IpMixStream;
+use nym_sdk::ipr_wrapper::IpMixStream;
 use smoltcp::iface::Config;
 use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address};
 use tokio::sync::{mpsc, Mutex};
@@ -26,7 +26,7 @@ use crate::SmolmixError;
 use tokio_smoltcp::{Net, NetConfig};
 
 // Re-export so users only need `use smolmix::*` — no direct dep on nym-sdk or tokio-smoltcp.
-pub use nym_sdk::stream_wrapper::NetworkEnvironment;
+pub use nym_sdk::ipr_wrapper::NetworkEnvironment;
 pub use tokio_smoltcp::{TcpStream, UdpSocket};
 
 struct ShutdownState {
@@ -73,14 +73,12 @@ impl Tunnel {
     ///
     /// Use this if you need to customize the mixnet client (e.g. custom gateway,
     /// storage path, etc.) before creating the tunnel.
-    pub async fn from_stream(mut ipr_stream: IpMixStream) -> Result<Self, SmolmixError> {
-        if !ipr_stream.is_connected() {
-            ipr_stream.connect_tunnel().await?;
-        }
+    pub async fn from_stream(ipr_stream: IpMixStream) -> Result<Self, SmolmixError> {
+        ipr_stream
+            .check_connected()
+            .map_err(|_| SmolmixError::NotConnected)?;
 
-        let allocated_ips = *ipr_stream
-            .allocated_ips()
-            .ok_or(SmolmixError::NotConnected)?;
+        let allocated_ips = *ipr_stream.allocated_ips();
 
         // Wire up two channel pairs connecting the bridge (async mixnet I/O) to the
         // async device adapter (which tokio-smoltcp polls for raw IP packets):

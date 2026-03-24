@@ -1,4 +1,4 @@
-[**@nymproject/mix-fetch**](README.md) • **Docs**
+[**@nymproject/mix-fetch**](globals.md) • **Docs**
 
 ***
 

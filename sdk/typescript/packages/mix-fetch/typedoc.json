@@ -3,6 +3,7 @@
   "entryPoints": ["./src/index.ts"],
   "out": "../../../../documentation/docs/pages/developers/typescript/api/mix-fetch",
   "plugin": ["typedoc-plugin-markdown"],
+  "entryFileName": "globals",
   "exclude": ["./src/worker/**"],
   "kindSortOrder": [
     "Function",

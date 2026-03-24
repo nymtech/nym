@@ -58,37 +58,37 @@ CREATE TABLE testrun
 CREATE TABLE nym_node
 (
     -- Node ID as assigned by the mixnet contract.
-    node_id          INTEGER PRIMARY KEY         NOT NULL,
+    node_id               INTEGER PRIMARY KEY         NOT NULL,
 
     -- Ed25519 identity key of the node, base58-encoded.
     -- A node_id always maps to exactly one identity_key and is never reassigned.
     -- The inverse is not true: the same identity_key may appear under multiple node_ids
     -- if the operator unbonds and rebonds, receiving a new contract-assigned node_id.
-    identity_key     TEXT                        NOT NULL,
+    identity_key          TEXT                        NOT NULL,
 
     -- When this node was last observed as bonded in the contract.
-    last_seen_bonded       TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    last_seen_bonded      TIMESTAMP WITHOUT TIME ZONE NOT NULL,
 
     -- Mixnet socket address (host:port) at which the node accepts sphinx packets.
-    mixnet_socket_address  TEXT                        NOT NULL,
+    mixnet_socket_address TEXT,
 
     -- X25519 public key used for Noise handshakes, base58-encoded.
     -- NULL if retrieval from the node failed.
-    noise_key              TEXT,
+    noise_key             TEXT,
 
     -- Sphinx public key used for packet encryption, base58-encoded.
     -- NULL if retrieval from the node failed.
     -- Always NULL/non-NULL together with key_rotation_id.
-    sphinx_key             TEXT,
+    sphinx_key            TEXT,
 
     -- Key rotation epoch ID that the sphinx_key belongs to.
     -- NULL if retrieval from the node failed.
     -- Always NULL/non-NULL together with sphinx_key.
-    key_rotation_id        INTEGER,
+    key_rotation_id       INTEGER,
 
     -- The most recent test run performed against this node. NULL if never tested.
     -- Set to NULL automatically when the referenced testrun row is evicted.
-    last_testrun           INTEGER REFERENCES testrun (id) ON DELETE SET NULL,
+    last_testrun          INTEGER                     REFERENCES testrun (id) ON DELETE SET NULL,
 
     CHECK ((sphinx_key IS NULL) = (key_rotation_id IS NULL))
 );

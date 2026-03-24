@@ -23,18 +23,11 @@ pub enum NodeDescribeCacheError {
         source: UninitialisedCache,
     },
 
-    #[error("node {node_id} has provided malformed host information ({host}: {source}")]
-    MalformedHost {
-        host: String,
+    #[error(transparent)]
+    ClientRetrievalFailure(#[from] nym_node_requests::error::Error),
 
-        node_id: NodeId,
-
-        #[source]
-        source: Box<NymNodeApiClientError>,
-    },
-
-    #[error("node {node_id} with host '{host}' doesn't seem to expose its declared http port nor any of the standard API ports, i.e.: 80, 443 or {}", DEFAULT_NYM_NODE_HTTP_PORT)]
-    NoHttpPortsAvailable { host: String, node_id: NodeId },
+    #[error("failed to retrieve host information of node {node_id} - this is most likely a bug")]
+    NoHostInformationAvailable { node_id: NodeId, host: String },
 
     #[error("failed to query node {node_id}: {source}")]
     ApiFailure {
@@ -42,17 +35,6 @@ pub enum NodeDescribeCacheError {
 
         #[source]
         source: Box<NymNodeApiClientError>,
-    },
-
-    // TODO: perhaps include more details here like whether key/signature/payload was malformed
-    #[error("could not verify signed host information for node {node_id}")]
-    MissignedHostInformation { node_id: NodeId },
-
-    #[error("identity of node {node_id} does not match. expected {expected} but got {got}")]
-    MismatchedIdentity {
-        node_id: NodeId,
-        expected: String,
-        got: String,
     },
 
     #[error("node {node_id} is announcing an illegal ip address")]

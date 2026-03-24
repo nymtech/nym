@@ -31,30 +31,40 @@ const NetworkAnimation = () => {
     ]);
 
     const id = setInterval(() => {
-      setPackets(prev => prev.map(p => {
-        const next = (p.stage + 1) % 5;
-        return { stage: next, path: next === 0 ? randomPath() : p.path };
-      }));
+      setPackets((prev) =>
+        prev.map((p) => {
+          const next = (p.stage + 1) % 5;
+          return { stage: next, path: next === 0 ? randomPath() : p.path };
+        })
+      );
     }, 300);
     return () => clearInterval(id);
   }, []);
 
   const gwNode = (stage: number) => {
-    const active = packets.some(p => p.stage === stage);
+    const active = packets.some((p) => p.stage === stage);
     return (
-      <span style={active ? { color: "var(--colorPrimary)", opacity: 1 } : undefined}>
+      <span
+        style={
+          active ? { color: "var(--colorPrimary)", opacity: 1 } : undefined
+        }
+      >
         {active ? "\u25CF" : "\u25CB"}
       </span>
     );
   };
 
   const mixNode = (col: number, row: number) => {
-    const active = packets.some(p =>
-      p.stage === col + 1 && p.path[col] === row
+    const active = packets.some(
+      (p) => p.stage === col + 1 && p.path[col] === row
     );
     const filled = active;
     return (
-      <span style={active ? { color: "var(--colorPrimary)", opacity: 1 } : undefined}>
+      <span
+        style={
+          active ? { color: "var(--colorPrimary)", opacity: 1 } : undefined
+        }
+      >
         {filled ? "\u25CF" : "\u25CB"}
       </span>
     );
@@ -63,11 +73,32 @@ const NetworkAnimation = () => {
   return (
     <pre style={{ ...asciiStyle, marginTop: "1.2rem" }}>
       {"gw_e  M1   M2   M3  gw_ex\n"}
-      {"       "}{mixNode(0,0)}{" \u2500\u2500 "}{mixNode(1,0)}{" \u2500\u2500 "}{mixNode(2,0)}{"\n"}
+      {"       "}
+      {mixNode(0, 0)}
+      {" \u2500\u2500 "}
+      {mixNode(1, 0)}
+      {" \u2500\u2500 "}
+      {mixNode(2, 0)}
+      {"\n"}
       {"        \\  / \\  /\n"}
-      {"  "}{gwNode(0)}{" \u2500\u2500 "}{mixNode(0,1)}{" \u2500\u2500 "}{mixNode(1,1)}{" \u2500\u2500 "}{mixNode(2,1)}{" \u2500\u2500 "}{gwNode(4)}{"\n"}
+      {"  "}
+      {gwNode(0)}
+      {" \u2500\u2500 "}
+      {mixNode(0, 1)}
+      {" \u2500\u2500 "}
+      {mixNode(1, 1)}
+      {" \u2500\u2500 "}
+      {mixNode(2, 1)}
+      {" \u2500\u2500 "}
+      {gwNode(4)}
+      {"\n"}
       {"        /  \\ /  \\\n"}
-      {"       "}{mixNode(0,2)}{" \u2500\u2500 "}{mixNode(1,2)}{" \u2500\u2500 "}{mixNode(2,2)}
+      {"       "}
+      {mixNode(0, 2)}
+      {" \u2500\u2500 "}
+      {mixNode(1, 2)}
+      {" \u2500\u2500 "}
+      {mixNode(2, 2)}
     </pre>
   );
 };
@@ -92,17 +123,21 @@ const TypewriterAnimation = () => {
           i++;
           setTimeout(type, 40);
         } else {
-          setTimeout(() => { if (!cancelled) run(); }, 2000);
+          setTimeout(() => {
+            if (!cancelled) run();
+          }, 2000);
         }
       };
       type();
     };
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    const id = setInterval(() => setShowCursor(v => !v), 530);
+    const id = setInterval(() => setShowCursor((v) => !v), 530);
     return () => clearInterval(id);
   }, []);
 
@@ -123,7 +158,7 @@ const OperatorsAnimation = () => {
 
   useEffect(() => {
     const id = setInterval(() => {
-      setTick(t => t + 1);
+      setTick((t) => t + 1);
       mixRef.current += Math.floor(Math.random() * 8) + 5;
       setMixCount(mixRef.current);
     }, 80);
@@ -131,13 +166,18 @@ const OperatorsAnimation = () => {
   }, []);
 
   const mixFilled = Math.min(tick % 12, totalBars);
-  const bar = (f: number) => "\u25A0".repeat(f) + "\u25A1".repeat(totalBars - f);
+  const bar = (f: number) =>
+    "\u25A0".repeat(f) + "\u25A1".repeat(totalBars - f);
   const fmt = (n: number) => n.toLocaleString("en");
 
   return (
     <pre style={{ ...asciiStyle, marginTop: "1.2rem" }}>
       {"> nym-node run\n\n"}
-      {"  mixing: "}{bar(mixFilled)}{"  "}{fmt(mixCount)}{" pkts"}
+      {"  mixing: "}
+      {bar(mixFilled)}
+      {"  "}
+      {fmt(mixCount)}
+      {" pkts"}
     </pre>
   );
 };
@@ -168,7 +208,9 @@ const ApiAnimation = () => {
               i++;
               setTimeout(reveal, 300);
             } else {
-              setTimeout(() => { if (!cancelled) run(); }, 2000);
+              setTimeout(() => {
+                if (!cancelled) run();
+              }, 2000);
             }
           };
           reveal();
@@ -176,18 +218,24 @@ const ApiAnimation = () => {
       }, 100);
     };
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
     <pre style={{ ...asciiStyle, marginTop: "1.2rem" }}>
       {lines.slice(0, visibleLines).map((line, i) => (
-        <React.Fragment key={i}>{i > 0 && "\n"}{line}</React.Fragment>
+        <React.Fragment key={i}>
+          {i > 0 && "\n"}
+          {line}
+        </React.Fragment>
       ))}
       <span style={{ opacity: 0 }}>
         {lines.slice(visibleLines).map((line, i) => (
           <React.Fragment key={i}>
-            {(visibleLines > 0 || i > 0) ? "\n" : ""}{line}
+            {visibleLines > 0 || i > 0 ? "\n" : ""}
+            {line}
           </React.Fragment>
         ))}
       </span>
@@ -228,11 +276,16 @@ const sections = [
 
 const AnimationBlock = ({ type }: { type: string }) => {
   switch (type) {
-    case "network": return <NetworkAnimation />;
-    case "typewriter": return <TypewriterAnimation />;
-    case "progress": return <OperatorsAnimation />;
-    case "api": return <ApiAnimation />;
-    default: return null;
+    case "network":
+      return <NetworkAnimation />;
+    case "typewriter":
+      return <TypewriterAnimation />;
+    case "progress":
+      return <OperatorsAnimation />;
+    case "api":
+      return <ApiAnimation />;
+    default:
+      return null;
   }
 };
 
@@ -240,17 +293,16 @@ const sdks = [
   {
     name: "Rust",
     description:
-      "Full-featured SDK with async Mixnet client, streams, and TcpProxy.",
+      "Native SDK with async Mixnet client, streams, and TcpProxy modules.",
     href: "/developers/rust",
   },
   {
     name: "TypeScript",
     description:
-      "Browser and Node.js SDK with mix-fetch and WebSocket transport.",
+      "Browser-based SDK with fetch API replacement and message-based WebSocket transport.",
     href: "/developers/typescript",
   },
 ];
-
 
 export const LandingPage = () => {
   return (
@@ -275,8 +327,7 @@ export const LandingPage = () => {
             <div
               style={{
                 padding: "1.5rem",
-                borderBottom:
-                  i < 2 ? "1px solid var(--border)" : undefined,
+                borderBottom: i < 2 ? "1px solid var(--border)" : undefined,
                 borderRight:
                   i % 2 === 0 ? "1px solid var(--border)" : undefined,
                 display: "flex",
@@ -403,9 +454,7 @@ export const LandingPage = () => {
                     {sdk.description}
                   </p>
                 </div>
-                <span
-                  style={{ color: "var(--textMuted)", fontSize: "1rem" }}
-                >
+                <span style={{ color: "var(--textMuted)", fontSize: "1rem" }}>
                   &rsaquo;
                 </span>
               </div>

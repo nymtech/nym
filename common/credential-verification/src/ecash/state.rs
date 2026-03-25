@@ -3,17 +3,12 @@
 
 use crate::Error;
 use crate::ecash::error::EcashTicketError;
-use cosmwasm_std::{CosmosMsg, WasmMsg, from_json};
 use nym_credentials_interface::VerificationKeyAuth;
-use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::AccountId;
-use nym_validator_client::nyxd::contract_traits::{
-    DkgQueryClient, MultisigQueryClient, NymContractsProvider,
-};
-use nym_validator_client::nyxd::cw3::ProposalResponse;
+use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, NymContractsProvider};
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, EcashApiClient};
 use std::collections::BTreeMap;
 use std::ops::Deref;
@@ -75,53 +70,6 @@ impl SharedState {
         }
 
         Ok(this)
-    }
-
-    fn created_redemption_proposal(&self, proposal: &ProposalResponse) -> bool {
-        let Some(msg) = proposal.msgs.first() else {
-            return false;
-        };
-        let CosmosMsg::Wasm(WasmMsg::Execute { msg, .. }) = msg else {
-            return false;
-        };
-        let Ok(ExecuteMsg::RedeemTickets { gw, .. }) = from_json(msg) else {
-            return false;
-        };
-
-        gw == self.address.as_ref()
-    }
-
-    /// retrieve all redemption proposals made by this gateway since, but excluding, the provided id
-    pub(crate) async fn proposals_since(
-        &self,
-        proposal_id: u64,
-    ) -> Result<Vec<ProposalResponse>, EcashTicketError> {
-        Ok(self
-            .start_query()
-            .await
-            .list_proposals(Some(proposal_id), None)
-            .await
-            .map_err(EcashTicketError::chain_query_failure)?
-            .proposals
-            .into_iter()
-            .filter(|p| self.created_redemption_proposal(p))
-            .collect())
-    }
-
-    /// retrieve all redemption proposals made by this gateway that are available on the last page of the query
-    pub(crate) async fn last_proposal_page(
-        &self,
-    ) -> Result<Vec<ProposalResponse>, EcashTicketError> {
-        Ok(self
-            .start_query()
-            .await
-            .reverse_proposals(None, None)
-            .await
-            .map_err(EcashTicketError::chain_query_failure)?
-            .proposals
-            .into_iter()
-            .filter(|p| self.created_redemption_proposal(p))
-            .collect())
     }
 
     async fn set_epoch_data(
@@ -239,24 +187,6 @@ impl SharedState {
         Ok(RwLockReadGuard::map(guard, |data| {
             data.get(&epoch_id).map(|d| &d.master_key).unwrap()
         }))
-    }
-
-    pub(crate) async fn start_tx(&self) -> RwLockWriteGuard<'_, DirectSigningHttpRpcNyxdClient> {
-        self.nyxd_client.write().await
-    }
-
-    pub(crate) async fn start_query(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient> {
-        self.nyxd_client.read().await
-    }
-
-    pub(crate) async fn current_epoch_id(&self) -> Result<EpochId, EcashTicketError> {
-        Ok(self
-            .start_query()
-            .await
-            .get_current_epoch()
-            .await
-            .map_err(EcashTicketError::chain_query_failure)?
-            .epoch_id)
     }
 }
 

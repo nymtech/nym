@@ -11,6 +11,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_validator_client::nym_api::NymApiClientExt;
 use tracing::{error, info};
 
+use rand::seq::SliceRandom;
+
 use nym_ip_packet_requests::{
     v8::response::{ConnectResponseReply, ControlResponse, IpPacketResponse, IpPacketResponseData},
     IpPair,
@@ -107,16 +109,15 @@ pub async fn get_best_ipr(client: nym_http_api_client::Client) -> Result<Recipie
     let nodes = retrieve_exit_nodes_with_performance(client).await?;
     info!("Found {} Exit Gateways", nodes.len());
 
-    let selected_gateway = nodes
-        .into_iter()
-        .max_by_key(|gw| gw.performance)
-        .ok_or_else(|| Error::NoGatewayAvailable)?;
+    let selected_ipr = nodes
+        .choose_weighted(&mut rand::thread_rng(), |gw| gw.performance as f64)
+        .map_err(|_| Error::NoGatewayAvailable)?;
 
-    let ipr_address = selected_gateway.address;
+    let ipr_address = selected_ipr.address;
 
     info!(
         "Using IPR: {} (Gateway: {}, Performance: {:?})",
-        ipr_address, selected_gateway.identity, selected_gateway.performance
+        ipr_address, selected_ipr.identity, selected_ipr.performance
     );
 
     Ok(ipr_address)

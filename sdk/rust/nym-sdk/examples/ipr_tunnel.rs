@@ -14,7 +14,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Duration;
 
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
-use nym_sdk::ipr_wrapper::{IpMixStream, NetworkEnvironment};
+use nym_sdk::ipr_wrapper::IpMixStream;
 use pnet_packet::icmp::echo_reply::EchoReplyPacket;
 use pnet_packet::icmp::echo_request::MutableEchoRequestPacket;
 use pnet_packet::icmp::{IcmpPacket, IcmpTypes};
@@ -38,9 +38,9 @@ async fn main() -> anyhow::Result<()> {
 
     let mut tunnel = if let Some(addr) = ipr_addr {
         let recipient = addr.parse().expect("invalid IPR address");
-        IpMixStream::new_with_ipr(NetworkEnvironment::Mainnet, recipient).await?
+        IpMixStream::new_with_ipr(recipient).await?
     } else {
-        IpMixStream::new(NetworkEnvironment::Mainnet).await?
+        IpMixStream::new().await?
     };
 
     let ips = tunnel.allocated_ips();

@@ -1,7 +1,5 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use super::network_env::NetworkEnvironment;
 use crate::ip_packet_client::{
     discovery::{create_nym_api_client, get_best_ipr, parse_connect_response},
     handle_ipr_response,
@@ -10,12 +8,12 @@ use crate::ip_packet_client::{
 };
 use crate::mixnet::{MixnetClient, MixnetStream, Recipient};
 use crate::Error;
-
 use bytes::Bytes;
 use nym_ip_packet_requests::{
     v8::{request::IpPacketRequest, response::IpPacketResponse},
     IpPair,
 };
+use nym_network_defaults::NymNetworkDetails;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tracing::{debug, info};
@@ -53,11 +51,11 @@ impl IpMixStream {
     /// Discover the best IPR, connect through the mixnet, and establish the IP tunnel.
     ///
     /// Returns a ready-to-use tunnel with allocated IP addresses.
-    pub async fn new(env: NetworkEnvironment) -> Result<Self, Error> {
-        let network_defaults = env.network_defaults();
+    pub async fn new() -> Result<Self, Error> {
+        let network_defaults = NymNetworkDetails::new_mainnet();
         let api_client = create_nym_api_client(network_defaults.nym_api_urls.unwrap_or_default())?;
         let ipr_address = get_best_ipr(api_client).await?;
-        Self::new_with_ipr(env, ipr_address).await
+        Self::new_with_ipr(ipr_address).await
     }
 
     /// Connect to a specific IPR address.
@@ -65,11 +63,8 @@ impl IpMixStream {
     /// Use this when you already know the IPR `Recipient` address (e.g. for
     /// testing against a specific exit node). For automatic discovery, use
     /// [`IpMixStream::new`] instead.
-    pub async fn new_with_ipr(
-        env: NetworkEnvironment,
-        ipr_address: Recipient,
-    ) -> Result<Self, Error> {
-        nym_network_defaults::setup_env(Some(env.env_file_path()?));
+    pub async fn new_with_ipr(ipr_address: Recipient) -> Result<Self, Error> {
+        nym_network_defaults::setup_env(None::<&str>);
         let mut client = MixnetClient::connect_new().await?;
         let mut stream = client.open_stream(ipr_address, Some(10)).await?;
 

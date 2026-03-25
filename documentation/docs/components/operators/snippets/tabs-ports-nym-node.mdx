@@ -1,0 +1,79 @@
+import { MyTab } from 'components/generic-tabs.tsx';
+import { Tabs, Steps } from 'nextra/components';
+import PortsNymNode from 'components/operators/snippets/ports-nym-node.mdx';
+
+<div>
+  <Tabs
+    items={['Mixnode', 'Exit Gateway and WireGuard']}
+    defaultIndex={0}
+  >
+    <MyTab>
+For operators considering to eventually run `nym-node` in Exit Gateway mode or supporting WireGuard routing, use the tab for Gateways & WireGuard.
+
+For mixnode only open the needed ports for Nym services using Uncomplicated Firewall (`ufw`) by running these commands:
+
+<Steps>
+
+###### 1. Ensure `ufw` functionality
+
+- Check if you have `ufw` installed:
+```sh
+ufw version
+```
+
+- If it's not installed, install with:
+```sh
+apt install ufw -y
+```
+
+- Enable ufw
+```sh
+ufw enable
+```
+
+- Check the status of the firewall
+```sh
+ufw status
+```
+
+###### 2. Open required ports for Nym services using `ufw`
+
+- Copy this whole block to open all ports for mixnode
+
+<PortsNymNode />
+
+###### 3. Validate opened ports
+- Re-check the status of the firewall
+```sh
+ufw status
+```
+
+</Steps>
+    </MyTab>
+
+    <MyTab>
+Gateways (and WireGuard) nodes use [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) tool to open ports for Nym related services, setup and configure Nym networking devices, configure Nym exit policy and run tests. For more info, read the chapter [*Routing configuration*](/operators/nodes/nym-node/configuration#routing-configuration).
+
+Follow these steps to setup complete routing of your server hosting a Nym node.
+
+<Steps>
+
+###### 1. Download the new NTM
+
+- Download the latest NTM and make it executable:
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh
+```
+
+###### 2. Update the exit policy
+
+- To ensure your routing is clean, run:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+
+</Steps>
+    </MyTab>
+  </Tabs>
+</div>

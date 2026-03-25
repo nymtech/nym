@@ -1,42 +1,5 @@
-import { MyTab } from 'components/generic-tabs.tsx';
+import { Callout } from 'nextra/components';
 
- 
-
-<div>
-  <Tabs items={[
-    <code>--mode mixnode</code>,
-    <code>--mode exit-gateway</code> or any WireGuard GW,
-    ]} defaultIndex="0">
-    <MyTab><PortsNymNode/>
-</div>
-> Note: For operators considering to eventually run `nym-node` in Exit Gateway mode or supporting WireGuard routing, use `network-tunnel-manager.sh` (NTM) option in the next tab.
-
-For mixnode only open the needed ports for Nym services using Uncomplicated Firewall (`ufw`) by running these commands:
-
-      <Steps>
-
-###### 1. Ensure `ufw` functionality
-
-- Check if you have `ufw` installed:
-```sh
-ufw version
-```
-- If it's not installed, install with:
-```sh
-apt install ufw -y
-```
-- Enable ufw
-```sh
-ufw enable
-```
-- Check the status of the firewall
-```sh
-ufw status
-```
-
-###### 2. Open required ports for Nym services using `ufw`
-
-- Copy this whole block to open all ports for mixnode
 ```sh
 ufw allow 22/tcp                                  # SSH - you're in control of these ports
 ufw allow 80/tcp                                  # HTTP
@@ -49,30 +12,11 @@ ufw allow 9001/tcp                                # Nym specific - wss port
 ufw allow 41264/tcp                               # Nym specific - Lewes Protocol registration
 ufw allow 51264/udp                               # Nym specific - Lewes Protocol data
 ```
-- Note that these ports were moved to NTM as they are for Gateways only
-```sh 
+
+<Callout>
+Note that these ports were moved to [NTM](/operators/nodes/preliminary-steps/vps-setup#1-download-the-new-ntm) as they are for Gateways only
+```sh
 # ufw allow 51822/udp                               # WireGuard
 # ufw allow in on nymwg to any port 51830 proto tcp # bandwidth queries/topup - inside the tunnel
 ```
-      </Steps>
-    </MyTab>
-    <MyTab>
-Follow these commands to open ports for Nym related services, setup and configure Nym networking devices, configure Nym exit policy and run tests. For more info, read the chapter [*Routing configuration](/operators/nodes/nym-node/configuration#routing-configuration). 
-
-      <Steps>
-
-###### 1. Download the new NTM
-- Download the latest NTM and make it executable:
-```sh
-curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
-chmod +x network-tunnel-manager.sh
-```
-
-###### 2. Update the exit policy
-- To ensure your routing is clean, run:
-```sh
-./network-tunnel-manager.sh complete_networking_configuration
-```
-      </ Steps>   
-    </MyTab>
-  </Tabs>
+</Callout>

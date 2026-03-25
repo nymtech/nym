@@ -11,14 +11,10 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
 
+use nym_ip_packet_requests::response_helpers::{self, IprResponseError};
+
 use crate::{
-    current::{
-        request::IpPacketRequest,
-        response::{
-            ConnectResponse, ConnectResponseReply, ControlResponse, IpPacketResponse,
-            IpPacketResponseData,
-        },
-    },
+    current::{request::IpPacketRequest, response::IpPacketResponse},
     error::{Error, Result},
     helpers::check_ipr_message_version,
 };
@@ -101,32 +97,6 @@ impl IprClientConnect {
         Ok(request_id)
     }
 
-    async fn handle_connect_response(&self, response: ConnectResponse) -> Result<IpPair> {
-        debug!("Handling dynamic connect response");
-        match response.reply {
-            ConnectResponseReply::Success(r) => Ok(r.ips),
-            ConnectResponseReply::Failure(reason) => Err(Error::ConnectRequestDenied { reason }),
-        }
-    }
-
-    async fn handle_ip_packet_router_response(&self, response: IpPacketResponse) -> Result<IpPair> {
-        let control_response = match response.data {
-            IpPacketResponseData::Control(control_response) => control_response,
-            _ => {
-                error!("Received non-control response while waiting for connect response");
-                return Err(Error::UnexpectedConnectResponse);
-            }
-        };
-
-        match *control_response {
-            ControlResponse::Connect(resp) => self.handle_connect_response(resp).await,
-            response => {
-                error!("Unexpected response: {response:?}");
-                Err(Error::UnexpectedConnectResponse)
-            }
-        }
-    }
-
     async fn listen_for_connect_response(&mut self, request_id: u64) -> Result<IpPair> {
         // Connecting is basically synchronous from the perspective of the mixnet client, so it's safe
         // to just grab ahold of the mutex and keep it until we get the response.
@@ -173,7 +143,14 @@ impl IprClientConnect {
 
                             if response.id() == Some(request_id) {
                                 tracing::debug!("Got response with matching id");
-                                return self.handle_ip_packet_router_response(response).await;
+                                // Replaces local handle_ip_packet_router_response() + handle_connect_response()
+                                return response_helpers::parse_connect_response(response)
+                                    .map_err(|e| match e {
+                                        IprResponseError::ConnectDenied(reason) => {
+                                            Error::ConnectRequestDenied { reason }
+                                        }
+                                        _ => Error::UnexpectedConnectResponse,
+                                    });
                             }
                         }
                     }

@@ -6963,6 +6963,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-util",
+ "tracing",
 ]
 
 [[package]]

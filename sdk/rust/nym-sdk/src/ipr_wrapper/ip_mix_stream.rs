@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use crate::ip_packet_client::{
-    discovery::{create_nym_api_client, get_best_ipr, parse_connect_response},
+    discovery::{create_nym_api_client, get_best_ipr},
     handle_ipr_response,
     listener::check_ipr_message_version,
     MixnetMessageOutcome,
@@ -9,6 +9,7 @@ use crate::ip_packet_client::{
 use crate::mixnet::{MixnetClient, MixnetStream, Recipient};
 use crate::Error;
 use bytes::Bytes;
+use nym_ip_packet_requests::response_helpers;
 use nym_ip_packet_requests::{
     v8::{request::IpPacketRequest, response::IpPacketResponse},
     IpPair,
@@ -128,7 +129,12 @@ impl IpMixStream {
                     check_ipr_message_version(&data)?;
                     if let Ok(response) = IpPacketResponse::from_bytes(&data) {
                         if response.id() == Some(request_id) {
-                            return parse_connect_response(response);
+                            return response_helpers::parse_connect_response(response)
+                                .map_err(|e| match e {
+                                    response_helpers::IprResponseError::ConnectDenied(r) => Error::ConnectDenied(r),
+                                    response_helpers::IprResponseError::UnexpectedResponse(d) => Error::UnexpectedResponseType(d),
+                                    other => Error::IPRMessageVersionCheckFailed(other.to_string()),
+                                });
                         }
                     }
                 }

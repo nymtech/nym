@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 pub mod codec;
+pub mod response_helpers;
 pub mod sign;
 pub mod v6;
 pub mod v7;
@@ -14,6 +15,7 @@ pub mod v8;
 // version 6: Increase the available IPs
 // version 7: Add signature support (for the future)
 // version 8: Anonymous sends
+// response_helpers: shared IPR response parsing (nym-ip-packet-client + nym-sdk)
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IpPair {

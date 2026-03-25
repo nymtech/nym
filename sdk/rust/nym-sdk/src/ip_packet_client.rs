@@ -1,10 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Minimal fork of `nym-ip-packet-client` for use by [`IpMixStream`](crate::ipr_wrapper::IpMixStream).
+//! Minimal fork of [`nym-ip-packet-client`](../../../nym-ip-packet-client) for
+//! use by [`IpMixStream`](crate::ipr_wrapper::IpMixStream).
 //!
 //! Contains only what IpMixStream needs: IPR discovery and response parsing.
-//! The full crate lives in `nym-vpn-client`.
+//! The full crate lives in the monorepo root (`nym-ip-packet-client/`).
 
 pub mod discovery;
 pub mod listener;

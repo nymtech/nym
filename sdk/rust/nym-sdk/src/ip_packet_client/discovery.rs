@@ -13,31 +13,7 @@ use tracing::{error, info};
 
 use rand::seq::SliceRandom;
 
-use nym_ip_packet_requests::{
-    v8::response::{ConnectResponseReply, ControlResponse, IpPacketResponse, IpPacketResponseData},
-    IpPair,
-};
-
 use crate::Error;
-
-/// Parse an IPR connect response, returning allocated IPs on success.
-#[allow(clippy::result_large_err)]
-pub fn parse_connect_response(response: IpPacketResponse) -> Result<IpPair, Error> {
-    let control_response = match response.data {
-        IpPacketResponseData::Control(c) => c,
-        other => return Err(Error::UnexpectedResponseType(other)),
-    };
-
-    match *control_response {
-        ControlResponse::Connect(connect_resp) => match connect_resp.reply {
-            ConnectResponseReply::Success(success) => Ok(success.ips),
-            ConnectResponseReply::Failure(reason) => Err(Error::ConnectDenied(reason)),
-        },
-        _ => Err(Error::UnexpectedResponseType(
-            IpPacketResponseData::Control(control_response),
-        )),
-    }
-}
 
 #[derive(Clone)]
 pub struct IprWithPerformance {

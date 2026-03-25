@@ -63,6 +63,14 @@ looks up which client owns it and forwards the packet back through the mixnet.
 
 Reserved addresses: `10.0.0.1` / `fc00::1` (TUN gateway, never allocated).
 
+> **Note — pool isolation from LP dVPN:** This pool (`10.0.0.0/16`, `fc00::/112`
+> on `nymtun`) is separate from the authenticator/LP dVPN WireGuard pool
+> (`10.1.0.0/16`, `fc01::/112` on `nymwg`). The second octet differs (`10.0` vs
+> `10.1`) and each uses its own TUN interface. Both sets of constants live in
+> `common/network-defaults/src/constants.rs` (`mixnet_vpn` vs `wireguard` modules).
+> The IPR addresses are hardcoded; the WG addresses are configurable but default to
+> the non-overlapping range.
+
 ## Connection Lifecycle
 
 1. `IpMixStream::new()` discovers the best IPR via Nym API

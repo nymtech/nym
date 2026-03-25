@@ -1550,6 +1550,7 @@ high level workflows:
   nym_tunnel_setup                  Install tunnel interfaces & setup networking
   configure_network_firewall        Install host firewall rules for nym services
   exit_policy_install               Install and configure wireguard exit policy
+
 tunnel and nat helpers:
   adjust_ip_forwarding              Enable ipv4/ipv6 forwarding via sysctl.d
   apply_iptables_rules              Apply nat/forward rules for ${TUNNEL_INTERFACE}

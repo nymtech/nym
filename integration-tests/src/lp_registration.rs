@@ -17,9 +17,10 @@ mod tests {
     use nym_lp::peer::LpLocalPeer;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
+    use nym_node::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
     use nym_node::node::lp::error::LpHandlerError;
-    use nym_node::node::lp::handler::LpConnectionHandler;
-    use nym_node::node::lp::{LpHandlerState, MixForwardingReceiver, mix_forwarding_channels};
+    use nym_node::node::lp::state::ActiveLpSessions;
+    use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{LpClientError, LpRegistrationClient};
     use nym_test_utils::helpers::{CryptoRng09, seeded_rng};
@@ -120,7 +121,7 @@ mod tests {
     enum SpawnedLpConnectionHandlerState {
         NotCreated,
         Ready {
-            handler: LpConnectionHandler<MockIOStream>,
+            handler: LpClientConnectionHandler<MockIOStream>,
         },
         Running {
             handle: JoinHandle<Option<Result<(), LpHandlerError>>>,
@@ -130,11 +131,8 @@ mod tests {
 
     struct Gateway {
         base: Party,
-        lp_state: LpHandlerState,
+        lp_state: SharedLpClientControlState,
         ip_pool: IpPool,
-        // might be used later for mixnet registration tests
-        #[allow(unused)]
-        mix_receiver: MixForwardingReceiver,
         mock_peer_controller: SpawnedPeerController,
 
         tasks_cancellation: CancellationToken,
@@ -210,9 +208,6 @@ mod tests {
             let forward_semaphore =
                 Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards));
 
-            // Create mix forwarding channel (unused in tests but required by struct)
-            let (mix_sender, mix_receiver) = mix_forwarding_channels();
-
             // create wireguard data
             let (wireguard_data, peer_request_rx) = Self::wireguard_data(&base);
 
@@ -231,31 +226,24 @@ mod tests {
                 upgrade_mode_details,
             );
 
-            let lp_state = LpHandlerState {
+            let lp_state = SharedLpClientControlState {
                 local_lp_peer: base.peer.clone(),
-
-                metrics: Default::default(),
-
-                // use default lp config (with enabled flag)
-                lp_config,
-
-                // TODO: might be needed later on for mixnet registration
-                outbound_mix_sender: mix_sender,
-
-                // we start with empty state
-                session_states: Arc::new(Default::default()),
 
                 forward_semaphore,
 
                 // handles for dealing with new peers
                 peer_registrator: Some(peer_registrator),
+                shared: SharedLpState {
+                    metrics: Default::default(),
+                    lp_config,
+                    session_states: ActiveLpSessions::new(),
+                },
             };
 
             Ok(Gateway {
                 base,
                 lp_state,
                 ip_pool: Self::ip_pool(),
-                mix_receiver,
                 mock_peer_controller: SpawnedPeerController::Ready {
                     controller: mock_peer_controller,
                 },
@@ -275,7 +263,7 @@ mod tests {
             };
 
             self.lp_connection_handler = SpawnedLpConnectionHandlerState::Ready {
-                handler: LpConnectionHandler::new(
+                handler: LpClientConnectionHandler::new(
                     client_connection,
                     client_address,
                     self.lp_state.clone(),
@@ -303,7 +291,7 @@ mod tests {
         }
 
         fn spawn_lp_handler(&mut self) {
-            let SpawnedLpConnectionHandlerState::Ready { handler } = mem::replace(
+            let SpawnedLpConnectionHandlerState::Ready { mut handler } = mem::replace(
                 &mut self.lp_connection_handler,
                 SpawnedLpConnectionHandlerState::NotCreated,
             ) else {

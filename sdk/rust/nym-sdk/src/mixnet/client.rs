@@ -42,8 +42,8 @@ use std::sync::Arc;
 use url::Url;
 use zeroize::Zeroizing;
 
-// The number of surbs to include in a message by default
-const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
+/// The number of reply SURBs to include in a message by default.
+pub(crate) const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
 
 #[derive(Default)]
 pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
@@ -52,6 +52,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     socks5_config: Option<Socks5>,
 
     wait_for_gateway: bool,
+    wait_for_initial_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_shutdown: Option<ShutdownTracker>,
@@ -69,6 +70,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     forget_me: ForgetMe,
     remember_me: RememberMe,
     derivation_material: Option<DerivationMaterial>,
+    stream_idle_timeout: Option<std::time::Duration>,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -94,6 +96,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             storage_paths: None,
             socks5_config: None,
             wait_for_gateway: false,
+            wait_for_initial_topology: false,
             custom_topology_provider: None,
             storage: storage_paths
                 .initialise_default_persistent_storage()
@@ -110,6 +113,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             forget_me: Default::default(),
             remember_me: Default::default(),
             derivation_material: None,
+            stream_idle_timeout: None,
         })
     }
 }
@@ -132,6 +136,7 @@ where
             storage_paths: None,
             socks5_config: None,
             wait_for_gateway: false,
+            wait_for_initial_topology: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             custom_shutdown: None,
@@ -146,6 +151,7 @@ where
             forget_me: Default::default(),
             remember_me: Default::default(),
             derivation_material: None,
+            stream_idle_timeout: None,
         }
     }
 
@@ -157,6 +163,7 @@ where
             storage_paths: self.storage_paths,
             socks5_config: self.socks5_config,
             wait_for_gateway: self.wait_for_gateway,
+            wait_for_initial_topology: self.wait_for_initial_topology,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
             custom_shutdown: self.custom_shutdown,
@@ -171,6 +178,7 @@ where
             forget_me: self.forget_me,
             remember_me: self.remember_me,
             derivation_material: self.derivation_material,
+            stream_idle_timeout: self.stream_idle_timeout,
         }
     }
 
@@ -198,6 +206,15 @@ where
     #[must_use]
     pub fn with_remember_me(mut self, remember_me: RememberMe) -> Self {
         self.remember_me = remember_me;
+        self
+    }
+
+    /// Set the idle timeout for streams. Streams with no activity for this
+    /// duration are automatically cleaned up by the router.
+    /// Defaults to 30 minutes if not set.
+    #[must_use]
+    pub fn with_stream_idle_timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.stream_idle_timeout = Some(timeout);
         self
     }
 
@@ -293,10 +310,18 @@ where
         self
     }
 
-    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
+    /// Attempt to wait for the selected gateway (if applicable) to come online if it's currently not bonded.
     #[must_use]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
+        self
+    }
+
+    /// Attempt to wait for initial network topology to become online before finalizing client setup
+    /// this is useful during network bootstrapping phases
+    #[must_use]
+    pub fn with_wait_for_initial_topology(mut self, wait_for_initial_topology: bool) -> Self {
+        self.wait_for_initial_topology = wait_for_initial_topology;
         self
     }
 
@@ -340,6 +365,7 @@ where
     }
 
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
+    #[allow(clippy::result_large_err)]
     pub fn build(self) -> Result<DisconnectedMixnetClient<S>> {
         let mut client = DisconnectedMixnetClient::new(
             self.config,
@@ -352,6 +378,7 @@ where
         client.custom_topology_provider = self.custom_topology_provider;
         client.custom_shutdown = self.custom_shutdown;
         client.wait_for_gateway = self.wait_for_gateway;
+        client.wait_for_initial_topology = self.wait_for_initial_topology;
         client.force_tls = self.force_tls;
         client.no_hostname = self.no_hostname;
         client.user_agent = self.user_agent;
@@ -362,6 +389,7 @@ where
         client.forget_me = self.forget_me;
         client.remember_me = self.remember_me;
         client.derivation_material = self.derivation_material;
+        client.stream_idle_timeout = self.stream_idle_timeout;
         Ok(client)
     }
 }
@@ -400,8 +428,12 @@ where
     /// advanced usage of custom gateways
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
 
-    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
+    /// Attempt to wait for the selected gateway (if applicable) to come online if it's currently not bonded.
     wait_for_gateway: bool,
+
+    /// Attempt to wait for initial network topology to become online before finalizing client setup
+    /// this is useful during network bootstrapping phases
+    wait_for_initial_topology: bool,
 
     /// Force the client to connect using wss protocol with the gateway.
     force_tls: bool,
@@ -426,6 +458,8 @@ where
     remember_me: RememberMe,
     /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
     derivation_material: Option<DerivationMaterial>,
+
+    stream_idle_timeout: Option<std::time::Duration>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -445,6 +479,7 @@ where
     /// Callers have the option of supplying further parameters to:
     /// - store persistent identities at a location on-disk, if desired;
     /// - use SOCKS5 mode
+    #[allow(clippy::result_large_err)]
     fn new(
         config: Config,
         socks5_config: Option<Socks5>,
@@ -476,6 +511,7 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             wait_for_gateway: false,
+            wait_for_initial_topology: false,
             force_tls: false,
             no_hostname: false,
             custom_shutdown: None,
@@ -486,6 +522,7 @@ where
             forget_me,
             remember_me,
             derivation_material: None,
+            stream_idle_timeout: None,
         })
     }
 
@@ -765,6 +802,7 @@ where
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
+                .with_wait_for_initial_topology(self.wait_for_initial_topology)
                 .with_forget_me(&self.forget_me)
                 .with_remember_me(&self.remember_me)
                 .with_derivation_material(self.derivation_material);
@@ -887,6 +925,7 @@ where
         if self.socks5_config.is_some() {
             return Err(Error::Socks5Config { set: true });
         }
+        let stream_idle_timeout = self.stream_idle_timeout;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let client_input = started_client.client_input.register_producer();
         let mut client_output = started_client.client_output.register_consumer();
@@ -897,7 +936,7 @@ where
         let identity_keys = started_client.identity_keys.clone();
         let reconstructed_receiver = client_output.register_receiver()?;
 
-        Ok(MixnetClient::new(
+        let mut client = MixnetClient::new(
             nym_address,
             identity_keys,
             client_input,
@@ -909,7 +948,11 @@ where
             None,
             started_client.forget_me,
             started_client.remember_me,
-        ))
+        );
+        if let Some(timeout) = stream_idle_timeout {
+            client.stream_idle_timeout = timeout;
+        }
+        Ok(client)
     }
 }
 

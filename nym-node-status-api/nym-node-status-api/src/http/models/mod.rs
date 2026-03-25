@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::net::IpAddr;
 
 use crate::{
     http::models::gw_probe::{
-        DvpnGwProbe, DvpnProbeOutcome, LastProbeResult, ScoreValue, calculate_load, calculate_score,
+        DvpnGwProbe, DvpnProbeOutcome, LastProbeResult, ScoreValue, calc_gateway_visual_score,
+        calculate_load,
     },
     monitor::ExplorerPrettyBond,
 };
@@ -11,8 +13,12 @@ use nym_mixnet_contract_common::CoinSchema;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
     client::NodeId,
-    models::{AuthenticatorDetailsV1, BinaryBuildInformationOwned, IpPacketRouterDetailsV1},
-    nym_api::SkimmedNode,
+    models::{
+        AuthenticatorDetailsV1, BinaryBuildInformationOwned, IpPacketRouterDetailsV1,
+        LewesProtocolDetailsDataV1 as LewesProtocolDetailsDataV1Validator,
+        LewesProtocolDetailsV1 as LewesProtocolDetailsV1Validator,
+    },
+    nym_api::SkimmedNodeV1,
     nym_nodes::{BasicEntryInformation, NodeRole},
 };
 use serde::{Deserialize, Serialize};
@@ -93,6 +99,65 @@ pub struct DVpnGatewayPerformance {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct LewesProtocolDetailsV1 {
+    pub content: LewesProtocolDetailsDataV1,
+    pub signature: String,
+}
+
+impl From<&LewesProtocolDetailsV1Validator> for LewesProtocolDetailsV1 {
+    fn from(value: &LewesProtocolDetailsV1Validator) -> Self {
+        Self {
+            content: (&value.content).into(),
+            signature: value.signature.to_base58_string(),
+        }
+    }
+}
+
+// maps from a type in nym validator client: copied over doc comments for a prettier OpenAPI spec :)
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct LewesProtocolDetailsDataV1 {
+    /// Helper field that specifies whether the LP listener(s) is enabled on this node.
+    /// It is directly controlled by the node's role (i.e. it is enabled if it supports 'entry' mode)
+    pub enabled: bool,
+    /// LP TCP control address (default: 41264) for establishing LP sessions
+    pub control_port: u16,
+    /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
+    pub data_port: u16,
+    /// LP public key
+    pub x25519: String,
+    /// Digests of the KEM keys available to this node alongside hashing algorithms used
+    /// for their computation.
+    /// note: digests are hex encoded
+    pub kem_keys: HashMap<String, HashMap<String, String>>,
+}
+
+impl From<&LewesProtocolDetailsDataV1Validator> for LewesProtocolDetailsDataV1 {
+    fn from(value: &LewesProtocolDetailsDataV1Validator) -> Self {
+        let x25519_pk: nym_crypto::asymmetric::x25519::PublicKey = value.x25519.into();
+
+        LewesProtocolDetailsDataV1 {
+            enabled: value.enabled,
+            control_port: value.control_port,
+            data_port: value.data_port,
+            x25519: x25519_pk.to_base58_string(),
+            kem_keys: value
+                .kem_keys
+                .iter()
+                .map(|(kem, digests)| {
+                    (
+                        kem.to_string(),
+                        digests
+                            .iter()
+                            .map(|(hash_fn, digest)| (hash_fn.to_string(), digest.clone()))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct DVpnGateway {
     pub identity_key: String,
     pub name: String,
@@ -115,6 +180,8 @@ pub struct DVpnGateway {
     // Node performance information needed by the NymVPN UI / Explorer to show more information
     // about the node in a user-friendly way
     pub performance_v2: Option<DVpnGatewayPerformance>,
+
+    pub lewes_protocol_details: Option<LewesProtocolDetailsV1>,
 
     pub build_information: BinaryBuildInformationOwned,
 }
@@ -139,7 +206,7 @@ impl DVpnGateway {
     #[instrument(level = tracing::Level::INFO, name = "dvpn_gw_new", skip_all, fields(gateway_key = gateway.gateway_identity_key, node_id = skimmed_node.node_id))]
     pub(crate) fn new(
         gateway: Gateway,
-        skimmed_node: &SkimmedNode,
+        skimmed_node: &SkimmedNodeV1,
         socks5_score: Option<&ScoreValue>,
     ) -> anyhow::Result<Self> {
         let location = gateway
@@ -184,7 +251,7 @@ impl DVpnGateway {
 
                 tracing::trace!("🌈 gateway probe parsed: {:?}", parsed);
                 let mixnet_score = calculate_mixnet_score(&gateway);
-                let score = calculate_score(&gateway, &parsed);
+                let score = calc_gateway_visual_score(&gateway, &parsed);
                 let mut load = calculate_load(&parsed);
                 let socks5_score = socks5_score.unwrap_or(&ScoreValue::Offline).to_owned();
                 let dvpn_probe_result =
@@ -250,6 +317,10 @@ impl DVpnGateway {
             bridges,
             performance,
             performance_v2,
+            lewes_protocol_details: self_described
+                .lewes_protocol
+                .as_ref()
+                .map(LewesProtocolDetailsV1::from),
             build_information: self_described.build_information,
         })
     }

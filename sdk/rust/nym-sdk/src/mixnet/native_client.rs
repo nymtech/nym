@@ -1,4 +1,6 @@
 use crate::mixnet::client::MixnetClientBuilder;
+use crate::mixnet::client::DEFAULT_NUMBER_OF_SURBS;
+use crate::mixnet::stream::{MixnetListener, MixnetStream};
 use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
@@ -21,8 +23,10 @@ use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use nym_task::ShutdownTracker;
 use nym_topology::{NymRouteProvider, NymTopology};
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 use tokio::sync::RwLockReadGuard;
 use tokio_util::sync::CancellationToken;
 
@@ -47,7 +51,8 @@ pub struct MixnetClient {
     pub(crate) client_state: ClientState,
 
     /// A channel for messages arriving from the mixnet after they have been reconstructed.
-    pub(crate) reconstructed_receiver: ReconstructedMessagesReceiver,
+    /// Taken by the stream router on stream mode activation, `None` thereafter.
+    pub(crate) reconstructed_receiver: Option<ReconstructedMessagesReceiver>,
 
     /// A channel for sending stats event to be reported.
     pub(crate) stats_events_reporter: ClientStatsSender,
@@ -56,10 +61,21 @@ pub struct MixnetClient {
     pub(crate) shutdown_handle: ShutdownTracker,
     pub(crate) packet_type: Option<PacketType>,
 
-    // internal state used for the `Stream` implementation
+    /// Internal state used for the `Stream` implementation
     _buffered: Vec<ReconstructedMessage>,
+
     pub(crate) forget_me: ForgetMe,
     pub(crate) remember_me: RememberMe,
+
+    /// Set to `true` when the stream router is active, preventing
+    /// message-based functions from being used concurrently.
+    pub(crate) stream_mode: Arc<AtomicBool>,
+
+    /// Opaque stream multiplexing state (lazily initialized by stream module).
+    pub(crate) streams: Option<super::stream::StreamState>,
+
+    /// How long a stream can be idle before the router cleans it up.
+    pub(crate) stream_idle_timeout: Duration,
 }
 
 impl MixnetClient {
@@ -83,13 +99,16 @@ impl MixnetClient {
             client_input,
             client_output,
             client_state,
-            reconstructed_receiver,
+            reconstructed_receiver: Some(reconstructed_receiver),
             stats_events_reporter,
             shutdown_handle: task_handle,
             packet_type,
             _buffered: Vec::new(),
             forget_me,
             remember_me,
+            stream_mode: Arc::new(AtomicBool::new(false)),
+            streams: None,
+            stream_idle_timeout: super::stream::DEFAULT_STREAM_IDLE_TIMEOUT,
         }
     }
 
@@ -156,6 +175,7 @@ impl MixnetClient {
         MixnetClientSender {
             client_input: self.client_input.clone(),
             packet_type: self.packet_type,
+            stream_mode: self.stream_mode.clone(),
         }
     }
 
@@ -198,7 +218,11 @@ impl MixnetClient {
 
     /// Wait for messages from the mixnet
     pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
-        self.reconstructed_receiver.next().await
+        if self.stream_mode.load(Ordering::SeqCst) {
+            tracing::warn!("wait_for_messages() called after stream mode activated");
+            return None;
+        }
+        self.reconstructed_receiver.as_mut()?.next().await
     }
 
     /// Provide a callback to execute on incoming messages from the mixnet.
@@ -280,23 +304,66 @@ impl MixnetClient {
             }
         }
     }
+
+    /// Open a stream to a remote peer.
+    ///
+    /// Returns a [`MixnetStream`] implementing `AsyncRead + AsyncWrite`.
+    /// `reply_surbs` controls how many reply SURBs are included with each
+    /// outbound message so the peer can reply. Defaults to 10 if `None`.
+    pub async fn open_stream(
+        &mut self,
+        recipient: Recipient,
+        reply_surbs: Option<u32>,
+    ) -> Result<MixnetStream> {
+        super::stream::open_stream(
+            self,
+            recipient,
+            reply_surbs.unwrap_or(DEFAULT_NUMBER_OF_SURBS),
+        )
+        .await
+    }
+
+    /// Create a listener that accepts inbound streams from remote peers.
+    ///
+    /// Can only be called once.
+    pub fn listener(&mut self) -> Result<MixnetListener> {
+        super::stream::listener(self)
+    }
 }
 
-#[derive(Clone)]
 pub struct MixnetClientSender {
     client_input: ClientInput,
     packet_type: Option<PacketType>,
+    stream_mode: Arc<AtomicBool>,
+}
+
+impl Clone for MixnetClientSender {
+    fn clone(&self) -> Self {
+        Self {
+            client_input: self.client_input.clone(),
+            packet_type: self.packet_type,
+            stream_mode: self.stream_mode.clone(),
+        }
+    }
 }
 
 impl Stream for MixnetClient {
     type Item = ReconstructedMessage;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            tracing::warn!("Stream::poll_next() called after stream mode activated");
+            return Poll::Ready(None);
+        }
         if let Some(next) = self._buffered.pop() {
             cx.waker().wake_by_ref();
             return Poll::Ready(Some(next));
         }
-        match ready!(Pin::new(&mut self.reconstructed_receiver).poll_next(cx)) {
+        let receiver = match self.reconstructed_receiver.as_mut() {
+            Some(rx) => rx,
+            None => return Poll::Ready(None),
+        };
+        match ready!(Pin::new(receiver).poll_next(cx)) {
             None => Poll::Ready(None),
             Some(mut msgs) => {
                 // the vector itself should never be empty
@@ -327,6 +394,10 @@ impl MixnetMessageSender for MixnetClient {
     }
 
     async fn send(&self, message: InputMessage) -> Result<()> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            tracing::warn!("send() called after stream mode activated");
+            return Err(Error::StreamModeActive);
+        }
         self.client_input
             .send(message)
             .await
@@ -341,6 +412,10 @@ impl MixnetMessageSender for MixnetClientSender {
     }
 
     async fn send(&self, message: InputMessage) -> Result<()> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            tracing::warn!("send() called after stream mode activated");
+            return Err(Error::StreamModeActive);
+        }
         self.client_input
             .send(message)
             .await

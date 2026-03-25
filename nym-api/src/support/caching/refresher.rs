@@ -283,7 +283,7 @@ where
                 _ = refresh_interval.tick() => self.refresh(&shutdown_token).await,
                 // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
                 // so it doesn't matter if we lose our queue position
-                _ = self.refresh_requester.0.notified() => {
+                _ = self.refresh_requester.notified() => {
                     self.refresh(&shutdown_token).await;
                     // since we just performed the full request, we can reset our existing interval
                     refresh_interval.reset();

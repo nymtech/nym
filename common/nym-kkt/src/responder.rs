@@ -10,7 +10,8 @@ use crate::{
     frame::KKTFrame,
 };
 use libcrux_psq::handshake::types::DHKeyPair;
-use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, SignatureScheme};
+use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, KEM, KEMKeyDigests, SignatureScheme};
+use std::collections::BTreeMap;
 
 /// Representation of a KKT Responder
 pub struct KKTResponder<'a> {
@@ -19,6 +20,9 @@ pub struct KKTResponder<'a> {
 
     /// KEM keys of this responder
     kem_keys: &'a KEMKeys,
+
+    /// Digests of the initiator's kem key
+    expected_initiator_kem_digests: &'a BTreeMap<KEM, KEMKeyDigests>,
 
     /// List of supported Hash Functions by this Responder
     supported_hash_functions: Vec<HashFunction>,
@@ -34,6 +38,7 @@ impl<'a> KKTResponder<'a> {
     pub fn new(
         x25519_keypair: &'a DHKeyPair,
         kem_keys: &'a KEMKeys,
+        expected_initiator_kem_digests: &'a BTreeMap<KEM, KEMKeyDigests>,
         supported_hash_functions: &[HashFunction],
         supported_signature_schemes: &[SignatureScheme],
         supported_outer_protocol_versions: &[u8],
@@ -59,10 +64,26 @@ impl<'a> KKTResponder<'a> {
         Ok(Self {
             x25519_keypair,
             kem_keys,
+            expected_initiator_kem_digests,
             supported_hash_functions: supported_hash_functions.to_vec(),
             supported_signature_schemes: supported_signature_schemes.to_vec(),
             supported_outer_protocol_versions: supported_outer_protocol_versions.to_vec(),
         })
+    }
+
+    /// Attempt to retrieve expected KEM key hash of the initiator based on the received `Ciphersuite`
+    pub(crate) fn expected_initiator_kem_digest(
+        &self,
+        ciphersuite: Ciphersuite,
+    ) -> Result<&Vec<u8>, KKTError> {
+        let kem = ciphersuite.kem();
+        let hash_function = ciphersuite.hash_function();
+
+        self.expected_initiator_kem_digests
+            .get(&kem)
+            .ok_or(KKTError::NoKnownKEMKeyDigests { kem, hash_function })?
+            .get(&hash_function)
+            .ok_or(KKTError::NoKnownKEMKeyDigests { kem, hash_function })
     }
 
     fn check_ciphersuite_compatiblity(
@@ -102,6 +123,7 @@ impl<'a> KKTResponder<'a> {
         )?;
 
         let remote_context = *processed_req.remote_context();
+
         let remote_frame = processed_req.remote_frame;
         let request_payload = remote_frame.payload().to_vec();
         let mut carrier = processed_req.carrier;
@@ -111,12 +133,8 @@ impl<'a> KKTResponder<'a> {
         let (local_context, remote_encapsulation_key) = match remote_context.mode() {
             KKTMode::OneWay => responder_ingest_message(None, remote_frame)?,
             KKTMode::Mutual => {
-                // So we can either fetch the remote hash here using some async call to the directory,
-                // which might make registration hang or accept the sent key then verify later.
-
-                // If we choose to not accept, the response's status will be KKTStatus::UnverifiedKEMKey.
-                // The response would still contain the responder's encapsulation key.
-                responder_ingest_message(None, remote_frame)?
+                let digest = self.expected_initiator_kem_digest(remote_context.ciphersuite())?;
+                responder_ingest_message(Some(digest), remote_frame)?
             }
         };
 
@@ -128,7 +146,7 @@ impl<'a> KKTResponder<'a> {
         };
 
         // for now the response payload is empty
-        let response_payload = Vec::with_capacity(0);
+        let response_payload = Vec::new();
 
         let frame = KKTFrame::new(local_context, kem_key, response_payload);
 
@@ -162,14 +180,6 @@ pub fn responder_ingest_message(
                         own_context.update_status(KKTStatus::UnverifiedKEMKey);
                         // we don't store an unverified key
                         // changing the status notifies the initiator that we didn't
-
-                        // we could still keep it here and then verify later...
-                        // let received_encapsulation_key = EncapsulationKey::decode(
-                        //     own_context.ciphersuite().kem(),
-                        //     remote_frame.body_ref(),
-                        // )?;
-                        //  Ok((own_context, Some(received_encapsulation_key)))
-                        //
                         return Ok((own_context, None));
                     };
 

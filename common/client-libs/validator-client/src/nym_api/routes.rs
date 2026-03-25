@@ -3,6 +3,7 @@
 
 pub const V1_API_VERSION: &str = "v1";
 pub const V2_API_VERSION: &str = "v2";
+pub const V3_API_VERSION: &str = "v3";
 pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
 pub const DESCRIBED: &str = "described";

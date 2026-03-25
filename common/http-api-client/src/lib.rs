@@ -1,6 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(deprecated)]
+// silences clippy warning: use of deprecated tuple variant `HttpClientError::GenericRequestFailure`: use another more strongly typed variant - this variant is only left for compatibility reasons - TODO
+
 //! Nym HTTP API Client
 //!
 //! Centralizes and implements the core API client functionality. This crate provides custom,
@@ -1401,6 +1404,7 @@ pub trait ApiClient: ApiClientCore {
     /// 'get' data from the segment-defined path, e.g. `["api", "v1", "mixnodes"]`, with tuple
     /// defined key-value parameters, e.g. `[("since", "12345")]`. Attempt to parse the response
     /// into the provided type `T` based on the content type header
+    #[instrument(level = "debug", skip_all, fields(path=?path))]
     async fn get_response<P, T, K, V>(
         &self,
         path: P,

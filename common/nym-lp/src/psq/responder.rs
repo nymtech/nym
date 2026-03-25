@@ -11,7 +11,7 @@ use crate::psq::{
 };
 use crate::session::PersistentSessionBinding;
 use crate::transport::traits::{HandshakeMessage, LpHandshakeChannel};
-use crate::{LpError, LpSession};
+use crate::{LpError, LpTransportSession};
 use libcrux_psq::handshake::Responder;
 use libcrux_psq::handshake::builders::{
     CiphersuiteBuilder, PrincipalBuilder, ResponderCiphersuite,
@@ -77,12 +77,14 @@ impl<'a, S> PSQHandshakeStateResponder<'a, S>
 where
     S: LpHandshakeChannel + Unpin,
 {
-    /// Attempt to receive a KKT request from a one-way client
-    async fn receive_one_way_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
-        let packet_len = KKTRequest::size_excluding_payload(
-            KKTMode::OneWay,
-            self.inner_state.local_peer.ciphersuite.kem(),
-        ) + LP_PEER_CONFIG_SIZE;
+    async fn receive_kkt_request(&mut self, mode: KKTMode) -> Result<KKTRequest, LpError> {
+        let packet_len =
+            KKTRequest::size_excluding_payload(mode, self.inner_state.local_peer.ciphersuite.kem())
+                + LP_PEER_CONFIG_SIZE;
+
+        // TODO: we have an issue here: if initiator sends us a KEM key of different type
+        // than our ciphersuite, we will fail to receive it.
+        // Surely this won't blow up in our faces later... right?
 
         let req = self
             .inner_state
@@ -91,6 +93,16 @@ where
             .await?;
 
         Ok(req.into())
+    }
+
+    /// Attempt to receive a KKT request from a one-way client
+    async fn receive_one_way_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
+        Self::receive_kkt_request(self, KKTMode::OneWay).await
+    }
+
+    /// Attempt to receive a KKT request from a mutual client
+    async fn receive_mutual_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
+        Self::receive_kkt_request(self, KKTMode::Mutual).await
     }
 
     /// Attempt to process the received KKT request
@@ -105,6 +117,7 @@ where
         let processed_req = KKTResponder::new(
             &self.inner_state.local_peer.x25519,
             kem_keys,
+            &self.responder_data.initiator_kem_hashes,
             &self.responder_data.supported_hash_functions,
             &self.responder_data.supported_signature_schemes,
             &self.responder_data.supported_outer_protocol_versions,
@@ -133,7 +146,7 @@ where
         Ok(msg.into_bytes())
     }
 
-    pub async fn complete_handshake(self) -> Result<LpSession, LpError>
+    pub async fn complete_handshake(self) -> Result<LpTransportSession, LpError>
     where
         S: LpHandshakeChannel + Unpin,
     {
@@ -141,17 +154,27 @@ where
         self.complete_handshake_with_rng(&mut rng).await
     }
 
-    pub async fn complete_handshake_with_rng<R>(mut self, rng: &mut R) -> Result<LpSession, LpError>
+    pub async fn complete_handshake_with_rng<R>(
+        mut self,
+        rng: &mut R,
+    ) -> Result<LpTransportSession, LpError>
     where
         S: LpHandshakeChannel + Unpin,
         R: rand09::CryptoRng,
     {
         // 1. receive and process KKTRequest
-        let kkt_request = self.receive_one_way_kkt_request().await?;
+        let kkt_request = if self.responder_data.initiator_kem_hashes.is_empty() {
+            debug!("expecting one way KKT request");
+            self.receive_one_way_kkt_request().await?
+        } else {
+            debug!("expecting mutual KKT request");
+            self.receive_mutual_kkt_request().await?
+        };
         debug!("received KKT request");
 
         let processed_req = self.process_kkt_request(kkt_request)?;
         let kem = processed_req.requested_kem;
+        let init_kem = processed_req.remote_encapsulation_key;
 
         let lp_peer_config = LpPeerConfig::deserialize(&processed_req.request_payload)?;
 
@@ -205,10 +228,11 @@ where
             initiator_authenticator,
             responder_ecdh_pk: self.inner_state.local_peer.x25519().pk,
             responder_pq_pk: Some(kem_key),
+            initiator_pq_pk: init_kem,
         };
 
         let psq_session = psq_responder.into_session()?;
-        LpSession::new(
+        LpTransportSession::new(
             psq_session,
             binding,
             receiver_index,
@@ -274,6 +298,126 @@ mod tests {
             let (mut initiator, request) = KKTInitiator::generate_one_way_request(
                 &mut rng,
                 init.ciphersuite,
+                &resp_remote.x25519_public,
+                &dir_hash,
+                1,
+                Some(Vec::from(lp_peer_config.serialize())),
+            )?;
+
+            // 1. send kkt request
+            conn_init
+                .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
+                .timeboxed()
+                .await??;
+
+            // 2. receive KKT response
+            let response_len = KKTResponse::size_excluding_payload(kem);
+            let resp: handshake_message::KKTResponse = conn_init
+                .receive_handshake_message(response_len)
+                .timeboxed()
+                .await??;
+            let kkt_response = resp.into();
+
+            let response = initiator.process_response(kkt_response, 0)?;
+            let encapsulation_key = response.encapsulation_key;
+
+            let initiator_ciphersuite =
+                initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key)?;
+            let mut initiator =
+                initiator::build_psq_principal(rand09::rng(), 1, initiator_ciphersuite)?;
+
+            // 3. send PSQ msg1
+            // Send first message
+            let mut buf = vec![0u8; psq_msg1_size(kem)];
+            let n = initiator.write_message(&[], &mut buf).unwrap();
+            assert_eq!(n, buf.len());
+            let msg = PSQMsg1::new(buf);
+            conn_init
+                .send_handshake_message(msg, kem)
+                .timeboxed()
+                .await??;
+
+            // 4. receive PSQ msg2
+            let msg: PSQMsg2 = conn_init
+                .receive_handshake_message(PSQ_MSG2_SIZE)
+                .timeboxed()
+                .await??;
+            initiator.read_message(&msg, &mut []).unwrap();
+
+            assert!(initiator.is_handshake_finished());
+
+            let mut session_resp = resp_fut.await???;
+
+            let mut i_transport = initiator.into_session().unwrap();
+
+            // test serialization, deserialization
+            let mut channel_i = i_transport.transport_channel().unwrap();
+            let channel_r = session_resp.active_transport();
+
+            assert_eq!(channel_i.identifier(), channel_r.identifier());
+
+            let app_data_i = b"Derived session hey".as_slice();
+            let app_data_r = b"Derived session ho".as_slice();
+
+            let ct_i = encrypt_data(app_data_i, &mut channel_i)?;
+            let pt_r = decrypt_data(&ct_i, channel_r)?;
+
+            assert_eq!(app_data_i, pt_r);
+
+            let ct_r = encrypt_data(app_data_r, channel_r)?;
+            let pt_i = decrypt_data(&ct_r, &mut channel_i)?;
+
+            assert_eq!(app_data_r, pt_i);
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn responder_test_plain_mutual() -> anyhow::Result<()> {
+        for kem in KEM::iter() {
+            let conn_init = MockIOStream::default();
+            let conn_resp = conn_init.try_get_remote_handle();
+
+            // SETUP START:
+            // leak the connections (JUST FOR THE PURPOSE OF THIS TEST!)
+            // so they'd get 'static lifetime
+            let conn_init = conn_init.leak();
+            let conn_resp = conn_resp.leak();
+
+            let (mut init, mut resp) = mock_peers();
+            let resp_remote = resp.as_remote();
+            let init_remote = init.as_remote();
+
+            let ciphersuite = Ciphersuite::default().with_kem(kem);
+            init.ciphersuite = ciphersuite;
+            resp.ciphersuite = ciphersuite;
+
+            let responder_data = ResponderData::default()
+                .with_initiator_kem_hashes(init_remote.expected_kem_key_digests);
+            let handshake_resp =
+                PSQHandshakeState::new(conn_resp, resp).as_responder(responder_data);
+
+            let mut resp_rng = DeterministicRng09Send::new(u64_seeded_rng_09(2));
+            let resp_fut = tokio::spawn(async move {
+                handshake_resp
+                    .complete_handshake_with_rng(&mut resp_rng)
+                    .timeboxed()
+                    .await
+            });
+
+            // initiator:
+
+            let mut rng = deterministic_rng_09();
+            let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
+
+            let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
+
+            // Mutual - MlKem
+            let (mut initiator, request) = KKTInitiator::generate_mutual_request(
+                &mut rng,
+                init.ciphersuite,
+                init.encoded_kem_key(kem).unwrap(),
                 &resp_remote.x25519_public,
                 &dir_hash,
                 1,

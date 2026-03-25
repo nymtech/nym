@@ -249,8 +249,6 @@ impl MixFetchClient {
         request_id: RequestId,
         target: RemoteAddress,
     ) -> Result<(), MixFetchError> {
-        console_log!(">>>>>>>>>>> SENDING CONNECT");
-
         let raw_conn_req = socks5_connect_request(request_id, target, self.self_address);
         let lane = TransmissionLane::ConnectionId(request_id);
         let input = InputMessage::new_regular(

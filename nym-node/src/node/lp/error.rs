@@ -1,12 +1,13 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::lp::LpReceiverIndex;
-use nym_lp::packet::message::LpMessageType;
-use nym_lp::state_machine::LpAction;
+use nym_lp::packet::frame::LpFrameKind;
+use nym_lp::peer_config::LpReceiverIndex;
+use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
 use nym_lp::{LpError, packet::MalformedLpPacketError};
-use std::net::SocketAddr;
+use nym_topology::NodeId;
+use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -32,9 +33,6 @@ pub enum LpHandlerError {
         received: LpReceiverIndex,
     },
 
-    #[error("no action has been emitted from the LP State Machine")]
-    UnexpectedStateMachineHalt,
-
     #[error("the state machine instructed an unexpected action: {action:?}")]
     UnexpectedStateMachineAction { action: LpAction },
 
@@ -45,13 +43,22 @@ pub enum LpHandlerError {
     MalformedLpPacket(#[from] MalformedLpPacketError),
 
     #[error("received payload type of an unexpected type: {typ:?}")]
-    UnexpectedLpPayload { typ: LpMessageType },
+    UnexpectedLpPayload { typ: LpFrameKind },
 
     #[error("timed out while attempting to send to/receive from the connection")]
     ConnectionTimeout,
 
+    #[error("missing KEM key hashes for node {node_id} connected from {node_ip}")]
+    MissingNodeKEMKeyHashes { node_ip: IpAddr, node_id: NodeId },
+
     #[error("data channel is not yet implemented")]
     UnimplementedDataChannel,
+
+    #[error("{ip_addr} does not correspond to any known LP node")]
+    NotLpNode { ip_addr: IpAddr },
+
+    #[error("{0}")]
+    Internal(String),
 
     #[error("{0}")]
     Other(String),
@@ -65,6 +72,10 @@ impl LpHandlerError {
             }
             _ => false,
         }
+    }
+
+    pub fn internal(msg: impl Into<String>) -> Self {
+        LpHandlerError::Internal(msg.into())
     }
 
     pub fn other(msg: impl Into<String>) -> Self {

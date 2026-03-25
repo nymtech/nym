@@ -188,6 +188,10 @@ impl Config {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct IpPacketRouter {
+    /// specifies whether this IP Router should run in 'open-proxy' mode
+    /// and thus would attempt to resolve **ANY** request it receives.
+    pub open_proxy: bool,
+
     /// Disable Poisson sending rate.
     pub disable_poisson_rate: bool,
 
@@ -199,6 +203,7 @@ pub struct IpPacketRouter {
 impl Default for IpPacketRouter {
     fn default() -> Self {
         IpPacketRouter {
+            open_proxy: false,
             disable_poisson_rate: true,
             #[allow(clippy::expect_used)]
             upstream_exit_policy_url: Some(

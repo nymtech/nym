@@ -35,6 +35,13 @@ impl ExitPolicyRequestFilter {
         }
     }
 
+    pub fn new_from_policy(policy: ExitPolicy) -> Self {
+        ExitPolicyRequestFilter {
+            upstream: None,
+            policy,
+        }
+    }
+
     #[allow(unused)]
     pub fn policy(&self) -> &ExitPolicy {
         &self.policy

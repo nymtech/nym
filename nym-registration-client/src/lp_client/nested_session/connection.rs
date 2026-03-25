@@ -5,8 +5,8 @@ use crate::lp_client::helpers::{convert_forward_data, try_convert_forward_respon
 use crate::{LpClientError, LpRegistrationClient};
 use bytes::{BufMut, BytesMut};
 use nym_lp::KEM;
-use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData, message::ExpectedResponseSize};
-use nym_lp::state_machine::{LpAction, LpInput};
+use nym_lp::packet::{EncryptedLpPacket, ForwardPacketData, frame::ExpectedResponseSize};
+use nym_lp::session::{LpAction, LpInput};
 use nym_lp::transport::traits::{HandshakeMessage, LpTransportChannel};
 use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use std::io;
@@ -67,11 +67,9 @@ impl<'a, S> NestedConnection<'a, S> {
         let input = convert_forward_data(data)?;
 
         // 2. Encrypt and prepare packet via state machine
-        let state_machine = self.outer_client.state_machine_mut()?;
+        let state_machine = self.outer_client.transport_session_mut()?;
 
-        let action = state_machine
-            .process_input(input)
-            .ok_or(LpClientError::UnexpectedStateMachineHalt)??;
+        let action = state_machine.process_input(input)?;
 
         let forward_packet = match action {
             LpAction::SendPacket(packet) => packet,
@@ -102,10 +100,8 @@ impl<'a, S> NestedConnection<'a, S> {
         .map_err(|_| LpClientError::ConnectionTimeout)??;
 
         // 2. Decrypt via state machine (re-borrow)
-        let state_machine = self.outer_client.state_machine_mut()?;
-        let action = state_machine
-            .process_input(LpInput::ReceivePacket(response_packet))
-            .ok_or(LpClientError::UnexpectedStateMachineHalt)??;
+        let state_machine = self.outer_client.transport_session_mut()?;
+        let action = state_machine.process_input(LpInput::ReceivePacket(response_packet))?;
 
         // 3. Extract decrypted response data
         let response_data = try_convert_forward_response(action)?;

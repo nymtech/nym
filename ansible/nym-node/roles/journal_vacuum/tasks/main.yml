@@ -1,0 +1,6 @@
+---
+- name: Vacuum journal to size cap (hard)
+  command: "journalctl --vacuum-size={{ journal_vacuum_size }}"
+
+- name: Vacuum journal older than retention window (time)
+  command: "journalctl --vacuum-time={{ journal_vacuum_time }}"

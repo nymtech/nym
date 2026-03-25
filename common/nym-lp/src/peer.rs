@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpError;
+use nym_kkt::keys::EncapsulationKey;
 use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
@@ -41,6 +42,18 @@ impl LpLocalPeer {
         self
     }
 
+    pub fn kem_key(&self, kem: KEM) -> Option<EncapsulationKey> {
+        self.kem_keypairs
+            .as_ref()
+            .and_then(|k| k.encapsulation_key(kem))
+    }
+
+    pub fn encoded_kem_key(&self, kem: KEM) -> Option<&[u8]> {
+        self.kem_keypairs
+            .as_ref()
+            .and_then(|k| k.encoded_encapsulation_key(kem))
+    }
+
     pub fn x25519(&self) -> &Arc<DHKeyPair> {
         &self.x25519
     }
@@ -69,7 +82,10 @@ impl Debug for LpLocalPeer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LpLocalPeer")
             .field("ciphersuite", &self.ciphersuite)
-            .field("x25519", &self.x25519.pk)
+            .field(
+                "x25519",
+                &bs58::encode(self.x25519.pk.as_ref()).into_string(),
+            )
             .field("kem_keypairs", &self.kem_keypairs)
             .finish()
     }
@@ -126,6 +142,10 @@ impl LpRemotePeer {
             .get(&hash_function)
             .ok_or(LpError::NoKnownKEMKeyDigests { kem, hash_function })
             .cloned()
+    }
+
+    pub fn kem_key_digests(&self) -> &BTreeMap<KEM, KEMKeyDigests> {
+        &self.expected_kem_key_digests
     }
 }
 

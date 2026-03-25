@@ -1,0 +1,38 @@
+---
+- name: Restrict logging, vacuum journals, and enable periodic trim
+  hosts: all
+  become: true
+  gather_facts: false
+
+  # global knobs - override in inventory/group_vars/host_vars as needed
+  vars:
+    journald_system_max_use: "100M"
+    journald_runtime_max_use: "50M"
+    journald_system_max_file_size: "25M"
+    journald_runtime_max_file_size: "10M"
+    journald_max_retention_sec: "3day"
+    journald_rate_limit_interval: "30s"
+    journald_rate_limit_burst: "1000"
+
+    # per nym-node rate limit + level cap
+    nymnode_log_level_max: "warning"
+    nymnode_rate_limit_interval: "30s"
+    nymnode_rate_limit_burst: "200"
+
+    # journal vacuum targets
+    journal_vacuum_size: "100M"
+    journal_vacuum_time: "3days"
+
+    # fstrim cadence (note: the systemd override uses cron-like calendar)
+    fstrim_every_calendar: "*:0/15"
+
+  roles:
+    - role: journald_limits
+    - role: nymnode_logging
+    - role: rsyslog_disable
+    - role: journal_vacuum
+    - role: classic_log_cleanup
+    - role: apt_cleanup
+    - role: snap_cleanup
+    - role: fstrim_15min
+    - role: report

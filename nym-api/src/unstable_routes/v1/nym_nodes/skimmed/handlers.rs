@@ -11,7 +11,7 @@ use crate::unstable_routes::v1::nym_nodes::skimmed::{
     PaginatedCachedNodesResponseSchema, PaginatedSkimmedNodes,
 };
 use axum::extract::{Query, State};
-use nym_api_requests::nym_nodes::{CachedNodesResponse, NodeRoleQueryParam, SkimmedNode};
+use nym_api_requests::nym_nodes::{CachedNodesResponse, NodeRoleQueryParam, SkimmedNodeV1};
 use nym_http_api_common::FormattedResponse;
 
 /// Deprecated query that gets ALL gateways
@@ -23,9 +23,9 @@ use nym_http_api_common::FormattedResponse;
     context_path = "/v1/unstable/nym-nodes",
     responses(
         (status = 200, content(
-            (CachedNodesResponse<SkimmedNode> = "application/json"),
-            (CachedNodesResponse<SkimmedNode> = "application/yaml"),
-            (CachedNodesResponse<SkimmedNode> = "application/bincode")
+            (CachedNodesResponse<SkimmedNodeV1> = "application/json"),
+            (CachedNodesResponse<SkimmedNodeV1> = "application/yaml"),
+            (CachedNodesResponse<SkimmedNodeV1> = "application/bincode")
         ))
     ),
 )]
@@ -34,7 +34,7 @@ use nym_http_api_common::FormattedResponse;
 pub(crate) async fn deprecated_gateways_basic(
     state: State<AppState>,
     query_params: Query<NodesParams>,
-) -> AxumResult<FormattedResponse<CachedNodesResponse<SkimmedNode>>> {
+) -> AxumResult<FormattedResponse<CachedNodesResponse<SkimmedNodeV1>>> {
     let output = query_params.output.unwrap_or_default();
 
     // 1. call '/v1/unstable/skimmed/entry-gateways/all'
@@ -59,9 +59,9 @@ pub(crate) async fn deprecated_gateways_basic(
     context_path = "/v1/unstable/nym-nodes",
     responses(
         (status = 200, content(
-            (CachedNodesResponse<SkimmedNode> = "application/json"),
-            (CachedNodesResponse<SkimmedNode> = "application/yaml"),
-            (CachedNodesResponse<SkimmedNode> = "application/bincode")
+            (CachedNodesResponse<SkimmedNodeV1> = "application/json"),
+            (CachedNodesResponse<SkimmedNodeV1> = "application/yaml"),
+            (CachedNodesResponse<SkimmedNodeV1> = "application/bincode")
         ))
     ),
 )]
@@ -70,7 +70,7 @@ pub(crate) async fn deprecated_gateways_basic(
 pub(crate) async fn deprecated_mixnodes_basic(
     state: State<AppState>,
     query_params: Query<NodesParams>,
-) -> AxumResult<FormattedResponse<CachedNodesResponse<SkimmedNode>>> {
+) -> AxumResult<FormattedResponse<CachedNodesResponse<SkimmedNodeV1>>> {
     let output = query_params.output.unwrap_or_default();
 
     // 1. call '/v1/unstable/nym-nodes/skimmed/mixnodes/active'

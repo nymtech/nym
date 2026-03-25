@@ -71,8 +71,10 @@ fn test_weighted_score_calculation() {
                     downloaded_file_v6: "".to_string(),
                     download_error_v6: "".to_string(),
                 }),
-                // TODO dz test this as well
+                // test calculates gateway score based on Wg probe results,
+                // so these fields are irrelevant
                 socks5: None,
+                lp: None,
             },
         }
     }
@@ -80,13 +82,13 @@ fn test_weighted_score_calculation() {
     // Test case 1: Excellent node (should be High)
     let gateway = create_test_gateway(90); // 90% mixnet performance
     let probe = create_test_probe_outcome(6.0, 1.0); // 6 Mbps, 100% ping
-    let score = calculate_score(&gateway, &probe);
+    let score = calc_gateway_visual_score(&gateway, &probe);
     assert_eq!(score, ScoreValue::High, "Excellent node should be High");
 
     // Test case 2: Good node (should be High with weighted scoring)
     let gateway = create_test_gateway(90); // 90% mixnet performance
     let probe = create_test_probe_outcome(3.0, 0.9); // 3 Mbps (0.75 score), 90% ping
-    let score = calculate_score(&gateway, &probe);
+    let score = calc_gateway_visual_score(&gateway, &probe);
     assert_eq!(
         score,
         ScoreValue::High,
@@ -96,25 +98,25 @@ fn test_weighted_score_calculation() {
     // Test case 3: Medium node
     let gateway = create_test_gateway(80); // 80% mixnet performance
     let probe = create_test_probe_outcome(1.5, 0.8); // 1.5 Mbps (0.5 score), 80% ping
-    let score = calculate_score(&gateway, &probe);
+    let score = calc_gateway_visual_score(&gateway, &probe);
     assert_eq!(score, ScoreValue::Medium, "Medium node should be Medium");
 
     // Test case 4: Poor node
     let gateway = create_test_gateway(60); // 60% mixnet performance
     let probe = create_test_probe_outcome(0.3, 0.3); // 0.3 Mbps (0.1 score), 30% ping
-    let score = calculate_score(&gateway, &probe);
+    let score = calc_gateway_visual_score(&gateway, &probe);
     assert_eq!(score, ScoreValue::Low, "Poor node should be Low");
 
     // Test case 5: Failed node
     let gateway = create_test_gateway(10); // 10% mixnet performance
     let probe = create_test_probe_outcome(0.1, 0.0); // 0.1 Mbps (0.1 score), 0% ping
-    let score = calculate_score(&gateway, &probe);
+    let score = calc_gateway_visual_score(&gateway, &probe);
     assert_eq!(score, ScoreValue::Offline, "Failed node should be Offline");
 
     // Test case 6: Edge case - just above threshold
     let gateway = create_test_gateway(76); // 76% mixnet performance
     let probe = create_test_probe_outcome(2.1, 0.75); // 2.1 Mbps (0.75 score), 75% ping
-    let score = calculate_score(&gateway, &probe);
+    let score = calc_gateway_visual_score(&gateway, &probe);
     // Weighted: (0.76 * 0.4) + (0.75 * 0.3) + (0.75 * 0.3) = 0.304 + 0.225 + 0.225 = 0.754
     assert_eq!(
         score,
@@ -133,7 +135,9 @@ fn test_weighted_score_calculation() {
 fn conversion_from_gw_probe_latest() {
     use nym_gateway_probe::types::{
         Entry as EntryLatest, EntryTestResult as EntryTestResultLatest, Exit as ExitLatest,
-        ProbeOutcome as ProbeOutcomeLatest, ProbeResult as ProbeResultLatest,
+        HttpsConnectivityResult as HttpsConnectivityResultLatest,
+        LpProbeResults as LpProbeResultsLatest, ProbeOutcome as ProbeOutcomeLatest,
+        ProbeResult as ProbeResultLatest, Socks5ProbeResults as Socks5ProbeResultsLatest,
         WgProbeResults as WgProbeResultsLatest,
     };
 
@@ -175,14 +179,48 @@ fn conversion_from_gw_probe_latest() {
                 can_route_ip_v6: true,
                 can_route_ip_external_v6: true,
             }),
-            socks5: None,
-            lp: None,
             wg: Some(wg_latest.clone()),
+            socks5: Some(Socks5ProbeResultsLatest::from_dummy_values(
+                true,
+                HttpsConnectivityResultLatest::from_dummy_values(
+                    true,
+                    Some(200),
+                    Some(123),
+                    Some(String::from("example.com")),
+                    Some(vec![String::from("error1"), String::from("error2")]),
+                ),
+            )),
+            lp: Some(LpProbeResultsLatest {
+                can_connect: true,
+                can_handshake: true,
+                can_register: true,
+                error: Some(String::from("error1")),
+            }),
         },
     };
 
     // convert to this crate's LastProbeResult
     let result: LastProbeResult = probe_latest.clone().into();
+
+    let lp = result.outcome.lp.as_ref().expect("lp should be Some");
+    assert!(lp.can_connect);
+    assert!(lp.can_handshake);
+    assert!(lp.can_register);
+    assert_eq!(lp.error, Some(String::from("error1")));
+
+    let socks5 = result.outcome.socks5.as_ref().expect("lp should be Some");
+    assert!(socks5.can_connect_socks5);
+    assert!(socks5.https_connectivity.https_success);
+    assert_eq!(socks5.https_connectivity.https_status_code, Some(200));
+    assert_eq!(socks5.https_connectivity.https_latency_ms, Some(123));
+    assert_eq!(
+        socks5.https_connectivity.endpoint_used,
+        Some(String::from("example.com"))
+    );
+    assert_eq!(
+        socks5.https_connectivity.errors,
+        Some(vec![String::from("error1"), String::from("error2")]),
+    );
 
     assert_eq!(result.node, probe_latest.node);
     assert_eq!(result.used_entry, probe_latest.used_entry);
@@ -338,8 +376,22 @@ fn deserialize_latest_gw_probe_format() {
                 "can_route_ip_v6": false,
                 "can_route_ip_external_v6": false
             },
-            "socks5": null,
-            "lp": null,
+            "socks5": {
+                "can_connect_socks5": true,
+                "https_connectivity": {
+                    "https_success": true,
+                    "https_status_code": 200,
+                    "https_latency_ms": 123,
+                    "endpoint_used": "example.com",
+                    "errors": ["error1", "error2"]
+                }
+            },
+            "lp": {
+                "can_connect": true,
+                "can_handshake": true,
+                "can_register": true,
+                "error": "example error"
+            },
             "wg": {
                 "can_register": true,
                 "can_query_metadata_v4": true,
@@ -379,6 +431,26 @@ fn deserialize_latest_gw_probe_format() {
     assert!(wg.can_register);
     assert_eq!(wg.download_duration_milliseconds_v4, Some(3456));
     assert_eq!(wg.download_error_v6, "ipv6 not supported");
+
+    let socks5 = result.outcome.socks5.as_ref().expect("should have socks5");
+    assert!(socks5.can_connect_socks5);
+    assert!(socks5.https_connectivity.https_success);
+    assert_eq!(socks5.https_connectivity.https_status_code, Some(200));
+    assert_eq!(socks5.https_connectivity.https_latency_ms, Some(123));
+    assert_eq!(
+        socks5.https_connectivity.endpoint_used,
+        Some(String::from("example.com"))
+    );
+    assert_eq!(
+        socks5.https_connectivity.errors,
+        Some(vec![String::from("error1"), String::from("error2")])
+    );
+
+    let lp = result.outcome.lp.as_ref().expect("should have lp");
+    assert!(lp.can_connect);
+    assert!(lp.can_handshake);
+    assert!(lp.can_register);
+    assert_eq!(lp.error, Some(String::from("example error")));
 }
 
 /// Serialize LastProbeResult to JSON and back to ensure serde attributes
@@ -426,8 +498,22 @@ fn round_trip_serialization() {
                 downloaded_file_v6: "test-file-v6.bin".to_string(),
                 download_error_v6: "none-v6".to_string(),
             }),
-            // TODO dz test this as well
-            socks5: None,
+            socks5: Some(Socks5ProbeResults {
+                can_connect_socks5: true,
+                https_connectivity: HttpsConnectivityResult {
+                    https_success: true,
+                    https_status_code: Some(200),
+                    https_latency_ms: Some(123),
+                    endpoint_used: Some(String::from("example.endpoint")),
+                    errors: Some(vec![String::from("error1")]),
+                },
+            }),
+            lp: Some(LpProbeResults {
+                can_connect: true,
+                can_handshake: true,
+                can_register: true,
+                error: Some(String::from("example")),
+            }),
         },
     };
 
@@ -530,4 +616,26 @@ fn round_trip_serialization() {
     );
     assert_eq!(orig_wg.downloaded_file_v6, deser_wg.downloaded_file_v6);
     assert_eq!(orig_wg.download_error_v6, deser_wg.download_error_v6);
+
+    // verify socks5
+    let orig_socks5 = original.outcome.socks5.as_ref().unwrap();
+    let deser_socks5 = deserialized.outcome.socks5.as_ref().unwrap();
+
+    assert_eq!(
+        orig_socks5.can_connect_socks5,
+        deser_socks5.can_connect_socks5
+    );
+    assert_eq!(
+        orig_socks5.https_connectivity,
+        deser_socks5.https_connectivity
+    );
+
+    // verify lp
+    let orig_lp = original.outcome.lp.as_ref().unwrap();
+    let deser_lp = deserialized.outcome.lp.as_ref().unwrap();
+
+    assert_eq!(orig_lp.can_connect, deser_lp.can_connect);
+    assert_eq!(orig_lp.can_handshake, deser_lp.can_handshake);
+    assert_eq!(orig_lp.can_register, deser_lp.can_register);
+    assert_eq!(orig_lp.error, deser_lp.error);
 }

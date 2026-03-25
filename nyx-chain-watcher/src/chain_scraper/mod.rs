@@ -7,8 +7,7 @@ use crate::http::state::BankScraperModuleState;
 use async_trait::async_trait;
 use nym_validator_client::nyxd::{Any, Coin, CosmosCoin, Hash, Msg, MsgSend, Name};
 use nyxd_scraper_sqlite::{
-    MsgModule, NyxdScraperTransaction, ParsedTransactionResponse, PruningOptions, ScraperError,
-    SqliteNyxdScraper,
+    MsgModule, ParsedTransactionResponse, PruningOptions, ScraperError, SqliteNyxdScraper,
 };
 use sqlx::SqlitePool;
 use std::fs;
@@ -158,7 +157,6 @@ impl MsgModule for BankScraperModule {
         index: usize,
         msg: &Any,
         tx: &ParsedTransactionResponse,
-        _storage_tx: &mut dyn NyxdScraperTransaction,
     ) -> Result<(), ScraperError> {
         let memo = tx.tx.body.memo.clone();
 

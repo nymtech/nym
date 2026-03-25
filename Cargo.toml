@@ -157,8 +157,8 @@ members = [
     "tools/internal/mixnet-connectivity-check",
     #    "tools/internal/sdk-version-bump",
     "tools/internal/ssl-inject",
-    "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/internal/localnet-orchestrator",
+    "tools/internal/localnet-orchestrator/dkg-bypass-contract",
     "tools/internal/validator-status-check",
     "tools/nym-cli",
     "tools/nym-id-cli",
@@ -171,9 +171,10 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
-    #    "nym-gateway-probe",
+    "nym-gateway-probe",
     "integration-tests",
-    "common/nym-kkt-ciphersuite", "common/nym-kkt-context",
+    "common/nym-kkt-ciphersuite",
+    "common/nym-kkt-context",
 ]
 
 default-members = [
@@ -190,7 +191,8 @@ default-members = [
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
     "tools/nymvisor",
-    "nym-registration-client"
+    "nym-registration-client",
+    "tools/internal/localnet-orchestrator"
 ]
 
 exclude = ["contracts", "nym-wallet", "cpu-cycles"]
@@ -202,7 +204,7 @@ homepage = "https://nymtech.net"
 documentation = "https://nymtech.net"
 edition = "2024"
 license = "Apache-2.0"
-rust-version = "1.85"
+rust-version = "1.87.0"
 readme = "README.md"
 version = "1.20.4"
 
@@ -232,6 +234,7 @@ bloomfilter = "3.0.1"
 bs58 = "0.5.1"
 bytecodec = "0.4.15"
 bytes = "1.11.1"
+cargo-edit = "0.13.8"
 cargo_metadata = "0.19.2"
 celes = "2.6.0"
 cfg-if = "1.0.0"
@@ -347,8 +350,8 @@ si-scale = "0.2.3"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"
 sqlx = "0.8.6"
-strum = "0.27.2"
-strum_macros = "0.27.2"
+strum = "0.28.0"
+strum_macros = "0.28.0"
 subtle-encoding = "0.5"
 syn = "2"
 sysinfo = "0.37.0"
@@ -375,7 +378,7 @@ tracing-opentelemetry = "0.32.1"
 tracing-subscriber = "0.3.20"
 tracing-indicatif = "0.3.9"
 tracing-test = "0.2.5"
-ts-rs = "10.1.0"
+ts-rs = "12.0.1"
 tungstenite = { version = "0.20.1", default-features = false }
 typed-builder = "0.23.0"
 uniffi = "0.29.2"
@@ -438,6 +441,7 @@ nym-ecash-time = { version = "1.20.4", path = "common/ecash-time" }
 nym-exit-policy = { version = "1.20.4", path = "common/exit-policy" }
 nym-ffi-shared = { version = "1.20.4", path = "sdk/ffi/shared" }
 nym-gateway-client = { version = "1.20.4", path = "common/client-libs/gateway-client", default-features = false }
+nym-gateway-probe = { version = "1.18.0", path = "nym-gateway-probe" }
 nym-gateway-requests = { version = "1.20.4", path = "common/gateway-requests" }
 nym-gateway-storage = { version = "1.20.4", path = "common/gateway-storage" }
 nym-gateway-stats-storage = { version = "1.20.4", path = "common/gateway-stats-storage" }
@@ -448,8 +452,10 @@ nym-http-api-common = { version = "1.20.4", path = "common/http-api-common", def
 nym-id = { version = "1.20.4", path = "common/nym-id" }
 nym-ip-packet-client = { version = "1.20.4", path = "nym-ip-packet-client" }
 nym-ip-packet-requests = { version = "1.20.4", path = "common/ip-packet-requests" }
+nym-lp = { version = "1.20.4", path = "common/nym-lp" }
 nym-kkt = { version = "0.1.0", path = "common/nym-kkt" }
 nym-kkt-ciphersuite = { version = "1.20.4", path = "common/nym-kkt-ciphersuite" }
+nym-kkt-context = { version = "1.20.4", path = "common/nym-kkt-context" }
 nym-metrics = { version = "1.20.4", path = "common/nym-metrics" }
 nym-mixnet-client = { version = "1.20.4", path = "common/client-libs/mixnet-client" }
 nym-mixnet-contract-common = { version = "1.20.4", path = "common/cosmwasm-smart-contracts/mixnet-contract" }

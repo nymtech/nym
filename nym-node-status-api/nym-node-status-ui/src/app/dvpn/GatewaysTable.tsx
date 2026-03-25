@@ -116,7 +116,6 @@ export default function GatewaysTable() {
       },
       {
         accessorKey: "performance_v2.score",
-        width: 20,
         header: "Score",
         Cell: ({ cell }) => {
           const value = cell.getValue<string>();
@@ -139,7 +138,6 @@ export default function GatewaysTable() {
       },
       {
         accessorKey: "performance_v2.load",
-        width: 20,
         header: "Load",
         Cell: ({ cell }) => {
           const value = cell.getValue<string>();
@@ -227,7 +225,6 @@ export default function GatewaysTable() {
       },
       {
         accessorKey: "performance_v2.uptime_percentage_last_24_hours",
-        width: 20,
         header: "Uptime",
         Cell: ({ cell, row }) => {
           const value: number =
@@ -245,6 +242,31 @@ export default function GatewaysTable() {
                 gap={1}
               >
                 <span>{value}%</span>
+              </Typography>
+            </>
+          );
+        },
+      },
+      {
+        accessorKey: "last_probe.outcome.lp.can_register",
+        header: "Post-quantum registration?",
+        Cell: ({ cell }) => {
+          const lp = cell.row.original.last_probe?.outcome.lp as any;
+          const can_register = lp?.can_register;
+          return (
+            <>
+              <Typography
+                ml={2}
+                fontSize="inherit"
+                component="span"
+                display="flex"
+                alignItems="center"
+                gap={1}
+              >
+                {can_register === null ||
+                  (can_register === undefined && <span>-</span>)}
+                {can_register === true && <span>✅</span>}
+                {can_register === false && <span>❌</span>}
               </Typography>
             </>
           );

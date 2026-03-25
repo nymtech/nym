@@ -1,22 +1,20 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#![allow(dead_code)]
-
 use crate::builder::RegistrationClientBuilder;
 use crate::config::RegistrationClientConfig;
 use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
 use crate::lp_client::helpers::to_lp_remote_peer;
 use crate::lp_client::{LpRegistrationClient, NestedLpSession};
-use crate::types::{LpRegistrationResult, RegistrationResult};
+use crate::types::{RegistrationResult, WireguardRegistrationResult};
 
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 
 use nym_lp::peer::DHKeyPair;
-use rand09::{CryptoRng, RngCore};
+use rand09::{CryptoRng, RngCore, SeedableRng};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
@@ -64,7 +62,6 @@ impl LpBasedRegistrationClient {
         tracing::debug!("Exit gateway LP address: {exit_address}");
 
         // Generate fresh x25519 keypairs for LP registration
-        // TODO: persist them for the duration of the sessions
         let entry_lp_keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
         let exit_lp_keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
 
@@ -100,7 +97,7 @@ impl LpBasedRegistrationClient {
         tracing::info!("Registering with exit gateway via entry forwarding");
         let mut nested_session = NestedLpSession::new(
             exit_address,
-            exit_lp_keypair,
+            exit_lp_keypair.clone(),
             exit_peer,
             exit_ciphersuite,
             exit_lp_protocol,
@@ -150,15 +147,17 @@ impl LpBasedRegistrationClient {
         // All data flows through WireGuard after this point.
         // Each LP packet used its own TCP connection which was closed after the exchange.
         // Exit registration was completed via forwarding through entry gateway.
-        Ok(RegistrationResult::Lp(Box::new(LpRegistrationResult {
+        Ok(RegistrationResult::wireguard_lp(
             entry_gateway_data,
             exit_gateway_data,
-            bw_controller: self.bandwidth_controller,
-        })))
+            entry_lp_keypair,
+            exit_lp_keypair,
+            self.bandwidth_controller,
+        ))
     }
 
     async fn register_wg(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let mut rng = rand09::rng();
+        let mut rng = rand09::rngs::StdRng::from_os_rng();
 
         self.register_wg_with_rng(&mut rng).await
     }

@@ -114,14 +114,14 @@ impl KKTRequestPlaintext {
     }
 
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN);
+        let mut out = Vec::with_capacity(Self::SIZE);
         out.extend_from_slice(self.dh_pubkey.as_ref());
         out.extend_from_slice(self.masked_version_bytes.as_slice());
         out
     }
 
     pub(crate) fn try_from_bytes(b: &[u8]) -> Result<Self, KKTError> {
-        if b.len() != x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN {
+        if b.len() != Self::SIZE {
             return Err(KKTError::FrameDecodingError {
                 info: "the KKTRequest frame has invalid length".to_string(),
             });

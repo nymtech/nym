@@ -10,13 +10,11 @@ use crate::utils::now_utc;
 use crate::utils::{LogError, NumericalCheckedCast};
 use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
+use nym_validator_client::client::{NodeId, NymApiClientExt, NymNodeDetails};
+use nym_validator_client::models::NymNodeDescriptionV2;
 use nym_validator_client::{
     QueryHttpRpcNyxdClient,
-    nym_nodes::{NodeRole, SkimmedNode},
-};
-use nym_validator_client::{
-    client::{NodeId, NymApiClientExt, NymNodeDetails},
-    models::NymNodeDescriptionV1,
+    nym_nodes::{NodeRole, SkimmedNodeV1},
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::{sync::RwLock, time::Duration};
@@ -129,7 +127,7 @@ impl Monitor {
                 .build()?;
 
         let described_nodes = nym_api
-            .get_all_described_nodes()
+            .get_all_described_nodes_v2()
             .await
             .log_error("get_all_described_nodes")?
             .into_iter()
@@ -282,7 +280,7 @@ impl Monitor {
     }
 
     #[instrument(level = "info", skip_all)]
-    async fn location_cached(&mut self, node: &NymNodeDescriptionV1) -> Location {
+    async fn location_cached(&mut self, node: &NymNodeDescriptionV2) -> Location {
         let node_id = node.node_id;
 
         match self.geocache.get(&node_id).await {
@@ -308,9 +306,9 @@ impl Monitor {
 
     fn prepare_nym_node_data(
         &self,
-        skimmed_nodes: Vec<SkimmedNode>,
+        skimmed_nodes: Vec<SkimmedNodeV1>,
         bonded_node_info: &HashMap<NodeId, NymNodeDetails>,
-        described_nodes: &HashMap<NodeId, NymNodeDescriptionV1>,
+        described_nodes: &HashMap<NodeId, NymNodeDescriptionV2>,
     ) -> Vec<NymNodeInsertRecord> {
         skimmed_nodes
             .into_iter()
@@ -335,8 +333,8 @@ impl Monitor {
 
     async fn prepare_gateway_data(
         &mut self,
-        described_gateways: &[&NymNodeDescriptionV1],
-        skimmed_gateways: &[SkimmedNode],
+        described_gateways: &[&NymNodeDescriptionV2],
+        skimmed_gateways: &[SkimmedNodeV1],
         bonded_nodes: &HashMap<NodeId, NymNodeDetails>,
     ) -> anyhow::Result<Vec<GatewayInsertRecord>> {
         let mut gateway_records = Vec::new();

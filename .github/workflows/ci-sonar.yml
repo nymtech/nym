@@ -8,7 +8,7 @@ on:
 jobs:
   sonarqube:
     name: SonarQube
-    runs-on: ubuntu-latest
+    runs-on: arc-linux-latest
     steps:
       - uses: actions/checkout@v6
         with:

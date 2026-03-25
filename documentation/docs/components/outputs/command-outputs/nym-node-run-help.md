@@ -82,12 +82,20 @@ Options:
           Endpoint to query to retrieve current upgrade mode attestation. This argument should never be set outside testnets and local networks [env: NYMNODE_UPGRADE_MODE_ATTESTATION_URL=]
       --upgrade-mode-attester-public-key <UPGRADE_MODE_ATTESTER_PUBLIC_KEY>
           Expected public key of the entity signing the published attestation. This argument should never be set outside testnets and local networks [env: NYMNODE_UPGRADE_MODE_ATTESTER_PUBKEY=]
-      --lp-use-mock-ecash <LP_USE_MOCK_ECASH>
-          Use mock ecash manager for LP testing. WARNING: Only use this for local testing! Never enable in production. When enabled, the LP listener will accept any credential without blockchain verification [env: NYMNODE_LP_USE_MOCK_ECASH=] [possible values: true, false]
       --upstream-exit-policy-url <UPSTREAM_EXIT_POLICY_URL>
           Specifies the url for an upstream source of the exit policy used by this node [env: NYMNODE_UPSTREAM_EXIT_POLICY=]
       --open-proxy <OPEN_PROXY>
           Specifies whether this exit node should run in 'open-proxy' mode and thus would attempt to resolve **ANY** request it receives [env: NYMNODE_OPEN_PROXY=] [possible values: true, false]
+      --lp-control-bind-address <LP_CONTROL_BIND_ADDRESS>
+          Bind address for the TCP LP control traffic. default: `[::]:41264` [env: NYMNODE_LP_CONTROL_BIND_ADDRESS=]
+      --lp-control-announce-port <LP_CONTROL_ANNOUNCE_PORT>
+          Custom announced port for listening for the TCP LP control traffic. If unspecified, the value from the `lp_control_bind_address` will be used instead [env: NYMNODE_LP_CONTROL_ANNOUNCE_PORT=]
+      --lp-data-bind-address <LP_DATA_BIND_ADDRESS>
+          Bind address for the UDP LP data traffic. default: `[::]:51264` [env: NYMNODE_LP_DATA_BIND_ADDRESS=]
+      --lp-data-announce-port <LP_DATA_ANNOUNCE_PORT>
+          Custom announced port for listening for the UDP LP data traffic. If unspecified, the value from the `lp_data_bind_address` will be used instead [env: NYMNODE_LP_DATA_ANNOUNCE_PORT=]
+      --lp-use-mock-ecash <LP_USE_MOCK_ECASH>
+          Use mock ecash manager for LP testing. WARNING: Only use this for local testing! Never enable in production. When enabled, the LP listener will accept any credential without blockchain verification [env: NYMNODE_LP_USE_MOCK_ECASH=] [possible values: true, false]
   -h, --help
           Print help
 ```

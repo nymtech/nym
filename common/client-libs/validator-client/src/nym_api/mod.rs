@@ -4,6 +4,7 @@
 use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{ecash, CORE_STATUS_COUNT, SINCE_ARG};
 use crate::nym_nodes::SkimmedNodesWithMetadata;
+use crate::ValidatorClientError;
 use async_trait::async_trait;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
@@ -20,11 +21,14 @@ use nym_api_requests::models::{
     NymNodeDescriptionV1, NymNodeDescriptionV2, PerformanceHistoryResponse, RewardedSetResponse,
     SignerInformationResponse,
 };
-use nym_api_requests::nym_nodes::{
-    NodesByAddressesRequestBody, NodesByAddressesResponse, PaginatedCachedNodesResponseV1,
-    PaginatedCachedNodesResponseV2,
-};
 use nym_api_requests::pagination::PaginatedResponse;
+use nym_http_api_client::{ApiClient, NO_PARAMS};
+use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
+use std::net::IpAddr;
+use time::format_description::BorrowedFormatItem;
+use time::Date;
+use tracing::instrument;
+
 pub use nym_api_requests::{
     ecash::{
         models::SpentCredentialsResponse, BlindSignRequestBody, BlindedSignatureResponse,
@@ -36,17 +40,14 @@ pub use nym_api_requests::{
         MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
         MixnodeUptimeHistoryResponse, StakeSaturationResponse, UptimeResponse,
     },
-    nym_nodes::{CachedNodesResponse, SemiSkimmedNode, SemiSkimmedNodesWithMetadata, SkimmedNode},
+    nym_nodes::{
+        CachedNodesResponse, NodesByAddressesRequestBody, NodesByAddressesResponse,
+        PaginatedCachedNodesResponseV1, PaginatedCachedNodesResponseV2, SemiSkimmedNodeV1,
+        SemiSkimmedNodeV3, SemiSkimmedNodesWithMetadata, SkimmedNodeV1,
+    },
     NymNetworkDetailsResponse,
 };
-use nym_http_api_client::{ApiClient, NO_PARAMS};
-use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
-use std::net::IpAddr;
-use time::format_description::BorrowedFormatItem;
-use time::Date;
-use tracing::instrument;
 
-use crate::ValidatorClientError;
 pub use nym_coconut_dkg_common::types::EpochId;
 
 pub mod error;
@@ -390,7 +391,7 @@ pub trait NymApiClientExt: ApiClient {
 
     #[deprecated]
     #[tracing::instrument(level = "debug", skip_all)]
-    async fn get_basic_mixnodes(&self) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
+    async fn get_basic_mixnodes(&self) -> Result<CachedNodesResponse<SkimmedNodeV1>, NymAPIError> {
         self.get_json(
             &[
                 routes::V1_API_VERSION,
@@ -406,7 +407,7 @@ pub trait NymApiClientExt: ApiClient {
 
     #[deprecated]
     #[instrument(level = "debug", skip(self))]
-    async fn get_basic_gateways(&self) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
+    async fn get_basic_gateways(&self) -> Result<CachedNodesResponse<SkimmedNodeV1>, NymAPIError> {
         self.get_json(
             &[
                 routes::V1_API_VERSION,
@@ -443,7 +444,7 @@ pub trait NymApiClientExt: ApiClient {
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV1<SkimmedNode>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV1<SkimmedNodeV1>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -485,7 +486,7 @@ pub trait NymApiClientExt: ApiClient {
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNode>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV1>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -527,7 +528,7 @@ pub trait NymApiClientExt: ApiClient {
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV1<SkimmedNode>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV1<SkimmedNodeV1>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -569,7 +570,7 @@ pub trait NymApiClientExt: ApiClient {
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNode>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV1>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -612,7 +613,7 @@ pub trait NymApiClientExt: ApiClient {
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV1<SkimmedNode>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV1<SkimmedNodeV1>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -654,7 +655,7 @@ pub trait NymApiClientExt: ApiClient {
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNode>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV1>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -695,7 +696,7 @@ pub trait NymApiClientExt: ApiClient {
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV1<SkimmedNode>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV1<SkimmedNodeV1>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -733,7 +734,7 @@ pub trait NymApiClientExt: ApiClient {
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNode>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV1>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -770,7 +771,7 @@ pub trait NymApiClientExt: ApiClient {
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
-    ) -> Result<PaginatedCachedNodesResponseV2<SemiSkimmedNode>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SemiSkimmedNodeV1>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -795,6 +796,21 @@ pub trait NymApiClientExt: ApiClient {
             &params,
         )
         .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_expanded_nodes_v3(
+        &self,
+        use_bincode: bool,
+    ) -> Result<PaginatedCachedNodesResponseV2<SemiSkimmedNodeV3>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if use_bincode {
+            params.push(("output", "bincode".to_string()))
+        }
+
+        self.get_response("/v3/unstable/nym-nodes/semi-skimmed", &params)
+            .await
     }
 
     #[deprecated]

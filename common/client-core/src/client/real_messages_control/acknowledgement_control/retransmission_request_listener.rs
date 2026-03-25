@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
-    action_controller::{AckActionSender, Action},
     PendingAcknowledgement, RetransmissionRequestReceiver,
+    action_controller::{AckActionSender, Action},
 };
 use crate::client::real_messages_control::acknowledgement_control::PacketDestination;
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
@@ -13,7 +13,7 @@ use futures::StreamExt;
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_sphinx::{addressing::clients::Recipient, params::PacketType};
-use nym_task::{connections::TransmissionLane, ShutdownToken};
+use nym_task::{ShutdownToken, connections::TransmissionLane};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 use tracing::*;

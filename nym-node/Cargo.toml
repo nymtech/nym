@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.27.0"
+version = "1.28.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -13,8 +13,6 @@ license = "GPL-3.0"
 publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-path = "src/lib.rs"
 
 [dependencies]
 async-trait = { workspace = true }
@@ -117,7 +115,7 @@ nym-network-requester = { path = "../service-providers/network-requester" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 # LP dependencies
-nym-lp = { path = "../common/nym-lp" }
+nym-lp = { workspace = true }
 nym-registration-common = { path = "../common/registration" }
 bincode = { workspace = true }
 
@@ -141,6 +139,7 @@ harness = false
 cargo_metadata = { workspace = true }
 
 [dev-dependencies]
+nym-lp = { workspace = true, features = ["mock"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 nym-test-utils = { workspace = true }
 

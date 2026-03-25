@@ -276,6 +276,11 @@ pub struct TopologyWasmOverride {
     #[tsify(optional)]
     pub max_startup_gateway_waiting_period_ms: Option<u32>,
 
+    /// Defines how long the client is going to wait on startup for minimal topology to become online,
+    /// before abandoning the procedure.
+    #[tsify(optional)]
+    pub max_startup_network_waiting_period_ms: Option<u32>,
+
     /// Specifies whether the client should not refresh the network topology after obtaining
     /// the first valid instance.
     /// Supersedes `topology_refresh_rate_ms`.
@@ -322,6 +327,9 @@ impl From<TopologyWasmOverride> for TopologyWasm {
             max_startup_gateway_waiting_period_ms: value
                 .max_startup_gateway_waiting_period_ms
                 .unwrap_or(def.max_startup_gateway_waiting_period_ms),
+            max_startup_network_waiting_period_ms: value
+                .max_startup_network_waiting_period_ms
+                .unwrap_or(def.max_startup_network_waiting_period_ms),
             disable_refreshing: value.disable_refreshing.unwrap_or(def.disable_refreshing),
             minimum_mixnode_performance: value
                 .minimum_mixnode_performance

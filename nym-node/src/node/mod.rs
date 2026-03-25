@@ -22,7 +22,7 @@ use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::controller::KeyRotationController;
 use crate::node::key_rotation::manager::SphinxKeyManager;
-use crate::node::lp::{LpHandlerState, LpListener};
+use crate::node::lp::LpSetup;
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
 use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
@@ -80,10 +80,11 @@ use std::net::SocketAddr;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::{Semaphore, mpsc};
+use tokio::sync::mpsc;
 use tracing::{debug, info, trace};
 use zeroize::Zeroizing;
 
+use crate::node::lp::directory::LpNodes;
 pub use nym_gateway::node::ActiveClientsStore;
 pub use nym_gateway::node::GatewayStorage;
 
@@ -453,16 +454,16 @@ impl NymNode {
             &config.storage_paths.keys.x25519_noise_storage_paths(),
         )?;
 
-        trace!("attempting to x25519 lp keypair");
+        trace!("attempting to store x25519 lp keypair");
         store_x25519_lp_keypair(
             &x25519_lp_keys,
             &config.storage_paths.keys.x25519_lp_key_paths(),
         )?;
 
-        trace!("attempting to mlkem768 keypair");
+        trace!("attempting to store mlkem768 keypair");
         store_mlkem768_keypair(&mlkem, &config.storage_paths.keys.mlkem768_key_paths())?;
 
-        trace!("attempting to mceliece keypair");
+        trace!("attempting to store mceliece keypair");
         store_mceliece_keypair(&mceliece, &config.storage_paths.keys.mceliece_key_paths())?;
 
         trace!("creating description file");
@@ -487,28 +488,25 @@ impl NymNode {
         config.save()
     }
 
-    pub async fn build_lp_listener(
-        &mut self,
+    pub async fn build_lp_tasks(
+        &self,
         peer_registrator: Option<PeerRegistrator>,
         mix_packet_sender: MixForwardingSender,
-    ) -> Result<LpListener, NymNodeError> {
-        let handler_state = LpHandlerState {
-            local_lp_peer: LpLocalPeer::new(Ciphersuite::default(), self.x25519_lp_keys.clone())
-                .with_kem_keys(self.psq_kem_keys.clone()),
-            metrics: self.metrics.clone(),
-            peer_registrator,
-            lp_config: self.config.lp,
-            outbound_mix_sender: mix_packet_sender,
-            session_states: Arc::new(dashmap::DashMap::new()),
-            forward_semaphore: Arc::new(Semaphore::new(
-                self.config.lp.debug.max_concurrent_forwards,
-            )),
-        };
+        network_nodes: LpNodes,
+    ) -> Result<LpSetup, NymNodeError> {
+        let lp_peer = LpLocalPeer::new(Ciphersuite::default(), self.x25519_lp_keys.clone())
+            .with_kem_keys(self.psq_kem_keys.clone());
 
-        Ok(LpListener::new(
-            handler_state,
+        LpSetup::new(
+            lp_peer,
+            self.config.lp,
+            self.metrics.clone(),
+            peer_registrator,
+            network_nodes,
+            mix_packet_sender,
             self.shutdown_manager.shutdown_tracker().clone(),
-        ))
+        )
+        .await
     }
 
     pub(crate) async fn new(config: Config) -> Result<Self, NymNodeError> {
@@ -647,6 +645,11 @@ impl NymNode {
             self.config.mixnet.nym_api_urls.clone(),
             self.config.debug.topology_cache_ttl,
             self.config.debug.routing_nodes_check_interval,
+            self.config
+                .gateway_tasks
+                .debug
+                .maximum_initial_topology_waiting_time,
+            self.config.gateway_tasks.debug.minimum_mix_performance,
             self.shutdown_manager.clone_shutdown_token(),
         )
         .await
@@ -688,6 +691,7 @@ impl NymNode {
     async fn start_gateway_tasks(
         &mut self,
         cached_network: CachedNetwork,
+        lp_nodes: LpNodes,
         metrics_sender: MetricEventsSender,
         active_clients_store: ActiveClientsStore,
         mix_packet_sender: MixForwardingSender,
@@ -770,11 +774,10 @@ impl NymNode {
                 "starting the LP listener on {} (data handler on: {})",
                 self.config.lp.control_bind_address, self.config.lp.data_bind_address,
             );
-            let mut lp_listener = self
-                .build_lp_listener(wg_peer_registrator.clone(), mix_packet_sender)
+            let lp_tasks = self
+                .build_lp_tasks(wg_peer_registrator.clone(), mix_packet_sender, lp_nodes)
                 .await?;
-            self.shutdown_tracker()
-                .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
+            lp_tasks.start_tasks();
         } else {
             info!("node not running in entry mode: the websocket and LP will remain closed");
         }
@@ -1361,6 +1364,7 @@ impl NymNode {
 
         let network_refresher = self.build_network_refresher().await?;
         let active_clients_store = ActiveClientsStore::new();
+        let lp_nodes = network_refresher.lp_nodes();
 
         let bloomfilters_manager = self.setup_replay_detection().await?;
 
@@ -1385,8 +1389,12 @@ impl NymNode {
             active_egress_mixnet_connections,
         );
 
+        let network = network_refresher.cached_network();
+        network_refresher.start();
+
         self.start_gateway_tasks(
-            network_refresher.cached_network(),
+            network,
+            lp_nodes,
             metrics_sender,
             active_clients_store,
             mix_packet_sender,
@@ -1396,7 +1404,6 @@ impl NymNode {
         self.setup_key_rotation(nym_apis_client, bloomfilters_manager)
             .await?;
 
-        network_refresher.start();
         self.shutdown_manager.close_tracker();
 
         Ok(self.shutdown_manager)

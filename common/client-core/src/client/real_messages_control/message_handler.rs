@@ -10,17 +10,17 @@ use crate::client::replies::reply_controller::MaxRetransmissions;
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
 use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
 use nym_client_core_surb_storage::RetrievedReplySurb;
+use nym_sphinx::Delay;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
 use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
+use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
-use nym_sphinx::Delay;
-use nym_task::connections::TransmissionLane;
 use nym_task::ShutdownToken;
+use nym_task::connections::TransmissionLane;
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
@@ -272,7 +272,9 @@ where
         let primary_count = msg.required_packets(self.config.primary_packet_size);
         let secondary_count = msg.required_packets(secondary_packet);
 
-        trace!("This message would require: {primary_count} primary packets or {secondary_count} secondary packets...");
+        trace!(
+            "This message would require: {primary_count} primary packets or {secondary_count} secondary packets..."
+        );
         // if there would be no benefit in using the secondary packet - use the primary (duh)
         if primary_count <= secondary_count {
             trace!("so choosing primary for this message");

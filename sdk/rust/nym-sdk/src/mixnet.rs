@@ -37,6 +37,7 @@ mod native_client;
 mod paths;
 mod sink;
 mod socks5_client;
+pub mod stream;
 mod traits;
 
 pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
@@ -88,4 +89,5 @@ pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};
 pub use paths::StoragePaths;
 pub use sink::{MixnetMessageSink, MixnetMessageSinkTranslator};
 pub use socks5_client::Socks5MixnetClient;
+pub use stream::{MixnetListener, MixnetStream, StreamId};
 pub use traits::MixnetMessageSender;

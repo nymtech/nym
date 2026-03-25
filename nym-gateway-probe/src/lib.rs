@@ -5,7 +5,7 @@ use crate::common::bandwidth_helpers::build_bandwidth_controller;
 use crate::common::helpers;
 use crate::common::nodes::TestedNodeDetails;
 use crate::common::probe_tests::{
-    do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe, wg_probe_lp,
+    do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe,
 };
 use crate::common::types::{Entry, LpProbeResults};
 use crate::config::{CredentialArgs, CredentialMode, NetstackArgs, ProbeConfig};
@@ -374,28 +374,6 @@ impl Probe {
         }
 
         // At this point, any mixnet client MUST be disconnected
-
-        // The current probe includes registration as part of the Wireguard result, which makes that a bit awkward
-        // If we're supposed to run WireGuard tests and LP tests, and Mixnet registration failed, let's try to do it with lp
-        // This behavior should change in the future
-        if probe_result.outcome.wg.is_none()
-            && self.config.test_mode.wireguard_tests()
-            && self.config.test_mode.lp_tests()
-        {
-            // Test WireGuard via LP registration (nested session forwarding)
-            info!("Testing WireGuard via LP registration (no mixnet)");
-
-            let outcome = wg_probe_lp(
-                &self.entry_node,
-                &exit_node,
-                &bandwith_provider,
-                self.config.amnezia_args.clone(),
-                self.config.netstack_args.clone(),
-            )
-            .await
-            .unwrap_or_default();
-            probe_result.outcome.wg = Some(outcome);
-        }
 
         // Test LP registration if node has LP address
         if self.config.test_mode.lp_tests() {

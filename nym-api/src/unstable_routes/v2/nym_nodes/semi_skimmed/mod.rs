@@ -9,7 +9,7 @@ use axum::extract::{Query, State};
 use nym_api_requests::models::{
     NodeAnnotation, NymNodeDescriptionV2, OffsetDateTimeJsonSchemaWrapper,
 };
-use nym_api_requests::nym_nodes::{NodeRole, PaginatedCachedNodesResponseV2, SemiSkimmedNode};
+use nym_api_requests::nym_nodes::{NodeRole, PaginatedCachedNodesResponseV2, SemiSkimmedNodeV1};
 use nym_api_requests::pagination::PaginatedResponse;
 use nym_http_api_common::FormattedResponse;
 use nym_mixnet_contract_common::NodeId;
@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use utoipa::ToSchema;
 
 pub type PaginatedSemiSkimmedNodes =
-    AxumResult<FormattedResponse<PaginatedCachedNodesResponseV2<SemiSkimmedNode>>>;
+    AxumResult<FormattedResponse<PaginatedCachedNodesResponseV2<SemiSkimmedNodeV1>>>;
 
 //SW TODO : this is copied from skimmed nodes, surely we can do better than that
 fn build_nym_nodes_response<'a, NI>(
@@ -27,7 +27,7 @@ fn build_nym_nodes_response<'a, NI>(
     annotations: &HashMap<NodeId, NodeAnnotation>,
     current_key_rotation: u32,
     active_only: bool,
-) -> Vec<SemiSkimmedNode>
+) -> Vec<SemiSkimmedNodeV1>
 where
     NI: Iterator<Item = &'a NymNodeDescriptionV2> + 'a,
 {
@@ -57,11 +57,11 @@ where
 
 #[allow(dead_code)] // not dead, used in OpenAPI docs
 #[derive(ToSchema)]
-#[schema(title = "PaginatedCachedNodesExpandedResponseSchema")]
-pub struct PaginatedCachedNodesExpandedResponseSchema {
+#[schema(title = "PaginatedCachedNodesExpandedV2ResponseSchema")]
+pub struct PaginatedCachedNodesExpandedV2ResponseSchema {
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
-    #[schema(value_type = SemiSkimmedNode)]
-    pub nodes: PaginatedResponse<SemiSkimmedNode>,
+    #[schema(value_type = SemiSkimmedNodeV1)]
+    pub nodes: PaginatedResponse<SemiSkimmedNodeV1>,
 }
 
 /// Return all Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)
@@ -75,9 +75,9 @@ pub struct PaginatedCachedNodesExpandedResponseSchema {
     context_path = "/v2/unstable/nym-nodes/semi-skimmed",
     responses(
         (status = 200, content(
-            (PaginatedCachedNodesExpandedResponseSchema = "application/json"),
-            (PaginatedCachedNodesExpandedResponseSchema = "application/yaml"),
-            (PaginatedCachedNodesExpandedResponseSchema = "application/bincode")
+            (PaginatedCachedNodesExpandedV2ResponseSchema = "application/json"),
+            (PaginatedCachedNodesExpandedV2ResponseSchema = "application/yaml"),
+            (PaginatedCachedNodesExpandedV2ResponseSchema = "application/bincode")
         ))
     )
 )]

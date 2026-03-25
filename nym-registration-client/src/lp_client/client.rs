@@ -5,16 +5,18 @@
 
 use super::config::LpRegistrationConfig;
 use super::error::{LpClientError, Result};
-use crate::lp_client::helpers::{LpDataDeliverExt, LpDataSendExt};
+use crate::lp_client::helpers::{
+    LpFrameDeliverExt, LpFrameSendExt, exponential_backoff_with_jitter,
+};
 use crate::lp_client::nested_session::connection::NestedConnection;
-use crate::lp_client::state_machine_helpers::{extract_forwarded_response, prepare_send_packet};
+use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::LpSession;
+use nym_lp::LpTransportSession;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::peer_config::LpReceiverIndex;
-use nym_lp::state_machine::LpStateMachine;
+use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use nym_lp::{Ciphersuite, packet::EncryptedLpPacket, packet::version};
@@ -24,12 +26,12 @@ use nym_registration_common::{
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand09::{CryptoRng, Rng, RngCore};
+use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tracing::warn;
+use tracing::{debug, warn};
 
 /// LP (Lewes Protocol) registration client for direct gateway connections.
 ///
@@ -58,9 +60,9 @@ pub struct LpRegistrationClient<S = TcpStream> {
     /// Included in case we have to downgrade our version.
     gateway_supported_lp_protocol_version: u8,
 
-    /// LP state machine for managing connection lifecycle.
+    /// LP transport session
     /// Created during handshake initiation.
-    state_machine: Option<LpStateMachine>,
+    transport_session: Option<LpTransportSession>,
 
     /// Configuration for timeouts and TCP parameters.
     pub(crate) config: LpRegistrationConfig,
@@ -110,7 +112,7 @@ where
             gateway_lp_peer,
             gateway_lp_address,
             gateway_supported_lp_protocol_version: lp_protocol,
-            state_machine: None,
+            transport_session: None,
             config,
             stream: None,
         }
@@ -153,14 +155,14 @@ where
         )
     }
 
-    pub(crate) fn state_machine(&self) -> Result<&LpStateMachine> {
-        self.state_machine
+    pub(crate) fn transport_session(&self) -> Result<&LpTransportSession> {
+        self.transport_session
             .as_ref()
             .ok_or(LpClientError::IncompleteHandshake)
     }
 
-    pub(crate) fn state_machine_mut(&mut self) -> Result<&mut LpStateMachine> {
-        self.state_machine
+    pub(crate) fn transport_session_mut(&mut self) -> Result<&mut LpTransportSession> {
+        self.transport_session
             .as_mut()
             .ok_or(LpClientError::IncompleteHandshake)
     }
@@ -171,7 +173,7 @@ where
 
     /// Returns whether the client has completed the handshake and is ready for registration.
     pub fn is_handshake_complete(&self) -> bool {
-        self.state_machine.is_some()
+        self.transport_session.is_some()
     }
 
     /// Returns the gateway LP address this client is configured for.
@@ -392,18 +394,18 @@ where
         let protocol_version = self.gateway_supported_lp_protocol_version;
         let connection = self.stream_mut()?;
 
-        // TODO:
-        let session = LpSession::psq_handshake_initiator(
+        let session = LpTransportSession::psq_handshake_initiator(
             connection,
             local_peer,
             remote_peer,
             protocol_version,
-        )
+            HandshakeMode::OneWayEntry,
+        )?
         .complete_handshake()
         .await?;
 
         // Store the state machine (with established session) for later use
-        self.state_machine = Some(LpStateMachine::new(session));
+        self.transport_session = Some(session);
         Ok(())
     }
 
@@ -458,10 +460,10 @@ where
         tracing::trace!("Built dVPN registration finalisation request");
 
         // 3. Serialize the request
-        let lp_data = request.to_lp_data()?;
+        let lp_data = request.to_lp_frame()?;
 
         // 4. Encrypt and prepare packet via state machine
-        let state_machine = self.state_machine_mut()?;
+        let state_machine = self.transport_session_mut()?;
         let request_packet = prepare_send_packet(lp_data, state_machine)?;
 
         // 5. Send initial request and receive response on persistent connection with timeout
@@ -473,11 +475,11 @@ where
             .await?;
 
         // 6. Decrypt via state machine (re-borrow)
-        let state_machine = self.state_machine_mut()?;
+        let state_machine = self.transport_session_mut()?;
         let received_data = extract_forwarded_response(response_packet, state_machine)?;
 
         // 7. Extract decrypted data and deserialise the response
-        let response = LpRegistrationResponse::from_lp_data(received_data)?;
+        let response = LpRegistrationResponse::from_lp_frame(received_data)?;
         let Some(dvpn_response) = response.into_dvpn_response() else {
             return Err(LpClientError::unexpected_response(
                 "did not get a dvpn registration response after sending initial request",
@@ -505,7 +507,7 @@ where
     /// sends the registration request, and receives the response
     /// on the same underlying connection.
     /// Do note that this method does **not** perform retries on network failures,
-    /// for that please use [`Self::register_with_retry`] instead
+    /// for that please use [`Self::handshake_and_register_with_retry`] instead
     ///
     /// # Arguments
     /// * `rng` - RNG instance for generating PSK
@@ -545,10 +547,10 @@ where
         tracing::trace!("Built dVPN registration request: {request:?}");
 
         // 2. Serialize the request
-        let lp_data = request.to_lp_data()?;
+        let lp_data = request.to_lp_frame()?;
 
         // 3. Encrypt and prepare packet via state machine
-        let state_machine = self.state_machine_mut()?;
+        let state_machine = self.transport_session_mut()?;
         let request_packet = prepare_send_packet(lp_data, state_machine)?;
 
         // 4. Send initial request and receive response on persistent connection with timeout
@@ -560,11 +562,11 @@ where
             .await?;
 
         // 5. Decrypt via state machine (re-borrow)
-        let state_machine = self.state_machine_mut()?;
+        let state_machine = self.transport_session_mut()?;
         let received_data = extract_forwarded_response(response_packet, state_machine)?;
 
         // 6. Extract decrypted data and deserialise the response
-        let response = LpRegistrationResponse::from_lp_data(received_data)?;
+        let response = LpRegistrationResponse::from_lp_frame(received_data)?;
         let Some(dvpn_response) = response.into_dvpn_response() else {
             return Err(LpClientError::unexpected_response(
                 "did not get a dvpn registration response after sending initial request",
@@ -595,7 +597,7 @@ where
 
         Ok(WireguardConfiguration {
             public_key: final_response.public_key,
-            psk: Some(psk),
+            psk: Some(psk.into()),
             endpoint: SocketAddr::new(self.gateway_lp_address.ip(), final_response.port),
             private_ipv4: final_response.private_ipv4,
             private_ipv6: final_response.private_ipv6,
@@ -633,7 +635,7 @@ where
     /// # Note
     /// Unlike `register()`, this method handles the full flow including handshake.
     /// Do NOT call `perform_handshake()` before this method.
-    pub async fn register_with_retry<R>(
+    pub async fn handshake_and_register_with_retry<R>(
         &mut self,
         rng: &mut R,
         wg_keypair: &x25519::KeyPair,
@@ -647,59 +649,44 @@ where
     {
         tracing::debug!("Starting resilient registration (max_retries={max_retries})",);
 
+        // attempt to perform handshake with retries
         let mut last_error = None;
         for attempt in 0..=max_retries {
             let attempt_display = attempt + 1;
+            debug!("registration attempt {attempt_display}");
 
             if attempt > 0 {
-                // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
-                let base_delay_ms = 100u64 * (1 << attempt.min(4));
-                let jitter_ms: u64 = rand09::rng().random_range(0..(base_delay_ms / 4 + 1));
-                let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
-                tracing::info!("Retrying registration (attempt {attempt_display}) after {delay:?}");
-                tokio::time::sleep(delay).await;
-            }
-
-            // Ensure fresh connection and handshake for each attempt
-            // (On retry, the old connection/session may be dead)
-            if self.stream.is_none() || attempt > 0 {
                 // Clear any stale state before re-handshaking
+                self.transport_session = None;
                 self.close();
-                self.state_machine = None;
 
-                if let Err(e) = self.perform_handshake().await {
-                    tracing::warn!("Handshake failed on attempt {attempt_display}: {e}");
-                    last_error = Some(e);
-                    continue;
-                }
+                exponential_backoff_with_jitter(attempt).await
             }
 
-            match self
-                .register_dvpn(
-                    rng,
-                    wg_keypair,
-                    gateway_identity,
-                    bandwidth_controller,
-                    ticket_type,
-                )
-                .await
-            {
-                Ok(data) => {
-                    if attempt > 0 {
-                        tracing::info!("Registration succeeded on retry attempt {attempt_display}");
-                    }
-                    return Ok(data);
-                }
+            match self.perform_handshake().await {
+                Ok(_) => break,
                 Err(e) => {
-                    tracing::warn!("Registration attempt {attempt_display} failed: {e}");
+                    tracing::warn!("Handshake failed on attempt {attempt_display}: {e}");
                     last_error = Some(e);
                 }
             }
         }
 
-        Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
-            message: "Registration failed after all retries".to_string(),
-        }))
+        if self.transport_session.is_none() {
+            return Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
+                message: "Registration failed after all retries".to_string(),
+            }));
+        }
+
+        self.register_dvpn(
+            rng,
+            wg_keypair,
+            gateway_identity,
+            bandwidth_controller,
+            ticket_type,
+        )
+        .await
+        .inspect_err(|e| tracing::warn!("Registration failed: {e}"))
     }
 
     /// Get the LP session ID (receiver_idx) for this client.
@@ -713,10 +700,7 @@ where
     /// # Errors
     /// Returns an error if handshake has not been completed.
     pub fn session_id(&self) -> Result<LpReceiverIndex> {
-        self.state_machine()?
-            .session()
-            .map(|s| s.receiver_index())
-            .map_err(Into::into)
+        Ok(self.transport_session()?.receiver_index())
     }
 }
 

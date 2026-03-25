@@ -6,7 +6,7 @@ usage: Nym-node API check query_stats [-h] [--no_routing_history]
 positional arguments:
   id                    supply nym-node identity key
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --no_routing_history  Display node stats without routing history
   --no_verloc_metrics   Display node stats without verloc metrics

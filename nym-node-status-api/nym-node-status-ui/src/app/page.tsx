@@ -2,6 +2,7 @@
 
 import GraphCard from "@/components/GraphCard";
 import { GatewayCanQueryMetadataTopup } from "@/components/graphs/GatewayCanQueryMetadataTopup";
+import { GatewayLpCanRegister } from "@/components/graphs/GatewayLpCanRegister";
 import { GatewayDownloadSpeeds } from "@/components/graphs/GatewayDownloadSpeeds";
 import { GatewayLoads } from "@/components/graphs/GatewayLoads";
 import { GatewayPingPercentage } from "@/components/graphs/GatewayPingPercentage";
@@ -53,6 +54,11 @@ export default function Home() {
         <Grid size={{ xs: 12, sm: 8, lg: 4 }}>
           <GraphCard title="Gateways with metadata top-up endpoint">
             <GatewayCanQueryMetadataTopup />
+          </GraphCard>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 8, lg: 4 }}>
+          <GraphCard title="LP registration probe results">
+            <GatewayLpCanRegister />
           </GraphCard>
         </Grid>
       </Grid>

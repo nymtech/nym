@@ -3,6 +3,7 @@
 
 use crate::context::KKTStatus;
 use nym_kkt_ciphersuite::error::KKTCiphersuiteError;
+use nym_kkt_ciphersuite::{HashFunction, KEM};
 use nym_kkt_context::KKTContextEncodingError;
 use std::fmt::Debug;
 use thiserror::Error;
@@ -15,40 +16,40 @@ pub enum KKTError {
     #[error(transparent)]
     MaskedByteError(#[from] MaskedByteError),
 
-    #[error("KEM mapping failure: {}", info)]
+    #[error("KEM mapping failure: {info}")]
     KEMMapping { info: &'static str },
 
     #[error("Insecure Encapsulation Key Hash Length")]
     InsecureHashLen,
 
-    #[error("KKT Frame Decoding Error: {}", info)]
+    #[error("KKT Frame Decoding Error: {info}")]
     FrameDecodingError { info: String },
 
-    #[error("KKT Frame Encoding Error: {}", info)]
+    #[error("KKT Frame Encoding Error: {info}")]
     FrameEncodingError { info: String },
 
-    #[error("KKT Incompatibility Error: {}", info)]
+    #[error("KKT Incompatibility Error: {info}")]
     IncompatibilityError { info: &'static str },
 
-    #[error("KKT Responder Flagged Error: {}", status)]
+    #[error("KKT Responder Flagged Error: {status}")]
     ResponderFlaggedError { status: KKTStatus },
 
-    #[error("PSQ KEM Error: {}", info)]
+    #[error("PSQ KEM Error: {info}")]
     KEMError { info: &'static str },
 
-    #[error("Local Function Input Error: {}", info)]
+    #[error("Local Function Input Error: {info}")]
     FunctionInputError { info: &'static str },
 
-    #[error("{}", info)]
+    #[error("{info}")]
     X25519Error { info: &'static str },
 
-    #[error("{}", info)]
+    #[error("{info}")]
     AEADError { info: &'static str },
 
-    #[error("{}", info)]
+    #[error("{info}")]
     DecodingError { info: &'static str },
 
-    #[error("{}", info)]
+    #[error("{info}")]
     UnsupportedAlgorithm { info: &'static str },
 
     #[error("Generic libcrux error")]
@@ -61,6 +62,14 @@ pub enum KKTError {
 
     #[error("the received encapsulation key hash does not match the expected value")]
     MismatchedKEMHash,
+
+    #[error(
+        "there are no known digests for initiator's KEM key with {kem} KEM and {hash_function} hash function"
+    )]
+    NoKnownKEMKeyDigests {
+        kem: KEM,
+        hash_function: HashFunction,
+    },
 
     #[error(transparent)]
     MalformedContext(#[from] KKTContextEncodingError),

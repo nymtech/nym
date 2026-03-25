@@ -13,9 +13,9 @@ use crate::config::disk_persistence::ClientKeysPaths;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_crypto::asymmetric::{ed25519, x25519};
 #[cfg(not(target_arch = "wasm32"))]
-use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
-#[cfg(not(target_arch = "wasm32"))]
 use nym_pemstore::KeyPairPath;
+#[cfg(not(target_arch = "wasm32"))]
+use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_sphinx::acknowledgements::AckKey;
 

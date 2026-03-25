@@ -53,6 +53,7 @@ impl StoragePaths {
     ///
     /// This function will return an error if it is passed a path to an existing file instead of a
     /// directory.
+    #[allow(clippy::result_large_err)]
     pub fn new_from_dir<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let dir = dir.as_ref();
         if dir.is_file() {

@@ -105,9 +105,9 @@ pub struct GatewayTasksBuilder {
 
     shutdown_tracker: ShutdownTracker,
 
-    // populated and cached as necessary
     use_mock_ecash: bool,
 
+    // populated and cached as necessary
     ecash_manager:
         Option<Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>>,
 
@@ -226,7 +226,7 @@ impl GatewayTasksBuilder {
     > {
         // Check if we should use mock ecash for testing
         if self.use_mock_ecash {
-            warn!("Using MockEcashManager for LP testing (credentials NOT verified)");
+            warn!("Using MockEcashManager for testing (credentials NOT verified)");
             let mock_manager = MockEcashManager::new(Box::new(self.storage.clone()));
             return Ok(Arc::new(mock_manager)
                 as Arc<
@@ -354,6 +354,7 @@ impl GatewayTasksBuilder {
             NRServiceProviderBuilder::new(nr_opts.config.clone(), self.shutdown_tracker.clone())
                 .with_custom_gateway_transceiver(transceiver)
                 .with_wait_for_gateway(true)
+                .with_wait_for_initial_topology(true)
                 .with_minimum_gateway_performance(0)
                 .with_custom_topology_provider(topology_provider)
                 .with_on_start(on_start_tx);
@@ -389,6 +390,7 @@ impl GatewayTasksBuilder {
             IpPacketRouter::new(ip_opts.config.clone(), self.shutdown_tracker.clone())
                 .with_custom_gateway_transceiver(Box::new(transceiver))
                 .with_wait_for_gateway(true)
+                .with_wait_for_initial_topology(true)
                 .with_minimum_gateway_performance(0)
                 .with_custom_topology_provider(topology_provider)
                 .with_on_start(on_start_tx);
@@ -488,6 +490,7 @@ impl GatewayTasksBuilder {
         )
         .with_custom_gateway_transceiver(transceiver)
         .with_wait_for_gateway(true)
+        .with_wait_for_initial_topology(true)
         .with_minimum_gateway_performance(0)
         .with_custom_topology_provider(topology_provider)
         .with_on_start(on_start_tx);

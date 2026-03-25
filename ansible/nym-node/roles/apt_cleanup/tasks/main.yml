@@ -1,0 +1,21 @@
+---
+- name: Clean apt cache
+  command: apt-get clean
+  ignore_errors: true
+
+- name: Autoremove unused packages
+  command: apt-get -y autoremove
+  ignore_errors: true
+
+- name: Remove apt lists to reclaim space (they will be re-fetched on update)
+  file:
+    path: /var/lib/apt/lists
+    state: absent
+  ignore_errors: true
+
+- name: Recreate apt lists directory
+  file:
+    path: /var/lib/apt/lists
+    state: directory
+    mode: "0755"
+  ignore_errors: true

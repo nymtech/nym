@@ -216,6 +216,27 @@ cd playbooks
 ansible-playbook upgrade.yml
 ```
 
+###### 4. System Maintenance
+
+A playbook to de-clogg and cleanup the servers (VMs) hosting `nym-node`. This playbook should be used for operators having issues with their servers filling up disk space too fast. For operators hosting many VMs on a hypervisor dedicated / bare metal server - run this playbook alongside [the guide to clean up the hypervisor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine).
+
+Maintaining the VMs using this playbook and reclaiming space on hypervisor will prevent your servers from:
+
+- Sudden *disk full* crashes
+- `journald` runaway growth
+- Duplicate `rsyslog` logs
+- `nym-node` log growth
+- `qcow2` like allocation growth inside VPS storage
+
+The playbook is located in `roles/upgrade/defaults/system-maintenance.yml`, but the most important part is in `playbooks/group_vars/all.yml`, starting with a header `## SYSTEM MAINTENANCE PLAYBOOK KNOBS`. This commented list of adjustable knobs serves as a dashboard to tweak values of the playbook. Any overwrite will superseed the default ones in the playbook itself. 
+
+This playbook will run roles on all the inventory entries in parallel by default.
+
+```sh
+cd playbooks
+ansible-playbook system-maintenance.yml
+```
+
 </ Steps>
 
 

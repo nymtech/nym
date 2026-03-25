@@ -12,9 +12,9 @@ num_enum = { workspace = true }
 strum = { workspace = true }
 
 # internal
-nym-crypto = { path = "../crypto", features = ["hashing"] }
+nym-crypto = { workspace = true, features = ["hashing"] }
 nym-kkt-ciphersuite = { workspace = true, features = ["digests"] }
-nym-kkt-context = { path = "../nym-kkt-context" }
+nym-kkt-context = { workspace = true }
 nym-pemstore = { workspace = true }
 
 libcrux-kem = { workspace = true }
@@ -30,6 +30,7 @@ libcrux-ml-kem = { workspace = true }
 [dev-dependencies]
 rand_chacha = "0.9.0"
 anyhow = { workspace = true }
+nym-test-utils = { workspace = true }
 
 
 [lints]

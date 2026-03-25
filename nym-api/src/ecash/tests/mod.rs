@@ -5,15 +5,20 @@ use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
+use crate::node_status_api::NodeStatusCache;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
+use crate::support::caching::refresher::RefreshRequester;
 use crate::support::config;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
+use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
+use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::http::state::AppState;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
@@ -1275,15 +1280,29 @@ impl TestFixture {
         storage: NymApiStorage,
         ecash_state: EcashState,
         nyxd_client: Client,
+        tmp_dir: &TempDir,
     ) -> AppState {
+        let mixnet_contract_paths = tmp_dir.path().join("mixnet_contract");
+        let node_annotations_paths = tmp_dir.path().join("node_annotations");
+
+        let mixnet_contract_cache_state =
+            MixnetContractCache::new(&mixnet_contract_paths, Duration::from_secs(42));
+        let mixnet_contract_cache =
+            MixnetContractCacheState::new(mixnet_contract_cache_state, RefreshRequester::default());
+
+        let node_status_cache_state =
+            NodeStatusCache::new(&node_annotations_paths, Duration::from_secs(42));
+        let node_annotations_cache =
+            NodeAnnotationsCache::new(node_status_cache_state, RefreshRequester::default());
+
         AppState {
             nyxd_client,
             chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
             ecash_signers_cache: Default::default(),
             address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
             forced_refresh: ForcedRefresh::new(true),
-            mixnet_contract_cache: SharedCache::new().into(),
-            node_status_cache: SharedCache::new().into(),
+            mixnet_contract_cache,
+            node_annotations_cache,
             storage,
             described_nodes_cache: SharedCache::<DescribedNodes>::new(),
             network_details: NetworkDetails::new(
@@ -1366,7 +1385,12 @@ impl TestFixture {
 
         TestFixture {
             axum: TestServer::new(Router::new().nest("/v1/ecash", ecash_routes()).with_state(
-                Self::build_app_state(storage.clone(), ecash_state, another_fake_nyxd_client),
+                Self::build_app_state(
+                    storage.clone(),
+                    ecash_state,
+                    another_fake_nyxd_client,
+                    &tmp_dir,
+                ),
             ))
             .unwrap(),
             storage,

@@ -29,7 +29,7 @@ pub struct LpPeerConfig {
 
     // Determine the hop id.
     // Should be 0 if node_initiator is true
-    // Should be > 1 if is_exit is true
+    // Should be > 1 && < 16 if is_exit is true
     hop_id: u8,
 
     // Determine if the recipient should be an exit node
@@ -65,6 +65,7 @@ impl LpPeerConfig {
             rng.random(),
         )
     }
+
     /// Creates a new client to exit config.
     /// Inputs:
     /// hop_id: this value must be in the range (1..=15). This function returns an error if this is not the case.
@@ -79,6 +80,7 @@ impl LpPeerConfig {
     {
         Self::new(rng, hop_id, true, false, censorship_resistance)
     }
+
     /// Creates a new client to an intermediate node config.
     /// Inputs:
     /// hop_id: this value must be in the range (1..=14). This function returns an error if this is not the case.
@@ -130,6 +132,7 @@ impl LpPeerConfig {
             rng.random(),
         )
     }
+
     fn build(
         hop_id: u8,
         is_exit: bool,
@@ -147,6 +150,7 @@ impl LpPeerConfig {
             seed,
         }
     }
+
     fn build_checked(
         hop_id: u8,
         is_exit: bool,
@@ -198,37 +202,37 @@ impl LpPeerConfig {
     }
 
     pub fn serialize(&self) -> [u8; LP_PEER_CONFIG_SIZE] {
-        let mut output_bytes: [u8; LP_PEER_CONFIG_SIZE] = [0u8; LP_PEER_CONFIG_SIZE];
-        output_bytes[0..4].copy_from_slice(self.pack_config().as_slice());
+        let mut output_bytes = [0u8; LP_PEER_CONFIG_SIZE];
+        output_bytes[0..4].copy_from_slice(&self.pack_config());
         output_bytes[4..].copy_from_slice(&self.seed);
         output_bytes
     }
+
     pub fn deserialize(bytes: &[u8]) -> Result<Self, LpError> {
         if bytes.len() != LP_PEER_CONFIG_SIZE {
-            Err(LpError::DeserializationError(format!(
+            return Err(LpError::DeserializationError(format!(
                 "Invalid Lp Config Length ({}), expected ({})",
                 bytes.len(),
                 LP_PEER_CONFIG_SIZE
-            )))
-        } else {
-            let (hop_id, is_exit, node_initiator, censorship_resistance) =
-                Self::unpack_first_byte(bytes[0]);
-
-            let mut filler: [u8; FILLER_LEN] = [0u8; FILLER_LEN];
-            filler.copy_from_slice(&bytes[CONFIG_LEN..CONFIG_LEN + FILLER_LEN]);
-
-            let mut seed: [u8; SEED_LEN] = [0u8; SEED_LEN];
-            seed.copy_from_slice(&bytes[CONFIG_LEN + FILLER_LEN..LP_PEER_CONFIG_SIZE]);
-
-            Self::build_checked(
-                hop_id,
-                is_exit,
-                node_initiator,
-                censorship_resistance,
-                seed,
-                filler,
-            )
+            )));
         }
+        let (hop_id, is_exit, node_initiator, censorship_resistance) =
+            Self::unpack_first_byte(bytes[0]);
+
+        let mut filler = [0u8; FILLER_LEN];
+        filler.copy_from_slice(&bytes[CONFIG_LEN..CONFIG_LEN + FILLER_LEN]);
+
+        let mut seed = [0u8; SEED_LEN];
+        seed.copy_from_slice(&bytes[CONFIG_LEN + FILLER_LEN..LP_PEER_CONFIG_SIZE]);
+
+        Self::build_checked(
+            hop_id,
+            is_exit,
+            node_initiator,
+            censorship_resistance,
+            seed,
+            filler,
+        )
     }
 
     fn pack_config(&self) -> [u8; 4] {

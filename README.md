@@ -30,8 +30,11 @@ client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► 
 
 ```
 
+<!-- This is broken 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/nymtech/nym/build.yml?branch=develop&style=for-the-badge&logo=github-actions)](https://github.com/nymtech/nym/actions?query=branch%3Adevelop)
+-->
 
+> This project integrates with the Midnight Network
 
 ### Building
 

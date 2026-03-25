@@ -25,23 +25,21 @@ func InitialiseGlobalState() {
 	}
 }
 
-// CurrentActiveRequests tracks ongoign requests for thread-safe access.
-// The AddressMapping uses full URLs (inc path and query params) as keys,
-// allowing concurrent requests to different paths on the same domain while
-// preventing duplicate requests to the *exact* same URL.
+// CurrentActiveRequests tracks ongoing requests for thread-safe access.
+// The AddressMapping uses unique keys (URL + random suffix) so that
+// concurrent requests to the same URL each get their own entry.
 type CurrentActiveRequests struct {
 	sync.Mutex
 	Requests       map[types.RequestId]*ActiveRequest
-	AddressMapping map[string]types.RequestId // key is full URL string
+	AddressMapping map[string]types.RequestId // key is URL + random suffix
 }
 
-// GetId returns the request ID associated with the given URL string.
-// The URL should be the full URL including path and query params.
-func (ar *CurrentActiveRequests) GetId(requestURL string) types.RequestId {
-	log.Trace("getting id associated with request for %s", requestURL)
+// GetId returns the request ID associated with the given mapping key.
+func (ar *CurrentActiveRequests) GetId(mappingKey string) types.RequestId {
+	log.Trace("getting id associated with mapping key %s", mappingKey)
 	ar.Lock()
 	defer ar.Unlock()
-	return ar.AddressMapping[requestURL]
+	return ar.AddressMapping[mappingKey]
 }
 
 func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
@@ -52,30 +50,23 @@ func (ar *CurrentActiveRequests) Exists(id types.RequestId) bool {
 	return exists
 }
 
-// ExistsCanonical checks if there's already an active request for the given URL.
-// The URL should be the full URL including path and query params.
-// Allows concurrent requests to different paths on the same domain.
-func (ar *CurrentActiveRequests) ExistsCanonical(requestURL string) bool {
-	return ar.GetId(requestURL) != 0
-}
-
 // Insert adds a new active request to the tracking maps.
-// The requestURL should be the full URL including path and query params.
-func (ar *CurrentActiveRequests) Insert(id types.RequestId, requestURL string, inj ConnectionInjector) {
-	log.Trace("inserting request %d for %s", id, requestURL)
+// The mappingKey should be a unique key (URL + random suffix) for this request.
+func (ar *CurrentActiveRequests) Insert(id types.RequestId, mappingKey string, inj ConnectionInjector) {
+	log.Trace("inserting request %d with mapping key %s", id, mappingKey)
 	ar.Lock()
 	defer ar.Unlock()
 	_, exists := ar.Requests[id]
 	if exists {
 		panic("attempted to overwrite active connection id")
 	}
-	_, exists = ar.AddressMapping[requestURL]
+	_, exists = ar.AddressMapping[mappingKey]
 	if exists {
-		panic("attempted to overwrite active connection for URL")
+		panic("attempted to overwrite active connection mapping key")
 	}
 
-	ar.Requests[id] = &ActiveRequest{injector: inj, requestURL: requestURL}
-	ar.AddressMapping[requestURL] = id
+	ar.Requests[id] = &ActiveRequest{injector: inj, mappingKey: mappingKey}
+	ar.AddressMapping[mappingKey] = id
 }
 
 func (ar *CurrentActiveRequests) Remove(id types.RequestId) {
@@ -86,13 +77,13 @@ func (ar *CurrentActiveRequests) Remove(id types.RequestId) {
 	if !exists {
 		panic("attempted to remove active connection id that doesn't exist")
 	}
-	_, exists = ar.AddressMapping[req.requestURL]
+	_, exists = ar.AddressMapping[req.mappingKey]
 	if !exists {
-		panic("attempted to remove active connection URL that doesn't exist")
+		panic("attempted to remove active connection mapping key that doesn't exist")
 	}
 
 	delete(ar.Requests, id)
-	delete(ar.AddressMapping, req.requestURL)
+	delete(ar.AddressMapping, req.mappingKey)
 }
 
 func (ar *CurrentActiveRequests) InjectData(id types.RequestId, data []byte) {
@@ -131,5 +122,5 @@ func (ar *CurrentActiveRequests) SendError(id types.RequestId, err error) {
 
 type ActiveRequest struct {
 	injector   ConnectionInjector
-	requestURL string // Full URL including path and query params
+	mappingKey string // Unique key for AddressMapping (URL + random suffix)
 }

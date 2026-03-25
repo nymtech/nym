@@ -1,6 +1,6 @@
 /** @type {import('next-sitemap').IConfig} */
 module.exports = {
-  siteUrl: 'https://nymtech.net/docs',
+  siteUrl: 'https://nym.com/docs',
   generateRobotsTxt: true,
   outDir: './public',
   exclude: ['/api/*', '/docs/_*', '/404'],
@@ -9,9 +9,7 @@ module.exports = {
       { userAgent: '*', allow: '/' },
       { userAgent: '*', disallow: ['/api/', '/_next/'] },
     ],
-    additionalSitemaps: [
-      'https://nymtech.net/docs/sitemap-docs.xml',
-    ],
+    additionalSitemaps: [],
   },
   transform: async (config, path) => ({
     loc: path,

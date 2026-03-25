@@ -10,7 +10,7 @@ use crate::{
     utils::now_utc,
 };
 use anyhow::Result;
-use nym_validator_client::nym_api::SkimmedNode;
+use nym_validator_client::nym_api::SkimmedNodeV1;
 
 pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperNodeInfo>> {
     let mut nodes_to_scrape = Vec::new();
@@ -24,7 +24,7 @@ pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperN
             nodes_dto.into_iter().filter_map(|node_dto| {
                 let node_id = node_dto.node_id;
                 let http_api_port = node_dto.http_api_port;
-                match SkimmedNode::try_from(node_dto) {
+                match SkimmedNodeV1::try_from(node_dto) {
                     Ok(node) => Some((node, http_api_port)),
                     Err(e) => {
                         tracing::error!("Failed to decode node_id={}: {}", node_id, e);

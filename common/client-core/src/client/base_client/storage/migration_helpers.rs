@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod v1_1_33 {
-    use crate::config::disk_persistence::old_v1_1_33::CommonClientPathsV1_1_33;
     use crate::config::disk_persistence::CommonClientPaths;
+    use crate::config::disk_persistence::old_v1_1_33::CommonClientPathsV1_1_33;
     use crate::config::old_config_v1_1_33::OldGatewayEndpointConfigV1_1_33;
     use crate::error::ClientCoreError;
 

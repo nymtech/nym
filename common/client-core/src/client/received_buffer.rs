@@ -5,20 +5,20 @@ use crate::client::helpers::get_time_now;
 use crate::client::replies::{
     reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys,
 };
+use futures::StreamExt;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
-use futures::StreamExt;
-use nym_crypto::asymmetric::x25519;
 use nym_crypto::Digest;
+use nym_crypto::asymmetric::x25519;
 use nym_gateway_client::MixnetMessageReceiver;
 use nym_sphinx::anonymous_replies::requests::{
     RepliableMessage, RepliableMessageContent, ReplyMessage, ReplyMessageContent,
 };
-use nym_sphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
+use nym_sphinx::anonymous_replies::{SurbEncryptionKey, encryption_key::EncryptionKeyDigest};
 use nym_sphinx::message::{NymMessage, PlainMessage};
 use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
 use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
-use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
+use nym_statistics_common::clients::{ClientStatsSender, packet_statistics::PacketStatisticsEvent};
 use nym_task::ShutdownToken;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -78,14 +78,19 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
 
         let fragment = match self.message_receiver.recover_fragment(fragment_data) {
             Err(err) => {
-                warn!("failed to recover fragment from raw data: {err}. The whole underlying message might be corrupted and unrecoverable!");
+                warn!(
+                    "failed to recover fragment from raw data: {err}. The whole underlying message might be corrupted and unrecoverable!"
+                );
                 return None;
             }
             Ok(frag) => frag,
         };
 
         if self.recently_reconstructed.contains(&fragment.id()) {
-            debug!("Received a chunk of already re-assembled message ({:?})! It probably got here because the ack got lost", fragment.id());
+            debug!(
+                "Received a chunk of already re-assembled message ({:?})! It probably got here because the ack got lost",
+                fragment.id()
+            );
             return None;
         }
 
@@ -93,7 +98,9 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
         match self.message_receiver.insert_new_fragment(fragment) {
             Err(err) => match err {
                 MessageRecoveryError::MalformedReconstructedMessage { source, used_sets } => {
-                    error!("message reconstruction failed - {source}. Attempting to re-use the message sets...");
+                    error!(
+                        "message reconstruction failed - {source}. Attempting to re-use the message sets..."
+                    );
                     // TODO: should we really insert reconstructed sets? could this be abused for some attack?
                     for set_id in used_sets {
                         if !self.recently_reconstructed.insert(set_id) {
@@ -144,7 +151,9 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
             &mut raw_fragment,
         ) {
             Err(err) => {
-                warn!("failed to recover fragment data: {err}. The whole underlying message might be corrupted and unrecoverable!");
+                warn!(
+                    "failed to recover fragment data: {err}. The whole underlying message might be corrupted and unrecoverable!"
+                );
                 return None;
             }
             Ok(frag_data) => frag_data,
@@ -275,7 +284,9 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 }
                 RepliableMessageContent::Heartbeat(content) => {
                     let additional_reply_surbs = content.additional_reply_surbs;
-                    error!("received a repliable heartbeat message - we don't know how to handle it yet (and we won't know until future PRs)");
+                    error!(
+                        "received a repliable heartbeat message - we don't know how to handle it yet (and we won't know until future PRs)"
+                    );
                     (additional_reply_surbs, false)
                 }
                 RepliableMessageContent::DataV2(content) => {
@@ -304,7 +315,9 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 }
                 RepliableMessageContent::HeartbeatV2(content) => {
                     let additional_reply_surbs = content.additional_reply_surbs;
-                    error!("received a repliable heartbeat message - we don't know how to handle it yet (and we won't know until future PRs)");
+                    error!(
+                        "received a repliable heartbeat message - we don't know how to handle it yet (and we won't know until future PRs)"
+                    );
                     (additional_reply_surbs, false)
                 }
             };
@@ -380,7 +393,9 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         if let Some(sender) = &inner_guard.message_sender {
             trace!("Sending reconstructed messages to announced sender");
             if let Err(err) = sender.unbounded_send(reconstructed_messages) {
-                warn!("The reconstructed message receiver went offline without explicit notification (relevant error: - {err})");
+                warn!(
+                    "The reconstructed message receiver went offline without explicit notification (relevant error: - {err})"
+                );
                 inner_guard.message_sender = None;
                 inner_guard.messages.extend(err.into_inner());
             }

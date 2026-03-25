@@ -1146,21 +1146,15 @@ check_iptables_default_policies() {
   if [[ -z "${input_policy:-}" ]]; then
     error "unable to read INPUT default policy (iptables -S INPUT failed?)"
     issues=1
-  elif [[ "${input_policy^^}" != "DROP" ]]; then
-    error "INPUT default policy is ${input_policy^^}; expected DROP so traffic is only allowed by explicit rules."
-    issues=1
   else
-    ok "INPUT default policy is DROP"
+    info "INPUT default policy is ${input_policy^^}"
   fi
 
   if [[ -z "${forward_policy:-}" ]]; then
     error "unable to read FORWARD default policy (iptables -S FORWARD failed?)"
     issues=1
-  elif [[ "${forward_policy^^}" != "DROP" ]]; then
-    error "FORWARD default policy is ${forward_policy^^}; expected DROP to ensure traffic only flows via NYM-EXIT rules."
-    issues=1
   else
-    ok "FORWARD default policy is DROP"
+    info "FORWARD default policy is ${forward_policy^^}"
   fi
 
   if [[ -z "${output_policy:-}" ]]; then
@@ -1183,6 +1177,7 @@ check_firewall_setup() {
   check_iptables_default_policies || errors=1
   check_forward_chain || errors=1
   check_nym_exit_chain || errors=1
+  test_network_firewall_rules || errors=1
 
   if command -v ip6tables >/dev/null 2>&1; then
     info "checking ipv6 firewall ordering…"
@@ -1195,7 +1190,7 @@ check_firewall_setup() {
   fi
 
   if [[ $errors -ne 0 ]]; then
-    error "There may be some ordering issues, it is recommended to re-run network-tunnel-manager.sh exit_policy_install after configuring UFW."
+    error "There may be some ordering issues, it is recommended to re-run network-tunnel-manager.sh exit_policy_install and review the firewall output above."
     return 1
   fi
 

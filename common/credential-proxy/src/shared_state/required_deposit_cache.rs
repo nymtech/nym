@@ -8,6 +8,7 @@ use nym_validator_client::nyxd::contract_traits::EcashQueryClient;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
+use tracing::{info, warn};
 
 pub struct CachedDeposit {
     valid_until: OffsetDateTime,
@@ -56,12 +57,28 @@ impl RequiredDepositCache {
 
         // update cache
         drop(read_guard);
+
+        let address = chain_client.address().await;
+        info!("checking deposit required by {address}");
         let mut write_guard = self.inner.write().await;
-        let deposit_amount = chain_client
-            .query_chain()
-            .await
-            .get_required_deposit_amount()
+
+        let read_permit = chain_client.query_chain().await;
+        let reduced = read_permit
+            .get_reduced_deposit_amount(address.to_string())
             .await?;
+
+        let deposit_amount = match reduced {
+            Some(reduced) => {
+                info!("we're permitted to use reduced price");
+                reduced
+            }
+            None => {
+                warn!(
+                    "using default deposit value {address} is not whitelisted for price reduction"
+                );
+                read_permit.get_default_deposit_amount().await?
+            }
+        };
 
         let nym_coin: Coin = deposit_amount.into();
 

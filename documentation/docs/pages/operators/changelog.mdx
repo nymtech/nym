@@ -115,16 +115,22 @@ Congratulation, your port configuration is up to date, including LP ports.
 
 ### Features
 
+- [Add LP to NS UI](https://github.com/nymtech/nym/pull/6562): Operators can now monitor LP registration status directly from the UI. The gateway list shows post-quantum registration status via emojis (success/failure), and the dashboard view adds LP count columns for success, failure, and untested, making monitoring faster and easier.
 
+- [Introduce /v3/unstable/nym-nodes/semi-skimmed](https://github.com/nymtech/nym/pull/6499): New API endpoint aggregates LP information for nodes, allowing them to discover each other's LP capabilities and establish shared post-quantum connections efficiently.
+
+- [Additional ticket for agent](https://github.com/nymtech/nym/pull/6551): Adds an extra ticket so the agent/probe can perform LP tests automatically without additional configuration.
 
 ### Bugfix
 
+- [LP fixes](https://github.com/nymtech/nym/pull/6601): Improvements for LP registration results and preshared key handling to ensure accurate LP status reporting.
+
+- [Allow deserialisation of LP data from either snake_case or lowercase](https://github.com/nymtech/nym/pull/6586): Fixes LP data deserialization issues, making LP information robust across different formats.
 
 
 ### Refactors & Maintenance
 
-
-
+- [LP improvements](https://github.com/nymtech/nym/pull/6526): Refactors LP handling code and scaffolds internode handshake processing to simplify future maintenance and reduce potential bugs.
 
 
 ## `v2026.5-raclette`

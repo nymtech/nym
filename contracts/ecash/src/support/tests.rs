@@ -64,6 +64,7 @@ impl TestSetupSimple {
         }
     }
 
+    #[allow(dead_code)]
     pub fn admin(&self) -> MessageInfo {
         let admin = CONTRACT
             .contract_admin
@@ -73,6 +74,7 @@ impl TestSetupSimple {
         message_info(&admin, &[])
     }
 
+    #[allow(dead_code)]
     pub fn execute_ctx(&mut self, sender: MessageInfo) -> ExecCtx<'_> {
         let env = self.env.clone();
         ExecCtx::from((self.deps.as_mut(), env, sender))
@@ -95,9 +97,19 @@ impl TestSetupSimple {
         CONTRACT.config.load(self.deps().storage).unwrap()
     }
 
+    /// Sets the deposit amount directly in config storage, bypassing the
+    /// minimum-deposit validation. This allows tests to exercise pathological
+    /// values (e.g. 0 or 1) that the admin endpoint would rightfully reject.
     pub fn with_deposit_amount(mut self, amount: u128) -> Self {
         CONTRACT
-            .update_default_deposit_value(self.execute_ctx(self.admin()), coin(amount, DENOM))
+            .config
+            .update(
+                self.deps.as_mut().storage,
+                |mut cfg| -> cosmwasm_std::StdResult<_> {
+                    cfg.deposit_amount = coin(amount, DENOM);
+                    Ok(cfg)
+                },
+            )
             .unwrap();
         self
     }

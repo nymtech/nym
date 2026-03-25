@@ -13,7 +13,9 @@ pub fn add_tiered_pricing(deps: DepsMut) -> Result<(), EcashContractError> {
     let deposits_stats = DepositStatsStorage::new();
     let pool_counters: Item<PoolCounters> = Item::new("pool_counters");
 
-    // all the deposits made so far were performed with the default price
+    // All the deposits made so far were performed with the default price.
+    // The `reduced_deposits` Map (whitelist) is intentionally left empty — no
+    // addresses have custom pricing until the admin explicitly configures them.
     let deposits_performed = deposits.total_deposits_made(deps.storage)?;
     let deposits_amounts = pool_counters.load(deps.storage)?.total_deposited;
 

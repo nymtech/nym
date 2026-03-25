@@ -79,4 +79,12 @@ pub enum EcashContractError {
 
     #[error("address '{address}' does not have a custom reduced deposit price set")]
     NoReducedDepositPrice { address: String },
+
+    #[error(
+        "deposit amount ({amount}) must be at least the ticket book size ({ticket_book_size})"
+    )]
+    DepositBelowTicketBookSize {
+        amount: cosmwasm_std::Uint128,
+        ticket_book_size: u64,
+    },
 }

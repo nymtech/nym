@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::Coin;
 use std::collections::HashMap;
 
 /// Aggregate statistics about all deposits made through the ecash contract.
@@ -29,8 +29,10 @@ pub struct DepositsStatistics {
     pub total_deposited_with_custom_price: Coin,
 
     /// Per-account breakdown of deposit counts for whitelisted addresses.
-    pub deposits_made_with_custom_price: HashMap<Addr, u32>,
+    // note: we use String for addressing due to serialisation incompatibility
+    pub deposits_made_with_custom_price: HashMap<String, u32>,
 
     /// Per-account breakdown of deposited amounts for whitelisted addresses.
-    pub deposited_with_custom_price: HashMap<Addr, Coin>,
+    // note: we use String for addressing due to serialisation incompatibility
+    pub deposited_with_custom_price: HashMap<String, Coin>,
 }

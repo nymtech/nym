@@ -110,7 +110,7 @@ impl DepositStatsStorage {
         {
             let (addr, count) = item?;
             total_count += count;
-            per_account_count.insert(addr, count);
+            per_account_count.insert(addr.into_string(), count);
         }
 
         for item in
@@ -119,7 +119,7 @@ impl DepositStatsStorage {
         {
             let (addr, amount) = item?;
             total_amount.amount += amount.amount;
-            per_account_amount.insert(addr, amount);
+            per_account_amount.insert(addr.into_string(), amount);
         }
 
         Ok(CustomPriceDepositStats {
@@ -131,11 +131,30 @@ impl DepositStatsStorage {
     }
 }
 
+impl DepositStatsStorage {
+    /// Asserts that the per-tier deposit counts sum to the given total.
+    /// Only meaningful when all deposits go through the contract entry point
+    /// (not after raw storage writes that bypass bookkeeping).
+    #[cfg(test)]
+    pub(crate) fn assert_counts_consistent(&self, store: &dyn Storage, total_deposits_made: u32) {
+        let default_count = self
+            .get_total_deposits_made_with_default_price(store)
+            .unwrap();
+        let custom = self.get_custom_price_deposits(store, "unused").unwrap();
+        assert_eq!(
+            default_count + custom.total_count,
+            total_deposits_made,
+            "deposit stats invariant violated: default ({default_count}) + custom ({}) != total ({total_deposits_made})",
+            custom.total_count,
+        );
+    }
+}
+
 pub(crate) struct CustomPriceDepositStats {
     pub(crate) total_count: u32,
     pub(crate) total_amount: Coin,
-    pub(crate) per_account_count: HashMap<Addr, u32>,
-    pub(crate) per_account_amount: HashMap<Addr, Coin>,
+    pub(crate) per_account_count: HashMap<String, u32>,
+    pub(crate) per_account_amount: HashMap<String, Coin>,
 }
 
 #[cfg(test)]

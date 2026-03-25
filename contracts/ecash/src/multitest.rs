@@ -158,3 +158,106 @@ fn correct_default_deposit_succeeds() {
         .call(&owner)
         .unwrap();
 }
+
+#[test]
+fn reduced_price_deposit_end_to_end() {
+    let owner = "owner".into_bech32();
+    let whitelisted = "whitelisted".into_bech32();
+    let non_whitelisted = "non_whitelisted".into_bech32();
+    let reduced_amount: u128 = 10_000_000;
+
+    let mtapp = MtApp::new(|router, _, storage| {
+        router
+            .bank
+            .init_balance(
+                storage,
+                &whitelisted,
+                vec![Coin::new(1_000_000_000u128, DENOM)],
+            )
+            .unwrap();
+        router
+            .bank
+            .init_balance(
+                storage,
+                &non_whitelisted,
+                vec![Coin::new(1_000_000_000u128, DENOM)],
+            )
+            .unwrap();
+    });
+    let app = App::new(mtapp);
+    let code_id = CodeId::store_code(&app);
+    let contract = code_id
+        .instantiate(
+            MockApi::default().addr_make("holding_account").to_string(),
+            MockApi::default().addr_make("multisig_addr").to_string(),
+            MockApi::default().addr_make("group_addr").to_string(),
+            coin(DEPOSIT_AMOUNT, DENOM),
+        )
+        .call(&owner)
+        .unwrap();
+
+    let vk = "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK";
+
+    // whitelist an address with a reduced price
+    contract
+        .set_reduced_deposit_price(whitelisted.to_string(), coin(reduced_amount, DENOM))
+        .call(&owner)
+        .unwrap();
+
+    // whitelisted address can deposit at the reduced price
+    contract
+        .deposit_ticket_book_funds(vk.to_string())
+        .with_funds(&[coin(reduced_amount, DENOM)])
+        .call(&whitelisted)
+        .unwrap();
+
+    // whitelisted address is rejected when sending the default amount
+    assert_eq!(
+        contract
+            .deposit_ticket_book_funds(vk.to_string())
+            .with_funds(&[coin(DEPOSIT_AMOUNT, DENOM)])
+            .call(&whitelisted)
+            .unwrap_err(),
+        EcashContractError::WrongAmount {
+            received: coin(DEPOSIT_AMOUNT, DENOM),
+            amount: coin(reduced_amount, DENOM),
+        }
+    );
+
+    // non-whitelisted address is rejected at the reduced amount
+    assert_eq!(
+        contract
+            .deposit_ticket_book_funds(vk.to_string())
+            .with_funds(&[coin(reduced_amount, DENOM)])
+            .call(&non_whitelisted)
+            .unwrap_err(),
+        EcashContractError::WrongAmount {
+            received: coin(reduced_amount, DENOM),
+            amount: coin(DEPOSIT_AMOUNT, DENOM),
+        }
+    );
+
+    // non-whitelisted address succeeds at the default amount
+    contract
+        .deposit_ticket_book_funds(vk.to_string())
+        .with_funds(&[coin(DEPOSIT_AMOUNT, DENOM)])
+        .call(&non_whitelisted)
+        .unwrap();
+
+    let stats = contract.get_deposits_statistics().unwrap();
+    assert_eq!(stats.total_deposits_made, 2);
+    assert_eq!(
+        stats.total_deposited,
+        coin(reduced_amount + DEPOSIT_AMOUNT, DENOM)
+    );
+    assert_eq!(stats.total_deposits_made_with_default_price, 1);
+    assert_eq!(
+        stats.total_deposited_with_default_price,
+        coin(DEPOSIT_AMOUNT, DENOM)
+    );
+    assert_eq!(stats.total_deposits_made_with_custom_price, 1);
+    assert_eq!(
+        stats.total_deposited_with_custom_price,
+        coin(reduced_amount, DENOM)
+    );
+}

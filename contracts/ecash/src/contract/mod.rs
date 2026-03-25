@@ -453,6 +453,14 @@ impl NymEcashContract {
         self.contract_admin
             .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
 
+        let ticket_book_size = self.get_ticketbook_size(ctx.deps.storage)?;
+        if new_deposit.amount < cosmwasm_std::Uint128::from(ticket_book_size) {
+            return Err(EcashContractError::DepositBelowTicketBookSize {
+                amount: new_deposit.amount,
+                ticket_book_size,
+            });
+        }
+
         let deposit_str = new_deposit.to_string();
         self.config
             .update(ctx.deps.storage, |mut cfg| -> StdResult<_> {
@@ -490,6 +498,14 @@ impl NymEcashContract {
             });
         }
 
+        let ticket_book_size = self.get_ticketbook_size(ctx.deps.storage)?;
+        if deposit.amount < cosmwasm_std::Uint128::from(ticket_book_size) {
+            return Err(EcashContractError::DepositBelowTicketBookSize {
+                amount: deposit.amount,
+                ticket_book_size,
+            });
+        }
+
         self.reduced_deposits
             .save(ctx.deps.storage, addr, &deposit)?;
 
@@ -499,6 +515,10 @@ impl NymEcashContract {
             .add_attribute("deposit", deposit.to_string()))
     }
 
+    /// Removes the reduced deposit price for a given address, reverting them to
+    /// the default deposit amount. This is safe to call even if the address has
+    /// already deposited at the reduced price — their next deposit will simply
+    /// use the default price. Historical deposit statistics are not affected.
     #[sv::msg(exec)]
     pub fn remove_reduced_deposit_price(
         &self,

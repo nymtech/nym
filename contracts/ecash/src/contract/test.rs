@@ -288,6 +288,28 @@ mod tests {
     }
 
     #[test]
+    fn set_reduced_deposit_price_rejects_amount_below_ticket_book_size() -> anyhow::Result<()> {
+        let mut test = TestSetup::init();
+        let addr = test.deps.api.addr_make("alice");
+        let admin = test.admin_info();
+
+        let err = CONTRACT
+            .set_reduced_deposit_price(
+                test.exec_ctx(admin),
+                addr.to_string(),
+                coin(10, TEST_DENOM), // below ticket_book_size (50)
+            )
+            .unwrap_err();
+
+        assert!(matches!(
+            err,
+            EcashContractError::DepositBelowTicketBookSize { .. }
+        ));
+
+        Ok(())
+    }
+
+    #[test]
     fn set_reduced_deposit_price_stores_price() -> anyhow::Result<()> {
         let mut test = TestSetup::init();
         let addr = test.deps.api.addr_make("alice");
@@ -416,6 +438,57 @@ mod tests {
         );
         assert!(stats.deposits_made_with_custom_price.is_empty());
         assert!(stats.deposited_with_custom_price.is_empty());
+
+        CONTRACT.deposit_stats.assert_counts_consistent(
+            test.deps.as_ref().storage,
+            stats.total_deposits_made,
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn deposit_stats_invariant_holds_after_mixed_deposits() -> anyhow::Result<()> {
+        let mut test = TestSetup::init();
+        let alice = test.deps.api.addr_make("alice");
+        let bob = test.deps.api.addr_make("bob");
+
+        // whitelist alice
+        let admin = test.admin_info();
+        CONTRACT.set_reduced_deposit_price(
+            test.exec_ctx(admin),
+            alice.to_string(),
+            coin(10_000_000, TEST_DENOM),
+        )?;
+
+        // alice deposits at reduced price
+        let alice_info = message_info(&alice, &[coin(10_000_000, TEST_DENOM)]);
+        CONTRACT.deposit_ticket_book_funds(
+            test.exec_ctx(alice_info),
+            "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
+        )?;
+
+        // bob deposits at default price
+        let bob_info = message_info(&bob, &[coin(75_000_000, TEST_DENOM)]);
+        CONTRACT.deposit_ticket_book_funds(
+            test.exec_ctx(bob_info),
+            "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
+        )?;
+
+        // alice deposits again
+        let alice_info = message_info(&alice, &[coin(10_000_000, TEST_DENOM)]);
+        CONTRACT.deposit_ticket_book_funds(
+            test.exec_ctx(alice_info),
+            "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
+        )?;
+
+        let total = CONTRACT.deposits.total_deposits_made(test.deps.as_ref().storage)?;
+        assert_eq!(total, 3);
+
+        CONTRACT.deposit_stats.assert_counts_consistent(
+            test.deps.as_ref().storage,
+            total,
+        );
 
         Ok(())
     }

@@ -59,7 +59,7 @@ pub enum ExecuteMsg {
     },
 
     /// Remove the reduced deposit price for a specific address, reverting them to
-    /// the default price. No-op if the address had no custom price.
+    /// the default price. Returns an error if the address has no custom price set.
     /// Only callable by the contract admin.
     RemoveReducedDepositPrice {
         address: String,
@@ -88,6 +88,7 @@ pub enum QueryMsg {
 
     #[cfg_attr(feature = "schema", returns(Coin))]
     #[serde(alias = "get_required_deposit_amount")]
+    #[serde(alias = "GetRequiredDepositAmount")]
     GetDefaultDepositAmount {},
 
     #[cfg_attr(feature = "schema", returns(Option<Coin>))]

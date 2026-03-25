@@ -69,6 +69,40 @@ pub trait EcashSigningClient {
             .await
     }
 
+    async fn set_reduced_deposit_price(
+        &self,
+        address: String,
+        deposit: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let req = EcashExecuteMsg::SetReducedDepositPrice {
+            address,
+            deposit: deposit.into(),
+        };
+        self.execute_ecash_contract(
+            fee,
+            req,
+            "Ecash::SetReducedDepositPrice".to_string(),
+            vec![],
+        )
+        .await
+    }
+
+    async fn remove_reduced_deposit_price(
+        &self,
+        address: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let req = EcashExecuteMsg::RemoveReducedDepositPrice { address };
+        self.execute_ecash_contract(
+            fee,
+            req,
+            "Ecash::RemoveReducedDepositPrice".to_string(),
+            vec![],
+        )
+        .await
+    }
+
     async fn propose_for_blacklist(
         &self,
         public_key: String,
@@ -144,6 +178,12 @@ mod tests {
             ExecuteMsg::UpdateDefaultDepositValue { new_deposit } => client
                 .update_deposit_value(new_deposit.into(), None)
                 .ignore(),
+            ExecuteMsg::SetReducedDepositPrice { address, deposit } => client
+                .set_reduced_deposit_price(address, deposit.into(), None)
+                .ignore(),
+            ExecuteMsg::RemoveReducedDepositPrice { address } => {
+                client.remove_reduced_deposit_price(address, None).ignore()
+            }
         };
     }
 }

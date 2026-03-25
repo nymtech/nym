@@ -42,8 +42,13 @@ pub trait EcashQueryClient {
             .await
     }
 
-    async fn get_required_deposit_amount(&self) -> Result<Coin, NyxdError> {
-        self.query_ecash_contract(EcashQueryMsg::GetRequiredDepositAmount {})
+    async fn get_default_deposit_amount(&self) -> Result<Coin, NyxdError> {
+        self.query_ecash_contract(EcashQueryMsg::GetDefaultDepositAmount {})
+            .await
+    }
+
+    async fn get_reduced_deposit_amount(&self, address: String) -> Result<Option<Coin>, NyxdError> {
+        self.query_ecash_contract(EcashQueryMsg::GetReducedDepositAmount { address })
             .await
     }
 
@@ -122,8 +127,11 @@ mod tests {
             EcashQueryMsg::GetDepositsPaged { limit, start_after } => {
                 client.get_deposits_paged(start_after, limit).ignore()
             }
-            EcashQueryMsg::GetRequiredDepositAmount {} => {
-                client.get_required_deposit_amount().ignore()
+            EcashQueryMsg::GetDefaultDepositAmount {} => {
+                client.get_default_deposit_amount().ignore()
+            }
+            EcashQueryMsg::GetReducedDepositAmount { address } => {
+                client.get_reduced_deposit_amount(address).ignore()
             }
             EcashQueryMsg::GetLatestDeposit {} => client.get_latest_deposit().ignore(),
         };

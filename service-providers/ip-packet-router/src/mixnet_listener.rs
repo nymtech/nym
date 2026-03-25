@@ -183,7 +183,7 @@ impl MixnetListener {
                 }
                 Err(e) => {
                     log::warn!("Failed to decode bundled IP packet: {e}");
-                    break;
+                    continue;
                 }
             }
         }

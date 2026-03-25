@@ -10,7 +10,11 @@ license.workspace = true
 description = "Codec, signing functionality, and different version definitions for IP packet request and responses"
 
 
+[features]
+test-utils = ["pnet_packet"]
+
 [dependencies]
+pnet_packet = { workspace = true, optional = true }
 bincode = { workspace = true }
 bytes = { workspace = true }
 nym-bin-common = { workspace = true }

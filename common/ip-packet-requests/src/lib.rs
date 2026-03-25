@@ -3,6 +3,8 @@ use std::fmt::{Display, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 pub mod codec;
+#[cfg(feature = "test-utils")]
+pub mod icmp_utils;
 pub mod response_helpers;
 pub mod sign;
 pub mod v6;

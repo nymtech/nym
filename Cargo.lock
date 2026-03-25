@@ -6957,6 +6957,7 @@ dependencies = [
  "nym-crypto",
  "nym-service-provider-requests-common",
  "nym-sphinx",
+ "pnet_packet",
  "rand 0.8.5",
  "serde",
  "thiserror 2.0.12",

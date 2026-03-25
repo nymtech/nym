@@ -97,7 +97,7 @@ tokio-util = { workspace = true, features = ["codec"] }
 parking_lot = { workspace = true }
 hex = { workspace = true }
 pnet_packet = { workspace = true }
-nym-ip-packet-requests = { workspace = true }
+nym-ip-packet-requests = { workspace = true, features = ["test-utils"] }
 
 [features]
 libp2p-vanilla = []

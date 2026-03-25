@@ -4,6 +4,54 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.6-stilton] (2026-03-25)
+
+- lp fixes ([#6601])
+- bugfix: allow deserialisation of LP data from either snake_case or lowercase ([#6586])
+- bugfix: make sure to run cargo install cosmwasm-check with --locked flag during CI ([#6568])
+- Add LP to NS UI ([#6562])
+- feat: nyxd watcher ([#6561])
+- Additional ticket for agent ([#6551])
+- bugfix: make sure to use old values from metrics debug config during v12 migration (#6546) ([#6547])
+- typo ([#6543])
+- rng changes for a Send variant ([#6541])
+- Add LP fields ([#6535])
+- enable LP registration in registration client ([#6534])
+- chore: rename LpMessage to LpFrame ([#6530])
+- chore: LP improvements ([#6526])
+- Remove dep leak of strum iterator ([#6522])
+- chore: update ts-rs dep ([#6517])
+- addressing LP PR comments ([#6513])
+- remove redundant LP state machine in favour of in place processing ([#6512])
+- chore: split up lp listener ([#6507])
+- feat: enable mutual KKT exchange ([#6505])
+- feat: introduce /v3/unstable/nym-nodes/semi-skimmed to aggregate LP information ([#6499])
+- Max/asyncread asyncwrite nym client ([#6318])
+- feat: localnet v2 ([#6277])
+
+[#6601]: https://github.com/nymtech/nym/pull/6601
+[#6586]: https://github.com/nymtech/nym/pull/6586
+[#6568]: https://github.com/nymtech/nym/pull/6568
+[#6562]: https://github.com/nymtech/nym/pull/6562
+[#6561]: https://github.com/nymtech/nym/pull/6561
+[#6551]: https://github.com/nymtech/nym/pull/6551
+[#6547]: https://github.com/nymtech/nym/pull/6547
+[#6543]: https://github.com/nymtech/nym/pull/6543
+[#6541]: https://github.com/nymtech/nym/pull/6541
+[#6535]: https://github.com/nymtech/nym/pull/6535
+[#6534]: https://github.com/nymtech/nym/pull/6534
+[#6530]: https://github.com/nymtech/nym/pull/6530
+[#6526]: https://github.com/nymtech/nym/pull/6526
+[#6522]: https://github.com/nymtech/nym/pull/6522
+[#6517]: https://github.com/nymtech/nym/pull/6517
+[#6513]: https://github.com/nymtech/nym/pull/6513
+[#6512]: https://github.com/nymtech/nym/pull/6512
+[#6507]: https://github.com/nymtech/nym/pull/6507
+[#6505]: https://github.com/nymtech/nym/pull/6505
+[#6499]: https://github.com/nymtech/nym/pull/6499
+[#6318]: https://github.com/nymtech/nym/pull/6318
+[#6277]: https://github.com/nymtech/nym/pull/6277
+
 ## [2026.5-raclette] (2026-03-10)
 
 - bugfix: correctly populate gateway probe LP data ([#6533])

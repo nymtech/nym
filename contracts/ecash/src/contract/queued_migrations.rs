@@ -91,6 +91,7 @@ mod tests {
                 &PoolCounters {
                     total_deposited: coin(total_deposited, DENOM),
                     total_redeemed: coin(0, DENOM),
+                    tickets_requested_and_not_redeemed: 0,
                 },
             )
             .unwrap();

@@ -33,10 +33,7 @@ impl DepositStorage {
     ///
     /// The deposit id counter stores the next available id, which equals the
     /// total count (first deposit gets id 0, counter becomes 1, and so on).
-    pub fn total_deposits_made(
-        &self,
-        storage: &dyn Storage,
-    ) -> Result<u32, EcashContractError> {
+    pub fn total_deposits_made(&self, storage: &dyn Storage) -> Result<u32, EcashContractError> {
         Ok(self.deposit_id_counter.may_load(storage)?.unwrap_or(0))
     }
 
@@ -126,8 +123,8 @@ impl StoredDeposits {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::support::tests::test_rng;
     use cosmwasm_std::testing::mock_dependencies;
+    use nym_contracts_common_testing::test_rng;
     use nym_crypto::asymmetric::ed25519;
 
     #[test]

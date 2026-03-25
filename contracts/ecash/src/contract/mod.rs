@@ -9,7 +9,7 @@ use crate::helpers::{
     BlacklistKey, Config, MultisigReply, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
     CONTRACT_NAME, CONTRACT_VERSION, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT,
 };
-use cosmwasm_std::{coin, Addr, BankMsg, Coin, DepsMut, Event, Order, Reply, Response, StdResult};
+use cosmwasm_std::{coin, Addr, Coin, DepsMut, Event, Order, Reply, Response, StdResult};
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
@@ -114,6 +114,7 @@ impl NymEcashContract {
             &PoolCounters {
                 total_deposited: zero_coin.clone(),
                 total_redeemed: zero_coin.clone(),
+                tickets_requested_and_not_redeemed: 0,
             },
         )?;
 
@@ -398,6 +399,8 @@ impl NymEcashContract {
         Ok(Response::new().add_submessage(msg))
     }
 
+    /// Old legacy method for requesting ticket redemption by moving them into the holding accounts
+    /// currently only executed by legacy gateways
     #[sv::msg(exec)]
     pub fn redeem_tickets(
         &self,
@@ -414,22 +417,15 @@ impl NymEcashContract {
         self.multisig
             .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
 
-        let config = self.config.load(ctx.deps.storage)?;
-        let to_return = self.tickets_redemption_amount(ctx.deps.storage, &config, n)?;
-        if to_return.amount.is_zero() {
-            return Ok(Response::new());
-        }
-
         self.pool_counters
             .update(ctx.deps.storage, |mut counters| -> StdResult<_> {
-                counters.total_redeemed.amount += to_return.amount;
+                counters.tickets_requested_and_not_redeemed += n as u64;
                 Ok(counters)
             })?;
 
-        Ok(Response::new().add_message(BankMsg::Send {
-            to_address: config.holding_account.to_string(),
-            amount: vec![to_return],
-        }))
+        Ok(Response::new().add_event(
+            Event::new("ticket_redemption").add_attribute("moved_to_holding_account", "false"),
+        ))
     }
 
     #[sv::msg(exec)]

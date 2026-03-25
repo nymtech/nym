@@ -97,7 +97,7 @@ impl TestSetupSimple {
 
     pub fn with_deposit_amount(mut self, amount: u128) -> Self {
         CONTRACT
-            .update_deposit_value(self.execute_ctx(self.admin()), coin(amount, DENOM))
+            .update_default_deposit_value(self.execute_ctx(self.admin()), coin(amount, DENOM))
             .unwrap();
         self
     }

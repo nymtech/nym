@@ -10,6 +10,9 @@ use sylvia::{cw_multi_test::App as MtApp, multitest::App};
 
 use crate::contract::sv::mt::{CodeId, NymEcashContractProxy};
 
+const DENOM: &str = "unym";
+const DEPOSIT_AMOUNT: u128 = 75_000_000;
+
 #[test]
 fn invalid_deposit() {
     let owner = "owner".into_bech32();
@@ -72,4 +75,86 @@ fn invalid_deposit() {
             .unwrap_err(),
         EcashContractError::InvalidDeposit(PaymentError::MissingDenom(denom.to_string()))
     );
+}
+
+#[test]
+fn wrong_deposit_amount() {
+    let owner = "owner".into_bech32();
+
+    let mtapp = MtApp::new(|router, _, storage| {
+        router
+            .bank
+            .init_balance(storage, &owner, vec![Coin::new(1_000_000_000u128, DENOM)])
+            .unwrap()
+    });
+    let app = App::new(mtapp);
+    let code_id = CodeId::store_code(&app);
+    let contract = code_id
+        .instantiate(
+            MockApi::default().addr_make("holding_account").to_string(),
+            MockApi::default().addr_make("multisig_addr").to_string(),
+            MockApi::default().addr_make("group_addr").to_string(),
+            coin(DEPOSIT_AMOUNT, DENOM),
+        )
+        .call(&owner)
+        .unwrap();
+
+    let vk = "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK";
+
+    // too little
+    assert_eq!(
+        contract
+            .deposit_ticket_book_funds(vk.to_string())
+            .with_funds(&[coin(1_000_000u128, DENOM)])
+            .call(&owner)
+            .unwrap_err(),
+        EcashContractError::WrongAmount {
+            received: coin(1_000_000u128, DENOM),
+            amount: coin(DEPOSIT_AMOUNT, DENOM),
+        }
+    );
+
+    // too much
+    assert_eq!(
+        contract
+            .deposit_ticket_book_funds(vk.to_string())
+            .with_funds(&[coin(100_000_000u128, DENOM)])
+            .call(&owner)
+            .unwrap_err(),
+        EcashContractError::WrongAmount {
+            received: coin(100_000_000u128, DENOM),
+            amount: coin(DEPOSIT_AMOUNT, DENOM),
+        }
+    );
+}
+
+#[test]
+fn correct_default_deposit_succeeds() {
+    let owner = "owner".into_bech32();
+
+    let mtapp = MtApp::new(|router, _, storage| {
+        router
+            .bank
+            .init_balance(storage, &owner, vec![Coin::new(1_000_000_000u128, DENOM)])
+            .unwrap()
+    });
+    let app = App::new(mtapp);
+    let code_id = CodeId::store_code(&app);
+    let contract = code_id
+        .instantiate(
+            MockApi::default().addr_make("holding_account").to_string(),
+            MockApi::default().addr_make("multisig_addr").to_string(),
+            MockApi::default().addr_make("group_addr").to_string(),
+            coin(DEPOSIT_AMOUNT, DENOM),
+        )
+        .call(&owner)
+        .unwrap();
+
+    let vk = "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK";
+
+    contract
+        .deposit_ticket_book_funds(vk.to_string())
+        .with_funds(&[coin(DEPOSIT_AMOUNT, DENOM)])
+        .call(&owner)
+        .unwrap();
 }

@@ -410,6 +410,68 @@ impl NymEcashContract {
     }
 
     #[sv::msg(exec)]
+    pub fn set_reduced_deposit_price(
+        &self,
+        ctx: ExecCtx,
+        address: String,
+        deposit: Coin,
+    ) -> Result<Response, EcashContractError> {
+        self.contract_admin
+            .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
+
+        let addr = ctx.deps.api.addr_validate(&address)?;
+
+        // the reduced price must be strictly less than the default to avoid
+        // accidentally misconfiguring an address to pay more than everyone else
+        let default = self.config.load(ctx.deps.storage)?.deposit_amount;
+        if deposit.denom != default.denom {
+            return Err(EcashContractError::InvalidReducedDepositDenom {
+                expected: default.denom,
+                got: deposit.denom,
+            });
+        }
+        if deposit.amount >= default.amount {
+            return Err(EcashContractError::ReducedDepositNotReduced {
+                reduced: deposit.amount,
+                default: default.amount,
+            });
+        }
+
+        self.reduced_deposits
+            .save(ctx.deps.storage, addr, &deposit)?;
+
+        Ok(Response::new()
+            .add_attribute("action", "set_reduced_deposit_price")
+            .add_attribute("address", address)
+            .add_attribute("deposit", deposit.to_string()))
+    }
+
+    #[sv::msg(exec)]
+    pub fn remove_reduced_deposit_price(
+        &self,
+        ctx: ExecCtx,
+        address: String,
+    ) -> Result<Response, EcashContractError> {
+        self.contract_admin
+            .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
+
+        let addr = ctx.deps.api.addr_validate(&address)?;
+
+        if !self
+            .reduced_deposits
+            .has(ctx.deps.storage, addr.clone())
+        {
+            return Err(EcashContractError::NoReducedDepositPrice { address });
+        }
+
+        self.reduced_deposits.remove(ctx.deps.storage, addr);
+
+        Ok(Response::new()
+            .add_attribute("action", "remove_reduced_deposit_price")
+            .add_attribute("address", address))
+    }
+
+    #[sv::msg(exec)]
     pub fn propose_to_blacklist(
         &self,
         ctx: ExecCtx,

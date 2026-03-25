@@ -47,6 +47,20 @@ pub enum ExecuteMsg {
         new_deposit: Coin,
     },
 
+    /// Set (or overwrite) a reduced deposit price for a specific address.
+    /// Only callable by the contract admin.
+    SetReducedDepositPrice {
+        address: String,
+        deposit: Coin,
+    },
+
+    /// Remove the reduced deposit price for a specific address, reverting them to
+    /// the default price. No-op if the address had no custom price.
+    /// Only callable by the contract admin.
+    RemoveReducedDepositPrice {
+        address: String,
+    },
+
     // TODO: properly implement
     ProposeToBlacklist {
         public_key: String,

@@ -72,3 +72,230 @@ impl DepositStatsStorage {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::coin;
+    use cosmwasm_std::testing::mock_dependencies;
+
+    const DENOM: &str = "unym";
+    const DEFAULT_AMOUNT: u128 = 75_000_000;
+    const REDUCED_AMOUNT: u128 = 10_000_000;
+
+    /// Mirror what `instantiate` does: zero-initialise the default-price counters.
+    /// The custom-price Maps need no initialisation (they start empty).
+    fn init_stats(storage: &mut dyn Storage) -> DepositStatsStorage {
+        let stats = DepositStatsStorage::new();
+        stats
+            .deposits_with_default_price
+            .save(storage, &0)
+            .unwrap();
+        stats
+            .deposits_with_default_price_amounts
+            .save(storage, &coin(0, DENOM))
+            .unwrap();
+        stats
+    }
+
+    #[test]
+    fn single_default_deposit_increments_count_and_amount() {
+        let mut deps = mock_dependencies();
+        let stats = init_stats(deps.as_mut().storage);
+
+        stats
+            .new_default_deposit(deps.as_mut().storage, &coin(DEFAULT_AMOUNT, DENOM))
+            .unwrap();
+
+        assert_eq!(
+            stats
+                .deposits_with_default_price
+                .load(deps.as_ref().storage)
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            stats
+                .deposits_with_default_price_amounts
+                .load(deps.as_ref().storage)
+                .unwrap(),
+            coin(DEFAULT_AMOUNT, DENOM)
+        );
+    }
+
+    #[test]
+    fn multiple_default_deposits_accumulate() {
+        let mut deps = mock_dependencies();
+        let stats = init_stats(deps.as_mut().storage);
+
+        for _ in 0..3 {
+            stats
+                .new_default_deposit(deps.as_mut().storage, &coin(DEFAULT_AMOUNT, DENOM))
+                .unwrap();
+        }
+
+        assert_eq!(
+            stats
+                .deposits_with_default_price
+                .load(deps.as_ref().storage)
+                .unwrap(),
+            3
+        );
+        assert_eq!(
+            stats
+                .deposits_with_default_price_amounts
+                .load(deps.as_ref().storage)
+                .unwrap(),
+            coin(DEFAULT_AMOUNT * 3, DENOM)
+        );
+    }
+
+    #[test]
+    fn single_reduced_deposit_is_tracked_per_address() {
+        let mut deps = mock_dependencies();
+        let stats = init_stats(deps.as_mut().storage);
+        let alice = deps.api.addr_make("alice");
+
+        stats
+            .new_reduced_deposit(
+                deps.as_mut().storage,
+                &alice,
+                &coin(REDUCED_AMOUNT, DENOM),
+            )
+            .unwrap();
+
+        assert_eq!(
+            stats
+                .deposits_with_custom_price
+                .load(deps.as_ref().storage, alice.clone())
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            stats
+                .deposits_with_custom_price_amounts
+                .load(deps.as_ref().storage, alice.clone())
+                .unwrap(),
+            coin(REDUCED_AMOUNT, DENOM)
+        );
+        // default-price stats must be untouched
+        assert_eq!(
+            stats
+                .deposits_with_default_price
+                .load(deps.as_ref().storage)
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn multiple_reduced_deposits_same_address_accumulate() {
+        let mut deps = mock_dependencies();
+        let stats = init_stats(deps.as_mut().storage);
+        let alice = deps.api.addr_make("alice");
+
+        for _ in 0..4 {
+            stats
+                .new_reduced_deposit(
+                    deps.as_mut().storage,
+                    &alice,
+                    &coin(REDUCED_AMOUNT, DENOM),
+                )
+                .unwrap();
+        }
+
+        assert_eq!(
+            stats
+                .deposits_with_custom_price
+                .load(deps.as_ref().storage, alice.clone())
+                .unwrap(),
+            4
+        );
+        assert_eq!(
+            stats
+                .deposits_with_custom_price_amounts
+                .load(deps.as_ref().storage, alice.clone())
+                .unwrap(),
+            coin(REDUCED_AMOUNT * 4, DENOM)
+        );
+    }
+
+    #[test]
+    fn reduced_deposits_for_different_addresses_tracked_independently() {
+        let mut deps = mock_dependencies();
+        let stats = init_stats(deps.as_mut().storage);
+        let alice = deps.api.addr_make("alice");
+        let bob = deps.api.addr_make("bob");
+
+        stats
+            .new_reduced_deposit(deps.as_mut().storage, &alice, &coin(REDUCED_AMOUNT, DENOM))
+            .unwrap();
+        stats
+            .new_reduced_deposit(deps.as_mut().storage, &alice, &coin(REDUCED_AMOUNT, DENOM))
+            .unwrap();
+        stats
+            .new_reduced_deposit(deps.as_mut().storage, &bob, &coin(5_000_000, DENOM))
+            .unwrap();
+
+        assert_eq!(
+            stats
+                .deposits_with_custom_price
+                .load(deps.as_ref().storage, alice.clone())
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            stats
+                .deposits_with_custom_price
+                .load(deps.as_ref().storage, bob.clone())
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            stats
+                .deposits_with_custom_price_amounts
+                .load(deps.as_ref().storage, alice)
+                .unwrap(),
+            coin(REDUCED_AMOUNT * 2, DENOM)
+        );
+        assert_eq!(
+            stats
+                .deposits_with_custom_price_amounts
+                .load(deps.as_ref().storage, bob)
+                .unwrap(),
+            coin(5_000_000, DENOM)
+        );
+    }
+
+    #[test]
+    fn default_and_reduced_stats_do_not_interfere() {
+        let mut deps = mock_dependencies();
+        let stats = init_stats(deps.as_mut().storage);
+        let alice = deps.api.addr_make("alice");
+
+        stats
+            .new_default_deposit(deps.as_mut().storage, &coin(DEFAULT_AMOUNT, DENOM))
+            .unwrap();
+        stats
+            .new_reduced_deposit(deps.as_mut().storage, &alice, &coin(REDUCED_AMOUNT, DENOM))
+            .unwrap();
+        stats
+            .new_default_deposit(deps.as_mut().storage, &coin(DEFAULT_AMOUNT, DENOM))
+            .unwrap();
+
+        assert_eq!(
+            stats
+                .deposits_with_default_price
+                .load(deps.as_ref().storage)
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            stats
+                .deposits_with_custom_price
+                .load(deps.as_ref().storage, alice)
+                .unwrap(),
+            1
+        );
+    }
+}

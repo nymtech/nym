@@ -1,3 +1,6 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 //! Per-stream handle implementing `AsyncRead + AsyncWrite`.
 
 use std::pin::Pin;

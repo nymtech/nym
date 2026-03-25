@@ -96,7 +96,7 @@ tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 parking_lot = { workspace = true }
 hex = { workspace = true }
-pnet_packet = "0.35"
+pnet_packet = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
 
 [features]

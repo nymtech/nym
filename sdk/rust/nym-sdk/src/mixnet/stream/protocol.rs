@@ -1,3 +1,6 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 //! Wire protocol for stream multiplexing.
 //!
 //! Every message between streams carries an LP frame header prepended to

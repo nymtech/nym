@@ -1,5 +1,5 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use bytes::{Bytes, BytesMut};
 use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v8::response::ControlResponse};

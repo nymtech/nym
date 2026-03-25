@@ -1,3 +1,6 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 // Smoke test for IpMixStream: connect to an IPR, send a ping, check we get a reply.
 // Tests both IPv4 and IPv6 paths.
 //

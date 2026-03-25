@@ -9,5 +9,6 @@ pub mod event_attributes;
 pub mod events;
 pub mod msg;
 pub mod redeem_credential;
+pub mod reduced_deposit;
 
 pub use error::EcashContractError;

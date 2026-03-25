@@ -17,6 +17,9 @@ pub use nym_ecash_contract_common::blacklist::{
 pub use nym_ecash_contract_common::deposit::{
     Deposit, DepositData, DepositId, DepositResponse, PagedDepositsResponse,
 };
+pub use nym_ecash_contract_common::reduced_deposit::{
+    WhitelistedAccount, WhitelistedAccountsResponse,
+};
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -49,6 +52,11 @@ pub trait EcashQueryClient {
 
     async fn get_reduced_deposit_amount(&self, address: String) -> Result<Option<Coin>, NyxdError> {
         self.query_ecash_contract(EcashQueryMsg::GetReducedDepositAmount { address })
+            .await
+    }
+
+    async fn get_all_whitelisted_accounts(&self) -> Result<WhitelistedAccountsResponse, NyxdError> {
+        self.query_ecash_contract(EcashQueryMsg::GetAllWhitelistedAccounts {})
             .await
     }
 
@@ -132,6 +140,9 @@ mod tests {
             }
             EcashQueryMsg::GetReducedDepositAmount { address } => {
                 client.get_reduced_deposit_amount(address).ignore()
+            }
+            EcashQueryMsg::GetAllWhitelistedAccounts {} => {
+                client.get_all_whitelisted_accounts().ignore()
             }
             EcashQueryMsg::GetLatestDeposit {} => client.get_latest_deposit().ignore(),
         };

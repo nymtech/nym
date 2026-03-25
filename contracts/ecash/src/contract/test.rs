@@ -76,6 +76,7 @@ mod tests {
     use super::*;
     use cosmwasm_std::coin;
     use nym_ecash_contract_common::deposit::Deposit;
+    use nym_ecash_contract_common::reduced_deposit::WhitelistedAccount;
     use nym_ecash_contract_common::EcashContractError;
     use sylvia::anyhow;
 
@@ -145,6 +146,53 @@ mod tests {
             CONTRACT.get_reduced_deposit_amount(test.query_ctx(), addr.to_string())?;
 
         assert_eq!(amount, Some(reduced));
+
+        Ok(())
+    }
+
+    // --- get_all_whitelisted_accounts ---
+
+    #[test]
+    fn get_all_whitelisted_accounts_returns_empty_by_default() -> anyhow::Result<()> {
+        let test = TestSetup::init();
+
+        let res = CONTRACT.get_all_whitelisted_accounts(test.query_ctx())?;
+        assert!(res.whitelisted_accounts.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn get_all_whitelisted_accounts_returns_all_entries() -> anyhow::Result<()> {
+        let mut test = TestSetup::init();
+        let alice = test.deps.api.addr_make("alice");
+        let bob = test.deps.api.addr_make("bob");
+
+        let admin = test.admin_info();
+        CONTRACT.set_reduced_deposit_price(
+            test.exec_ctx(admin),
+            alice.to_string(),
+            coin(10_000_000, TEST_DENOM),
+        )?;
+
+        let admin = test.admin_info();
+        CONTRACT.set_reduced_deposit_price(
+            test.exec_ctx(admin),
+            bob.to_string(),
+            coin(5_000_000, TEST_DENOM),
+        )?;
+
+        let res = CONTRACT.get_all_whitelisted_accounts(test.query_ctx())?;
+        assert_eq!(res.whitelisted_accounts.len(), 2);
+
+        assert!(res.whitelisted_accounts.contains(&WhitelistedAccount {
+            address: alice,
+            deposit: coin(10_000_000, TEST_DENOM),
+        }));
+        assert!(res.whitelisted_accounts.contains(&WhitelistedAccount {
+            address: bob,
+            deposit: coin(5_000_000, TEST_DENOM),
+        }));
 
         Ok(())
     }

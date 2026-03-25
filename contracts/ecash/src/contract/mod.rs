@@ -24,6 +24,7 @@ use nym_ecash_contract_common::deposit::{
 use nym_ecash_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ID, PROPOSAL_ID_ATTRIBUTE_NAME,
 };
+use nym_ecash_contract_common::reduced_deposit::{WhitelistedAccount, WhitelistedAccountsResponse};
 use nym_ecash_contract_common::EcashContractError;
 use nym_network_defaults::TICKETBOOK_SIZE;
 use sylvia::ctx::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx};
@@ -198,6 +199,25 @@ impl NymEcashContract {
         let deposit_amount = self.reduced_deposits.may_load(ctx.deps.storage, address)?;
 
         Ok(deposit_amount)
+    }
+
+    #[sv::msg(query)]
+    pub fn get_all_whitelisted_accounts(
+        &self,
+        ctx: QueryCtx,
+    ) -> StdResult<WhitelistedAccountsResponse> {
+        let whitelisted_accounts = self
+            .reduced_deposits
+            .range(ctx.deps.storage, None, None, Order::Ascending)
+            .map(|item| {
+                let (address, deposit) = item?;
+                Ok(WhitelistedAccount { address, deposit })
+            })
+            .collect::<StdResult<Vec<_>>>()?;
+
+        Ok(WhitelistedAccountsResponse {
+            whitelisted_accounts,
+        })
     }
 
     #[sv::msg(query)]

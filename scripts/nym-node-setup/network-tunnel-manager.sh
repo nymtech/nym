@@ -555,7 +555,7 @@ configure_network_firewall() {
   delete_managed_input_rules ip6tables
 
   local tcp_ports=(22 80 443 1789 1790 8080 9000 9001 41264)
-  local udp_ports=(51822 51264)
+  local udp_ports=(4443 51822 51264)
 
   local port
   for port in "${tcp_ports[@]}"; do

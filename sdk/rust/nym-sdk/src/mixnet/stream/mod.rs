@@ -61,6 +61,14 @@ struct StreamEntry {
     pending: BTreeMap<u32, Vec<u8>>,
 }
 
+/// Maximum number of out-of-order messages buffered per stream before we
+/// skip ahead. Without this cap, a malicious sender that deliberately skips
+/// a sequence number (e.g. never sends seq 1) could cause the buffer to
+/// grow indefinitely while the drain loop waits for the missing seq.
+/// The idle timeout only reaps *inactive* streams, so an actively-sending
+/// attacker would bypass it.
+const MAX_REORDER_BUFFER: usize = 256;
+
 /// The shared stream routing table.
 ///
 /// Wraps the map of active streams behind an async mutex with focused
@@ -119,6 +127,20 @@ impl StreamMap {
                 );
             } else {
                 entry.pending.insert(seq, data);
+            }
+
+            // If the buffer has grown too large, skip ahead to the lowest
+            // buffered seq so we don't accumulate unbounded memory.
+            if entry.pending.len() > MAX_REORDER_BUFFER {
+                if let Some(&lowest) = entry.pending.keys().next() {
+                    warn!(
+                        "Stream {stream_id}: reorder buffer overflow ({} pending), \
+                         skipping seq {} -> {lowest}",
+                        entry.pending.len(),
+                        entry.next_seq
+                    );
+                    entry.next_seq = lowest;
+                }
             }
 
             // Drain contiguous messages

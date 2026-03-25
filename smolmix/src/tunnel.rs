@@ -12,7 +12,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use nym_ip_packet_requests::IpPair;
+pub use nym_ip_packet_requests::IpPair;
 use nym_sdk::ipr_wrapper::IpMixStream;
 use smoltcp::iface::Config;
 use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address};
@@ -27,6 +27,7 @@ use tokio_smoltcp::{Net, NetConfig};
 
 // Re-export so users only need `use smolmix::*` — no direct dep on nym-sdk or tokio-smoltcp.
 pub use nym_sdk::ipr_wrapper::NetworkEnvironment;
+pub use nym_sdk::mixnet::Recipient;
 pub use tokio_smoltcp::{TcpStream, UdpSocket};
 
 struct ShutdownState {
@@ -66,6 +67,22 @@ impl Tunnel {
     /// ```
     pub async fn new(env: NetworkEnvironment) -> Result<Self, SmolmixError> {
         let ipr_stream = IpMixStream::new(env).await?;
+        Self::from_stream(ipr_stream).await
+    }
+
+    /// Create a new tunnel connected to a specific IPR exit node.
+    ///
+    /// Use this for testing against a known exit gateway, or when you want to
+    /// bypass automatic IPR discovery:
+    /// ```ignore
+    /// let ipr: Recipient = "gateway-address...".parse()?;
+    /// let tunnel = Tunnel::new_with_ipr(NetworkEnvironment::Mainnet, ipr).await?;
+    /// ```
+    pub async fn new_with_ipr(
+        env: NetworkEnvironment,
+        ipr_address: Recipient,
+    ) -> Result<Self, SmolmixError> {
+        let ipr_stream = IpMixStream::new_with_ipr(env, ipr_address).await?;
         Self::from_stream(ipr_stream).await
     }
 

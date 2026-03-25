@@ -59,7 +59,7 @@ async fn main() -> Result<(), BoxError> {
 
     // Hand the TLS stream to hyper for proper HTTP/1.1 handling.
     let (mut sender, conn) = hyper::client::conn::http1::handshake(TokioIo::new(tls)).await?;
-    tokio::spawn(conn);
+    let conn_handle = tokio::spawn(conn);
 
     let req = Request::get(path)
         .header("Host", host)
@@ -93,6 +93,10 @@ async fn main() -> Result<(), BoxError> {
 
     let slowdown = mixnet_duration.as_millis() as f64 / clearnet_duration.as_millis().max(1) as f64;
     info!("  Slowdown:    {slowdown:.1}x");
+
+    // Drop the sender so hyper knows we're done, then wait for the connection task.
+    drop(sender);
+    let _ = conn_handle.await;
 
     tunnel.shutdown().await;
     Ok(())

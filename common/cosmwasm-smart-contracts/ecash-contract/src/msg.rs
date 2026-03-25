@@ -42,7 +42,8 @@ pub enum ExecuteMsg {
         admin: String,
     },
 
-    UpdateDepositValue {
+    #[serde(alias = "update_deposit_value")]
+    UpdateDefaultDepositValue {
         new_deposit: Coin,
     },
 
@@ -68,7 +69,11 @@ pub enum QueryMsg {
     },
 
     #[cfg_attr(feature = "schema", returns(Coin))]
-    GetRequiredDepositAmount {},
+    #[serde(alias = "get_required_deposit_amount")]
+    GetDefaultDepositAmount {},
+
+    #[cfg_attr(feature = "schema", returns(Option<Coin>))]
+    GetReducedDepositAmount { address: String },
 
     #[cfg_attr(feature = "schema", returns(DepositResponse))]
     GetDeposit { deposit_id: u32 },

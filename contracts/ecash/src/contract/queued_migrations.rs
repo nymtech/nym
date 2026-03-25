@@ -1,42 +1,38 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract::NymEcashContract;
-use crate::helpers::Config;
-use cosmwasm_std::{Addr, Coin, Decimal, DepsMut};
-use cw4::Cw4Contract;
+use crate::deposit::DepositStorage;
+use crate::deposit_stats::DepositStatsStorage;
+use cosmwasm_std::DepsMut;
 use cw_storage_plus::Item;
+use nym_ecash_contract_common::counters::PoolCounters;
 use nym_ecash_contract_common::EcashContractError;
-use serde::{Deserialize, Serialize};
 
-pub fn remove_redemption_gateway_share(deps: DepsMut) -> Result<(), EcashContractError> {
-    #[derive(Serialize, Deserialize)]
-    struct OldConfig {
-        group_addr: Cw4Contract,
-        holding_account: Addr,
+pub fn add_tiered_pricing(deps: DepsMut) -> Result<(), EcashContractError> {
+    let deposits = DepositStorage::new();
+    let deposits_stats = DepositStatsStorage::new();
+    let pool_counters: Item<PoolCounters> = Item::new("pool_counters");
 
-        redemption_gateway_share: Decimal,
-        deposit_amount: Coin,
-    }
+    // all the deposits made so far were performed with the default price
 
-    impl From<OldConfig> for Config {
-        fn from(config: OldConfig) -> Self {
-            Config {
-                group_addr: config.group_addr,
-                holding_account: config.holding_account,
-                deposit_amount: config.deposit_amount,
-            }
+    // initialise the storage Item with the current number of deposits
+    let deposits_performed = match deposits.deposit_id_counter.may_load(deps.storage)? {
+        Some(id) => {
+            // note: the first deposit had id of 0, so we had to increment it by 1
+            id + 1
         }
-    }
+        None => 0,
+    };
 
-    const OLD_CONFIG: Item<OldConfig> = Item::new("config");
+    let deposits_amounts = pool_counters.load(deps.storage)?.total_deposited;
 
-    let old_config = OLD_CONFIG.load(deps.storage)?;
-    let new_config = old_config.into();
+    deposits_stats
+        .deposits_with_default_price
+        .save(deps.storage, &deposits_performed)?;
 
-    NymEcashContract::new()
-        .config
-        .save(deps.storage, &new_config)?;
+    deposits_stats
+        .deposits_with_default_price_amounts
+        .save(deps.storage, &deposits_amounts)?;
 
     Ok(())
 }

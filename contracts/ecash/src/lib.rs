@@ -9,6 +9,7 @@
 mod constants;
 pub mod contract;
 mod deposit;
+mod deposit_stats;
 mod helpers;
 #[cfg(test)]
 pub mod multitest;

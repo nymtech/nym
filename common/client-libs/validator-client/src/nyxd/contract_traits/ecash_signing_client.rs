@@ -62,7 +62,7 @@ pub trait EcashSigningClient {
         new_deposit: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = EcashExecuteMsg::UpdateDepositValue {
+        let req = EcashExecuteMsg::UpdateDefaultDepositValue {
             new_deposit: new_deposit.into(),
         };
         self.execute_ecash_contract(fee, req, "Ecash::UpdateDepositValue".to_string(), vec![])
@@ -141,7 +141,7 @@ mod tests {
                 .ignore(),
             ExecuteMsg::RedeemTickets { .. } => unimplemented!(), // no redeem tickets method for the client
             ExecuteMsg::UpdateAdmin { admin } => client.update_admin(admin, None).ignore(),
-            ExecuteMsg::UpdateDepositValue { new_deposit } => client
+            ExecuteMsg::UpdateDefaultDepositValue { new_deposit } => client
                 .update_deposit_value(new_deposit.into(), None)
                 .ignore(),
         };

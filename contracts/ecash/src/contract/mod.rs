@@ -4,11 +4,12 @@
 use crate::constants::{BLACKLIST_PROPOSAL_REPLY_ID, REDEMPTION_PROPOSAL_REPLY_ID};
 use crate::contract::helpers::Invariants;
 use crate::deposit::DepositStorage;
+use crate::deposit_stats::DepositStatsStorage;
 use crate::helpers::{
     BlacklistKey, Config, MultisigReply, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
     CONTRACT_NAME, CONTRACT_VERSION, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT,
 };
-use cosmwasm_std::{coin, BankMsg, Coin, Event, Order, Reply, Response, StdResult};
+use cosmwasm_std::{coin, Addr, BankMsg, Coin, Event, Order, Reply, Response, StdResult};
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
@@ -41,6 +42,13 @@ pub struct NymEcashContract {
     pub(crate) pool_counters: Item<PoolCounters>,
     pub(crate) expected_invariants: Item<Invariants>,
 
+    /// Information about the performed deposits
+    pub(crate) deposit_stats: DepositStatsStorage,
+
+    /// Map of approved addresses that are allowed to perform deposits using a reduced amount
+    /// as specified by the saved value.
+    pub(crate) reduced_deposits: Map<Addr, Coin>,
+
     pub(crate) blacklist: Map<BlacklistKey, Blacklisting>,
 
     pub(crate) deposits: DepositStorage,
@@ -58,6 +66,8 @@ impl NymEcashContract {
             config: Item::new("config"),
             pool_counters: Item::new("pool_counters"),
             expected_invariants: Item::new("expected_invariants"),
+            deposit_stats: DepositStatsStorage::new(),
+            reduced_deposits: Map::new("reduced_deposits"),
             blacklist: Map::new("blacklist"),
             deposits: DepositStorage::new(),
         }
@@ -72,6 +82,9 @@ impl NymEcashContract {
         group_addr: String,
         deposit_amount: Coin,
     ) -> Result<Response, EcashContractError> {
+        // all counters, deposits, etc. always use and always will use the same denom
+        let zero_coin = coin(0, &deposit_amount.denom);
+
         let multisig_addr = ctx.deps.api.addr_validate(&multisig_addr)?;
         let holding_account = ctx.deps.api.addr_validate(&holding_account)?;
         let group_addr = Cw4Contract(ctx.deps.api.addr_validate(&group_addr).map_err(|_| {
@@ -96,8 +109,8 @@ impl NymEcashContract {
         self.pool_counters.save(
             ctx.deps.storage,
             &PoolCounters {
-                total_deposited: coin(0, &deposit_amount.denom),
-                total_redeemed: coin(0, &deposit_amount.denom),
+                total_deposited: zero_coin.clone(),
+                total_redeemed: zero_coin.clone(),
             },
         )?;
 
@@ -109,6 +122,14 @@ impl NymEcashContract {
                 deposit_amount,
             },
         )?;
+
+        self.deposit_stats
+            .deposits_with_default_price
+            .save(ctx.deps.storage, &0)?;
+
+        self.deposit_stats
+            .deposits_with_default_price_amounts
+            .save(ctx.deps.storage, &zero_coin)?;
 
         cw2::set_contract_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
         set_build_information!(ctx.deps.storage)?;
@@ -161,8 +182,20 @@ impl NymEcashContract {
     }
 
     #[sv::msg(query)]
-    pub fn get_required_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
+    pub fn get_default_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
         let deposit_amount = self.config.load(ctx.deps.storage)?.deposit_amount;
+
+        Ok(deposit_amount)
+    }
+
+    #[sv::msg(query)]
+    pub fn get_reduced_deposit_amount(
+        &self,
+        ctx: QueryCtx,
+        address: String,
+    ) -> StdResult<Option<Coin>> {
+        let address = ctx.deps.api.addr_validate(&address)?;
+        let deposit_amount = self.reduced_deposits.may_load(ctx.deps.storage, address)?;
 
         Ok(deposit_amount)
     }
@@ -236,7 +269,16 @@ impl NymEcashContract {
         ctx: ExecCtx,
         identity_key: String,
     ) -> Result<Response, EcashContractError> {
-        let required_deposit = self.config.load(ctx.deps.storage)?.deposit_amount;
+        // if the sender is in the reduced deposit map, require that amount
+        // otherwise fallback to the default
+        let (required_deposit, is_reduced) = if let Some(reduced) = self
+            .reduced_deposits
+            .may_load(ctx.deps.storage, ctx.info.sender.clone())?
+        {
+            (reduced, true)
+        } else {
+            (self.config.load(ctx.deps.storage)?.deposit_amount, false)
+        };
 
         let submitted = cw_utils::must_pay(&ctx.info, &required_deposit.denom)?;
 
@@ -250,11 +292,26 @@ impl NymEcashContract {
             });
         }
 
+        // update running stats
+
+        // global total needed when migrating to the nym pool contract
         self.pool_counters
             .update(ctx.deps.storage, |mut counters| -> StdResult<_> {
                 counters.total_deposited.amount += submitted;
                 Ok(counters)
             })?;
+
+        // per-price stats
+        if is_reduced {
+            self.deposit_stats.new_reduced_deposit(
+                ctx.deps.storage,
+                &ctx.info.sender,
+                &required_deposit,
+            )?;
+        } else {
+            self.deposit_stats
+                .new_default_deposit(ctx.deps.storage, &required_deposit)?;
+        }
 
         let deposit_id = self.deposits.save_deposit(ctx.deps.storage, identity_key)?;
 
@@ -334,7 +391,7 @@ impl NymEcashContract {
     }
 
     #[sv::msg(exec)]
-    pub fn update_deposit_value(
+    pub fn update_default_deposit_value(
         &self,
         ctx: ExecCtx,
         new_deposit: Coin,
@@ -463,7 +520,7 @@ impl NymEcashContract {
         set_build_information!(ctx.deps.storage)?;
         cw2::ensure_from_older_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-        queued_migrations::remove_redemption_gateway_share(ctx.deps)?;
+        queued_migrations::add_tiered_pricing(ctx.deps)?;
 
         Ok(Response::new())
     }

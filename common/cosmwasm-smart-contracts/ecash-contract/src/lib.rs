@@ -4,6 +4,7 @@
 pub mod blacklist;
 pub mod counters;
 pub mod deposit;
+pub mod deposit_statistics;
 pub mod error;
 pub mod event_attributes;
 pub mod events;

@@ -9,6 +9,8 @@ use crate::blacklist::{BlacklistedAccountResponse, PagedBlacklistedAccountRespon
 #[cfg(feature = "schema")]
 use crate::deposit::{DepositResponse, LatestDepositResponse, PagedDepositsResponse};
 #[cfg(feature = "schema")]
+use crate::deposit_statistics::DepositsStatistics;
+#[cfg(feature = "schema")]
 use crate::reduced_deposit::WhitelistedAccountsResponse;
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
@@ -105,6 +107,9 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<u32>,
     },
+
+    #[cfg_attr(feature = "schema", returns(DepositsStatistics))]
+    GetDepositsStatistics {},
 }
 
 #[cw_serde]

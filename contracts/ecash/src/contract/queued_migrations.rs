@@ -14,14 +14,7 @@ pub fn add_tiered_pricing(deps: DepsMut) -> Result<(), EcashContractError> {
     let pool_counters: Item<PoolCounters> = Item::new("pool_counters");
 
     // all the deposits made so far were performed with the default price
-
-    // `deposit_id_counter` stores the *next* available deposit id, which equals the total
-    // number of deposits made (first deposit gets id=0, counter becomes 1, and so on).
-    let deposits_performed = deposits
-        .deposit_id_counter
-        .may_load(deps.storage)?
-        .unwrap_or(0);
-
+    let deposits_performed = deposits.total_deposits_made(deps.storage)?;
     let deposits_amounts = pool_counters.load(deps.storage)?.total_deposited;
 
     deposits_stats
@@ -47,10 +40,7 @@ mod tests {
 
     const DENOM: &str = "unym";
 
-    fn save_pool_counters(
-        storage: &mut dyn cosmwasm_std::Storage,
-        total_deposited: u128,
-    ) {
+    fn save_pool_counters(storage: &mut dyn cosmwasm_std::Storage, total_deposited: u128) {
         let pool_counters: Item<PoolCounters> = Item::new("pool_counters");
         pool_counters
             .save(

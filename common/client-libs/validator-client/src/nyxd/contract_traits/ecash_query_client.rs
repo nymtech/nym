@@ -8,6 +8,7 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmwasm_std::Coin;
 use nym_ecash_contract_common::deposit::LatestDepositResponse;
+use nym_ecash_contract_common::deposit_statistics::DepositsStatistics;
 use nym_ecash_contract_common::msg::QueryMsg as EcashQueryMsg;
 use serde::Deserialize;
 
@@ -78,6 +79,11 @@ pub trait EcashQueryClient {
         self.query_ecash_contract(EcashQueryMsg::GetDepositsPaged { start_after, limit })
             .await
     }
+
+    async fn get_deposits_statistics(&self) -> Result<DepositsStatistics, NyxdError> {
+        self.query_ecash_contract(EcashQueryMsg::GetDepositsStatistics {})
+            .await
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -145,6 +151,7 @@ mod tests {
                 client.get_all_whitelisted_accounts().ignore()
             }
             EcashQueryMsg::GetLatestDeposit {} => client.get_latest_deposit().ignore(),
+            EcashQueryMsg::GetDepositsStatistics {} => client.get_deposits_statistics().ignore(),
         };
     }
 }

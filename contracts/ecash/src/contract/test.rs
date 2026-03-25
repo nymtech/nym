@@ -396,4 +396,27 @@ mod tests {
 
         Ok(())
     }
+
+    // --- get_deposits_statistics ---
+
+    #[test]
+    fn get_deposits_statistics_returns_zeroes_after_init() -> anyhow::Result<()> {
+        let test = TestSetup::init();
+
+        let stats = CONTRACT.get_deposits_statistics(test.query_ctx())?;
+
+        assert_eq!(stats.total_deposits_made, 0);
+        assert_eq!(stats.total_deposited, coin(0, TEST_DENOM));
+        assert_eq!(stats.total_deposits_made_with_default_price, 0);
+        assert_eq!(stats.total_deposited_with_default_price, coin(0, TEST_DENOM));
+        assert_eq!(stats.total_deposits_made_with_custom_price, 0);
+        assert_eq!(
+            stats.total_deposited_with_custom_price,
+            coin(0, TEST_DENOM)
+        );
+        assert!(stats.deposits_made_with_custom_price.is_empty());
+        assert!(stats.deposited_with_custom_price.is_empty());
+
+        Ok(())
+    }
 }

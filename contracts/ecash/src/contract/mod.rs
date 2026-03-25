@@ -18,6 +18,7 @@ use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, Blacklisting, PagedBlacklistedAccountResponse,
 };
 use nym_ecash_contract_common::counters::PoolCounters;
+use nym_ecash_contract_common::deposit_statistics::DepositsStatistics;
 use nym_ecash_contract_common::deposit::{
     DepositData, DepositResponse, LatestDepositResponse, PagedDepositsResponse,
 };
@@ -276,6 +277,38 @@ impl NymEcashContract {
         Ok(PagedDepositsResponse {
             deposits,
             start_next_after,
+        })
+    }
+
+    #[sv::msg(query)]
+    pub fn get_deposits_statistics(
+        &self,
+        ctx: QueryCtx,
+    ) -> Result<DepositsStatistics, EcashContractError> {
+        let storage = ctx.deps.storage;
+        let denom = &self.config.load(storage)?.deposit_amount.denom;
+
+        let total_deposits_made = self.deposits.total_deposits_made(storage)?;
+        let total_deposited = self.pool_counters.load(storage)?.total_deposited;
+
+        let total_deposits_made_with_default_price = self
+            .deposit_stats
+            .get_total_deposits_made_with_default_price(storage)?;
+        let total_deposited_with_default_price = self
+            .deposit_stats
+            .get_total_deposited_with_default_price(storage, denom)?;
+
+        let custom = self.deposit_stats.get_custom_price_deposits(storage, denom)?;
+
+        Ok(DepositsStatistics {
+            total_deposits_made,
+            total_deposited,
+            total_deposits_made_with_default_price,
+            total_deposited_with_default_price,
+            total_deposits_made_with_custom_price: custom.total_count,
+            total_deposited_with_custom_price: custom.total_amount,
+            deposits_made_with_custom_price: custom.per_account_count,
+            deposited_with_custom_price: custom.per_account_amount,
         })
     }
 

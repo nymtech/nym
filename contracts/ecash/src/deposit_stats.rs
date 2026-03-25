@@ -1,9 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use cosmwasm_std::{Addr, Coin, StdResult, Storage};
+use cosmwasm_std::{coin, Addr, Coin, Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use nym_ecash_contract_common::EcashContractError;
+use std::collections::HashMap;
 
 pub(crate) struct DepositStatsStorage {
     /// Total deposits performed with the default price
@@ -71,6 +72,70 @@ impl DepositStatsStorage {
 
         Ok(())
     }
+
+    pub(crate) fn get_total_deposits_made_with_default_price(
+        &self,
+        store: &dyn Storage,
+    ) -> StdResult<u32> {
+        Ok(self
+            .deposits_with_default_price
+            .may_load(store)?
+            .unwrap_or(0))
+    }
+
+    pub(crate) fn get_total_deposited_with_default_price(
+        &self,
+        store: &dyn Storage,
+        denom: &str,
+    ) -> StdResult<Coin> {
+        Ok(self
+            .deposits_with_default_price_amounts
+            .may_load(store)?
+            .unwrap_or_else(|| coin(0, denom)))
+    }
+
+    pub(crate) fn get_custom_price_deposits(
+        &self,
+        store: &dyn Storage,
+        denom: &str,
+    ) -> StdResult<CustomPriceDepositStats> {
+        let mut total_count = 0;
+        let mut total_amount = coin(0, denom);
+        let mut per_account_count = HashMap::new();
+        let mut per_account_amount = HashMap::new();
+
+        for item in self
+            .deposits_with_custom_price
+            .range(store, None, None, Order::Ascending)
+        {
+            let (addr, count) = item?;
+            total_count += count;
+            per_account_count.insert(addr, count);
+        }
+
+        for item in
+            self.deposits_with_custom_price_amounts
+                .range(store, None, None, Order::Ascending)
+        {
+            let (addr, amount) = item?;
+            total_amount.amount += amount.amount;
+            per_account_amount.insert(addr, amount);
+        }
+
+        Ok(CustomPriceDepositStats {
+            total_count,
+            total_amount,
+            per_account_count,
+            per_account_amount,
+        })
+    }
+}
+
+pub(crate) struct CustomPriceDepositStats {
+    pub(crate) total_count: u32,
+    pub(crate) total_amount: Coin,
+    pub(crate) per_account_count: HashMap<Addr, u32>,
+    pub(crate) per_account_amount: HashMap<Addr, Coin>,
 }
 
 #[cfg(test)]
@@ -87,10 +152,7 @@ mod tests {
     /// The custom-price Maps need no initialisation (they start empty).
     fn init_stats(storage: &mut dyn Storage) -> DepositStatsStorage {
         let stats = DepositStatsStorage::new();
-        stats
-            .deposits_with_default_price
-            .save(storage, &0)
-            .unwrap();
+        stats.deposits_with_default_price.save(storage, &0).unwrap();
         stats
             .deposits_with_default_price_amounts
             .save(storage, &coin(0, DENOM))
@@ -157,11 +219,7 @@ mod tests {
         let alice = deps.api.addr_make("alice");
 
         stats
-            .new_reduced_deposit(
-                deps.as_mut().storage,
-                &alice,
-                &coin(REDUCED_AMOUNT, DENOM),
-            )
+            .new_reduced_deposit(deps.as_mut().storage, &alice, &coin(REDUCED_AMOUNT, DENOM))
             .unwrap();
 
         assert_eq!(
@@ -196,11 +254,7 @@ mod tests {
 
         for _ in 0..4 {
             stats
-                .new_reduced_deposit(
-                    deps.as_mut().storage,
-                    &alice,
-                    &coin(REDUCED_AMOUNT, DENOM),
-                )
+                .new_reduced_deposit(deps.as_mut().storage, &alice, &coin(REDUCED_AMOUNT, DENOM))
                 .unwrap();
         }
 

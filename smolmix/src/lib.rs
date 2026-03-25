@@ -9,7 +9,7 @@ mod error;
 mod tunnel;
 
 pub use error::SmolmixError;
-pub use tunnel::{NetworkEnvironment, TcpStream, Tunnel, UdpSocket};
+pub use tunnel::{IpPair, NetworkEnvironment, Recipient, TcpStream, Tunnel, UdpSocket};
 
 /// Initialise the default tracing/logging subscriber.
 pub fn init_logging() {

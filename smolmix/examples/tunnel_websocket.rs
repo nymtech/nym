@@ -47,12 +47,15 @@ async fn main() -> Result<(), BoxError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    // Resolve hostname via clearnet DNS (smolmix-dns will handle this later).
+    // WARNING: This resolves the hostname via clearnet DNS, leaking the target
+    // to a local observer. In production, resolve DNS through the tunnel itself
+    // (see tunnel_dns.rs) or use smolmix-dns when available. We use clearnet
+    // here only because this example needs a known IP before the tunnel is up.
     let addr = tokio::net::lookup_host(format!("{WS_HOST}:443"))
         .await?
         .next()
         .ok_or("DNS resolution failed")?;
-    info!("Resolved {WS_HOST} -> {addr}");
+    info!("Resolved {WS_HOST} -> {addr} (via clearnet DNS)");
 
     let connector = tls_connector();
     let domain = ServerName::try_from(WS_HOST)?.to_owned();

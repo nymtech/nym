@@ -90,12 +90,10 @@ mod tests {
         let res = CONTRACT.get_deposit(test.query_ctx(), 42)?;
         assert!(res.deposit.is_none());
 
-        let deposit_id = CONTRACT
-            .deposits
-            .save_deposit(
-                test.deps.as_mut().storage,
-                "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
-            )?;
+        let deposit_id = CONTRACT.deposits.save_deposit(
+            test.deps.as_mut().storage,
+            "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
+        )?;
 
         // deposit exists
         let res = CONTRACT.get_deposit(test.query_ctx(), deposit_id)?;
@@ -124,8 +122,7 @@ mod tests {
         let test = TestSetup::init();
         let unknown = test.deps.api.addr_make("unknown");
 
-        let amount =
-            CONTRACT.get_reduced_deposit_amount(test.query_ctx(), unknown.to_string())?;
+        let amount = CONTRACT.get_reduced_deposit_amount(test.query_ctx(), unknown.to_string())?;
 
         assert!(amount.is_none());
 
@@ -142,8 +139,7 @@ mod tests {
             .reduced_deposits
             .save(test.deps.as_mut().storage, addr.clone(), &reduced)?;
 
-        let amount =
-            CONTRACT.get_reduced_deposit_amount(test.query_ctx(), addr.to_string())?;
+        let amount = CONTRACT.get_reduced_deposit_amount(test.query_ctx(), addr.to_string())?;
 
         assert_eq!(amount, Some(reduced));
 
@@ -322,8 +318,7 @@ mod tests {
             reduced.clone(),
         )?;
 
-        let stored =
-            CONTRACT.get_reduced_deposit_amount(test.query_ctx(), addr.to_string())?;
+        let stored = CONTRACT.get_reduced_deposit_amount(test.query_ctx(), addr.to_string())?;
 
         assert_eq!(stored, Some(reduced));
 
@@ -349,8 +344,7 @@ mod tests {
             coin(5_000_000, TEST_DENOM),
         )?;
 
-        let stored =
-            CONTRACT.get_reduced_deposit_amount(test.query_ctx(), addr.to_string())?;
+        let stored = CONTRACT.get_reduced_deposit_amount(test.query_ctx(), addr.to_string())?;
 
         assert_eq!(stored, Some(coin(5_000_000, TEST_DENOM)));
 
@@ -430,19 +424,18 @@ mod tests {
         assert_eq!(stats.total_deposits_made, 0);
         assert_eq!(stats.total_deposited, coin(0, TEST_DENOM));
         assert_eq!(stats.total_deposits_made_with_default_price, 0);
-        assert_eq!(stats.total_deposited_with_default_price, coin(0, TEST_DENOM));
-        assert_eq!(stats.total_deposits_made_with_custom_price, 0);
         assert_eq!(
-            stats.total_deposited_with_custom_price,
+            stats.total_deposited_with_default_price,
             coin(0, TEST_DENOM)
         );
+        assert_eq!(stats.total_deposits_made_with_custom_price, 0);
+        assert_eq!(stats.total_deposited_with_custom_price, coin(0, TEST_DENOM));
         assert!(stats.deposits_made_with_custom_price.is_empty());
         assert!(stats.deposited_with_custom_price.is_empty());
 
-        CONTRACT.deposit_stats.assert_counts_consistent(
-            test.deps.as_ref().storage,
-            stats.total_deposits_made,
-        );
+        CONTRACT
+            .deposit_stats
+            .assert_counts_consistent(test.deps.as_ref().storage, stats.total_deposits_made);
 
         Ok(())
     }
@@ -482,13 +475,14 @@ mod tests {
             "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
         )?;
 
-        let total = CONTRACT.deposits.total_deposits_made(test.deps.as_ref().storage)?;
+        let total = CONTRACT
+            .deposits
+            .total_deposits_made(test.deps.as_ref().storage)?;
         assert_eq!(total, 3);
 
-        CONTRACT.deposit_stats.assert_counts_consistent(
-            test.deps.as_ref().storage,
-            total,
-        );
+        CONTRACT
+            .deposit_stats
+            .assert_counts_consistent(test.deps.as_ref().storage, total);
 
         Ok(())
     }

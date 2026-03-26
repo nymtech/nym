@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
-import PortsNymNode from 'components/operators/snippets/ports-nym-node.mdx';
+import TabsPortsNymNode from 'components/operators/snippets/tabs-ports-nym-node.mdx';
 import PortsValidator from 'components/operators/snippets/ports-validator.mdx';
 import NymNodeSpecs from 'components/operators/snippets/nym-node-specs.mdx';
 import NTPSync from 'components/operators/snippets/ntp-time-sync.mdx'
@@ -54,43 +54,19 @@ apt install ufw --fix-missing
 
 <NTPSync />
 
-###### 3. Configure your firewall using Uncomplicated Firewall (UFW)
+###### 3. Configure your firewall
 
-For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on the server. The following commands will allow you to set up a firewall using `ufw`.
-
-- Check if you have `ufw` installed:
-```sh
-ufw version
-```
-- If it's not installed, install with:
-```sh
-apt install ufw -y
-```
-- Enable ufw
-```sh
-ufw enable
-```
-- Check the status of the firewall
-```sh
-ufw status
-```
-
-###### 4. Open all needed ports to have your firewall for `nym-node` working correctly
+For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on the server.
 
 <div>
   <Tabs items={[
     <code>nym-node</code>,
     <code>validator</code>,
     ]} defaultIndex="0">
-    <MyTab><PortsNymNode/></MyTab>
+    <MyTab><TabsPortsNymNode/></MyTab>
     <MyTab><PortsValidator/></MyTab>
   </Tabs>
 </div>
-
-- Re-check the status of the firewall:
-```sh
-ufw status
-```
 
 </Steps>
 

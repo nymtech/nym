@@ -28,7 +28,7 @@ cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
 cw-utils = { workspace = true }
-semver = { workspace = true }
+semver = { workspace = true, default-features = false }
 
 nym-ecash-contract-common = { workspace = true }
 nym-contracts-common = { workspace = true }

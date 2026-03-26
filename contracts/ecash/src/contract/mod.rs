@@ -6,15 +6,14 @@ use crate::contract::helpers::Invariants;
 use crate::deposit::DepositStorage;
 use crate::deposit_stats::DepositStatsStorage;
 use crate::helpers::{
-    BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT, BlacklistKey, CONTRACT_NAME,
-    CONTRACT_VERSION, Config, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT, MultisigReply,
+    BlacklistKey, Config, MultisigReply, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
+    CONTRACT_NAME, CONTRACT_VERSION, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT,
 };
-use cosmwasm_std::{Addr, Coin, DepsMut, Event, Order, Reply, Response, StdResult, coin};
+use cosmwasm_std::{coin, Addr, Coin, DepsMut, Event, Order, Reply, Response, StdResult};
+use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
-use cw4::Cw4Contract;
 use nym_contracts_common::set_build_information;
-use nym_ecash_contract_common::EcashContractError;
 use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, Blacklisting, PagedBlacklistedAccountResponse,
 };
@@ -24,10 +23,11 @@ use nym_ecash_contract_common::deposit::{
 };
 use nym_ecash_contract_common::deposit_statistics::DepositsStatistics;
 use nym_ecash_contract_common::events::{
-    DEPOSIT_ID, DEPOSITED_FUNDS_EVENT_TYPE, PROPOSAL_ID_ATTRIBUTE_NAME,
+    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ID, PROPOSAL_ID_ATTRIBUTE_NAME,
 };
 use nym_ecash_contract_common::msg::WhitelistedDeposit;
 use nym_ecash_contract_common::reduced_deposit::{WhitelistedAccount, WhitelistedAccountsResponse};
+use nym_ecash_contract_common::EcashContractError;
 use nym_network_defaults::TICKETBOOK_SIZE;
 use sylvia::ctx::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx};
 use sylvia::{contract, entry_points};
@@ -332,6 +332,7 @@ impl NymEcashContract {
             .may_load(ctx.deps.storage, ctx.info.sender.clone())?;
 
         let submitted = cw_utils::must_pay(&ctx.info, &default_deposit.denom)?;
+        let mut funds = ctx.info.funds;
 
         // Whitelisted accounts may deposit at either their reduced price or the
         // default price. If the default price is sent, the deposit is treated as
@@ -339,22 +340,30 @@ impl NymEcashContract {
         if submitted == default_deposit.amount {
             self.deposit_stats
                 .new_default_deposit(ctx.deps.storage, &default_deposit)?;
-        } else if let Some(reduced_deposit) = reduced_deposit.as_ref()
-            && reduced_deposit.amount == submitted
-        {
-            self.deposit_stats.new_reduced_deposit(
-                ctx.deps.storage,
-                &ctx.info.sender,
-                reduced_deposit,
-            )?;
+        } else if let Some(reduced_deposit) = reduced_deposit.as_ref() {
+            // can't do if let chaining due to outdated rustc used for building contracts
+            if reduced_deposit.amount == submitted {
+                self.deposit_stats.new_reduced_deposit(
+                    ctx.deps.storage,
+                    &ctx.info.sender,
+                    reduced_deposit,
+                )?;
+            } else {
+                // we are allowed to send reduced amounts, but we sent the wrong amount
+                return Err(EcashContractError::WrongAmount {
+                    // SAFETY: the call to `must_pay` ensured a single coin has been sent
+                    #[allow(clippy::unwrap_used)]
+                    received: funds.pop().unwrap(),
+                    amount: reduced_deposit.clone(),
+                });
+            }
         } else {
-            // we didn't send either default or reduced
-            let mut funds = ctx.info.funds;
+            // we sent wrong amount of tokens
             return Err(EcashContractError::WrongAmount {
                 // SAFETY: the call to `must_pay` ensured a single coin has been sent
                 #[allow(clippy::unwrap_used)]
                 received: funds.pop().unwrap(),
-                amount: reduced_deposit.unwrap_or(default_deposit),
+                amount: default_deposit,
             });
         };
 

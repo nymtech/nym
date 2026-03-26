@@ -217,6 +217,11 @@ fn create_ip_packet_response(
         ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
         ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
         ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
+        ClientVersion::V9 => {
+            let mut resp = IpPacketResponseV8::new_ip_packet(packets);
+            resp.version = client_version.into_u8();
+            resp.to_bytes()
+        }
     }
 }
 

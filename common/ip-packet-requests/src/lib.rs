@@ -10,6 +10,7 @@ pub mod sign;
 pub mod v6;
 pub mod v7;
 pub mod v8;
+pub mod v9;
 
 // version 3: initial version
 // version 4: IPv6 support
@@ -17,6 +18,7 @@ pub mod v8;
 // version 6: Increase the available IPs
 // version 7: Add signature support (for the future)
 // version 8: Anonymous sends
+// version 9: LP-framed transport (SphinxStream)
 // response_helpers: shared IPR response parsing (nym-ip-packet-client + nym-sdk)
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

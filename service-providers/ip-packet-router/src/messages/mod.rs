@@ -9,6 +9,7 @@ pub(crate) enum ClientVersion {
     V6,
     V7,
     V8,
+    V9,
 }
 
 impl ClientVersion {
@@ -17,6 +18,7 @@ impl ClientVersion {
             ClientVersion::V6 => 6,
             ClientVersion::V7 => 7,
             ClientVersion::V8 => 8,
+            ClientVersion::V9 => 9,
         }
     }
 }

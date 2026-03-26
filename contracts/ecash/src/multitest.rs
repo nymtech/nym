@@ -211,15 +211,24 @@ fn reduced_price_deposit_end_to_end() {
         .call(&whitelisted)
         .unwrap();
 
-    // whitelisted address is rejected when sending the default amount
+    // whitelisted address can also deposit at the default price —
+    // treated as a normal (non-reduced) deposit for statistics purposes
+    contract
+        .deposit_ticket_book_funds(vk.to_string())
+        .with_funds(&[coin(DEPOSIT_AMOUNT, DENOM)])
+        .call(&whitelisted)
+        .unwrap();
+
+    // whitelisted address is rejected when sending an amount that is
+    // neither the reduced nor the default price
     assert_eq!(
         contract
             .deposit_ticket_book_funds(vk.to_string())
-            .with_funds(&[coin(DEPOSIT_AMOUNT, DENOM)])
+            .with_funds(&[coin(50_000_000, DENOM)])
             .call(&whitelisted)
             .unwrap_err(),
         EcashContractError::WrongAmount {
-            received: coin(DEPOSIT_AMOUNT, DENOM),
+            received: coin(50_000_000, DENOM),
             amount: coin(reduced_amount, DENOM),
         }
     );
@@ -245,15 +254,16 @@ fn reduced_price_deposit_end_to_end() {
         .unwrap();
 
     let stats = contract.get_deposits_statistics().unwrap();
-    assert_eq!(stats.total_deposits_made, 2);
+    assert_eq!(stats.total_deposits_made, 3);
     assert_eq!(
         stats.total_deposited,
-        coin(reduced_amount + DEPOSIT_AMOUNT, DENOM)
+        coin(reduced_amount + DEPOSIT_AMOUNT * 2, DENOM)
     );
-    assert_eq!(stats.total_deposits_made_with_default_price, 1);
+    // whitelisted depositing at default price + non-whitelisted = 2 default deposits
+    assert_eq!(stats.total_deposits_made_with_default_price, 2);
     assert_eq!(
         stats.total_deposited_with_default_price,
-        coin(DEPOSIT_AMOUNT, DENOM)
+        coin(DEPOSIT_AMOUNT * 2, DENOM)
     );
     assert_eq!(stats.total_deposits_made_with_custom_price, 1);
     assert_eq!(

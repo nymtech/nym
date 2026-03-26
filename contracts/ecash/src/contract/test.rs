@@ -468,8 +468,15 @@ mod tests {
             "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
         )?;
 
-        // alice deposits again
+        // alice deposits again at reduced price
         let alice_info = message_info(&alice, &[coin(10_000_000, TEST_DENOM)]);
+        CONTRACT.deposit_ticket_book_funds(
+            test.exec_ctx(alice_info),
+            "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
+        )?;
+
+        // alice deposits at the default price — should be treated as a normal deposit
+        let alice_info = message_info(&alice, &[coin(75_000_000, TEST_DENOM)]);
         CONTRACT.deposit_ticket_book_funds(
             test.exec_ctx(alice_info),
             "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
@@ -478,7 +485,7 @@ mod tests {
         let total = CONTRACT
             .deposits
             .total_deposits_made(test.deps.as_ref().storage)?;
-        assert_eq!(total, 3);
+        assert_eq!(total, 4);
 
         CONTRACT
             .deposit_stats

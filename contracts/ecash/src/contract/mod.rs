@@ -6,14 +6,15 @@ use crate::contract::helpers::Invariants;
 use crate::deposit::DepositStorage;
 use crate::deposit_stats::DepositStatsStorage;
 use crate::helpers::{
-    BlacklistKey, Config, MultisigReply, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
-    CONTRACT_NAME, CONTRACT_VERSION, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT,
+    BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT, BlacklistKey, CONTRACT_NAME,
+    CONTRACT_VERSION, Config, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT, MultisigReply,
 };
-use cosmwasm_std::{coin, Addr, Coin, DepsMut, Event, Order, Reply, Response, StdResult};
-use cw4::Cw4Contract;
+use cosmwasm_std::{Addr, Coin, DepsMut, Event, Order, Reply, Response, StdResult, coin};
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
+use cw4::Cw4Contract;
 use nym_contracts_common::set_build_information;
+use nym_ecash_contract_common::EcashContractError;
 use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, Blacklisting, PagedBlacklistedAccountResponse,
 };
@@ -23,11 +24,10 @@ use nym_ecash_contract_common::deposit::{
 };
 use nym_ecash_contract_common::deposit_statistics::DepositsStatistics;
 use nym_ecash_contract_common::events::{
-    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ID, PROPOSAL_ID_ATTRIBUTE_NAME,
+    DEPOSIT_ID, DEPOSITED_FUNDS_EVENT_TYPE, PROPOSAL_ID_ATTRIBUTE_NAME,
 };
 use nym_ecash_contract_common::msg::WhitelistedDeposit;
 use nym_ecash_contract_common::reduced_deposit::{WhitelistedAccount, WhitelistedAccountsResponse};
-use nym_ecash_contract_common::EcashContractError;
 use nym_network_defaults::TICKETBOOK_SIZE;
 use sylvia::ctx::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx};
 use sylvia::{contract, entry_points};
@@ -326,30 +326,37 @@ impl NymEcashContract {
         ctx: ExecCtx,
         identity_key: String,
     ) -> Result<Response, EcashContractError> {
-        // if the sender is in the reduced deposit map, require that amount
-        // otherwise fallback to the default
-        let (required_deposit, is_reduced) = if let Some(reduced) = self
+        let default_deposit = self.config.load(ctx.deps.storage)?.deposit_amount;
+        let reduced_deposit = self
             .reduced_deposits
-            .may_load(ctx.deps.storage, ctx.info.sender.clone())?
+            .may_load(ctx.deps.storage, ctx.info.sender.clone())?;
+
+        let submitted = cw_utils::must_pay(&ctx.info, &default_deposit.denom)?;
+
+        // Whitelisted accounts may deposit at either their reduced price or the
+        // default price. If the default price is sent, the deposit is treated as
+        // a regular (non-reduced) deposit for statistics purposes.
+        if submitted == default_deposit.amount {
+            self.deposit_stats
+                .new_default_deposit(ctx.deps.storage, &default_deposit)?;
+        } else if let Some(reduced_deposit) = reduced_deposit.as_ref()
+            && reduced_deposit.amount == submitted
         {
-            (reduced, true)
+            self.deposit_stats.new_reduced_deposit(
+                ctx.deps.storage,
+                &ctx.info.sender,
+                reduced_deposit,
+            )?;
         } else {
-            (self.config.load(ctx.deps.storage)?.deposit_amount, false)
-        };
-
-        let submitted = cw_utils::must_pay(&ctx.info, &required_deposit.denom)?;
-
-        if submitted != required_deposit.amount {
+            // we didn't send either default or reduced
             let mut funds = ctx.info.funds;
             return Err(EcashContractError::WrongAmount {
                 // SAFETY: the call to `must_pay` ensured a single coin has been sent
                 #[allow(clippy::unwrap_used)]
                 received: funds.pop().unwrap(),
-                amount: required_deposit,
+                amount: reduced_deposit.unwrap_or(default_deposit),
             });
-        }
-
-        // update running stats
+        };
 
         // global total needed when migrating to the nym pool contract
         self.pool_counters
@@ -357,18 +364,6 @@ impl NymEcashContract {
                 counters.total_deposited.amount += submitted;
                 Ok(counters)
             })?;
-
-        // per-price stats
-        if is_reduced {
-            self.deposit_stats.new_reduced_deposit(
-                ctx.deps.storage,
-                &ctx.info.sender,
-                &required_deposit,
-            )?;
-        } else {
-            self.deposit_stats
-                .new_default_deposit(ctx.deps.storage, &required_deposit)?;
-        }
 
         let deposit_id = self.deposits.save_deposit(ctx.deps.storage, identity_key)?;
 

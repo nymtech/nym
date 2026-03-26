@@ -39,8 +39,12 @@ nym-network-defaults = { workspace = true, default-features = false }
 anyhow = { workspace = true }
 sylvia = { workspace = true, features = ["mt"] }
 nym-crypto = { workspace = true, features = ["rand", "asymmetric"] }
-rand_chacha = "0.3"
 cw-multi-test = { workspace = true }
+nym-contracts-common-testing = { workspace = true }
+
 
 [features]
 schema-gen = ["nym-ecash-contract-common/schema"]
+
+[lints]
+workspace = true

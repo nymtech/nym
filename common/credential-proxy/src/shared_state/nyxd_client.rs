@@ -6,7 +6,7 @@ use crate::helpers::LockTimer;
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
-use nym_validator_client::nyxd::{Coin, Config, CosmWasmClient, NyxdClient};
+use nym_validator_client::nyxd::{AccountId, Coin, Config, CosmWasmClient, NyxdClient};
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, nyxd};
 use std::ops::Deref;
 use std::sync::Arc;
@@ -48,6 +48,10 @@ impl ChainClient {
         }
 
         Ok(ChainClient(Arc::new(RwLock::new(client))))
+    }
+
+    pub async fn address(&self) -> AccountId {
+        self.0.read().await.address()
     }
 
     pub async fn query_chain(&self) -> ChainReadPermit<'_> {

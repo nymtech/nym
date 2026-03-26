@@ -65,4 +65,26 @@ pub enum EcashContractError {
 
     #[error("the account blacklisting hasn't been fully implemented yet")]
     UnimplementedBlacklisting,
+
+    #[error("reduced deposit must use the same denom as the default deposit (expected '{expected}', got '{got}')")]
+    InvalidReducedDepositDenom { expected: String, got: String },
+
+    #[error(
+        "reduced deposit amount ({reduced}) must be strictly less than the default ({default})"
+    )]
+    ReducedDepositNotReduced {
+        reduced: cosmwasm_std::Uint128,
+        default: cosmwasm_std::Uint128,
+    },
+
+    #[error("address '{address}' does not have a custom reduced deposit price set")]
+    NoReducedDepositPrice { address: String },
+
+    #[error(
+        "deposit amount ({amount}) must be at least the ticket book size ({ticket_book_size})"
+    )]
+    DepositBelowTicketBookSize {
+        amount: cosmwasm_std::Uint128,
+        ticket_book_size: u64,
+    },
 }

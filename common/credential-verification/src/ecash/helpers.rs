@@ -7,7 +7,7 @@ use std::future::Future;
 use std::ops::Deref;
 use tokio::sync::RwLockReadGuard;
 
-pub(crate) fn apis_stream<'a>(
+pub fn apis_stream<'a>(
     // if needed we could make this argument more generic to accept either locks or iterators, etc.
     all_clients: &'a RwLockReadGuard<'a, Vec<EcashApiClient>>,
     filter_by_id: &'a [u64],
@@ -22,7 +22,7 @@ pub(crate) fn apis_stream<'a>(
     )
 }
 
-pub(crate) async fn for_each_api_concurrent<'a, F, Fut>(
+pub async fn for_each_api_concurrent<'a, F, Fut>(
     all_clients: &'a RwLockReadGuard<'a, Vec<EcashApiClient>>,
     filter_by_id: &'a [u64],
     f: F,

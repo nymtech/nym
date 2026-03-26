@@ -34,7 +34,7 @@ where
     let signing_key = ed25519::PrivateKey::new(&mut rng);
     let expiration = expiration.unwrap_or_else(ecash_default_expiration_date);
 
-    let deposit_amount = client.get_required_deposit_amount().await?;
+    let deposit_amount = client.get_default_deposit_amount().await?;
     info!("we'll need to deposit {deposit_amount} to obtain the ticketbook");
     let result = client
         .make_ticketbook_deposit(

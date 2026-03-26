@@ -55,10 +55,44 @@
     {
       "type": "object",
       "required": [
-        "get_required_deposit_amount"
+        "get_default_deposit_amount"
       ],
       "properties": {
-        "get_required_deposit_amount": {
+        "get_default_deposit_amount": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_reduced_deposit_amount"
+      ],
+      "properties": {
+        "get_reduced_deposit_amount": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_all_whitelisted_accounts"
+      ],
+      "properties": {
+        "get_all_whitelisted_accounts": {
           "type": "object",
           "additionalProperties": false
         }
@@ -127,6 +161,19 @@
               "minimum": 0.0
             }
           },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_deposits_statistics"
+      ],
+      "properties": {
+        "get_deposits_statistics": {
+          "type": "object",
           "additionalProperties": false
         }
       },

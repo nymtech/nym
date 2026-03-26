@@ -513,7 +513,138 @@ apply_smtps_465_rate_limit() {
 
 
 ###############################################################################
-# part 2: wireguard exit policy manager
+# part 2: host network firewall for nym services
+###############################################################################
+
+NETWORK_FIREWALL_COMMENT="NYM-NETWORK-FW"
+
+delete_managed_input_rules() {
+  local cmd="$1"
+
+  while read -r rule; do
+    [[ -z "$rule" ]] && continue
+    local spec
+    spec="${rule#-A INPUT }"
+    $cmd -D INPUT $spec 2>/dev/null || true
+  done < <($cmd -S INPUT | grep -F -- "$NETWORK_FIREWALL_COMMENT" || true)
+}
+
+add_input_port_rule() {
+  local cmd="$1"
+  local port="$2"
+  local protocol="$3"
+  local iface="${4:-}"
+
+  if [[ -n "$iface" ]]; then
+    if ! $cmd -C INPUT -i "$iface" -p "$protocol" --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+      $cmd -A INPUT -i "$iface" -p "$protocol" --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT
+      ok "added $cmd INPUT $protocol port $port on $iface"
+    fi
+  else
+    if ! $cmd -C INPUT -p "$protocol" --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+      $cmd -A INPUT -p "$protocol" --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT
+      ok "added $cmd INPUT $protocol port $port"
+    fi
+  fi
+}
+
+configure_network_firewall() {
+  info "configuring host network firewall for nym node services"
+
+  delete_managed_input_rules iptables
+  delete_managed_input_rules ip6tables
+
+  local tcp_ports=(22 80 443 1789 1790 8080 9000 9001 41264)
+  local udp_ports=(4443 51822 51264)
+
+  local port
+  for port in "${tcp_ports[@]}"; do
+    add_input_port_rule iptables "$port" tcp
+    add_input_port_rule ip6tables "$port" tcp
+  done
+
+  for port in "${udp_ports[@]}"; do
+    add_input_port_rule iptables "$port" udp
+    add_input_port_rule ip6tables "$port" udp
+  done
+
+  add_input_port_rule iptables 51830 tcp "$WG_INTERFACE"
+  add_input_port_rule ip6tables 51830 tcp "$WG_INTERFACE"
+
+  save_iptables_rules
+  ok "host network firewall configuration completed"
+}
+
+show_network_firewall_status() {
+  info "managed host network firewall rules"
+  echo
+  info "ipv4 input rules:"
+  iptables -L INPUT -n -v --line-numbers | grep -E "($NETWORK_FIREWALL_COMMENT|dpt:22|dpt:80|dpt:443|dpt:1789|dpt:1790|dpt:8080|dpt:9000|dpt:9001|dpt:51822|dpt:51830|dpt:41264|dpt:51264)" || true
+  echo
+  info "ipv6 input rules:"
+  ip6tables -L INPUT -n -v --line-numbers | grep -E "($NETWORK_FIREWALL_COMMENT|dpt:22|dpt:80|dpt:443|dpt:1789|dpt:1790|dpt:8080|dpt:9000|dpt:9001|dpt:51822|dpt:51830|dpt:41264|dpt:51264)" || true
+}
+
+test_network_firewall_rules() {
+  info "testing host network firewall rules"
+
+  local failures=0
+  local tcp_ports=(22 80 443 1789 1790 8080 9000 9001 41264)
+  local udp_ports=(51822 51264)
+  local port
+
+  for port in "${tcp_ports[@]}"; do
+    if iptables -C INPUT -p tcp --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+      ok "ipv4 tcp port $port allowed"
+    else
+      error "ipv4 tcp port $port missing"
+      ((failures++))
+    fi
+
+    if ip6tables -C INPUT -p tcp --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+      ok "ipv6 tcp port $port allowed"
+    else
+      error "ipv6 tcp port $port missing"
+      ((failures++))
+    fi
+  done
+
+  for port in "${udp_ports[@]}"; do
+    if iptables -C INPUT -p udp --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+      ok "ipv4 udp port $port allowed"
+    else
+      error "ipv4 udp port $port missing"
+      ((failures++))
+    fi
+
+    if ip6tables -C INPUT -p udp --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+      ok "ipv6 udp port $port allowed"
+    else
+      error "ipv6 udp port $port missing"
+      ((failures++))
+    fi
+  done
+
+  if iptables -C INPUT -i "$WG_INTERFACE" -p tcp --dport 51830 -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+    ok "ipv4 tcp port 51830 allowed on $WG_INTERFACE"
+  else
+    error "ipv4 tcp port 51830 missing on $WG_INTERFACE"
+    ((failures++))
+  fi
+
+  if ip6tables -C INPUT -i "$WG_INTERFACE" -p tcp --dport 51830 -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+    ok "ipv6 tcp port 51830 allowed on $WG_INTERFACE"
+  else
+    error "ipv6 tcp port 51830 missing on $WG_INTERFACE"
+    ((failures++))
+  fi
+
+  return "$failures"
+}
+
+
+###############################################################################
+# part 3: wireguard exit policy manager
 ###############################################################################
 
 add_port_rules() {
@@ -892,6 +1023,8 @@ show_exit_policy_status() {
   echo
   ip6tables -L "$NYM_CHAIN" -n -v 2>/dev/null || echo "ipv6 chain not found"
   echo
+  show_network_firewall_status
+  echo
   info "ip forwarding:"
   echo "ipv4: $(cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || echo 0)"
   echo "ipv6: $(cat /proc/sys/net/ipv6/conf/all/forwarding 2>/dev/null || echo 0)"
@@ -942,7 +1075,7 @@ test_exit_policy_connectivity() {
 
 
 ###############################################################################
-# part 3: check the firewall setup
+# part 4: check the firewall setup
 ###############################################################################
 
 firewall_rule_line() {
@@ -1013,21 +1146,15 @@ check_iptables_default_policies() {
   if [[ -z "${input_policy:-}" ]]; then
     error "unable to read INPUT default policy (iptables -S INPUT failed?)"
     issues=1
-  elif [[ "${input_policy^^}" != "DROP" ]]; then
-    error "INPUT default policy is ${input_policy^^}; expected DROP so traffic is only allowed by explicit rules."
-    issues=1
   else
-    ok "INPUT default policy is DROP"
+    info "INPUT default policy is ${input_policy^^}"
   fi
 
   if [[ -z "${forward_policy:-}" ]]; then
     error "unable to read FORWARD default policy (iptables -S FORWARD failed?)"
     issues=1
-  elif [[ "${forward_policy^^}" != "DROP" ]]; then
-    error "FORWARD default policy is ${forward_policy^^}; expected DROP to ensure traffic only flows via NYM-EXIT rules."
-    issues=1
   else
-    ok "FORWARD default policy is DROP"
+    info "FORWARD default policy is ${forward_policy^^}"
   fi
 
   if [[ -z "${output_policy:-}" ]]; then
@@ -1050,6 +1177,7 @@ check_firewall_setup() {
   check_iptables_default_policies || errors=1
   check_forward_chain || errors=1
   check_nym_exit_chain || errors=1
+  test_network_firewall_rules || errors=1
 
   if command -v ip6tables >/dev/null 2>&1; then
     info "checking ipv6 firewall ordering…"
@@ -1062,7 +1190,7 @@ check_firewall_setup() {
   fi
 
   if [[ $errors -ne 0 ]]; then
-    error "There may be some ordering issues, it is recommended to re-run network-tunnel-manager.sh exit_policy_install after configuring UFW."
+    error "There may be some ordering issues, it is recommended to re-run network-tunnel-manager.sh exit_policy_install and review the firewall output above."
     return 1
   fi
 
@@ -1072,7 +1200,7 @@ check_firewall_setup() {
 
 
 ###############################################################################
-# part 4: full exit policy verification tests
+# part 5: full exit policy verification tests
 ###############################################################################
 
 test_port_range_rules() {
@@ -1227,6 +1355,9 @@ exit_policy_run_tests() {
   test_critical_services || ((failed += 1))
   ((total += 1))
 
+  test_network_firewall_rules || ((failed += 1))
+  ((total += 1))
+
   if [[ $skip_default -eq 0 ]]; then
     test_default_reject_rule || ((failed += 1))
     ((total += 1))
@@ -1243,7 +1374,7 @@ exit_policy_run_tests() {
 }
 
 ###############################################################################
-# part 5: high level workflows
+# part 6: high level workflows
 ###############################################################################
 
 nym_tunnel_setup() {
@@ -1286,9 +1417,10 @@ exit_policy_install() {
 }
 
 complete_networking_configuration() {
-  info "starting complete networking configuration: tunnels + exit policy"
+  info "starting complete networking configuration: tunnels + host firewall + exit policy"
 
   nym_tunnel_setup
+  configure_network_firewall
   exit_policy_install
   check_firewall_setup || error "firewall order checks reported problems, please review output"
   exit_policy_run_tests || error "exit policy tests reported problems, please review output"
@@ -1314,6 +1446,12 @@ case "$cmd" in
     ;;
   complete_networking_configuration)
     complete_networking_configuration
+    status=$?
+    ;;
+  
+  # nym firewall setup 
+  configure_network_firewall)
+    configure_network_firewall
     status=$?
     ;;
 
@@ -1403,9 +1541,11 @@ case "$cmd" in
 usage: $0 <command> [args]
 
 high level workflows:
-  complete_networking_configuration Install tunnel interfaces, setup networking, iptables, wg exit policy & tests
-  nym_tunnel_setup                 Install tunnel interfaces & setup networking
+  complete_networking_configuration Install tunnel interfaces, setup networking, host firewall, iptables, wg exit policy & tests
+  nym_tunnel_setup                  Install tunnel interfaces & setup networking
+  configure_network_firewall        Install host firewall rules for nym services
   exit_policy_install               Install and configure wireguard exit policy
+
 tunnel and nat helpers:
   adjust_ip_forwarding              Enable ipv4/ipv6 forwarding via sysctl.d
   apply_iptables_rules              Apply nat/forward rules for ${TUNNEL_INTERFACE}

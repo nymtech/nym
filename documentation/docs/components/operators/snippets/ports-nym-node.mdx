@@ -1,4 +1,4 @@
-Open the needed ports for `nym-node` by running these commands:
+import { Callout } from 'nextra/components';
 
 ```sh
 ufw allow 22/tcp                                  # SSH - you're in control of these ports
@@ -7,8 +7,16 @@ ufw allow 443/tcp                                 # HTTPS
 ufw allow 1789/tcp                                # Nym specific - Mixnet
 ufw allow 1790/tcp                                # Nym specific - Verloc
 ufw allow 8080/tcp                                # Nym specific - nym-node-api
-ufw allow 9000/tcp                                # Nym Specific - clients port
+ufw allow 9000/tcp                                # Nym specific - clients port
 ufw allow 9001/tcp                                # Nym specific - wss port
-ufw allow 51822/udp                               # WireGuard
-ufw allow in on nymwg to any port 51830 proto tcp # bandwidth queries/topup - inside the tunnel
+ufw allow 41264/tcp                               # Nym specific - Lewes Protocol registration
+ufw allow 51264/udp                               # Nym specific - Lewes Protocol data
 ```
+
+<Callout>
+Note that these ports were moved to [NTM](/operators/nodes/preliminary-steps/vps-setup#1-download-the-new-ntm) as they are for Gateways only
+```sh
+# ufw allow 51822/udp                               # WireGuard
+# ufw allow in on nymwg to any port 51830 proto tcp # bandwidth queries/topup - inside the tunnel
+```
+</Callout>

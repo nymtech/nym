@@ -55,7 +55,7 @@ let tag = received_msg.sender_tag.expect("message includes sender tag");
 client.send_reply(tag, "anonymous reply!").await.unwrap();
 ```
 
-The replying side never learns where the reply is going. This is the foundation of anonymous communication on the Mixnet.
+The replying side never learns where the reply is going — anonymous communication without mutual identity disclosure.
 
 ## Open a bidirectional stream
 

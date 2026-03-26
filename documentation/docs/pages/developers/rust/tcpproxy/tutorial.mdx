@@ -3,7 +3,7 @@ title: "TcpProxy Tutorial: Tunnel TCP Through the Mixnet"
 description: "Build a proxy server and client that tunnel TCP traffic through the Nym mixnet using the TcpProxy module. Includes NymProxyServer and NymProxyClient setup."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-03-15"
+lastUpdated: "2026-03-26"
 ---
 
 # Tutorial: Tunnel TCP Through the Mixnet
@@ -16,26 +16,73 @@ The TcpProxy module is **unmaintained**. For new projects, use the [Stream modul
 
 Build two programs — a proxy server that forwards TCP traffic to a local service, and a proxy client that tunnels connections through the Mixnet.
 
+## What you'll learn
+
+- Setting up a `NymProxyServer` that forwards Mixnet traffic to a local TCP service
+- Setting up a `NymProxyClient` that tunnels localhost TCP connections through the Mixnet
+- How TcpProxy differs from the Stream module
+
+## Prerequisites
+
+- Rust toolchain (1.70+)
+- A working internet connection
+
 <Callout type="info">
-Add `nym-sdk`, `tokio`, and `anyhow` to your `Cargo.toml`. See [Installation](../importing) if needed.
+Code verified against `nym-sdk` v1.20.4 ([`4077717`](https://github.com/nymtech/nym/commit/4077717d3)). If the API has changed since then, check the [examples in the repo](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples) for the latest usage.
 </Callout>
 
-## The server
+## Step 1: Set up the project
 
-The server connects to the Mixnet and forwards incoming traffic to a local TCP service (e.g. a web server on port 3000):
+```sh
+cargo init nym-tcp-proxy
+cd nym-tcp-proxy
+```
+
+Add dependencies to `Cargo.toml`:
+
+```toml
+[dependencies]
+nym-sdk = "1.20.4"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+```
+
+This tutorial creates two binaries (server and client). Add them to `Cargo.toml`:
+
+```toml
+[[bin]]
+name = "proxy_server"
+path = "src/bin/proxy_server.rs"
+
+[[bin]]
+name = "proxy_client"
+path = "src/bin/proxy_client.rs"
+```
+
+Create the `src/bin/` directory:
+
+```sh
+mkdir -p src/bin
+```
+
+## Step 2: Build the server
+
+The server connects to the Mixnet and forwards incoming traffic to a local TCP service (e.g. a web server on port 3000).
+
+Create `src/bin/proxy_server.rs`:
 
 ```rust
-// src/bin/proxy_server.rs
 use nym_sdk::tcp_proxy::NymProxyServer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Forward traffic to localhost:3000 (your upstream service).
-    let server = NymProxyServer::new(
-        "127.0.0.1",  // upstream host
-        "3000",       // upstream port
-        None,         // use default network
-        None,         // auto-generate keys
+    // The second argument is a directory for persistent key storage.
+    let mut server = NymProxyServer::new(
+        "127.0.0.1:3000",           // upstream address (host:port)
+        "./proxy-server-config",    // config directory for persistent keys
+        None,                       // env file (None = mainnet)
+        None,                       // gateway (None = auto-select)
     ).await?;
 
     // Print the Nym address — the client needs this to connect.
@@ -48,14 +95,15 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-## The client
+## Step 3: Build the client
 
-The client opens a localhost TCP socket and tunnels all traffic through the Mixnet to the server:
+The client opens a localhost TCP socket and tunnels all traffic through the Mixnet to the server.
+
+Create `src/bin/proxy_client.rs`:
 
 ```rust
-// src/bin/proxy_client.rs
 use nym_sdk::tcp_proxy::NymProxyClient;
-use nym_sphinx::addressing::Recipient;
+use nym_sdk::mixnet::Recipient;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
@@ -72,7 +120,7 @@ async fn main() -> anyhow::Result<()> {
         "127.0.0.1",  // listen host
         "1080",       // listen port
         60,           // close timeout (seconds)
-        None,         // use default network
+        None,         // env file (None = mainnet)
         2,            // client pool size
     ).await?;
 
@@ -96,7 +144,7 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-## Run it
+## Step 4: Run it
 
 Start a simple upstream service (e.g. Python's HTTP server):
 
@@ -125,3 +173,11 @@ The HTTP request travelled through the Mixnet — the upstream server only sees 
 ## How it differs from streams
 
 TcpProxy handles **message ordering** internally using session IDs and sequence numbers, which the [Stream module](../stream) does not yet provide. This means TcpProxy can work with protocols that depend on byte ordering (HTTP, TLS). The trade-off is higher overhead: each side runs a localhost TCP socket, and ordering adds latency. For new code, the stream API is simpler and more efficient.
+
+## What you've learned
+
+- **`NymProxyServer::new(upstream, config_dir, env, gateway)`** creates a server that forwards Mixnet traffic to a local TCP service
+- **`NymProxyClient::new(recipient, host, port, timeout, env, pool_size)`** creates a client that tunnels localhost TCP through the Mixnet
+- **The server uses persistent keys** (stored in `config_dir`) so its Nym address stays the same across restarts
+- **The client uses ephemeral keys** from a `ClientPool` — one per TCP connection
+- **TcpProxy handles message ordering** — unlike the Stream module, it can work with order-dependent protocols like HTTP

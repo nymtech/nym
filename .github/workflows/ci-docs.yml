@@ -63,6 +63,8 @@ jobs:
 
       - name: Install project dependencies
         run: pnpm i
+      - name: Generate llms-full.txt
+        run: pnpm run generate:llms
       - name: Build project
         run: pnpm run build
       - name: Generate sitemap

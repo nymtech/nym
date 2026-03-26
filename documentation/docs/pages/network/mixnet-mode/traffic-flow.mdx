@@ -14,9 +14,9 @@ The Nym mixnet uses source routing—the sender chooses the complete route befor
 
 ## Client to Entry Gateway
 
-When you connect, your Nym client registers with a particular Entry Gateway. This becomes part of your Nym address and is where your incoming messages are delivered.
+On connection, the Nym client registers with a particular Entry Gateway. This Gateway becomes part of the client's Nym address and is where incoming messages are delivered.
 
-The client continuously sends packets to the Entry Gateway over a WebSocket connection. This stream includes both real messages and cover traffic at a constant rate. When you have data to send, it's encrypted as Sphinx packets and slotted into the stream. When you don't, cover packets flow instead.
+The client continuously sends packets to the Entry Gateway over a WebSocket connection. This stream includes both real messages and cover traffic at a constant rate. When the application has data to send, the client encrypts it as Sphinx packets and slots them into the stream. When there is no data, cover packets flow instead.
 
 ```mermaid
 ---

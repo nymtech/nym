@@ -13,7 +13,7 @@ import { Callout } from 'nextra/components';
   **This module is unmaintained.** The TcpProxy is no longer actively developed in favour of the [Stream module](./stream), which provides `AsyncRead + AsyncWrite` streams directly over the Mixnet without the TCP socket overhead. Existing users should plan to migrate to streams when possible. The TcpProxy will continue to work but will not receive new features or bug fixes.
 </Callout>
 
-The Stream module offers the same key benefit (familiar I/O patterns on top of the Mixnet) with a simpler API, multiplexed connections on a single client, and no localhost socket overhead. The one feature TcpProxy has that streams don't yet have is **message ordering** — see the [stream architecture](./stream/architecture#known-limitations) for details. If your application requires guaranteed byte ordering today, TcpProxy still works.
+The Stream module offers the same key benefit — familiar I/O patterns on top of the Mixnet — but with a simpler API. Streams multiplex connections on a single client and eliminate the localhost socket overhead. The one feature TcpProxy has that streams don't yet have is **message ordering** — see the [stream architecture](./stream/architecture#known-limitations) for details. If your application requires guaranteed byte ordering today, TcpProxy still works.
 
 ---
 

@@ -13,7 +13,7 @@ import { Callout } from 'nextra/components';
 The `mixnet` module is the core of the Nym SDK. It provides [`MixnetClient`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.MixnetClient.html) for connecting to the Nym Mixnet, sending messages through Sphinx packet encryption and 5-hop routing, and receiving reconstructed messages on the other side.
 
 <Callout type="warning">
-**The Mixnet is not like regular internet networking.** There are no persistent connections, no guaranteed message ordering, and no TCP. Each message is independently Sphinx-encrypted, routed through multiple mix nodes, and reconstructed at the destination. This is the Mixnet's native communication model — powerful for privacy, but different from what most developers expect. If you want familiar socket-like I/O (`read`/`write`), use the [Stream module](./stream) instead — it's an abstraction layer we've built to bridge the gap.
+Messages are individually routed through the Mixnet with no guaranteed ordering or persistent connections. If you want familiar socket-like I/O (`read`/`write`), use the [Stream module](./stream) instead. See the [Tour](./tour) for how the two approaches compare.
 </Callout>
 
 ## Two operating modes

@@ -38,6 +38,6 @@ User --> Entry --> Mix L1 --> Mix L2 --> Mix L3 --> Exit --> Internet
 
 Beyond the additional hops, Mixnet mode generates constant cover traffic—dummy packets indistinguishable from real ones. This hides not just who you're communicating with, but when you're communicating.
 
-Latency is higher, typically 200-500ms additional, due to the mixing delays, but this is what makes timing correlation attacks impractical even for adversaries watching the entire network.
+Latency is higher — typically 200-500ms additional due to the mixing delays — but the timing obfuscation makes correlation attacks impractical even for adversaries watching the entire network.
 
 For practical guidance on when to use each mode — and how developers access the network via SDKs — see [Choosing a Mode](/network/overview/choosing-a-mode).

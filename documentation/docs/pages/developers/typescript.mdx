@@ -15,7 +15,7 @@ import { NPMLink } from '../../components/npm';
 The TypeScript SDK lets you build browser-based applications that communicate through the Nym mixnet. Import SDK packages via NPM as you would any other TypeScript library.
 
 <Callout type="warning">
-**The Nym mixnet is not like regular internet networking.** There are no persistent connections, no guaranteed message ordering, and no TCP underneath. Traffic is Sphinx-encrypted, mixed through multiple nodes, and independently reconstructed at the destination. This means sending data through the mixnet works differently from what web developers typically expect. The SDK abstracts the complexity, but understanding the underlying model helps when debugging.
+The Nym Mixnet routes traffic through multiple nodes with no persistent connections or guaranteed ordering. The SDK abstracts the complexity, but understanding the [underlying model](/developers/rust/tour) helps when debugging.
 </Callout>
 
 ## Packages

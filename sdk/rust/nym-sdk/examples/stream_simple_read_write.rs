@@ -6,7 +6,7 @@
 //! One sender opens streams to two receivers.
 //! Both receivers accept, read, and reply concurrently.
 //!
-//! Run with: cargo run --example async_read_write
+//! Run with: cargo run --example stream_simple_read_write
 
 use nym_sdk::mixnet;
 use std::time::Duration;

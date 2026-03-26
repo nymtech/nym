@@ -10,7 +10,7 @@ lastUpdated: "2026-03-15"
 
 import { Callout } from 'nextra/components'
 
-The `ClientPool` maintains a configurable number of connected ephemeral `MixnetClient` instances, ready for immediate use. This eliminates the connection latency (gateway handshake, key generation, topology fetch) that comes with creating a new client on each request.
+The `ClientPool` maintains a configurable number of connected ephemeral `MixnetClient` instances, ready for immediate use. This eliminates the connection latency that comes with creating a new client on each request: the gateway handshake, key generation, and topology fetch all happen ahead of time.
 
 ## How it works
 

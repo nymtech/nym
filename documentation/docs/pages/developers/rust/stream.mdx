@@ -126,7 +126,7 @@ The receiver replies via **reply SURBs** (Single Use Reply Blocks) — it never 
 | **Status** | Stable | New | Deprecated |
 
 <Callout type="warning">
-**Streams and messages are mutually exclusive.** Once you call `open_stream()` or `listener()`, the message-based API (`send_plain_message`, `wait_for_messages`) is permanently disabled on that client. This is a one-way transition — there is no switching back without disconnecting and reconnecting. See the [mode guard example](./stream/examples/mode-guard) for details.
+**Streams and messages are mutually exclusive.** Once you call `open_stream()` or `listener()`, the message-based API (`send_plain_message`, `wait_for_messages`) is permanently disabled on that client. This is a one-way transition — there is no switching back without disconnecting and reconnecting. See the [`stream_mode_guard.rs` example](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_mode_guard.rs) for details.
 </Callout>
 
 ## Key types

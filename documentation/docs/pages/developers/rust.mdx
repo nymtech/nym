@@ -16,18 +16,18 @@ The Rust SDK provides high-level abstractions for building privacy-preserving ap
 Full API reference, architecture documentation, and type details are available on [**docs.rs/nym-sdk**](https://docs.rs/nym-sdk/latest/nym_sdk/).
 </Callout>
 
+## Getting started
+
+New to the SDK? Start with the **[Tour](./rust/tour)** for a quick overview of what you can do, then see [Installation](./rust/importing) for how to add `nym-sdk` to your project.
+
 ## Modules
 
-- **[Mixnet](./rust/mixnet)** — Core client for sending and receiving individual message payloads through the Mixnet. This is the Mixnet's native communication model — no connections, no ordering, just individually routed payloads.
+- **[Mixnet](./rust/mixnet)** — Core client for sending and receiving individual message payloads through the Mixnet. Each message is independently routed with no connections or ordering guarantees.
 
-- **[Stream](./rust/stream)** — Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet. This is the abstraction layer that bridges the gap between the Mixnet's message-based model and familiar socket-based networking. **If you're used to TCP sockets, start here.**
+- **[Stream](./rust/stream)** — Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet. Bridges the gap between the Mixnet's message-based model and familiar socket-based networking. **If you're used to TCP sockets, start here.**
 
 - **[TcpProxy](./rust/tcpproxy)** *(deprecated)* — TCP socket proxying through the Mixnet with session management and message ordering. For new projects, use the Stream module instead.
 
 - **[Client Pool](./rust/client-pool)** — A connection pool that maintains ready-to-use `MixnetClient` instances for high-throughput applications.
 
 - **[FFI](./rust/ffi)** — Foreign function interface bindings for using the SDK from Go and C/C++.
-
-## Getting started
-
-New to the SDK? Start with the **[Tour](./rust/tour)** for a quick overview of what you can do, then see [Installation](./rust/importing) for how to add `nym-sdk` to your project.

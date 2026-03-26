@@ -313,7 +313,8 @@ impl MixnetListener {
         stream_id: Option<u64>,
     ) -> PacketHandleResult {
         log::info!(
-            "Received dynamic connect request from {}",
+            "Received v{} dynamic connect request from {}",
+            connect_request.version.into_u8(),
             connect_request.sent_by
         );
 

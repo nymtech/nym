@@ -342,7 +342,7 @@ impl SendWithoutResponse for Client {
         sending_res.map_err(|err| {
             match err {
                 TrySendError::Full(_) => {
-                    warn!(
+                    trace!(
                         event = "mixclient.try_send",
                         peer = %address,
                         result = "full_dropped",

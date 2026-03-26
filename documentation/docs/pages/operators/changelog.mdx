@@ -111,14 +111,31 @@ chmod +x network-tunnel-manager.sh
 ```
 
 ###### 2. Update the exit policy
-- To ensure your routing is clean, run:
+
+- Run NTM to become main port manager (including Nym services), run:
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
 
-Congratulation, your port configuration is up to date, including LP ports.
+###### 3. Disable `ufw`
+
+Right now your NTM is handling the port management. You can disable `ufw`. 
+
+- We suggest to not uninstall it, just make it innactive for the time being:
+
+```sh
+ufw disable 
+```
+
+###### 4. Re-run NTM
+
+- NTM is fully omnipotent, re-rerun it again now with `ufw` disabled to ensure clean state:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
 </ Steps>
 
+Congratulation, your port configuration is up to date, including LP ports.
 
 ### Features
 

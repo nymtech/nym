@@ -104,10 +104,10 @@
     {
       "type": "object",
       "required": [
-        "update_deposit_value"
+        "update_default_deposit_value"
       ],
       "properties": {
-        "update_deposit_value": {
+        "update_default_deposit_value": {
           "type": "object",
           "required": [
             "new_deposit"
@@ -115,6 +115,54 @@
           "properties": {
             "new_deposit": {
               "$ref": "#/definitions/Coin"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Set (or overwrite) a reduced deposit price for a specific address. Only callable by the contract admin.",
+      "type": "object",
+      "required": [
+        "set_reduced_deposit_price"
+      ],
+      "properties": {
+        "set_reduced_deposit_price": {
+          "type": "object",
+          "required": [
+            "address",
+            "deposit"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "deposit": {
+              "$ref": "#/definitions/Coin"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Remove the reduced deposit price for a specific address, reverting them to the default price. Returns an error if the address has no custom price set. Only callable by the contract admin.",
+      "type": "object",
+      "required": [
+        "remove_reduced_deposit_price"
+      ],
+      "properties": {
+        "remove_reduced_deposit_price": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
             }
           },
           "additionalProperties": false

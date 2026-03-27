@@ -26,14 +26,4 @@ The assumption is that these adversaries can monitor all entry and exit points, 
 
 **dVPN mode** offers reduced protections against E2E surveillance and timing analysis, but still offers similar protections to Tor whilst offering increased speeds.
 
-## Why traditional solutions fall short
-
-**VPNs** concentrate trust in a single provider who can see all your traffic movements, can be legally or financially compelled to log, and whose payment systems (in most cases) link your account directly to your usage — so a VPN provider can be turned into a surveillance tool with a single court order or compromise.
-
-**Tor** was designed in an era when global passive adversaries were considered unrealistic. It routes traffic through three relays with onion encryption, but packets flow through without delays or cover traffic, which means an adversary who can observe both ends of a circuit can correlate timing to deanonymise users. These [correlation attacks](https://www.usenix.org/conference/usenixsecurity14/technical-sessions/presentation/johnson) were once theoretical — they are now [documented in practice](https://www.vice.com/en/article/timing-attack-tor-deanonymization/).
-
-## Nym's approach
-
-**dVPN mode** splits trust across two independent operators rather than concentrating it in one, and uses [zk-nym credentials](/network/cryptography/zk-nym) so that payment cannot be linked to usage — addressing the two biggest weaknesses of traditional VPNs.
-
-**Mixnet mode** goes further by adding packet mixing (reordering traffic to break timing correlation), cover traffic (a constant stream of dummy packets that hides when real communication is occurring), and uniform Sphinx packet sizes (preventing content-type fingerprinting) — addressing the timing analysis weakness that Tor and dVPN mode share.
+Nym addresses these shortcomings through two complementary approaches: dVPN mode splits trust across independent operators and removes payment linkability, while Mixnet mode adds the timing obfuscation and cover traffic needed to resist a global passive adversary. For a detailed comparison with VPNs, Tor, I2P, and end-to-end encryption, see [Nym vs Other Systems](/network/overview/comparisons). For practical guidance on which mode fits your threat model, see [Choosing a Mode](/network/overview/choosing-a-mode).

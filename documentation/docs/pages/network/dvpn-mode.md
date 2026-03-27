@@ -12,15 +12,11 @@ dVPN mode is a 2-hop decentralized VPN available through [NymVPN](https://nymvpn
 
 ## How it works
 
-Unlike traditional VPNs that route traffic through a single provider's server, dVPN mode routes traffic through two independent nodes operated by different parties.
-
 ```
 User --> Entry Gateway --> Exit Gateway --> Internet
 ```
 
-Your traffic is encrypted in layers—a tunnel inside a tunnel. The outer layer is encrypted to the Entry Gateway, and the inner layer is encrypted to the Exit Gateway. The Entry Gateway strips the outer layer and forwards the still-encrypted packet. The Exit Gateway strips the inner layer and sends it to the destination. Responses follow the reverse path.
-
-This "onion" model means neither gateway ever sees both your identity and your destination simultaneously. The Entry Gateway knows your IP address but cannot see your destination or message contents. The Exit Gateway knows your destination but cannot see your IP address.
+Your device constructs a layered encryption envelope — a tunnel inside a tunnel. The outer layer is encrypted to the Entry Gateway and the inner layer to the Exit Gateway. The Entry Gateway strips the outer layer and forwards the still-encrypted packet; the Exit Gateway strips the inner layer and sends the plaintext request to the destination. Responses follow the reverse path. This means neither gateway ever sees both your identity and your destination simultaneously — the Entry Gateway knows your IP address but cannot see where your traffic is going, while the Exit Gateway knows the destination but has no way to determine who sent the request.
 
 ## Privacy guarantees
 

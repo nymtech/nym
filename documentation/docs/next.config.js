@@ -1078,6 +1078,20 @@ const config = {
       // Docs rework redirects (2026)
       // ==========================================
 
+      // --- Network overview: deleted pages ---
+      {
+        source: "/docs/network/overview/two-modes",
+        destination: "/docs/network/overview/choosing-a-mode",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/overview/network-components",
+        destination: "/docs/network/infrastructure",
+        permanent: true,
+        basePath: false,
+      },
+
       // --- TypeScript SDK: merged pages ---
       {
         source: "/docs/developers/typescript/overview",

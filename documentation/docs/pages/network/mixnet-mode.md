@@ -12,25 +12,19 @@ Mixnet mode routes traffic through 5 hops — an Entry Gateway, three layers of 
 
 ## How it works
 
-Traffic passes through five hops: an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway. Each Mix Node adds a random delay before forwarding, mixing your packets with others passing through.
-
 ```
 User --> Entry --> Mix L1 --> Mix L2 --> Mix L3 --> Exit --> Internet
                     |           |           |
                   delay       delay       delay
 ```
 
-Beyond the additional hops, mixnet mode generates constant cover traffic—dummy packets indistinguishable from real ones. Your client continuously sends packets into the network whether or not you're actively communicating. Real messages are slotted into this stream of cover traffic.
-
-The client constructs Sphinx packets with layered encryption. Each layer contains routing information for one hop plus the inner encrypted packet. As the packet travels through the network, each node removes its layer to learn the next destination, but cannot see the final destination or payload content.
+As a packet travels through the network, each Mix Node strips one layer of Sphinx encryption to reveal the address of the next hop, applies a random delay, and forwards the packet onward. No node ever sees both the origin and the final destination. Alongside real traffic, the client continuously generates [cover traffic](/network/mixnet-mode/cover-traffic) — dummy packets that are cryptographically indistinguishable from real ones — so that the stream of packets entering and leaving the network looks the same whether or not any real communication is occurring.
 
 ## Privacy properties
 
-The combination of mixing, delays, and cover traffic gives the mixnet three properties that simpler systems like VPNs and Tor don't have:
-
-- **Unlinkability**: an observer watching a Mix Node cannot correlate incoming packets with outgoing ones, cannot connect successive packets from the same user, and cannot link activity across different sessions — the random delays and reordering destroy the timing signal that makes this possible in other networks.
-- **Unobservability**: because your client sends a constant stream of cover traffic whether or not you're actually communicating, an observer cannot tell when real communication is occurring, how much of the traffic is real versus dummy, or even whether a given user is active at all.
-- **Resistance to traffic analysis**: uniform Sphinx packet sizes prevent content-type fingerprinting, per-packet routing means there are no long-lived circuits to observe (unlike Tor), and the mixing delays mean that even an adversary watching the entire network cannot correlate entry and exit timing.
+- **Unlinkability**: the random delays and packet reordering at each Mix Node destroy the timing signal that would otherwise allow an observer to correlate incoming packets with outgoing ones, or to connect successive packets from the same user. See [Packet Mixing](/network/mixnet-mode/mixing) for how this works in practice.
+- **Unobservability**: because the client sends a constant stream of cover traffic regardless of whether real communication is occurring, an observer cannot determine when a user is active, how much of the traffic is genuine, or even whether a given connection is carrying any real data at all. See [Cover Traffic](/network/mixnet-mode/cover-traffic).
+- **Resistance to traffic analysis**: uniform Sphinx packet sizes prevent content-type fingerprinting, and per-packet routing eliminates the long-lived circuits that make Tor susceptible to end-to-end correlation. See [Traffic Flow](/network/mixnet-mode/traffic-flow).
 
 ## Performance
 

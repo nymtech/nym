@@ -8,19 +8,9 @@ lastUpdated: "2026-02-11"
 
 # The Nym Network
 
-The Nym Network is decentralized privacy infrastructure that protects against **network-level** surveillance. It does this by protecting message *metadata*—who is communicating with whom, when, how often, and how much—from being able to be captured.
+The Nym Network is decentralized privacy infrastructure that protects against **network-level** surveillance. Where most encryption tools focus on message content, Nym protects the metadata surrounding it — who is communicating with whom, when, how often, and how much. This is the information that allows observers to map relationships, build behavioural profiles, and identify individuals even when they cannot read a single message. [The Privacy Problem](/network/overview/privacy-problem) explains why this matters and what adversaries Nym is designed against.
 
-## The problem with metadata
-
-When you send data across the internet, observers can see that communication has occurred in the form of the source and destination IP addresses of internet packets, the timing and frequency of transmissions, packet sizes, and other bits of information that over time can be used to build up inferences about the type of [device/browser you're using](https://browserleaks.com/ip), [your connection](https://browserleaks.com/tcp), and ultimately who you are. These observers include your ISP, internet infrastructure providers, governments, and large corporations.
-
-Even when sending encrypted content (e.g. using messaging apps like Signal or SimpleX, or encrypted email providers), metadata can identify users by allowing observers to build up inferences and build behavioral profiles. Advances in machine learning in recent years has made these attacks increasingly practical, and spawned an entire industry dedicated to the capture and analysis of internet traffic.
-
-## How Nym solves this
-
-Every person and usecase has a different threat model - journalists in highly adversarial environments might be happy to accept higher latency and lower throughput when their safety is on the line, whereas your average user might just want to be 'private enough' to not be leaking everything they do to an ISP, passive government surveillance, or a centralised VPN provider.
-
-As such, there are two 'modes' for sending traffic through Nym, each serving different needs. There are also two different ways to access the network:
+Because different use cases face different adversaries, Nym provides two operating modes with distinct privacy and performance characteristics. Both are accessible through [NymVPN](https://nymvpn.com), and developers can integrate Mixnet mode directly into applications via the [Nym SDKs](/developers). [Choosing a Mode](/network/overview/choosing-a-mode) covers when to use each.
 
 ### NymVPN
 

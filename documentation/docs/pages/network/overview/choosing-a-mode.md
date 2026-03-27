@@ -10,6 +10,8 @@ lastUpdated: "2026-03-15"
 
 Both dVPN and Mixnet mode run on the same Nym infrastructure but protect against different things — dVPN keeps your IP hidden from destinations and splits trust across two operators, while Mixnet mode goes further by trying to make your traffic patterns invisible even to someone watching the entire network.
 
+Architecturally, the two modes are quite different. **dVPN mode** routes traffic through 2 hops — an Entry Gateway and an Exit Gateway — connected via [AmneziaWG](https://docs.amnezia.org/documentation/amnezia-wg/), a WireGuard fork that adds traffic obfuscation to help evade protocol-level detection. This keeps latency low but offers no protection against timing analysis. **Mixnet mode** routes traffic through 5 hops — an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway — with each Mix Node adding a random delay and mixing your packets with those of other users. Combined with a constant stream of cover traffic, this makes timing correlation impractical even for adversaries capable of observing the entire network.
+
 ## Quick comparison
 
 | | dVPN Mode | Mixnet Mode |

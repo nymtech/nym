@@ -11,7 +11,7 @@ use crate::Error;
 use bytes::Bytes;
 use nym_ip_packet_requests::response_helpers;
 use nym_ip_packet_requests::{
-    v9::{request::IpPacketRequest, response::IpPacketResponse},
+    v9::{self, response::IpPacketResponse},
     IpPair,
 };
 use nym_network_defaults::NymNetworkDetails;
@@ -107,8 +107,7 @@ impl IpMixStream {
     }
 
     async fn connect_tunnel(stream: &mut MixnetStream) -> Result<IpPair, Error> {
-        let (mut request, request_id) = IpPacketRequest::new_connect_request(None);
-        request.protocol.version = nym_ip_packet_requests::v9::VERSION;
+        let (request, request_id) = v9::new_connect_request(None);
         debug!("Sending connect request with ID: {}", request_id);
 
         let request_bytes = request.to_bytes()?;
@@ -147,8 +146,7 @@ impl IpMixStream {
     /// Send an IP packet through the tunnel.
     pub async fn send_ip_packet(&mut self, packet: &[u8]) -> Result<(), Error> {
         self.check_connected()?;
-        let mut request = IpPacketRequest::new_data_request(packet.to_vec().into());
-        request.protocol.version = nym_ip_packet_requests::v9::VERSION;
+        let request = v9::new_data_request(packet.to_vec().into());
         let request_bytes = request.to_bytes()?;
         self.stream
             .write_all(&request_bytes)

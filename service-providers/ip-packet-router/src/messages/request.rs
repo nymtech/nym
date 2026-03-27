@@ -148,6 +148,21 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
     }
 }
 
+impl IpPacketRequest {
+    pub(crate) fn version(&self) -> ClientVersion {
+        match self {
+            IpPacketRequest::Data(r) => r.version,
+            IpPacketRequest::Control(c) => match c {
+                ControlRequest::StaticConnect(r) => r.version,
+                ControlRequest::DynamicConnect(r) => r.version,
+                ControlRequest::Disconnect(r) => r.version,
+                ControlRequest::Ping(r) => r.version,
+                ControlRequest::Health(r) => r.version,
+            },
+        }
+    }
+}
+
 impl fmt::Display for IpPacketRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

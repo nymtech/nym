@@ -556,6 +556,13 @@ impl MixnetListener {
     /// `stream_id` is `Some` when processing a payload extracted from an LP
     /// Stream frame, so that connect handlers can thread the id to the
     /// `ConnectedClientHandler` for LP-wrapping TUN responses.
+    ///
+    /// # Version / transport enforcement
+    ///
+    /// - LP Stream frames (`stream_id` is `Some`) **must** carry v9+ payloads.
+    /// - Non-stream messages (`stream_id` is `None`) **must** be v8 or lower.
+    ///
+    /// Messages that violate these rules are dropped.
     async fn on_ipr_message(
         &mut self,
         reconstructed: ReconstructedMessage,
@@ -569,6 +576,27 @@ impl MixnetListener {
             }
             req => req,
         }?;
+
+        // Enforce version/transport consistency:
+        // - LP Stream frames must carry v9+ payloads
+        // - Non-stream messages must be v8 or lower
+        let version = request.version();
+        let is_v9_plus = version == ClientVersion::V9;
+
+        if stream_id.is_some() && !is_v9_plus {
+            log::warn!(
+                "LP Stream frame contains v{} payload, expected v9+; dropping",
+                version.into_u8()
+            );
+            return Ok(vec![]);
+        }
+        if stream_id.is_none() && is_v9_plus {
+            log::warn!(
+                "Non-stream message claims v{}, expected v8 or lower; dropping",
+                version.into_u8()
+            );
+            return Ok(vec![]);
+        }
 
         log::debug!("Received request: {request}");
 

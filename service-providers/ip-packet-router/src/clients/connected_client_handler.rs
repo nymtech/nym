@@ -10,6 +10,7 @@ use nym_ip_packet_requests::{
     v6::response::IpPacketResponse as IpPacketResponseV6,
     v7::response::IpPacketResponse as IpPacketResponseV7,
     v8::response::IpPacketResponse as IpPacketResponseV8,
+    v9,
 };
 use nym_lp::packet::frame::{
     LpFrame, LpFrameHeader, SphinxStreamFrameAttributes, SphinxStreamMsgType,
@@ -217,11 +218,7 @@ fn create_ip_packet_response(
         ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
         ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
         ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
-        ClientVersion::V9 => {
-            let mut resp = IpPacketResponseV8::new_ip_packet(packets);
-            resp.version = client_version.into_u8();
-            resp.to_bytes()
-        }
+        ClientVersion::V9 => v9::new_ip_packet_response(packets).to_bytes(),
     }
 }
 

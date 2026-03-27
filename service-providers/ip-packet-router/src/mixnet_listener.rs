@@ -580,21 +580,14 @@ impl MixnetListener {
         // Enforce version/transport consistency:
         // - LP Stream frames must carry v9+ payloads
         // - Non-stream messages must be v8 or lower
-        let version = request.version();
-        let is_v9_plus = version == ClientVersion::V9;
+        let version_num = request.version().into_u8();
 
-        if stream_id.is_some() && !is_v9_plus {
-            log::warn!(
-                "LP Stream frame contains v{} payload, expected v9+; dropping",
-                version.into_u8()
-            );
+        if stream_id.is_some() && version_num < 9 {
+            log::warn!("LP Stream frame contains v{version_num} payload, expected v9+; dropping",);
             return Ok(vec![]);
         }
-        if stream_id.is_none() && is_v9_plus {
-            log::warn!(
-                "Non-stream message claims v{}, expected v8 or lower; dropping",
-                version.into_u8()
-            );
+        if stream_id.is_none() && version_num >= 9 {
+            log::warn!("Non-stream message claims v{version_num}, expected v8 or lower; dropping",);
             return Ok(vec![]);
         }
 
@@ -700,8 +693,6 @@ pub(crate) type PacketHandleResult = Result<Option<VersionedResponse>>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_lp_stream_frame_detected() {
         use bytes::BytesMut;

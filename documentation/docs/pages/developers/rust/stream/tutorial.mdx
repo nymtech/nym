@@ -21,7 +21,7 @@ In this tutorial you'll build two programs — a server that listens for incomin
 - Clean shutdown and stream lifecycle
 
 <Callout type="info">
-Code verified against `nym-sdk` v1.20.4 ([`4077717`](https://github.com/nymtech/nym/commit/4077717d3)). If the API has changed since then, check the [examples in the repo](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples) for the latest usage.
+Code verified against commit [`4077717`](https://github.com/nymtech/nym/commit/4077717d3). If the API has changed since then, check the [examples in the repo](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples) for the latest usage.
 </Callout>
 
 ## Prerequisites
@@ -40,7 +40,7 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = "1.20.4"
+nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
 tokio = { version = "1", features = ["full"] }
 ```
 

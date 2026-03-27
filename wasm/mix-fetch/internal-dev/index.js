@@ -12,225 +12,340 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ─── Worker client ──────────────────────────────────────────────────────────
+
 class WebWorkerClient {
-    worker = null;
+  worker = null;
 
-    constructor() {
-        this.worker = new Worker('./worker.js');
+  constructor() {
+    this.worker = new Worker("./worker.js");
 
-        this.worker.onmessage = (ev) => {
-            if (ev.data && ev.data.kind) {
-                switch (ev.data.kind) {
-                    case 'DisplayString':
-                        const { rawString } = ev.data.args;
-                        displayReceivedRawString(rawString)
-                        break;
-                    case 'Log':
-                        const { message, level } = ev.data.args;
-                        displayLog(message, level);
-                        break;
-                    case 'MixFetchReady':
-                        onMixFetchReady();
-                        break;
-                    case 'MixFetchError':
-                        const { error } = ev.data.args;
-                        onMixFetchError(error);
-                        break;
-                }
-            }
-        };
-    }
-
-    startMixFetch = (preferredGateway) => {
-        if (!this.worker) {
-            console.error('Could not send message because worker does not exist');
-            return;
+    this.worker.onmessage = (ev) => {
+      if (!ev.data || !ev.data.kind) return;
+      switch (ev.data.kind) {
+        case "DisplayString":
+          appendFetchLog(ev.data.args.rawString);
+          console.log("[mixfetch response]", ev.data.args.rawString);
+          break;
+        case "Log": {
+          const { message, level } = ev.data.args;
+          const fn = level === "error" ? console.error
+                   : level === "warn" ? console.warn
+                   : console.log;
+          fn(`[worker/${level}]`, message);
+          break;
         }
+        case "MixFetchReady":
+          onMixFetchReady();
+          break;
+        case "MixFetchError":
+          onMixFetchError(ev.data.args.error);
+          break;
+        case "StressTestFetchResult":
+          onStressTestFetchResult(ev.data.args);
+          break;
+      }
+    };
+  }
 
-        this.worker.postMessage({
-            kind: 'StartMixFetch',
-            args: {
-                preferredGateway,
-            },
-        });
+  startMixFetch = (preferredGateway) => {
+    this.worker.postMessage({ kind: "StartMixFetch", args: { preferredGateway } });
+  };
+
+  doFetch = (target) => {
+    this.worker.postMessage({ kind: "FetchPayload", args: { target } });
+  };
+
+  setGoTimeout = (timeoutMs) => {
+    this.worker.postMessage({ kind: "SetGoTimeout", args: { timeoutMs } });
+  };
+
+  doStressTest = (requests) => {
+    for (const req of requests) {
+      this.worker.postMessage({
+        kind: "StressTestFetch",
+        args: { id: req.id, url: req.url, label: req.label },
+      });
     }
-
-    doFetch = (target) => {
-        if (!this.worker) {
-            console.error('Could not send message because worker does not exist');
-            return;
-        }
-
-        this.worker.postMessage({
-            kind: 'FetchPayload',
-            args: {
-                target,
-            },
-        });
-    }
-
-    doPost = (url, body) => {
-        if (!this.worker) {
-            console.error('Could not send message because worker does not exist');
-            return;
-        }
-
-        this.worker.postMessage({
-            kind: 'PostPayload',
-            args: {
-                url,
-                body,
-            },
-        });
-    }
+  };
 }
 
-let client = null;
+// ─── Startup ────────────────────────────────────────────────────────────────
 
+let client = null;
 const DEFAULT_GATEWAY = "q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1";
 
 async function main() {
-    client = new WebWorkerClient();
+  client = new WebWorkerClient();
 
-    const startButton = document.querySelector('#start-mixfetch');
-    startButton.onclick = function () {
-        const gatewayMode = document.querySelector('input[name="gateway-mode"]:checked').value;
-        const preferredGateway = gatewayMode === 'default' ? DEFAULT_GATEWAY : undefined;
+  document.querySelector("#start-mixfetch").onclick = () => {
+    const gatewayMode = document.querySelector('input[name="gateway-mode"]:checked').value;
+    const preferredGateway = gatewayMode === "default" ? DEFAULT_GATEWAY : undefined;
 
-        startButton.disabled = true;
-        document.querySelectorAll('input[name="gateway-mode"]').forEach(r => r.disabled = true);
-        updateStatus('Starting...', 'orange');
+    document.querySelector("#start-mixfetch").disabled = true;
+    document.querySelectorAll('input[name="gateway-mode"]').forEach((r) => (r.disabled = true));
+    updateStatus("mixfetch-status", "Starting...", "orange");
 
-        displayLog(`Starting MixFetch with ${gatewayMode} gateway${preferredGateway ? ` (${preferredGateway})` : ''}...`, 'info');
-        client.startMixFetch(preferredGateway);
+    console.log(`Starting MixFetch (${gatewayMode} gateway${preferredGateway ? `: ${preferredGateway}` : ""})...`);
+    client.startMixFetch(preferredGateway);
+  };
+
+  document.querySelector("#fetch-button-1").onclick = () => doFetch(1);
+  document.querySelector("#fetch-button-2").onclick = () => doFetch(2);
+
+  const stressModeSelect = document.getElementById("stress-test-mode");
+  stressModeSelect.onchange = function () {
+    document.getElementById("stress-uniform-opts").style.display = this.value === "uniform" ? "block" : "none";
+    document.getElementById("stress-mixed-opts").style.display = this.value === "mixed" ? "block" : "none";
+    document.getElementById("stress-drip-opts").style.display = this.value === "drip" ? "block" : "none";
+  };
+
+  document.querySelector("#stress-test-button").onclick = () => {
+    const count = parseInt(document.getElementById("stress-test-count").value, 10);
+    const mode = document.getElementById("stress-test-mode").value;
+    const goTimeoutMs = parseInt(document.getElementById("stress-go-timeout").value, 10);
+
+    document.querySelector("#stress-test-button").disabled = true;
+    updateStatus("stress-test-status", "Running...", "orange");
+    client.setGoTimeout(goTimeoutMs);
+
+    const requests = generateStressRequests(count, mode);
+    stressTest = {
+      count,
+      mode,
+      startTime: performance.now(),
+      results: [],
+      completionOrder: [],
+      profiles: {},
+    };
+    for (const req of requests) {
+      stressTest.profiles[req.id] = { label: req.label, bytes: req.bytes };
     }
 
-    const fetchButton1 = document.querySelector('#fetch-button-1');
-    fetchButton1.onclick = function () {
-        doFetch(1);
+    initStressTracker(requests);
+
+    console.log(`%c=== STRESS TEST: ${count} requests, ${mode} mode, timeout=${goTimeoutMs}ms ===`, "font-weight: bold");
+
+    if (mode === "mixed" || mode === "drip") {
+      const breakdown = {};
+      for (const req of requests) breakdown[req.label] = (breakdown[req.label] || 0) + 1;
+      console.log("Profiles:", breakdown);
     }
 
-    const fetchButton2 = document.querySelector('#fetch-button-2');
-    fetchButton2.onclick = function () {
-        doFetch(2);
-    }
-
-    const fetch10Button = document.querySelector('#fetch-10-concurrent');
-    fetch10Button.onclick = function () {
-        doFetch10Concurrent();
-    }
-
-    const postButton = document.querySelector('#post-button');
-    postButton.onclick = function () {
-        doPost();
-    }
+    client.doStressTest(requests);
+  };
 }
 
-function updateStatus(text, color) {
-    const status = document.getElementById('mixfetch-status');
-    status.textContent = text;
-    status.style.color = color;
+// ─── UI helpers ─────────────────────────────────────────────────────────────
+
+function updateStatus(elementId, text, color) {
+  const el = document.getElementById(elementId);
+  el.textContent = text;
+  el.style.color = color;
 }
 
 function onMixFetchReady() {
-    updateStatus('Ready', 'green');
-    document.getElementById('fetch-controls').disabled = false;
-    displayLog('MixFetch is ready!', 'info');
+  updateStatus("mixfetch-status", "Ready", "green");
+  document.getElementById("fetch-controls").disabled = false;
+  console.log("%cMixFetch ready!", "color: green; font-weight: bold");
 }
 
 function onMixFetchError(error) {
-    updateStatus('Error: ' + error, 'red');
-    document.querySelector('#start-mixfetch').disabled = false;
-    document.querySelectorAll('input[name="gateway-mode"]').forEach(r => r.disabled = false);
-    displayLog('MixFetch error: ' + error, 'error');
+  updateStatus("mixfetch-status", "Error: " + error, "red");
+  document.querySelector("#start-mixfetch").disabled = false;
+  document.querySelectorAll('input[name="gateway-mode"]').forEach((r) => (r.disabled = false));
+  console.error("MixFetch error:", error);
 }
 
+// ─── Quick fetch ────────────────────────────────────────────────────────────
+
+function appendFetchLog(text) {
+  const log = document.getElementById("fetch-log");
+  log.style.display = "block";
+  const ts = new Date().toISOString().substr(11, 12);
+  log.textContent += `${ts}  ${text}\n`;
+  log.scrollTop = log.scrollHeight;
+}
 
 async function doFetch(id) {
-    const payload = document.getElementById(`fetch_payload_${id}`).value;
-    await client.doFetch(payload)
-
-    displaySend(`[${id}] clicked the button and the payload is: ${payload}...`);
+  const url = document.getElementById(`fetch_payload_${id}`).value;
+  appendFetchLog(`GET ${url}`);
+  console.log(`GET ${url}`);
+  await client.doFetch(url);
 }
 
-async function doFetch10Concurrent() {
-    const baseUrl = 'https://jsonplaceholder.typicode.com/posts/';
-    displaySend('Starting 10 concurrent requests to posts/1-10...');
+// ─── Stress test ────────────────────────────────────────────────────────────
 
-    const requests = [];
-    for (let i = 1; i <= 10; i++) {
-        const url = `${baseUrl}${i}`;
-        displaySend(`[${i}] Sending request to ${url}`);
-        requests.push(client.doFetch(url));
+const STRESS_PROFILES = [
+  { label: "tiny", bytes: 128 },
+  { label: "small", bytes: 1024 },
+  { label: "medium", bytes: 10240 },
+  { label: "large", bytes: 102400 },
+  { label: "xlarge", bytes: 1048576 },
+];
+
+const DRIP_PROFILES = [
+  { label: "safe", dripDuration: 30, dripDelay: 0, dripBytes: 100 },
+  { label: "boundary", dripDuration: 55, dripDelay: 0, dripBytes: 100 },
+  { label: "over", dripDuration: 65, dripDelay: 0, dripBytes: 100 },
+  { label: "slow-start", dripDuration: 50, dripDelay: 10, dripBytes: 100 },
+];
+
+function generateStressRequests(count, mode) {
+  const requests = [];
+  if (mode === "uniform") {
+    const baseUrl = document.getElementById("stress-test-url").value;
+    for (let i = 1; i <= count; i++) {
+      requests.push({ id: i, url: `${baseUrl}${i}`, label: "uniform", bytes: null });
+    }
+  } else if (mode === "drip") {
+    for (let i = 1; i <= count; i++) {
+      const p = DRIP_PROFILES[Math.floor(Math.random() * DRIP_PROFILES.length)];
+      requests.push({
+        id: i,
+        url: `https://httpbin.org/drip?duration=${p.dripDuration}&numbytes=${p.dripBytes}&delay=${p.dripDelay}&code=200`,
+        label: p.label,
+        bytes: p.dripBytes,
+      });
+    }
+  } else {
+    for (let i = 1; i <= count; i++) {
+      const p = STRESS_PROFILES[Math.floor(Math.random() * STRESS_PROFILES.length)];
+      requests.push({
+        id: i,
+        url: `https://httpbin.org/bytes/${p.bytes}`,
+        label: p.label,
+        bytes: p.bytes,
+      });
+    }
+  }
+  return requests;
+}
+
+let stressTest = null;
+
+// Per-profile live tracker state
+let trackerData = {};
+
+function initStressTracker(requests) {
+  const tracker = document.getElementById("stress-tracker");
+  tracker.style.display = "block";
+  trackerData = {};
+
+  // Count how many of each profile were sent
+  for (const req of requests) {
+    if (!trackerData[req.label]) {
+      trackerData[req.label] = { sent: 0, ok: 0, fail: 0, times: [] };
+    }
+    trackerData[req.label].sent++;
+  }
+
+  renderTracker();
+}
+
+function renderTracker() {
+  const tracker = document.getElementById("stress-tracker");
+  const rows = Object.entries(trackerData).map(([label, d]) => {
+    const pending = d.sent - d.ok - d.fail;
+    const avg = d.times.length > 0
+      ? (d.times.reduce((a, b) => a + b, 0) / d.times.length).toFixed(1) + "s"
+      : "-";
+    const max = d.times.length > 0 ? Math.max(...d.times).toFixed(1) + "s" : "-";
+    const min = d.times.length > 0 ? Math.min(...d.times).toFixed(1) + "s" : "-";
+
+    let status = "";
+    if (d.ok > 0) status += `<span style="color: green">${d.ok} ok</span>`;
+    if (d.fail > 0) status += `${status ? " " : ""}<span style="color: red">${d.fail} fail</span>`;
+    if (pending > 0) status += `${status ? " " : ""}<span style="color: gray">${pending} pending</span>`;
+
+    let timing = "";
+    if (d.times.length > 0) {
+      timing = `avg ${avg} / min ${min} / max ${max}`;
     }
 
-    await Promise.all(requests);
-    displaySend('All 10 concurrent requests dispatched!');
+    return `<tr>
+      <td style="padding: 2px 8px; font-weight: bold">${label}</td>
+      <td style="padding: 2px 8px">${d.sent}</td>
+      <td style="padding: 2px 8px">${status}</td>
+      <td style="padding: 2px 8px; color: #666">${timing}</td>
+    </tr>`;
+  });
+
+  tracker.innerHTML = `<table style="border-collapse: collapse">
+    <tr style="border-bottom: 1px solid #ccc">
+      <th style="padding: 2px 8px; text-align: left">profile</th>
+      <th style="padding: 2px 8px; text-align: left">sent</th>
+      <th style="padding: 2px 8px; text-align: left">status</th>
+      <th style="padding: 2px 8px; text-align: left">timing</th>
+    </tr>
+    ${rows.join("")}
+  </table>`;
 }
 
-async function doPost() {
-    const url = document.getElementById('post_url').value;
-    const body = document.getElementById('post_body').value;
+function onStressTestFetchResult(result) {
+  if (!stressTest) return;
 
-    displaySend(`[POST] Sending POST request to ${url}`);
-    displaySend(`[POST] Body: ${body}`);
+  const profile = stressTest.profiles[result.id];
+  result.label = profile ? profile.label : "?";
 
-    await client.doPost(url, body);
-}
+  stressTest.results.push(result);
+  stressTest.completionOrder.push(result.id);
 
-/**
- * Display log messages from MixFetch. Colors based on level.
- *
- * @param {string} message
- * @param {string} level - 'info', 'error', 'warn', or 'debug'
- */
-function displayLog(message, level) {
-    let timestamp = new Date().toISOString().substr(11, 12);
+  // Update tracker
+  const td = trackerData[result.label];
+  if (td) {
+    if (result.ok) {
+      td.ok++;
+      td.times.push(parseFloat(result.elapsed));
+    } else {
+      td.fail++;
+    }
+    renderTracker();
+  }
 
-    const colors = {
-        info: 'gray',
-        error: 'red',
-        warn: 'orange',
-        debug: 'purple',
-    };
+  const progress = `${stressTest.results.length}/${stressTest.count}`;
+  const tag = `#${result.id} ${result.label}`;
 
-    let logDiv = document.createElement('div');
-    let paragraph = document.createElement('p');
-    paragraph.setAttribute('style', `color: ${colors[level] || 'gray'}`);
-    let paragraphContent = document.createTextNode(timestamp + ' [' + level.toUpperCase() + '] ' + message);
-    paragraph.appendChild(paragraphContent);
+  if (result.ok) {
+    console.log(`%c[${tag}] ${result.status} OK ${result.elapsed}s ${result.textLength}B  (${progress})`, "color: green");
+  } else {
+    console.error(`[${tag}] FAIL ${result.elapsed}s ${result.error}  (${progress})`);
+  }
 
-    logDiv.appendChild(paragraph);
-    document.getElementById('output').appendChild(logDiv);
-}
+  updateStatus("stress-test-status", progress, "orange");
 
-/**
- * Display messages that have been sent up the websocket. Colours them blue.
- *
- * @param {string} message
- */
-function displaySend(message) {
-    let timestamp = new Date().toISOString().substr(11, 12);
+  // Summary on completion
+  if (stressTest.results.length === stressTest.count) {
+    const totalElapsed = ((performance.now() - stressTest.startTime) / 1000).toFixed(2);
+    const succeeded = stressTest.results.filter((r) => r.ok).length;
+    const failed = stressTest.results.filter((r) => !r.ok).length;
 
-    let sendDiv = document.createElement('div');
-    let paragraph = document.createElement('p');
-    paragraph.setAttribute('style', 'color: blue');
-    let paragraphContent = document.createTextNode(timestamp + ' sent >>> ' + message);
-    paragraph.appendChild(paragraphContent);
+    console.log(`%c=== COMPLETE: ${totalElapsed}s | OK ${succeeded}/${stressTest.count} | Failed ${failed}/${stressTest.count} ===`, "font-weight: bold");
+    console.log("Completion order:", stressTest.completionOrder);
 
-    sendDiv.appendChild(paragraph);
-    document.getElementById('output').appendChild(sendDiv);
-}
+    // Per-profile breakdown in console
+    const profileList = stressTest.mode === "drip" ? DRIP_PROFILES : STRESS_PROFILES;
+    if (stressTest.mode === "mixed" || stressTest.mode === "drip") {
+      const table = [];
+      for (const profile of profileList) {
+        const matching = stressTest.results.filter((r) => r.label === profile.label);
+        if (matching.length === 0) continue;
+        const ok = matching.filter((r) => r.ok).length;
+        const times = matching.filter((r) => r.ok).map((r) => parseFloat(r.elapsed));
+        const avg = times.length > 0 ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(2) : "-";
+        const max = times.length > 0 ? Math.max(...times).toFixed(2) : "-";
+        table.push({ profile: profile.label, ok: `${ok}/${matching.length}`, avg: `${avg}s`, max: `${max}s` });
+      }
+      console.table(table);
+    }
 
-function displayReceivedRawString(raw) {
-    let timestamp = new Date().toISOString().substr(11, 12);
-    let receivedDiv = document.createElement('div');
-    let paragraph = document.createElement('p');
-    paragraph.setAttribute('style', 'color: green');
-    let paragraphContent = document.createTextNode(timestamp + ' received >>> ' + raw);
-    paragraph.appendChild(paragraphContent);
-    receivedDiv.appendChild(paragraph);
-    document.getElementById('output').appendChild(receivedDiv);
+    updateStatus("stress-test-status",
+      `Done: ${succeeded}/${stressTest.count} OK, ${failed} failed (${totalElapsed}s)`,
+      failed > 0 ? "red" : "green"
+    );
+    document.querySelector("#stress-test-button").disabled = false;
+    stressTest = null;
+  }
 }
 
 main();

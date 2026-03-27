@@ -238,7 +238,7 @@
     fastq "^1.6.0"
 
 "@nymproject/mix-fetch-wasm@file:../pkg":
-  version "1.4.2"
+  version "1.4.3"
   resolved "file:../pkg"
 
 "@peculiar/asn1-cms@^2.6.0", "@peculiar/asn1-cms@^2.6.1":

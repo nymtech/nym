@@ -206,30 +206,33 @@ async function handleFetchPayload(target) {
     }
 }
 
-async function handlePostPayload(url, body) {
+async function handleStressTestFetch(id, url, label) {
     if (!mixFetchReady) {
         sendLog('MixFetch not ready yet', 'error');
         return;
     }
 
-    const args = {
-        method: 'POST',
-        mode: "unsafe-ignore-cors",
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: body,
-    };
+    const tag = `[stress #${id} ${label}]`;
+    const start = performance.now();
+    const args = { mode: "unsafe-ignore-cors" };
 
     try {
-        sendLog(`POST request to: ${url}`);
-        sendLog(`POST body: ${body}`);
-        const mixFetchRes = await mixFetch(url, args);
-        sendLog('POST completed');
-        await logFetchResult(mixFetchRes);
+        sendLog(`${tag} Fetching: ${url}`);
+        const res = await mixFetch(url, args);
+        const text = await res.text();
+        const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+        sendLog(`${tag} ${res.status} OK in ${elapsed}s (${text.length} bytes)`);
+        self.postMessage({
+            kind: 'StressTestFetchResult',
+            args: { id, ok: true, status: res.status, elapsed, textLength: text.length, body: text },
+        });
     } catch (e) {
-        sendLog('POST request failure: ' + e, 'error');
-        console.error("mix fetch POST request failure: ", e);
+        const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+        sendLog(`${tag} FAILED in ${elapsed}s: ${e}`, 'error');
+        self.postMessage({
+            kind: 'StressTestFetchResult',
+            args: { id, ok: false, elapsed, error: String(e) },
+        });
     }
 }
 
@@ -247,9 +250,17 @@ function setupMessageHandler() {
                     await handleFetchPayload(target);
                     break;
                 }
-                case 'PostPayload': {
-                    const { url, body } = event.data.args;
-                    await handlePostPayload(url, body);
+                case 'SetGoTimeout': {
+                    const { timeoutMs } = event.data.args;
+                    sendLog(`Setting Go-side request timeout to ${timeoutMs}ms`);
+                    self.__go_rs_bridge__.goWasmSetMixFetchRequestTimeout(timeoutMs);
+                    break;
+                }
+                case 'StressTestFetch': {
+                    const { id, url, label } = event.data.args;
+                    // NOT awaited — each request runs independently,
+                    // just like separate callers in a real app
+                    handleStressTestFetch(id, url, label);
                     break;
                 }
             }

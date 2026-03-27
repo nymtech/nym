@@ -3,100 +3,121 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nym MixFetch Demo</title>
+    <title>Nym MixFetch Dev</title>
     <script src="bootstrap.js"></script>
   </head>
 
   <body>
-    <h1>Mix Fetch Demo</h1>
+    <h1>MixFetch Dev</h1>
 
     <fieldset id="startup-controls">
-      <legend>MixFetch Configuration</legend>
-      <p>
-        You can either use the default Gateway/NR combo run by us, or have
-        MixFetch choose a random one on startup.
-      </p>
-      <div style="margin-bottom: 10px">
-        <label>
-          <input type="radio" name="gateway-mode" value="default" checked />
-          Default Gateway (q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1)
-        </label>
+      <legend>Connection</legend>
+      <div>
+        <label><input type="radio" name="gateway-mode" value="default" checked />
+          Default Gateway (q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1)</label>
       </div>
-      <div style="margin-bottom: 10px">
-        <label>
-          <input type="radio" name="gateway-mode" value="random" />
-          Random Gateway
-        </label>
+      <div>
+        <label><input type="radio" name="gateway-mode" value="random" />
+          Random Gateway</label>
       </div>
-      <button id="start-mixfetch">Start MixFetch</button>
-      <span id="mixfetch-status" style="margin-left: 10px; color: gray"
-        >Not started</span
-      >
+      <div style="margin-top: 8px">
+        <button id="start-mixfetch">Start MixFetch</button>
+        <span id="mixfetch-status" style="margin-left: 10px; color: gray">Not started</span>
+      </div>
     </fieldset>
-
-    <hr />
 
     <fieldset id="fetch-controls" disabled>
-      <legend>Fetch Controls</legend>
+      <legend>Quick Fetch</legend>
       <div>
-        <label>Target Host 1: </label>
-        <input
-          type="text"
-          size="60"
-          id="fetch_payload_1"
-          value="https://api.ipify.org?format=json"
-        />
-        <button id="fetch-button-1">Fetch 1</button>
+        <input type="text" size="55" id="fetch_payload_1" value="https://api.ipify.org?format=json" />
+        <button id="fetch-button-1">GET</button>
       </div>
-      <div>
-        <label>Target Host 2: </label>
-        <input
-          type="text"
-          size="60"
-          id="fetch_payload_2"
-          value="https://api6.ipify.org?format=json"
-        />
-        <button id="fetch-button-2">Fetch 2</button>
+      <div style="margin-top: 4px">
+        <input type="text" size="55" id="fetch_payload_2" value="https://api6.ipify.org?format=json" />
+        <button id="fetch-button-2">GET</button>
       </div>
-      <p>
-        Note: if you're hammering these endpoints and you start to get timeouts
-        (or you've been reloading the page a lot) then change the target hosts
-        to e.g. http://ipv4.icanhazip.com and https://ipv6.icanhazip.com/
-      </p>
+      <pre id="fetch-log" style="background: #f5f5f5; padding: 8px; margin-top: 8px; max-height: 150px; overflow-y: auto; font-size: 0.85em; white-space: pre-wrap; display: none"></pre>
+
+      <hr />
+
+      <h3>Stress Test</h3>
       <div>
-        <button id="fetch-10-concurrent">
-          Send 10 Concurrent Requests (posts/1-10)
-        </button>
-        <p>
-          This does what is says on the tin - sends 10 fetch requests to
-          https://jsonplaceholder.typicode.com/posts/ 1 through 10
+        <label>Requests:</label>
+        <input type="number" id="stress-test-count" value="20" min="1" max="200" style="width: 60px" />
+        <label>Mode:</label>
+        <select id="stress-test-mode">
+          <option value="uniform">Uniform (same URL, incremented ID)</option>
+          <option value="mixed" selected>Mixed sizes</option>
+          <option value="drip">Slow drip (timeout boundary)</option>
+        </select>
+      </div>
+
+      <div id="stress-uniform-opts" style="display: none; margin-top: 8px; padding: 8px; background: #f9f9f9">
+        <div>
+          <label>Base URL:</label>
+          <input type="text" size="50" id="stress-test-url" value="https://jsonplaceholder.typicode.com/posts/" />
+        </div>
+        <p style="margin: 4px 0 0; font-size: 0.85em; color: #666">
+          Request ID (1..N) appended to the URL. All requests are the same size.
         </p>
       </div>
-      <hr />
-      <div>
-        <label>POST URL: </label>
-        <input
-          type="text"
-          size="60"
-          id="post_url"
-          value="https://jsonplaceholder.typicode.com/posts"
-        />
-      </div>
-      <div>
-        <label>POST Body (JSON): </label>
-        <textarea id="post_body" rows="3" cols="60">
-{"title": "Test Post", "body": "Hello from MixFetch!", "userId": 1}</textarea
-        >
-      </div>
-      <div>
-        <button id="post-button">Send POST Request</button>
-      </div>
-      <p>Do a POST and get it echoed back</p>
-    </fieldset>
 
-    <hr />
-    <p>
-      <span id="output"></span>
-    </p>
+      <div id="stress-mixed-opts" style="margin-top: 8px; padding: 8px; background: #f9f9f9">
+        <p style="margin: 0 0 4px; font-size: 0.85em; color: #666">
+          Each request randomly assigned a size via <code>httpbin.org/bytes/{n}</code>.
+          Tests how the mixnet handles asymmetric payload sizes concurrently.
+        </p>
+        <table style="font-size: 0.9em; border-collapse: collapse">
+          <tr><td style="padding: 1px 10px 1px 0"><b>tiny</b></td><td>128 B</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>small</b></td><td>1 KB</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>medium</b></td><td>10 KB</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>large</b></td><td>100 KB</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>xlarge</b></td><td>1 MB</td></tr>
+        </table>
+      </div>
+
+      <div id="stress-drip-opts" style="display: none; margin-top: 8px; padding: 8px; background: #f9f9f9">
+        <p style="margin: 0 0 4px; font-size: 0.85em; color: #666">
+          Uses <code>httpbin.org/drip</code> to slowly drip bytes over a set duration,
+          keeping connections alive for a controlled time. Profiles are designed to
+          straddle the Go timeout boundary &mdash; some will finish just in time,
+          others will be mid-transfer when the timeout fires. This is how we
+          reproduce the Go runtime panic (see DEBUGGING_NOTES.md).
+        </p>
+        <table style="font-size: 0.9em; border-collapse: collapse">
+          <tr>
+            <td style="padding: 1px 10px 1px 0"><b>safe</b></td>
+            <td>30s</td>
+            <td style="padding-left: 10px; color: #666">well under 60s timeout</td>
+          </tr>
+          <tr>
+            <td style="padding: 1px 10px 1px 0"><b>boundary</b></td>
+            <td>55s</td>
+            <td style="padding-left: 10px; color: #666">55s server + ~10s mixnet latency = over</td>
+          </tr>
+          <tr>
+            <td style="padding: 1px 10px 1px 0"><b>over</b></td>
+            <td>65s</td>
+            <td style="padding-left: 10px; color: #666">exceeds 60s timeout on its own</td>
+          </tr>
+          <tr>
+            <td style="padding: 1px 10px 1px 0"><b>slow-start</b></td>
+            <td>10s delay + 50s</td>
+            <td style="padding-left: 10px; color: #666">late first byte, then long transfer</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="margin-top: 8px">
+        <label>Go timeout (ms):</label>
+        <input type="number" id="stress-go-timeout" value="60000" min="500" max="120000" style="width: 80px" />
+      </div>
+
+      <div style="margin-top: 8px">
+        <button id="stress-test-button">Run Stress Test</button>
+        <span id="stress-test-status" style="margin-left: 10px"></span>
+      </div>
+      <div id="stress-tracker" style="margin-top: 8px; font-family: monospace; font-size: 0.85em; display: none"></div>
+    </fieldset>
   </body>
 </html>

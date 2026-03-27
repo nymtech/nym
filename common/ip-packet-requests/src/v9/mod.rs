@@ -1,5 +1,9 @@
 pub const VERSION: u8 = 9;
 
+/// Minimum nym-node release version that supports v9 (LP Stream framing).
+/// Nodes running older versions will not understand LP-wrapped packets.
+pub const MIN_RELEASE_VERSION: semver::Version = semver::Version::new(1, 30, 0);
+
 // v9 uses the same wire format as v8. The version bump indicates
 // the message was sent with LP framing (SphinxStream).
 //

@@ -6,10 +6,11 @@
 use std::collections::HashMap;
 
 use nym_crypto::asymmetric::ed25519;
+use nym_ip_packet_requests::v9;
 use nym_network_defaults::ApiUrl;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_validator_client::nym_api::NymApiClientExt;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use rand::seq::SliceRandom;
 
@@ -63,10 +64,30 @@ pub async fn retrieve_exit_nodes_with_performance(
     let mut described = Vec::new();
 
     for exit in exit_gateways {
-        if let Some(ipr_info) = all_nodes
-            .get(&exit.ed25519_identity_pubkey)
-            .and_then(|n| n.description.ip_packet_router.clone())
-        {
+        let Some(node) = all_nodes.get(&exit.ed25519_identity_pubkey) else {
+            continue;
+        };
+
+        // Only select nodes running a version that supports v9 (LP Stream framing)
+        let Ok(node_version) = semver::Version::parse(node.version()) else {
+            debug!(
+                "Skipping node {}: unable to parse version '{}'",
+                exit.ed25519_identity_pubkey,
+                node.version()
+            );
+            continue;
+        };
+        if node_version < v9::MIN_RELEASE_VERSION {
+            debug!(
+                "Skipping node {}: version {} < minimum {}",
+                exit.ed25519_identity_pubkey,
+                node_version,
+                v9::MIN_RELEASE_VERSION
+            );
+            continue;
+        }
+
+        if let Some(ipr_info) = node.description.ip_packet_router.clone() {
             if let Ok(parsed_address) = ipr_info.address.parse() {
                 described.push(IprWithPerformance {
                     address: parsed_address,

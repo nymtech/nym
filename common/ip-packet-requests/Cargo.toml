@@ -22,6 +22,7 @@ nym-crypto = { workspace = true }
 nym-service-provider-requests-common = { workspace = true }
 nym-sphinx = { workspace = true }
 rand = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true }

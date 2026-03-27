@@ -66,6 +66,7 @@ toml = { workspace = true }
 tempfile = { workspace = true }
 
 nym-ip-packet-requests = { workspace = true }
+semver = { workspace = true }
 
 # tcpproxy dependencies
 clap = { workspace = true, features = ["derive"] }

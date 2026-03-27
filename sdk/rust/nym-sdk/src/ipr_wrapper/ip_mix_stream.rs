@@ -54,7 +54,8 @@ impl IpMixStream {
     /// Returns a ready-to-use tunnel with allocated IP addresses.
     pub async fn new() -> Result<Self, Error> {
         let network_defaults = NymNetworkDetails::new_mainnet();
-        let api_client = create_nym_api_client(network_defaults.nym_api_urls.unwrap_or_default())?;
+        let api_client =
+            create_nym_api_client(network_defaults.nym_api_urls.ok_or(Error::NoNymAPIUrl)?)?;
         let ipr_address = get_best_ipr(api_client).await?;
         Self::new_with_ipr(ipr_address).await
     }

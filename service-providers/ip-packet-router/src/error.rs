@@ -117,9 +117,6 @@ pub enum IpPacketRouterError {
     #[error("failed to deserialize protocol: {source}")]
     FailedToDeserializeProtocol { source: ProtocolError },
 
-    #[error("KCP protocol error: {0}")]
-    KcpError(String),
-
     #[error("{0}")]
     Other(String),
 }

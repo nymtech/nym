@@ -6987,7 +6987,6 @@ dependencies = [
  "nym-exit-policy",
  "nym-id",
  "nym-ip-packet-requests",
- "nym-kcp",
  "nym-lp",
  "nym-network-defaults",
  "nym-network-requester",

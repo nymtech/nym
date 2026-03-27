@@ -4,6 +4,7 @@
 mod v6;
 mod v7;
 mod v8;
+mod v9;
 
 use nym_ip_packet_requests::{
     IpPair, v6::request::IpPacketRequest as IpPacketRequestV6,
@@ -129,10 +130,35 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                     .ok_or(IpPacketRouterError::MissingSenderTag)?;
                 Ok(IpPacketRequest::from((request_v8, sender_tag)))
             }
+            9 => {
+                let request_v8 = IpPacketRequestV8::from_reconstructed_message(reconstructed)
+                    .map_err(
+                        |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
+                    )?;
+                let sender_tag = reconstructed
+                    .sender_tag
+                    .ok_or(IpPacketRouterError::MissingSenderTag)?;
+                Ok(v9::convert(request_v8, sender_tag))
+            }
             _ => {
                 log::info!("Received packet with invalid version: v{request_version}");
                 Err(IpPacketRouterError::InvalidPacketVersion(request_version))
             }
+        }
+    }
+}
+
+impl IpPacketRequest {
+    pub(crate) fn version(&self) -> ClientVersion {
+        match self {
+            IpPacketRequest::Data(r) => r.version,
+            IpPacketRequest::Control(c) => match c {
+                ControlRequest::StaticConnect(r) => r.version,
+                ControlRequest::DynamicConnect(r) => r.version,
+                ControlRequest::Disconnect(r) => r.version,
+                ControlRequest::Ping(r) => r.version,
+                ControlRequest::Health(r) => r.version,
+            },
         }
     }
 }

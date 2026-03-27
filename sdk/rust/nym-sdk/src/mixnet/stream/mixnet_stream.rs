@@ -1,3 +1,6 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 //! Per-stream handle implementing `AsyncRead + AsyncWrite`.
 
 use std::pin::Pin;
@@ -109,6 +112,17 @@ impl MixnetStream {
     /// Return the unique identifier for this stream.
     pub fn id(&self) -> StreamId {
         self.id
+    }
+
+    /// Receive a single message payload directly from the stream channel.
+    ///
+    /// Returns `None` on EOF (channel closed). Drains any leftover from
+    /// a prior `AsyncRead` call first.
+    pub async fn recv(&mut self) -> Option<Vec<u8>> {
+        if !self.read_buf.is_empty() {
+            return Some(self.read_buf.split().to_vec());
+        }
+        self.inbound_rx.recv().await
     }
 
     /// Wrap `data` in the appropriate `InputMessage` for this stream's destination.

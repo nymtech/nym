@@ -1,3 +1,6 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 //! Wire protocol for stream multiplexing.
 //!
 //! Every message between streams carries an LP frame header prepended to
@@ -53,7 +56,6 @@ impl fmt::Display for StreamId {
 pub struct StreamFrame<'a> {
     pub stream_id: StreamId,
     pub msg_type: SphinxStreamMsgType,
-    #[allow(dead_code)] // will be used for reordering
     pub sequence_num: u32,
     pub data: &'a [u8],
 }

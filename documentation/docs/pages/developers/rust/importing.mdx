@@ -1,23 +1,25 @@
 ---
 title: "Install the Nym Rust SDK"
-description: "Add nym-sdk to your Rust project from crates.io or Git. Covers version requirements, minimum Rust version, and current feature gate status."
+description: "Add nym-sdk to your Rust project from Git or crates.io. Covers version requirements, minimum Rust version, and current feature gate status."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-03-15"
+lastUpdated: "2026-03-27"
 ---
 
 # Installation
 
 import { Callout } from 'nextra/components';
 
-The `nym-sdk` crate is available on [crates.io](https://crates.io/crates/nym-sdk):
+<Callout type="warning">
+**Crate publication is paused.** The `nym-sdk` crate on crates.io (v1.20.4) does not include the Stream module or other recent additions. Crate publication will resume once the Lewes Protocol is published. In the meantime, import from Git:
+</Callout>
 
 ```toml
 [dependencies]
-nym-sdk = "1.20.4"
+nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
 ```
 
-You can also import directly from the Git repository if you need unreleased changes:
+You can also track a branch if you want the latest changes:
 
 ```toml
 # development branch (latest changes, may be unstable)
@@ -28,6 +30,17 @@ nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
 ```
 
 **Minimum Rust version:** 1.70+
+
+### crates.io (older API only)
+
+If you don't need the Stream module or other recent additions, you can still use the published crate:
+
+```toml
+[dependencies]
+nym-sdk = "1.20.4"
+```
+
+This version includes the Mixnet message API, Client Pool, and TcpProxy modules.
 
 <Callout type="warning">
 **Feature gates are not yet implemented.** Importing `nym-sdk` currently pulls in all modules (mixnet, tcp_proxy, client_pool, etc.) and their full dependency trees. Work is planned to gate modules behind Cargo feature flags so you can import only what you need.

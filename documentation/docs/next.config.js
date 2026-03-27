@@ -1152,9 +1152,27 @@ const config = {
         basePath: false,
       },
 
-      // --- Rust SDK: deleted tcpproxy troubleshooting ---
+      // --- Rust SDK: collapsed TcpProxy subpages ---
       {
         source: "/docs/developers/rust/tcpproxy/troubleshooting",
+        destination: "/docs/developers/rust/tcpproxy",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/rust/tcpproxy/tutorial",
+        destination: "/docs/developers/rust/tcpproxy",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/rust/tcpproxy/architecture",
+        destination: "/docs/developers/rust/tcpproxy",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/rust/tcpproxy/examples",
         destination: "/docs/developers/rust/tcpproxy",
         permanent: true,
         basePath: false,

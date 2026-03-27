@@ -10,6 +10,10 @@ lastUpdated: "2026-03-15"
 
 import { Callout } from 'nextra/components'
 
+<Callout type="warning">
+**Not yet on crates.io.** The Stream module is part of the latest SDK source but is not included in the current crates.io release (v1.20.4). Import from Git to use streams — see [Installation](./importing).
+</Callout>
+
 The Mixnet is fundamentally a message-based anonymity network — no persistent connections, no guaranteed ordering, no TCP. The default [message API](./mixnet) works at this native level: individual payloads sent independently through mix nodes. This is powerful for privacy, but it's not how most networking code works.
 
 The **Stream module** bridges that gap. It gives you persistent, bidirectional byte channels that look and feel like TCP sockets. Each `MixnetStream` implements Rust's standard [`AsyncRead`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncRead.html) and [`AsyncWrite`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncWrite.html) traits — use `tokio::io::copy`, codecs, `BufReader`/`BufWriter`, or any library that works with async I/O. Under the hood, the module handles framing, multiplexing, and routing so you don't have to.

@@ -1,32 +1,17 @@
-//! HTTPS GET through the Nym mixnet using the Tunnel API.
+//! HTTPS GET: clearnet vs Nym mixnet comparison.
 //!
 //! Fetches Cloudflare's `/cdn-cgi/trace` endpoint over clearnet (reqwest) and
-//! through the mixnet (hyper over tokio-rustls over smolmix), then compares
-//! responses and timing.
+//! through the mixnet (smolmix-hyper), then compares responses and timing.
 //!
 //! Run with:
-//!   cargo run --example tunnel_https
+//!   cargo run -p smolmix-hyper --example get
+//!   cargo run -p smolmix-hyper --example get -- --ipr <IPR_ADDRESS>
 
-use std::sync::Arc;
-
-use http_body_util::BodyExt;
-use hyper::body::Bytes;
-use hyper::Request;
-use hyper_util::rt::TokioIo;
-use rustls::pki_types::ServerName;
-use smolmix::{NetworkEnvironment, Tunnel};
+use smolmix::{Recipient, Tunnel};
+use smolmix_hyper::{BodyExt, Client, EmptyBody, Request};
 use tracing::info;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
-
-fn tls_connector() -> tokio_rustls::TlsConnector {
-    let mut root_store = rustls::RootCertStore::empty();
-    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    let config = rustls::ClientConfig::builder()
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
-    tokio_rustls::TlsConnector::from(Arc::new(config))
-}
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
@@ -47,24 +32,27 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
 
-    // --- Mixnet via tunnel + tokio-rustls + hyper ---
-    let tunnel = Tunnel::new(NetworkEnvironment::Mainnet).await?;
+    // --- Mixnet via smolmix-hyper ---
+    let args: Vec<String> = std::env::args().collect();
+    let ipr_addr = args
+        .iter()
+        .position(|a| a == "--ipr")
+        .and_then(|i| args.get(i + 1));
 
+    let tunnel = if let Some(addr) = ipr_addr {
+        let recipient: Recipient = addr.parse().expect("invalid IPR address");
+        Tunnel::new_with_ipr(recipient).await?
+    } else {
+        Tunnel::new().await?
+    };
+
+    let client = Client::new(&tunnel);
     let mixnet_start = tokio::time::Instant::now();
-    let tcp = tunnel.tcp_connect("1.1.1.1:443".parse()?).await?;
 
-    let connector = tls_connector();
-    let domain = ServerName::try_from(host)?.to_owned();
-    let tls = connector.connect(domain, tcp).await?;
-
-    // Hand the TLS stream to hyper for proper HTTP/1.1 handling.
-    let (mut sender, conn) = hyper::client::conn::http1::handshake(TokioIo::new(tls)).await?;
-    let conn_handle = tokio::spawn(conn);
-
-    let req = Request::get(path)
+    let req = Request::get(format!("https://{host}{path}"))
         .header("Host", host)
-        .body(http_body_util::Empty::<Bytes>::new())?;
-    let resp = sender.send_request(req).await?;
+        .body(EmptyBody::<bytes::Bytes>::new())?;
+    let resp = client.request(req).await?;
 
     let mixnet_status = resp.status();
     let body_bytes = resp.into_body().collect().await?.to_bytes();
@@ -77,7 +65,6 @@ async fn main() -> Result<(), BoxError> {
     info!("Mixnet:   {} in {:?}", mixnet_status, mixnet_duration);
     info!("Status match: {}", clearnet_status == mixnet_status);
 
-    // Both should contain the same diagnostic fields.
     let fields = ["fl=", "visit_scheme=https", "uag="];
     for field in fields {
         let clearnet_has = clearnet_body.contains(field);
@@ -85,7 +72,6 @@ async fn main() -> Result<(), BoxError> {
         info!("  {field:<25} clearnet={clearnet_has}  mixnet={mixnet_has}");
     }
 
-    // The IP should differ (mixnet uses an exit node).
     let clearnet_ip = clearnet_body.lines().find(|l| l.starts_with("ip="));
     let mixnet_ip = mixnet_body.lines().find(|l| l.starts_with("ip="));
     info!("  Clearnet IP: {}", clearnet_ip.unwrap_or("?"));
@@ -93,10 +79,6 @@ async fn main() -> Result<(), BoxError> {
 
     let slowdown = mixnet_duration.as_millis() as f64 / clearnet_duration.as_millis().max(1) as f64;
     info!("  Slowdown:    {slowdown:.1}x");
-
-    // Drop the sender so hyper knows we're done, then wait for the connection task.
-    drop(sender);
-    let _ = conn_handle.await;
 
     tunnel.shutdown().await;
     Ok(())

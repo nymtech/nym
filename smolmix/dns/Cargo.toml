@@ -1,0 +1,17 @@
+[package]
+name = "smolmix-dns"
+version = "0.0.1"
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+smolmix = { workspace = true }
+hickory-proto = { workspace = true, features = ["tokio"] }
+hickory-resolver = { workspace = true, features = ["tokio"] }
+tokio-smoltcp = "0.5"
+
+[dev-dependencies]
+# Clearnet baseline in example
+hickory-resolver = { workspace = true, features = ["tokio", "system-config"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tracing = { workspace = true }

@@ -1,0 +1,20 @@
+[package]
+name = "smolmix-libp2p"
+version = "0.0.1"
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+smolmix = { workspace = true }
+smolmix-dns = { workspace = true }
+libp2p = { version = "0.56", features = ["tokio", "noise", "yamux", "ping", "macros"] }
+tokio-smoltcp = "0.5"
+tokio-util = { workspace = true, features = ["compat"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+# tcp feature only needed for the clearnet listener example
+libp2p = { version = "0.56", features = ["tcp"] }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tracing-subscriber = { workspace = true }

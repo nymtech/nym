@@ -147,8 +147,17 @@ async fn submit_testrun(
         "Agent submitted testrun {} for gateway {} ({} bytes)",
         submitted_testrun_id,
         gw_identity,
-        &submitted_result.payload.probe_result.len(),
+        &submitted_result.payload.probe_log.as_bytes().len(),
     );
+
+    // Need serialized result for DB.
+    // In general, this should NEVER fail because Serialize for this type is derived.
+    // But just in case, do this BEFORE marking the testrun as complete.
+    let serialized_probe_res = serde_json::to_string(&submitted_result.payload.probe_result)
+        .map_err(|e| {
+            tracing::error!("Failed to serialize probe result into DB: {e}");
+            HttpError::invalid_input("Invalid probe_result")
+        })?;
 
     queries::testruns::update_testrun_status(
         &mut conn,
@@ -160,15 +169,15 @@ async fn submit_testrun(
     queries::testruns::update_gateway_last_probe_log(
         &mut conn,
         assigned_testrun.gateway_id,
-        &submitted_result.payload.probe_result.clone(),
+        &submitted_result.payload.probe_log.clone(),
     )
     .await
     .map_err(HttpError::internal_with_logging)?;
-    let result = get_result_from_log(&submitted_result.payload.probe_result);
+
     queries::testruns::update_gateway_last_probe_result(
         &mut conn,
         assigned_testrun.gateway_id,
-        &result,
+        &serialized_probe_res,
     )
     .await
     .map_err(HttpError::internal_with_logging)?;

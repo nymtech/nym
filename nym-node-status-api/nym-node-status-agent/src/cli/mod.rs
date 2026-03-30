@@ -1,3 +1,4 @@
+use crate::log_capture::LogCapture;
 use crate::probe::GwProbe;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
@@ -74,7 +75,7 @@ pub(crate) enum Command {
 }
 
 impl Args {
-    pub(crate) async fn execute(&self) -> anyhow::Result<()> {
+    pub(crate) async fn execute(&self, log_capture: LogCapture) -> anyhow::Result<()> {
         match &self.command {
             Command::RunProbe {
                 server,
@@ -93,7 +94,7 @@ impl Args {
                     }
                 }
 
-                run_probe::run_probe(&servers, probe_path, probe_extra_args)
+                run_probe::run_probe(&servers, probe_path, probe_extra_args, log_capture)
                     .await
                     .inspect_err(|err| {
                         tracing::error!("{err}");

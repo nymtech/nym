@@ -3,12 +3,14 @@
 
 use clap::{ArgGroup, Args};
 use nym_credentials_interface::TicketType;
-use nym_node_status_client::models::AttachedTicketMaterials;
 use nym_sdk::mixnet::{
     CredentialStorage, DisconnectedMixnetClient, Ephemeral, MixnetClientStorage, OnDiskPersistent,
 };
 
-use crate::common::bandwidth_helpers::{acquire_bandwidth, import_bandwidth};
+use crate::{
+    common::bandwidth_helpers::{acquire_bandwidth, import_bandwidth},
+    types::AttachedTicketMaterials,
+};
 
 #[derive(Debug, Args)]
 pub struct CredentialArgs {

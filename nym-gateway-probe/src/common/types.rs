@@ -1,7 +1,9 @@
 use nym_connection_monitor::ConnectionStatusEvent;
 use serde::{Deserialize, Serialize};
 
+pub use super::bandwidth_helpers::{AttachedTicket, AttachedTicketMaterials};
 pub use super::socks5_test::HttpsConnectivityResult;
+pub use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProbeResult {

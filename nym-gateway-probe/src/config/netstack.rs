@@ -5,38 +5,60 @@ use clap::Args;
 
 #[derive(Args, Clone, Debug)]
 pub struct NetstackArgs {
-    #[arg(long, hide = true, default_value_t = 180)]
+    #[arg(long, hide = true)]
     pub netstack_download_timeout_sec: u64,
 
-    #[arg(long, hide = true, default_value_t = 30)]
+    #[arg(long, hide = true)]
     pub metadata_timeout_sec: u64,
 
-    #[arg(long, hide = true, default_value = "1.1.1.1")]
+    #[arg(long, hide = true)]
     pub netstack_v4_dns: String,
 
     #[arg(long, hide = true, default_value = "2606:4700:4700::1111")]
     pub netstack_v6_dns: String,
 
-    #[arg(long, hide = true, default_value_t = 5)]
+    #[arg(long, hide = true)]
     pub netstack_num_ping: u8,
 
-    #[arg(long, hide = true, default_value_t = 3)]
+    #[arg(long, hide = true)]
     pub netstack_send_timeout_sec: u64,
 
-    #[arg(long, hide = true, default_value_t = 3)]
+    #[arg(long, hide = true)]
     pub netstack_recv_timeout_sec: u64,
 
-    #[arg(long, hide= true, default_values_t = vec!["nym.com".to_string()])]
+    #[arg(long, hide = true)]
     pub netstack_ping_hosts_v4: Vec<String>,
 
-    #[arg(long, hide= true, default_values_t = vec!["1.1.1.1".to_string()])]
+    #[arg(long, hide = true)]
     pub netstack_ping_ips_v4: Vec<String>,
 
-    #[arg(long, hide= true, default_values_t = vec!["cloudflare.com".to_string()])]
+    #[arg(long, hide = true)]
     pub netstack_ping_hosts_v6: Vec<String>,
 
-    #[arg(long, hide= true, default_values_t = vec!["2001:4860:4860::8888".to_string(), "2606:4700:4700::1111".to_string(), "2620:fe::fe".to_string()])]
+    #[arg(long, hide = true)]
     pub netstack_ping_ips_v6: Vec<String>,
+}
+
+impl Default for NetstackArgs {
+    fn default() -> Self {
+        Self {
+            netstack_download_timeout_sec: 180,
+            metadata_timeout_sec: 30,
+            netstack_v4_dns: String::from("1.1.1.1"),
+            netstack_v6_dns: String::from("2606:4700:4700::1111"),
+            netstack_num_ping: 5,
+            netstack_send_timeout_sec: 3,
+            netstack_recv_timeout_sec: 3,
+            netstack_ping_hosts_v4: vec!["nym.com".to_string()],
+            netstack_ping_ips_v4: vec!["1.1.1.1".to_string()],
+            netstack_ping_hosts_v6: vec!["cloudflare.com".to_string()],
+            netstack_ping_ips_v6: vec![
+                "2001:4860:4860::8888".to_string(),
+                "2606:4700:4700::1111".to_string(),
+                "2620:fe::fe".to_string(),
+            ],
+        }
+    }
 }
 
 #[cfg(test)]

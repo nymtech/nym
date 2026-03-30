@@ -1,4 +1,4 @@
-use nym_node_status_client::models::{AttachedTicketMaterials, VersionedSerialise};
+use nym_gateway_probe::types::{AttachedTicketMaterials, VersionedSerialise};
 use tracing::{debug, error, info};
 
 pub(crate) struct GwProbe {
@@ -10,6 +10,7 @@ impl GwProbe {
         Self { path: probe_path }
     }
 
+    // TODO dz rework to get
     pub(crate) async fn version(&self) -> String {
         debug!("Attempting to execute binary at: {}", &self.path);
         #[cfg(unix)]

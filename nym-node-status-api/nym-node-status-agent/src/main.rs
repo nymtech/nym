@@ -1,39 +1,30 @@
 use crate::cli::Args;
+use crate::log_capture::LogCapture;
 use clap::Parser;
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::{EnvFilter, filter::Directive};
+use tracing_subscriber::{EnvFilter, filter::Directive, prelude::*};
 
 mod cli;
+mod log_capture;
 mod probe;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    setup_tracing();
+    let log_capture = setup_tracing();
     let args = Args::parse();
 
-    args.execute().await?;
+    args.execute(log_capture).await?;
 
     Ok(())
 }
 
-pub(crate) fn setup_tracing() {
+pub(crate) fn setup_tracing() -> LogCapture {
     fn directive_checked(directive: impl Into<String>) -> Directive {
         directive
             .into()
             .parse()
             .expect("Failed to parse log directive")
     }
-
-    let log_builder = tracing_subscriber::fmt()
-        // Use a more compact, abbreviated log format
-        .compact()
-        // Display source code file paths
-        .with_file(true)
-        // Display source code line numbers
-        .with_line_number(true)
-        .with_thread_ids(true)
-        // Don't display the event's target (module path)
-        .with_target(false);
 
     let mut filter = EnvFilter::builder()
         // if RUST_LOG isn't set, set default level
@@ -59,5 +50,22 @@ pub(crate) fn setup_tracing() {
     filter = filter.add_directive(directive_checked("nym_network_defaults=debug"));
     filter = filter.add_directive(directive_checked("nym_validator_client=debug"));
 
-    log_builder.with_env_filter(filter).init();
+    let stderr_layer = tracing_subscriber::fmt::layer()
+        .compact()
+        .with_file(true)
+        .with_line_number(true)
+        .with_thread_ids(true)
+        .with_target(false);
+
+    let log_capture = LogCapture::new();
+    let capture_layer = tracing_subscriber::fmt::layer()
+        .with_ansi(false)
+        .with_writer(log_capture.clone());
+
+    tracing_subscriber::registry()
+        .with(stderr_layer.with_filter(filter))
+        .with(capture_layer.with_filter(LevelFilter::INFO))
+        .init();
+
+    log_capture
 }

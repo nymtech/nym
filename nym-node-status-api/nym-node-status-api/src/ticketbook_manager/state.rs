@@ -16,7 +16,7 @@ use nym_credential_proxy_lib::storage::traits::{
 use nym_credentials::EpochVerificationKey;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_ecash_time::ecash_default_expiration_date;
-use nym_node_status_client::models::AttachedTicketMaterials;
+use nym_gateway_probe::types::AttachedTicketMaterials;
 use nym_validator_client::EcashApiClient;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::Coin;

@@ -20,6 +20,8 @@ clap = { workspace = true, features = ["derive", "env"] }
 futures = { workspace = true }
 nym-bin-common = { workspace = true, features = ["models"] }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
+nym-gateway-probe = { workspace = true }
+nym-sdk = { workspace = true }
 
 nym-node-status-client = { path = "../nym-node-status-client" }
 rand = { workspace = true }

@@ -14,5 +14,6 @@ pub struct PoolCounters {
 
     /// Represents the total amount of tickets requested to be redeemed from the contract and get moved into the holding account,
     /// after that functionality got disabled.
+    #[serde(default)]
     pub tickets_requested_and_not_redeemed: u64,
 }

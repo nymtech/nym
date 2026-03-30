@@ -69,7 +69,8 @@ impl ActiveRequests {
         let mut guard = self.inner.lock().await;
         let old = guard.remove(&id);
         if old.is_none() {
-            console_error!("attempted to reject request {id}, but it seems to have never existed?")
+            console_error!("attempted to reject request {id}, but it no longer exists — likely already cleaned up by Go timeout");
+            return;
         }
 
         goWasmInjectConnError(id.to_string(), err.to_string())

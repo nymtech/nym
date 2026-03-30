@@ -124,7 +124,7 @@ impl NymIprBridge {
             }
         }
 
-        // disconnect_stream() internally waits for all SDK tasks via TaskTracker.
+        // disconnect() internally waits for all SDK tasks via TaskTracker.
         info!("Disconnecting from mixnet...");
         self.stream.disconnect().await;
         info!("Disconnected");

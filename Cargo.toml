@@ -147,7 +147,12 @@ members = [
     "sdk/ffi/go",
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
-    "smolmix",
+    "smolmix/core",
+    "smolmix/dns",
+    "smolmix/hyper",
+    "smolmix/libp2p",
+    "smolmix/tls",
+    "smolmix/tungstenite",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -349,6 +354,12 @@ serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
 sha2 = "0.10.3"
 si-scale = "0.2.3"
+smolmix = { version = "0.0.1", path = "smolmix/core" }
+smolmix-dns = { version = "0.0.1", path = "smolmix/dns" }
+smolmix-hyper = { version = "0.0.1", path = "smolmix/hyper" }
+smolmix-libp2p = { version = "0.0.1", path = "smolmix/libp2p" }
+smolmix-tls = { version = "0.0.1", path = "smolmix/tls" }
+smolmix-tungstenite = { version = "0.0.1", path = "smolmix/tungstenite" }
 smoltcp = "0.12"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"

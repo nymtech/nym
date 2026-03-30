@@ -4,8 +4,9 @@
 //! our Tunnel TcpStream. Sends a message to a public echo server via clearnet
 //! and via the mixnet, then compares responses and timing.
 //!
-//! The clearnet and mixnet paths use the *exact same* TLS + WebSocket stack —
-//! only the underlying TCP transport differs:
+//! DNS resolution goes through the tunnel (no clearnet leak). The clearnet and
+//! mixnet paths use the *exact same* TLS + WebSocket stack — only the underlying
+//! TCP transport differs:
 //!
 //! ```text
 //! tokio-tungstenite (WebSocket framing)
@@ -15,13 +16,14 @@
 //! ```
 //!
 //! Run with:
-//!   cargo run --example tunnel_websocket
+//!   cargo run -p smolmix --example websocket
+//!   cargo run -p smolmix --example websocket -- --ipr <IPR_ADDRESS>
 
 use std::sync::Arc;
 
 use futures::{SinkExt, StreamExt};
 use rustls::pki_types::ServerName;
-use smolmix::{NetworkEnvironment, Tunnel};
+use smolmix::{Recipient, Tunnel};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
 
@@ -47,18 +49,30 @@ async fn main() -> Result<(), BoxError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    // WARNING: This resolves the hostname via clearnet DNS, leaking the target
-    // to a local observer. In production, resolve DNS through the tunnel itself
-    // (see tunnel_dns.rs) or use smolmix-dns when available. We use clearnet
-    // here only because this example needs a known IP before the tunnel is up.
-    let addr = tokio::net::lookup_host(format!("{WS_HOST}:443"))
-        .await?
-        .next()
-        .ok_or("DNS resolution failed")?;
-    info!("Resolved {WS_HOST} -> {addr} (via clearnet DNS)");
-
     let connector = tls_connector();
     let domain = ServerName::try_from(WS_HOST)?.to_owned();
+
+    // --- Set up tunnel and resolve DNS through it (no clearnet leak) ---
+    let args: Vec<String> = std::env::args().collect();
+    let ipr_addr = args
+        .iter()
+        .position(|a| a == "--ipr")
+        .and_then(|i| args.get(i + 1));
+
+    let tunnel = if let Some(addr) = ipr_addr {
+        let recipient: Recipient = addr.parse().expect("invalid IPR address");
+        Tunnel::new_with_ipr(recipient).await?
+    } else {
+        Tunnel::new().await?
+    };
+    info!("Allocated IP: {}", tunnel.allocated_ips().ipv4);
+
+    let addrs = smolmix_dns::resolve(&tunnel, WS_HOST, 443).await?;
+    let addr = addrs
+        .into_iter()
+        .next()
+        .ok_or("DNS resolution returned no addresses")?;
+    info!("Resolved {WS_HOST} -> {addr} (via tunnel DNS)");
 
     // --- Clearnet baseline: tokio TCP → rustls → tungstenite ---
     info!("Connecting via clearnet...");
@@ -78,9 +92,6 @@ async fn main() -> Result<(), BoxError> {
     info!("Clearnet: \"{clearnet_text}\" in {clearnet_duration:?}");
 
     // --- Mixnet: smolmix TCP → rustls → tungstenite (same stack) ---
-    let tunnel = Tunnel::new(NetworkEnvironment::Mainnet).await?;
-    info!("Allocated IP: {}", tunnel.allocated_ips().ipv4);
-
     let mixnet_start = tokio::time::Instant::now();
 
     let mixnet_tcp = tunnel.tcp_connect(addr).await?;

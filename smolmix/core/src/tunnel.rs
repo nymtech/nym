@@ -25,8 +25,6 @@ use crate::device::NymAsyncDevice;
 use crate::SmolmixError;
 use tokio_smoltcp::{Net, NetConfig};
 
-// Re-export so users only need `use smolmix::*` — no direct dep on nym-sdk or tokio-smoltcp.
-pub use nym_sdk::ipr_wrapper::NetworkEnvironment;
 pub use nym_sdk::mixnet::Recipient;
 pub use tokio_smoltcp::{TcpStream, UdpSocket};
 
@@ -52,21 +50,27 @@ struct TunnelInner {
 ///
 /// Cloning a `Tunnel` is cheap (Arc-based) and all clones share the same underlying
 /// connection. Multiple tasks can open sockets concurrently.
+///
+/// # Shutdown
+///
+/// Call [`shutdown()`](Self::shutdown) for a clean disconnect. Rust has no async `Drop`,
+/// so dropping without calling `shutdown()` triggers a fire-and-forget cleanup via the
+/// oneshot channel — the bridge will still shut down, but the caller can't await it.
 #[derive(Clone)]
 pub struct Tunnel {
     inner: Arc<TunnelInner>,
 }
 
 impl Tunnel {
-    /// Create a new tunnel connected to the given network.
+    /// Create a new tunnel, automatically discovering the best IPR exit node.
     ///
     /// This is the simplest entry point — one line gets you a working tunnel:
     /// ```ignore
-    /// let tunnel = Tunnel::new(NetworkEnvironment::Mainnet).await?;
+    /// let tunnel = Tunnel::new().await?;
     /// let tcp = tunnel.tcp_connect("1.1.1.1:443".parse()?).await?;
     /// ```
-    pub async fn new(env: NetworkEnvironment) -> Result<Self, SmolmixError> {
-        let ipr_stream = IpMixStream::new(env).await?;
+    pub async fn new() -> Result<Self, SmolmixError> {
+        let ipr_stream = IpMixStream::new().await?;
         Self::from_stream(ipr_stream).await
     }
 
@@ -76,13 +80,10 @@ impl Tunnel {
     /// bypass automatic IPR discovery:
     /// ```ignore
     /// let ipr: Recipient = "gateway-address...".parse()?;
-    /// let tunnel = Tunnel::new_with_ipr(NetworkEnvironment::Mainnet, ipr).await?;
+    /// let tunnel = Tunnel::new_with_ipr(ipr).await?;
     /// ```
-    pub async fn new_with_ipr(
-        env: NetworkEnvironment,
-        ipr_address: Recipient,
-    ) -> Result<Self, SmolmixError> {
-        let ipr_stream = IpMixStream::new_with_ipr(env, ipr_address).await?;
+    pub async fn new_with_ipr(ipr_address: Recipient) -> Result<Self, SmolmixError> {
+        let ipr_stream = IpMixStream::new_with_ipr(ipr_address).await?;
         Self::from_stream(ipr_stream).await
     }
 

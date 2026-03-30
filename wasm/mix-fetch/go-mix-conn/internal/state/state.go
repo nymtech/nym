@@ -92,7 +92,8 @@ func (ar *CurrentActiveRequests) InjectData(id types.RequestId, data []byte) {
 	defer ar.Unlock()
 	_, exists := ar.Requests[id]
 	if !exists {
-		panic("attempted to write to connection that doesn't exist")
+		log.Error("attempted to inject data for connection %d that no longer exists — likely already cleaned up", id)
+		return
 	}
 	ar.Requests[id].injector.ServerData <- data
 }
@@ -115,7 +116,8 @@ func (ar *CurrentActiveRequests) SendError(id types.RequestId, err error) {
 	defer ar.Unlock()
 	_, exists := ar.Requests[id]
 	if !exists {
-		panic("attempted to inject error data to connection that doesn't exist")
+		log.Error("attempted to inject error for connection %d that no longer exists — likely already cleaned up", id)
+		return
 	}
 	ar.Requests[id].injector.RemoteError <- err
 }

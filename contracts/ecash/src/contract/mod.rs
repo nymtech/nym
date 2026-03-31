@@ -669,7 +669,7 @@ impl NymEcashContract {
         set_build_information!(ctx.deps.storage)?;
         cw2::ensure_from_older_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-        queued_migrations::add_tiered_pricing(ctx.deps, initial_whitelist)?;
+        // queued_migrations::add_tiered_pricing(ctx.deps, initial_whitelist)?;
 
         Ok(Response::new())
     }

@@ -186,12 +186,16 @@ impl NymEcashContract {
     }
 
     #[sv::msg(query)]
-    #[sv::attr(serde(alias = "get_required_deposit_amount"))]
-    #[sv::attr(serde(alias = "GetRequiredDepositAmount"))]
     pub fn get_default_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
         let deposit_amount = self.config.load(ctx.deps.storage)?.deposit_amount;
 
         Ok(deposit_amount)
+    }
+
+    // Poor man's alias for backwards compatibility as sv::attr didn't seem to work
+    #[sv::msg(query)]
+    pub fn get_required_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
+        self.get_default_deposit_amount(ctx)
     }
 
     #[sv::msg(query)]

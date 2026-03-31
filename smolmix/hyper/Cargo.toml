@@ -1,0 +1,25 @@
+[package]
+name = "smolmix-hyper"
+version = "0.0.1"
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+smolmix = { workspace = true }
+smolmix-dns = { workspace = true }
+bytes = { workspace = true }
+hyper = { workspace = true, features = ["client", "http1"] }
+hyper-util = { workspace = true, features = ["tokio", "client-legacy"] }
+http-body-util = { workspace = true }
+smolmix-tls = { workspace = true }
+tokio-smoltcp = "0.5"
+pin-project-lite = "0.2"
+tower = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+# Clearnet baseline in example
+reqwest = { workspace = true }
+rustls = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tracing = { workspace = true }

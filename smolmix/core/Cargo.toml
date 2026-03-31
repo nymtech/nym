@@ -29,6 +29,7 @@ nym-ip-packet-requests = { workspace = true }
 thiserror.workspace = true
 
 [dev-dependencies]
+smolmix-dns = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread", "time", "net"] }
 tokio-tungstenite.workspace = true

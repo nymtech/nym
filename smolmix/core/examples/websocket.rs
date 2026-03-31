@@ -67,12 +67,13 @@ async fn main() -> Result<(), BoxError> {
     };
     info!("Allocated IP: {}", tunnel.allocated_ips().ipv4);
 
-    let addrs = smolmix_dns::resolve(&tunnel, WS_HOST, 443).await?;
-    let addr = addrs
-        .into_iter()
+    // NOTE: This uses clearnet DNS for simplicity. For leak-free DNS resolution
+    // through the mixnet, use the smolmix-dns crate.
+    let addr = tokio::net::lookup_host(format!("{WS_HOST}:443"))
+        .await?
         .next()
         .ok_or("DNS resolution returned no addresses")?;
-    info!("Resolved {WS_HOST} -> {addr} (via tunnel DNS)");
+    info!("Resolved {WS_HOST} -> {addr} (via clearnet DNS)");
 
     // --- Clearnet baseline: tokio TCP → rustls → tungstenite ---
     info!("Connecting via clearnet...");

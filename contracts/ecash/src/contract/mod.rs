@@ -186,6 +186,8 @@ impl NymEcashContract {
     }
 
     #[sv::msg(query)]
+    #[sv::attr(serde(alias = "get_required_deposit_amount"))]
+    #[sv::attr(serde(alias = "GetRequiredDepositAmount"))]
     pub fn get_default_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
         let deposit_amount = self.config.load(ctx.deps.storage)?.deposit_amount;
 

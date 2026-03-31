@@ -1,5 +1,5 @@
 #!/bin/bash
-# nym tunnel and wireguard exit policy manager
+# nym host network firewall, tunnel and wireguard exit policy manager
 # run this script as root
 
 set -euo pipefail
@@ -556,8 +556,8 @@ apply_smtps_465_rate_limit() {
 ###############################################################################
 
 NETWORK_FIREWALL_COMMENT="NYM-NETWORK-FW"
-SSH_PORT="${SSH_PORT:-22}"
-NETWORK_FIREWALL_TCP_PORTS=("$SSH_PORT" 80 443 1789 1790 8080 9000 9001 41264)
+HOST_SSH_PORT="${HOST_SSH_PORT:-22}"
+NETWORK_FIREWALL_TCP_PORTS=("$HOST_SSH_PORT" 80 443 1789 1790 8080 9000 9001 41264)
 NETWORK_FIREWALL_UDP_PORTS=(4443 51822 51264)
 NETWORK_FIREWALL_WG_TCP_PORT=51830
 
@@ -571,7 +571,7 @@ validate_port_value() {
   fi
 }
 
-validate_port_value "SSH_PORT" "$SSH_PORT"
+validate_port_value "HOST_SSH_PORT" "$HOST_SSH_PORT"
 
 build_network_firewall_status_pattern() {
   local patterns=("$NETWORK_FIREWALL_COMMENT")
@@ -1722,6 +1722,7 @@ environment overrides:
   NETWORK_DEVICE_V6                 Auto-detected IPv6 uplink (e.g., eth2). Optional; if unset, IPv6-specific setup is skipped.
   TUNNEL_INTERFACE                  Default: nymtun0. Requires root privileges (sudo) to manage.
   WG_INTERFACE                      Default: nymwg - Must match your WireGuard interface name.
+  HOST_SSH_PORT                     Default: 22. Set manually if you connect to your host's SSH daemon through another port.
 
 EOF
     status=0

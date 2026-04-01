@@ -5,37 +5,37 @@ use clap::Args;
 
 #[derive(Args, Clone, Debug)]
 pub struct NetstackArgs {
-    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_download_timeout_sec)]
+    #[arg(long, env = "PROBE_NETSTACK_DOWNLOAD_TIMEOUT_SEC", default_value_t = NetstackArgs::default().netstack_download_timeout_sec)]
     pub netstack_download_timeout_sec: u64,
 
-    #[arg(long, hide = true, default_value_t = NetstackArgs::default().metadata_timeout_sec)]
+    #[arg(long, env = "PROBE_METADATA_TIMEOUT_SEC", default_value_t = NetstackArgs::default().metadata_timeout_sec)]
     pub metadata_timeout_sec: u64,
 
-    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_v4_dns)]
+    #[arg(long, env = "PROBE_NETSTACK_V4_DNS", default_value_t = NetstackArgs::default().netstack_v4_dns)]
     pub netstack_v4_dns: String,
 
-    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_v6_dns)]
+    #[arg(long, env = "PROBE_NETSTACK_V6_DNS", default_value_t = NetstackArgs::default().netstack_v6_dns)]
     pub netstack_v6_dns: String,
 
-    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_num_ping)]
+    #[arg(long, env = "PROBE_NETSTACK_NUM_PING", default_value_t = NetstackArgs::default().netstack_num_ping)]
     pub netstack_num_ping: u8,
 
-    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_send_timeout_sec)]
+    #[arg(long, env = "PROBE_NETSTACK_SEND_TIMEOUT_SEC", default_value_t = NetstackArgs::default().netstack_send_timeout_sec)]
     pub netstack_send_timeout_sec: u64,
 
-    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_recv_timeout_sec)]
+    #[arg(long, env = "PROBE_NETSTACK_RECV_TIMEOUT_SEC", default_value_t = NetstackArgs::default().netstack_recv_timeout_sec)]
     pub netstack_recv_timeout_sec: u64,
 
-    #[arg(long, hide = true, default_values_t = NetstackArgs::default().netstack_ping_hosts_v4)]
+    #[arg(long, env = "PROBE_NETSTACK_PING_HOSTS_V4", default_values_t = NetstackArgs::default().netstack_ping_hosts_v4)]
     pub netstack_ping_hosts_v4: Vec<String>,
 
-    #[arg(long, hide = true, default_values_t = NetstackArgs::default().netstack_ping_ips_v4)]
+    #[arg(long, env = "PROBE_NETSTACK_PING_IPS_V4", default_values_t = NetstackArgs::default().netstack_ping_ips_v4)]
     pub netstack_ping_ips_v4: Vec<String>,
 
-    #[arg(long, hide = true, default_values_t = NetstackArgs::default().netstack_ping_hosts_v6)]
+    #[arg(long, env = "PROBE_NETSTACK_PING_HOSTS_V6", default_values_t = NetstackArgs::default().netstack_ping_hosts_v6)]
     pub netstack_ping_hosts_v6: Vec<String>,
 
-    #[arg(long, hide = true, default_values_t = NetstackArgs::default().netstack_ping_ips_v6)]
+    #[arg(long, env = "PROBE_NETSTACK_PING_IPS_V6", default_values_t = NetstackArgs::default().netstack_ping_ips_v6)]
     pub netstack_ping_ips_v6: Vec<String>,
 }
 

@@ -1,16 +1,12 @@
-name: ci-sdk-wasm
+name: nightly-mix-fetch-stress
 
 on:
+  schedule:
+    - cron: '0 3 * * *'
   workflow_dispatch:
-  pull_request:
-    paths:
-      - "wasm/**"
-      - "clients/client-core/**"
-      - "common/**"
-      - ".github/workflows/ci-sdk-wasm.yml"
 
 jobs:
-  wasm:
+  stress:
     runs-on: arc-linux-latest
     env:
       CARGO_TERM_COLOR: always
@@ -28,7 +24,6 @@ jobs:
           toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
           target: wasm32-unknown-unknown
           override: true
-          components: rustfmt, clippy
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -38,48 +33,29 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: Install wasm-opt
-        uses: ./.github/actions/install-wasm-opt
-        with:
-          version: "116"
-
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli
-
-      - name: Set debug to false
-        run: |
-          sed -i.bak 's/\[profile.dev\]/\[profile.dev\]\ndebug = false/' Cargo.toml
-          git diff
-
-      - name: "Build"
-        run: make sdk-wasm-build
 
       - name: "Build mix-fetch WASM (debug)"
         run: |
           make -C wasm/mix-fetch/go-mix-conn build-debug-dev
           make -C wasm/mix-fetch build-rust-debug
 
-      - name: "Build mix-fetch internal-dev harness"
+      - name: "Build internal-dev harness"
         working-directory: wasm/mix-fetch/internal-dev
         run: npm install && npm run build
 
       - name: "Install Playwright browsers"
         working-directory: wasm/mix-fetch/tests
-        run: npm install && npx playwright install --with-deps # --with-deps assumes Ubuntu/Debian, see note in wasm/mix-fetch/tests/README.md
+        run: npm install && npx playwright install --with-deps
 
-      - name: "Smoke-test mix-fetch internal-dev (headless)"
+      - name: "Stress-test mix-fetch through mainnet"
         working-directory: wasm/mix-fetch/tests
-        run: npm run test:smoke
+        run: npm run test:stress
 
       - name: Upload Playwright traces on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: mix-fetch-playwright-traces
+          name: mix-fetch-stress-traces
           path: wasm/mix-fetch/tests/test-results/
-
-      - name: "Test"
-        run: make sdk-wasm-test
-
-      - name: "Lint"
-        run: make sdk-wasm-lint

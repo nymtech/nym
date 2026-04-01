@@ -65,15 +65,10 @@ pub(crate) struct RunProbeArgs {
     #[arg(short, long, required = true)]
     pub server: Vec<String>,
 
-    #[command(subcommand)]
-    /// these args are passed to the probe directly.
-    /// See GW probe syntax for what they do
-    pub probe_extra_args: Option<ProbeExtraArgsCmd>,
-}
-
-#[derive(Subcommand, Debug)]
-pub(crate) enum ProbeExtraArgsCmd {
-    ProbeExtraArgs(nym_gateway_probe::config::ProbeConfig),
+    /// Probe configuration overrides (netstack, socks5, etc.)
+    /// Can also be set via PROBE_* environment variables.
+    #[command(flatten)]
+    pub probe_config: nym_gateway_probe::config::ProbeConfig,
 }
 
 impl Args {
@@ -92,11 +87,7 @@ impl Args {
                     }
                 }
 
-                let ProbeExtraArgsCmd::ProbeExtraArgs(probe_extra_args) =
-                    // if no CLI overrides provided, fall back to defaults
-                    args.probe_extra_args.unwrap_or_else(||ProbeExtraArgsCmd::ProbeExtraArgs(nym_gateway_probe::config::ProbeConfig::default()));
-
-                run_probe::run_probe(&servers, probe_extra_args, log_capture)
+                run_probe::run_probe(&servers, args.probe_config, log_capture)
                     .await
                     .inspect_err(|err| {
                         tracing::error!("{err}");

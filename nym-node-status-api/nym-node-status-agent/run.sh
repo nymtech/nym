@@ -36,7 +36,6 @@ function swarm() {
 
     for ((i = 1; i <= workers; i++)); do
         ${monorepo_root}/target/release/nym-node-status-agent run-probe --server ${SERVER} \
-            probe-extra-args \
             --netstack-download-timeout-sec 30 \
             --netstack-num-ping 2 \
             --netstack-send-timeout-sec 1 \
@@ -49,7 +48,6 @@ function swarm() {
     echo "All agents completed"
 }
 
-# copy_gw_probe
 build_agent
 
 swarm $workers

@@ -78,6 +78,10 @@ const DEFAULT_GATEWAY = 'q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1';
 async function main() {
     client = new WebWorkerClient();
 
+    // Randomise client ID on each load to avoid storage/state collisions
+    document.getElementById('opt-client-id').value =
+        'client-' + Math.random().toString(36).slice(2, 8);
+
     document.querySelector('#start-mixfetch').onclick = () => {
         const gatewayMode = document.querySelector('input[name="gateway-mode"]:checked').value;
         const preferredGateway = gatewayMode === 'default' ? DEFAULT_GATEWAY : undefined;
@@ -92,7 +96,7 @@ async function main() {
 
         document.querySelector('#start-mixfetch').disabled = true;
         document.querySelectorAll('input[name="gateway-mode"]').forEach((r) => (r.disabled = true));
-        updateStatus('mixfetch-status', 'Starting...', 'orange');
+        updateStatus('mixfetch-status', 'Starting...');
 
         // Sync the stress-test Go timeout to match the configured request timeout
         document.getElementById('stress-go-timeout').value = setupOpts.requestTimeoutMs;
@@ -118,25 +122,17 @@ async function main() {
         const goTimeoutMs = parseInt(document.getElementById('stress-go-timeout').value, 10);
 
         document.querySelector('#stress-test-button').disabled = true;
-        updateStatus('stress-test-status', 'Running...', 'orange');
+        updateStatus('stress-test-status', 'Running...');
         client.setGoTimeout(goTimeoutMs);
 
         const requests = generateStressRequests(count, mode, goTimeoutMs);
         stressTest = {
             count,
-            mode,
             startTime: performance.now(),
             results: [],
-            completionOrder: [],
-            profiles: {},
         };
-        for (const req of requests) {
-            stressTest.profiles[req.id] = { label: req.label, bytes: req.bytes };
-        }
 
-        initStressTracker(requests);
-
-        console.log(`%c=== STRESS TEST: ${count} requests, ${mode} mode, timeout=${goTimeoutMs}ms ===`, 'font-weight: bold');
+        console.log(`=== STRESS TEST: ${count} requests, ${mode} mode, timeout=${goTimeoutMs}ms ===`);
 
         if (mode === 'mixed' || mode === 'drip') {
             const breakdown = {};
@@ -150,20 +146,18 @@ async function main() {
 
 // ─── UI helpers ─────────────────────────────────────────────────────────────
 
-function updateStatus(elementId, text, color) {
-    const el = document.getElementById(elementId);
-    el.textContent = text;
-    el.style.color = color;
+function updateStatus(elementId, text) {
+    document.getElementById(elementId).textContent = text;
 }
 
 function onMixFetchReady() {
-    updateStatus('mixfetch-status', 'Ready', 'green');
+    updateStatus('mixfetch-status', 'Ready');
     document.getElementById('fetch-controls').disabled = false;
-    console.log('%cMixFetch ready!', 'color: green; font-weight: bold');
+    console.log('MixFetch ready!');
 }
 
 function onMixFetchError(error) {
-    updateStatus('mixfetch-status', 'Error: ' + error, 'red');
+    updateStatus('mixfetch-status', 'Error: ' + error);
     document.querySelector('#start-mixfetch').disabled = false;
     document.querySelectorAll('input[name="gateway-mode"]').forEach((r) => (r.disabled = false));
     console.error('MixFetch error:', error);
@@ -239,125 +233,38 @@ function generateStressRequests(count, mode, timeoutMs) {
 
 let stressTest = null;
 
-// Per-profile live tracker state
-let trackerData = {};
-
-function initStressTracker(requests) {
-    const tracker = document.getElementById('stress-tracker');
-    tracker.style.display = 'block';
-    trackerData = {};
-
-    // Count how many of each profile were sent
-    for (const req of requests) {
-        if (!trackerData[req.label]) {
-            trackerData[req.label] = { sent: 0, ok: 0, fail: 0, times: [] };
-        }
-        trackerData[req.label].sent++;
-    }
-
-    renderTracker();
-}
-
-function renderTracker() {
-    const tracker = document.getElementById('stress-tracker');
-    const rows = Object.entries(trackerData).map(([label, d]) => {
-        const pending = d.sent - d.ok - d.fail;
-        const avg = d.times.length > 0
-            ? (d.times.reduce((a, b) => a + b, 0) / d.times.length).toFixed(1) + 's'
-            : '-';
-        const max = d.times.length > 0 ? Math.max(...d.times).toFixed(1) + 's' : '-';
-        const min = d.times.length > 0 ? Math.min(...d.times).toFixed(1) + 's' : '-';
-
-        let status = '';
-        if (d.ok > 0) status += `<span style="color: green">${d.ok} ok</span>`;
-        if (d.fail > 0) status += `${status ? ' ' : ''}<span style="color: red">${d.fail} fail</span>`;
-        if (pending > 0) status += `${status ? ' ' : ''}<span style="color: gray">${pending} pending</span>`;
-
-        let timing = '';
-        if (d.times.length > 0) {
-            timing = `avg ${avg} / min ${min} / max ${max}`;
-        }
-
-        return `<tr>
-            <td style="padding: 2px 8px; font-weight: bold">${label}</td>
-            <td style="padding: 2px 8px">${d.sent}</td>
-            <td style="padding: 2px 8px">${status}</td>
-            <td style="padding: 2px 8px; color: #666">${timing}</td>
-        </tr>`;
-    });
-
-    tracker.innerHTML = `<table style="border-collapse: collapse">
-        <tr style="border-bottom: 1px solid #ccc">
-            <th style="padding: 2px 8px; text-align: left">profile</th>
-            <th style="padding: 2px 8px; text-align: left">sent</th>
-            <th style="padding: 2px 8px; text-align: left">status</th>
-            <th style="padding: 2px 8px; text-align: left">timing</th>
-        </tr>
-        ${rows.join('')}
-    </table>`;
-}
-
 function onStressTestFetchResult(result) {
     if (!stressTest) return;
 
-    const profile = stressTest.profiles[result.id];
-    result.label = profile ? profile.label : '?';
-
     stressTest.results.push(result);
-    stressTest.completionOrder.push(result.id);
-
-    // Update tracker
-    const td = trackerData[result.label];
-    if (td) {
-        if (result.ok) {
-            td.ok++;
-            td.times.push(parseFloat(result.elapsed));
-        } else {
-            td.fail++;
-        }
-        renderTracker();
-    }
 
     const progress = `${stressTest.results.length}/${stressTest.count}`;
     const tag = `#${result.id} ${result.label}`;
 
     if (result.ok) {
-        console.log(`%c[${tag}] ${result.status} OK ${result.elapsed}s ${result.textLength}B  (${progress})`, 'color: green');
+        console.log(`[${tag}] ${result.status} OK ${result.elapsed}s ${result.textLength}B  (${progress})`);
     } else {
         console.error(`[${tag}] FAIL ${result.elapsed}s ${result.error}  (${progress})`);
     }
 
-    updateStatus('stress-test-status', progress, 'orange');
+    updateStatus('stress-test-status', progress);
 
-    // Summary on completion
     if (stressTest.results.length === stressTest.count) {
         const totalElapsed = ((performance.now() - stressTest.startTime) / 1000).toFixed(2);
         const succeeded = stressTest.results.filter((r) => r.ok).length;
         const failed = stressTest.results.filter((r) => !r.ok).length;
 
-        console.log(`%c=== COMPLETE: ${totalElapsed}s | OK ${succeeded}/${stressTest.count} | Failed ${failed}/${stressTest.count} ===`, 'font-weight: bold');
-        console.log('Completion order:', stressTest.completionOrder);
+        console.log(`=== COMPLETE: ${totalElapsed}s | OK ${succeeded}/${stressTest.count} | Failed ${failed}/${stressTest.count} ===`);
 
-        // Per-profile breakdown in console
-        const profileLabels = Object.keys(trackerData);
-        const profileList = profileLabels.map((label) => ({ label }));
-        if (stressTest.mode === 'mixed' || stressTest.mode === 'drip') {
-            const table = [];
-            for (const profile of profileList) {
-                const matching = stressTest.results.filter((r) => r.label === profile.label);
-                if (matching.length === 0) continue;
-                const ok = matching.filter((r) => r.ok).length;
-                const times = matching.filter((r) => r.ok).map((r) => parseFloat(r.elapsed));
-                const avg = times.length > 0 ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(2) : '-';
-                const max = times.length > 0 ? Math.max(...times).toFixed(2) : '-';
-                table.push({ profile: profile.label, ok: `${ok}/${matching.length}`, avg: `${avg}s`, max: `${max}s` });
+        if (failed > 0) {
+            const failures = stressTest.results.filter((r) => !r.ok);
+            for (const f of failures) {
+                console.log(`  FAIL #${f.id} ${f.label} (${f.elapsed}s): ${f.error}`);
             }
-            console.table(table);
         }
 
         updateStatus('stress-test-status',
-            `Done: ${succeeded}/${stressTest.count} OK, ${failed} failed (${totalElapsed}s)`,
-            failed > 0 ? 'red' : 'green'
+            `Done: ${succeeded}/${stressTest.count} OK, ${failed} failed (${totalElapsed}s)`
         );
         document.querySelector('#stress-test-button').disabled = false;
         stressTest = null;

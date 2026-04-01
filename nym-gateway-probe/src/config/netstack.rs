@@ -5,37 +5,37 @@ use clap::Args;
 
 #[derive(Args, Clone, Debug)]
 pub struct NetstackArgs {
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_download_timeout_sec)]
     pub netstack_download_timeout_sec: u64,
 
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, default_value_t = NetstackArgs::default().metadata_timeout_sec)]
     pub metadata_timeout_sec: u64,
 
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_v4_dns)]
     pub netstack_v4_dns: String,
 
-    #[arg(long, hide = true, default_value = "2606:4700:4700::1111")]
+    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_v6_dns)]
     pub netstack_v6_dns: String,
 
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_num_ping)]
     pub netstack_num_ping: u8,
 
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_send_timeout_sec)]
     pub netstack_send_timeout_sec: u64,
 
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, default_value_t = NetstackArgs::default().netstack_recv_timeout_sec)]
     pub netstack_recv_timeout_sec: u64,
 
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, default_values_t = NetstackArgs::default().netstack_ping_hosts_v4)]
     pub netstack_ping_hosts_v4: Vec<String>,
 
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, default_values_t = NetstackArgs::default().netstack_ping_ips_v4)]
     pub netstack_ping_ips_v4: Vec<String>,
 
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, default_values_t = NetstackArgs::default().netstack_ping_hosts_v6)]
     pub netstack_ping_hosts_v6: Vec<String>,
 
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, default_values_t = NetstackArgs::default().netstack_ping_ips_v6)]
     pub netstack_ping_ips_v6: Vec<String>,
 }
 

@@ -62,7 +62,35 @@ impl Probe {
         }
     }
 
-    /// Run a probe as an NS agent, i.e. a bonded node on a known network
+    pub async fn new_for_agent(
+        entry_gateway: nym_sdk::mixnet::ed25519::PublicKey,
+        network: NymNetworkDetails,
+        mut config: ProbeConfig,
+    ) -> anyhow::Result<Self> {
+        let api_url = network
+            .endpoints
+            .first()
+            .and_then(|ep| ep.api_url())
+            .ok_or(anyhow::anyhow!("missing api url"))?;
+
+        let directory = NymApiDirectory::new(api_url).await?;
+        let entry_details = directory
+            .entry_gateway(&entry_gateway)?
+            .to_testable_node()?;
+
+        // Agents run everything
+        config.test_mode = config::TestMode::All;
+
+        Ok(Self {
+            entry_node: entry_details,
+            exit_node: None,
+            network,
+            config,
+            topology: None,
+        })
+    }
+
+    /// Run a probe as an NS agent (orchestrator for multiple probe runs for NS API)
     pub async fn probe_run_agent(
         mut self,
         credential_args: CredentialArgs,
@@ -422,5 +450,9 @@ impl Probe {
         }
 
         Ok(probe_result)
+    }
+
+    pub fn config(&self) -> &ProbeConfig {
+        &self.config
     }
 }

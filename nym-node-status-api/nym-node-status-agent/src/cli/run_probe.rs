@@ -1,25 +1,19 @@
-use crate::cli::{GwProbe, ServerConfig};
+use crate::cli::ServerConfig;
 use crate::log_capture::LogCapture;
-use nym_gateway_probe::config::{CredentialArgs, NetstackArgs, Socks5Args};
+use anyhow::anyhow;
+use nym_gateway_probe::config::CredentialArgs;
 use nym_gateway_probe::types::{AttachedTicketMaterials, VersionedSerialise};
 use nym_sdk::mixnet::ed25519::PublicKey;
 use tracing::instrument;
 
 pub(crate) async fn run_probe(
     servers: &[ServerConfig],
-    probe_path: &str,
-    probe_extra_args: &Vec<String>,
+    probe_config: nym_gateway_probe::config::ProbeConfig,
     log_capture: LogCapture,
 ) -> anyhow::Result<()> {
-    // TODO dz how do we pass probe_extra_args now that we don't invoke probe as a CLI tool anymore?
     if servers.is_empty() {
         anyhow::bail!("No servers configured");
     }
-
-    let probe = GwProbe::new(probe_path.to_string());
-
-    let version = probe.version().await;
-    tracing::info!("Probe version:\n{}", version);
 
     // Always use first server as primary
     let primary_server = &servers[0];
@@ -54,30 +48,18 @@ pub(crate) async fn run_probe(
     let testrun_id = testrun.assignment.testrun_id;
     let testrun_assigned_at = testrun.assignment.assigned_at_utc;
     let gateway_identity_key = testrun.assignment.gateway_identity_key.clone();
+    let gateway_identity_pubkey = PublicKey::from_base58_string(gateway_identity_key.clone())
+        .map_err(|e| anyhow!("Failed to parse GW identity key: {e}"))?;
 
     tracing::info!("Received testrun {testrun_id} for gateway {gateway_identity_key} from primary",);
 
-    // TODO dz prettify this
-    // ===== NEW PART: USING GW PROBE AS A LIB ======
-
-    // TODO dz all of this preparation should already be a part of the function, either on gw probe side or here as a separate function
     let network = nym_sdk::NymNetworkDetails::new_from_env();
-    let api_url = network
-        .endpoints
-        .first()
-        .and_then(|ep| ep.api_url())
-        .ok_or(anyhow::anyhow!("missing api url"))?;
+    let probe =
+        nym_gateway_probe::Probe::new_for_agent(gateway_identity_pubkey, network, probe_config)
+            .await?;
 
-    let directory = nym_gateway_probe::NymApiDirectory::new(api_url).await?;
-    let gateway_identity_pubkey =
-        PublicKey::from_base58_string(gateway_identity_key.clone()).unwrap();
-    let entry_details = directory
-        .entry_gateway(&gateway_identity_pubkey)?
-        .to_testable_node()?;
-
-    // TODO dz constructing ad hoc: in GW probe, this came as CLI arguments
-    let probe_config = default_probe_config();
-    let gw_probe = nym_gateway_probe::Probe::new(entry_details, None, network, probe_config);
+    // probe constructor might modify config to suit the testing mode, so log afterwards
+    tracing::info!("Using probe config::\n{:#?}", &probe.config());
 
     let serialized_ticket_materials = testrun.ticket_materials.to_serialised_string();
     let credentials_args = CredentialArgs {
@@ -88,53 +70,16 @@ pub(crate) async fn run_probe(
 
     // Run the probe, capturing all tracing output
     log_capture.start();
-    let probe_result = Box::pin(gw_probe.probe_run_agent(credentials_args))
+    let probe_result = Box::pin(probe.probe_run_agent(credentials_args))
         .await
         .unwrap();
     let probe_log = log_capture.stop_and_drain();
-
-    // Run the probe
-    // let log = probe.run_and_get_log(
-    //     gateway_identity_key.clone(),
-    //     probe_extra_args,
-    //     testrun.ticket_materials,
-    // );
 
     // Inspect the probe output for socks5 field
     match probe_result.outcome.socks5.as_ref() {
         Some(socks5) => tracing::info!("🌐 socks5 field present: {:#?}", socks5),
         None => tracing::warn!("🌐⚠️ socks5 field is MISSING from probe output"),
     }
-    // Extract JSON from log output (probe outputs logs followed by JSON)
-    // TODO dz this should be part of parsed probeOutput so parsing the logs no longer necessary
-    // extract to its own function
-    // let json_str = extract_json_from_log(&log);
-    // if json_str.is_empty() {
-    //     tracing::warn!("Failed to extract JSON from probe output");
-    // } else {
-    //     match serde_json::from_str::<serde_json::Value>(&json_str) {
-    //         Ok(json) => {
-    //             if let Some(outcome) = json.get("outcome") {
-    //                 match outcome.get("socks5") {
-    //                     Some(socks5) if socks5.is_null() => {
-    //                         tracing::warn!("🌐⚠️ socks5 field is NULL in probe output");
-    //                     }
-    //                     Some(socks5) => {
-    //                         tracing::info!("🌐 socks5 field present: {}", socks5);
-    //                     }
-    //                     None => {
-    //                         tracing::warn!("🌐⚠️ socks5 field is MISSING from probe output");
-    //                     }
-    //                 }
-    //             } else {
-    //                 tracing::warn!("🌐⚠️ outcome field is MISSING from probe output");
-    //             }
-    //         }
-    //         Err(e) => {
-    //             tracing::error!("Failed to parse probe output as JSON: {e}");
-    //         }
-    //     }
-    // }
 
     submit_results_to_servers(
         servers,
@@ -224,25 +169,5 @@ async fn submit_results_to_servers(
                 );
             }
         }
-    }
-}
-
-// TODO dz test with these values because they're based on CLI provided
-// best practices, then delete this function and use Default impl
-fn default_probe_config() -> nym_gateway_probe::config::ProbeConfig {
-    nym_gateway_probe::config::ProbeConfig {
-        min_gateway_mixnet_performance: None,
-        test_mode: nym_gateway_probe::config::TestMode::All,
-        ignore_egress_epoch_role: false,
-        amnezia_args: None,
-        netstack_args: NetstackArgs {
-            // CLI defined overrides
-            netstack_download_timeout_sec: 30,
-            netstack_num_ping: 2,
-            netstack_send_timeout_sec: 1,
-            netstack_recv_timeout_sec: 1,
-            ..Default::default()
-        },
-        socks5_args: Socks5Args::default(),
     }
 }

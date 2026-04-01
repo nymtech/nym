@@ -6,7 +6,6 @@ use tracing_subscriber::{EnvFilter, filter::Directive, prelude::*};
 
 mod cli;
 mod log_capture;
-mod probe;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

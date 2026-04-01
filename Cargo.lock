@@ -5253,7 +5253,7 @@ dependencies = [
 
 [[package]]
 name = "mix-fetch-wasm"
-version = "1.4.3"
+version = "1.4.4"
 dependencies = [
  "async-trait",
  "futures",

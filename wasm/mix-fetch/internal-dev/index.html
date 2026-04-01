@@ -20,6 +20,27 @@
         <label><input type="radio" name="gateway-mode" value="random" />
           Random Gateway</label>
       </div>
+      <details style="margin-top: 8px">
+        <summary style="cursor: pointer; font-size: 0.9em; color: #555">Advanced Options</summary>
+        <div style="margin-top: 6px; padding: 8px; background: #f9f9f9; font-size: 0.9em">
+          <div>
+            <label><input type="checkbox" id="opt-force-tls" checked /> Force TLS</label>
+          </div>
+          <div style="margin-top: 4px">
+            <label>Client ID: <input type="text" id="opt-client-id" value="my-client" size="20" /></label>
+          </div>
+          <div style="margin-top: 4px">
+            <label><input type="checkbox" id="opt-disable-poisson" checked /> Disable Poisson packet distribution</label>
+          </div>
+          <div style="margin-top: 4px">
+            <label><input type="checkbox" id="opt-disable-cover" checked /> Disable cover traffic</label>
+          </div>
+          <div style="margin-top: 4px">
+            <label>Request timeout (ms): <input type="number" id="opt-request-timeout" value="60000" min="1000" max="300000" style="width: 80px" /></label>
+          </div>
+        </div>
+      </details>
+
       <div style="margin-top: 8px">
         <button id="start-mixfetch">Start MixFetch</button>
         <span id="mixfetch-status" style="margin-left: 10px; color: gray">Not started</span>
@@ -79,30 +100,29 @@
       <div id="stress-drip-opts" style="display: none; margin-top: 8px; padding: 8px; background: #f9f9f9">
         <p style="margin: 0 0 4px; font-size: 0.85em; color: #666">
           Uses <code>httpbin.org/drip</code> to slowly drip bytes over a set duration,
-          keeping connections alive for a controlled time. Profiles are designed to
-          straddle the Go timeout boundary &mdash; some will finish just in time,
-          others will be mid-transfer when the timeout fires. This is how we
-          reproduce the Go runtime panic (see DEBUGGING_NOTES.md).
+          keeping connections alive for a controlled time. Profiles are computed from
+          the Go timeout value below, so they always straddle the configured boundary
+          &mdash; some finish well before the timeout, others are mid-transfer when it fires.
         </p>
         <table style="font-size: 0.9em; border-collapse: collapse">
           <tr>
             <td style="padding: 1px 10px 1px 0"><b>safe</b></td>
-            <td>30s</td>
-            <td style="padding-left: 10px; color: #666">well under 60s timeout</td>
+            <td>~50% of timeout</td>
+            <td style="padding-left: 10px; color: #666">well under the limit</td>
           </tr>
           <tr>
             <td style="padding: 1px 10px 1px 0"><b>boundary</b></td>
-            <td>55s</td>
-            <td style="padding-left: 10px; color: #666">55s server + ~10s mixnet latency = over</td>
+            <td>~92% of timeout</td>
+            <td style="padding-left: 10px; color: #666">server-side OK, but mixnet latency pushes it over</td>
           </tr>
           <tr>
             <td style="padding: 1px 10px 1px 0"><b>over</b></td>
-            <td>65s</td>
-            <td style="padding-left: 10px; color: #666">exceeds 60s timeout on its own</td>
+            <td>~108% of timeout</td>
+            <td style="padding-left: 10px; color: #666">exceeds the timeout on its own</td>
           </tr>
           <tr>
             <td style="padding: 1px 10px 1px 0"><b>slow-start</b></td>
-            <td>10s delay + 50s</td>
+            <td>~17% delay + ~83% drip</td>
             <td style="padding-left: 10px; color: #666">late first byte, then long transfer</td>
           </tr>
         </table>

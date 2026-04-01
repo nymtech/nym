@@ -13,7 +13,7 @@ pub use netstack::NetstackArgs;
 pub use socks5::Socks5Args;
 pub use test_mode::TestMode;
 
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Default)]
 pub struct ProbeConfig {
     /// Only choose gateway with that minimum performance
     #[arg(long)]
@@ -29,7 +29,7 @@ pub struct ProbeConfig {
     ///   socks5-only - Socks5 network requester test
     ///   all         - Mixnet, wireguard over authenticator and LP registration
     ///
-    #[arg(long, default_value_t = TestMode::default(), verbatim_doc_comment)]
+    #[arg(long, default_value_t = ProbeConfig::default().test_mode, verbatim_doc_comment)]
     pub test_mode: TestMode,
 
     #[arg(long, global = true)]

@@ -122,7 +122,6 @@ impl JsonRpcClient {
                     .status()
                     .map(|s| s.to_string())
                     .unwrap_or_else(|| "no HTTP status".to_string());
-                error!("HTTPS request failed: {}", e);
                 bail!("HTTPS request failed: {} ({})", e, status);
             }
         }

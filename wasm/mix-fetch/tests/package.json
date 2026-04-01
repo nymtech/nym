@@ -1,0 +1,13 @@
+{
+  "name": "mix-fetch-playwright-tests",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --project=smoke-chromium --project=smoke-firefox --project=smoke-webkit",
+    "test:stress": "playwright test --project=stress-chromium --project=stress-firefox --project=stress-webkit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "serve": "^14.2.4"
+  }
+}

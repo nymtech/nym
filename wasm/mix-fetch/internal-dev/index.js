@@ -48,8 +48,8 @@ class WebWorkerClient {
     };
   }
 
-  startMixFetch = (preferredGateway) => {
-    this.worker.postMessage({ kind: "StartMixFetch", args: { preferredGateway } });
+  startMixFetch = (preferredGateway, setupOpts) => {
+    this.worker.postMessage({ kind: "StartMixFetch", args: { preferredGateway, setupOpts } });
   };
 
   doFetch = (target) => {
@@ -82,12 +82,24 @@ async function main() {
     const gatewayMode = document.querySelector('input[name="gateway-mode"]:checked').value;
     const preferredGateway = gatewayMode === "default" ? DEFAULT_GATEWAY : undefined;
 
+    const setupOpts = {
+      forceTls: document.getElementById("opt-force-tls").checked,
+      clientId: document.getElementById("opt-client-id").value,
+      disablePoisson: document.getElementById("opt-disable-poisson").checked,
+      disableCover: document.getElementById("opt-disable-cover").checked,
+      requestTimeoutMs: parseInt(document.getElementById("opt-request-timeout").value, 10),
+    };
+
     document.querySelector("#start-mixfetch").disabled = true;
     document.querySelectorAll('input[name="gateway-mode"]').forEach((r) => (r.disabled = true));
     updateStatus("mixfetch-status", "Starting...", "orange");
 
+    // Sync the stress-test Go timeout to match the configured request timeout
+    document.getElementById("stress-go-timeout").value = setupOpts.requestTimeoutMs;
+
     console.log(`Starting MixFetch (${gatewayMode} gateway${preferredGateway ? `: ${preferredGateway}` : ""})...`);
-    client.startMixFetch(preferredGateway);
+    console.log("Setup options:", setupOpts);
+    client.startMixFetch(preferredGateway, setupOpts);
   };
 
   document.querySelector("#fetch-button-1").onclick = () => doFetch(1);
@@ -109,7 +121,7 @@ async function main() {
     updateStatus("stress-test-status", "Running...", "orange");
     client.setGoTimeout(goTimeoutMs);
 
-    const requests = generateStressRequests(count, mode);
+    const requests = generateStressRequests(count, mode, goTimeoutMs);
     stressTest = {
       count,
       mode,
@@ -184,14 +196,16 @@ const STRESS_PROFILES = [
   { label: "xlarge", bytes: 1048576 },
 ];
 
-const DRIP_PROFILES = [
-  { label: "safe", dripDuration: 30, dripDelay: 0, dripBytes: 100 },
-  { label: "boundary", dripDuration: 55, dripDelay: 0, dripBytes: 100 },
-  { label: "over", dripDuration: 65, dripDelay: 0, dripBytes: 100 },
-  { label: "slow-start", dripDuration: 50, dripDelay: 10, dripBytes: 100 },
-];
+function buildDripProfiles(timeoutSec) {
+  return [
+    { label: "safe",       dripDuration: Math.round(timeoutSec * 0.50), dripDelay: 0, dripBytes: 100 },
+    { label: "boundary",   dripDuration: Math.round(timeoutSec * 0.92), dripDelay: 0, dripBytes: 100 },
+    { label: "over",       dripDuration: Math.round(timeoutSec * 1.08), dripDelay: 0, dripBytes: 100 },
+    { label: "slow-start", dripDuration: Math.round(timeoutSec * 0.83), dripDelay: Math.round(timeoutSec * 0.17), dripBytes: 100 },
+  ];
+}
 
-function generateStressRequests(count, mode) {
+function generateStressRequests(count, mode, timeoutMs) {
   const requests = [];
   if (mode === "uniform") {
     const baseUrl = document.getElementById("stress-test-url").value;
@@ -199,8 +213,9 @@ function generateStressRequests(count, mode) {
       requests.push({ id: i, url: `${baseUrl}${i}`, label: "uniform", bytes: null });
     }
   } else if (mode === "drip") {
+    const dripProfiles = buildDripProfiles(timeoutMs / 1000);
     for (let i = 1; i <= count; i++) {
-      const p = DRIP_PROFILES[Math.floor(Math.random() * DRIP_PROFILES.length)];
+      const p = dripProfiles[Math.floor(Math.random() * dripProfiles.length)];
       requests.push({
         id: i,
         url: `https://httpbin.org/drip?duration=${p.dripDuration}&numbytes=${p.dripBytes}&delay=${p.dripDelay}&code=200`,
@@ -324,7 +339,8 @@ function onStressTestFetchResult(result) {
     console.log("Completion order:", stressTest.completionOrder);
 
     // Per-profile breakdown in console
-    const profileList = stressTest.mode === "drip" ? DRIP_PROFILES : STRESS_PROFILES;
+    const profileLabels = Object.keys(trackerData);
+    const profileList = profileLabels.map((label) => ({ label }));
     if (stressTest.mode === "mixed" || stressTest.mode === "drip") {
       const table = [];
       for (const profile of profileList) {

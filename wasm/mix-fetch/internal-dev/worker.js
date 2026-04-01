@@ -39,8 +39,6 @@ const {
     finish_mixnet_connection,
 } = wasm_bindgen;
 
-let client = null;
-let tester = null;
 const go = new Go(); // Defined in wasm_exec.js
 var goWasm;
 let mixFetchReady = false;
@@ -64,50 +62,18 @@ function sendError(error) {
 }
 
 async function logFetchResult(res) {
-    console.log(res);
     let text = await res.text();
-    console.log("HEADERS:     ", ...res.headers);
-    console.log("STATUS:      ", res.status);
-    console.log("STATUS TEXT: ", res.statusText);
-    console.log("OK:          ", res.ok);
-    console.log("TYPE:        ", res.type);
-    console.log("URL:         ", res.url);
-    console.log("BODYUSED:    ", res.bodyUsed);
-    console.log("REDIRECTED:  ", res.redirected);
-    console.log("TEXT:        ", text);
+    console.log(`${res.status} ${res.statusText} (${text.length} bytes)`);
+    console.log(text);
 
     self.postMessage({
         kind: 'DisplayString',
-        args: {
-            rawString: text,
-        },
+        args: { rawString: text },
     });
 }
 
-/*
- * ── Alternative MixFetch setup ──────────────────────────────
- *
- * Shows how to pass custom MixFetchConfig options: specific network requester
- * address, validator URL, or debug overrides.  Uncomment and adapt if you
- * need non-default setup for local testing.
- *
- *  async function wasm_bindgenSetup() {
- *      const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
- *      const validator = 'https://qa-nym-api.qa.nymte.ch/api';
- *
- *      const mixFetchNetworkRequesterAddress = "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi...";
- *
- *      // MixFetchConfigOpts: { id?, nymApi?, nyxd?, debug? }
- *      const differentDebug = default_debug()
- *      differentDebug.traffic.use_extended_packet_size = true
- *      differentDebug.traffic.average_packet_delay_ms = 666
- *
- *      const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, {debug: differentDebug});
- *
- *      // MixFetchOptsSimple: { preferredGateway?, storagePassphrase? }
- *      await setupMixFetchWithConfig(config)
- *  }
- */
+// For custom MixFetchConfig (specific network requester, debug overrides),
+// see setupMixFetchWithConfig() and the MixFetchConfig / MixFetchConfigOpts types.
 
 async function nativeSetup(preferredGateway, setupOpts = {}) {
     sendLog('Setting up MixFetch...');
@@ -119,7 +85,7 @@ async function nativeSetup(preferredGateway, setupOpts = {}) {
 
     const {
         forceTls = true,
-        clientId = 'my-client',
+        clientId = 'client-' + Math.random().toString(36).slice(2, 8),
         disablePoisson = true,
         disableCover = true,
         requestTimeoutMs = 60000,
@@ -206,11 +172,11 @@ async function handleStressTestFetch(id, url, label) {
             kind: 'StressTestFetchResult',
             args: {
                 id,
+                label,
                 ok: true,
                 status: res.status,
                 elapsed,
                 textLength: text.length,
-                body: text,
             },
         });
     } catch (e) {
@@ -218,7 +184,7 @@ async function handleStressTestFetch(id, url, label) {
         sendLog(`${tag} FAILED in ${elapsed}s: ${e}`, 'error');
         self.postMessage({
             kind: 'StressTestFetchResult',
-            args: { id, ok: false, elapsed, error: String(e) },
+            args: { id, label, ok: false, elapsed, error: String(e) },
         });
     }
 }

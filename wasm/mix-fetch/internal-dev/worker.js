@@ -15,28 +15,28 @@
 const RUST_WASM_URL = "mix_fetch_wasm_bg.wasm";
 const GO_WASM_URL = "go_conn.wasm";
 
-importScripts("mix_fetch_wasm.js");
-importScripts("wasm_exec.js");
+importScripts('mix_fetch_wasm.js');
+importScripts('wasm_exec.js');
 
-console.log("Initializing worker");
+console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
 const {
-  default_debug,
-  no_cover_debug,
-  NymClient,
-  set_panic_hook,
-  Config,
-  GatewayEndpointConfig,
-  ClientStorage,
-  MixFetchConfig,
-  send_client_data,
-  start_new_mixnet_connection,
-  setupMixFetch,
-  disconnectMixFetch,
-  setupMixFetchWithConfig,
-  mix_fetch_initialised,
-  finish_mixnet_connection,
+    default_debug,
+    no_cover_debug,
+    NymClient,
+    set_panic_hook,
+    Config,
+    GatewayEndpointConfig,
+    ClientStorage,
+    MixFetchConfig,
+    send_client_data,
+    start_new_mixnet_connection,
+    setupMixFetch,
+    disconnectMixFetch,
+    setupMixFetchWithConfig,
+    mix_fetch_initialised,
+    finish_mixnet_connection,
 } = wasm_bindgen;
 
 let client = null;
@@ -45,43 +45,43 @@ const go = new Go(); // Defined in wasm_exec.js
 var goWasm;
 let mixFetchReady = false;
 
-function sendLog(message, level = "info") {
-  self.postMessage({
-    kind: "Log",
-    args: { message, level },
-  });
+function sendLog(message, level = 'info') {
+    self.postMessage({
+        kind: 'Log',
+        args: { message, level },
+    });
 }
 
 function sendReady() {
-  self.postMessage({ kind: "MixFetchReady" });
+    self.postMessage({ kind: 'MixFetchReady' });
 }
 
 function sendError(error) {
-  self.postMessage({
-    kind: "MixFetchError",
-    args: { error: String(error) },
-  });
+    self.postMessage({
+        kind: 'MixFetchError',
+        args: { error: String(error) },
+    });
 }
 
 async function logFetchResult(res) {
-  console.log(res);
-  let text = await res.text();
-  console.log("HEADERS:     ", ...res.headers);
-  console.log("STATUS:      ", res.status);
-  console.log("STATUS TEXT: ", res.statusText);
-  console.log("OK:          ", res.ok);
-  console.log("TYPE:        ", res.type);
-  console.log("URL:         ", res.url);
-  console.log("BODYUSED:    ", res.bodyUsed);
-  console.log("REDIRECTED:  ", res.redirected);
-  console.log("TEXT:        ", text);
+    console.log(res);
+    let text = await res.text();
+    console.log("HEADERS:     ", ...res.headers);
+    console.log("STATUS:      ", res.status);
+    console.log("STATUS TEXT: ", res.statusText);
+    console.log("OK:          ", res.ok);
+    console.log("TYPE:        ", res.type);
+    console.log("URL:         ", res.url);
+    console.log("BODYUSED:    ", res.bodyUsed);
+    console.log("REDIRECTED:  ", res.redirected);
+    console.log("TEXT:        ", text);
 
-  self.postMessage({
-    kind: "DisplayString",
-    args: {
-      rawString: text,
-    },
-  });
+    self.postMessage({
+        kind: 'DisplayString',
+        args: {
+            rawString: text,
+        },
+    });
 }
 
 /*
@@ -110,205 +110,201 @@ async function logFetchResult(res) {
  */
 
 async function nativeSetup(preferredGateway, setupOpts = {}) {
-  sendLog("Setting up MixFetch...");
-  if (preferredGateway) {
-    sendLog(`Using preferred gateway: ${preferredGateway}`);
-  } else {
-    sendLog("Using random gateway selection");
-  }
+    sendLog('Setting up MixFetch...');
+    if (preferredGateway) {
+        sendLog(`Using preferred gateway: ${preferredGateway}`);
+    } else {
+        sendLog('Using random gateway selection');
+    }
 
-  const {
-    forceTls = true,
-    clientId = "my-client",
-    disablePoisson = true,
-    disableCover = true,
-    requestTimeoutMs = 60000,
-  } = setupOpts;
+    const {
+        forceTls = true,
+        clientId = 'my-client',
+        disablePoisson = true,
+        disableCover = true,
+        requestTimeoutMs = 60000,
+    } = setupOpts;
 
-  const noCoverTrafficOverride = {
-    traffic: { disableMainPoissonPacketDistribution: disablePoisson },
-    coverTraffic: { disableLoopCoverTrafficStream: disableCover },
-  };
-  const mixFetchOverride = {
-    requestTimeoutMs,
-  };
+    const noCoverTrafficOverride = {
+        traffic: { disableMainPoissonPacketDistribution: disablePoisson },
+        coverTraffic: { disableLoopCoverTrafficStream: disableCover },
+    };
+    const mixFetchOverride = {
+        requestTimeoutMs,
+    };
 
-  const opts = {
-    forceTls,
-    clientId,
-    clientOverride: noCoverTrafficOverride,
-    mixFetchOverride,
-  };
+    const opts = {
+        forceTls,
+        clientId,
+        clientOverride: noCoverTrafficOverride,
+        mixFetchOverride,
+    };
 
-  if (preferredGateway) {
-    opts.preferredGateway = preferredGateway;
-  }
+    if (preferredGateway) {
+        opts.preferredGateway = preferredGateway;
+    }
 
-  sendLog(
-    `Setup config: forceTls=${forceTls}, clientId=${clientId}, disablePoisson=${disablePoisson}, disableCover=${disableCover}, timeout=${requestTimeoutMs}ms`
-  );
-  sendLog("Calling setupMixFetch...");
-  await setupMixFetch(opts);
-  sendLog("setupMixFetch completed");
+    sendLog(
+        `Setup config: forceTls=${forceTls}, clientId=${clientId}, disablePoisson=${disablePoisson}, disableCover=${disableCover}, timeout=${requestTimeoutMs}ms`
+    );
+    sendLog('Calling setupMixFetch...');
+    await setupMixFetch(opts);
+    sendLog('setupMixFetch completed');
 }
 
 async function startMixFetch(preferredGateway, setupOpts) {
-  sendLog("Instantiating MixFetch...");
+    sendLog('Instantiating MixFetch...');
 
-  try {
-    await nativeSetup(preferredGateway, setupOpts);
-    mixFetchReady = true;
-    sendLog("MixFetch client running!");
-    sendReady();
-  } catch (e) {
-    sendLog("Failed to start MixFetch: " + e, "error");
-    sendError(e);
-  }
+    try {
+        await nativeSetup(preferredGateway, setupOpts);
+        mixFetchReady = true;
+        sendLog('MixFetch client running!');
+        sendReady();
+    } catch (e) {
+        sendLog('Failed to start MixFetch: ' + e, 'error');
+        sendError(e);
+    }
 }
 
 async function handleFetchPayload(target) {
-  if (!mixFetchReady) {
-    sendLog("MixFetch not ready yet", "error");
-    return;
-  }
+    if (!mixFetchReady) {
+        sendLog('MixFetch not ready yet', 'error');
+        return;
+    }
 
-  const url = target;
-  const args = { mode: "unsafe-ignore-cors" };
+    const url = target;
+    const args = { mode: "unsafe-ignore-cors" };
 
-  try {
-    sendLog(`Fetching: ${url}`);
-    const mixFetchRes = await mixFetch(url, args);
-    sendLog("Fetch completed");
-    await logFetchResult(mixFetchRes);
-  } catch (e) {
-    sendLog("Fetch request failure: " + e, "error");
-    console.error("mix fetch request failure: ", e);
-  }
+    try {
+        sendLog(`Fetching: ${url}`);
+        const mixFetchRes = await mixFetch(url, args);
+        sendLog('Fetch completed');
+        await logFetchResult(mixFetchRes);
+    } catch (e) {
+        sendLog('Fetch request failure: ' + e, 'error');
+        console.error("mix fetch request failure: ", e);
+    }
 }
 
 async function handleStressTestFetch(id, url, label) {
-  if (!mixFetchReady) {
-    sendLog("MixFetch not ready yet", "error");
-    return;
-  }
+    if (!mixFetchReady) {
+        sendLog('MixFetch not ready yet', 'error');
+        return;
+    }
 
-  const tag = `[stress #${id} ${label}]`;
-  const start = performance.now();
-  const args = { mode: "unsafe-ignore-cors" };
+    const tag = `[stress #${id} ${label}]`;
+    const start = performance.now();
+    const args = { mode: "unsafe-ignore-cors" };
 
-  try {
-    sendLog(`${tag} Fetching: ${url}`);
-    const res = await mixFetch(url, args);
-    const text = await res.text();
-    const elapsed = ((performance.now() - start) / 1000).toFixed(2);
-    sendLog(`${tag} ${res.status} OK in ${elapsed}s (${text.length} bytes)`);
-    self.postMessage({
-      kind: "StressTestFetchResult",
-      args: {
-        id,
-        ok: true,
-        status: res.status,
-        elapsed,
-        textLength: text.length,
-        body: text,
-      },
-    });
-  } catch (e) {
-    const elapsed = ((performance.now() - start) / 1000).toFixed(2);
-    sendLog(`${tag} FAILED in ${elapsed}s: ${e}`, "error");
-    self.postMessage({
-      kind: "StressTestFetchResult",
-      args: { id, ok: false, elapsed, error: String(e) },
-    });
-  }
+    try {
+        sendLog(`${tag} Fetching: ${url}`);
+        const res = await mixFetch(url, args);
+        const text = await res.text();
+        const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+        sendLog(`${tag} ${res.status} OK in ${elapsed}s (${text.length} bytes)`);
+        self.postMessage({
+            kind: 'StressTestFetchResult',
+            args: {
+                id,
+                ok: true,
+                status: res.status,
+                elapsed,
+                textLength: text.length,
+                body: text,
+            },
+        });
+    } catch (e) {
+        const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+        sendLog(`${tag} FAILED in ${elapsed}s: ${e}`, 'error');
+        self.postMessage({
+            kind: 'StressTestFetchResult',
+            args: { id, ok: false, elapsed, error: String(e) },
+        });
+    }
 }
 
 function setupMessageHandler() {
-  self.onmessage = async (event) => {
-    if (event.data && event.data.kind) {
-      switch (event.data.kind) {
-        case "StartMixFetch": {
-          const { preferredGateway, setupOpts } = event.data.args;
-          await startMixFetch(preferredGateway, setupOpts);
-          break;
+    self.onmessage = async (event) => {
+        if (event.data && event.data.kind) {
+            switch (event.data.kind) {
+                case 'StartMixFetch': {
+                    const { preferredGateway, setupOpts } = event.data.args;
+                    await startMixFetch(preferredGateway, setupOpts);
+                    break;
+                }
+                case 'FetchPayload': {
+                    const { target } = event.data.args;
+                    await handleFetchPayload(target);
+                    break;
+                }
+                case 'SetGoTimeout': {
+                    const { timeoutMs } = event.data.args;
+                    sendLog(`Setting Go-side request timeout to ${timeoutMs}ms`);
+                    self.__go_rs_bridge__.goWasmSetMixFetchRequestTimeout(timeoutMs);
+                    break;
+                }
+                case 'StressTestFetch': {
+                    const { id, url, label } = event.data.args;
+                    // NOT awaited — each request runs independently,
+                    // just like separate callers in a real app
+                    handleStressTestFetch(id, url, label);
+                    break;
+                }
+            }
         }
-        case "FetchPayload": {
-          const { target } = event.data.args;
-          await handleFetchPayload(target);
-          break;
-        }
-        case "SetGoTimeout": {
-          const { timeoutMs } = event.data.args;
-          sendLog(`Setting Go-side request timeout to ${timeoutMs}ms`);
-          self.__go_rs_bridge__.goWasmSetMixFetchRequestTimeout(timeoutMs);
-          break;
-        }
-        case "StressTestFetch": {
-          const { id, url, label } = event.data.args;
-          // NOT awaited — each request runs independently,
-          // just like separate callers in a real app
-          handleStressTestFetch(id, url, label);
-          break;
-        }
-      }
-    }
-  };
+    };
 }
 
 // TODO: look into https://www.aaron-powell.com/posts/2019-02-08-golang-wasm-5-compiling-with-webpack/
 async function loadGoWasm() {
-  const resp = await fetch(GO_WASM_URL);
+    const resp = await fetch(GO_WASM_URL);
 
-  if ("instantiateStreaming" in WebAssembly) {
-    const wasmObj = await WebAssembly.instantiateStreaming(
-      resp,
-      go.importObject
-    );
-    goWasm = wasmObj.instance;
-    go.run(goWasm);
-  } else {
-    const bytes = await resp.arrayBuffer();
-    const wasmObj = await WebAssembly.instantiate(bytes, go.importObject);
-    goWasm = wasmObj.instance;
-    go.run(goWasm);
-  }
+    if ('instantiateStreaming' in WebAssembly) {
+        const wasmObj = await WebAssembly.instantiateStreaming(resp, go.importObject);
+        goWasm = wasmObj.instance;
+        go.run(goWasm);
+    } else {
+        const bytes = await resp.arrayBuffer();
+        const wasmObj = await WebAssembly.instantiate(bytes, go.importObject);
+        goWasm = wasmObj.instance;
+        go.run(goWasm);
+    }
 }
 
 function setupRsGoBridge() {
-  // (note: reason for intermediate `__rs_go_bridge__` object is to decrease global scope bloat
-  // and to discourage users from trying to call those methods directly)
-  self.__rs_go_bridge__ = {};
-  self.__rs_go_bridge__.send_client_data = send_client_data;
-  self.__rs_go_bridge__.start_new_mixnet_connection =
-    start_new_mixnet_connection;
-  self.__rs_go_bridge__.mix_fetch_initialised = mix_fetch_initialised;
-  self.__rs_go_bridge__.finish_mixnet_connection = finish_mixnet_connection;
+    // (note: reason for intermediate `__rs_go_bridge__` object is to decrease global scope bloat
+    // and to discourage users from trying to call those methods directly)
+    self.__rs_go_bridge__ = {};
+    self.__rs_go_bridge__.send_client_data = send_client_data;
+    self.__rs_go_bridge__.start_new_mixnet_connection = start_new_mixnet_connection;
+    self.__rs_go_bridge__.mix_fetch_initialised = mix_fetch_initialised;
+    self.__rs_go_bridge__.finish_mixnet_connection = finish_mixnet_connection;
 }
 
 async function main() {
-  sendLog("Worker starting...");
+    sendLog('Worker starting...');
 
-  // load rust WASM package
-  sendLog("Loading Rust WASM...");
-  await wasm_bindgen(RUST_WASM_URL);
-  sendLog("Loaded Rust WASM");
+    // load rust WASM package
+    sendLog('Loading Rust WASM...');
+    await wasm_bindgen(RUST_WASM_URL);
+    sendLog('Loaded Rust WASM');
 
-  // load go WASM package
-  sendLog("Loading Go WASM...");
-  await loadGoWasm();
-  sendLog("Loaded Go WASM");
+    // load go WASM package
+    sendLog('Loading Go WASM...');
+    await loadGoWasm();
+    sendLog('Loaded Go WASM');
 
-  // sets up better stack traces in case of in-rust panics
-  set_panic_hook();
+    // sets up better stack traces in case of in-rust panics
+    set_panic_hook();
 
-  setupRsGoBridge();
+    setupRsGoBridge();
 
-  goWasmSetLogging("trace");
+    goWasmSetLogging("trace");
 
-  // Set up message handler (MixFetch will be started on demand)
-  setupMessageHandler();
+    // Set up message handler (MixFetch will be started on demand)
+    setupMessageHandler();
 
-  sendLog("Worker ready - click Start MixFetch to begin");
+    sendLog('Worker ready - click Start MixFetch to begin');
 }
 
 // Let's get started!

@@ -114,7 +114,8 @@ pub mod submit_results_v2 {
     use super::*;
     #[derive(Debug, Clone, Deserialize, Serialize)]
     pub struct Payload {
-        pub probe_result: String,
+        pub probe_result: nym_gateway_probe::ProbeResult,
+        pub probe_log: String,
         pub agent_public_key: PublicKey,
         pub assigned_at_utc: i64,
         pub gateway_identity_key: String,

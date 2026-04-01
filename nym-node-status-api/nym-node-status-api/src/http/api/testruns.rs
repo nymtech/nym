@@ -147,7 +147,7 @@ async fn submit_testrun(
         "Agent submitted testrun {} for gateway {} ({} bytes)",
         submitted_testrun_id,
         gw_identity,
-        &submitted_result.payload.probe_log.as_bytes().len(),
+        &submitted_result.payload.probe_log.len(),
     );
 
     // Need serialized result for DB.
@@ -266,18 +266,6 @@ async fn submit_testrun_v2(
     }
 }
 
-fn get_result_from_log(log: &str) -> String {
-    static RE: std::sync::LazyLock<regex::Regex> =
-        std::sync::LazyLock::new(|| regex::Regex::new(r"\n\{\s").expect("Invalid regex pattern"));
-
-    let result: Vec<_> = RE.splitn(log, 2).collect();
-    if result.len() == 2 {
-        let res = format!("{} {}", "{", result[1]).to_string();
-        return res;
-    }
-    "".to_string()
-}
-
 async fn process_testrun_submission(
     testrun: TestRunDto,
     payload: submit_results_v2::Payload,
@@ -310,8 +298,16 @@ async fn process_testrun_submission_by_gateway(
     tracing::debug!(
         "Processing testrun submission for gateway {} ({} bytes)",
         gw_identity,
-        payload.probe_result.len(),
+        payload.probe_log.len(),
     );
+
+    // Need serialized result for DB.
+    // In general, this should NEVER fail because Serialize for this type is derived.
+    // But just in case, do this BEFORE marking the testrun as complete.
+    let serialized_probe_res = serde_json::to_string(&payload.probe_result).map_err(|e| {
+        tracing::error!("Failed to serialize probe result into DB: {e}");
+        HttpError::invalid_input("Invalid probe_result")
+    })?;
 
     // Update testrun status to complete
     queries::testruns::update_testrun_status_by_gateway(conn, gateway_id, TestRunStatus::Complete)
@@ -319,16 +315,11 @@ async fn process_testrun_submission_by_gateway(
         .map_err(HttpError::internal_with_logging)?;
 
     // Update gateway with results
-    queries::testruns::update_gateway_last_probe_log(
-        conn,
-        gateway_id,
-        &payload.probe_result.clone(),
-    )
-    .await
-    .map_err(HttpError::internal_with_logging)?;
+    queries::testruns::update_gateway_last_probe_log(conn, gateway_id, &payload.probe_log.clone())
+        .await
+        .map_err(HttpError::internal_with_logging)?;
 
-    let result = get_result_from_log(&payload.probe_result);
-    queries::testruns::update_gateway_last_probe_result(conn, gateway_id, &result)
+    queries::testruns::update_gateway_last_probe_result(conn, gateway_id, &serialized_probe_res)
         .await
         .map_err(HttpError::internal_with_logging)?;
 

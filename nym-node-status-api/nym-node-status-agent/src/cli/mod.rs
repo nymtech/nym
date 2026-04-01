@@ -47,6 +47,7 @@ pub(crate) struct Args {
     pub(crate) command: Command,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     RunProbe(RunProbeArgs),
@@ -67,12 +68,11 @@ pub(crate) struct RunProbeArgs {
     #[command(subcommand)]
     /// these args are passed to the probe directly.
     /// See GW probe syntax for what they do
-    pub probe_extra_args: ProbeExtraArgsCmd,
+    pub probe_extra_args: Option<ProbeExtraArgsCmd>,
 }
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum ProbeExtraArgsCmd {
-    /// Optional probe configuration overrides (netstack, socks5)
     ProbeExtraArgs(nym_gateway_probe::config::ProbeConfig),
 }
 
@@ -92,7 +92,9 @@ impl Args {
                     }
                 }
 
-                let ProbeExtraArgsCmd::ProbeExtraArgs(probe_extra_args) = args.probe_extra_args;
+                let ProbeExtraArgsCmd::ProbeExtraArgs(probe_extra_args) =
+                    // if no CLI overrides provided, fall back to defaults
+                    args.probe_extra_args.unwrap_or_else(||ProbeExtraArgsCmd::ProbeExtraArgs(nym_gateway_probe::config::ProbeConfig::default()));
 
                 run_probe::run_probe(&servers, probe_extra_args, log_capture)
                     .await

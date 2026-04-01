@@ -59,7 +59,7 @@ pub(crate) async fn run_probe(
             .await?;
 
     // probe constructor might modify config to suit the testing mode, so log afterwards
-    tracing::info!("Using probe config::\n{:#?}", &probe.config());
+    tracing::info!("Using probe config:\n{:#?}", &probe.config());
 
     let serialized_ticket_materials = testrun.ticket_materials.to_serialised_string();
     let credentials_args = CredentialArgs {
@@ -70,9 +70,7 @@ pub(crate) async fn run_probe(
 
     // Run the probe, capturing all tracing output
     log_capture.start();
-    let probe_result = Box::pin(probe.probe_run_agent(credentials_args))
-        .await
-        .unwrap();
+    let probe_result = Box::pin(probe.probe_run_agent(credentials_args)).await?;
     let probe_log = log_capture.stop_and_drain();
 
     // Inspect the probe output for socks5 field
@@ -137,6 +135,7 @@ async fn submit_results_to_servers(
                     client
                         .submit_results_with_context(
                             testrun_id,
+                            probe_result,
                             probe_log,
                             testrun_assigned_at,
                             gateway_identity_key,

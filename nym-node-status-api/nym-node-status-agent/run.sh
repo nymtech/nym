@@ -22,7 +22,6 @@ NODE_STATUS_AGENT_SERVER_PORT="8000"
 SERVER="${NODE_STATUS_AGENT_SERVER_ADDRESS}|${NODE_STATUS_AGENT_SERVER_PORT}"
 # hardcoded key used only for LOCAL TESTING
 export NODE_STATUS_AGENT_AUTH_KEY=${NODE_STATUS_AGENT_AUTH_KEY_STAGING:-"BjyC9SsHAZUzPRkQR4sPTvVrp4GgaquTh5YfSJksvvWT"}
-export NODE_STATUS_AGENT_PROBE_PATH="$crate_root/nym-gateway-probe"
 
 workers=${1:-1}
 echo "Running $workers workers in parallel"

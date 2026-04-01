@@ -252,7 +252,7 @@ async function main() {
 
     // load rust WASM package
     sendLog('Loading Rust WASM...');
-    await wasm_bindgen(RUST_WASM_URL);
+    await wasm_bindgen({ module_or_path: RUST_WASM_URL });
     sendLog('Loaded Rust WASM');
 
     // load go WASM package

@@ -37,7 +37,7 @@ const DEFAULT_DECAY: u64 = 6;
 ///
 /// ## Usage
 ///
-/// ```rust,ignore
+/// ```text
 /// let mut buffer = MessageBuffer::new();
 ///
 /// // Push incoming messages (may be out of order)

@@ -17,7 +17,7 @@ use nym_topology::{EpochRewardedSet, NymTopology};
 use nym_validator_client::nym_api::NymApiClientExt;
 use url::Url;
 
-// Step 1: Define a custom topology provider.
+// Define a custom topology provider.
 // It fetches topology from the Nym API and applies arbitrary filtering.
 struct MyTopologyProvider {
     validator_client: nym_http_api_client::Client,
@@ -72,7 +72,7 @@ impl MyTopologyProvider {
     }
 }
 
-// Step 2: Implement the TopologyProvider trait.
+// Implement the TopologyProvider trait.
 // The client refreshes topology on a timer using this method.
 #[async_trait]
 impl TopologyProvider for MyTopologyProvider {
@@ -85,7 +85,7 @@ impl TopologyProvider for MyTopologyProvider {
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Step 3: Create the provider and pass it to the client builder.
+    // Create the provider and pass it to the client builder.
     let nym_api = "https://validator.nymtech.net/api/".parse().unwrap();
     let my_topology_provider = MyTopologyProvider::new(nym_api);
 
@@ -100,7 +100,7 @@ async fn main() {
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Step 4: Send a message to ourselves using the custom topology.
+    // Send a message to ourselves using the custom topology.
     client
         .send_plain_message(*our_address, "hello there")
         .await

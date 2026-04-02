@@ -26,12 +26,12 @@ const TIMEOUT: Duration = Duration::from_secs(300);
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Step 1: Generate 1 MB of random data to send.
+    // Generate 1 MB of random data to send.
     let mut payload = vec![0u8; SIZE];
     rand::rngs::OsRng.fill_bytes(&mut payload);
     println!("Generated {} bytes of random data", payload.len());
 
-    // Step 2: Connect two clients and establish a stream.
+    // Connect two clients and establish a stream.
     println!("Connecting sender...");
     let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
     println!("{}", sender.nym_address());
@@ -49,7 +49,7 @@ async fn main() {
         .expect("listener closed");
     println!("Stream established\n");
 
-    // Step 3: Send the payload. write_all splits it across multiple
+    // Send the payload. write_all splits it across multiple
     // Sphinx packets automatically.
     let data = payload.clone();
     let send_task = tokio::spawn(async move {
@@ -58,7 +58,7 @@ async fn main() {
         println!("Sent {} bytes", data.len());
     });
 
-    // Step 4: Receive exactly SIZE bytes using read_exact.
+    // Receive exactly SIZE bytes using read_exact.
     // We use read_exact (not read-until-EOF) because there is no
     // close/EOF signal — streams clean up via Drop and idle timeout.
     let recv_task = tokio::spawn(async move {
@@ -71,7 +71,7 @@ async fn main() {
         buf
     });
 
-    // Step 5: Verify integrity — the received bytes must match exactly.
+    // Verify integrity — the received bytes must match exactly.
     let (_, received) = tokio::join!(send_task, recv_task);
     let received = received.unwrap();
 

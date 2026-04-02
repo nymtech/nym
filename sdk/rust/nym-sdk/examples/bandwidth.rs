@@ -15,11 +15,11 @@ use nym_sdk::mixnet::MixnetMessageSender;
 async fn main() -> anyhow::Result<()> {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Step 1: Load the sandbox environment (only sandbox has Coconut setup).
+    // Load the sandbox environment.
     // Run from the `sdk/rust/nym-sdk` directory so the relative path resolves.
     setup_env(Some("../../../envs/sandbox.env"));
 
-    // Step 2: Build a credentials-enabled client (not yet connected).
+    // Build a credentials-enabled client (not yet connected).
     let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
     let mnemonic = String::from("my super secret mnemonic");
 
@@ -28,17 +28,17 @@ async fn main() -> anyhow::Result<()> {
         .enable_credentials_mode()
         .build()?;
 
-    // Step 3: Acquire a bandwidth credential (ticketbook) before connecting.
+    // Acquire a bandwidth credential (ticketbook) before connecting.
     let bandwidth_client = mixnet_client
         .create_bandwidth_client(mnemonic, TicketType::V1MixnetEntry)
         .await?;
     bandwidth_client.acquire().await?;
 
-    // Step 4: Connect to the mixnet using the acquired credential.
+    // Connect to the mixnet using the acquired credential.
     let mut client = mixnet_client.connect_to_mixnet().await?;
     let our_address = client.nym_address();
 
-    // Step 5: Send a message to ourselves and wait for it.
+    // Send a message to ourselves and wait for it.
     client
         .send_plain_message(*our_address, "hello there")
         .await?;
@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
     let received = client.next().await.unwrap();
     println!("Received: {}", String::from_utf8_lossy(&received.message));
 
-    // Step 6: Disconnect for clean shutdown.
+    // Disconnect for clean shutdown.
     client.disconnect().await;
     Ok(())
 }

@@ -11,19 +11,19 @@ use nym_sdk::mixnet::MixnetMessageSender;
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Step 1: Connect an ephemeral client (keys generated in memory).
+    // Connect an ephemeral client (keys generated in memory).
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Step 2: Send a message to ourselves through the mixnet.
+    // Send a message to ourselves through the mixnet.
     // The message is Sphinx-encrypted and mixed across 5 nodes.
     client
         .send_plain_message(*our_address, "hello there")
         .await
         .unwrap();
 
-    // Step 3: Wait for incoming messages and print them.
+    // Wait for incoming messages and print them.
     // on_messages blocks forever — press ctrl-c to exit.
     println!("Waiting for message (ctrl-c to exit)");
     client

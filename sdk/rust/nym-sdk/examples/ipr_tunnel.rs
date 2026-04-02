@@ -1,14 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// Smoke test for IpMixStream: connect to an IPR, send a ping, check we get a reply.
-// Tests both IPv4 and IPv6 paths.
-//
-// Usage:
-//   cargo run --example ipr_tunnel
-//   cargo run --example ipr_tunnel -- --ipr <IPR_ADDRESS>
-//
-// e.g. cargo run --example ipr_tunnel -- --ipr 6B6iuWX4bQP4GVA4Yq7XmZencaaGw6BaPY6xJWYSwsbF.6g6LRx1fgU2Q2A4ZPKonYHtfBARh1GPMe1LtXk6vpRR8@q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1
+//! Smoke test for `IpMixStream`: connect to an IPR, send a ping, check we get a reply.
+//!
+//! Tests both IPv4 and IPv6 paths.
+//!
+//! Run with: `cargo run --example ipr_tunnel -- --ipr <IPR_ADDRESS>`
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Duration;

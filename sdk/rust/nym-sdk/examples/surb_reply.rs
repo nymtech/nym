@@ -18,7 +18,7 @@ use tempfile::TempDir;
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Step 1: Build a client with persistent key storage.
+    // Build a client with persistent key storage.
     // Keys are generated on first run, then loaded from disk on subsequent runs.
     let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
     let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
@@ -31,13 +31,13 @@ async fn main() {
     let our_address = client.nym_address();
     println!("\nOur client nym address is: {our_address}");
 
-    // Step 2: Send a message to ourselves.
+    // Send a message to ourselves.
     client
         .send_plain_message(*our_address, "hello there")
         .await
         .unwrap();
 
-    // Step 3: Receive the message.
+    // Receive the message.
     // Filter empty messages — these are SURB replenishment requests.
     println!("Waiting for message\n");
     let mut message: Vec<ReconstructedMessage> = Vec::new();
@@ -51,20 +51,20 @@ async fn main() {
 
     let parsed = String::from_utf8(message[0].message.clone()).unwrap();
 
-    // Step 4: Extract the AnonymousSenderTag from the incoming message.
+    // Extract the AnonymousSenderTag from the incoming message.
     // This opaque token lets you reply without knowing the sender's address.
     // The SDK includes SURBs with every message by default.
     let return_recipient: AnonymousSenderTag = message[0].sender_tag.unwrap();
     println!("Received: {parsed}\nSender tag: {return_recipient}");
 
-    // Step 5: Reply anonymously using send_reply() instead of send_plain_message().
+    // Reply anonymously using send_reply() instead of send_plain_message().
     println!("Replying using SURBs...");
     client
         .send_reply(return_recipient, "hi an0n!")
         .await
         .unwrap();
 
-    // Step 6: Receive the reply.
+    // Receive the reply.
     println!("Waiting for reply (ctrl-c to exit)\n");
     client
         .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&msg.message)))

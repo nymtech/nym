@@ -14,13 +14,13 @@ use nym_sdk::mixnet::MixnetMessageSender;
 async fn main() -> anyhow::Result<()> {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Step 1: Load the sandbox environment.
+    // Load the sandbox environment.
     // Set NYM_ENV_PATH or fall back to the in-repo env file.
     let env_path =
         std::env::var("NYM_ENV_PATH").unwrap_or_else(|_| "../../../envs/sandbox.env".to_string());
     setup_env(Some(&env_path));
 
-    // Step 2: Build and connect using the sandbox network details.
+    // Build and connect using the sandbox network details.
     let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .network_details(sandbox_network)
@@ -28,12 +28,12 @@ async fn main() -> anyhow::Result<()> {
     let mut client = mixnet_client.connect_to_mixnet().await?;
     let our_address = client.nym_address();
 
-    // Step 3: Send a message to ourselves through the sandbox mixnet.
+    // Send a message to ourselves through the sandbox mixnet.
     client
         .send_plain_message(*our_address, "hello there")
         .await?;
 
-    // Step 4: Wait for the message via the futures::Stream impl.
+    // Wait for the message via the futures::Stream impl.
     println!("Waiting for message");
     if let Some(received) = client.next().await {
         println!("Received: {}", String::from_utf8_lossy(&received.message));
@@ -41,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
         eprintln!("Failed to receive message.");
     }
 
-    // Step 5: Disconnect for clean shutdown.
+    // Disconnect for clean shutdown.
     client.disconnect().await;
     Ok(())
 }

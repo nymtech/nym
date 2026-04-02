@@ -21,10 +21,10 @@ use nym_topology::provider_trait::async_trait;
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Step 1: Create an instance of your custom storage backend.
+    // Create an instance of your custom storage backend.
     let mock_storage = MockClientStorage::empty();
 
-    // Step 2: Pass it to the builder via `new_with_storage`.
+    // Pass it to the builder via `new_with_storage`.
     let mut client = mixnet::MixnetClientBuilder::new_with_storage(mock_storage)
         .build()
         .unwrap()
@@ -35,7 +35,7 @@ async fn main() {
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Step 3: Use the client normally — storage is transparent.
+    // Use the client normally — storage is transparent.
     client
         .send_plain_message(*our_address, "hello there")
         .await
@@ -48,7 +48,7 @@ async fn main() {
         }
     }
 
-    // Step 4: Disconnect for clean shutdown.
+    // Disconnect for clean shutdown.
     client.disconnect().await;
 }
 

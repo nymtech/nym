@@ -38,11 +38,11 @@ async fn wait_for_control_response(client: &mut MixnetClient) -> ControlResponse
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Step 1: Connect an ephemeral client.
+    // Connect an ephemeral client.
     let mut client = MixnetClient::connect_new().await.unwrap();
     let provider: Recipient = "8YF6f8x17j3fviBdU87EGD9g9MAgn9DARxunwLEVM7Bm.4ydfpjbTjCmzj58hWdQjxU2gT6CRVnTbnKajr2hAGBBM@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW".parse().unwrap();
 
-    // Step 2: Build control requests using the service-provider interface.
+    // Build control requests using the service-provider interface.
     let request_health = ControlRequest::Health;
     let request_binary_info = ControlRequest::BinaryInfo;
     let request_versions = ControlRequest::SupportedRequestVersions;
@@ -54,7 +54,7 @@ async fn main() -> anyhow::Result<()> {
     let full_request_versions: Request =
         Request::new_control(ProviderInterfaceVersion::new_current(), request_versions);
 
-    // Step 3: Send a Health request with 10 reply SURBs and wait for the response.
+    // Send a Health request with 10 reply SURBs and wait for the response.
     println!("Sending 'Health' request...");
     client
         .send_message(
@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'Health' request: {response:#?}");
 
-    // Step 4: Send a BinaryInfo request (no SURBs — replies won't work).
+    // Send a BinaryInfo request (no SURBs — replies won't work).
     println!("Sending 'BinaryInfo' request...");
     client
         .send_message(
@@ -78,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'BinaryInfo' request: {response:#?}");
 
-    // Step 5: Send a SupportedRequestVersions request.
+    // Send a SupportedRequestVersions request.
     println!("Sending 'SupportedRequestVersions' request...");
     client
         .send_message(
@@ -90,7 +90,7 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'SupportedRequestVersions' request: {response:#?}");
 
-    // Step 6: Disconnect for clean shutdown.
+    // Disconnect for clean shutdown.
     client.disconnect().await;
     Ok(())
 }

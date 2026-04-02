@@ -30,7 +30,7 @@ async fn main() {
     let our_address = *client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Step 1: Message-based API works before stream mode is activated.
+    // Message-based API works before stream mode is activated.
     println!("\nTesting message-based API (should work)");
     client
         .send_plain_message(our_address, "hello via message API")
@@ -38,14 +38,14 @@ async fn main() {
         .unwrap();
     println!("Message sent successfully via message-based API");
 
-    // Step 2: Activate stream mode by creating a listener.
+    // Activate stream mode by creating a listener.
     // This is a one-way transition — the two modes share a single inbound
     // channel from the gateway, so they cannot coexist.
     println!("\nActivating stream mode via listener()");
     let _listener = client.listener().unwrap();
     println!("Stream mode is now active");
 
-    // Step 3: Message-based API now returns Error::StreamModeActive.
+    // Message-based API now returns Error::StreamModeActive.
     println!("\nTesting message-based API again (should fail)");
     let result = client
         .send_plain_message(our_address, "this should fail")
@@ -63,7 +63,7 @@ async fn main() {
         }
     }
 
-    // Step 4: split_sender() shares the mode flag (Arc<AtomicBool>),
+    // split_sender() shares the mode flag (Arc<AtomicBool>),
     // so it also returns StreamModeActive.
     println!("\nTesting split_sender (shares stream_mode flag)");
     let sender = client.split_sender();

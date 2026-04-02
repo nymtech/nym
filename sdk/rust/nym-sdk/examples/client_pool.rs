@@ -20,10 +20,10 @@ async fn main() -> Result<()> {
     nym_bin_common::logging::setup_tracing_logger();
     setup_env(std::env::args().nth(1));
 
-    // Step 1: Create a pool that maintains 2 clients in reserve.
+    // Create a pool that maintains 2 clients in reserve.
     let conn_pool = ClientPool::new(2);
 
-    // Step 2: Start the pool's background loop in a spawned task.
+    // Start the pool's background loop in a spawned task.
     // It will continuously create clients until the reserve is full.
     let client_maker = conn_pool.clone();
     tokio::spawn(async move {
@@ -31,11 +31,11 @@ async fn main() -> Result<()> {
         Ok::<(), anyhow::Error>(())
     });
 
-    // Step 3: Wait for the pool to fill up.
+    // Wait for the pool to fill up.
     println!("\n\nWaiting a few seconds to fill pool\n\n");
     tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
 
-    // Step 4: Grab clients from the pool in two concurrent tasks.
+    // Grab clients from the pool in two concurrent tasks.
     // If the pool is empty, fall back to creating an ephemeral client.
     let pool_clone_one = conn_pool.clone();
     let pool_clone_two = conn_pool.clone();
@@ -100,7 +100,7 @@ async fn main() -> Result<()> {
         Ok::<(), anyhow::Error>(())
     });
 
-    // Step 5: Wait for ctrl-c, then shut down the pool.
+    // Wait for ctrl-c, then shut down the pool.
     wait_for_ctrl_c(conn_pool).await?;
     Ok(())
 }

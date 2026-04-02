@@ -17,11 +17,11 @@ use nym_topology::{NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Step 1: Connect an ephemeral client and grab the current topology.
+    // Connect an ephemeral client and grab the current topology.
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     let starting_topology = client.read_current_route_provider().await.unwrap().clone();
 
-    // Step 2: Define a custom set of hardcoded mix nodes.
+    // Define a custom set of hardcoded mix nodes.
     let nodes = vec![
         RoutingNode {
             node_id: 63,
@@ -73,7 +73,7 @@ async fn main() {
         },
     ];
 
-    // Step 3: Build a custom topology using these nodes plus the original gateways.
+    // Build a custom topology using these nodes plus the original gateways.
     // Inject our custom nodes into the rewarded set so the client will use them.
     let mut rewarded_set = starting_topology.topology.rewarded_set().clone();
     rewarded_set.layer1.insert(nodes[0].node_id);
@@ -90,14 +90,14 @@ async fn main() {
     custom_topology.add_routing_nodes(nodes);
     custom_topology.add_routing_nodes(gateways);
 
-    // Step 4: Apply the custom topology. All subsequent traffic goes
+    // Apply the custom topology. All subsequent traffic goes
     // through these specific nodes.
     client.manually_overwrite_topology(custom_topology).await;
 
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Step 5: Send a message to ourselves through the custom topology.
+    // Send a message to ourselves through the custom topology.
     client
         .send_plain_message(*our_address, "hello there")
         .await

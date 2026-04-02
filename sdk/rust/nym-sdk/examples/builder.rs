@@ -12,18 +12,18 @@ use nym_sdk::mixnet::MixnetMessageSender;
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Step 1: Create a builder with ephemeral keys.
+    // Create a builder with ephemeral keys.
     // The builder lets you configure the client before connecting.
     let client = mixnet::MixnetClientBuilder::new_ephemeral()
         .build()
         .unwrap();
 
-    // Step 2: Connect to the mixnet.
+    // Connect to the mixnet.
     let mut client = client.connect_to_mixnet().await.unwrap();
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Step 3: Send a message and wait for it.
+    // Send a message and wait for it.
     client
         .send_plain_message(*our_address, "hello there")
         .await
@@ -36,6 +36,6 @@ async fn main() {
         }
     }
 
-    // Step 4: Always disconnect for clean shutdown.
+    // Always disconnect for clean shutdown.
     client.disconnect().await;
 }

@@ -13,24 +13,24 @@ use std::path::PathBuf;
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Step 1: Point storage at a directory.
+    // Point storage at a directory.
     // If keys exist there they are loaded; otherwise new ones are generated.
     let config_dir = PathBuf::from("/tmp/mixnet-client");
     let storage_paths = mixnet::StoragePaths::new_from_dir(&config_dir).unwrap();
 
-    // Step 2: Build the client with on-disk persistent storage.
+    // Build the client with on-disk persistent storage.
     let client = mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
         .await
         .unwrap()
         .build()
         .unwrap();
 
-    // Step 3: Connect to the mixnet.
+    // Connect to the mixnet.
     let mut client = client.connect_to_mixnet().await.unwrap();
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Step 4: Send a message to ourselves and wait for it.
+    // Send a message to ourselves and wait for it.
     client
         .send_plain_message(*our_address, "hello there")
         .await
@@ -43,6 +43,6 @@ async fn main() {
         }
     }
 
-    // Step 5: Always disconnect for clean shutdown.
+    // Always disconnect for clean shutdown.
     client.disconnect().await;
 }

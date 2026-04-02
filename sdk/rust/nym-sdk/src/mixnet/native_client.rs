@@ -73,17 +73,23 @@ use tokio_util::sync::CancellationToken;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-/// let peer: mixnet::Recipient = "peer_address...".parse().unwrap();
+/// let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
+/// let mut receiver = mixnet::MixnetClient::connect_new().await.unwrap();
+/// let recv_addr = *receiver.nym_address();
 ///
-/// let mut stream = client.open_stream(peer, None).await.unwrap();
-/// stream.write_all(b"hello stream").await.unwrap();
+/// let mut listener = receiver.listener().unwrap();
+/// let mut tx = sender.open_stream(recv_addr, None).await.unwrap();
+/// let mut rx = listener.accept().await.unwrap();
+///
+/// tx.write_all(b"hello stream").await.unwrap();
+/// tx.flush().await.unwrap();
 ///
 /// let mut buf = vec![0u8; 1024];
-/// let n = stream.read(&mut buf).await.unwrap();
+/// let n = rx.read(&mut buf).await.unwrap();
 /// println!("read {} bytes", n);
 ///
-/// client.disconnect().await;
+/// sender.disconnect().await;
+/// receiver.disconnect().await;
 /// # }
 /// ```
 ///
@@ -396,11 +402,13 @@ impl MixnetClient {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    /// let peer: mixnet::Recipient = "peer_address...".parse().unwrap();
+    /// let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
+    /// let mut receiver = mixnet::MixnetClient::connect_new().await.unwrap();
+    /// let recv_addr = *receiver.nym_address();
     ///
-    /// let mut stream = client.open_stream(peer, None).await.unwrap();
+    /// let mut stream = sender.open_stream(recv_addr, None).await.unwrap();
     /// stream.write_all(b"hello").await.unwrap();
+    /// stream.flush().await.unwrap();
     /// # }
     /// ```
     ///

@@ -46,17 +46,22 @@
 //!
 //! # #[tokio::main]
 //! # async fn main() {
-//! let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-//! let peer: mixnet::Recipient = "peer_nym_address...".parse().unwrap();
+//! let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
+//! let mut receiver = mixnet::MixnetClient::connect_new().await.unwrap();
+//! let recv_addr = *receiver.nym_address();
 //!
-//! // Open a stream -- returns AsyncRead + AsyncWrite
-//! let mut stream = client.open_stream(peer, None).await.unwrap();
-//! stream.write_all(b"hello via stream").await.unwrap();
+//! let mut listener = receiver.listener().unwrap();
+//! let mut tx = sender.open_stream(recv_addr, None).await.unwrap();
+//! let mut rx = listener.accept().await.unwrap();
+//!
+//! tx.write_all(b"hello via stream").await.unwrap();
+//! tx.flush().await.unwrap();
 //!
 //! let mut buf = vec![0u8; 1024];
-//! let n = stream.read(&mut buf).await.unwrap();
+//! let n = rx.read(&mut buf).await.unwrap();
 //!
-//! client.disconnect().await;
+//! sender.disconnect().await;
+//! receiver.disconnect().await;
 //! # }
 //! ```
 //!
@@ -95,177 +100,56 @@ pub mod tcp_proxy;
 
 pub use error::{Error, Result};
 
-// Re-exports from nym-client-core: gateway transceiver types
-
-/// Type-erased gateway error for dynamic dispatch.
-///
-/// Wraps gateway-specific errors to allow using different gateway implementations
-/// (remote, local, mock) through trait objects.
+// Re-exports: gateway transceiver types (deprecated internals)
 #[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::ErasedGatewayError;
+pub use nym_client_core::client::mix_traffic::transceiver::{
+    ErasedGatewayError, GatewayPacketRouter, GatewayReceiver, GatewaySender, GatewayTransceiver,
+    LocalGateway, LocalGatewayError, MockGateway, MockGatewayError, PacketRouter, RemoteGateway,
+};
 
-/// Trait for receiving packets from the mixnet via a gateway.
-///
-/// Defines the functionality for correctly routing packets received from the mixnet,
-/// distinguishing between acknowledgements and regular messages.
-#[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::GatewayReceiver;
-
-/// Trait for sending mix packets into the mixnet.
-///
-/// Defines the functionality for sending Sphinx packets into the mixnet,
-/// typically through a gateway connection.
-#[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::GatewaySender;
-
-/// Combined trait for bidirectional gateway communication.
-///
-/// Combines [`GatewaySender`] and [`GatewayReceiver`] functionality for full
-/// duplex communication with the mixnet through a gateway.
-#[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
-
-/// Gateway running within the same process.
-///
-/// Used when the client and gateway are co-located, avoiding network overhead.
-/// Primarily used for embedded gateway scenarios.
-#[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::LocalGateway;
-
-/// Errors specific to [`LocalGateway`] operations.
-#[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::LocalGatewayError;
-
-/// Mock gateway implementation for testing.
-///
-/// A test double that records sent packets without actually transmitting them.
-/// Useful for unit testing client code without network dependencies.
-#[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::MockGateway;
-
-/// Error type for [`MockGateway`] operations.
-#[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::MockGatewayError;
-
-/// Gateway connected via network socket (typically WebSocket).
-///
-/// The standard gateway connection type for clients connecting to remote
-/// gateways over the network.
-#[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::RemoteGateway;
-
-/// Routes packets to their appropriate handlers (ACKs vs regular messages).
-///
-/// This type is re-exported from `nym-gateway-client` and handles the routing
-/// of incoming mixnet packets to the correct processing pipeline.
-#[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::GatewayPacketRouter;
-
-/// Packet routing configuration for incoming mixnet traffic.
-///
-/// Configures how received packets are dispatched to acknowledgement handlers
-/// versus message reconstruction pipelines.
-#[allow(deprecated)]
-pub use nym_client_core::client::mix_traffic::transceiver::PacketRouter;
-
-// Re-exports from nym-client-core: topology providers
-/// Provides network topology by querying the Nym API.
-///
-/// This is the standard topology provider that fetches mix node and gateway
-/// information from the Nym validator API.
+// Re-exports: topology
+/// Fetches network topology from the Nym API.
 pub use nym_client_core::client::topology_control::NymApiTopologyProvider;
-
 /// Configuration for [`NymApiTopologyProvider`].
-///
-/// Allows customizing how topology is fetched, including refresh intervals
-/// and filtering options.
 pub use nym_client_core::client::topology_control::NymApiTopologyProviderConfig;
-
-/// Trait for providing network topology information to clients.
-///
-/// Implement this trait to create custom topology providers that fetch
-/// network information from alternative sources.
+/// Trait for custom topology providers. Implement this to fetch topology
+/// from alternative sources (see `custom_topology_provider` example).
 pub use nym_client_core::client::topology_control::TopologyProvider;
 
-// Re-exports from nym-client-core: config types
-/// Debug configuration for mixnet clients.
-///
-/// Contains settings for debugging and development, such as traffic analysis
-/// options and verbose logging.
+// Re-exports: config
+/// Debug/development configuration for mixnet clients.
 pub use nym_client_core::config::DebugConfig;
-
-/// Configuration for client identity persistence behavior.
-///
-/// Controls whether the client should remember its identity across restarts
-/// or generate a new ephemeral identity each time.
+/// Controls whether client identity persists across restarts.
 pub use nym_client_core::config::RememberMe;
 
-// Re-exports from nym-network-defaults
-/// Blockchain network configuration details.
-///
-/// Contains information about the Cosmos chain used by Nym, including
-/// chain ID, RPC endpoints, and gas configuration.
+// Re-exports: network defaults
+/// Cosmos chain configuration (chain ID, RPC, gas).
 pub use nym_network_defaults::ChainDetails;
-
 /// Token denomination details (borrowed).
-///
-/// Information about a token denomination used on the Nym network,
-/// including display name and decimal precision.
 pub use nym_network_defaults::DenomDetails;
-
 /// Token denomination details (owned).
-///
-/// Owned version of [`DenomDetails`] for cases where the data needs
-/// to outlive the source configuration.
 pub use nym_network_defaults::DenomDetailsOwned;
-
-/// Smart contract addresses for the Nym network.
-///
-/// Contains addresses of all Nym smart contracts deployed on the blockchain,
-/// including the mixnet contract, vesting contract, and others.
+/// Nym smart contract addresses.
 pub use nym_network_defaults::NymContracts;
-
-/// Complete Nym network configuration.
-///
-/// The primary configuration type containing all network endpoints, contract
-/// addresses, and chain details. Can be loaded from environment variables
-/// or constructed manually.
-///
-/// # Example
+/// Complete network configuration (endpoints, contracts, chain details).
 ///
 /// ```rust,no_run
 /// use nym_sdk::NymNetworkDetails;
 ///
 /// // Load from environment (defaults to mainnet)
 /// let network = NymNetworkDetails::new_from_env();
-///
-/// // Get the API endpoint
 /// println!("API: {:?}", network.endpoints);
 /// ```
 pub use nym_network_defaults::NymNetworkDetails;
-
-/// Validator/API endpoint details.
-///
-/// Contains URLs and configuration for connecting to Nym validators
-/// and API servers.
+/// Validator/API endpoint configuration.
 pub use nym_network_defaults::ValidatorDetails;
 
-// Re-exports from nym-task
-/// A cancellation token for signaling shutdown requests.
-///
-/// Wraps a [`tokio_util::sync::CancellationToken`] and is used for signaling
-/// and listening for graceful shutdown requests across async tasks.
+// Re-exports: task management
+/// Cancellation token for graceful shutdown.
 pub use nym_task::ShutdownToken;
-
-/// Tracks spawned tasks and coordinates graceful shutdown.
-///
-/// Provides functionality to track nested tasks and coordinate their
-/// shutdown without passing the entire shutdown manager around.
+/// Tracks spawned tasks for coordinated shutdown.
 pub use nym_task::ShutdownTracker;
 
-// Re-exports from nym-validator-client
-/// Client identification sent to the Nym API.
-///
-/// Contains application name, version, and platform information sent
-/// with API requests for analytics and debugging purposes.
+// Re-exports: API client
+/// Client identification sent with Nym API requests.
 pub use nym_validator_client::UserAgent;

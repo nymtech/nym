@@ -69,14 +69,6 @@ where
     ///
     /// A ticketbook contains pre-purchased bandwidth tokens that are spent
     /// during network use. Each token represents a certain amount of bandwidth.
-    ///
-    /// # Arguments
-    ///
-    /// * `ticketbook` - The issued ticketbook to import.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the ticketbook cannot be stored.
     pub async fn import_ticketbook(
         &self,
         ticketbook: &IssuedTicketBook,
@@ -92,18 +84,8 @@ where
 
     /// Imports a partial range of tickets from a ticketbook.
     ///
-    /// This is useful when sharing a ticketbook across multiple clients or
-    /// when only a portion of the ticketbook should be available to this client.
-    ///
-    /// # Arguments
-    ///
-    /// * `ticketbook` - The issued ticketbook containing the tickets.
-    /// * `allowed_start_ticket_index` - The first ticket index this client can use (inclusive).
-    /// * `allowed_final_ticket_index` - The last ticket index this client can use (inclusive).
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the partial ticketbook cannot be stored.
+    /// Useful when sharing a ticketbook across multiple clients or when only
+    /// a portion should be available to this client.
     pub async fn import_partial_ticketbook(
         &self,
         ticketbook: &IssuedTicketBook,
@@ -125,17 +107,8 @@ where
 
     /// Imports the master verification key for credential validation.
     ///
-    /// The master verification key is used to verify that credentials were
-    /// properly issued by the credential signers. Each epoch has its own
-    /// verification key.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - The epoch verification key to import.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the key cannot be stored.
+    /// Used to verify that credentials were properly issued by the credential
+    /// signers. Each epoch has its own verification key.
     pub async fn import_master_verification_key(
         &self,
         key: &EpochVerificationKey,
@@ -151,16 +124,8 @@ where
 
     /// Imports aggregated coin index signatures.
     ///
-    /// These signatures are part of the credential scheme and are needed
-    /// to prove ownership of specific coins/tokens in the ticketbook.
-    ///
-    /// # Arguments
-    ///
-    /// * `signatures` - The aggregated coin index signatures to import.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the signatures cannot be stored.
+    /// These signatures are needed to prove ownership of specific
+    /// coins/tokens in the ticketbook.
     pub async fn import_coin_index_signatures(
         &self,
         signatures: &AggregatedCoinIndicesSignatures,
@@ -179,14 +144,6 @@ where
     /// These signatures verify the validity period of credentials. Credentials
     /// are only valid for a certain time period, and these signatures prove
     /// when they expire.
-    ///
-    /// # Arguments
-    ///
-    /// * `signatures` - The aggregated expiration date signatures to import.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the signatures cannot be stored.
     pub async fn import_expiration_date_signatures(
         &self,
         signatures: &AggregatedExpirationDateSignatures,

@@ -73,7 +73,7 @@
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     // Create a proxy server that forwards to localhost:3000
-//!     let server = NymProxyServer::new("127.0.0.1:3000", "./nym-proxy-data", None, None).await?;
+//!     let mut server = NymProxyServer::new("127.0.0.1:3000", "./nym-proxy-data", None, None).await?;
 //!
 //!     println!("Server listening at: {}", server.nym_address());
 //!

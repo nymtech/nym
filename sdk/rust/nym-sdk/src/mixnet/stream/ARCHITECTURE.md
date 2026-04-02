@@ -44,17 +44,26 @@ identified by a random `StreamId`.
 
 ## Wire Protocol (`protocol.rs`)
 
-Every stream message has a 10-byte header:
+Every stream message uses the system-wide LP frame format (`nym-lp`).
+Each message is an `LpFrame` with a 16-byte header:
 
+```text
+[LpFrameKind: 2 LE][frame_attributes: 14][payload: N bytes]
 ```
-[Version: 1][StreamId: 8][MessageType: 1][payload...]
+
+For streams, `LpFrameKind` is `SphinxStream` (0x0003) and the 14-byte
+`frame_attributes` are parsed as `SphinxStreamFrameAttributes`:
+
+```text
+[StreamId: 8 BE][MsgType: 1][SequenceNum: 4 BE][reserved: 1]
 ```
 
 - `Open` (0) — initiates a new stream
 - `Data` (1) — carries payload for an existing stream
 
-There is no `Close` type — the mixnet does not yet guarantee ordering, so
-streams clean up via `Drop` and idle timeout instead.
+There is no `Close` type — streams clean up via `Drop` and idle timeout.
+Sequence numbers enable reorder buffering (up to `MAX_REORDER_BUFFER`
+out-of-order messages per stream).
 
 ## Initialization
 
@@ -101,7 +110,9 @@ streams, and listener. Methods: `register_stream`, `remove`,
 
 ## Known Limitations
 
-- **No message ordering** — large writes may arrive out of order; no
-  `Close` message. Ordering is planned for a future release.
-- **No protocol discriminator** — stream and plain messages are
-  indistinguishable on the wire. Planned for a future release.
+- **No `Close` message** — there is no explicit stream-close signal.
+  Streams clean up locally via `Drop` and idle timeout. A proper
+  close/EOF mechanism requires further protocol work.
+- **Reorder buffer cap** — out-of-order messages are buffered up to
+  `MAX_REORDER_BUFFER` (256) per stream. If a sequence number is
+  permanently lost, the buffer skips ahead once full.

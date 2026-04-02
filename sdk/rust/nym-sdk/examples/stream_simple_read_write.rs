@@ -150,7 +150,7 @@ async fn main() {
     println!("\nConcurrent round-trips successful!");
 
     // Step 8: Clean up — streams deregister from the router on drop.
-    // No close message is sent (message ordering is planned for a future release).
+    // No close message is sent; the remote side sees EOF after idle timeout.
     drop(stream_to_a);
     drop(stream_to_b);
     drop(inbound_a);

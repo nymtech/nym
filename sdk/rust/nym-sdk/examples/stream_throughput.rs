@@ -4,13 +4,13 @@
 //! Sends 1 MB of random data over a MixnetStream and verifies integrity.
 //!
 //! Uses `write_all` on the sender and `read_exact` on the receiver.
-//! `read_exact` is needed because the mixnet does not currently guarantee
-//! message ordering — there is no close/EOF signal, so the receiver must
-//! know the expected size. Message ordering is planned for a future release.
+//! `read_exact` is needed because there is no close/EOF signal — streams
+//! clean up via `Drop` and idle timeout, so the receiver must know the
+//! expected size up front.
 //!
-//! For small payloads (fitting in one Sphinx packet) ordering is not an
-//! issue. For large payloads spanning multiple packets, bytes may arrive
-//! out of order within the stream buffer.
+//! Messages are reordered by sequence number in the stream layer, so
+//! large payloads spanning multiple Sphinx packets are reassembled
+//! correctly.
 //!
 //! Run with: cargo run --example stream_throughput
 
@@ -59,8 +59,8 @@ async fn main() {
     });
 
     // Step 4: Receive exactly SIZE bytes using read_exact.
-    // We use read_exact (not read-until-EOF) because the mixnet does not
-    // currently have message ordering or close signalling.
+    // We use read_exact (not read-until-EOF) because there is no
+    // close/EOF signal — streams clean up via Drop and idle timeout.
     let recv_task = tokio::spawn(async move {
         let mut buf = vec![0u8; SIZE];
         tokio::time::timeout(TIMEOUT, rx.read_exact(&mut buf))

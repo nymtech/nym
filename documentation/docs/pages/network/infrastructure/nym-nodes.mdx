@@ -4,7 +4,7 @@ import stats from 'components/outputs/api-scraping-outputs/nodes-count.json';
 
 # Nym Nodes
 
-All traffic-routing infrastructure runs on the `nym-node` binary. This unified binary operates in different modes—Entry Gateway, Mix Node, or Exit Gateway—simplifying deployment and enabling future dynamic role assignment.
+All traffic-routing infrastructure runs on the `nym-node` binary. This unified binary operates in different modes (Entry Gateway, Mix Node, or Exit Gateway), simplifying deployment and enabling future dynamic role assignment.
 
 <Callout type="info">
 To run a node, see the [Operator Documentation](/operators/introduction).
@@ -12,7 +12,7 @@ To run a node, see the [Operator Documentation](/operators/introduction).
 
 ## Node modes
 
-**Entry Gateways** are the user's first point of contact with the network. They accept WebSocket connections from clients, verify zk-nym credentials to confirm payment, and store messages for clients that go offline (up to 24 hours). Entry Gateways know the client's IP address but cannot see message contents or final destinations.
+**Entry Gateways** are the user's first point of contact with the network. They accept WebSocket connections from clients, verify zk-nym credentials to confirm payment, and store messages for clients that go offline. Entry Gateways know the client's IP address but cannot see message contents or final destinations.
 
 **Mix Nodes** form the three mixing layers that provide core privacy. They receive Sphinx packets, remove one encryption layer, verify integrity, apply a random delay, and forward to the next hop. Mix Nodes cannot determine their position in the route and cannot link incoming packets to outgoing packets.
 
@@ -22,7 +22,7 @@ To run a node, see the [Operator Documentation](/operators/introduction).
 
 The various components were originally separate binaries. They've been consolidated into a single `nym-node` binary where the role is specified at runtime. This simplifies operation and makes configuration consistent across roles.
 
-In the future, nodes will automatically switch modes based on network conditions. Operators won't need to manually set whether a node is a Gateway or Mix Node—the network will assign modes dynamically each epoch.
+In the future, nodes will automatically switch modes based on network conditions. Operators won't need to manually set whether a node is a Gateway or Mix Node; the network will assign modes dynamically each epoch.
 
 ## Nym clients
 

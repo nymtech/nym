@@ -10,20 +10,20 @@ lastUpdated: "2026-03-15"
 
 ## Metadata is the message
 
-When you communicate over the internet, you can think of two types of information being transmitted:
-- The **content** is the actual message, file, or data being sent. In the context of a messaging app, this is the contents of your message. In the context of something lower level, like an HTTP packet, this is the encrypted payload of the packet itself.
-- The **metadata** is information about the communication itself. Some metadata is visible immediately: packet headers reveal sending and receiving IP addresses, timestamps, and packet sizes that hint at content type and connection medium (see [Maximum Transmission Units](https://en.wikipedia.org/wiki/Maximum_transmission_unit#MTUs_for_common_media)). Other metadata emerges over time through pattern analysis: frequency of interaction, session durations, and behavioral fingerprints that identify users across sessions.
+When you communicate over the internet, two types of information are in play:
+- The **content** is the actual message, file, or data being sent.
+- The **metadata** is everything else: who is talking to whom, when, from where, and how often. Some metadata is visible in every packet (source/destination IPs, timestamps, sizes). Other metadata only emerges from patterns over time: interaction frequency, session durations, and behavioural fingerprints that can identify users across sessions. See [Maximum Transmission Units](https://en.wikipedia.org/wiki/Maximum_transmission_unit#MTUs_for_common_media) for one example of what packet sizes reveal.
 
-Traditional encryption like TLS and end-to-end-encryption (E2EE) protect content — often the [focus of media attention](https://wire.com/en/blog/whatsapp-end-to-end-encryption-risks). However, most solutions either don't protect against metadata analysis, or falsely purport to do so.
+TLS and end-to-end encryption protect content. That's often the [focus of media attention](https://wire.com/en/blog/whatsapp-end-to-end-encryption-risks). But most solutions don't protect metadata at all, and some falsely claim to.
 
-Even without reading a single message, metadata alone is enough to reconstruct who you talk to, when, how often, and from where — which is why intelligence agencies treat it as seriously as content. As former NSA Director Michael Hayden put it: ["We kill people based on metadata."](https://committees.parliament.uk/writtenevidence/36962/html/)
+Metadata alone is enough to reconstruct who you talk to, when, and from where. Intelligence agencies know this. As former NSA Director Michael Hayden put it: ["We kill people based on metadata."](https://committees.parliament.uk/writtenevidence/36962/html/)
 
 ## The adversary models
 
-When using the **Mixnet mode** the Nym Network is designed to protect against **Global Passive Adversaries**—entities capable of observing traffic across the entire network simultaneously. This includes nation-state intelligence agencies, large corporations with extensive network infrastructure, ISPs, and collaborative adversaries sharing data.
+**Mixnet mode** is designed to protect against **Global Passive Adversaries**: entities that can observe traffic across the entire network at once. Nation-state intelligence agencies, large corporations with broad network infrastructure, ISPs, or any combination sharing data.
 
-The assumption is that these adversaries can monitor all entry and exit points, correlate timing across the network, apply machine learning to traffic patterns, and conduct long-term statistical analysis. When Tor was first deployed in 2002, such attacks were considered science fiction. They are now documented reality.
+The assumption is worst-case: the adversary monitors all entry and exit points, correlates timing, applies machine learning to traffic patterns, and runs long-term statistical analysis. When Tor launched in 2002, this was considered unrealistic - machine learning and the increase in computation power have made this unfortunately more of a potential reality today.
 
-**dVPN mode** offers reduced protections against E2E surveillance and timing analysis, but still offers similar protections to Tor whilst offering increased speeds.
+**dVPN mode** does not defend against timing analysis, but it splits trust across two independent operators and removes payment linkability, which already addresses the biggest weaknesses of traditional VPNs.
 
-Nym addresses these shortcomings through two complementary approaches: dVPN mode splits trust across independent operators and removes payment linkability, while Mixnet mode adds the timing obfuscation and cover traffic needed to resist a global passive adversary. For a detailed comparison with VPNs, Tor, I2P, and end-to-end encryption, see [Nym vs Other Systems](/network/overview/comparisons). For practical guidance on which mode fits your threat model, see [Choosing a Mode](/network/overview/choosing-a-mode).
+For a comparison with VPNs, Tor, and I2P, see [Nym vs Other Systems](/network/overview/comparisons). For help picking a mode, see [Choosing a Mode](/network/overview/choosing-a-mode).

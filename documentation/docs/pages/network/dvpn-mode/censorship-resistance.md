@@ -14,23 +14,23 @@ dVPN mode incorporates several techniques to help users connect in restrictive n
 
 Deep Packet Inspection (DPI) systems deployed by ISPs and governments can identify VPN protocols by their handshake patterns, packet sizes, and timing characteristics. Standard WireGuard, for instance, has a recognisable handshake initiation pattern that DPI rules can match against. Once identified, connections can be throttled or blocked entirely.
 
-This is not a theoretical concern — countries including China, Russia, Iran, and others actively deploy DPI to restrict VPN usage.
+This is not a theoretical concern: countries including China, Russia, Iran, and others actively deploy DPI to restrict VPN usage.
 
 ## AmneziaWG
 
 dVPN mode uses [AmneziaWG](https://docs.amnezia.org/documentation/amnezia-wg/), a fork of WireGuard that adds obfuscation techniques to make the protocol harder to fingerprint.
 
-AmneziaWG modifies the WireGuard handshake by introducing decoy packets before the handshake initiation. These decoy packets disrupt DPI rules that rely on matching the standard WireGuard handshake sequence. The actual WireGuard protocol behaviour is preserved — the modifications sit around the handshake rather than replacing it, so all of WireGuard's security properties (Curve25519 key exchange, ChaCha20-Poly1305 encryption, forward secrecy) remain intact.
+AmneziaWG modifies the WireGuard handshake by introducing decoy packets before the handshake initiation. These decoy packets disrupt DPI rules that rely on matching the standard WireGuard handshake sequence. The actual WireGuard protocol behaviour is preserved; the modifications sit around the handshake rather than replacing it, so all of WireGuard's security properties (Curve25519 key exchange, ChaCha20-Poly1305 encryption, forward secrecy) remain intact.
 
 ## Limitations
 
-AmneziaWG raises the bar for censors relying on simple protocol fingerprinting, but it doesn't help against deeper analysis — statistical fingerprinting of packet timing and sizes, IP-based blocking of known Gateway addresses, or active probing where the censor sends packets to suspected VPN servers to confirm their identity.
+AmneziaWG raises the bar for censors relying on simple protocol fingerprinting, but it doesn't help against deeper analysis: statistical fingerprinting of packet timing and sizes, IP-based blocking of known Gateway addresses, or active probing where the censor sends packets to suspected VPN servers to confirm their identity.
 
 ## QUIC transport mode
 
 QUIC transport mode wraps the WireGuard/AmneziaWG connection inside a [QUIC](https://datatracker.ietf.org/doc/html/rfc9000) layer, so the traffic looks like standard HTTPS/HTTP3 to DPI systems rather than a VPN tunnel. Since QUIC is now used by a significant portion of regular web traffic (over 30% of Cloudflare's traffic in 2023 was HTTP/3 over QUIC), blocking it outright would break large parts of the web for everyone, making it an unattractive target for censors.
 
-QUIC transport applies to the Entry Gateway connection only (the first hop). Not all Gateways support it yet — enabling QUIC in the NymVPN app will filter the Gateway list to those that do. Because the QUIC wrapper adds overhead, it can reduce speeds slightly, so it's worth leaving disabled unless you're in a censored environment or having connectivity issues.
+QUIC transport applies to the Entry Gateway connection only (the first hop). Not all Gateways support it yet; enabling QUIC in the NymVPN app will filter the Gateway list to those that do. Because the QUIC wrapper adds overhead, it can reduce speeds slightly, so it's worth leaving disabled unless you're in a censored environment or having connectivity issues.
 
 ## Stealth API Connect
 
@@ -38,7 +38,7 @@ Even if a user can establish a VPN tunnel, censors can also block access to the 
 
 ## Limitations
 
-These techniques are layered — AmneziaWG obfuscates the handshake, QUIC disguises the tunnel as regular web traffic, and Stealth API Connect protects the initial API discovery. Together they cover several common censorship methods, but none of them are guarantees. Censorship resistance is an ongoing arms race, and new techniques will be documented here as they ship.
+These techniques are layered: AmneziaWG obfuscates the handshake, QUIC disguises the tunnel as regular web traffic, and Stealth API Connect protects the initial API discovery. Together they cover several common censorship methods, but none of them are guarantees. Censorship resistance is an ongoing arms race, and new techniques will be documented here as they ship.
 
 ## Further reading
 

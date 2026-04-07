@@ -8,7 +8,7 @@ lastUpdated: "2026-03-15"
 
 # Epochs
 
-Time in the Nym Network is organized into epochs—discrete periods during which certain network operations occur. The current epoch length is one hour.
+Time in the Nym Network is organized into epochs: discrete periods during which certain network operations occur. The current epoch length is one hour.
 
 ## What happens at epoch boundaries
 
@@ -22,7 +22,7 @@ In upcoming releases, epochs will trigger automatic role assignment. Nodes will 
 
 ## SURB validity
 
-SURBs are tied to key rotation cycles. Node keys rotate on an odd/even schedule with a default validity of 24 epochs. A SURB remains usable for `(validity_epochs + 1) * epoch_duration` — roughly 25 hours at the current 1-hour epoch. After that, the routing keys it was built with are no longer accepted by the network. Clients automatically purge stale SURBs and request fresh ones.
+SURBs are tied to key rotation cycles. Node keys rotate on an odd/even schedule with a default validity of 24 epochs. A SURB remains usable for `(validity_epochs + 1) * epoch_duration`, roughly 25 hours at the current 1-hour epoch. After that, the routing keys it was built with are no longer accepted by the network. Clients automatically purge stale SURBs and request fresh ones.
 
 ## Querying epoch information
 

@@ -8,7 +8,7 @@ lastUpdated: "2026-03-15"
 
 # Cover Traffic
 
-Cover traffic is dummy packets that hide when real communication is occurring. It's a fundamental mechanism for achieving **unobservability**.
+Cover traffic consists of dummy packets that hide when real communication is occurring, providing unobservability: an adversary cannot determine whether a user is actively communicating.
 
 ## The problem
 
@@ -31,17 +31,17 @@ Time -------------------------------------->
          Constant rate (activity hidden)
 ```
 
-The cover packets are real Sphinx packets with valid encryption—just empty payloads. They travel through the network exactly like real packets, get mixed at each hop, and are discarded at their destination. No node along the way can tell whether a packet contains real data or is cover traffic.
+The cover packets are real Sphinx packets with valid encryption, just with empty payloads. They travel through the network exactly like real packets, get mixed at each hop, and are discarded at their destination. No node along the way can tell whether a packet contains real data or is cover traffic.
 
 ## Loop traffic
 
-Cover packets follow complete routes through the network back to the sender. These "loops" serve multiple purposes: they test that network routes are functioning, they provide traffic for mixing with others' cover traffic, and they can detect active attacks. If your loop packets stop returning, something is wrong.
+Cover packets follow complete routes through the network back to the sender. These "loops" serve multiple purposes: they provide traffic for mixing with others' cover traffic and they can detect active attacks. If loop packets stop returning, a network fault or active interference is likely.
 
 Mix nodes also generate their own cover traffic, ensuring minimum traffic levels even when few users are active. This provides baseline anonymity guarantees regardless of network load.
 
 ## How it's generated
 
-Traffic follows a Poisson process with a configurable rate parameter. Inter-packet times are exponentially distributed—random, but with a known average rate. This distribution provides maximum entropy (uncertainty) for a given mean rate, which translates to optimal privacy properties.
+Traffic follows a Poisson process with a configurable rate parameter. Inter-packet times are exponentially distributed: random, but with a known average rate. This distribution provides maximum entropy (uncertainty) for a given mean rate, which translates to optimal privacy properties.
 
 ## Tradeoffs
 
@@ -51,4 +51,4 @@ The default parameters balance privacy and resource usage. Applications with hei
 
 ## What cover traffic defeats
 
-Cover traffic prevents volume analysis (how much you communicate), timing analysis (when you communicate), presence detection (whether you're online), and behavioral profiling (your communication patterns over time). Combined with packet mixing, it ensures that even an adversary watching the entire network learns nothing about your communication behavior.
+Cover traffic prevents volume analysis (how much you communicate), timing analysis (when you communicate), and behavioral profiling (your communication patterns over time). Combined with packet mixing, it ensures that even an adversary watching the entire network cannot learn about your communication behavior with currently known methods.

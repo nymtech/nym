@@ -18,7 +18,7 @@ To interact with the chain, see [Interacting with Nyx](/developers/chain). To ru
 
 ## Role in the network
 
-The blockchain serves several functions. It maintains the **topology registry**—the list of active nodes and their public keys. This eliminates the need for a centralized directory server and prevents attacks that plague peer-to-peer directory systems.
+The blockchain serves several functions. It maintains the **topology registry**: the list of active nodes and their public keys. This eliminates the need for a centralized directory server and prevents attacks that plague peer-to-peer directory systems.
 
 It manages **token economics**. The NYM token is a native token of the chain, used for staking, rewards, and credential payments. Validators secure the chain via proof-of-stake consensus.
 
@@ -34,7 +34,7 @@ Nyx Validators run the `nyxd` binary to maintain the blockchain. They process tr
 For setup instructions, see the [Nym API Operator Guide](/operators/nodes/validator-setup/nym-api).
 </Callout>
 
-The Nym API is operated by a subset of validators forming the "Quorum." This group performs network monitoring—sending test packets through the mixnet and calculating reliability scores for nodes. More critically, it handles credential issuance, generating the partial blind signatures that form zk-nyms.
+The Nym API is operated by a subset of validators forming the "Quorum." This group performs network monitoring: sending test packets through the mixnet and calculating reliability scores for nodes. More critically, it handles credential issuance, generating the partial blind signatures that form zk-nyms.
 
 The Quorum uses threshold cryptography. No single member can issue credentials alone. The system remains functional even if some members are offline. This distributes trust across multiple independent parties.
 

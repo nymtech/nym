@@ -6,19 +6,19 @@ section: "Network"
 lastUpdated: "2026-03-15"
 ---
 
-# Sphinx Packets
+# Sphinx
 
 Sphinx is the cryptographic packet format used for all mixnet traffic. It provides layered encryption where each hop can only decrypt its own routing information, ensuring that no single node knows both the source and destination of a packet.
 
 ## How Sphinx works
 
-When a client sends a message through the mixnet, it constructs a Sphinx packet with multiple encryption layers—one for each hop in the route. The outermost layer is encrypted for the first hop (Entry Gateway), the next layer for the second hop (Mix Node Layer 1), and so on until the innermost layer contains the actual payload encrypted for the recipient.
+When a client sends a message through the mixnet, it constructs a Sphinx packet with multiple encryption layers, one for each hop in the route. The outermost layer is encrypted for the first hop (Entry Gateway), the next layer for the second hop (Mix Node Layer 1), and so on until the innermost layer contains the actual payload encrypted for the recipient.
 
 At each hop, the node uses its private key to decrypt its layer, revealing the address of the next hop and a new Sphinx packet to forward. The node cannot see any other routing information or the payload contents.
 
 ## Packet structure
 
-All Sphinx packets have a fixed payload size of 2048 bytes. This uniformity is critical—if packets varied in size, nodes could infer their position in the route or correlate packets by size.
+All Sphinx packets have a fixed payload size of 2048 bytes. This uniformity is critical: if packets varied in size, nodes could infer their position in the route or correlate packets by size.
 
 The packet contains a header with encrypted routing information for each hop, HMACs to verify integrity at each layer, and the encrypted payload. The header uses a clever "onion" structure where processing at each hop reveals only the next hop's information while maintaining constant size through padding.
 
@@ -44,6 +44,6 @@ Nym uses the [`sphinx-packet`](https://github.com/nymtech/sphinx) crate for core
 
 ## References
 
-- [Sphinx paper](https://cypherpunks.ca/~iang/pubs/Sphinx_Oakland09.pdf) — Original specification and security proofs
-- [Elle Mouton's Sphinx explainer](https://ellemouton.com/posts/sphinx/) — Detailed walkthrough of packet construction
-- [Nym Whitepaper §4](https://nym.com/nym-whitepaper.pdf) — Sphinx in the context of Nym
+- [Sphinx paper](https://cypherpunks.ca/~iang/pubs/Sphinx_Oakland09.pdf): Original specification and security proofs
+- [Elle Mouton's Sphinx explainer](https://ellemouton.com/posts/sphinx/): Detailed walkthrough of packet construction
+- [Nym Whitepaper §4](https://nym.com/nym-whitepaper.pdf): Sphinx in the context of Nym

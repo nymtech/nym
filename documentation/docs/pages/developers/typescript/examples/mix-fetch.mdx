@@ -10,11 +10,11 @@ import { Callout } from 'nextra/components';
 
 # mixFetch
 
-An easy way to secure parts or all of your web app is to replace calls to [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) with `mixFetch`. It works the same as vanilla `fetch` — it's a proxied wrapper around the original function.
+An easy way to secure parts or all of your web app is to replace calls to [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) with `mixFetch`. It works the same as vanilla `fetch`: it's a proxied wrapper around the original function.
 
 Things to be aware of:
 
-- CA certificates in `mixFetch` are periodically updated. If you get a certificate error, the root certificate you need might not be valid yet — [send a PR](https://github.com/nymtech/nym/pulls) if you need changes to the certificates.
+- CA certificates in `mixFetch` are periodically updated. If you get a certificate error, the root certificate you need might not be valid yet. [Send a PR](https://github.com/nymtech/nym/pulls) if you need changes to the certificates.
 - If you are using `mixFetch` in a web app with HTTPS, you will need to use a gateway that has Secure Websockets (WSS) to avoid a [mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content) error.
 - `mixFetch` supports concurrent requests (up to 10) to the same or different URLs.
 

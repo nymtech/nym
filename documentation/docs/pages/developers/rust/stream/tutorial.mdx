@@ -9,8 +9,9 @@ lastUpdated: "2026-03-26"
 # Tutorial: Build a Private Echo Server
 
 import { Callout } from 'nextra/components'
+import { CodeVerified } from '../../../../components/code-verified'
 
-In this tutorial you'll build two programs — a server that listens for incoming streams and echoes back whatever it receives, and a client that opens a stream, sends data, and reads the echo. Both communicate through the Nym Mixnet using `AsyncRead` and `AsyncWrite`, just like TCP sockets.
+In this tutorial you'll build two programs: a server that listens for incoming streams and echoes back whatever it receives, and a client that opens a stream, sends data, and reads the echo. Both communicate through the Nym Mixnet using `AsyncRead` and `AsyncWrite`, just like TCP sockets.
 
 ## What you'll learn
 
@@ -20,9 +21,7 @@ In this tutorial you'll build two programs — a server that listens for incomin
 - How streams are multiplexed over a single `MixnetClient`
 - Clean shutdown and stream lifecycle
 
-<Callout type="info">
-Code verified against commit [`4077717`](https://github.com/nymtech/nym/commit/4077717d3). If the API has changed since then, check the [examples in the repo](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples) for the latest usage.
-</Callout>
+<CodeVerified />
 
 ## Prerequisites
 
@@ -42,6 +41,7 @@ Add dependencies to `Cargo.toml`:
 [dependencies]
 nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
 tokio = { version = "1", features = ["full"] }
+blake3 = "=1.7.0"
 ```
 
 ## Step 2: Build the echo server
@@ -218,7 +218,7 @@ Stream 12345678 received 9 bytes: "message 3"
 Stream 12345678 closed
 ```
 
-## What's happening under the hood
+## How it works internally
 
 1. The server's `listener()` activates **stream mode**, which spawns a **router task** that decodes incoming Mixnet messages and dispatches them by stream ID.
 
@@ -226,25 +226,25 @@ Stream 12345678 closed
 
 3. When the server's router receives the `Open` message, it delivers it to `listener.accept()`, which creates the inbound `MixnetStream`.
 
-4. Each `write_all()` prepends a 10-byte header (`[version][stream_id][message_type]`) and sends the data through the Mixnet as a Sphinx packet.
+4. Each `write_all()` prepends a 16-byte LP frame header (`[LpFrameKind: 2B][StreamId: 8B][MsgType: 1B][SequenceNum: 4B][Reserved: 1B]`) and sends the data through the Mixnet as a Sphinx packet.
 
-5. On arrival, the router decodes the header, finds the matching stream, and delivers the raw payload to `read()`.
+5. On arrival, the router reads the `LpFrameKind` to identify it as stream traffic, decodes the header, finds the matching stream by ID, and delivers the raw payload to `read()`.
 
-6. The inbound stream replies via **reply SURBs** — the same anonymous reply mechanism as the message API, applied transparently. The server never learns the client's Nym address.
+6. The inbound stream replies via **reply SURBs**, the same anonymous reply mechanism as the message API, applied transparently. The server never learns the client's Nym address.
 
-7. When a stream is dropped, it deregisters from the local router. No close message is sent over the wire (because the Mixnet doesn't guarantee message ordering — a close could arrive before the final data).
+7. When a stream is dropped, it deregisters from the local router. No close message is sent over the wire, since a close could race ahead of in-flight data.
 
 See the [Architecture](./architecture) page for the full technical details.
 
 ## What you've learned
 
-- **`client.listener()`** activates stream mode and returns a `MixnetListener`
-- **`listener.accept()`** blocks until a remote peer opens a stream
-- **`client.open_stream(recipient, surbs)`** opens an outbound stream
-- **`MixnetStream`** implements `AsyncRead + AsyncWrite` — standard tokio I/O
-- Streams are **multiplexed** over a single client — you can open many to different peers
-- **Cleanup is automatic on `drop`** — no close handshake needed
-- **Reply SURBs** enable the server to respond without knowing the client's address
+- `client.listener()` activates stream mode and returns a `MixnetListener`
+- `listener.accept()` blocks until a remote peer opens a stream
+- `client.open_stream(recipient, surbs)` opens an outbound stream to a Nym address
+- `MixnetStream` implements `AsyncRead + AsyncWrite`, so standard tokio I/O works unchanged
+- Multiple streams are multiplexed over a single client
+- Streams deregister on `drop`; no close handshake is needed
+- The server replies via SURBs and never learns the client's address
 
 ## Complete code
 

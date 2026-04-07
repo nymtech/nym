@@ -8,16 +8,17 @@ lastUpdated: "2026-03-27"
 
 # TcpProxy Module
 import { Callout } from 'nextra/components';
+import { CodeVerified } from '../../../components/code-verified'
 
 <Callout type="error">
   **This module is unmaintained.** The TcpProxy is no longer actively developed in favour of the [Stream module](./stream), which provides `AsyncRead + AsyncWrite` streams directly over the Mixnet without the TCP socket overhead. Existing users should plan to migrate to streams when possible. The TcpProxy will continue to work but will not receive new features or bug fixes.
 </Callout>
 
-The Stream module offers the same key benefit — familiar I/O patterns on top of the Mixnet — but with a simpler API. Streams multiplex connections on a single client and eliminate the localhost socket overhead. The one feature TcpProxy has that streams don't yet have is **message ordering** — see the [stream architecture](./stream/architecture#known-limitations) for details. If your application requires guaranteed byte ordering today, TcpProxy still works.
+The Stream module offers the same key benefit (familiar I/O patterns on top of the Mixnet) with a simpler API. Streams multiplex connections on a single client, eliminate the localhost socket overhead, and now include sequence-based message reordering. There is no remaining reason to choose TcpProxy over Streams for new projects.
 
 ---
 
-This module exposes `NymProxyClient` and `NymProxyServer` for proxying TCP traffic through the Mixnet. Both are initialised and run in a background thread, exposing a configurable `localhost` socket which you can read/write to without worrying about the Mixnet's message-based internals.
+`NymProxyClient` and `NymProxyServer` proxy TCP traffic through the Mixnet. Both run in a background thread and expose a configurable `localhost` socket that you read and write to like any other TCP connection.
 
 > Non-Rust/Go developers who want to experiment with this module can start with the [standalone binaries](../tools/standalone-tcpproxy).
 
@@ -35,13 +36,11 @@ cargo run --example tcp_proxy_multistream
 
 ## API reference
 
-- [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/tcp_proxy/) — architecture overview, client/server examples, and type documentation
+- [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/tcp_proxy/): architecture overview, client/server examples, and type documentation
 
 ## Tutorial
 
-<Callout type="info">
-Code verified against commit [`4077717`](https://github.com/nymtech/nym/commit/4077717d3). If the API has changed since then, check the [examples in the repo](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples) for the latest usage.
-</Callout>
+<CodeVerified />
 
 Set up the project:
 
@@ -57,6 +56,7 @@ Add dependencies to `Cargo.toml`:
 nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
+blake3 = "=1.7.0"
 
 [[bin]]
 name = "proxy_server"
@@ -217,4 +217,4 @@ sequenceDiagram
 
 ### Lots of `duplicate fragment received` messages
 
-`WARN` level logs about duplicate fragments are caused by Mixnet-level packet retransmission — the original and the retransmitted copy both arrive at the destination. This is not a bug in your client logic or the TcpProxy module.
+`WARN` level logs about duplicate fragments are caused by Mixnet-level packet retransmission, where both the original and the retransmitted copy arrive at the destination. This is expected behaviour, not a bug in the client or TcpProxy module.

@@ -9,25 +9,26 @@ lastUpdated: "2026-03-13"
 # Rust SDK
 
 import { Callout } from 'nextra/components'
+import { CratesPaused } from '../../components/crates-paused'
 
-The Rust SDK provides high-level abstractions for building privacy-preserving applications on the Nym Mixnet. All modules share a common `MixnetClient` that handles gateway connections, Sphinx packet encryption, routing, and cover traffic under the hood.
+All modules share a common `MixnetClient` that manages gateway connections, Sphinx packet encryption, routing, and cover traffic.
 
 <Callout type="info">
-Full API reference, architecture documentation, and type details are available on [**docs.rs/nym-sdk**](https://docs.rs/nym-sdk/latest/nym_sdk/).
+Full API reference: [**docs.rs/nym-sdk**](https://docs.rs/nym-sdk/latest/nym_sdk/)
 </Callout>
 
-## Getting started
+<CratesPaused />
 
-New to the SDK? Start with the **[Tour](./rust/tour)** for a quick overview of what you can do, then see [Installation](./rust/importing) for how to add `nym-sdk` to your project.
+For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For setup instructions, see [Installation](./rust/importing).
 
 ## Modules
 
-- **[Mixnet](./rust/mixnet)** — Core client for sending and receiving individual message payloads through the Mixnet. Each message is independently routed with no connections or ordering guarantees.
+- **[Stream](./rust/stream)**: multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet. **If you're used to TCP sockets, start here.**
 
-- **[Stream](./rust/stream)** — Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet. Bridges the gap between the Mixnet's message-based model and familiar socket-based networking. **If you're used to TCP sockets, start here.**
+- **[Mixnet](./rust/mixnet)**: raw message payloads, independently routed, no connections or ordering. Use this when you want full control over the communication model.
 
-- **[TcpProxy](./rust/tcpproxy)** *(deprecated)* — TCP socket proxying through the Mixnet with session management and message ordering. For new projects, use the Stream module instead.
+- **[Client Pool](./rust/client-pool)**: keeps ready-to-use `MixnetClient` instances warm for bursty workloads.
 
-- **[Client Pool](./rust/client-pool)** — A connection pool that maintains ready-to-use `MixnetClient` instances for high-throughput applications.
+- **[TcpProxy](./rust/tcpproxy)** *(deprecated)*: TCP socket proxying with session management and message ordering. Use Stream for new projects.
 
-- **[FFI](./rust/ffi)** — Foreign function interface bindings for using the SDK from Go and C/C++.
+- **[FFI](./rust/ffi)**: Go and C/C++ bindings.

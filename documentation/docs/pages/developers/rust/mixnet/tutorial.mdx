@@ -8,26 +8,13 @@ lastUpdated: "2026-03-26"
 
 # Tutorial: Send Your First Private Message
 
-import { Callout } from 'nextra/components'
+import { CodeVerified } from '../../../../components/code-verified'
 
-Build a program that connects to the Nym Mixnet, sends a message to yourself, receives it, and replies anonymously using SURBs. Then extend it with persistent identity and concurrent send/receive.
+By the end of this tutorial you'll have a working program that sends a Sphinx-encrypted message to itself through the Nym Mixnet, receives it, and replies anonymously using SURBs. The later sections cover persistent identity and concurrent send/receive.
 
-## What you'll learn
+**You'll need:** Rust 1.70+ and an internet connection (clients connect to the live Mixnet).
 
-- Connecting an ephemeral client to the Nym Mixnet
-- Sending and receiving Sphinx-encrypted messages
-- Replying anonymously using SURBs (Single Use Reply Blocks)
-- Persisting client identity to disk with `MixnetClientBuilder`
-- Using `split_sender()` for concurrent send and receive tasks
-
-## Prerequisites
-
-- Rust toolchain (1.70+)
-- A working internet connection (clients connect to the live Nym Mixnet)
-
-<Callout type="info">
-Code verified against commit [`4077717`](https://github.com/nymtech/nym/commit/4077717d3). If the API has changed since then, check the [examples in the repo](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples) for the latest usage.
-</Callout>
+<CodeVerified />
 
 ## Step 1: Set up the project
 
@@ -42,6 +29,7 @@ Add dependencies to `Cargo.toml`:
 [dependencies]
 nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
 tokio = { version = "1", features = ["full"] }
+blake3 = "=1.7.0"
 ```
 
 ## Step 2: Connect and send
@@ -88,7 +76,7 @@ async fn main() {
 
 ## Step 4: Reply anonymously
 
-Every message includes a `sender_tag` — an opaque `AnonymousSenderTag` that lets you reply **without knowing the sender's address**. The SDK includes SURBs (Single Use Reply Blocks) with every message by default:
+Every message includes a `sender_tag`, an opaque `AnonymousSenderTag` that lets you reply **without knowing the sender's address**. The SDK bundles SURBs (Single Use Reply Blocks) with every outgoing message by default:
 
 ```rust
     let sender_tag = message.sender_tag.expect("should have sender tag");
@@ -164,7 +152,7 @@ async fn main() {
 }
 ```
 
-Run it twice — the address stays the same.
+Run it twice; the address stays the same.
 
 ## Going further: send and receive from different tasks
 
@@ -206,33 +194,19 @@ async fn main() {
 }
 ```
 
-## What's happening under the hood
+## What's happening underneath
 
-1. **`connect_new()`** generates an ephemeral identity (ed25519 + x25519 keys), fetches the current network topology, selects a gateway, and opens a persistent WebSocket connection.
+`connect_new()` generates an ephemeral identity (ed25519 + x25519 keypair), fetches the current network topology, selects a gateway, and opens a persistent WebSocket connection. `send_plain_message()` wraps the payload in Sphinx packets, layered encryption where each of the 5 Mix Nodes can only decrypt one layer and learn the next hop, never the full route. `wait_for_messages()` drains a local queue fed by the gateway; messages arrive out of order by design, to defeat timing analysis.
 
-2. **`send_plain_message()`** wraps your data in **Sphinx packets** — layered encryption where each of the 5 mix nodes can only decrypt one layer and learn the next hop, never the full route.
+SURBs (Single Use Reply Blocks) are pre-computed return routes bundled with each outgoing message. The recipient uses them to reply without learning the sender's address. Each is single-use; the SDK replenishes them automatically.
 
-3. **`wait_for_messages()`** pulls from a local queue that is fed by the gateway. Messages arrive out of order (by design — this prevents timing analysis).
-
-4. **SURBs** (Single Use Reply Blocks) are pre-computed return routes bundled with each outgoing message. The recipient can reply without learning the sender's address. Each SURB is single-use; the SDK replenishes them automatically.
-
-5. **`split_sender()`** clones the send channel while the original client retains the receive side. Both can run on separate tokio tasks without locks.
-
-## What you've learned
-
-- **`MixnetClient::connect_new()`** creates an ephemeral client with in-memory keys
-- **`send_plain_message(recipient, data)`** queues a Sphinx-encrypted message
-- **`wait_for_messages()`** returns the next batch of received messages
-- **`send_reply(sender_tag, data)`** replies anonymously via SURBs
-- **`MixnetClientBuilder` + `StoragePaths`** persists identity to disk
-- **`split_sender()`** enables concurrent send/receive on separate tasks
-- **Always call `disconnect()`** for clean shutdown
+`split_sender()` clones the send channel while the original client retains the receive side. Both halves can run on separate tokio tasks without synchronization.
 
 ## Complete code
 
 ### Ephemeral client
 
-New address on every run — good for quick experiments:
+New address on every run, good for quick experiments:
 
 ```rust
 use nym_sdk::mixnet::{self, MixnetMessageSender};
@@ -276,7 +250,7 @@ async fn main() {
 
 ### Persistent identity
 
-Same address across restarts — use this for real applications:
+Same address across restarts. Use this for real applications:
 
 ```rust
 use nym_sdk::mixnet::{self, MixnetMessageSender, StoragePaths};

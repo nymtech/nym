@@ -9,15 +9,19 @@ lastUpdated: "2026-03-27"
 # Installation
 
 import { Callout } from 'nextra/components';
+import { CratesPaused } from '../../../components/crates-paused'
 
-<Callout type="warning">
-**Crate publication is paused.** The `nym-sdk` crate on crates.io (v1.20.4) does not include the Stream module or other recent additions. Crate publication will resume once the Lewes Protocol is published. In the meantime, import from Git:
-</Callout>
+<CratesPaused />
 
 ```toml
 [dependencies]
 nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
+blake3 = "=1.7.0"  # pin to avoid a transitive dependency conflict — see note below
 ```
+
+<Callout type="warning">
+**Temporary pin required.** You must pin `blake3 = "=1.7.0"` in your `Cargo.toml` to avoid a build failure caused by a transitive `digest` version conflict. This will be resolved in a future SDK release.
+</Callout>
 
 You can also track a branch if you want the latest changes:
 
@@ -43,5 +47,5 @@ nym-sdk = "1.20.4"
 This version includes the Mixnet message API, Client Pool, and TcpProxy modules.
 
 <Callout type="warning">
-**Feature gates are not yet implemented.** Importing `nym-sdk` currently pulls in all modules (mixnet, tcp_proxy, client_pool, etc.) and their full dependency trees. Work is planned to gate modules behind Cargo feature flags so you can import only what you need.
+**No feature gates yet.** Importing `nym-sdk` pulls in everything (mixnet, tcp_proxy, client_pool, etc.) and their full dependency trees. Cargo feature flags are planned.
 </Callout>

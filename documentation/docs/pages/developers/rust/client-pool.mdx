@@ -27,15 +27,15 @@ flowchart LR
 ```
 
 1. **Create** the pool with a target reserve size: `ClientPool::new(5)`
-2. **Start** the background loop: `pool.start()` — it immediately begins connecting clients
+2. **Start** the background loop: `pool.start()`. It immediately begins connecting clients
 3. **Pop** a client when needed: `pool.get_mixnet_client()` returns `Some(client)` or `None` if the pool is empty
-4. **Use** the client normally — send messages, open streams, etc.
-5. **Disconnect** the client when done — the background loop notices the pool is below reserve and creates a replacement
+4. **Use** the client normally: send messages, open streams, etc.
+5. **Disconnect** the client when done. The background loop notices the pool is below reserve and creates a replacement
 
 Clients are **consumed, not returned**. The pool creates new ones to maintain the reserve. If the pool is empty, you can fall back to `MixnetClient::connect_new()` (slower, but keeps things working).
 
 <Callout type="info">
-The `NymProxyClient` (TcpProxy) uses a `ClientPool` internally — one client per incoming TCP connection.
+The `NymProxyClient` (TcpProxy) uses a `ClientPool` internally: one client per incoming TCP connection.
 </Callout>
 
 ## Quick example
@@ -63,6 +63,6 @@ async fn main() -> anyhow::Result<()> {
 
 ## Further reading
 
-- [Tutorial: Handle bursty traffic](./client-pool/tutorial) — step-by-step guide covering pool creation, burst handling, and fallback logic
-- [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/client_pool/) — type details, method signatures, and architecture docs
-- [Example source on GitHub](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/client_pool.rs) — complete working example
+- [Tutorial: Handle bursty traffic](./client-pool/tutorial): step-by-step guide covering pool creation, burst handling, and fallback logic
+- [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/client_pool/): type details, method signatures, and architecture docs
+- [Example source on GitHub](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/client_pool.rs): complete working example

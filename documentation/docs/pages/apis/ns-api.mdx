@@ -14,9 +14,9 @@ import { Callout } from 'nextra/components'
 The Node Status API serves information about individual `nym-node` instances in the Nym network: which role they are operating in, performance statistics, Network Requester services, and summaries of the overall mixnet state. It is the primary API for anyone building explorers, analytics dashboards, or monitoring tools.
 
 **Key endpoint categories:**
-- **Node information** — identity, bonding status, declared roles, build version, host details
-- **Performance scores** — routing reliability, configuration scores, probe results
-- **Mixnet summaries** — active set composition, role distribution, network health
+- **Node information**: identity, bonding status, declared roles, build version, host details
+- **Performance scores**: routing reliability, configuration scores, probe results
+- **Mixnet summaries**: active set composition, role distribution, network health
 
 <Callout type="info">
 If you're building a service that makes heavy use of this API, consider [running your own instance](/operators/performance-and-testing/ns-api-deployment) to distribute load and promote a robust network of downstream services.

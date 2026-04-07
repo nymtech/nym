@@ -9,27 +9,24 @@ lastUpdated: "2026-03-15"
 # Stream Module
 
 import { Callout } from 'nextra/components'
+import { CratesPaused } from '../../../components/crates-paused'
 
-<Callout type="warning">
-**Not yet on crates.io.** The Stream module is part of the latest SDK source but is not included in the current crates.io release (v1.20.4). Import from Git to use streams — see [Installation](./importing).
-</Callout>
+<CratesPaused />
 
-The Mixnet is fundamentally a message-based anonymity network — no persistent connections, no guaranteed ordering, no TCP. The default [message API](./mixnet) works at this native level: individual payloads sent independently through mix nodes. This is powerful for privacy, but it's not how most networking code works.
+The Mixnet is fundamentally message-based: no persistent connections, no guaranteed ordering, no TCP. The default [message API](./mixnet) works at this level, sending individual payloads independently through Mix Nodes. This is effective for privacy but unlike how most networking code is structured.
 
-The **Stream module** bridges that gap. It gives you persistent, bidirectional byte channels that look and feel like TCP sockets. Each `MixnetStream` implements Rust's standard [`AsyncRead`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncRead.html) and [`AsyncWrite`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncWrite.html) traits — use `tokio::io::copy`, codecs, `BufReader`/`BufWriter`, or any library that works with async I/O. Under the hood, the module handles framing, multiplexing, and routing so you don't have to.
+The **Stream module** bridges the gap by providing persistent, bidirectional byte channels that behave like TCP sockets. Each `MixnetStream` implements [`AsyncRead`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncRead.html) and [`AsyncWrite`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncWrite.html), so `tokio::io::copy`, codecs, `BufReader`/`BufWriter`, and any other async I/O consumer work without modification. **If you're coming from socket-based networking, start here.**
 
-**If you're coming from socket-based networking, start here.**
-
-Under the hood, every stream is multiplexed over a single `MixnetClient`. A background router task decodes a small header on each incoming Mixnet message and dispatches payloads to the correct stream by ID — no extra connections or gateways needed.
+All streams are multiplexed over a single `MixnetClient`. A background router task reads a small header on each incoming message and dispatches the payload to the correct stream by ID, so multiple concurrent streams require no additional connections or gateways.
 
 ## How it works
 
 The two sides of a stream connection follow a client/server pattern:
 
-1. **Opener** calls `client.open_stream(recipient, surbs)` — this generates a random `StreamId`, registers the stream locally, and sends an `Open` message through the Mixnet.
-2. **Listener** calls `listener.accept()` — this blocks until an `Open` arrives, registers the new stream, and returns a `MixnetStream` ready for reading and writing.
-3. Both sides read and write using standard `AsyncRead`/`AsyncWrite` — bytes are wrapped with a 10-byte stream header, routed through the Mixnet, and demultiplexed on arrival.
-4. **Cleanup** happens on `drop` — the stream deregisters from the local router. No close message is sent over the wire (the Mixnet doesn't guarantee message ordering, so a close could arrive before the final data).
+1. **Opener** calls `client.open_stream(recipient, surbs)`. This generates a random `StreamId`, registers the stream locally, and sends an `Open` message through the Mixnet.
+2. **Listener** calls `listener.accept()`, which blocks until an `Open` arrives, registers the new stream, and returns a `MixnetStream` ready for reading and writing.
+3. Both sides read and write using standard `AsyncRead`/`AsyncWrite`. Bytes are wrapped in a 16-byte LP frame header (stream ID, message type, sequence number), routed through the Mixnet, and demultiplexed on arrival.
+4. **Cleanup** happens on `drop`. The stream deregisters from the local router. No close message is sent over the wire, since a close could race ahead of in-flight data.
 
 ```mermaid
 ---
@@ -57,7 +54,7 @@ sequenceDiagram
 
 ## Complete example
 
-This is a minimal but complete example: two clients on the same machine, one opens a stream to the other, sends a message, and reads a reply.
+A minimal example with two clients on the same machine: one opens a stream to the other, sends a message, and reads a reply.
 
 ```rust
 use nym_sdk::mixnet;
@@ -115,7 +112,7 @@ async fn main() {
 ```
 
 <Callout type="info">
-The receiver replies via **reply SURBs** (Single Use Reply Blocks) — it never learns the sender's Nym address. This is the same anonymous reply mechanism used by the message API, applied transparently to streams.
+The receiver replies via **reply SURBs** (Single Use Reply Blocks) and never learns the sender's Nym address.
 </Callout>
 
 ## When to use streams vs messages
@@ -125,23 +122,17 @@ The receiver replies via **reply SURBs** (Single Use Reply Blocks) — it never 
 | **Pattern** | Raw message payloads | Persistent bidirectional channels | TCP socket proxying |
 | **API** | `send_plain_message()` / `wait_for_messages()` | `AsyncRead` + `AsyncWrite` | Localhost TCP socket |
 | **Multiplexing** | N/A | Multiple streams per client | One client per TCP connection |
-| **Ordering** | No guarantees | No guarantees (yet) | Session-based ordering |
+| **Ordering** | No guarantees | Sequence-based reordering | Session-based ordering |
 | **Best for** | Simple notifications, one-shot requests | Interactive protocols, streaming data, any code expecting async I/O | Wrapping existing TCP applications |
 | **Status** | Stable | New | Deprecated |
 
 <Callout type="warning">
-**Streams and messages are mutually exclusive.** Once you call `open_stream()` or `listener()`, the message-based API (`send_plain_message`, `wait_for_messages`) is permanently disabled on that client. This is a one-way transition — there is no switching back without disconnecting and reconnecting. See the [`stream_mode_guard.rs` example](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_mode_guard.rs) for details.
+**Streams and messages are mutually exclusive.** Once you call `open_stream()` or `listener()`, the message-based API (`send_plain_message`, `wait_for_messages`) is permanently disabled on that client. This is a one-way transition: there is no switching back without disconnecting and reconnecting. See the [`stream_mode_guard.rs` example](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_mode_guard.rs) for details.
 </Callout>
-
-## Key types
-
-- [**`MixnetStream`**](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.MixnetStream.html) — a single stream implementing `AsyncRead + AsyncWrite`. Obtained from `open_stream()` (outbound) or `listener.accept()` (inbound).
-- [**`MixnetListener`**](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.MixnetListener.html) — accepts inbound streams from remote peers. Created once per client via `client.listener()`.
-- [**`StreamId`**](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.StreamId.html) — 8-byte random identifier (`u64`) generated by the stream opener, used to multiplex streams over a single client.
 
 ## Next steps
 
-- [Tutorial: Build a private echo server](./stream/tutorial) — step-by-step guide with a server and client communicating over streams
-- [Architecture](./stream/architecture) — wire protocol, router task, data flow, stream cleanup, and known limitations
-- [Examples](./stream/examples) — annotated walkthroughs of the SDK examples (multi-stream, idle timeout, throughput testing)
-- [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/stream/) — type details and method signatures
+- [Tutorial: Build a private echo server](./stream/tutorial): server and client communicating over streams
+- [Architecture](./stream/architecture): wire protocol, router task, data flow, stream cleanup, and known limitations
+- [Examples](./stream/examples): annotated walkthroughs of the SDK examples (multi-stream, idle timeout, throughput testing)
+- [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/stream/): type details and method signatures

@@ -5,9 +5,9 @@ import { Callout } from 'nextra/components'
 A quick walkthrough of the most important things you can do with `nym-sdk`. Each section shows working code and links to the module that covers it in depth.
 
 <Callout type="warning">
-**The Mixnet is not like regular internet networking.** There are no persistent connections, no guaranteed message ordering, and no TCP underneath. At its core, the Mixnet is a message-based anonymity network — you send individual payloads that are Sphinx-encrypted, mixed through multiple nodes, and independently reconstructed at the destination.
+**The Mixnet is not like regular internet networking.** There are no persistent connections, no guaranteed message ordering, and no TCP underneath. At its core, the Mixnet is a message-based anonymity network: you send individual payloads that are Sphinx-encrypted, mixed through multiple nodes, and independently reconstructed at the destination.
 
-This means the raw [message API](./mixnet) works differently from what most developers expect. To bridge that gap, we've built the [Stream module](./stream) — an abstraction layer that gives you familiar `AsyncRead + AsyncWrite` byte streams on top of the Mixnet. **If you're coming from socket-based networking, start with streams.**
+The raw [message API](./mixnet) therefore works differently from what most developers expect. The [Stream module](./stream) bridges this gap by providing `AsyncRead + AsyncWrite` byte streams on top of the Mixnet. If you are coming from socket-based networking, start with streams.
 </Callout>
 
 ## Send a raw message payload
@@ -43,11 +43,11 @@ async fn main() {
 
 The message is Sphinx-encrypted, mixed across 5 nodes, and reconstructed on arrival. The whole round trip takes a few seconds.
 
-**Next:** [Mixnet module](./mixnet) | [Tutorial: Send Your First Private Message](./mixnet/tutorial)
+Next: [Mixnet module](./mixnet) | [Tutorial: Send Your First Private Message](./mixnet/tutorial)
 
 ## Reply anonymously with SURBs
 
-Every received message carries a `sender_tag` — an opaque token that lets you reply **without knowing the sender's Nym address**. Replies travel back through pre-built Single Use Reply Blocks (SURBs):
+Every received message carries a `sender_tag`, an opaque token that lets you reply **without knowing the sender's Nym address**. Replies travel back through pre-built Single Use Reply Blocks (SURBs):
 
 ```rust
 // After receiving a message...
@@ -55,11 +55,11 @@ let tag = received_msg.sender_tag.expect("message includes sender tag");
 client.send_reply(tag, "anonymous reply!").await.unwrap();
 ```
 
-The replying side never learns where the reply is going — anonymous communication without mutual identity disclosure.
+The replying side never learns where the reply is going, enabling anonymous communication without mutual identity disclosure.
 
 ## Open a bidirectional stream
 
-If you're used to working with TCP sockets, this is where you'll feel at home. The [Stream module](./stream) provides persistent, bidirectional byte channels that implement tokio's `AsyncRead + AsyncWrite` — so any code that works with sockets works with `MixnetStream`:
+If you're used to working with TCP sockets, this is where you'll feel at home. The [Stream module](./stream) provides persistent, bidirectional byte channels that implement tokio's `AsyncRead + AsyncWrite`, so any code that works with sockets works with `MixnetStream`:
 
 ```rust
 use nym_sdk::mixnet;
@@ -99,7 +99,7 @@ async fn main() {
 Activating stream mode (by calling `listener()` or `open_stream()`) disables message-based methods like `send_plain_message()` and `wait_for_messages()`. A single client operates in one mode at a time.
 </Callout>
 
-**Next:** [Stream module](./stream) | [Tutorial: Build a Private Echo Server](./stream/tutorial)
+Next: [Stream module](./stream) | [Tutorial: Build a Private Echo Server](./stream/tutorial)
 
 ## Use a client pool for bursty traffic
 
@@ -126,9 +126,9 @@ async fn main() {
 }
 ```
 
-Clients are **consumed, not returned** — the pool creates replacements automatically.
+Clients are consumed, not returned; the pool creates replacements automatically.
 
-**Next:** [Client Pool module](./client-pool) | [Tutorial: Handle Bursty Traffic](./client-pool/tutorial)
+Next: [Client Pool module](./client-pool) | [Tutorial: Handle Bursty Traffic](./client-pool/tutorial)
 
 ## Persist your identity
 
@@ -157,8 +157,8 @@ println!("Persistent address: {}", client.nym_address());
 
 ## Where to go next
 
-- **[Installation](./importing)** — Add `nym-sdk` to your project
-- **[Mixnet Tutorial](./mixnet/tutorial)** — Full walkthrough: send, receive, reply with SURBs
-- **[Stream Tutorial](./stream/tutorial)** — Build a private echo server
-- **[Client Pool Tutorial](./client-pool/tutorial)** — Handle bursty traffic
-- **[API Reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/)** — Type details, method signatures, architecture docs
+- [Installation](./importing): add `nym-sdk` to your project
+- [Mixnet Tutorial](./mixnet/tutorial): send, receive, and reply with SURBs
+- [Stream Tutorial](./stream/tutorial): build a private echo server
+- [Client Pool Tutorial](./client-pool/tutorial): handle bursty traffic
+- [API Reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/): type details, method signatures, architecture docs

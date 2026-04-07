@@ -18,7 +18,7 @@ You should always **manually disconnect your client** with `client.disconnect().
 
 ## Waiting for non-empty messages
 
-When listening for a response, you may receive empty messages. These are SURB replenishment requests — the remote side asking for more reply SURBs. Filter them out:
+When listening for a response, you may receive empty messages. These are SURB replenishment requests: the remote side asking for more reply SURBs. Filter them out:
 
 ```rust
 let mut message = None;
@@ -31,7 +31,7 @@ while let Some(new_message) = client.wait_for_messages().await {
 ```
 
 <Callout type="info">
-Prefer `client.next().await` (from the `futures::StreamExt` trait — not the Nym Stream module) over `client.wait_for_messages().await` — it returns one message at a time which is easier to work with. You'll need `use futures::StreamExt;` in scope.
+Prefer `client.next().await` (from the `futures::StreamExt` trait, not the Nym Stream module) over `client.wait_for_messages().await`; it returns one message at a time which is easier to work with. You'll need `use futures::StreamExt;` in scope.
 </Callout>
 
 ## Verbose `task client is being dropped` logging
@@ -54,7 +54,7 @@ If you see these messages unexpectedly, you may be killing the client process to
 
 If you see errors like `Polling shutdown failed: channel closed` or panics about `action control task has died`, your client is being dropped before it finishes sending.
 
-`send_plain_message()` is async, but **it only blocks until the message is placed in the client's internal queue** — not until it's actually sent into the Mixnet. After queuing, the client still needs to route-encrypt the message and interleave it with cover traffic.
+`send_plain_message()` is async, but **it only blocks until the message is placed in the client's internal queue**, not until it's actually sent into the Mixnet. After queuing, the client still needs to route-encrypt the message and interleave it with cover traffic.
 
 Make sure the program stays alive long enough. In practice this means awaiting a response or calling `sleep` before disconnecting:
 
@@ -75,4 +75,4 @@ client.disconnect().await;
 
 ## Lots of `duplicate fragment received` messages
 
-`WARN` level logs about duplicate fragments are caused by Mixnet-level packet retransmission — the original and the retransmitted copy both arrive. This is not a bug in your client logic.
+`WARN` level logs about duplicate fragments are caused by Mixnet-level packet retransmission: the original and the retransmitted copy both arrive. This is not a bug in your client logic.

@@ -57,8 +57,8 @@ You'll have to experiment with either adjusting the CSP or use another variant t
 
 The mixnet client will complain about insufficient topology in the following cases:
 - There are empty mix layers (rare)
-- The gateway you've registered with does not appear in the network topology — it is either unbonded or was blacklisted
-- The gateway you want to send packets to does not appear in the network topology — it is either unbonded or was blacklisted
+- The gateway you've registered with does not appear in the network topology; it is either unbonded or was blacklisted
+- The gateway you want to send packets to does not appear in the network topology; it is either unbonded or was blacklisted
 
 To avoid the last two, make sure the gateway you are using is bonded and whitelisted.
 
@@ -70,4 +70,4 @@ For example: `DpB3cHAchJi...suko.ANNWrvHq...U2Vx@2BuMSfMW...3SEh`
 
 - First part: client's identity key
 - Second part: client's Diffie-Hellman key
-- After `@`: gateway's identity key — search for this in the [Nym Explorer](https://nym.com/explorer) to check its status
+- After `@`: gateway's identity key. Search for this in the [Nym Explorer](https://nym.com/explorer) to check its status

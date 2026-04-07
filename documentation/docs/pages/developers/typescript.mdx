@@ -71,10 +71,10 @@ The Nym Mixnet routes traffic through multiple nodes with no persistent connecti
 
 All packages (except Contract Clients) come in four variants:
 
-- **ESM** — For new projects with current tooling. You may need to [configure your bundler](./typescript/bundling) to handle WASM and web worker components.
-- **ESM full-fat** — Pre-bundled with inline WASM and web workers. No bundler config needed.
-- **CommonJS** — For older projects using CommonJS. WASM and web workers need to be [bundled](./typescript/bundling/webpack).
-- **CommonJS full-fat** — Pre-bundled, works without additional configuration.
+- **ESM:** For new projects with current tooling. You may need to [configure your bundler](./typescript/bundling) to handle WASM and web worker components.
+- **ESM full-fat:** Pre-bundled with inline WASM and web workers. No bundler config needed.
+- **CommonJS:** For older projects using CommonJS. WASM and web workers need to be [bundled](./typescript/bundling/webpack).
+- **CommonJS full-fat:** Pre-bundled, works without additional configuration.
 
 <Callout type="warning">
 All `*-full-fat` variants have large bundle sizes because they include WASM and web workers as inline Base64 strings. Use the standard ESM variant if bundle size matters.
@@ -181,7 +181,7 @@ console.log(`Tx Hash = ${result.transactionHash}`);
 
 ## Next steps
 
-- **[Step-by-step examples](./typescript/examples)** — Full working projects for each package
-- **[Live playground](./typescript/playground)** — Try the SDK in your browser
-- **[Bundling](./typescript/bundling)** — Configure Webpack or ESBuild for WASM and web workers
-- **[TypeDoc reference](./typescript/api)** — generated reference for all packages
+- **[Step-by-step examples](./typescript/examples):** Full working projects for each package
+- **[Live playground](./typescript/playground):** Try the SDK in your browser
+- **[Bundling](./typescript/bundling):** Configure Webpack or ESBuild for WASM and web workers
+- **[TypeDoc reference](./typescript/api):** generated reference for all packages

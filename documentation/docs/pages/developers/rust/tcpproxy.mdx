@@ -47,6 +47,7 @@ Set up the project:
 ```sh
 cargo init nym-tcp-proxy
 cd nym-tcp-proxy
+rm src/main.rs
 ```
 
 Add dependencies to `Cargo.toml`:
@@ -54,9 +55,11 @@ Add dependencies to `Cargo.toml`:
 ```toml
 [dependencies]
 nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
+nym-network-defaults = { git = "https://github.com/nymtech/nym", rev = "4077717" }
+nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "4077717", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
-blake3 = "=1.7.0"
+blake3 = "=1.7.0"  # required pin — see https://nymtech.net/developers/rust/importing
 
 [[bin]]
 name = "proxy_server"
@@ -69,15 +72,17 @@ path = "src/bin/proxy_client.rs"
 
 ### Server
 
-The server connects to the Mixnet and forwards incoming traffic to a local TCP service (e.g. a web server on port 3000).
+The server connects to the Mixnet and forwards incoming traffic to a local TCP service (e.g. a web server on port 8000).
 
 ```rust
 use nym_sdk::tcp_proxy::NymProxyServer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    nym_bin_common::logging::setup_tracing_logger();
+
     let mut server = NymProxyServer::new(
-        "127.0.0.1:3000",           // upstream address (host:port)
+        "127.0.0.1:8000",           // upstream address (host:port)
         "./proxy-server-config",    // config directory for persistent keys
         None,                       // env file (None = mainnet)
         None,                       // gateway (None = auto-select)
@@ -96,11 +101,16 @@ The client opens a localhost TCP socket and tunnels all traffic through the Mixn
 ```rust
 use nym_sdk::tcp_proxy::NymProxyClient;
 use nym_sdk::mixnet::Recipient;
+use nym_network_defaults::setup_env;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    nym_bin_common::logging::setup_tracing_logger();
+    // Load mainnet network defaults into env vars (required by NymProxyClient's internal ClientPool)
+    setup_env(None::<String>);
+
     let server_addr: Recipient = std::env::args()
         .nth(1).expect("Usage: proxy_client <SERVER_NYM_ADDRESS>")
         .parse()?;
@@ -108,17 +118,20 @@ async fn main() -> anyhow::Result<()> {
     let client = NymProxyClient::new(
         server_addr,
         "127.0.0.1",  // listen host
-        "1080",       // listen port
+        "8070",       // listen port
         60,           // close timeout (seconds)
         None,         // env file (None = mainnet)
-        2,            // client pool size
+        1,            // client pool size
     ).await?;
 
     let proxy = tokio::spawn(async move { client.run().await });
 
-    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    // Wait for the pool to create a client and the proxy to be ready.
+    // The first startup takes ~10-15s while the client connects to the Mixnet.
+    println!("Waiting for proxy to be ready...");
+    tokio::time::sleep(std::time::Duration::from_secs(15)).await;
 
-    let mut stream = TcpStream::connect("127.0.0.1:1080").await?;
+    let mut stream = TcpStream::connect("127.0.0.1:8070").await?;
     stream.write_all(b"GET / HTTP/1.0\r\nHost: localhost\r\n\r\n").await?;
 
     let mut response = Vec::new();
@@ -130,6 +143,28 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 ```
+
+### Run it
+
+Start an upstream TCP service (e.g. a simple HTTP server):
+
+```sh
+python3 -m http.server 8000
+```
+
+In a second terminal, start the proxy server:
+
+```sh
+RUST_LOG=info cargo run --bin proxy_server
+```
+
+Copy the Nym address it prints, then in a third terminal:
+
+```sh
+RUST_LOG=info cargo run --bin proxy_client -- <SERVER_NYM_ADDRESS>
+```
+
+The response will take 30–60 seconds to arrive as it traverses the Mixnet in both directions.
 
 ## Architecture
 

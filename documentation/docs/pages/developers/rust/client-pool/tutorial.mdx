@@ -40,8 +40,10 @@ Add dependencies to `Cargo.toml`:
 ```toml
 [dependencies]
 nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
+nym-network-defaults = { git = "https://github.com/nymtech/nym", rev = "4077717" }
+nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "4077717", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
-blake3 = "=1.7.0"
+blake3 = "=1.7.0"  # required pin — see https://nymtech.net/developers/rust/importing
 ```
 
 ## Step 2: Create and start the pool
@@ -53,10 +55,16 @@ Create `src/main.rs`:
 ```rust
 use nym_sdk::client_pool::ClientPool;
 use nym_sdk::mixnet::MixnetMessageSender;
+use nym_network_defaults::setup_env;
 use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    // Load mainnet network defaults into env vars (required by ClientPool)
+    setup_env(None::<String>);
+
     // Create a pool that maintains 3 clients in reserve
     let pool = ClientPool::new(3);
 
@@ -163,7 +171,7 @@ After popping all 3 clients, the pool background loop starts creating replacemen
 ## Step 6: Run it
 
 ```sh
-cargo run
+RUST_LOG=info cargo run
 ```
 
 You'll see output like:
@@ -214,10 +222,14 @@ The `NymProxyClient` (TcpProxy module) uses a `ClientPool` internally: one clien
 ```rust
 use nym_sdk::client_pool::ClientPool;
 use nym_sdk::mixnet::MixnetMessageSender;
+use nym_network_defaults::setup_env;
 use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+    setup_env(None::<String>);
+
     let pool = ClientPool::new(3);
     let pool_bg = pool.clone();
     tokio::spawn(async move { pool_bg.start().await.unwrap() });

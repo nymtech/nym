@@ -8,6 +8,7 @@ lastUpdated: "2026-03-26"
 
 # Tutorial: Send Your First Private Message
 
+import { Callout } from 'nextra/components'
 import { CodeVerified } from '../../../../components/code-verified'
 
 By the end of this tutorial you'll have a working program that sends a Sphinx-encrypted message to itself through the Nym Mixnet, receives it, and replies anonymously using SURBs. The later sections cover persistent identity and concurrent send/receive.
@@ -28,8 +29,9 @@ Add dependencies to `Cargo.toml`:
 ```toml
 [dependencies]
 nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
+nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "4077717", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
-blake3 = "=1.7.0"
+blake3 = "=1.7.0"  # required pin — see https://nymtech.net/developers/rust/importing
 ```
 
 ## Step 2: Connect and send
@@ -41,6 +43,8 @@ use nym_sdk::mixnet::{self, MixnetMessageSender};
 
 #[tokio::main]
 async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
     // connect_new() creates an ephemeral client — keys are generated in
     // memory and discarded on disconnect.
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
@@ -57,6 +61,10 @@ async fn main() {
 
     println!("Sent — waiting for arrival...");
 ```
+
+<Callout type="info">
+`setup_tracing_logger()` shows what the SDK is doing under the hood: gateway connections, topology fetches, Sphinx packet encryption. If the output is too verbose, comment out the line or filter with `RUST_LOG=warn cargo run`.
+</Callout>
 
 ## Step 3: Receive
 
@@ -101,7 +109,7 @@ Every message includes a `sender_tag`, an opaque `AnonymousSenderTag` that lets 
 ## Step 5: Run it
 
 ```sh
-cargo run
+RUST_LOG=info cargo run
 ```
 
 ```
@@ -213,6 +221,8 @@ use nym_sdk::mixnet::{self, MixnetMessageSender};
 
 #[tokio::main]
 async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     let our_address = client.nym_address();
     println!("Connected: {our_address}");
@@ -257,6 +267,8 @@ use nym_sdk::mixnet::{self, MixnetMessageSender, StoragePaths};
 
 #[tokio::main]
 async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
     let paths = StoragePaths::new_from_dir("./my-client-data").unwrap();
     let mut client = mixnet::MixnetClientBuilder::new_with_default_storage(paths)
         .await

@@ -6687,6 +6687,7 @@ version = "1.20.4"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "bs58",
  "bytes",
  "clap",
  "futures",
@@ -6711,7 +6712,6 @@ dependencies = [
  "nym-lp",
  "nym-network-defaults",
  "nym-node-requests",
- "nym-node-status-client",
  "nym-registration-client",
  "nym-registration-common",
  "nym-sdk",
@@ -7471,14 +7471,16 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "1.1.5"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "clap",
  "futures",
  "nym-bin-common",
  "nym-crypto",
+ "nym-gateway-probe",
  "nym-node-status-client",
+ "nym-sdk",
  "rand 0.8.5",
  "regex",
  "serde_json",
@@ -7490,7 +7492,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.3.1"
+version = "4.4.0"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -7555,9 +7557,9 @@ version = "0.3.0"
 dependencies = [
  "anyhow",
  "bincode",
- "bs58",
  "nym-credentials",
  "nym-crypto",
+ "nym-gateway-probe",
  "reqwest 0.13.1",
  "serde",
  "serde_json",

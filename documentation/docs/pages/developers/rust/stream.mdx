@@ -28,28 +28,40 @@ The two sides of a stream connection follow a client/server pattern:
 3. Both sides read and write using standard `AsyncRead`/`AsyncWrite`. Bytes are wrapped in a 16-byte LP frame header (stream ID, message type, sequence number), routed through the Mixnet, and demultiplexed on arrival.
 4. **Cleanup** happens on `drop`. The stream deregisters from the local router. No close message is sent over the wire, since a close could race ahead of in-flight data.
 
-```mermaid
----
-config:
-  theme: neo-dark
----
-sequenceDiagram
-    participant A as Client A (opener)
-    participant M as Mixnet
-    participant B as Client B (listener)
-
-    Note over B: listener = client.listener()
-    A->>M: Open message (StreamId + initial data)
-    M->>B: Open message delivered
-    Note over B: stream = listener.accept()
-
-    A->>M: Data (StreamId + payload)
-    M->>B: Data delivered to stream
-    B->>M: Data (reply via SURBs)
-    M->>A: Reply delivered to stream
-
-    Note over A: drop(stream)
-    Note over B: drop(stream)
+```text
+┌─────────────────────────────────────────────────────────┐
+│                      MixnetClient                       │
+│                                                         │
+│  ┌──────────────┐   ┌──────────────┐                    │
+│  │ MixnetStream │   │ MixnetStream │  ...               │
+│  │  (peer A)    │   │  (peer B)    │                    │
+│  └──────┬───────┘   └──────┬───────┘                    │
+│         │writes            │writes                      │
+│         ▼                  ▼                            │
+│  ┌─────────────────────────────────┐                    │
+│  │     ClientInput.input_sender    │                    │
+│  └──────────────┬──────────────────┘                    │
+│                 │                                       │
+│                 ▼                                       │
+│           ── mixnet ──                                  │
+│                 │                                       │
+│                 ▼                                       │
+│  ┌─────────────────────────────────┐                    │
+│  │     reconstructed_receiver      │                    │
+│  └──────────────┬──────────────────┘                    │
+│                 │                                       │
+│                 ▼                                       │
+│  ┌─────────────────────────────────┐                    │
+│  │           Router task           │                    │
+│  │  decode header → dispatch by ID │                    │
+│  └──┬──────────────────────────┬───┘                    │
+│     │ Open messages            │ Data messages          │
+│     ▼                          ▼                        │
+│  ┌──────────────┐   ┌──────────────────┐                │
+│  │MixnetListener│   │ StreamMap lookup │                │
+│  │  .accept()   │   │ → per-stream tx  │                │
+│  └──────────────┘   └──────────────────┘                │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ## Complete example
@@ -65,24 +77,24 @@ const TIMEOUT: Duration = Duration::from_secs(60);
 
 #[tokio::main]
 async fn main() {
-    // 1. Connect two ephemeral clients
+    // Connect two ephemeral clients
     let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
     let mut receiver = mixnet::MixnetClient::connect_new().await.unwrap();
     let receiver_addr = *receiver.nym_address();
 
-    // 2. The receiver creates a listener (activates stream mode)
+    // The receiver creates a listener (activates stream mode)
     let mut listener = receiver.listener().unwrap();
 
-    // 3. The sender opens a stream to the receiver's Nym address
+    // The sender opens a stream to the receiver's Nym address
     let mut outbound = sender.open_stream(receiver_addr, None).await.unwrap();
 
-    // 4. The receiver accepts the incoming stream
+    // The receiver accepts the incoming stream
     let mut inbound = tokio::time::timeout(TIMEOUT, listener.accept())
         .await
         .expect("timed out")
         .expect("listener closed");
 
-    // 5. Send data and read it back — just like a TCP socket
+    // Send data and read it back — just like a TCP socket
     outbound.write_all(b"hello from sender").await.unwrap();
     outbound.flush().await.unwrap();
 
@@ -93,7 +105,7 @@ async fn main() {
         .expect("read failed");
     println!("Receiver got: {}", String::from_utf8_lossy(&buf[..n]));
 
-    // 6. Reply back through the same stream
+    // Reply back through the same stream
     inbound.write_all(b"hello from receiver").await.unwrap();
     inbound.flush().await.unwrap();
 
@@ -103,7 +115,7 @@ async fn main() {
         .expect("read failed");
     println!("Sender got: {}", String::from_utf8_lossy(&buf[..n]));
 
-    // 7. Clean up — streams deregister on drop, then disconnect clients
+    // Streams deregister on drop, then disconnect clients
     drop(outbound);
     drop(inbound);
     sender.disconnect().await;

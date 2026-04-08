@@ -153,7 +153,7 @@ impl AppState {
 
 static GATEWAYS_LIST_KEY: &str = "gateways";
 static DVPN_GATEWAYS_LIST_KEY: &str = "dvpn_gateways";
-static DVPN_EXIT_GATEWAY_IPS: &str = "dvpn_exit_gateway_ips";
+static DVPN_GATEWAY_IPS: &str = "dvpn_gateway_ips";
 static NYM_NODES_LIST_KEY: &str = "nym_nodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
 static SUMMARY_HISTORY_LIST_KEY: &str = "summary-history";
@@ -165,7 +165,7 @@ const MIXNODE_STATS_HISTORY_DAYS: usize = 30;
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
     dvpn_gateways: Cache<String, Arc<RwLock<Vec<DVpnGateway>>>>,
-    exit_gateway_ips: Cache<String, Arc<RwLock<Vec<String>>>>,
+    gateway_ips: Cache<String, Arc<RwLock<Vec<String>>>>,
     nym_nodes: Cache<String, Arc<RwLock<Vec<ExtendedNymNode>>>>,
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
     history: Cache<String, Arc<RwLock<Vec<SummaryHistory>>>>,
@@ -183,7 +183,7 @@ impl HttpCache {
                 .max_capacity(1)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
-            exit_gateway_ips: Cache::builder()
+            gateway_ips: Cache::builder()
                 .max_capacity(1)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
@@ -442,12 +442,8 @@ impl HttpCache {
             .collect()
     }
 
-    pub async fn get_exit_gateway_ips(
-        &self,
-        db: &DbPool,
-        min_node_version: &Version,
-    ) -> Vec<String> {
-        match self.exit_gateway_ips.get(DVPN_EXIT_GATEWAY_IPS).await {
+    pub async fn get_gateway_ips(&self, db: &DbPool, min_node_version: &Version) -> Vec<String> {
+        match self.gateway_ips.get(DVPN_GATEWAY_IPS).await {
             Some(guard) => {
                 let read_lock = guard.read().await;
                 read_lock.clone()
@@ -459,13 +455,7 @@ impl HttpCache {
                     .get_dvpn_gateway_list(db, min_node_version)
                     .await
                     .into_iter()
-                    .filter_map(|gw| {
-                        if gw.can_route_exit() {
-                            Some(gw.ip_addresses)
-                        } else {
-                            None
-                        }
-                    })
+                    .map(|gw| gw.ip_addresses)
                     .flatten()
                     .filter(IpAddr::is_ipv4)
                     .map(|ip| ip.to_string())
@@ -473,19 +463,19 @@ impl HttpCache {
                     .dedup()
                     .collect();
 
-                self.upsert_exit_gateway_ips(ips.clone()).await;
+                self.upsert_gateway_ips(ips.clone()).await;
 
                 ips
             }
         }
     }
 
-    pub async fn upsert_exit_gateway_ips(
+    pub async fn upsert_gateway_ips(
         &self,
         ip_list: Vec<String>,
     ) -> Entry<String, Arc<RwLock<Vec<String>>>> {
-        self.exit_gateway_ips
-            .entry_by_ref(DVPN_EXIT_GATEWAY_IPS)
+        self.gateway_ips
+            .entry_by_ref(DVPN_GATEWAY_IPS)
             .and_upsert_with(|maybe_entry| async {
                 if let Some(entry) = maybe_entry {
                     let v = entry.into_value();

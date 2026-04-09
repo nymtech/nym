@@ -20,7 +20,7 @@ use tracing::error;
 
 pub mod credential_sender;
 pub mod error;
-mod helpers;
+pub mod helpers;
 mod state;
 pub mod traits;
 

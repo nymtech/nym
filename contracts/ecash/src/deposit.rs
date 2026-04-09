@@ -29,6 +29,14 @@ impl DepositStorage {
             .map_err(Into::into)
     }
 
+    /// Returns the total number of deposits ever made.
+    ///
+    /// The deposit id counter stores the next available id, which equals the
+    /// total count (first deposit gets id 0, counter becomes 1, and so on).
+    pub fn total_deposits_made(&self, storage: &dyn Storage) -> Result<u32, EcashContractError> {
+        Ok(self.deposit_id_counter.may_load(storage)?.unwrap_or(0))
+    }
+
     fn next_id(&self, store: &mut dyn Storage) -> Result<DepositId, EcashContractError> {
         let id: DepositId = self.deposit_id_counter.may_load(store)?.unwrap_or_default();
         let next_id = id + 1;
@@ -115,8 +123,8 @@ impl StoredDeposits {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::support::tests::test_rng;
     use cosmwasm_std::testing::mock_dependencies;
+    use nym_contracts_common_testing::test_rng;
     use nym_crypto::asymmetric::ed25519;
 
     #[test]
@@ -138,6 +146,23 @@ mod tests {
 
         let third = storage.latest_deposit(deps.as_ref().storage)?;
         assert_eq!(third, Some(2));
+
+        Ok(())
+    }
+
+    #[test]
+    fn total_deposits_made_tracks_count() -> anyhow::Result<()> {
+        let mut deps = mock_dependencies();
+        let storage = DepositStorage::new();
+
+        assert_eq!(storage.total_deposits_made(deps.as_ref().storage)?, 0);
+
+        let _ = storage.next_id(deps.as_mut().storage)?;
+        assert_eq!(storage.total_deposits_made(deps.as_ref().storage)?, 1);
+
+        let _ = storage.next_id(deps.as_mut().storage)?;
+        let _ = storage.next_id(deps.as_mut().storage)?;
+        assert_eq!(storage.total_deposits_made(deps.as_ref().storage)?, 3);
 
         Ok(())
     }

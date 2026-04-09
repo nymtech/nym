@@ -198,6 +198,7 @@ impl Probe {
         }
 
         let disconnected_mixnet_client = mixnet_client_builder.build()?;
+        disconnected_mixnet_client.setup_client_keys().await?;
 
         // Acquire credential if needed
         credential
@@ -406,9 +407,7 @@ impl Probe {
                     &network_requester,
                     self.entry_node.identity,
                     self.network.clone(),
-                    self.config.min_gateway_mixnet_performance,
                     self.config.socks5_args,
-                    self.topology,
                 )
                 .await
                 {

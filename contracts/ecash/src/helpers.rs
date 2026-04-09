@@ -22,6 +22,9 @@ pub(crate) const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Config {
     pub group_addr: Cw4Contract,
     pub holding_account: Addr,
+
+    /// Specifies the expected default deposit amount if the sender is not in the whitelisted set.
+    #[serde(alias = "default_deposit_amount")]
     pub deposit_amount: Coin,
 }
 

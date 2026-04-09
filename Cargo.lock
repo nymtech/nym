@@ -2534,7 +2534,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3589,7 +3589,7 @@ dependencies = [
  "once_cell",
  "rand 0.9.2",
  "ring",
- "rustls 0.23.29",
+ "rustls 0.23.37",
  "thiserror 2.0.12",
  "tinyvec",
  "tokio",
@@ -3614,7 +3614,7 @@ dependencies = [
  "parking_lot",
  "rand 0.9.2",
  "resolv-conf",
- "rustls 0.23.29",
+ "rustls 0.23.37",
  "smallvec",
  "thiserror 2.0.12",
  "tokio",
@@ -3871,7 +3871,7 @@ dependencies = [
  "http 1.3.1",
  "hyper 1.6.0",
  "hyper-util",
- "rustls 0.23.29",
+ "rustls 0.23.37",
  "rustls-native-certs 0.8.3",
  "rustls-pki-types",
  "tokio",
@@ -5448,7 +5448,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5547,7 +5547,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.76"
+version = "1.1.77"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5792,7 +5792,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.73"
+version = "1.1.74"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5875,7 +5875,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.73"
+version = "1.1.74"
 dependencies = [
  "bs58",
  "clap",
@@ -6849,6 +6849,7 @@ dependencies = [
  "nym-network-defaults",
  "once_cell",
  "reqwest 0.13.1",
+ "rustls 0.23.37",
  "serde",
  "serde_json",
  "serde_plain",
@@ -6956,12 +6957,15 @@ dependencies = [
  "nym-crypto",
  "nym-service-provider-requests-common",
  "nym-sphinx",
+ "pnet_packet",
  "rand 0.8.5",
+ "semver 1.0.27",
  "serde",
  "thiserror 2.0.12",
  "time",
  "tokio",
  "tokio-util",
+ "tracing",
 ]
 
 [[package]]
@@ -6984,7 +6988,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-id",
  "nym-ip-packet-requests",
- "nym-kcp",
+ "nym-lp",
  "nym-network-defaults",
  "nym-network-requester",
  "nym-sdk",
@@ -7086,6 +7090,7 @@ dependencies = [
  "criterion",
  "libcrux-psq",
  "num_enum",
+ "nym-common",
  "nym-crypto",
  "nym-kkt",
  "nym-kkt-ciphersuite",
@@ -7279,7 +7284,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.74"
+version = "1.1.75"
 dependencies = [
  "addr",
  "anyhow",
@@ -7329,7 +7334,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.28.0"
+version = "1.29.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -7466,7 +7471,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "1.1.3"
+version = "1.1.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -7485,7 +7490,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.3.0"
+version = "4.3.1"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -7790,6 +7795,8 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-requests",
  "nym-http-api-client",
+ "nym-ip-packet-requests",
+ "nym-lp",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-service-providers-common",
@@ -7802,8 +7809,10 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "parking_lot",
+ "pnet_packet",
  "rand 0.8.5",
  "reqwest 0.13.1",
+ "semver 1.0.27",
  "serde",
  "tap",
  "tempfile",
@@ -7875,7 +7884,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.73"
+version = "1.1.74"
 dependencies = [
  "bs58",
  "clap",
@@ -8673,7 +8682,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.38"
+version = "0.1.39"
 dependencies = [
  "anyhow",
  "bytes",
@@ -9652,7 +9661,7 @@ dependencies = [
  "quinn-proto",
  "quinn-udp",
  "rustc-hash",
- "rustls 0.23.29",
+ "rustls 0.23.37",
  "socket2 0.5.10",
  "thiserror 2.0.12",
  "tokio",
@@ -9673,7 +9682,7 @@ dependencies = [
  "rand 0.9.2",
  "ring",
  "rustc-hash",
- "rustls 0.23.29",
+ "rustls 0.23.37",
  "rustls-pki-types",
  "slab",
  "thiserror 2.0.12",
@@ -9940,7 +9949,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quinn",
- "rustls 0.23.29",
+ "rustls 0.23.37",
  "rustls-native-certs 0.8.3",
  "rustls-pki-types",
  "serde",
@@ -9981,7 +9990,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quinn",
- "rustls 0.23.29",
+ "rustls 0.23.37",
  "rustls-pki-types",
  "rustls-platform-verifier",
  "serde",
@@ -10241,16 +10250,16 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.29"
+version = "0.23.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2491382039b29b9b11ff08b76ff6c97cf287671dbb74f0be44bda389fffe9bd1"
+checksum = "758025cb5fccfd3bc2fd74708fd4682be41d99e5dff73c377c0646c6012c73a4"
 dependencies = [
  "aws-lc-rs",
  "log",
  "once_cell",
  "ring",
  "rustls-pki-types",
- "rustls-webpki 0.103.4",
+ "rustls-webpki 0.103.9",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -10331,14 +10340,14 @@ dependencies = [
  "jni",
  "log",
  "once_cell",
- "rustls 0.23.29",
+ "rustls 0.23.37",
  "rustls-native-certs 0.8.3",
  "rustls-platform-verifier-android",
- "rustls-webpki 0.103.4",
+ "rustls-webpki 0.103.9",
  "security-framework 3.6.0",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -10370,9 +10379,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.4"
+version = "0.103.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a17884ae0c1b773f1ccd2bd4a8c72f16da897310a98b0e84bf349ad5ead92fc"
+checksum = "d7df23109aa6c1567d1c575b9952556388da57401e4ace1d15f79eedad0d8f53"
 dependencies = [
  "aws-lc-rs",
  "ring",
@@ -11203,7 +11212,7 @@ dependencies = [
  "memchr",
  "once_cell",
  "percent-encoding",
- "rustls 0.23.29",
+ "rustls 0.23.37",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -12025,7 +12034,7 @@ version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e727b36a1a0e8b74c376ac2211e40c2c8af09fb4013c60d910495810f008e9b"
 dependencies = [
- "rustls 0.23.29",
+ "rustls 0.23.37",
  "tokio",
 ]
 
@@ -12843,7 +12852,7 @@ dependencies = [
  "serde",
  "tempfile",
  "textwrap",
- "toml 0.8.23",
+ "toml 0.9.12+spec-1.1.0",
  "uniffi_internal_macros 0.31.0",
  "uniffi_meta 0.31.0",
  "uniffi_pipeline 0.31.0",
@@ -12952,7 +12961,7 @@ dependencies = [
  "quote",
  "serde",
  "syn 2.0.106",
- "toml 0.8.23",
+ "toml 0.9.12+spec-1.1.0",
  "uniffi_meta 0.31.0",
 ]
 

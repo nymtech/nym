@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 use bytes::{Bytes, BytesMut};
@@ -9,6 +10,10 @@ use nym_ip_packet_requests::{
     v6::response::IpPacketResponse as IpPacketResponseV6,
     v7::response::IpPacketResponse as IpPacketResponseV7,
     v8::response::IpPacketResponse as IpPacketResponseV8,
+    v9,
+};
+use nym_lp::packet::frame::{
+    LpFrame, LpFrameHeader, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
 use nym_sdk::mixnet::{
     InputMessage, MixnetClientSender, MixnetMessageSender, MixnetMessageSinkTranslator,
@@ -25,6 +30,19 @@ use crate::{
     error::{IpPacketRouterError, Result},
     messages::ClientVersion,
 };
+
+/// Encode a payload inside an LP Stream frame: `[LpFrameHeader][payload]`.
+pub(crate) fn encode_stream_frame(stream_id: u64, sequence_num: u32, payload: Vec<u8>) -> Vec<u8> {
+    let attrs = SphinxStreamFrameAttributes {
+        stream_id,
+        msg_type: SphinxStreamMsgType::Data,
+        sequence_num,
+    };
+    let frame = LpFrame::new_stream(attrs, payload);
+    let mut buf = BytesMut::with_capacity(LpFrameHeader::SIZE + frame.content.len());
+    frame.encode(&mut buf);
+    buf.to_vec()
+}
 
 // Data flow
 // Out: mixnet_listener -> decode -> handle_packet -> write_to_tun
@@ -64,6 +82,7 @@ impl ConnectedClientHandler {
         buffer_timeout: Duration,
         client_version: ClientVersion,
         mixnet_client_sender: MixnetClientSender,
+        stream_id: Option<u64>,
     ) -> (
         mpsc::UnboundedSender<Vec<u8>>,
         oneshot::Sender<()>,
@@ -71,6 +90,9 @@ impl ConnectedClientHandler {
     ) {
         log::debug!("Starting connected client handler for: {client_id}");
         log::debug!("client version: {client_version:?}");
+        if let Some(sid) = stream_id {
+            log::debug!("LP Stream mode: stream_id={sid:#018x}");
+        }
         let (close_tx, close_rx) = oneshot::channel();
         let (forward_from_tun_tx, forward_from_tun_rx) = mpsc::unbounded_channel();
 
@@ -86,6 +108,13 @@ impl ConnectedClientHandler {
         let input_message_creator = ToIprDataResponse {
             send_to: client_id.clone(),
             client_version,
+            stream_id,
+            // Start at 1 — seq=0 is reserved for inline control responses
+            // (connect handshake, pong, health) sent by
+            // handle_stream_response() in mixnet_listener.rs.
+            // The skip-on-wrap logic in to_input_message() ensures we never
+            // emit seq=0 from the data path either.
+            next_response_seq: AtomicU32::new(1),
         };
 
         let connected_client_handler = ConnectedClientHandler {
@@ -189,15 +218,21 @@ fn create_ip_packet_response(
         ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
         ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
         ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
+        ClientVersion::V9 => v9::new_ip_packet_response(packets).to_bytes(),
     }
 }
 
-// This struct is used by the sink to translate the the bundled IP packets into a IPR packet
-// responses that can be sent to the mixnet.
-#[derive(Clone, Debug)]
+// This struct is used by the sink to translate the bundled IP packets into IPR packet
+// responses that can be sent to the mixnet. When `stream_id` is set, responses are
+// wrapped in LP Stream frames so the client's stream router can dispatch them.
+#[derive(Debug)]
 struct ToIprDataResponse {
     send_to: ConnectedClientId,
     client_version: ClientVersion,
+    /// When Some, wrap responses in LP Stream frames with this stream_id.
+    stream_id: Option<u64>,
+    /// Sequence number for LP Stream response frames.
+    next_response_seq: AtomicU32,
 }
 
 impl MixnetMessageSinkTranslator for ToIprDataResponse {
@@ -205,12 +240,24 @@ impl MixnetMessageSinkTranslator for ToIprDataResponse {
         &self,
         bundled_ip_packets: &[u8],
     ) -> std::result::Result<InputMessage, nym_sdk::Error> {
-        // Create a IPR packet response that the recipient can understand
         let response_packet = create_ip_packet_response(bundled_ip_packets, self.client_version)?;
 
-        // Wrap the response packet in a mixnet input message
+        // Optionally wrap in LP Stream frame for stream-mode clients.
+        // Seq counter starts at 1 and skips 0 on wrap-around because seq=0
+        // is used by handle_stream_response() for inline control responses
+        // (see comment in mixnet_listener.rs for the full story).
+        let final_packet = if let Some(stream_id) = self.stream_id {
+            let mut seq = self.next_response_seq.fetch_add(1, Ordering::Relaxed);
+            if seq == 0 {
+                seq = self.next_response_seq.fetch_add(1, Ordering::Relaxed);
+            }
+            encode_stream_frame(stream_id, seq, response_packet)
+        } else {
+            response_packet
+        };
+
         let input_message =
-            crate::util::create_message::create_input_message(&self.send_to, response_packet)
+            crate::util::create_message::create_input_message(&self.send_to, final_packet)
                 .with_max_retransmissions(0);
 
         Ok(input_message)
@@ -282,6 +329,8 @@ mod tests {
         let bytes_to_input_message = ToIprDataResponse {
             send_to: client_id.clone(),
             client_version,
+            stream_id: None,
+            next_response_seq: AtomicU32::new(0),
         };
 
         let mixnet_ip_packet_sender = MixnetMessageSink::new_with_custom_translator(

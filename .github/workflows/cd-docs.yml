@@ -15,10 +15,8 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler git python3 && sudo apt-get update --fix-missing
-      - name: Install pip3
-        run: sudo apt install -y python3-pip
       - name: Install Python3 modules
-        run: sudo pip3 install pandas tabulate
+        run: sudo apt install -y python3-pandas python3-tabulate
       - name: Install rsync
         run: sudo apt-get install -y rsync
       - uses: rlespinasse/github-slug-action@v3.x

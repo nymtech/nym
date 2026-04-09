@@ -1,13 +1,19 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 //! Rust SDK for the Nym platform
 //!
 //! The main component currently is [`mixnet`].
 //! [`tcp_proxy`] is probably a good place to start for anyone wanting to integrate with existing app code and read/write from a socket.
 //! [`client_pool`] is a configurable client pool.
+//! [`ipr_wrapper`] tunnels IP packets through the mixnet to an IPR exit gateway.
 
 mod error;
 
 pub mod bandwidth;
 pub mod client_pool;
+pub mod ip_packet_client;
+pub mod ipr_wrapper;
 pub mod mixnet;
 pub mod tcp_proxy;
 

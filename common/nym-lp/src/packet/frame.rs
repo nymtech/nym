@@ -9,13 +9,13 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 #[derive(Debug, Clone, PartialEq)]
 pub struct LpFrameHeader {
     pub kind: LpFrameKind,
-    pub frame_attributes: [u8; 14],
+    pub frame_attributes: LpFrameAttributes,
 }
 
 impl LpFrameHeader {
     pub const SIZE: usize = 16; // message_kind(2) + message_attributes(14)
 
-    pub fn new(kind: LpFrameKind, frame_attributes: [u8; 14]) -> Self {
+    pub fn new(kind: LpFrameKind, frame_attributes: LpFrameAttributes) -> Self {
         Self {
             kind,
             frame_attributes,
@@ -103,6 +103,13 @@ impl LpFrame {
         Self::new(LpFrameKind::Forward, data)
     }
 
+    pub fn new_stream(attrs: SphinxStreamFrameAttributes, content: impl Into<Bytes>) -> Self {
+        Self {
+            header: LpFrameHeader::new(LpFrameKind::SphinxStream, attrs.encode()),
+            content: content.into(),
+        }
+    }
+
     pub(crate) fn len(&self) -> usize {
         LpFrameHeader::SIZE + self.content.len()
     }
@@ -115,6 +122,66 @@ pub enum LpFrameKind {
     Opaque = 0,
     Registration = 1,
     Forward = 2,
+    SphinxStream = 3,
+}
+
+/// Message type within a `LpFrameKind::SphinxStream` frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SphinxStreamMsgType {
+    /// Open a new stream. Content is optional initial data.
+    Open = 0,
+    /// Data on an existing stream.
+    Data = 1,
+}
+
+/// Parsed form of the 14-byte `frame_attributes` for `LpFrameKind::SphinxStream`.
+///
+/// Wire layout (big-endian):
+/// ```text
+/// [0..8 ) stream_id    : u64
+/// [8    ) msg_type      : u8   (0 = Open, 1 = Data)
+/// [9..13) sequence_num  : u32
+/// [13   ) reserved      : u8
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SphinxStreamFrameAttributes {
+    pub stream_id: u64,
+    pub msg_type: SphinxStreamMsgType,
+    pub sequence_num: u32,
+}
+
+/// Raw 14-byte frame attributes field in every [`LpFrameHeader`].
+/// Interpretation depends on the [`LpFrameKind`].
+pub type LpFrameAttributes = [u8; 14];
+
+impl SphinxStreamFrameAttributes {
+    pub fn encode(&self) -> LpFrameAttributes {
+        let mut buf = [0u8; 14];
+        buf[0..8].copy_from_slice(&self.stream_id.to_be_bytes());
+        buf[8] = self.msg_type as u8;
+        buf[9..13].copy_from_slice(&self.sequence_num.to_be_bytes());
+        buf
+    }
+
+    pub fn parse(attrs: &LpFrameAttributes) -> Result<Self, MalformedLpPacketError> {
+        let stream_id = u64::from_be_bytes(attrs[0..8].try_into().unwrap());
+        let msg_type = match attrs[8] {
+            0 => SphinxStreamMsgType::Open,
+            1 => SphinxStreamMsgType::Data,
+            other => {
+                return Err(MalformedLpPacketError::DeserialisationFailure(format!(
+                    "invalid stream msg_type: {other}"
+                )));
+            }
+        };
+        let sequence_num = u32::from_be_bytes(attrs[9..13].try_into().unwrap());
+        Ok(Self {
+            stream_id,
+            msg_type,
+            sequence_num,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

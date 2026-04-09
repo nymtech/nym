@@ -8,6 +8,7 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmwasm_std::Coin;
 use nym_ecash_contract_common::deposit::LatestDepositResponse;
+use nym_ecash_contract_common::deposit_statistics::DepositsStatistics;
 use nym_ecash_contract_common::msg::QueryMsg as EcashQueryMsg;
 use serde::Deserialize;
 
@@ -16,6 +17,9 @@ pub use nym_ecash_contract_common::blacklist::{
 };
 pub use nym_ecash_contract_common::deposit::{
     Deposit, DepositData, DepositId, DepositResponse, PagedDepositsResponse,
+};
+pub use nym_ecash_contract_common::reduced_deposit::{
+    WhitelistedAccount, WhitelistedAccountsResponse,
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -42,8 +46,18 @@ pub trait EcashQueryClient {
             .await
     }
 
-    async fn get_required_deposit_amount(&self) -> Result<Coin, NyxdError> {
-        self.query_ecash_contract(EcashQueryMsg::GetRequiredDepositAmount {})
+    async fn get_default_deposit_amount(&self) -> Result<Coin, NyxdError> {
+        self.query_ecash_contract(EcashQueryMsg::GetDefaultDepositAmount {})
+            .await
+    }
+
+    async fn get_reduced_deposit_amount(&self, address: String) -> Result<Option<Coin>, NyxdError> {
+        self.query_ecash_contract(EcashQueryMsg::GetReducedDepositAmount { address })
+            .await
+    }
+
+    async fn get_all_whitelisted_accounts(&self) -> Result<WhitelistedAccountsResponse, NyxdError> {
+        self.query_ecash_contract(EcashQueryMsg::GetAllWhitelistedAccounts {})
             .await
     }
 
@@ -63,6 +77,11 @@ pub trait EcashQueryClient {
         limit: Option<u32>,
     ) -> Result<PagedDepositsResponse, NyxdError> {
         self.query_ecash_contract(EcashQueryMsg::GetDepositsPaged { start_after, limit })
+            .await
+    }
+
+    async fn get_deposits_statistics(&self) -> Result<DepositsStatistics, NyxdError> {
+        self.query_ecash_contract(EcashQueryMsg::GetDepositsStatistics {})
             .await
     }
 }
@@ -122,10 +141,17 @@ mod tests {
             EcashQueryMsg::GetDepositsPaged { limit, start_after } => {
                 client.get_deposits_paged(start_after, limit).ignore()
             }
-            EcashQueryMsg::GetRequiredDepositAmount {} => {
-                client.get_required_deposit_amount().ignore()
+            EcashQueryMsg::GetDefaultDepositAmount {} => {
+                client.get_default_deposit_amount().ignore()
+            }
+            EcashQueryMsg::GetReducedDepositAmount { address } => {
+                client.get_reduced_deposit_amount(address).ignore()
+            }
+            EcashQueryMsg::GetAllWhitelistedAccounts {} => {
+                client.get_all_whitelisted_accounts().ignore()
             }
             EcashQueryMsg::GetLatestDeposit {} => client.get_latest_deposit().ignore(),
+            EcashQueryMsg::GetDepositsStatistics {} => client.get_deposits_statistics().ignore(),
         };
     }
 }

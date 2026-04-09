@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE ecash_ticketbook\n                SET used_tickets = used_tickets - ?\n                WHERE id = ?\n                AND used_tickets = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "bc823c54143e2dc590b91347cd089dde284b38a3a4960afed758206d03ca1cf4"
+}

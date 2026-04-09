@@ -106,17 +106,26 @@ impl HttpsConnectivityResult {
     fn from_results(results: Vec<SingleHttpsTestResult>) -> Self {
         let (successes, errors): (Vec<SingleHttpsTestResult>, Vec<SingleHttpsTestResult>) =
             results.into_iter().partition(|r| r.success);
+        let last_error_endpoint = errors
+            .iter()
+            .last()
+            .as_ref()
+            .and_then(|test| test.endpoint_used.clone());
         let errors = errors
             .into_iter()
             .map(|r| r.error)
-            .collect::<Option<Vec<_>>>()
-            // partition above guarantees this vec is non-empty
-            .unwrap_or_default();
+            .collect::<Option<Vec<_>>>();
 
-        // use the last successful result for status_code and endpoint
-        // this works as an empty check as well: if there is no last success, array must be empty hence only errors are present
+        // this works as an empty check as well: if there is no last success,
+        // array must be empty hence only errors are present
         let Some(last_success) = successes.last() else {
-            return Self::with_errors(errors);
+            return Self {
+                https_success: false,
+                https_status_code: None,
+                https_latency_ms: None,
+                endpoint_used: last_error_endpoint,
+                errors,
+            };
         };
 
         // average latency from successful runs
@@ -136,11 +145,7 @@ impl HttpsConnectivityResult {
             https_latency_ms: Some(avg_latency),
             endpoint_used: last_success.endpoint_used.clone(),
             // even in case of success, some errors were possible
-            errors: if errors.is_empty() {
-                None
-            } else {
-                Some(errors)
-            },
+            errors,
         }
     }
 

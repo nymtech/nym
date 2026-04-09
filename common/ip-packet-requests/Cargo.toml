@@ -10,7 +10,11 @@ license.workspace = true
 description = "Codec, signing functionality, and different version definitions for IP packet request and responses"
 
 
+[features]
+test-utils = ["pnet_packet"]
+
 [dependencies]
+pnet_packet = { workspace = true, optional = true }
 bincode = { workspace = true }
 bytes = { workspace = true }
 nym-bin-common = { workspace = true }
@@ -18,8 +22,10 @@ nym-crypto = { workspace = true }
 nym-service-provider-requests-common = { workspace = true }
 nym-sphinx = { workspace = true }
 rand = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 tokio-util = { workspace = true, features = ["codec"] }
+tracing = { workspace = true }

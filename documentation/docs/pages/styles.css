@@ -1,21 +1,67 @@
-/* nym.com-aligned colour tokens */
-:root {
-  --colorPrimary: #85E89D;
-  --textPrimary: #FFFFFF;
-  --bg-dark: #1E2426;
-  --border-dark: #2E3538;
+/* nym docs – angular, clean styling (oxide-inspired) */
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/docs/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* dark mode background override */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/docs/fonts/JetBrainsMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/docs/fonts/JetBrainsMono-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/docs/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --colorPrimary: #85E89D;
+  --textPrimary: #E0E0E0;
+  --textMuted: #8B9295;
+  --bg-dark: #181C1E;
+  --bg-code: #1C2022;
+  --border-dark: #2A2F32;
+  --border: #2A2F32;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+}
+
+/* ── Global: kill all rounded corners ── */
+
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+}
+
+/* ── Dark mode backgrounds ── */
+
 html.dark {
   background-color: var(--bg-dark);
 }
 
 html.dark body {
   background-color: var(--bg-dark);
+  color: var(--textPrimary);
 }
 
-/* nextra main content area bg */
 html.dark .nextra-nav-container,
 html.dark .nextra-sidebar-container,
 html.dark .nextra-content,
@@ -24,28 +70,43 @@ html.dark .dark\:nx-bg-dark {
   background-color: var(--bg-dark) !important;
 }
 
+/* ── Typography ── */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+html.dark h1 {
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+html.dark h2 {
+  color: #F0F0F0;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border-dark);
+}
+
+html.dark p, html.dark li {
+  color: var(--textPrimary);
+  line-height: 1.7;
+}
+
+/* ── Layout ── */
+
 footer {
   text-align: center;
 }
 
 .nextra-code-block > pre {
-  /* max-height: 350px !important; */
   max-height: none !important;
   scroll-y: auto !important;
 }
 
-/* set width entire div */
 .nx-mx-auto.nx-flex.nx-max-w-\[90rem\] {
   max-width: 110rem;
-  left-padding: 1%;
-}
-
-.nextra-toc {
-  width: 10px !important;
-  padding-right: 0px;
-  padding-left: 0px;
-  /* text-align: right; */
-  border-left: 1px solid var(--border-dark);
 }
 
 .nextra-content {
@@ -56,22 +117,25 @@ footer {
   margin: 0 !important;
 }
 
-:is(html[class~="dark"] .dark\:nx-bg-primary-300\/10) {
-  background-color: hsl(var(black) 100% 77%/0.1) !important;
+/* ── Nav bar ── */
+
+html.dark .nextra-nav-container {
+  border-bottom: 1px solid var(--border-dark) !important;
 }
 
-/* Sidebar active item */
-:is(html .dark\:nx-bg-primary-400\/10) {
-  background: transparent !important;
-  border-left: 2px solid #85E89D;
-  color: #FFFFFF !important;
+html.dark .nextra-nav-container nav a,
+html.dark .nextra-nav-container nav button,
+html.dark .nextra-nav-container nav ul a {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
 }
 
-:is(html:not(.dark) .dark\:nx-bg-primary-400\/10) {
-  background: transparent !important;
-  border-left: 2px solid #4A9E5C;
-  color: #242B2D !important;
+html.dark .nextra-nav-container nav a:hover,
+html.dark .nextra-nav-container nav ul a:hover {
+  color: var(--colorPrimary) !important;
 }
+
+/* ── Sidebar ── */
 
 .nextra-sidebar-container {
   border-right: 1px solid var(--border-dark);
@@ -82,21 +146,171 @@ footer {
   column-width: 500px;
 }
 
-/* Links*/
+/* Sidebar font */
+html.dark .nextra-sidebar-container {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+/* Sidebar text: muted by default */
+html.dark .nextra-sidebar-container a {
+  color: var(--textMuted) !important;
+}
+
+html.dark .nextra-sidebar-container a:hover {
+  color: var(--textPrimary) !important;
+}
+
+/* Sidebar separator labels (not active items) */
+html.dark .nextra-sidebar-container li.nx-mt-5 .nx-font-semibold {
+  color: var(--textMuted) !important;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+/* Active sidebar item: left-border accent + subtle tint */
+:is(html .dark\:nx-bg-primary-400\/10) {
+  background: rgba(133, 232, 157, 0.06) !important;
+  border-left: 2px solid var(--colorPrimary);
+  color: #FFFFFF !important;
+}
+
+html.dark .nextra-sidebar-container :is(.dark\:nx-bg-primary-400\/10) a {
+  color: #FFFFFF !important;
+}
+
+:is(html:not(.dark) .dark\:nx-bg-primary-400\/10) {
+  background: rgba(74, 158, 92, 0.08) !important;
+  border-left: 2px solid #4A9E5C;
+  color: #242B2D !important;
+}
+
+:is(html[class~="dark"] .dark\:nx-bg-primary-300\/10) {
+  background-color: transparent !important;
+}
+
+/* ── TOC (hidden — subsections live in sidebar) ── */
+
+.nextra-toc {
+  display: none !important;
+}
+
+/* ── Code blocks ── */
+
+html.dark .nextra-code-block > pre {
+  background-color: var(--bg-code) !important;
+  border: 1px solid var(--border-dark);
+}
+
+/* Language tag in code blocks */
+html.dark .nextra-code-block [class*="nx-absolute"] {
+  color: var(--textMuted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Inline code: subtle background, no border */
+html.dark code:not(pre code) {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border: none !important;
+  padding: 0.15em 0.4em;
+  font-size: 0.88em;
+  color: var(--textPrimary);
+}
+
+/* ── Callouts: left-border accent ── */
+
+html.dark .nextra-callout {
+  border: none;
+  border-left: 3px solid;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── Tables: monospace uppercase headers ── */
+
+html.dark table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+html.dark th {
+  border-bottom: 1px solid var(--border-dark);
+  text-align: left;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--textMuted);
+  padding: 0.6em 1em;
+}
+
+html.dark td {
+  border-bottom: 1px solid var(--border-dark);
+  padding: 0.6em 1em;
+  color: var(--textPrimary);
+}
+
+html.dark tr:hover td {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* ── Search box ── */
+
+html.dark .nextra-search input {
+  border: 1px solid var(--border-dark);
+  background-color: var(--bg-dark) !important;
+  color: var(--textMuted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+html.dark .nextra-search input::placeholder {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+}
+
+/* ── Links ── */
+
 .nx-text-primary-600.nx-underline.nx-decoration-from-font {
   color: var(--colorPrimary) !important;
 }
 
-.MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineAlways.css-1xr3c94-MuiTypography-root-MuiLink-root {
+.nx-text-primary-600 {
   color: var(--colorPrimary) !important;
 }
 
-/* Chips*/
+.nextra-scrollbar.nx-sticky {
+  color: var(--colorPrimary) !important;
+}
+
+/* ── Breadcrumbs / navigation links ── */
+
+html.dark .nextra-breadcrumb {
+  color: var(--textMuted);
+}
+
+/* Prev/next page links */
+html.dark a.nx-flex.nx-items-center {
+  border-color: var(--border-dark) !important;
+}
+
+html.dark a.nx-flex.nx-items-center:hover {
+  border-color: var(--colorPrimary) !important;
+}
+
+/* ── Material UI overrides ── */
+
+.MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineAlways {
+  color: var(--colorPrimary) !important;
+}
+
 .chipContained {
   background-color: var(--colorPrimary) !important;
 }
 
-/* Buttons */
 .MuiButton-root {
   color: var(--colorPrimary) !important;
   border-color: var(--colorPrimary) !important;
@@ -111,11 +325,7 @@ footer {
   color: var(--colorPrimary) !important;
 }
 
-.nextra-scrollbar.nx-sticky {
-  color: var(--colorPrimary) !important;
-}
-
-.nx-text-primary-600 {
+a.MuiLink-root {
   color: var(--colorPrimary) !important;
 }
 
@@ -127,10 +337,203 @@ input:focus-visible {
   border-color: var(--colorPrimary) !important;
 }
 
-a.MuiLink-root {
-  color: var(--colorPrimary) !important;
+.MuiPaper-root.MuiAccordion-root {
+  border-radius: 0;
 }
 
-.MuiPaper-root.MuiAccordion-root {
-  border-radius: 8px;
+/* ── Landing page ── */
+
+.landing-heading {
+  color: #FFFFFF;
+}
+
+.landing-card:hover {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* ── Invert diagrams in dark mode ── */
+
+html.dark .nextra-content img:not([src*="landing"]) {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(1.1);
+  mix-blend-mode: lighten;
+  cursor: zoom-in;
+}
+
+/* Expanded image overlay */
+.nextra-content img.img-expanded {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  cursor: zoom-out;
+  padding: 2rem;
+  mix-blend-mode: normal;
+  filter: none;
+}
+
+html.dark .nextra-content img.img-expanded {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(1.1);
+  mix-blend-mode: normal;
+}
+
+/* ── Light mode ── */
+
+html:not(.dark) {
+  --colorPrimary: #1a7a32;
+  --colorPrimary-light: #1a7a32;
+  --bg-light: #F5F5F5;
+  --border-light: #E0E0E0;
+  --border: #E0E0E0;
+  --textMuted: #6B7280;
+  --textMuted-light: #6B7280;
+}
+
+html:not(.dark) body {
+  background-color: var(--bg-light);
+}
+
+html:not(.dark) .nextra-nav-container,
+html:not(.dark) .nextra-sidebar-container,
+html:not(.dark) .nextra-content,
+html:not(.dark) .nx-bg-white {
+  background-color: var(--bg-light) !important;
+}
+
+/* Light mode links: darker green */
+html:not(.dark) .nx-text-primary-600 {
+  color: var(--colorPrimary-light) !important;
+}
+
+html:not(.dark) .nx-text-primary-600.nx-underline.nx-decoration-from-font {
+  color: var(--colorPrimary-light) !important;
+}
+
+/* Light mode sidebar */
+html:not(.dark) .nextra-sidebar-container {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  border-right: 1px solid var(--border-light);
+}
+
+html:not(.dark) .nextra-sidebar-container a {
+  color: var(--textMuted-light) !important;
+}
+
+html:not(.dark) .nextra-sidebar-container a:hover {
+  color: #111 !important;
+}
+
+/* Light mode nav */
+html:not(.dark) .nextra-nav-container {
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+html:not(.dark) .nextra-nav-container nav a,
+html:not(.dark) .nextra-nav-container nav button,
+html:not(.dark) .nextra-nav-container nav ul a {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+html:not(.dark) .nextra-nav-container nav a:hover,
+html:not(.dark) .nextra-nav-container nav ul a:hover {
+  color: var(--colorPrimary-light) !important;
+}
+
+/* Light mode code */
+html:not(.dark) code:not(pre code) {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border: none !important;
+  padding: 0.15em 0.4em;
+  font-size: 0.88em;
+}
+
+/* Light mode callouts */
+html:not(.dark) .nextra-callout {
+  border: none;
+  border-left: 3px solid;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Light mode tables */
+html:not(.dark) th {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--textMuted-light);
+}
+
+/* Light mode search */
+html:not(.dark) .nextra-search input {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  border: 1px solid var(--border-light);
+  background-color: #FFFFFF !important;
+}
+
+html:not(.dark) .nextra-search input::placeholder {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+}
+
+/* Light mode h2 border */
+html:not(.dark) h2 {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Light mode landing page */
+html:not(.dark) .landing-heading {
+  color: #1a1a1a !important;
+}
+
+html:not(.dark) .landing-card:hover {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+html:not(.dark) .landing-card {
+  border-color: var(--border-light) !important;
+}
+
+/* ── Landing page mobile responsiveness ── */
+
+@media (max-width: 640px) {
+  .landing-grid {
+    grid-template-columns: 1fr !important;
+    overflow: hidden;
+  }
+
+  /* In single-column mode every card gets a bottom border except the last */
+  .landing-grid .landing-card {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    overflow: hidden;
+  }
+
+  .landing-grid > a:last-child .landing-card {
+    border-bottom: none !important;
+  }
+
+  /* Contain pre animations so they don't blow out the viewport */
+  .landing-grid pre,
+  .landing-sdk-grid pre {
+    font-size: 0.6rem !important;
+    overflow: hidden !important;
+  }
+
+  .landing-sdk-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .landing-sdk-grid > div:first-child {
+    padding-right: 0 !important;
+    margin-bottom: 1.5rem;
+  }
 }

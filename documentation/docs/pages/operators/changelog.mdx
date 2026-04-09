@@ -57,6 +57,106 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.6-stilton`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.6-stilton)
+- [`nym-node`](nodes/nym-node.mdx) version `1.28.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-03-25T13:41:43.299729408Z
+Build Version:      1.28.0
+Commit SHA:         034346917901bd373dee0ca170b26a9359dbd26d
+Commit Date:        2026-03-25T07:47:04.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+New release is here and with it a completely new theme of the docs!
+
+<Callout type="warning" emoji="⚠️">
+**This release introduces implementation of Lewes Protocol (LP). Only nodes upgraded to this version will be able to complete handshake using LP.**
+
+**Please upgrade soon and follow the section below to ensure smooth functionality of your `nym-node`.**
+</Callout>
+
+1. **[Network Tunnel Manager (NTM)](#network-tunnel-manager-ntm-updates) is now the single port manager for WireGuard routing and Gateway Nym nodes.**
+
+2. Lewes protocol ports (`41264/tcp` and `51264/udp`) as well as all the essential ports for mixnet operation (before `ufw`) are now included in NTM
+- Follow [these steps](#network-tunnel-manager-ntm-updates) to implement changes if you run any Gateway type of Nym node
+- For operators running mixnode mode, make sure to open all ports via `ufw` as [documented here](/operators/nodes/preliminary-steps/vps-setup#3-configure-your-firewall), do *not* use NTM as you nodes do *not* need all exress ports (exit policy) opened   
+
+
+#### Network Tunnel Manager (NTM) Updates
+
+<Callout type="info" emoji="ℹ️">
+Nym team is testing an unreleased version of [Gateway Probe](/operators/performance-and-testing/gateway-probe). This new version checks whether the ports opened align with the governance decision about exit policy. If they don't, the nodes will be taken out of Service grant program and [Delegation program](https://nym.com/network/DP).
+</Callout>
+
+NTM is now changed to be a standalone port manager for servers hosting Nym nodes running in a Gateway mode (with or without WireGuard). Operators of these nodes no longer need to manage mixnet fundamental ports by `ufw` separately, as the NTM will take care of it as well as adjusting the ports according to Nym exit policy. 
+
+**Follow these steps to update the ports setting of your server using NTM.**
+
+<Steps>
+###### 1. Download the new NTM
+- Download the latest NTM and make it executable:
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh
+```
+
+###### 2. Update the exit policy
+
+- Run NTM to become main port manager (including Nym services), run:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+
+###### 3. Disable `ufw`
+
+Right now your NTM is handling the port management. You can disable `ufw`. 
+
+- We suggest to not uninstall it, just make it innactive for the time being:
+
+```sh
+ufw disable 
+```
+
+###### 4. Re-run NTM
+
+- NTM is fully omnipotent, re-rerun it again now with `ufw` disabled to ensure clean state:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+</ Steps>
+
+Congratulation, your port configuration is up to date, including LP ports.
+
+### Features
+
+- [Add LP to NS UI](https://github.com/nymtech/nym/pull/6562): Operators can now monitor LP registration status directly from the UI. The gateway list shows post-quantum registration status via emojis (success/failure), and the dashboard view adds LP count columns for success, failure, and untested, making monitoring faster and easier.
+
+- [Introduce /v3/unstable/nym-nodes/semi-skimmed](https://github.com/nymtech/nym/pull/6499): New API endpoint aggregates LP information for nodes, allowing them to discover each other's LP capabilities and establish shared post-quantum connections efficiently.
+
+- [Additional ticket for agent](https://github.com/nymtech/nym/pull/6551): Adds an extra ticket so the agent/probe can perform LP tests automatically without additional configuration.
+
+### Bugfix
+
+- [LP fixes](https://github.com/nymtech/nym/pull/6601): Improvements for LP registration results and preshared key handling to ensure accurate LP status reporting.
+
+- [Allow deserialisation of LP data from either snake_case or lowercase](https://github.com/nymtech/nym/pull/6586): Fixes LP data deserialization issues, making LP information robust across different formats.
+
+
+### Refactors & Maintenance
+
+- [LP improvements](https://github.com/nymtech/nym/pull/6526): Refactors LP handling code and scaffolds internode handshake processing to simplify future maintenance and reduce potential bugs.
+
+
 ## `v2026.5-raclette`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.5-raclette)

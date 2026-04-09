@@ -156,10 +156,10 @@
       {
         "type": "object",
         "required": [
-          "update_deposit_value"
+          "update_default_deposit_value"
         ],
         "properties": {
-          "update_deposit_value": {
+          "update_default_deposit_value": {
             "type": "object",
             "required": [
               "new_deposit"
@@ -167,6 +167,54 @@
             "properties": {
               "new_deposit": {
                 "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Set (or overwrite) a reduced deposit price for a specific address. Only callable by the contract admin.",
+        "type": "object",
+        "required": [
+          "set_reduced_deposit_price"
+        ],
+        "properties": {
+          "set_reduced_deposit_price": {
+            "type": "object",
+            "required": [
+              "address",
+              "deposit"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "deposit": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Remove the reduced deposit price for a specific address, reverting them to the default price. Returns an error if the address has no custom price set. Only callable by the contract admin.",
+        "type": "object",
+        "required": [
+          "remove_reduced_deposit_price"
+        ],
+        "properties": {
+          "remove_reduced_deposit_price": {
+            "type": "object",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -297,10 +345,44 @@
       {
         "type": "object",
         "required": [
-          "get_required_deposit_amount"
+          "get_default_deposit_amount"
         ],
         "properties": {
-          "get_required_deposit_amount": {
+          "get_default_deposit_amount": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_reduced_deposit_amount"
+        ],
+        "properties": {
+          "get_reduced_deposit_amount": {
+            "type": "object",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_all_whitelisted_accounts"
+        ],
+        "properties": {
+          "get_all_whitelisted_accounts": {
             "type": "object",
             "additionalProperties": false
           }
@@ -373,6 +455,19 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_deposits_statistics"
+        ],
+        "properties": {
+          "get_deposits_statistics": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ]
   },
@@ -380,10 +475,120 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "MigrateMsg",
     "type": "object",
-    "additionalProperties": false
+    "required": [
+      "initial_whitelist"
+    ],
+    "properties": {
+      "initial_whitelist": {
+        "description": "Initial set of whitelisted accounts with their reduced deposit prices. Each entry is validated and stored during migration.",
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/WhitelistedDeposit"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "definitions": {
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Uint128": {
+        "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+        "type": "string"
+      },
+      "WhitelistedDeposit": {
+        "description": "An address and its reduced deposit price, used when seeding the whitelist via migration.",
+        "type": "object",
+        "required": [
+          "address",
+          "deposit"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "deposit": {
+            "$ref": "#/definitions/Coin"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
   },
   "sudo": null,
   "responses": {
+    "get_all_whitelisted_accounts": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WhitelistedAccountsResponse",
+      "type": "object",
+      "required": [
+        "whitelisted_accounts"
+      ],
+      "properties": {
+        "whitelisted_accounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WhitelistedAccount"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        },
+        "WhitelistedAccount": {
+          "type": "object",
+          "required": [
+            "address",
+            "deposit"
+          ],
+          "properties": {
+            "address": {
+              "$ref": "#/definitions/Addr"
+            },
+            "deposit": {
+              "$ref": "#/definitions/Coin"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
     "get_blacklist_paged": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedBlacklistedAccountResponse",
@@ -496,6 +701,30 @@
         }
       }
     },
+    "get_default_deposit_amount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
     "get_deposit": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "DepositResponse",
@@ -594,6 +823,99 @@
         }
       }
     },
+    "get_deposits_statistics": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DepositsStatistics",
+      "description": "Aggregate statistics about all deposits made through the ecash contract.",
+      "type": "object",
+      "required": [
+        "deposited_with_custom_price",
+        "deposits_made_with_custom_price",
+        "total_deposited",
+        "total_deposited_with_custom_price",
+        "total_deposited_with_default_price",
+        "total_deposits_made",
+        "total_deposits_made_with_custom_price",
+        "total_deposits_made_with_default_price"
+      ],
+      "properties": {
+        "deposited_with_custom_price": {
+          "description": "Per-account breakdown of deposited amounts for whitelisted addresses.",
+          "type": "object",
+          "additionalProperties": false
+        },
+        "deposits_made_with_custom_price": {
+          "description": "Per-account breakdown of deposit counts for whitelisted addresses.",
+          "type": "object",
+          "additionalProperties": false
+        },
+        "total_deposited": {
+          "description": "Total value of all deposits ever made (at any price tier), sourced from `PoolCounters::total_deposited`.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Coin"
+            }
+          ]
+        },
+        "total_deposited_with_custom_price": {
+          "description": "Total value deposited at custom prices, summed across all whitelisted accounts.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Coin"
+            }
+          ]
+        },
+        "total_deposited_with_default_price": {
+          "description": "Total value deposited at the default price.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Coin"
+            }
+          ]
+        },
+        "total_deposits_made": {
+          "description": "Total number of deposits ever made (at any price tier), derived from the deposit id counter.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "total_deposits_made_with_custom_price": {
+          "description": "Number of deposits made at any custom (reduced) price, summed across all whitelisted accounts.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "total_deposits_made_with_default_price": {
+          "description": "Number of deposits made at the default (non-reduced) price.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
     "get_latest_deposit": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "LatestDepositResponse",
@@ -644,24 +966,34 @@
         }
       }
     },
-    "get_required_deposit_amount": {
+    "get_reduced_deposit_amount": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Coin",
-      "type": "object",
-      "required": [
-        "amount",
-        "denom"
-      ],
-      "properties": {
-        "amount": {
-          "$ref": "#/definitions/Uint128"
+      "title": "Nullable_Coin",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Coin"
         },
-        "denom": {
-          "type": "string"
+        {
+          "type": "null"
         }
-      },
-      "additionalProperties": false,
+      ],
       "definitions": {
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
         "Uint128": {
           "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
           "type": "string"

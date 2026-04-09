@@ -546,7 +546,7 @@ where
             .collect()
     }
 
-    async fn setup_client_keys(&self) -> Result<()> {
+    pub async fn setup_client_keys(&self) -> Result<()> {
         let mut rng = OsRng;
         let key_store = self.storage.key_store();
 

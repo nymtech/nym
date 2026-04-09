@@ -1,4 +1,4 @@
-use anyhow::bail;
+use anyhow::{Context, bail};
 use rand::Rng;
 use reqwest::Proxy;
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,7 @@ impl JsonRpcClient {
     }
 
     pub(super) async fn https_request_with_fallbacks(&self) -> SingleHttpsTestResult {
-        let mut error_msg = String::new();
+        let mut error_msg = Vec::new();
 
         // endpoints are used as fallbacks: in case of success, return early
         for endpoint in self.test_endpoints.iter() {
@@ -65,11 +65,11 @@ impl JsonRpcClient {
                 }
                 Ok((_, JsonRpcResponse::Err { error, .. })) => {
                     warn!("JSON-RPC error: {} (code: {})", error.message, error.code);
-                    error_msg = format!("JSON-RPC error: {}", error.message);
+                    error_msg.push(format!("JSON-RPC error: {}", error.message));
                 }
                 Err(e) => {
-                    error_msg = e.to_string();
-                    error!("{}", &error_msg);
+                    error_msg.push(e.to_string());
+                    error!("{}", &e);
                 }
             }
         }
@@ -78,8 +78,8 @@ impl JsonRpcClient {
             success: false,
             status_code: None,
             latency_ms: None,
-            endpoint_used: self.test_endpoints.last().cloned(),
-            error: Some(error_msg),
+            endpoint_used: Some(self.test_endpoints.join(",")),
+            error: Some(error_msg.join(",")),
         }
     }
 
@@ -98,20 +98,32 @@ impl JsonRpcClient {
         {
             Ok(response) => {
                 let status = response.status();
+                let response_text = response
+                    .text()
+                    .await
+                    .context("Failed to extract response text")
+                    .unwrap_or_else(|e| e.to_string());
                 if status.is_success() {
                     // Deserialize body into JsonRpcResponse
-                    response
-                        .json::<JsonRpcResponse>()
-                        .await
+                    serde_json::from_str::<JsonRpcResponse>(&response_text)
                         .map(|res| (status, res))
                         .map_err(From::from)
                 } else {
-                    bail!("HTTP error status: {}", status.as_u16());
+                    bail!(
+                        "HTTP error: {}\n{}",
+                        status.as_u16(),
+                        // truncate for logs in case response is too long
+                        response_text.chars().take(200).collect::<String>()
+                    );
                 }
             }
             Err(e) => {
+                let status = e
+                    .status()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "no HTTP status".to_string());
                 error!("HTTPS request failed: {}", e);
-                bail!("HTTPS request failed: {}", e);
+                bail!("HTTPS request failed: {} ({})", e, status);
             }
         }
     }

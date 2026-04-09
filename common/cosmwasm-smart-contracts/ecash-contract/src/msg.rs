@@ -9,6 +9,10 @@ use crate::blacklist::{BlacklistedAccountResponse, PagedBlacklistedAccountRespon
 #[cfg(feature = "schema")]
 use crate::deposit::{DepositResponse, LatestDepositResponse, PagedDepositsResponse};
 #[cfg(feature = "schema")]
+use crate::deposit_statistics::DepositsStatistics;
+#[cfg(feature = "schema")]
+use crate::reduced_deposit::WhitelistedAccountsResponse;
+#[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
 
 #[cw_serde]
@@ -42,8 +46,23 @@ pub enum ExecuteMsg {
         admin: String,
     },
 
-    UpdateDepositValue {
+    #[serde(alias = "update_deposit_value")]
+    UpdateDefaultDepositValue {
         new_deposit: Coin,
+    },
+
+    /// Set (or overwrite) a reduced deposit price for a specific address.
+    /// Only callable by the contract admin.
+    SetReducedDepositPrice {
+        address: String,
+        deposit: Coin,
+    },
+
+    /// Remove the reduced deposit price for a specific address, reverting them to
+    /// the default price. Returns an error if the address has no custom price set.
+    /// Only callable by the contract admin.
+    RemoveReducedDepositPrice {
+        address: String,
     },
 
     // TODO: properly implement
@@ -68,7 +87,15 @@ pub enum QueryMsg {
     },
 
     #[cfg_attr(feature = "schema", returns(Coin))]
-    GetRequiredDepositAmount {},
+    #[serde(alias = "get_required_deposit_amount")]
+    #[serde(alias = "GetRequiredDepositAmount")]
+    GetDefaultDepositAmount {},
+
+    #[cfg_attr(feature = "schema", returns(Option<Coin>))]
+    GetReducedDepositAmount { address: String },
+
+    #[cfg_attr(feature = "schema", returns(WhitelistedAccountsResponse))]
+    GetAllWhitelistedAccounts {},
 
     #[cfg_attr(feature = "schema", returns(DepositResponse))]
     GetDeposit { deposit_id: u32 },
@@ -81,7 +108,22 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<u32>,
     },
+
+    #[cfg_attr(feature = "schema", returns(DepositsStatistics))]
+    GetDepositsStatistics {},
 }
 
 #[cw_serde]
-pub struct MigrateMsg {}
+pub struct MigrateMsg {
+    /// Initial set of whitelisted accounts with their reduced deposit prices.
+    /// Each entry is validated and stored during migration.
+    pub initial_whitelist: Vec<WhitelistedDeposit>,
+}
+
+/// An address and its reduced deposit price, used when seeding the whitelist
+/// via migration.
+#[cw_serde]
+pub struct WhitelistedDeposit {
+    pub address: String,
+    pub deposit: Coin,
+}

@@ -29,7 +29,7 @@ use nym_lp::peer::DHKeyPair;
 use nym_registration_client::LpRegistrationClient;
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
-use nym_topology::{HardcodedTopologyProvider, NymTopology};
+use nym_topology::HardcodedTopologyProvider;
 use rand09::SeedableRng;
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
@@ -442,9 +442,7 @@ pub(crate) async fn do_socks5_connectivity_test(
     nr_recipient: &Recipient,
     entry_gateway_id: NodeIdentity,
     network_details: NymNetworkDetails,
-    min_gw_performance: Option<u8>,
     socks5_args: Socks5Args,
-    maybe_topology: Option<NymTopology>,
 ) -> anyhow::Result<Socks5ProbeResults> {
     info!(
         "Starting SOCKS5 test through Network Requester: {}",
@@ -463,23 +461,31 @@ pub(crate) async fn do_socks5_connectivity_test(
         nr_recipient.identity().to_base58_string()
     );
 
+    // since we define both entry & exit gateways to be the same tested GW,
+    // this shouldn't negatively affect mixnet layers but it will force route
+    // construction in case GW would get filtered out of topology
+    let min_gw_performance = Some(0);
+
     // create ephemeral SOCKS5 client
     let socks5_config = Socks5::new(nr_recipient.to_string());
 
-    // debug config similar to main probe
     let debug_config = mixnet_debug_config(min_gw_performance, true);
 
-    let mut socks5_client_builder = MixnetClientBuilder::new_ephemeral()
+    // don't reuse topology: our gateway might be filtered out in it
+    info!("Fetching topology for SOCKS5 client...");
+    let topology_provider: Box<HardcodedTopologyProvider> =
+        match helpers::fetch_topology(&network_details, &debug_config).await {
+            Ok(topology) => Box::new(HardcodedTopologyProvider::new(topology)),
+            Err(e) => return Ok(Socks5ProbeResults::error_before_connecting(e)),
+        };
+
+    let socks5_client_builder = MixnetClientBuilder::new_ephemeral()
         // Specify entry gateway explicitly
         .request_gateway(entry_gateway_id.to_base58_string())
         .socks5_config(socks5_config)
         .network_details(network_details)
-        .debug_config(debug_config);
-
-    if let Some(topology) = maybe_topology {
-        socks5_client_builder = socks5_client_builder
-            .custom_topology_provider(Box::new(HardcodedTopologyProvider::new(topology)));
-    }
+        .debug_config(debug_config)
+        .custom_topology_provider(topology_provider);
 
     let disconnected_socks5_client = socks5_client_builder.build()?;
 
@@ -489,9 +495,8 @@ pub(crate) async fn do_socks5_connectivity_test(
         .await
     {
         Ok(client) => {
-            info!("🌐 Successfully connected to mixnet via SOCKS5 proxy");
             info!(
-                "Connected via entry gateway: {}",
+                "🌐 Successfully connected to mixnet via SOCKS5 on entry gateway: {}",
                 client.nym_address().gateway().to_base58_string()
             );
             client

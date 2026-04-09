@@ -709,7 +709,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-group-contract-common",
- "nym-multisig-contract-common",
+ "nym-multisig-contract-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1258,7 +1258,7 @@ dependencies = [
  "cw2",
  "cw4",
  "nym-contracts-common",
- "nym-multisig-contract-common",
+ "nym-multisig-contract-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1329,11 +1329,11 @@ dependencies = [
  "cw3",
  "cw4",
  "nym-contracts-common",
+ "nym-contracts-common-testing",
  "nym-crypto",
  "nym-ecash-contract-common",
- "nym-multisig-contract-common",
+ "nym-multisig-contract-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-network-defaults",
- "rand_chacha",
  "schemars",
  "semver",
  "serde",
@@ -1344,8 +1344,6 @@ dependencies = [
 [[package]]
 name = "nym-ecash-contract-common"
 version = "1.20.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d022e85291bf51877fbbf4688bc3762c605fdaee3b98c6407414f7c358bc5610"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1353,7 +1351,7 @@ dependencies = [
  "cw-controllers",
  "cw-utils",
  "cw2",
- "nym-multisig-contract-common",
+ "nym-multisig-contract-common 1.20.4",
  "thiserror 2.0.12",
 ]
 
@@ -1414,6 +1412,21 @@ dependencies = [
  "serde_repr",
  "thiserror 2.0.12",
  "time",
+]
+
+[[package]]
+name = "nym-multisig-contract-common"
+version = "1.20.4"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw3",
+ "cw4",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

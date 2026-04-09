@@ -4,11 +4,12 @@
 use crate::constants::{BLACKLIST_PROPOSAL_REPLY_ID, REDEMPTION_PROPOSAL_REPLY_ID};
 use crate::contract::helpers::Invariants;
 use crate::deposit::DepositStorage;
+use crate::deposit_stats::DepositStatsStorage;
 use crate::helpers::{
     BlacklistKey, Config, MultisigReply, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
     CONTRACT_NAME, CONTRACT_VERSION, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT,
 };
-use cosmwasm_std::{coin, BankMsg, Coin, Event, Order, Reply, Response, StdResult};
+use cosmwasm_std::{coin, Addr, Coin, DepsMut, Event, Order, Reply, Response, StdResult};
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
@@ -20,9 +21,12 @@ use nym_ecash_contract_common::counters::PoolCounters;
 use nym_ecash_contract_common::deposit::{
     DepositData, DepositResponse, LatestDepositResponse, PagedDepositsResponse,
 };
+use nym_ecash_contract_common::deposit_statistics::DepositsStatistics;
 use nym_ecash_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ID, PROPOSAL_ID_ATTRIBUTE_NAME,
 };
+use nym_ecash_contract_common::msg::WhitelistedDeposit;
+use nym_ecash_contract_common::reduced_deposit::{WhitelistedAccount, WhitelistedAccountsResponse};
 use nym_ecash_contract_common::EcashContractError;
 use nym_network_defaults::TICKETBOOK_SIZE;
 use sylvia::ctx::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx};
@@ -41,6 +45,13 @@ pub struct NymEcashContract {
     pub(crate) pool_counters: Item<PoolCounters>,
     pub(crate) expected_invariants: Item<Invariants>,
 
+    /// Information about the performed deposits
+    pub(crate) deposit_stats: DepositStatsStorage,
+
+    /// Map of approved addresses that are allowed to perform deposits using a reduced amount
+    /// as specified by the saved value.
+    pub(crate) reduced_deposits: Map<Addr, Coin>,
+
     pub(crate) blacklist: Map<BlacklistKey, Blacklisting>,
 
     pub(crate) deposits: DepositStorage,
@@ -58,6 +69,8 @@ impl NymEcashContract {
             config: Item::new("config"),
             pool_counters: Item::new("pool_counters"),
             expected_invariants: Item::new("expected_invariants"),
+            deposit_stats: DepositStatsStorage::new(),
+            reduced_deposits: Map::new("reduced_deposits"),
             blacklist: Map::new("blacklist"),
             deposits: DepositStorage::new(),
         }
@@ -72,6 +85,9 @@ impl NymEcashContract {
         group_addr: String,
         deposit_amount: Coin,
     ) -> Result<Response, EcashContractError> {
+        // all counters, deposits, etc. always use and always will use the same denom
+        let zero_coin = coin(0, &deposit_amount.denom);
+
         let multisig_addr = ctx.deps.api.addr_validate(&multisig_addr)?;
         let holding_account = ctx.deps.api.addr_validate(&holding_account)?;
         let group_addr = Cw4Contract(ctx.deps.api.addr_validate(&group_addr).map_err(|_| {
@@ -96,8 +112,9 @@ impl NymEcashContract {
         self.pool_counters.save(
             ctx.deps.storage,
             &PoolCounters {
-                total_deposited: coin(0, &deposit_amount.denom),
-                total_redeemed: coin(0, &deposit_amount.denom),
+                total_deposited: zero_coin.clone(),
+                total_redeemed: zero_coin.clone(),
+                tickets_requested_and_not_redeemed: 0,
             },
         )?;
 
@@ -109,6 +126,14 @@ impl NymEcashContract {
                 deposit_amount,
             },
         )?;
+
+        self.deposit_stats
+            .deposits_with_default_price
+            .save(ctx.deps.storage, &0)?;
+
+        self.deposit_stats
+            .deposits_with_default_price_amounts
+            .save(ctx.deps.storage, &zero_coin)?;
 
         cw2::set_contract_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
         set_build_information!(ctx.deps.storage)?;
@@ -161,10 +186,47 @@ impl NymEcashContract {
     }
 
     #[sv::msg(query)]
-    pub fn get_required_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
+    pub fn get_default_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
         let deposit_amount = self.config.load(ctx.deps.storage)?.deposit_amount;
 
         Ok(deposit_amount)
+    }
+
+    // Poor man's alias for backwards compatibility as sv::attr didn't seem to work
+    #[sv::msg(query)]
+    pub fn get_required_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
+        self.get_default_deposit_amount(ctx)
+    }
+
+    #[sv::msg(query)]
+    pub fn get_reduced_deposit_amount(
+        &self,
+        ctx: QueryCtx,
+        address: String,
+    ) -> StdResult<Option<Coin>> {
+        let address = ctx.deps.api.addr_validate(&address)?;
+        let deposit_amount = self.reduced_deposits.may_load(ctx.deps.storage, address)?;
+
+        Ok(deposit_amount)
+    }
+
+    #[sv::msg(query)]
+    pub fn get_all_whitelisted_accounts(
+        &self,
+        ctx: QueryCtx,
+    ) -> StdResult<WhitelistedAccountsResponse> {
+        let whitelisted_accounts = self
+            .reduced_deposits
+            .range(ctx.deps.storage, None, None, Order::Ascending)
+            .map(|item| {
+                let (address, deposit) = item?;
+                Ok(WhitelistedAccount { address, deposit })
+            })
+            .collect::<StdResult<Vec<_>>>()?;
+
+        Ok(WhitelistedAccountsResponse {
+            whitelisted_accounts,
+        })
     }
 
     #[sv::msg(query)]
@@ -226,6 +288,40 @@ impl NymEcashContract {
         })
     }
 
+    #[sv::msg(query)]
+    pub fn get_deposits_statistics(
+        &self,
+        ctx: QueryCtx,
+    ) -> Result<DepositsStatistics, EcashContractError> {
+        let storage = ctx.deps.storage;
+        let denom = &self.config.load(storage)?.deposit_amount.denom;
+
+        let total_deposits_made = self.deposits.total_deposits_made(storage)?;
+        let total_deposited = self.pool_counters.load(storage)?.total_deposited;
+
+        let total_deposits_made_with_default_price = self
+            .deposit_stats
+            .get_total_deposits_made_with_default_price(storage)?;
+        let total_deposited_with_default_price = self
+            .deposit_stats
+            .get_total_deposited_with_default_price(storage, denom)?;
+
+        let custom = self
+            .deposit_stats
+            .get_custom_price_deposits(storage, denom)?;
+
+        Ok(DepositsStatistics {
+            total_deposits_made,
+            total_deposited,
+            total_deposits_made_with_default_price,
+            total_deposited_with_default_price,
+            total_deposits_made_with_custom_price: custom.total_count,
+            total_deposited_with_custom_price: custom.total_amount,
+            deposits_made_with_custom_price: custom.per_account_count,
+            deposited_with_custom_price: custom.per_account_amount,
+        })
+    }
+
     /*=====================
     ======EXECUTIONS=======
     =====================*/
@@ -236,20 +332,48 @@ impl NymEcashContract {
         ctx: ExecCtx,
         identity_key: String,
     ) -> Result<Response, EcashContractError> {
-        let required_deposit = self.config.load(ctx.deps.storage)?.deposit_amount;
+        let default_deposit = self.config.load(ctx.deps.storage)?.deposit_amount;
+        let reduced_deposit = self
+            .reduced_deposits
+            .may_load(ctx.deps.storage, ctx.info.sender.clone())?;
 
-        let submitted = cw_utils::must_pay(&ctx.info, &required_deposit.denom)?;
+        let submitted = cw_utils::must_pay(&ctx.info, &default_deposit.denom)?;
+        let mut funds = ctx.info.funds;
 
-        if submitted != required_deposit.amount {
-            let mut funds = ctx.info.funds;
+        // Whitelisted accounts may deposit at either their reduced price or the
+        // default price. If the default price is sent, the deposit is treated as
+        // a regular (non-reduced) deposit for statistics purposes.
+        if submitted == default_deposit.amount {
+            self.deposit_stats
+                .new_default_deposit(ctx.deps.storage, &default_deposit)?;
+        } else if let Some(reduced_deposit) = reduced_deposit.as_ref() {
+            // can't do if let chaining due to outdated rustc used for building contracts
+            if reduced_deposit.amount == submitted {
+                self.deposit_stats.new_reduced_deposit(
+                    ctx.deps.storage,
+                    &ctx.info.sender,
+                    reduced_deposit,
+                )?;
+            } else {
+                // we are allowed to send reduced amounts, but we sent the wrong amount
+                return Err(EcashContractError::WrongAmount {
+                    // SAFETY: the call to `must_pay` ensured a single coin has been sent
+                    #[allow(clippy::unwrap_used)]
+                    received: funds.pop().unwrap(),
+                    amount: reduced_deposit.clone(),
+                });
+            }
+        } else {
+            // we sent wrong amount of tokens
             return Err(EcashContractError::WrongAmount {
                 // SAFETY: the call to `must_pay` ensured a single coin has been sent
                 #[allow(clippy::unwrap_used)]
                 received: funds.pop().unwrap(),
-                amount: required_deposit,
+                amount: default_deposit,
             });
-        }
+        };
 
+        // global total needed when migrating to the nym pool contract
         self.pool_counters
             .update(ctx.deps.storage, |mut counters| -> StdResult<_> {
                 counters.total_deposited.amount += submitted;
@@ -285,6 +409,8 @@ impl NymEcashContract {
         Ok(Response::new().add_submessage(msg))
     }
 
+    /// Old legacy method for requesting ticket redemption by moving them into the holding accounts
+    /// currently only executed by legacy gateways
     #[sv::msg(exec)]
     pub fn redeem_tickets(
         &self,
@@ -301,22 +427,15 @@ impl NymEcashContract {
         self.multisig
             .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
 
-        let config = self.config.load(ctx.deps.storage)?;
-        let to_return = self.tickets_redemption_amount(ctx.deps.storage, &config, n)?;
-        if to_return.amount.is_zero() {
-            return Ok(Response::new());
-        }
-
         self.pool_counters
             .update(ctx.deps.storage, |mut counters| -> StdResult<_> {
-                counters.total_redeemed.amount += to_return.amount;
+                counters.tickets_requested_and_not_redeemed += n as u64;
                 Ok(counters)
             })?;
 
-        Ok(Response::new().add_message(BankMsg::Send {
-            to_address: config.holding_account.to_string(),
-            amount: vec![to_return],
-        }))
+        Ok(Response::new().add_event(
+            Event::new("ticket_redemption").add_attribute("moved_to_holding_account", "false"),
+        ))
     }
 
     #[sv::msg(exec)]
@@ -334,7 +453,7 @@ impl NymEcashContract {
     }
 
     #[sv::msg(exec)]
-    pub fn update_deposit_value(
+    pub fn update_default_deposit_value(
         &self,
         ctx: ExecCtx,
         new_deposit: Coin,
@@ -343,6 +462,14 @@ impl NymEcashContract {
         self.contract_admin
             .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
 
+        let ticket_book_size = self.get_ticketbook_size(ctx.deps.storage)?;
+        if new_deposit.amount < cosmwasm_std::Uint128::from(ticket_book_size) {
+            return Err(EcashContractError::DepositBelowTicketBookSize {
+                amount: new_deposit.amount,
+                ticket_book_size,
+            });
+        }
+
         let deposit_str = new_deposit.to_string();
         self.config
             .update(ctx.deps.storage, |mut cfg| -> StdResult<_> {
@@ -350,6 +477,85 @@ impl NymEcashContract {
                 Ok(cfg)
             })?;
         Ok(Response::new().add_attribute("updated_deposit", deposit_str))
+    }
+
+    pub(crate) fn add_reduced_deposit_address(
+        &self,
+        deps: DepsMut,
+        address: Addr,
+        deposit: &Coin,
+    ) -> Result<(), EcashContractError> {
+        // the reduced price must be strictly less than the default to avoid
+        // accidentally misconfiguring an address to pay more than everyone else
+        let default = self.config.load(deps.storage)?.deposit_amount;
+        if deposit.denom != default.denom {
+            return Err(EcashContractError::InvalidReducedDepositDenom {
+                expected: default.denom,
+                got: deposit.denom.clone(),
+            });
+        }
+        if deposit.amount >= default.amount {
+            return Err(EcashContractError::ReducedDepositNotReduced {
+                reduced: deposit.amount,
+                default: default.amount,
+            });
+        }
+
+        let ticket_book_size = self.get_ticketbook_size(deps.storage)?;
+        if deposit.amount < cosmwasm_std::Uint128::from(ticket_book_size) {
+            return Err(EcashContractError::DepositBelowTicketBookSize {
+                amount: deposit.amount,
+                ticket_book_size,
+            });
+        }
+
+        self.reduced_deposits.save(deps.storage, address, deposit)?;
+        Ok(())
+    }
+
+    #[sv::msg(exec)]
+    pub fn set_reduced_deposit_price(
+        &self,
+        ctx: ExecCtx,
+        address: String,
+        deposit: Coin,
+    ) -> Result<Response, EcashContractError> {
+        self.contract_admin
+            .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
+
+        let addr = ctx.deps.api.addr_validate(&address)?;
+        self.add_reduced_deposit_address(ctx.deps, addr.clone(), &deposit)?;
+
+        Ok(Response::new()
+            .add_attribute("action", "set_reduced_deposit_price")
+            .add_attribute("address", address)
+            .add_attribute("deposit", deposit.to_string()))
+    }
+
+    /// Removes the reduced deposit price for a given address, reverting them to
+    /// the default deposit amount. This is safe to call even if the address has
+    /// already deposited at the reduced price — their next deposit will simply
+    /// use the default price. Historical deposit statistics are not affected.
+    #[sv::msg(exec)]
+    pub fn remove_reduced_deposit_price(
+        &self,
+        ctx: ExecCtx,
+        address: String,
+    ) -> Result<Response, EcashContractError> {
+        self.contract_admin
+            .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
+
+        let addr = ctx.deps.api.addr_validate(&address)?;
+
+        if !self.reduced_deposits.has(ctx.deps.storage, addr.clone()) {
+            return Err(EcashContractError::NoReducedDepositPrice { address });
+        }
+
+        self.reduced_deposits.remove(ctx.deps.storage, addr);
+
+        Ok(Response::new()
+            .add_attribute("action", "remove_reduced_deposit_price")
+            .add_attribute("address", address))
     }
 
     #[sv::msg(exec)]
@@ -459,11 +665,15 @@ impl NymEcashContract {
     =======MIGRATION=======
     =====================*/
     #[sv::msg(migrate)]
-    pub fn migrate(&self, ctx: MigrateCtx) -> Result<Response, EcashContractError> {
+    pub fn migrate(
+        &self,
+        ctx: MigrateCtx,
+        initial_whitelist: Vec<WhitelistedDeposit>,
+    ) -> Result<Response, EcashContractError> {
         set_build_information!(ctx.deps.storage)?;
         cw2::ensure_from_older_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-        queued_migrations::remove_redemption_gateway_share(ctx.deps)?;
+        queued_migrations::add_tiered_pricing(ctx.deps, initial_whitelist)?;
 
         Ok(Response::new())
     }

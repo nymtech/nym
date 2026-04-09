@@ -56,7 +56,7 @@ impl<C, F> PacketForwarder<C, F> {
         if let Err(err) = self.mixnet_client.send_without_response(packet) {
             if err.kind() == io::ErrorKind::WouldBlock {
                 // we only know for sure if we dropped a packet if our sending queue was full
-                warn!(
+                trace!(
                     event = "packet.dropped.buffer_full",
                     next_hop = %next_hop,
                     "dropping packet: egress connection buffer full (WouldBlock)"

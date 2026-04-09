@@ -1,9 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::packet::utils::format_debug_bytes;
 use bytes::{BufMut, BytesMut};
 use std::fmt::{Debug, Formatter};
+
+use nym_common::debug::format_debug_bytes;
 
 pub use error::MalformedLpPacketError;
 pub use frame::{ForwardPacketData, LpFrame};
@@ -13,7 +14,6 @@ pub mod error;
 pub mod frame;
 pub mod header;
 pub mod replay;
-pub mod utils;
 
 pub mod version {
     /// The current version of the Lewes Protocol that is put into each new constructed header.

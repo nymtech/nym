@@ -6,7 +6,6 @@ use crate::{
     config::Config,
     constants::DISCONNECT_TIMER_INTERVAL,
     error::{IpPacketRouterError, Result},
-    kcp_session_manager::KcpSessionManager,
     messages::{
         ClientVersion,
         request::{
@@ -24,15 +23,13 @@ use crate::{
 };
 use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
+use nym_lp::packet::frame::{LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes};
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownToken;
 use std::{net::SocketAddr, time::Duration};
 use tokio::io::AsyncWriteExt;
 use tokio_util::codec::FramedRead;
-
-/// KCP tick interval for session updates (retransmissions, ACKs, cleanup)
-const KCP_TICK_INTERVAL: Duration = Duration::from_millis(10);
 
 #[cfg(not(target_os = "linux"))]
 type TunDevice = crate::non_linux_dummy::DummyDevice;
@@ -60,45 +57,6 @@ pub(crate) struct MixnetListener {
     // The map of connected clients that the mixnet listener keeps track of. It monitors
     // activity and disconnects clients that have been inactive for too long.
     pub(crate) connected_clients: ConnectedClients,
-
-    // KCP session manager for LP clients sending KCP-wrapped messages
-    pub(crate) kcp_session_manager: KcpSessionManager,
-}
-
-/// Check if a message payload appears to be KCP-wrapped.
-///
-/// KCP packets have a 25-byte header with the command byte at position 4.
-/// Valid KCP commands are: Push(81), Ack(82), Wask(83), Wins(84).
-///
-/// This is distinguishable from IPR protocol messages which have:
-/// - Version byte at position 0: 6, 7, or 8
-/// - ServiceProviderType at position 1: 0, 1, or 2 (for v8+)
-///
-/// We use a two-step heuristic:
-/// 1. Exclude messages that look like IPR protocol headers
-/// 2. Check if byte 4 contains a valid KCP command (81-84)
-///
-/// See: `Protocol::try_from` in service-provider-requests-common for header format.
-fn is_kcp_message(data: &[u8]) -> bool {
-    // Need at least 25 bytes for KCP header
-    if data.len() < 25 {
-        return false;
-    }
-
-    // First, check if this looks like an IPR protocol message.
-    // IPR messages have: byte 0 = version (6-8), byte 1 = ServiceProviderType (0-2 for v8+)
-    // See: IpPacketRequest::try_from in messages/request.rs
-    let version_byte = data[0];
-    let service_type_byte = data[1];
-    if (6..=8).contains(&version_byte) && service_type_byte <= 2 {
-        // This matches IPR protocol header pattern - not a KCP message
-        return false;
-    }
-
-    // Check KCP command byte at position 4
-    let cmd = data[4];
-    // Valid KCP commands: Push=81, Ack=82, Wask=83, Wins=84
-    (81..=84).contains(&cmd)
 }
 
 // #[cfg(target_os = "linux")]
@@ -172,11 +130,19 @@ impl MixnetListener {
         let decoder = MultiIpPacketCodec::new();
         let mut framed_reader = FramedRead::new(data_request.ip_packets.as_ref(), decoder);
 
-        while let Some(Ok(packet)) = framed_reader.next().await {
-            let result = self
-                .handle_packet(packet.as_bytes(), data_request.version)
-                .await;
-            responses.push(result);
+        while let Some(result) = framed_reader.next().await {
+            match result {
+                Ok(packet) => {
+                    let result = self
+                        .handle_packet(packet.as_bytes(), data_request.version)
+                        .await;
+                    responses.push(result);
+                }
+                Err(e) => {
+                    log::warn!("Failed to decode bundled IP packet: {e}");
+                    continue;
+                }
+            }
         }
 
         Ok(responses)
@@ -187,6 +153,7 @@ impl MixnetListener {
     async fn on_static_connect_request(
         &mut self,
         connect_request: StaticConnectRequest,
+        stream_id: Option<u64>,
     ) -> PacketHandleResult {
         log::info!(
             "Received static connect request from {}",
@@ -209,6 +176,31 @@ impl MixnetListener {
         let is_client_id_taken = self.connected_clients.is_client_connected(&sent_by);
 
         let response = match (is_ip_taken, is_client_id_taken) {
+            (true, true) if stream_id.is_some() => {
+                // Stream-mode reconnect: tear down the old handler (which has a
+                // stale stream_id) and create a fresh one for the new stream.
+                log::info!("Stream-mode client reconnecting, replacing handler");
+                self.connected_clients.disconnect_client(&sent_by);
+
+                let (forward_from_tun_tx, close_tx, handle) = ConnectedClientHandler::start(
+                    sent_by.clone(),
+                    buffer_timeout,
+                    version,
+                    self.mixnet_client.split_sender(),
+                    stream_id,
+                );
+                self.connected_clients.connect(
+                    requested_ips,
+                    sent_by.clone(),
+                    forward_from_tun_tx,
+                    close_tx,
+                    handle,
+                );
+                Response::StaticConnect {
+                    request_id,
+                    reply: StaticConnectResponse::Success,
+                }
+            }
             (true, true) => {
                 log::info!("Connecting an already connected client");
                 if self
@@ -233,6 +225,7 @@ impl MixnetListener {
                     buffer_timeout,
                     version,
                     self.mixnet_client.split_sender(),
+                    stream_id,
                 );
 
                 // Register the new client in the set of connected clients
@@ -274,9 +267,11 @@ impl MixnetListener {
     fn on_dynamic_connect_request(
         &mut self,
         connect_request: DynamicConnectRequest,
+        stream_id: Option<u64>,
     ) -> PacketHandleResult {
         log::info!(
-            "Received dynamic connect request from {}",
+            "Received v{} dynamic connect request from {}",
+            connect_request.version.into_u8(),
             connect_request.sent_by
         );
 
@@ -289,15 +284,22 @@ impl MixnetListener {
             .unwrap_or(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
 
         if let Some(ips) = self.connected_clients.lookup_ip_from_client_id(&reply_to) {
-            log::debug!("Reconnecting to the previous session");
-            return Ok(Some(VersionedResponse {
-                version,
-                reply_to,
-                response: Response::DynamicConnect {
-                    request_id,
-                    reply: DynamicConnectSuccess { ips }.into(),
-                },
-            }));
+            if stream_id.is_some() {
+                // Stream-mode reconnect: tear down old handler (stale stream_id)
+                // and create a fresh one below with the new stream.
+                log::info!("Stream-mode client reconnecting, replacing handler");
+                self.connected_clients.disconnect_client(&reply_to);
+            } else {
+                log::debug!("Reconnecting to the previous session");
+                return Ok(Some(VersionedResponse {
+                    version,
+                    reply_to,
+                    response: Response::DynamicConnect {
+                        request_id,
+                        reply: DynamicConnectSuccess { ips }.into(),
+                    },
+                }));
+            }
         }
 
         let Some(new_ips) = self.connected_clients.find_new_ip() else {
@@ -318,6 +320,7 @@ impl MixnetListener {
             buffer_timeout,
             version,
             self.mixnet_client.split_sender(),
+            stream_id,
         );
 
         // Register the new client in the set of connected clients
@@ -403,10 +406,14 @@ impl MixnetListener {
         }))
     }
 
-    async fn on_control_request(&mut self, control_request: ControlRequest) -> PacketHandleResult {
+    async fn on_control_request(
+        &mut self,
+        control_request: ControlRequest,
+        stream_id: Option<u64>,
+    ) -> PacketHandleResult {
         match control_request {
-            ControlRequest::StaticConnect(r) => self.on_static_connect_request(r).await,
-            ControlRequest::DynamicConnect(r) => self.on_dynamic_connect_request(r),
+            ControlRequest::StaticConnect(r) => self.on_static_connect_request(r, stream_id).await,
+            ControlRequest::DynamicConnect(r) => self.on_dynamic_connect_request(r, stream_id),
             ControlRequest::Disconnect(r) => self.on_disconnect_request(r),
             ControlRequest::Ping(r) => self.on_ping_request(r),
             ControlRequest::Health(r) => self.on_health_request(r),
@@ -436,127 +443,106 @@ impl MixnetListener {
                 .unwrap_or("missing".to_owned())
         );
 
-        // Check if this is a KCP-wrapped message from an LP client
-        if is_kcp_message(&reconstructed.message) {
-            return self.on_kcp_message(reconstructed).await;
+        // Check if this is an LP Stream frame
+        if reconstructed.message.len() >= LpFrameHeader::SIZE
+            && let Ok(header) = LpFrameHeader::parse(&reconstructed.message)
+            && header.kind == LpFrameKind::SphinxStream
+        {
+            return self.on_stream_frame(reconstructed, header).await;
         }
 
         // Regular IPR protocol message (websocket clients)
-        self.on_ipr_message(reconstructed).await
+        self.on_ipr_message(reconstructed, None).await
     }
 
-    /// Handle KCP-wrapped messages from LP clients.
+    /// Handle LP Stream-framed messages.
     ///
-    /// LP clients send: KCP(IpPacketRequest)
-    /// We unwrap the KCP layer, reassemble fragments, then process the inner IpPacketRequest.
-    /// Responses are wrapped in KCP and sent directly via the sender_tag reply mechanism,
-    /// rather than being returned for standard handling.
-    async fn on_kcp_message(
+    /// Parses stream attributes, processes the inner IPR payload, and handles
+    /// responses inline (wrapped in LP Stream frames).
+    async fn on_stream_frame(
         &mut self,
         reconstructed: ReconstructedMessage,
+        header: LpFrameHeader,
     ) -> Result<Vec<PacketHandleResult>> {
-        let current_time_ms = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
-
-        // Process the KCP data through the session manager.
-        // AIDEV-NOTE: Reply mechanism for LP clients:
-        // 1. LP clients MUST send SURBs (in RepliableMessage) when connecting/sending data
-        // 2. The SDK's client-core layer (ReceivedMessagesBuffer + ReplyController) automatically
-        //    extracts SURBs from incoming RepliableMessages and stores them keyed by sender_tag
-        // 3. When we call InputMessage::new_reply(sender_tag, ...), the SDK looks up stored SURBs
-        // 4. The vec![] here is for KcpSessionManager's internal SURB storage (currently unused)
-        //    since the SDK handles SURB storage at a lower layer
-        // 5. If replies fail, check that LP client is sending SURBs in its messages
-        let processing_result = self
-            .kcp_session_manager
-            .process_incoming(
-                &reconstructed.message,
-                vec![], // SDK handles SURB extraction/storage automatically
-                reconstructed.sender_tag,
-                current_time_ms,
-            )
-            .inspect_err(|e| {
-                log::warn!("KCP processing error: {e}");
-            })?;
-
-        let conv_id = processing_result.conversation_id;
-
         log::debug!(
-            "KCP conv_id={}: received {} packets, {} complete messages",
-            processing_result.conversation_id,
-            processing_result.decoded_packets.len(),
-            processing_result.reassembled_messages.len()
+            "Received LP Stream frame ({} bytes)",
+            reconstructed.message.len()
         );
 
-        // Process each reassembled message as an IpPacketRequest
-        for message_data in processing_result.reassembled_messages {
-            // Create a synthetic ReconstructedMessage for the inner payload
-            let inner_reconstructed = ReconstructedMessage {
-                message: message_data,
-                sender_tag: reconstructed.sender_tag,
-            };
+        let attrs = SphinxStreamFrameAttributes::parse(&header.frame_attributes).map_err(|e| {
+            IpPacketRouterError::Other(format!("Invalid stream frame attributes: {e}"))
+        })?;
 
-            match self.on_ipr_message(inner_reconstructed).await {
-                Ok(results) => {
-                    // Handle responses by wrapping in KCP and sending directly
-                    for result in results {
-                        // false positive: this if can't be collapsed due to `response` being moved
-                        // between calls
-                        #[allow(clippy::collapsible_if)]
-                        if let Ok(Some(response)) = result {
-                            if let Err(e) = self
-                                .handle_kcp_response(conv_id, response, current_time_ms)
-                                .await
-                            {
-                                log::warn!(
-                                    "Error sending KCP-wrapped response for conv_id={conv_id}: {e}",
-                                );
-                            }
-                        }
+        let stream_id = attrs.stream_id;
+        log::debug!(
+            "LP Stream: stream_id={stream_id:#018x}, msg_type={:?}, seq={}",
+            attrs.msg_type,
+            attrs.sequence_num
+        );
+
+        let payload = &reconstructed.message[LpFrameHeader::SIZE..];
+
+        // Open frames may carry an empty payload (stream handshake).
+        if payload.is_empty() {
+            log::info!("LP Stream: new stream opened (stream_id={stream_id:#018x})");
+            return Ok(vec![]);
+        }
+
+        let inner_reconstructed = ReconstructedMessage {
+            message: payload.to_vec(),
+            sender_tag: reconstructed.sender_tag,
+        };
+
+        match self
+            .on_ipr_message(inner_reconstructed, Some(stream_id))
+            .await
+        {
+            Ok(results) => {
+                for result in results {
+                    let Ok(Some(response)) = result else { continue };
+                    if let Err(e) = self.handle_stream_response(stream_id, response).await {
+                        log::warn!(
+                            "Error sending LP Stream response for stream_id={stream_id:#018x}: {e}"
+                        );
                     }
                 }
-                Err(e) => {
-                    log::warn!("Error processing KCP inner message: {}", e);
-                    // Continue processing other messages
-                }
+            }
+            Err(e) => {
+                log::warn!("Error processing LP Stream inner message: {e}");
             }
         }
 
-        // Return empty - we handled responses directly above
         Ok(vec![])
     }
 
-    /// Wrap a response in KCP and send it via the mixnet reply mechanism.
+    /// Wrap a response in an LP Stream frame and send it via the mixnet.
     ///
-    /// This is used for LP clients that communicate via KCP-wrapped messages.
-    async fn handle_kcp_response(
+    /// Used for inline control responses (connect handshake, pong, health)
+    /// that are sent directly from the message handler — outside the
+    /// `ConnectedClientHandler` which owns the data-path sequence counter.
+    ///
+    /// # Sequence numbering
+    ///
+    /// These inline responses always use **seq=0**. The data-path counter in
+    /// `ConnectedClientHandler` starts at 1 and skips 0 on wrap-around, so
+    /// the two paths never collide.
+    ///
+    /// Limitation: if multiple inline responses are sent on the same stream
+    /// (e.g. connect + later pong), they share seq=0. The client's reorder
+    /// buffer will see the second as a duplicate and drop it. In practice
+    /// this is fine because control responses are rare and idempotent, but
+    /// if it becomes a problem, give inline responses their own counter.
+    async fn handle_stream_response(
         &mut self,
-        conv_id: u32,
+        stream_id: u64,
         response: VersionedResponse,
-        current_time_ms: u64,
     ) -> Result<()> {
         let reply_to = response.reply_to.clone();
-
-        // Serialize the response
         let response_bytes = response.try_into_bytes()?;
 
-        // Wrap in KCP
-        let kcp_wrapped =
-            self.kcp_session_manager
-                .wrap_response(conv_id, &response_bytes, current_time_ms)?;
+        let wrapped = crate::clients::encode_stream_frame(stream_id, 0, response_bytes);
 
-        log::debug!(
-            "KCP conv_id={}: wrapped {} byte response into {} bytes",
-            conv_id,
-            response_bytes.len(),
-            kcp_wrapped.len()
-        );
-
-        // Send via mixnet using the sender_tag reply mechanism
-        let input_message =
-            crate::util::create_message::create_input_message(&reply_to, kcp_wrapped);
+        let input_message = crate::util::create_message::create_input_message(&reply_to, wrapped);
 
         self.mixnet_client.send(input_message).await.map_err(|err| {
             IpPacketRouterError::FailedToSendPacketToMixnet {
@@ -566,9 +552,21 @@ impl MixnetListener {
     }
 
     /// Handle regular IPR protocol messages (from websocket clients).
+    ///
+    /// `stream_id` is `Some` when processing a payload extracted from an LP
+    /// Stream frame, so that connect handlers can thread the id to the
+    /// `ConnectedClientHandler` for LP-wrapping TUN responses.
+    ///
+    /// # Version / transport enforcement
+    ///
+    /// - LP Stream frames (`stream_id` is `Some`) **must** carry v9+ payloads.
+    /// - Non-stream messages (`stream_id` is `None`) **must** be v8 or lower.
+    ///
+    /// Messages that violate these rules are dropped.
     async fn on_ipr_message(
         &mut self,
         reconstructed: ReconstructedMessage,
+        stream_id: Option<u64>,
     ) -> Result<Vec<PacketHandleResult>> {
         // First deserialize the request
         let request = match IpPacketRequest::try_from(&reconstructed) {
@@ -579,11 +577,27 @@ impl MixnetListener {
             req => req,
         }?;
 
+        // Enforce version/transport consistency:
+        // - LP Stream frames must carry v9+ payloads
+        // - Non-stream messages must be v8 or lower
+        let version_num = request.version().into_u8();
+
+        if stream_id.is_some() && version_num < 9 {
+            log::warn!("LP Stream frame contains v{version_num} payload, expected v9+; dropping",);
+            return Ok(vec![]);
+        }
+        if stream_id.is_none() && version_num >= 9 {
+            log::warn!("Non-stream message claims v{version_num}, expected v8 or lower; dropping",);
+            return Ok(vec![]);
+        }
+
         log::debug!("Received request: {request}");
 
         match request {
             IpPacketRequest::Data(request) => self.on_data_request(request).await,
-            IpPacketRequest::Control(request) => Ok(vec![self.on_control_request(request).await]),
+            IpPacketRequest::Control(request) => {
+                Ok(vec![self.on_control_request(request, stream_id).await])
+            }
         }
     }
 
@@ -640,45 +654,8 @@ impl MixnetListener {
         }
     }
 
-    /// Handle KCP session tick - drives retransmissions, ACKs, and cleanup.
-    ///
-    /// Sends any pending outgoing KCP packets (ACKs, retransmissions) via the
-    /// sender_tag reply mechanism.
-    async fn handle_kcp_tick(&mut self) {
-        let current_time_ms = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
-
-        // Tick all KCP sessions - generates ACKs, retransmissions, etc.
-        let outgoing = self.kcp_session_manager.tick(current_time_ms);
-
-        // Send any pending outgoing KCP protocol packets
-        for (conv_id, data) in outgoing {
-            // Get the sender_tag for this session to reply via mixnet
-            let Some(sender_tag) = self.kcp_session_manager.get_sender_tag(conv_id) else {
-                log::warn!(
-                    "KCP tick: conv_id={} has {} bytes but no sender_tag, dropping",
-                    conv_id,
-                    data.len()
-                );
-                continue;
-            };
-
-            log::trace!("KCP tick: conv_id={} sending {} bytes", conv_id, data.len());
-
-            let reply_to = crate::clients::ConnectedClientId::AnonymousSenderTag(sender_tag);
-            let input_message = crate::util::create_message::create_input_message(&reply_to, data);
-
-            if let Err(e) = self.mixnet_client.send(input_message).await {
-                log::warn!("KCP tick: failed to send for conv_id={}: {}", conv_id, e);
-            }
-        }
-    }
-
     pub(crate) async fn run(mut self) -> Result<()> {
         let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
-        let mut kcp_tick_timer = tokio::time::interval(KCP_TICK_INTERVAL);
 
         loop {
             tokio::select! {
@@ -689,9 +666,6 @@ impl MixnetListener {
                 },
                 _ = disconnect_timer.tick() => {
                     self.handle_disconnect_timer().await;
-                },
-                _ = kcp_tick_timer.tick() => {
-                    self.handle_kcp_tick().await;
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
@@ -719,98 +693,31 @@ pub(crate) type PacketHandleResult = Result<Option<VersionedResponse>>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
-    fn test_is_kcp_message_rejects_ipr_protocol() {
-        // IPR v8 message: version=8, service_provider_type=1 (IpPacketRouter)
-        // Even if byte 4 happens to be a valid KCP command, we should reject it
-        let mut ipr_message = vec![0u8; 30];
-        ipr_message[0] = 8; // version
-        ipr_message[1] = 1; // ServiceProviderType::IpPacketRouter
-        ipr_message[4] = 81; // This would be KCP Push command, but should be ignored
+    fn test_lp_stream_frame_detected() {
+        use bytes::BytesMut;
+        use nym_lp::packet::frame::{
+            LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
+        };
 
-        assert!(
-            !is_kcp_message(&ipr_message),
-            "IPR v8 message should not be detected as KCP"
-        );
+        let attrs = SphinxStreamFrameAttributes {
+            stream_id: 0x1234,
+            msg_type: SphinxStreamMsgType::Data,
+            sequence_num: 42,
+        };
+        let frame = nym_lp::packet::frame::LpFrame::new_stream(attrs, vec![8, 1, 0]); // fake IPR payload
+        let mut buf = BytesMut::new();
+        frame.encode(&mut buf);
 
-        // IPR v6 message
-        ipr_message[0] = 6;
-        ipr_message[1] = 0; // v6 doesn't use service_provider_type but byte could be 0
-        assert!(
-            !is_kcp_message(&ipr_message),
-            "IPR v6 message should not be detected as KCP"
-        );
+        let header = LpFrameHeader::parse(&buf).unwrap();
+        assert_eq!(header.kind, LpFrameKind::SphinxStream);
 
-        // IPR v7 message
-        ipr_message[0] = 7;
-        ipr_message[1] = 2; // Authenticator type
-        assert!(
-            !is_kcp_message(&ipr_message),
-            "IPR v7 message should not be detected as KCP"
-        );
-    }
+        let parsed_attrs = SphinxStreamFrameAttributes::parse(&header.frame_attributes).unwrap();
+        assert_eq!(parsed_attrs.stream_id, 0x1234);
+        assert_eq!(parsed_attrs.msg_type, SphinxStreamMsgType::Data);
+        assert_eq!(parsed_attrs.sequence_num, 42);
 
-    #[test]
-    fn test_is_kcp_message_accepts_kcp() {
-        // Valid KCP message: conv_id in bytes 0-3, cmd=Push(81) at byte 4
-        // First bytes are conv_id (little-endian u32), so they won't look like IPR version
-        let mut kcp_message = vec![0u8; 30];
-        kcp_message[0] = 0x12; // conv_id byte 0 (not 6-8, so not IPR version)
-        kcp_message[1] = 0x34; // conv_id byte 1
-        kcp_message[2] = 0x56; // conv_id byte 2
-        kcp_message[3] = 0x78; // conv_id byte 3
-        kcp_message[4] = 81; // KCP Push command
-
-        assert!(
-            is_kcp_message(&kcp_message),
-            "Valid KCP message should be detected"
-        );
-
-        // Test all valid KCP commands
-        for cmd in [81u8, 82, 83, 84] {
-            kcp_message[4] = cmd;
-            assert!(
-                is_kcp_message(&kcp_message),
-                "KCP command {} should be accepted",
-                cmd
-            );
-        }
-    }
-
-    #[test]
-    fn test_is_kcp_message_rejects_short_messages() {
-        // Less than 25 bytes should be rejected
-        let short_message = vec![0u8; 24];
-        assert!(
-            !is_kcp_message(&short_message),
-            "Short message should not be detected as KCP"
-        );
-
-        let empty_message: Vec<u8> = vec![];
-        assert!(
-            !is_kcp_message(&empty_message),
-            "Empty message should not be detected as KCP"
-        );
-    }
-
-    #[test]
-    fn test_is_kcp_message_rejects_invalid_kcp_command() {
-        // Message with invalid KCP command at byte 4
-        let mut message = vec![0u8; 30];
-        message[0] = 0x12; // Not IPR version
-        message[4] = 80; // Invalid KCP command (valid are 81-84)
-
-        assert!(
-            !is_kcp_message(&message),
-            "Invalid KCP command should be rejected"
-        );
-
-        message[4] = 85; // Also invalid
-        assert!(
-            !is_kcp_message(&message),
-            "Invalid KCP command 85 should be rejected"
-        );
+        // Content is everything after the header
+        assert_eq!(&buf[LpFrameHeader::SIZE..], &[8, 1, 0]);
     }
 }

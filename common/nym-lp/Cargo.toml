@@ -21,6 +21,7 @@ tls_codec = { workspace = true }
 tokio = { workspace = true, features = ["net", "io-util"] }
 
 nym-crypto = { workspace = true, features = ["hashing"] }
+nym-common.workspace = true
 nym-kkt = { workspace = true }
 nym-kkt-ciphersuite = { workspace = true }
 

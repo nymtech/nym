@@ -8,7 +8,7 @@ lastUpdated: "2026-03-15"
 
 # Choosing a Mode
 
-Both modes run on the same Nym infrastructure but defend against different threat models. dVPN mode hides your IP and splits trust across two operators. Mixnet mode additionally protects traffic patterns against adversaries capable of observing the entire network.
+Both modes run on the same Nym infrastructure but defend against different threat models. dVPN mode hides your IP and splits trust across two operators, and Mixnet mode additionally protects traffic patterns against adversaries capable of observing the entire network.
 
 **dVPN mode** routes through 2 hops (Entry Gateway + Exit Gateway) connected via [AmneziaWG](https://docs.amnezia.org/documentation/amnezia-wg/), a WireGuard fork with traffic obfuscation to evade protocol-level detection. Latency is low, but there is no protection against timing analysis.
 

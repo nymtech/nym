@@ -14,7 +14,7 @@ Any application that integrates with Nym sends its traffic through the Mixnet vi
 
 ## Environment
 
-Different runtimes have different transport constraints. A browser cannot open raw sockets or access the filesystem; a desktop app can.
+Different runtimes have different transport constraints: a browser cannot open raw sockets or access the filesystem, while a desktop app can.
 
 - **Native / Desktop**: full access to system networking and persistent storage. Use the [Rust SDK](./rust).
 - **Browser**: restricted to WebSockets, Web Transport, and `fetch`, with HTTPS-only mixed content rules and no filesystem access. Use the [TypeScript SDK](./typescript).

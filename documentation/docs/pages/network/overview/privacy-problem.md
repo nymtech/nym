@@ -12,7 +12,7 @@ lastUpdated: "2026-03-15"
 
 When you communicate over the internet, two types of information are in play:
 - The **content** is the actual message, file, or data being sent.
-- The **metadata** is everything else: who is talking to whom, when, from where, and how often. Some metadata is visible in every packet (source/destination IPs, timestamps, sizes), wheras other metadata only emerges from patterns over time: interaction frequency, session durations, and behavioural fingerprints that can identify users across sessions. See [Maximum Transmission Units](https://en.wikipedia.org/wiki/Maximum_transmission_unit#MTUs_for_common_media) for one example of what packet sizes reveal.
+- The **metadata** is everything else: who is talking to whom, when, from where, and how often. Some metadata is visible in every packet (source/destination IPs, timestamps, sizes), whereas other metadata only emerges from patterns over time: interaction frequency, session durations, and behavioural fingerprints that can identify users across sessions. See [Maximum Transmission Units](https://en.wikipedia.org/wiki/Maximum_transmission_unit#MTUs_for_common_media) for one example of what packet sizes reveal.
 
 TLS and end-to-end encryption protect content, which is often the [focus of media attention](https://wire.com/en/blog/whatsapp-end-to-end-encryption-risks). However, most solutions don't protect metadata at all, and some falsely claim to.
 

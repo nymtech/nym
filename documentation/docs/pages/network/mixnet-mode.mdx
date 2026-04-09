@@ -20,7 +20,7 @@ User --> Entry --> Mix L1 --> Mix L2 --> Mix L3 --> Exit --> Internet
                   delay       delay       delay
 ```
 
-Each Mix Node strips one layer of [Sphinx](/network/cryptography/sphinx) encryption to learn the next hop, holds the packet for a random delay, then forwards it. No node ever sees both the origin and the final destination. The client also continuously sends [cover traffic](/network/mixnet-mode/cover-traffic), dummy packets cryptographically indistinguishable from real ones, so an observer sees a constant stream of packets regardless of whether any real communication is taking place.
+Each Mix Node strips one layer of [Sphinx](/network/cryptography/sphinx) encryption to learn the next hop, holds the packet for a random delay, then forwards it. No node ever sees both the origin and the final destination. The client also continuously sends [cover traffic](/network/mixnet-mode/cover-traffic) - dummy packets cryptographically indistinguishable from real ones - so an observer sees a constant stream of identical packets regardless of whether any real communication is taking place.
 
 ## Privacy properties
 
@@ -40,7 +40,7 @@ Updated latency measurements will be published after the Lewes Protocol release.
 
 The following pages cover mixnet internals in detail:
 
-- [Loopix Design](/network/mixnet-mode/loopix) explains the academic foundation
+- [Loopix Design](/network/mixnet-mode/loopix) explains the academic foundation of Nym's Mixnet design
 - [Traffic Flow](/network/mixnet-mode/traffic-flow) shows the packet journey with diagrams
 - [Cover Traffic](/network/mixnet-mode/cover-traffic) explains how dummy packets provide unobservability
 - [Packet Mixing](/network/mixnet-mode/mixing) covers timing delays and their importance

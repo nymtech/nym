@@ -2,7 +2,7 @@
 
 > This client can also be used via the [Rust SDK](../rust) and [Go/C++ FFI](../rust/ffi).
 
-The standalone WebSocket client connects to the Nym Mixnet and exposes a WebSocket interface on localhost. Applications in any language can connect to this WebSocket to send and receive messages through the Mixnet.
+The standalone WebSocket client connects to the Nym Mixnet and exposes a WebSocket interface on localhost, allowing applications in any language to send and receive messages through the Mixnet.
 
 This is useful if you're building an application in a language other than TypeScript or Rust and cannot use one of the SDKs directly. Your application connects to the local WebSocket, and the client handles Sphinx packet construction, gateway registration, and key management.
 

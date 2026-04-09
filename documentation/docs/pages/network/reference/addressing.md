@@ -18,7 +18,7 @@ A Nym address has three parts separated by dots and an @ symbol:
 <user-identity-key>.<user-encryption-key>@<gateway-identity-key>
 ```
 
-The **identity key** identifies the client for routing purposes. It's derived from the client's Ed25519 keypair and base58-encoded for readability.
+The **identity key** identifies the client for routing purposes and is derived from the client's Ed25519 keypair and base58-encoded for readability.
 
 The **encryption key** is the public key used to encrypt the final layer of Sphinx packets destined for this client. Only the client holding the corresponding private key can decrypt messages addressed to them.
 

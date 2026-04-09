@@ -21,7 +21,7 @@ let udp = tunnel.udp_socket().await?;
 udp.send_to(&packet, "1.1.1.1:53".parse()?).await?;
 ```
 
-## Companion crates
+<!--## Companion crates
 
 For higher-level protocols, add the companion crates you need:
 
@@ -42,7 +42,7 @@ smolmix-tls = { workspace = true }         # TLS setup (used by hyper + tungsten
 smolmix-hyper = { workspace = true }       # HTTP client
 smolmix-tungstenite = { workspace = true } # WebSocket client
 smolmix-libp2p = { workspace = true }     # libp2p transport
-```
+```-->
 
 ## Examples
 

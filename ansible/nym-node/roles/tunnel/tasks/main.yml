@@ -4,6 +4,10 @@
     path: /root/nym-binaries
     state: directory
     mode: "0755"
+  tags:
+    - tunnel
+    - network_tunnel_manager
+    - ntm
 
 - name: Download network tunnel manager
   get_url:
@@ -11,8 +15,16 @@
     dest: /root/nym-binaries/network-tunnel-manager.sh
     mode: "0755"
     force: yes
-
+  tags:
+    - tunnel
+    - network_tunnel_manager
+    - ntm
+    
 - name: Run network tunnel manager
   command: "/root/nym-binaries/network-tunnel-manager.sh {{ item }}"
   loop:
     - complete_networking_configuration
+  tags:
+    - tunnel
+    - network_tunnel_manager
+    - ntm

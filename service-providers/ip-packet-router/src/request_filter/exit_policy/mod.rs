@@ -4,6 +4,8 @@
 use std::net::SocketAddr;
 
 use crate::error::IpPacketRouterError;
+use log::warn;
+use nym_bin_common::ip_check::is_global_ip;
 use nym_exit_policy::ExitPolicy;
 use nym_exit_policy::client::get_exit_policy;
 use reqwest::IntoUrl;
@@ -53,6 +55,13 @@ impl ExitPolicyRequestFilter {
     }
 
     pub(crate) async fn check(&self, addr: &SocketAddr) -> Result<bool, IpPacketRouterError> {
+        // private ranges are disallowed regardless of policy: end user has
+        // no business with internal/private IP ranges of IPR
+        if !is_global_ip(&addr.ip()) {
+            warn!("Rejecting non-global address {addr}");
+            return Ok(false);
+        }
+
         self.policy
             .allows_sockaddr(addr)
             .ok_or(IpPacketRouterError::AddressNotCoveredByExitPolicy { addr: *addr })

@@ -3,7 +3,8 @@
 
 use crate::config::Config;
 use crate::error::NetworkRequesterError;
-use log::trace;
+use log::{trace, warn};
+use nym_bin_common::ip_check::is_global_ip;
 use nym_exit_policy::ExitPolicy;
 use nym_exit_policy::client::get_exit_policy;
 use nym_socks5_requests::RemoteAddress;
@@ -89,6 +90,13 @@ impl ExitPolicyRequestFilter {
         // if the remote decided to give us an address that can resolve to multiple socket addresses,
         // they'd better make sure all of them are allowed by the exit policy.
         for addr in addrs {
+            // private ranges are disallowed regardless of policy: end user has
+            // no business with internal/private IP ranges of network requester
+            if !is_global_ip(&addr.ip()) {
+                warn!("Rejecting non-global address {addr} for '{remote}'");
+                return Ok(false);
+            }
+            // exit policy determines which PUBLIC facing addresses are allowed
             if !self
                 .policy
                 .allows_sockaddr(&addr)

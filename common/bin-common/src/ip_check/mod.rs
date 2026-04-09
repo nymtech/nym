@@ -1,27 +1,10 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
-
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-// use `ip` feature without nightly
-// issue: https://github.com/rust-lang/rust/issues/27709
-pub(crate) const fn is_global_ip(ip: &IpAddr) -> bool {
+pub const fn is_global_ip(ip: &IpAddr) -> bool {
     match ip {
         IpAddr::V4(addr) => is_global_ipv4(addr),
         IpAddr::V6(addr) => is_global_ipv6(addr),
     }
-}
-
-const fn is_shared_ipv4(ip: &Ipv4Addr) -> bool {
-    ip.octets()[0] == 100 && (ip.octets()[1] & 0b1100_0000 == 0b0100_0000)
-}
-
-const fn is_benchmarking_ipv4(ip: &Ipv4Addr) -> bool {
-    ip.octets()[0] == 198 && (ip.octets()[1] & 0xfe) == 18
-}
-
-const fn is_reserved_ipv4(ip: &Ipv4Addr) -> bool {
-    ip.octets()[0] & 240 == 240 && !ip.is_broadcast()
 }
 
 const fn is_global_ipv4(ip: &Ipv4Addr) -> bool {
@@ -40,6 +23,18 @@ const fn is_global_ipv4(ip: &Ipv4Addr) -> bool {
         || is_benchmarking_ipv4(ip)
         || is_reserved_ipv4(ip)
         || ip.is_broadcast())
+}
+
+const fn is_shared_ipv4(ip: &Ipv4Addr) -> bool {
+    ip.octets()[0] == 100 && (ip.octets()[1] & 0b1100_0000 == 0b0100_0000)
+}
+
+const fn is_benchmarking_ipv4(ip: &Ipv4Addr) -> bool {
+    ip.octets()[0] == 198 && (ip.octets()[1] & 0xfe) == 18
+}
+
+const fn is_reserved_ipv4(ip: &Ipv4Addr) -> bool {
+    ip.octets()[0] & 240 == 240 && !ip.is_broadcast()
 }
 
 const fn is_documentation_ipv6(ip: &Ipv6Addr) -> bool {

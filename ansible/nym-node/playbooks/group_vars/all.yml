@@ -60,7 +60,8 @@ packages:
 ## SYSTEM MAINTENANCE PLAYBOOK KNOBS
 ###############################################################################
 
-# nym_version: "v2025.21-mozzarella"
+# To use particular version instead of Latest, provide in such form: 
+# nym_version: "nym-binaries-v2026.7-tola"
 
 ## NOTE:
 ## if you want to pin Nym to a specific version instead of using the

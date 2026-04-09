@@ -12,7 +12,7 @@ The Nym mixnet is based on the [Loopix](https://arxiv.org/pdf/1703.00536) design
 
 ## The insight
 
-Traditional mixnets focus on hiding "who messages whom," but this alone is insufficient. Adversaries observing message volume and timing over time can still infer private information. If you always message the same friend at the same time, patterns emerge. If you go silent when traveling, that's information too.
+Traditional mixnets focus on hiding "who messages whom," but this alone is insufficient, as adversaries observing message volume and timing over time can still infer private information. If you always message the same friend at the same time, patterns emerge. If you go silent when traveling, that's information too.
 
 Loopix was designed to provide both **unlinkability** (hiding who talks to whom) and **unobservability** (hiding when and how much communication occurs). The name comes from its use of "loop" cover traffic that circulates through the network.
 
@@ -24,7 +24,7 @@ This structure prevents observations about which paths are used together and lim
 
 ## Continuous-time mixing
 
-Unlike batch mixnets that collect messages and release them periodically, Loopix uses continuous-time mixing. Each message is delayed independently according to an exponential distribution, then forwarded as soon as its delay expires.
+Unlike batch mixnets that collect messages and release them periodically, Loopix uses continuous-time mixing, where each message is delayed independently according to an exponential distribution and then forwarded as soon as its delay expires.
 
 This approach offers optimal anonymity for a given mean latency. The exponential distribution has a key property: if two messages arrive at different times, they have equal probability of leaving in either order. An adversary watching input and output timing gains no information about which input became which output.
 

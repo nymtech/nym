@@ -24,7 +24,7 @@ The packet contains a header with encrypted routing information for each hop, HM
 
 ## Integrity verification
 
-Each layer includes an HMAC (Hash-based Message Authentication Code) that the receiving node verifies before processing. This prevents malicious nodes from modifying packet contents en route. If the HMAC doesn't match, the packet is dropped.
+Each layer includes an HMAC (Hash-based Message Authentication Code) that the receiving node verifies before processing, which prevents malicious nodes from modifying packet contents en route. If the HMAC doesn't match, the packet is dropped.
 
 The payload uses Lioness wide-block encryption, which means any modification to any part of the payload invalidates the entire payload. This prevents bit-flipping attacks where an adversary might try to modify specific bytes.
 

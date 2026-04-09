@@ -12,7 +12,7 @@ Time in the Nym Network is organized into epochs: discrete periods during which 
 
 ## What happens at epoch boundaries
 
-**Reward distribution** calculates performance metrics for each node and distributes NYM token rewards based on routing reliability and uptime. Nodes that successfully forward packets earn more than those with poor performance.
+**Reward distribution** calculates performance metrics for each node and distributes NYM token rewards based on routing reliability and uptime, ensuring that nodes successfully forwarding packets earn more than those with poor performance.
 
 **Topology rerandomization** shuffles the arrangement of nodes in each layer. This prevents long-term route prediction attacks and limits the damage from any compromised nodes. Nodes may also enter or leave the active set based on uptime monitoring and stake changes.
 

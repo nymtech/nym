@@ -18,7 +18,7 @@ This page covers the technical details of dVPN mode's protocol stack and encrypt
 
 ## Protocol layers
 
-dVPN mode uses two nested WireGuard tunnels. The client establishes an inner tunnel to the Exit Gateway and an outer tunnel to the Entry Gateway. The inner tunnel is created first; the outer tunnel encapsulates it.
+dVPN mode uses two nested WireGuard tunnels. The client establishes an inner tunnel to the Exit Gateway and an outer tunnel to the Entry Gateway, where the inner tunnel is created first and the outer tunnel encapsulates it.
 
 ```
 +-----------------------------------------+

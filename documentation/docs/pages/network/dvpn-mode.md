@@ -24,7 +24,7 @@ dVPN mode hides your IP from destination servers and splits trust across two ope
 
 ## Performance
 
-Added latency is comparable to traditional VPNs. WireGuard keeps cryptographic overhead low, so browsing, streaming, and downloads are not noticeably affected.
+Added latency is comparable to traditional VPNs, and WireGuard keeps cryptographic overhead low, so browsing, streaming, and downloads are not noticeably affected.
 
 ## Technical details
 

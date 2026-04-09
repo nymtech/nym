@@ -12,7 +12,7 @@ Cover traffic consists of dummy packets that hide when real communication is occ
 
 ## The problem
 
-Even with perfect encryption and mixing, traffic analysis can reveal information. An adversary can see how much data you're sending, when you're sending it, and detect patterns over time. Regular silence followed by bursts of activity reveals your schedule. Consistent traffic volumes to certain destinations reveal ongoing relationships.
+Even with perfect encryption and mixing, traffic analysis can reveal information. An adversary can see how much data you're sending, when you're sending it, and detect patterns over time. Regular silence followed by bursts of activity reveals your schedule, and consistent traffic volumes to certain destinations reveal ongoing relationships.
 
 ## The solution
 

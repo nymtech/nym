@@ -1,6 +1,6 @@
 ---
-title: "Nym Developer Tools: CLI, Echo & TcpProxy"
-description: "Overview of Nym developer tools including nym-cli for blockchain interaction, echo server for traffic testing, and standalone TcpProxy binary downloads."
+title: "Nym Developer Tools: CLI, Diagnostics & TcpProxy"
+description: "Overview of Nym developer tools including nym-cli for blockchain interaction, diagnostic tool for troubleshooting, and standalone TcpProxy binary downloads."
 schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-02-01"
@@ -8,8 +8,10 @@ lastUpdated: "2026-02-01"
 
 # Tools
 
-There are a few tools available to developers for chain interaction: the `nym-cli` tool, which operates as an easier-to-use wrapper around `nyxd`, to allow operators to script interactions with their infrastructure (and those who prefer CLI tools).
+Standalone binaries for development and testing. These don't require an SDK; download or compile them and use them directly.
 
-There is also a basic echo server tool which app developers can use as a quick endpoint for traffic testing. This will be deployed onto a persistent public server in the future so devs dont have to run it themselves.
-
-Finally, there are also a pair of standalone versions of the TcpProxy Rust SDK module for developers to begin experimenting with sending app traffic through them mixnet (**this module will soon be deprecated in place of the `MixSocket`/`MixStream` abstractions**).
+| Tool | Use case |
+|---|---|
+| [nym-cli](./tools/nym-cli) | Command-line interface for interacting with the Nyx blockchain: querying state, submitting transactions, managing keys. An easier-to-use wrapper around `nyxd`. |
+| [Diagnostic Tool](./tools/diagnostic-tool) | Network diagnostic utility for troubleshooting connectivity issues. |
+| [Standalone TcpProxy](./tools/standalone-tcpproxy) | Pre-built binaries of the TcpProxy client and server for proxying TCP traffic through the Mixnet. Note: the TcpProxy module is unmaintained; use the [Stream module](./rust/stream) for new projects. |

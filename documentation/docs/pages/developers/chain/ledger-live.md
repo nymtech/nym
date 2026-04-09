@@ -44,7 +44,7 @@ nyxd tx bank send ledger_account $DESTINATION_ACCOOUNT 1000000unym --ledger --no
 > When a command is run, the transaction will appear on the Ledger device and will require physical confirmation from the device before being signed.
 
 ## Nym-specific transactions
-Nym-specific commands and queries, like bonding a mix node or delegating unvested tokens, are available in the `wasm` module, and follow the following pattern:
+Nym-specific commands and queries, like bonding a Mix Node or delegating unvested tokens, are available in the `wasm` module, and follow the following pattern:
 
 ```
 # Executing commands
@@ -59,8 +59,8 @@ You can find the value of `$CONTRACT_ADDRESS` in the [`network defaults`](https:
 The value of `$JSON_MSG` will be a blog of `json` formatted as defined for each command and query. You can find these definitions for the mixnet smart contract [here](https://github.com/nymtech/nym/blob/master/common/cosmwasm-smart-contracts/mixnet-contract/src/msg.rs) and for the vesting contract [here](https://github.com/nymtech/nym/blob/master/common/cosmwasm-smart-contracts/vesting-contract/src/messages.rs) under `ExecuteMsg` and `QueryMsg`.
 
 ### Example command execution:
-#### Delegate to a mix node
-You can delegate to a mix node from the CLI using `nyxd` and signing the transaction with your ledger by filling in the values of this example:
+#### Delegate to a Mix Node
+You can delegate to a Mix Node from the CLI using `nyxd` and signing the transaction with your ledger by filling in the values of this example:
 ```
 CONTRACT_ADDRESS=mixnet_contract_address
 

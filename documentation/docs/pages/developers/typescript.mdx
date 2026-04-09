@@ -3,9 +3,185 @@ title: "Nym TypeScript SDK: Privacy for Web Apps"
 description: "TypeScript SDK for integrating web apps with the Nym mixnet. Covers mixFetch, Mixnet Client, Smart Contracts, and Cosmos Kit with live playground examples."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-02-11"
+lastUpdated: "2026-03-13"
 ---
 
-# Introduction
+import { Callout } from 'nextra/components'
+import { TableContainer, Table, TableBody, TableCell, TableRow, Paper } from '@mui/material'
+import { NPMLink } from '../../components/npm';
 
-This guide contains information about the various TypeScript SDK modules that facilitate interaction with different components of the Nym stack: the Nym mixnet & the Nyx blockchain.
+# TypeScript SDK
+
+The TypeScript SDK lets you build browser-based applications that communicate through the Nym mixnet. Import SDK packages via NPM as you would any other TypeScript library.
+
+<Callout type="warning">
+The Nym Mixnet routes traffic through multiple nodes with no persistent connections or guaranteed ordering. The SDK abstracts the complexity, but understanding the [underlying model](/developers/rust/tour) helps when debugging.
+</Callout>
+
+## Packages
+
+<TableContainer component={Paper}>
+    <Table>
+        <TableBody>
+            <TableRow>
+                <TableCell>
+                **mixFetch**
+                </TableCell>
+                <TableCell>
+                A drop-in replacement for [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch)
+                that sends HTTP requests over the Nym mixnet
+                </TableCell>
+                <TableCell>
+                    <NPMLink packageName={'@nymproject/mix-fetch'} kind={'esm'}/><br/>
+                    <NPMLink packageName={'@nymproject/mix-fetch-full-fat'} kind={'esm'} preBundled/><br/>
+                    <NPMLink packageName={'@nymproject/mix-fetch-commonjs'} kind={'cjs'}/><br/>
+                    <NPMLink packageName={'@nymproject/mix-fetch-full-fat-commonjs'} kind={'cjs'} preBundled/>
+                </TableCell>
+            </TableRow>
+            <TableRow>
+                <TableCell>
+                    **Mixnet Client**
+                </TableCell>
+                <TableCell>
+                    Send and receive text and binary messages over the Nym mixnet
+                </TableCell>
+                <TableCell>
+                    <NPMLink packageName={'@nymproject/sdk'} kind={'esm'}/><br/>
+                    <NPMLink packageName={'@nymproject/sdk-full-fat'} kind={'esm'} preBundled/><br/>
+                    <NPMLink packageName={'@nymproject/sdk-commonjs'} kind={'cjs'}/><br/>
+                    <NPMLink packageName={'@nymproject/sdk-full-fat-commonjs'} kind={'cjs'} preBundled/>
+                </TableCell>
+            </TableRow>
+            <TableRow>
+                <TableCell>
+                **Nym Smart Contracts**
+                </TableCell>
+                <TableCell>
+                Query and execute methods on the smart contracts that run the Nym mixnet
+                </TableCell>
+                <TableCell>
+                    <NPMLink packageName={'@nymproject/contract-clients'} kind={'esm'}/>
+                </TableCell>
+            </TableRow>
+        </TableBody>
+    </Table>
+</TableContainer>
+
+### Which variant should I use?
+
+All packages (except Contract Clients) come in four variants:
+
+- **ESM:** For new projects with current tooling. You may need to [configure your bundler](./typescript/bundling) to handle WASM and web worker components.
+- **ESM full-fat:** Pre-bundled with inline WASM and web workers. No bundler config needed.
+- **CommonJS:** For older projects using CommonJS. WASM and web workers need to be [bundled](./typescript/bundling/webpack).
+- **CommonJS full-fat:** Pre-bundled, works without additional configuration.
+
+<Callout type="warning">
+All `*-full-fat` variants have large bundle sizes because they include WASM and web workers as inline Base64 strings. Use the standard ESM variant if bundle size matters.
+</Callout>
+
+## Installation
+
+### mixFetch
+
+```bash
+npm install @nymproject/mix-fetch-full-fat
+```
+
+### Mixnet Client
+
+```bash
+npm install @nymproject/sdk-full-fat
+```
+
+### Nym Smart Contracts
+
+```bash
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing
+```
+
+### Install everything
+
+```bash
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing @nymproject/sdk-full-fat @nymproject/mix-fetch-full-fat
+```
+
+## Quick start
+
+### mixFetch
+
+Use [`mixFetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) as a drop-in replacement for `fetch` to send HTTP requests over the mixnet:
+
+```ts
+import { mixFetch } from '@nymproject/mix-fetch';
+
+// HTTP GET
+const response = await mixFetch('https://nym.com');
+const html = await response.text();
+
+// HTTP POST
+const apiResponse = await mixFetch('https://api.example.com', {
+  method: 'POST',
+  body: JSON.stringify({ foo: 'bar' }),
+  headers: { 'Content-Type': 'application/json' }
+});
+```
+
+### Mixnet Client
+
+Create a [`Mixnet Client`](https://www.npmjs.com/package/@nymproject/sdk) to send and receive messages through the mixnet:
+
+```js
+import { createNymMixnetClient } from '@nymproject/sdk';
+
+const nym = await createNymMixnetClient();
+const nymApiUrl = 'https://validator.nymtech.net/api';
+
+// Subscribe to incoming messages
+nym.events.subscribeToTextMessageReceivedEvent((e) => {
+  console.log('Got a message: ', e.args.payload);
+});
+
+// Connect to the mixnet
+await nym.client.start({ clientId: 'my-app', nymApiUrl });
+
+// Send a message to yourself
+const recipient = nym.client.selfAddress();
+nym.client.send({ payload: 'Hello mixnet', recipient });
+```
+
+### Nym Smart Contracts
+
+Use the [Contract Clients](https://www.npmjs.com/package/@nymproject/contract-clients) to query or execute on Nym smart contracts:
+
+```js
+import { contracts } from '@nymproject/contract-clients';
+import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+
+const signer = await DirectSecp256k1HdWallet.fromMnemonic("...");
+const accounts = await signer.getAccounts();
+
+const cosmWasmSigningClient = await SigningCosmWasmClient.connectWithSigner(
+  "https://rpc.nymtech.net:443", signer
+);
+const client = new contracts.Mixnet.MixnetClient(
+  cosmWasmSigningClient,
+  accounts[0].address,
+  'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr'
+);
+
+// Delegate 1 NYM to mixnode with id 100
+const result = await client.delegateToMixnode(
+  { mixId: 100 }, 'auto', undefined,
+  [{ amount: `${1_000_000}`, denom: 'unym' }]
+);
+console.log(`Tx Hash = ${result.transactionHash}`);
+```
+
+## Next steps
+
+- **[Step-by-step examples](./typescript/examples):** Full working projects for each package
+- **[Live playground](./typescript/playground):** Try the SDK in your browser
+- **[Bundling](./typescript/bundling):** Configure Webpack or ESBuild for WASM and web workers
+- **[TypeDoc reference](./typescript/api):** generated reference for all packages

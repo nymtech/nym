@@ -1,0 +1,59 @@
+---
+title: "Packet Mixing and Random Delays"
+description: "How Mix Nodes use exponential random delays to reorder packets and break timing correlations, preventing traffic analysis by network observers."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
+# Packet Mixing
+
+import { Callout } from 'nextra/components'
+
+Packet mixing breaks timing correlations by adding random delays at each Mix Node. It's the core mechanism that prevents traffic analysis.
+
+## The problem
+
+Without mixing, an observer watching a node could correlate inputs and outputs. If packets leave on a FIFO (First In First Out) basis, even with encryption hiding contents, the timing relationship reveals which input became which output.
+
+## The solution
+
+Each Mix Node adds a random delay before forwarding. Packets don't flow through in order; they're held for variable times and released in a different sequence than they arrived. An observer sees packets going in and packets coming out, but cannot match them.
+
+```
+Input sequence:  A B C D E
+                 | | | | |
+                 v v v v v
+              [   Mixing   ]
+                 | | | | |
+                 v v v v v
+Output sequence: C A E B D
+```
+
+The delays follow an exponential distribution. This choice is mathematically optimal: if two packets arrive at times t₀ and t₁, they have equal probability of leaving in either order, regardless of when they arrived. The adversary gains no information from timing observations.
+
+## Why exponential delays
+
+The exponential distribution is memoryless: the probability of a packet leaving in the next moment does not depend on how long it has already waited, so an adversary cannot narrow down possibilities by noting how long packets have been in the node.
+
+Any other delay distribution leaks information; fixed delays would let adversaries match arrivals to departures by timing, and uniform distributions would create windows where matches become more likely.
+
+## Continuous vs batch mixing
+
+Older mixnet designs collected packets into batches and shuffled them before release. This has problems: latency is unpredictable since you wait for batches to fill, bandwidth is inefficient due to bursty traffic, and the anonymity set is limited to the batch size.
+
+Continuous-time mixing processes each packet independently. Latency is predictable (the mean delay is configurable), bandwidth is used efficiently, and the anonymity set is unbounded: it includes all packets that have ever passed through, weighted by time.
+
+## The aggregate effect
+
+With three Mix Node layers, each applying random delays, the overall effect is thorough reordering. Packets entering the mixnet in sequence exit in a completely different order. The timing relationship between sending and receiving is destroyed.
+
+These delays account for the additional latency of mixnet mode relative to dVPN mode.
+
+<Callout type="info">
+Updated latency measurements will be published after the Lewes Protocol release.
+</Callout>
+
+## Combined with cover traffic
+
+Mixing and cover traffic are complementary. Cover traffic ensures there are always packets to mix, even during low activity, while mixing ensures that real and cover packets become interleaved and indistinguishable. Together they provide both unlinkability and unobservability.

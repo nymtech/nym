@@ -1,13 +1,21 @@
+---
+title: "Nym Client Message Queue and Cover Traffic"
+description: "How the Nym client queues messages, sends cover traffic via Poisson processes, and manages Sphinx packet streams to prevent timing attacks."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-03-15"
+---
+
 import { Callout } from 'nextra/components'
 
 # Message Queue
 
 <Callout type="info">
-    Although good to understand how the Nym Client works under the hood, this information is only of practical use if you're using the `Mixnet` module of the RustSDK and interacting with the SDK Mixnet Client at a low level. This is all mostly abstracted away with the `MixSocket`, `MixStream`, and `IpMixStream` abstractions.
+    Although useful for understanding how the Nym Client works internally, this information is only of practical use if you are using the [`Mixnet`](../rust/mixnet) module of the Rust SDK and interacting with the client at a low level. Most of this is abstracted away by the [`Stream`](../rust/stream) module (`AsyncRead + AsyncWrite` channels) and the [`TcpProxy`](../rust/tcpproxy) module (TCP tunnelling with message ordering).
 </Callout>
 
 ## Sphinx Packet Streams
-Clients, once connected to the Mixnet, **are always sending traffic into the Mixnet**; as well as the packets that you as a developer are sending from your application logic, they send [cover traffic](../../network/concepts/cover-traffic) at a constant rate defined by a Poisson process. This is part of the network's mitigation of timing attacks.
+Clients, once connected to the Mixnet, **are always sending traffic into the Mixnet**; as well as the packets that you as a developer are sending from your application logic, they send [cover traffic](/network/mixnet-mode/cover-traffic) at a constant rate defined by a Poisson process. This is part of the network's mitigation of timing attacks.
 
 There are two constant streams of sphinx packets leaving the client at the rate defined by the Poisson process.
 - one that is solely cover traffic

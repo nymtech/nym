@@ -1,0 +1,47 @@
+---
+title: "Mixnet Mode"
+description: "How Nym's Mixnet mode works: 5-hop routing through Mix Nodes with random delays, packet reordering, and cover traffic for unlinkability and unobservability."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
+# Mixnet Mode
+
+import { Callout } from 'nextra/components'
+
+Mixnet mode routes traffic through 5 hops: an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway. Each mixing layer adds random delays, reorders packets, and injects cover traffic. Available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).
+
+## How it works
+
+```
+User --> Entry --> Mix L1 --> Mix L2 --> Mix L3 --> Exit --> Internet
+                    |           |           |
+                  delay       delay       delay
+```
+
+Each Mix Node strips one layer of [Sphinx](/network/cryptography/sphinx) encryption to learn the next hop, holds the packet for a random delay, then forwards it. No node ever sees both the origin and the final destination. The client also continuously sends [cover traffic](/network/mixnet-mode/cover-traffic), dummy packets cryptographically indistinguishable from real ones, so an observer sees a constant stream of packets regardless of whether any real communication is taking place.
+
+## Privacy properties
+
+- **Unlinkability**: the random delays and reordering at each Mix Node destroy the timing signal an observer would need to correlate incoming and outgoing packets, or to connect successive packets from the same user. See [Packet Mixing](/network/mixnet-mode/mixing).
+- **Unobservability**: because cover traffic is constant, an observer cannot determine when a user is active or what fraction of the traffic is real. See [Cover Traffic](/network/mixnet-mode/cover-traffic).
+- **Resistance to traffic analysis**: uniform Sphinx packet sizes prevent content-type fingerprinting, and per-packet routing eliminates the long-lived circuits that make other anonymity networks susceptible to end-to-end correlation. See [Traffic Flow](/network/mixnet-mode/traffic-flow).
+
+## Performance
+
+The three mixing layers add additional latency. This is acceptable for messaging, file transfers, and most API calls, but unsuitable for real-time applications like video calling. For those, [dVPN mode](/network/dvpn-mode) is more appropriate.
+
+<Callout type="info">
+Updated latency measurements will be published after the Lewes Protocol release.
+</Callout>
+
+## Further reading
+
+The following pages cover mixnet internals in detail:
+
+- [Loopix Design](/network/mixnet-mode/loopix) explains the academic foundation
+- [Traffic Flow](/network/mixnet-mode/traffic-flow) shows the packet journey with diagrams
+- [Cover Traffic](/network/mixnet-mode/cover-traffic) explains how dummy packets provide unobservability
+- [Packet Mixing](/network/mixnet-mode/mixing) covers timing delays and their importance
+- [Anonymous Replies](/network/mixnet-mode/anonymous-replies) describes SURBs for bidirectional communication

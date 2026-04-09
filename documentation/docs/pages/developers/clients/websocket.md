@@ -1,13 +1,52 @@
-# Websocket Client (Standalone)
+# WebSocket Client (Standalone)
 
-> This client can also be utilised via the [Rust SDK](../rust) and [Go/C++ FFI](../rust/ffi).
+> This client can also be used via the [Rust SDK](../rust) and [Go/C++ FFI](../rust/ffi).
 
-You can run this client as a standalone process and pipe traffic into it to be sent through the mixnet. This is useful if you're building an application in a language other than Typescript or Rust and cannot utilise one of the SDKs.
+The standalone WebSocket client connects to the Nym Mixnet and exposes a WebSocket interface on localhost. Applications in any language can connect to this WebSocket to send and receive messages through the Mixnet.
 
-You can find the code for this client [here](https://github.com/nymtech/nym/tree/master/clients/native).
+This is useful if you're building an application in a language other than TypeScript or Rust and cannot use one of the SDKs directly. Your application connects to the local WebSocket, and the client handles Sphinx packet construction, gateway registration, and key management.
 
-## Download or compile client
+## Download or compile
 
-If you are using OSX or a Debian-based operating system, you can download the `nym-socks5-client` binary from our [Github releases page](https://github.com/nymtech/nym/releases).
+Pre-built binaries for macOS and Debian-based Linux are available on the [GitHub releases page](https://github.com/nymtech/nym/releases). Look for the `nym-client` binary.
 
-If you are using a different operating system, or want to build from source, simply use `cargo build --release` from the root of the Nym monorepo.
+To build from source:
+
+```bash
+git clone https://github.com/nymtech/nym.git
+cd nym
+cargo build --release -p nym-client
+```
+
+The binary will be at `target/release/nym-client`.
+
+## Initialize and run
+
+```bash
+# Create a new client identity
+./nym-client init --id my-client
+
+# Start the client
+./nym-client run --id my-client
+```
+
+The client prints its Nym address on startup and opens a WebSocket on `ws://127.0.0.1:1977`.
+
+## Sending and receiving
+
+Connect to `ws://127.0.0.1:1977` from your application. Messages are JSON-formatted:
+
+**Send a message:**
+```json
+{
+  "type": "send",
+  "message": "hello",
+  "recipient": "<recipient-nym-address>"
+}
+```
+
+**Receive messages:** The client pushes incoming messages to your WebSocket connection as they arrive through the Mixnet.
+
+## Source code
+
+The client source is in the [Nym monorepo](https://github.com/nymtech/nym/tree/master/clients/native).

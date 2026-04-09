@@ -64,19 +64,19 @@ const config = {
       },
       {
         source: "/docs/architecture/nym-vs-others.html",
-        destination: "/docs/network/architecture/nym-vs-others",
+        destination: "/docs/network/overview/comparisons",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/architecture/traffic-flow.html",
-        destination: "/docs/network/traffic", // testing difference
+        destination: "/docs/network/mixnet-mode/traffic-flow",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/architecture/addressing-system.html",
-        destination: "/docs/network/traffic/addressing-system",
+        destination: "/docs/network/reference/addressing",
         permanent: true,
         basePath: false,
       },
@@ -100,7 +100,7 @@ const config = {
       },
       {
         source: "/docs/nodes/overview.html ",
-        destination: "/docs/network/architecture/mixnet#nym-nodes",
+        destination: "/docs/network/infrastructure/nym-nodes",
         permanent: true,
         basePath: false,
       },
@@ -132,19 +132,19 @@ const config = {
       },
       {
         source: "/docs/nyx/smart-contracts.html",
-        destination: "/docs/network/architecture/nyx#smart-contracts",
+        destination: "/docs/network/infrastructure/nyx#smart-contracts",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/nyx/mixnet-contract.html",
-        destination: "/docs/network/architecture/nyx#mixnet-contract",
+        destination: "/docs/network/infrastructure/nyx#mixnet-contract",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/nyx/vesting-contract.html",
-        destination: "/docs/network/architecture/nyx#vesting-contract",
+        destination: "/docs/network/infrastructure/nyx#vesting-contract",
         permanent: true,
         basePath: false,
       },
@@ -616,7 +616,7 @@ const config = {
       },
       {
         source: "/docs/architecture/network-overview.html",
-        destination: "/docs/network/architecture",
+        destination: "/docs/network/overview",
         permanent: true,
         basePath: false,
       },
@@ -634,7 +634,7 @@ const config = {
       },
       {
         source: "/docs/network/architecture/nyx/smart-contracts/ecash",
-        destination: "/docs/network/architecture/nyx#zk-nym-contract",
+        destination: "/docs/network/infrastructure/nyx#zk-nym-contract",
         permanent: true,
         basePath: false,
       },
@@ -1073,6 +1073,198 @@ const config = {
       //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/FAQ",
       //   permanent: true,
       // },
+
+      // ==========================================
+      // Docs rework redirects (2026)
+      // ==========================================
+
+      // --- Network overview: deleted pages ---
+      {
+        source: "/docs/network/overview/two-modes",
+        destination: "/docs/network/overview/choosing-a-mode",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/overview/network-components",
+        destination: "/docs/network/infrastructure",
+        permanent: true,
+        basePath: false,
+      },
+
+      // --- TypeScript SDK: merged pages ---
+      {
+        source: "/docs/developers/typescript/overview",
+        destination: "/docs/developers/typescript",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/installation",
+        destination: "/docs/developers/typescript",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/start",
+        destination: "/docs/developers/typescript",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/FAQ",
+        destination: "/docs/developers/typescript/bundling/bundling",
+        permanent: true,
+        basePath: false,
+      },
+
+      // --- Rust SDK: deleted mixnet example subpages ---
+      {
+        source: "/docs/developers/rust/mixnet/examples/:path*",
+        destination: "/docs/developers/rust/mixnet/examples",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/rust/mixnet/message-helpers",
+        destination: "/docs/developers/rust/mixnet",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/rust/mixnet/message-types",
+        destination: "/docs/developers/rust/mixnet",
+        permanent: true,
+        basePath: false,
+      },
+
+      // --- Rust SDK: deleted client-pool subpages ---
+      {
+        source: "/docs/developers/rust/client-pool/architecture",
+        destination: "/docs/developers/rust/client-pool",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/rust/client-pool/example",
+        destination: "/docs/developers/rust/client-pool",
+        permanent: true,
+        basePath: false,
+      },
+
+      // --- Rust SDK: collapsed TcpProxy subpages ---
+      {
+        source: "/docs/developers/rust/tcpproxy/troubleshooting",
+        destination: "/docs/developers/rust/tcpproxy",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/rust/tcpproxy/tutorial",
+        destination: "/docs/developers/rust/tcpproxy",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/rust/tcpproxy/architecture",
+        destination: "/docs/developers/rust/tcpproxy",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/rust/tcpproxy/examples",
+        destination: "/docs/developers/rust/tcpproxy",
+        permanent: true,
+        basePath: false,
+      },
+
+      // --- APIs: flattened structure ---
+      {
+        source: "/docs/apis/ns-api/mainnet",
+        destination: "/docs/apis/ns-api",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/apis/ns-api/sandbox",
+        destination: "/docs/apis/ns-api",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/apis/ns-api/ns-api-run-deploy",
+        destination: "/docs/operators/performance-and-testing/ns-api-deployment",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/apis/nym-api/mainnet",
+        destination: "/docs/apis/nym-api",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/apis/explorer-api/mainnet",
+        destination: "/docs/apis/explorer-api",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/apis/explorer-api/sandbox",
+        destination: "/docs/apis/explorer-api",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/apis/cosmos-sdk-nyx/mainnet",
+        destination: "/docs/apis/cosmos-sdk-nyx",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/apis/cosmos-sdk-nyx/sandbox",
+        destination: "/docs/apis/cosmos-sdk-nyx",
+        permanent: true,
+        basePath: false,
+      },
+
+      // --- Network: archived sections ---
+      {
+        source: "/docs/network/architecture",
+        destination: "/docs/network/overview",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/architecture/:path*",
+        destination: "/docs/network/overview",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/concepts",
+        destination: "/docs/network/overview",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/concepts/:path*",
+        destination: "/docs/network/overview",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/traffic",
+        destination: "/docs/network/overview",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/traffic/:path*",
+        destination: "/docs/network/overview",
+        permanent: true,
+        basePath: false,
+      },
     ];
   },
   images: {

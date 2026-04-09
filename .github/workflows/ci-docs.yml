@@ -6,6 +6,8 @@ on:
     branches-ignore: [master]
     paths:
       - "documentation/docs/**"
+      - "sdk/typescript/packages/sdk/src/**"
+      - "sdk/typescript/packages/mix-fetch/src/**"
       - ".github/workflows/ci-docs.yml"
 
 jobs:
@@ -42,8 +44,27 @@ jobs:
           command: build
           args: --workspace --release
 
+      - name: Check if TypeScript SDK source changed
+        id: check-ts-sdk
+        run: |
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -qE '^sdk/typescript/packages/(sdk|mix-fetch)/src/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+        working-directory: ${{ github.workspace }}
+
+      - name: Regenerate TypeDoc API reference
+        if: steps.check-ts-sdk.outputs.changed == 'true'
+        run: |
+          npm install -g typedoc@0.25.13 typedoc-plugin-markdown@4.0.3
+          cd ${{ github.workspace }}/sdk/typescript/packages/sdk && typedoc --skipErrorChecking
+          cd ${{ github.workspace }}/sdk/typescript/packages/mix-fetch && typedoc --skipErrorChecking
+
       - name: Install project dependencies
         run: pnpm i
+      - name: Generate llms-full.txt
+        run: pnpm run generate:llms
       - name: Build project
         run: pnpm run build
       - name: Generate sitemap

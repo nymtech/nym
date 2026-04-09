@@ -12,8 +12,7 @@ usage: nym-node-cli install [-h] [-V] [-d BRANCH] [-v]
 options:
   -h, --help            show this help message and exit
   -V, --version         show program's version number and exit
-  -d BRANCH, --dev BRANCH
-                        Define github branch (default: develop)
+  -d, --dev BRANCH      Define github branch (default: develop)
   -v, --verbose         Show full error tracebacks
   --mode {mixnode,entry-gateway,exit-gateway}
                         Node mode: 'mixnode', 'entry-gateway', or 'exit-

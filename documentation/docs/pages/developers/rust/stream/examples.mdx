@@ -1,0 +1,22 @@
+---
+title: "Stream Module Examples"
+description: "Runnable Rust examples for the Nym Stream module: bidirectional read/write, idle timeouts, mode guards, and throughput benchmarks."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-03-15"
+---
+
+# Examples
+
+Runnable examples in [`sdk/rust/nym-sdk/examples/`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples). Each file is self-contained with step-by-step comments.
+
+```bash
+cargo run --example <name>
+```
+
+| Example | Source | What it demonstrates |
+|---|---|---|
+| Simple Read/Write | [`stream_simple_read_write.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_simple_read_write.rs) | Multiple concurrent streams, bidirectional communication |
+| Idle Timeout | [`stream_idle_timeout.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_idle_timeout.rs) | Configuring `with_stream_idle_timeout`, observing EOF after cleanup |
+| Mode Guard | [`stream_mode_guard.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_mode_guard.rs) | Mutual exclusion between stream and message modes |
+| Throughput | [`stream_throughput.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_throughput.rs) | Sending 1 MB over a single stream, verifying data integrity |

@@ -207,6 +207,90 @@ def current_desktop_version(args, response):
     print(df)
     # version=$(curl -s $release_url | jq -r '.[].tag_name' | grep '^nym-vpn-desktop-v' | sort -Vr | head -n 1 | awk -F'-v' '{print $NF}')
 
+###########################################
+########## NODES DESCRIBED FNs ############
+###########################################
+
+
+def get_all_paginated_data(url, page_size=1000, timeout=30):
+    session = requests.Session()
+    page = 0
+    all_data = []
+    total = None
+
+    while True:
+        r = session.get(
+            url,
+            params={"page": page, "size": page_size},
+            timeout=timeout
+        )
+        r.raise_for_status()
+        response = r.json()
+
+        page_data = response.get("data", [])
+        pagination = response.get("pagination", {})
+
+        if total is None:
+            total = pagination.get("total")
+
+        if not page_data:
+            break
+
+        all_data.extend(page_data)
+
+        if total is not None and len(all_data) >= int(total):
+            break
+
+        page += 1
+
+    return all_data
+
+
+def summarize_described_nodes(nodes):
+    unique_locations = set()
+    mixnodes = 0
+    exit_gateways = 0
+
+    for node in nodes:
+        description = node.get("description", {})
+        declared_role = description.get("declared_role", {})
+        auxiliary_details = description.get("auxiliary_details", {})
+
+        # location (2-letter country code like "FI")
+        location = auxiliary_details.get("location")
+        if location:
+            unique_locations.add(str(location).strip())
+
+        # roles
+        if declared_role.get("mixnode") is True:
+            mixnodes += 1
+
+        if declared_role.get("exit_nr") is True or declared_role.get("exit_ipr") is True:
+            exit_gateways += 1
+
+    summary = {
+        "nodes": len(nodes),
+        "locations": len(unique_locations),
+        "mixnodes": mixnodes,
+        "exit_gateways": exit_gateways,
+    }
+
+    return summary
+
+
+def read_described_nodes(args):
+    url = get_url(args)
+    nodes = get_all_paginated_data(url, page_size=args.page_size)
+    summary = summarize_described_nodes(nodes)
+
+    if args.value:
+        value = summary
+        for key in args.value:
+            value = value[key]
+        print(value)
+    else:
+        print(json.dumps(summary, indent=2))
+
 
 ###########################################
 ############### MAIN PARSER ###############
@@ -322,6 +406,40 @@ def parser_main():
     parser_nym_vpn.set_defaults(func=get_nym_vpn_version)
 
 
+    parser_described_nodes = subparsers.add_parser('described_nodes',
+            help='Summarise validator api/v1/nym-nodes/described',
+            aliases=['dn']
+            )
+
+    parser_described_nodes.add_argument(
+            "-a", "--api",
+            type=str,
+            default="mainnet",
+            help="choose: mainnet, perf, sandbox"
+            )
+
+    parser_described_nodes.add_argument(
+            "-e", "--endpoint",
+            type=str,
+            default="nym-nodes/described",
+            help="validator endpoint"
+            )
+
+    parser_described_nodes.add_argument(
+            "-v", "--value",
+            type=str,
+            help="optional summary key to print: nodes locations isps mixnodes exit_gateways",
+            nargs='+'
+            )
+
+    parser_described_nodes.add_argument(
+            "--page-size",
+            type=int,
+            default=1000,
+            help="pagination size per request; code keeps paging until all entries are fetched"
+            )
+
+    parser_described_nodes.set_defaults(func=read_described_nodes)
 
 
     args = parser.parse_args()

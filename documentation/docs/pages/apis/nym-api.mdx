@@ -1,5 +1,63 @@
+---
+title: "NymAPI - Token Supply and Credential Endpoints"
+description: "Reference for the NymAPI, a validator sidecar that caches Nyx blockchain data and exposes endpoints for circulating NYM supply, zk-nym credentials, and network topology."
+schemaType: "TechArticle"
+section: "APIs"
+lastUpdated: "2026-03-15"
+---
+
+import APITable from 'components/api-table.tsx'
+import { RedocStandalone } from 'redoc'
+import { Callout } from 'nextra/components'
+
 # NymAPI
 
-The [NymAPI](/operators/nodes/validator-setup/nym-api) is a sidecar binary operated by members of the Nym Validator set. Amongst other things, the API offers endpoints to query regarding circulating `NYM` supply, and global and ticketbook-specific [zk-nym](/network/cryptography/zk-nym) data. This is all information contained in various smart contracts on the Nyx blockchain; the NymAPI caches this information periodically to make queries faster and more scalable.
+The NymAPI is a sidecar binary operated by members of the Nyx Validator set. It caches smart contract data from the Nyx blockchain and exposes it via HTTP endpoints, making queries faster and more scalable than querying the chain directly.
 
-The code for this service can be found [in our monorepo](https://github.com/nymtech/nym/tree/develop/nym-api).
+**Key endpoint categories:**
+- **Token economics:** circulating NYM supply, staking information
+- **Credential data:** zk-nym ticketbook information, global and per-ticketbook data
+- **Network topology:** cached node and mixnet data from on-chain contracts
+
+For operator setup instructions, see the [NymAPI Operator Guide](/operators/nodes/validator-setup/nym-api).
+
+## Quick examples
+
+**Get the circulating NYM supply:**
+```bash
+curl https://validator.nymtech.net/api/v1/circulating-supply
+```
+
+**Get the current network topology (Mix Nodes and gateways):**
+```bash
+curl https://validator.nymtech.net/api/v1/mixnodes/active
+```
+
+## Mainnet endpoints
+
+- **OpenAPI spec:** [validator.nymtech.net/api-docs/openapi.json](https://validator.nymtech.net/api-docs/openapi.json)
+- **Swagger UI:** [validator.nymtech.net/api/swagger/index.html](https://validator.nymtech.net/api/swagger/index.html)
+
+<Callout type="info">
+Other NymAPI instances are available. You can find their Swagger endpoints here:
+<APITable endpoint="https://api.nymtech.net/cosmwasm/wasm/v1/contract/n19604yflqggs9mk2z26mqygq43q2kr3n932egxx630svywd5mpxjsztfpvx/smart/eyJnZXRfY3VycmVudF9kZWFsZXJzIjogeyJsaW1pdCI6IDMwfX0=" />
+
+There is also an overview of endpoints at [cosmos.directory/nyx](https://cosmos.directory/nyx).
+</Callout>
+
+## Full API reference
+
+<br />
+
+<RedocStandalone
+  specUrl="https://validator.nymtech.net/api-docs/openapi.json"
+  options={{
+    nativeScrollbars: true,
+    theme: {
+      sidebar: {
+        backgroundColor: '#273239',
+        textColor: '#FCFDFE'
+      }
+    }
+  }}
+/>

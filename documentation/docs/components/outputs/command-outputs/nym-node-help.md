@@ -12,12 +12,9 @@ Commands:
   help                      Print this message or the help of the given subcommand(s)
 
 Options:
-  -c, --config-env-file <CONFIG_ENV_FILE>
-          Path pointing to an env file that configures the nym-node and overrides any preconfigured values [env: NYMNODE_CONFIG_ENV_FILE_ARG=]
-      --no-banner
-          Flag used for disabling the printed banner in tty [env: NYMNODE_NO_BANNER=]
-  -h, --help
-          Print help
-  -V, --version
-          Print version
+  -c, --config-env-file <CONFIG_ENV_FILE>  Path pointing to an env file that configures the nym-node and overrides any preconfigured values
+                                           [env: NYMNODE_CONFIG_ENV_FILE_ARG=]
+      --no-banner                          Flag used for disabling the printed banner in tty [env: NYMNODE_NO_BANNER=]
+  -h, --help                               Print help
+  -V, --version                            Print version
 ```

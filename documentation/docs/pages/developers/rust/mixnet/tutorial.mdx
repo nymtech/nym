@@ -1,0 +1,314 @@
+---
+title: "Mixnet Tutorial: Send Your First Private Message"
+description: "Step-by-step Rust tutorial to connect to the Nym mixnet, send and receive messages, reply anonymously with SURBs, and persist client identity."
+schemaType: "HowTo"
+section: "Developers"
+lastUpdated: "2026-03-26"
+---
+
+# Tutorial: Send Your First Private Message
+
+import { Callout } from 'nextra/components'
+import { CodeVerified } from '../../../../components/code-verified'
+
+By the end of this tutorial you'll have a working program that sends a Sphinx-encrypted message to itself through the Nym Mixnet, receives it, and replies anonymously using SURBs. The later sections cover persistent identity and concurrent send/receive.
+
+**You'll need:** Rust 1.70+ and an internet connection (clients connect to the live Mixnet).
+
+<CodeVerified />
+
+## Step 1: Set up the project
+
+```sh
+cargo init nym-mixnet-demo
+cd nym-mixnet-demo
+```
+
+Add dependencies to `Cargo.toml`:
+
+```toml
+[dependencies]
+nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
+nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "4077717", features = ["basic_tracing"] }
+tokio = { version = "1", features = ["full"] }
+blake3 = "=1.7.0"  # required pin — see https://nymtech.net/developers/rust/importing
+```
+
+## Step 2: Connect and send
+
+Replace the contents of `src/main.rs`:
+
+```rust
+use nym_sdk::mixnet::{self, MixnetMessageSender};
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    // connect_new() creates an ephemeral client — keys are generated in
+    // memory and discarded on disconnect.
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    let our_address = client.nym_address();
+    println!("Connected: {our_address}");
+
+    // The message is Sphinx-encrypted and mixed across 5 nodes.
+    // send_plain_message only blocks until the message is queued —
+    // encryption and mixing happen in background tasks.
+    client
+        .send_plain_message(*our_address, "hello from the mixnet!")
+        .await
+        .unwrap();
+
+    println!("Sent — waiting for arrival...");
+```
+
+<Callout type="info">
+`setup_tracing_logger()` shows what the SDK is doing under the hood: gateway connections, topology fetches, Sphinx packet encryption. If the output is too verbose, comment out the line or filter with `RUST_LOG=warn cargo run`.
+</Callout>
+
+## Step 3: Receive
+
+```rust
+    // wait_for_messages() returns the next batch of incoming messages.
+    // Filter empty messages — these are SURB replenishment requests.
+    let message = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
+        }
+    };
+
+    println!("Received: {}", String::from_utf8_lossy(&message.message));
+```
+
+## Step 4: Reply anonymously
+
+Every message includes a `sender_tag`, an opaque `AnonymousSenderTag` that lets you reply **without knowing the sender's address**. The SDK bundles SURBs (Single Use Reply Blocks) with every outgoing message by default:
+
+```rust
+    let sender_tag = message.sender_tag.expect("should have sender tag");
+
+    // send_reply uses the SURB — the sender's address is never revealed.
+    client.send_reply(sender_tag, "hello back, anonymously!").await.unwrap();
+
+    let reply = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
+        }
+    };
+
+    println!("Reply: {}", String::from_utf8_lossy(&reply.message));
+
+    client.disconnect().await;
+}
+```
+
+## Step 5: Run it
+
+```sh
+RUST_LOG=info cargo run
+```
+
+```
+Connected: 8gk4Y...@2xU4d...
+Sent — waiting for arrival...
+Received: hello from the mixnet!
+Reply: hello back, anonymously!
+```
+
+## Going further: persist your identity
+
+The ephemeral client above generates a new address on every run. To keep the same address across restarts, use `MixnetClientBuilder` with on-disk storage:
+
+```rust
+use nym_sdk::mixnet::{self, MixnetMessageSender, StoragePaths};
+
+#[tokio::main]
+async fn main() {
+    // Keys are generated on first run, then loaded from disk on subsequent runs.
+    let paths = StoragePaths::new_from_dir("./my-client-data").unwrap();
+
+    let mut client = mixnet::MixnetClientBuilder::new_with_default_storage(paths)
+        .await
+        .unwrap()
+        .build()
+        .unwrap()
+        .connect_to_mixnet()
+        .await
+        .unwrap();
+
+    println!("Address: {}", client.nym_address());
+
+    // Same API as before — send, receive, reply.
+    client
+        .send_plain_message(*client.nym_address(), "persistent identity!")
+        .await
+        .unwrap();
+
+    if let Some(msgs) = client.wait_for_messages().await {
+        for m in msgs.into_iter().filter(|m| !m.message.is_empty()) {
+            println!("Received: {}", String::from_utf8_lossy(&m.message));
+        }
+    }
+
+    // Always disconnect for clean shutdown — background tasks need to be
+    // stopped and state files flushed.
+    client.disconnect().await;
+}
+```
+
+Run it twice; the address stays the same.
+
+## Going further: send and receive from different tasks
+
+Add `futures` to your `Cargo.toml`:
+
+```toml
+futures = "0.3"
+```
+
+Use `split_sender()` to get a clone-able send handle for use in separate tasks:
+
+```rust
+use futures::StreamExt;
+use nym_sdk::mixnet::{self, MixnetMessageSender};
+
+#[tokio::main]
+async fn main() {
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    let addr = *client.nym_address();
+
+    // split_sender() returns a clone-able MixnetClientSender.
+    let sender = client.split_sender();
+
+    // Spawn a receiver — the original client implements futures::Stream.
+    let rx = tokio::spawn(async move {
+        if let Some(msg) = client.next().await {
+            println!("Received: {}", String::from_utf8_lossy(&msg.message));
+        }
+        client.disconnect().await;
+    });
+
+    // Spawn a sender on a different task.
+    let tx = tokio::spawn(async move {
+        sender.send_plain_message(addr, "hello from another task!").await.unwrap();
+    });
+
+    tx.await.unwrap();
+    rx.await.unwrap();
+}
+```
+
+## What's happening underneath
+
+`connect_new()` generates an ephemeral identity (ed25519 + x25519 keypair), fetches the current network topology, selects a gateway, and opens a persistent WebSocket connection. `send_plain_message()` wraps the payload in Sphinx packets, layered encryption where each of the 5 Mix Nodes can only decrypt one layer and learn the next hop, never the full route. `wait_for_messages()` drains a local queue fed by the gateway; messages arrive out of order by design, to defeat timing analysis.
+
+SURBs (Single Use Reply Blocks) are pre-computed return routes bundled with each outgoing message. The recipient uses them to reply without learning the sender's address. Each is single-use; the SDK replenishes them automatically.
+
+`split_sender()` clones the send channel while the original client retains the receive side. Both halves can run on separate tokio tasks without synchronization.
+
+## Complete code
+
+### Ephemeral client
+
+New address on every run, good for quick experiments:
+
+```rust
+use nym_sdk::mixnet::{self, MixnetMessageSender};
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    let our_address = client.nym_address();
+    println!("Connected: {our_address}");
+
+    client
+        .send_plain_message(*our_address, "hello from the mixnet!")
+        .await
+        .unwrap();
+    println!("Sent — waiting for arrival...");
+
+    let message = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
+        }
+    };
+    println!("Received: {}", String::from_utf8_lossy(&message.message));
+
+    let sender_tag = message.sender_tag.expect("should have sender tag");
+    client.send_reply(sender_tag, "hello back, anonymously!").await.unwrap();
+
+    let reply = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
+        }
+    };
+    println!("Reply: {}", String::from_utf8_lossy(&reply.message));
+
+    client.disconnect().await;
+}
+```
+
+### Persistent identity
+
+Same address across restarts. Use this for real applications:
+
+```rust
+use nym_sdk::mixnet::{self, MixnetMessageSender, StoragePaths};
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    let paths = StoragePaths::new_from_dir("./my-client-data").unwrap();
+    let mut client = mixnet::MixnetClientBuilder::new_with_default_storage(paths)
+        .await
+        .unwrap()
+        .build()
+        .unwrap()
+        .connect_to_mixnet()
+        .await
+        .unwrap();
+
+    let our_address = client.nym_address();
+    println!("Connected: {our_address}");
+
+    client
+        .send_plain_message(*our_address, "hello from the mixnet!")
+        .await
+        .unwrap();
+    println!("Sent — waiting for arrival...");
+
+    let message = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
+        }
+    };
+    println!("Received: {}", String::from_utf8_lossy(&message.message));
+
+    let sender_tag = message.sender_tag.expect("should have sender tag");
+    client.send_reply(sender_tag, "hello back, anonymously!").await.unwrap();
+
+    let reply = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
+        }
+    };
+    println!("Reply: {}", String::from_utf8_lossy(&reply.message));
+
+    client.disconnect().await;
+}
+```

@@ -1,0 +1,19 @@
+---
+title: "Client Pool Examples"
+description: "Runnable Rust example for the Nym Client Pool: managing multiple MixnetClients with ephemeral fallback."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-03-26"
+---
+
+# Examples
+
+Runnable examples in [`sdk/rust/nym-sdk/examples/`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples). Each file is self-contained with step-by-step comments.
+
+```bash
+cargo run --example <name>
+```
+
+| Example | Source | What it demonstrates |
+|---|---|---|
+| Client Pool | [`client_pool.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/client_pool.rs) | Creating a pool of `MixnetClient`s, retrieving clients from the pool, and falling back to ephemeral clients when the pool is empty |

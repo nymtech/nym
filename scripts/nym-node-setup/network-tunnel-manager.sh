@@ -888,6 +888,7 @@ apply_port_allowlist() {
     # ["MongoDBDefault"]="27017" # Within Steam range
     ["Steam"]="27000-27050"
     ["WhatsAppRange"]="3478-3484"
+    ["TeamSpeakFileTransfer"]="30033"
     ["TeamSpeakTSDNS"]="41144"
     ["DiscordVoiceChat1"]="50000-65535"
     # ["ElectrumSSL"]="50002"    # Within DiscordVoiceChat1 range

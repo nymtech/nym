@@ -874,7 +874,7 @@ apply_port_allowlist() {
     ["TeamSpeakQuery"]="10011"
     ["TeamSpeakQuerySSH"]="10022"
     ["TeamSpeakQueryHTTP"]="10080"
-    ["TeamSpeakQuesryHTTPS"]="10443"
+    ["TeamSpeakQueryHTTPS"]="10443"
     ["OpenPGP"]="11371"
     ["MoneroMiningPools1"]="14444"
     ["Monero"]="18080-18081"

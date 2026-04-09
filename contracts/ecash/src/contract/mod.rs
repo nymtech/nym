@@ -192,6 +192,12 @@ impl NymEcashContract {
         Ok(deposit_amount)
     }
 
+    // Poor man's alias for backwards compatibility as sv::attr didn't seem to work
+    #[sv::msg(query)]
+    pub fn get_required_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
+        self.get_default_deposit_amount(ctx)
+    }
+
     #[sv::msg(query)]
     pub fn get_reduced_deposit_amount(
         &self,

@@ -5547,7 +5547,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.76"
+version = "1.1.77"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5792,7 +5792,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.73"
+version = "1.1.74"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5875,7 +5875,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.73"
+version = "1.1.74"
 dependencies = [
  "bs58",
  "clap",
@@ -6687,6 +6687,7 @@ version = "1.20.4"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "bs58",
  "bytes",
  "clap",
  "futures",
@@ -6711,7 +6712,6 @@ dependencies = [
  "nym-lp",
  "nym-network-defaults",
  "nym-node-requests",
- "nym-node-status-client",
  "nym-registration-client",
  "nym-registration-common",
  "nym-sdk",
@@ -6957,12 +6957,15 @@ dependencies = [
  "nym-crypto",
  "nym-service-provider-requests-common",
  "nym-sphinx",
+ "pnet_packet",
  "rand 0.8.5",
+ "semver 1.0.27",
  "serde",
  "thiserror 2.0.12",
  "time",
  "tokio",
  "tokio-util",
+ "tracing",
 ]
 
 [[package]]
@@ -6985,7 +6988,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-id",
  "nym-ip-packet-requests",
- "nym-kcp",
+ "nym-lp",
  "nym-network-defaults",
  "nym-network-requester",
  "nym-sdk",
@@ -7281,7 +7284,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.74"
+version = "1.1.75"
 dependencies = [
  "addr",
  "anyhow",
@@ -7331,7 +7334,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.28.0"
+version = "1.29.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -7468,14 +7471,16 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "1.1.5"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "clap",
  "futures",
  "nym-bin-common",
  "nym-crypto",
+ "nym-gateway-probe",
  "nym-node-status-client",
+ "nym-sdk",
  "rand 0.8.5",
  "regex",
  "serde_json",
@@ -7487,7 +7492,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.3.1"
+version = "4.4.0"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -7552,9 +7557,9 @@ version = "0.3.0"
 dependencies = [
  "anyhow",
  "bincode",
- "bs58",
  "nym-credentials",
  "nym-crypto",
+ "nym-gateway-probe",
  "reqwest 0.13.1",
  "serde",
  "serde_json",
@@ -7792,6 +7797,7 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-requests",
  "nym-http-api-client",
+ "nym-ip-packet-requests",
  "nym-lp",
  "nym-network-defaults",
  "nym-ordered-buffer",
@@ -7805,8 +7811,10 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "parking_lot",
+ "pnet_packet",
  "rand 0.8.5",
  "reqwest 0.13.1",
+ "semver 1.0.27",
  "serde",
  "tap",
  "tempfile",
@@ -7878,7 +7886,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.73"
+version = "1.1.74"
 dependencies = [
  "bs58",
  "clap",
@@ -8676,7 +8684,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.38"
+version = "0.1.39"
 dependencies = [
  "anyhow",
  "bytes",

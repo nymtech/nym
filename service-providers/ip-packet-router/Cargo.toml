@@ -26,7 +26,7 @@ nym-crypto = { workspace = true }
 nym-exit-policy = { workspace = true }
 nym-id = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
-nym-kcp = { path = "../../common/nym-kcp" } # TODO MAX add to workspace dependencies
+nym-lp = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-network-requester = { path = "../network-requester" }
 nym-sdk = { workspace = true }

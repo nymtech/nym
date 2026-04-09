@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-agent"
-version = "1.1.5"
+version = "2.0.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -20,6 +20,8 @@ clap = { workspace = true, features = ["derive", "env"] }
 futures = { workspace = true }
 nym-bin-common = { workspace = true, features = ["models"] }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
+nym-gateway-probe = { workspace = true }
+nym-sdk = { workspace = true }
 
 nym-node-status-client = { path = "../nym-node-status-client" }
 rand = { workspace = true }

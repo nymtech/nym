@@ -65,6 +65,9 @@ url = { workspace = true }
 toml = { workspace = true }
 tempfile = { workspace = true }
 
+nym-ip-packet-requests = { workspace = true }
+semver = { workspace = true }
+
 # tcpproxy dependencies
 clap = { workspace = true, features = ["derive"] }
 anyhow.workspace = true
@@ -94,6 +97,8 @@ tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 parking_lot = { workspace = true }
 hex = { workspace = true }
+pnet_packet = { workspace = true }
+nym-ip-packet-requests = { workspace = true, features = ["test-utils"] }
 
 [features]
 libp2p-vanilla = []

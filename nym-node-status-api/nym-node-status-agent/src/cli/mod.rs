@@ -1,4 +1,4 @@
-use crate::probe::GwProbe;
+use crate::log_capture::LogCapture;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
@@ -47,25 +47,10 @@ pub(crate) struct Args {
     pub(crate) command: Command,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
-    RunProbe {
-        /// Server configurations in format "address|port"
-        /// Can be specified multiple times for multiple servers
-        #[arg(short, long, required = true)]
-        server: Vec<String>,
-
-        /// path of binary to run
-        #[arg(long, env = "NODE_STATUS_AGENT_PROBE_PATH")]
-        probe_path: String,
-
-        #[arg(
-            long,
-            env = "NODE_STATUS_AGENT_PROBE_EXTRA_ARGS",
-            value_delimiter = ','
-        )]
-        probe_extra_args: Vec<String>,
-    },
+    RunProbe(RunProbeArgs),
 
     GenerateKeypair {
         #[arg(long)]
@@ -73,17 +58,26 @@ pub(crate) enum Command {
     },
 }
 
+#[derive(clap::Args, Debug)]
+pub(crate) struct RunProbeArgs {
+    /// Server configurations in format "address|port"
+    /// Can be specified multiple times for multiple servers
+    #[arg(short, long, required = true)]
+    pub server: Vec<String>,
+
+    /// Probe configuration overrides (netstack, socks5, etc.)
+    /// Can also be set via PROBE_* environment variables.
+    #[command(flatten)]
+    pub probe_config: nym_gateway_probe::config::ProbeConfig,
+}
+
 impl Args {
-    pub(crate) async fn execute(&self) -> anyhow::Result<()> {
-        match &self.command {
-            Command::RunProbe {
-                server,
-                probe_path,
-                probe_extra_args,
-            } => {
+    pub(crate) async fn execute(self, log_capture: LogCapture) -> anyhow::Result<()> {
+        match self.command {
+            Command::RunProbe(args) => {
                 // Parse server configs
                 let mut servers = Vec::new();
-                for s in server {
+                for s in &args.server {
                     match parse_server_config(s) {
                         Ok(config) => servers.push(config),
                         Err(e) => {
@@ -93,7 +87,7 @@ impl Args {
                     }
                 }
 
-                run_probe::run_probe(&servers, probe_path, probe_extra_args)
+                run_probe::run_probe(&servers, args.probe_config, log_capture)
                     .await
                     .inspect_err(|err| {
                         tracing::error!("{err}");

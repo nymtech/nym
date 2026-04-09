@@ -1,3 +1,6 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 //! Stream multiplexing for `MixnetClient`.
 //!
 //! A [`MixnetStream`] is a byte channel (`AsyncRead + AsyncWrite`) to a
@@ -9,12 +12,12 @@
 //! stream's channel (or to the listener for `Open` messages).
 
 mod mixnet_stream;
-mod protocol;
+pub(crate) mod protocol;
 
 pub use mixnet_stream::MixnetStream;
 pub use protocol::StreamId;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
@@ -47,10 +50,24 @@ pub(crate) const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30 
 const MAX_CLEANUP_INTERVAL: Duration = Duration::from_secs(10);
 
 /// Per-stream state stored in the routing table.
+///
+/// Reorder buffer uses the same BTreeMap pattern as `OrderedMessageBuffer`
+/// (`common/socks5/ordered-buffer/`) but drains per-message instead of
+/// concatenating, so `recv()` preserves message boundaries.
 struct StreamEntry {
     sender: mpsc::UnboundedSender<Vec<u8>>,
     last_activity: Instant,
+    next_seq: u32,
+    pending: BTreeMap<u32, Vec<u8>>,
 }
+
+/// Maximum number of out-of-order messages buffered per stream before we
+/// skip ahead. Without this cap, a malicious sender that deliberately skips
+/// a sequence number (e.g. never sends seq 1) could cause the buffer to
+/// grow indefinitely while the drain loop waits for the missing seq.
+/// The idle timeout only reaps *inactive* streams, so an actively-sending
+/// attacker would bypass it.
+const MAX_REORDER_BUFFER: usize = 256;
 
 /// The shared stream routing table.
 ///
@@ -76,6 +93,8 @@ impl StreamMap {
             StreamEntry {
                 sender: tx,
                 last_activity: Instant::now(),
+                next_seq: 0,
+                pending: BTreeMap::new(),
             },
         );
         rx
@@ -95,17 +114,49 @@ impl StreamMap {
         });
     }
 
-    /// Dispatch data to a stream's channel. Updates `last_activity` on
-    /// success. Removes the entry if the receiver has been dropped.
-    async fn send_to_stream(&self, stream_id: &StreamId, data: Vec<u8>) {
+    /// Buffer a message and flush any contiguous sequence to the channel.
+    /// Updates `last_activity` on success; removes the entry if the
+    /// receiver has been dropped.
+    async fn send_to_stream(&self, stream_id: &StreamId, seq: u32, data: Vec<u8>) {
         let mut map = self.inner.lock().await;
         let should_remove = if let Some(entry) = map.get_mut(stream_id) {
-            if entry.sender.send(data).is_err() {
-                true
+            if seq < entry.next_seq {
+                warn!(
+                    "Stream {stream_id}: dropping old seq {seq} (expected >= {})",
+                    entry.next_seq
+                );
             } else {
-                entry.last_activity = Instant::now();
-                false
+                entry.pending.insert(seq, data);
             }
+
+            // If the buffer has grown too large, skip ahead to the lowest
+            // buffered seq so we don't accumulate unbounded memory.
+            if entry.pending.len() > MAX_REORDER_BUFFER {
+                if let Some(&lowest) = entry.pending.keys().next() {
+                    warn!(
+                        "Stream {stream_id}: reorder buffer overflow ({} pending), \
+                         skipping seq {} -> {lowest}",
+                        entry.pending.len(),
+                        entry.next_seq
+                    );
+                    entry.next_seq = lowest;
+                }
+            }
+
+            // Drain contiguous messages
+            let mut failed = false;
+            while let Some(msg) = entry.pending.remove(&entry.next_seq) {
+                if entry.sender.send(msg).is_err() {
+                    failed = true;
+                    break;
+                }
+                entry.next_seq += 1;
+            }
+
+            if !failed {
+                entry.last_activity = Instant::now();
+            }
+            failed
         } else {
             false
         };
@@ -242,7 +293,7 @@ async fn run_router(
                 }
                 SphinxStreamMsgType::Data => {
                     streams
-                        .send_to_stream(&stream_id, frame.data.to_vec())
+                        .send_to_stream(&stream_id, frame.sequence_num, frame.data.to_vec())
                         .await;
                 }
             }
@@ -295,10 +346,9 @@ pub(crate) async fn open_stream(
     let stream_id = StreamId::random();
     let rx = streams.register_stream(stream_id).await;
 
-    // Currently hardcoded as we don't have message ordering in place *yet* in the SDK
-    // streams - when it *is* added then it will set the receiver's expected starting seq
-    // number. Gives us the ability down the road to e.g. pick up a dropped stream from
-    // where it left off.
+    // Open message with seq=0. The receiver's reorder buffer starts at
+    // next_seq=0 so this could later carry an initial seq to resume a
+    // dropped stream from where it left off.
     let wire = encode_stream_message(&stream_id, SphinxStreamMsgType::Open, 0, &[]);
     let msg = InputMessage::new_anonymous(
         recipient,
@@ -379,7 +429,7 @@ mod tests {
         tokio::time::advance(Duration::from_secs(8)).await;
 
         // Activity on the stream resets its timer
-        map.send_to_stream(&id, vec![1, 2, 3]).await;
+        map.send_to_stream(&id, 0, vec![1, 2, 3]).await;
 
         // Advance past the original timeout, but only 5s since last activity
         tokio::time::advance(Duration::from_secs(5)).await;
@@ -404,5 +454,38 @@ mod tests {
         map.cleanup_stale(timeout).await;
 
         assert_eq!(map.inner.lock().await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn out_of_order_messages_delivered_in_sequence() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+        let mut rx = map.register_stream(id).await;
+
+        // Send seq 2, 0, 1 out of order
+        map.send_to_stream(&id, 2, vec![20]).await;
+        map.send_to_stream(&id, 0, vec![0]).await;
+
+        // seq 0 should be delivered now, but 2 is buffered (gap at 1)
+        assert_eq!(rx.recv().await.unwrap(), vec![0]);
+
+        // Fill the gap — both 1 and 2 should flush
+        map.send_to_stream(&id, 1, vec![10]).await;
+        assert_eq!(rx.recv().await.unwrap(), vec![10]);
+        assert_eq!(rx.recv().await.unwrap(), vec![20]);
+    }
+
+    #[tokio::test]
+    async fn duplicate_seq_is_dropped() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+        let mut rx = map.register_stream(id).await;
+
+        map.send_to_stream(&id, 0, vec![0]).await;
+        map.send_to_stream(&id, 0, vec![99]).await; // duplicate, dropped
+        map.send_to_stream(&id, 1, vec![1]).await;
+
+        assert_eq!(rx.recv().await.unwrap(), vec![0]);
+        assert_eq!(rx.recv().await.unwrap(), vec![1]);
     }
 }

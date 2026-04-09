@@ -4,6 +4,28 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.7-tola] (2026-04-07)
+
+- Simon/ecash contract serde fix ([#6634])
+- Update Fallback IP for Nym API ([#6622])
+- Nym Node spam logging ([#6621])
+- feat: multiple deposit prices ([#6608])
+- move format_debug_bytes in common crate ([#6580])
+- bugfix: make sure client keys are generated before requesting credentials ([#6579])
+- Fix socks5 GW probe regression ([#6576])
+- Max/lp stream framing ([#6573])
+- HTTP domain rotation conditions ([#6570])
+
+[#6634]: https://github.com/nymtech/nym/pull/6634
+[#6622]: https://github.com/nymtech/nym/pull/6622
+[#6621]: https://github.com/nymtech/nym/pull/6621
+[#6608]: https://github.com/nymtech/nym/pull/6608
+[#6580]: https://github.com/nymtech/nym/pull/6580
+[#6579]: https://github.com/nymtech/nym/pull/6579
+[#6576]: https://github.com/nymtech/nym/pull/6576
+[#6573]: https://github.com/nymtech/nym/pull/6573
+[#6570]: https://github.com/nymtech/nym/pull/6570
+
 ## [2026.6-stilton] (2026-03-25)
 
 - lp fixes ([#6601])

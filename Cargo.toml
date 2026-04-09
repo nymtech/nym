@@ -184,7 +184,6 @@ default-members = [
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-node",
-    "nym-node-status-api/nym-node-status-agent",
     "nym-statistics-api",
     "nym-validator-rewarder",
     "nyx-chain-watcher",

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 pub const NYM_API_DOMAIN: &str = "validator.nymtech.net";
-pub const NYM_API_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(212, 71, 233, 232))];
+pub const NYM_API_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(92, 39, 63, 14))];
 
 pub const NYM_VPN_API_DOMAIN: &str = "nymvpn.com";
 pub const NYM_VPN_API_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(76, 76, 21, 21))];

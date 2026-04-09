@@ -16,10 +16,10 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
-bs58 = { workspace = true }
 bincode = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "serde", ] }
 nym-credentials = { workspace = true }
+nym-gateway-probe = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

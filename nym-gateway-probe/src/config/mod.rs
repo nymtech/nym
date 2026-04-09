@@ -13,10 +13,10 @@ pub use netstack::NetstackArgs;
 pub use socks5::Socks5Args;
 pub use test_mode::TestMode;
 
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Default)]
 pub struct ProbeConfig {
     /// Only choose gateway with that minimum performance
-    #[arg(long)]
+    #[arg(long, env = "PROBE_MIN_GATEWAY_MIXNET_PERFORMANCE")]
     pub min_gateway_mixnet_performance: Option<u8>,
 
     /// Test mode - explicitly specify which tests to run

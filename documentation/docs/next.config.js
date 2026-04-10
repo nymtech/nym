@@ -1120,7 +1120,7 @@ const config = {
 
       // --- Rust SDK: deleted mixnet example subpages ---
       {
-        source: "/docs/developers/rust/mixnet/examples/:path*",
+        source: "/docs/developers/rust/mixnet/examples/:path+",
         destination: "/docs/developers/rust/mixnet/examples",
         permanent: true,
         basePath: false,
@@ -1174,6 +1174,44 @@ const config = {
       {
         source: "/docs/developers/rust/tcpproxy/examples",
         destination: "/docs/developers/rust/tcpproxy",
+        permanent: true,
+        basePath: false,
+      },
+
+      // --- Directory index redirects (directories without index pages) ---
+      {
+        source: "/docs/developers/typescript/bundling",
+        destination: "/docs/developers/typescript/bundling/bundling",
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/examples",
+        destination: "/docs/developers/typescript/examples/mix-fetch",
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground",
+        destination: "/docs/developers/typescript/playground/mixfetch",
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/api",
+        destination: "/docs/developers/typescript/api/sdk",
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/clients",
+        destination: "/docs/developers/clients/socks5",
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/developers/rust/importing",
+        destination: "/docs/developers/rust/importing",
         permanent: true,
         basePath: false,
       },

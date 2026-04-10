@@ -40,10 +40,11 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = { git = "https://github.com/nymtech/nym", rev = "4077717" }
-nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "4077717", features = ["basic_tracing"] }
+nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
+nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "97068b2", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
-blake3 = "=1.7.0"  # required pin — see https://nymtech.net/developers/rust/importing
+rand = "0.8"
+blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 ```
 
 ## Step 2: Build the echo server
@@ -83,7 +84,7 @@ async fn main() {
 
         // Spawn a task to handle each stream concurrently
         tokio::spawn(async move {
-            let mut buf = vec![0u8; 4096];
+            let mut buf = vec![0u8; 32_000];
 
             loop {
                 let n = match stream.read(&mut buf).await {
@@ -96,11 +97,7 @@ async fn main() {
                 };
 
                 let data = &buf[..n];
-                println!(
-                    "Stream {stream_id} received {} bytes: {:?}",
-                    n,
-                    String::from_utf8_lossy(data)
-                );
+                println!("Stream {stream_id} received {n} bytes");
 
                 // Echo it back
                 if let Err(e) = stream.write_all(data).await {
@@ -159,22 +156,26 @@ async fn main() {
     // the Open, which the server would drop.
     tokio::time::sleep(Duration::from_secs(5)).await;
 
-    // Send three messages and read back the echo for each
-    for i in 1..=3 {
-        let msg = format!("message {i}");
-        println!("Sending: {msg}");
+    // Send three payloads of different sizes and verify the echo.
+    // Random bytes show that streams are binary-safe — not just text.
+    let sizes = [320, 25_000, 1280];
 
-        stream.write_all(msg.as_bytes()).await.unwrap();
+    for (i, &size) in sizes.iter().enumerate() {
+        let payload: Vec<u8> = (0..size).map(|_| rand::random::<u8>()).collect();
+        println!("Sending message {} ({size} bytes)", i + 1);
+
+        stream.write_all(&payload).await.unwrap();
         stream.flush().await.unwrap();
 
         // Read the echo
-        let mut buf = vec![0u8; 1024];
+        let mut buf = vec![0u8; 32_000];
         let n = tokio::time::timeout(TIMEOUT, stream.read(&mut buf))
             .await
             .expect("timed out waiting for echo")
             .expect("read failed");
 
-        println!("Echo: {}", String::from_utf8_lossy(&buf[..n]));
+        assert_eq!(&buf[..n], &payload[..], "echo mismatch on message {}", i + 1);
+        println!("Received echo: {n} bytes ok");
     }
 
     // Drop the stream to deregister it from the router
@@ -211,12 +212,12 @@ You'll see the messages traverse the Mixnet and echo back:
 ```
 Client address: F3qR7...@9nK2m...
 Stream opened: 12345678
-Sending: message 1
-Echo: message 1
-Sending: message 2
-Echo: message 2
-Sending: message 3
-Echo: message 3
+Sending message 1 (320 bytes)
+Received echo: 320 bytes ok
+Sending message 2 (25000 bytes)
+Received echo: 25000 bytes ok
+Sending message 3 (1280 bytes)
+Received echo: 1280 bytes ok
 Done!
 ```
 
@@ -224,9 +225,9 @@ On the server side:
 
 ```
 Accepted stream 12345678
-Stream 12345678 received 9 bytes: "message 1"
-Stream 12345678 received 9 bytes: "message 2"
-Stream 12345678 received 9 bytes: "message 3"
+Stream 12345678 received 320 bytes
+Stream 12345678 received 25000 bytes
+Stream 12345678 received 1280 bytes
 Stream 12345678 closed
 ```
 
@@ -285,7 +286,7 @@ async fn main() {
         println!("Accepted stream {stream_id}");
 
         tokio::spawn(async move {
-            let mut buf = vec![0u8; 4096];
+            let mut buf = vec![0u8; 32_000];
             loop {
                 let n = match stream.read(&mut buf).await {
                     Ok(0) | Err(_) => break,
@@ -330,20 +331,23 @@ async fn main() {
     // Wait for the Open message to reach the server through the mixnet
     tokio::time::sleep(Duration::from_secs(5)).await;
 
-    for i in 1..=3 {
-        let msg = format!("message {i}");
-        println!("Sending: {msg}");
+    let sizes = [320, 25_000, 1280];
 
-        stream.write_all(msg.as_bytes()).await.unwrap();
+    for (i, &size) in sizes.iter().enumerate() {
+        let payload: Vec<u8> = (0..size).map(|_| rand::random::<u8>()).collect();
+        println!("Sending message {} ({size} bytes)", i + 1);
+
+        stream.write_all(&payload).await.unwrap();
         stream.flush().await.unwrap();
 
-        let mut buf = vec![0u8; 1024];
+        let mut buf = vec![0u8; 32_000];
         let n = tokio::time::timeout(TIMEOUT, stream.read(&mut buf))
             .await
             .expect("timed out waiting for echo")
             .expect("read failed");
 
-        println!("Echo: {}", String::from_utf8_lossy(&buf[..n]));
+        assert_eq!(&buf[..n], &payload[..], "echo mismatch on message {}", i + 1);
+        println!("Received echo: {n} bytes ok");
     }
 
     drop(stream);

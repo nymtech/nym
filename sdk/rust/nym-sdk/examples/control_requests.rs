@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'Health' request: {response:#?}");
 
-    // Send a BinaryInfo request (no SURBs — replies won't work).
+    // Send a BinaryInfo request (no SURBs — the SP reuses SURBs from previous messages).
     println!("Sending 'BinaryInfo' request...");
     client
         .send_message(

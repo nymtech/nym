@@ -1,4 +1,4 @@
-//! Paid bandwidth credentials using the Coconut scheme.
+//! Paid bandwidth credentials using the Ecash scheme.
 //!
 //! Acquires a bandwidth credential from the sandbox network, connects
 //! with it, and sends a message to self. Requires the sandbox `.env`.

@@ -38,9 +38,9 @@ async fn main() {
         .unwrap();
 
     // Receive the message.
-    // Filter empty messages — these are SURB replenishment requests.
     println!("Waiting for message\n");
     let mut message: Vec<ReconstructedMessage> = Vec::new();
+    // Filter empty messages — these are SURB replenishment requests.
     while let Some(new_message) = client.wait_for_messages().await {
         if new_message.is_empty() {
             continue;

@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Sends 1 MB of random data over a MixnetStream and verifies integrity.
+//! Sends 1 MiB of random data over a MixnetStream and verifies integrity.
 //!
 //! Uses `write_all` on the sender and `read_exact` on the receiver.
 //! `read_exact` is needed because there is no close/EOF signal — streams
@@ -19,14 +19,14 @@ use rand::RngCore;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-const SIZE: usize = 1024 * 1024; // 1 MB
+const SIZE: usize = 1024 * 1024; // 1 MiB
 const TIMEOUT: Duration = Duration::from_secs(300);
 
 #[tokio::main]
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Generate 1 MB of random data to send.
+    // Generate 1 MiB of random data to send.
     let mut payload = vec![0u8; SIZE];
     rand::rngs::OsRng.fill_bytes(&mut payload);
     println!("Generated {} bytes of random data", payload.len());

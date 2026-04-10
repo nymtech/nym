@@ -17,7 +17,8 @@ async fn main() {
     println!("Our client nym address is: {our_address}");
 
     // Send a message to ourselves through the mixnet.
-    // The message is Sphinx-encrypted and mixed across 5 nodes.
+    // The message is Sphinx-encrypted and routed through 5 nodes
+    // (gateway → 3 mix nodes → gateway).
     client
         .send_plain_message(*our_address, "hello there")
         .await

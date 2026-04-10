@@ -1,7 +1,6 @@
 # Wallet
 
 import Box from '@mui/material/Box';
-
 import { WalletContextProvider } from '../../../../components/wallet/utils/wallet.context';
 import { ConnectWallet } from '../../../../components/wallet/connect';
 import { SendTokes } from '../../../../components/wallet/sendTokens';
@@ -9,18 +8,32 @@ import { Delegations } from '../../../../components/wallet/delegations';
 import FormattedWalletConnectCode from '../../../../code-examples/sdk/typescript/wallet-connect-code.mdx';
 import FormattedWalletSendTokensCode from '../../../../code-examples/sdk/typescript/wallet-sendTokens-code.mdx';
 import FormattedWalletDelegationsCode from '../../../../code-examples/sdk/typescript/wallet-delegations-code.mdx';
-
-
 import { Callout } from 'nextra/components'
 
-Here's a small wallet example using testnet for you to test out!
+Interactive wallet operations on the Nyx Sandbox testnet. This demo walks through connecting to the chain, sending tokens, and querying delegations, all from the browser using `@nymproject/contract-clients`.
+
+<Callout type="info">
+This connects to the **Sandbox testnet**. No real tokens are involved.
+</Callout>
 
 <WalletContextProvider>
+    ## Connect
+
+    Create or restore a wallet from a mnemonic to connect to the Nyx Sandbox testnet.
+
     <ConnectWallet />
     <FormattedWalletConnectCode />
 
+    ## Send Tokens
+
+    Transfer testnet tokens between accounts.
+
     <SendTokes />
     <FormattedWalletSendTokensCode />
+
+    ## Delegations
+
+    Query staking delegations for an account.
 
     <Delegations />
     <FormattedWalletDelegationsCode />

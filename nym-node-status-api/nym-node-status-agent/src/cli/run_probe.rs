@@ -1,20 +1,19 @@
+use crate::cli::ServerConfig;
+use crate::log_capture::LogCapture;
+use anyhow::anyhow;
+use nym_gateway_probe::config::CredentialArgs;
+use nym_gateway_probe::types::{AttachedTicketMaterials, VersionedSerialise};
+use nym_sdk::mixnet::ed25519::PublicKey;
 use tracing::instrument;
-
-use crate::cli::{GwProbe, ServerConfig};
 
 pub(crate) async fn run_probe(
     servers: &[ServerConfig],
-    probe_path: &str,
-    probe_extra_args: &Vec<String>,
+    probe_config: nym_gateway_probe::config::ProbeConfig,
+    log_capture: LogCapture,
 ) -> anyhow::Result<()> {
     if servers.is_empty() {
         anyhow::bail!("No servers configured");
     }
-
-    let probe = GwProbe::new(probe_path.to_string());
-
-    let version = probe.version().await;
-    tracing::info!("Probe version:\n{}", version);
 
     // Always use first server as primary
     let primary_server = &servers[0];
@@ -49,44 +48,35 @@ pub(crate) async fn run_probe(
     let testrun_id = testrun.assignment.testrun_id;
     let testrun_assigned_at = testrun.assignment.assigned_at_utc;
     let gateway_identity_key = testrun.assignment.gateway_identity_key.clone();
+    let gateway_identity_pubkey = PublicKey::from_base58_string(gateway_identity_key.clone())
+        .map_err(|e| anyhow!("Failed to parse GW identity key: {e}"))?;
 
     tracing::info!("Received testrun {testrun_id} for gateway {gateway_identity_key} from primary",);
 
-    // Run the probe
-    let log = probe.run_and_get_log(
-        gateway_identity_key.clone(),
-        probe_extra_args,
-        testrun.ticket_materials,
-    );
+    let network = nym_sdk::NymNetworkDetails::new_from_env();
+    let probe =
+        nym_gateway_probe::Probe::new_for_agent(gateway_identity_pubkey, network, probe_config)
+            .await?;
+
+    // probe constructor might modify config to suit the testing mode, so log afterwards
+    tracing::info!("Using probe config:\n{:#?}", &probe.config());
+
+    let serialized_ticket_materials = testrun.ticket_materials.to_serialised_string();
+    let credentials_args = CredentialArgs {
+        ticket_materials: serialized_ticket_materials,
+        ticket_materials_revision:
+            <AttachedTicketMaterials as VersionedSerialise>::CURRENT_SERIALISATION_REVISION,
+    };
+
+    // Run the probe, capturing all tracing output
+    log_capture.start();
+    let probe_result = Box::pin(probe.probe_run_agent(credentials_args)).await?;
+    let probe_log = log_capture.stop_and_drain();
 
     // Inspect the probe output for socks5 field
-    // Extract JSON from log output (probe outputs logs followed by JSON)
-    let json_str = extract_json_from_log(&log);
-    if json_str.is_empty() {
-        tracing::warn!("Failed to extract JSON from probe output");
-    } else {
-        match serde_json::from_str::<serde_json::Value>(&json_str) {
-            Ok(json) => {
-                if let Some(outcome) = json.get("outcome") {
-                    match outcome.get("socks5") {
-                        Some(socks5) if socks5.is_null() => {
-                            tracing::warn!("🌐⚠️ socks5 field is NULL in probe output");
-                        }
-                        Some(socks5) => {
-                            tracing::info!("🌐 socks5 field present: {}", socks5);
-                        }
-                        None => {
-                            tracing::warn!("🌐⚠️ socks5 field is MISSING from probe output");
-                        }
-                    }
-                } else {
-                    tracing::warn!("🌐⚠️ outcome field is MISSING from probe output");
-                }
-            }
-            Err(e) => {
-                tracing::error!("Failed to parse probe output as JSON: {e}");
-            }
-        }
+    match probe_result.outcome.socks5.as_ref() {
+        Some(socks5) => tracing::info!("🌐 socks5 field present: {:#?}", socks5),
+        None => tracing::warn!("🌐⚠️ socks5 field is MISSING from probe output"),
     }
 
     submit_results_to_servers(
@@ -94,7 +84,8 @@ pub(crate) async fn run_probe(
         testrun_id,
         testrun_assigned_at,
         &gateway_identity_key,
-        log,
+        probe_result,
+        probe_log,
     )
     .await;
 
@@ -107,13 +98,15 @@ async fn submit_results_to_servers(
     testrun_id: i32,
     testrun_assigned_at: i64,
     gateway_identity_key: &str,
-    log: String,
+    probe_result: nym_gateway_probe::ProbeResult,
+    probe_log: String,
 ) {
     let handles = servers
         .iter()
         .enumerate()
         .map(|(idx, server)| {
-            let log = log.clone();
+            let probe_result = probe_result.clone();
+            let probe_log = probe_log.clone();
             let gateway_identity_key = gateway_identity_key.to_string();
 
             async move {
@@ -130,14 +123,20 @@ async fn submit_results_to_servers(
                 let result = if idx == 0 {
                     // Primary server: submit regular results without context
                     client
-                        .submit_results(testrun_id as i64, log, testrun_assigned_at)
+                        .submit_results(
+                            testrun_id as i64,
+                            probe_result,
+                            probe_log,
+                            testrun_assigned_at,
+                        )
                         .await
                 } else {
                     // Other servers: submit results with context
                     client
                         .submit_results_with_context(
                             testrun_id,
-                            log,
+                            probe_result,
+                            probe_log,
                             testrun_assigned_at,
                             gateway_identity_key,
                         )
@@ -169,19 +168,5 @@ async fn submit_results_to_servers(
                 );
             }
         }
-    }
-}
-
-/// Extract JSON from probe log output.
-/// The probe outputs log lines followed by JSON starting with `\n{ `.
-fn extract_json_from_log(log: &str) -> String {
-    static RE: std::sync::LazyLock<regex::Regex> =
-        std::sync::LazyLock::new(|| regex::Regex::new(r"\n\{\s").expect("Invalid regex pattern"));
-
-    let result: Vec<_> = RE.splitn(log, 2).collect();
-    if result.len() == 2 {
-        format!("{{ {}", result[1])
-    } else {
-        String::new()
     }
 }

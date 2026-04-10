@@ -38,7 +38,7 @@ impl NsApiClient {
         }
     }
 
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "info", skip_all)]
     pub async fn request_testrun(&self) -> anyhow::Result<Option<TestrunAssignmentWithTickets>> {
         let target_url = self.api.request_testrun();
 
@@ -76,17 +76,19 @@ impl NsApiClient {
             })
     }
 
-    #[instrument(level = "debug", skip(self, probe_result))]
+    #[instrument(level = "info", fields(testrun_id, assigned_at_utc), skip_all)]
     pub async fn submit_results(
         &self,
         testrun_id: i64,
-        probe_result: String,
+        probe_result: nym_gateway_probe::ProbeResult,
+        probe_log: String,
         assigned_at_utc: i64,
     ) -> anyhow::Result<()> {
         let target_url = self.api.submit_results(testrun_id);
 
         let payload = submit_results::Payload {
             probe_result,
+            probe_log,
             agent_public_key: self.auth_key.public_key(),
             assigned_at_utc,
         };
@@ -105,11 +107,12 @@ impl NsApiClient {
         Ok(())
     }
 
-    #[instrument(level = "debug", skip(self, probe_result))]
+    #[instrument(level = "info", skip(self, probe_result))]
     pub async fn submit_results_with_context(
         &self,
         testrun_id: i32,
-        probe_result: String,
+        probe_result: nym_gateway_probe::ProbeResult,
+        probe_log: String,
         assigned_at_utc: i64,
         gateway_identity_key: String,
     ) -> anyhow::Result<()> {
@@ -117,6 +120,7 @@ impl NsApiClient {
 
         let payload = submit_results_v2::Payload {
             probe_result,
+            probe_log,
             agent_public_key: self.auth_key.public_key(),
             assigned_at_utc,
             gateway_identity_key,

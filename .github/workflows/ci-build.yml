@@ -90,7 +90,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --all-targets --exclude nym-gateway-probe --exclude nym-node-status-api -- -D warnings
+          args: --workspace --all-targets --exclude nym-gateway-probe --exclude nym-node-status-api --exclude nym-node-status-agent --exclude nym-node-status-client -- -D warnings
 
       - name: Clippy (non-macos)
         if: contains(matrix.os, 'linux') || contains(matrix.os, 'windows')
@@ -104,14 +104,15 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
+          args: --workspace --exclude nym-gateway-probe --exclude nym-node-status-api --exclude nym-node-status-agent --exclude nym-node-status-client
 
-        # only build on linux because of wg FFI bindings of its dependency (network probe)
-      - name: Build nym-node-status-api (linux only)
+        # Build Go FFI-dependent crates separately (requires Go, only available on Linux CI)
+      - name: Build nym-node-status-api and nym-node-status-agent (linux only)
         if: runner.os == 'Linux'
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: -p nym-node-status-api
+          args: -p nym-node-status-api -p nym-node-status-agent
 
       - name: Build all examples
         if: contains(matrix.os, 'linux')

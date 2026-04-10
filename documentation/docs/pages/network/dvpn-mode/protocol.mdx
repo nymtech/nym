@@ -1,0 +1,63 @@
+---
+title: "dVPN Protocol Stack and Encryption"
+description: "Technical details of Nym dVPN mode's protocol layers: nested WireGuard tunnels, split-knowledge architecture, and packet format tradeoffs."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-04-07"
+---
+
+# dVPN Protocol
+
+import { Callout } from 'nextra/components'
+
+<Callout type="info">
+Cryptographic details on this page will be updated for the Lewes Protocol release. For the current algorithm overview, see the [Nym Trust Center: Cryptography](https://nym.com/trust-center/cryptography).
+</Callout>
+
+This page covers the technical details of dVPN mode's protocol stack and encryption.
+
+## Protocol layers
+
+dVPN mode uses two nested WireGuard tunnels. The client establishes an inner tunnel to the Exit Gateway and an outer tunnel to the Entry Gateway, where the inner tunnel is created first and the outer tunnel encapsulates it.
+
+```
++-----------------------------------------+
+|           Application Data              |
++-----------------------------------------+
+|  Inner WireGuard tunnel (Client → Exit) |
++-----------------------------------------+
+|  Outer WireGuard tunnel (Client → Entry)|
++-----------------------------------------+
+|              UDP/IP                      |
++-----------------------------------------+
+```
+
+The Entry Gateway decrypts only the outer tunnel and forwards the inner tunnel, still fully encrypted, to the Exit Gateway. The Exit Gateway decrypts the inner tunnel and forwards traffic to its destination. Because the Entry Gateway never holds keys for the inner tunnel, it is cryptographically excluded from the payload.
+
+## Encryption
+
+Both tunnels use standard WireGuard cryptography: Curve25519 for key exchange, ChaCha20-Poly1305 for authenticated encryption, and BLAKE2s for hashing. Each tunnel derives independent session keys, providing 256-bit security with modern, well-audited primitives.
+
+## Packet format
+
+dVPN mode uses standard WireGuard packet framing: packets are not padded to a uniform size. Packet sizes may vary and could in principle leak information about content types (video streams have different size patterns than text messages). This is a deliberate tradeoff: uniform padding would add overhead and reduce throughput, which conflicts with dVPN mode's goal of low-latency, high-throughput connectivity. For uniform packet sizes, use [mixnet mode](/network/mixnet-mode), which wraps all traffic in fixed-size Sphinx packets.
+
+## Connection lifecycle
+
+When connecting, the client first selects Entry and Exit Gateways based on latency, location preference, or random selection. It then presents a zk-nym credential to the Entry Gateway for anonymous authentication. The credential proves payment without revealing identity; it is re-randomized for each connection and cannot be linked to previous usage.
+
+Once authenticated, the client establishes both WireGuard tunnels: first the inner tunnel keyed with the Exit Gateway, then the outer tunnel keyed with the Entry Gateway. Traffic flows through both hops until the session ends.
+
+## Security properties
+
+The protocol provides forward secrecy: new session keys are derived for each connection, so compromising long-term keys does not expose past sessions. WireGuard's key rotation provides additional forward secrecy within sessions.
+
+The nested-tunnel architecture enforces split knowledge. The Entry Gateway knows your IP but cannot decrypt the inner tunnel, so it sees neither your destinations nor your payload. The Exit Gateway decrypts the inner tunnel and sees your destinations but never learns your IP. Neither gateway can correlate the two.
+
+Replay protection comes from WireGuard's counter-based mechanism and from zk-nym serial numbers that prevent credential reuse.
+
+## Relationship to mixnet mode
+
+dVPN mode shares infrastructure with mixnet mode. Both use the same Entry and Exit Gateways and the same credential system. The difference is in how traffic is handled: mixnet mode routes through three additional Mix Node layers with delays and cover traffic using fixed-size [Sphinx packets](/network/cryptography/sphinx), while dVPN mode routes directly between gateways using WireGuard. The two modes are distinguishable at the protocol level due to their different packet formats and traffic patterns.
+
+This shared infrastructure means improvements to Gateways and credentials benefit both modes.

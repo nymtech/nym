@@ -173,13 +173,13 @@ Print current tunnel configuration:
 nym-vpnc tunnel get
 ```
 
-Enable two-hop mode (WireGuard) — traffic jumps directly from entry gateway to exit gateway:
+Enable two-hop mode (WireGuard): traffic jumps directly from entry gateway to exit gateway:
 
 ```sh
 nym-vpnc tunnel set --two-hop on
 ```
 
-Enable Mixnet (5-hop) — disable two-hop to route traffic through the full mixnet for maximum privacy:
+Enable Mixnet (5-hop): disable two-hop to route traffic through the full mixnet for maximum privacy:
 
 ```sh
 nym-vpnc tunnel set --two-hop off
@@ -293,7 +293,7 @@ nym-vpnc ad-block set disabled
 ```
 
 <Callout type="info">
-  You can test ad-blocking with [adblock.turtlecute.org](https://adblock.turtlecute.org/). Some browsers cache DNS internally, so toggling ad-block on/off at runtime may not have an immediate effect — a browser restart may be needed. Use `nslookup` or `dig` to verify that domains are being blocked.
+  You can test ad-blocking with [adblock.turtlecute.org](https://adblock.turtlecute.org/). Some browsers cache DNS internally, so toggling ad-block on/off at runtime may not have an immediate effect; a browser restart may be needed. Use `nslookup` or `dig` to verify that domains are being blocked.
 </Callout>
 
 ## DNS

@@ -57,6 +57,79 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.7-tola`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.7-tola)
+- [`nym-node`](nodes/nym-node.mdx) version `1.29.0`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2026-04-08T10:31:49.141185557Z
+Build Version:      1.29.0
+Commit SHA:         97068b2aace6626e3dff6864a26e7b1ff35f5725
+Commit Date:        2026-04-07T15:51:44.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+<Callout type="warning" emoji="⚠️">
+The outcome of [NIP-10: Nym Exit Policy Update – Opening Ports for Dash, SIP, Voice, TeamSpeak, & Litecoin Services](https://governator.nym.com/proposal/prop-d67c07c1-8d81-4d04-bc66-a0b28c24ffbd) has been incorporated into the [Network Tunnel Manager (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh). Operators are required to rerun the tool on their servers to apply the changes. Follow [these simple steps](#update-nym-exit-policy) to apply the exit policy.
+</Callout>
+
+- [New documentation logic to `network/`, `developers/` and `apis/`](https://github.com/nymtech/nym/pull/6494) according to the [diataxis.fr](https://diataxis.fr/) framework, making basis for adding Lewes Protocol documentation. Additionally developer docs now include tutorials for the [Rust SDK modules](/developers/rust), and documentation on the `stream` [Mixnet module](/developers/rust/mixnet). See the pages at:
+
+  - [Network docs](/network)
+  - [Developer docs](/developers/integrations)
+  - [APIs docs](/apis/introduction)
+
+#### Update Nym exit policy
+
+**Follow these steps to update the exit policy using NTM.**
+
+<Steps>
+###### 1. Download the new NTM
+- Download the latest NTM and make it executable:
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh
+```
+
+###### 2. Update the exit policy
+- To ensure your routing is clean, run:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+</ Steps>
+
+### Features
+
+- [Multiple deposit prices](https://github.com/nymtech/nym/pull/6608): Introduces tiered deposit pricing for the ecash contract. Whitelisted addresses can deposit at reduced rates, and gateway redemption flow is simplified by removing the multisig proposal path. Important for operators to manage deposit and token flow efficiently.
+
+- [Nym Node spam logging](https://github.com/nymtech/nym/pull/6621): Prevents spam logs when downstream nodes are slow, improving node stability and log clarity.
+
+- [Update Fallback IP for Nym API](https://github.com/nymtech/nym/pull/6622): Updates fallback IPs for Nym API, ensuring nodes maintain stable connectivity.
+
+### Bugfix
+
+- [Ensure client keys are generated before requesting credentials](https://github.com/nymtech/nym/pull/6579): Fixes authentication order, crucial for nodes to securely request credentials.
+
+- [Fix SOCKS5 gateway probe](https://github.com/nymtech/nym/pull/6576): Resolves regressions in Socks5 gateway probes, maintaining gateway functionality and reliability.
+
+- [Nym node Ansible - download clean NTM on each run](https://github.com/nymtech/nym/pull/6654)
+
+### Refactors & Maintenance
+
+- [Move format_debug_bytes in common crate](https://github.com/nymtech/nym/pull/6580): Refactors debug logging code, improving node log readability and maintainability.
+
+- [Migration for tiered deposit pricing](https://github.com/nymtech/nym/pull/6608): Seeds whitelist and backfills statistics for multiple deposit tiers, ensuring nodes handle deposits correctly after migration.
+
+- [Max/docs-diataxis-ify](https://github.com/nymtech/nym/pull/6494): Rewrites network/, developers/, and apis/ according to the Diataxis framework. Adds Rust SDK tutorials and stream Mixnet module documentation, as well as LLM-friendly doc files (llms.txt and llms-full.txt).
+
+
 ## `v2026.6-stilton`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.6-stilton)
@@ -705,7 +778,7 @@ cargo Profile:      release
 
 - [Overhauled **developer integrations** pages](/developers/integrations) explaining the different restrictions for the different SDK options on offer
 
-- [Fixed `mixFetch` and `WASM Client` playground + examples](/developers/typescript/start): new versions of the Typescript SDK and `mixFetch` have been published, examples and live playground have been updated accordingly
+- [Fixed `mixFetch` and `WASM Client` playground + examples](/developers/typescript): new versions of the Typescript SDK and `mixFetch` have been published, examples and live playground have been updated accordingly
 
 
 ### Features

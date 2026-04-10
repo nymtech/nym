@@ -3,7 +3,7 @@
 
 use nym_credentials::IssuedTicketBook;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
-use nym_node_status_client::models::AttachedTicket;
+use nym_gateway_probe::types::AttachedTicket;
 use sqlx::FromRow;
 use time::Date;
 use zeroize::{Zeroize, ZeroizeOnDrop};

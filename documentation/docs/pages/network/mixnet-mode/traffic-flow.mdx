@@ -1,0 +1,133 @@
+import { Callout } from 'nextra/components'
+
+# Traffic Flow
+
+This page walks through how packets travel through the mixnet, from sending client to destination.
+
+<Callout type="info">
+This describes the 5-hop mixnet flow. For the 2-hop dVPN mode, see [dVPN Protocol](/network/dvpn-mode/protocol).
+</Callout>
+
+## Overview
+
+The Nym mixnet uses source routing: the sender chooses the complete route before sending. This means the sender constructs a Sphinx packet with layered encryption, where each layer contains routing information for one hop.
+
+## Client to Entry Gateway
+
+On connection, the Nym client registers with a particular Entry Gateway. This Gateway becomes part of the client's Nym address and is where incoming messages are delivered.
+
+The client continuously sends packets to the Entry Gateway over a WebSocket connection. This stream includes both real messages and cover traffic at a constant rate. When the application has data to send, the client encrypts it as Sphinx packets and slots them into the stream. When there is no data, cover packets flow instead.
+
+```mermaid
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    box Local Machine
+        participant App as Application
+        participant Client as Nym Client
+    end
+    participant Gateway as Entry Gateway
+
+    Gateway->>Client: Key Exchange
+
+    loop Continuous Traffic
+        Client->>Gateway: Cover packet
+        Client->>Gateway: Cover packet
+        App-->>Client: Data to send
+        Client->>Client: Encrypt as Sphinx
+        Client->>Gateway: Real packet
+        Client->>Gateway: Cover packet
+    end
+```
+
+## Through the Mix Nodes
+
+The Entry Gateway forwards packets into the three Mix Node layers. At each hop, the node decrypts its layer of the Sphinx packet to learn the next destination, verifies the HMAC to ensure integrity, applies a random delay, and forwards to the next hop.
+
+The delay is critical. Without it, timing would correlate inputs to outputs. With exponential random delays, packets are reordered and the timing relationship is destroyed.
+
+```mermaid
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    participant Entry as Entry Gateway
+    participant M1 as Mix Layer 1
+    participant M2 as Mix Layer 2
+    participant M3 as Mix Layer 3
+    participant Exit as Exit Gateway
+
+    Entry->>M1: Sphinx Packet
+    M1->>M1: Decrypt layer
+    M1->>M1: Verify HMAC
+    M1->>M1: Random delay
+    M1->>M2: Sphinx Packet
+    M2->>M2: Decrypt layer
+    M2->>M2: Verify HMAC
+    M2->>M2: Random delay
+    M2->>M3: Sphinx Packet
+    M3->>M3: Decrypt layer
+    M3->>M3: Verify HMAC
+    M3->>M3: Random delay
+    M3->>Exit: Sphinx Packet
+```
+
+## Exit Gateway to Destination
+
+The Exit Gateway handles the final hop. For traffic destined for external services, it decrypts the packet and forwards to the destination, then packages responses back into Sphinx packets for the return journey.
+
+For traffic destined for another Nym client, the Exit Gateway delivers to that client's registered Gateway, which holds the message until the recipient comes online.
+
+## The complete picture
+
+Putting it together, a packet travels through five hops with encryption removed and delays applied at each Mix Node layer:
+
+```mermaid
+---
+config:
+  theme: neo-dark
+---
+sequenceDiagram
+    box Sender
+        participant App1 as Application
+        participant C1 as Nym Client
+    end
+
+    box Mixnet
+        participant Entry as Entry GW
+        participant M1 as Mix L1
+        participant M2 as Mix L2
+        participant M3 as Mix L3
+        participant Exit as Exit GW
+    end
+
+    box Receiver
+        participant C2 as Nym Client
+        participant App2 as Application
+    end
+
+    App1->>C1: Send data
+    C1->>C1: Create Sphinx packet
+    C1->>Entry: Encrypted packet
+    Entry->>M1: Forward
+    M1->>M1: Decrypt, delay
+    M1->>M2: Forward
+    M2->>M2: Decrypt, delay
+    M2->>M3: Forward
+    M3->>M3: Decrypt, delay
+    M3->>Exit: Forward
+    Exit->>C2: Deliver
+    C2->>C2: Decrypt final layer
+    C2->>App2: Received data
+```
+
+## External services
+
+When sending to an external service rather than another Nym client, the Exit Gateway acts as a proxy. It extracts the destination from the decrypted packet, makes the request on your behalf, and routes responses back through the network. The destination service sees the Exit Gateway's IP, not yours.
+
+## Peer-to-peer
+
+For applications where all parties run Nym clients, traffic stays entirely within the mixnet. Both sides enjoy full privacy protection, and [SURBs](/network/mixnet-mode/anonymous-replies) enable anonymous bidirectional communication without either party learning the other's address.

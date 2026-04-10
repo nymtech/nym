@@ -16,12 +16,12 @@
   "typescript": "Typescript SDK",
   "---": {
     "type": "separator",
-    "title": "Misc"
+    "title": "Extras"
   },
+  "nymvpncli": "Nym VPN CLI",
   "chain": "Interacting with Nyx Blockchain",
   "tools": "Tools",
-  "nymvpncli": "Nym VPN CLI",
-  "clients": "Standlone Clients",
+  "clients": "Standalone Clients",
   "----": {
     "type": "separator"
   },

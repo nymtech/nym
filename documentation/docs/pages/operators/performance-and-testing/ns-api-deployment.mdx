@@ -171,7 +171,7 @@ If you have already run the API before, make sure to add the following to your s
 If you want to enable Gateway node probes and have the NS API store that data, you need to periodically run the `nym-node-status-agent`, authenticated with your `nym-node-status-api` instance. Authentication is to make sure that only the `-agent` you are operating (or others you trust) are submitting data to your API instance.
 
 #### Compile Gateway Probe
-The `nym-node-status-agent` is a thin wrapper around the Gateway Probe binary which currently is in the NymVPN repo. `git checkout` to the most recent [release](https://github.com/nymtech/nym-vpn-client/releases), and compile the probe by following the [readme instructions](https://github.com/nymtech/nym-vpn-client/tree/develop/nym-vpn-core/crates/nym-gateway-probe). You will point the `-agent` at this binary when doing Probe testruns.
+The `nym-node-status-agent` is a thin wrapper around the Gateway Probe binary which lives in the [Nym monorepo](https://github.com/nymtech/nym/tree/develop/nym-gateway-probe). Compile the probe by following the readme instructions there. You will point the `-agent` at this binary when doing Probe testruns.
 
 #### Generate Keypair
 ```shell
@@ -316,7 +316,7 @@ function swarm() {
   local workers=$1
 
   for ((i = 1; i <= workers; i++)); do
-    ${monorepo_root}/target/release/nym-node-status-agent run-probe --probe-path ~/<PATH/TO>/nym-vpn-client/nym-vpn-core/target/debug/nym-gateway-probe &
+    ${monorepo_root}/target/release/nym-node-status-agent run-probe --probe-path ${monorepo_root}/target/release/nym-gateway-probe &
   done
 
   wait

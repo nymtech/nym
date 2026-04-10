@@ -455,8 +455,7 @@ impl HttpCache {
                     .get_dvpn_gateway_list(db, min_node_version)
                     .await
                     .into_iter()
-                    .map(|gw| gw.ip_addresses)
-                    .flatten()
+                    .flat_map(|gw| gw.ip_addresses)
                     .filter(IpAddr::is_ipv4)
                     .map(|ip| ip.to_string())
                     .sorted()

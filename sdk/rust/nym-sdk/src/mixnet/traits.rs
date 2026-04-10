@@ -8,8 +8,11 @@ use nym_client_core::client::inbound_messages::InputMessage;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 
-// defined to guarantee common interface regardless of whether you're using the full client
-// or just the sending handler
+/// Trait for sending messages through the Nym mixnet.
+///
+/// Implemented by both [`MixnetClient`](crate::mixnet::MixnetClient) and
+/// [`MixnetClientSender`](crate::mixnet::MixnetClientSender), allowing code
+/// to be generic over the sender type.
 #[async_trait]
 pub trait MixnetMessageSender {
     fn packet_type(&self) -> Option<PacketType> {
@@ -18,6 +21,11 @@ pub trait MixnetMessageSender {
 
     /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
     /// full customization.
+    ///
+    /// # Cancel safety
+    ///
+    /// This method is cancel safe. The message is either fully queued or not
+    /// sent at all.
     async fn send(&self, message: InputMessage) -> Result<()>;
 
     /// Sends data to the supplied Nym address with the default surb behaviour.
@@ -27,13 +35,13 @@ pub trait MixnetMessageSender {
     /// ```no_run
     /// use nym_sdk::mixnet::{self, MixnetMessageSender};
     ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let address = "foobar";
-    ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
-    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     client.send_plain_message(recipient, "hi").await.unwrap();
-    /// }
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    /// let addr = *client.nym_address();
+    ///
+    /// client.send_plain_message(addr, "hello").await.unwrap();
+    /// # }
     /// ```
     async fn send_plain_message<M>(&self, address: Recipient, message: M) -> Result<()>
     where
@@ -51,14 +59,14 @@ pub trait MixnetMessageSender {
     /// ```no_run
     /// use nym_sdk::mixnet::{self, MixnetMessageSender};
     ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let address = "foobar";
-    ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
-    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     let surbs = mixnet::IncludedSurbs::default();
-    ///     client.send_message(recipient, "hi".to_owned().into_bytes(), surbs).await.unwrap();
-    /// }
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    /// let addr = *client.nym_address();
+    /// let surbs = mixnet::IncludedSurbs::new(5);
+    ///
+    /// client.send_message(addr, b"hello", surbs).await.unwrap();
+    /// # }
     /// ```
     async fn send_message<M>(
         &self,
@@ -90,18 +98,26 @@ pub trait MixnetMessageSender {
 
     /// Sends reply data to the supplied anonymous recipient.
     ///
+    /// The [`AnonymousSenderTag`] comes from a received message's
+    /// [`sender_tag`](nym_sphinx::receiver::ReconstructedMessage::sender_tag) field.
+    ///
     /// # Example
     ///
     /// ```no_run
     /// use nym_sdk::mixnet::{self, MixnetMessageSender};
     ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     // note: the tag is something you would have received from a remote client sending you surbs!
-    ///     let tag = mixnet::AnonymousSenderTag::try_from_base58_string("foobar").unwrap();
-    ///     client.send_reply(tag, b"hi").await.unwrap();
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    ///
+    /// if let Some(msgs) = client.wait_for_messages().await {
+    ///     for msg in msgs {
+    ///         if let Some(tag) = msg.sender_tag {
+    ///             client.send_reply(tag, b"got it!").await.unwrap();
+    ///         }
+    ///     }
     /// }
+    /// # }
     /// ```
     async fn send_reply<M>(&self, recipient_tag: AnonymousSenderTag, message: M) -> Result<()>
     where

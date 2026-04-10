@@ -1,3 +1,14 @@
+//! Custom storage backend via the `MixnetClientStorage` trait.
+//!
+//! Shows how to implement the storage traits (`KeyStore`,
+//! `GatewaysDetailsStore`, etc.) so the SDK can be backed by any
+//! persistence layer (database, cloud KMS, HSM, …).
+//!
+//! This example uses mock implementations that always generate fresh
+//! keys — in practice you would persist to your own store.
+//!
+//! Run with: cargo run --example manually_handle_storage
+
 use nym_client_core::client::base_client::storage::gateways_storage::GatewayPublishedData;
 use nym_sdk::mixnet::{
     self, ed25519, ActiveGateway, BadGateway, ClientKeys, EmptyReplyStorage,
@@ -10,9 +21,10 @@ use nym_topology::provider_trait::async_trait;
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Just some plain data to pretend we have some external storage that the application
-    // implementer is using.
+    // Create an instance of your custom storage backend.
     let mock_storage = MockClientStorage::empty();
+
+    // Pass it to the builder via `new_with_storage`.
     let mut client = mixnet::MixnetClientBuilder::new_with_storage(mock_storage)
         .build()
         .unwrap()
@@ -20,11 +32,10 @@ async fn main() {
         .await
         .unwrap();
 
-    // Be able to get our client address
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Send important info up the pipe to a buddy
+    // Use the client normally — storage is transparent.
     client
         .send_plain_message(*our_address, "hello there")
         .await
@@ -37,6 +48,7 @@ async fn main() {
         }
     }
 
+    // Disconnect for clean shutdown.
     client.disconnect().await;
 }
 

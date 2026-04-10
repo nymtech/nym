@@ -31,15 +31,15 @@ enum Destination {
         recipient: Box<Recipient>,
         reply_surbs: u32,
     },
-    /// We reply via the opener's anonymous sender tag.
+    /// We reply via the dialer's anonymous sender tag.
     Anonymous { sender_tag: AnonymousSenderTag },
 }
 
 /// A byte stream to a single remote Nym client.
 ///
 /// Provides `AsyncRead + AsyncWrite`. Created via
-/// [`MixnetClient::open_stream`] (outbound) or
-/// [`MixnetListener::accept`] (inbound).
+/// [`MixnetClient::open_stream`](crate::mixnet::MixnetClient::open_stream) (outbound) or
+/// [`MixnetListener::accept`](super::MixnetListener::accept) (inbound).
 pub struct MixnetStream {
     id: StreamId,
     destination: Destination,

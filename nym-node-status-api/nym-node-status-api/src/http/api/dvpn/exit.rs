@@ -17,7 +17,6 @@ pub(crate) fn routes() -> Router<AppState> {
             "/exit/countries",
             axum::routing::get(get_entry_gateway_countries),
         )
-        .route("/exit/ips", axum::routing::get(get_exit_gateway_ips))
         .route(
             "/exit/country/:two_letter_country_code",
             axum::routing::get(get_exit_gateways_by_country),
@@ -68,27 +67,6 @@ pub async fn get_entry_gateway_countries(state: State<AppState>) -> HttpResult<J
             // dedup relies on iterator being sorted by country, but we already do that
             .dedup()
             .collect(),
-    ))
-}
-
-#[utoipa::path(
-    tag = "dVPN Directory Cache",
-    get,
-    path = "/exit/ips",
-    summary = "Gets IP addresses of all exit gateways currently on the network",
-    context_path = "/dvpn/v1/directory/gateways",
-    operation_id = "getExitGatewayIps",
-    responses(
-        (status = 200, body = Vec<String>)
-    )
-)]
-#[instrument(level = tracing::Level::INFO, skip(state))]
-pub async fn get_exit_gateway_ips(state: State<AppState>) -> HttpResult<Json<Vec<String>>> {
-    Ok(Json(
-        state
-            .cache()
-            .get_exit_gateway_ips(state.db_pool(), &MIN_SUPPORTED_VERSION)
-            .await,
     ))
 }
 

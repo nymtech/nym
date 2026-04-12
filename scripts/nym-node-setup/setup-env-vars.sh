@@ -55,6 +55,7 @@ PUBLIC_IP=${PUBLIC_IP:-""}
   echo "export MONIKER=\"${MONIKER}\""
   echo "export DESCRIPTION=\"${DESCRIPTION}\""
   echo "export PUBLIC_IP=\"${PUBLIC_IP}\""
+  echo "export HOST_SSH_PORT=\"${HOST_SSH_PORT}\""
 } > env.sh
 
 echo -e "\nVariables saved to ./env.sh"

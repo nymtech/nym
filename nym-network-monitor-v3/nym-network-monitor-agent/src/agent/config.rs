@@ -4,7 +4,7 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-/// Configuration for the [`NetworkMonitorAgent`], controlling packet sending behaviour during a test run.
+/// Configuration for the [`NodeStressTester`], controlling packet sending behaviour during a test run.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Config {
     /// How long the agent should be sending test packets with the specified rate.

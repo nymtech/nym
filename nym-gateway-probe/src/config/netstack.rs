@@ -52,7 +52,7 @@ pub struct NetstackArgs {
     pub port_check_ports: Vec<u16>,
 
     /// Timeout in seconds for each individual port check attempt
-    #[arg(long, default_value_t = 5)]
+    #[arg(long, default_value_t = NetstackArgs::default().port_check_timeout_sec)]
     pub port_check_timeout_sec: u64,
 }
 
@@ -74,6 +74,9 @@ impl Default for NetstackArgs {
                 "2606:4700:4700::1111".to_string(),
                 "2620:fe::fe".to_string(),
             ],
+            port_check_target: "portquiz.net".to_string(),
+            port_check_ports: vec![],
+            port_check_timeout_sec: 5,
         }
     }
 }

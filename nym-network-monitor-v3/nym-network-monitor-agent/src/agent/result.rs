@@ -5,7 +5,7 @@ use crate::egress_connection::EgressConnectionStatistics;
 use std::time::Duration;
 
 // TODO: once created, move this struct to a shared models library
-/// Captures the outcome of a single [`run_stress_test`](super::NetworkMonitorAgent::run_stress_test) run.
+/// Captures the outcome of a single [`run_stress_test`](super::NodeStressTester::run_stress_test) run.
 ///
 /// Fields are populated incrementally as the test progresses; absent values (`None`) indicate
 /// that the corresponding step was not reached or did not produce a result.

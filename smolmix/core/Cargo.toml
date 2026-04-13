@@ -13,7 +13,7 @@ smoltcp = { workspace = true, features = [
     "socket-udp",
 ] }
 tokio = { workspace = true }
-tokio-smoltcp = "0.5"
+tokio-smoltcp = { workspace = true }
 futures = { workspace = true }
 tracing = { workspace = true }
 nym-sdk = { workspace = true }
@@ -26,8 +26,8 @@ futures = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread", "time", "net"] }
 tokio-tungstenite.workspace = true
 webpki-roots.workspace = true
-rustls = { workspace = true }
-tokio-rustls = "0.26"
+rustls = { workspace = true, features = ["std", "ring"] }
+tokio-rustls = { workspace = true }
 
 [[example]]
 name = "websocket"

@@ -335,7 +335,7 @@ rayon = "1.5.1"
 regex = "1.10.6"
 reqwest = { version = "0.13.1", default-features = false }
 rs_merkle = "1.5.0"
-rustls = { version = "0.23.37", default-features = false, features = ["std", "ring"] }
+rustls = { version = "0.23.37", default-features = false }
 schemars = "0.8.22"
 semver = "1.0.26"
 serde = "1.0.219"
@@ -371,6 +371,8 @@ tokio-postgres = "0.7"
 tokio-stream = "0.1.17"
 tokio-test = "0.4.4"
 tokio-tun = "0.11.5"
+tokio-rustls = "0.26"
+tokio-smoltcp = "0.5"
 tokio-tungstenite = { version = "0.20.1" }
 tokio-util = "0.7.15"
 toml = "0.8.22"

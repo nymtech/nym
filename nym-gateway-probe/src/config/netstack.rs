@@ -52,7 +52,7 @@ pub struct NetstackArgs {
     pub port_check_ports: Vec<u16>,
 
     /// Timeout in seconds for each individual port check attempt
-    #[arg(long, default_value_t = 5)]
+    #[arg(long, default_value_t = NetstackArgs::default().port_check_timeout_sec)]
     pub port_check_timeout_sec: u64,
 }
 

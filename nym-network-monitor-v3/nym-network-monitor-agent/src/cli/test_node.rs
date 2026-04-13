@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::env::vars::*;
-use crate::agent::NetworkMonitorAgent;
 use crate::agent::config::Config;
 use crate::agent::tested_node::TestedNodeDetails;
+use crate::agent::tester::NodeStressTester;
 use crate::cli::common::CommonArgs;
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx_params::SphinxKeyRotation;
@@ -40,7 +40,7 @@ pub(crate) struct Args {
 
 impl Args {
     /// Builds the agent [`Config`] from the flattened common args and the local mixnet listener address.
-    pub(crate) fn build_agent_config(&self) -> anyhow::Result<Config> {
+    pub(crate) fn build_tester_config(&self) -> anyhow::Result<Config> {
         self.common_args.build_config(self.agent_mixnet_listener)
     }
 
@@ -56,10 +56,10 @@ impl Args {
         }
     }
 
-    /// Constructs a fully initialised [`NetworkMonitorAgent`] from the parsed arguments.
-    pub(crate) fn build_agent(&self) -> anyhow::Result<NetworkMonitorAgent> {
-        NetworkMonitorAgent::new(
-            self.build_agent_config()?,
+    /// Constructs a fully initialised [`NodeStressTester`] from the parsed arguments.
+    pub(crate) fn build_stress_tester(&self) -> anyhow::Result<NodeStressTester> {
+        NodeStressTester::new(
+            self.build_tester_config()?,
             &self.common_args.noise_key_path,
             self.build_tested_node_details(),
         )
@@ -68,7 +68,7 @@ impl Args {
 
 /// Runs a one-shot stress test against the specified node and logs the result.
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
-    let result = args.build_agent()?.run_stress_test().await?;
+    let result = args.build_stress_tester()?.run_stress_test().await?;
 
     info!("{result:#?}");
     Ok(())

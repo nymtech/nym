@@ -10,54 +10,37 @@ import { Callout } from 'nextra/components';
 
 # Native / Desktop Apps
 
-Desktop apps and CLIs integrate via the [Rust SDK](./rust), with two broad approaches: embedding Nym clients on both sides of the communication (E2E), or using the Mixnet as a proxy to reach external services.
+Desktop apps and CLIs integrate with two broad approaches: embedding Nym clients on both sides of the communication (E2E), or using the Mixnet as a proxy to reach external services.
 
-## Option 1: Mixnet End-To-End
+## Mixnet End-To-End
 Both sides of your app run Nym clients. All traffic stays Sphinx-encrypted the entire way. Works for peer-to-peer setups or any case where you control both ends.
 
 ![](/images/developers/nym-arch-client-to-client.png)
 
-### Stream Module
-The [Stream module](./rust/stream) provides `AsyncRead + AsyncWrite` byte streams multiplexed over the mixnet, the closest analogue to TCP sockets.
-
-- [docs](./rust/stream)
-- [tutorial](./rust/stream/tutorial)
-
-### Mixnet & Client Pool Modules
-The [Mixnet module](./rust/mixnet) exposes the raw message API and `MixnetClient`. The [Client Pool](./rust/client-pool) maintains pre-connected clients for bursty workloads. These are appropriate when you need full control over the communication model.
-
-- [docs](./rust/mixnet)
-- [tutorial](./rust/mixnet/tutorial)
-
-### TcpProxy Module (Unmaintained)
+| SDK Module | What it does | Status | Links |
+|---|---|---|---|
+| **Stream** | `AsyncRead + AsyncWrite` byte streams multiplexed over the mixnet — the closest analogue to TCP sockets | Recommended | [docs](./rust/stream) · [tutorial](./rust/stream/tutorial) |
+| **Mixnet** | Raw message API and `MixnetClient` — full control over the communication model | Stable | [docs](./rust/mixnet) · [tutorial](./rust/mixnet/tutorial) |
+| **Client Pool** | Pre-connected client pool for bursty workloads | Stable | [docs](./rust/client-pool) |
+| **TcpProxy** | Localhost TCP sockets that proxy traffic through the mixnet | Unmaintained | [docs](./rust/tcpproxy) |
 
 <Callout type="error">
-**This module is unmaintained.** Use the [Stream module](./rust/stream) for new projects. Existing users should plan to migrate when possible.
+**TcpProxy is unmaintained.** Use the [Stream module](./rust/stream) for new projects.
 </Callout>
 
-Exposes localhost TCP sockets that proxy traffic through the mixnet.
-
-- [docs](./rust/tcpproxy)
-
-## Option 2: Mixnet-As-Proxy
+## Mixnet-As-Proxy
 For cases where you only control the client side and need to reach a third-party service such as a blockchain RPC or remote API.
 
 ![](/images/developers/nym-arch-ip-routing.png)
 
 <Callout type="warning">
-
-### Security Considerations
-
-Traffic is Sphinx-encrypted until the Exit Gateway, where it's unwrapped into HTTPS (Network Requester) or raw IP (IP Packet Router). The last hop to the remote host **travels as normal internet traffic**.
-
-Weaker than E2E against a global passive adversary, but you still get timing obfuscation and sender-receiver unlinkability between your client and the remote service.
+Traffic is Sphinx-encrypted until the Exit Gateway, where it's unwrapped into HTTPS (Network Requester) or raw IP (IP Packet Router). The last hop to the remote host **travels as normal internet traffic**. Use TLS or another encryption layer to protect the final hop.
 </Callout>
 
-### SOCKS Client
-Applications that support SOCKS4, 4a, or 5 can use the Socks Client exposed by the Mixnet module. Traffic is routed through the Exit Gateway's Network Requester, which uses SURBs to reply to the sender anonymously.
+| Standalone Crate | What it does | Links |
+|---|---|---|
+| **smolmix** | Userspace IP tunnel — `TcpStream` and `UdpSocket` over the mixnet, compatible with the entire async Rust ecosystem | [docs](./smolmix) |
 
-- [docs](./rust/mixnet)
-
-<Callout type="info">
-Development is in progress to allow for this proxy method from native Rust, C, and Go without requiring a separate SOCKS client. Stay tuned.
-</Callout>
+| SDK Module | What it does | Links |
+|---|---|---|
+| **SOCKS Client** | SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester — works with any SOCKS-capable application | [docs](./rust/mixnet) |

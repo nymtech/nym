@@ -8,6 +8,11 @@
   "native": "Native Apps",
   "browsers": "Browser Apps",
   "concepts": "Nym-Specific Concepts for Integrations",
+  "-----": {
+    "type": "separator",
+    "title": "Standalone Crates"
+  },
+  "smolmix": "smolmix",
   "-": {
     "type": "separator",
     "title": "SDKs"

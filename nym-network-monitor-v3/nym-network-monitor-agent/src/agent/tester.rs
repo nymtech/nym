@@ -16,10 +16,12 @@ use anyhow::Context;
 use humantime::format_duration;
 use nym_crypto::asymmetric::x25519;
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
+use nym_pemstore::load_key;
 use nym_sphinx_types::SphinxPacket;
 use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::pin;
@@ -80,6 +82,7 @@ impl NodeStressTester {
         info!("testing the following node");
         info!("{tested_node:#?}");
 
+        let noise_key: x25519::PrivateKey = load_key(noise_key_path)?;
         let sphinx_key = x25519::PrivateKey::new(&mut OsRng);
 
         let reusable_test_header = if config.reuse_header {

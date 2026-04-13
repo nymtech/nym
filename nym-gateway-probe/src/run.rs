@@ -230,7 +230,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
     setup_env(args.config_env_file.as_ref());
     let network = nym_sdk::NymNetworkDetails::new_from_env();
 
-    info!("{:#?}", network);
+    debug!("{:#?}", network);
 
     match args.command {
         Commands::RunLocal {
@@ -449,7 +449,9 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
             let trial =
                 nym_gateway_probe::Probe::new_for_agent(entry_gateway, network, probe_config)
                     .await?;
-            Box::pin(trial.probe_run_agent(credential_args)).await
+            Box::pin(trial.probe_run_agent(credential_args))
+                .await
+                .map(ProbeOutput::Standard)
         }
     }
 }

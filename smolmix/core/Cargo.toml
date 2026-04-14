@@ -1,0 +1,36 @@
+[package]
+name = "smolmix"
+version = "0.0.1"
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+smoltcp = { workspace = true, features = [
+    "std",
+    "medium-ip",
+    "proto-ipv4",
+    "socket-tcp",
+    "socket-udp",
+] }
+tokio = { workspace = true }
+tokio-smoltcp = { workspace = true }
+futures = { workspace = true }
+tracing = { workspace = true }
+nym-sdk = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+thiserror.workspace = true
+
+[dev-dependencies]
+futures = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread", "time", "net"] }
+tokio-tungstenite.workspace = true
+webpki-roots.workspace = true
+rustls = { workspace = true, features = ["std", "ring"] }
+tokio-rustls = { workspace = true }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+hickory-proto = { workspace = true }
+hickory-resolver = { workspace = true, features = ["tokio", "system-config"] }
+hyper = { workspace = true, features = ["client", "http1"] }
+hyper-util = { workspace = true, features = ["tokio"] }
+http-body-util = { workspace = true }
+reqwest = { workspace = true, features = ["rustls"] }

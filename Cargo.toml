@@ -147,6 +147,7 @@ members = [
     "sdk/ffi/go",
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
+    "smolmix/core",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -279,6 +280,7 @@ getrandom03 = { package = "getrandom", version = "=0.3.3" }
 glob = "0.3"
 handlebars = "3.5.5"
 hex = "0.4.3"
+hickory-proto = "0.25.2"
 hickory-resolver = "0.25.2"
 hkdf = "0.12.3"
 hmac = "0.12.1"
@@ -347,6 +349,8 @@ serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
 sha2 = "0.10.3"
 si-scale = "0.2.3"
+smolmix = { version = "0.0.1", path = "smolmix/core" }
+smoltcp = "0.12"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"
 sqlx = "0.8.6"
@@ -367,6 +371,8 @@ tokio-postgres = "0.7"
 tokio-stream = "0.1.17"
 tokio-test = "0.4.4"
 tokio-tun = "0.11.5"
+tokio-rustls = "0.26"
+tokio-smoltcp = "0.5"
 tokio-tungstenite = { version = "0.20.1" }
 tokio-util = "0.7.15"
 toml = "0.8.22"
@@ -559,6 +565,7 @@ wasm-bindgen = "0.2.99"
 wasm-bindgen-futures = "0.4.49"
 wasm-bindgen-test = "0.3.49"
 wasmtimer = "0.4.1"
+webpki-roots = "0.26"
 web-sys = "0.3.76"
 
 # for local development:

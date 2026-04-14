@@ -43,7 +43,7 @@ nym-bin-common = { workspace = true, features = [
     "basic_tracing",
     "output_format",
 ] }
-nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand", "hashing"] }
 nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
 

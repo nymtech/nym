@@ -61,27 +61,3 @@ Applications that support SOCKS4, 4a, or 5 can use the Socks Client exposed by t
 <Callout type="info">
 Development is in progress to allow for this proxy method from native Rust, C, and Go without requiring a separate SOCKS client. Stay tuned.
 </Callout>
-<<<<<<< HEAD
-=======
-
-
-{ /* ### `IPMixStream`
-This is a version of the `MixSocket` that consumes IP packets before wrapping them in Sphinx and forwarding through the Mixnet to the IP Packet Router of the chosen Exit Gateway, where they are unwrapped and treated as normal IP packets. The IPR uses SURBs to anonymously reply to the original sender with whatever response it gets from the remote host.
-
-<Callout type="info" emoji="ℹ️">
-    Currently only consumes IP packets - those who do not want to work with IP packets directly should check `smolmix` below for doing something with HTTP(S).
-</Callout>
-
-- docs TODO LINK
-- examples TODO LINK
-
-### `SmolMix`
-A proof of concept TCP/IP crate containing a [`smoltcp`](https://docs.rs/smoltcp/latest/smoltcp/index.html) `device` that uses the Mixnet for transport. Examples of using this to make a TLS handshake and perform an HTTPS request can be found linked below.
-
-<Callout type="info" emoji="ℹ️">
-    This crate is currently a proof of concept which is in active development. This crate will become the basis of a general-purpose HTTP-through-Mixnet crate in the near future.
-</Callout>
-
-- docs TODO LINK
-- example TODO LINK */ }
->>>>>>> 244ee3de4 (rename mixtcp -> smolmix)

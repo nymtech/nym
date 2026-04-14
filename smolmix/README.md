@@ -5,33 +5,34 @@ to provide real `TcpStream` and `UdpSocket` types that work transparently
 with the async Rust ecosystem — tokio-rustls, hyper, tokio-tungstenite,
 libp2p, and anything else built on `AsyncRead + AsyncWrite`.
 
-## Why TCP, not messages
+## Why IP, not messages
 
 The Nym SDK works at the **message layer**: you send and receive `Vec<u8>`
 payloads through the mixnet. Every protocol must be hand-adapted — you need
 custom framing, ordering, connection state, and flow control.
 
-smolmix operates at the **TCP layer**. A userspace smoltcp stack manages
-real TCP state machines (retransmits, windowing, port allocation), and the
-mixnet becomes a transparent transport underneath. Any protocol that works
-over a TCP stream works over smolmix — with zero adaptation.
+`smolmix` operates at the **IP layer**. A userspace smoltcp stack manages
+real TCP state machines (retransmits, windowing, port allocation) and UDP
+datagram delivery, and the mixnet becomes a transparent transport underneath.
+Any protocol that works over TCP or UDP works over smolmix — with zero
+adaptation.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
-│  Application protocols that "just work" over smolmix TcpStream   │
+│  Application protocols that "just work" over smolmix             │
 │                                                                  │
-│  ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌────────────────┐  │
-│  │ TLS      │ │ HTTP/1.1 │ │ WebSocket    │ │ libp2p         │  │
-│  │ (rustls) │ │ (hyper)  │ │ (tungstenite)│ │ (noise+yamux)  │  │
-│  └────┬─────┘ └────┬─────┘ └──────┬───────┘ └───────┬────────┘  │
-│       │             │              │                 │            │
-│       └─────────────┴──────────────┴─────────────────┘            │
-│                             │                                     │
-│                   tokio_smoltcp::TcpStream                        │
-│               (AsyncRead + AsyncWrite, Send, Unpin)               │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌────────────────┐   │
+│  │ TLS      │ │ HTTP/1.1 │ │ WebSocket    │ │ libp2p         │   │
+│  │ (rustls) │ │ (hyper)  │ │ (tungstenite)│ │ (noise+yamux)  │   │
+│  └────┬─────┘ └────┬─────┘ └──────┬───────┘ └───────┬────────┘   │
+│       │             │              │                 │           │
+│       └─────────────┴──────────────┴─────────────────┘           │
+│                             │                                    │
+│                   tokio_smoltcp::TcpStream                       │
+│               (AsyncRead + AsyncWrite, Send, Unpin)              │
 ├──────────────────────────────────────────────────────────────────┤
-│                     smolmix Tunnel                                │
-│                   (smoltcp → mixnet → IPR)                        │
+│                     smolmix Tunnel                               │
+│                   (smoltcp → mixnet → IPR)                       │
 └──────────────────────────────────────────────────────────────────┘
 ```
 

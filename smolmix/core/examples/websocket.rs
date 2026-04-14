@@ -1,12 +1,11 @@
-//! WebSocket echo over the Nym mixnet using the Tunnel API.
+//! WebSocket echo over the Nym mixnet.
 //!
 //! Demonstrates stacking tokio-tungstenite on top of tokio-rustls on top of
-//! our Tunnel TcpStream. Sends a message to a public echo server via clearnet
+//! smolmix TcpStream. Sends a message to a public echo server via clearnet
 //! and via the mixnet, then compares responses and timing.
 //!
-//! DNS resolution goes through the tunnel (no clearnet leak). The clearnet and
-//! mixnet paths use the *exact same* TLS + WebSocket stack — only the underlying
-//! TCP transport differs:
+//! The clearnet and mixnet paths use the *exact same* TLS + WebSocket stack —
+//! only the underlying TCP transport differs:
 //!
 //! ```text
 //! tokio-tungstenite (WebSocket framing)
@@ -49,32 +48,17 @@ async fn main() -> Result<(), BoxError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    let connector = tls_connector();
-    let domain = ServerName::try_from(WS_HOST)?.to_owned();
-
-    // --- Set up tunnel ---
-    let args: Vec<String> = std::env::args().collect();
-    let ipr_addr = args
-        .iter()
-        .position(|a| a == "--ipr")
-        .and_then(|i| args.get(i + 1));
-
-    let mut builder = Tunnel::builder();
-    if let Some(addr) = ipr_addr {
-        builder = builder.ipr_address(addr.parse().expect("invalid IPR address"));
-    }
-    let tunnel = builder.build().await?;
-    info!("Allocated IP: {}", tunnel.allocated_ips().ipv4);
-
-    // NOTE: This uses clearnet DNS for simplicity. For leak-free DNS resolution
-    // through the mixnet, use the smolmix-dns crate.
+    // Resolve hostname via clearnet DNS - you can resolve via the Mixnet (see UDP example) but for this test its not necessary
     let addr = tokio::net::lookup_host(format!("{WS_HOST}:443"))
         .await?
         .next()
-        .ok_or("DNS resolution returned no addresses")?;
-    info!("Resolved {WS_HOST} -> {addr} (via clearnet DNS)");
+        .ok_or("DNS resolution failed")?;
+    info!("Resolved {WS_HOST} -> {addr}");
 
-    // --- Clearnet baseline: tokio TCP → rustls → tungstenite ---
+    let connector = tls_connector();
+    let domain = ServerName::try_from(WS_HOST)?.to_owned();
+
+    // Clearnet baseline: tokio TCP -> rustls -> tungstenite
     info!("Connecting via clearnet...");
     let clearnet_start = tokio::time::Instant::now();
 
@@ -91,29 +75,68 @@ async fn main() -> Result<(), BoxError> {
 
     info!("Clearnet: \"{clearnet_text}\" in {clearnet_duration:?}");
 
-    // --- Mixnet: smolmix TCP → rustls → tungstenite (same stack) ---
-    let mixnet_start = tokio::time::Instant::now();
+    // Mixnet: smolmix TCP -> rustls -> tungstenite (same stack)
+    let args: Vec<String> = std::env::args().collect();
+    let ipr_addr = args
+        .iter()
+        .position(|a| a == "--ipr")
+        .and_then(|i| args.get(i + 1));
 
+    let mut builder = Tunnel::builder();
+    if let Some(addr) = ipr_addr {
+        builder = builder.ipr_address(addr.parse().expect("invalid IPR address"));
+    }
+    let tunnel = builder.build().await?;
+    info!("Allocated IP: {}", tunnel.allocated_ips().ipv4);
+
+    // Phase 1: Setup (TCP + TLS + WebSocket handshakes)
+    let setup_start = tokio::time::Instant::now();
+
+    info!("TCP connecting via mixnet...");
     let mixnet_tcp = tunnel.tcp_connect(addr).await?;
+    info!("TCP connected ({:?})", setup_start.elapsed());
+
+    info!("TLS handshake...");
     let mixnet_tls = connector.connect(domain, mixnet_tcp).await?;
+    info!("TLS established ({:?})", setup_start.elapsed());
+
+    info!("WebSocket upgrade...");
     let (mut mixnet_ws, _) =
         tokio_tungstenite::client_async(format!("wss://{WS_HOST}{WS_PATH}"), mixnet_tls).await?;
 
+    let setup_duration = setup_start.elapsed();
+    info!("Setup complete ({:?})", setup_duration);
+
+    // Phase 2: Echo request/response
+    let request_start = tokio::time::Instant::now();
+
     mixnet_ws.send(Message::Text(ECHO_MSG.into())).await?;
     let mixnet_reply = mixnet_ws.next().await.ok_or("no mixnet reply")??;
-    let mixnet_duration = mixnet_start.elapsed();
+
+    let request_duration = request_start.elapsed();
     let mixnet_text = mixnet_reply.into_text()?;
     mixnet_ws.close(None).await?;
 
-    // --- Compare ---
-    info!("=== Results ===");
+    info!("Echo: \"{mixnet_text}\" ({:?})", request_duration);
+
+    // Results
     info!("Clearnet: \"{clearnet_text}\" in {clearnet_duration:?}");
-    info!("Mixnet:   \"{mixnet_text}\" in {mixnet_duration:?}");
+    info!(
+        "Mixnet:   \"{mixnet_text}\" (setup {:?} + echo {:?} = {:?})",
+        setup_duration,
+        request_duration,
+        setup_duration + request_duration
+    );
     info!("Clearnet echo match: {}", clearnet_text == ECHO_MSG);
     info!("Mixnet echo match:   {}", mixnet_text == ECHO_MSG);
 
-    let slowdown = mixnet_duration.as_millis() as f64 / clearnet_duration.as_millis().max(1) as f64;
-    info!("Slowdown: {slowdown:.1}x");
+    let total = setup_duration + request_duration;
+    let slowdown = total.as_millis() as f64 / clearnet_duration.as_millis().max(1) as f64;
+    info!(
+        "Slowdown: {slowdown:.1}x (setup: {:.1}x, echo: {:.1}x)",
+        setup_duration.as_millis() as f64 / clearnet_duration.as_millis().max(1) as f64,
+        request_duration.as_millis() as f64 / clearnet_duration.as_millis().max(1) as f64
+    );
 
     tunnel.shutdown().await;
     Ok(())

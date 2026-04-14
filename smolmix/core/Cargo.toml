@@ -28,6 +28,9 @@ webpki-roots.workspace = true
 rustls = { workspace = true, features = ["std", "ring"] }
 tokio-rustls = { workspace = true }
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }
-
-[[example]]
-name = "websocket"
+hickory-proto = { workspace = true }
+hickory-resolver = { workspace = true, features = ["tokio", "system-config"] }
+hyper = { workspace = true, features = ["client", "http1"] }
+hyper-util = { workspace = true, features = ["tokio"] }
+http-body-util = { workspace = true }
+reqwest = { workspace = true, features = ["rustls"] }

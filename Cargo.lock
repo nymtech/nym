@@ -11145,9 +11145,15 @@ name = "smolmix"
 version = "0.0.1"
 dependencies = [
  "futures",
+ "hickory-proto",
+ "hickory-resolver",
+ "http-body-util",
+ "hyper 1.6.0",
+ "hyper-util",
  "nym-bin-common",
  "nym-ip-packet-requests",
  "nym-sdk",
+ "reqwest 0.13.1",
  "rustls 0.23.37",
  "smoltcp",
  "thiserror 2.0.12",

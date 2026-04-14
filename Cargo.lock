@@ -7535,6 +7535,7 @@ dependencies = [
  "serde",
  "tracing",
  "utoipa",
+ "zeroize",
 ]
 
 [[package]]

@@ -33,7 +33,7 @@ pub(crate) struct NymIprBridge {
 
 /// Handle for signaling the bridge to shut down gracefully.
 pub(crate) struct BridgeShutdownHandle {
-    tx: oneshot::Sender<()>,
+    tx: Option<oneshot::Sender<()>>,
 }
 
 impl BridgeShutdownHandle {
@@ -43,11 +43,20 @@ impl BridgeShutdownHandle {
     /// then calls `IpMixStream::disconnect()` before returning. Consumes
     /// `self` — can only be called once.
     ///
-    /// If this handle is dropped without calling `shutdown()`, the oneshot
-    /// channel closes and the bridge detects the hangup, triggering the same
-    /// shutdown path.
-    pub(crate) fn shutdown(self) {
-        let _ = self.tx.send(());
+    /// If this handle is dropped without calling `shutdown()`, the `Drop`
+    /// impl sends the signal automatically.
+    pub(crate) fn shutdown(mut self) {
+        if let Some(tx) = self.tx.take() {
+            let _ = tx.send(());
+        }
+    }
+}
+
+impl Drop for BridgeShutdownHandle {
+    fn drop(&mut self) {
+        if let Some(tx) = self.tx.take() {
+            let _ = tx.send(());
+        }
     }
 }
 
@@ -73,7 +82,9 @@ impl NymIprBridge {
                 incoming_tx,
                 shutdown_rx,
             },
-            BridgeShutdownHandle { tx: shutdown_tx },
+            BridgeShutdownHandle {
+                tx: Some(shutdown_tx),
+            },
         )
     }
 

@@ -12,7 +12,7 @@
 
 use std::net::SocketAddr;
 
-use smolmix::{Recipient, Tunnel};
+use smolmix::Tunnel;
 use tracing::info;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -93,7 +93,7 @@ fn parse_dns_response(buf: &[u8]) -> Vec<std::net::Ipv4Addr> {
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
-    smolmix::init_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     let dns_addr: SocketAddr = DNS_SERVER.parse()?;
     let query = dns_query();
@@ -119,12 +119,11 @@ async fn main() -> Result<(), BoxError> {
         .position(|a| a == "--ipr")
         .and_then(|i| args.get(i + 1));
 
-    let tunnel = if let Some(addr) = ipr_addr {
-        let recipient: Recipient = addr.parse().expect("invalid IPR address");
-        Tunnel::new_with_ipr(recipient).await?
-    } else {
-        Tunnel::new().await?
-    };
+    let mut builder = Tunnel::builder();
+    if let Some(addr) = ipr_addr {
+        builder = builder.ipr_address(addr.parse().expect("invalid IPR address"));
+    }
+    let tunnel = builder.build().await?;
 
     info!("Sending DNS query via mixnet to {dns_addr}...");
     let mixnet_start = tokio::time::Instant::now();

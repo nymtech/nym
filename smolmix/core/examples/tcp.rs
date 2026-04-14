@@ -13,7 +13,7 @@
 
 use std::net::SocketAddr;
 
-use smolmix::{Recipient, Tunnel};
+use smolmix::Tunnel;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tracing::info;
 
@@ -25,7 +25,7 @@ const HTTP_REQUEST: &[u8] = b"GET / HTTP/1.1\r\nHost: 1.1.1.1\r\nConnection: clo
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
-    smolmix::init_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     let addr: SocketAddr = TARGET.parse()?;
 
@@ -55,12 +55,11 @@ async fn main() -> Result<(), BoxError> {
         .position(|a| a == "--ipr")
         .and_then(|i| args.get(i + 1));
 
-    let tunnel = if let Some(addr) = ipr_addr {
-        let recipient: Recipient = addr.parse().expect("invalid IPR address");
-        Tunnel::new_with_ipr(recipient).await?
-    } else {
-        Tunnel::new().await?
-    };
+    let mut builder = Tunnel::builder();
+    if let Some(addr) = ipr_addr {
+        builder = builder.ipr_address(addr.parse().expect("invalid IPR address"));
+    }
+    let tunnel = builder.build().await?;
 
     info!("Connecting via mixnet to {addr}...");
     let mixnet_start = tokio::time::Instant::now();

@@ -11,9 +11,9 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use futures::channel::mpsc;
 use futures::{Sink, Stream};
 use smoltcp::phy::{DeviceCapabilities, Medium};
-use tokio::sync::mpsc;
 use tokio_smoltcp::device::AsyncDevice;
 
 /// Async adapter bridging mpsc channels to tokio-smoltcp's [`AsyncDevice`] trait.
@@ -50,34 +50,40 @@ impl Stream for NymAsyncDevice {
     type Item = io::Result<Vec<u8>>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.rx.poll_recv(cx).map(|opt| opt.map(Ok))
+        Pin::new(&mut self.rx).poll_next(cx).map(|opt| opt.map(Ok))
     }
 }
 
 // When smoltcp produces a packet (e.g. TCP SYN, data segment, UDP datagram),
 // tokio-smoltcp sends it here and we forward it to the bridge for mixnet delivery.
 //
-// All methods are trivial — the unbounded channel is always ready and never blocks.
-// Backpressure is handled at the mixnet layer, not here.
+// Delegates to the built-in Sink impl on futures::channel::mpsc::UnboundedSender,
+// which handles channel liveness checks (poll_ready) and disconnect (poll_close).
 impl Sink<Vec<u8>> for NymAsyncDevice {
     type Error = io::Error;
 
-    fn poll_ready(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-
-    fn start_send(self: Pin<&mut Self>, item: Vec<u8>) -> Result<(), Self::Error> {
-        self.tx
-            .send(item)
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Pin::new(&mut self.tx)
+            .poll_ready(cx)
             .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "bridge channel closed"))
     }
 
-    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
+    fn start_send(mut self: Pin<&mut Self>, item: Vec<u8>) -> Result<(), Self::Error> {
+        Pin::new(&mut self.tx)
+            .start_send(item)
+            .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "bridge channel closed"))
     }
 
-    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Pin::new(&mut self.tx)
+            .poll_flush(cx)
+            .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "bridge channel closed"))
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Pin::new(&mut self.tx)
+            .poll_close(cx)
+            .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "bridge channel closed"))
     }
 }
 

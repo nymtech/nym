@@ -8,10 +8,55 @@ mod device;
 mod error;
 mod tunnel;
 
+/// Error type for all fallible smolmix operations.
 pub use error::SmolmixError;
-pub use tunnel::{IpPair, Recipient, TcpStream, Tunnel, UdpSocket};
 
-/// Initialise the default tracing/logging subscriber.
-pub fn init_logging() {
-    nym_bin_common::logging::setup_tracing_logger();
-}
+/// The IPv4/IPv6 address pair allocated to this tunnel by the IPR.
+pub use tunnel::IpPair;
+
+/// A Nym mixnet address, used to target a specific IPR exit node.
+pub use tunnel::Recipient;
+
+/// A TCP stream routed through the mixnet. Implements `AsyncRead + AsyncWrite`.
+///
+/// Obtained via [`Tunnel::tcp_connect`]. Works as a drop-in replacement for
+/// `tokio::net::TcpStream` with tokio-rustls, hyper, tokio-tungstenite, etc.
+///
+/// ```no_run
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let tunnel = smolmix::Tunnel::new().await?;
+/// use tokio::io::{AsyncReadExt, AsyncWriteExt};
+///
+/// let mut stream = tunnel.tcp_connect("1.1.1.1:80".parse()?).await?;
+/// stream.write_all(b"GET / HTTP/1.1\r\nHost: 1.1.1.1\r\nConnection: close\r\n\r\n").await?;
+/// let mut buf = Vec::new();
+/// stream.read_to_end(&mut buf).await?;
+/// # Ok(())
+/// # }
+/// ```
+pub use tunnel::TcpStream;
+
+/// A mixnet tunnel providing TCP and UDP socket access.
+pub use tunnel::Tunnel;
+
+/// Builder for configuring and creating a [`Tunnel`].
+///
+/// See [`Tunnel::builder()`] for usage.
+pub use tunnel::TunnelBuilder;
+
+/// A UDP socket routed through the mixnet. Supports `send_to` / `recv_from`.
+///
+/// Obtained via [`Tunnel::udp_socket`] or [`Tunnel::udp_socket_on`].
+///
+/// ```no_run
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let tunnel = smolmix::Tunnel::new().await?;
+/// let udp = tunnel.udp_socket().await?;
+/// udp.send_to(b"hello", "1.1.1.1:9999".parse()?).await?;
+///
+/// let mut buf = [0u8; 1024];
+/// let (len, _src) = udp.recv_from(&mut buf).await?;
+/// # Ok(())
+/// # }
+/// ```
+pub use tunnel::UdpSocket;

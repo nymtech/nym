@@ -12,11 +12,12 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use futures::channel::mpsc;
 pub use nym_ip_packet_requests::IpPair;
 use nym_sdk::ipr_wrapper::IpMixStream;
 use smoltcp::iface::Config;
 use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -48,49 +49,146 @@ struct TunnelInner {
 /// (Internet Packet Router). It spawns a background bridge task and a network reactor,
 /// then provides familiar socket APIs on top.
 ///
-/// Cloning a `Tunnel` is cheap (Arc-based) and all clones share the same underlying
-/// connection. Multiple tasks can open sockets concurrently.
 ///
 /// # Shutdown
 ///
 /// Call [`shutdown()`](Self::shutdown) for a clean disconnect. Rust has no async `Drop`,
 /// so dropping without calling `shutdown()` triggers a fire-and-forget cleanup via the
 /// oneshot channel — the bridge will still shut down, but the caller can't await it.
+///
+/// # Examples
+///
+/// ```no_run
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// use smolmix::Tunnel;
+/// use tokio::io::{AsyncReadExt, AsyncWriteExt};
+///
+/// let tunnel = Tunnel::new().await?;
+///
+/// // TCP — connect and use like any async stream
+/// let mut tcp = tunnel.tcp_connect("1.1.1.1:80".parse()?).await?;
+/// tcp.write_all(b"GET / HTTP/1.1\r\nHost: 1.1.1.1\r\nConnection: close\r\n\r\n").await?;
+/// let mut buf = Vec::new();
+/// tcp.read_to_end(&mut buf).await?;
+///
+/// // UDP — datagrams over the mixnet
+/// let udp = tunnel.udp_socket().await?;
+/// udp.send_to(b"hello", "1.1.1.1:9999".parse()?).await?;
+///
+/// // Share across tasks (cheap Arc-based clone)
+/// let t2 = tunnel.clone();
+/// tokio::spawn(async move {
+///     let _tcp2 = t2.tcp_connect("93.184.216.34:80".parse().unwrap()).await.unwrap();
+/// });
+///
+/// tunnel.shutdown().await;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// See also the repository examples: `tcp`, `udp`, `websocket`.
 #[derive(Clone)]
 pub struct Tunnel {
     inner: Arc<TunnelInner>,
 }
 
+/// Builder for configuring and creating a [`Tunnel`].
+///
+/// Use [`Tunnel::builder()`] to create a new builder.
+///
+/// # Examples
+///
+/// ```no_run
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// use smolmix::Tunnel;
+///
+/// // Auto-discover the best IPR:
+/// let tunnel = Tunnel::builder().build().await?;
+///
+/// // Or specify an IPR exit node:
+/// use smolmix::Recipient;
+/// let ipr: Recipient = "gateway-address...".parse()?;
+/// let tunnel = Tunnel::builder().ipr_address(ipr).build().await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// For full control over the mixnet client (credentials, gateway selection,
+/// storage, etc.), configure an [`IpMixStream`] directly and pass it to
+/// [`Tunnel::from_stream()`]. Deeper builder integration with `MixnetClientBuilder`
+/// will require upstream SDK changes to expose `IpMixStream` internals (TODO).
+pub struct TunnelBuilder {
+    ipr_address: Option<Recipient>,
+}
+
+impl TunnelBuilder {
+    /// Target a specific IPR exit node instead of auto-discovering one.
+    pub fn ipr_address(mut self, addr: Recipient) -> Self {
+        self.ipr_address = Some(addr);
+        self
+    }
+
+    /// Build and connect the tunnel.
+    pub async fn build(self) -> Result<Tunnel, SmolmixError> {
+        let stream = match self.ipr_address {
+            Some(addr) => IpMixStream::new_with_ipr(addr).await?,
+            None => IpMixStream::new().await?,
+        };
+        Tunnel::from_stream(stream).await
+    }
+}
+
 impl Tunnel {
+    /// Create a [`TunnelBuilder`] for configuring the tunnel before connecting.
+    ///
+    /// ```no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use smolmix::Tunnel;
+    /// let tunnel = Tunnel::builder().build().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn builder() -> TunnelBuilder {
+        TunnelBuilder { ipr_address: None }
+    }
+
     /// Create a new tunnel, automatically discovering the best IPR exit node.
     ///
-    /// This is the simplest entry point — one line gets you a working tunnel:
-    /// ```ignore
+    /// Shorthand for `Tunnel::builder().build().await`.
+    ///
+    /// ```no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use smolmix::Tunnel;
     /// let tunnel = Tunnel::new().await?;
     /// let tcp = tunnel.tcp_connect("1.1.1.1:443".parse()?).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn new() -> Result<Self, SmolmixError> {
-        let ipr_stream = IpMixStream::new().await?;
-        Self::from_stream(ipr_stream).await
+        Self::builder().build().await
     }
 
     /// Create a new tunnel connected to a specific IPR exit node.
     ///
-    /// Use this for testing against a known exit gateway, or when you want to
-    /// bypass automatic IPR discovery:
-    /// ```ignore
+    /// Shorthand for `Tunnel::builder().ipr_address(addr).build().await`.
+    ///
+    /// ```no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use smolmix::{Recipient, Tunnel};
     /// let ipr: Recipient = "gateway-address...".parse()?;
     /// let tunnel = Tunnel::new_with_ipr(ipr).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn new_with_ipr(ipr_address: Recipient) -> Result<Self, SmolmixError> {
-        let ipr_stream = IpMixStream::new_with_ipr(ipr_address).await?;
-        Self::from_stream(ipr_stream).await
+        Self::builder().ipr_address(ipr_address).build().await
     }
 
     /// Create a tunnel from a pre-configured [`IpMixStream`].
     ///
-    /// Use this if you need to customize the mixnet client (e.g. custom gateway,
-    /// storage path, etc.) before creating the tunnel.
+    /// Use this for full control over the mixnet client (credentials, gateway
+    /// selection, storage, etc.) — configure the `IpMixStream` upstream and
+    /// pass it in directly.
     pub async fn from_stream(ipr_stream: IpMixStream) -> Result<Self, SmolmixError> {
         ipr_stream
             .check_connected()
@@ -103,8 +201,8 @@ impl Tunnel {
         //
         //   outgoing: smoltcp → NymAsyncDevice.Sink → outgoing_tx → outgoing_rx → Bridge → mixnet
         //   incoming: mixnet → Bridge → incoming_tx → incoming_rx → NymAsyncDevice.Stream → smoltcp
-        let (outgoing_tx, outgoing_rx) = mpsc::unbounded_channel();
-        let (incoming_tx, incoming_rx) = mpsc::unbounded_channel();
+        let (outgoing_tx, outgoing_rx) = mpsc::unbounded();
+        let (incoming_tx, incoming_rx) = mpsc::unbounded();
 
         // Bridge runs as a background task, shuttling packets between channels and IpMixStream.
         let (bridge, bridge_shutdown) = NymIprBridge::new(ipr_stream, outgoing_rx, incoming_tx);
@@ -142,23 +240,98 @@ impl Tunnel {
     }
 
     /// Open a TCP connection to `addr` through the mixnet.
+    ///
+    /// The returned [`TcpStream`] implements `tokio::io::AsyncRead + AsyncWrite`,
+    /// so it works transparently with tokio-rustls, hyper, tokio-tungstenite, and
+    /// any other async I/O consumer.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SmolmixError::Io`] if the TCP handshake fails (connection
+    /// refused, timeout, etc.) or if the tunnel has been shut down.
+    ///
+    /// # Examples
+    ///
+    /// Raw HTTP request:
+    /// ```no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let tunnel = smolmix::Tunnel::new().await?;
+    /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    ///
+    /// let mut tcp = tunnel.tcp_connect("1.1.1.1:80".parse()?).await?;
+    /// tcp.write_all(b"GET / HTTP/1.1\r\nHost: 1.1.1.1\r\nConnection: close\r\n\r\n").await?;
+    ///
+    /// let mut response = Vec::new();
+    /// tcp.read_to_end(&mut response).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// TLS via tokio-rustls (the stream is a drop-in for `tokio::net::TcpStream`):
+    /// ```no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let tunnel = smolmix::Tunnel::new().await?;
+    /// use rustls::pki_types::ServerName;
+    /// use tokio_rustls::TlsConnector;
+    ///
+    /// let tcp = tunnel.tcp_connect("93.184.216.34:443".parse()?).await?;
+    /// # let connector: TlsConnector = todo!();
+    /// let tls = connector.connect(ServerName::try_from("example.com")?.to_owned(), tcp).await?;
+    /// // `tls` implements AsyncRead + AsyncWrite — use with hyper, tungstenite, etc.
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn tcp_connect(&self, addr: SocketAddr) -> Result<TcpStream, SmolmixError> {
         Ok(self.inner.net.tcp_connect(addr).await?)
     }
 
     /// Create a UDP socket bound to an ephemeral port.
+    ///
+    /// The port is chosen by smoltcp's allocator. Use [`udp_socket_on`](Self::udp_socket_on)
+    /// if you need a specific port (e.g. for a protocol that expects replies on
+    /// a known port).
+    ///
+    /// The returned [`UdpSocket`] supports `send_to` / `recv_from` for datagram I/O.
+    ///
+    /// # Examples
+    ///
+    /// Send a DNS query and read the response:
+    /// ```no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let tunnel = smolmix::Tunnel::new().await?;
+    /// let udp = tunnel.udp_socket().await?;
+    ///
+    /// // Send a raw DNS query to Cloudflare
+    /// let query = b"\x12\x34\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\
+    ///               \x07example\x03com\x00\x00\x01\x00\x01";
+    /// udp.send_to(query, "1.1.1.1:53".parse()?).await?;
+    ///
+    /// let mut buf = [0u8; 512];
+    /// let (len, _src) = udp.recv_from(&mut buf).await?;
+    /// println!("Got {} bytes back", len);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn udp_socket(&self) -> Result<UdpSocket, SmolmixError> {
         let addr: SocketAddr = ([0, 0, 0, 0], 0).into();
         Ok(self.inner.net.udp_bind(addr).await?)
     }
 
-    /// Create a UDP socket bound to a specific port.
+    /// Create a UDP socket bound to a specific local port.
+    ///
+    /// Binds to `0.0.0.0:<port>` on the tunnel's virtual interface. Use this when
+    /// the remote side expects replies on a well-known port, or when you need
+    /// multiple sockets on distinct ports.
     pub async fn udp_socket_on(&self, port: u16) -> Result<UdpSocket, SmolmixError> {
         let addr: SocketAddr = ([0, 0, 0, 0], port).into();
         Ok(self.inner.net.udp_bind(addr).await?)
     }
 
-    /// The IP addresses allocated to this tunnel by the IPR.
+    /// The IPv4/IPv6 address pair allocated to this tunnel by the IPR.
+    ///
+    /// Available immediately after construction. The IPv4 address is assigned as
+    /// a /32 on the tunnel's virtual interface — all traffic to/from external
+    /// hosts appears to originate from this IP at the exit gateway.
     pub fn allocated_ips(&self) -> IpPair {
         self.inner.allocated_ips
     }

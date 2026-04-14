@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 use crate::error::SmolmixError;
+use futures::channel::mpsc;
+use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::ipr_wrapper::IpMixStream;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::oneshot;
 use tracing::{debug, error, info, trace, warn};
 
 /// Asynchronous bridge between the smoltcp device and the Nym mixnet.
@@ -35,12 +37,29 @@ pub(crate) struct BridgeShutdownHandle {
 }
 
 impl BridgeShutdownHandle {
+    /// Signal the bridge to shut down gracefully.
+    ///
+    /// Sends a one-shot signal that breaks the bridge event loop. The bridge
+    /// then calls `IpMixStream::disconnect()` before returning. Consumes
+    /// `self` — can only be called once.
+    ///
+    /// If this handle is dropped without calling `shutdown()`, the oneshot
+    /// channel closes and the bridge detects the hangup, triggering the same
+    /// shutdown path.
     pub(crate) fn shutdown(self) {
         let _ = self.tx.send(());
     }
 }
 
 impl NymIprBridge {
+    /// Create a new bridge and its associated shutdown handle.
+    ///
+    /// Returns `(bridge, shutdown_handle)`.
+    ///
+    /// # Parameters
+    /// - `stream` — the connected `IpMixStream` (owns the mixnet client)
+    /// - `outgoing_rx` — receives raw IP packets from the smoltcp device
+    /// - `incoming_tx` — sends raw IP packets to the smoltcp device
     pub(crate) fn new(
         stream: IpMixStream,
         outgoing_rx: mpsc::UnboundedReceiver<Vec<u8>>,
@@ -82,7 +101,7 @@ impl NymIprBridge {
                     break;
                 }
 
-                Some(packet) = self.outgoing_rx.recv() => {
+                Some(packet) = self.outgoing_rx.next() => {
                     trace!(len = packet.len(), "Sending packet to mixnet");
 
                     // IPR expects packets wrapped in MultiIpPacketCodec framing.
@@ -100,7 +119,7 @@ impl NymIprBridge {
                         Ok(packets) if !packets.is_empty() => {
                             trace!(count = packets.len(), "Received packets from mixnet");
                             for packet in packets {
-                                if self.incoming_tx.send(packet.to_vec()).is_err() {
+                                if self.incoming_tx.unbounded_send(packet.to_vec()).is_err() {
                                     error!("Device channel closed");
                                     return Err(SmolmixError::ChannelClosed);
                                 }

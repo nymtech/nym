@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 use futures::{SinkExt, StreamExt};
 use rustls::pki_types::ServerName;
-use smolmix::{Recipient, Tunnel};
+use smolmix::Tunnel;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
 
@@ -44,7 +44,7 @@ fn tls_connector() -> tokio_rustls::TlsConnector {
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
-    smolmix::init_logging();
+    nym_bin_common::logging::setup_tracing_logger();
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install rustls crypto provider");
@@ -52,19 +52,18 @@ async fn main() -> Result<(), BoxError> {
     let connector = tls_connector();
     let domain = ServerName::try_from(WS_HOST)?.to_owned();
 
-    // --- Set up tunnel and resolve DNS through it (no clearnet leak) ---
+    // --- Set up tunnel ---
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
         .position(|a| a == "--ipr")
         .and_then(|i| args.get(i + 1));
 
-    let tunnel = if let Some(addr) = ipr_addr {
-        let recipient: Recipient = addr.parse().expect("invalid IPR address");
-        Tunnel::new_with_ipr(recipient).await?
-    } else {
-        Tunnel::new().await?
-    };
+    let mut builder = Tunnel::builder();
+    if let Some(addr) = ipr_addr {
+        builder = builder.ipr_address(addr.parse().expect("invalid IPR address"));
+    }
+    let tunnel = builder.build().await?;
     info!("Allocated IP: {}", tunnel.allocated_ips().ipv4);
 
     // NOTE: This uses clearnet DNS for simplicity. For leak-free DNS resolution

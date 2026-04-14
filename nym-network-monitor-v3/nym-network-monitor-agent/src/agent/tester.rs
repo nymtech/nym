@@ -82,7 +82,6 @@ impl NodeStressTester {
         info!("testing the following node");
         info!("{tested_node:#?}");
 
-        let noise_key: x25519::PrivateKey = load_key(noise_key_path)?;
         let sphinx_key = x25519::PrivateKey::new(&mut OsRng);
 
         let reusable_test_header = if config.reuse_header {

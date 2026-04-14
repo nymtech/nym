@@ -16,12 +16,13 @@ anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tracing = { workspace = true }
 utoipa = { workspace = true, optional = true }
+zeroize = { workspace = true, optional = true }
 
 nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
 nym-http-api-client = { workspace = true, optional = true }
 
 [features]
-client = ["nym-http-api-client"]
+client = ["nym-http-api-client", "zeroize"]
 openapi = ["utoipa"]
 
 [lints]

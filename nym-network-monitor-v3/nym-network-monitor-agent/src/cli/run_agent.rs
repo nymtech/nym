@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::env::vars::*;
+use crate::agent::NetworkMonitorAgent;
 use crate::cli::common::CommonArgs;
-use std::net::IpAddr;
-use tracing::error;
+use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
+use nym_network_monitor_orchestrator_requests::models::AgentPortRequest;
+use std::net::{IpAddr, SocketAddr};
+use tracing::info;
 use url::Url;
 
 #[derive(clap::Args, Debug)]
@@ -27,7 +30,39 @@ pub(crate) struct Args {
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
-    let _ = args;
-    error!("this command hasn't been implemented yet");
+    let orchestrator_client =
+        OrchestratorClient::new(args.orchestrator_address.into(), args.orchestrator_token)?;
+
+    // 1. retrieve mix port to use as coordinated by the orchestrator
+    // to make sure there are no two agents with the same egress ip address and port
+    // as otherwise nodes would be unable to determine correct noise key to use
+    info!("requesting mix port assignment");
+    let mix_port = orchestrator_client
+        .get_mix_port_assignment(&AgentPortRequest {
+            agent_node_ip: args.host_ip,
+        })
+        .await?
+        .available_mix_port;
+
+    let mix_address = SocketAddr::new(args.host_ip, mix_port);
+
+    // 2. build instance of the agent (loads the noise keys)
+    let agent = NetworkMonitorAgent::new(
+        args.common_args.build_config(mix_address),
+        args.common_args.noise_key_path,
+        orchestrator_client,
+    )?;
+
+    // 3. announce the agent to the orchestrator
+    // so that it would be registered in the smart contract
+    // (if it hasn't been announced before)
+    info!("announcing agent information to the orchestrator");
+    agent.announce_agent().await?;
+
+    // 4. query the orchestrator for work assignment and attempt to perform the stress test
+    // of the target node
+    info!("attempting to request test run assignment");
+    agent.run_stress_test().await?;
+
     Ok(())
 }

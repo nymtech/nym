@@ -4,6 +4,8 @@
 // to be used in subsequent PRs
 #![allow(dead_code)]
 
+use crate::http::api::{build_router, run_http_server};
+use crate::http::state::AppState;
 use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
 use crate::storage::NetworkMonitorStorage;
@@ -39,7 +41,10 @@ pub(crate) struct NetworkMonitorOrchestrator {
     pub(crate) identity_keys: Arc<ed25519::KeyPair>,
 
     /// Bearer token presented by agents when requesting work assignments and submitting results.
-    pub(crate) http_auth_token: Arc<Zeroizing<String>>,
+    pub(crate) agents_http_auth_token: Arc<Zeroizing<String>>,
+
+    /// Bearer token required when attempting to access the metrics endpoint.
+    pub(crate) metrics_http_auth_token: Arc<Zeroizing<String>>,
 
     /// Handle to the local SQLite database used to track nodes and test runs.
     pub(crate) storage: NetworkMonitorStorage,
@@ -54,7 +59,8 @@ impl NetworkMonitorOrchestrator {
     pub(crate) async fn new(
         config: Config,
         identity_keys: Arc<ed25519::KeyPair>,
-        http_auth_token: Zeroizing<String>,
+        agents_http_auth_token: Zeroizing<String>,
+        metrics_http_auth_token: Zeroizing<String>,
         mnemonic: bip39::Mnemonic,
     ) -> anyhow::Result<Self> {
         let storage = NetworkMonitorStorage::init(&config.database_path).await?;
@@ -68,7 +74,8 @@ impl NetworkMonitorOrchestrator {
             config,
             client,
             identity_keys,
-            http_auth_token: Arc::new(http_auth_token),
+            agents_http_auth_token: Arc::new(agents_http_auth_token),
+            metrics_http_auth_token: Arc::new(metrics_http_auth_token),
             storage,
             shutdown_manager: ShutdownManager::build_new_default()?,
         };
@@ -100,7 +107,10 @@ impl NetworkMonitorOrchestrator {
             .nyxd
             .clone_query_client();
 
-        // 1. build node information refresher
+        // 1. build the shared state
+        let app_state = AppState::new();
+
+        // 2. build node information refresher
         let node_refresher = NodeRefresher::new(
             &self.config,
             query_client,
@@ -108,9 +118,23 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 2. build ...
+        // 3. build the http server
+        let http_router = build_router(
+            app_state,
+            self.agents_http_auth_token.clone(),
+            self.metrics_http_auth_token.clone(),
+        );
 
         // XYZ. start all the tasks
+        // http server
+        let http_server_fut = run_http_server(
+            http_router,
+            self.config.http_server_bind_address,
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+        self.shutdown_manager
+            .try_spawn_named(http_server_fut, "http-server");
+
         // node refresher
         self.shutdown_manager.try_spawn_named(
             async move {

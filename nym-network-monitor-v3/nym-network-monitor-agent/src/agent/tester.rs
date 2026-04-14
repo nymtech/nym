@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::agent::config::Config;
+use crate::agent::config::NodeTesterConfig;
 use crate::agent::result::{LatencyDistribution, TestRunResult};
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::egress_connection::EgressConnection;
@@ -45,7 +45,7 @@ use tracing::{debug, error, info, warn};
 /// returned [`TestRunResult`] so the caller can still inspect partial data.
 pub(crate) struct NodeStressTester {
     /// Tester configuration controlling rates, timeouts, and addressing.
-    config: Config,
+    config: NodeTesterConfig,
 
     /// Monotonically increasing counter embedded in each outgoing packet as its ID.
     packet_counter: u64,
@@ -71,9 +71,9 @@ impl NodeStressTester {
     /// Creates a new tester, loading the Noise private key from `noise_key_path` and
     /// generating a fresh ephemeral sphinx key. If `config.reuse_header` is set, the
     /// sphinx packet header is pre-built here so it can be reused across all test packets.
-    pub(crate) fn new<P: AsRef<Path>>(
-        config: Config,
-        noise_key_path: P,
+    pub(crate) fn new(
+        config: NodeTesterConfig,
+        noise_key: Arc<x25519::KeyPair>,
         tested_node: TestedNodeDetails,
     ) -> anyhow::Result<Self> {
         info!("using the following tester config");
@@ -82,7 +82,6 @@ impl NodeStressTester {
         info!("testing the following node");
         info!("{tested_node:#?}");
 
-        let noise_key: x25519::PrivateKey = load_key(noise_key_path)?;
         let sphinx_key = x25519::PrivateKey::new(&mut OsRng);
 
         let reusable_test_header = if config.reuse_header {
@@ -101,7 +100,7 @@ impl NodeStressTester {
             config,
             packet_counter: 0,
             reusable_test_header,
-            noise_key: Arc::new(noise_key.into()),
+            noise_key,
             sphinx_key: Arc::new(sphinx_key.into()),
             tested_node,
         })

@@ -1,8 +1,10 @@
 use crate::db::DbConnection;
 use crate::db::DbPool;
-use crate::db::models::{TestRunDto, TestRunStatus};
+use crate::db::models::{TestRunDto, TestRunKind, TestRunStatus};
 use crate::http::models::TestrunAssignment;
 use crate::utils::now_utc;
+use sqlx::Row;
+use sqlx::types::Json;
 use time::Duration;
 
 pub(crate) async fn count_testruns_in_progress(
@@ -32,6 +34,7 @@ pub(crate) async fn get_in_progress_testrun_by_id(
             id as "id!",
             gateway_id as "gateway_id!",
             status as "status!",
+            kind as "kind!",
             created_utc as "created_utc!",
             ip_address as "ip_address!",
             log as "log!",
@@ -91,6 +94,13 @@ pub(crate) async fn update_testruns_assigned_before(
 pub(crate) async fn assign_oldest_testrun(
     conn: &mut DbConnection,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
+    assign_oldest_testrun_by_kind(conn, TestRunKind::Probe).await
+}
+
+async fn assign_oldest_testrun_by_kind(
+    conn: &mut DbConnection,
+    kind: TestRunKind,
+) -> anyhow::Result<Option<TestrunAssignment>> {
     let now = now_utc().unix_timestamp();
     // find & mark as "In progress" in the same transaction to avoid race conditions
     // lock the row to avoid two threads reading the same value
@@ -99,7 +109,7 @@ pub(crate) async fn assign_oldest_testrun(
         WITH oldest_queued AS (
             SELECT id
             FROM testruns
-            WHERE status = $1
+            WHERE status = $1 AND kind = $4
             ORDER BY created_utc asc
             LIMIT 1
             FOR UPDATE SKIP LOCKED
@@ -117,28 +127,27 @@ pub(crate) async fn assign_oldest_testrun(
         TestRunStatus::Queued as i32,
         now,
         TestRunStatus::InProgress as i32,
+        kind as i16,
     )
     .fetch_optional(conn.as_mut())
     .await?;
 
     if let Some(testrun) = returning {
-        let gw_identity = sqlx::query!(
-            r#"
-                SELECT
-                    id,
-                    gateway_identity_key
-                FROM gateways
-                WHERE id = $1
-                LIMIT 1"#,
-            testrun.gateway_id
+        let row = sqlx::query(
+            r#"SELECT gateway_identity_key, last_ports_check_utc FROM gateways WHERE id = $1 LIMIT 1"#,
         )
+        .bind(testrun.gateway_id)
         .fetch_one(conn.as_mut())
         .await?;
 
+        let gateway_identity_key: String = row.try_get("gateway_identity_key")?;
+        let last_ports_check_utc: Option<i64> = row.try_get("last_ports_check_utc")?;
+
         Ok(Some(TestrunAssignment {
             testrun_id: testrun.id,
-            gateway_identity_key: gw_identity.gateway_identity_key,
+            gateway_identity_key,
             assigned_at_utc: now,
+            last_ports_check_utc,
         }))
     } else {
         Ok(None)
@@ -183,15 +192,72 @@ pub(crate) async fn update_gateway_last_probe_result(
     gateway_pk: i32,
     result: &str,
 ) -> anyhow::Result<()> {
-    sqlx::query!(
-        "UPDATE gateways SET last_probe_result = $1 WHERE id = $2",
-        result,
-        gateway_pk,
+    use crate::db::models::detach_ports_check_from_probe_json;
+
+    let value: serde_json::Value = serde_json::from_str(result)
+        .map_err(|e| anyhow::anyhow!("Invalid probe result JSON: {e}"))?;
+    let (stripped_json, ports_check) = detach_ports_check_from_probe_json(value);
+    let stripped = serde_json::to_string(&stripped_json)?;
+    let now_ts = crate::utils::now_utc().unix_timestamp();
+    let ports_check_ts = ports_check.as_ref().map(|_| now_ts);
+
+    sqlx::query(
+        r#"UPDATE gateways SET
+            last_probe_result = $1,
+            ports_check = COALESCE($2, ports_check),
+            last_ports_check_utc = CASE WHEN $2 IS NOT NULL THEN $3 ELSE last_ports_check_utc END
+        WHERE id = $4"#,
     )
+    .bind(&stripped)
+    .bind(ports_check.map(Json))
+    .bind(ports_check_ts)
+    .bind(gateway_pk)
     .execute(conn.as_mut())
     .await
     .map(drop)
     .map_err(From::from)
+}
+
+// NOTE: port-check submissions must not re-embed `ports_check` into `last_probe_result`.
+
+pub(crate) async fn enqueue_due_ports_check_testruns(db: &DbPool) -> anyhow::Result<u64> {
+    let mut conn = db.acquire().await?;
+    let now = now_utc().unix_timestamp();
+    // 3 days soft TTL
+    let cutoff = now - time::Duration::days(3).whole_seconds();
+
+    let res = sqlx::query!(
+        r#"
+        INSERT INTO testruns (gateway_id, status, kind, created_utc, last_assigned_utc, ip_address, log)
+        SELECT
+            gw.id,
+            $1,
+            $2,
+            $3,
+            NULL,
+            'ports_check_scheduler',
+            ''
+        FROM gateways gw
+        WHERE gw.bonded = true
+          AND (gw.last_ports_check_utc IS NULL OR gw.last_ports_check_utc < $4)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM testruns t
+              WHERE t.gateway_id = gw.id
+                AND t.kind = $2
+                AND t.status IN ($1, $5)
+          )
+        "#,
+        TestRunStatus::Queued as i32,
+        TestRunKind::PortsCheck as i16,
+        now,
+        cutoff,
+        TestRunStatus::InProgress as i32,
+    )
+    .execute(conn.as_mut())
+    .await?;
+
+    Ok(res.rows_affected())
 }
 
 pub(crate) async fn update_gateway_score(
@@ -221,6 +287,7 @@ pub(crate) async fn get_testrun_by_id(
             id,
             gateway_id,
             status,
+            kind,
             created_utc,
             ip_address,
             log,
@@ -247,14 +314,16 @@ pub(crate) async fn insert_external_testrun(
             id,
             gateway_id,
             status,
+            kind,
             created_utc,
             last_assigned_utc,
             ip_address,
             log
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#,
         testrun_id,
         gateway_id,
         TestRunStatus::InProgress as i32,
+        TestRunKind::Probe as i16,
         now,
         assigned_at_utc,
         "external", // Marker for external origin

@@ -12,6 +12,10 @@ impl ApiPaths {
         format!("{}/internal/testruns", self.server_address)
     }
 
+    pub(super) fn request_ports_check_testrun(&self) -> String {
+        format!("{}/internal/testruns/ports-check", self.server_address)
+    }
+
     pub(super) fn submit_results(&self, testrun_id: impl Display) -> String {
         format!("{}/internal/testruns/{}", self.server_address, testrun_id)
     }
@@ -19,6 +23,13 @@ impl ApiPaths {
     pub(super) fn submit_results_v2(&self, testrun_id: impl Display) -> String {
         format!(
             "{}/internal/testruns/{}/v2",
+            self.server_address, testrun_id
+        )
+    }
+
+    pub(super) fn submit_ports_check_results_v2(&self, testrun_id: impl Display) -> String {
+        format!(
+            "{}/internal/testruns/{}/ports-check/v2",
             self.server_address, testrun_id
         )
     }

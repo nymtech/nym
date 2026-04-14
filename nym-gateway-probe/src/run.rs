@@ -449,7 +449,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
             let trial =
                 nym_gateway_probe::Probe::new_for_agent(entry_gateway, network, probe_config)
                     .await?;
-            Box::pin(trial.probe_run_agent(credential_args))
+            Box::pin(trial.probe_run_agent(credential_args, None))
                 .await
                 .map(ProbeOutput::Standard)
         }

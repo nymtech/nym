@@ -8,7 +8,7 @@ use crate::common::probe_tests::{
     do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe,
 };
 use crate::common::types::{Entry, LpProbeResults};
-use crate::config::{CredentialArgs, CredentialMode, NetstackArgs, ProbeConfig};
+use crate::config::{CredentialArgs, CredentialMode, EXIT_POLICY_PORTS, NetstackArgs, ProbeConfig};
 use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_client_core::config::ForgetMe;
@@ -20,7 +20,7 @@ use nym_sdk::mixnet::{
 };
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use rand::rngs::OsRng;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -28,11 +28,31 @@ use tokio_util::sync::CancellationToken;
 use tracing::*;
 
 pub use crate::common::nodes::{NymApiDirectory, query_gateway_by_ip};
-pub use crate::common::types::{PortCheckResult, ProbeOutcome, ProbeResult};
+pub use crate::common::types::{PortCheckResult, PortsCheckSummary, ProbeOutcome, ProbeResult};
 
 mod common;
 pub use common::types;
 pub mod config;
+
+#[derive(Debug, Clone, Copy)]
+pub enum AgentPortsSchedule {
+    NsAgent { last_ports_check_utc: Option<i64> },
+}
+
+fn exit_policy_ports_check_due(last_ports_check_utc: Option<i64>, now: i64) -> bool {
+    const FOURTEEN_DAYS_SECS: i64 = 14 * 24 * 60 * 60;
+    match last_ports_check_utc {
+        None => true,
+        Some(ts) => now.saturating_sub(ts) >= FOURTEEN_DAYS_SECS,
+    }
+}
+
+fn unix_timestamp_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
 
 pub struct Probe {
     /// Entry node
@@ -132,10 +152,10 @@ impl Probe {
         })
     }
 
-    /// Run a probe as an NS agent (orchestrator for multiple probe runs for NS API)
     pub async fn probe_run_agent(
         mut self,
         credential_args: CredentialArgs,
+        ports_schedule: Option<AgentPortsSchedule>,
     ) -> anyhow::Result<ProbeResult> {
         let storage = Ephemeral::default();
 
@@ -189,7 +209,8 @@ impl Probe {
             None
         };
 
-        self.do_probe_test(mixnet_client, bandwidth_provider).await
+        self.do_probe_test(mixnet_client, bandwidth_provider, ports_schedule)
+            .await
     }
 
     /// Run a probe on unannounced gateway(s) some tests will not be available
@@ -227,7 +248,7 @@ impl Probe {
             nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
         }
 
-        self.do_probe_test(None, bandwidth_provider).await
+        self.do_probe_test(None, bandwidth_provider, None).await
     }
 
     pub async fn probe_run(
@@ -295,7 +316,8 @@ impl Probe {
             None
         };
 
-        self.do_probe_test(mixnet_client, bandwidth_provider).await
+        self.do_probe_test(mixnet_client, bandwidth_provider, None)
+            .await
     }
 
     /// Run a port-check probe against the exit gateway's WG exit policy
@@ -402,7 +424,7 @@ impl Probe {
                     gateway: exit_identity,
                     can_register: false,
                     port_check_target,
-                    ports: HashMap::new(),
+                    ports: BTreeMap::new(),
                     error: Some(format!("Failed to connect to mixnet: {e}")),
                 });
             }
@@ -432,7 +454,7 @@ impl Probe {
 
         let wg_ticket_type = TicketType::V1WireguardExit;
 
-        let mut port_results = HashMap::new();
+        let mut port_results: BTreeMap<String, bool> = BTreeMap::new();
         let mut can_register = false;
         let mut last_error = None;
         let max_attempts = 3;
@@ -481,7 +503,235 @@ impl Probe {
                 Ok(outcome) => {
                     if outcome.can_register {
                         can_register = true;
-                        port_results = outcome.port_check_results.unwrap_or_default();
+                        port_results = outcome
+                            .port_check_results
+                            .unwrap_or_default()
+                            .into_iter()
+                            .collect();
+                        let open = port_results.values().filter(|&&v| v).count();
+                        info!(
+                            "Port check complete: {}/{} ports open",
+                            open,
+                            port_results.len()
+                        );
+                        break;
+                    }
+                    warn!(
+                        "Auth registration returned but can_register=false (attempt {attempt}/{max_attempts})"
+                    );
+                    last_error = Some("Auth registration did not complete".into());
+                }
+                Err(e) => {
+                    warn!("WG probe error: {e} (attempt {attempt}/{max_attempts})");
+                    last_error = Some(format!("WG probe error: {e}"));
+                }
+            }
+        }
+
+        mixnet_listener_task.stop().await;
+
+        Ok(PortCheckResult {
+            gateway: exit_identity,
+            can_register,
+            port_check_target,
+            ports: port_results,
+            error: if can_register { None } else { last_error },
+        })
+    }
+
+    /// Run a port-check probe as an NS agent.
+    ///
+    /// This is similar to `run_ports_bonded`, but instead of using on-disk storage + mnemonic
+    /// acquisition, it imports ticket materials provided by the NS API into ephemeral storage.
+    pub async fn run_ports_for_agent(
+        entry_gateway: nym_sdk::mixnet::ed25519::PublicKey,
+        network: NymNetworkDetails,
+        config: &RunPortsConfig,
+        credential_args: CredentialArgs,
+    ) -> anyhow::Result<PortCheckResult> {
+        let api_url = network
+            .endpoints
+            .first()
+            .and_then(|ep| ep.api_url())
+            .ok_or(anyhow::anyhow!("missing api url"))?;
+
+        let directory = NymApiDirectory::new(api_url).await?;
+        let entry_details = directory
+            .entry_gateway(&entry_gateway)?
+            .to_testable_node()?;
+
+        // default: same entry is used as exit
+        Self::run_ports_for_agent_with_nodes(entry_details, None, network, config, credential_args)
+            .await
+    }
+
+    async fn run_ports_for_agent_with_nodes(
+        entry_node: TestedNodeDetails,
+        exit_node: Option<TestedNodeDetails>,
+        network: NymNetworkDetails,
+        config: &RunPortsConfig,
+        credential_args: CredentialArgs,
+    ) -> anyhow::Result<PortCheckResult> {
+        let exit_node = exit_node.unwrap_or(entry_node.clone());
+        let exit_identity = exit_node.identity.to_string();
+
+        let (authenticator, ip_address) =
+            match (exit_node.authenticator_address, exit_node.ip_address) {
+                (Some(auth), Some(ip)) => (auth, ip),
+                _ => {
+                    anyhow::bail!(
+                        "Gateway {} missing authenticator address or IP — not a functional exit",
+                        exit_identity
+                    );
+                }
+            };
+
+        let ports = config.netstack_args.port_check_ports.clone();
+        let port_check_target = config.netstack_args.port_check_target.clone();
+
+        if ports.is_empty() {
+            anyhow::bail!(
+                "No ports specified. Use --check-ports 80,443,22021 or --check-all-ports"
+            );
+        }
+
+        info!(
+            "Port check (agent): testing {} ports on gateway {} via {}",
+            ports.len(),
+            exit_identity,
+            port_check_target
+        );
+
+        let storage = Ephemeral::default();
+
+        let mixnet_debug_config = helpers::mixnet_debug_config(
+            config.min_gateway_mixnet_performance,
+            config.ignore_egress_epoch_role,
+        );
+
+        let topology = helpers::fetch_topology(&network, &mixnet_debug_config)
+            .await
+            .inspect_err(|e| warn!("Failed to fetch topology: {e}"))
+            .ok();
+
+        let mut mixnet_client_builder = MixnetClientBuilder::new_with_storage(storage.clone())
+            .request_gateway(entry_node.identity.to_string())
+            .network_details(network.clone())
+            .debug_config(mixnet_debug_config)
+            .with_forget_me(ForgetMe::new_stats())
+            .credentials_mode(true);
+
+        if let Some(topology) = &topology {
+            mixnet_client_builder = mixnet_client_builder.custom_topology_provider(Box::new(
+                HardcodedTopologyProvider::new(topology.clone()),
+            ));
+        }
+
+        let disconnected_mixnet_client = mixnet_client_builder.build()?;
+
+        // Import credential materials provided by NS API
+        credential_args
+            .import_credential(&disconnected_mixnet_client)
+            .await?;
+
+        let bandwidth_provider =
+            build_bandwidth_controller(&network, storage.credential_store().clone(), false)?;
+
+        let mixnet_client = match disconnected_mixnet_client.connect_to_mixnet().await {
+            Ok(client) => {
+                info!(
+                    "Connected to mixnet via entry gateway: {}",
+                    entry_node.identity
+                );
+                info!("Our nym address: {}", *client.nym_address());
+                client
+            }
+            Err(e) => {
+                return Ok(PortCheckResult {
+                    gateway: exit_identity,
+                    can_register: false,
+                    port_check_target,
+                    ports: BTreeMap::new(),
+                    error: Some(format!("Failed to connect to mixnet: {e}")),
+                });
+            }
+        };
+
+        info!("Warming up mixnet routes...");
+        let nym_address = *mixnet_client.nym_address();
+        let (warmup_result, mixnet_client) = do_ping(
+            mixnet_client,
+            nym_address,
+            exit_node.exit_router_address,
+            false,
+        )
+        .await;
+
+        match warmup_result {
+            Ok(_) => info!("Mixnet warmup done"),
+            Err(e) => warn!("Warmup had issues ({e}), auth may be less reliable"),
+        }
+
+        let nym_address = *mixnet_client.nym_address();
+        let mixnet_listener_task =
+            AuthClientMixnetListener::new(mixnet_client, CancellationToken::new()).start();
+
+        let wg_ticket_type = TicketType::V1WireguardExit;
+
+        let mut port_results: BTreeMap<String, bool> = BTreeMap::new();
+        let mut can_register = false;
+        let mut last_error = None;
+        let max_attempts = 3;
+
+        for attempt in 1..=max_attempts {
+            if attempt > 1 {
+                info!("Retrying authenticator registration (attempt {attempt}/{max_attempts})...");
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+
+            let credential = match bandwidth_provider
+                .get_ecash_ticket(wg_ticket_type, exit_node.identity, 1)
+                .await
+            {
+                Ok(ticket) => ticket.data,
+                Err(e) => {
+                    error!("Failed to get ecash ticket: {e}");
+                    last_error = Some(format!("Failed to get ecash ticket: {e}"));
+                    break;
+                }
+            };
+
+            let netstack_args = config.netstack_args.clone();
+            let mut rng = rand::thread_rng();
+            let auth_client = AuthenticatorClient::new(
+                mixnet_listener_task.subscribe(),
+                mixnet_listener_task.mixnet_sender(),
+                nym_address,
+                authenticator,
+                exit_node.authenticator_version,
+                Arc::new(x25519::KeyPair::new(&mut rng)),
+                ip_address,
+            );
+
+            match wg_probe(
+                auth_client,
+                ip_address,
+                exit_node.authenticator_version,
+                None,
+                netstack_args,
+                true, // port_check_only
+                credential,
+            )
+            .await
+            {
+                Ok(outcome) => {
+                    if outcome.can_register {
+                        can_register = true;
+                        port_results = outcome
+                            .port_check_results
+                            .unwrap_or_default()
+                            .into_iter()
+                            .collect();
                         let open = port_results.values().filter(|&&v| v).count();
                         info!(
                             "Port check complete: {}/{} ports open",
@@ -534,7 +784,7 @@ impl Probe {
         {
             if used_policy.enabled {
                 if let Some(policy) = used_policy.policy {
-                    let mut policy_results = HashMap::with_capacity(ports.len());
+                    let mut policy_results = BTreeMap::new();
                     let v4_probe = std::net::IpAddr::V4(std::net::Ipv4Addr::new(1, 1, 1, 1));
                     let v6_probe = std::net::IpAddr::V6(std::net::Ipv6Addr::new(
                         0x2606, 0x4700, 0x4700, 0, 0, 0, 0, 0x1111,
@@ -559,7 +809,7 @@ impl Probe {
 
         let timeout_duration =
             std::time::Duration::from_secs(config.netstack_args.port_check_timeout_sec);
-        let mut port_results = HashMap::with_capacity(ports.len());
+        let mut port_results = BTreeMap::new();
 
         info!(
             "Direct {:?} port check: testing {} ports on {} (timeout {}s per port)",
@@ -607,6 +857,7 @@ impl Probe {
         self,
         mixnet_client: Option<nym_sdk::Result<MixnetClient>>,
         bandwith_provider: Box<dyn BandwidthTicketProvider>,
+        ports_schedule: Option<AgentPortsSchedule>,
     ) -> anyhow::Result<ProbeResult> {
         // Setup exit node
         let entry_under_test = self.exit_node.is_none();
@@ -622,6 +873,7 @@ impl Probe {
                 lp: None,
                 socks5: None,
             },
+            ports_check: None,
         };
 
         let mixnet_client = match mixnet_client {
@@ -739,6 +991,88 @@ impl Probe {
 
                     // Add wg results to probe result
                     probe_result.outcome.wg = Some(outcome);
+
+                    if let Some(AgentPortsSchedule::NsAgent {
+                        last_ports_check_utc,
+                    }) = ports_schedule
+                    {
+                        let now = unix_timestamp_secs();
+                        if exit_policy_ports_check_due(last_ports_check_utc, now) {
+                            if let Some(ref wg1) = probe_result.outcome.wg {
+                                if wg1.can_register {
+                                    info!(
+                                        "Running scheduled exit-policy port scan (stale or unset last_ports_check_utc)"
+                                    );
+                                    let mut netstack_ports = self.config.netstack_args.clone();
+                                    netstack_ports.port_check_ports = EXIT_POLICY_PORTS.to_vec();
+
+                                    let credential2 = bandwith_provider
+                                        .get_ecash_ticket(wg_ticket_type, credential_provider, 1)
+                                        .await?
+                                        .data;
+
+                                    let mut rng2 = rand::thread_rng();
+                                    let auth_client2 = AuthenticatorClient::new(
+                                        mixnet_listener_task.subscribe(),
+                                        mixnet_listener_task.mixnet_sender(),
+                                        nym_address,
+                                        authenticator,
+                                        exit_node.authenticator_version,
+                                        Arc::new(x25519::KeyPair::new(&mut rng2)),
+                                        ip_address,
+                                    );
+
+                                    match wg_probe(
+                                        auth_client2,
+                                        ip_address,
+                                        exit_node.authenticator_version,
+                                        self.config.amnezia_args.clone(),
+                                        netstack_ports,
+                                        true,
+                                        credential2,
+                                    )
+                                    .await
+                                    {
+                                        Ok(scan) => {
+                                            if let Some(ref mut wg) = probe_result.outcome.wg {
+                                                wg.port_check_results =
+                                                    scan.port_check_results.clone();
+                                            }
+                                            probe_result.ports_check = Some(
+                                                match &scan.port_check_results {
+                                                    Some(m) if !m.is_empty() => {
+                                                        PortsCheckSummary::from_port_map(
+                                                            scan.can_register,
+                                                            m,
+                                                        )
+                                                    }
+                                                    _ => PortsCheckSummary::probe_error(
+                                                        scan.can_register,
+                                                        "exit-policy port scan returned no per-port data",
+                                                    ),
+                                                },
+                                            );
+                                        }
+                                        Err(err) => {
+                                            warn!("Scheduled exit-policy port scan failed: {err}");
+                                            probe_result.ports_check =
+                                                Some(PortsCheckSummary::probe_error(
+                                                    false,
+                                                    format!(
+                                                        "exit-policy port scan failed: {err:#}"
+                                                    ),
+                                                ));
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            trace!(
+                                "Skipping exit-policy port scan: checked within the last 14 days"
+                            );
+                        }
+                    }
+
                     mixnet_listener_task.stop().await;
                 } else {
                     warn!("Not enough information to run WireGuard via mixnet registration tests");

@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::env::vars::*;
-use crate::agent::config::Config;
+use crate::agent::config::NodeTesterConfig;
+use crate::agent::helpers::load_noise_key;
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::agent::tester::NodeStressTester;
 use crate::cli::common::CommonArgs;
 use nym_crypto::asymmetric::x25519;
+use nym_pemstore::load_key;
 use nym_sphinx_params::SphinxKeyRotation;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tracing::info;
 
 /// Arguments for the `test-node` subcommand.
@@ -39,8 +42,8 @@ pub(crate) struct Args {
 }
 
 impl Args {
-    /// Builds the agent [`Config`] from the flattened common args and the local mixnet listener address.
-    pub(crate) fn build_tester_config(&self) -> anyhow::Result<Config> {
+    /// Builds the agent [`NodeTesterConfig`] from the flattened common args and the local mixnet listener address.
+    pub(crate) fn build_tester_config(&self) -> anyhow::Result<NodeTesterConfig> {
         self.common_args.build_config(self.agent_mixnet_listener)
     }
 
@@ -60,7 +63,7 @@ impl Args {
     pub(crate) fn build_stress_tester(&self) -> anyhow::Result<NodeStressTester> {
         NodeStressTester::new(
             self.build_tester_config()?,
-            &self.common_args.noise_key_path,
+            load_noise_key(&self.common_args.noise_key_path)?,
             self.build_tested_node_details(),
         )
     }

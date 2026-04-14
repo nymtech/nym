@@ -28,6 +28,7 @@ tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
+zeroize = { workspace = true }
 
 # methods to recreate lioness
 # we don't care about particular versions - just pull whatever is used by sphinx
@@ -45,6 +46,8 @@ nym-bin-common = { workspace = true, features = [
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
+
+nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["client"] }
 
 [dev-dependencies]
 nym-test-utils = { workspace = true }

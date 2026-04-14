@@ -24,12 +24,21 @@ time = { workspace = true }
 url = { workspace = true }
 zeroize = { workspace = true }
 
+# http
+axum = { workspace = true, features = ["tokio", "macros"] }
+utoipa = { workspace = true, features = ["axum_extras", "time"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+utoipauto = { workspace = true }
+
 nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-bin-common = { workspace = true, features = ["basic_tracing", "output_format"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-network-defaults = { workspace = true }
 nym-task = { workspace = true }
 nym-node-requests = { workspace = true, features = ["client"] }
+nym-http-api-common = { workspace = true, features = ["utoipa", "middleware"] }
+
+nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["openapi"] }
 
 [dev-dependencies]
 nym-test-utils = { workspace = true }

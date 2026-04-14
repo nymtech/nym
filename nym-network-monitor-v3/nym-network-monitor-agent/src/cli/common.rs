@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::env::vars::*;
-use crate::agent::config::Config;
+use crate::agent::config::NodeTesterConfig;
 use anyhow::bail;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
@@ -52,9 +52,9 @@ pub(crate) struct CommonArgs {
 }
 
 impl CommonArgs {
-    /// Constructs a [`Config`] from the common CLI arguments.
+    /// Constructs a [`NodeTesterConfig`] from the common CLI arguments.
     /// `mixnet_address` is provided separately as it is command-specific.
-    pub(crate) fn build_config(&self, mixnet_address: SocketAddr) -> anyhow::Result<Config> {
+    pub(crate) fn build_config(&self, mixnet_address: SocketAddr) -> anyhow::Result<NodeTesterConfig> {
         if self.sending_duration.is_zero() {
             bail!("attempted to set sending duration to 0s")
         }
@@ -65,7 +65,7 @@ impl CommonArgs {
             bail!("attempted to set noise handshake timeout to 0s")
         }
 
-        Ok(Config {
+        Ok(NodeTesterConfig {
             sending_duration: self.sending_duration,
             waiting_duration: self.waiting_duration,
             packet_delay: self.packet_delay,

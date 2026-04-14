@@ -4,6 +4,7 @@
 use nym_network_defaults::{NymNetworkDetails, ValidatorDetails};
 use nym_validator_client::client;
 use nym_validator_client::nyxd::AccountId;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
@@ -16,6 +17,9 @@ pub(crate) struct Config {
 
     /// HTTP endpoint of the nym-api to which test results are submitted.
     pub(crate) nym_api_endpoint: Url,
+
+    /// HTTP address to bind the HTTP server to (e.g. `0.0.0.0:8080`).
+    pub(crate) http_server_bind_address: SocketAddr,
 
     /// How often each node should be stress-tested (e.g. `30m`, `1h`).
     pub(crate) test_interval: Duration,

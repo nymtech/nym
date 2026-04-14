@@ -125,7 +125,12 @@ async fn main() -> anyhow::Result<()> {
 
     let pool = storage.pool_owned();
     shutdown_manager.spawn_with_shutdown(async move {
-        testruns::start(pool, args.testruns_refresh_interval).await
+        testruns::start(
+            pool,
+            args.testruns_refresh_interval,
+            args.testruns_stale_in_progress,
+        )
+        .await
     });
 
     let db_pool_scraper = storage.pool_owned();

@@ -1,16 +1,59 @@
 use nym_connection_monitor::ConnectionStatusEvent;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 pub use super::bandwidth_helpers::{AttachedTicket, AttachedTicketMaterials};
 pub use super::socks5_test::HttpsConnectivityResult;
 pub use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PortsCheckSummary {
+    pub all_pass: bool,
+    pub failed_ports: Vec<u16>,
+    pub error: Option<String>,
+    pub ports_tested: usize,
+}
+
+impl PortsCheckSummary {
+    pub fn from_port_map(can_register: bool, ports: &BTreeMap<String, bool>) -> Self {
+        let failed_ports: Vec<u16> = ports
+            .iter()
+            .filter_map(|(port, open)| {
+                if *open {
+                    None
+                } else {
+                    port.parse::<u16>().ok()
+                }
+            })
+            .collect();
+
+        let all_pass = can_register && failed_ports.is_empty() && !ports.is_empty();
+
+        Self {
+            all_pass,
+            failed_ports,
+            error: None,
+            ports_tested: ports.len(),
+        }
+    }
+
+    pub fn probe_error(_can_register: bool, message: impl Into<String>) -> Self {
+        Self {
+            all_pass: false,
+            failed_ports: vec![],
+            error: Some(message.into()),
+            ports_tested: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProbeResult {
     pub node: String,
     pub used_entry: String,
     pub outcome: ProbeOutcome,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ports_check: Option<PortsCheckSummary>,
 }
 
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
@@ -52,9 +95,9 @@ pub struct WgProbeResults {
     pub downloaded_file_v6: String,
     pub download_error_v6: String,
 
-    /// port → open/closed from exit policy check (if requested)
+    /// Per-port exit-policy check
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub port_check_results: Option<HashMap<String, bool>>,
+    pub port_check_results: Option<BTreeMap<String, bool>>,
 }
 
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
@@ -207,8 +250,8 @@ pub struct PortCheckResult {
     pub gateway: String,
     pub can_register: bool,
     pub port_check_target: String,
-    /// port → open/closed
-    pub ports: HashMap<String, bool>,
+    /// port → open/closed (BTreeMap for deterministic bincode serialization in signed requests)
+    pub ports: BTreeMap<String, bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }

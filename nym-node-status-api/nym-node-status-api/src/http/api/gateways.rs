@@ -85,14 +85,14 @@ async fn get_gateway(
 ) -> HttpResult<Json<Gateway>> {
     let db = state.db_pool();
     let res = state.cache().get_gateway_list(db).await;
-
-    match res
-        .iter()
-        .find(|item| item.gateway_identity_key == identity_key)
-    {
-        Some(res) => Ok(Json(res.clone())),
-        None => Err(HttpError::invalid_input(identity_key)),
-    }
+    res.into_iter()
+        .find(|g| g.gateway_identity_key == identity_key)
+        .map(Json)
+        .ok_or_else(|| {
+            HttpError::invalid_input(format!(
+                "gateway not found in local gateway cache: {identity_key}"
+            ))
+        })
 }
 
 // Extract filtering logic for testing
@@ -106,6 +106,8 @@ fn filter_bonded_gateways_to_skinny(gateways: Vec<Gateway>) -> Vec<GatewaySkinny
             performance: g.performance,
             explorer_pretty_bond: g.explorer_pretty_bond.clone(),
             last_probe_result: g.last_probe_result.clone(),
+            ports_check: g.ports_check.clone(),
+            last_ports_check_utc: g.last_ports_check_utc.clone(),
             last_testrun_utc: g.last_testrun_utc.clone(),
             last_updated_utc: g.last_updated_utc.clone(),
             routing_score: g.routing_score,
@@ -135,6 +137,8 @@ mod tests {
             },
             last_probe_result: Some(serde_json::json!({"result": "ok"})),
             last_probe_log: None,
+            ports_check: None,
+            last_ports_check_utc: None,
             last_testrun_utc: Some("2024-01-20T10:00:00Z".to_string()),
             last_updated_utc: "2024-01-20T11:00:00Z".to_string(),
             routing_score: 0.95,

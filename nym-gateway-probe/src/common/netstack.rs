@@ -4,7 +4,7 @@
 use crate::config::NetstackArgs;
 use anyhow::Context;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::ffi::{CStr, CString};
 
 mod sys {
@@ -198,7 +198,7 @@ pub struct NetstackResponse {
     pub download_duration_milliseconds: u64,
     pub download_error: String,
     #[serde(default)]
-    pub port_check_results: Option<HashMap<String, bool>>,
+    pub port_check_results: Option<BTreeMap<String, bool>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]

@@ -3,6 +3,7 @@
 
 use super::env::vars::*;
 use crate::cli::common::CommonArgs;
+use std::net::IpAddr;
 use tracing::error;
 use url::Url;
 
@@ -19,6 +20,10 @@ pub(crate) struct Args {
     /// and submitting the results
     #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_ORCHESTRATOR_TOKEN_ARG)]
     orchestrator_token: String,
+
+    /// Egress IP address of this agent, retrieved from status.hostIP via the Downward API
+    #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_HOST_IP_ARG)]
+    host_ip: IpAddr,
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {

@@ -7475,6 +7475,7 @@ dependencies = [
  "lioness",
  "nym-bin-common",
  "nym-crypto",
+ "nym-network-monitor-orchestrator-requests",
  "nym-noise",
  "nym-pemstore",
  "nym-sphinx-addressing",
@@ -7491,6 +7492,7 @@ dependencies = [
  "tracing",
  "url",
  "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]
@@ -7498,12 +7500,15 @@ name = "nym-network-monitor-orchestrator"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "axum 0.7.9",
  "clap",
  "futures",
  "humantime",
  "nym-bin-common",
  "nym-crypto",
+ "nym-http-api-common",
  "nym-network-defaults",
+ "nym-network-monitor-orchestrator-requests",
  "nym-node-requests",
  "nym-task",
  "nym-test-utils",
@@ -7514,7 +7519,22 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "utoipauto",
  "zeroize",
+]
+
+[[package]]
+name = "nym-network-monitor-orchestrator-requests"
+version = "1.20.4"
+dependencies = [
+ "anyhow",
+ "nym-crypto",
+ "nym-http-api-client",
+ "serde",
+ "tracing",
+ "utoipa",
 ]
 
 [[package]]

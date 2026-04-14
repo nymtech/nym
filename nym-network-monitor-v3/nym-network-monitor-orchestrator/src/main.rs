@@ -12,6 +12,7 @@ use nym_network_defaults::setup_env;
 use tracing::info;
 
 pub(crate) mod cli;
+mod http;
 pub(crate) mod orchestrator;
 mod storage;
 

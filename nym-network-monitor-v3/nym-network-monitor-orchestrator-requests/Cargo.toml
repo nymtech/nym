@@ -1,0 +1,28 @@
+[package]
+name = "nym-network-monitor-orchestrator-requests"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tracing = { workspace = true }
+utoipa = { workspace = true, optional = true }
+
+nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
+nym-http-api-client = { workspace = true, optional = true }
+
+[features]
+client = ["nym-http-api-client"]
+openapi = ["utoipa"]
+
+[lints]
+workspace = true

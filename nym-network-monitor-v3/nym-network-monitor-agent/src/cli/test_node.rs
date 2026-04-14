@@ -8,8 +8,10 @@ use crate::agent::tested_node::TestedNodeDetails;
 use crate::agent::tester::NodeStressTester;
 use crate::cli::common::CommonArgs;
 use nym_crypto::asymmetric::x25519;
+use nym_pemstore::load_key;
 use nym_sphinx_params::SphinxKeyRotation;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tracing::info;
 
 /// Arguments for the `test-node` subcommand.

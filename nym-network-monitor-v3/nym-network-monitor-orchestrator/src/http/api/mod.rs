@@ -35,6 +35,8 @@ pub(crate) fn build_router(
 
     Router::new()
         .route(routes::ROOT, swagger_redirect())
+        .route("/swagger/", swagger_redirect())
+        .route("/swagger/index.html", swagger_redirect())
         .merge(api_docs::route())
         .nest(routes::V1, v1::routes(agents_auth, metrics_auth))
         .layer(axum::middleware::from_fn(log_request_debug))

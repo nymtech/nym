@@ -51,8 +51,10 @@ consumes raw IP packets — `NymAsyncDevice` wraps the mpsc channel ends in the
   `Tunnel::icmp_socket()` that calls the appropriate `Net` method, and expose
   the socket type via a re-export in `lib.rs`.
 
-- **Tokio-only.** The bridge, SDK (`IpMixStream`, `MixnetClient`), and channels
-  are all tokio-based. An earlier version had a sync smoltcp `Device` adapter
+- **Tokio-only.** The bridge, SDK (`IpMixStream`, `MixnetClient`), and shutdown
+  signaling are tokio-based. The data-plane channels use `futures::channel::mpsc`
+  because `UnboundedSender` implements `Sink` — required by tokio-smoltcp's
+  `AsyncDevice` trait. An earlier version had a sync smoltcp `Device` adapter
   for use without tokio-smoltcp, but it still required a tokio runtime
   underneath (for the bridge and SDK), so it provided no real runtime
   independence — just duplicated the bridging logic. If alternative-runtime

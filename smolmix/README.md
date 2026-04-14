@@ -56,9 +56,9 @@ udp.send_to(&packet, "1.1.1.1:53".parse()?).await?;
 ## Examples
 
 ```sh
-cargo run -p smolmix --example tcp         # raw TCP
-cargo run -p smolmix --example udp         # raw UDP
-cargo run -p smolmix --example websocket   # WebSocket over TLS
+cargo run -p smolmix --example tcp         # HTTPS via hyper
+cargo run -p smolmix --example udp         # DNS via hickory-proto
+cargo run -p smolmix --example websocket   # WebSocket via tungstenite
 ```
 
 ## Architecture

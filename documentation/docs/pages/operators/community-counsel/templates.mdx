@@ -35,6 +35,6 @@ Communication with your provider is an essential part of legal defense, as more 
 
 Many hosting providers filter outbound TCP on ports 25, 465 and 587 by default as an anti-spam measure. This breaks legitimate use of an exit gateway by Nym mixnet users whose mail clients (Thunderbird, Apple Mail, Outlook etc.) need to relay outgoing email through their normal SMTP submission server. The Nym exit policy explicitly allows ports 465 and 587 for this reason.
 
-If you discover (via direct `tcpdump` or equivalent test from your server) that SMTP packets leave the server but no responses return, your hoster is filtering at the network edge. Use the template below to request an unblock.
+If you discover (via direct `tcpdump` or equivalent test from your server) that SMTP packets leave the server but no responses return, your hoster is filtering at the network edge. Use one of the templates below to request an unblock - a minimal version that does not disclose what the server is for, or a full version with Nym context if you prefer to be upfront with your hoster.
 
 <SmtpEgressUnblock />

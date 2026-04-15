@@ -21,6 +21,15 @@ pub(crate) struct KnownAgents {
 }
 
 impl KnownAgents {
+    /// Creates an empty agent cache with no known agents.
+    pub(crate) fn new_empty() -> Self {
+        KnownAgents {
+            inner: Arc::new(Mutex::new(KnownAgentsInner {
+                agents: HashMap::new(),
+            })),
+        }
+    }
+
     /// Returns a mixnet port for the agent identified by `host_ip` and `agent_pubkey`.
     /// If the agent was seen before, the previously assigned port is returned.
     /// Otherwise the first available port in the range
@@ -112,6 +121,7 @@ impl KnownAgents {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum AgentAnnounceError {
     /// No agent with the given socket address exists in the cache.
     NotFound,
@@ -167,6 +177,124 @@ struct KnownAgent {
     /// Set to `true` when restored from the chain at startup, or after a successful
     /// `/announce` contract transaction.
     announced: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_crypto::asymmetric::x25519;
+    use rand::rngs::OsRng;
+
+    fn random_pubkey() -> x25519::PublicKey {
+        *x25519::KeyPair::new(&mut OsRng).public_key()
+    }
+
+    const HOST: IpAddr = IpAddr::V4(std::net::Ipv4Addr::new(10, 0, 0, 1));
+    const HOST_B: IpAddr = IpAddr::V4(std::net::Ipv4Addr::new(10, 0, 0, 2));
+
+    #[tokio::test]
+    async fn first_agent_gets_default_port() {
+        let agents = KnownAgents::new_empty();
+        let port = agents.assign_agent_port(HOST, random_pubkey()).await;
+        assert_eq!(port, Some(DEFAULT_MIX_LISTENING_PORT));
+    }
+
+    #[tokio::test]
+    async fn second_agent_same_host_gets_next_port() {
+        let agents = KnownAgents::new_empty();
+        let key_a = random_pubkey();
+        let key_b = random_pubkey();
+
+        let port_a = agents.assign_agent_port(HOST, key_a).await.unwrap();
+        let port_b = agents.assign_agent_port(HOST, key_b).await.unwrap();
+
+        assert_eq!(port_a, DEFAULT_MIX_LISTENING_PORT);
+        assert_eq!(port_b, DEFAULT_MIX_LISTENING_PORT + 1);
+    }
+
+    #[tokio::test]
+    async fn same_key_returns_same_port() {
+        let agents = KnownAgents::new_empty();
+        let key = random_pubkey();
+
+        let first = agents.assign_agent_port(HOST, key).await.unwrap();
+        let second = agents.assign_agent_port(HOST, key).await.unwrap();
+
+        assert_eq!(first, second);
+    }
+
+    #[tokio::test]
+    async fn different_hosts_get_independent_ports() {
+        let agents = KnownAgents::new_empty();
+        let key_a = random_pubkey();
+        let key_b = random_pubkey();
+
+        let port_a = agents.assign_agent_port(HOST, key_a).await.unwrap();
+        let port_b = agents.assign_agent_port(HOST_B, key_b).await.unwrap();
+
+        assert_eq!(port_a, DEFAULT_MIX_LISTENING_PORT);
+        assert_eq!(port_b, DEFAULT_MIX_LISTENING_PORT);
+    }
+
+    #[tokio::test]
+    async fn try_announce_unknown_agent_returns_not_found() {
+        let agents = KnownAgents::new_empty();
+        let addr: SocketAddr = "10.0.0.1:1789".parse().unwrap();
+
+        let result = agents.try_announce_agent(addr, random_pubkey()).await;
+        assert!(matches!(result, Err(AgentAnnounceError::NotFound)));
+    }
+
+    #[tokio::test]
+    async fn try_announce_wrong_key_returns_mismatch() {
+        let agents = KnownAgents::new_empty();
+        let real_key = random_pubkey();
+        let wrong_key = random_pubkey();
+
+        let port = agents.assign_agent_port(HOST, real_key).await.unwrap();
+        let addr = SocketAddr::new(HOST, port);
+
+        let result = agents.try_announce_agent(addr, wrong_key).await;
+        assert!(matches!(result, Err(AgentAnnounceError::NoiseKeyMismatch)));
+    }
+
+    #[tokio::test]
+    async fn try_announce_returns_false_then_true_after_mark() {
+        let agents = KnownAgents::new_empty();
+        let key = random_pubkey();
+
+        let port = agents.assign_agent_port(HOST, key).await.unwrap();
+        let addr = SocketAddr::new(HOST, port);
+
+        // first announce: not yet announced
+        let already = agents.try_announce_agent(addr, key).await.unwrap();
+        assert!(!already);
+
+        // mark as announced
+        agents.mark_announced(addr).await;
+
+        // second announce: already announced
+        let already = agents.try_announce_agent(addr, key).await.unwrap();
+        assert!(already);
+    }
+
+    #[tokio::test]
+    async fn port_reuse_after_gap() {
+        // Simulate: agent on default port is known, next port is assigned,
+        // then verify a third agent gets default+2
+        let agents = KnownAgents::new_empty();
+        let key_a = random_pubkey();
+        let key_b = random_pubkey();
+        let key_c = random_pubkey();
+
+        let p1 = agents.assign_agent_port(HOST, key_a).await.unwrap();
+        let p2 = agents.assign_agent_port(HOST, key_b).await.unwrap();
+        let p3 = agents.assign_agent_port(HOST, key_c).await.unwrap();
+
+        assert_eq!(p1, DEFAULT_MIX_LISTENING_PORT);
+        assert_eq!(p2, DEFAULT_MIX_LISTENING_PORT + 1);
+        assert_eq!(p3, DEFAULT_MIX_LISTENING_PORT + 2);
+    }
 }
 
 /// Shared application state available to all axum request handlers.

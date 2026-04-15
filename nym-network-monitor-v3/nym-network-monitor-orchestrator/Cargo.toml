@@ -42,6 +42,7 @@ nym-http-api-common = { workspace = true, features = ["utoipa", "middleware"] }
 nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["openapi"] }
 
 [dev-dependencies]
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-test-utils = { workspace = true }
 
 [build-dependencies]

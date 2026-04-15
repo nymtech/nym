@@ -15,6 +15,7 @@ Build applications that protect user metadata using the Nym Mixnet. This section
 **Choosing an integration approach:** read [Integrations](/developers/integrations) to understand the architectural trade-offs (native SDK vs proxy vs mixFetch), then pick your path:
 
 - **[Rust SDK](/developers/rust):** full-featured SDK with message passing, `AsyncRead`/`AsyncWrite` streams, and client pooling. Start with the [Tour](/developers/rust/tour).
+- **[`smolmix`](/developers/smolmix):** standalone crate providing `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Drop-in compatible with `tokio-rustls`, `hyper`, `tungstenite`, and the rest of the async Rust ecosystem. Also serves as the core for upcoming companion crates that plug into specific frameworks (e.g. hyper connectors, DNS resolvers).
 - **[TypeScript SDK](/developers/typescript):** browser and Node.js SDK for mixFetch, Mixnet client, and smart contract interaction.
 - **[Standalone Clients](/developers/clients):** language-agnostic SOCKS5 and WebSocket proxies for piping traffic through the Mixnet without an SDK.
 

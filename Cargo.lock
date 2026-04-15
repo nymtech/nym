@@ -7422,6 +7422,7 @@ dependencies = [
  "nym-validator-client",
  "rand 0.8.5",
  "sqlx",
+ "thiserror 2.0.12",
  "time",
  "tokio",
  "tracing",

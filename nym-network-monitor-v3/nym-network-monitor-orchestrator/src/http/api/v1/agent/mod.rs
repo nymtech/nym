@@ -1,15 +1,15 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::http::api::v1::error::ApiError;
 use crate::http::state::{AppState, KnownAgents};
 use axum::extract::{ConnectInfo, State};
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_http_api_common::middleware::bearer_auth::AuthLayer;
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentAnnounceRequest, AgentPortRequest, AgentPortRequestResponse, TestRunAssignment,
+    AgentAnnounceRequest, AgentAnnounceResponse, AgentPortRequest, AgentPortRequestResponse,
+    TestRunAssignment,
 };
 use nym_network_monitor_orchestrator_requests::routes;
 use nym_validator_client::nyxd::contract_traits::NetworkMonitorsSigningClient;
@@ -40,15 +40,20 @@ async fn request_mix_port(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(agents): State<KnownAgents>,
     Json(body): Json<AgentPortRequest>,
-) -> impl IntoResponse {
+) -> Result<Json<AgentPortRequestResponse>, ApiError> {
     let pod_ip = addr.ip();
     info!("received port request from pod at {pod_ip}: {body:?}");
+
     let available_mix_port = agents
         .assign_agent_port(body.agent_node_ip, body.x25519_noise_key)
-        .await;
-    info!("assigned port {available_mix_port} to agent at {pod_ip}");
+        .await
+        .ok_or_else(|| {
+            error!("no available ports for agent at {pod_ip}");
+            ApiError::NoPortsAvailable
+        })?;
 
-    Json(AgentPortRequestResponse { available_mix_port })
+    info!("assigned port {available_mix_port} to agent at {pod_ip}");
+    Ok(Json(AgentPortRequestResponse { available_mix_port }))
 }
 
 #[utoipa::path(
@@ -75,25 +80,24 @@ async fn announce_agent(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<AppState>,
     Json(body): Json<AgentAnnounceRequest>,
-) -> impl IntoResponse {
+) -> Result<Json<AgentAnnounceResponse>, ApiError> {
     let pod_ip = addr.ip();
     info!("received announce request from pod at {pod_ip}: {body:?}");
 
-    // 1. if the agent does not exist in the cache - reject it,
-    // there's some data inconsistency in the system,
-    // orchestrator might have restarted between agent requesting port
-    // and sending the announce request
-    // in that case, it should just try the whole procedure again
-    if !state
+    // 1. validate the agent exists in the cache and the noise key matches
+    let already_announced = state
         .agents
-        .touch_agent(body.agent_mix_socket_address)
-        .await
-    {
-        return (StatusCode::BAD_REQUEST, "agent information not found").into_response();
+        .try_announce_agent(body.agent_mix_socket_address, body.x25519_noise_key)
+        .await?;
+
+    // 2. if the agent was already announced, skip the contract tx
+    if already_announced {
+        info!("agent at {pod_ip} is already announced, skipping contract tx");
+        return Ok(Json(AgentAnnounceResponse {}));
     }
 
-    // 2. attempt to announce the agent to the network monitors contract
-    if let Err(err) = state
+    // 3. attempt to announce the agent to the network monitors contract
+    state
         .validator_client
         .write()
         .await
@@ -105,16 +109,18 @@ async fn announce_agent(
             None,
         )
         .await
-    {
-        error!("failed to announce agent to the network monitors contract: {err}");
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "failed to announce agent to the network monitors contract:",
-        )
-            .into_response();
-    }
+        .inspect_err(|err| {
+            error!("failed to announce agent to the network monitors contract: {err}")
+        })
+        .map_err(|_| ApiError::ContractFailure)?;
 
-    Json(()).into_response()
+    // 4. mark the agent as announced so subsequent calls are no-ops
+    state
+        .agents
+        .mark_announced(body.agent_mix_socket_address)
+        .await;
+
+    Ok(Json(AgentAnnounceResponse {}))
 }
 
 #[utoipa::path(
@@ -136,16 +142,18 @@ async fn announce_agent(
         agent_pod = %addr
     )
 )]
-async fn request_testrun(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> impl IntoResponse {
+async fn request_testrun(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> Result<Json<TestRunAssignment>, ApiError> {
     let pod_ip = addr.ip();
 
     info!("received testrun request from pod at {pod_ip}");
 
     error!("unimplemented");
 
-    Json(TestRunAssignment {
+    Ok(Json(TestRunAssignment {
         assignment: Some(()),
-    })
+    }))
 }
 
 /// Builds the agent sub-router with all agent endpoints behind bearer-token auth.

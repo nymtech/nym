@@ -86,10 +86,13 @@ impl NetworkMonitorOrchestrator {
         Ok(this)
     }
 
+    /// Returns the on-chain bech32 address of the orchestrator's signing account.
     async fn address(&self) -> AccountId {
         self.client.read().await.nyxd.address()
     }
 
+    /// Verifies that the orchestrator's account is authorised to send transactions
+    /// to the network monitors contract (i.e. to authorise agents on-chain).
     async fn verify_orchestrator_chain_authorisation(&self) -> anyhow::Result<()> {
         // ensure our address is authorised to send transactions
         // to the network monitors contract to authorise the agents
@@ -97,12 +100,16 @@ impl NetworkMonitorOrchestrator {
         Ok(())
     }
 
+    /// Verifies that the orchestrator's identity key is authorised to submit
+    /// test results to the nym-api.
     async fn verify_orchestrator_nym_api_authorisation(&self) -> anyhow::Result<()> {
         // ensure our key is authorised to submit test results to the nym-api
         error!("unimplemented");
         Ok(())
     }
 
+    /// Starts all orchestrator background tasks (HTTP server, node refresher, etc.)
+    /// and blocks until a shutdown signal is received.
     pub(crate) async fn run(&mut self) -> anyhow::Result<()> {
         // this shouldn't fail as we have no tasks using this client yet
         let query_client = self

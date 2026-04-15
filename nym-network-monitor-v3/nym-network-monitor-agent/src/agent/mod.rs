@@ -23,6 +23,8 @@ pub(crate) struct NetworkMonitorAgent {
     /// Tester configuration controlling rates, timeouts, and addressing.
     tester_config: NodeTesterConfig,
 
+    /// Client used to communicate with the orchestrator API (port requests, announcements,
+    /// work assignments, result submissions).
     orchestrator_client: OrchestratorClient,
 
     /// The tester's own Noise key pair, used to authenticate the egress connection.
@@ -30,6 +32,8 @@ pub(crate) struct NetworkMonitorAgent {
 }
 
 impl NetworkMonitorAgent {
+    /// Creates a new agent with the given tester configuration, pre-loaded noise key,
+    /// and orchestrator client.
     pub(crate) fn new(
         tester_config: NodeTesterConfig,
         noise_key: Arc<x25519::KeyPair>,
@@ -42,7 +46,8 @@ impl NetworkMonitorAgent {
         }
     }
 
-    // TODO: orchestrator will have to check if this combination of key/address already exists
+    /// Announces this agent's details (mixnet address, noise key, protocol version)
+    /// to the orchestrator so they can be registered in the smart contract.
     pub(crate) async fn announce_agent(&self) -> anyhow::Result<()> {
         self.orchestrator_client
             .announce_agent(&AgentAnnounceRequest {
@@ -55,6 +60,8 @@ impl NetworkMonitorAgent {
         Ok(())
     }
 
+    /// Requests a work assignment from the orchestrator and, if one is available,
+    /// performs a stress test against the assigned node and submits the results.
     pub(crate) async fn run_stress_test(&self) -> anyhow::Result<()> {
         // 1. query the orchestrator for a work assignment
         let Some(work_assignment) = self

@@ -58,6 +58,9 @@ pub(crate) struct Config {
 }
 
 impl Config {
+    /// Builds the validator client configuration from the orchestrator config.
+    /// Falls back to environment-provided network details when RPC endpoint or
+    /// contract addresses are not explicitly set.
     pub(crate) fn try_build_validator_client_config(&self) -> anyhow::Result<client::Config> {
         // if one if the values is missing, we have no choice but to attempt to use the env
         let mut base_network_details = if self.nyxd_rpc_endpoint.is_none()

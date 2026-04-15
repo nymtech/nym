@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::models::{
-    AgentAnnounceRequest, AgentPortRequest, AgentPortRequestResponse, TestRunAssignment,
+    AgentAnnounceRequest, AgentAnnounceResponse, AgentPortRequest, AgentPortRequestResponse,
+    TestRunAssignment,
 };
 use crate::routes::v1::agent::{
     announce_absolute, port_request_absolute, request_testrun_absolute,
@@ -13,12 +14,16 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use zeroize::Zeroizing;
 
+/// HTTP client for communicating with the network monitor orchestrator API.
+/// All requests are authenticated with a bearer token.
 pub struct OrchestratorClient {
     inner: Client,
     bearer_token: Arc<Zeroizing<String>>,
 }
 
 impl OrchestratorClient {
+    /// Creates a new client targeting `base_url`, storing the bearer token in a
+    /// zeroizing container.
     pub fn new(base_url: Url, bearer_token: String) -> Result<Self, HttpClientError> {
         Ok(OrchestratorClient {
             inner: Client::builder(base_url)?
@@ -32,6 +37,7 @@ impl OrchestratorClient {
         })
     }
 
+    /// Sends an authenticated POST request with a JSON body and deserialises the response.
     async fn post_with_auth<B, T>(&self, path: &str, json_body: &B) -> Result<T, HttpClientError>
     where
         B: Serialize + ?Sized + Sync,
@@ -47,6 +53,7 @@ impl OrchestratorClient {
         parse_response(res, false).await
     }
 
+    /// Sends an authenticated GET request and deserialises the response.
     async fn get_with_auth<T>(&self, path: &str) -> Result<T, HttpClientError>
     where
         for<'a> T: Deserialize<'a>,
@@ -61,6 +68,8 @@ impl OrchestratorClient {
         parse_response(res, false).await
     }
 
+    /// Requests a mixnet port assignment from the orchestrator for this agent.
+    /// The orchestrator ensures no two agents on the same host share a port.
     pub async fn get_mix_port_assignment(
         &self,
         body: &AgentPortRequest,
@@ -68,10 +77,17 @@ impl OrchestratorClient {
         self.post_with_auth(&port_request_absolute(), body).await
     }
 
-    pub async fn announce_agent(&self, body: &AgentAnnounceRequest) -> Result<(), HttpClientError> {
+    /// Announces this agent's details to the orchestrator, which forwards them
+    /// to the smart contract so network nodes can whitelist the agent.
+    pub async fn announce_agent(
+        &self,
+        body: &AgentAnnounceRequest,
+    ) -> Result<AgentAnnounceResponse, HttpClientError> {
         self.post_with_auth(&announce_absolute(), body).await
     }
 
+    /// Asks the orchestrator for the next test run to execute. Returns `None`
+    /// inside the assignment if no work is currently available.
     pub async fn request_work_assignment(&self) -> Result<TestRunAssignment, HttpClientError> {
         self.get_with_auth(&request_testrun_absolute()).await
     }

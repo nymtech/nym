@@ -6,47 +6,44 @@ use nym_crypto::asymmetric::x25519;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLock};
 use tracing::info;
 
+/// Thread-safe cache of all agents known to this orchestrator, keyed by host IP.
+/// Used to coordinate port assignments and validate announcements.
 #[derive(Clone)]
 pub(crate) struct KnownAgents {
     inner: Arc<Mutex<KnownAgentsInner>>,
 }
 
 impl KnownAgents {
+    /// Returns a mixnet port for the agent identified by `host_ip` and `agent_pubkey`.
+    /// If the agent was seen before, the previously assigned port is returned.
+    /// Otherwise the first available port in the range
+    /// `[DEFAULT_MIX_LISTENING_PORT, u16::MAX]` on that host is allocated.
     pub(crate) async fn assign_agent_port(
         &self,
         host_ip: IpAddr,
         agent_pubkey: x25519::PublicKey,
-    ) -> u16 {
+    ) -> Option<u16> {
         let mut guard = self.inner.lock().await;
         let host_agents = guard.agents.entry(host_ip).or_insert_with(Vec::new);
 
         // if this agent existed before, return the existing information
         if let Some(existing_agent) = host_agents.iter().find(|a| a.noise_key == agent_pubkey) {
             info!("reusing existing agent port for agent at {host_ip} with key {agent_pubkey}");
-            return existing_agent.mixnet_port;
+            return Some(existing_agent.mixnet_port);
         }
 
-        // assign a new port to the agent
+        // find the first available port in the valid range
+        let occupied_ports: BTreeSet<u16> = host_agents.iter().map(|a| a.mixnet_port).collect();
 
-        // 1. figure out used ports
-        let mut occupied_ports = host_agents
-            .iter()
-            .map(|a| a.mixnet_port)
-            .collect::<Vec<_>>();
-        occupied_ports.sort();
-
-        // 2. choose the next available port (or fallback to default for the first agent with given host ip)
-        let next_port = occupied_ports
-            .last()
-            .map(|p| *p + 1)
-            .unwrap_or(DEFAULT_MIX_LISTENING_PORT);
+        let next_port =
+            (DEFAULT_MIX_LISTENING_PORT..=u16::MAX).find(|p| !occupied_ports.contains(p))?;
 
         // insert agent information into the cache
         host_agents.push(KnownAgent {
@@ -54,31 +51,76 @@ impl KnownAgents {
             mixnet_port: next_port,
             last_active_at: OffsetDateTime::now_utc(),
             noise_key: agent_pubkey,
+            announced: false,
         });
 
-        next_port
+        Some(next_port)
     }
 
-    // due to port assignment, socket address is guaranteed to uniquely identify an agent
-    // (noise key would have also worked)
-    pub(crate) async fn touch_agent(&self, mix_listener: SocketAddr) -> bool {
+    /// Validates and marks the agent at `mix_listener` as announced.
+    ///
+    /// Returns:
+    /// - `Err` if no agent with that address exists (orchestrator may have restarted).
+    /// - `Ok(true)` if the agent was already announced (caller should skip the contract tx).
+    /// - `Ok(false)` if the agent exists but hasn't been announced yet (caller should
+    ///   proceed with the contract tx and call [`mark_announced`] on success).
+    ///
+    /// Also verifies that the provided `noise_key` matches the one stored during port
+    /// assignment — returns `Err` on mismatch.
+    pub(crate) async fn try_announce_agent(
+        &self,
+        mix_listener: SocketAddr,
+        noise_key: x25519::PublicKey,
+    ) -> Result<bool, AgentAnnounceError> {
         let mut guard = self.inner.lock().await;
-        let Some(host_agents) = guard.agents.get_mut(&mix_listener.ip()) else {
-            return false;
-        };
+        let host_agents = guard
+            .agents
+            .get_mut(&mix_listener.ip())
+            .ok_or(AgentAnnounceError::NotFound)?;
 
         let agent = host_agents
             .iter_mut()
-            .find(|agent| agent.mixnet_port == mix_listener.port());
-        if let Some(agent) = agent {
-            agent.last_active_at = OffsetDateTime::now_utc();
-            return true;
+            .find(|agent| agent.mixnet_port == mix_listener.port())
+            .ok_or(AgentAnnounceError::NotFound)?;
+
+        if agent.noise_key != noise_key {
+            return Err(AgentAnnounceError::NoiseKeyMismatch);
         }
 
-        false
+        agent.last_active_at = OffsetDateTime::now_utc();
+
+        if agent.announced {
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    /// Marks the agent at `mix_listener` as announced. Should be called after a
+    /// successful contract transaction.
+    pub(crate) async fn mark_announced(&self, mix_listener: SocketAddr) {
+        let mut guard = self.inner.lock().await;
+        let Some(host_agents) = guard.agents.get_mut(&mix_listener.ip()) else {
+            return;
+        };
+        if let Some(agent) = host_agents
+            .iter_mut()
+            .find(|a| a.mixnet_port == mix_listener.port())
+        {
+            agent.announced = true;
+        }
     }
 }
 
+pub(crate) enum AgentAnnounceError {
+    /// No agent with the given socket address exists in the cache.
+    NotFound,
+    /// The noise key in the request doesn't match the one from port assignment.
+    NoiseKeyMismatch,
+}
+
+/// Rebuilds the agent cache from on-chain data. Used at orchestrator startup to
+/// restore state for agents that were authorised before a restart.
 impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
     type Error = anyhow::Error;
 
@@ -97,6 +139,7 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
                     // or should we use the authorisation ts?
                     last_active_at: OffsetDateTime::now_utc(),
                     noise_key,
+                    announced: true,
                 });
         }
 
@@ -106,17 +149,24 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
     }
 }
 
+/// Inner state behind the [`KnownAgents`] mutex.
 struct KnownAgentsInner {
-    // map of agents, based on the host ip address, to their known state
+    /// Map from host IP to the list of agents running on that host.
     agents: HashMap<IpAddr, Vec<KnownAgent>>,
 }
 
+/// Cached state of a single known agent on a particular host.
 #[allow(dead_code)]
 struct KnownAgent {
     host_ip: IpAddr,
     mixnet_port: u16,
     last_active_at: OffsetDateTime,
     noise_key: x25519::PublicKey,
+
+    /// Whether this agent has been successfully registered in the smart contract.
+    /// Set to `true` when restored from the chain at startup, or after a successful
+    /// `/announce` contract transaction.
+    announced: bool,
 }
 
 /// Shared application state available to all axum request handlers.

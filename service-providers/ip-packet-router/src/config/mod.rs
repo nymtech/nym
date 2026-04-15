@@ -192,6 +192,11 @@ pub struct IpPacketRouter {
     /// and thus would attempt to resolve **ANY** request it receives.
     pub open_proxy: bool,
 
+    /// Allow the IP packet router to forward traffic to non-globally-routable addresses.
+    /// Intended for development & testing.
+    #[serde(default)]
+    pub allow_local_ips: bool,
+
     /// Disable Poisson sending rate.
     pub disable_poisson_rate: bool,
 
@@ -204,6 +209,7 @@ impl Default for IpPacketRouter {
     fn default() -> Self {
         IpPacketRouter {
             open_proxy: false,
+            allow_local_ips: false,
             disable_poisson_rate: true,
             #[allow(clippy::expect_used)]
             upstream_exit_policy_url: Some(

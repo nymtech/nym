@@ -107,6 +107,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
             },
             network_requester: nym_network_requester::config::NetworkRequester {
                 open_proxy: config.service_providers.open_proxy,
+                allow_local_ips: config.service_providers.network_requester.allow_local_ips,
                 disable_poisson_rate: config
                     .service_providers
                     .network_requester
@@ -150,6 +151,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
             },
             ip_packet_router: nym_ip_packet_router::config::IpPacketRouter {
                 open_proxy: config.service_providers.open_proxy,
+                allow_local_ips: config.service_providers.ip_packet_router.allow_local_ips,
                 disable_poisson_rate: config
                     .service_providers
                     .ip_packet_router

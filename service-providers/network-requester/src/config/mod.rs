@@ -210,6 +210,11 @@ pub struct NetworkRequester {
     /// and thus would attempt to resolve **ANY** request it receives.
     pub open_proxy: bool,
 
+    /// Allow the network requester to forward traffic to non-globally-routable addresses.
+    /// Intended for development & testing.
+    #[serde(default)]
+    pub allow_local_ips: bool,
+
     /// Disable Poisson sending rate.
     /// This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
     pub disable_poisson_rate: bool,
@@ -223,6 +228,7 @@ impl Default for NetworkRequester {
     fn default() -> Self {
         NetworkRequester {
             open_proxy: false,
+            allow_local_ips: false,
             disable_poisson_rate: true,
             upstream_exit_policy_url: Some(
                 mainnet::EXIT_POLICY_URL

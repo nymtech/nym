@@ -75,6 +75,11 @@ impl ServiceProvidersConfig {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 pub struct NetworkRequester {
+    /// Allow the network requester to forward traffic to non-globally-routable addresses.
+    /// Intended for development & testing.
+    #[serde(default)]
+    pub allow_local_ips: bool,
+
     #[serde(default)]
     pub debug: NetworkRequesterDebug,
 }
@@ -83,6 +88,7 @@ pub struct NetworkRequester {
 impl Default for NetworkRequester {
     fn default() -> Self {
         NetworkRequester {
+            allow_local_ips: false,
             debug: Default::default(),
         }
     }
@@ -117,6 +123,11 @@ impl Default for NetworkRequesterDebug {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct IpPacketRouter {
+    /// Allow the IP packet router to forward traffic to non-globally-routable addresses.
+    /// Intended for development & testing.
+    #[serde(default)]
+    pub allow_local_ips: bool,
+
     #[serde(default)]
     pub debug: IpPacketRouterDebug,
 }
@@ -125,6 +136,7 @@ pub struct IpPacketRouter {
 impl Default for IpPacketRouter {
     fn default() -> Self {
         IpPacketRouter {
+            allow_local_ips: false,
             debug: Default::default(),
         }
     }

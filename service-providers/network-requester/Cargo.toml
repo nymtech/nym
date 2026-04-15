@@ -44,7 +44,7 @@ zeroize = { workspace = true }
 
 # internal
 nym-async-file-watcher = { workspace = true }
-nym-bin-common = { workspace = true, features = ["output_format", "clap", "basic_tracing"] }
+nym-bin-common = { workspace = true, features = ["output_format", "clap", "basic_tracing", "ip_check"] }
 nym-client-core = { workspace = true, features = ["cli", "fs-gateways-storage", "fs-surb-storage"] }
 nym-client-websocket-requests = { workspace = true }
 nym-config = { workspace = true }

@@ -38,6 +38,7 @@ default = []
 openapi = ["utoipa"]
 output_format = ["serde_json", "dep:clap"]
 bin_info_schema = ["schemars"]
+ip_check = []
 basic_tracing = ["dep:tracing", "dep:tracing-subscriber"]
 otel-otlp = [
     "basic_tracing",

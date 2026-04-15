@@ -938,6 +938,7 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
             open_proxy: old_cfg.service_providers.open_proxy,
             upstream_exit_policy_url: old_cfg.service_providers.upstream_exit_policy_url,
             network_requester: NetworkRequester {
+                allow_local_ips: false,
                 debug: NetworkRequesterDebug {
                     enabled: old_cfg.service_providers.network_requester.debug.enabled,
                     disable_poisson_rate: old_cfg
@@ -953,6 +954,7 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
                 },
             },
             ip_packet_router: IpPacketRouter {
+                allow_local_ips: false,
                 debug: IpPacketRouterDebug {
                     enabled: old_cfg.service_providers.ip_packet_router.debug.enabled,
                     disable_poisson_rate: old_cfg

@@ -15,10 +15,14 @@ pub struct ExitPolicyRequestFilter {
     #[allow(unused)]
     upstream: Option<Url>,
     policy: ExitPolicy,
+    allow_local_ips: bool,
 }
 
 impl ExitPolicyRequestFilter {
-    pub(crate) async fn new_upstream(url: impl IntoUrl) -> Result<Self, IpPacketRouterError> {
+    pub(crate) async fn new_upstream(
+        url: impl IntoUrl,
+        allow_local_ips: bool,
+    ) -> Result<Self, IpPacketRouterError> {
         let url = url
             .into_url()
             .map_err(|source| IpPacketRouterError::MalformedExitPolicyUpstreamUrl { source })?;
@@ -26,21 +30,24 @@ impl ExitPolicyRequestFilter {
         Ok(ExitPolicyRequestFilter {
             upstream: Some(url.clone()),
             policy: get_exit_policy(url).await?,
+            allow_local_ips,
         })
     }
 
     #[allow(unused)]
-    pub(crate) fn new(policy: ExitPolicy) -> Self {
+    pub(crate) fn new(policy: ExitPolicy, allow_local_ips: bool) -> Self {
         ExitPolicyRequestFilter {
             upstream: None,
             policy,
+            allow_local_ips,
         }
     }
 
-    pub fn new_from_policy(policy: ExitPolicy) -> Self {
+    pub fn new_from_policy(policy: ExitPolicy, allow_local_ips: bool) -> Self {
         ExitPolicyRequestFilter {
             upstream: None,
             policy,
+            allow_local_ips,
         }
     }
 
@@ -57,7 +64,7 @@ impl ExitPolicyRequestFilter {
     pub(crate) async fn check(&self, addr: &SocketAddr) -> Result<bool, IpPacketRouterError> {
         // private ranges are disallowed regardless of policy: end user has
         // no business with internal/private IP ranges of IPR
-        if !is_global_ip(&addr.ip()) {
+        if !self.allow_local_ips && !is_global_ip(&addr.ip()) {
             warn!("Rejecting non-global address {addr}");
             return Ok(false);
         }

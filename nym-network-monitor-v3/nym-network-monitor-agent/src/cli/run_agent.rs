@@ -3,6 +3,7 @@
 
 use super::env::vars::*;
 use crate::agent::NetworkMonitorAgent;
+use crate::agent::helpers::load_noise_key;
 use crate::cli::common::CommonArgs;
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_network_monitor_orchestrator_requests::models::AgentPortRequest;
@@ -33,6 +34,8 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
     let orchestrator_client =
         OrchestratorClient::new(args.orchestrator_address.into(), args.orchestrator_token)?;
 
+    let noise_key = load_noise_key(&args.common_args.noise_key_path)?;
+
     // 1. retrieve mix port to use as coordinated by the orchestrator
     // to make sure there are no two agents with the same egress ip address and port
     // as otherwise nodes would be unable to determine correct noise key to use
@@ -40,6 +43,7 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
     let mix_port = orchestrator_client
         .get_mix_port_assignment(&AgentPortRequest {
             agent_node_ip: args.host_ip,
+            x25519_noise_key: *noise_key.public_key(),
         })
         .await?
         .available_mix_port;
@@ -49,9 +53,9 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
     // 2. build instance of the agent (loads the noise keys)
     let agent = NetworkMonitorAgent::new(
         args.common_args.build_config(mix_address),
-        args.common_args.noise_key_path,
+        noise_key,
         orchestrator_client,
-    )?;
+    );
 
     // 3. announce the agent to the orchestrator
     // so that it would be registered in the smart contract

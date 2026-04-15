@@ -6,6 +6,9 @@ use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 
+/// Request sent by an agent to obtain a unique mixnet port from the orchestrator.
+/// The orchestrator uses the agent's host IP and noise key to ensure no two agents
+/// on the same host are assigned the same port.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentPortRequest {
@@ -19,6 +22,7 @@ pub struct AgentPortRequest {
     pub x25519_noise_key: x25519::PublicKey,
 }
 
+/// Response to an [`AgentPortRequest`], containing the port the agent should bind to.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentPortRequestResponse {
@@ -45,6 +49,15 @@ pub struct AgentAnnounceRequest {
     pub noise_version: u8,
 }
 
+/// Confirmation returned to an agent after a successful announcement.
+/// Currently empty — exists to give the response an explicit type rather than
+/// relying on `Json(())`.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentAnnounceResponse {}
+
+/// Response from the orchestrator when an agent requests work.
+/// `assignment` is `None` when no nodes are due for testing.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunAssignment {

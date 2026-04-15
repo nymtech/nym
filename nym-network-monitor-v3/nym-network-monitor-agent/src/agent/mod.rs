@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::agent::config::NodeTesterConfig;
-use crate::agent::helpers::load_noise_key;
 use nym_crypto::asymmetric::x25519;
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_network_monitor_orchestrator_requests::models::AgentAnnounceRequest;
 use nym_noise::LATEST_NOISE_VERSION;
-use std::path::Path;
 use std::sync::Arc;
 use tracing::info;
 

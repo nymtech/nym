@@ -11,7 +11,7 @@ use nym_network_monitor_orchestrator_requests::routes;
 use nym_task::ShutdownToken;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing::error;
+use tracing::{error, info};
 use zeroize::Zeroizing;
 
 pub(crate) mod api_docs;
@@ -35,8 +35,6 @@ pub(crate) fn build_router(
 
     Router::new()
         .route(routes::ROOT, swagger_redirect())
-        .route("/swagger/", swagger_redirect())
-        .route("/swagger/index.html", swagger_redirect())
         .merge(api_docs::route())
         .nest(routes::V1, v1::routes(agents_auth, metrics_auth))
         .layer(axum::middleware::from_fn(log_request_debug))
@@ -54,6 +52,8 @@ pub(crate) async fn run_http_server(
     let listener = tokio::net::TcpListener::bind(bind_address)
         .await
         .inspect_err(|err| error!("couldn't bind to address {bind_address}: {err}"))?;
+
+    info!("starting http api server on {bind_address}");
 
     axum::serve(
         listener,

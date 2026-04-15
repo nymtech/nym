@@ -136,12 +136,12 @@ impl NetworkMonitorOrchestrator {
             .try_spawn_named(http_server_fut, "http-server");
 
         // node refresher
-        self.shutdown_manager.try_spawn_named(
-            async move {
-                node_refresher.run().await;
-            },
-            "node-refresher",
-        );
+        // self.shutdown_manager.try_spawn_named(
+        //     async move {
+        //         node_refresher.run().await;
+        //     },
+        //     "node-refresher",
+        // );
 
         error!("unimplemented");
         self.make_clippy_happy().await?;

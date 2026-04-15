@@ -27,12 +27,12 @@ pub(crate) struct Args {
     metrics_token: String,
 
     /// How often each node should be stress-tested (e.g. `30m`, `1h`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_TEST_INTERVAL_ARG, value_parser = humantime::parse_duration)]
+    #[clap(long, env = NYM_NETWORK_MONITOR_TEST_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "12h")]
     test_interval: Duration,
 
     /// Maximum time a single test run is allowed to run before being considered timed out
     /// (e.g. `5m`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_TEST_TIMEOUT_ARG, value_parser = humantime::parse_duration)]
+    #[clap(long, env = NYM_NETWORK_MONITOR_TEST_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "5m")]
     test_timeout: Duration,
 
     /// HTTP address to bind the HTTP server to (e.g. `0.0.0.0:8080`).
@@ -63,13 +63,13 @@ pub(crate) struct Args {
 
     /// How often the list of bonded nym-nodes is refreshed from the mixnet contract
     /// (e.g. `10m`, `1h`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_NODE_REFRESH_RATE_ARG, value_parser = humantime::parse_duration)]
+    #[clap(long, env = NYM_NETWORK_MONITOR_NODE_REFRESH_RATE_ARG, value_parser = humantime::parse_duration, default_value = "2h")]
     node_refresh_rate: Duration,
 
     /// Timeout for querying a single node for its detailed information (sphinx key, noise key,
     /// etc.). Queries that exceed this budget leave the corresponding fields as `NULL`
     /// (e.g. `10s`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_NODE_INFO_QUERY_TIMEOUT_ARG, value_parser = humantime::parse_duration)]
+    #[clap(long, env = NYM_NETWORK_MONITOR_NODE_INFO_QUERY_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "10s")]
     node_info_query_timeout: Duration,
 
     /// Bech32 address of the networks monitors contract used to authorise agents
@@ -85,7 +85,7 @@ pub(crate) struct Args {
     /// Maximum age of a completed test run row before it is evicted from the local database.
     /// Rows older than this are assumed to have already been submitted to the nym-api
     /// (e.g. `7d`, `24h`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_TESTRUN_EVICTION_AGE_ARG, value_parser = humantime::parse_duration)]
+    #[clap(long, env = NYM_NETWORK_MONITOR_TESTRUN_EVICTION_AGE_ARG, value_parser = humantime::parse_duration, default_value = "7d",)]
     testrun_eviction_age: Duration,
 
     /// Maximum number of nodes queried concurrently during a node refresh cycle.

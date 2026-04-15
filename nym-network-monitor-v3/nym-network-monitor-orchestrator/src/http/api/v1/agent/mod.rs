@@ -9,7 +9,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_http_api_common::middleware::bearer_auth::AuthLayer;
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentAnnounceRequest, AgentPortRequest, AgentPortRequestResponse,
+    AgentAnnounceRequest, AgentPortRequest, AgentPortRequestResponse, TestRunAssignment,
 };
 use nym_network_monitor_orchestrator_requests::routes;
 use std::net::SocketAddr;
@@ -81,7 +81,7 @@ async fn announce_agent(
     // TODO: call the contract here
     let _ = state;
 
-    StatusCode::OK
+    Json(())
 }
 
 #[utoipa::path(
@@ -108,7 +108,9 @@ async fn request_testrun(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> impl Int
 
     info!("received testrun request from pod at {pod_ip}");
 
-    StatusCode::OK
+    Json(TestRunAssignment {
+        assignment: Some(()),
+    })
 }
 
 /// Builds the agent sub-router with all agent endpoints behind bearer-token auth.

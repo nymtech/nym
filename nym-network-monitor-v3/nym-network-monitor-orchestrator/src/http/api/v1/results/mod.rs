@@ -5,5 +5,5 @@ use crate::http::state::AppState;
 use axum::Router;
 
 pub(super) fn routes() -> Router<AppState> {
-    todo!()
+    Router::new()
 }

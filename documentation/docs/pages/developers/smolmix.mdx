@@ -1,0 +1,188 @@
+---
+title: "smolmix: TCP/UDP Over the Nym Mixnet"
+description: "A userspace IP tunnel that provides standard TcpStream and UdpSocket types over the Nym mixnet. Drop-in compatible with tokio-rustls, hyper, tungstenite, and the async Rust ecosystem."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-04-14"
+---
+
+# smolmix
+
+import { Callout } from 'nextra/components'
+import { CratesPaused } from '../../components/crates-paused'
+
+<CratesPaused />
+
+`smolmix` is a TCP/UDP tunnel over the Nym mixnet. It uses a userspace network stack [`smoltcp`](https://docs.rs/smoltcp/latest/smoltcp/) to provide real `TcpStream` and `UdpSocket` types that work transparently with the async Rust ecosystem — `tokio-rustls`, `hyper`, `tokio-tungstenite`, and anything else built on `AsyncRead + AsyncWrite`.
+
+It also serves as the core for (upcoming) companion crates that plug into specific frameworks (e.g. `hyper` connectors, DNS resolvers).
+
+## Why IP, not messages
+
+The Nym SDK works at the **message layer**: you send and receive `Vec<u8>` payloads through the mixnet. Every protocol must be hand-adapted — you need custom framing, ordering, connection state, and flow control.
+
+`smolmix` operates at the **IP layer**. A userspace `smoltcp` stack manages real TCP state machines (retransmits, windowing, port allocation) and UDP datagram delivery, and the mixnet becomes a transparent transport underneath. Any protocol that works over TCP or UDP works over `smolmix` with zero adaptation.
+
+## Architecture
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  Application protocols that "just work" over smolmix             │
+│                                                                  │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌────────────────┐   │
+│  │ TLS      │ │ HTTP/1.1 │ │ WebSocket    │ │ libp2p         │   │
+│  │ (rustls) │ │ (hyper)  │ │ (tungstenite)│ │ (noise+yamux)  │   │
+│  └────┬─────┘ └────┬─────┘ └──────┬───────┘ └───────┬────────┘   │
+│       │             │              │                 │           │
+│       └─────────────┴──────────────┴─────────────────┘           │
+│                             │                                    │
+│                   tokio_smoltcp::TcpStream                       │
+│               (AsyncRead + AsyncWrite, Send, Unpin)              │
+├──────────────────────────────────────────────────────────────────┤
+│                     smolmix Tunnel                               │
+│                   (smoltcp → mixnet → IPR)                       │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+Internally, the `Tunnel` wires together four components:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  User code                                                      │
+│  tunnel.tcp_connect() → TcpStream (AsyncRead + AsyncWrite)      │
+│  tunnel.udp_socket()  → UdpSocket (send_to / recv_from)         │
+├─────────────────────────────────────────────────────────────────┤
+│  tokio-smoltcp::Net                                             │
+│  Owns the smoltcp Interface + SocketSet + async poll loop.      │
+│  Manages TCP state machines, retransmits, port allocation.      │
+├─────────────────────────────────────────────────────────────────┤
+│  NymAsyncDevice  (device adapter)                               │
+│  Stream + Sink adapter for raw IP packets over mpsc channels.   │
+├─────────────────────────────────────────────────────────────────┤
+│  NymIprBridge  (background task)                                │
+│  Shuttles packets between channels and the mixnet.              │
+│  Bundles outgoing packets with MultiIpPacketCodec (IPR protocol)│
+├─────────────────────────────────────────────────────────────────┤
+│  IpMixStream → MixnetClient → Nym mixnet → IPR exit node        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Traffic exits the mixnet at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway — the exit IP is the gateway's, not yours.
+
+<Callout type="warning">
+Traffic is Sphinx-encrypted until the Exit Gateway, where it's unwrapped into raw IP. The last hop to the remote host **travels as normal internet traffic**. Use TLS or another encryption layer to protect the final hop.
+</Callout>
+
+## Quick start
+
+```rust
+use smolmix::Tunnel;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let tunnel = Tunnel::new().await?;
+
+    // TCP — works with any protocol
+    let mut tcp = tunnel.tcp_connect("1.1.1.1:80".parse()?).await?;
+    tcp.write_all(b"GET / HTTP/1.1\r\nHost: 1.1.1.1\r\nConnection: close\r\n\r\n").await?;
+    let mut buf = Vec::new();
+    tcp.read_to_end(&mut buf).await?;
+
+    // UDP — datagrams over the mixnet
+    let udp = tunnel.udp_socket().await?;
+    udp.send_to(b"\x12\x34\x01\x00...", "1.1.1.1:53".parse()?).await?;
+
+    tunnel.shutdown().await;
+    Ok(())
+}
+```
+
+## Public API
+
+| Type | Description |
+|---|---|
+| **`Tunnel`** | Entry point. Connects to the mixnet, spawns the bridge and smoltcp reactor. Cheaply cloneable (`Arc`-based) for sharing across tasks. |
+| **`TunnelBuilder`** | Builder for configuring the tunnel before connecting — e.g. targeting a specific IPR exit node. |
+| **`TcpStream`** | TCP stream routed through the mixnet. Implements `AsyncRead + AsyncWrite` — drop-in replacement for `tokio::net::TcpStream`. |
+| **`UdpSocket`** | UDP socket routed through the mixnet. Supports `send_to` / `recv_from`. |
+| **`IpPair`** | The IPv4/IPv6 address pair allocated to this tunnel by the IPR. |
+| **`Recipient`** | A Nym mixnet address, used to target a specific IPR exit node. |
+
+### Tunnel construction
+
+```rust
+// Auto-discover the best IPR exit node:
+let tunnel = Tunnel::new().await?;
+
+// Or configure via builder:
+use smolmix::Recipient;
+let ipr: Recipient = "gateway-address...".parse()?;
+let tunnel = Tunnel::builder()
+    .ipr_address(ipr)
+    .build()
+    .await?;
+
+// Or bring your own pre-configured IpMixStream:
+let tunnel = Tunnel::from_stream(my_stream).await?;
+```
+
+### Opening sockets
+
+```rust
+// TCP connection to a remote host
+let tcp = tunnel.tcp_connect("1.1.1.1:443".parse()?).await?;
+
+// UDP socket on an ephemeral port
+let udp = tunnel.udp_socket().await?;
+
+// UDP socket on a specific port
+let udp = tunnel.udp_socket_on(5353).await?;
+
+// Check allocated IPs
+let ips = tunnel.allocated_ips();
+println!("IPv4: {}, IPv6: {}", ips.ipv4, ips.ipv6);
+```
+
+### Shutdown
+
+```rust
+// Graceful — waits for the bridge to disconnect from the mixnet
+tunnel.shutdown().await;
+
+// Or just drop — fire-and-forget cleanup via oneshot channel
+// (bridge still shuts down, but you can't await it)
+drop(tunnel);
+```
+
+## When to use smolmix
+
+| | smolmix | Stream module | mixFetch | SOCKS client |
+|---|---|---|---|---|
+| **Layer** | IP (TCP/UDP) | Message (multiplexed streams) | HTTP | TCP (SOCKS proxy) |
+| **Controls both sides?** | No — proxy mode | Yes — E2E | No — proxy mode | No — proxy mode |
+| **Runtime** | Rust (tokio) | Rust (tokio) | Browser (WASM) | Any (SOCKS-capable) |
+| **API** | `TcpStream`, `UdpSocket` | `AsyncRead + AsyncWrite` | `fetch()` drop-in | SOCKS4/5 protocol |
+| **Composability** | Full — TLS, HTTP, WebSocket, DNS, etc. stack on top | Byte streams only | HTTP(S) only | Application-dependent |
+| **Best for** | Reaching external services from Rust with standard networking | Peer-to-peer / E2E protocols between Nym clients | Browser HTTP requests | Legacy apps with SOCKS support |
+
+## Examples
+
+Runnable examples in [`smolmix/core/examples/`](https://github.com/nymtech/nym/tree/max/mixtcp/smolmix/core/examples). Each is self-contained and compares clearnet vs. mixnet performance.
+
+```sh
+cargo run -p smolmix --example <name>
+```
+
+All examples accept `--ipr <ADDRESS>` to target a specific exit node.
+
+| Example | Source | What it demonstrates |
+|---|---|---|
+| TCP | [`tcp.rs`](https://github.com/nymtech/nym/blob/max/mixtcp/smolmix/core/examples/tcp.rs) | HTTPS request via hyper + tokio-rustls — fetches Cloudflare's `/cdn-cgi/trace` to show that the exit IP differs from clearnet |
+| UDP | [`udp.rs`](https://github.com/nymtech/nym/blob/max/mixtcp/smolmix/core/examples/udp.rs) | DNS lookup via hickory-proto — sends a raw UDP query to `1.1.1.1:53` through the mixnet |
+| WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/max/mixtcp/smolmix/core/examples/websocket.rs) | WebSocket echo via tokio-tungstenite + tokio-rustls — shows the full TCP → TLS → WebSocket stack composing over smolmix |
+
+## Next steps
+
+- [Tutorial 1: Private File Downloads](./smolmix/tutorial) — resolve DNS, connect TCP+TLS, and download files over a single HTTP connection through the mixnet
+- [Tutorial 2: Private DNS & NTP via UDP](./smolmix/tutorial-udp) — resolve multiple hostnames and sync time via NTP, all over the mixnet's UDP transport

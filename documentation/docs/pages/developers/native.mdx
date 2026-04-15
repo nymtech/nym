@@ -34,13 +34,13 @@ For cases where you only control the client side and need to reach a third-party
 ![](/images/developers/nym-arch-ip-routing.png)
 
 <Callout type="warning">
-Traffic is Sphinx-encrypted until the Exit Gateway, where it's unwrapped into HTTPS (Network Requester) or raw IP (IP Packet Router). The last hop to the remote host **travels as normal internet traffic**. Use TLS or another encryption layer to protect the final hop.
+Traffic is Sphinx-encrypted until the Exit Gateway, where it's unwrapped into HTTPS ([Network Requester](/network/infrastructure/exit-services#network-requester)) or raw IP ([IP Packet Router](/network/infrastructure/exit-services#ip-packet-router)). The last hop to the remote host **travels as normal internet traffic**. Use TLS or another encryption layer to protect the final hop.
 </Callout>
 
 | Standalone Crate | What it does | Links |
 |---|---|---|
-| **smolmix** | Userspace IP tunnel — `TcpStream` and `UdpSocket` over the mixnet, compatible with the entire async Rust ecosystem | [docs](./smolmix) |
+| **`smolmix`** | Userspace IP tunnel — `TcpStream` and `UdpSocket` over the mixnet, compatible with the entire async Rust ecosystem. Also serves as the core for companion crates that plug into specific frameworks (e.g. hyper connectors, DNS resolvers) | [docs](./smolmix) |
 
 | SDK Module | What it does | Links |
 |---|---|---|
-| **SOCKS Client** | SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester — works with any SOCKS-capable application | [docs](./rust/mixnet) |
+| **SOCKS Client** | SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester — works with any SOCKS-capable application without code changes, just point it at the local proxy | [docs](./rust/mixnet) |

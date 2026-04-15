@@ -14,6 +14,6 @@ pub(crate) fn load_noise_key<P: AsRef<Path>>(path: P) -> anyhow::Result<Arc<x255
     if !path.exists() {
         bail!("noise key file does not exist at: {}", path.display());
     }
-    let noise_key: x25519::PrivateKey = load_key(&path).context("failed to load noise key")?;
+    let noise_key: x25519::PrivateKey = load_key(path).context("failed to load noise key")?;
     Ok(Arc::new(noise_key.into()))
 }

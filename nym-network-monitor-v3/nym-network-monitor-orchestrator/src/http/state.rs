@@ -15,21 +15,12 @@ use tracing::info;
 
 /// Thread-safe cache of all agents known to this orchestrator, keyed by host IP.
 /// Used to coordinate port assignments and validate announcements.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct KnownAgents {
     inner: Arc<Mutex<KnownAgentsInner>>,
 }
 
 impl KnownAgents {
-    /// Creates an empty agent cache with no known agents.
-    pub(crate) fn new_empty() -> Self {
-        KnownAgents {
-            inner: Arc::new(Mutex::new(KnownAgentsInner {
-                agents: HashMap::new(),
-            })),
-        }
-    }
-
     /// Returns a mixnet port for the agent identified by `host_ip` and `agent_pubkey`.
     /// If the agent was seen before, the previously assigned port is returned.
     /// Otherwise the first available port in the range
@@ -160,6 +151,7 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
 }
 
 /// Inner state behind the [`KnownAgents`] mutex.
+#[derive(Default)]
 struct KnownAgentsInner {
     /// Map from host IP to the list of agents running on that host.
     agents: HashMap<IpAddr, Vec<KnownAgent>>,
@@ -194,14 +186,14 @@ mod tests {
 
     #[tokio::test]
     async fn first_agent_gets_default_port() {
-        let agents = KnownAgents::new_empty();
+        let agents = KnownAgents::default();
         let port = agents.assign_agent_port(HOST, random_pubkey()).await;
         assert_eq!(port, Some(DEFAULT_MIX_LISTENING_PORT));
     }
 
     #[tokio::test]
     async fn second_agent_same_host_gets_next_port() {
-        let agents = KnownAgents::new_empty();
+        let agents = KnownAgents::default();
         let key_a = random_pubkey();
         let key_b = random_pubkey();
 
@@ -214,7 +206,7 @@ mod tests {
 
     #[tokio::test]
     async fn same_key_returns_same_port() {
-        let agents = KnownAgents::new_empty();
+        let agents = KnownAgents::default();
         let key = random_pubkey();
 
         let first = agents.assign_agent_port(HOST, key).await.unwrap();
@@ -225,7 +217,7 @@ mod tests {
 
     #[tokio::test]
     async fn different_hosts_get_independent_ports() {
-        let agents = KnownAgents::new_empty();
+        let agents = KnownAgents::default();
         let key_a = random_pubkey();
         let key_b = random_pubkey();
 
@@ -238,7 +230,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_announce_unknown_agent_returns_not_found() {
-        let agents = KnownAgents::new_empty();
+        let agents = KnownAgents::default();
         let addr: SocketAddr = "10.0.0.1:1789".parse().unwrap();
 
         let result = agents.try_announce_agent(addr, random_pubkey()).await;
@@ -247,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_announce_wrong_key_returns_mismatch() {
-        let agents = KnownAgents::new_empty();
+        let agents = KnownAgents::default();
         let real_key = random_pubkey();
         let wrong_key = random_pubkey();
 
@@ -260,7 +252,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_announce_returns_false_then_true_after_mark() {
-        let agents = KnownAgents::new_empty();
+        let agents = KnownAgents::default();
         let key = random_pubkey();
 
         let port = agents.assign_agent_port(HOST, key).await.unwrap();
@@ -282,7 +274,7 @@ mod tests {
     async fn port_reuse_after_gap() {
         // Simulate: agent on default port is known, next port is assigned,
         // then verify a third agent gets default+2
-        let agents = KnownAgents::new_empty();
+        let agents = KnownAgents::default();
         let key_a = random_pubkey();
         let key_b = random_pubkey();
         let key_c = random_pubkey();

@@ -12,6 +12,11 @@ pub struct AgentPortRequest {
     /// Egress address of the agent node
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub agent_node_ip: IpAddr,
+
+    /// Base-58 encoded noise key of the agent.
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub x25519_noise_key: x25519::PublicKey,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

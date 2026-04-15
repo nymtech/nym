@@ -30,18 +30,16 @@ pub(crate) struct NetworkMonitorAgent {
 }
 
 impl NetworkMonitorAgent {
-    /// Creates a new agent, loading the Noise key from disk and wrapping the
-    /// orchestrator token in a zeroizing container.
-    pub(crate) fn new<P: AsRef<Path>>(
+    pub(crate) fn new(
         tester_config: NodeTesterConfig,
-        noise_key_path: P,
+        noise_key: Arc<x25519::KeyPair>,
         orchestrator_client: OrchestratorClient,
-    ) -> anyhow::Result<Self> {
-        Ok(NetworkMonitorAgent {
+    ) -> Self {
+        NetworkMonitorAgent {
             tester_config,
             orchestrator_client,
-            noise_key: load_noise_key(noise_key_path)?,
-        })
+            noise_key,
+        }
     }
 
     // TODO: orchestrator will have to check if this combination of key/address already exists

@@ -5,7 +5,7 @@
 #![allow(dead_code)]
 
 use crate::http::api::{build_router, run_http_server};
-use crate::http::state::AppState;
+use crate::http::state::{AppState, KnownAgents};
 use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
 use crate::storage::NetworkMonitorStorage;
@@ -16,7 +16,8 @@ use anyhow::Context;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
-use nym_validator_client::nyxd::bip39;
+use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
+use nym_validator_client::nyxd::{AccountId, bip39};
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
@@ -85,6 +86,10 @@ impl NetworkMonitorOrchestrator {
         Ok(this)
     }
 
+    async fn address(&self) -> AccountId {
+        self.client.read().await.nyxd.address()
+    }
+
     async fn verify_orchestrator_chain_authorisation(&self) -> anyhow::Result<()> {
         // ensure our address is authorised to send transactions
         // to the network monitors contract to authorise the agents
@@ -108,7 +113,17 @@ impl NetworkMonitorOrchestrator {
             .clone_query_client();
 
         // 1. build the shared state
-        let app_state = AppState::new();
+        // 1.1. retrieve all registered agents (by this orchestrator) from the contract
+        // (we assume the orchestrator has restarted and the agents are still out there as authorised)
+        let address = self.address().await;
+        let agents = query_client
+            .get_all_network_monitor_agents()
+            .await?
+            .into_iter()
+            .filter(|a| a.authorised_by.as_str() == address.as_ref())
+            .collect::<Vec<_>>();
+        let agents_state = KnownAgents::try_from(agents)?;
+        let app_state = AppState::new(agents_state, self.client.clone());
 
         // 2. build node information refresher
         let node_refresher = NodeRefresher::new(
@@ -125,7 +140,7 @@ impl NetworkMonitorOrchestrator {
             self.metrics_http_auth_token.clone(),
         );
 
-        // XYZ. start all the tasks
+        // 4. start all the tasks
         // http server
         let http_server_fut = run_http_server(
             http_router,
@@ -136,12 +151,12 @@ impl NetworkMonitorOrchestrator {
             .try_spawn_named(http_server_fut, "http-server");
 
         // node refresher
-        // self.shutdown_manager.try_spawn_named(
-        //     async move {
-        //         node_refresher.run().await;
-        //     },
-        //     "node-refresher",
-        // );
+        self.shutdown_manager.try_spawn_named(
+            async move {
+                node_refresher.run().await;
+            },
+            "node-refresher",
+        );
 
         error!("unimplemented");
         self.make_clippy_happy().await?;

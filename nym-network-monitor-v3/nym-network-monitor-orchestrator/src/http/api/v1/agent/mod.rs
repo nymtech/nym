@@ -66,7 +66,7 @@ async fn request_mix_port(
     context_path = "/v1/agent",
     responses(
         (status = 200, content(
-
+            (AgentAnnounceResponse = "application/json"),
         ))
     )
 )]
@@ -133,7 +133,7 @@ async fn announce_agent(
     context_path = "/v1/agent",
     responses(
         (status = 200, content(
-
+            (TestRunAssignmentResponse = "application/json"),
         ))
     )
 )]
@@ -176,7 +176,7 @@ async fn request_testrun(
     context_path = "/v1/agent",
     responses(
         (status = 200, content(
-
+            (TestRunSubmissionResponse = "application/json"),
         ))
     )
 )]

@@ -57,6 +57,8 @@ pub struct AgentAnnounceRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentAnnounceResponse {}
 
+/// Request sent by an agent to ask the orchestrator for a node to test.
+/// Identifies the agent so the orchestrator can verify it has been announced.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunAssignmentRequest {
@@ -79,6 +81,7 @@ pub struct TestRunAssignmentResponse {
     pub assignment: Option<TestRunAssignment>,
 }
 
+/// Details of a single node assigned to an agent for stress testing.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunAssignment {
@@ -124,6 +127,7 @@ pub struct LatencyDistribution {
     pub standard_deviation: Duration,
 }
 
+/// Request sent by an agent to submit test results for a previously assigned node.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TestRunResultSubmissionRequest {

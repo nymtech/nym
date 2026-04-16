@@ -62,6 +62,8 @@ impl KnownAgents {
         Some(next_port)
     }
 
+    /// Looks up an agent by its full mixnet socket address (host IP + port).
+    /// Returns `None` if no agent is registered at that address.
     pub(crate) async fn get_agent(&self, address: SocketAddr) -> Option<KnownAgent> {
         let guard = self.inner.lock().await;
         let host_agents = guard.agents.get(&address.ip())?;
@@ -184,13 +186,22 @@ pub(crate) struct KnownAgent {
     pub(crate) announced: bool,
 }
 
+/// Coordinates test run assignment and result storage.
+///
+/// Wraps the underlying [`NetworkMonitorStorage`] and applies the configured
+/// `testrun_staleness_age` when deciding which nodes are eligible for testing.
 #[derive(Clone)]
 pub(crate) struct TestrunManager {
     storage: NetworkMonitorStorage,
+
+    /// Minimum time that must elapse after a node's last test before it becomes
+    /// eligible for another one. Passed to the storage layer as a staleness gate.
     testrun_staleness_age: Duration,
 }
 
 impl TestrunManager {
+    /// Selects the most stale idle node and atomically marks it as having a test
+    /// in progress. Returns `None` if no node is currently eligible.
     pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
         let node_to_test = match self
             .storage
@@ -243,6 +254,8 @@ impl TestrunManager {
         }))
     }
 
+    /// Persists a completed test run result to the database and updates the
+    /// node's `last_testrun` pointer.
     pub(crate) async fn submit_testrun_result(
         &self,
         result: TestRunResult,

@@ -5,14 +5,9 @@ use crate::node_describe_cache::query_helpers::query_for_described_data;
 use crate::node_describe_cache::NodeDescribeCacheError;
 use nym_api_requests::models::{DescribedNodeTypeV2, NymNodeDescriptionV2};
 use nym_bin_common::bin_info;
-use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
-use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::helpers::NymNodeApiClientRetriever;
-use nym_node_requests::try_get_valid_nym_node_api_client;
-use nym_validator_client::UserAgent;
-use std::time::Duration;
 use tracing::{debug, error};
 
 #[derive(Debug)]

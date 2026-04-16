@@ -3,11 +3,13 @@
 
 use crate::http::api::v1::error::ApiError;
 use crate::storage::NetworkMonitorStorage;
+use crate::storage::models::NewTestRun;
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::x25519;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
-use nym_network_monitor_orchestrator_requests::models::TestRunAssignment;
+use nym_network_monitor_orchestrator_requests::models::{TestRunAssignment, TestRunResult};
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
+use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
 use std::collections::{BTreeSet, HashMap};
 use std::net::{IpAddr, SocketAddr};
@@ -51,7 +53,6 @@ impl KnownAgents {
 
         // insert agent information into the cache
         host_agents.push(KnownAgent {
-            host_ip,
             mixnet_port: next_port,
             last_active_at: OffsetDateTime::now_utc(),
             noise_key: agent_pubkey,
@@ -149,7 +150,6 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
                 .entry(host_ip)
                 .or_insert_with(Vec::new)
                 .push(KnownAgent {
-                    host_ip,
                     mixnet_port: agent.mixnet_address.port(),
                     // or should we use the authorisation ts?
                     last_active_at: OffsetDateTime::now_utc(),
@@ -174,7 +174,6 @@ struct KnownAgentsInner {
 /// Cached state of a single known agent on a particular host.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct KnownAgent {
-    pub(crate) host_ip: IpAddr,
     pub(crate) mixnet_port: u16,
     pub(crate) last_active_at: OffsetDateTime,
     pub(crate) noise_key: x25519::PublicKey,
@@ -242,6 +241,20 @@ impl TestrunManager {
             sphinx_key,
             key_rotation_id: key_rotation as u32,
         }))
+    }
+
+    pub(crate) async fn submit_testrun_result(
+        &self,
+        result: TestRunResult,
+        node_id: NodeId,
+    ) -> Result<(), ApiError> {
+        // currently all testruns are mixnode results
+        let testrun = NewTestRun::from_mixnode_result(result);
+        if let Err(err) = self.storage.insert_test_run(&testrun, node_id).await {
+            error!("testrun result storage failure: {err}");
+            return Err(ApiError::StorageFailure);
+        }
+        Ok(())
     }
 }
 

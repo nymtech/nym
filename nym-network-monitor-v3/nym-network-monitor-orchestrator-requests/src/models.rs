@@ -56,10 +56,44 @@ pub struct AgentAnnounceRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentAnnounceResponse {}
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestRunAssignmentRequest {
+    /// Egress address of the agent node combined with the previously
+    /// assigned mixnet socket address from the orchestrator
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub agent_mix_socket_address: SocketAddr,
+
+    /// Base-58 encoded noise key of the agent.
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub x25519_noise_key: x25519::PublicKey,
+}
+
 /// Response from the orchestrator when an agent requests work.
 /// `assignment` is `None` when no nodes are due for testing.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestRunAssignmentResponse {
+    pub assignment: Option<TestRunAssignment>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunAssignment {
-    pub assignment: Option<()>,
+    pub node_id: u32,
+
+    /// The address of the node that should be tested.
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub node_address: SocketAddr,
+
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub noise_key: x25519::PublicKey,
+
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub sphinx_key: x25519::PublicKey,
+
+    pub key_rotation_id: u32,
 }

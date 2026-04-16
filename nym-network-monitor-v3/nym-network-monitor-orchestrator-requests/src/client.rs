@@ -3,7 +3,7 @@
 
 use crate::models::{
     AgentAnnounceRequest, AgentAnnounceResponse, AgentPortRequest, AgentPortRequestResponse,
-    TestRunAssignment,
+    TestRunAssignmentRequest, TestRunAssignmentResponse,
 };
 use crate::routes::v1::agent::{
     announce_absolute, port_request_absolute, request_testrun_absolute,
@@ -88,7 +88,10 @@ impl OrchestratorClient {
 
     /// Asks the orchestrator for the next test run to execute. Returns `None`
     /// inside the assignment if no work is currently available.
-    pub async fn request_work_assignment(&self) -> Result<TestRunAssignment, HttpClientError> {
-        self.get_with_auth(&request_testrun_absolute()).await
+    pub async fn request_work_assignment(
+        &self,
+        body: &TestRunAssignmentRequest,
+    ) -> Result<TestRunAssignmentResponse, HttpClientError> {
+        self.post_with_auth(&request_testrun_absolute(), body).await
     }
 }

@@ -1,5 +1,6 @@
 [package]
 name = "nym-kkt-context"
+description = "Context types and definitions for the Nym KKT protocol"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -15,7 +16,7 @@ publish = true
 num_enum = { workspace = true }
 thiserror = { workspace = true }
 
-nym-kkt-ciphersuite = { path = "../nym-kkt-ciphersuite" }
+nym-kkt-ciphersuite = { workspace = true }
 
 [lints]
 workspace = true

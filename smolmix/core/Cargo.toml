@@ -1,5 +1,8 @@
 [package]
 name = "smolmix"
+publish = true
+repository.workspace = true
+description = "Tunnel for TCP and UDP traffic to be sent over Nym mixnet to clearnet remote hosts"
 version = "0.0.1"
 edition = "2021"
 license.workspace = true

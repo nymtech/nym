@@ -1,5 +1,6 @@
 [package]
 name = "nym-lp"
+description = "Lewes Protocol session and transport layer for the Nym network"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

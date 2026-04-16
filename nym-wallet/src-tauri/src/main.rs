@@ -231,6 +231,13 @@ fn main() {
         .expect("error while running tauri application");
 }
 
+/// Sets GTK/Wayland-related env vars before GTK or the webview initializes.
+///
+/// `std::env::set_var` is `unsafe` in current Rust because mutating the process environment is not
+/// defined as thread-safe if other threads read the environment concurrently. This runs from
+/// `main()` before `tauri::Builder` spawns worker threads, so no other Rust threads should be
+/// reading `std::env` yet. If that ordering ever changes, prefer setting these variables in a
+/// launcher script (for example AppImage `AppRun`) instead of here.
 fn configure_linux_wayland_defaults() {
     #[cfg(target_os = "linux")]
     {

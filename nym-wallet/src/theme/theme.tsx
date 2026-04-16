@@ -1,5 +1,5 @@
 import { PaletteMode, alpha, Theme } from '@mui/material';
-import { PaletteOptions, ThemeOptions, createTheme, Components } from '@mui/material/styles';
+import { PaletteOptions, ThemeOptions, createTheme, Components, darken } from '@mui/material/styles';
 
 /**
  * The Nym palette.
@@ -147,7 +147,7 @@ const variantToMUIPalette = (variant: NymVariant): PaletteOptions => ({
   primary: {
     main: nymPalette.highlight,
     light: alpha(nymPalette.highlight, 0.8),
-    dark: alpha(nymPalette.highlight, 1.2),
+    dark: darken(nymPalette.highlight, 0.22),
     contrastText: variant.text.contrast,
   },
   secondary: {
@@ -157,17 +157,17 @@ const variantToMUIPalette = (variant: NymVariant): PaletteOptions => ({
   success: {
     main: nymPalette.success,
     light: alpha(nymPalette.success, 0.8),
-    dark: alpha(nymPalette.success, 1.2),
+    dark: darken(nymPalette.success, 0.22),
   },
   info: {
     main: nymPalette.info,
     light: alpha(nymPalette.info, 0.8),
-    dark: alpha(nymPalette.info, 1.2),
+    dark: darken(nymPalette.info, 0.22),
   },
   error: {
     main: nymPalette.red,
     light: alpha(nymPalette.red, 0.8),
-    dark: alpha(nymPalette.red, 1.2),
+    dark: darken(nymPalette.red, 0.22),
   },
   warning: {
     main: variant.background.warn,

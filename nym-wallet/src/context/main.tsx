@@ -258,9 +258,17 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     }
     setIsAdminAddress(newValue);
 
-    getContractParams().then((params) => {
-      setMixnetContractParams(params);
-    });
+    getContractParams()
+      .then((params) => {
+        setMixnetContractParams(params);
+      })
+      .catch((e) => {
+        setMixnetContractParams(undefined);
+        const msg = typeof e === 'string' ? e : String(e);
+        if (!msg.includes('temporarily disabled')) {
+          Console.error('get_contract_settings failed', e);
+        }
+      });
   }, [appEnv, network, clientDetails?.client_address]);
 
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {

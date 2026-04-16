@@ -152,8 +152,20 @@ export const AddAccountModal = () => {
     useContext(AccountsContext);
 
   const generateMnemonic = async () => {
-    const mnemon = await createMnemonic();
-    setData((d) => ({ ...d, mnemonic: mnemon }));
+    setError(undefined);
+    try {
+      const mnemon = await createMnemonic();
+      setData((d) => ({ ...d, mnemonic: mnemon }));
+    } catch (e) {
+      setData((d) => ({ ...d, mnemonic: '' }));
+      const message =
+        typeof e === 'string'
+          ? e
+          : e instanceof Error
+            ? e.message
+            : 'Could not generate a recovery phrase. Try again.';
+      setError(message);
+    }
   };
 
   const resetState = () => {

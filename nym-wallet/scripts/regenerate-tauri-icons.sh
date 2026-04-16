@@ -2,6 +2,7 @@
 # Regenerate macOS/Windows icon bundles from the 1024x1024 master in src-tauri/icons/.
 # Master file: app-icon-source.png (padded per Apple-style safe zone). Edit that asset, then run:
 #   ./scripts/regenerate-tauri-icons.sh
+# Requires: python3 with Pillow (`pip install pillow`) for tray_icon.png resize.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$ROOT/src-tauri/icons/app-icon-source.png"

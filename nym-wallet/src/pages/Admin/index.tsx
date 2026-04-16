@@ -74,9 +74,18 @@ export const Admin: FCWithChildren = () => {
   useEffect(() => {
     const requestContractParams = async () => {
       setIsLoading(true);
-      const prms = await getContractParams();
-      setParams(prms);
-      setIsLoading(false);
+      try {
+        const prms = await getContractParams();
+        setParams(prms);
+      } catch (e) {
+        setParams(undefined);
+        const msg = typeof e === 'string' ? e : String(e);
+        if (!msg.includes('temporarily disabled')) {
+          console.error('get_contract_settings failed', e);
+        }
+      } finally {
+        setIsLoading(false);
+      }
     };
     requestContractParams();
   }, [network]);
@@ -100,6 +109,13 @@ export const Admin: FCWithChildren = () => {
           </Box>
         )}
         {!isLoading && params && <AdminForm params={params} />}
+        {!isLoading && !params && (
+          <Box sx={{ p: 3 }}>
+            <Alert severity="info">
+              Contract settings are not available in this build (the command is disabled in the app backend).
+            </Alert>
+          </Box>
+        )}
       </NymCard>
     </PageLayout>
   );

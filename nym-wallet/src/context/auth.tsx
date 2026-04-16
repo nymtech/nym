@@ -28,8 +28,20 @@ export const AuthProvider: FCWithChildren = ({ children }) => {
   const [error, setError] = useState<string>();
 
   const generateMnemonic = async () => {
-    const mnemonicPhrase = await createMnemonic();
-    setMnemonic(mnemonicPhrase);
+    setError(undefined);
+    try {
+      const mnemonicPhrase = await createMnemonic();
+      setMnemonic(mnemonicPhrase);
+    } catch (e) {
+      setMnemonic('');
+      const message =
+        typeof e === 'string'
+          ? e
+          : e instanceof Error
+            ? e.message
+            : 'Could not generate a recovery phrase. Try again.';
+      setError(message);
+    }
   };
 
   useEffect(() => {

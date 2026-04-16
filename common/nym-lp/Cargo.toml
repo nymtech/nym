@@ -9,7 +9,7 @@ license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
 version.workspace = true
-publish = false
+publish = true
 
 [dependencies]
 thiserror = { workspace = true }

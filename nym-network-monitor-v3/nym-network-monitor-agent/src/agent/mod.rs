@@ -61,25 +61,26 @@ impl NetworkMonitorAgent {
     /// Requests a work assignment from the orchestrator and, if one is available,
     /// performs a stress test against the assigned node and submits the results.
     pub(crate) async fn run_stress_test(&self) -> anyhow::Result<()> {
-        // 1. query the orchestrator for a work assignment
-        let Some(work_assignment) = self
-            .orchestrator_client
-            .request_work_assignment()
-            .await?
-            .assignment
-        else {
-            // 2. if no work is available - exit immediately
-            info!("no work available, exiting...");
-            return Ok(());
-        };
-
-        info!("retrieved the following work assignment: {work_assignment:?}");
-
-        // TODO:
-        // 3. otherwise construct the tester and attempt to perform the measurements
-        let _ = &self.tester_config;
-
-        // 4. after that has concluded - submit the results back to the orchestrator
-        Ok(())
+        todo!()
+        // // 1. query the orchestrator for a work assignment
+        // let Some(work_assignment) = self
+        //     .orchestrator_client
+        //     .request_work_assignment()
+        //     .await?
+        //     .assignment
+        // else {
+        //     // 2. if no work is available - exit immediately
+        //     info!("no work available, exiting...");
+        //     return Ok(());
+        // };
+        //
+        // info!("retrieved the following work assignment: {work_assignment:?}");
+        //
+        // // TODO:
+        // // 3. otherwise construct the tester and attempt to perform the measurements
+        // let _ = &self.tester_config;
+        //
+        // // 4. after that has concluded - submit the results back to the orchestrator
+        // Ok(())
     }
 }

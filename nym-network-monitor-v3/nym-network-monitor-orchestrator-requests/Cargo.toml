@@ -13,6 +13,7 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
+humantime-serde = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tracing = { workspace = true }
 utoipa = { workspace = true, optional = true }

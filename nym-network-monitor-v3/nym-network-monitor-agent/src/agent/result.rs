@@ -187,6 +187,35 @@ impl LatencyDistribution {
     }
 }
 
+impl From<LatencyDistribution>
+    for nym_network_monitor_orchestrator_requests::models::LatencyDistribution
+{
+    fn from(value: LatencyDistribution) -> Self {
+        Self {
+            minimum: value.minimum,
+            mean: value.mean,
+            maximum: value.maximum,
+            standard_deviation: value.standard_deviation,
+        }
+    }
+}
+
+impl From<TestRunResult> for nym_network_monitor_orchestrator_requests::models::TestRunResult {
+    fn from(value: TestRunResult) -> Self {
+        Self {
+            ingress_noise_handshake: value.ingress_noise_handshake,
+            egress_noise_handshake: value.egress_noise_handshake,
+            packets_sent: value.packets_sent,
+            packets_received: value.packets_received,
+            approximate_latency: value.approximate_latency,
+            packets_statistics: value.packets_statistics.map(Into::into),
+            sending_statistics: value.sending_statistics.map(Into::into),
+            received_duplicates: value.received_duplicates,
+            error: value.error,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

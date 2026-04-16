@@ -5,6 +5,7 @@ use nym_crypto::asymmetric::x25519;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
+use std::time::Duration;
 
 /// Request sent by an agent to obtain a unique mixnet port from the orchestrator.
 /// The orchestrator uses the agent's host IP and noise key to ensure no two agents
@@ -97,3 +98,90 @@ pub struct TestRunAssignment {
 
     pub key_rotation_id: u32,
 }
+
+/// Latency statistics computed over the set of test packets received or sent during a stress test.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LatencyDistribution {
+    /// Minimum latency duration it took to send or receive a test packet.
+    #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub minimum: Duration,
+
+    /// Average latency duration it took to send or receive a test packet.
+    #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub mean: Duration,
+
+    /// Maximum latency duration it took to send or receive a test packet.
+    #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub maximum: Duration,
+
+    /// The standard deviation of the latency duration it took to send or receive the test packets.
+    #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub standard_deviation: Duration,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TestRunResultSubmissionRequest {
+    pub node_id: u32,
+    pub result: TestRunResult,
+}
+
+/// Captures the outcome of a single test run against a nym node.
+///
+/// Fields are populated incrementally as the test progresses; absent values (`None`) indicate
+/// that the corresponding step was not reached or did not produce a result.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TestRunResult {
+    /// Duration of the Noise handshake on the ingress (responder) side, if completed.
+    #[serde(default, with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub ingress_noise_handshake: Option<Duration>,
+
+    /// Duration of the Noise handshake on the egress (initiator) side, if completed.
+    #[serde(default, with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub egress_noise_handshake: Option<Duration>,
+
+    /// Number of sphinx packets successfully sent to the node under test.
+    pub packets_sent: usize,
+
+    /// Number of sphinx packets returned by the node and successfully received.
+    pub packets_received: usize,
+
+    /// Round-trip time of the very first probe packet, sent in isolation before any load is applied.
+    /// Because the node is idle at this point, this value approximates the baseline network latency
+    /// to the node without any queuing or processing overhead from the stress test itself.
+    /// `None` if the initial probe did not complete successfully.
+    #[serde(default, with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub approximate_latency: Option<Duration>,
+
+    /// RTT statistics computed over all received packets, or `None` if no packets were received.
+    pub packets_statistics: Option<LatencyDistribution>,
+
+    /// Latency distribution of individual batch send operations recorded during the load test.
+    /// Reflects how long each batch took to flush to the OS socket, giving a rough measure of
+    /// egress throughput. `None` if no batches were sent.
+    pub sending_statistics: Option<LatencyDistribution>,
+
+    /// Whether any packet was received with an ID that had already been seen in this test run.
+    /// Duplicates should never occur under normal operation; their presence may indicate a
+    /// misbehaving or malicious node replaying packets.
+    pub received_duplicates: bool,
+
+    /// Human-readable description of the first error that caused the test to abort if any.
+    pub error: Option<String>,
+}
+
+/// Confirmation returned to an agent after a successful result submission.
+/// Currently empty — exists to give the response an explicit type rather than
+/// relying on `Json(())`.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestRunSubmissionResponse {}

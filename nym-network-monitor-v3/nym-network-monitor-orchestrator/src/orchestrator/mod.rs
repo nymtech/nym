@@ -130,7 +130,12 @@ impl NetworkMonitorOrchestrator {
             .filter(|a| a.authorised_by.as_str() == address.as_ref())
             .collect::<Vec<_>>();
         let agents_state = KnownAgents::try_from(agents)?;
-        let app_state = AppState::new(agents_state, self.storage.clone(), self.client.clone());
+        let app_state = AppState::new(
+            agents_state,
+            self.storage.clone(),
+            self.config.test_interval,
+            self.client.clone(),
+        );
 
         // 2. build node information refresher
         let node_refresher = NodeRefresher::new(

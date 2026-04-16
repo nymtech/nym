@@ -529,12 +529,49 @@ delete_managed_input_rules() {
   done < <($cmd -S INPUT | grep -F -- "$NETWORK_FIREWALL_COMMENT" || true)
 }
 
+###############################################################################
+# ufw-aware port management
+###############################################################################
+# When ufw is active, rules added via raw iptables -A INPUT land BELOW
+# ufw-reject-input and never get evaluated. Detect this and route rules
+# through ufw instead, so they end up in ufw-user-input where they work.
+###############################################################################
+_UFW_ACTIVE=""
+
+detect_ufw() {
+  _UFW_ACTIVE=""
+  if command -v ufw &>/dev/null; then
+    local st
+    st="$(ufw status 2>/dev/null)" || return 0
+    if echo "$st" | grep -qi "^Status: active"; then
+      _UFW_ACTIVE=1
+      info "ufw is active, port rules will be added via ufw"
+    fi
+  fi
+}
+
 add_input_port_rule() {
   local cmd="$1"
   local port="$2"
   local protocol="$3"
   local iface="${4:-}"
 
+  # When ufw is active, add rules through ufw so they land in
+  # ufw-user-input (above ufw-reject-input). Skip ip6tables calls
+  # since ufw handles both IPv4 and IPv6 in one command.
+  if [[ -n "$_UFW_ACTIVE" && -z "$iface" ]]; then
+    # ufw handles both v4 and v6, so only run once (skip ip6tables call)
+    if [[ "$cmd" == "ip6tables" ]]; then
+      return 0
+    fi
+    if ! ufw status | grep -qE "^${port}/${protocol}\s+ALLOW"; then
+      ufw allow "${port}/${protocol}" >/dev/null 2>&1
+      ok "added ufw rule: ${port}/${protocol}"
+    fi
+    return 0
+  fi
+
+  # Interface-specific rules (e.g. WG) always go through iptables
   if [[ -n "$iface" ]]; then
     if ! $cmd -C INPUT -i "$iface" -p "$protocol" --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
       $cmd -A INPUT -i "$iface" -p "$protocol" --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT
@@ -550,6 +587,8 @@ add_input_port_rule() {
 
 configure_network_firewall() {
   info "configuring host network firewall for nym node services"
+
+  detect_ufw
 
   delete_managed_input_rules iptables
   delete_managed_input_rules ip6tables
@@ -1180,6 +1219,7 @@ check_firewall_setup() {
   info "checking ipv4 firewall ordering…"
   local errors=0
 
+  detect_ufw
   check_iptables_default_policies || errors=1
   check_forward_chain || errors=1
   check_nym_exit_chain || errors=1

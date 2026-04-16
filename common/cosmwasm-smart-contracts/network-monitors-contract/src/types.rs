@@ -3,7 +3,7 @@
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Timestamp};
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 
 pub type OrchestratorAddress = Addr;
 
@@ -45,5 +45,5 @@ pub struct AuthorisedNetworkMonitorOrchestratorsResponse {
 pub struct AuthorisedNetworkMonitorsPagedResponse {
     pub authorised: Vec<AuthorisedNetworkMonitor>,
 
-    pub start_next_after: Option<IpAddr>,
+    pub start_next_after: Option<SocketAddr>,
 }

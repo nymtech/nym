@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::cw_serde;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 
 #[cfg(feature = "schema")]
 use crate::{
@@ -42,7 +42,7 @@ pub enum ExecuteMsg {
     },
 
     /// Revoke network monitor authorisation.
-    RevokeNetworkMonitor { address: IpAddr },
+    RevokeNetworkMonitor { address: SocketAddr },
 
     /// Revoke all network monitor authorisations.
     RevokeAllNetworkMonitors,
@@ -64,7 +64,7 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(AuthorisedNetworkMonitorsPagedResponse))]
     NetworkMonitorAgents {
         /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_next_after: Option<IpAddr>,
+        start_next_after: Option<SocketAddr>,
 
         /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,

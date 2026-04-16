@@ -4,7 +4,7 @@
 use crate::storage::NETWORK_MONITORS_CONTRACT_STORAGE;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use nym_network_monitors_contract_common::NetworkMonitorsContractError;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 
 pub fn try_update_contract_admin(
     deps: DepsMut<'_>,
@@ -90,7 +90,7 @@ pub fn try_authorise_network_monitor(
 pub fn try_revoke_network_monitor(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    network_monitor_address: IpAddr,
+    network_monitor_address: SocketAddr,
 ) -> Result<Response, NetworkMonitorsContractError> {
     NETWORK_MONITORS_CONTRACT_STORAGE.remove_monitor_authorisation(
         deps,
@@ -537,10 +537,8 @@ mod tests {
 
             let res = test.execute_raw(
                 orchestrator,
-                ExecuteMsg::RevokeNetworkMonitor {
-                    address: agent.ip(),
-                },
-            );
+                    ExecuteMsg::RevokeNetworkMonitor { address: agent },
+                );
             assert!(res.is_ok());
 
             Ok(())
@@ -566,7 +564,7 @@ mod tests {
             let res = test.execute_raw(
                 admin,
                 ExecuteMsg::RevokeNetworkMonitor {
-                    address: agent.ip(),
+                    address: agent,
                 },
             );
             assert!(res.is_ok());
@@ -633,7 +631,7 @@ mod tests {
             test.execute_raw(
                 orchestrator,
                 ExecuteMsg::RevokeNetworkMonitor {
-                    address: agent.ip(),
+                    address: agent,
                 },
             )?;
 
@@ -659,7 +657,7 @@ mod tests {
             let res = test.execute_raw(
                 orchestrator,
                 ExecuteMsg::RevokeNetworkMonitor {
-                    address: agent.ip(),
+                    address: agent,
                 },
             );
             assert!(res.is_ok());
@@ -668,6 +666,65 @@ mod tests {
                 .authorised_agents
                 .may_load(test.storage(), agent.into())?
                 .is_none());
+
+            Ok(())
+        }
+
+        #[test]
+        fn revoking_one_agent_preserves_other_on_same_host() -> anyhow::Result<()> {
+            use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+
+            // two agents on the same IP but different ports
+            let ip = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1));
+            let agent_a = SocketAddr::new(ip, 1000);
+            let agent_b = SocketAddr::new(ip, 2000);
+
+            test.execute_raw(
+                orchestrator.clone(),
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent_a,
+                    bs58_x25519_noise: "noise_key_a".to_string(),
+                    noise_version: 1,
+                },
+            )?;
+            test.execute_raw(
+                orchestrator.clone(),
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent_b,
+                    bs58_x25519_noise: "noise_key_b".to_string(),
+                    noise_version: 1,
+                },
+            )?;
+
+            // both exist
+            assert!(NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_agents
+                .may_load(test.storage(), agent_a.into())?
+                .is_some());
+            assert!(NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_agents
+                .may_load(test.storage(), agent_b.into())?
+                .is_some());
+
+            // revoke agent_a
+            test.execute_raw(
+                orchestrator,
+                ExecuteMsg::RevokeNetworkMonitor { address: agent_a },
+            )?;
+
+            // agent_a gone, agent_b still present
+            assert!(NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_agents
+                .may_load(test.storage(), agent_a.into())?
+                .is_none());
+            let remaining = NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_agents
+                .load(test.storage(), agent_b.into())?;
+            assert_eq!(remaining.mixnet_address, agent_b);
+            assert_eq!(remaining.bs58_x25519_noise, "noise_key_b");
 
             Ok(())
         }

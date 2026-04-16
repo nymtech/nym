@@ -56,6 +56,9 @@ fn duration_to_us(d: std::time::Duration) -> i64 {
 }
 
 impl NewTestRun {
+    /// Converts an API-level [`TestRunResult`] into a database-ready row,
+    /// flattening [`LatencyDistribution`](nym_network_monitor_orchestrator_requests::models::LatencyDistribution)
+    /// fields into individual microsecond columns and recording the current UTC time as the test timestamp.
     fn from_result(test_type: TestType, result: TestRunResult) -> Self {
         NewTestRun {
             test_type,
@@ -82,10 +85,12 @@ impl NewTestRun {
         }
     }
 
+    /// Creates a new test run row for a mixnode stress test result.
     pub(crate) fn from_mixnode_result(result: TestRunResult) -> Self {
         Self::from_result(TestType::Mixnode, result)
     }
 
+    /// Creates a new test run row for a gateway stress test result.
     #[allow(dead_code)]
     pub(crate) fn from_gateway_result(result: TestRunResult) -> Self {
         Self::from_result(TestType::Gateway, result)

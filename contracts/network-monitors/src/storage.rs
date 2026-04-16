@@ -25,8 +25,18 @@ pub struct NetworkMonitorsStorage {
     pub(crate) authorised_agents: Map<AgentStorageKey, AuthorisedNetworkMonitor>,
 }
 
-// implement explicit wrapper for the storage key to encode a SocketAddr
-// (IP + port) as a composite storage key, enabling multiple agents per host
+/// CosmWasm storage key encoding a [`SocketAddr`] as a composite primary key.
+///
+/// ## On-disk layout
+///
+/// The key is encoded as two elements (see [`PrimaryKey::key`]):
+///   1. IP octets — `Val32` (4 bytes) for IPv4, `Val128` (16 bytes) for IPv6
+///   2. Port — `Val16` (2 bytes, big-endian)
+///
+/// cw-storage-plus prepends each element with a 2-byte big-endian length prefix,
+/// so the full byte sequence is `[0, ip_len][ip_octets...][0, 2][port_be]`.
+/// This means IPv4 keys naturally sort before IPv6, and within the same IP
+/// family keys sort by IP octets then by port.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct AgentStorageKey(SocketAddr);
 
@@ -456,10 +466,7 @@ mod tests {
                 SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 2000),
                 SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 1000),
                 SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 80),
-                SocketAddr::new(
-                    IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-                    443,
-                ),
+                SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)), 443),
             ];
 
             for addr in &addrs {

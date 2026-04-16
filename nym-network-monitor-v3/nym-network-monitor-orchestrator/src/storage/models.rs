@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_network_monitor_orchestrator_requests::models::TestRunResult;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use time::OffsetDateTime;
 
@@ -48,6 +49,47 @@ pub(crate) struct NewTestRun {
 
     /// First error that caused the test to abort. `None` if the run completed without error.
     pub(crate) error: Option<String>,
+}
+
+fn duration_to_us(d: std::time::Duration) -> i64 {
+    d.as_micros() as i64
+}
+
+impl NewTestRun {
+    fn from_result(test_type: TestType, result: TestRunResult) -> Self {
+        NewTestRun {
+            test_type,
+            test_timestamp: OffsetDateTime::now_utc(),
+            ingress_noise_handshake_us: result.ingress_noise_handshake.map(duration_to_us),
+            egress_noise_handshake_us: result.egress_noise_handshake.map(duration_to_us),
+            packets_sent: result.packets_sent as i64,
+            packets_received: result.packets_received as i64,
+            approximate_latency_us: result.approximate_latency.map(duration_to_us),
+            packets_rtt_min_us: result.packets_statistics.map(|s| duration_to_us(s.minimum)),
+            packets_rtt_mean_us: result.packets_statistics.map(|s| duration_to_us(s.mean)),
+            packets_rtt_max_us: result.packets_statistics.map(|s| duration_to_us(s.maximum)),
+            packets_rtt_std_dev_us: result
+                .packets_statistics
+                .map(|s| duration_to_us(s.standard_deviation)),
+            sending_latency_min_us: result.sending_statistics.map(|s| duration_to_us(s.minimum)),
+            sending_latency_mean_us: result.sending_statistics.map(|s| duration_to_us(s.mean)),
+            sending_latency_max_us: result.sending_statistics.map(|s| duration_to_us(s.maximum)),
+            sending_latency_std_dev_us: result
+                .sending_statistics
+                .map(|s| duration_to_us(s.standard_deviation)),
+            received_duplicates: result.received_duplicates,
+            error: result.error,
+        }
+    }
+
+    pub(crate) fn from_mixnode_result(result: TestRunResult) -> Self {
+        Self::from_result(TestType::Mixnode, result)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn from_gateway_result(result: TestRunResult) -> Self {
+        Self::from_result(TestType::Gateway, result)
+    }
 }
 
 /// A row from the `testrun` table, as returned by a SELECT.

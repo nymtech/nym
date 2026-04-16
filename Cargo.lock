@@ -7440,6 +7440,7 @@ name = "nym-network-monitor-orchestrator-requests"
 version = "1.20.4"
 dependencies = [
  "anyhow",
+ "humantime-serde",
  "nym-crypto",
  "nym-http-api-client",
  "serde",

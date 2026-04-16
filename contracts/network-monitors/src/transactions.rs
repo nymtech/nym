@@ -563,9 +563,7 @@ mod tests {
 
             let res = test.execute_raw(
                 admin,
-                ExecuteMsg::RevokeNetworkMonitor {
-                    address: agent,
-                },
+                ExecuteMsg::RevokeNetworkMonitor { address: agent },
             );
             assert!(res.is_ok());
 
@@ -630,9 +628,7 @@ mod tests {
 
             test.execute_raw(
                 orchestrator,
-                ExecuteMsg::RevokeNetworkMonitor {
-                    address: agent,
-                },
+                ExecuteMsg::RevokeNetworkMonitor { address: agent },
             )?;
 
             assert!(NETWORK_MONITORS_CONTRACT_STORAGE
@@ -656,9 +652,7 @@ mod tests {
 
             let res = test.execute_raw(
                 orchestrator,
-                ExecuteMsg::RevokeNetworkMonitor {
-                    address: agent,
-                },
+                ExecuteMsg::RevokeNetworkMonitor { address: agent },
             );
             assert!(res.is_ok());
 

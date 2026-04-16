@@ -333,14 +333,11 @@ mod tests {
 
             let res = query_network_monitor_agents(test.deps(), None, None)?;
 
-            assert!(res
-                .authorised
-                .windows(2)
-                .all(|window| storage_socket_comp(
-                    window[0].mixnet_address,
-                    window[1].mixnet_address
-                )
-                .is_le()));
+            assert!(res.authorised.windows(2).all(|window| storage_socket_comp(
+                window[0].mixnet_address,
+                window[1].mixnet_address
+            )
+            .is_le()));
 
             Ok(())
         }

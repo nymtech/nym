@@ -9,11 +9,9 @@ use axum::response::{IntoResponse, Response};
 /// The `Display` message from each variant is used as the HTTP response body.
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum ApiError {
-    // -- port request --
     #[error("no available ports on this host")]
     NoPortsAvailable,
 
-    // -- agent announce --
     #[error("agent information not found")]
     AgentNotFound,
 
@@ -22,14 +20,27 @@ pub(crate) enum ApiError {
 
     #[error("failed to announce agent to the network monitors contract")]
     ContractFailure,
+
+    #[error("failed to read or write data from the database")]
+    StorageFailure,
+
+    #[error("some of the stored data is malformed and could not be parsed")]
+    MalformedStoredData,
+
+    #[error("agent hasn't been announced to the contract - can't assign testruns")]
+    AgentNotAnnounced,
 }
 
 impl ApiError {
     fn status_code(&self) -> StatusCode {
+        use ApiError::*;
+
         match self {
-            ApiError::NoPortsAvailable => StatusCode::SERVICE_UNAVAILABLE,
-            ApiError::AgentNotFound | ApiError::NoiseKeyMismatch => StatusCode::BAD_REQUEST,
-            ApiError::ContractFailure => StatusCode::INTERNAL_SERVER_ERROR,
+            NoPortsAvailable => StatusCode::SERVICE_UNAVAILABLE,
+            AgentNotFound | NoiseKeyMismatch | AgentNotAnnounced => StatusCode::BAD_REQUEST,
+            ContractFailure | StorageFailure | MalformedStoredData => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
         }
     }
 }

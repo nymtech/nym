@@ -1,10 +1,10 @@
 **ISP**,**Locations**,**Public IPv6**,**Crypto Payments**,**Comments**,**Last Updated**
 [Flokinet](https://flokinet.is),"Netherlands, Iceland, Romania,France","Yes, needs a ticket and custom setup","yes, including XMR","Very slow customer support. SMTP outbound (25/465/587) open by default - all FlokiNET-hosted exits pass real Gmail/Fastmail/Yandex/Outlook banner test.",04/2026
-[BitLaunch](https://bitlaunch.io),"Canada, USA, UK",No,Yes,Expensive. Digial Ocean through BitLanch has IPv6,05/2024
+[BitLaunch](https://bitlaunch.io),"Canada, USA, UK",No,Yes,Expensive. Digital Ocean through BitLaunch has IPv6,05/2024
 [Hostinger](https://hostinger.com),"France, Lithuania, India, USA, Brazil","Yes, out of the box",Yes,"Not fast enough, Crypto payments must be done per each server monthly or annually. SMTP outbound (25/465/587) open by default on all tested Hostinger-hosted exits.",04/2026
 [Linode](https://linode.com),"USA, Canada, Japan, India, Indonesia, Sweden, Netherlands, Germany, Brazil, France, UK, Australia, Italy",Yes out of the box,"No, only through [BitLAunch](https://bitlaunch.io)","IPv6 sometimes need to be re-added in Networking tab, no reboot needed. SMTP outbound (port 25) blocked for new accounts; ports 465/587 mostly open. Unblock requires account verification.",04/2026
 [Cherry Servers](https://www.cherryservers.com),"Lithuania, Netherlands, USA, Singapore",No,Yes,Issued IP doesn’t match the location offered by the provider.,05/2024
-[Njalla](https://nja.la),Sweden,Yes,Yes,"Privacy vandguards! The biggest VPS 45 is 3 cores only, but it works better than many “larger” servers on the market.",05/2024
+[Njalla](https://nja.la),Sweden,Yes,Yes,"Privacy vanguards! The biggest VPS 45 is 3 cores only, but it works better than many “larger” servers on the market.",05/2024
 [HostSailor](https://hostsailor.com),USA,"Yes, based on ticket",Yes,The IPv6 setup needs custom research and is not documented,05/2024
 [Misaka](https://www.misaka.io/),South Africa,"Yes, native support",No,Very Expensive,05/2024
 [IsHosting](https://ishosting.com/en),"Brazil, Netherlands","Yes, based on ticket",Yes,Expensive,05/2024
@@ -33,12 +33,11 @@
 [PrivateLayer](https://privatelayer.com),Swiss,Yes,Yes,Slow customer response,07/2025
 [AmeriNoc](https://www.amerinoc.com),USA,Yes,,,07/2025
 [Colocall](https://www.colocall.net/),Ukraine,Yes,,,07/2025
-[Incognet](https://incognet.io/kansas-city-dedicated-servers),"USA, Netherlands",Yes,,,07/2025
 [FranTech](https://my.frantech.ca),USA,Yes,,,07/2025
 [Psychz](https://www.psychz.net),"USA, UK, Brazil, Japan, Russia, South Africa and many more",Yes,,,07/2025
 [Fsit](https://www.fsit.com/server/vps-vserver-kvm),Swiss,Yes,Yes,,07/2025
 [NiceVPS](https://nicevps.net/),Netherlands,Yes,,,07/2025
-[Dataclub](https://www.dataclub.eu/),"Latvia, Sweden, Netherlands",Yes,,,07/2027
+[Dataclub](https://www.dataclub.eu/),"Latvia, Sweden, Netherlands",Yes,,,07/2025
 [Privex](https://www.privex.io/tor-exit-policy/),"USA, Germany, Sweden",Yes,Yes,,07/2025
 [Svea](https://svea.net/vps),Sweden,Yes,,,07/2025
 [Hostraha](https://hostraha.com),Kenya and other African countries,"No, but advertised otherwise","Yes, USDT TRC20","Don't recommend. Unresponsive technical and billing support, never provided IPv6 even though advertised and paid for. When VPS cancelled, company still tried to bill the credit card on file multiple times.",08/2025

@@ -2,7 +2,7 @@ Two variants are provided. Pick whichever fits your threat model and how much yo
 
 ### Variant A - minimal, no project disclosure
 
-This is the wording that actually got OneProvider to lift the filter on three of my own servers. It does not mention Nym, mixnets, exit gateways or any specific use case beyond "I want to send mail." If you would rather not disclose to your hoster that you are running a Nym node, use this one.
+This is the wording that actually got OneProvider to lift the filter on two of my own servers. It does not mention Nym, mixnets, exit gateways or any specific use case beyond "I want to send mail." If you would rather not disclose to your hoster that you are running a Nym node, use this one.
 
 ```
 Subject: Request to unblock outbound SMTP ports (25, 465, 587) on my servers

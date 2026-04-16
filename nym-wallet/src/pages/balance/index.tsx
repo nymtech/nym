@@ -1,11 +1,13 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box } from '@mui/material';
+import { Stack } from '@mui/material';
 import { AppContext } from '../../context/main';
 
 import { BalanceCard } from './Balance';
 import { VestingCard } from './Vesting';
 import { PageLayout } from '../../layouts';
 import { TransferModal } from '../../components/Balance/modals/TransferModal';
+import { OverviewQuickActions } from './OverviewQuickActions';
+import { NetworkOverviewSection } from './NetworkOverviewSection';
 
 export const Balance = () => {
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -15,7 +17,7 @@ export const Balance = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       userBalance.fetchBalance();
-      userBalance.fetchTokenAllocation();
+      userBalance.fetchTokenAllocation(true);
     }, 10000);
 
     return () => clearInterval(interval);
@@ -30,13 +32,17 @@ export const Balance = () => {
 
   return (
     <PageLayout>
-      <Box display="flex" flexDirection="column" gap={4}>
-        <BalanceCard
-          userBalance={userBalance.balance}
-          userBalanceError={userBalance.error}
-          clientAddress={clientDetails?.client_address}
-          network={network}
-        />
+      <Stack spacing={3.5}>
+        <Stack spacing={3} sx={{ width: '100%', minWidth: 0 }}>
+          <BalanceCard
+            userBalance={userBalance.balance}
+            userBalanceError={userBalance.error}
+            clientAddress={clientDetails?.client_address}
+            network={network}
+          />
+          <OverviewQuickActions />
+          {network === 'MAINNET' ? <NetworkOverviewSection /> : null}
+        </Stack>
         <VestingCard
           unlockedTokens={appendDenom(userBalance.tokenAllocation?.spendableVestedCoins)}
           unlockedRewards={appendDenom(userBalance.tokenAllocation?.spendableRewardCoins)}
@@ -47,7 +53,7 @@ export const Balance = () => {
           fetchTokenAllocation={userBalance.fetchTokenAllocation}
         />
         {showTransferModal && <TransferModal onClose={() => setShowTransferModal(false)} />}
-      </Box>
+      </Stack>
     </PageLayout>
   );
 };

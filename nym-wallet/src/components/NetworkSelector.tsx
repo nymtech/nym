@@ -4,6 +4,7 @@ import { ArrowDropDown, Check } from '@mui/icons-material';
 import { Network } from 'src/types';
 import { AppContext } from '../context/main';
 import { config } from '../config';
+import { headerControlPillSx } from './headerControlPillSx';
 
 const networks: { networkName: Network; name: string }[] = [
   { networkName: 'MAINNET', name: 'Nym Mainnet' },
@@ -59,10 +60,10 @@ export const NetworkSelector = () => {
       <Button
         variant="text"
         color="inherit"
-        sx={{ color: 'text.primary', fontSize: 14 }}
+        sx={headerControlPillSx}
         onClick={handleClick}
         disableElevation
-        endIcon={<ArrowDropDown sx={{ color: (theme) => `1px solid ${theme.palette.text.primary}` }} />}
+        endIcon={<ArrowDropDown sx={{ color: 'text.primary' }} />}
       >
         {networks.find((n) => n.networkName === network)?.name}
       </Button>

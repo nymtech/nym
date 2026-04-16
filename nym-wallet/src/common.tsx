@@ -7,6 +7,12 @@ import { ErrorFallback } from './components';
 import { NymWalletTheme } from './theme';
 import { maximizeWindow } from './utils';
 import { config } from './config';
+import { useTauriTextEditingClipboard } from './hooks/useTauriTextEditingClipboard';
+
+const ClipboardBridge: FCWithChildren = ({ children }) => {
+  useTauriTextEditingClipboard();
+  return children;
+};
 
 export const AppCommon = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
@@ -26,7 +32,9 @@ export const AppCommon = ({ children }: { children: React.ReactNode }) => {
           }}
         >
           <AppProvider>
-            <NymWalletTheme>{children}</NymWalletTheme>
+            <NymWalletTheme>
+              <ClipboardBridge>{children}</ClipboardBridge>
+            </NymWalletTheme>
           </AppProvider>
         </SnackbarProvider>
       </Router>

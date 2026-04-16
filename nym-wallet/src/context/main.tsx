@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -35,6 +35,9 @@ export const urls = (networkName?: Network) =>
 
 type TLoginType = 'mnemonic' | 'password';
 
+/** `auth-splash`: full-screen auth-style loader (fallback). `app-overlay`: blurred in-app card (sign-in, account switch, sign-out). */
+export type AppLoadingPresentation = 'auth-splash' | 'app-overlay';
+
 export type TAppContext = {
   mode: 'light' | 'dark';
   appEnv?: AppEnv;
@@ -47,6 +50,11 @@ export type TAppContext = {
   showTerminal: boolean;
   network?: Network;
   isLoading: boolean;
+  /** While `isLoading` is true, selects {@link LoadingPage} vs {@link AppSessionLoadingOverlay}. */
+  loadingPresentation: AppLoadingPresentation;
+  /** Short line shown on the in-app loading overlay. */
+  loadingOverlayTitle: string;
+  loadingOverlaySubtitle?: string;
   isAdminAddress: boolean;
   error?: string;
   loginType?: TLoginType;
@@ -56,6 +64,8 @@ export type TAppContext = {
   handleSwitchMode: () => void;
   handleShowSendModal: () => void;
   handleShowReceiveModal: () => void;
+  handleCloseSendModal: () => void;
+  handleCloseReceiveModal: () => void;
   setIsLoading: (isLoading: boolean) => void;
   setError: (value?: string) => void;
   switchNetwork: (network: Network) => void;
@@ -86,10 +96,24 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   const [appEnv, setAppEnv] = useState<AppEnv>();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
-  const [mode, setMode] = useState<'light' | 'dark'>('light');
+  /** Default dark avoids a light flash before forage restores a saved preference. */
+  const [mode, setMode] = useState<'light' | 'dark'>('dark');
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoadingInternal] = useState(false);
+  const [loadingPresentation, setLoadingPresentation] = useState<AppLoadingPresentation>('auth-splash');
+  const [loadingOverlayTitle, setLoadingOverlayTitle] = useState('');
+  const [loadingOverlaySubtitle, setLoadingOverlaySubtitle] = useState<string | undefined>();
   const [error, setError] = useState<string>();
+
+  /** Context-exposed setter: turning loading off also resets overlay copy and presentation to defaults. */
+  const publishSetIsLoading = useCallback((loading: boolean) => {
+    setIsLoadingInternal(loading);
+    if (!loading) {
+      setLoadingPresentation('auth-splash');
+      setLoadingOverlayTitle('');
+      setLoadingOverlaySubtitle(undefined);
+    }
+  }, []);
   const [appVersion, setAppVersion] = useState<string>();
   const [isAdminAddress, setIsAdminAddress] = useState<boolean>(false);
   const [showSendModal, setShowSendModal] = useState(false);
@@ -129,7 +153,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     setStoredAccounts(undefined);
     setNetwork(undefined);
     setError(undefined);
-    setIsLoading(false);
+    publishSetIsLoading(false);
     setMixnodeDetails(null);
   };
 
@@ -245,7 +269,14 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       return;
     }
     try {
-      setIsLoading(true);
+      setLoadingPresentation('app-overlay');
+      setLoadingOverlayTitle('Signing in');
+      setLoadingOverlaySubtitle(
+        type === 'mnemonic'
+          ? 'Restoring your wallet from your recovery phrase.'
+          : 'Unlocking your wallet and connecting to the network.',
+      );
+      setIsLoadingInternal(true);
       if (type === 'mnemonic') {
         await signInWithMnemonic(value);
         setLoginType('mnemonic');
@@ -258,12 +289,15 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     } catch (e) {
       setError(e as string);
     } finally {
-      setIsLoading(false);
+      publishSetIsLoading(false);
     }
   };
 
   const logOut = async () => {
-    setIsLoading(true);
+    setLoadingPresentation('app-overlay');
+    setLoadingOverlayTitle('Signing out');
+    setLoadingOverlaySubtitle('Closing your session safely.');
+    setIsLoadingInternal(true);
     try {
       await signOut();
       await setReactState(undefined);
@@ -271,13 +305,16 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       enqueueSnackbar('Successfully logged out', { variant: 'success' });
       await createSignInWindow();
     } finally {
-      setIsLoading(false);
+      publishSetIsLoading(false);
     }
   };
 
   const onAccountChange = async ({ accountId, password }: { accountId: string; password: string }) => {
     if (network) {
-      setIsLoading(true);
+      setLoadingPresentation('app-overlay');
+      setLoadingOverlayTitle('Switching account');
+      setLoadingOverlaySubtitle('Refreshing your wallet and balances.');
+      setIsLoadingInternal(true);
       try {
         await switchAccount({ accountId, password });
         await loadAccount(network);
@@ -285,7 +322,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       } catch (e) {
         throw new Error(`Error swtiching account: ${e}`);
       } finally {
-        setIsLoading(false);
+        publishSetIsLoading(false);
       }
     }
   };
@@ -293,8 +330,10 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   const handleShowAdmin = () => setShowAdmin((show) => !show);
   const handleShowTerminal = () => setShowTerminal((show) => !show);
   const switchNetwork = (_network: Network) => setNetwork(_network);
-  const handleShowSendModal = () => setShowSendModal((show) => !show);
-  const handleShowReceiveModal = () => setShowReceiveModal((show) => !show);
+  const handleShowSendModal = () => setShowSendModal(true);
+  const handleShowReceiveModal = () => setShowReceiveModal(true);
+  const handleCloseSendModal = () => setShowSendModal(false);
+  const handleCloseReceiveModal = () => setShowReceiveModal(false);
   const handleSwitchMode = () =>
     setMode((currentMode) => {
       const newMode = currentMode === 'light' ? 'dark' : 'light';
@@ -303,12 +342,15 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     });
 
   const memoizedValue = useMemo(
-    () => ({
+    (): TAppContext => ({
       mode,
       appEnv,
       appVersion,
       isAdminAddress,
       isLoading,
+      loadingPresentation,
+      loadingOverlayTitle,
+      loadingOverlaySubtitle,
       error,
       clientDetails,
       storedAccounts,
@@ -318,7 +360,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       showTerminal,
       network,
       loginType,
-      setIsLoading,
+      setIsLoading: publishSetIsLoading,
       setError,
       signInWithPassword,
       switchNetwork,
@@ -333,6 +375,8 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       showReceiveModal,
       handleShowSendModal,
       handleShowReceiveModal,
+      handleCloseSendModal,
+      handleCloseReceiveModal,
       handleSwitchMode,
       printBalance,
       printVestedBalance,
@@ -345,6 +389,9 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       mode,
       appEnv,
       isLoading,
+      loadingPresentation,
+      loadingOverlayTitle,
+      loadingOverlaySubtitle,
       error,
       clientDetails,
       mixnodeDetails,
@@ -356,6 +403,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       showSendModal,
       showReceiveModal,
       mixnetContractParams,
+      publishSetIsLoading,
     ],
   );
 

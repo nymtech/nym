@@ -12,8 +12,8 @@ The Nym desktop wallet enables you to use the Nym network and take advantage of 
 ## Installation prerequisites - Linux / Mac
 
 - `Yarn`
-- `NodeJS >= v16.8.0`
-- `Rust & cargo >= v1.56`
+- `NodeJS >= v22.13.0`
+- `Rust & cargo >= v1.85`
 
 ## Installation prerequisites - Windows
 
@@ -65,6 +65,17 @@ Run the following command from the `nym-wallet` folder
 yarn build
 ```
 The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are built, they can be located as follows:
+
+## Linux AppImage notes
+
+The wallet AppImage now ships with a Wayland-focused launch hook for modern Linux desktops. On Wayland sessions it:
+
+- prefers the system `libwayland-client.so` when one is available
+- defaults `GDK_BACKEND=wayland`
+- defaults `GDK_SCALE=1`
+- defaults `GDK_DPI_SCALE=0.8`
+
+If you need to override this behavior for troubleshooting, set your own environment variables before launching the AppImage.
 
 ## Admin mode
 

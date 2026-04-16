@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Stack, Typography, SxProps, FormControlLabel, Checkbox, Alert } from '@mui/material';
+import { Box, Stack, Typography, SxProps, FormControlLabel, Checkbox, Alert } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import Big from 'big.js';
 import { CurrencyDenom, DecCoin, isValidRawCoin } from '@nymproject/types';
+import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { validateAmount } from 'src/utils';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
@@ -11,6 +13,20 @@ import { CurrencyFormFieldWithPaste } from '../CurrencyFormFieldWithPaste';
 const maxUserFees = '10.0';
 const minUserFees = '0.000001'; // aka 1 unym
 const MIN_AMOUNT_TO_SEND = '0.000001'; // Adjust this as needed
+
+const recipientHelperText = (
+  recipientTouched: boolean,
+  toAddress: string,
+  addressIsValid: boolean,
+): string | undefined => {
+  if (recipientTouched && !toAddress.trim()) {
+    return 'Recipient address is required';
+  }
+  if (toAddress !== '' && !addressIsValid) {
+    return 'Invalid NYM address. Must start with n1 and be exactly 40 characters long.';
+  }
+  return undefined;
+};
 
 // NYM address validation function
 const validateNymAddress = (address: string): boolean => {
@@ -69,6 +85,8 @@ export const SendInputModal = ({
   const [addressIsValid, setAddressIsValid] = useState(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [errorFee, setErrorFee] = useState<string | undefined>();
+  const [recipientTouched, setRecipientTouched] = useState(false);
+  const theme = useTheme();
 
   // Calculate noAccount at the component root level instead of using useEffect
   const noAccount = !balance || balance === '0' || parseFloat(balance) === 0;
@@ -85,8 +103,9 @@ export const SendInputModal = ({
       return newValidatedValue;
     }
 
-    if (!value.amount) {
+    if (!value?.amount || String(value.amount).trim() === '') {
       newValidatedValue = false;
+      errorAmountMessage = 'Amount is required';
     } else {
       // Skip validation for partial decimal inputs during typing
       if (value.amount === '.' || value.amount.endsWith('.')) {
@@ -109,7 +128,7 @@ export const SendInputModal = ({
 
           if (amountBig.gt(balanceBig)) {
             newValidatedValue = false;
-            errorAmountMessage = `Make sure you have sufficient funds. Available: ${balance} ${denom?.toUpperCase()}`;
+            errorAmountMessage = `Amount exceeds your available balance. Available: ${balance} ${denom?.toUpperCase()}`;
           }
         } catch (err) {
           if (!/^\d*\.?\d*$/.test(value.amount)) {
@@ -171,8 +190,9 @@ export const SendInputModal = ({
   };
 
   useEffect(() => {
-    if (amount) validateSendAmount(amount);
-  }, [amount, balance, noAccount]);
+    const empty: DecCoin = { amount: '', denom: denom ?? 'nym' };
+    validateSendAmount(amount ?? empty);
+  }, [amount, balance, noAccount, denom]);
 
   // Effect to validate address whenever it changes
   useEffect(() => {
@@ -198,35 +218,95 @@ export const SendInputModal = ({
   return (
     <SimpleModal
       header="Send"
+      subHeader="Enter the recipient address and amount to send NYM."
+      headerCentered
       open
       onClose={onClose}
       okLabel="Next"
       onOk={async () => onNext()}
       okDisabled={!isValid || !memoIsValid || !feeAmountIsValid || !addressIsValid || noAccount}
-      sx={sx}
+      subHeaderStyles={{ mb: 0, px: 3, pt: 0.5 }}
+      sx={{
+        maxWidth: '480px',
+        width: '100%',
+        borderRadius: '20px',
+        overflow: 'hidden',
+        boxShadow: theme.palette.nym.nymWallet.shadows.strong,
+        ...sx,
+      }}
       backdropProps={backdropProps}
     >
-      {noAccount && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          To start staking, sending or operating the on the NYM network, you first need to get native NYM tokens.
-        </Alert>
-      )}
-
-      <Stack gap={3}>
-        <ModalListItem label="Your address" value={fromAddress} fontWeight="light" />
+      <Stack gap={3} sx={{ px: 3, pb: 3, pt: 0 }}>
+        {noAccount && (
+          <Alert severity="warning">
+            To start staking, sending or operating on the NYM network, you first need to get native NYM tokens.
+          </Alert>
+        )}
+        <Box sx={{ width: '100%' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              mb: 1.5,
+              color: 'text.secondary',
+              fontWeight: 600,
+              display: 'block',
+              textAlign: 'center',
+            }}
+          >
+            Your address
+          </Typography>
+          <Box
+            sx={{
+              p: 2,
+              bgcolor: alpha(theme.palette.primary.main, 0.06),
+              borderRadius: '12px',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+            }}
+          >
+            {fromAddress ? (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: 1.5,
+                  width: '100%',
+                }}
+              >
+                <Typography
+                  component="span"
+                  sx={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: '0.9rem',
+                    fontFamily: 'monospace',
+                    letterSpacing: '0.5px',
+                    wordBreak: 'break-all',
+                    color: 'text.primary',
+                    textAlign: 'left',
+                  }}
+                >
+                  {fromAddress}
+                </Typography>
+                <CopyToClipboard value={fromAddress} sx={{ flexShrink: 0, mt: 0.25 }} />
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                -
+              </Typography>
+            )}
+          </Box>
+        </Box>
 
         {/* Recipient address field with paste button */}
         <TextFieldWithPaste
           label="Recipient address"
           fullWidth
           onChange={(e) => onAddressChange(e.target.value)}
+          onBlur={() => setRecipientTouched(true)}
           value={toAddress}
-          error={toAddress !== '' && !addressIsValid}
-          helperText={
-            toAddress !== '' && !addressIsValid
-              ? 'Invalid NYM address. Must start with n1 and be exactly 40 characters long.'
-              : undefined
-          }
+          error={(recipientTouched && !toAddress.trim()) || (toAddress !== '' && !addressIsValid)}
+          helperText={recipientHelperText(recipientTouched, toAddress, addressIsValid)}
           InputLabelProps={{ shrink: true }}
           onPasteValue={onAddressChange}
         />
@@ -263,36 +343,40 @@ export const SendInputModal = ({
         <Typography fontSize="smaller" sx={{ color: 'error.main' }}>
           {error}
         </Typography>
-      </Stack>
 
-      <Stack gap={0.5} sx={{ mt: 1 }}>
-        <ModalListItem label="Account balance" value={balance ? balance.toUpperCase() : '0'} divider fontWeight={600} />
-        <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
-          Est. fee for this transaction will be shown on the next page
-        </Typography>
-      </Stack>
-
-      <FormControlLabel
-        control={<Checkbox onChange={() => setShowMore(!showMore)} checked={showMore} />}
-        label="More options"
-        sx={{ mt: 2 }}
-      />
-
-      {showMore && (
-        <Stack mt={2} mb={3}>
-          <CurrencyFormFieldWithPaste
-            label="Fee"
-            onChanged={(v) => {
-              onUserFeesChange(v);
-              validateUserFees(v);
-            }}
-            initialValue={userFees?.amount}
-            fullWidth
-            denom={denom}
-            validationError={errorFee}
+        <Stack gap={0.5}>
+          <ModalListItem
+            label="Account balance"
+            value={balance ? balance.toUpperCase() : '0'}
+            divider
+            fontWeight={600}
           />
+          <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
+            Est. fee for this transaction will be shown on the next page
+          </Typography>
         </Stack>
-      )}
+
+        <FormControlLabel
+          control={<Checkbox onChange={() => setShowMore(!showMore)} checked={showMore} />}
+          label="More options"
+        />
+
+        {showMore && (
+          <Stack spacing={2}>
+            <CurrencyFormFieldWithPaste
+              label="Fee"
+              onChanged={(v) => {
+                onUserFeesChange(v);
+                validateUserFees(v);
+              }}
+              initialValue={userFees?.amount}
+              fullWidth
+              denom={denom}
+              validationError={errorFee}
+            />
+          </Stack>
+        )}
+      </Stack>
     </SimpleModal>
   );
 };

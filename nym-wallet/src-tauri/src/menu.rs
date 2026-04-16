@@ -1,36 +1,25 @@
-use tauri::menu::Menu;
-use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::menu::{Menu, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::{AppHandle, Runtime};
 
 pub const SHOW_LOG_WINDOW: &str = "show_log_window";
 
-pub trait AddDefaultSubmenus {
-    #[allow(dead_code)]
-    fn add_default_app_submenus(self) -> Self;
-}
+pub fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
+    let edit_submenu = SubmenuBuilder::new(app, "Edit")
+        .cut()
+        .copy()
+        .paste()
+        .select_all()
+        .build()?;
 
-impl<R: tauri::Runtime> AddDefaultSubmenus for Menu<R> {
-    #[allow(dead_code)]
-    fn add_default_app_submenus(self) -> Self {
-        if ::std::env::var("NYM_WALLET_ENABLE_LOG").is_ok() {
-            let app_handle = self.app_handle();
+    let mut menu_builder = MenuBuilder::new(app).item(&edit_submenu);
 
-            let help_text = MenuItemBuilder::with_id(SHOW_LOG_WINDOW, "Show logs")
-                .build(app_handle)
-                .expect("Failed to create menu item");
+    if std::env::var("NYM_WALLET_ENABLE_LOG").is_ok() {
+        let help_text = MenuItemBuilder::with_id(SHOW_LOG_WINDOW, "Show logs").build(app)?;
 
-            let submenu = SubmenuBuilder::new(app_handle, "Help")
-                .items(&[&help_text])
-                .build()
-                .expect("Failed to create help submenu");
+        let help_submenu = SubmenuBuilder::new(app, "Help").items(&[&help_text]).build()?;
 
-            let menu_builder = MenuBuilder::new(app_handle);
-
-            match menu_builder.item(&submenu).build() {
-                Ok(new_menu) => new_menu,
-                Err(_) => self,
-            }
-        } else {
-            self
-        }
+        menu_builder = menu_builder.item(&help_submenu);
     }
+
+    menu_builder.build()
 }

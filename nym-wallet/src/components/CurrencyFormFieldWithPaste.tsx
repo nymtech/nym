@@ -95,6 +95,7 @@ export const CurrencyFormFieldWithPaste = ({
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       if (inputRef.current && document.activeElement === inputRef.current) {
         if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
           e.preventDefault();
@@ -120,7 +121,7 @@ export const CurrencyFormFieldWithPaste = ({
   }, [denom, onChanged]);
 
   return (
-    <Box position="relative" width="100%" ref={fieldRef}>
+    <Box position="relative" width="100%" ref={fieldRef} data-nym-currency-field>
       <CurrencyFormField
         label={label}
         fullWidth={fullWidth}

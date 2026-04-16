@@ -40,7 +40,7 @@ jobs:
       - name: Node
         uses: actions/setup-node@v4
         with:
-          node-version: 21
+          node-version: 22.13.0
 
       - name: Download EV CodeSignTool from ssl.com
         working-directory: nym-wallet/src-tauri

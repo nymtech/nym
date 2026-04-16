@@ -163,6 +163,8 @@ impl StorageManager {
     /// callers can use a consistent timestamp across related operations.
     ///
     /// Nodes with a row in `testrun_in_progress` are excluded entirely.
+    /// Nodes where `mixnet_socket_address`, `noise_key`, or `sphinx_key` is NULL are also
+    /// excluded, as they lack the information required to perform a test.
     ///
     /// Returns `None` if no eligible idle node exists.
     pub(crate) async fn assign_next_testrun(
@@ -188,6 +190,9 @@ impl StorageManager {
             LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
             LEFT JOIN testrun             tr  ON tr.id       = n.last_testrun
             WHERE tip.node_id IS NULL
+              AND n.mixnet_socket_address IS NOT NULL
+              AND n.noise_key IS NOT NULL
+              AND n.sphinx_key IS NOT NULL
               AND (n.last_testrun IS NULL OR tr.test_timestamp < ?)
             ORDER BY tr.test_timestamp ASC NULLS FIRST
             LIMIT 1

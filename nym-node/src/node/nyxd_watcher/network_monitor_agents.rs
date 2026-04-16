@@ -88,6 +88,8 @@ impl NetworkMonitorAgentsModule {
         let update_permit = self.noise_view.get_update_permit().await;
         let mut nodes = self.noise_view.all_nodes();
         let ip = address.ip();
+        let port = address.port();
+
         match nodes.get_mut(&ip) {
             None => {
                 nodes.insert(ip, NoiseNode::new_agent(address, key));
@@ -99,10 +101,11 @@ impl NetworkMonitorAgentsModule {
                     );
                 }
                 NoiseNode::NetworkMonitorAgent { nodes } => {
-                    nodes.push(NetworkMonitorAgentNode {
-                        port: address.port(),
-                        key,
-                    });
+                    if let Some(existing) = nodes.iter_mut().find(|n| n.port == address.port()) {
+                        existing.key = key;
+                    } else {
+                        nodes.push(NetworkMonitorAgentNode { port, key });
+                    }
                 }
             },
         }

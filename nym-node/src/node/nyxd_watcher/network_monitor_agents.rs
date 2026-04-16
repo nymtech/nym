@@ -22,15 +22,15 @@
 use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
 use async_trait::async_trait;
 use nym_crypto::asymmetric::x25519;
-use nym_noise::config::{NoiseNetworkView, NoiseNode};
+use nym_noise::config::{NetworkMonitorAgentNode, NoiseNetworkView, NoiseNode};
 use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
 use nym_validator_client::nyxd::cosmwasm::MsgExecuteContract;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::ExecuteMsg;
 use nym_validator_client::nyxd::{AccountId, Any, Msg, Name};
 use nyxd_scraper_shared::error::ScraperError;
 use nyxd_scraper_shared::{DecodedMessage, MsgModule, ParsedTransactionDetails, parse_msg};
-use std::net::{IpAddr, SocketAddr};
-use tracing::{debug, error, info};
+use std::net::SocketAddr;
+use tracing::{debug, error, info, warn};
 
 /// Blockchain message handler for Network Monitor agent authorisation events.
 ///
@@ -63,7 +63,12 @@ impl NetworkMonitorAgentsModule {
     }
 
     /// Register a newly authorised NM agent in both the routing filter and the noise key map.
-    async fn new_agent(&self, address: SocketAddr, bs58_x25519_noise: String, noise_version: u8) {
+    async fn new_agent(
+        &mut self,
+        address: SocketAddr,
+        bs58_x25519_noise: String,
+        noise_version: u8,
+    ) {
         debug!("adding new NM agent {address}");
 
         let Ok(x25519_pubkey) = x25519::PublicKey::from_base58_string(&bs58_x25519_noise) else {
@@ -76,30 +81,73 @@ impl NetworkMonitorAgentsModule {
             x25519_pubkey,
         };
 
-        // add ip to the routing filter
+        // add ip to the routing filter (it's a no-op if it already exists)
         self.routable_network_monitors.add_known(address.ip());
 
         // add noise key to the known nodes
         let update_permit = self.noise_view.get_update_permit().await;
         let mut nodes = self.noise_view.all_nodes();
-        nodes.insert(address.ip(), NoiseNode::new_network_monitor_agent(key));
+        let ip = address.ip();
+        match nodes.get_mut(&ip) {
+            None => {
+                nodes.insert(ip, NoiseNode::new_agent(address, key));
+            }
+            Some(existing_entry) => match existing_entry {
+                NoiseNode::NymNode { .. } => {
+                    error!(
+                        "the authorised agent runs on the same host as a known nym-node! ignoring"
+                    );
+                }
+                NoiseNode::NetworkMonitorAgent { nodes } => {
+                    nodes.push(NetworkMonitorAgentNode {
+                        port: address.port(),
+                        key,
+                    });
+                }
+            },
+        }
+
         self.noise_view.swap_view(update_permit, nodes);
     }
 
-    async fn revoked_agent(&self, address: IpAddr) {
+    async fn revoked_agent(&mut self, address: SocketAddr) {
         debug!("revoking NM agent {address}");
 
-        // remove ip from the routing filter
-        self.routable_network_monitors.remove_known(address);
+        let ip = address.ip();
 
-        // remove noise key from the known nodes
         let update_permit = self.noise_view.get_update_permit().await;
         let mut nodes = self.noise_view.all_nodes();
-        nodes.remove(&address);
+
+        let mut final_agent = false;
+        match nodes.get_mut(&ip) {
+            None => {
+                warn!("attempted to revoke a non-existent agent at {address}");
+                return;
+            }
+            Some(node) => match node {
+                NoiseNode::NymNode { .. } => {
+                    error!(
+                        "the revoked agent runs on the same host as a known nym-node! ignoring the revocation"
+                    );
+                    return;
+                }
+                NoiseNode::NetworkMonitorAgent { nodes } => {
+                    nodes.retain(|agent| agent.port != address.port());
+                    if nodes.is_empty() {
+                        final_agent = true;
+                    }
+                }
+            },
+        }
+
+        if final_agent {
+            nodes.remove(&ip);
+            self.routable_network_monitors.remove_known(ip);
+        }
         self.noise_view.swap_view(update_permit, nodes);
     }
 
-    async fn revoked_all_agents(&self) {
+    async fn revoked_all_agents(&mut self) {
         info!("revoking all NM agents");
 
         self.routable_network_monitors.reset();

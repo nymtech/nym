@@ -25,10 +25,10 @@ pub struct NetworkMonitorsStorage {
     pub(crate) authorised_agents: Map<AgentStorageKey, AuthorisedNetworkMonitor>,
 }
 
-// implement explicit wrapper for the storage key rather than use string representation
-// to make use of type safety and avoid accidentally mixing up `IpAddr` and `SocketAddr`
+// implement explicit wrapper for the storage key to encode a SocketAddr
+// (IP + port) as a composite storage key, enabling multiple agents per host
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct AgentStorageKey(IpAddr);
+pub(crate) struct AgentStorageKey(SocketAddr);
 
 impl PrimaryKey<'_> for AgentStorageKey {
     type Prefix = ();
@@ -37,40 +37,53 @@ impl PrimaryKey<'_> for AgentStorageKey {
     type SuperSuffix = Self;
 
     fn key(&'_ self) -> Vec<Key<'_>> {
-        match self.0 {
-            IpAddr::V4(ipv4) => vec![Key::Val32(ipv4.octets())],
-            IpAddr::V6(ipv6) => vec![Key::Val128(ipv6.octets())],
+        let port = self.0.port().to_be_bytes();
+        match self.0.ip() {
+            IpAddr::V4(ipv4) => vec![Key::Val32(ipv4.octets()), Key::Val16(port)],
+            IpAddr::V6(ipv6) => vec![Key::Val128(ipv6.octets()), Key::Val16(port)],
         }
     }
 }
 
 impl KeyDeserialize for AgentStorageKey {
     type Output = AgentStorageKey;
-    const KEY_ELEMS: u16 = 1;
+    const KEY_ELEMS: u16 = 2;
 
     fn from_vec(value: Vec<u8>) -> StdResult<Self::Output> {
+        // format: 2-byte length prefix + IP bytes + 2-byte port
+        if value.len() < 4 {
+            return Err(StdError::generic_err("invalid socket address length"));
+        }
+
         // SAFETY: we're using the correct number of bytes for the conversion
         #[allow(clippy::unwrap_used)]
-        let ip = match value.len() {
-            4 => IpAddr::V4(Ipv4Addr::from(TryInto::<[u8; 4]>::try_into(value).unwrap())),
+        let ip_len = u16::from_be_bytes([value[0], value[1]]) as usize;
+        let ip_bytes = &value[2..2 + ip_len];
+        let port_bytes = &value[2 + ip_len..];
+
+        #[allow(clippy::unwrap_used)]
+        let ip = match ip_len {
+            4 => IpAddr::V4(Ipv4Addr::from(
+                TryInto::<[u8; 4]>::try_into(ip_bytes).unwrap(),
+            )),
             16 => IpAddr::V6(Ipv6Addr::from(
-                TryInto::<[u8; 16]>::try_into(value).unwrap(),
+                TryInto::<[u8; 16]>::try_into(ip_bytes).unwrap(),
             )),
             _ => return Err(StdError::generic_err("invalid IP address length")),
         };
-        Ok(AgentStorageKey(ip))
-    }
-}
 
-impl From<IpAddr> for AgentStorageKey {
-    fn from(ip: IpAddr) -> Self {
-        Self(ip)
+        let port = u16::from_be_bytes(
+            TryInto::<[u8; 2]>::try_into(port_bytes)
+                .map_err(|_| StdError::generic_err("invalid port length"))?,
+        );
+
+        Ok(AgentStorageKey(SocketAddr::new(ip, port)))
     }
 }
 
 impl From<SocketAddr> for AgentStorageKey {
     fn from(addr: SocketAddr) -> Self {
-        Self(addr.ip())
+        Self(addr)
     }
 }
 
@@ -226,7 +239,7 @@ impl NetworkMonitorsStorage {
         &self,
         deps: DepsMut,
         sender: &Addr,
-        monitor_address: IpAddr,
+        monitor_address: SocketAddr,
     ) -> Result<(), NetworkMonitorsContractError> {
         // the contract admin or an authorised orchestrator may revoke a monitor
         if !self.is_admin(deps.as_ref(), sender)? && !self.is_orchestrator(deps.as_ref(), sender)? {
@@ -260,6 +273,248 @@ pub mod retrieval_limits {
 
 #[cfg(test)]
 mod tests {
+
+    #[cfg(test)]
+    mod agent_storage_key {
+        use super::super::AgentStorageKey;
+        use cw_storage_plus::{KeyDeserialize, Map, PrimaryKey};
+        use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+
+        #[test]
+        fn ipv4_key_roundtrips_through_joined_key_and_from_vec() {
+            let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 42)), 8080);
+            let key = AgentStorageKey::from(addr);
+            let joined = key.joined_key();
+            let recovered = AgentStorageKey::from_vec(joined).unwrap();
+            assert_eq!(recovered.0, addr);
+        }
+
+        #[test]
+        fn ipv6_key_roundtrips_through_joined_key_and_from_vec() {
+            let addr = SocketAddr::new(
+                IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)),
+                443,
+            );
+            let key = AgentStorageKey::from(addr);
+            let joined = key.joined_key();
+            let recovered = AgentStorageKey::from_vec(joined).unwrap();
+            assert_eq!(recovered.0, addr);
+        }
+
+        #[test]
+        fn port_zero_roundtrips() {
+            let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 0);
+            let key = AgentStorageKey::from(addr);
+            let joined = key.joined_key();
+            let recovered = AgentStorageKey::from_vec(joined).unwrap();
+            assert_eq!(recovered.0, addr);
+        }
+
+        #[test]
+        fn port_max_roundtrips() {
+            let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), u16::MAX);
+            let key = AgentStorageKey::from(addr);
+            let joined = key.joined_key();
+            let recovered = AgentStorageKey::from_vec(joined).unwrap();
+            assert_eq!(recovered.0, addr);
+        }
+
+        #[test]
+        fn same_ip_different_ports_produce_different_keys() {
+            let ip = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1));
+            let a = AgentStorageKey::from(SocketAddr::new(ip, 1000));
+            let b = AgentStorageKey::from(SocketAddr::new(ip, 2000));
+            assert_ne!(a.joined_key(), b.joined_key());
+        }
+
+        #[test]
+        fn ipv4_keys_sort_by_ip_then_port() {
+            let addrs = [
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 2000),
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 1000),
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 2)), 500),
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 9999),
+            ];
+
+            let mut keys: Vec<_> = addrs
+                .iter()
+                .map(|a| (AgentStorageKey::from(*a).joined_key(), *a))
+                .collect();
+            keys.sort_by(|a, b| a.0.cmp(&b.0));
+
+            let sorted_addrs: Vec<_> = keys.iter().map(|(_, a)| *a).collect();
+            assert_eq!(
+                sorted_addrs,
+                vec![
+                    // 1.2.3.4 < 10.0.0.1 < 10.0.0.2
+                    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 9999),
+                    // same IP, port 1000 < 2000
+                    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 1000),
+                    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 2000),
+                    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 2)), 500),
+                ]
+            );
+        }
+
+        #[test]
+        fn ipv4_sorts_before_ipv6() {
+            let v4 = AgentStorageKey::from(SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::new(255, 255, 255, 255)),
+                65535,
+            ));
+            let v6 = AgentStorageKey::from(SocketAddr::new(
+                IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+                1,
+            ));
+            assert!(v4.joined_key() < v6.joined_key());
+        }
+
+        #[test]
+        fn map_save_and_load_roundtrip_ipv4() {
+            use cosmwasm_std::testing::MockStorage;
+
+            let map: Map<AgentStorageKey, String> = Map::new("test");
+            let mut storage = MockStorage::new();
+
+            let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)), 8080);
+            map.save(&mut storage, addr.into(), &"agent-v4".to_string())
+                .unwrap();
+
+            let loaded = map.load(&storage, addr.into()).unwrap();
+            assert_eq!(loaded, "agent-v4");
+        }
+
+        #[test]
+        fn map_save_and_load_roundtrip_ipv6() {
+            use cosmwasm_std::testing::MockStorage;
+
+            let map: Map<AgentStorageKey, String> = Map::new("test");
+            let mut storage = MockStorage::new();
+
+            let addr = SocketAddr::new(
+                IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)),
+                443,
+            );
+            map.save(&mut storage, addr.into(), &"agent-v6".to_string())
+                .unwrap();
+
+            let loaded = map.load(&storage, addr.into()).unwrap();
+            assert_eq!(loaded, "agent-v6");
+        }
+
+        #[test]
+        fn map_stores_same_ip_different_ports_independently() {
+            use cosmwasm_std::testing::MockStorage;
+
+            let map: Map<AgentStorageKey, String> = Map::new("test");
+            let mut storage = MockStorage::new();
+
+            let ip = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1));
+            let agent_a = SocketAddr::new(ip, 1000);
+            let agent_b = SocketAddr::new(ip, 2000);
+
+            map.save(&mut storage, agent_a.into(), &"agent-a".to_string())
+                .unwrap();
+            map.save(&mut storage, agent_b.into(), &"agent-b".to_string())
+                .unwrap();
+
+            assert_eq!(map.load(&storage, agent_a.into()).unwrap(), "agent-a");
+            assert_eq!(map.load(&storage, agent_b.into()).unwrap(), "agent-b");
+        }
+
+        #[test]
+        fn map_remove_one_agent_preserves_other_on_same_ip() {
+            use cosmwasm_std::testing::MockStorage;
+
+            let map: Map<AgentStorageKey, String> = Map::new("test");
+            let mut storage = MockStorage::new();
+
+            let ip = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1));
+            let agent_a = SocketAddr::new(ip, 1000);
+            let agent_b = SocketAddr::new(ip, 2000);
+
+            map.save(&mut storage, agent_a.into(), &"agent-a".to_string())
+                .unwrap();
+            map.save(&mut storage, agent_b.into(), &"agent-b".to_string())
+                .unwrap();
+
+            map.remove(&mut storage, agent_a.into());
+
+            assert!(map.may_load(&storage, agent_a.into()).unwrap().is_none());
+            assert_eq!(map.load(&storage, agent_b.into()).unwrap(), "agent-b");
+        }
+
+        #[test]
+        fn map_range_returns_correct_order_with_mixed_ips_and_ports() {
+            use cosmwasm_std::testing::MockStorage;
+            use cosmwasm_std::{Order, StdResult};
+
+            let map: Map<AgentStorageKey, String> = Map::new("test");
+            let mut storage = MockStorage::new();
+
+            let addrs = [
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 2000),
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 1000),
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 80),
+                SocketAddr::new(
+                    IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+                    443,
+                ),
+            ];
+
+            for addr in &addrs {
+                map.save(&mut storage, (*addr).into(), &addr.to_string())
+                    .unwrap();
+            }
+
+            let all: Vec<SocketAddr> = map
+                .range(&storage, None, None, Order::Ascending)
+                .map(|r: StdResult<(AgentStorageKey, String)>| r.unwrap().0 .0)
+                .collect();
+
+            assert_eq!(
+                all,
+                vec![
+                    // IPv4 sorted by octets, then port
+                    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 80),
+                    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 1000),
+                    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 2000),
+                    // IPv6 after all IPv4
+                    SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)), 443),
+                ]
+            );
+        }
+
+        #[test]
+        fn map_range_with_exclusive_bound_skips_exact_match() {
+            use cosmwasm_std::testing::MockStorage;
+            use cosmwasm_std::{Order, StdResult};
+            use cw_storage_plus::Bound;
+
+            let map: Map<AgentStorageKey, String> = Map::new("test");
+            let mut storage = MockStorage::new();
+
+            let addrs = [
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 1000),
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 2000),
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)), 3000),
+            ];
+
+            for addr in &addrs {
+                map.save(&mut storage, (*addr).into(), &addr.to_string())
+                    .unwrap();
+            }
+
+            // paginate after the second entry
+            let start = Bound::exclusive(AgentStorageKey::from(addrs[1]));
+            let page: Vec<SocketAddr> = map
+                .range(&storage, Some(start), None, Order::Ascending)
+                .map(|r: StdResult<(AgentStorageKey, String)>| r.unwrap().0 .0)
+                .collect();
+
+            assert_eq!(page, vec![addrs[2]]);
+        }
+    }
 
     #[cfg(test)]
     mod network_monitors_storage {
@@ -931,12 +1186,12 @@ mod tests {
 
                 let deps = tester.deps_mut();
                 let res = storage
-                    .remove_monitor_authorisation(deps, &non_privileged, agent.ip())
+                    .remove_monitor_authorisation(deps, &non_privileged, agent)
                     .unwrap_err();
                 assert_eq!(NetworkMonitorsContractError::Unauthorized, res);
 
                 let deps = tester.deps_mut();
-                let res2 = storage.remove_monitor_authorisation(deps, &orchestrator, agent.ip());
+                let res2 = storage.remove_monitor_authorisation(deps, &orchestrator, agent);
                 assert_eq!(res2, Ok(()));
 
                 Ok(())
@@ -999,7 +1254,7 @@ mod tests {
                     .is_some());
 
                 let deps = tester.deps_mut();
-                storage.remove_monitor_authorisation(deps, &orchestrator, agent.ip())?;
+                storage.remove_monitor_authorisation(deps, &orchestrator, agent)?;
 
                 assert!(storage
                     .authorised_agents
@@ -1028,7 +1283,7 @@ mod tests {
                     .is_some());
 
                 let deps = tester.deps_mut();
-                storage.remove_monitor_authorisation(deps, &orchestrator, agent.ip())?;
+                storage.remove_monitor_authorisation(deps, &orchestrator, agent)?;
 
                 assert!(storage
                     .authorised_agents
@@ -1052,7 +1307,7 @@ mod tests {
                     .is_none());
 
                 let deps = tester.deps_mut();
-                let res = storage.remove_monitor_authorisation(deps, &orchestrator, agent.ip());
+                let res = storage.remove_monitor_authorisation(deps, &orchestrator, agent);
                 assert_eq!(res, Ok(()));
 
                 assert!(storage

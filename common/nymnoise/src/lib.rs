@@ -66,7 +66,7 @@ pub async fn upgrade_noise_initiator(
         Error::Prereq(Prerequisite::RemotePublicKey)
     })?;
 
-    let Some(key) = config.get_noise_key(responder_addr.ip()) else {
+    let Some(key) = config.get_noise_key(responder_addr) else {
         warn!("{responder_addr} can't speak Noise yet, falling back to TCP");
         return Ok(Connection::Raw(conn));
     };

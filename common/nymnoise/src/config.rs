@@ -1,10 +1,15 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use arc_swap::ArcSwap;
+use arc_swap::{ArcSwap, Guard};
 use nym_crypto::asymmetric::x25519;
 use snow::params::NoiseParams;
-use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+    time::Duration,
+};
 use strum_macros::{EnumIter, FromRepr};
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -68,35 +73,40 @@ struct NoiseNetworkViewInner {
 }
 
 #[derive(Debug, Clone)]
-pub struct NoiseNode {
-    key: VersionedNoiseKeyV1,
-
-    // Distinguishes nym-node entries (sourced from nym-api topology refreshes) from
-    // network-monitor agent entries (sourced from blockchain events).
-    // This is needed because the two sources have independent lifecycles:
-    // `revoked_all_agents` must wipe NM entries while preserving nym-node entries,
-    // and `refresh_network_nodes` must rebuild nym-node entries without touching NM entries.
-    is_nym_node: bool,
+pub enum NoiseNode {
+    NymNode { key: VersionedNoiseKeyV1 },
+    // due to the structure of network monitor agents,
+    // it is possible to have multiple destinations with the same host ip address,
+    // but a different noise key.
+    // however, we are also guaranteed all of those are going to have a unique port.
+    // note: we're not storing it in a map, since at maximum we might have maybe 20 or so
+    // entries under a single ip address and linear look-up of a vec is faster than the overhead of a hashmap
+    NetworkMonitorAgent { nodes: Vec<NetworkMonitorAgentNode> },
 }
 
 impl NoiseNode {
     pub fn new_nym_node(key: VersionedNoiseKeyV1) -> Self {
-        NoiseNode {
-            key,
-            is_nym_node: true,
-        }
+        NoiseNode::NymNode { key }
     }
 
-    pub fn new_network_monitor_agent(key: VersionedNoiseKeyV1) -> Self {
-        NoiseNode {
-            key,
-            is_nym_node: false,
+    pub fn new_agent(socket_addr: SocketAddr, key: VersionedNoiseKeyV1) -> Self {
+        NoiseNode::NetworkMonitorAgent {
+            nodes: vec![NetworkMonitorAgentNode {
+                port: socket_addr.port(),
+                key,
+            }],
         }
     }
 
     pub fn is_nym_node(&self) -> bool {
-        self.is_nym_node
+        matches!(self, NoiseNode::NymNode { .. })
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct NetworkMonitorAgentNode {
+    pub port: u16,
+    pub key: VersionedNoiseKeyV1,
 }
 
 impl NoiseNetworkView {
@@ -110,12 +120,15 @@ impl NoiseNetworkView {
     }
 
     pub fn new_empty() -> Self {
-        NoiseNetworkView {
-            inner: Arc::new(NoiseNetworkViewInner {
-                update_lock: Mutex::new(()),
-                nodes: Default::default(),
-            }),
+        Self::new(Default::default())
+    }
+
+    pub fn new_with_agents(agents: HashMap<IpAddr, Vec<NetworkMonitorAgentNode>>) -> Self {
+        let mut nodes = HashMap::new();
+        for (ip, agent_nodes) in agents {
+            nodes.insert(ip, NoiseNode::NetworkMonitorAgent { nodes: agent_nodes });
         }
+        Self::new(nodes)
     }
 
     pub async fn get_update_permit(&self) -> MutexGuard<'_, ()> {
@@ -177,24 +190,61 @@ impl NoiseConfig {
         self
     }
 
-    pub(crate) fn get_noise_key(&self, address: IpAddr) -> Option<VersionedNoiseKeyV1> {
+    pub(crate) fn get_noise_key(&self, address: SocketAddr) -> Option<VersionedNoiseKeyV1> {
+        let nodes = self.network.inner.nodes.load();
+
+        if let Some(key) = get_noise_key_from_guard(&nodes, address) {
+            return Some(key);
+        }
+
         // When a nym-node binds on `[::]:1789` (the default), it will accept connections on both
         // IPv4 and IPv6.  If an IPv4 initiator connects, the kernel may present its address to the
         // responder as an IPv4-mapped IPv6 address (e.g. `::ffff:1.2.3.4`) rather than the plain
         // IPv4 address (`1.2.3.4`) that was registered in the noise map.
         // `to_canonical()` strips that mapping so we can find the entry either way.
-        let base_ip = address;
-        let canonical_ip = base_ip.to_canonical();
-
-        if let Some(node) = self.network.inner.nodes.load().get(&base_ip) {
-            return Some(node.key);
+        let canonical = SocketAddr::new(address.ip().to_canonical(), address.port());
+        if canonical != address {
+            if let Some(key) = get_noise_key_from_guard(&nodes, canonical) {
+                return Some(key);
+            }
         }
 
-        Some(self.network.inner.nodes.load().get(&canonical_ip)?.key)
+        None
     }
 
+    /// Check whether a remote IP is known to support noise.
+    /// Used on the responder path where we don't need the remote's key
+    /// (the initiator sends it during the handshake).
+    // note: in the case of network monitor agents, it must hold
+    // that ALL agents on given host support it (or don't support it)
     pub(crate) fn supports_noise(&self, ip_addr: IpAddr) -> bool {
-        self.get_noise_key(ip_addr).is_some()
+        let nodes = self.network.inner.nodes.load();
+
+        if nodes.contains_key(&ip_addr) {
+            return true;
+        }
+
+        let canonical = ip_addr.to_canonical();
+        if canonical != ip_addr && nodes.contains_key(&canonical) {
+            return true;
+        }
+
+        false
+    }
+}
+
+fn get_noise_key_from_guard(
+    guard: &Guard<Arc<HashMap<IpAddr, NoiseNode>>>,
+    address: SocketAddr,
+) -> Option<VersionedNoiseKeyV1> {
+    let node = guard.get(&address.ip())?;
+
+    match node {
+        NoiseNode::NymNode { key } => Some(*key),
+        NoiseNode::NetworkMonitorAgent { nodes } => nodes
+            .iter()
+            .find(|n| n.port == address.port())
+            .map(|n| n.key),
     }
 }
 

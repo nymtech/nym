@@ -3,7 +3,6 @@
 
 use crate::support::caching::cache::UninitialisedCache;
 use nym_api_requests::models::{NymNodeDescriptionV1, NymNodeDescriptionV2};
-use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_requests::api::client::NymNodeApiClientError;
 use nym_topology::node::RoutingNodeError;

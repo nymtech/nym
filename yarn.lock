@@ -3729,10 +3729,10 @@
   resolved "https://registry.yarnpkg.com/@nymproject/contract-clients/-/contract-clients-1.4.1.tgz#ae2644387b518eb13e8825fa8021d4c81ffe7852"
   integrity sha512-HuJZ4Hv+Rl6ZZEtCHKgurNLJapM+QQRJlGkevFH2a4UdqUqF9omUkUi3AVes4679dPoSFgvA7plyVSDBdbgV6w==
 
-"@nymproject/mix-fetch@>=1.4.1-rc1 || ^1":
-  version "1.4.1"
-  resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch/-/mix-fetch-1.4.1.tgz#6a923b40e09c4a571fb947297a3afd41cd2d5ea6"
-  integrity sha512-FN5UeCkje6fauCt2pd8kFGFYXj2kaNewEJVKRLWzI2/suxD+J2bmg/YvXBGLWMWglXNA3+YFHA/1Vjh6OGtgig==
+"@nymproject/mix-fetch@>=1.4.2-rc.0 || ^1":
+  version "1.4.4"
+  resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch/-/mix-fetch-1.4.4.tgz#f10fbde17255c16f9de8c3dd6e8c8f49c4d12c88"
+  integrity sha512-sdyXXJG7sYv2OFOEf6FYm7HglKfMvJmJjrQC3Rbusy5rH5C2ajg2KyuBbZReLgIIbkkx3mK8sc5WRUOKTcKt2Q==
 
 "@nymproject/node-tester@^1.3.1":
   version "1.3.1"
@@ -6488,13 +6488,6 @@
   integrity sha512-nCa4fGVaDL/B9ai03VyPOjfAHRHSBz5v6F/ObsB73r/dA3MHHhZtldaDMIc0V/pnUw9ehzr2iEG+XkSEyC0JJA==
   dependencies:
     "@tauri-apps/api" "^2.8.0"
-
-"@tauri-apps/plugin-shell@^2.3.5":
-  version "2.3.5"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/plugin-shell/-/plugin-shell-2.3.5.tgz#ec7b5c2aedaae9e4641cd3ccf1106e443e193919"
-  integrity sha512-jewtULhiQ7lI7+owCKAjc8tYLJr92U16bPOeAa472LHJdgaibLP83NcfAF2e+wkEcA53FxKQAZ7byDzs2eeizg==
-  dependencies:
-    "@tauri-apps/api" "^2.10.1"
 
 "@tauri-apps/plugin-updater@^2.10.1":
   version "2.10.1"

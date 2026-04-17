@@ -12,8 +12,24 @@ The Nym desktop wallet enables you to use the Nym network and take advantage of 
 ## Installation prerequisites - Linux / Mac
 
 - `Yarn`
-- `NodeJS >= v22.13.0`
-- `Rust & cargo >= v1.85`
+- `NodeJS >= v16.8.0`
+- `Rust & cargo >= v1.56`
+
+## Linux: WebKit and EGL troubleshooting
+
+Some rolling distributions (for example Arch-based) or Wayland compositors can hit WebKitGTK / EGL errors at startup (for example `EGL_BAD_PARAMETER`, `EGL_BAD_ALLOC`, or `Could not create default EGL display`).
+
+**AppImage (Wayland):** The bundle installs an AppRun hook that preloads the system `libwayland-client` when possible, sets `GDK_BACKEND`, `GDK_SCALE`, `GDK_DPI_SCALE`, and defaults `WEBKIT_DISABLE_DMABUF_RENDERER=1`. Override if needed: `WEBKIT_DISABLE_DMABUF_RENDERER=0`, or set your own `GDK_*` / `LD_PRELOAD` before launching.
+
+**`.deb`, installed binary, or `target/release` binary:** Use the same variables in a wrapper script or in a `.desktop` file, for example:
+
+`Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 GDK_BACKEND=wayland GDK_SCALE=1 GDK_DPI_SCALE=0.8 /path/to/NymWallet`
+
+If problems persist on Wayland, try preloading the system client library (path may vary by distro):
+
+`LD_PRELOAD=/usr/lib/libwayland-client.so` (or `/usr/lib64/...`).
+
+**Diagnostic (slow):** `LIBGL_ALWAYS_SOFTWARE=1` forces software GL to confirm a GPU / EGL stack mismatch.
 
 ## Installation prerequisites - Windows
 
@@ -65,17 +81,6 @@ Run the following command from the `nym-wallet` folder
 yarn build
 ```
 The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are built, they can be located as follows:
-
-## Linux AppImage notes
-
-The wallet AppImage now ships with a Wayland-focused launch hook for modern Linux desktops. On Wayland sessions it:
-
-- prefers the system `libwayland-client.so` when one is available
-- defaults `GDK_BACKEND=wayland`
-- defaults `GDK_SCALE=1`
-- defaults `GDK_DPI_SCALE=0.8`
-
-If you need to override this behavior for troubleshooting, set your own environment variables before launching the AppImage.
 
 ## Admin mode
 

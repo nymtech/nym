@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 const { mergeWithRules } = require('webpack-merge');
 const { webpackCommon } = require('@nymproject/webpack');
 
@@ -67,5 +68,10 @@ module.exports = mergeWithRules({
     experiments: {
       asyncWebAssembly: true,
     },
+    plugins: [
+      new webpack.EnvironmentPlugin({
+        NYM_WALLET_INTERNAL_DOCS: '',
+      }),
+    ],
   },
 );

@@ -34,7 +34,6 @@
         "updater:allow-download-and-install",
         "updater:allow-install",
         "core:event:allow-listen",
-        "shell:allow-open",
         "process:default"
     ]
 }

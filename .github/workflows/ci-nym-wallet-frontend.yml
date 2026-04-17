@@ -33,5 +33,9 @@ jobs:
       - name: Lint nym-wallet
         run: yarn --cwd nym-wallet lint
 
+      - name: Yarn audit (workspace lockfile; informational)
+        run: yarn audit --level critical
+        continue-on-error: true
+
       - name: Unit tests (nym-wallet)
         run: yarn --cwd nym-wallet test

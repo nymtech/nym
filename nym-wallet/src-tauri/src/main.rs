@@ -7,7 +7,6 @@ use nym_mixnet_contract_common::{Gateway, MixNode};
 use tauri::Manager;
 use tauri_plugin_opener::init as init_opener;
 use tauri_plugin_process::init as init_process;
-use tauri_plugin_shell::init as init_shell;
 use tauri_plugin_updater::Builder as UpdaterBuilder;
 
 use crate::menu::SHOW_LOG_WINDOW;
@@ -39,7 +38,6 @@ fn main() {
 
     let context = tauri::generate_context!();
     tauri::Builder::default()
-        .plugin(init_shell())
         .plugin(init_opener())
         .plugin(init_process())
         .plugin(UpdaterBuilder::new().build())

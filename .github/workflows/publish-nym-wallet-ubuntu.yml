@@ -72,6 +72,40 @@ jobs:
             find target/release/bundle -type d -name "*appimage*" -o -name "*AppImage*" || echo "No AppImage directories found"
             find target/release/bundle -name "*.AppImage" -o -name "*.appimage" || echo "No AppImage files found"
           fi
+
+      - name: Inspect AppImage (hook + bundled graphics libs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPIMAGE_REL=$(find target/release/bundle -name '*.AppImage' | head -n 1)
+          if [ -z "${APPIMAGE_REL}" ]; then
+            echo "No AppImage under target/release/bundle"
+            exit 1
+          fi
+          APPIMAGE_ABS="${GITHUB_WORKSPACE}/nym-wallet/${APPIMAGE_REL}"
+          chmod +x "${APPIMAGE_ABS}"
+          EXTRACT_DIR=$(mktemp -d)
+          cd "${EXTRACT_DIR}"
+          "${APPIMAGE_ABS}" --appimage-extract
+          HOOK=$(find squashfs-root -name '99-nym-wayland.sh' 2>/dev/null | head -n 1)
+          if [ -z "${HOOK}" ]; then
+            echo "apprun-hooks/99-nym-wayland.sh not found; listing squashfs-root:"
+            find squashfs-root -type f 2>/dev/null | head -80 || true
+            exit 1
+          fi
+          echo "Found Wayland hook at ${HOOK}"
+          find squashfs-root/usr/lib -maxdepth 6 \
+            \( -name 'libwayland-client.so*' -o -name 'libEGL.so*' -o -name 'libgbm.so*' \) \
+            2>/dev/null | sort > "${GITHUB_WORKSPACE}/nym-wallet/appimage-bundled-graphics-libs.txt"
+          wc -l "${GITHUB_WORKSPACE}/nym-wallet/appimage-bundled-graphics-libs.txt"
+          head -50 "${GITHUB_WORKSPACE}/nym-wallet/appimage-bundled-graphics-libs.txt" || true
+
+      - name: Upload AppImage graphics lib inventory
+        uses: actions/upload-artifact@v6
+        with:
+          name: nym-wallet-appimage-lib-inventory
+          path: nym-wallet/appimage-bundled-graphics-libs.txt
+          retention-days: 30
       
       - name: Create AppImage tarball if needed
         run: |

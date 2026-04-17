@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Box } from '@mui/material';
+import { Box, InputAdornment } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, DecCoin } from '@nymproject/types';
 import { PasteFromClipboard } from './Clipboard/ClipboardActions';
@@ -13,6 +13,8 @@ export const CurrencyFormFieldWithPaste = ({
   required,
   autoFocus,
   validationError,
+  endAdornment,
+  showPaste = true,
 }: {
   label: string;
   fullWidth?: boolean;
@@ -22,6 +24,10 @@ export const CurrencyFormFieldWithPaste = ({
   required?: boolean;
   autoFocus?: boolean;
   validationError?: string;
+  /** Rendered inside the outlined input (e.g. Max). */
+  endAdornment?: React.ReactNode;
+  /** When false, no paste control; native keyboard paste still works on the input. */
+  showPaste?: boolean;
 }) => {
   const fieldRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -58,6 +64,10 @@ export const CurrencyFormFieldWithPaste = ({
   };
 
   useEffect(() => {
+    if (!showPaste) {
+      return undefined;
+    }
+
     const pasteEventHandler = (e: ClipboardEvent) => {
       e.preventDefault();
 
@@ -91,9 +101,13 @@ export const CurrencyFormFieldWithPaste = ({
         inputRef.current.removeEventListener('paste', pasteEventHandler as EventListener);
       }
     };
-  }, [denom, onChanged]);
+  }, [showPaste, denom, onChanged]);
 
   useEffect(() => {
+    if (!showPaste) {
+      return undefined;
+    }
+
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       if (inputRef.current && document.activeElement === inputRef.current) {
@@ -118,7 +132,7 @@ export const CurrencyFormFieldWithPaste = ({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [denom, onChanged]);
+  }, [showPaste, denom, onChanged]);
 
   return (
     <Box position="relative" width="100%" ref={fieldRef} data-nym-currency-field>
@@ -131,18 +145,27 @@ export const CurrencyFormFieldWithPaste = ({
         required={required}
         autoFocus={autoFocus}
         validationError={validationError}
+        mergedInputProps={
+          endAdornment
+            ? {
+                endAdornment: <InputAdornment position="end">{endAdornment}</InputAdornment>,
+              }
+            : undefined
+        }
       />
-      <Box
-        sx={{
-          position: 'absolute',
-          right: '14px',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          zIndex: 1,
-        }}
-      >
-        <PasteFromClipboard onPaste={processPastedText} fieldRef={inputRef} />
-      </Box>
+      {showPaste && (
+        <Box
+          sx={{
+            position: 'absolute',
+            right: endAdornment ? 88 : 14,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 1,
+          }}
+        >
+          <PasteFromClipboard onPaste={processPastedText} fieldRef={inputRef} />
+        </Box>
+      )}
     </Box>
   );
 };

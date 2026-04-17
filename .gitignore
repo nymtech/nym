@@ -27,6 +27,7 @@ v6-topology.json
 /explorer/public/downloads/mixmining.json
 /explorer/public/downloads/topology.json
 /nym-wallet/dist/*
+/nym-wallet/appimage-bundled-graphics-libs.txt
 /clients/validator/examples/nym-driver-example/current-contract.txt
 validator-api/v4.json
 validator-api/v6.json

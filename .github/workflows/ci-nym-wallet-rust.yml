@@ -74,3 +74,16 @@ jobs:
         with:
           command: clippy
           args: --manifest-path nym-wallet/Cargo.toml --workspace --all-features --all-targets -- -D warnings
+
+      - name: Install cargo-audit
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-audit --locked
+
+      - name: Cargo audit (nym-wallet workspace)
+        uses: actions-rs/cargo@v1
+        with:
+          command: audit
+        working-directory: nym-wallet
+        continue-on-error: true

@@ -1,10 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Box, Stack, Typography, SxProps, FormControlLabel, Checkbox, Alert } from '@mui/material';
+import {
+  Box,
+  Button,
+  Stack,
+  Typography,
+  SxProps,
+  FormControlLabel,
+  Checkbox,
+  Alert,
+  CircularProgress,
+} from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import Big from 'big.js';
 import { CurrencyDenom, DecCoin, isValidRawCoin } from '@nymproject/types';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { validateAmount } from 'src/utils';
+import { validateNymAddress } from 'src/utils/validateNymAddress';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { TextFieldWithPaste } from '../Clipboard/ClipboardFormFields';
@@ -28,18 +39,6 @@ const recipientHelperText = (
   return undefined;
 };
 
-// NYM address validation function
-const validateNymAddress = (address: string): boolean => {
-  if (!address) return false;
-
-  if (!address.startsWith('n1')) return false;
-
-  if (address.length !== 40) return false;
-
-  const validCharsRegex = /^[a-z0-9]+$/;
-  return validCharsRegex.test(address);
-};
-
 export const SendInputModal = ({
   fromAddress,
   toAddress,
@@ -59,6 +58,9 @@ export const SendInputModal = ({
   onMemoChange,
   showMore,
   setShowMore,
+  amountFieldKey,
+  onMaxAmount,
+  maxAmountLoading,
 }: {
   fromAddress?: string;
   toAddress: string;
@@ -78,6 +80,10 @@ export const SendInputModal = ({
   memo?: string;
   onUserFeesChange: (value: DecCoin) => void;
   onMemoChange: (value: string) => void;
+  /** Bump to remount the amount field after programmatic Max (CurrencyFormField is defaultValue-based). */
+  amountFieldKey: number;
+  onMaxAmount: () => void | Promise<void>;
+  maxAmountLoading: boolean;
 }) => {
   const [isValid, setIsValid] = useState(false);
   const [memoIsValid, setMemoIsValid] = useState(true);
@@ -339,10 +345,12 @@ export const SendInputModal = ({
           }}
         />
 
-        {/* Amount field with paste button */}
+        {/* Amount: Max in endAdornment; no paste chip (recipient/memo still have paste). */}
         <CurrencyFormFieldWithPaste
+          key={`send-amount-${amountFieldKey}`}
           label="Amount"
           fullWidth
+          showPaste={false}
           onChanged={(value) => {
             setAmountTouched(true);
             onAmountChange(value);
@@ -353,6 +361,29 @@ export const SendInputModal = ({
           initialValue={amount?.amount}
           denom={denom}
           validationError={errorAmount}
+          endAdornment={
+            <Button
+              variant="outlined"
+              size="small"
+              disabled={noAccount || !addressIsValid || maxAmountLoading}
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                await onMaxAmount();
+              }}
+              sx={{
+                minWidth: 52,
+                py: 0.25,
+                px: 0.75,
+                textTransform: 'none',
+                fontWeight: 600,
+                lineHeight: 1.2,
+              }}
+              aria-label="Fill maximum sendable amount after fees"
+            >
+              {maxAmountLoading ? <CircularProgress size={16} color="inherit" /> : 'Max'}
+            </Button>
+          }
         />
 
         {/* Memo field with paste button */}
@@ -383,7 +414,8 @@ export const SendInputModal = ({
             fontWeight={600}
           />
           <Typography fontSize="smaller" sx={{ color: 'text.primary' }}>
-            Est. fee for this transaction will be shown on the next page
+            Fees use the current network estimate (or your custom fee if set below). Max fills your balance minus that
+            fee and a small reserve. The next step shows the full breakdown before you confirm.
           </Typography>
         </Stack>
 

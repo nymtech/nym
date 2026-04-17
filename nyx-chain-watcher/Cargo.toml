@@ -5,11 +5,11 @@
 name = "nyx-chain-watcher"
 version = "0.1.15"
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
 publish = false

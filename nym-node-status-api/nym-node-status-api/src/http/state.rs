@@ -9,7 +9,7 @@ use nym_node_status_client::auth::VerifiableRequest;
 use nym_validator_client::nym_api::SkimmedNodeV1;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use time::UtcDateTime;
 use tokio::sync::RwLock;
 use tracing::{error, instrument, trace, warn};
@@ -456,7 +456,6 @@ impl HttpCache {
                     .await
                     .into_iter()
                     .flat_map(|gw| gw.ip_addresses)
-                    .filter(IpAddr::is_ipv4)
                     .map(|ip| ip.to_string())
                     .sorted()
                     .dedup()

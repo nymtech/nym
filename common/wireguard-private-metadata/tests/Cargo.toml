@@ -1,13 +1,16 @@
 [package]
 name = "nym-wireguard-private-metadata-tests"
+description = "Tests for nym-wireguard implementation"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "Tests for nym-wireguard implementation"
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 [dependencies]
 async-trait = { workspace = true }

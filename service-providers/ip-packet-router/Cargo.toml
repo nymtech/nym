@@ -2,11 +2,11 @@
 name = "nym-ip-packet-router"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license = "GPL-3.0"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license = "GPL-3.0"
 publish = false
 
 [dependencies]

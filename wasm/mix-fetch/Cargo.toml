@@ -3,11 +3,11 @@ name = "mix-fetch-wasm"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 version = "1.4.4"
 edition = "2021"
-keywords = ["nym", "fetch", "wasm", "webassembly", "privacy"]
 license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"
 rust-version = "1.85"
 publish = false
+keywords = ["nym", "fetch", "wasm", "webassembly", "privacy"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

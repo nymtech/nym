@@ -1,13 +1,16 @@
 [package]
 name = "nym-mixnet-client"
+description = "Client for Mix Node <> Mix Node & Mix Node <> Gateway communication"
 version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
-description = "Client for Mix Node <> Mix Node & Mix Node <> Gateway communication"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

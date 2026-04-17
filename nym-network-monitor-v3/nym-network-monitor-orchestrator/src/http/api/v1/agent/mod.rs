@@ -24,6 +24,7 @@ use tracing::{error, info};
     request_body = AgentPortRequest,
     path = "/port-request",
     context_path = "/v1/agent",
+    security(("agents_token" = [])),
     responses(
         (status = 200, content(
             (AgentPortRequestResponse = "application/json"),
@@ -64,6 +65,7 @@ async fn request_mix_port(
     request_body = AgentAnnounceRequest,
     path = "/announce",
     context_path = "/v1/agent",
+    security(("agents_token" = [])),
     responses(
         (status = 200, content(
             (AgentAnnounceResponse = "application/json"),
@@ -131,6 +133,7 @@ async fn announce_agent(
     request_body = TestRunAssignmentRequest,
     path = "/request-testrun",
     context_path = "/v1/agent",
+    security(("agents_token" = [])),
     responses(
         (status = 200, content(
             (TestRunAssignmentResponse = "application/json"),
@@ -174,6 +177,7 @@ async fn request_testrun(
     request_body = TestRunResultSubmissionRequest,
     path = "/submit-testrun-result",
     context_path = "/v1/agent",
+    security(("agents_token" = [])),
     responses(
         (status = 200, content(
             (TestRunSubmissionResponse = "application/json"),

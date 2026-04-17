@@ -2,10 +2,15 @@
 name = "nym-multisig-contract-common"
 description = "Common code for the Nym multisig CosmWasm smart contract"
 version.workspace = true
+authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 [dependencies]
 cosmwasm-schema = { workspace = true }

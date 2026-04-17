@@ -4,6 +4,7 @@ version = "1.0.0"
 edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.85"
+publish = false
 
 [dependencies]
 hex-literal = "0.3.3"

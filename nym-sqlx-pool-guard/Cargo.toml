@@ -2,11 +2,15 @@
 name = "nym-sqlx-pool-guard"
 description = "Platform-specific functions for SQLX dbs"
 version.workspace = true
+authors.workspace = true
 edition = "2024"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 [lints]
 workspace = true

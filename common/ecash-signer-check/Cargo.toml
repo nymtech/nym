@@ -10,6 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+publish = true
 
 [dependencies]
 futures = { workspace = true }

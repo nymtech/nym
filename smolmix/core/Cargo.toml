@@ -2,9 +2,14 @@
 name = "smolmix"
 description = "Tunnel for TCP and UDP traffic to be sent over Nym mixnet to clearnet remote hosts"
 version = "0.0.1"
+authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
 publish = true
 
 [dependencies]

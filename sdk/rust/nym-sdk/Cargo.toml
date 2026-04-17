@@ -2,9 +2,15 @@
 name = "nym-sdk"
 description = "Nym's Rust SDK"
 version.workspace = true
+authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository = "https://github.com/nymtech/nym/sdk/rust/nym-sdk/"
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 # documentation = "https://docs.rs/nym-sdk" Max: once we upload to crates.io and this is generated, this can be uncommented.
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

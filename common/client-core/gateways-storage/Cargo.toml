@@ -2,12 +2,15 @@
 name = "nym-client-core-gateways-storage"
 description = "Functionality for Nym clients to store and retrive Gateway connections"
 version.workspace = true
+authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -9,6 +9,8 @@ repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 rust-version = "1.85"
+readme.workspace = true
+publish = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

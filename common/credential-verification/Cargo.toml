@@ -1,15 +1,15 @@
 [package]
 name = "nym-credential-verification"
+description = "Store and verify zknym credentials"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-description = "Store and verify zknym credentials"
 
 [dependencies]
 async-trait = { workspace = true }

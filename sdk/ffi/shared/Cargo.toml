@@ -1,12 +1,12 @@
 [package]
 name = "nym-ffi-shared"
+description = "Common crate for use by Rust SDK FFI crates"
 version.workspace = true
 edition = "2021"
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-license.workspace = true
-description = "Common crate for use by Rust SDK FFI crates"
 
 [dependencies]
 # Async runtime

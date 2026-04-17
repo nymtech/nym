@@ -3,11 +3,11 @@
 
 [package]
 name = "nym-gateway-requests"
+description = "Request and response definitions for Nym Gateway <> client communication"
 version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
-description = "Request and response definitions for Nym Gateway <> client communication"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

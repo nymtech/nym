@@ -1,13 +1,13 @@
 [package]
 name = "nym-ip-packet-client"
+description = "Nym's implementation of a client that sends and receives IP packets"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "Nym's implementation of a client that sends and receives IP packets"
 
 [lints]
 workspace = true

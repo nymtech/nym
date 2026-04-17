@@ -1,9 +1,9 @@
 [package]
 name = "nym-sqlx-pool-guard"
+description = "Platform-specific functions for SQLX dbs"
 version.workspace = true
 edition = "2024"
 license.workspace = true
-description = "Platform-specific functions for SQLX dbs"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

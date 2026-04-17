@@ -1,9 +1,9 @@
 [package]
 name = "nym-credential-utils"
+description = "Utils crate for dealing with zknym credentials"
 version.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Utils crate for dealing with zknym credentials"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

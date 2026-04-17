@@ -3,10 +3,10 @@
 
 [package]
 name = "nym-statistics-common"
+description = "This crate contains basic statistics utilities and abstractions to be re-used and applied throughout both the client and gateway implementations"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "This crate contains basic statistics utilities and abstractions to be re-used and applied throughout both the client and gateway implementations"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

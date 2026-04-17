@@ -1,10 +1,10 @@
 [package]
 name = "nym-socks5-requests"
+description = "Request and response definitions for the Nym SOCKS client"
 version.workspace = true
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
 license.workspace = true
-description = "Request and response definitions for the Nym SOCKS client"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

@@ -1,10 +1,10 @@
 [package]
 name = "nym-nonexhaustive-delayqueue"
+description = "A copy of tokio-util delay_queue with `Sleep` and `Instant` being replaced with`wasm_timer` equivalents"
 version.workspace = true
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
-description = "A copy of tokio-util delay_queue with `Sleep` and `Instant` being replaced with`wasm_timer` equivalents"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

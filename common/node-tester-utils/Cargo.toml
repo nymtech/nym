@@ -1,9 +1,9 @@
 [package]
 name = "nym-node-tester-utils"
+description = "Utils for the Nym Node Tester"
 version.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Utils for the Nym Node Tester"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

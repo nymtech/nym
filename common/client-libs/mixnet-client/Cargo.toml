@@ -1,10 +1,10 @@
 [package]
 name = "nym-mixnet-client"
+description = "Client for Mix Node <> Mix Node & Mix Node <> Gateway communication"
 version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
-description = "Client for Mix Node <> Mix Node & Mix Node <> Gateway communication"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

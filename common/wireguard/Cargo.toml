@@ -1,13 +1,13 @@
 [package]
 name = "nym-wireguard"
+description = "Interface and peer handling functionality for Wireguard protocol"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "Interface and peer handling functionality for Wireguard protocol"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

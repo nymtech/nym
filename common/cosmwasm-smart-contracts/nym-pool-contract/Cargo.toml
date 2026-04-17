@@ -1,13 +1,13 @@
 [package]
 name = "nym-pool-contract-common"
-version.workspace = true
 description = "Common library for the Nym Pool contract"
+version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
 

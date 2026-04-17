@@ -1,9 +1,9 @@
 [package]
 name = "nym-sphinx-routing"
-version.workspace = true
 description = "Sphinx packet routing as Nym mix packets"
-edition = { workspace = true }
+version.workspace = true
 authors = { workspace = true }
+edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 

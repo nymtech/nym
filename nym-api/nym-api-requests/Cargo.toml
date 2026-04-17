@@ -1,9 +1,9 @@
 [package]
 name = "nym-api-requests"
+description = "Nym API request types and functions"
 version.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Nym API request types and functions"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

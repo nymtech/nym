@@ -1,9 +1,9 @@
 [package]
 name = "nym-ecash-contract-common"
+description = "Common crate for Nym's ecash/zknym cosmwasm contract"
 version.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Common crate for Nym's ecash/zknym cosmwasm contract"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

@@ -1,11 +1,11 @@
 [package]
 name = "nym-common"
+description = "Runtime diagnostics for high frequency logging, debugging and error handling utilities"
 version.workspace = true
 authors.workspace = true
-repository.workspace = true
-license.workspace = true
 edition.workspace = true
-description = "Runtime diagnostics for high frequency logging, debugging and error handling utilities"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

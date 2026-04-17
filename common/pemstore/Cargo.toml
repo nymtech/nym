@@ -2,8 +2,8 @@
 name = "nym-pemstore"
 description = "Store private-public keypairs in PEM format"
 version.workspace = true
-edition = { workspace = true }
 authors = { workspace = true }
+edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 

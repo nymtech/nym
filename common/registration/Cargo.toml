@@ -1,13 +1,13 @@
 [package]
 name = "nym-registration-common"
+description = "Struct definitions for NymNode, GatewayData, and AssignedAddresses"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "Struct definitions for NymNode, GatewayData, and AssignedAddresses"
 
 [lints]
 workspace = true

@@ -1,9 +1,9 @@
 [package]
 name = "nym-crypto"
-version.workspace = true
 description = "Crypto library for the nym mixnet"
-edition = { workspace = true }
+version.workspace = true
 authors = { workspace = true }
+edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 

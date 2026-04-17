@@ -1,9 +1,9 @@
 [package]
 name = "nym-coconut-dkg-common"
+description = "Common crate for Nym's DKG cosmwasm contract"
 version.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Common crate for Nym's DKG cosmwasm contract"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

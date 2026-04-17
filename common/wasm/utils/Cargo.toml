@@ -1,10 +1,10 @@
 [package]
 name = "nym-wasm-utils"
+description = "Helpers and macros for the Nym WASM client"
 version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
-description = "Helpers and macros for the Nym WASM client"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

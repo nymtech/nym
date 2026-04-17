@@ -1,9 +1,9 @@
 [package]
 name = "nym-sphinx"
-version.workspace = true
 description = "Top-level crate for sphinx packets as used by the Nym mixnet"
-edition = { workspace = true }
+version.workspace = true
 authors = { workspace = true }
+edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 

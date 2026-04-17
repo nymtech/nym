@@ -1,15 +1,15 @@
 [package]
 name = "nyxd-scraper-shared"
+description = "Common crate for the sqlite and psql Nyxd blockchain scrapers"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-description = "Common crate for the sqlite and psql Nyxd blockchain scrapers"
 
 [dependencies]
 async-trait.workspace = true

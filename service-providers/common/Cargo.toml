@@ -1,9 +1,9 @@
 [package]
 name = "nym-service-providers-common"
+description = "Common crate for Nym Service Providers"
 version.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Common crate for Nym Service Providers"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

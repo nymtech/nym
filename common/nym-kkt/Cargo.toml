@@ -3,9 +3,9 @@ name = "nym-kkt"
 description = "Key transport protocol for the Nym network"
 version = "0.1.0"
 authors = ["Georgio Nicolas <georgio@nymtech.net>"]
-repository.workspace = true
 edition = { workspace = true }
 license.workspace = true
+repository.workspace = true
 publish = true
 
 [dependencies]

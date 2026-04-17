@@ -1,15 +1,15 @@
 [package]
 name = "nym-ecash-signer-check"
+description = "Functions to interact with zknym signers, checking their status and health"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-description = "Functions to interact with zknym signers, checking their status and health"
 
 [dependencies]
 futures = { workspace = true }

@@ -3,11 +3,11 @@
 
 [package]
 name = "nym-compact-ecash"
+description = "Nym's ecash implementation"
 version.workspace = true
 authors = ["Ania Piotrowska <ania@nymtech.net>"]
 edition = "2021"
 license = { workspace = true }
-description = "Nym's ecash implementation"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

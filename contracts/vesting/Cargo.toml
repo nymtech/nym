@@ -1,13 +1,12 @@
 [package]
 name = "nym-vesting-contract"
-version = "1.4.1"
 description = "Nym vesting contract"
-edition = { workspace = true }
+version = "1.4.1"
 authors = { workspace = true }
+edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 readme = "README.md"
-
 exclude = [
     # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
     "contract.wasm",

@@ -1,9 +1,9 @@
 [package]
 name = "nym-socks5-client-core"
+description = "Core functionality of the Nym SOCKS client"
 version.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Core functionality of the Nym SOCKS client"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

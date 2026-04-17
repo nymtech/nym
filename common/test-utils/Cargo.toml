@@ -1,15 +1,15 @@
 [package]
 name = "nym-test-utils"
+description = "Helpers, traits, and mock definitions for tests"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-description = "Helpers, traits, and mock definitions for tests"
 
 [dependencies]
 anyhow = { workspace = true }

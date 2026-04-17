@@ -1,9 +1,9 @@
 [package]
 name = "nym-multisig-contract-common"
+description = "Common code for the Nym multisig CosmWasm smart contract"
 version.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Common code for the Nym multisig CosmWasm smart contract"
 repository.workspace = true
 homepage.workspace = true
 

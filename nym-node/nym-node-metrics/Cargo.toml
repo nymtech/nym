@@ -1,13 +1,13 @@
 [package]
 name = "nym-node-metrics"
+description = "Crate defining various metrics for Nym Nodes (Mix Nodes and Gateways) such as ongoing connections, packets mixed, and packets dropped"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "Crate defining various metrics for Nym Nodes (Mix Nodes and Gateways) such as ongoing connections, packets mixed, and packets dropped"
 
 [dependencies]
 dashmap = { workspace = true }

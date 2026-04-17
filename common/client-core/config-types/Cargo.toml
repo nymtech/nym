@@ -1,9 +1,9 @@
 [package]
 name = "nym-client-core-config-types"
+description = "Low level configs and constants used by Nym clients and nodes"
 version.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Low level configs and constants used by Nym clients and nodes"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

@@ -1,10 +1,10 @@
 [package]
 name = "nym-noise-keys"
+description = "Helpers and type definition of Nym's Noise protocol keys"
 version.workspace = true
 authors = ["Simon Wicky <simon@nymtech.net>"]
 edition = "2021"
 license.workspace = true
-description = "Helpers and type definition of Nym's Noise protocol keys"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

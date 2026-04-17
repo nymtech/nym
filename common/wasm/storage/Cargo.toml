@@ -1,10 +1,10 @@
 [package]
 name = "nym-wasm-storage"
+description = "indexeddb-backed in-browser storage with optional encryption implentation and helpers"
 version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
-description = "indexeddb-backed in-browser storage with optional encryption implentation and helpers"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

@@ -1,13 +1,13 @@
 [package]
 name = "nym-ip-packet-requests"
+description = "Codec, signing functionality, and different version definitions for IP packet request and responses"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "Codec, signing functionality, and different version definitions for IP packet request and responses"
 
 
 [features]

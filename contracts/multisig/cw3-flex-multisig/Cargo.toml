@@ -1,9 +1,9 @@
 [package]
 name = "cw3-flex-multisig"
+description = "Implementing cw3 with multiple voting patterns and dynamic groups"
 version = "2.0.0"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
 edition = "2021"
-description = "Implementing cw3 with multiple voting patterns and dynamic groups"
 license = "Apache-2.0"
 repository = "https://github.com/CosmWasm/cw-plus"
 homepage = "https://cosmwasm.com"

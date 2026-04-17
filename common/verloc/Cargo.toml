@@ -1,15 +1,15 @@
 [package]
 name = "nym-verloc"
+description = "Nym's verloc (Verifiable Location) implementation"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-description = "Nym's verloc (Verifiable Location) implementation"
 
 [dependencies]
 bytes = { workspace = true }

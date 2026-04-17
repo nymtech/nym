@@ -1,9 +1,9 @@
 [package]
 name = "nym-client-core-surb-storage"
+description = "Functionality for Nym clients to generate and use Single Use Reply Blocks (SURBs)"
 version.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Functionality for Nym clients to generate and use Single Use Reply Blocks (SURBs)"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true

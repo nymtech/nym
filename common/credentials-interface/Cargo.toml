@@ -1,13 +1,13 @@
 [package]
 name = "nym-credentials-interface"
+description = "Interface for Nym's compact eacash / zknym credential scheme"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "Interface for Nym's compact eacash / zknym credential scheme"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

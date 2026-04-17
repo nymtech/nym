@@ -66,25 +66,37 @@ jobs:
         working-directory: nym-wallet/src-tauri
         if: ${{ inputs.sign }}
         shell: bash
+        env:
+          SSL_SIGN_USER: ${{ secrets.SSL_COM_USERNAME }}
+          SSL_SIGN_PASS: ${{ secrets.SSL_COM_PASSWORD }}
+          SSL_SIGN_CRED: ${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}
+          SSL_SIGN_TOTP: ${{ secrets.SSL_COM_TOTP_SECRET }}
         run: |
-          yq eval --inplace '.bundle.windows +=
-          {
-            "signCommand": {
-              "cmd": "C:\Program Files\Git\bin\bash.EXE",
-              "args": [
-                "/c/actions-runner/_work/nym/nym/nym-wallet/src-tauri/CodeSignTool.sh",
-                "sign",
-                "-username ${{ secrets.SSL_COM_USERNAME }}",
-                "-password ${{ secrets.SSL_COM_PASSWORD }}",
-                "-credential_id ${{ steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}",
-                "-totp_secret ${{ secrets.SSL_COM_TOTP_SECRET }}",
-                "-program_name NymWallet",
-                "-input_file_path",
-                "%1",
-                "-override"
-              ]
+          set -euo pipefail
+          if ! command -v cygpath >/dev/null 2>&1; then
+            echo "cygpath not found; install Git for Windows or use bash from Git SDK"
+            exit 1
+          fi
+          export SCRIPT_UNIX="$(cygpath -u "$GITHUB_WORKSPACE/nym-wallet/src-tauri/CodeSignTool.sh")"
+          yq eval --inplace '
+            .bundle.windows += {
+              "signCommand": {
+                "cmd": "C:/Program Files/Git/bin/bash.exe",
+                "args": [
+                  strenv(SCRIPT_UNIX),
+                  "sign",
+                  ("-username " + strenv(SSL_SIGN_USER)),
+                  ("-password " + strenv(SSL_SIGN_PASS)),
+                  ("-credential_id " + strenv(SSL_SIGN_CRED)),
+                  ("-totp_secret " + strenv(SSL_SIGN_TOTP)),
+                  "-program_name NymWallet",
+                  "-input_file_path",
+                  "%1",
+                  "-override"
+                ]
+              }
             }
-          }' tauri.conf.json
+          ' tauri.conf.json
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000

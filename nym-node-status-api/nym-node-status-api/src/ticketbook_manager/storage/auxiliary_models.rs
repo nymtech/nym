@@ -5,34 +5,47 @@ use anyhow::bail;
 use nym_credentials::IssuedTicketBook;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_gateway_probe::types::AttachedTicket;
+use nym_validator_client::nym_api::EpochId;
 use sqlx::FromRow;
 use time::Date;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-pub(super) struct RetrievedTicketbook {
-    pub ticketbook_id: i32,
-    pub total_tickets: u32,
-    pub spent_tickets: u32,
-    pub ticketbook: IssuedTicketBook,
+pub(crate) struct RetrievedTicketbook {
+    usable_index: u32,
+    ticketbook: IssuedTicketBook,
 }
 
-impl TryFrom<RetrievedTicketbook> for AttachedTicket {
-    type Error = anyhow::Error;
-
-    fn try_from(retrieved: RetrievedTicketbook) -> Result<Self, Self::Error> {
+impl RetrievedTicketbook {
+    pub fn new(ticketbook: IssuedTicketBook) -> anyhow::Result<Self> {
+        let usable_index = ticketbook.spent_tickets() as u32 - 1;
         // spent_tickets is the post-increment number from the DB: the ticket we're
-        // handing out has already been counted as "used" in the DB, but hasn't actually
+        // handing out has already been counted as "used" in the DB, but has NOT YET
         // been spent yet by the recipient. To get its 0-based index in the ticketbook,
         // subtract 1 (e.g. spent_tickets=1, the ticket at index 0).
-        if retrieved.spent_tickets < 1 {
+        if usable_index < 1 {
             bail!("Malformed ticket: cannot convert from ticket with spent_tickets=0");
         }
-        let ticket = AttachedTicket {
-            ticketbook: retrieved.ticketbook.pack(),
-            usable_index: retrieved.spent_tickets - 1,
-        };
+        Ok(Self {
+            usable_index,
+            ticketbook,
+        })
+    }
 
-        Ok(ticket)
+    pub fn epoch_id(&self) -> EpochId {
+        self.ticketbook.epoch_id()
+    }
+
+    pub fn expiration_date(&self) -> time::Date {
+        self.ticketbook.expiration_date()
+    }
+}
+
+impl From<RetrievedTicketbook> for AttachedTicket {
+    fn from(retrieved: RetrievedTicketbook) -> Self {
+        AttachedTicket {
+            ticketbook: retrieved.ticketbook.pack(),
+            usable_index: retrieved.usable_index,
+        }
     }
 }
 

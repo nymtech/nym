@@ -67,9 +67,10 @@ impl TicketbookManagerState {
 
         for typ in &self.buffered_ticket_types {
             debug!("attempting to get materials for ticket of type {typ}");
-            if let Some((ticket, epoch_id, expiration_date)) =
-                self.storage.next_ticket(*typ, testrun_id).await?
-            {
+            if let Some(ticket) = self.storage.next_ticket(*typ, testrun_id).await? {
+                let epoch_id = ticket.epoch_id();
+                let expiration_date = ticket.expiration_date();
+
                 debug!(
                     "retrieved ticket corresponds to epoch {epoch_id} and expiration date {expiration_date}"
                 );
@@ -99,7 +100,7 @@ impl TicketbookManagerState {
                     );
                 }
 
-                attached_tickets.push(ticket)
+                attached_tickets.push(ticket.into())
             } else {
                 warn!("no tickets of type {typ} available in storage")
             }

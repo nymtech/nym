@@ -8,6 +8,7 @@ use crate::http::api::{build_router, run_http_server};
 use crate::http::state::{AppState, KnownAgents};
 use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
+use crate::orchestrator::stale_results_eviction::StaleResultsEviction;
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
     NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress, TestType,
@@ -26,6 +27,7 @@ use zeroize::Zeroizing;
 
 pub(crate) mod config;
 mod node_refresher;
+mod stale_results_eviction;
 pub(crate) mod testruns;
 
 pub(crate) struct NetworkMonitorOrchestrator {
@@ -152,7 +154,20 @@ impl NetworkMonitorOrchestrator {
             self.metrics_http_auth_token.clone(),
         );
 
-        // 4. start all the tasks
+        // 4. build task for evicting stale test run results
+        let stale_results_eviction = StaleResultsEviction::new(
+            self.storage.clone(),
+            self.config.testrun_eviction_age,
+            self.config.test_timeout,
+        );
+
+        // 5. evict stale data before starting anything else
+        stale_results_eviction
+            .evict_stale_results()
+            .await
+            .context("failed to evict stale data")?;
+
+        // 6. start all the tasks
         // http server
         let http_server_fut = run_http_server(
             http_router,
@@ -167,6 +182,10 @@ impl NetworkMonitorOrchestrator {
                 node_refresher.run().await;
             },
             "node-refresher",
+        );
+        self.shutdown_manager.try_spawn_named(
+            async move { stale_results_eviction.run().await },
+            "stale-data-eviction",
         );
 
         error!("unimplemented");

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BackdropProps, Box, CircularProgress, Fade, Modal, Stack, Typography, SxProps } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { alpha, useTheme, type Theme } from '@mui/material/styles';
 
 export const LoadingModal: FCWithChildren<{
   text?: string;
@@ -10,20 +10,21 @@ export const LoadingModal: FCWithChildren<{
   const theme = useTheme();
   const { sx: backdropSx, ...backdropRest } = backdropProps || {};
 
-  let extraBackdropSx: SxProps[] = [];
+  const extraBackdropSx: SxProps<Theme>[] = [];
   if (Array.isArray(backdropSx)) {
-    extraBackdropSx = backdropSx as SxProps[];
+    extraBackdropSx.push(...(backdropSx as readonly SxProps<Theme>[]));
   } else if (backdropSx) {
-    extraBackdropSx = [backdropSx];
+    extraBackdropSx.push(backdropSx as SxProps<Theme>);
   }
 
-  const backdropSxArray = [
+  // MUI merges `sx` arrays at runtime; a plain TS array is not inferred as SxProps.
+  const backdropSxMerged: SxProps<Theme> = [
     {
       backdropFilter: 'blur(12px)',
       backgroundColor: alpha(theme.palette.common.black, theme.palette.mode === 'dark' ? 0.5 : 0.34),
     },
     ...extraBackdropSx,
-  ];
+  ] as SxProps<Theme>;
 
   return (
     <Modal
@@ -32,7 +33,7 @@ export const LoadingModal: FCWithChildren<{
       disableAutoFocus
       BackdropProps={{
         ...backdropRest,
-        sx: backdropSxArray,
+        sx: backdropSxMerged,
       }}
     >
       <Fade in timeout={200}>

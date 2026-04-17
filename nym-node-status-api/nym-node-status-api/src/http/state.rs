@@ -456,7 +456,6 @@ impl HttpCache {
                     .await
                     .into_iter()
                     .flat_map(|gw| gw.ip_addresses)
-                    .filter(IpAddr::is_ipv4)
                     .map(|ip| ip.to_string())
                     .sorted()
                     .dedup()

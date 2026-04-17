@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::storage::manager::StorageManager;
-use crate::storage::models::{NewNymNode, NewTestRun, NymNode};
+use crate::storage::models::{NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress};
 use anyhow::Context;
+use nym_network_monitor_orchestrator_requests::models::{
+    NymNodeData, PagedResult, Pagination, TestRunData, TestRunsInProgressResponse,
+};
 use nym_validator_client::client::NodeId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
@@ -63,18 +66,17 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Inserts a completed test run.
-    pub(crate) async fn insert_test_run(
-        &self,
-        run: &NewTestRun,
-        node_id: NodeId,
-    ) -> anyhow::Result<()> {
+    /// Inserts a completed test run, updates the node's `last_testrun` pointer and
+    /// clears the corresponding `testrun_in_progress` marker. The target node is
+    /// taken from [`NewTestRun::node_id`].
+    pub(crate) async fn insert_test_run(&self, run: &NewTestRun) -> anyhow::Result<()> {
+        let node_id = run.node_id;
         let run_id = self.storage_manager.insert_test_run(run).await?;
         self.storage_manager
-            .set_node_last_testrun(node_id as i64, run_id)
+            .set_node_last_testrun(node_id, run_id)
             .await?;
         self.storage_manager
-            .clear_testrun_in_progress(node_id as i64)
+            .clear_testrun_in_progress(node_id)
             .await?;
         Ok(())
     }
@@ -115,6 +117,66 @@ impl NetworkMonitorStorage {
         self.storage_manager
             .assign_next_testrun(now, last_tested_before)
             .await
+    }
+
+    pub(crate) async fn get_testrun_by_id(&self, id: i64) -> anyhow::Result<Option<TestRun>> {
+        self.storage_manager.get_testrun_by_id(id).await
+    }
+
+    pub(crate) async fn get_nym_node_by_id(
+        &self,
+        node_id: NodeId,
+    ) -> anyhow::Result<Option<NymNode>> {
+        self.storage_manager
+            .get_nym_node_by_id(node_id as i64)
+            .await
+    }
+
+    pub(crate) async fn get_all_testruns_in_progress(
+        &self,
+    ) -> anyhow::Result<Vec<TestRunInProgress>> {
+        self.storage_manager.get_all_testruns_in_progress().await
+    }
+
+    pub(crate) async fn get_nym_nodes_paginated(
+        &self,
+        pagination: Pagination,
+    ) -> anyhow::Result<(Vec<NymNode>, usize)> {
+        let (nodes, total) = self
+            .storage_manager
+            .get_nym_nodes_paginated(pagination.limit(), pagination.offset())
+            .await?;
+
+        Ok((nodes, total as usize))
+    }
+
+    pub(crate) async fn get_testruns_paginated(
+        &self,
+        pagination: Pagination,
+    ) -> anyhow::Result<(Vec<TestRun>, usize)> {
+        let (test_results, total) = self
+            .storage_manager
+            .get_testruns_paginated(pagination.limit(), pagination.offset())
+            .await?;
+
+        Ok((test_results, total as usize))
+    }
+
+    pub(crate) async fn get_testruns_for_node_paginated(
+        &self,
+        node_id: NodeId,
+        pagination: Pagination,
+    ) -> anyhow::Result<(Vec<TestRun>, usize)> {
+        let (test_results, total) = self
+            .storage_manager
+            .get_testruns_for_node_paginated(
+                node_id as i64,
+                pagination.limit(),
+                pagination.offset(),
+            )
+            .await?;
+
+        Ok((test_results, total as usize))
     }
 
     /// Deletes all `testrun` rows older than `eviction_age` relative to the current time.

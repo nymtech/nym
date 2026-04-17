@@ -61,6 +61,7 @@ pub mod routes {
 
             pub const TESTRUN_BY_ID: &str = "/testrun/:id";
             pub const NYM_NODE_BY_NODE_ID: &str = "/nym-node/:node_id";
+            pub const NYM_NODE_TESTRUNS: &str = "/nym-node/:node_id/testruns";
             pub const TESTRUNS_IN_PROGRESS: &str = "/testruns-in-progress";
             pub const TESTRUNS: &str = "/testruns";
             pub const NYM_NODES: &str = "/nym-nodes";
@@ -70,6 +71,11 @@ pub mod routes {
                 nym_node_by_node_id_absolute,
                 results_absolute(),
                 NYM_NODE_BY_NODE_ID
+            );
+            absolute_route!(
+                nym_node_testruns_absolute,
+                results_absolute(),
+                NYM_NODE_TESTRUNS
             );
             absolute_route!(
                 testruns_in_progress_absolute,

@@ -166,7 +166,7 @@ async fn request_testrun(
     }
 
     // 2. attempt to assign a testrun to the agent
-    let assignment = state.testrun_manager.assign_next_testrun().await?;
+    let assignment = state.assign_next_testrun().await?;
     Ok(Json(TestRunAssignmentResponse { assignment }))
 }
 
@@ -203,7 +203,6 @@ async fn submit_testrun_result(
     );
 
     state
-        .testrun_manager
         .submit_testrun_result(body.result, body.node_id)
         .await?;
 

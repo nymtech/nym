@@ -29,6 +29,9 @@ pub(crate) enum ApiError {
 
     #[error("agent hasn't been announced to the contract - can't assign testruns")]
     AgentNotAnnounced,
+
+    #[error("this endpoint has not been implemented yet")]
+    Unimplemented,
 }
 
 impl ApiError {
@@ -41,6 +44,7 @@ impl ApiError {
             ContractFailure | StorageFailure | MalformedStoredData => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
+            Unimplemented => StatusCode::NOT_IMPLEMENTED,
         }
     }
 }

@@ -57,7 +57,27 @@ pub mod routes {
         }
 
         pub mod results {
-            // use super::*;
+            use super::*;
+
+            pub const TESTRUN_BY_ID: &str = "/testrun/:id";
+            pub const NYM_NODE_BY_NODE_ID: &str = "/nym-node/:node_id";
+            pub const TESTRUNS_IN_PROGRESS: &str = "/testruns-in-progress";
+            pub const TESTRUNS: &str = "/testruns";
+            pub const NYM_NODES: &str = "/nym-nodes";
+
+            absolute_route!(testrun_by_id_absolute, results_absolute(), TESTRUN_BY_ID);
+            absolute_route!(
+                nym_node_by_node_id_absolute,
+                results_absolute(),
+                NYM_NODE_BY_NODE_ID
+            );
+            absolute_route!(
+                testruns_in_progress_absolute,
+                results_absolute(),
+                TESTRUNS_IN_PROGRESS
+            );
+            absolute_route!(testruns_absolute, results_absolute(), TESTRUNS);
+            absolute_route!(nym_nodes_absolute, results_absolute(), NYM_NODES);
         }
     }
 }

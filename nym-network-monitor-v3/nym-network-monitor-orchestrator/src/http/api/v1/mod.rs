@@ -18,12 +18,12 @@ pub(crate) fn routes(
     agents_auth: AuthLayer,
     metrics_and_results_auth: AuthLayer,
 ) -> Router<AppState> {
-    let metrics_and_results = Router::new()
-        .nest(routes::v1::METRICS, metrics::routes())
-        .nest(routes::v1::RESULTS, results::routes())
-        .route_layer(metrics_and_results_auth);
-
     Router::new()
         .nest(routes::v1::AGENT, agent::routes(agents_auth))
-        .merge(metrics_and_results)
+        .merge(
+            Router::new()
+                .nest(routes::v1::METRICS, metrics::routes())
+                .nest(routes::v1::RESULTS, results::routes())
+                .route_layer(metrics_and_results_auth),
+        )
 }

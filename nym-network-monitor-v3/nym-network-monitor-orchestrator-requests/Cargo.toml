@@ -15,6 +15,7 @@ publish = false
 anyhow = { workspace = true }
 humantime-serde = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+time = { workspace = true, features = ["serde-well-known"] }
 tracing = { workspace = true }
 utoipa = { workspace = true, optional = true }
 zeroize = { workspace = true, optional = true }

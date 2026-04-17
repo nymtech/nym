@@ -41,6 +41,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.13.0
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install Yarn (classic)
+        shell: bash
+        run: npm install -g yarn@1.22.22
 
       - name: Download EV CodeSignTool from ssl.com
         working-directory: nym-wallet/src-tauri

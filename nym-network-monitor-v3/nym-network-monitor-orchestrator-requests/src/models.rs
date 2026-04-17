@@ -220,33 +220,47 @@ pub const PAGINATION_PAGE_DEFAULT: usize = 0;
 #[cfg_attr(feature = "openapi", into_params(parameter_in = Query))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pagination {
-    pub size: Option<usize>,
+    pub per_page: Option<usize>,
     pub page: Option<usize>,
 }
 
 impl Default for Pagination {
     fn default() -> Self {
         Self {
-            size: Some(PAGINATION_SIZE_DEFAULT),
+            per_page: Some(PAGINATION_SIZE_DEFAULT),
             page: Some(PAGINATION_PAGE_DEFAULT),
         }
     }
 }
 
 impl Pagination {
-    pub fn new(size: Option<usize>, page: Option<usize>) -> Self {
-        Self { size, page }
+    pub fn new(per_page: Option<usize>, page: Option<usize>) -> Self {
+        Self { per_page, page }
     }
 
-    /// Resolves the optional fields to concrete values, applying the default
-    /// page/size and the maximum-size cap. Returns `(size, page)`.
-    pub fn into_inner_values(self) -> (usize, usize) {
-        (
-            self.size
-                .unwrap_or(PAGINATION_SIZE_DEFAULT)
-                .min(PAGINATION_SIZE_MAX),
-            self.page.unwrap_or(PAGINATION_PAGE_DEFAULT),
-        )
+    /// Resolved page size — defaults to [`PAGINATION_SIZE_DEFAULT`] when absent
+    /// and is capped at [`PAGINATION_SIZE_MAX`].
+    pub fn per_page(&self) -> usize {
+        self.per_page
+            .unwrap_or(PAGINATION_SIZE_DEFAULT)
+            .min(PAGINATION_SIZE_MAX)
+    }
+
+    /// Resolved page index — defaults to [`PAGINATION_PAGE_DEFAULT`] when absent.
+    pub fn page(&self) -> usize {
+        self.page.unwrap_or(PAGINATION_PAGE_DEFAULT)
+    }
+
+    /// Value to bind to a SQL `LIMIT ?` clause. Equivalent to
+    /// [`Self::per_page`] cast to the `i64` sqlx bind type.
+    pub fn limit(&self) -> i64 {
+        self.per_page() as i64
+    }
+
+    /// Value to bind to a SQL `OFFSET ?` clause, i.e. `page * per_page`.
+    /// Saturating to avoid overflow on absurdly large `page` values from a client.
+    pub fn offset(&self) -> i64 {
+        (self.page() as i64).saturating_mul(self.limit())
     }
 }
 
@@ -260,9 +274,15 @@ pub struct PagedResult<T> {
     pub items: Vec<T>,
 }
 
-/// Placeholder representation of a completed test run as exposed over the
-/// results API. The exact shape is TBD — expect this to grow additional
-/// fields such as timing breakdowns and error details.
+/// Discriminator for the type of node targeted by a test run.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TestType {
+    Mixnode,
+    Gateway,
+}
+
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunData {
@@ -272,12 +292,19 @@ pub struct TestRunData {
     /// Node that was tested.
     pub node_id: u32,
 
+    /// Kind of node that was tested.
+    pub test_type: TestType,
+
+    /// When the test run completed and was recorded.
+    /// Serialised as an RFC 3339 timestamp string.
+    #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub test_timestamp: OffsetDateTime,
+
     /// The test run result itself.
     pub result: TestRunResult,
 }
 
-/// Placeholder representation of a nym-node as exposed over the results API,
-/// optionally carrying the node's most recent completed test run.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NymNodeData {
@@ -292,8 +319,6 @@ pub struct NymNodeData {
     pub latest_testrun: Option<TestRunData>,
 }
 
-/// Placeholder representation of a test run that is currently assigned to an
-/// agent and has not yet reported back a result.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunInProgressData {

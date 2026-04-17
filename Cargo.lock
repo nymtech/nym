@@ -5547,7 +5547,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.77"
+version = "1.1.78"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5792,7 +5792,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.74"
+version = "1.1.75"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5875,7 +5875,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.74"
+version = "1.1.75"
 dependencies = [
  "bs58",
  "clap",
@@ -7284,7 +7284,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.75"
+version = "1.1.76"
 dependencies = [
  "addr",
  "anyhow",
@@ -7334,7 +7334,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.29.0"
+version = "1.30.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -7886,7 +7886,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.74"
+version = "1.1.75"
 dependencies = [
  "bs58",
  "clap",
@@ -8684,7 +8684,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.39"
+version = "0.1.40"
 dependencies = [
  "anyhow",
  "bytes",

@@ -79,10 +79,21 @@ pub(crate) async fn import_bandwidth(
     // 2. import actual tickets
     for ticket in attached_ticket_materials.attached_tickets {
         let ticketbook = ticket.ticketbook.try_unpack()?;
+        let total = ticketbook.params_total_tickets();
+        if ticket.usable_index as u64 >= total {
+            error!(
+                "⚠️ received usable_index {} >= params_total_tickets {} for {}. \
+                 This ticket is unusable: spending will fail with SpendExceedsAllowance.",
+                ticket.usable_index,
+                total,
+                ticketbook.ticketbook_type()
+            );
+        }
         info!(
-            "importing partial ticketbook {}. index to use: {}",
+            "importing partial ticketbook {}. index to use: {}, params_total_tickets: {}",
             ticketbook.ticketbook_type(),
-            ticket.usable_index
+            ticket.usable_index,
+            total,
         );
         bandwidth_importer
             .import_partial_ticketbook(&ticketbook, ticket.usable_index, ticket.usable_index)

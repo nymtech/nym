@@ -4,7 +4,9 @@
 use nym_crypto::asymmetric::ed25519;
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519;
-use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
+use nym_crypto::asymmetric::x25519::serde_helpers::{
+    bs58_x25519_pubkey, option_bs58_x25519_pubkey,
+};
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
@@ -218,7 +220,7 @@ pub const PAGINATION_PAGE_DEFAULT: usize = 0;
 /// `page` defaults to [`PAGINATION_PAGE_DEFAULT`].
 #[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
 #[cfg_attr(feature = "openapi", into_params(parameter_in = Query))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Pagination {
     pub per_page: Option<usize>,
     pub page: Option<usize>,
@@ -315,8 +317,40 @@ pub struct NymNodeData {
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub identity_key: ed25519::PublicKey,
 
-    /// The most recent completed test run against this node, if any.
-    pub latest_testrun: Option<TestRunData>,
+    /// When this node was last observed as bonded in the contract.
+    #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub last_seen_bonded: OffsetDateTime,
+
+    /// Mixnet socket address (host:port) at which the node accepts sphinx packets.
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub mixnet_socket_address: Option<SocketAddr>,
+
+    /// X25519 public key used for Noise handshakes.
+    /// `None` if retrieval from the node failed.
+    #[serde(with = "option_bs58_x25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub noise_key: Option<x25519::PublicKey>,
+
+    /// Sphinx public key used for packet encryption.
+    /// `None` if retrieval from the node failed.
+    /// Always `None`/`Some` together with `key_rotation_id`.
+    #[serde(with = "option_bs58_x25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub sphinx_key: Option<x25519::PublicKey>,
+
+    /// Key rotation epoch ID that `sphinx_key` belongs to.
+    /// `None` if retrieval from the node failed.
+    /// Always `None`/`Some` together with `sphinx_key`.
+    pub key_rotation_id: Option<i64>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NymNodeWithTestRun {
+    pub node: NymNodeData,
+
+    pub latest_test_run: Option<TestRunData>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

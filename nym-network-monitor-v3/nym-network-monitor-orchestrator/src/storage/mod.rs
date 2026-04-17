@@ -4,9 +4,7 @@
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress};
 use anyhow::Context;
-use nym_network_monitor_orchestrator_requests::models::{
-    NymNodeData, PagedResult, Pagination, TestRunData, TestRunsInProgressResponse,
-};
+use nym_network_monitor_orchestrator_requests::models::Pagination;
 use nym_validator_client::client::NodeId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};

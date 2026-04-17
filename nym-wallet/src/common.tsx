@@ -1,8 +1,6 @@
 import React, { ComponentType, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { BrowserRouter, HashRouter } from 'react-router-dom';
-
-type RouterComponent = ComponentType<{ children?: React.ReactNode }>;
 import { SnackbarProvider } from 'notistack';
 import { AppProvider } from './context/main';
 import { ErrorFallback } from './components';
@@ -10,6 +8,8 @@ import { NymWalletTheme } from './theme';
 import { maximizeWindow } from './utils';
 import { config } from './config';
 import { useTauriTextEditingClipboard } from './hooks/useTauriTextEditingClipboard';
+
+type RouterComponent = ComponentType<{ children?: React.ReactNode }>;
 
 const ClipboardBridge: FCWithChildren = ({ children }) => {
   useTauriTextEditingClipboard();

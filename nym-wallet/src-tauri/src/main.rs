@@ -220,7 +220,7 @@ fn main() {
             app::react::set_react_state,
             app::react::get_react_state,
         ])
-        .menu(|app| menu::build_app_menu(app))
+        .menu(menu::build_app_menu)
         .on_menu_event(|app, event| {
             if event.id() == SHOW_LOG_WINDOW {
                 let _r = help::log::help_log_toggle_window(app.app_handle().clone());

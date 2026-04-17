@@ -158,12 +158,12 @@ export const AddAccountModal = () => {
       setData((d) => ({ ...d, mnemonic: mnemon }));
     } catch (e) {
       setData((d) => ({ ...d, mnemonic: '' }));
-      const message =
-        typeof e === 'string'
-          ? e
-          : e instanceof Error
-            ? e.message
-            : 'Could not generate a recovery phrase. Try again.';
+      let message = 'Could not generate a recovery phrase. Try again.';
+      if (typeof e === 'string') {
+        message = e;
+      } else if (e instanceof Error) {
+        message = e.message;
+      }
       setError(message);
     }
   };

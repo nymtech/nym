@@ -10,12 +10,19 @@ export const LoadingModal: FCWithChildren<{
   const theme = useTheme();
   const { sx: backdropSx, ...backdropRest } = backdropProps || {};
 
+  let extraBackdropSx: SxProps[] = [];
+  if (Array.isArray(backdropSx)) {
+    extraBackdropSx = backdropSx as SxProps[];
+  } else if (backdropSx) {
+    extraBackdropSx = [backdropSx];
+  }
+
   const backdropSxArray = [
     {
       backdropFilter: 'blur(12px)',
       backgroundColor: alpha(theme.palette.common.black, theme.palette.mode === 'dark' ? 0.5 : 0.34),
     },
-    ...(Array.isArray(backdropSx) ? backdropSx : backdropSx ? [backdropSx] : []),
+    ...extraBackdropSx,
   ];
 
   return (

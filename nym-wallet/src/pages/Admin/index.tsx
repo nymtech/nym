@@ -81,6 +81,8 @@ export const Admin: FCWithChildren = () => {
         setParams(undefined);
         const msg = typeof e === 'string' ? e : String(e);
         if (!msg.includes('temporarily disabled')) {
+          // Admin diagnostics only; contract fetch failures are otherwise silent in UI.
+          // eslint-disable-next-line no-console -- intentional dev/admin visibility
           console.error('get_contract_settings failed', e);
         }
       } finally {

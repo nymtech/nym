@@ -24,6 +24,9 @@ jobs:
       - name: Build TypeScript packages (wallet depends on @nymproject/types, etc.)
         run: yarn build:types
 
+      - name: Build @nymproject/mui-theme and @nymproject/react (wallet imports subpaths)
+        run: yarn build:packages
+
       - name: Typecheck nym-wallet
         run: yarn --cwd nym-wallet tsc
 

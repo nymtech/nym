@@ -39,13 +39,13 @@ mod tests {
             "data:text/html,hi",
             "ftp://example.com/",
         ] {
-        let res = validate_open_url_scheme(url);
-        assert!(res.is_err(), "expected reject: {url}");
-        let msg = res.unwrap_err();
-        assert!(
-            msg.contains("not allowed") || msg.contains("Invalid URL"),
-            "{url}: {msg}"
-        );
+            let res = validate_open_url_scheme(url);
+            assert!(res.is_err(), "expected reject: {url}");
+            let msg = res.unwrap_err();
+            assert!(
+                msg.contains("not allowed") || msg.contains("Invalid URL"),
+                "{url}: {msg}"
+            );
         }
     }
 }

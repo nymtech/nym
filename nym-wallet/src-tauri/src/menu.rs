@@ -16,7 +16,9 @@ pub fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> 
     if std::env::var("NYM_WALLET_ENABLE_LOG").is_ok() {
         let help_text = MenuItemBuilder::with_id(SHOW_LOG_WINDOW, "Show logs").build(app)?;
 
-        let help_submenu = SubmenuBuilder::new(app, "Help").items(&[&help_text]).build()?;
+        let help_submenu = SubmenuBuilder::new(app, "Help")
+            .items(&[&help_text])
+            .build()?;
 
         menu_builder = menu_builder.item(&help_submenu);
     }

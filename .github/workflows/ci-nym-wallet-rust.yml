@@ -41,6 +41,9 @@ jobs:
           sed -i.bak '1s/^/\[profile.dev\]\ndebug = false\n\n/' Cargo.toml
           git diff
 
+      - name: Ensure nym-wallet/dist exists for Tauri
+        run: mkdir -p nym-wallet/dist
+
       - name: Build all binaries
         uses: actions-rs/cargo@v1
         with:

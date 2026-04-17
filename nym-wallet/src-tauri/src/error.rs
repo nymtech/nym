@@ -13,9 +13,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum BackendError {
     #[error(transparent)]
-    TypesError {
-        source: TypesError,
-    },
+    TypesError { source: TypesError },
     #[error(transparent)]
     Bip39Error {
         #[from]
@@ -196,9 +194,7 @@ fn nyxd_error_is_vesting_contract_no_account(err: &NyxdError) -> bool {
     }
     match err {
         NyxdError::AbciError {
-            log,
-            pretty_log,
-            ..
+            log, pretty_log, ..
         } => {
             pretty_log
                 .as_ref()

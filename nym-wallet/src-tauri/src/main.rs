@@ -23,7 +23,6 @@ use crate::state::WalletState;
 mod config;
 mod error;
 mod log;
-mod webview_theme;
 mod menu;
 mod network_config;
 mod operations;
@@ -31,6 +30,7 @@ mod platform_constants;
 mod state;
 mod utils;
 mod wallet_storage;
+mod webview_theme;
 
 #[allow(clippy::too_many_lines)]
 fn main() {

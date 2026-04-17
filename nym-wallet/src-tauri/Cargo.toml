@@ -7,8 +7,8 @@ edition = "2021"
 license = ""
 repository = ""
 rust-version = "1.85"
-default-run = "NymWallet"
 build = "src/build.rs"
+default-run = "NymWallet"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

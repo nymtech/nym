@@ -37,12 +37,12 @@ jobs:
       - name: Setup MSBuild.exe
         uses: microsoft/setup-msbuild@v2
 
+      # No cache:yarn here: setup-node needs yarn on PATH to populate the cache, but this runner
+      # only gets yarn from the step below.
       - name: Node
         uses: actions/setup-node@v4
         with:
           node-version: 22.13.0
-          cache: yarn
-          cache-dependency-path: yarn.lock
 
       - name: Install Yarn (classic)
         shell: bash

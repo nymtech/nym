@@ -159,9 +159,14 @@ impl NetworkMonitorOrchestrator {
             self.storage.clone(),
             self.config.testrun_eviction_age,
             self.config.test_timeout,
+            self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 5. evict stale data before starting anything else
+        // 5. evict stale data before starting anything else so any test runs
+        //    left "in progress" by a prior crashed/restarted orchestrator are
+        //    freed up before agents start polling for work. Note: this is a
+        //    blocking call — a hung DB at start-up will prevent the
+        //    orchestrator from serving, which is the desired fail-fast here.
         stale_results_eviction
             .evict_stale_results()
             .await

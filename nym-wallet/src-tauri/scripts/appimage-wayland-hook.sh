@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Reference only: Tauri AppImage bundling does not place /apprun-hooks/ into the final image (only /usr/ is staged).
+# Wayland defaults and WEBKIT_DISABLE_DMABUF_RENDERER are applied in src/main.rs (configure_linux_wayland_defaults).
 
 if [ -z "${WAYLAND_DISPLAY:-}" ]; then
   return 0 2>/dev/null || exit 0

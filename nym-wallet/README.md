@@ -19,9 +19,9 @@ The Nym desktop wallet enables you to use the Nym network and take advantage of 
 
 Some rolling distributions (for example Arch-based) or Wayland compositors can hit WebKitGTK / EGL errors at startup (for example `EGL_BAD_PARAMETER`, `EGL_BAD_ALLOC`, or `Could not create default EGL display`).
 
-**AppImage (Wayland):** The bundle installs an AppRun hook that preloads the system `libwayland-client` when possible, sets `GDK_BACKEND`, `GDK_SCALE`, `GDK_DPI_SCALE`, and defaults `WEBKIT_DISABLE_DMABUF_RENDERER=1`. Override if needed: `WEBKIT_DISABLE_DMABUF_RENDERER=0`, or set your own `GDK_*` / `LD_PRELOAD` before launching.
+**Wayland (all Linux bundles, including AppImage):** On startup, when `WAYLAND_DISPLAY` is set, the wallet sets `GDK_BACKEND`, `GDK_SCALE`, `GDK_DPI_SCALE`, and defaults `WEBKIT_DISABLE_DMABUF_RENDERER=1` before the webview initializes. Override if needed: `WEBKIT_DISABLE_DMABUF_RENDERER=0`, or set your own `GDK_*` / `LD_PRELOAD` before launching. (Tauri’s AppImage bundler only copies paths under `/usr/` into the image, so an `apprun-hooks/` file in config would not be included; defaults live in `main()` instead.)
 
-**`.deb`, installed binary, or `target/release` binary:** Use the same variables in a wrapper script or in a `.desktop` file, for example:
+**`.deb`, installed binary, or `target/release` binary:** You can also set the same variables in a wrapper script or `.desktop` file, for example:
 
 `Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 GDK_BACKEND=wayland GDK_SCALE=1 GDK_DPI_SCALE=0.8 /path/to/NymWallet`
 

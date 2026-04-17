@@ -27,9 +27,7 @@
     },
     "linux": {
       "appimage": {
-        "files": {
-          "/apprun-hooks/99-nym-wayland.sh": "scripts/appimage-wayland-hook.sh"
-        }
+        "bundleMediaFramework": false
       },
       "deb": {
         "depends": []

@@ -87,13 +87,14 @@ jobs:
           EXTRACT_DIR=$(mktemp -d)
           cd "${EXTRACT_DIR}"
           "${APPIMAGE_ABS}" --appimage-extract
+          # Tauri only stages appimage "files" under /usr/ into the AppDir; paths like /apprun-hooks/ never reach the image.
+          # Wayland + WEBKIT_DISABLE_DMABUF_RENDERER defaults are applied in main() instead (see configure_linux_wayland_defaults).
           HOOK=$(find squashfs-root -name '99-nym-wayland.sh' 2>/dev/null | head -n 1)
-          if [ -z "${HOOK}" ]; then
-            echo "apprun-hooks/99-nym-wayland.sh not found; listing squashfs-root:"
-            find squashfs-root -type f 2>/dev/null | head -80 || true
-            exit 1
+          if [ -n "${HOOK}" ]; then
+            echo "Found legacy apprun hook at ${HOOK}"
+          else
+            echo "No apprun-hooks/99-nym-wayland.sh (expected): Wayland defaults are set in-process."
           fi
-          echo "Found Wayland hook at ${HOOK}"
           find squashfs-root/usr/lib -maxdepth 6 \
             \( -name 'libwayland-client.so*' -o -name 'libEGL.so*' -o -name 'libgbm.so*' \) \
             2>/dev/null | sort > "${GITHUB_WORKSPACE}/nym-wallet/appimage-bundled-graphics-libs.txt"

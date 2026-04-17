@@ -251,6 +251,9 @@ fn configure_linux_wayland_defaults() {
             if std::env::var_os("GDK_DPI_SCALE").is_none() {
                 unsafe { std::env::set_var("GDK_DPI_SCALE", "0.8") };
             }
+            if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+                unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+            }
         }
     }
 }

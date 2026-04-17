@@ -10,9 +10,6 @@ use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
 use crate::orchestrator::stale_results_eviction::StaleResultsEviction;
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::{
-    NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress, TestType,
-};
 use anyhow::Context;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
@@ -20,7 +17,6 @@ use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
 use nym_validator_client::nyxd::{AccountId, bip39};
 use std::sync::Arc;
-use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use tracing::error;
 use zeroize::Zeroizing;
@@ -46,8 +42,8 @@ pub(crate) struct NetworkMonitorOrchestrator {
     /// Bearer token presented by agents when requesting work assignments and submitting results.
     pub(crate) agents_http_auth_token: Arc<Zeroizing<String>>,
 
-    /// Bearer token required when attempting to access the metrics endpoint.
-    pub(crate) metrics_http_auth_token: Arc<Zeroizing<String>>,
+    /// Bearer token required when attempting to access the metrics or results endpoints.
+    pub(crate) metrics_and_results_http_auth_token: Arc<Zeroizing<String>>,
 
     /// Handle to the local SQLite database used to track nodes and test runs.
     pub(crate) storage: NetworkMonitorStorage,
@@ -63,7 +59,7 @@ impl NetworkMonitorOrchestrator {
         config: Config,
         identity_keys: Arc<ed25519::KeyPair>,
         agents_http_auth_token: Zeroizing<String>,
-        metrics_http_auth_token: Zeroizing<String>,
+        metrics_and_results_http_auth_token: Zeroizing<String>,
         mnemonic: bip39::Mnemonic,
     ) -> anyhow::Result<Self> {
         let storage = NetworkMonitorStorage::init(&config.database_path).await?;
@@ -78,7 +74,7 @@ impl NetworkMonitorOrchestrator {
             client,
             identity_keys,
             agents_http_auth_token: Arc::new(agents_http_auth_token),
-            metrics_http_auth_token: Arc::new(metrics_http_auth_token),
+            metrics_and_results_http_auth_token: Arc::new(metrics_and_results_http_auth_token),
             storage,
             shutdown_manager: ShutdownManager::build_new_default()?,
         };
@@ -151,7 +147,7 @@ impl NetworkMonitorOrchestrator {
         let http_router = build_router(
             app_state,
             self.agents_http_auth_token.clone(),
-            self.metrics_http_auth_token.clone(),
+            self.metrics_and_results_http_auth_token.clone(),
         );
 
         // 4. build task for evicting stale test run results
@@ -188,84 +184,13 @@ impl NetworkMonitorOrchestrator {
             },
             "node-refresher",
         );
+        // stale results eviction
         self.shutdown_manager.try_spawn_named(
             async move { stale_results_eviction.run().await },
             "stale-data-eviction",
         );
 
-        error!("unimplemented");
-        self.make_clippy_happy().await?;
-
         self.shutdown_manager.run_until_shutdown().await;
-        Ok(())
-    }
-
-    // a placeholder to make sure to use all types within the storage
-    // without having to mark the whole module with allow(dead_code)
-    pub(crate) async fn make_clippy_happy(&self) -> anyhow::Result<()> {
-        let dummy_node = NewNymNode {
-            node_id: 0,
-            identity_key: "".to_string(),
-            last_seen_bonded: OffsetDateTime::now_utc(),
-            mixnet_socket_address: None,
-            noise_key: None,
-            sphinx_key: None,
-            key_rotation_id: None,
-        };
-        let dummy_testrun = NewTestRun {
-            test_type: TestType::Mixnode,
-            test_timestamp: OffsetDateTime::now_utc(),
-            ingress_noise_handshake_us: None,
-            egress_noise_handshake_us: None,
-            sphinx_packet_delay_us: 0,
-            packets_sent: 0,
-            packets_received: 0,
-            approximate_latency_us: None,
-            packets_rtt_min_us: None,
-            packets_rtt_mean_us: None,
-            packets_rtt_median_us: None,
-            packets_rtt_max_us: None,
-            packets_rtt_std_dev_us: None,
-            sending_latency_min_us: None,
-            sending_latency_mean_us: None,
-            sending_latency_median_us: None,
-            sending_latency_max_us: None,
-            sending_latency_std_dev_us: None,
-            received_duplicates: false,
-            error: None,
-        };
-
-        self.storage.insert_test_run(&dummy_testrun, 123).await?;
-        self.storage
-            .clear_timed_out_testruns_in_progress(self.config.test_timeout)
-            .await?;
-        self.storage
-            .assign_next_testrun(self.config.test_interval)
-            .await?;
-        self.storage
-            .evict_old_testruns(self.config.testrun_eviction_age)
-            .await?;
-
-        let nn = NymNode {
-            inner: dummy_node,
-            last_testrun: None,
-        };
-        let _ = nn.last_testrun;
-
-        let tr = TestRun {
-            id: 0,
-            inner: dummy_testrun,
-        };
-        let _ = tr.id;
-        let _ = tr.inner;
-
-        let tr = TestRunInProgress {
-            node_id: 0,
-            started_at: OffsetDateTime::now_utc(),
-        };
-        let _ = tr.node_id;
-        let _ = tr.started_at;
-
         Ok(())
     }
 }

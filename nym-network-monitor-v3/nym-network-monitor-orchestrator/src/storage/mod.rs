@@ -84,7 +84,7 @@ impl NetworkMonitorStorage {
     pub(crate) async fn clear_timed_out_testruns_in_progress(
         &self,
         timeout: Duration,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<u64> {
         let cutoff = OffsetDateTime::now_utc() - timeout;
         self.storage_manager
             .clear_timed_out_testruns_in_progress(cutoff)
@@ -125,7 +125,7 @@ impl NetworkMonitorStorage {
     ///
     /// Any `nym_node.last_testrun` foreign key that pointed at an evicted row is automatically
     /// set to `NULL` by the database (`ON DELETE SET NULL`).
-    pub(crate) async fn evict_old_testruns(&self, eviction_age: Duration) -> anyhow::Result<()> {
+    pub(crate) async fn evict_old_testruns(&self, eviction_age: Duration) -> anyhow::Result<u64> {
         let cutoff = OffsetDateTime::now_utc() - eviction_age;
         self.storage_manager.evict_old_testruns(cutoff).await
     }

@@ -136,14 +136,14 @@ impl StorageManager {
     pub(crate) async fn clear_timed_out_testruns_in_progress(
         &self,
         cutoff: OffsetDateTime,
-    ) -> anyhow::Result<()> {
-        sqlx::query!(
+    ) -> anyhow::Result<u64> {
+        let res = sqlx::query!(
             "DELETE FROM testrun_in_progress WHERE started_at < ?",
             cutoff,
         )
         .execute(&self.connection_pool)
         .await?;
-        Ok(())
+        Ok(res.rows_affected())
     }
 
     /// Removes the in-progress marker for a node once its test run has completed or been abandoned.
@@ -230,11 +230,11 @@ impl StorageManager {
     ///
     /// Any `nym_node.last_testrun` foreign key that pointed at an evicted row is automatically
     /// set to `NULL` by the database (`ON DELETE SET NULL`).
-    pub(crate) async fn evict_old_testruns(&self, cutoff: OffsetDateTime) -> anyhow::Result<()> {
-        sqlx::query!("DELETE FROM testrun WHERE test_timestamp < ?", cutoff)
+    pub(crate) async fn evict_old_testruns(&self, cutoff: OffsetDateTime) -> anyhow::Result<u64> {
+        let res = sqlx::query!("DELETE FROM testrun WHERE test_timestamp < ?", cutoff)
             .execute(&self.connection_pool)
             .await?;
-        Ok(())
+        Ok(res.rows_affected())
     }
 
     /// Updates `nym_node.last_testrun` to point at the given test run ID.

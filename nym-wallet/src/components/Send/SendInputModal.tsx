@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Box, Stack, Typography, SxProps, FormControlLabel, Checkbox, Alert } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import Big from 'big.js';
@@ -86,113 +86,131 @@ export const SendInputModal = ({
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
   const [errorFee, setErrorFee] = useState<string | undefined>();
   const [recipientTouched, setRecipientTouched] = useState(false);
+  /** Avoid "Amount is required" on modal open; show empty errors only after user edits the field. */
+  const [amountTouched, setAmountTouched] = useState(false);
+  /** Focus trap can fire a spurious blur on open; delay recipient blur validation slightly. */
+  const [recipientBlurReady, setRecipientBlurReady] = useState(false);
   const theme = useTheme();
 
   // Calculate noAccount at the component root level instead of using useEffect
   const noAccount = !balance || balance === '0' || parseFloat(balance) === 0;
 
-  const validateSendAmount = async (value: DecCoin) => {
-    let newValidatedValue = true;
-    let errorAmountMessage;
+  const validateSendAmount = useCallback(
+    async (value: DecCoin, assumeAmountInteracted = false) => {
+      let newValidatedValue = true;
+      let errorAmountMessage;
+      const showEmptyFieldErrors = assumeAmountInteracted || amountTouched;
 
-    if (noAccount) {
-      newValidatedValue = false;
-      errorAmountMessage = 'You need to acquire NYMs before sending. Try using the Buy section in the app.';
-      setIsValid(newValidatedValue);
-      setErrorAmount(errorAmountMessage);
-      return newValidatedValue;
-    }
-
-    if (!value?.amount || String(value.amount).trim() === '') {
-      newValidatedValue = false;
-      errorAmountMessage = 'Amount is required';
-    } else {
-      // Skip validation for partial decimal inputs during typing
-      if (value.amount === '.' || value.amount.endsWith('.')) {
+      if (noAccount) {
         newValidatedValue = false;
+        errorAmountMessage = 'You need to acquire NYMs before sending. Try using the Buy section in the app.';
         setIsValid(newValidatedValue);
-        setErrorAmount(undefined);
+        setErrorAmount(errorAmountMessage);
         return newValidatedValue;
       }
 
-      if (!(await validateAmount(value.amount, '0'))) {
+      if (!value?.amount || String(value.amount).trim() === '') {
         newValidatedValue = false;
-        errorAmountMessage = 'Please enter a valid amount';
-      } else if (Number(value.amount) < Number(MIN_AMOUNT_TO_SEND)) {
-        newValidatedValue = false;
-        errorAmountMessage = `Min. send amount: ${MIN_AMOUNT_TO_SEND} ${denom?.toUpperCase()}`;
-      } else if (balance && value.amount) {
-        try {
-          const amountBig = new Big(value.amount);
-          const balanceBig = new Big(balance);
+        errorAmountMessage = showEmptyFieldErrors ? 'Amount is required' : undefined;
+      } else {
+        // Skip validation for partial decimal inputs during typing
+        if (value.amount === '.' || value.amount.endsWith('.')) {
+          newValidatedValue = false;
+          setIsValid(newValidatedValue);
+          setErrorAmount(undefined);
+          return newValidatedValue;
+        }
 
-          if (amountBig.gt(balanceBig)) {
-            newValidatedValue = false;
-            errorAmountMessage = `Amount exceeds your available balance. Available: ${balance} ${denom?.toUpperCase()}`;
-          }
-        } catch (err) {
-          if (!/^\d*\.?\d*$/.test(value.amount)) {
-            newValidatedValue = false;
-            errorAmountMessage = 'Invalid number format';
+        if (!(await validateAmount(value.amount, '0'))) {
+          newValidatedValue = false;
+          errorAmountMessage = 'Please enter a valid amount';
+        } else if (Number(value.amount) < Number(MIN_AMOUNT_TO_SEND)) {
+          newValidatedValue = false;
+          errorAmountMessage = `Min. send amount: ${MIN_AMOUNT_TO_SEND} ${denom?.toUpperCase()}`;
+        } else if (balance && value.amount) {
+          try {
+            const amountBig = new Big(value.amount);
+            const balanceBig = new Big(balance);
+
+            if (amountBig.gt(balanceBig)) {
+              newValidatedValue = false;
+              errorAmountMessage = `Amount exceeds your available balance. Available: ${balance} ${denom?.toUpperCase()}`;
+            }
+          } catch (err) {
+            if (!/^\d*\.?\d*$/.test(value.amount)) {
+              newValidatedValue = false;
+              errorAmountMessage = 'Invalid number format';
+            }
           }
         }
       }
-    }
 
-    setIsValid(newValidatedValue);
-    setErrorAmount(errorAmountMessage);
-    return newValidatedValue;
-  };
+      setIsValid(newValidatedValue);
+      setErrorAmount(errorAmountMessage);
+      return newValidatedValue;
+    },
+    [amountTouched, noAccount, balance, denom],
+  );
 
-  const validateUserFees = (fees: DecCoin) => {
-    let feeValid = true;
-    let errorFeeMessage;
+  const validateUserFees = useCallback(
+    (fees: DecCoin) => {
+      let feeValid = true;
+      let errorFeeMessage;
 
-    if (noAccount) {
-      feeValid = false;
-      errorFeeMessage = 'You need to acquire NYMs before setting fees.';
+      if (noAccount) {
+        feeValid = false;
+        errorFeeMessage = 'You need to acquire NYMs before setting fees.';
+        setFeeAmountIsValid(feeValid);
+        setErrorFee(errorFeeMessage);
+        return feeValid;
+      }
+
+      // Skip validation for partial decimal inputs during typing
+      if (fees.amount === '.' || fees.amount.endsWith('.')) {
+        setFeeAmountIsValid(false);
+        setErrorFee(undefined);
+        return false;
+      }
+
+      if (!isValidRawCoin(fees.amount) || !Number(fees.amount)) {
+        feeValid = false;
+        errorFeeMessage = 'Please enter a valid fee amount';
+      } else {
+        try {
+          const f = Big(fees.amount);
+          if (f.gt(maxUserFees)) {
+            feeValid = false;
+            errorFeeMessage = `Max fee: ${maxUserFees} ${denom?.toUpperCase()}`;
+          } else if (f.lt(minUserFees)) {
+            feeValid = false;
+            errorFeeMessage = `Min. fee: ${minUserFees} ${denom?.toUpperCase()}`;
+          }
+        } catch (err) {
+          if (!/^\d*\.?\d*$/.test(fees.amount)) {
+            feeValid = false;
+            errorFeeMessage = 'Invalid fee format';
+          }
+        }
+      }
+
       setFeeAmountIsValid(feeValid);
       setErrorFee(errorFeeMessage);
       return feeValid;
-    }
+    },
+    [noAccount, denom],
+  );
 
-    // Skip validation for partial decimal inputs during typing
-    if (fees.amount === '.' || fees.amount.endsWith('.')) {
-      setFeeAmountIsValid(false);
-      setErrorFee(undefined);
-      return false;
-    }
-
-    if (!isValidRawCoin(fees.amount) || !Number(fees.amount)) {
-      feeValid = false;
-      errorFeeMessage = 'Please enter a valid fee amount';
-    } else {
-      try {
-        const f = Big(fees.amount);
-        if (f.gt(maxUserFees)) {
-          feeValid = false;
-          errorFeeMessage = `Max fee: ${maxUserFees} ${denom?.toUpperCase()}`;
-        } else if (f.lt(minUserFees)) {
-          feeValid = false;
-          errorFeeMessage = `Min. fee: ${minUserFees} ${denom?.toUpperCase()}`;
-        }
-      } catch (err) {
-        if (!/^\d*\.?\d*$/.test(fees.amount)) {
-          feeValid = false;
-          errorFeeMessage = 'Invalid fee format';
-        }
-      }
-    }
-
-    setFeeAmountIsValid(feeValid);
-    setErrorFee(errorFeeMessage);
-    return feeValid;
-  };
+  useEffect(() => {
+    const id = window.setTimeout(() => setRecipientBlurReady(true), 400);
+    return () => window.clearTimeout(id);
+  }, []);
 
   useEffect(() => {
     const empty: DecCoin = { amount: '', denom: denom ?? 'nym' };
-    validateSendAmount(amount ?? empty);
-  }, [amount, balance, noAccount, denom]);
+    validateSendAmount(amount ?? empty).catch(() => {
+      /* validateSendAmount only updates state */
+    });
+  }, [amount, denom, validateSendAmount]);
 
   // Effect to validate address whenever it changes
   useEffect(() => {
@@ -213,7 +231,7 @@ export const SendInputModal = ({
     } else {
       setFeeAmountIsValid(true);
     }
-  }, [userFees, noAccount]);
+  }, [userFees, validateUserFees]);
 
   return (
     <SimpleModal
@@ -302,13 +320,23 @@ export const SendInputModal = ({
         <TextFieldWithPaste
           label="Recipient address"
           fullWidth
-          onChange={(e) => onAddressChange(e.target.value)}
-          onBlur={() => setRecipientTouched(true)}
+          onChange={(e) => {
+            setRecipientTouched(true);
+            onAddressChange(e.target.value);
+          }}
+          onBlur={() => {
+            if (recipientBlurReady) {
+              setRecipientTouched(true);
+            }
+          }}
           value={toAddress}
           error={(recipientTouched && !toAddress.trim()) || (toAddress !== '' && !addressIsValid)}
           helperText={recipientHelperText(recipientTouched, toAddress, addressIsValid)}
           InputLabelProps={{ shrink: true }}
-          onPasteValue={onAddressChange}
+          onPasteValue={(v) => {
+            setRecipientTouched(true);
+            onAddressChange(v);
+          }}
         />
 
         {/* Amount field with paste button */}
@@ -316,8 +344,11 @@ export const SendInputModal = ({
           label="Amount"
           fullWidth
           onChanged={(value) => {
+            setAmountTouched(true);
             onAmountChange(value);
-            validateSendAmount(value);
+            validateSendAmount(value, true).catch(() => {
+              /* validateSendAmount only updates state */
+            });
           }}
           initialValue={amount?.amount}
           denom={denom}

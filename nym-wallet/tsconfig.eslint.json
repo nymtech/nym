@@ -6,6 +6,7 @@
   },
   "include": [
     "webpack.*.js",
+    "scripts/**/*.js",
     "src/**/*.js",
     "src/**/*.jsx",
     "src/**/*.ts",

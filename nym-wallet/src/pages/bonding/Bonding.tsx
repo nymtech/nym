@@ -201,7 +201,7 @@ export const Bonding = () => {
     return (
       <ErrorModal
         open
-        title="An error occured, please check logs for details"
+        title="An error occurred, please check logs for details"
         message={error}
         onClose={() => refresh()}
       />

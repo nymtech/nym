@@ -3,15 +3,17 @@ title: "smolmix Tutorial 1: Private File Downloads via DNS + TLS"
 description: "Step-by-step Rust tutorial that resolves a hostname via mixnet DNS, connects over mixnet TCP, negotiates TLS, and downloads files over a single HTTP connection — all through the Nym mixnet."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-04-14"
+lastUpdated: "2026-04-17"
 ---
 
 # Tutorial 1: Private File Downloads
 
 import { Callout } from 'nextra/components'
 import { CratesPaused } from '../../../components/crates-paused'
+import { CodeVerified } from '../../../components/code-verified'
 
 <CratesPaused />
+<CodeVerified crate="smolmix" />
 
 In this tutorial you'll build a single program that sends HTTP requests to a public server — with every byte routed through the Nym mixnet:
 
@@ -47,8 +49,8 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-smolmix = { git = "https://github.com/nymtech/nym", rev = "7ceaf9a40ec9ee41758100c9785dcf836b9ff3e7" }
-nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "7ceaf9a40ec9ee41758100c9785dcf836b9ff3e7", features = ["basic_tracing"] }
+smolmix = "X.Y.Z"
+nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 tokio-rustls = "0.26"
 rustls = { version = "0.23", features = ["std", "ring"] }
@@ -57,7 +59,6 @@ hickory-proto = "0.25"
 hyper = { version = "1", features = ["client", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
-anyhow = "1"
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 ```
 
@@ -82,7 +83,7 @@ use hyper_util::rt::TokioIo;
 use rustls::pki_types::ServerName;
 use smolmix::Tunnel;
 
-use anyhow::{Context, Result};
+type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 const HOST: &str = "httpbin.org";
 
@@ -90,7 +91,7 @@ const HOST: &str = "httpbin.org";
 const SIZES: &[usize] = &[100, 1_000, 10_000];
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), BoxError> {
     nym_bin_common::logging::setup_tracing_logger();
     rustls::crypto::ring::default_provider()
         .install_default()
@@ -126,7 +127,7 @@ The `Tunnel` connects to the mixnet, registers with an IPR (Internet Packet Rout
 Instead of using the system resolver (which would go over clearnet), we send a raw DNS query through the tunnel's UDP socket to Cloudflare's `1.1.1.1:53`:
 
 ```rust
-async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr> {
+async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr, BoxError> {
     let mut query = Message::new();
     query.set_recursion_desired(true);
     query.add_query(Query::query(Name::from_ascii(host)?, RecordType::A));
@@ -146,7 +147,7 @@ async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr> {
             RData::A(a) => Some(a.0),
             _ => None,
         })
-        .context("no A record in DNS response")?;
+        .ok_or("no A record in DNS response")?;
     Ok(ip)
 }
 ```
@@ -336,7 +337,7 @@ use hyper_util::rt::TokioIo;
 use rustls::pki_types::ServerName;
 use smolmix::Tunnel;
 
-use anyhow::{Context, Result};
+type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 const HOST: &str = "httpbin.org";
 
@@ -344,7 +345,7 @@ const HOST: &str = "httpbin.org";
 const SIZES: &[usize] = &[100, 1_000, 10_000];
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), BoxError> {
     nym_bin_common::logging::setup_tracing_logger();
     rustls::crypto::ring::default_provider()
         .install_default()
@@ -439,7 +440,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr> {
+async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr, BoxError> {
     let mut query = Message::new();
     query.set_recursion_desired(true);
     query.add_query(Query::query(Name::from_ascii(host)?, RecordType::A));
@@ -459,7 +460,7 @@ async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr> {
             RData::A(a) => Some(a.0),
             _ => None,
         })
-        .context("no A record in DNS response")?;
+        .ok_or("no A record in DNS response")?;
     Ok(ip)
 }
 

@@ -3,7 +3,7 @@ title: "Mixnet Tutorial: Send Your First Private Message"
 description: "Step-by-step Rust tutorial to connect to the Nym mixnet, send and receive messages, reply anonymously with SURBs, and persist client identity."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-03-26"
+lastUpdated: "2026-04-17"
 ---
 
 # Tutorial: Send Your First Private Message
@@ -28,8 +28,8 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
-nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "97068b2", features = ["basic_tracing"] }
+nym-sdk = "X.Y.Z"
+nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 ```

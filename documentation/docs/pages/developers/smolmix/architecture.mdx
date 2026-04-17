@@ -1,0 +1,72 @@
+---
+title: "smolmix Architecture"
+description: "How smolmix routes TCP and UDP traffic through the Nym mixnet using a userspace IP stack, and the security properties this design provides."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-04-17"
+---
+
+# Architecture
+
+import { Callout } from 'nextra/components'
+
+## Why IP, not messages
+
+The Nym SDK works at the **message layer**: you send and receive `Vec<u8>` payloads through the mixnet. Every protocol must be hand-adapted — you need custom framing, ordering, connection state, and flow control.
+
+`smolmix` operates at the **IP layer**. A userspace [`smoltcp`](https://docs.rs/smoltcp/latest/smoltcp/) stack manages real TCP state machines (retransmits, windowing, port allocation) and UDP datagram delivery, and the mixnet becomes a transparent transport underneath. Any protocol that works over TCP or UDP works over `smolmix` with zero adaptation.
+
+This means standard Rust networking crates compose directly on top of smolmix — `hyper` thinks it's talking to a normal TLS stream, `rustls` thinks it's talking to a normal TCP stream, and `smolmix` handles the mixnet routing transparently.
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  Your application (TLS, HTTP, WebSocket, DNS, etc.)              │
+│       └─ smolmix::TcpStream / UdpSocket                         │
+│            └─ smoltcp (userspace TCP/IP)                         │
+│                 └─ Nym mixnet → IPR exit gateway → internet      │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+Traffic exits the mixnet at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway — the exit IP is the gateway's, not yours.
+
+For the full implementation details (internal components, device adapter, bridge task), see the [API reference on docs.rs](https://docs.rs/smolmix).
+
+## Security model
+
+<Callout type="warning">
+Traffic is Sphinx-encrypted inside the mixnet, but between the exit gateway and the remote host it travels as **normal internet traffic**. Always use TLS or another encryption layer to protect the final hop.
+</Callout>
+
+### What's protected
+
+| Segment | Encryption | Who sees what |
+|---|---|---|
+| Your machine → mixnet entry | Sphinx (layered) | Entry gateway sees your IP but not the destination |
+| Inside the mixnet (5 hops) | Sphinx (layered) | Each mix node only knows prev/next hop |
+| Exit gateway (IPR) | Decrypted to raw IP | IPR sees destination IP + port + unencrypted payload |
+| IPR → remote host | Whatever you add (TLS, etc.) | Remote host sees IPR's IP, not yours |
+
+### Trust boundaries
+
+- **You trust the mixnet** to provide unlinkability between sender and receiver. This is enforced cryptographically by Sphinx packet format and mixing.
+- **You trust the IPR exit gateway** in the same way you trust a VPN exit or Tor exit node — it can see your raw traffic unless you encrypt it. The difference is that the IPR doesn't know *who* is sending the traffic (the mixnet hides your identity).
+- **TLS closes the gap.** When you layer TLS (as in [Tutorial 1](/developers/smolmix/tutorial)), the IPR sees encrypted bytes going to a destination IP. It knows you're talking to `httpbin.org:443` but can't read the content.
+
+### Comparison with other privacy tools
+
+| | smolmix | Tor | VPN |
+|---|---|---|---|
+| **Exit node sees traffic?** | Yes (use TLS) | Yes (use TLS) | Yes (use TLS) |
+| **Exit node knows sender?** | No (mixnet hides identity) | No (onion routing) | Yes (VPN provider knows) |
+| **Timing analysis resistance** | Strong (mixing, cover traffic) | Weak (low-latency) | None |
+| **UDP support** | Yes | No (TCP only) | Yes |
+
+## Performance characteristics
+
+The mixnet adds latency at each hop due to mixing delays (packets are held and reordered to prevent timing analysis). Expect:
+
+- **TCP round-trip:** 1–5 seconds for typical requests (vs. milliseconds on clearnet)
+- **UDP round-trip:** 1–3 seconds per datagram
+- **Throughput:** suitable for API calls, DNS, and moderate file transfers — not bulk streaming
+
+These trade-offs are inherent to the privacy guarantees. The mixing delay is what makes traffic analysis resistant — without it, an observer could correlate packets by timing.

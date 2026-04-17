@@ -1,8 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use anyhow::Context;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    self as api, LatencyDistribution, TestRunData, TestRunResult,
+    self as api, LatencyDistribution, NymNodeData, TestRunData, TestRunInProgressData,
+    TestRunResult,
 };
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
@@ -241,6 +244,15 @@ pub(crate) struct TestRunInProgress {
     pub(crate) started_at: OffsetDateTime,
 }
 
+impl From<TestRunInProgress> for TestRunInProgressData {
+    fn from(row: TestRunInProgress) -> Self {
+        TestRunInProgressData {
+            node_id: row.node_id as u32,
+            started_at: row.started_at,
+        }
+    }
+}
+
 /// A row from the `nym_node` table, as returned by a SELECT.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct NymNode {
@@ -249,4 +261,46 @@ pub(crate) struct NymNode {
 
     /// ID of the most recent test run against this node. `None` if never tested.
     pub(crate) last_testrun: Option<i64>,
+}
+
+impl TryFrom<NewNymNode> for NymNodeData {
+    type Error = anyhow::Error;
+
+    fn try_from(node: NewNymNode) -> anyhow::Result<Self> {
+        let identity_key = ed25519::PublicKey::from_base58_string(&node.identity_key)
+            .context("invalid identity_key")?;
+
+        let mixnet_socket_address = node
+            .mixnet_socket_address
+            .map(|s| s.parse().context("invalid mixnet_socket_address"))
+            .transpose()?;
+
+        let noise_key = node
+            .noise_key
+            .map(|s| x25519::PublicKey::from_base58_string(&s).context("invalid noise_key"))
+            .transpose()?;
+
+        let sphinx_key = node
+            .sphinx_key
+            .map(|s| x25519::PublicKey::from_base58_string(&s).context("invalid sphinx_key"))
+            .transpose()?;
+
+        Ok(NymNodeData {
+            node_id: node.node_id as u32,
+            identity_key,
+            last_seen_bonded: node.last_seen_bonded,
+            mixnet_socket_address,
+            noise_key,
+            sphinx_key,
+            key_rotation_id: node.key_rotation_id,
+        })
+    }
+}
+
+impl TryFrom<NymNode> for NymNodeData {
+    type Error = anyhow::Error;
+
+    fn try_from(node: NymNode) -> anyhow::Result<Self> {
+        node.inner.try_into()
+    }
 }

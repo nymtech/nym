@@ -7,7 +7,8 @@ use axum::extract::{Path, Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
 use nym_network_monitor_orchestrator_requests::models::{
-    NymNodeData, PagedResult, Pagination, TestRunData, TestRunsInProgressResponse,
+    NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunData,
+    TestRunsInProgressResponse,
 };
 use nym_network_monitor_orchestrator_requests::routes;
 use nym_validator_client::client::NodeId;
@@ -47,14 +48,14 @@ async fn get_testrun_by_id(
     security(("metrics_and_results_token" = [])),
     responses(
         (status = 200, content(
-            (NymNodeData = "application/json"),
+            (NymNodeWithTestRun = "application/json"),
         ))
     )
 )]
 async fn get_nym_node_by_id(
     Path(node_id): Path<NodeId>,
     State(state): State<AppState>,
-) -> Result<Json<NymNodeData>, ApiError> {
+) -> Result<Json<NymNodeWithTestRun>, ApiError> {
     state
         .get_nym_node_by_id(node_id)
         .await?

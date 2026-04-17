@@ -8,8 +8,8 @@ use axum::extract::FromRef;
 use nym_crypto::asymmetric::x25519;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
 use nym_network_monitor_orchestrator_requests::models::{
-    NymNodeData, PagedResult, Pagination, TestRunAssignment, TestRunData, TestRunResult,
-    TestRunsInProgressResponse,
+    NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment, TestRunData,
+    TestRunResult, TestRunsInProgressResponse,
 };
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
@@ -334,18 +334,13 @@ impl AppState {
             Ok(Some(testrun)) => testrun,
         };
 
-        // Ok(Some(TestRunData {
-        //     id,
-        //     node_id: result.inner.node_id as NodeId,
-        //     result: Default::default(),
-        // }))
-        todo!()
+        Ok(Some(result.into()))
     }
 
     pub(crate) async fn get_nym_node_by_id(
         &self,
         node_id: NodeId,
-    ) -> Result<Option<NymNodeData>, ApiError> {
+    ) -> Result<Option<NymNodeWithTestRun>, ApiError> {
         let nym_node = match self.storage.get_nym_node_by_id(node_id).await {
             Err(err) => {
                 error!("get_nym_node_by_id storage failure: {err}");
@@ -355,7 +350,18 @@ impl AppState {
             Ok(Some(nym_node)) => nym_node,
         };
 
-        todo!()
+        let latest_test_run = match nym_node.last_testrun {
+            None => None,
+            Some(testrun_id) => self.get_testrun_by_id(testrun_id).await?,
+        };
+
+        Ok(Some(NymNodeWithTestRun {
+            node: nym_node.try_into().map_err(|err| {
+                error!("get_nym_node_by_id malformed stored data: {err}");
+                ApiError::MalformedStoredData
+            })?,
+            latest_test_run,
+        }))
     }
 
     pub(crate) async fn get_testruns_in_progress(
@@ -369,7 +375,9 @@ impl AppState {
             Ok(in_progress) => in_progress,
         };
 
-        todo!()
+        Ok(TestRunsInProgressResponse {
+            in_progress: in_progress.into_iter().map(Into::into).collect(),
+        })
     }
 
     pub(crate) async fn get_testruns_paginated(
@@ -384,7 +392,12 @@ impl AppState {
             Ok(testruns) => testruns,
         };
 
-        todo!()
+        Ok(PagedResult {
+            page: pagination.page(),
+            size: testruns.len(),
+            total,
+            items: testruns.into_iter().map(Into::into).collect(),
+        })
     }
 
     pub(crate) async fn get_nym_nodes_paginated(
@@ -399,7 +412,20 @@ impl AppState {
             Ok((nym_nodes, total)) => (nym_nodes, total),
         };
 
-        todo!()
+        let mut items = Vec::with_capacity(nym_nodes.len());
+        for node in nym_nodes {
+            items.push(node.try_into().map_err(|err| {
+                error!("get_nym_nodes_paginated malformed stored data: {err}");
+                ApiError::MalformedStoredData
+            })?);
+        }
+
+        Ok(PagedResult {
+            page: pagination.page(),
+            size: items.len(),
+            total,
+            items,
+        })
     }
 
     pub(crate) async fn get_testruns_for_node_paginated(
@@ -419,7 +445,12 @@ impl AppState {
             Ok((testruns, total)) => (testruns, total),
         };
 
-        todo!()
+        Ok(PagedResult {
+            page: pagination.page(),
+            size: testruns.len(),
+            total,
+            items: testruns.into_iter().map(Into::into).collect(),
+        })
     }
 }
 

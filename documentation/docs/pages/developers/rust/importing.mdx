@@ -3,7 +3,7 @@ title: "Install the Nym Rust SDK"
 description: "Add nym-sdk to your Rust project from Git or crates.io. Covers version requirements, minimum Rust version, and current feature gate status."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-03-27"
+lastUpdated: "2026-04-17"
 ---
 
 # Installation
@@ -15,7 +15,7 @@ import { CratesPaused } from '../../../components/crates-paused'
 
 ```toml
 [dependencies]
-nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
+nym-sdk = "X.Y.Z"
 blake3 = "=1.7.0"  # pin to avoid a transitive dependency conflict — see note below
 ```
 
@@ -23,7 +23,11 @@ blake3 = "=1.7.0"  # pin to avoid a transitive dependency conflict — see note 
 **Temporary pin required.** You must pin `blake3 = "=1.7.0"` in your `Cargo.toml` to avoid a build failure caused by a transitive `digest` version conflict. This will be resolved in a future SDK release.
 </Callout>
 
-You can also track a branch if you want the latest changes:
+**Minimum Rust version:** 1.70+
+
+### Git (bleeding edge)
+
+You can also import directly from Git if you want unreleased changes:
 
 ```toml
 # development branch (latest changes, may be unstable)
@@ -32,19 +36,6 @@ nym-sdk = { git = "https://github.com/nymtech/nym", branch = "develop" }
 # latest stable release
 nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
 ```
-
-**Minimum Rust version:** 1.70+
-
-### crates.io (older API only)
-
-If you don't need the Stream module or other recent additions, you can still use the published crate:
-
-```toml
-[dependencies]
-nym-sdk = "1.20.4"
-```
-
-This version includes the Mixnet message API, Client Pool, and TcpProxy modules.
 
 <Callout type="warning">
 **No feature gates yet.** Importing `nym-sdk` pulls in everything (mixnet, tcp_proxy, client_pool, etc.) and their full dependency trees. Cargo feature flags are planned.

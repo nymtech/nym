@@ -3,7 +3,7 @@ title: "Stream Tutorial: Build a Private Echo Server"
 description: "Step-by-step Rust tutorial to build an echo server and client communicating through the Nym mixnet using AsyncRead and AsyncWrite streams."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-03-26"
+lastUpdated: "2026-04-17"
 ---
 
 # Tutorial: Build a Private Echo Server
@@ -40,8 +40,8 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
-nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "97068b2", features = ["basic_tracing"] }
+nym-sdk = "X.Y.Z"
+nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing

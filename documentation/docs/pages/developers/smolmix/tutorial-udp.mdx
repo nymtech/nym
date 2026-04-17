@@ -3,15 +3,17 @@ title: "smolmix Tutorial 2: Private DNS & NTP via UDP"
 description: "Step-by-step Rust tutorial that sends private DNS lookups and an NTP time query through the Nym mixnet using smolmix's UDP socket."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-04-14"
+lastUpdated: "2026-04-17"
 ---
 
 # Tutorial 2: Private DNS & NTP via UDP
 
 import { Callout } from 'nextra/components'
 import { CratesPaused } from '../../../components/crates-paused'
+import { CodeVerified } from '../../../components/code-verified'
 
 <CratesPaused />
+<CodeVerified crate="smolmix" />
 
 In this tutorial you'll build a program that uses the mixnet's UDP socket for two real-world tasks:
 
@@ -45,8 +47,8 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-smolmix = { git = "https://github.com/nymtech/nym", rev = "7ceaf9a40ec9ee41758100c9785dcf836b9ff3e7" }
-nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "7ceaf9a40ec9ee41758100c9785dcf836b9ff3e7", features = ["basic_tracing"] }
+smolmix = "X.Y.Z"
+nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 rustls = { version = "0.23", features = ["std", "ring"] }
 hickory-proto = "0.25"
@@ -153,16 +155,7 @@ Create a UDP socket and resolve several hostnames. Each query goes through the m
     }
 ```
 
-Key points                                                                                                                                                
-- src/main.rs: replaced 27 lines of hand-rolled format_unix_time + days_to_date with chrono::DateTime::from_timestamp() + .format()                                                                                                          
-- tutorial-udp.mdx: same changes in the step-by-step code block, removed the "timestamp helpers" section entirely, and updated the complete code block                                                                                     
-
-✻ Sautéed for 51s                  
-
-❯ the `type BoxError = Box<dyn std::error::Error + Send + Sync>;` is also akward, can't we just use anyhow or something?                                                                                                                       
-
-● Yeah, anyhow::Result is a straight swap. That affects both tutorials though — the echo one uses BoxError too. Want me to do both?                                                                                                            
-:
+Key points:
 - `tunnel.udp_socket()` creates a UDP socket routed through the mixnet
 - `send_to` / `recv_from` work just like `tokio::net::UdpSocket`
 - We wrap the receive in `tokio::time::timeout` since UDP has no built-in delivery guarantee

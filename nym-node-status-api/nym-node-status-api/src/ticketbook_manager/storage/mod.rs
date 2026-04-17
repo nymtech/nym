@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::db::Storage;
-use crate::ticketbook_manager::storage::auxiliary_models::RetrievedTicketbook;
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
+use auxiliary_models::RetrievedTicketbook;
 use nym_credential_proxy_lib::error::CredentialProxyError;
 use nym_credential_proxy_lib::shared_state::ecash_state::{
     IssuanceTicketBook, IssuedTicketBook, TicketType,
@@ -16,6 +16,7 @@ use nym_crypto::aes::cipher::zeroize::Zeroizing;
 use nym_ecash_time::{EcashTime, ecash_today};
 use nym_validator_client::nym_api::EpochId;
 use time::Date;
+use tracing::warn;
 
 pub(crate) mod auxiliary_models;
 
@@ -85,7 +86,7 @@ impl TicketbookManagerStorage {
     /// Tries to retrieve one of the stored ticketbook that has not yet expired
     /// it immediately updated the on-disk number of used tickets so that another task
     /// could obtain their own tickets at the same time
-    pub(crate) async fn next_ticket(
+    pub(super) async fn next_ticket(
         &self,
         ticket_type: TicketType,
         testrun_id: i32,
@@ -113,16 +114,33 @@ impl TicketbookManagerStorage {
             .set_distributed_ticketbook(testrun_id, raw.id, raw.used_tickets)
             .await?;
 
-        deserialised.update_spent_tickets(raw.used_tickets as u64);
-        Ok(Some(RetrievedTicketbook {
-            ticketbook_id: raw.id,
-            total_tickets: raw
-                .total_tickets
-                .try_into()
-                .context("failed to convert i32 total tickets into u32")?,
-            spent_tickets: deserialised.spent_tickets() as u32,
-            ticketbook: deserialised,
-        }))
+        deserialised.update_spent_tickets((raw.used_tickets) as u64);
+
+        let total = deserialised.params_total_tickets();
+        let spent = raw.used_tickets as u64;
+
+        if spent > total {
+            // should never happen: implies a bug in DB fetching
+            bail!(
+                "testrun_id={testrun_id}, ticketbook_id={}, ticket_type={ticket_type}, \
+                 marked as used_tickets = {spent} > params_total_tickets = {total}. \
+                 Cannot have spent more than is in the ticketbook",
+                raw.id,
+            );
+        } else {
+            tracing::debug!(
+                "testrun_id={testrun_id}, ticketbook_id={}, ticket_type={ticket_type}, \
+                 db_used_tickets={} / total_tickets={total}",
+                raw.id,
+                raw.used_tickets,
+            );
+        }
+
+        let retrieved_ticketbook = RetrievedTicketbook::new(deserialised)
+            .inspect_err(|e| warn!("Failed to convert retrieved ticketbook: {e}"))
+            .ok();
+
+        Ok(retrieved_ticketbook)
     }
 }
 

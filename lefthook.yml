@@ -49,5 +49,15 @@ pre-commit:
       stage_fixed: true
     rust-lint:
       glob: "*.rs"
-      run: cargo fmt
+      run: |
+        if [ -f "${HOME}/.cargo/env" ]; then
+          # shellcheck source=/dev/null
+          . "${HOME}/.cargo/env"
+        fi
+        export PATH="${HOME}/.cargo/bin:${PATH}"
+        if ! command -v cargo >/dev/null 2>&1; then
+          echo "lefthook rust-lint: cargo not found (install Rust or ensure ~/.cargo/bin is on PATH); skipping." >&2
+          exit 0
+        fi
+        cargo fmt --all
       stage_fixed: true

@@ -40,8 +40,6 @@ impl Modify for SecurityAddon {
                 "agents_token",
                 SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
             );
-
-            // TODO: possibly a third one for statistics/measurement results
         }
     }
 }

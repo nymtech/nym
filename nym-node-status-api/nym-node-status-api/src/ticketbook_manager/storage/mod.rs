@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::db::Storage;
-use crate::ticketbook_manager::storage::auxiliary_models::RetrievedTicketbook;
 use anyhow::{Context, anyhow};
+use auxiliary_models::RetrievedTicketbook;
 use nym_credential_proxy_lib::error::CredentialProxyError;
 use nym_credential_proxy_lib::shared_state::ecash_state::{
     IssuanceTicketBook, IssuedTicketBook, TicketType,
@@ -14,8 +14,10 @@ use nym_credential_proxy_lib::storage::traits::{
 };
 use nym_crypto::aes::cipher::zeroize::Zeroizing;
 use nym_ecash_time::{EcashTime, ecash_today};
+use nym_node_status_client::models::AttachedTicket;
 use nym_validator_client::nym_api::EpochId;
 use time::Date;
+use tracing::warn;
 
 pub(crate) mod auxiliary_models;
 
@@ -89,7 +91,7 @@ impl TicketbookManagerStorage {
         &self,
         ticket_type: TicketType,
         testrun_id: i32,
-    ) -> anyhow::Result<Option<RetrievedTicketbook>> {
+    ) -> anyhow::Result<Option<(AttachedTicket, EpochId, Date)>> {
         let deadline = ecash_today().ecash_date();
 
         // we don't want ticketbooks with expiration in the past
@@ -113,8 +115,27 @@ impl TicketbookManagerStorage {
             .set_distributed_ticketbook(testrun_id, raw.id, raw.used_tickets)
             .await?;
 
-        deserialised.update_spent_tickets(raw.used_tickets as u64);
-        Ok(Some(RetrievedTicketbook {
+        deserialised.update_spent_tickets((raw.used_tickets) as u64);
+
+        let total = deserialised.params_total_tickets();
+        let spent = raw.used_tickets as u64;
+        if spent > total {
+            tracing::warn!(
+                "⚠️: testrun_id={testrun_id}, ticketbook_id={}, ticket_type={ticket_type}, \
+                 marked as used_tickets = {spent} > params_total_tickets = {total}. \
+                 Cannot have spent more than is in the ticketbook",
+                raw.id,
+            );
+        } else {
+            tracing::debug!(
+                "testrun_id={testrun_id}, ticketbook_id={}, ticket_type={ticket_type}, \
+                 db_used_tickets={}, total_tickets={total}",
+                raw.id,
+                raw.used_tickets,
+            );
+        }
+
+        let retrieved_ticketbook = RetrievedTicketbook {
             ticketbook_id: raw.id,
             total_tickets: raw
                 .total_tickets
@@ -122,7 +143,17 @@ impl TicketbookManagerStorage {
                 .context("failed to convert i32 total tickets into u32")?,
             spent_tickets: deserialised.spent_tickets() as u32,
             ticketbook: deserialised,
-        }))
+        };
+        let epoch_id = retrieved_ticketbook.ticketbook.epoch_id();
+        let expiration_date = retrieved_ticketbook.ticketbook.expiration_date();
+
+        let attached_ticket = retrieved_ticketbook
+            .try_into()
+            .map(|t| (t, epoch_id, expiration_date))
+            .inspect_err(|e| warn!("Failed to convert retrieved ticketbook: {e}"))
+            .ok();
+
+        Ok(attached_ticket)
     }
 }
 

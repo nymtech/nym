@@ -1,17 +1,17 @@
 [package]
 name = "nym-client-wasm"
+description = "A webassembly client which can be used to interact with the the Nym privacy platform. Wasm is used for Sphinx packet generation."
+version = "1.4.1"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jedrzej Stuczynski <andrew@nymtech.net>",
 ]
-version = "1.4.1"
 edition = "2021"
-keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy"]
 license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"
-description = "A webassembly client which can be used to interact with the the Nym privacy platform. Wasm is used for Sphinx packet generation."
 rust-version = "1.85"
 publish = false
+keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

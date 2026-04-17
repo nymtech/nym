@@ -1,12 +1,16 @@
 [package]
 name = "nym-group-contract-common"
+description = "Common crate for Nym's group cosmwasm contract"
 version.workspace = true
+authors.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Common crate for Nym's group cosmwasm contract"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
+rust-version = "1.85"
+readme.workspace = true
+publish = true
 
 [dependencies]
 cosmwasm-schema = { workspace = true }

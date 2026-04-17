@@ -1,13 +1,16 @@
 [package]
 name = "nym-wireguard-private-metadata-server"
+description = "nym-wireguard server implementation"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "nym-wireguard server implementation"
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 [dependencies]
 anyhow = { workspace = true }

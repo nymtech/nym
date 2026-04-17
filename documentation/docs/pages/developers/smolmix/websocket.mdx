@@ -1,0 +1,97 @@
+---
+title: "Connect a WebSocket Through the Mixnet"
+description: "How to use tokio-tungstenite with smolmix to open a WebSocket connection that routes through the Nym mixnet."
+schemaType: "HowTo"
+section: "Developers"
+lastUpdated: "2026-04-17"
+---
+
+# Connect a WebSocket Through the Mixnet
+
+This guide shows how to stack `tokio-tungstenite` on a smolmix `TcpStream` to open a WebSocket connection that routes through the Nym mixnet. The same pattern works for any protocol that composes over `AsyncRead + AsyncWrite`.
+
+## The stack
+
+```text
+tokio-tungstenite (WebSocket framing)
+  └─ tokio-rustls (TLS encryption)
+       └─ smolmix::TcpStream (TCP over mixnet)
+```
+
+Each layer only knows about the one below it — `tokio-tungstenite` doesn't know it's running over the mixnet.
+
+## Dependencies
+
+```toml
+[dependencies]
+smolmix = "X.Y.Z"
+nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio-rustls = "0.26"
+rustls = { version = "0.23", features = ["std", "ring"] }
+webpki-roots = "0.26"
+tokio-tungstenite = "0.24"
+futures = "0.3"
+blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
+```
+
+## Connect and send
+
+```rust
+use std::sync::Arc;
+use futures::{SinkExt, StreamExt};
+use rustls::pki_types::ServerName;
+use smolmix::Tunnel;
+use tokio_tungstenite::tungstenite::Message;
+
+const WS_HOST: &str = "ws.postman-echo.com";
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    nym_bin_common::logging::setup_tracing_logger();
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
+    // 1. Create the tunnel
+    let tunnel = Tunnel::new().await?;
+
+    // 2. TCP connect through the mixnet
+    let tcp = tunnel.tcp_connect("ws.postman-echo.com:443".parse()?).await?;
+
+    // 3. Layer TLS on top (same as any tokio-rustls usage)
+    let mut root_store = rustls::RootCertStore::empty();
+    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let tls_config = rustls::ClientConfig::builder()
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
+    let connector = tokio_rustls::TlsConnector::from(Arc::new(tls_config));
+    let domain = ServerName::try_from(WS_HOST)?.to_owned();
+    let tls = connector.connect(domain, tcp).await?;
+
+    // 4. WebSocket upgrade — tokio-tungstenite works unchanged
+    let (mut ws, _) = tokio_tungstenite::client_async(
+        format!("wss://{WS_HOST}/raw"),
+        tls,
+    ).await?;
+
+    // 5. Send and receive
+    ws.send(Message::Text("Hello from the mixnet!".into())).await?;
+    let reply = ws.next().await.ok_or("no reply")??;
+    println!("Echo: {}", reply.into_text()?);
+
+    ws.close(None).await?;
+    tunnel.shutdown().await;
+    Ok(())
+}
+```
+
+The key insight: `tokio_tungstenite::client_async` accepts any `AsyncRead + AsyncWrite` stream. Since smolmix's `TcpStream` (wrapped in TLS) implements these traits, the WebSocket upgrade works identically to clearnet — no adapters or special configuration needed.
+
+## Notes
+
+- **DNS resolution** — this example hardcodes the IP. For production use, resolve the hostname through the mixnet (see [Tutorial 1](/developers/smolmix/tutorial#step-4-resolve-dns-through-the-mixnet)) to avoid leaking DNS queries over clearnet.
+- **Performance** — expect 1–5 seconds for the initial handshake chain (TCP + TLS + WebSocket upgrade). Once established, each message round-trip adds ~1–3 seconds of mixnet latency.
+- **The same pattern works for any protocol** — HTTP/2, gRPC, QUIC-over-TCP, or any crate that builds on `AsyncRead + AsyncWrite`.
+
+See the full [runnable example](https://github.com/nymtech/nym/blob/max/mixtcp/smolmix/core/examples/websocket.rs) which also compares clearnet vs. mixnet timing.

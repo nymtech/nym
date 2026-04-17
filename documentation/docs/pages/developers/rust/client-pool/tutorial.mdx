@@ -3,7 +3,7 @@ title: "Client Pool Tutorial: Handle Bursty Traffic"
 description: "Step-by-step Rust tutorial to use Nym ClientPool for handling bursts of concurrent mixnet operations without blocking on client creation."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-03-26"
+lastUpdated: "2026-04-17"
 ---
 
 # Tutorial: Handle Bursty Traffic with Client Pool
@@ -39,9 +39,9 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
-nym-network-defaults = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
-nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "97068b2", features = ["basic_tracing"] }
+nym-sdk = "X.Y.Z"
+nym-network-defaults = "X.Y.Z"
+nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 ```

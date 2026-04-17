@@ -3,7 +3,7 @@ title: "Nym TcpProxy: Route TCP via the Mixnet"
 description: "Route TCP traffic through the Nym mixnet using the TcpProxy Rust module. Covers architecture, single and multi-connection patterns, and troubleshooting."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-03-27"
+lastUpdated: "2026-04-17"
 ---
 
 # TcpProxy Module
@@ -54,11 +54,10 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
-nym-network-defaults = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
-nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "97068b2", features = ["basic_tracing"] }
+nym-sdk = "X.Y.Z"
+nym-network-defaults = "X.Y.Z"
+nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
-anyhow = "1"
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 
 [[bin]]
@@ -78,7 +77,7 @@ The server connects to the Mixnet and forwards incoming traffic to a local TCP s
 use nym_sdk::tcp_proxy::NymProxyServer;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     nym_bin_common::logging::setup_tracing_logger();
 
     let mut server = NymProxyServer::new(
@@ -106,7 +105,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     nym_bin_common::logging::setup_tracing_logger();
     // Load mainnet network defaults into env vars (required by NymProxyClient's internal ClientPool)
     setup_env(None::<String>);

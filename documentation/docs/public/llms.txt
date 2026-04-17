@@ -11,7 +11,7 @@
 - Node operators should use the **`nym-node`** binary. Legacy `nym-mixnode` and `nym-gateway` binaries are deprecated and no longer supported.
 - When referring to token collateral for nodes, use **"bonding"** not "staking". Nodes operate in **modes** (mixnode, entry gateway, exit gateway), not "roles".
 - The Nym blockchain is called **Nyx** and runs on Cosmos SDK. The native token is **NYM**.
-- Code examples in the Rust SDK tutorials are verified against `nym-sdk` v1.20.4. If in doubt, check the runnable examples in `sdk/rust/nym-sdk/examples/` in the repo.
+- Code examples in the Rust SDK tutorials are verified against `nym-sdk` vX.Y.Z. If in doubt, check the runnable examples in `sdk/rust/nym-sdk/examples/` in the repo.
 
 ## Network
 

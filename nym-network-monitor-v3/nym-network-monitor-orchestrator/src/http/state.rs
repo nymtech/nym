@@ -7,7 +7,10 @@ use crate::storage::models::NewTestRun;
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::x25519;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
-use nym_network_monitor_orchestrator_requests::models::{TestRunAssignment, TestRunResult};
+use nym_network_monitor_orchestrator_requests::models::{
+    NymNodeData, PagedResult, Pagination, TestRunAssignment, TestRunData, TestRunResult,
+    TestRunsInProgressResponse,
+};
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
@@ -192,8 +195,6 @@ pub(crate) struct KnownAgent {
 /// `testrun_staleness_age` when deciding which nodes are eligible for testing.
 #[derive(Clone)]
 pub(crate) struct TestrunManager {
-    storage: NetworkMonitorStorage,
-
     /// Minimum time that must elapse after a node's last test before it becomes
     /// eligible for another one. Passed to the storage layer as a staleness gate.
     testrun_staleness_age: Duration,
@@ -202,9 +203,11 @@ pub(crate) struct TestrunManager {
 impl TestrunManager {
     /// Selects the most stale idle node and atomically marks it as having a test
     /// in progress. Returns `None` if no node is currently eligible.
-    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
-        let node_to_test = match self
-            .storage
+    async fn assign_next_testrun(
+        &self,
+        storage: &NetworkMonitorStorage,
+    ) -> Result<Option<TestRunAssignment>, ApiError> {
+        let node_to_test = match storage
             .assign_next_testrun(self.testrun_staleness_age)
             .await
         {
@@ -256,14 +259,15 @@ impl TestrunManager {
 
     /// Persists a completed test run result to the database and updates the
     /// node's `last_testrun` pointer.
-    pub(crate) async fn submit_testrun_result(
+    async fn submit_testrun_result(
         &self,
+        storage: &NetworkMonitorStorage,
         result: TestRunResult,
         node_id: NodeId,
     ) -> Result<(), ApiError> {
         // currently all testruns are mixnode results
-        let testrun = NewTestRun::from_mixnode_result(result);
-        if let Err(err) = self.storage.insert_test_run(&testrun, node_id).await {
+        let testrun = NewTestRun::from_mixnode_result(node_id, result);
+        if let Err(err) = storage.insert_test_run(&testrun).await {
             error!("testrun result storage failure: {err}");
             return Err(ApiError::StorageFailure);
         }
@@ -278,6 +282,8 @@ pub(crate) struct AppState {
 
     pub(crate) testrun_manager: TestrunManager,
 
+    pub(crate) storage: NetworkMonitorStorage,
+
     pub(crate) validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
 }
 
@@ -290,12 +296,130 @@ impl AppState {
     ) -> Self {
         AppState {
             agents,
+            storage,
             testrun_manager: TestrunManager {
-                storage,
                 testrun_staleness_age,
             },
             validator_client,
         }
+    }
+
+    /// Selects the most stale idle node and atomically marks it as having a test
+    /// in progress. Returns `None` if no node is currently eligible.
+    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
+        self.testrun_manager
+            .assign_next_testrun(&self.storage)
+            .await
+    }
+
+    /// Persists a completed test run result to the database and updates the
+    /// node's `last_testrun` pointer.
+    pub(crate) async fn submit_testrun_result(
+        &self,
+        result: TestRunResult,
+        node_id: NodeId,
+    ) -> Result<(), ApiError> {
+        self.testrun_manager
+            .submit_testrun_result(&self.storage, result, node_id)
+            .await
+    }
+
+    pub(crate) async fn get_testrun_by_id(&self, id: i64) -> Result<Option<TestRunData>, ApiError> {
+        let result = match self.storage.get_testrun_by_id(id).await {
+            Err(err) => {
+                error!("get_testrun_by_id storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(None) => return Ok(None),
+            Ok(Some(testrun)) => testrun,
+        };
+
+        // Ok(Some(TestRunData {
+        //     id,
+        //     node_id: result.inner.node_id as NodeId,
+        //     result: Default::default(),
+        // }))
+        todo!()
+    }
+
+    pub(crate) async fn get_nym_node_by_id(
+        &self,
+        node_id: NodeId,
+    ) -> Result<Option<NymNodeData>, ApiError> {
+        let nym_node = match self.storage.get_nym_node_by_id(node_id).await {
+            Err(err) => {
+                error!("get_nym_node_by_id storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(None) => return Ok(None),
+            Ok(Some(nym_node)) => nym_node,
+        };
+
+        todo!()
+    }
+
+    pub(crate) async fn get_testruns_in_progress(
+        &self,
+    ) -> Result<TestRunsInProgressResponse, ApiError> {
+        let in_progress = match self.storage.get_all_testruns_in_progress().await {
+            Err(err) => {
+                error!("get_all_testruns_in_progress storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(in_progress) => in_progress,
+        };
+
+        todo!()
+    }
+
+    pub(crate) async fn get_testruns_paginated(
+        &self,
+        pagination: Pagination,
+    ) -> Result<PagedResult<TestRunData>, ApiError> {
+        let (testruns, total) = match self.storage.get_testruns_paginated(pagination).await {
+            Err(err) => {
+                error!("get_testruns_paginated storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(testruns) => testruns,
+        };
+
+        todo!()
+    }
+
+    pub(crate) async fn get_nym_nodes_paginated(
+        &self,
+        pagination: Pagination,
+    ) -> Result<PagedResult<NymNodeData>, ApiError> {
+        let (nym_nodes, total) = match self.storage.get_nym_nodes_paginated(pagination).await {
+            Err(err) => {
+                error!("get_nym_nodes_paginated storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok((nym_nodes, total)) => (nym_nodes, total),
+        };
+
+        todo!()
+    }
+
+    pub(crate) async fn get_testruns_for_node_paginated(
+        &self,
+        node_id: NodeId,
+        pagination: Pagination,
+    ) -> Result<PagedResult<TestRunData>, ApiError> {
+        let (testruns, total) = match self
+            .storage
+            .get_testruns_for_node_paginated(node_id, pagination)
+            .await
+        {
+            Err(err) => {
+                error!("get_testruns_for_node_paginated storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok((testruns, total)) => (testruns, total),
+        };
+
+        todo!()
     }
 }
 

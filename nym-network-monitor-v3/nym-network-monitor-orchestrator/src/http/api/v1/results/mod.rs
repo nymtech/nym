@@ -3,7 +3,7 @@
 
 use crate::http::api::v1::error::ApiError;
 use crate::http::state::AppState;
-use axum::extract::{Path, Query};
+use axum::extract::{Path, Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
 use nym_network_monitor_orchestrator_requests::models::{
@@ -26,8 +26,15 @@ use nym_validator_client::client::NodeId;
         ))
     )
 )]
-async fn get_testrun_by_id(Path(_id): Path<i64>) -> Result<Json<TestRunData>, ApiError> {
-    Err(ApiError::Unimplemented)
+async fn get_testrun_by_id(
+    Path(id): Path<i64>,
+    State(state): State<AppState>,
+) -> Result<Json<TestRunData>, ApiError> {
+    state
+        .get_testrun_by_id(id)
+        .await?
+        .map(Json)
+        .ok_or(ApiError::TestRunNotFound)
 }
 
 #[utoipa::path(
@@ -44,8 +51,15 @@ async fn get_testrun_by_id(Path(_id): Path<i64>) -> Result<Json<TestRunData>, Ap
         ))
     )
 )]
-async fn get_nym_node_by_id(Path(_node_id): Path<NodeId>) -> Result<Json<NymNodeData>, ApiError> {
-    Err(ApiError::Unimplemented)
+async fn get_nym_node_by_id(
+    Path(node_id): Path<NodeId>,
+    State(state): State<AppState>,
+) -> Result<Json<NymNodeData>, ApiError> {
+    state
+        .get_nym_node_by_id(node_id)
+        .await?
+        .map(Json)
+        .ok_or(ApiError::NymNodeNotFound)
 }
 
 #[utoipa::path(
@@ -61,8 +75,10 @@ async fn get_nym_node_by_id(Path(_node_id): Path<NodeId>) -> Result<Json<NymNode
         ))
     )
 )]
-async fn get_testruns_in_progress() -> Result<Json<TestRunsInProgressResponse>, ApiError> {
-    Err(ApiError::Unimplemented)
+async fn get_testruns_in_progress(
+    State(state): State<AppState>,
+) -> Result<Json<TestRunsInProgressResponse>, ApiError> {
+    state.get_testruns_in_progress().await.map(Json)
 }
 
 #[utoipa::path(
@@ -80,9 +96,10 @@ async fn get_testruns_in_progress() -> Result<Json<TestRunsInProgressResponse>, 
     )
 )]
 async fn get_testruns(
-    Query(_pagination): Query<Pagination>,
+    Query(pagination): Query<Pagination>,
+    State(state): State<AppState>,
 ) -> Result<Json<PagedResult<TestRunData>>, ApiError> {
-    Err(ApiError::Unimplemented)
+    state.get_testruns_paginated(pagination).await.map(Json)
 }
 
 #[utoipa::path(
@@ -100,9 +117,38 @@ async fn get_testruns(
     )
 )]
 async fn get_nym_nodes(
-    Query(_pagination): Query<Pagination>,
+    Query(pagination): Query<Pagination>,
+    State(state): State<AppState>,
 ) -> Result<Json<PagedResult<NymNodeData>>, ApiError> {
-    Err(ApiError::Unimplemented)
+    state.get_nym_nodes_paginated(pagination).await.map(Json)
+}
+
+#[utoipa::path(
+    operation_id = "v1_results_nym_node_testruns",
+    tag = "Network Monitor Results",
+    get,
+    params(
+        ("node_id" = u32, Path, description = "Mixnet-contract node id"),
+        Pagination,
+    ),
+    path = "/nym-node/{node_id}/testruns",
+    context_path = "/v1/results",
+    security(("metrics_and_results_token" = [])),
+    responses(
+        (status = 200, content(
+            (PagedResult<TestRunData> = "application/json"),
+        ))
+    )
+)]
+async fn get_nym_node_testruns(
+    Path(node_id): Path<NodeId>,
+    Query(pagination): Query<Pagination>,
+    State(state): State<AppState>,
+) -> Result<Json<PagedResult<TestRunData>>, ApiError> {
+    state
+        .get_testruns_for_node_paginated(node_id, pagination)
+        .await
+        .map(Json)
 }
 
 pub(super) fn routes() -> Router<AppState> {
@@ -111,6 +157,10 @@ pub(super) fn routes() -> Router<AppState> {
         .route(
             routes::v1::results::NYM_NODE_BY_NODE_ID,
             get(get_nym_node_by_id),
+        )
+        .route(
+            routes::v1::results::NYM_NODE_TESTRUNS,
+            get(get_nym_node_testruns),
         )
         .route(
             routes::v1::results::TESTRUNS_IN_PROGRESS,

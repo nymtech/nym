@@ -1,7 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_network_monitor_orchestrator_requests::models::TestRunResult;
+use nym_network_monitor_orchestrator_requests::models::{
+    self as api, LatencyDistribution, TestRunData, TestRunResult,
+};
+use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use time::OffsetDateTime;
 
@@ -18,6 +21,9 @@ pub(crate) enum TestType {
 /// is assigned by the database on insertion.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct NewTestRun {
+    /// Contract-assigned node id of the node under test.
+    pub(crate) node_id: i64,
+
     pub(crate) test_type: TestType,
     pub(crate) test_timestamp: OffsetDateTime,
 
@@ -64,8 +70,9 @@ impl NewTestRun {
     /// Converts an API-level [`TestRunResult`] into a database-ready row,
     /// flattening [`LatencyDistribution`](nym_network_monitor_orchestrator_requests::models::LatencyDistribution)
     /// fields into individual microsecond columns and recording the current UTC time as the test timestamp.
-    fn from_result(test_type: TestType, result: TestRunResult) -> Self {
+    fn from_result(test_type: TestType, node_id: NodeId, result: TestRunResult) -> Self {
         NewTestRun {
+            node_id: node_id as i64,
             test_type,
             test_timestamp: OffsetDateTime::now_utc(),
             ingress_noise_handshake_us: result.ingress_noise_handshake.map(duration_to_us),
@@ -94,14 +101,14 @@ impl NewTestRun {
     }
 
     /// Creates a new test run row for a mixnode stress test result.
-    pub(crate) fn from_mixnode_result(result: TestRunResult) -> Self {
-        Self::from_result(TestType::Mixnode, result)
+    pub(crate) fn from_mixnode_result(node_id: NodeId, result: TestRunResult) -> Self {
+        Self::from_result(TestType::Mixnode, node_id, result)
     }
 
     /// Creates a new test run row for a gateway stress test result.
     #[allow(dead_code)]
-    pub(crate) fn from_gateway_result(result: TestRunResult) -> Self {
-        Self::from_result(TestType::Gateway, result)
+    pub(crate) fn from_gateway_result(node_id: NodeId, result: TestRunResult) -> Self {
+        Self::from_result(TestType::Gateway, node_id, result)
     }
 }
 
@@ -112,6 +119,72 @@ pub(crate) struct TestRun {
 
     #[sqlx(flatten)]
     pub(crate) inner: NewTestRun,
+}
+
+fn us_to_duration(us: i64) -> std::time::Duration {
+    std::time::Duration::from_micros(us as u64)
+}
+
+/// Reassembles a [`LatencyDistribution`] from its four flattened microsecond columns.
+/// Returns `None` if any column is `NULL`; the four columns are always all-set or all-NULL
+/// together (see [`NewTestRun::from_result`]).
+fn latency_distribution(
+    min_us: Option<i64>,
+    mean_us: Option<i64>,
+    max_us: Option<i64>,
+    std_dev_us: Option<i64>,
+) -> Option<LatencyDistribution> {
+    match (min_us, mean_us, max_us, std_dev_us) {
+        (Some(min), Some(mean), Some(max), Some(std_dev)) => Some(LatencyDistribution {
+            minimum: us_to_duration(min),
+            mean: us_to_duration(mean),
+            maximum: us_to_duration(max),
+            standard_deviation: us_to_duration(std_dev),
+        }),
+        _ => None,
+    }
+}
+
+impl From<TestType> for api::TestType {
+    fn from(t: TestType) -> Self {
+        match t {
+            TestType::Mixnode => api::TestType::Mixnode,
+            TestType::Gateway => api::TestType::Gateway,
+        }
+    }
+}
+
+impl From<TestRun> for TestRunData {
+    fn from(run: TestRun) -> Self {
+        let inner = run.inner;
+        TestRunData {
+            id: run.id,
+            node_id: inner.node_id as u32,
+            test_type: inner.test_type.into(),
+            test_timestamp: inner.test_timestamp,
+            result: TestRunResult {
+                ingress_noise_handshake: inner.ingress_noise_handshake_us.map(us_to_duration),
+                egress_noise_handshake: inner.egress_noise_handshake_us.map(us_to_duration),
+                packets_sent: inner.packets_sent as usize,
+                packets_received: inner.packets_received as usize,
+                approximate_latency: inner.approximate_latency_us.map(us_to_duration),
+                packets_statistics: latency_distribution(
+                    inner.packets_rtt_min_us,
+                    inner.packets_rtt_mean_us,
+                    inner.packets_rtt_max_us,
+                    inner.packets_rtt_std_dev_us,
+                ),
+                sending_statistics: latency_distribution(
+                    inner.sending_latency_min_us,
+                    inner.sending_latency_mean_us,
+                    inner.sending_latency_max_us,
+                    inner.sending_latency_std_dev_us,
+                ),
+                received_duplicates: inner.received_duplicates,
+                error: inner.error,
+            },
+        }
+    }
 }
 
 /// The data required to insert or update a row in `nym_node`. Does not carry `last_testrun`

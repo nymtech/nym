@@ -28,17 +28,20 @@ fn swagger_redirect<S: Clone + Send + Sync + 'static>() -> MethodRouter<S> {
 pub(crate) fn build_router(
     state: AppState,
     agents_auth_token: Arc<Zeroizing<String>>,
-    metrics_auth_token: Arc<Zeroizing<String>>,
+    metrics_and_results_auth_token: Arc<Zeroizing<String>>,
 ) -> Router {
     let agents_auth = AuthLayer::new(agents_auth_token);
-    let metrics_auth = AuthLayer::new(metrics_auth_token);
+    let metrics_and_results_auth = AuthLayer::new(metrics_and_results_auth_token);
 
     Router::new()
         .route(routes::ROOT, swagger_redirect())
         .route("/swagger/", swagger_redirect())
         .route("/swagger/index.html", swagger_redirect())
         .merge(api_docs::route())
-        .nest(routes::V1, v1::routes(agents_auth, metrics_auth))
+        .nest(
+            routes::V1,
+            v1::routes(agents_auth, metrics_and_results_auth),
+        )
         .layer(axum::middleware::from_fn(log_request_debug))
         .with_state(state)
 }

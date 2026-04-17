@@ -22,9 +22,9 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_ORCHESTRATOR_AGENTS_TOKEN_ARG)]
     agents_token: String,
 
-    /// Bearer token used for accessing the metrics endpoint.
-    #[clap(long, env = NYM_NETWORK_MONITOR_ORCHESTRATOR_METRICS_TOKEN_ARG)]
-    metrics_token: String,
+    /// Bearer token used for accessing the metrics and results endpoints.
+    #[clap(long, env = NYM_NETWORK_MONITOR_ORCHESTRATOR_METRICS_AND_RESULTS_TOKEN_ARG)]
+    metrics_and_results_token: String,
 
     /// How often each node should be stress-tested (e.g. `30m`, `1h`).
     #[clap(long, env = NYM_NETWORK_MONITOR_TEST_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "12h")]
@@ -139,15 +139,17 @@ impl Args {
         Ok(Zeroizing::new(taken))
     }
 
-    /// Moves the orchestrator metrics token out of `self`, zeroizing the original.
+    /// Moves the orchestrator metrics-and-results token out of `self`, zeroizing the original.
     ///
     /// Returns an error if the token is empty.
-    pub(crate) fn take_metrics_orchestrator_token(&mut self) -> anyhow::Result<Zeroizing<String>> {
+    pub(crate) fn take_metrics_and_results_orchestrator_token(
+        &mut self,
+    ) -> anyhow::Result<Zeroizing<String>> {
         // we must never accept empty tokens
-        if self.metrics_token.is_empty() {
+        if self.metrics_and_results_token.is_empty() {
             bail!("provided orchestrator token is empty, please provide a non-empty value")
         }
-        let taken = mem::take(&mut self.metrics_token);
+        let taken = mem::take(&mut self.metrics_and_results_token);
         Ok(Zeroizing::new(taken))
     }
 
@@ -175,14 +177,14 @@ pub(crate) async fn execute(mut args: Args) -> anyhow::Result<()> {
     let config = args.build_orchestrator_config()?;
     let identity_keys = args.take_identity_key()?;
     let agents_auth_token = args.take_agents_orchestrator_token()?;
-    let metrics_auth_token = args.take_metrics_orchestrator_token()?;
+    let metrics_and_results_auth_token = args.take_metrics_and_results_orchestrator_token()?;
     let mnemonic = args.into_mnemonic();
 
     let mut orchestrator = NetworkMonitorOrchestrator::new(
         config,
         identity_keys,
         agents_auth_token,
-        metrics_auth_token,
+        metrics_and_results_auth_token,
         mnemonic,
     )
     .await?;

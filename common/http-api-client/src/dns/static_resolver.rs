@@ -107,6 +107,12 @@ impl StaticResolver {
         self.fallback_addr_map.lock().unwrap().extend(addrs);
     }
 
+    /// Remove a single host from the preresolve table, forcing the next lookup
+    /// for that host to go through the network resolver again.
+    pub fn invalidate_preresolve_entry(&self, name: &str) {
+        self.preresolve_addr_map.lock().unwrap().remove(name);
+    }
+
     /// Clear entries from the static table that would return entries during the pre-resolve stage.
     /// This means that all lookups will attempt to use the network resolver again before the static
     /// table is consulted.

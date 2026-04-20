@@ -4,6 +4,18 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.8-urda] (2026-04-20)
+
+- Include all gateways in the returned list ([#6649])
+- Optimize GW probe in NS agent ([#6636])
+- Max/sdk docrs ([#6566])
+- Max/sdk stream wrapper ([#6320])
+
+[#6649]: https://github.com/nymtech/nym/pull/6649
+[#6636]: https://github.com/nymtech/nym/pull/6636
+[#6566]: https://github.com/nymtech/nym/pull/6566
+[#6320]: https://github.com/nymtech/nym/pull/6320
+
 ## [2026.7-tola] (2026-04-07)
 
 - Simon/ecash contract serde fix ([#6634])

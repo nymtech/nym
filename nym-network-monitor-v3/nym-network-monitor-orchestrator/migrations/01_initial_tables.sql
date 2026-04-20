@@ -69,6 +69,10 @@ CREATE TABLE testrun
 -- Supports efficient "all runs for node X, newest first" lookups.
 CREATE INDEX idx_testrun_node_id_timestamp ON testrun (node_id, test_timestamp DESC);
 
+-- Supports efficient "all runs, newest first" lookups (the global testruns pagination endpoint).
+-- The composite index above cannot serve this query because its leading column is node_id.
+CREATE INDEX idx_testrun_test_timestamp ON testrun (test_timestamp DESC);
+
 CREATE TABLE nym_node
 (
     -- Node ID as assigned by the mixnet contract.

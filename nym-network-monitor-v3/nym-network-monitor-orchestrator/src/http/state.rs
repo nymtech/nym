@@ -201,14 +201,14 @@ pub(crate) struct TestrunManager {
 }
 
 impl TestrunManager {
-    /// Selects the most stale idle node and atomically marks it as having a test
-    /// in progress. Returns `None` if no node is currently eligible.
-    async fn assign_next_testrun(
+    /// Selects the most stale idle mixnode and atomically marks it as having a test
+    /// in progress. Returns `None` if no mixnode is currently eligible.
+    async fn assign_next_mixnode_testrun(
         &self,
         storage: &NetworkMonitorStorage,
     ) -> Result<Option<TestRunAssignment>, ApiError> {
         let node_to_test = match storage
-            .assign_next_testrun(self.testrun_staleness_age)
+            .assign_next_mixnode_testrun(self.testrun_staleness_age)
             .await
         {
             Ok(node) => node,
@@ -304,11 +304,13 @@ impl AppState {
         }
     }
 
-    /// Selects the most stale idle node and atomically marks it as having a test
-    /// in progress. Returns `None` if no node is currently eligible.
-    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
+    /// Selects the most stale idle mixnode and atomically marks it as having a test
+    /// in progress. Returns `None` if no mixnode is currently eligible.
+    pub(crate) async fn assign_next_mixnode_testrun(
+        &self,
+    ) -> Result<Option<TestRunAssignment>, ApiError> {
         self.testrun_manager
-            .assign_next_testrun(&self.storage)
+            .assign_next_mixnode_testrun(&self.storage)
             .await
     }
 

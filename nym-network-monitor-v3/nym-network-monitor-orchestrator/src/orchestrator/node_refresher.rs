@@ -4,7 +4,7 @@
 use crate::orchestrator::config::Config;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::NewNymNode;
+use crate::storage::models::{NewNymNode, NodeType};
 use anyhow::Context;
 use futures::{StreamExt, stream};
 use nym_bin_common::bin_info;
@@ -62,20 +62,6 @@ struct SelfDescribedData {
     roles: NodeRoles,
 }
 
-struct RefreshedNymNode {
-    data: NewNymNode,
-    is_mixnode: Option<bool>,
-}
-
-impl From<NewNymNode> for RefreshedNymNode {
-    fn from(node_data: NewNymNode) -> Self {
-        RefreshedNymNode {
-            data: node_data,
-            is_mixnode: None,
-        }
-    }
-}
-
 impl NodeRefresher {
     pub(crate) fn new(
         config: &Config,
@@ -131,7 +117,8 @@ impl NodeRefresher {
             .mix_port
             .unwrap_or(DEFAULT_MIX_LISTENING_PORT);
 
-        // retrieve information about the node roles - we're not testing gateways (yet)
+        // retrieve information about the node roles so that we can classify the node
+        // (we're not testing gateways yet, but we still store them for completeness)
         let roles = api_client
             .get_roles()
             .await
@@ -146,14 +133,14 @@ impl NodeRefresher {
         })
     }
 
-    async fn get_node_details(&self, bond: NymNodeBond) -> RefreshedNymNode {
+    async fn get_node_details(&self, bond: NymNodeBond) -> NewNymNode {
         let mut node_update = NewNymNode::from_bond(&bond);
 
         let node_id = bond.node_id;
         let self_described = match self.get_node_details_inner(bond).await {
             Err(err) => {
                 error!("failed to retrieve self-described node details for node {node_id}: {err}");
-                return node_update.into();
+                return node_update;
             }
             Ok(info) => info,
         };
@@ -162,11 +149,9 @@ impl NodeRefresher {
         node_update.noise_key = Some(self_described.noise_key.to_base58_string());
         node_update.sphinx_key = Some(self_described.sphinx_key.to_base58_string());
         node_update.key_rotation_id = Some(self_described.key_rotation_id as i64);
+        node_update.node_type = NodeType::from_roles(&self_described.roles);
 
-        RefreshedNymNode {
-            data: node_update,
-            is_mixnode: Some(self_described.roles.mixnode_enabled),
-        }
+        node_update
     }
 
     async fn refresh_bonded_nodes(&self) -> anyhow::Result<()> {
@@ -188,35 +173,22 @@ impl NodeRefresher {
             "managed to retrieve full node information on {} nodes",
             refreshed_nodes.len()
         );
-
+        let failed = refreshed_nodes
+            .iter()
+            .filter(|n| n.node_type == NodeType::Unknown)
+            .count();
+        let successful = refreshed_nodes.len() - failed;
         PROMETHEUS_METRICS.set(
             PrometheusMetric::SuccessfulNymNodeDataRetrieval,
-            refreshed_nodes.len() as i64,
+            successful as i64,
         );
-        PROMETHEUS_METRICS.set(
-            PrometheusMetric::FailedNymNodeDataRetrieval,
-            num_nodes as i64 - refreshed_nodes.len() as i64,
-        );
+        PROMETHEUS_METRICS.set(PrometheusMetric::FailedNymNodeDataRetrieval, failed as i64);
 
-        // 3. filter out nodes that are not mixnodes
-        let mixnodes = refreshed_nodes
-            .into_iter()
-            .filter_map(|n| {
-                if let Some(is_mix) = n.is_mixnode
-                    && is_mix
-                {
-                    Some(n.data)
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        PROMETHEUS_METRICS.set(PrometheusMetric::LastUpdatedMixnodes, mixnodes.len() as i64);
-
-        // 4. update the storage
+        // 3. persist every node (including unreachable ones so we keep their
+        //    previously-learned keys around for the next refresh). The testrun
+        //    assignment query filters out non-mixnode / unknown entries.
         self.storage
-            .batch_insert_or_update_nym_nodes(&mixnodes)
+            .batch_insert_or_update_nym_nodes(&refreshed_nodes)
             .await?;
         Ok(())
     }

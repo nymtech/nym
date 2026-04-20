@@ -51,7 +51,7 @@ const RECEIVED_PACKETS_RATIO: &[f64] = &[
     0.99, // 0.99+ (implicitly)
 ];
 
-const AVG_PACKET_RRT: &[f64] = &[
+const AVG_PACKET_RTT: &[f64] = &[
     // sub 1ms (implicitly)
     1.,    // 1ms - 5ms
     5.,    // 5ms - 10ms
@@ -130,8 +130,8 @@ pub enum PrometheusMetric {
     ))]
     TimedOutTestrunsEvicted,
 
-    #[strum(props(help = "The duration of a test run"))]
-    TestDurationMs,
+    #[strum(props(help = "The duration of a test run, in seconds"))]
+    TestDurationSeconds,
 
     #[strum(props(help = "The number of testruns that resulted in errors"))]
     TestrunsErrors,
@@ -140,7 +140,7 @@ pub enum PrometheusMetric {
     ApproximateNodeLatencyMs,
 
     #[strum(props(
-        help = "Ratio of packets sent to packets received in a testrun (sent / received)"
+        help = "Ratio of packets sent to packets received in a testrun (received / sent)"
     ))]
     TestrunReceivedPacketsRatio,
 
@@ -161,11 +161,6 @@ pub enum PrometheusMetric {
         help = "The number of failed Nym node data retrievals from self-described endpoints"
     ))]
     FailedNymNodeDataRetrieval,
-
-    #[strum(props(
-        help = "The number of mixnodes that were updated in the storage in the last refresh iteration"
-    ))]
-    LastUpdatedMixnodes,
 }
 
 impl PrometheusMetric {
@@ -207,7 +202,7 @@ impl PrometheusMetric {
             PrometheusMetric::TestRunResultSubmissions => Metric::new_int_counter(&name, help),
             PrometheusMetric::StaleTestrunsEvicted => Metric::new_int_counter(&name, help),
             PrometheusMetric::TimedOutTestrunsEvicted => Metric::new_int_counter(&name, help),
-            PrometheusMetric::TestDurationMs => {
+            PrometheusMetric::TestDurationSeconds => {
                 Metric::new_histogram(&name, help, Some(TESTRUN_DURATION))
             }
             PrometheusMetric::TestrunsErrors => Metric::new_int_counter(&name, help),
@@ -218,12 +213,11 @@ impl PrometheusMetric {
                 Metric::new_histogram(&name, help, Some(RECEIVED_PACKETS_RATIO))
             }
             PrometheusMetric::AverageTestPacketRTTMs => {
-                Metric::new_histogram(&name, help, Some(AVG_PACKET_RRT))
+                Metric::new_histogram(&name, help, Some(AVG_PACKET_RTT))
             }
             PrometheusMetric::BondedNymNodes => Metric::new_int_gauge(&name, help),
             PrometheusMetric::SuccessfulNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
             PrometheusMetric::FailedNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::LastUpdatedMixnodes => Metric::new_int_gauge(&name, help),
         }
     }
 
@@ -265,7 +259,9 @@ impl PrometheusMetric {
 }
 
 #[non_exhaustive]
-pub struct NetworkMonitorPrometheusMetrics {}
+pub struct NetworkMonitorPrometheusMetrics {
+    _private: (),
+}
 
 impl NetworkMonitorPrometheusMetrics {
     // initialise all fields on startup with default values so that they'd be immediately available for query
@@ -279,7 +275,7 @@ impl NetworkMonitorPrometheusMetrics {
             }
         }
 
-        NetworkMonitorPrometheusMetrics {}
+        NetworkMonitorPrometheusMetrics { _private: () }
     }
 
     pub fn metrics(&self) -> String {

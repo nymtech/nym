@@ -101,7 +101,8 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Atomically selects the most stale idle node and marks it as having a test run in progress.
+    /// Atomically selects the most stale idle mixnode and marks it as having a test run in
+    /// progress.
     ///
     /// "Most stale" is defined as: nodes that have never been tested come first, followed by
     /// nodes whose last test run has the oldest timestamp.
@@ -113,17 +114,18 @@ impl NetworkMonitorStorage {
     /// The current time is used as the `started_at` timestamp on the resulting
     /// `testrun_in_progress` row.
     ///
-    /// Nodes with a row in `testrun_in_progress` are excluded entirely.
+    /// Nodes with a row in `testrun_in_progress` are excluded entirely. Only nodes classified
+    /// as `mixnode` or `mixnode_and_gateway` are eligible.
     ///
-    /// Returns `None` if no eligible idle node exists.
-    pub(crate) async fn assign_next_testrun(
+    /// Returns `None` if no eligible idle mixnode exists.
+    pub(crate) async fn assign_next_mixnode_testrun(
         &self,
         staleness_age: Duration,
     ) -> anyhow::Result<Option<NymNode>> {
         let now = OffsetDateTime::now_utc();
         let last_tested_before = now - staleness_age;
         self.storage_manager
-            .assign_next_testrun(now, last_tested_before)
+            .assign_next_mixnode_testrun(now, last_tested_before)
             .await
     }
 

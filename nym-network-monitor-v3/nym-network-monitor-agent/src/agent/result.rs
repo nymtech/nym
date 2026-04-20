@@ -3,6 +3,7 @@
 
 use crate::egress_connection::EgressConnectionStatistics;
 use std::time::Duration;
+use time::OffsetDateTime;
 
 // TODO: once created, move this struct to a shared models library
 /// Captures the outcome of a single [`run_stress_test`](super::NodeStressTester::run_stress_test) run.
@@ -11,6 +12,9 @@ use std::time::Duration;
 /// that the corresponding step was not reached or did not produce a result.
 #[derive(Debug, Clone)]
 pub(crate) struct TestRunResult {
+    /// The timestamp when the test run was initiated.
+    pub(crate) start_time: OffsetDateTime,
+
     /// Duration of the Noise handshake on the ingress (responder) side, if completed.
     pub(crate) ingress_noise_handshake: Option<Duration>,
 
@@ -52,6 +56,7 @@ pub(crate) struct TestRunResult {
 impl TestRunResult {
     pub(crate) fn new(sphinx_packet_delay: Duration) -> Self {
         TestRunResult {
+            start_time: OffsetDateTime::now_utc(),
             ingress_noise_handshake: None,
             egress_noise_handshake: None,
             sphinx_packet_delay,
@@ -252,6 +257,7 @@ impl From<LatencyDistribution>
 impl From<TestRunResult> for nym_network_monitor_orchestrator_requests::models::TestRunResult {
     fn from(value: TestRunResult) -> Self {
         Self {
+            time_taken: (OffsetDateTime::now_utc() - value.start_time).unsigned_abs(),
             ingress_noise_handshake: value.ingress_noise_handshake,
             egress_noise_handshake: value.egress_noise_handshake,
             sphinx_packet_delay: value.sphinx_packet_delay,

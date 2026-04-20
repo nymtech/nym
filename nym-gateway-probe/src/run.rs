@@ -101,7 +101,7 @@ enum Commands {
         /// Gateway queried directly by IP address (unannounced/local gateways)
         /// Cannot be used with --gateway/--entry-gateway.
         /// Cannot be used with --mnemonic or --use-mock-ecash.
-        #[arg(long, conflicts_with = "entry_gateway", conflicts_with = "gateway")]
+        #[arg(long, conflicts_with = "entry_gateway")]
         gateway_ip: Option<String>,
 
         /// Separate exit gateway to test (entry_gateway is used for mixnet entry)

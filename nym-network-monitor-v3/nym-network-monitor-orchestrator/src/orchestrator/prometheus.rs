@@ -161,6 +161,11 @@ pub enum PrometheusMetric {
         help = "The number of failed Nym node data retrievals from self-described endpoints"
     ))]
     FailedNymNodeDataRetrieval,
+
+    #[strum(props(
+        help = "The number of mixnodes that were updated in the storage in the last refresh iteration"
+    ))]
+    LastUpdatedMixnodes,
 }
 
 impl PrometheusMetric {
@@ -218,6 +223,7 @@ impl PrometheusMetric {
             PrometheusMetric::BondedNymNodes => Metric::new_int_gauge(&name, help),
             PrometheusMetric::SuccessfulNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
             PrometheusMetric::FailedNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::LastUpdatedMixnodes => Metric::new_int_gauge(&name, help),
         }
     }
 

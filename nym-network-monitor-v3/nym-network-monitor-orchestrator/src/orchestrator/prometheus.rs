@@ -1,13 +1,31 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+//! Prometheus metrics exposed by the orchestrator.
+//!
+//! Every series this service emits is declared up-front as a variant of [`PrometheusMetric`].
+//! Each variant carries its Prometheus help string via strum's `EnumProperty` attribute and is
+//! mapped to a concrete counter / gauge / histogram in [`PrometheusMetric::to_registrable_metric`].
+//! Call sites emit values through the process-wide [`PROMETHEUS_METRICS`] handle, which forwards
+//! to the underlying [`nym_metrics`] registry.
+//!
+//! The registry is pre-populated in [`NetworkMonitorPrometheusMetrics::initialise`] so that every
+//! series is present (with a zero value) from the very first scrape — this avoids dashboards and
+//! alerts interpreting the first observation as a reset.
+
 use nym_metrics::{HistogramTimer, Metric, metrics_registry};
 use std::sync::LazyLock;
 use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator};
 
+/// Process-wide handle to the orchestrator's Prometheus metrics. Lazily initialised on first
+/// access; the initialisation pre-registers every [`PrometheusMetric`] variant so that scrapes
+/// observe a complete set of zeroed series even before any event has fired.
 pub static PROMETHEUS_METRICS: LazyLock<NetworkMonitorPrometheusMetrics> =
     LazyLock::new(NetworkMonitorPrometheusMetrics::initialise);
 
+/// Histogram buckets (upper bounds, in seconds) for [`PrometheusMetric::TestDurationSeconds`].
+/// Densely spaced in the 40–60 s range because most completed runs cluster there and small
+/// shifts in that band are the most interesting signal.
 const TESTRUN_DURATION: &[f64] = &[
     // sub 5s (implicitly)
     5.,   // 5s - 15s
@@ -22,6 +40,9 @@ const TESTRUN_DURATION: &[f64] = &[
     300., // 5min+ (implicitly)
 ];
 
+/// Histogram buckets (upper bounds, in milliseconds) for
+/// [`PrometheusMetric::ApproximateNodeLatencyMs`]. Log-ish spacing from 1 ms up to 1 s — typical
+/// mixnet latencies are well under 500 ms and anything past 1 s lands in the overflow bucket.
 const NODE_LATENCY: &[f64] = &[
     // sub 1ms (implicitly)
     1.,    // 1ms - 5ms
@@ -35,6 +56,10 @@ const NODE_LATENCY: &[f64] = &[
     1000., // 1s+ (implicitly)
 ];
 
+/// Histogram buckets for [`PrometheusMetric::TestrunReceivedPacketsRatio`] — `received / sent`,
+/// so values live in `[0, 1]`. The dedicated `<= 0.0` bucket isolates the "got nothing" case from
+/// "got a few", which otherwise would all collapse into a single low bucket; upper buckets are
+/// dense near 1.0 because the difference between 99% and 95% delivery is operationally significant.
 const RECEIVED_PACKETS_RATIO: &[f64] = &[
     0.,   // 0 - 0.1
     0.1,  // 0.1 - 0.2
@@ -51,6 +76,9 @@ const RECEIVED_PACKETS_RATIO: &[f64] = &[
     0.99, // 0.99+ (implicitly)
 ];
 
+/// Histogram buckets (upper bounds, in milliseconds) for
+/// [`PrometheusMetric::AverageTestPacketRTTMs`]. Same shape as [`NODE_LATENCY`] — this is the
+/// mean per-packet round trip over a single testrun, not the approximation used for node latency.
 const AVG_PACKET_RTT: &[f64] = &[
     // sub 1ms (implicitly)
     1.,    // 1ms - 5ms
@@ -64,6 +92,14 @@ const AVG_PACKET_RTT: &[f64] = &[
     1000., // 1s+ (implicitly)
 ];
 
+/// Every Prometheus series emitted by the orchestrator. Each variant maps to exactly one metric
+/// and must carry a `help` strum property — this is verified by the `every_variant_has_help_property`
+/// test.
+///
+/// The Prometheus metric name is derived from the variant name via strum: `serialize_all =
+/// "snake_case"` + the `nym_network_monitor_` prefix. So `MixPortRequests` becomes
+/// `nym_network_monitor_mix_port_requests`. The concrete metric kind (counter / gauge / histogram,
+/// plus bucket bounds) is chosen in [`PrometheusMetric::to_registrable_metric`].
 #[derive(Clone, Debug, EnumIter, Display, EnumProperty, EnumCount, Eq, Hash, PartialEq)]
 #[strum(serialize_all = "snake_case", prefix = "nym_network_monitor_")]
 pub enum PrometheusMetric {
@@ -174,6 +210,10 @@ impl PrometheusMetric {
         self.get_str("help").unwrap()
     }
 
+    /// Builds the concrete [`Metric`] this variant should register as (counter / gauge / histogram
+    /// with the right bucket bounds). Called from [`NetworkMonitorPrometheusMetrics::initialise`]
+    /// to pre-populate the registry, and from the `set` / `observe_histogram` fallback paths to
+    /// lazily register a metric that somehow wasn't set up yet.
     fn to_registrable_metric(&self) -> Option<Metric> {
         let name = self.name();
         let help = self.help();
@@ -221,6 +261,8 @@ impl PrometheusMetric {
         }
     }
 
+    /// Sets the gauge to `value`. If the metric has not yet been registered (shouldn't happen after
+    /// `initialise`, but we're defensive), falls back to registering it first and retrying.
     fn set(&self, value: i64) {
         let reg = metrics_registry();
         if !reg.set(&self.name(), value)
@@ -243,6 +285,7 @@ impl PrometheusMetric {
         metrics_registry().inc_by(&self.name(), value);
     }
 
+    /// Records `value` into the histogram. Same register-on-miss fallback as [`Self::set`].
     fn observe_histogram(&self, value: f64) {
         let reg = metrics_registry();
         if !reg.add_to_histogram(&self.name(), value)
@@ -258,13 +301,20 @@ impl PrometheusMetric {
     }
 }
 
+/// Orchestrator-side handle to the process-wide Prometheus registry. Constructed once via
+/// [`Self::initialise`] (held in the [`PROMETHEUS_METRICS`] static) and used from call sites to
+/// emit values against the [`PrometheusMetric`] enum. All mutating methods are thin wrappers
+/// around the corresponding methods on [`PrometheusMetric`].
 #[non_exhaustive]
 pub struct NetworkMonitorPrometheusMetrics {
     _private: (),
 }
 
 impl NetworkMonitorPrometheusMetrics {
-    // initialise all fields on startup with default values so that they'd be immediately available for query
+    /// Pre-registers every [`PrometheusMetric`] variant in the shared registry so that the very
+    /// first scrape after startup already returns the full set of series with zero values.
+    /// Without this, series only appear after their first observation, which can make dashboards
+    /// and alerting rules misbehave (missing series vs. zeroed series are not the same signal).
     pub(crate) fn initialise() -> Self {
         let registry = metrics_registry();
 
@@ -278,6 +328,8 @@ impl NetworkMonitorPrometheusMetrics {
         NetworkMonitorPrometheusMetrics { _private: () }
     }
 
+    /// Renders the full registry in the Prometheus text exposition format — this is what the
+    /// `/v1/metrics/prometheus` scrape endpoint returns.
     pub fn metrics(&self) -> String {
         metrics_registry().to_string()
     }

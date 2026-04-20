@@ -148,6 +148,9 @@ fn latency_distribution(
     }
 }
 
+/// Maps the internal enum onto its public API counterpart. Kept as a separate
+/// type so `sqlx::Type` can be derived on the internal side without leaking
+/// sqlx into the public request crate.
 impl From<TestType> for api::TestType {
     fn from(t: TestType) -> Self {
         match t {
@@ -157,6 +160,10 @@ impl From<TestType> for api::TestType {
     }
 }
 
+/// Lifts a `testrun` row into the public [`TestRunData`] shape: widens `i64`
+/// ids/counters to the API's `u32`/`usize`, reconstitutes each
+/// `LatencyDistribution` from its four microsecond columns, and converts
+/// microsecond integers back into `std::time::Duration`.
 impl From<TestRun> for TestRunData {
     fn from(run: TestRun) -> Self {
         let inner = run.inner;
@@ -244,6 +251,8 @@ pub(crate) struct TestRunInProgress {
     pub(crate) started_at: OffsetDateTime,
 }
 
+/// Lifts a `testrun_in_progress` row into the public shape, narrowing `node_id`
+/// from the sqlx-native `i64` to the API's `u32`.
 impl From<TestRunInProgress> for TestRunInProgressData {
     fn from(row: TestRunInProgress) -> Self {
         TestRunInProgressData {
@@ -263,6 +272,12 @@ pub(crate) struct NymNode {
     pub(crate) last_testrun: Option<i64>,
 }
 
+/// Decodes a node's stored base58 key strings and parses the socket address
+/// into typed counterparts for the public API. Fails (with context) when any
+/// stored value is malformed — this should not happen in practice because the
+/// orchestrator writes these fields itself, so a failure here indicates
+/// corruption or a schema regression and is surfaced as
+/// [`crate::http::api::v1::error::ApiError::MalformedStoredData`] by callers.
 impl TryFrom<NewNymNode> for NymNodeData {
     type Error = anyhow::Error;
 
@@ -297,6 +312,9 @@ impl TryFrom<NewNymNode> for NymNodeData {
     }
 }
 
+/// Convenience pass-through that drops `last_testrun` (callers that need the
+/// latest run fetch it explicitly via [`TestRun`]) and delegates to the
+/// [`NewNymNode`] conversion for the rest of the fields.
 impl TryFrom<NymNode> for NymNodeData {
     type Error = anyhow::Error;
 

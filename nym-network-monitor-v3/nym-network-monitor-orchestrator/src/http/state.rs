@@ -324,6 +324,9 @@ impl AppState {
             .await
     }
 
+    /// Backs `GET /v1/results/testrun/{id}`. `Ok(None)` means the row doesn't
+    /// exist (the handler maps this to a 404); storage errors are logged and
+    /// collapsed to [`ApiError::StorageFailure`].
     pub(crate) async fn get_testrun_by_id(&self, id: i64) -> Result<Option<TestRunData>, ApiError> {
         let result = match self.storage.get_testrun_by_id(id).await {
             Err(err) => {
@@ -337,6 +340,14 @@ impl AppState {
         Ok(Some(result.into()))
     }
 
+    /// Backs `GET /v1/results/nym-node/{node_id}`. If the node is known, its
+    /// snapshot is returned along with the most recent completed test run
+    /// (fetched in a second query via [`Self::get_testrun_by_id`]);
+    /// `latest_test_run` is `None` when no such run exists.
+    ///
+    /// Malformed stored data (e.g. an unparsable base58 key) is surfaced as
+    /// [`ApiError::MalformedStoredData`]; this should never happen in practice
+    /// because the orchestrator writes these fields itself.
     pub(crate) async fn get_nym_node_by_id(
         &self,
         node_id: NodeId,
@@ -364,6 +375,9 @@ impl AppState {
         }))
     }
 
+    /// Backs `GET /v1/results/testruns-in-progress`. Returns every row in
+    /// `testrun_in_progress` up to the storage-layer cap of 200, oldest
+    /// `started_at` first so stale runs surface at the top.
     pub(crate) async fn get_testruns_in_progress(
         &self,
     ) -> Result<TestRunsInProgressResponse, ApiError> {
@@ -380,6 +394,10 @@ impl AppState {
         })
     }
 
+    /// Backs `GET /v1/results/testruns`. Returns a single page of completed
+    /// runs ordered newest first, together with the total row count at the
+    /// time the page was read (fetched in the same transaction as the page
+    /// itself for consistency).
     pub(crate) async fn get_testruns_paginated(
         &self,
         pagination: Pagination,
@@ -400,6 +418,10 @@ impl AppState {
         })
     }
 
+    /// Backs `GET /v1/results/nym-nodes`. Returns a page of nodes ordered by
+    /// `node_id` ascending. Each row is converted to [`NymNodeData`] via the
+    /// fallible `TryFrom` impl that decodes stored base58 keys; a failure
+    /// anywhere in the page produces [`ApiError::MalformedStoredData`].
     pub(crate) async fn get_nym_nodes_paginated(
         &self,
         pagination: Pagination,
@@ -428,6 +450,10 @@ impl AppState {
         })
     }
 
+    /// Backs `GET /v1/results/nym-node/{node_id}/testruns`. Returns a page of
+    /// completed runs for a single node ordered newest first. Unknown or
+    /// never-tested nodes produce a valid empty page (`total: 0`) rather than
+    /// a 404.
     pub(crate) async fn get_testruns_for_node_paginated(
         &self,
         node_id: NodeId,

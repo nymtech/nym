@@ -207,8 +207,9 @@ pub struct TestRunResult {
 pub struct TestRunSubmissionResponse {}
 
 // ------------------------------------------------------------------------
-// placeholder models for the results-query API. to be fleshed out as the
-// corresponding handlers are implemented.
+// Response shapes for the read-only results API (`/v1/results/*`). These are
+// the public, serialisation-stable types returned to callers; conversion from
+// the storage layer's sqlx rows happens in `orchestrator/storage/models.rs`.
 // ------------------------------------------------------------------------
 
 pub const PAGINATION_SIZE_DEFAULT: usize = 50;
@@ -285,6 +286,11 @@ pub enum TestType {
     Gateway,
 }
 
+/// A completed test run as exposed by the results API.
+///
+/// Unlike the agent-facing [`TestRunResult`], this carries the database id,
+/// the node that was tested, and the timestamp at which the result was
+/// recorded by the orchestrator.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunData {
@@ -307,6 +313,13 @@ pub struct TestRunData {
     pub result: TestRunResult,
 }
 
+/// Public snapshot of a nym-node as tracked by the orchestrator.
+///
+/// Built from the on-chain bond plus any details the orchestrator has managed
+/// to retrieve directly from the node itself. The optional fields
+/// (`mixnet_socket_address`, `noise_key`, `sphinx_key`, `key_rotation_id`)
+/// are populated lazily by the node refresher and may be absent either because
+/// the node is newly observed or because the refresher failed to reach it.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NymNodeData {
@@ -345,6 +358,10 @@ pub struct NymNodeData {
     pub key_rotation_id: Option<i64>,
 }
 
+/// Node snapshot paired with its most recent completed test run.
+///
+/// `latest_test_run` is `None` when the node has never been tested or when its
+/// most recent run has been evicted by the stale-result sweeper.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NymNodeWithTestRun {
@@ -353,6 +370,9 @@ pub struct NymNodeWithTestRun {
     pub latest_test_run: Option<TestRunData>,
 }
 
+/// Marker for a test run that has been handed out to an agent but whose result
+/// hasn't been submitted yet. Stripped of test-payload fields because by
+/// definition none of them exist yet.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunInProgressData {

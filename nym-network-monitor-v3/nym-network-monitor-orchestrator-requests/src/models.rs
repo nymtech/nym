@@ -209,7 +209,8 @@ impl TestRunResult {
         if self.packets_sent == 0 {
             return 0.0;
         }
-        self.packets_received as f64 / self.packets_sent as f64
+        let received = self.packets_received.min(self.packets_sent);
+        received as f64 / self.packets_sent as f64
     }
 }
 

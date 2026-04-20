@@ -7,6 +7,7 @@ use nym_network_monitor_orchestrator_requests::models::{
     self as api, LatencyDistribution, NymNodeData, TestRunData, TestRunInProgressData,
     TestRunResult,
 };
+use nym_node_requests::api::v1::node::models::NodeRoles;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::time::Duration;
@@ -19,6 +20,30 @@ pub(crate) enum TestType {
     #[default]
     Mixnode,
     Gateway,
+}
+
+/// Classification of a node based on the roles reported via its self-described endpoint.
+/// [`NodeType::Unknown`] is used both as the initial value before the node is successfully
+/// queried and when a queried node reports no roles at all.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, sqlx::Type)]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+pub(crate) enum NodeType {
+    #[default]
+    Unknown,
+    Mixnode,
+    Gateway,
+    MixnodeAndGateway,
+}
+
+impl NodeType {
+    pub(crate) fn from_roles(roles: &NodeRoles) -> Self {
+        match (roles.mixnode_enabled, roles.gateway_enabled) {
+            (true, true) => NodeType::MixnodeAndGateway,
+            (true, false) => NodeType::Mixnode,
+            (false, true) => NodeType::Gateway,
+            (false, false) => NodeType::Unknown,
+        }
+    }
 }
 
 /// The data required to insert a new row into `testrun`. Does not carry an `id` since that
@@ -241,6 +266,10 @@ pub(crate) struct NewNymNode {
     /// `None` if retrieval from the node failed.
     /// Always `None`/`Some` together with `sphinx_key`.
     pub(crate) key_rotation_id: Option<i64>,
+
+    /// Classification of the node based on the roles reported via its self-described endpoint.
+    /// [`NodeType::Unknown`] if the self-described retrieval failed.
+    pub(crate) node_type: NodeType,
 }
 
 impl NewNymNode {
@@ -253,6 +282,7 @@ impl NewNymNode {
             noise_key: None,
             sphinx_key: None,
             key_rotation_id: None,
+            node_type: NodeType::Unknown,
         }
     }
 }

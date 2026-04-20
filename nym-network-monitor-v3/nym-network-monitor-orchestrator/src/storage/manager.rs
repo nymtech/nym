@@ -457,6 +457,7 @@ mod tests {
             node_id,
             test_type: TestType::Mixnode,
             test_timestamp: datetime!(2025-06-01 12:00:00 UTC),
+            time_taken_us: 0,
             ingress_noise_handshake_us: None,
             egress_noise_handshake_us: None,
             sphinx_packet_delay_us: 0,

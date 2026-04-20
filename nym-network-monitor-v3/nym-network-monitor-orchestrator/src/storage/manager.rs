@@ -153,12 +153,24 @@ impl StorageManager {
         Ok(res.rows_affected())
     }
 
+    /// Returns the number of rows currently in `testrun_in_progress` — i.e. the number of
+    /// test runs that have been assigned to an agent but not yet submitted back.
+    pub(crate) async fn count_testruns_in_progress(&self) -> anyhow::Result<i64> {
+        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM testrun_in_progress")
+            .fetch_one(&self.connection_pool)
+            .await?;
+        Ok(total)
+    }
+
     /// Removes the in-progress marker for a node once its test run has completed or been abandoned.
-    pub(crate) async fn clear_testrun_in_progress(&self, node_id: i64) -> anyhow::Result<()> {
-        sqlx::query!("DELETE FROM testrun_in_progress WHERE node_id = ?", node_id,)
+    /// Returns the number of rows actually deleted — callers use this to avoid decrementing the
+    /// `TestrunsInProgress` gauge when the row had already been cleared out by eviction (e.g. a
+    /// result submission that arrives after the agent's slot timed out).
+    pub(crate) async fn clear_testrun_in_progress(&self, node_id: i64) -> anyhow::Result<u64> {
+        let res = sqlx::query!("DELETE FROM testrun_in_progress WHERE node_id = ?", node_id,)
             .execute(&self.connection_pool)
             .await?;
-        Ok(())
+        Ok(res.rows_affected())
     }
 
     /// Atomically selects the most stale idle mixnode and marks it as having a test run in

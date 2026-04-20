@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress};
 use anyhow::Context;
@@ -77,28 +78,47 @@ impl NetworkMonitorStorage {
     /// Inserts a completed test run, updates the node's `last_testrun` pointer and
     /// clears the corresponding `testrun_in_progress` marker. The target node is
     /// taken from [`NewTestRun::node_id`].
+    ///
+    /// Decrements the `TestrunsInProgress` gauge iff a row was actually cleared — a late
+    /// submission whose in-progress row was already reaped by the timeout sweep must not
+    /// double-decrement the gauge.
     pub(crate) async fn insert_test_run(&self, run: &NewTestRun) -> anyhow::Result<()> {
         let node_id = run.node_id;
         let run_id = self.storage_manager.insert_test_run(run).await?;
         self.storage_manager
             .set_node_last_testrun(node_id, run_id)
             .await?;
-        self.storage_manager
+        let cleared = self
+            .storage_manager
             .clear_testrun_in_progress(node_id)
             .await?;
+        if cleared > 0 {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(cleared as i64));
+        }
         Ok(())
     }
 
+    /// Returns the number of rows currently in `testrun_in_progress`.
+    pub(crate) async fn count_testruns_in_progress(&self) -> anyhow::Result<i64> {
+        self.storage_manager.count_testruns_in_progress().await
+    }
+
     /// Removes all in-progress markers whose `started_at` is older than `timeout`, on the
-    /// assumption that those runs have timed out and will never complete.
+    /// assumption that those runs have timed out and will never complete. Decrements the
+    /// `TestrunsInProgress` gauge by the number of rows actually cleared.
     pub(crate) async fn clear_timed_out_testruns_in_progress(
         &self,
         timeout: Duration,
     ) -> anyhow::Result<u64> {
         let cutoff = OffsetDateTime::now_utc() - timeout;
-        self.storage_manager
+        let cleared = self
+            .storage_manager
             .clear_timed_out_testruns_in_progress(cutoff)
-            .await
+            .await?;
+        if cleared > 0 {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(cleared as i64));
+        }
+        Ok(cleared)
     }
 
     /// Atomically selects the most stale idle mixnode and marks it as having a test run in
@@ -124,9 +144,14 @@ impl NetworkMonitorStorage {
     ) -> anyhow::Result<Option<NymNode>> {
         let now = OffsetDateTime::now_utc();
         let last_tested_before = now - staleness_age;
-        self.storage_manager
+        let assigned = self
+            .storage_manager
             .assign_next_mixnode_testrun(now, last_tested_before)
-            .await
+            .await?;
+        if assigned.is_some() {
+            PROMETHEUS_METRICS.inc(PrometheusMetric::TestrunsInProgress);
+        }
+        Ok(assigned)
     }
 
     /// Fetches a single completed test run by its row id, or `None` if it has

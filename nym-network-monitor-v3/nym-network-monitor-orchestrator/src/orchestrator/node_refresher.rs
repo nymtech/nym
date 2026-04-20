@@ -19,9 +19,10 @@ use nym_validator_client::models::KeyRotationId;
 use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use rand::prelude::SliceRandom;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::time::interval;
+use tokio::time::{Instant, interval};
 use tracing::{error, info};
 
 pub(crate) struct NodeRefresher {
@@ -155,12 +156,12 @@ impl NodeRefresher {
     }
 
     async fn refresh_bonded_nodes(&self) -> anyhow::Result<()> {
+        let start = Instant::now();
+
         // 1. retrieve all nodes from the contract
         let nodes = self.client.get_all_nymnode_bonds().await?;
         let num_nodes = nodes.len();
         info!("retrieved {num_nodes} bonded nodes from the contract");
-
-        PROMETHEUS_METRICS.set(PrometheusMetric::BondedNymNodes, num_nodes as i64);
 
         // 2. retrieve detailed information from the self-described endpoints
         let refreshed_nodes: Vec<_> = stream::iter(nodes)
@@ -169,20 +170,30 @@ impl NodeRefresher {
             .collect()
             .await;
 
-        info!(
-            "managed to retrieve full node information on {} nodes",
-            refreshed_nodes.len()
-        );
-        let failed = refreshed_nodes
-            .iter()
-            .filter(|n| n.node_type == NodeType::Unknown)
-            .count();
-        let successful = refreshed_nodes.len() - failed;
+        let mut per_type: HashMap<NodeType, i64> = HashMap::new();
+        for node in &refreshed_nodes {
+            *per_type.entry(node.node_type).or_insert(0) += 1;
+        }
+        let count_of = |t: NodeType| per_type.get(&t).copied().unwrap_or(0);
+        let unknown = count_of(NodeType::Unknown);
+        let successful = (refreshed_nodes.len() as i64) - unknown;
+        info!("managed to retrieve full node information on {successful} nodes ({unknown} failed)");
+
         PROMETHEUS_METRICS.set(
-            PrometheusMetric::SuccessfulNymNodeDataRetrieval,
-            successful as i64,
+            PrometheusMetric::BondedMixnodeNymNodes,
+            count_of(NodeType::Mixnode),
         );
-        PROMETHEUS_METRICS.set(PrometheusMetric::FailedNymNodeDataRetrieval, failed as i64);
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::BondedGatewayNymNodes,
+            count_of(NodeType::Gateway),
+        );
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::BondedMixnodeAndGatewayNymNodes,
+            count_of(NodeType::MixnodeAndGateway),
+        );
+        PROMETHEUS_METRICS.set(PrometheusMetric::BondedUnknownNymNodes, unknown);
+        PROMETHEUS_METRICS.set(PrometheusMetric::SuccessfulNymNodeDataRetrieval, successful);
+        PROMETHEUS_METRICS.set(PrometheusMetric::FailedNymNodeDataRetrieval, unknown);
 
         // 3. persist every node (including unreachable ones so we keep their
         //    previously-learned keys around for the next refresh). The testrun
@@ -190,6 +201,13 @@ impl NodeRefresher {
         self.storage
             .batch_insert_or_update_nym_nodes(&refreshed_nodes)
             .await?;
+
+        // Observe the cycle duration last so it reflects the full refresh path
+        // (contract query + per-node queries + storage write).
+        PROMETHEUS_METRICS.observe_histogram(
+            PrometheusMetric::NodeRefreshCycleSeconds,
+            start.elapsed().as_secs_f64(),
+        );
         Ok(())
     }
 

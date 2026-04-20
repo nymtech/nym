@@ -153,6 +153,11 @@ pub struct TestRunResultSubmissionRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TestRunResult {
+    /// Total duration of the test run, including the time it took to establish the connections.
+    #[serde(default, with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub time_taken: Duration,
+
     /// Duration of the Noise handshake on the ingress (responder) side, if completed.
     #[serde(default, with = "humantime_serde")]
     #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
@@ -197,6 +202,15 @@ pub struct TestRunResult {
 
     /// Human-readable description of the first error that caused the test to abort if any.
     pub error: Option<String>,
+}
+
+impl TestRunResult {
+    pub fn received_ratio(&self) -> f64 {
+        if self.packets_sent == 0 {
+            return 0.0;
+        }
+        self.packets_received as f64 / self.packets_sent as f64
+    }
 }
 
 /// Confirmation returned to an agent after a successful result submission.

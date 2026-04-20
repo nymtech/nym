@@ -20,6 +20,9 @@ CREATE TABLE testrun
     -- When this testrun has been performed.
     test_timestamp             TIMESTAMP WITHOUT TIME ZONE                        NOT NULL,
 
+    -- How long the test took to complete, in microseconds, from the point of view of an agent.
+    time_taken_us              INTEGER                                            NOT NULL,
+
     -- Duration of the Noise handshake on the ingress (responder) side, in microseconds.
     -- NULL if the handshake did not complete.
     ingress_noise_handshake_us INTEGER,

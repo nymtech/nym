@@ -9,6 +9,7 @@ use nym_network_monitor_orchestrator_requests::models::{
 };
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
+use std::time::Duration;
 use time::OffsetDateTime;
 
 /// Discriminator for the type of node targeted by a [`TestRun`].
@@ -29,6 +30,9 @@ pub(crate) struct NewTestRun {
 
     pub(crate) test_type: TestType,
     pub(crate) test_timestamp: OffsetDateTime,
+
+    /// How long the test took, in microseconds.
+    pub(crate) time_taken_us: i64,
 
     /// Noise handshake duration on the ingress (responder) side, in microseconds.
     pub(crate) ingress_noise_handshake_us: Option<i64>,
@@ -78,6 +82,7 @@ impl NewTestRun {
             node_id: node_id as i64,
             test_type,
             test_timestamp: OffsetDateTime::now_utc(),
+            time_taken_us: result.time_taken.as_micros() as i64,
             ingress_noise_handshake_us: result.ingress_noise_handshake.map(duration_to_us),
             egress_noise_handshake_us: result.egress_noise_handshake.map(duration_to_us),
             sphinx_packet_delay_us: duration_to_us(result.sphinx_packet_delay),
@@ -124,8 +129,8 @@ pub(crate) struct TestRun {
     pub(crate) inner: NewTestRun,
 }
 
-fn us_to_duration(us: i64) -> std::time::Duration {
-    std::time::Duration::from_micros(us as u64)
+fn us_to_duration(us: i64) -> Duration {
+    Duration::from_micros(us as u64)
 }
 
 /// Reassembles a [`LatencyDistribution`] from its four flattened microsecond columns.
@@ -177,6 +182,7 @@ impl From<TestRun> for TestRunData {
             test_type: inner.test_type.into(),
             test_timestamp: inner.test_timestamp,
             result: TestRunResult {
+                time_taken: Duration::from_micros(inner.time_taken_us as u64),
                 ingress_noise_handshake: inner.ingress_noise_handshake_us.map(us_to_duration),
                 egress_noise_handshake: inner.egress_noise_handshake_us.map(us_to_duration),
                 sphinx_packet_delay: us_to_duration(inner.sphinx_packet_delay_us),

@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use nym_task::ShutdownToken;
 use std::time::Duration;
@@ -82,6 +83,12 @@ impl StaleResultsEviction {
             .await?;
 
         if cleared_in_progress > 0 || evicted_old > 0 {
+            PROMETHEUS_METRICS.inc_by(
+                PrometheusMetric::TimedOutTestrunsEvicted,
+                cleared_in_progress as i64,
+            );
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
+
             info!(
                 cleared_in_progress,
                 evicted_old, "stale data eviction sweep completed"

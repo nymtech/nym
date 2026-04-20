@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::orchestrator::config::Config;
+use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::NewNymNode;
 use anyhow::Context;
@@ -145,6 +146,8 @@ impl NodeRefresher {
         let nodes = self.client.get_all_nymnode_bonds().await?;
         info!("retrieved {} bonded nodes from the contract", nodes.len());
 
+        PROMETHEUS_METRICS.set(PrometheusMetric::BondedNymNodes, nodes.len() as i64);
+
         // 2. retrieve detailed information from the self-described endpoints
         let refreshed_nodes: Vec<_> = stream::iter(nodes)
             .map(|b| self.get_node_details(b))
@@ -155,6 +158,15 @@ impl NodeRefresher {
         info!(
             "managed to retrieve full node information on {} nodes",
             refreshed_nodes.len()
+        );
+
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::SuccessfulNymNodeDataRetrieval,
+            refreshed_nodes.len() as i64,
+        );
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::FailedNymNodeDataRetrieval,
+            nodes.len() as i64 - refreshed_nodes.len() as i64,
         );
 
         // 3. update the storage

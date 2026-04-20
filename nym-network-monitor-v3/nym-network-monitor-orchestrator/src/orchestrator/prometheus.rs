@@ -76,6 +76,22 @@ const RECEIVED_PACKETS_RATIO: &[f64] = &[
     0.99, // 0.99+ (implicitly)
 ];
 
+/// Histogram buckets (upper bounds, in seconds) for
+/// [`PrometheusMetric::NodeRefreshCycleSeconds`]. Shape targets the expected range of a single
+/// refresh sweep: under a minute when everything's healthy, up to ~10 min in degraded cases
+/// (large topology × per-node timeouts × limited concurrency).
+const NODE_REFRESH_CYCLE: &[f64] = &[
+    // sub 1s (implicitly)
+    1.,   // 1s - 5s
+    5.,   // 5s - 10s
+    10.,  // 10s - 30s
+    30.,  // 30s - 60s
+    60.,  // 1min - 2min
+    120., // 2min - 5min
+    300., // 5min - 10min
+    600., // 10min+ (implicitly)
+];
+
 /// Histogram buckets (upper bounds, in milliseconds) for
 /// [`PrometheusMetric::AverageTestPacketRTTMs`]. Same shape as [`NODE_LATENCY`] — this is the
 /// mean per-packet round trip over a single testrun, not the approximation used for node latency.
@@ -185,8 +201,23 @@ pub enum PrometheusMetric {
     ))]
     AverageTestPacketRTTMs,
 
-    #[strum(props(help = "The number of bonded nodes"))]
-    BondedNymNodes,
+    #[strum(props(
+        help = "The number of bonded nodes classified as mixnode-only from their self-described roles"
+    ))]
+    BondedMixnodeNymNodes,
+
+    #[strum(props(
+        help = "The number of bonded nodes classified as gateway-only from their self-described roles"
+    ))]
+    BondedGatewayNymNodes,
+
+    #[strum(props(help = "The number of bonded nodes advertising both mixnode and gateway roles"))]
+    BondedMixnodeAndGatewayNymNodes,
+
+    #[strum(props(
+        help = "The number of bonded nodes whose self-described role could not be determined (unreachable or no roles reported)"
+    ))]
+    BondedUnknownNymNodes,
 
     #[strum(props(
         help = "The number of successful Nym node data retrievals from self-described endpoints"
@@ -197,6 +228,32 @@ pub enum PrometheusMetric {
         help = "The number of failed Nym node data retrievals from self-described endpoints"
     ))]
     FailedNymNodeDataRetrieval,
+
+    #[strum(props(help = "The duration of a full bonded-node refresh cycle, in seconds"))]
+    NodeRefreshCycleSeconds,
+
+    #[strum(props(
+        help = "The number of test runs currently in progress (rows in testrun_in_progress)"
+    ))]
+    TestrunsInProgress,
+
+    #[strum(props(help = "The total number of agents known to the orchestrator"))]
+    KnownAgentsTotal,
+
+    #[strum(props(
+        help = "The number of known agents that have been announced to the network monitors contract"
+    ))]
+    KnownAgentsAnnounced,
+
+    #[strum(props(
+        help = "The total number of test packets dispatched across all submitted testruns"
+    ))]
+    TestPacketsSent,
+
+    #[strum(props(
+        help = "The total number of test packets received back across all submitted testruns"
+    ))]
+    TestPacketsReceived,
 }
 
 impl PrometheusMetric {
@@ -255,9 +312,20 @@ impl PrometheusMetric {
             PrometheusMetric::AverageTestPacketRTTMs => {
                 Metric::new_histogram(&name, help, Some(AVG_PACKET_RTT))
             }
-            PrometheusMetric::BondedNymNodes => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::BondedMixnodeNymNodes => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::BondedGatewayNymNodes => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::BondedMixnodeAndGatewayNymNodes => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::BondedUnknownNymNodes => Metric::new_int_gauge(&name, help),
             PrometheusMetric::SuccessfulNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
             PrometheusMetric::FailedNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::NodeRefreshCycleSeconds => {
+                Metric::new_histogram(&name, help, Some(NODE_REFRESH_CYCLE))
+            }
+            PrometheusMetric::TestrunsInProgress => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::KnownAgentsTotal => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::KnownAgentsAnnounced => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::TestPacketsSent => Metric::new_int_counter(&name, help),
+            PrometheusMetric::TestPacketsReceived => Metric::new_int_counter(&name, help),
         }
     }
 
@@ -369,7 +437,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(23, PrometheusMetric::COUNT)
+        assert_eq!(32, PrometheusMetric::COUNT)
     }
 
     #[test]

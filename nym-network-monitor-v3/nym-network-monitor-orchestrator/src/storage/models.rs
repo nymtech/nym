@@ -25,7 +25,7 @@ pub(crate) enum TestType {
 /// Classification of a node based on the roles reported via its self-described endpoint.
 /// [`NodeType::Unknown`] is used both as the initial value before the node is successfully
 /// queried and when a queried node reports no roles at all.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, sqlx::Type)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 pub(crate) enum NodeType {
     #[default]

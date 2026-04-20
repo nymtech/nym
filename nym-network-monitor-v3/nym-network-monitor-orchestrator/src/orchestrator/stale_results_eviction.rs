@@ -96,6 +96,15 @@ impl StaleResultsEviction {
         } else {
             debug!("stale data eviction sweep completed: nothing to evict");
         }
+
+        // Reconcile the in-flight gauge against the authoritative row count. The gauge is
+        // primarily maintained live via inc/dec at assign/submit/timeout paths; this sweep is
+        // a safety net that corrects any drift (e.g. from a future code path that forgets to
+        // update the gauge) and bounds the worst-case staleness to one sweep interval.
+        match self.storage.count_testruns_in_progress().await {
+            Ok(count) => PROMETHEUS_METRICS.set(PrometheusMetric::TestrunsInProgress, count),
+            Err(err) => error!("failed to count in-flight testruns for metric: {err}"),
+        }
         Ok(())
     }
 

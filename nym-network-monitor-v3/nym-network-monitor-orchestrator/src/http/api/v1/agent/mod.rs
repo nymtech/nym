@@ -201,6 +201,15 @@ async fn request_testrun(
 fn emit_testrun_result_metrics(result: &TestRunResultSubmissionRequest) {
     PROMETHEUS_METRICS.inc(PrometheusMetric::TestRunResultSubmissions);
 
+    PROMETHEUS_METRICS.inc_by(
+        PrometheusMetric::TestPacketsSent,
+        result.result.packets_sent as i64,
+    );
+    PROMETHEUS_METRICS.inc_by(
+        PrometheusMetric::TestPacketsReceived,
+        result.result.packets_received as i64,
+    );
+
     PROMETHEUS_METRICS.observe_histogram(
         PrometheusMetric::TestDurationSeconds,
         result.result.time_taken.as_secs_f64(),

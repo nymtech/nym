@@ -70,10 +70,18 @@ pub enum PrometheusMetric {
     #[strum(props(help = "The number of requests to assign a mix port to an agent"))]
     MixPortRequests,
 
+    #[strum(props(help = "The number of failed requests to assign a mix port to an agent"))]
+    MixPortRequestsFailures,
+
     #[strum(props(
         help = "The number of requests to announce an agent to the network monitors contract"
     ))]
     AgentAnnounceRequests,
+
+    #[strum(props(
+        help = "The number of requests to announce an agent that was either malformed or unknown to the orchestrator"
+    ))]
+    BadAgentAnnouncementRequests,
 
     #[strum(props(
         help = "The number of duplicate requests to announce an agent to the network monitors contract (agent has already been announced before)"
@@ -123,7 +131,7 @@ pub enum PrometheusMetric {
     TimedOutTestrunsEvicted,
 
     #[strum(props(help = "The duration of a test run"))]
-    TestDuration,
+    TestDurationMs,
 
     #[strum(props(help = "The number of testruns that resulted in errors"))]
     TestrunsErrors,
@@ -140,6 +148,19 @@ pub enum PrometheusMetric {
         help = "The average time it took to receive a test packet back from a node under test"
     ))]
     AverageTestPacketRTTMs,
+
+    #[strum(props(help = "The number of bonded nodes"))]
+    BondedNymNodes,
+
+    #[strum(props(
+        help = "The number of successful Nym node data retrievals from self-described endpoints"
+    ))]
+    SuccessfulNymNodeDataRetrieval,
+
+    #[strum(props(
+        help = "The number of failed Nym node data retrievals from self-described endpoints"
+    ))]
+    FailedNymNodeDataRetrieval,
 }
 
 impl PrometheusMetric {
@@ -159,7 +180,9 @@ impl PrometheusMetric {
 
         match self {
             PrometheusMetric::MixPortRequests => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixPortRequestsFailures => Metric::new_int_counter(&name, help),
             PrometheusMetric::AgentAnnounceRequests => Metric::new_int_counter(&name, help),
+            PrometheusMetric::BadAgentAnnouncementRequests => Metric::new_int_counter(&name, help),
             PrometheusMetric::AgentDuplicateAnnouncementRequests => {
                 Metric::new_int_counter(&name, help)
             }
@@ -179,7 +202,7 @@ impl PrometheusMetric {
             PrometheusMetric::TestRunResultSubmissions => Metric::new_int_counter(&name, help),
             PrometheusMetric::StaleTestrunsEvicted => Metric::new_int_counter(&name, help),
             PrometheusMetric::TimedOutTestrunsEvicted => Metric::new_int_counter(&name, help),
-            PrometheusMetric::TestDuration => {
+            PrometheusMetric::TestDurationMs => {
                 Metric::new_histogram(&name, help, Some(TESTRUN_DURATION))
             }
             PrometheusMetric::TestrunsErrors => Metric::new_int_counter(&name, help),
@@ -192,6 +215,9 @@ impl PrometheusMetric {
             PrometheusMetric::AverageTestPacketRTTMs => {
                 Metric::new_histogram(&name, help, Some(AVG_PACKET_RRT))
             }
+            PrometheusMetric::BondedNymNodes => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::SuccessfulNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::FailedNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
         }
     }
 
@@ -289,7 +315,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(18, PrometheusMetric::COUNT)
+        assert_eq!(23, PrometheusMetric::COUNT)
     }
 
     #[test]

@@ -8,11 +8,138 @@ use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator};
 pub static PROMETHEUS_METRICS: LazyLock<NetworkMonitorPrometheusMetrics> =
     LazyLock::new(NetworkMonitorPrometheusMetrics::initialise);
 
+const TESTRUN_DURATION: &[f64] = &[
+    // sub 5s (implicitly)
+    5.,   // 5s - 15s
+    15.,  // 15s - 30s
+    30.,  // 30s - 40s
+    40.,  // 40s - 45s
+    45.,  // 45s - 50s
+    50.,  // 50s - 55s
+    55.,  // 55s - 60s
+    60.,  // 1min - 2min
+    120., // 2min - 5min
+    300., // 5min+ (implicitly)
+];
+
+const NODE_LATENCY: &[f64] = &[
+    // sub 1ms (implicitly)
+    1.,    // 1ms - 5ms
+    5.,    // 5ms - 10ms
+    10.,   // 10ms - 20ms
+    20.,   // 20ms - 50ms
+    50.,   // 50ms - 100ms
+    100.,  // 100ms - 200ms
+    200.,  // 200ms - 500ms
+    500.,  // 500ms - 1s
+    1000., // 1s+ (implicitly)
+];
+
+const RECEIVED_PACKETS_RATIO: &[f64] = &[
+    0.,   // 0 - 0.1
+    0.1,  // 0.1 - 0.2
+    0.2,  // 0.2 - 0.3
+    0.3,  // 0.3 - 0.4
+    0.4,  // 0.4 - 0.5
+    0.5,  // 0.5 - 0.6
+    0.6,  // 0.6 - 0.7
+    0.7,  // 0.7 - 0.8
+    0.8,  // 0.8 - 0.9
+    0.9,  // 0.9 - 0.95
+    0.95, // 0.95 - 0.98
+    0.98, // 0.98 - 0.99
+    0.99, // 0.99+ (implicitly)
+];
+
+const AVG_PACKET_RRT: &[f64] = &[
+    // sub 1ms (implicitly)
+    1.,    // 1ms - 5ms
+    5.,    // 5ms - 10ms
+    10.,   // 10ms - 20ms
+    20.,   // 20ms - 50ms
+    50.,   // 50ms - 100ms
+    100.,  // 100ms - 200ms
+    200.,  // 200ms - 500ms
+    500.,  // 500ms - 1s
+    1000., // 1s+ (implicitly)
+];
+
 #[derive(Clone, Debug, EnumIter, Display, EnumProperty, EnumCount, Eq, Hash, PartialEq)]
 #[strum(serialize_all = "snake_case", prefix = "nym_network_monitor_")]
 pub enum PrometheusMetric {
-    #[strum(props(help = "placeholder for initial compilation"))]
-    Placeholder,
+    #[strum(props(help = "The number of requests to assign a mix port to an agent"))]
+    MixPortRequests,
+
+    #[strum(props(
+        help = "The number of requests to announce an agent to the network monitors contract"
+    ))]
+    AgentAnnounceRequests,
+
+    #[strum(props(
+        help = "The number of duplicate requests to announce an agent to the network monitors contract (agent has already been announced before)"
+    ))]
+    AgentDuplicateAnnouncementRequests,
+
+    #[strum(props(
+        help = "The number of successful announcements of an agent to the network monitors contract"
+    ))]
+    AgentContractAnnounceSuccesses,
+
+    #[strum(props(
+        help = "The number of failed announcements of an agent to the network monitors contract"
+    ))]
+    AgentContractAnnounceFailures,
+
+    #[strum(props(help = "The number of requests to assign a test run to an agent"))]
+    AgentTestrunRequests,
+
+    #[strum(props(
+        help = "The number of requests to assign a test run to an agent that was not known to the orchestrator"
+    ))]
+    AgentUnknownAgentTestrunRequests,
+
+    #[strum(props(
+        help = "The number of requests to assign a test run to an agent that was not announced to the network monitors contract"
+    ))]
+    AgentTestrunRequestsWithoutAnnouncement,
+
+    #[strum(props(
+        help = "The number of testrun requests that resulted in no work being assigned"
+    ))]
+    EmptyTestrunAssignments,
+
+    #[strum(props(help = "The number of testrun requests that resulted in work being assigned"))]
+    NonEmptyTestrunAssignments,
+
+    #[strum(props(help = "The number of testrun results that were submitted by agents"))]
+    TestRunResultSubmissions,
+
+    #[strum(props(help = "The number of stale testruns that were evicted from the storage"))]
+    StaleTestrunsEvicted,
+
+    #[strum(props(
+        help = "The number of testruns in progress that timed out and were evicted from the queue and the storage"
+    ))]
+    TimedOutTestrunsEvicted,
+
+    #[strum(props(help = "The duration of a test run"))]
+    TestDuration,
+
+    #[strum(props(help = "The number of testruns that resulted in errors"))]
+    TestrunsErrors,
+
+    #[strum(props(help = "The approximate latency to a node in milliseconds"))]
+    ApproximateNodeLatencyMs,
+
+    #[strum(props(
+        help = "Ratio of packets sent to packets received in a testrun (sent / received)"
+    ))]
+    TestrunReceivedPacketsRatio,
+
+    #[strum(props(
+        help = "The average time it took to receive a test packet back from a node under test"
+    ))]
+    AverageTestPacketRTTMs,
 }
 
 impl PrometheusMetric {
@@ -31,7 +158,40 @@ impl PrometheusMetric {
         let help = self.help();
 
         match self {
-            _ => todo!(),
+            PrometheusMetric::MixPortRequests => Metric::new_int_counter(&name, help),
+            PrometheusMetric::AgentAnnounceRequests => Metric::new_int_counter(&name, help),
+            PrometheusMetric::AgentDuplicateAnnouncementRequests => {
+                Metric::new_int_counter(&name, help)
+            }
+            PrometheusMetric::AgentContractAnnounceSuccesses => {
+                Metric::new_int_counter(&name, help)
+            }
+            PrometheusMetric::AgentContractAnnounceFailures => Metric::new_int_counter(&name, help),
+            PrometheusMetric::AgentTestrunRequests => Metric::new_int_counter(&name, help),
+            PrometheusMetric::AgentUnknownAgentTestrunRequests => {
+                Metric::new_int_counter(&name, help)
+            }
+            PrometheusMetric::AgentTestrunRequestsWithoutAnnouncement => {
+                Metric::new_int_counter(&name, help)
+            }
+            PrometheusMetric::EmptyTestrunAssignments => Metric::new_int_counter(&name, help),
+            PrometheusMetric::NonEmptyTestrunAssignments => Metric::new_int_counter(&name, help),
+            PrometheusMetric::TestRunResultSubmissions => Metric::new_int_counter(&name, help),
+            PrometheusMetric::StaleTestrunsEvicted => Metric::new_int_counter(&name, help),
+            PrometheusMetric::TimedOutTestrunsEvicted => Metric::new_int_counter(&name, help),
+            PrometheusMetric::TestDuration => {
+                Metric::new_histogram(&name, help, Some(TESTRUN_DURATION))
+            }
+            PrometheusMetric::TestrunsErrors => Metric::new_int_counter(&name, help),
+            PrometheusMetric::ApproximateNodeLatencyMs => {
+                Metric::new_histogram(&name, help, Some(NODE_LATENCY))
+            }
+            PrometheusMetric::TestrunReceivedPacketsRatio => {
+                Metric::new_histogram(&name, help, Some(RECEIVED_PACKETS_RATIO))
+            }
+            PrometheusMetric::AverageTestPacketRTTMs => {
+                Metric::new_histogram(&name, help, Some(AVG_PACKET_RRT))
+            }
         }
     }
 
@@ -129,7 +289,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(0, PrometheusMetric::COUNT)
+        assert_eq!(18, PrometheusMetric::COUNT)
     }
 
     #[test]

@@ -36,6 +36,10 @@ pub(crate) enum NodeType {
 }
 
 impl NodeType {
+    /// Classifies a node from the `NodeRoles` reported by its self-described endpoint.
+    /// We key off `gateway_enabled` (entry-gateway capability) only — the `exit` property is
+    /// not a useful distinction for test-target selection. A node reporting neither role maps
+    /// to [`NodeType::Unknown`] and will be ignored by the mixnode testrun assignment query.
     pub(crate) fn from_roles(roles: &NodeRoles) -> Self {
         match (roles.mixnode_enabled, roles.gateway_enabled) {
             (true, true) => NodeType::MixnodeAndGateway,

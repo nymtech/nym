@@ -12,6 +12,7 @@ use nym_crypto::asymmetric::x25519;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
 use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::helpers::NymNodeApiClientRetriever;
+use nym_node_requests::api::v1::node::models::NodeRoles;
 use nym_task::ShutdownToken;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use nym_validator_client::models::KeyRotationId;
@@ -56,6 +57,23 @@ struct SelfDescribedData {
 
     /// Key rotation epoch ID that `sphinx_key` belongs to.
     key_rotation_id: KeyRotationId,
+
+    /// The supported roles of the node in the network.
+    roles: NodeRoles,
+}
+
+struct RefreshedNymNode {
+    data: NewNymNode,
+    is_mixnode: Option<bool>,
+}
+
+impl From<NewNymNode> for RefreshedNymNode {
+    fn from(node_data: NewNymNode) -> Self {
+        RefreshedNymNode {
+            data: node_data,
+            is_mixnode: None,
+        }
+    }
 }
 
 impl NodeRefresher {
@@ -113,22 +131,29 @@ impl NodeRefresher {
             .mix_port
             .unwrap_or(DEFAULT_MIX_LISTENING_PORT);
 
+        // retrieve information about the node roles - we're not testing gateways (yet)
+        let roles = api_client
+            .get_roles()
+            .await
+            .context("failed to retrieve node roles")?;
+
         Ok(SelfDescribedData {
             mixnet_socket_address: SocketAddr::new(*ip_address, mix_port),
             noise_key,
             sphinx_key,
             key_rotation_id,
+            roles,
         })
     }
 
-    async fn get_node_details(&self, bond: NymNodeBond) -> NewNymNode {
+    async fn get_node_details(&self, bond: NymNodeBond) -> RefreshedNymNode {
         let mut node_update = NewNymNode::from_bond(&bond);
 
         let node_id = bond.node_id;
         let self_described = match self.get_node_details_inner(bond).await {
             Err(err) => {
                 error!("failed to retrieve self-described node details for node {node_id}: {err}");
-                return node_update;
+                return node_update.into();
             }
             Ok(info) => info,
         };
@@ -138,15 +163,19 @@ impl NodeRefresher {
         node_update.sphinx_key = Some(self_described.sphinx_key.to_base58_string());
         node_update.key_rotation_id = Some(self_described.key_rotation_id as i64);
 
-        node_update
+        RefreshedNymNode {
+            data: node_update,
+            is_mixnode: Some(self_described.roles.mixnode_enabled),
+        }
     }
 
     async fn refresh_bonded_nodes(&self) -> anyhow::Result<()> {
         // 1. retrieve all nodes from the contract
         let nodes = self.client.get_all_nymnode_bonds().await?;
-        info!("retrieved {} bonded nodes from the contract", nodes.len());
+        let num_nodes = nodes.len();
+        info!("retrieved {num_nodes} bonded nodes from the contract");
 
-        PROMETHEUS_METRICS.set(PrometheusMetric::BondedNymNodes, nodes.len() as i64);
+        PROMETHEUS_METRICS.set(PrometheusMetric::BondedNymNodes, num_nodes as i64);
 
         // 2. retrieve detailed information from the self-described endpoints
         let refreshed_nodes: Vec<_> = stream::iter(nodes)
@@ -166,12 +195,28 @@ impl NodeRefresher {
         );
         PROMETHEUS_METRICS.set(
             PrometheusMetric::FailedNymNodeDataRetrieval,
-            nodes.len() as i64 - refreshed_nodes.len() as i64,
+            num_nodes as i64 - refreshed_nodes.len() as i64,
         );
 
-        // 3. update the storage
+        // 3. filter out nodes that are not mixnodes
+        let mixnodes = refreshed_nodes
+            .into_iter()
+            .filter_map(|n| {
+                if let Some(is_mix) = n.is_mixnode
+                    && is_mix
+                {
+                    Some(n.data)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        PROMETHEUS_METRICS.set(PrometheusMetric::LastUpdatedMixnodes, mixnodes.len() as i64);
+
+        // 4. update the storage
         self.storage
-            .batch_insert_or_update_nym_nodes(&refreshed_nodes)
+            .batch_insert_or_update_nym_nodes(&mixnodes)
             .await?;
         Ok(())
     }

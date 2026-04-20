@@ -1,14 +1,15 @@
 [package]
 name = "nym-network-monitor-orchestrator"
+description = "Orchestrator for performing Nym network stress testing"
+version = "1.0.0"
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-version = "1.0.0"
 publish = false
 
 [dependencies]
@@ -19,6 +20,7 @@ humantime = { workspace = true }
 rand = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
+strum = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 time = { workspace = true }
@@ -37,6 +39,7 @@ nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-network-defaults = { workspace = true }
 nym-task = { workspace = true }
 nym-node-requests = { workspace = true, features = ["client"] }
+nym-metrics = { workspace = true }
 nym-http-api-common = { workspace = true, features = ["utoipa", "middleware"] }
 
 nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["openapi"] }

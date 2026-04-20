@@ -90,6 +90,10 @@ impl NetworkMonitorPrometheusMetrics {
         NetworkMonitorPrometheusMetrics {}
     }
 
+    pub fn metrics(&self) -> String {
+        metrics_registry().to_string()
+    }
+
     pub fn set(&self, metric: PrometheusMetric, value: i64) {
         metric.set(value)
     }

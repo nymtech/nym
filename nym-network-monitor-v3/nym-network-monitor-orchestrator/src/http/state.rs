@@ -9,7 +9,7 @@ use nym_crypto::asymmetric::x25519;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
 use nym_network_monitor_orchestrator_requests::models::{
     NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment, TestRunData,
-    TestRunResult, TestRunsInProgressResponse,
+    TestRunInProgressData, TestRunResult,
 };
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
@@ -375,22 +375,30 @@ impl AppState {
         }))
     }
 
-    /// Backs `GET /v1/results/testruns-in-progress`. Returns every row in
-    /// `testrun_in_progress` up to the storage-layer cap of 200, oldest
-    /// `started_at` first so stale runs surface at the top.
-    pub(crate) async fn get_testruns_in_progress(
+    /// Backs `GET /v1/results/testruns-in-progress`. Returns a page of rows
+    /// from `testrun_in_progress` ordered oldest `started_at` first so stale
+    /// runs surface at the top.
+    pub(crate) async fn get_testruns_in_progress_paginated(
         &self,
-    ) -> Result<TestRunsInProgressResponse, ApiError> {
-        let in_progress = match self.storage.get_all_testruns_in_progress().await {
+        pagination: Pagination,
+    ) -> Result<PagedResult<TestRunInProgressData>, ApiError> {
+        let (in_progress, total) = match self
+            .storage
+            .get_testruns_in_progress_paginated(pagination)
+            .await
+        {
             Err(err) => {
-                error!("get_all_testruns_in_progress storage failure: {err}");
+                error!("get_testruns_in_progress_paginated storage failure: {err}");
                 return Err(ApiError::StorageFailure);
             }
-            Ok(in_progress) => in_progress,
+            Ok(result) => result,
         };
 
-        Ok(TestRunsInProgressResponse {
-            in_progress: in_progress.into_iter().map(Into::into).collect(),
+        Ok(PagedResult {
+            page: pagination.page(),
+            per_page: in_progress.len(),
+            total,
+            items: in_progress.into_iter().map(Into::into).collect(),
         })
     }
 
@@ -412,7 +420,7 @@ impl AppState {
 
         Ok(PagedResult {
             page: pagination.page(),
-            size: testruns.len(),
+            per_page: testruns.len(),
             total,
             items: testruns.into_iter().map(Into::into).collect(),
         })
@@ -444,7 +452,7 @@ impl AppState {
 
         Ok(PagedResult {
             page: pagination.page(),
-            size: items.len(),
+            per_page: items.len(),
             total,
             items,
         })
@@ -473,7 +481,7 @@ impl AppState {
 
         Ok(PagedResult {
             page: pagination.page(),
-            size: testruns.len(),
+            per_page: testruns.len(),
             total,
             items: testruns.into_iter().map(Into::into).collect(),
         })

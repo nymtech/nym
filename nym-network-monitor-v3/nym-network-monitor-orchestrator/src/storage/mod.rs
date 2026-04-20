@@ -144,12 +144,19 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Returns every outstanding `testrun_in_progress` row, oldest `started_at`
-    /// first. Capped at 200 rows in the storage manager as a defensive bound.
-    pub(crate) async fn get_all_testruns_in_progress(
+    /// Paginated list of outstanding `testrun_in_progress` rows, oldest `started_at`
+    /// first so stale/hung runs surface at the top, with the snapshot-consistent
+    /// total row count.
+    pub(crate) async fn get_testruns_in_progress_paginated(
         &self,
-    ) -> anyhow::Result<Vec<TestRunInProgress>> {
-        self.storage_manager.get_all_testruns_in_progress().await
+        pagination: Pagination,
+    ) -> anyhow::Result<(Vec<TestRunInProgress>, usize)> {
+        let (rows, total) = self
+            .storage_manager
+            .get_testruns_in_progress_paginated(pagination.limit(), pagination.offset())
+            .await?;
+
+        Ok((rows, total as usize))
     }
 
     /// Paginated list of nodes ordered by `node_id` ascending, with the

@@ -272,7 +272,7 @@ impl Pagination {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct PagedResult<T> {
     pub page: usize,
-    pub size: usize,
+    pub per_page: usize,
     pub total: usize,
     pub items: Vec<T>,
 }
@@ -383,11 +383,4 @@ pub struct TestRunInProgressData {
     #[serde(with = "time::serde::rfc3339")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub started_at: OffsetDateTime,
-}
-
-/// Response body for the "all test runs in progress" endpoint.
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct TestRunsInProgressResponse {
-    pub in_progress: Vec<TestRunInProgressData>,
 }

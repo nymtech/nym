@@ -17,8 +17,7 @@ use axum::extract::{Path, Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
 use nym_network_monitor_orchestrator_requests::models::{
-    NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunData,
-    TestRunsInProgressResponse,
+    NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunData, TestRunInProgressData,
 };
 use nym_network_monitor_orchestrator_requests::routes;
 use nym_validator_client::client::NodeId;
@@ -37,7 +36,9 @@ use nym_validator_client::client::NodeId;
     responses(
         (status = 200, content(
             (TestRunData = "application/json"),
-        ))
+        )),
+        (status = 404, description = "no test run found with the requested id"),
+        (status = 500, description = "failed to read the test run from storage"),
     )
 )]
 async fn get_testrun_by_id(
@@ -68,7 +69,9 @@ async fn get_testrun_by_id(
     responses(
         (status = 200, content(
             (NymNodeWithTestRun = "application/json"),
-        ))
+        )),
+        (status = 404, description = "no nym-node found with the requested node id"),
+        (status = 500, description = "failed to read the node from storage, or a stored field could not be decoded"),
     )
 )]
 async fn get_nym_node_by_id(
@@ -82,29 +85,35 @@ async fn get_nym_node_by_id(
         .ok_or(ApiError::NymNodeNotFound)
 }
 
-/// Lists the test runs currently dispatched to agents and awaiting results.
+/// Paginated list of test runs currently dispatched to agents and awaiting results.
 ///
-/// Ordered oldest-started first, so stale or hung runs surface at the top.
-/// The response is capped in the storage layer (at the 200-row defensive limit
-/// applied by [`crate::storage::manager::StorageManager::get_all_testruns_in_progress`]);
-/// in normal operation the list holds roughly one entry per active agent.
+/// Ordered oldest-started first, so stale or hung runs surface at the top. In
+/// normal operation the underlying table holds roughly one entry per active
+/// agent. See [`Pagination`] for the page-size/page-number contract and default
+/// caps.
 #[utoipa::path(
     operation_id = "v1_results_testruns_in_progress",
     tag = "Network Monitor Results",
     get,
+    params(Pagination),
     path = "/testruns-in-progress",
     context_path = "/v1/results",
     security(("metrics_and_results_token" = [])),
     responses(
         (status = 200, content(
-            (TestRunsInProgressResponse = "application/json"),
-        ))
+            (PagedResult<TestRunInProgressData> = "application/json"),
+        )),
+        (status = 500, description = "failed to read in-progress test runs from storage"),
     )
 )]
 async fn get_testruns_in_progress(
+    Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
-) -> Result<Json<TestRunsInProgressResponse>, ApiError> {
-    state.get_testruns_in_progress().await.map(Json)
+) -> Result<Json<PagedResult<TestRunInProgressData>>, ApiError> {
+    state
+        .get_testruns_in_progress_paginated(pagination)
+        .await
+        .map(Json)
 }
 
 /// Paginated list of all completed test runs, newest first.
@@ -123,7 +132,8 @@ async fn get_testruns_in_progress(
     responses(
         (status = 200, content(
             (PagedResult<TestRunData> = "application/json"),
-        ))
+        )),
+        (status = 500, description = "failed to read test runs from storage"),
     )
 )]
 async fn get_testruns(
@@ -150,7 +160,8 @@ async fn get_testruns(
     responses(
         (status = 200, content(
             (PagedResult<NymNodeData> = "application/json"),
-        ))
+        )),
+        (status = 500, description = "failed to read nodes from storage, or a stored field could not be decoded"),
     )
 )]
 async fn get_nym_nodes(
@@ -181,7 +192,8 @@ async fn get_nym_nodes(
     responses(
         (status = 200, content(
             (PagedResult<TestRunData> = "application/json"),
-        ))
+        )),
+        (status = 500, description = "failed to read test runs from storage"),
     )
 )]
 async fn get_nym_node_testruns(

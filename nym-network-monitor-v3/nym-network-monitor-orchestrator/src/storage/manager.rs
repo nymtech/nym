@@ -349,21 +349,40 @@ impl StorageManager {
         Ok((rows, total))
     }
 
-    /// Fetches all outstanding `testrun_in_progress` rows, ordered from oldest `started_at`
-    /// to newest, capped at 200 rows.
+    /// Fetches a page of `testrun_in_progress` rows, ordered from oldest `started_at` to
+    /// newest (so stale/hung runs surface first), together with the total number of rows in
+    /// the table (used to populate `PagedResult::total`).
     ///
-    /// The cap is defensive: at steady state the table holds one row per concurrently-testing
-    /// agent and should remain tiny, so 200 is effectively a "more than we'd ever expect"
-    /// bound that prevents an unbounded response if something upstream misbehaves.
-    pub(crate) async fn get_all_testruns_in_progress(
+    /// `limit` and `offset` translate directly to SQL `LIMIT` / `OFFSET`; the caller is
+    /// expected to derive them from the public pagination contract as
+    /// `limit = size` and `offset = page * size`.
+    ///
+    /// The page and total count are fetched inside a single transaction so that the `total`
+    /// is consistent with the rows returned (no tearing if another writer commits in between).
+    ///
+    /// At steady state this table holds roughly one row per concurrently-testing agent, so
+    /// the ordinary page-size cap from [`Pagination`] is more than enough headroom.
+    pub(crate) async fn get_testruns_in_progress_paginated(
         &self,
-    ) -> anyhow::Result<Vec<TestRunInProgress>> {
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<(Vec<TestRunInProgress>, i64)> {
+        let mut tx = self.connection_pool.begin().await?;
+
         let rows = sqlx::query_as::<_, TestRunInProgress>(
-            "SELECT * FROM testrun_in_progress ORDER BY started_at ASC LIMIT 200",
+            "SELECT * FROM testrun_in_progress ORDER BY started_at ASC LIMIT ? OFFSET ?",
         )
-        .fetch_all(&self.connection_pool)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&mut *tx)
         .await?;
-        Ok(rows)
+
+        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM testrun_in_progress")
+            .fetch_one(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok((rows, total))
     }
 
     /// Deletes all `testrun` rows whose `test_timestamp` is older than `cutoff`.
@@ -1054,19 +1073,19 @@ mod tests {
         }
     }
 
-    mod get_all_testruns_in_progress {
+    mod get_testruns_in_progress_paginated {
         use super::*;
-        use time::Duration;
 
         #[tokio::test]
-        async fn returns_empty_when_none() {
+        async fn empty_when_table_empty() {
             let db = setup().await;
-            let rows = db.get_all_testruns_in_progress().await.unwrap();
+            let (rows, total) = db.get_testruns_in_progress_paginated(50, 0).await.unwrap();
             assert!(rows.is_empty());
+            assert_eq!(total, 0);
         }
 
         #[tokio::test]
-        async fn returns_all_outstanding_ordered_oldest_first() {
+        async fn ordering_is_started_at_ascending() {
             let db = setup().await;
             db.batch_insert_or_update_nym_nodes(&[
                 node(1, "key_a"),
@@ -1086,29 +1105,86 @@ mod tests {
                 .await
                 .unwrap();
 
-            let rows = db.get_all_testruns_in_progress().await.unwrap();
+            let (rows, total) = db.get_testruns_in_progress_paginated(50, 0).await.unwrap();
+            assert_eq!(total, 3);
             let ordered_node_ids: Vec<i64> = rows.iter().map(|r| r.node_id).collect();
             assert_eq!(ordered_node_ids, vec![3, 1, 2]);
         }
 
         #[tokio::test]
-        async fn caps_at_200_rows() {
+        async fn limit_truncates_page_but_preserves_total() {
             let db = setup().await;
-            let nodes: Vec<NewNymNode> = (1..=210).map(|i| node(i, &format!("key_{i}"))).collect();
-            db.batch_insert_or_update_nym_nodes(&nodes).await.unwrap();
+            db.batch_insert_or_update_nym_nodes(&[
+                node(1, "key_a"),
+                node(2, "key_b"),
+                node(3, "key_c"),
+            ])
+            .await
+            .unwrap();
 
-            let base = datetime!(2025-06-01 00:00:00 UTC);
-            for i in 1..=210 {
-                db.mark_testrun_in_progress(i, base + Duration::seconds(i))
-                    .await
-                    .unwrap();
-            }
+            db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(2, datetime!(2025-06-01 11:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(3, datetime!(2025-06-01 12:00:00 UTC))
+                .await
+                .unwrap();
 
-            let rows = db.get_all_testruns_in_progress().await.unwrap();
-            assert_eq!(rows.len(), 200);
-            // oldest 200 should be node_ids 1..=200 (ascending started_at)
-            assert_eq!(rows.first().unwrap().node_id, 1);
-            assert_eq!(rows.last().unwrap().node_id, 200);
+            let (rows, total) = db.get_testruns_in_progress_paginated(2, 0).await.unwrap();
+            assert_eq!(total, 3);
+            let ordered_node_ids: Vec<i64> = rows.iter().map(|r| r.node_id).collect();
+            assert_eq!(ordered_node_ids, vec![1, 2]);
+        }
+
+        #[tokio::test]
+        async fn offset_skips_oldest_rows() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[
+                node(1, "key_a"),
+                node(2, "key_b"),
+                node(3, "key_c"),
+            ])
+            .await
+            .unwrap();
+
+            db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(2, datetime!(2025-06-01 11:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(3, datetime!(2025-06-01 12:00:00 UTC))
+                .await
+                .unwrap();
+
+            let (rows, total) = db.get_testruns_in_progress_paginated(2, 1).await.unwrap();
+            assert_eq!(total, 3);
+            let ordered_node_ids: Vec<i64> = rows.iter().map(|r| r.node_id).collect();
+            assert_eq!(ordered_node_ids, vec![2, 3]);
+        }
+
+        #[tokio::test]
+        async fn offset_past_end_returns_empty_but_accurate_total() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a"), node(2, "key_b")])
+                .await
+                .unwrap();
+
+            db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(2, datetime!(2025-06-01 11:00:00 UTC))
+                .await
+                .unwrap();
+
+            let (rows, total) = db
+                .get_testruns_in_progress_paginated(10, 100)
+                .await
+                .unwrap();
+            assert!(rows.is_empty());
+            assert_eq!(total, 2);
         }
     }
 

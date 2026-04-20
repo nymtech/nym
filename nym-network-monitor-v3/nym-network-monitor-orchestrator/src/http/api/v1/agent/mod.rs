@@ -28,7 +28,8 @@ use tracing::{error, info};
     responses(
         (status = 200, content(
             (AgentPortRequestResponse = "application/json"),
-        ))
+        )),
+        (status = 503, description = "no available ports on this host"),
     )
 )]
 #[tracing::instrument(
@@ -69,7 +70,9 @@ async fn request_mix_port(
     responses(
         (status = 200, content(
             (AgentAnnounceResponse = "application/json"),
-        ))
+        )),
+        (status = 400, description = "agent not found (orchestrator may have restarted since port assignment) or provided noise key does not match the one used during port assignment"),
+        (status = 500, description = "failed to announce agent to the network monitors contract"),
     )
 )]
 #[tracing::instrument(
@@ -137,7 +140,9 @@ async fn announce_agent(
     responses(
         (status = 200, content(
             (TestRunAssignmentResponse = "application/json"),
-        ))
+        )),
+        (status = 400, description = "agent not found in cache, or agent has not yet been announced to the contract"),
+        (status = 500, description = "failed to read from storage, or a stored field could not be decoded"),
     )
 )]
 #[tracing::instrument(
@@ -181,7 +186,8 @@ async fn request_testrun(
     responses(
         (status = 200, content(
             (TestRunSubmissionResponse = "application/json"),
-        ))
+        )),
+        (status = 500, description = "failed to persist the test run result to storage"),
     )
 )]
 #[tracing::instrument(

@@ -188,7 +188,7 @@ async fn request_testrun(
     }
 
     // 2. attempt to assign a testrun to the agent
-    let assignment = state.assign_next_testrun().await?;
+    let assignment = state.assign_next_mixnode_testrun().await?;
     if assignment.is_none() {
         PROMETHEUS_METRICS.inc(PrometheusMetric::EmptyTestrunAssignments);
     } else {
@@ -202,8 +202,8 @@ fn emit_testrun_result_metrics(result: &TestRunResultSubmissionRequest) {
     PROMETHEUS_METRICS.inc(PrometheusMetric::TestRunResultSubmissions);
 
     PROMETHEUS_METRICS.observe_histogram(
-        PrometheusMetric::TestDurationMs,
-        result.result.time_taken.as_millis() as f64,
+        PrometheusMetric::TestDurationSeconds,
+        result.result.time_taken.as_secs_f64(),
     );
     if let Some(latency) = result.result.approximate_latency {
         PROMETHEUS_METRICS.observe_histogram(

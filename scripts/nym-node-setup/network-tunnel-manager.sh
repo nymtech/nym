@@ -20,6 +20,10 @@ info() {
   printf "%b\n" "${YELLOW}[INFO] $*${NC}"
 }
 
+warn() {
+  printf "%b\n" "${YELLOW}[WARN] $*${NC}"
+}
+
 ok() {
   printf "%b\n" "${GREEN}[OK] $*${NC}"
 }
@@ -128,9 +132,16 @@ fi
 if [[ -z "$NETWORK_DEVICE_V6" ]]; then
   NETWORK_DEVICE_V6="$(detect_uplink_interface "ip -6 -o route show default table all")"
 fi
-if [[ -z "$NETWORK_DEVICE_V6" ]]; then
-  error "cannot determine ipv6 uplink interface. set NETWORK_DEVICE_V6 or NETWORK_DEVICE"
-  exit 1
+
+has_ipv6_uplink() {
+  [[ -n "${NETWORK_DEVICE_V6:-}" ]]
+}
+
+info "detected ipv4 uplink: $NETWORK_DEVICE_V4"
+if has_ipv6_uplink; then
+  info "detected ipv6 uplink: $NETWORK_DEVICE_V6"
+else
+  warn "could not determine ipv6 uplink interface. continuing with ipv4-only setup; ipv6-specific setup will be skipped and ipv6 tests may fail"
 fi
 
 ###############################################################################
@@ -213,6 +224,11 @@ fetch_ipv6_address() {
 
 fetch_and_display_ipv6() {
   local ipv6_address
+  if ! has_ipv6_uplink; then
+    warn "no ipv6 uplink detected; skipping ipv6 uplink address display"
+    return 0
+  fi
+
   ipv6_address=$(ip -6 addr show "$NETWORK_DEVICE_V6" scope global | awk '/inet6/ {print $2}')
   if [[ -z "$ipv6_address" ]]; then
     error "no global ipv6 address found on $NETWORK_DEVICE_V6"
@@ -362,7 +378,7 @@ remove_duplicate_rules() {
 
 apply_iptables_rules() {
   local interface=$1
-  info "applying iptables rules for $interface using ipv4 uplink $NETWORK_DEVICE_V4 and ipv6 uplink $NETWORK_DEVICE_V6"
+  info "applying iptables rules for $interface using ipv4 uplink $NETWORK_DEVICE_V4${NETWORK_DEVICE_V6:+ and ipv6 uplink $NETWORK_DEVICE_V6}"
   sleep 1
 
   # ipv4 nat and forwarding
@@ -379,17 +395,21 @@ apply_iptables_rules() {
     iptables -I FORWARD 2 -i "$NETWORK_DEVICE_V4" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
   # ipv6 nat and forwarding
-  ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE_V6" -j MASQUERADE 2>/dev/null || \
-    ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE_V6" -j MASQUERADE
+  if has_ipv6_uplink; then
+    ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE_V6" -j MASQUERADE 2>/dev/null || \
+      ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE_V6" -j MASQUERADE
 
-  # governed by NYM-EXIT, do not add a broad FORWARD ACCEPT
-  if ! ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null; then
-    ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE_V6" -j ACCEPT 2>/dev/null || \
-      ip6tables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE_V6" -j ACCEPT
+    # governed by NYM-EXIT, do not add a broad FORWARD ACCEPT
+    if ! ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null; then
+      ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE_V6" -j ACCEPT 2>/dev/null || \
+        ip6tables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE_V6" -j ACCEPT
+    fi
+
+    ip6tables -C FORWARD -i "$NETWORK_DEVICE_V6" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+      ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE_V6" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  else
+    warn "no ipv6 uplink detected; skipping ipv6 nat/forwarding rules for $interface"
   fi
-
-  ip6tables -C FORWARD -i "$NETWORK_DEVICE_V6" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE_V6" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
   save_iptables_rules
 }
@@ -729,36 +749,48 @@ create_nym_chain() {
   # remove broad ACCEPT rules for wg + tun outbound so NYM-EXIT is authoritative
   iptables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V4" -j ACCEPT 2>/dev/null || true
   iptables -D FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V4" -j ACCEPT 2>/dev/null || true
-  ip6tables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V6" -j ACCEPT 2>/dev/null || true
-  ip6tables -D FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V6" -j ACCEPT 2>/dev/null || true
+  if has_ipv6_uplink; then
+    ip6tables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V6" -j ACCEPT 2>/dev/null || true
+    ip6tables -D FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V6" -j ACCEPT 2>/dev/null || true
+  fi
 
   # install the correct hook for both wg + tun
   iptables  -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V4" -j "$NYM_CHAIN"
   iptables  -I FORWARD 1 -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V4" -j "$NYM_CHAIN"
 
-  ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN"
-  ip6tables -I FORWARD 1 -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN"
-
-  ok "NYM-EXIT chain ready + FORWARD hooks installed for $WG_INTERFACE and $TUNNEL_INTERFACE"
+  if has_ipv6_uplink; then
+    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN"
+    ip6tables -I FORWARD 1 -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN"
+    ok "NYM-EXIT chain ready + IPv4/IPv6 FORWARD hooks installed for $WG_INTERFACE and $TUNNEL_INTERFACE"
+  else
+    warn "no ipv6 uplink detected; installing only IPv4 FORWARD hooks for $WG_INTERFACE and $TUNNEL_INTERFACE"
+    ok "NYM-EXIT chain ready + IPv4 FORWARD hooks installed for $WG_INTERFACE and $TUNNEL_INTERFACE"
+  fi
 }
 
 
 setup_nat_rules() {
-  info "setting up nat and forwarding rules for $WG_INTERFACE via ipv4 uplink $NETWORK_DEVICE_V4 and ipv6 uplink $NETWORK_DEVICE_V6"
+  info "setting up nat and forwarding rules for $WG_INTERFACE via ipv4 uplink $NETWORK_DEVICE_V4${NETWORK_DEVICE_V6:+ and ipv6 uplink $NETWORK_DEVICE_V6}"
 
   if ! iptables -t nat -C POSTROUTING -o "$NETWORK_DEVICE_V4" -j MASQUERADE 2>/dev/null; then
     iptables -t nat -A POSTROUTING -o "$NETWORK_DEVICE_V4" -j MASQUERADE
   fi
-  if ! ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE_V6" -j MASQUERADE 2>/dev/null; then
-    ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE_V6" -j MASQUERADE
+  if has_ipv6_uplink; then
+    if ! ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE_V6" -j MASQUERADE 2>/dev/null; then
+      ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE_V6" -j MASQUERADE
+    fi
+  else
+    warn "no ipv6 uplink detected; skipping ipv6 NAT setup for $WG_INTERFACE"
   fi
 
   # keep reverse RELATED,ESTABLISHED in FORWARD for return traffic.
   if ! iptables -C FORWARD -i "$NETWORK_DEVICE_V4" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
     iptables -I FORWARD 2 -i "$NETWORK_DEVICE_V4" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
   fi
-  if ! ip6tables -C FORWARD -i "$NETWORK_DEVICE_V6" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
-    ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE_V6" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  if has_ipv6_uplink; then
+    if ! ip6tables -C FORWARD -i "$NETWORK_DEVICE_V6" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+      ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE_V6" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    fi
   fi
 }
 
@@ -1001,8 +1033,10 @@ clear_exit_policy_rules() {
   # remove hooks for BOTH wg + tun
   iptables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V4" -j "$NYM_CHAIN" 2>/dev/null || true
   iptables -D FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V4" -j "$NYM_CHAIN" 2>/dev/null || true
-  ip6tables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null || true
-  ip6tables -D FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null || true
+  if has_ipv6_uplink; then
+    ip6tables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null || true
+    ip6tables -D FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null || true
+  fi
 
   iptables -X "$NYM_CHAIN" 2>/dev/null || true
   ip6tables -X "$NYM_CHAIN" 2>/dev/null || true
@@ -1011,7 +1045,11 @@ clear_exit_policy_rules() {
 show_exit_policy_status() {
   info "nym exit policy status"
   info "ipv4 network device: $NETWORK_DEVICE_V4"
-  info "ipv6 network device: $NETWORK_DEVICE_V6"
+  if has_ipv6_uplink; then
+    info "ipv6 network device: $NETWORK_DEVICE_V6"
+  else
+    warn "ipv6 network device: not detected"
+  fi
   info "wireguard interface: $WG_INTERFACE"
   info "tunnel interface: $TUNNEL_INTERFACE"
   echo
@@ -1112,21 +1150,71 @@ firewall_rule_line() {
 }
 
 check_forward_chain() {
-  local output
-  output=$(iptables -L FORWARD -n --line-numbers)
+  local errors=0
 
-  if ! echo "$output" | grep -q "^1[[:space:]]\+$NYM_CHAIN"; then
-    error "FORWARD rule 1 is not ${NYM_CHAIN}; re-run network-tunnel-manager.sh exit_policy_install"
-    return 1
+  info "checking FORWARD hooks and reverse RELATED,ESTABLISHED rules"
+
+  if iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V4" -j "$NYM_CHAIN" 2>/dev/null; then
+    ok "ipv4 FORWARD hook ok (wg): -i $WG_INTERFACE -o $NETWORK_DEVICE_V4 -> $NYM_CHAIN"
+  else
+    error "ipv4 FORWARD hook missing (wg): -i $WG_INTERFACE -o $NETWORK_DEVICE_V4 -> $NYM_CHAIN"
+    errors=1
   fi
 
-  if ! echo "$output" | grep -q "ACCEPT.*state RELATED,ESTABLISHED"; then
-    error "FORWARD chain missing RELATED,ESTABLISHED accepts; re-run network-tunnel-manager.sh apply_iptables_rules_wg"
-    return 1
+  if iptables -C FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V4" -j "$NYM_CHAIN" 2>/dev/null; then
+    ok "ipv4 FORWARD hook ok (tun): -i $TUNNEL_INTERFACE -o $NETWORK_DEVICE_V4 -> $NYM_CHAIN"
+  else
+    error "ipv4 FORWARD hook missing (tun): -i $TUNNEL_INTERFACE -o $NETWORK_DEVICE_V4 -> $NYM_CHAIN"
+    errors=1
   fi
 
-  ok "FORWARD chain ordering looks good"
-  return 0
+  if iptables -C FORWARD -i "$NETWORK_DEVICE_V4" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+    ok "ipv4 reverse RELATED,ESTABLISHED ok (wg): -i $NETWORK_DEVICE_V4 -o $WG_INTERFACE"
+  else
+    error "ipv4 reverse RELATED,ESTABLISHED missing (wg): -i $NETWORK_DEVICE_V4 -o $WG_INTERFACE"
+    errors=1
+  fi
+
+  if iptables -C FORWARD -i "$NETWORK_DEVICE_V4" -o "$TUNNEL_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+    ok "ipv4 reverse RELATED,ESTABLISHED ok (tun): -i $NETWORK_DEVICE_V4 -o $TUNNEL_INTERFACE"
+  else
+    error "ipv4 reverse RELATED,ESTABLISHED missing (tun): -i $NETWORK_DEVICE_V4 -o $TUNNEL_INTERFACE"
+    errors=1
+  fi
+
+  if has_ipv6_uplink; then
+    if ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null; then
+      ok "ipv6 FORWARD hook ok (wg): -i $WG_INTERFACE -o $NETWORK_DEVICE_V6 -> $NYM_CHAIN"
+    else
+      error "ipv6 FORWARD hook missing (wg): -i $WG_INTERFACE -o $NETWORK_DEVICE_V6 -> $NYM_CHAIN"
+      errors=1
+    fi
+
+    if ip6tables -C FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null; then
+      ok "ipv6 FORWARD hook ok (tun): -i $TUNNEL_INTERFACE -o $NETWORK_DEVICE_V6 -> $NYM_CHAIN"
+    else
+      error "ipv6 FORWARD hook missing (tun): -i $TUNNEL_INTERFACE -o $NETWORK_DEVICE_V6 -> $NYM_CHAIN"
+      errors=1
+    fi
+
+    if ip6tables -C FORWARD -i "$NETWORK_DEVICE_V6" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+      ok "ipv6 reverse RELATED,ESTABLISHED ok (wg): -i $NETWORK_DEVICE_V6 -o $WG_INTERFACE"
+    else
+      error "ipv6 reverse RELATED,ESTABLISHED missing (wg): -i $NETWORK_DEVICE_V6 -o $WG_INTERFACE"
+      errors=1
+    fi
+
+    if ip6tables -C FORWARD -i "$NETWORK_DEVICE_V6" -o "$TUNNEL_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+      ok "ipv6 reverse RELATED,ESTABLISHED ok (tun): -i $NETWORK_DEVICE_V6 -o $TUNNEL_INTERFACE"
+    else
+      error "ipv6 reverse RELATED,ESTABLISHED missing (tun): -i $NETWORK_DEVICE_V6 -o $TUNNEL_INTERFACE"
+      errors=1
+    fi
+  else
+    warn "no ipv6 uplink detected; skipping ipv6 FORWARD validation"
+  fi
+
+  return $errors
 }
 
 check_nym_exit_chain() {
@@ -1308,7 +1396,7 @@ test_forward_chain_hook() {
 
   local failures=0
 
-  # verify BOTH interfaces are hooked to NYM-EXIT (IPv4 + IPv6)
+  # verify BOTH interfaces are hooked to NYM-EXIT for IPv4
   if iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V4" -j "$NYM_CHAIN" 2>/dev/null; then
     ok "ipv4 forward hook ok (wg): -i $WG_INTERFACE -o $NETWORK_DEVICE_V4 -> $NYM_CHAIN"
   else
@@ -1323,18 +1411,22 @@ test_forward_chain_hook() {
     ((failures++))
   fi
 
-  if ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null; then
-    ok "ipv6 forward hook ok (wg): -i $WG_INTERFACE -o $NETWORK_DEVICE_V6 -> $NYM_CHAIN"
-  else
-    error "ipv6 forward hook missing or wrong (wg)"
-    ((failures++))
-  fi
+  if has_ipv6_uplink; then
+    if ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null; then
+      ok "ipv6 forward hook ok (wg): -i $WG_INTERFACE -o $NETWORK_DEVICE_V6 -> $NYM_CHAIN"
+    else
+      error "ipv6 forward hook missing or wrong (wg)"
+      ((failures++))
+    fi
 
-  if ip6tables -C FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null; then
-    ok "ipv6 forward hook ok (tun): -i $TUNNEL_INTERFACE -o $NETWORK_DEVICE_V6 -> $NYM_CHAIN"
+    if ip6tables -C FORWARD -i "$TUNNEL_INTERFACE" -o "$NETWORK_DEVICE_V6" -j "$NYM_CHAIN" 2>/dev/null; then
+      ok "ipv6 forward hook ok (tun): -i $TUNNEL_INTERFACE -o $NETWORK_DEVICE_V6 -> $NYM_CHAIN"
+    else
+      error "ipv6 forward hook missing or wrong (tun)"
+      ((failures++))
+    fi
   else
-    error "ipv6 forward hook missing or wrong (tun)"
-    ((failures++))
+    warn "no ipv6 uplink detected; skipping ipv6 forward hook tests"
   fi
 
   return "$failures"
@@ -1429,7 +1521,7 @@ nym_tunnel_setup() {
 }
 
 exit_policy_install() {
-  info "installing nym wireguard exit policy for ${WG_INTERFACE} via ipv4 uplink ${NETWORK_DEVICE_V4} and ipv6 uplink ${NETWORK_DEVICE_V6}"
+  info "installing nym wireguard exit policy for ${WG_INTERFACE} via ipv4 uplink ${NETWORK_DEVICE_V4}${NETWORK_DEVICE_V6:+ and ipv6 uplink ${NETWORK_DEVICE_V6}}"
   exit_policy_install_deps
   adjust_ip_forwarding
   create_nym_chain
@@ -1600,7 +1692,7 @@ exit policy manager:
 environment overrides:
   NETWORK_DEVICE                    Backward-compatible override that sets both uplinks.
   NETWORK_DEVICE_V4                 Auto-detected IPv4 uplink (e.g., eth0). Set manually if detection fails.
-  NETWORK_DEVICE_V6                 Auto-detected IPv6 uplink (e.g., eth2). Set manually if detection fails.
+  NETWORK_DEVICE_V6                 Auto-detected IPv6 uplink (e.g., eth2). Optional; if unset, IPv6-specific setup is skipped.
   TUNNEL_INTERFACE                  Default: nymtun0. Requires root privileges (sudo) to manage.
   WG_INTERFACE                      Default: nymwg - Must match your WireGuard interface name.
 

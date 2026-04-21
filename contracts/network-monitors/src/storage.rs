@@ -124,6 +124,7 @@ impl NetworkMonitorsStorage {
             &orchestrator,
             &AuthorisedNetworkMonitorOrchestrator {
                 address: orchestrator.clone(),
+                identity_key: None,
                 authorised_at: env.block.time,
             },
         )?;
@@ -183,9 +184,39 @@ impl NetworkMonitorsStorage {
             &orchestrator_address,
             &AuthorisedNetworkMonitorOrchestrator {
                 address: orchestrator_address.clone(),
+                identity_key: None,
                 authorised_at: env.block.time,
             },
         )?;
+        Ok(())
+    }
+
+    /// Overwrite the announced identity key for the orchestrator at `sender`.
+    ///
+    /// The orchestrator must already be authorised - the existence of the storage entry is used as
+    /// the authorisation check itself, avoiding a second load. `identity_key` is stored verbatim
+    /// (callers are expected to have validated its shape beforehand).
+    pub fn update_orchestrator_identity_key(
+        &self,
+        deps: DepsMut,
+        sender: &Addr,
+        identity_key: String,
+    ) -> Result<(), NetworkMonitorsContractError> {
+        // ensure the sender is actually a valid orchestrator
+        // by checking if there is any data stored behind its address
+        let Some(mut orchestrator_info) = self
+            .authorised_orchestrators
+            .may_load(deps.storage, &sender)?
+        else {
+            return Err(NetworkMonitorsContractError::NotAnOrchestrator {
+                addr: sender.clone(),
+            });
+        };
+
+        orchestrator_info.identity_key = Some(identity_key);
+        self.authorised_orchestrators
+            .save(deps.storage, &sender, &orchestrator_info)?;
+
         Ok(())
     }
 

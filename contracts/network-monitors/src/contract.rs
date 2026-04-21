@@ -9,6 +9,7 @@ use crate::transactions::{
     try_authorise_network_monitor, try_authorise_network_monitor_orchestrator,
     try_revoke_all_network_monitors, try_revoke_network_monitor,
     try_revoke_network_monitor_orchestrator, try_update_contract_admin,
+    try_update_orchestrator_identity_key,
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
@@ -48,6 +49,9 @@ pub fn execute(
         ExecuteMsg::UpdateAdmin { admin } => try_update_contract_admin(deps, info, admin),
         ExecuteMsg::AuthoriseNetworkMonitorOrchestrator { address } => {
             try_authorise_network_monitor_orchestrator(deps, env, info, address)
+        }
+        ExecuteMsg::UpdateOrchestratorIdentityKey { key } => {
+            try_update_orchestrator_identity_key(deps, info, key)
         }
         ExecuteMsg::RevokeNetworkMonitorOrchestrator { address } => {
             try_revoke_network_monitor_orchestrator(deps, info, address)

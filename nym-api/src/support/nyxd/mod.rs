@@ -39,7 +39,7 @@ use nym_validator_client::nyxd::contract_traits::performance_query_client::{
     LastSubmission, NodePerformance,
 };
 use nym_validator_client::nyxd::contract_traits::{
-    PagedDkgQueryClient, PagedPerformanceQueryClient, PerformanceQueryClient,
+    PagedDkgQueryClient, PagedPerformanceQueryClient, PerformanceQueryClient, TypedNymContracts,
 };
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;
@@ -167,12 +167,27 @@ impl Client {
         }
     }
 
+    pub(crate) async fn known_contracts(&self) -> TypedNymContracts {
+        nyxd_query!(self, get_nym_contracts().await)
+    }
+
     pub(crate) async fn get_ecash_contract_address(&self) -> Result<AccountId, EcashError> {
         nyxd_query!(
             self,
             ecash_contract_address()
                 .cloned()
                 .ok_or_else(|| NyxdError::unavailable_contract_address("ecash contract").into())
+        )
+    }
+
+    pub(crate) async fn get_network_monitors_contract_address(
+        &self,
+    ) -> Result<AccountId, NyxdError> {
+        nyxd_query!(
+            self,
+            network_monitors_contract_address().cloned().ok_or_else(|| {
+                NyxdError::unavailable_contract_address("network monitors contract").into()
+            })
         )
     }
 

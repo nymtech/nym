@@ -11,7 +11,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 > - the [Nym platform](https://github.com/nymtech/nym), written in Rust. This contains all of our code except for the validators.
 > - the [Nym validators](https://github.com/nymtech/nyxd), written in Go & maintained as fork of [wasmd](https://github.com/CosmWasm/wasmd)
 
-The validator is a Go application which implements it's functionalities using [Cosmos SDK](https://v1.cosmos.network/sdk). The underlying state-replication engine is powered by [CometBFT](https://cometbft.com/), where the consensus mechanism is based on the [Tendermint Consensus Algorithm](https://arxiv.org/abs/1807.04938). Finally, a [CosmWasm](https://cosmwasm.com) smart contract module controls crucial mixnet functionalities like decentralised directory service, node bonding, and delegated mixnet staking.
+The validator is a Go application which implements it's functionalities using [Cosmos SDK](https://docs.cosmos.network). The underlying state-replication engine is powered by [CometBFT](https://cometbft.com/), where the consensus mechanism is based on the [Tendermint Consensus Algorithm](https://arxiv.org/abs/1807.04938). Finally, a [CosmWasm](https://cosmwasm.com) smart contract module controls crucial mixnet functionalities like decentralised directory service, node bonding, and delegated mixnet staking.
 
 <Callout type="info" emoji="ℹ️">
 At present, our mainnet operates with a select group of reputed validators. We are not accepting new validators at this time. Any updates or changes to this policy will be promptly announced.
@@ -307,7 +307,7 @@ nyxd keys add nyxd-admin
 ```
 
 <Callout title="Key Backends">
-Cosmos SDK offers multiple backends for securing your keys. Please refer to the Cosmos SDK [docs on available keyring backends](https://docs.cosmos.network/main/user/run-node/keyring#available-backends-for-the-keyring) to learn more
+Cosmos SDK offers multiple backends for securing your keys. Please refer to the Cosmos SDK [docs on available keyring backends](https://docs.cosmos.network/sdk/v0.47/user/run-node/keyring#available-backends-for-the-keyring) to learn more
 </Callout>
 
 While using the default settings, this will add keys for your account to your system's keychain and log your name, address, public key, and mnemonic. As the instructions say, remember to **write down your mnemonic**.

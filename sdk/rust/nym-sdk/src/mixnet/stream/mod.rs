@@ -10,6 +10,11 @@
 //! A background router task reads the client's `reconstructed_receiver`,
 //! parses the stream header, and dispatches each payload to the right
 //! stream's channel (or to the listener for `Open` messages).
+//!
+//! See the [tutorial](https://nymtech.net/docs/developers/rust/stream/tutorial)
+//! for a step-by-step walkthrough.
+//!
+#![doc = include_str!("ARCHITECTURE.md")]
 
 mod mixnet_stream;
 pub(crate) mod protocol;
@@ -207,6 +212,9 @@ impl Drop for StreamState {
 ///
 /// Created via [`MixnetClient::listener`]. Each `accept()` returns a
 /// `MixnetStream` ready for reading and writing.
+///
+/// Only one `MixnetListener` can exist per client — a second call to
+/// `listener()` returns [`Error::ListenerAlreadyTaken`].
 pub struct MixnetListener {
     inbound_rx: mpsc::UnboundedReceiver<InboundOpen>,
     client_input: nym_client_core::client::base_client::ClientInput,
@@ -218,6 +226,11 @@ impl MixnetListener {
     /// Wait for a remote peer to open a stream.
     ///
     /// Returns `None` if the router has shut down.
+    ///
+    /// # Cancel safety
+    ///
+    /// This method is cancel safe. If cancelled before a stream arrives,
+    /// the pending `Open` message remains in the channel for the next call.
     pub async fn accept(&mut self) -> Option<MixnetStream> {
         loop {
             let req = self.inbound_rx.recv().await?;

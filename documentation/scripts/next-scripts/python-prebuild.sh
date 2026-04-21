@@ -25,6 +25,8 @@ python3 api_targets.py validator --api mainnet --endpoint epoch/reward_params --
 
 python3 api_targets.py validator --api mainnet --endpoint epoch/reward_params --value interval epoch_reward_budget --format markdown --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/epoch-reward-budget.md &&
 
+python3 api_targets.py described_nodes > ../../docs/components/outputs/api-scraping-outputs/nodes-count.json
+
 python3 api_targets.py time_now > ../../docs/components/outputs/api-scraping-outputs/time-now.md &&
 
 python3 api_targets.py calculate --staking_target --separator _ > ../../docs/components/outputs/api-scraping-outputs/nyx-outputs/staking-target.md &&

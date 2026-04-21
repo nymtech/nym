@@ -214,23 +214,11 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         Commands::RunAgent {
             entry_gateway,
             credential_args,
-            mut probe_config,
+            probe_config,
         } => {
-            let api_url = network
-                .endpoints
-                .first()
-                .and_then(|ep| ep.api_url())
-                .ok_or(anyhow::anyhow!("missing api url"))?;
-
-            let directory = NymApiDirectory::new(api_url).await?;
-            let entry_details = directory
-                .entry_gateway(&entry_gateway)?
-                .to_testable_node()?;
-
-            // Agents run everything
-            probe_config.test_mode = nym_gateway_probe::config::TestMode::All;
-
-            let trial = nym_gateway_probe::Probe::new(entry_details, None, network, probe_config);
+            let trial =
+                nym_gateway_probe::Probe::new_for_agent(entry_gateway, network, probe_config)
+                    .await?;
             Box::pin(trial.probe_run_agent(credential_args)).await
         }
     }

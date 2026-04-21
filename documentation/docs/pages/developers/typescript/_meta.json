@@ -1,9 +1,6 @@
 {
-  "overview": "SDK overview",
-  "installation": "Installation",
-  "start": "Getting started",
-  "examples": "Step-by-step examples",
+  "examples": "Step-by-step Examples",
   "playground": "Live Playground",
-  "bundling": "Bundling",
-  "FAQ": "FAQ"
+  "bundling": "Bundling & Troubleshooting",
+  "api": "TypeDoc Reference"
 }

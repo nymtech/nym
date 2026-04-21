@@ -7,11 +7,51 @@ use nym_credentials::{
     IssuedTicketBook,
 };
 
-/// Represents a helper that can be used for importing ticketbooks / bandwidth
-/// into the client before commencing mixnet connection
-/// The way to create it is to call
-/// [`crate::mixnet::DisconnectedMixnetClient::begin_bandwidth_import`] on the associated mixnet
-/// client.
+/// Helper for importing bandwidth credentials (ticketbooks) into a mixnet client.
+///
+/// `BandwidthImporter` provides methods for importing the various cryptographic
+/// components needed for paid network access before connecting to the mixnet.
+///
+/// ## Overview
+///
+/// To use the Nym mixnet with paid bandwidth, clients need:
+/// 1. **Ticketbooks**: Pre-purchased bandwidth tokens that are spent during network use
+/// 2. **Verification keys**: Cryptographic keys to verify credential signatures
+/// 3. **Signatures**: Aggregated signatures for coin indices and expiration dates
+///
+/// ## Usage
+///
+/// Obtain a `BandwidthImporter` by calling
+/// [`DisconnectedMixnetClient::begin_bandwidth_import`](crate::mixnet::DisconnectedMixnetClient::begin_bandwidth_import)
+/// on a disconnected client:
+///
+/// ```rust,no_run
+/// use nym_sdk::mixnet::MixnetClientBuilder;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let client = MixnetClientBuilder::new_ephemeral()
+///     .build()?;
+///
+/// // Import credentials before connecting
+/// {
+///     let importer = client.begin_bandwidth_import();
+///     // importer.import_ticketbook(&ticketbook).await?;
+///     // importer.import_master_verification_key(&key).await?;
+///     // ...
+/// } // importer dropped here, releasing the borrow on client
+///
+/// // Now connect with credentials available
+/// let connected = client.connect_to_mixnet().await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## Credential Components
+///
+/// - **Ticketbook**: Contains bandwidth tokens that are spent during network use
+/// - **Master verification key**: Used to verify credential signatures for an epoch
+/// - **Coin index signatures**: Signatures over the coin indices in the ticketbook
+/// - **Expiration date signatures**: Signatures over credential expiration dates
 pub struct BandwidthImporter<'a, St> {
     storage: &'a St,
 }
@@ -25,6 +65,10 @@ where
         BandwidthImporter { storage }
     }
 
+    /// Imports a complete ticketbook into credential storage.
+    ///
+    /// A ticketbook contains pre-purchased bandwidth tokens that are spent
+    /// during network use. Each token represents a certain amount of bandwidth.
     pub async fn import_ticketbook(
         &self,
         ticketbook: &IssuedTicketBook,
@@ -38,6 +82,10 @@ where
         Ok(())
     }
 
+    /// Imports a partial range of tickets from a ticketbook.
+    ///
+    /// Useful when sharing a ticketbook across multiple clients or when only
+    /// a portion should be available to this client.
     pub async fn import_partial_ticketbook(
         &self,
         ticketbook: &IssuedTicketBook,
@@ -57,6 +105,10 @@ where
         Ok(())
     }
 
+    /// Imports the master verification key for credential validation.
+    ///
+    /// Used to verify that credentials were properly issued by the credential
+    /// signers. Each epoch has its own verification key.
     pub async fn import_master_verification_key(
         &self,
         key: &EpochVerificationKey,
@@ -70,6 +122,10 @@ where
         Ok(())
     }
 
+    /// Imports aggregated coin index signatures.
+    ///
+    /// These signatures are needed to prove ownership of specific
+    /// coins/tokens in the ticketbook.
     pub async fn import_coin_index_signatures(
         &self,
         signatures: &AggregatedCoinIndicesSignatures,
@@ -83,6 +139,11 @@ where
         Ok(())
     }
 
+    /// Imports aggregated expiration date signatures.
+    ///
+    /// These signatures verify the validity period of credentials. Credentials
+    /// are only valid for a certain time period, and these signatures prove
+    /// when they expire.
     pub async fn import_expiration_date_signatures(
         &self,
         signatures: &AggregatedExpirationDateSignatures,

@@ -18,22 +18,93 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument};
 
-const DEFAULT_CLOSE_TIMEOUT: u64 = 60; // seconds
+/// Default timeout in seconds before closing an idle session.
+const DEFAULT_CLOSE_TIMEOUT: u64 = 60;
+/// Default address to listen on for incoming TCP connections.
 const DEFAULT_LISTEN_HOST: &str = "127.0.0.1";
+/// Default port to listen on for incoming TCP connections.
 const DEFAULT_LISTEN_PORT: &str = "8080";
+/// Default number of mixnet clients to keep in the connection pool.
 const DEFAULT_CLIENT_POOL_SIZE: usize = 2;
 
+/// A TCP proxy client that tunnels local TCP connections through the Nym mixnet.
+///
+/// `NymProxyClient` acts as a local TCP server that accepts connections and forwards
+/// them through the Nym mixnet to a remote [`NymProxyServer`](super::NymProxyServer).
+/// This allows existing TCP-based applications to gain mixnet privacy without
+/// modification.
+///
+/// ## Architecture
+///
+/// ```text
+/// [Your App] --> [NymProxyClient] --> [Nym Mixnet] --> [NymProxyServer] --> [Target Server]
+/// ```
+///
+/// The client:
+/// 1. Listens on a local TCP address (default `127.0.0.1:8080`)
+/// 2. Accepts incoming connections from your application
+/// 3. Creates a unique session for each connection
+/// 4. Sends data through the mixnet using Sphinx packets
+/// 5. Receives responses via anonymous reply SURBs
+/// 6. Handles message ordering (mixnet doesn't guarantee order)
+///
+/// ## Example
+///
+/// ```rust,no_run
+/// use nym_sdk::tcp_proxy::NymProxyClient;
+/// use nym_sphinx::addressing::Recipient;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     // The Nym address of the NymProxyServer to connect to
+///     let server_address: Recipient = "server_nym_address...".parse()?;
+///
+///     // Create client with default settings (listens on 127.0.0.1:8080)
+///     let client = NymProxyClient::new_with_defaults(server_address, None).await?;
+///
+///     // Run the proxy (blocks until disconnected)
+///     client.run().await?;
+///
+///     Ok(())
+/// }
+/// ```
+///
+/// ## Message Ordering
+///
+/// The Nym mixnet does not guarantee message ordering. This proxy implements
+/// session-based message ordering using unique session IDs and message sequence
+/// numbers, buffering out-of-order messages until they can be delivered in sequence.
 #[derive(Clone)]
 pub struct NymProxyClient {
+    /// The Nym address of the remote NymProxyServer.
     server_address: Recipient,
+    /// Local address to listen on.
     listen_address: String,
+    /// Local port to listen on.
     listen_port: String,
+    /// Timeout in seconds before closing idle sessions.
     close_timeout: u64,
+    /// Pool of pre-initialized mixnet clients for handling connections.
     conn_pool: ClientPool,
+    /// Token for graceful shutdown.
     cancel_token: CancellationToken,
 }
 
 impl NymProxyClient {
+    /// Creates a new `NymProxyClient` with custom configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `server_address` - The Nym address of the [`NymProxyServer`](super::NymProxyServer) to forward traffic to.
+    /// * `listen_address` - Local address to listen on (e.g., `"127.0.0.1"`).
+    /// * `listen_port` - Local port to listen on (e.g., `"8080"`).
+    /// * `close_timeout` - Seconds to wait before closing an idle session.
+    /// * `env` - Optional path to a `.env` file for network configuration. If `None`, uses mainnet defaults.
+    /// * `default_client_amount` - Number of mixnet clients to keep in the connection pool.
+    ///
+    /// # Returns
+    ///
+    /// A configured `NymProxyClient` ready to be started with [`run`](Self::run).
     pub async fn new(
         server_address: Recipient,
         listen_address: &str,
@@ -54,7 +125,17 @@ impl NymProxyClient {
         })
     }
 
-    // server_address is the Nym address of the NymProxyServer to communicate with.
+    /// Creates a new `NymProxyClient` with default settings.
+    ///
+    /// Uses the following defaults:
+    /// - Listen address: `127.0.0.1:8080`
+    /// - Close timeout: 60 seconds
+    /// - Client pool size: 2
+    ///
+    /// # Arguments
+    ///
+    /// * `server_address` - The Nym address of the [`NymProxyServer`](super::NymProxyServer) to forward traffic to.
+    /// * `env` - Optional path to a `.env` file for network configuration. If `None`, uses mainnet defaults.
     pub async fn new_with_defaults(server_address: Recipient, env: Option<String>) -> Result<Self> {
         NymProxyClient::new(
             server_address,
@@ -67,6 +148,20 @@ impl NymProxyClient {
         .await
     }
 
+    /// Starts the proxy and begins accepting TCP connections.
+    ///
+    /// This method:
+    /// 1. Binds to the configured local address and port
+    /// 2. Starts the client pool to maintain ready mixnet clients
+    /// 3. Accepts incoming TCP connections and spawns handlers for each
+    ///
+    /// This method blocks until [`disconnect`](Self::disconnect) is called or
+    /// an error occurs.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` when shutdown is triggered, or an error if binding fails
+    /// or a connection handler encounters an unrecoverable error.
     pub async fn run(&self) -> Result<()> {
         info!("Connecting to mixnet server at {}", self.server_address);
 
@@ -98,6 +193,10 @@ impl NymProxyClient {
         }
     }
 
+    /// Disconnects the proxy and shuts down all active sessions.
+    ///
+    /// This method cancels the accept loop, stops the client pool, and
+    /// disconnects all pooled clients. Active sessions will be terminated.
     pub async fn disconnect(&self) {
         self.cancel_token.cancel();
         self.conn_pool.disconnect_pool().await;

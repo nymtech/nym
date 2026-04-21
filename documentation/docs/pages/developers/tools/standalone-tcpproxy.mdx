@@ -1,5 +1,11 @@
 # Standalone TcpProxy Binaries
 
+import { Callout } from 'nextra/components'
+
+<Callout type="error">
+**Deprecated.** The TcpProxy module is no longer actively developed. The [Stream module](/developers/rust/stream) provides the same functionality (familiar `AsyncRead`/`AsyncWrite` I/O over the Mixnet) with a simpler API, multiplexed connections, and sequence-based message reordering. Use Streams for new projects.
+</Callout>
+
 Standalone versions of the `TcpProxyClient` and `TcpProxyServer` [sdk module](../rust/tcpproxy) can be found [here](https://github.com/nymtech/standalone-tcp-proxies/tree/main).
 
 These might be an easy way for developers to start proxying their traffic throught the mixnet and understanding the sort of latency they should expect, and whether their application can currently tolerate it. They might also prove useful for server setups where several components are being run via init scripts, and the addition of a separate process is acceptable.
@@ -32,7 +38,7 @@ Options:
       --close-timeout <CLOSE_TIMEOUT>
           Send timeout in seconds [default: 30]
   -s, --server-address <SERVER_ADDRESS>
-          Nym address of the NymProxyServer e.g. EjYsntVxxBJrcRugiX5VnbKMbg7gyBGSp9SLt7RgeVFV.EzRtVdHCHoP2ho3DJgKMisMQ3zHkqMtAFAW4pxsq7Y2a@Hs463Wh5LtWZU@NyAmt4trcCbNVsuUhry1wpEXpVnAAfn
+          Nym address of the NymProxyServer e.g. EjYsntVxxBJrcRugiX5VnbKMbg7gyBGSp9SLt7RgeVFV.EzRtVdHCHoP2ho3DJgKMisMQ3zHkqMtAFAW4pxsq7Y2a@Hs463Wh5LtWZUNyAmt4trcCbNVsuUhry1wpEXpVnAAfn
       --listen-address <LISTEN_ADDRESS>
           Listen address [default: 127.0.0.1]
       --listen-port <LISTEN_PORT>

@@ -1,11 +1,34 @@
 ---
 title: "Nym Rust SDK: Privacy Apps for the Mixnet"
-description: "Rust SDK reference for building privacy applications on the Nym mixnet. Covers TcpProxy, Mixnet module, Client Pool, FFI bindings, and code examples."
+description: "Rust SDK reference for building privacy applications on the Nym mixnet. Covers the Mixnet client, Stream multiplexing, Client Pool, and code examples."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-02-01"
+lastUpdated: "2026-03-13"
 ---
 
-# Introduction
+# Rust SDK
 
-The Rust SDK allows exposes a few different modules, some more plug and play than others. Each of which handles exposes a Nym Client, which handles finding and using a route for packets through the Mixnet, encryption, and cover traffic, all under the hood.
+import { Callout } from 'nextra/components'
+import { CratesPaused } from '../../components/crates-paused'
+
+All modules share a common `MixnetClient` that manages gateway connections, Sphinx packet encryption, routing, and cover traffic.
+
+<Callout type="info">
+Full API reference: [**docs.rs/nym-sdk**](https://docs.rs/nym-sdk/latest/nym_sdk/)
+</Callout>
+
+<CratesPaused />
+
+For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For setup instructions, see [Installation](./rust/importing).
+
+## Modules
+
+- **[Stream](./rust/stream)**: multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet. **If you're used to TCP sockets, start here.**
+
+- **[Mixnet](./rust/mixnet)**: raw message payloads, independently routed, no connections or ordering. Use this when you want full control over the communication model.
+
+- **[Client Pool](./rust/client-pool)**: keeps ready-to-use `MixnetClient` instances warm for bursty workloads.
+
+- **[TcpProxy](./rust/tcpproxy)** *(deprecated)*: TCP socket proxying with session management and message ordering. Use Stream for new projects.
+
+- **[FFI](./rust/ffi)**: Go and C/C++ bindings.

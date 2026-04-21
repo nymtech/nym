@@ -1,13 +1,51 @@
-# Installation
-import { Callout } from 'nextra/components';
+---
+title: "Install the Nym Rust SDK"
+description: "Add nym-sdk to your Rust project from Git or crates.io. Covers version requirements, minimum Rust version, and current feature gate status."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-03-27"
+---
 
-The `nym-sdk` crate is **not yet available via [crates.io](https://crates.io)**. As such, in order to import the crate you must specify the Nym monorepo in your `Cargo.toml` file. Since the `HEAD` of `master` is always the most recent release, we recommend developers use that for their imports, unless they have a reason to pull in a specific historic version of the code.
+# Installation
+
+import { Callout } from 'nextra/components';
+import { CratesPaused } from '../../../components/crates-paused'
+
+<CratesPaused />
 
 ```toml
-# importing HEAD of master branch
-nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
-# importing HEAD of the third release of 2023, codename 'kinder'
-nym-sdk = { git = "https://github.com/nymtech/nym", branch = "release/2023.3-kinder" }
+[dependencies]
+nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
+blake3 = "=1.7.0"  # pin to avoid a transitive dependency conflict — see note below
 ```
 
-Work will occur in the future to break the monorepo down into importable features, in order to reduce the number of dependencies imported by developers.
+<Callout type="warning">
+**Temporary pin required.** You must pin `blake3 = "=1.7.0"` in your `Cargo.toml` to avoid a build failure caused by a transitive `digest` version conflict. This will be resolved in a future SDK release.
+</Callout>
+
+You can also track a branch if you want the latest changes:
+
+```toml
+# development branch (latest changes, may be unstable)
+nym-sdk = { git = "https://github.com/nymtech/nym", branch = "develop" }
+
+# latest stable release
+nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
+```
+
+**Minimum Rust version:** 1.70+
+
+### crates.io (older API only)
+
+If you don't need the Stream module or other recent additions, you can still use the published crate:
+
+```toml
+[dependencies]
+nym-sdk = "1.20.4"
+```
+
+This version includes the Mixnet message API, Client Pool, and TcpProxy modules.
+
+<Callout type="warning">
+**No feature gates yet.** Importing `nym-sdk` pulls in everything (mixnet, tcp_proxy, client_pool, etc.) and their full dependency trees. Cargo feature flags are planned.
+</Callout>

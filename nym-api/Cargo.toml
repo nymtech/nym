@@ -3,8 +3,7 @@
 
 [package]
 name = "nym-api"
-license = "GPL-3.0"
-version = "1.1.77"
+version = "1.1.78"
 authors.workspace = true
 edition = "2021"
 rust-version.workspace = true

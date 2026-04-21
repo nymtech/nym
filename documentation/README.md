@@ -20,7 +20,7 @@ Our `prebuild` script relies on the following:
 - [`tabulate`](https://pypi.org/project/tabulate/)
 - `jq`
 
-Otherwise make sure to have `node` installed.
+Otherwise make sure to have `node` and `rust` installed.
 
 ### Link checking (optional)
 We use [lychee](https://github.com/lycheeverse/lychee) to check for broken links. Install via your package manager or `cargo install lychee`, then run:
@@ -88,6 +88,13 @@ NEXT_PUBLIC_SITE_URL=https://nym.com/docs
 | TechArticle | Reference docs, config guides, overviews (default) |
 | HowTo | Step-by-step install/setup guides |
 | FAQPage | Question-answer pages |
+
+## LLM-readability
+Two files are generated in the deployment workflow: `llms.txt` and `llms-full.txt`. These files follow [Cloudflare's approach](https://developers.cloudflare.com/style-guide/how-we-docs/ai-consumability/) to generation and use.
+
+When running locally can you find these at `http://localhost:3000/docs/llms.txt` and `http://localhost:3000/docs/llms-full.txt`.
+
+When deployed to production, these can be found at [https://nym.com/docs/llms.txt](https://nym.com/docs/llms.txt) and [https://nym.com/docs/llms-full.txt](https://nym.com/docs/llms-full.txt).
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

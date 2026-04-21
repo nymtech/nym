@@ -1,3 +1,12 @@
+//! Anonymous replies using SURBs (Single Use Reply Blocks).
+//!
+//! Sends a message to self, extracts the `AnonymousSenderTag` from the
+//! incoming message, and replies using `send_reply()` — without knowing
+//! the sender's Nym address. The SDK includes SURBs with every message
+//! by default, so the recipient can always reply anonymously.
+//!
+//! Run with: cargo run --example surb_reply
+
 use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
     StoragePaths,
@@ -9,37 +18,29 @@ use tempfile::TempDir;
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Specify some config options
+    // Build a client with persistent key storage.
+    // Keys are generated on first run, then loaded from disk on subsequent runs.
     let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
     let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
-
-    // Create the client with a storage backend, and enable it by giving it some paths. If keys
-    // exists at these paths, they will be loaded, otherwise they will be generated.
     let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
         .await
         .unwrap()
         .build()
         .unwrap();
-
-    // Now we connect to the mixnet, using keys now stored in the paths provided.
     let mut client = client.connect_to_mixnet().await.unwrap();
-
-    // Be able to get our client address
     let our_address = client.nym_address();
     println!("\nOur client nym address is: {our_address}");
 
-    // Send a message through the mixnet to ourselves using our nym address
+    // Send a message to ourselves.
     client
         .send_plain_message(*our_address, "hello there")
         .await
         .unwrap();
 
-    // we're going to parse the sender_tag (AnonymousSenderTag) from the incoming message and use it to 'reply' to ourselves instead of our Nym address.
-    // we know there will be a sender_tag since the sdk sends SURBs along with messages by default.
+    // Receive the message.
     println!("Waiting for message\n");
-
-    // get the actual message - discard the empty vec sent along with a potential SURB topup request
     let mut message: Vec<ReconstructedMessage> = Vec::new();
+    // Filter empty messages — these are SURB replenishment requests.
     while let Some(new_message) = client.wait_for_messages().await {
         if new_message.is_empty() {
             continue;
@@ -48,25 +49,24 @@ async fn main() {
         break;
     }
 
-    let mut parsed = String::new();
-    if let Some(r) = message.first() {
-        parsed = String::from_utf8(r.message.clone()).unwrap();
-    }
-    // parse sender_tag: we will use this to reply to sender without needing their Nym address
-    let return_recipient: AnonymousSenderTag = message[0].sender_tag.unwrap();
-    println!(
-        "\nReceived the following message: {parsed} \nfrom sender with surb bucket {return_recipient}"
-    );
+    let parsed = String::from_utf8(message[0].message.clone()).unwrap();
 
-    // reply to self with it: note we use `send_str_reply` instead of `send_str`
-    println!("Replying with using SURBs");
+    // Extract the AnonymousSenderTag from the incoming message.
+    // This opaque token lets you reply without knowing the sender's address.
+    // The SDK includes SURBs with every message by default.
+    let return_recipient: AnonymousSenderTag = message[0].sender_tag.unwrap();
+    println!("Received: {parsed}\nSender tag: {return_recipient}");
+
+    // Reply anonymously using send_reply() instead of send_plain_message().
+    println!("Replying using SURBs...");
     client
         .send_reply(return_recipient, "hi an0n!")
         .await
         .unwrap();
 
-    println!("Waiting for message (once you see it, ctrl-c to exit)\n");
+    // Receive the reply.
+    println!("Waiting for reply (ctrl-c to exit)\n");
     client
-        .on_messages(|msg| println!("\nReceived: {}", String::from_utf8_lossy(&msg.message)))
+        .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&msg.message)))
         .await;
 }

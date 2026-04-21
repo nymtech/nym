@@ -1,0 +1,49 @@
+---
+title: "Nyx Blockchain"
+description: "How the Nyx Cosmos SDK blockchain coordinates the Nym Network by maintaining node topology, managing NYM token economics, and hosting smart contracts for credentials and rewards."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-03-15"
+---
+
+import { Callout } from 'nextra/components'
+
+# Nyx Blockchain
+
+Nyx is a Cosmos SDK blockchain that coordinates the Nym Network. It maintains the topology of active nodes, manages token economics, and hosts the smart contracts that power the credential system.
+
+<Callout type="info">
+To interact with the chain, see [Interacting with Nyx](/developers/chain). To run a Validator, see the [Operator Documentation](/operators/nodes/validator-setup).
+</Callout>
+
+## Role in the network
+
+The blockchain serves several functions, including maintaining the **topology registry**: the list of active nodes and their public keys. This eliminates the need for a centralized directory server and prevents attacks that plague peer-to-peer directory systems.
+
+It manages **token economics**, where the NYM token is a native token of the chain, used for staking, rewards, and credential payments. Validators secure the chain via proof-of-stake consensus.
+
+And it hosts **smart contracts** for mixnet coordination and the zk-nym credential system.
+
+## Validators
+
+Nyx Validators run the `nyxd` binary to maintain the blockchain. They process transactions, execute smart contracts, and participate in consensus. A subset of validators also run Nym API instances for credential issuance.
+
+## Nym API
+
+<Callout type="info">
+For setup instructions, see the [Nym API Operator Guide](/operators/nodes/validator-setup/nym-api).
+</Callout>
+
+The Nym API is operated by a subset of validators forming the "Quorum." This group performs network monitoring: sending test packets through the mixnet and calculating reliability scores for nodes. More critically, it handles credential issuance, generating the partial blind signatures that form zk-nyms.
+
+The Quorum uses threshold cryptography. No single member can issue credentials alone. The system remains functional even if some members are offline. This distributes trust across multiple independent parties.
+
+## Smart contracts
+
+The Nyx chain is CosmWasm-enabled. The **Mixnet Contract** stores bonded node information, provides network topology for client routing, and tracks delegations and rewards. The **Vesting Contract** manages NYM token vesting schedules. The **zk-nym Contract** tracks deposits for credential generation and manages the blacklist for double-spend attempts.
+
+Contract addresses for different networks can be queried via the [Nym API](/apis/nym-api).
+
+## Querying the chain
+
+The [Nym API](/apis/nym-api) provides HTTP endpoints for querying network topology, node status, rewards, and credential information. For direct contract interaction, see the [Developer Documentation](/developers/chain).

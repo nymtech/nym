@@ -1,3 +1,17 @@
+//! Single TCP connection proxied through the mixnet via an echo server.
+//!
+//! Opens one `TcpStream` and sends 10 messages with variable delays.
+//! The proxy handles Sphinx packet chunking and reassembly; this example
+//! shows that individual messages may arrive out of order at the
+//! application level even though per-message byte ordering is preserved.
+//!
+//! For concurrent connections see `tcp_proxy_multistream`.
+//!
+//! Run with:
+//! ```text
+//! cargo run --example tcp_proxy_single_connection <SERVER_PORT> <ENV_FILE> <CLIENT_PORT>
+//! ```
+
 use nym_sdk::tcp_proxy;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
@@ -19,17 +33,6 @@ struct ExampleMessage {
     message_bytes: Vec<u8>,
 }
 
-// This is a basic example which opens a single TCP connection and writes a bunch of messages between a client and an echo
-// server, so only uses a single session under the hood and doesn't really show off the message ordering capabilities; this is mainly
-// just a quick introductory illustration on how:
-// - the mixnet does message ordering
-// - the NymProxyClient and NymProxyServer can be hooked into and used to communicate between two otherwise pretty vanilla TcpStreams
-//
-// For a more irl example checkout tcp_proxy_multistream.rs
-//
-// Run this with:
-// `cargo run --example tcp_proxy_single_connection <SERVER_LISTEN_PORT> <ENV_FILE_PATH> <CLIENT_LISTEN_PATH>` e.g.
-// `cargo run --example tcp_proxy_single_connection 8081 ../../../envs/canary.env 8080 `
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Keep track of sent/received messages

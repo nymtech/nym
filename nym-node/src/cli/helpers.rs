@@ -512,6 +512,26 @@ pub(crate) struct ExitGatewayArgs {
         env = NYMNODE_OPEN_PROXY_ARG,
     )]
     pub(crate) open_proxy: Option<bool>,
+
+    /// Allow the network requester to forward traffic to non-globally-routable
+    /// addresses. Intended for local development, private-network deployments,
+    /// and testnet scenarios.
+    /// Not recommended on production exit gateway unless you know what you're doing.
+    #[clap(
+        long,
+        env = NYMNODE_NR_ALLOW_LOCAL_IPS_ARG,
+    )]
+    pub(crate) nr_allow_local_ips: Option<bool>,
+
+    /// Allow the IP packet router to forward traffic to non-globally-routable
+    /// addresses. Intended for local development, private-network deployments,
+    /// and testnet scenarios.
+    /// Not recommended on production exit gateway unless you know what you're doing.
+    #[clap(
+        long,
+        env = NYMNODE_IPR_ALLOW_LOCAL_IPS_ARG,
+    )]
+    pub(crate) ipr_allow_local_ips: Option<bool>,
 }
 
 impl ExitGatewayArgs {
@@ -532,6 +552,12 @@ impl ExitGatewayArgs {
         }
         if let Some(open_proxy) = self.open_proxy {
             section.open_proxy = open_proxy
+        }
+        if let Some(allow_local_ips) = self.nr_allow_local_ips {
+            section.network_requester.allow_local_ips = allow_local_ips
+        }
+        if let Some(allow_local_ips) = self.ipr_allow_local_ips {
+            section.ip_packet_router.allow_local_ips = allow_local_ips
         }
 
         section

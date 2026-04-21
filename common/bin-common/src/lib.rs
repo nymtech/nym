@@ -9,3 +9,6 @@ pub mod completions;
 
 #[cfg(feature = "output_format")]
 pub mod output_format;
+
+#[cfg(feature = "ip_check")]
+pub mod ip_check;

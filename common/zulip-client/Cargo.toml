@@ -2,11 +2,11 @@
 name = "zulip-client"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
 publish = false

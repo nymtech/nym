@@ -22,6 +22,7 @@ static MIN_SUPPORTED_VERSION: LazyLock<Version> = LazyLock::new(|| Version::new(
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(dvpn_gateways))
+        .route("/ips", axum::routing::get(dvpn_gateway_ips))
         .merge(country::routes())
         .merge(entry::routes())
         .merge(exit::routes())
@@ -62,6 +63,16 @@ pub async fn dvpn_gateways(
         state
             .cache()
             .get_dvpn_gateway_list(state.db_pool(), &min_node_version)
+            .await,
+    ))
+}
+
+#[instrument(level = tracing::Level::INFO, skip(state))]
+pub async fn dvpn_gateway_ips(state: State<AppState>) -> HttpResult<Json<Vec<String>>> {
+    Ok(Json(
+        state
+            .cache()
+            .get_gateway_ips(state.db_pool(), &MIN_SUPPORTED_VERSION)
             .await,
     ))
 }

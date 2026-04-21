@@ -1,11 +1,16 @@
 [package]
 name = "nym-sphinx-acknowledgements"
-version.workspace = true
 description = "Sphinx packet ack messages"
-edition = { workspace = true }
+version.workspace = true
 authors = { workspace = true }
+edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 [dependencies]
 rand = { workspace = true }

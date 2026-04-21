@@ -43,15 +43,23 @@ impl RequestFilter {
     }
 
     async fn new_exit_policy_filter(config: &Config) -> Result<Self, IpPacketRouterError> {
+        let allow_local_ips = config.ip_packet_router.allow_local_ips;
+        if allow_local_ips {
+            warn!(
+                "Requests to non-global destinations are allowed by the policy guard. \
+                 This is intended for local development and NOT recommended in production \
+                 unless you know what you're doing."
+            );
+        }
         let policy_filter = if config.ip_packet_router.open_proxy {
-            ExitPolicyRequestFilter::new_from_policy(ExitPolicy::new_open())
+            ExitPolicyRequestFilter::new_from_policy(ExitPolicy::new_open(), allow_local_ips)
         } else {
             let upstream_url = config
                 .ip_packet_router
                 .upstream_exit_policy_url
                 .as_ref()
                 .ok_or(IpPacketRouterError::NoUpstreamExitPolicy)?;
-            ExitPolicyRequestFilter::new_upstream(upstream_url.clone()).await?
+            ExitPolicyRequestFilter::new_upstream(upstream_url.clone(), allow_local_ips).await?
         };
 
         Ok(RequestFilter {

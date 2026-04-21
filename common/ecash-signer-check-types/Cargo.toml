@@ -1,15 +1,16 @@
 [package]
 name = "nym-ecash-signer-check-types"
+description = "Crate containing types for the `ecash-signer-check` crate used to check if zknym signers are up and running properly"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-description = "Crate containing types for the `ecash-signer-check` crate used to check if zknym signers are up and running properly"
+publish = true
 
 [dependencies]
 semver = { workspace = true }

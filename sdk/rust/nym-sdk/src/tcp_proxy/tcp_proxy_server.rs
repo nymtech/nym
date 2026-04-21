@@ -24,19 +24,102 @@ mod utils;
 use utils::{MessageBuffer, Payload, ProxiedMessage};
 use uuid::Uuid;
 
+/// A TCP proxy server that receives traffic from the Nym mixnet and forwards it to an upstream service.
+///
+/// `NymProxyServer` is the server-side counterpart to [`NymProxyClient`](super::NymProxyClient).
+/// It listens for incoming mixnet messages and forwards them to a local TCP service,
+/// then sends responses back through the mixnet using anonymous reply SURBs.
+///
+/// ## Architecture
+///
+/// ```text
+/// [NymProxyClient] --> [Nym Mixnet] --> [NymProxyServer] --> [Upstream Service]
+///                                                        <--
+/// ```
+///
+/// The server:
+/// 1. Maintains a persistent Nym address (stored in `config_dir`)
+/// 2. Receives messages from the mixnet
+/// 3. Creates TCP connections to the upstream service for each session
+/// 4. Forwards data bidirectionally, handling message ordering
+/// 5. Uses anonymous reply SURBs to send responses back to clients
+///
+/// ## Example
+///
+/// ```rust,no_run
+/// use nym_sdk::tcp_proxy::NymProxyServer;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     // Forward traffic to a local HTTP server
+///     let mut server = NymProxyServer::new(
+///         "127.0.0.1:8000",   // Upstream service address
+///         "./nym-proxy-data", // Config directory for persistent keys
+///         None,               // Use mainnet (or path to .env)
+///         None,               // Use random gateway
+///     ).await?;
+///
+///     println!("Server Nym address: {}", server.nym_address());
+///
+///     // Run the server (blocks until shutdown signal)
+///     server.run_with_shutdown().await?;
+///
+///     Ok(())
+/// }
+/// ```
+///
+/// ## Persistence
+///
+/// Unlike `NymProxyClient`, the server maintains a persistent Nym address stored in
+/// `config_dir`. This allows clients to connect to a known address across server restarts.
+///
+/// ## Shutdown
+///
+/// To gracefully shut down the server, use the shutdown signal channel:
+///
+/// ```rust,no_run
+/// # use nym_sdk::tcp_proxy::NymProxyServer;
+/// # async fn example(mut server: NymProxyServer) {
+/// let shutdown_tx = server.disconnect_signal();
+/// // Later, trigger shutdown:
+/// shutdown_tx.send(()).await.unwrap();
+/// # }
+/// ```
 pub struct NymProxyServer {
+    /// Address of the upstream TCP service to forward traffic to.
     upstream_address: String,
+    /// Tracks active session IDs.
     session_map: DashSet<Uuid>,
+    /// The underlying mixnet client for receiving messages.
     mixnet_client: MixnetClient,
+    /// Sender half of the mixnet client for replying to clients.
     mixnet_client_sender: Arc<RwLock<MixnetClientSender>>,
+    /// Channel for broadcasting incoming messages to session handlers.
     tx: tokio::sync::watch::Sender<Option<(ProxiedMessage, AnonymousSenderTag)>>,
+    /// Receiver for incoming message broadcasts.
     rx: tokio::sync::watch::Receiver<Option<(ProxiedMessage, AnonymousSenderTag)>>,
+    /// Token for graceful shutdown of session handlers.
     cancel_token: CancellationToken,
+    /// Channel for receiving shutdown signals.
     shutdown_tx: tokio::sync::mpsc::Sender<()>,
+    /// Receiver for shutdown signals.
     shutdown_rx: tokio::sync::mpsc::Receiver<()>,
 }
 
 impl NymProxyServer {
+    /// Creates a new `NymProxyServer` that forwards traffic to an upstream service.
+    ///
+    /// # Arguments
+    ///
+    /// * `upstream_address` - The address of the upstream TCP service (e.g., `"127.0.0.1:8000"`).
+    /// * `config_dir` - Directory to store persistent client keys and configuration.
+    ///   The server will maintain the same Nym address across restarts if this directory persists.
+    /// * `env` - Optional path to a `.env` file for network configuration. If `None`, uses mainnet defaults.
+    /// * `gateway` - Optional specific gateway to connect to. If `None`, a gateway is selected automatically.
+    ///
+    /// # Returns
+    ///
+    /// A configured `NymProxyServer` ready to be started with [`run_with_shutdown`](Self::run_with_shutdown).
     pub async fn new(
         upstream_address: &str,
         config_dir: &str,
@@ -94,6 +177,20 @@ impl NymProxyServer {
         })
     }
 
+    /// Runs the server until a shutdown signal is received.
+    ///
+    /// This method:
+    /// 1. Listens for incoming mixnet messages
+    /// 2. Creates session handlers for new sessions
+    /// 3. Routes messages to appropriate session handlers
+    /// 4. Handles shutdown gracefully when signaled
+    ///
+    /// Use [`disconnect_signal`](Self::disconnect_signal) to get a sender for triggering shutdown.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` when shutdown is triggered, or an error if an unrecoverable
+    /// error occurs.
     pub async fn run_with_shutdown(&mut self) -> Result<()> {
         let handle_token = self.cancel_token.child_token();
         let upstream_address = self.upstream_address.clone();
@@ -268,30 +365,66 @@ impl NymProxyServer {
         Ok(())
     }
 
+    /// Returns a sender that can be used to trigger server shutdown.
+    ///
+    /// Send `()` on this channel to initiate graceful shutdown of the server.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # use nym_sdk::tcp_proxy::NymProxyServer;
+    /// # async fn example(server: &NymProxyServer) {
+    /// let shutdown_tx = server.disconnect_signal();
+    ///
+    /// // Trigger shutdown from another task
+    /// tokio::spawn(async move {
+    ///     tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+    ///     shutdown_tx.send(()).await.unwrap();
+    /// });
+    /// # }
+    /// ```
     pub fn disconnect_signal(&self) -> tokio::sync::mpsc::Sender<()> {
         self.shutdown_tx.clone()
     }
 
+    /// Returns the Nym address of this server.
+    ///
+    /// Clients need this address to connect to the server through the mixnet.
+    /// This address is persistent across server restarts if the same `config_dir`
+    /// is used.
     pub fn nym_address(&self) -> &Recipient {
         self.mixnet_client.nym_address()
     }
 
+    /// Returns a mutable reference to the underlying mixnet client.
+    ///
+    /// This is primarily for internal use and advanced scenarios.
     pub fn mixnet_client_mut(&mut self) -> &mut MixnetClient {
         &mut self.mixnet_client
     }
 
+    /// Returns the set of currently active session IDs.
     pub fn session_map(&self) -> &DashSet<Uuid> {
         &self.session_map
     }
 
+    /// Returns a clone of the mixnet client sender wrapped in an `Arc<RwLock>`.
+    ///
+    /// This is primarily for internal use by session handlers.
     pub fn mixnet_client_sender(&self) -> Arc<RwLock<MixnetClientSender>> {
         Arc::clone(&self.mixnet_client_sender)
     }
 
+    /// Returns a clone of the message broadcast sender.
+    ///
+    /// This is primarily for internal use.
     pub fn tx(&self) -> tokio::sync::watch::Sender<Option<(ProxiedMessage, AnonymousSenderTag)>> {
         self.tx.clone()
     }
 
+    /// Returns a clone of the message broadcast receiver.
+    ///
+    /// This is primarily for internal use by session handlers.
     pub fn rx(&self) -> tokio::sync::watch::Receiver<Option<(ProxiedMessage, AnonymousSenderTag)>> {
         self.rx.clone()
     }

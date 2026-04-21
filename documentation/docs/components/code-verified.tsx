@@ -1,7 +1,7 @@
 import { Callout } from "nextra/components";
 
-const COMMIT_SHORT = "4077717";
-const COMMIT_FULL = "4077717d3";
+const COMMIT_SHORT = "97068b2";
+const COMMIT_FULL = "97068b2aa";
 const EXAMPLES_URL =
   "https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples";
 

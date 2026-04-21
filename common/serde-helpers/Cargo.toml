@@ -1,13 +1,16 @@
 [package]
 name = "nym-serde-helpers"
+description = "Serde helpers for hex/base64/base58/datetime"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "Serde helpers for hex/base64/base58/datetime"
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

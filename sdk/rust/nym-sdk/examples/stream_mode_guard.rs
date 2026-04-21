@@ -1,6 +1,23 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Demonstrates the stream/message mode mutual exclusion guard.
+//!
+//! A `MixnetClient` operates in one of two modes: message mode (default)
+//! or stream mode (activated by `open_stream()` or `listener()`). Once
+//! stream mode is active, message-based methods like `send_plain_message`
+//! return `Error::StreamModeActive`. This is a one-way transition — the
+//! two modes share a single inbound channel from the gateway, so they
+//! cannot coexist.
+//!
+//! This example shows:
+//! - Using the message API before stream mode
+//! - Activating stream mode via `listener()`
+//! - Observing `StreamModeActive` errors on message sends
+//! - `split_sender()` shares the mode flag (via `Arc<AtomicBool>`)
+//!
+//! Run with: cargo run --example stream_mode_guard
+
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sdk::Error;
@@ -13,7 +30,7 @@ async fn main() {
     let our_address = *client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Message-based API works before stream mode is activated
+    // Message-based API works before stream mode is activated.
     println!("\nTesting message-based API (should work)");
     client
         .send_plain_message(our_address, "hello via message API")
@@ -21,12 +38,14 @@ async fn main() {
         .unwrap();
     println!("Message sent successfully via message-based API");
 
-    // Now activate stream mode by creating a listener
+    // Activate stream mode by creating a listener.
+    // This is a one-way transition — the two modes share a single inbound
+    // channel from the gateway, so they cannot coexist.
     println!("\nActivating stream mode via listener()");
     let _listener = client.listener().unwrap();
     println!("Stream mode is now active");
 
-    // Message-based API should now fail
+    // Message-based API now returns Error::StreamModeActive.
     println!("\nTesting message-based API again (should fail)");
     let result = client
         .send_plain_message(our_address, "this should fail")
@@ -35,7 +54,6 @@ async fn main() {
     match result {
         Err(Error::StreamModeActive) => {
             println!("Got expected error: StreamModeActive");
-            println!("Message-based API correctly blocked after stream mode activation");
         }
         Err(e) => {
             println!("Got unexpected error: {e:?}");
@@ -45,8 +63,9 @@ async fn main() {
         }
     }
 
-    // split_sender shares the stream_mode flag
-    println!("\nTesting split_sender (shares stream_mode)");
+    // split_sender() shares the mode flag (Arc<AtomicBool>),
+    // so it also returns StreamModeActive.
+    println!("\nTesting split_sender (shares stream_mode flag)");
     let sender = client.split_sender();
     let result = sender
         .send_plain_message(our_address, "this should also fail")
@@ -55,7 +74,6 @@ async fn main() {
     match result {
         Err(Error::StreamModeActive) => {
             println!("Got expected error: StreamModeActive on split sender");
-            println!("Split sender correctly shares stream_mode with parent client");
         }
         Err(e) => {
             println!("Got unexpected error: {e:?}");

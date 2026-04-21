@@ -2,11 +2,11 @@
 name = "nym-credential-proxy"
 version = "0.3.0"
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 publish = false
 

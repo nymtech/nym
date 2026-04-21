@@ -1,15 +1,16 @@
 [package]
 name = "nym-contracts-common-testing"
+description = "Common crate for cosmwasm contract tests"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-rust-version.workspace = true
+rust-version = "1.85"
 readme.workspace = true
-description = "Common crate for cosmwasm contract tests"
+publish = true
 
 [dependencies]
 anyhow = { workspace = true }

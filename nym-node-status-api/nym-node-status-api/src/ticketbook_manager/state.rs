@@ -68,8 +68,8 @@ impl TicketbookManagerState {
         for typ in &self.buffered_ticket_types {
             debug!("attempting to get materials for ticket of type {typ}");
             if let Some(ticket) = self.storage.next_ticket(*typ, testrun_id).await? {
-                let epoch_id = ticket.ticketbook.epoch_id();
-                let expiration_date = ticket.ticketbook.expiration_date();
+                let epoch_id = ticket.epoch_id();
+                let expiration_date = ticket.expiration_date();
 
                 debug!(
                     "retrieved ticket corresponds to epoch {epoch_id} and expiration date {expiration_date}"

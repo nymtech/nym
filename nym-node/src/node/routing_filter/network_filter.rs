@@ -1,9 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::mixnet::packet_forwarding::global::is_global_ip;
 use crate::node::routing_filter::RoutingFilter;
 use arc_swap::ArcSwap;
+use nym_bin_common::ip_check::is_global_ip;
 use std::collections::HashSet;
 use std::net::IpAddr;
 use std::sync::Arc;

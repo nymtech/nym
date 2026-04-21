@@ -1,3 +1,14 @@
+//! Multiple concurrent TCP connections proxied through the mixnet.
+//!
+//! Starts several `TcpStream` connections on a loop to a remote
+//! `NymProxyServer` (e.g. the echo server in `nym/tools/echo-server/`),
+//! sends messages with variable delays, and logs round-trip replies.
+//!
+//! Run with:
+//! ```text
+//! cargo run --example tcp_proxy_multistream -- <ECHO_SERVER_NYM_ADDRESS> <ENV_FILE> <PORT>
+//! ```
+
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::tcp_proxy;
 use rand::rngs::SmallRng;
@@ -20,12 +31,6 @@ struct ExampleMessage {
     tcp_conn: i8,
 }
 
-// This example just starts off a bunch of Tcp connections on a loop to a remote endpoint: in this case the TcpListener behind the NymProxyServer instance on the echo server found in `nym/tools/echo-server/`. It pipes a few messages to it, logs the replies, and keeps track of the number of replies received per connection.
-//
-// To run:
-// - run the echo server with `cargo run`
-// - run this example with `cargo run --example tcp_proxy_multistream -- <ECHO_SERVER_NYM_ADDRESS> <ENV_FILE_PATH> <CLIENT_PORT>` e.g.
-// cargo run --example tcp_proxy_multistream -- DMHyxo8n6sKWHHTVvjRVDxDSMX8gYXRU1AQ6UpwsrWiB.6STYCWGWyRxqn2juWdgjMkAMsT9EaAzPpLWq5zkS68MB@CJG5zTcmoLijmDrtAiLV9PZHxNz8LQu6hmgA89V2RxxL ../../../envs/canary.env 8080
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let server_address = env::args().nth(1).expect("Server address not provided");

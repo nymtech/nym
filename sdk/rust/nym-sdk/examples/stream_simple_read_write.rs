@@ -18,6 +18,7 @@ const TIMEOUT: Duration = Duration::from_secs(60);
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
+    // Connect three ephemeral clients — one sender, two receivers.
     let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
     println!("Sender address: {}", sender.nym_address());
 
@@ -29,9 +30,13 @@ async fn main() {
     let addr_b = *receiver_b.nym_address();
     println!("Receiver B address: {addr_b}");
 
+    // Each receiver creates a listener (activates stream mode).
+    // listener() can only be called once per client.
     let mut listener_a = receiver_a.listener().unwrap();
     let mut listener_b = receiver_b.listener().unwrap();
 
+    // The sender opens a stream to each receiver.
+    // Each stream gets a random StreamId for multiplexing.
     println!("\nOpening streams to both receivers...");
     let mut stream_to_a = sender.open_stream(addr_a, None).await.unwrap();
     println!("Stream to A opened: {}", stream_to_a.id());
@@ -39,6 +44,7 @@ async fn main() {
     let mut stream_to_b = sender.open_stream(addr_b, None).await.unwrap();
     println!("Stream to B opened: {}", stream_to_b.id());
 
+    // Both receivers accept the incoming streams concurrently.
     println!("\nWaiting for both receivers to accept...");
     let (inbound_a, inbound_b) = tokio::try_join!(
         async {
@@ -58,6 +64,7 @@ async fn main() {
     println!("A accepted stream: {}", inbound_a.id());
     println!("B accepted stream: {}", inbound_b.id());
 
+    // Sender writes to both streams using AsyncWrite.
     let msg_a = b"hello receiver A";
     let msg_b = b"hello receiver B";
 
@@ -68,6 +75,8 @@ async fn main() {
     stream_to_b.write_all(msg_b).await.unwrap();
     stream_to_b.flush().await.unwrap();
 
+    // Both receivers read and reply concurrently.
+    // Replies travel via SURBs — receivers never learn the sender's address.
     println!("\nBoth receivers reading and replying concurrently...");
     let reply_a = b"reply from A";
     let reply_b = b"reply from B";
@@ -109,6 +118,7 @@ async fn main() {
     let inbound_a = res_a;
     let inbound_b = res_b;
 
+    // Sender reads the replies back.
     println!("\nSender reading replies...");
     tokio::join!(
         async {
@@ -139,8 +149,8 @@ async fn main() {
 
     println!("\nConcurrent round-trips successful!");
 
-    // Streams clean up on drop (unregister from router).
-    // No close message is sent over the wire — see stream.rs.
+    // Clean up — streams deregister from the router on drop.
+    // No close message is sent; the remote side sees EOF after idle timeout.
     drop(stream_to_a);
     drop(stream_to_b);
     drop(inbound_a);

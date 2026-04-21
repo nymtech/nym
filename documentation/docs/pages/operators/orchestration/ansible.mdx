@@ -267,13 +267,29 @@ ansible-playbook upgrade.yml -l "*exit*"
 
 ###### Role limit
 
-Sometimes you may want to run just one role at a time, for that use `-q`, for example:
+<Callout>
+To update your exit policy by using the newest [NTM](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) via Ansible, just run:
+```sh
+ansible-playbook deploy.yml -t network_tunnel_manager
+```
+This will download the script from `develop`, make executable and run it with the command `complete_networking_configuration`.
+</Callout>
+
+Sometimes you may want to run just one tag at a time, for that use `-t` flag, for example:
 ```sh
 # in case of wanting to run only quic deployment role
 ansible-playbook deploy.yml -t quic
 
 # in case of running the same on only one node
 ansible-playbook deploy.yml -l node2 -t quic
+```
+
+To list all tags, run:
+```sh
+ansible-playbook <PLAYBOOK>.yml --list-tags
+
+# for example
+ansible-playbook deploy.yml --list-tags
 ```
 
 ###### nocows

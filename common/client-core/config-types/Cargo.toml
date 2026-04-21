@@ -1,12 +1,16 @@
 [package]
 name = "nym-client-core-config-types"
+description = "Low level configs and constants used by Nym clients and nodes"
 version.workspace = true
+authors.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Low level configs and constants used by Nym clients and nodes"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

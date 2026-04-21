@@ -1,14 +1,14 @@
 [package]
 name = "cw4-group"
+description = "Simple cw4 implementation of group membership controlled by admin "
 version = "2.0.0"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
 edition = "2021"
-description = "Simple cw4 implementation of group membership controlled by admin "
 license = "Apache-2.0"
 repository = "https://github.com/CosmWasm/cw-plus"
 homepage = "https://cosmwasm.com"
 documentation = "https://docs.cosmwasm.com"
-
+publish = false
 exclude = [
     # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
     "artifacts/*",

@@ -1,12 +1,16 @@
 [package]
 name = "nym-async-file-watcher"
+description = "Simple file watcher that sends a notification whenever there was any change in the watched file"
 version.workspace = true
+authors.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Simple file watcher that sends a notification whenever there was any change in the watched file"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

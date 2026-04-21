@@ -2,8 +2,8 @@
 name = "easy-addr"
 version.workspace = true
 edition = "2021"
-publish = false
 license.workspace = true
+publish = false
 
 [lib]
 proc-macro = true

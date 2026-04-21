@@ -198,7 +198,7 @@ EOF
 }
 
 save_iptables_rules() {
-  info "saving iptables rules to /etc/iptables$"
+  info "saving iptables rules to /etc/iptables"
   mkdir -p /etc/iptables
   iptables-save > /etc/iptables/rules.v4
   ip6tables-save > /etc/iptables/rules.v6
@@ -629,7 +629,7 @@ test_network_firewall_rules() {
 
   local failures=0
   local tcp_ports=(22 80 443 1789 1790 8080 9000 9001 41264)
-  local udp_ports=(51822 51264)
+  local udp_ports=(4443 51822 51264)
   local port
 
   for port in "${tcp_ports[@]}"; do
@@ -1673,7 +1673,7 @@ tunnel and nat helpers:
   check_nym_wg_tun                  Inspect forward chain for ${WG_INTERFACE}
   check_nymtun_iptables             Inspect forward chain for ${TUNNEL_INTERFACE}
   configure_dns_and_icmp_wg         Allow ping and dns ports on this host
-  fetch_and_display_ipv6            Show ipv6 on uplink ${NETWORK_DEVICE_V6}
+  fetch_and_display_ipv6            Show ipv6 on uplink ${NETWORK_DEVICE_V6:-<none>}
   fetch_ipv6_address_nym_tun        Show global ipv6 address on ${TUNNEL_INTERFACE}
   joke_through_the_mixnet           Test via ${TUNNEL_INTERFACE} with joke
   joke_through_wg_tunnel            Test via ${WG_INTERFACE} with joke

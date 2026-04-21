@@ -91,6 +91,18 @@ pub(crate) struct Args {
     /// Maximum number of nodes queried concurrently during a node refresh cycle.
     #[clap(long, env = NYM_NETWORK_MONITOR_CONCURRENT_NODE_QUERIES_ARG, default_value_t = 32)]
     number_of_concurrent_node_queries: usize,
+
+    /// Maximum number of attempts (including the initial one) made to verify that this
+    /// orchestrator's account is authorised in the network monitors contract before start-up.
+    /// The process exits with an error once the budget is exhausted.
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_AUTH_CHECK_MAX_ATTEMPTS_ARG, default_value_t = 10)]
+    chain_authorisation_check_max_attempts: u32,
+
+    /// Delay between consecutive chain authorisation checks during start-up (e.g. `1m`, `30s`).
+    /// Applied both when the query itself fails and when it succeeds but the orchestrator is not
+    /// (yet) listed.
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_AUTH_CHECK_RETRY_DELAY_ARG, value_parser = humantime::parse_duration, default_value = "1m")]
+    chain_authorisation_check_retry_delay: Duration,
 }
 
 impl Args {
@@ -124,6 +136,8 @@ impl Args {
                 .map_err(|err| anyhow!("invalid mixnet contract address: {err}"))?,
             testrun_eviction_age: self.testrun_eviction_age,
             number_of_concurrent_node_queries: self.number_of_concurrent_node_queries,
+            chain_authorisation_check_max_attempts: self.chain_authorisation_check_max_attempts,
+            chain_authorisation_check_retry_delay: self.chain_authorisation_check_retry_delay,
         })
     }
 

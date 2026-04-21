@@ -17,6 +17,12 @@ pub(crate) struct KnownNetworkMonitors {
     monitors: Arc<RwLock<HashSet<ed25519::PublicKey>>>,
 }
 
+impl KnownNetworkMonitors {
+    pub(crate) async fn contains(&self, key: &ed25519::PublicKey) -> bool {
+        self.monitors.read().await.contains(key)
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct NetworkMonitorsCache(ChainSharedCacheWithTtl<KnownNetworkMonitors>);
 

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::pagination::PaginatedResponse;
+use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_mixnet_contract_common::NodeId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -32,6 +34,19 @@ pub struct PartialTestResult {
 
 pub type MixnodeTestResultResponse = PaginatedResponse<PartialTestResult>;
 pub type GatewayTestResultResponse = PaginatedResponse<PartialTestResult>;
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct KnownNetworkMonitorResponse {
+    /// The ed25519 identity key that was queried (base58-encoded on the wire).
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    pub identity_key: ed25519::PublicKey,
+
+    /// Whether the queried identity key is currently recognised by this nym-api
+    /// as an authorised network monitor permitted to submit stress testing results.
+    pub authorised: bool,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NetworkMonitorRunDetailsResponse {

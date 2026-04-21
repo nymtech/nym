@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::time::{Instant, interval};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub(crate) struct NodeRefresher {
     pub(crate) client: QueryHttpRpcNyxdClient,
@@ -134,16 +134,24 @@ impl NodeRefresher {
         })
     }
 
-    async fn get_node_details(&self, bond: NymNodeBond) -> NewNymNode {
+    async fn get_node_details(&self, bond: NymNodeBond, timeout: Duration) -> NewNymNode {
         let mut node_update = NewNymNode::from_bond(&bond);
 
         let node_id = bond.node_id;
-        let self_described = match self.get_node_details_inner(bond).await {
-            Err(err) => {
+        let self_described = match tokio::time::timeout(timeout, self.get_node_details_inner(bond))
+            .await
+        {
+            Err(_timeout) => {
+                warn!(
+                    "timed out while attempting to retrieve self-described node details for node {node_id}"
+                );
+                return node_update;
+            }
+            Ok(Err(err)) => {
                 error!("failed to retrieve self-described node details for node {node_id}: {err}");
                 return node_update;
             }
-            Ok(info) => info,
+            Ok(Ok(info)) => info,
         };
 
         node_update.mixnet_socket_address = Some(self_described.mixnet_socket_address.to_string());
@@ -164,8 +172,9 @@ impl NodeRefresher {
         info!("retrieved {num_nodes} bonded nodes from the contract");
 
         // 2. retrieve detailed information from the self-described endpoints
+        let timeout = self.node_info_query_timeout;
         let refreshed_nodes: Vec<_> = stream::iter(nodes)
-            .map(|b| self.get_node_details(b))
+            .map(|b| self.get_node_details(b, timeout))
             .buffer_unordered(self.number_of_concurrent_node_queries)
             .collect()
             .await;

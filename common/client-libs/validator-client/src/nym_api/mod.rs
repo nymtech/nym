@@ -15,6 +15,7 @@ use nym_api_requests::ecash::models::{
     VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
+use nym_api_requests::models::network_monitor::KnownNetworkMonitorResponse;
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainBlocksStatusResponse,
     ChainStatusResponse, KeyRotationInfoResponse, NodePerformanceResponse, NodeRefreshBody,
@@ -1358,6 +1359,28 @@ pub trait NymApiClientExt: ApiClient {
         }
 
         Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata))
+    }
+
+    /// Queries the nym-api for whether a particular ed25519 identity key is currently recognised
+    /// as an authorised network monitor permitted to submit stress testing results.
+    ///
+    /// `identity_key` is expected to be the base58-encoded form of the ed25519 public key.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_known_network_monitor(
+        &self,
+        identity_key: IdentityKeyRef<'_>,
+    ) -> Result<KnownNetworkMonitorResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::STRESS_TESTING,
+                routes::STRESS_TESTING_KNOWN_MONITORS,
+                identity_key,
+            ],
+            NO_PARAMS,
+        )
+        .await
     }
 }
 

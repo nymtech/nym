@@ -22,6 +22,9 @@ pub enum NetworkMonitorsContractError {
     #[error("Failed to recover x25519 public key from its base58 representation: {0}")]
     MalformedX25519AgentNoiseKey(String),
 
+    #[error("Failed to recover ed25519 public key from its base58 representation: {0}")]
+    MalformedEd25519OrchestratorIdentityKey(String),
+
     #[error(transparent)]
     StdErr(#[from] cosmwasm_std::StdError),
 }

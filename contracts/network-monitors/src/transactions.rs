@@ -37,6 +37,46 @@ pub fn try_authorise_network_monitor_orchestrator(
     Ok(Response::new())
 }
 
+/// Update the announced ed25519 identity key of the orchestrator submitting the transaction.
+///
+/// The sender must already be an authorised orchestrator - this is enforced by
+/// [`NetworkMonitorsStorage::update_orchestrator_identity_key`] via the `NotAnOrchestrator` error
+/// when no entry exists for the sender.
+///
+/// Only shape-level validation is performed on `identity_key` (valid base58 encoding a 32-byte
+/// ed25519 public key). The key is not verified to be a valid curve point, as doing so on-chain
+/// is disproportionately expensive relative to the downstream risk - a malformed key will simply
+/// fail signature verification when used.
+pub fn try_update_orchestrator_identity_key(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    identity_key: String,
+) -> Result<Response, NetworkMonitorsContractError> {
+    // perform basic validation of the key, i.e. is it valid base58 and is it 32 bytes (i.e. ed25519)?
+    let mut public_key = [0u8; 32];
+    let used = bs58::decode(&identity_key)
+        .onto(&mut public_key)
+        .map_err(|err| {
+            NetworkMonitorsContractError::MalformedEd25519OrchestratorIdentityKey(err.to_string())
+        })?;
+
+    if used != 32 {
+        return Err(
+            NetworkMonitorsContractError::MalformedEd25519OrchestratorIdentityKey(
+                "Too few bytes provided for the public key".into(),
+            ),
+        );
+    }
+
+    NETWORK_MONITORS_CONTRACT_STORAGE.update_orchestrator_identity_key(
+        deps,
+        &info.sender,
+        identity_key,
+    )?;
+
+    Ok(Response::new())
+}
+
 pub fn try_revoke_network_monitor_orchestrator(
     deps: DepsMut<'_>,
     info: MessageInfo,
@@ -307,6 +347,192 @@ mod tests {
                 .load(test.storage(), &orchestrator)?;
 
             assert_eq!(info, updated);
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod updating_orchestrator_identity_key {
+        use super::*;
+
+        /// Base58 encoding of 32 bytes - a valid ed25519 key shape.
+        fn valid_identity_key() -> String {
+            bs58::encode([7u8; 32]).into_string()
+        }
+
+        #[test]
+        fn can_only_be_performed_by_authorised_orchestrator() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+
+            let non_orchestrator = test.generate_account();
+
+            let res = test
+                .execute_raw(
+                    non_orchestrator.clone(),
+                    ExecuteMsg::UpdateOrchestratorIdentityKey {
+                        key: valid_identity_key(),
+                    },
+                )
+                .unwrap_err();
+            assert_eq!(
+                res,
+                NetworkMonitorsContractError::NotAnOrchestrator {
+                    addr: non_orchestrator
+                }
+            );
+
+            let orchestrator = test.add_orchestrator()?;
+            let res = test.execute_raw(
+                orchestrator,
+                ExecuteMsg::UpdateOrchestratorIdentityKey {
+                    key: valid_identity_key(),
+                },
+            );
+            assert!(res.is_ok());
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_key_that_is_not_valid_base58() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+
+            // '0', 'O', 'I', 'l' are not in the bitcoin alphabet used by bs58
+            let res = test
+                .execute_raw(
+                    orchestrator,
+                    ExecuteMsg::UpdateOrchestratorIdentityKey {
+                        key: "not_valid_base58_0OIl".to_string(),
+                    },
+                )
+                .unwrap_err();
+            assert!(matches!(
+                res,
+                NetworkMonitorsContractError::MalformedEd25519OrchestratorIdentityKey(_)
+            ));
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_key_that_is_too_short() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+
+            // 16 bytes, not 32
+            let too_short = bs58::encode([1u8; 16]).into_string();
+            let res = test
+                .execute_raw(
+                    orchestrator,
+                    ExecuteMsg::UpdateOrchestratorIdentityKey { key: too_short },
+                )
+                .unwrap_err();
+            assert!(matches!(
+                res,
+                NetworkMonitorsContractError::MalformedEd25519OrchestratorIdentityKey(_)
+            ));
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_key_that_is_too_long() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+
+            // 33 bytes, not 32 - decoder should bail out because the destination buffer is too small
+            let too_long = bs58::encode([1u8; 33]).into_string();
+            let res = test
+                .execute_raw(
+                    orchestrator,
+                    ExecuteMsg::UpdateOrchestratorIdentityKey { key: too_long },
+                )
+                .unwrap_err();
+            assert!(matches!(
+                res,
+                NetworkMonitorsContractError::MalformedEd25519OrchestratorIdentityKey(_)
+            ));
+
+            Ok(())
+        }
+
+        #[test]
+        fn stores_provided_key_against_orchestrator_entry() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+
+            // freshly authorised orchestrator has no announced identity key
+            let info = NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_orchestrators
+                .load(test.storage(), &orchestrator)?;
+            assert!(info.identity_key.is_none());
+
+            let key = valid_identity_key();
+            test.execute_raw(
+                orchestrator.clone(),
+                ExecuteMsg::UpdateOrchestratorIdentityKey { key: key.clone() },
+            )?;
+
+            let updated = NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_orchestrators
+                .load(test.storage(), &orchestrator)?;
+            assert_eq!(updated.identity_key.as_deref(), Some(key.as_str()));
+
+            Ok(())
+        }
+
+        #[test]
+        fn overwrites_previously_announced_key() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+
+            let first_key = bs58::encode([1u8; 32]).into_string();
+            let second_key = bs58::encode([2u8; 32]).into_string();
+
+            test.execute_raw(
+                orchestrator.clone(),
+                ExecuteMsg::UpdateOrchestratorIdentityKey {
+                    key: first_key.clone(),
+                },
+            )?;
+            test.execute_raw(
+                orchestrator.clone(),
+                ExecuteMsg::UpdateOrchestratorIdentityKey {
+                    key: second_key.clone(),
+                },
+            )?;
+
+            let info = NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_orchestrators
+                .load(test.storage(), &orchestrator)?;
+            assert_eq!(info.identity_key.as_deref(), Some(second_key.as_str()));
+
+            Ok(())
+        }
+
+        #[test]
+        fn updating_one_orchestrator_key_does_not_affect_others() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator_a = test.add_orchestrator()?;
+            let orchestrator_b = test.add_orchestrator()?;
+
+            let key_a = bs58::encode([10u8; 32]).into_string();
+            test.execute_raw(
+                orchestrator_a.clone(),
+                ExecuteMsg::UpdateOrchestratorIdentityKey { key: key_a.clone() },
+            )?;
+
+            let info_a = NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_orchestrators
+                .load(test.storage(), &orchestrator_a)?;
+            let info_b = NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_orchestrators
+                .load(test.storage(), &orchestrator_b)?;
+
+            assert_eq!(info_a.identity_key.as_deref(), Some(key_a.as_str()));
+            assert!(info_b.identity_key.is_none());
 
             Ok(())
         }

@@ -23,6 +23,9 @@ pub enum ExecuteMsg {
     /// Authorise new network monitor orchestrator
     AuthoriseNetworkMonitorOrchestrator { address: String },
 
+    /// Attempt to update the announced identity key of this orchestrator
+    UpdateOrchestratorIdentityKey { key: String },
+
     /// Revoke network monitor orchestrator authorisation.
     RevokeNetworkMonitorOrchestrator { address: String },
 

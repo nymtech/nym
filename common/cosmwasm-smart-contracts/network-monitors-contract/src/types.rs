@@ -12,6 +12,10 @@ pub struct AuthorisedNetworkMonitorOrchestrator {
     /// The address associated with the network monitor orchestrator.
     pub address: Addr,
 
+    /// Base-58 encoded identity key of the orchestrator, announced by the orchestrator itself
+    /// on startup.
+    pub identity_key: Option<String>,
+
     /// Timestamp of when the network monitor was authorised.
     pub authorised_at: Timestamp,
 }

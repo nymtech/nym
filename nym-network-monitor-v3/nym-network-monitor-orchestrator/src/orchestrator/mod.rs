@@ -1,9 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// to be used in subsequent PRs
-#![allow(dead_code)]
-
 use crate::http::api::{build_router, run_http_server};
 use crate::http::state::{AppState, KnownAgents};
 use crate::orchestrator::config::Config;
@@ -14,13 +11,15 @@ use anyhow::{Context, bail};
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
+use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::{
     NetworkMonitorsQueryClient, NetworkMonitorsSigningClient, PagedNetworkMonitorsQueryClient,
 };
-use nym_validator_client::nyxd::{AccountId, bip39};
+use nym_validator_client::nyxd::{AccountId, CosmWasmClient, bip39};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+use tokio::time::sleep;
+use tracing::{info, warn};
 use zeroize::Zeroizing;
 
 pub(crate) mod config;
@@ -81,6 +80,8 @@ impl NetworkMonitorOrchestrator {
             storage,
             shutdown_manager: ShutdownManager::build_new_default()?,
         };
+        this.verify_on_chain_balance().await?;
+
         let announced_identity_key = this.verify_orchestrator_chain_authorisation().await?;
         this.reconcile_announced_identity_key(announced_identity_key)
             .await?;
@@ -92,6 +93,27 @@ impl NetworkMonitorOrchestrator {
     /// Returns the on-chain bech32 address of the orchestrator's signing account.
     async fn address(&self) -> AccountId {
         self.client.read().await.nyxd.address()
+    }
+
+    /// Ensure the orchestrator has sufficient balance for transaction fees
+    async fn verify_on_chain_balance(&self) -> anyhow::Result<()> {
+        let address = self.address().await;
+        let Some(balance) = self
+            .client
+            .read()
+            .await
+            .nyxd
+            .get_balance(&address, "unym".to_string())
+            .await?
+        else {
+            bail!("the orchestrator does not hold any unym balance");
+        };
+        if balance.amount < 1_000_000 {
+            bail!(
+                "the orchestrator does not hold sufficient amount of tokens. its current balance is {balance}"
+            )
+        }
+        Ok(())
     }
 
     /// Verifies that the orchestrator's account is authorised to send transactions to the network
@@ -144,7 +166,7 @@ impl NetworkMonitorOrchestrator {
             }
 
             if attempt < max_attempts {
-                tokio::time::sleep(retry_delay).await;
+                sleep(retry_delay).await;
             }
         }
 
@@ -193,7 +215,18 @@ impl NetworkMonitorOrchestrator {
     /// test results to the nym-api.
     async fn verify_orchestrator_nym_api_authorisation(&self) -> anyhow::Result<()> {
         // ensure our key is authorised to submit test results to the nym-api
-        error!("unimplemented");
+        let auth_result = self
+            .client
+            .read()
+            .await
+            .nym_api
+            .get_known_network_monitor(&self.identity_keys.public_key().to_base58_string())
+            .await?;
+        if !auth_result.authorised {
+            bail!(
+                "orchestrator identity key is not authorised to submit test results to the nym-api"
+            );
+        }
         Ok(())
     }
 

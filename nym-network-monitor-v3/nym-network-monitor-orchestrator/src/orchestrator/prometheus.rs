@@ -406,6 +406,7 @@ impl NetworkMonitorPrometheusMetrics {
         metric.set(value)
     }
 
+    #[allow(dead_code)]
     pub fn set_float(&self, metric: PrometheusMetric, value: f64) {
         metric.set_float(value)
     }
@@ -422,6 +423,7 @@ impl NetworkMonitorPrometheusMetrics {
         metric.observe_histogram(value)
     }
 
+    #[allow(dead_code)]
     pub fn start_timer(&self, metric: PrometheusMetric) -> Option<HistogramTimer> {
         metric.start_timer()
     }

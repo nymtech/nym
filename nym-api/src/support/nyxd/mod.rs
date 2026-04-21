@@ -168,7 +168,7 @@ impl Client {
     }
 
     pub(crate) async fn known_contracts(&self) -> TypedNymContracts {
-        nyxd_query!(self, get_nym_contracts().await)
+        nyxd_query!(self, get_nym_contracts())
     }
 
     pub(crate) async fn get_ecash_contract_address(&self) -> Result<AccountId, EcashError> {

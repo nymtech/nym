@@ -3,7 +3,7 @@
 
 use bytes::{Bytes, BytesMut};
 use tokio_util::codec::Decoder;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     IpPair,
@@ -38,20 +38,29 @@ pub enum MixnetMessageOutcome {
 //   sdk/rust/nym-sdk/src/ip_packet_client/listener.rs — check_ipr_message_version()
 /// Check that the first byte of an IPR message matches the expected protocol version.
 ///
-/// v9 reuses the v8 bincode layout (`nym_ip_packet_requests::v9` re-exports v8 types). Until all
-/// exit gateways run a release that tags IPR traffic as v9, a v9 client may still receive v8
-/// replies; treat those as compatible for deserialization and handling.
+/// v9 currently reuses the v8 bincode layout (`nym_ip_packet_requests::v9` re-exports v8 types);
+/// the version byte signals LP/SphinxStream framing, not a wire-format change. Until exit gateways
+/// have rolled past `crate::v9::MIN_RELEASE_VERSION`, a v9 client may still receive v8 replies and
+/// must accept them. Revisit this compat branch if a future bump diverges the wire layout.
+///
+/// TODO(IPR-v9-rollout): remove the v9-accepts-v8 branch once the exit gateway fleet is on
+/// `crate::v9::MIN_RELEASE_VERSION` or newer.
 pub fn check_ipr_message_version(data: &[u8], expected: u8) -> Result<(), IprResponseError> {
-    let version = data.first().ok_or(IprResponseError::NoVersionByte)?;
-    if *version == expected {
+    let version = *data.first().ok_or(IprResponseError::NoVersionByte)?;
+    if version == expected {
         return Ok(());
     }
-    if expected == 9 && *version == 8 {
+    if expected == crate::v9::VERSION && version == crate::v8::VERSION {
+        debug!(
+            "accepting v{} IPR reply under v{} client compat",
+            crate::v8::VERSION,
+            crate::v9::VERSION
+        );
         return Ok(());
     }
     Err(IprResponseError::VersionMismatch {
         expected,
-        received: *version,
+        received: version,
     })
 }
 
@@ -137,5 +146,54 @@ pub fn handle_ipr_response(data: &[u8]) -> Option<MixnetMessageOutcome> {
             warn!("Failed to deserialize IPR response: {err}");
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_version_matches() {
+        assert!(check_ipr_message_version(&[crate::v9::VERSION], crate::v9::VERSION).is_ok());
+        assert!(check_ipr_message_version(&[crate::v8::VERSION], crate::v8::VERSION).is_ok());
+    }
+
+    #[test]
+    fn v9_client_accepts_v8_reply_compat() {
+        assert!(check_ipr_message_version(&[crate::v8::VERSION], crate::v9::VERSION).is_ok());
+    }
+
+    #[test]
+    fn v8_client_rejects_v9_reply() {
+        let err = check_ipr_message_version(&[crate::v9::VERSION], crate::v8::VERSION)
+            .expect_err("v8 client must not silently accept v9");
+        assert!(matches!(
+            err,
+            IprResponseError::VersionMismatch {
+                expected: 8,
+                received: 9
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_unrelated_version_mismatch() {
+        let err = check_ipr_message_version(&[7], crate::v9::VERSION)
+            .expect_err("v9 client must reject v7");
+        assert!(matches!(
+            err,
+            IprResponseError::VersionMismatch {
+                expected: 9,
+                received: 7
+            }
+        ));
+    }
+
+    #[test]
+    fn empty_payload_returns_no_version_byte() {
+        let err = check_ipr_message_version(&[], crate::v9::VERSION)
+            .expect_err("empty payload must error");
+        assert!(matches!(err, IprResponseError::NoVersionByte));
     }
 }

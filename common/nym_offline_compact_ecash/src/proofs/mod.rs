@@ -31,9 +31,7 @@ where
     // instead we could maybe use the `from_bytes` variant and adding some suffix
     // when computing the digest until we produce a valid scalar.
     let mut bytes = [0u8; 64];
-    let pad_size = 64usize
-        .checked_sub(D::OutputSize::to_usize())
-        .unwrap_or_default();
+    let pad_size = 64usize.saturating_sub(D::OutputSize::to_usize());
 
     bytes[pad_size..].copy_from_slice(&digest);
 

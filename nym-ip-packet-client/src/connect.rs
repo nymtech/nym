@@ -80,7 +80,7 @@ impl IprClientConnect {
     }
 
     async fn send_connect_request(&self, ip_packet_router_address: Recipient) -> Result<u64> {
-        let (request, request_id) = IpPacketRequest::new_connect_request(None);
+        let (request, request_id) = nym_ip_packet_requests::v9::new_connect_request(None);
 
         // We use 20 surbs for the connect request because typically the IPR is configured to have
         // a min threshold of 10 surbs that it reserves for itself to request additional surbs.

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::PlaceholderJsonSchemaImpl;
+use crate::models::DisplayRole;
 use crate::pagination::PaginatedResponse;
 use cosmwasm_std::Decimal;
 use nym_contracts_common::{IdentityKey, NaiveFloat};
@@ -15,7 +16,6 @@ use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use utoipa::ToSchema;
 
-use crate::models::DisplayRole;
 pub use config_score::*;
 
 pub type StakeSaturation = Decimal;

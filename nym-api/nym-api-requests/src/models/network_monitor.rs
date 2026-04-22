@@ -36,19 +36,6 @@ pub type MixnodeTestResultResponse = PaginatedResponse<PartialTestResult>;
 pub type GatewayTestResultResponse = PaginatedResponse<PartialTestResult>;
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
-pub struct KnownNetworkMonitorResponse {
-    /// The ed25519 identity key that was queried (base58-encoded on the wire).
-    #[serde(with = "bs58_ed25519_pubkey")]
-    #[schemars(with = "String")]
-    #[schema(value_type = String)]
-    pub identity_key: ed25519::PublicKey,
-
-    /// Whether the queried identity key is currently recognised by this nym-api
-    /// as an authorised network monitor permitted to submit stress testing results.
-    pub authorised: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NetworkMonitorRunDetailsResponse {
     pub monitor_run_id: i64,
     pub network_reliability: f64,
@@ -86,4 +73,50 @@ pub struct MixnodeCoreStatusResponse {
 pub struct GatewayCoreStatusResponse {
     pub identity: String,
     pub count: i64,
+}
+
+pub use v3::*;
+pub mod v3 {
+    use super::*;
+    use crate::signable::SignedMessage;
+    use std::time::Duration;
+    use time::OffsetDateTime;
+
+    pub type StressTestBatchSubmission = SignedMessage<StressTestBatchSubmissionContent>;
+
+    #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+    pub struct StressTestBatchSubmissionContent {
+        #[schema(value_type = String)]
+        #[serde(with = "ed25519::bs58_ed25519_pubkey")]
+        pub signer: ed25519::PublicKey,
+
+        #[schema(value_type = String)]
+        #[serde(with = "time::serde::rfc3339")]
+        pub timestamp: OffsetDateTime,
+    }
+
+    impl StressTestBatchSubmissionContent {
+        pub fn new(signer: ed25519::PublicKey) -> Self {
+            StressTestBatchSubmissionContent {
+                signer,
+                timestamp: OffsetDateTime::now_utc(),
+            }
+        }
+
+        pub fn is_stale(&self, max_age: Duration) -> bool {
+            self.timestamp + max_age < OffsetDateTime::now_utc()
+        }
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+    pub struct KnownNetworkMonitorResponse {
+        /// The ed25519 identity key that was queried (base58-encoded on the wire).
+        #[serde(with = "bs58_ed25519_pubkey")]
+        #[schema(value_type = String)]
+        pub identity_key: ed25519::PublicKey,
+
+        /// Whether the queried identity key is currently recognised by this nym-api
+        /// as an authorised network monitor permitted to submit stress testing results.
+        pub authorised: bool,
+    }
 }

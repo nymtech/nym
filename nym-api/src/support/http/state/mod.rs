@@ -16,7 +16,7 @@ use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
-use crate::support::http::state::network_monitors::NetworkMonitorsCache;
+use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
 use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::nyxd::Client;
 use crate::support::storage;
@@ -57,6 +57,11 @@ pub(crate) struct AppState {
     /// Holds information on when nym-nodes requested an explicit request of their self-described data.
     /// It is used to prevent DoS by nodes constantly requesting the refresh.
     pub(crate) forced_refresh: ForcedRefresh,
+
+    /// Holds information on when the last stress testing submission was made by a network monitor.
+    /// It is used to prevent replay attacks by attempting to re-use request timestamps
+    /// Timestamps are used instead of nonces to avoid NM having to keep state with the expected values.
+    pub(crate) network_monitor_submissions: LastNMSubmissions,
 
     /// Holds cached state of the Nym Mixnet contract, e.g. bonded nym-nodes, rewarded set, current interval.
     pub(crate) mixnet_contract_cache: MixnetContractCacheState,

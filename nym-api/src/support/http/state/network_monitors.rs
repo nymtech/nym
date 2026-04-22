@@ -6,20 +6,52 @@ use crate::support::http::state::helpers::ChainSharedCacheWithTtl;
 use crate::support::nyxd::Client;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::error::NyxdError;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
-use tracing::warn;
+use time::OffsetDateTime;
+use tokio::sync::{Mutex, RwLock};
+use tracing::{error, warn};
+
+#[derive(Clone)]
+pub(crate) struct LastNMSubmissions {
+    pub(crate) submissions: Arc<RwLock<HashMap<ed25519::PublicKey, OffsetDateTime>>>,
+}
+
+impl LastNMSubmissions {
+    pub(crate) fn new() -> LastNMSubmissions {
+        LastNMSubmissions {
+            submissions: Arc::new(Default::default()),
+        }
+    }
+
+    pub(crate) async fn submitted(&self, nm: ed25519::PublicKey) -> OffsetDateTime {
+        // if entry does not exist (e.g. we have restarted),
+        // we play it safe and use the current timestamp
+        self.submissions
+            .read()
+            .await
+            .get(&nm)
+            .copied()
+            .unwrap_or_else(|| OffsetDateTime::now_utc())
+    }
+
+    pub(crate) async fn set_submitted(&self, nm: ed25519::PublicKey) {
+        self.submissions
+            .write()
+            .await
+            .insert(nm, OffsetDateTime::now_utc());
+    }
+}
 
 #[derive(Clone)]
 pub(crate) struct KnownNetworkMonitors {
-    monitors: Arc<RwLock<HashSet<ed25519::PublicKey>>>,
+    known: HashSet<ed25519::PublicKey>,
 }
 
 impl KnownNetworkMonitors {
-    pub(crate) async fn contains(&self, key: &ed25519::PublicKey) -> bool {
-        self.monitors.read().await.contains(key)
+    pub(crate) fn contains(&self, key: &ed25519::PublicKey) -> bool {
+        self.known.contains(key)
     }
 }
 
@@ -40,7 +72,25 @@ async fn refresh(client: &Client) -> Result<KnownNetworkMonitors, NyxdError> {
     {
         warn!("network monitor contract address not set - can't accept any stress testing results")
     }
-    todo!()
+
+    let known_monitors = client.get_all_network_monitor_orchestrators().await?;
+    let mut updated_monitors = HashSet::new();
+    for monitor in known_monitors {
+        let Some(public_key) = monitor.identity_key else {
+            warn!("{} orchestrator is authorised but has not announced its public key - is the process running correctly?", monitor.address);
+        };
+        let parsed = match ed25519::PublicKey::from_base58_string(&public_key) {
+            Ok(key) => key,
+            Err(err) => {
+                error!("failed to parse public key for {}: {err}", monitor.address);
+                continue;
+            }
+        };
+        updated_monitors.insert(parsed);
+    }
+    Ok(KnownNetworkMonitors {
+        known: updated_monitors,
+    })
 }
 
 impl NetworkMonitorsCache {

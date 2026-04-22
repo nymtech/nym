@@ -37,15 +37,22 @@ pub enum MixnetMessageOutcome {
 //   nym-ip-packet-client/src/helpers.rs — check_ipr_message_version()
 //   sdk/rust/nym-sdk/src/ip_packet_client/listener.rs — check_ipr_message_version()
 /// Check that the first byte of an IPR message matches the expected protocol version.
+///
+/// v9 reuses the v8 bincode layout (`nym_ip_packet_requests::v9` re-exports v8 types). Until all
+/// exit gateways run a release that tags IPR traffic as v9, a v9 client may still receive v8
+/// replies; treat those as compatible for deserialization and handling.
 pub fn check_ipr_message_version(data: &[u8], expected: u8) -> Result<(), IprResponseError> {
     let version = data.first().ok_or(IprResponseError::NoVersionByte)?;
-    if *version != expected {
-        return Err(IprResponseError::VersionMismatch {
-            expected,
-            received: *version,
-        });
+    if *version == expected {
+        return Ok(());
     }
-    Ok(())
+    if expected == 9 && *version == 8 {
+        return Ok(());
+    }
+    Err(IprResponseError::VersionMismatch {
+        expected,
+        received: *version,
+    })
 }
 
 // Extracted from:

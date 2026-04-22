@@ -80,7 +80,10 @@ impl IprClientConnect {
     }
 
     async fn send_connect_request(&self, ip_packet_router_address: Recipient) -> Result<u64> {
-        let (request, request_id) = nym_ip_packet_requests::v9::new_connect_request(None);
+        // Connect goes via plain mixnet (non-stream); the IPR enforces "non-stream => v8 or lower"
+        // (see service-providers/ip-packet-router/src/mixnet_listener.rs ~ "Non-stream message
+        // claims v9"). Keep this v8-tagged. Only LP-Stream-framed data packets use v9.
+        let (request, request_id) = IpPacketRequest::new_connect_request(None);
 
         // We use 20 surbs for the connect request because typically the IPR is configured to have
         // a min threshold of 10 surbs that it reserves for itself to request additional surbs.

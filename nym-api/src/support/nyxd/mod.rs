@@ -21,6 +21,7 @@ use nym_coconut_dkg_common::{
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 use nym_config::defaults::NymNetworkDetails;
+use nym_crypto::asymmetric::ed25519;
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
@@ -39,9 +40,11 @@ use nym_validator_client::nyxd::contract_traits::performance_query_client::{
     LastSubmission, NodePerformance,
 };
 use nym_validator_client::nyxd::contract_traits::{
-    PagedDkgQueryClient, PagedPerformanceQueryClient, PerformanceQueryClient, TypedNymContracts,
+    NetworkMonitorsQueryClient, PagedDkgQueryClient, PagedPerformanceQueryClient,
+    PerformanceQueryClient, TypedNymContracts,
 };
 use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitorOrchestrator;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
     contract_traits::{
@@ -431,6 +434,12 @@ impl Client {
         epoch_id: nym_mixnet_contract_common::EpochId,
     ) -> Result<Vec<NodePerformance>, NyxdError> {
         nyxd_query!(self, get_all_epoch_performance(epoch_id).await)
+    }
+
+    pub(crate) async fn get_all_network_monitor_orchestrators(
+        &self,
+    ) -> Result<Vec<AuthorisedNetworkMonitorOrchestrator>, NyxdError> {
+        Ok(nyxd_query!(self, get_network_monitor_orchestrators().await)?.authorised)
     }
 }
 

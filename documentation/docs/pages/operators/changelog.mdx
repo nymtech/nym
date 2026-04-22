@@ -57,6 +57,36 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.8-urda`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.8-urda)
+- [`nym-node`](nodes/nym-node.mdx) version `1.30.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-04-21T10:11:28.164080002Z
+Build Version:      1.30.0
+Commit SHA:         0c83ae2408ea9efcc1abae613711c6e4e16148ad
+Commit Date:        2026-04-21T12:06:23.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+### Features
+
+- [Include all gateways in the returned list](https://github.com/nymtech/nym/pull/6649): Ensures gateway APIs return the full gateway set instead of filtered results, improving consistency across services.
+- [Max/sdk stream wrapper](https://github.com/nymtech/nym/pull/6320): Introduces a Rust SDK stream abstraction enabling IPR-based mixnet communication and client-side streaming support.
+- [Max/sdk docrs](https://github.com/nymtech/nym/pull/6566): Updates SDK documentation to reflect the new stream-based architecture and IPR communication model.
+
+### Refactors & Maintenance
+
+- [Optimize GW probe in NS agent](https://github.com/nymtech/nym/pull/6636): Refactors gateway probe integration from subprocess execution to library usage, removing CLI dependency and improving typed communication between agent and probe.
+
 ## `v2026.7-tola`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.7-tola)

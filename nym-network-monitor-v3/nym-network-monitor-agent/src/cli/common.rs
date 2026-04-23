@@ -54,7 +54,10 @@ pub(crate) struct CommonArgs {
 impl CommonArgs {
     /// Constructs a [`NodeTesterConfig`] from the common CLI arguments.
     /// `mixnet_address` is provided separately as it is command-specific.
-    pub(crate) fn build_config(&self, mixnet_address: SocketAddr) -> anyhow::Result<NodeTesterConfig> {
+    pub(crate) fn build_config(
+        &self,
+        mixnet_address: SocketAddr,
+    ) -> anyhow::Result<NodeTesterConfig> {
         if self.sending_duration.is_zero() {
             bail!("attempted to set sending duration to 0s")
         }

@@ -1,4 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-2.0-only
 
 //! High-level tunnel providing TCP and UDP sockets over the Nym mixnet.
@@ -115,8 +115,10 @@ pub struct Tunnel {
 ///
 /// For full control over the mixnet client (credentials, gateway selection,
 /// storage, etc.), configure an [`IpMixStream`] directly and pass it to
-/// [`Tunnel::from_stream()`]. Deeper builder integration with `MixnetClientBuilder`
-/// will require upstream SDK changes to expose `IpMixStream` internals (TODO).
+/// [`Tunnel::from_stream()`].
+///
+/// **Note:** deeper builder integration with `MixnetClientBuilder` requires
+/// upstream SDK changes to expose `IpMixStream` internals.
 pub struct TunnelBuilder {
     ipr_address: Option<Recipient>,
 }

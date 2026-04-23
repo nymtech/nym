@@ -5,20 +5,24 @@
 #![allow(dead_code)]
 
 use crate::orchestrator::config::Config;
+use crate::orchestrator::node_refresher::NodeRefresher;
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
     NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress, TestType,
 };
+use anyhow::Context;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::nyxd::bip39;
 use std::sync::Arc;
 use time::OffsetDateTime;
+use tokio::sync::RwLock;
 use tracing::error;
 use zeroize::Zeroizing;
 
 pub(crate) mod config;
+mod node_refresher;
 pub(crate) mod testruns;
 
 pub(crate) struct NetworkMonitorOrchestrator {
@@ -29,7 +33,7 @@ pub(crate) struct NetworkMonitorOrchestrator {
     /// - submit test results to the nym-api
     /// - query node information from the chain
     /// - send authorisation transactions to the network monitors contract
-    pub(crate) client: DirectSigningHttpRpcValidatorClient,
+    pub(crate) client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
 
     /// Ed25519 key pair used to sign result submissions to the nym-api.
     pub(crate) identity_keys: Arc<ed25519::KeyPair>,
@@ -56,7 +60,9 @@ impl NetworkMonitorOrchestrator {
         let storage = NetworkMonitorStorage::init(&config.database_path).await?;
 
         let client_config = config.try_build_validator_client_config()?;
-        let client = DirectSigningHttpRpcValidatorClient::new_signing(client_config, mnemonic)?;
+        let client = Arc::new(RwLock::new(
+            DirectSigningHttpRpcValidatorClient::new_signing(client_config, mnemonic)?,
+        ));
 
         let this = NetworkMonitorOrchestrator {
             config,
@@ -86,9 +92,36 @@ impl NetworkMonitorOrchestrator {
     }
 
     pub(crate) async fn run(&mut self) -> anyhow::Result<()> {
-        let _ = &self.config;
+        // this shouldn't fail as we have no tasks using this client yet
+        let query_client = self
+            .client
+            .try_read()
+            .context("failed to acquire read lock on client")?
+            .nyxd
+            .clone_query_client();
+
+        // 1. build node information refresher
+        let node_refresher = NodeRefresher::new(
+            &self.config,
+            query_client,
+            self.storage.clone(),
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+
+        // 2. build ...
+
+        // XYZ. start all the tasks
+        // node refresher
+        self.shutdown_manager.try_spawn_named(
+            async move {
+                node_refresher.run().await;
+            },
+            "node-refresher",
+        );
+
         error!("unimplemented");
         self.make_clippy_happy().await?;
+
         self.shutdown_manager.run_until_shutdown().await;
         Ok(())
     }
@@ -100,7 +133,7 @@ impl NetworkMonitorOrchestrator {
             node_id: 0,
             identity_key: "".to_string(),
             last_seen_bonded: OffsetDateTime::now_utc(),
-            mixnet_socket_address: "".to_string(),
+            mixnet_socket_address: None,
             noise_key: None,
             sphinx_key: None,
             key_rotation_id: None,
@@ -125,7 +158,6 @@ impl NetworkMonitorOrchestrator {
             error: None,
         };
 
-        self.storage.insert_or_update_nym_node(&dummy_node).await?;
         self.storage.insert_test_run(&dummy_testrun, 123).await?;
         self.storage
             .clear_timed_out_testruns_in_progress(self.config.test_timeout)

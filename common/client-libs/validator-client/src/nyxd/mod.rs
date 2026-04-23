@@ -270,6 +270,16 @@ impl<C, S> NyxdClient<C, S> {
         }
     }
 
+    pub fn clone_query_client(&self) -> NyxdClient<C>
+    where
+        C: Clone,
+    {
+        NyxdClient {
+            client: self.client.clone_query_client(),
+            config: self.config.clone(),
+        }
+    }
+
     pub fn current_config(&self) -> &Config {
         &self.config
     }

@@ -50,12 +50,17 @@ impl NetworkMonitorStorage {
         })
     }
 
-    /// Inserts a new node record. If a node with the same `node_id` already exists,
-    /// all fields except `identity_key` are updated — `identity_key` is intentionally left
-    /// unchanged because a given `node_id` always corresponds to exactly one identity key
-    /// and is never reassigned.
-    pub(crate) async fn insert_or_update_nym_node(&self, node: &NewNymNode) -> anyhow::Result<()> {
-        self.storage_manager.insert_or_update_nym_node(node).await
+    /// Inserts or updates multiple node records in a single transaction.
+    ///
+    /// For each node, if a row with the same `node_id` already exists, all fields except
+    /// `identity_key` are updated. The entire batch shares one transaction for efficiency.
+    pub(crate) async fn batch_insert_or_update_nym_nodes(
+        &self,
+        nodes: &[NewNymNode],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_insert_or_update_nym_nodes(nodes)
+            .await
     }
 
     /// Inserts a completed test run.

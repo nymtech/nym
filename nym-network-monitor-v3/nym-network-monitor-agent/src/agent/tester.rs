@@ -84,7 +84,7 @@ impl NodeStressTester {
 
         let reusable_test_header = if config.reuse_header {
             // Route: tested node → this agent (so packets come back to us).
-            let route = vec![
+            let route = [
                 tested_node.as_sphinx_node(),
                 as_sphinx_node(config.mixnet_address, sphinx_key.public_key()),
             ];
@@ -176,7 +176,7 @@ impl NodeStressTester {
         match &self.reusable_test_header {
             Some(header) => header.create_test_packet(content),
             None => {
-                let route = vec![self.tested_node.as_sphinx_node(), self.as_sphinx_node()];
+                let route = [self.tested_node.as_sphinx_node(), self.as_sphinx_node()];
                 build_test_sphinx_packet(
                     &route,
                     self.config.packet_delay,

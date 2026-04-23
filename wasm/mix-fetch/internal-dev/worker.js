@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const RUST_WASM_URL = "mix_fetch_wasm_bg.wasm"
-const GO_WASM_URL = "go_conn.wasm"
+const RUST_WASM_URL = "mix_fetch_wasm_bg.wasm";
+const GO_WASM_URL = "go_conn.wasm";
 
 importScripts('mix_fetch_wasm.js');
 importScripts('wasm_exec.js');
@@ -36,11 +36,9 @@ const {
     disconnectMixFetch,
     setupMixFetchWithConfig,
     mix_fetch_initialised,
-    finish_mixnet_connection
+    finish_mixnet_connection,
 } = wasm_bindgen;
 
-let client = null;
-let tester = null;
 const go = new Go(); // Defined in wasm_exec.js
 var goWasm;
 let mixFetchReady = false;
@@ -64,83 +62,20 @@ function sendError(error) {
 }
 
 async function logFetchResult(res) {
-    console.log(res)
-    let text = await res.text()
-    console.log("HEADERS:     ", ...res.headers)
-    console.log("STATUS:      ", res.status)
-    console.log("STATUS TEXT: ", res.statusText)
-    console.log("OK:          ", res.ok)
-    console.log("TYPE:        ", res.type)
-    console.log("URL:         ", res.url)
-    console.log("BODYUSED:    ", res.bodyUsed)
-    console.log("REDIRECTED:  ", res.redirected)
-    console.log("TEXT:        ", text)
+    let text = await res.text();
+    console.log(`${res.status} ${res.statusText} (${text.length} bytes)`);
+    console.log(text);
 
     self.postMessage({
         kind: 'DisplayString',
-        args: {
-            rawString: text,
-        },
+        args: { rawString: text },
     });
 }
 
-async function wasm_bindgenSetup() {
-    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    const validator = 'https://qa-nym-api.qa.nymte.ch/api';
+// For custom MixFetchConfig (specific network requester, debug overrides),
+// see setupMixFetchWithConfig() and the MixFetchConfig / MixFetchConfigOpts types.
 
-    // local
-    const mixFetchNetworkRequesterAddress = "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    // const mixFetchNetworkRequesterAddress= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-
-    // STEP 1. construct config
-    // those are just some examples, there are obviously more permutations;
-    // note, the extra optional argument is of the following type:
-    // /*
-    //     export interface MixFetchConfigOpts {
-    //         id?: string;
-    //         nymApi?: string;
-    //         nyxd?: string;
-    //         debug?: DebugWasm;
-    //     }
-    //  */
-    //
-    // const debug = no_cover_debug()
-    //
-    // #1
-    // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { id: 'my-awesome-mix-fetch-client', nymApi: validator, debug: debug} );
-    // #2
-    // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { nymApi: validator, debug: debug} );
-    // #3
-    // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { id: 'my-awesome-mix-fetch-client' } );
-    //
-    // #4
-    const differentDebug = default_debug()
-    const updatedTraffic = differentDebug.traffic;
-    updatedTraffic.use_extended_packet_size = true
-    updatedTraffic.average_packet_delay_ms = 666;
-    differentDebug.traffic = updatedTraffic;
-
-    const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, {debug: differentDebug});
-    //
-    // // STEP 2. setup the client
-    // // note, the extra optional argument is of the following type:
-    // /*
-    //     export interface MixFetchOptsSimple {
-    //         preferredGateway?: string;
-    //         storagePassphrase?: string;
-    //     }
-    //  */
-    // #1
-    await setupMixFetchWithConfig(config)
-    //
-    // #2
-    // await setupMixFetchWithConfig(config, { storagePassphrase: "foomp" })
-    //
-    // #3
-    // await setupMixFetchWithConfig(config, { storagePassphrase: "foomp", preferredGateway })
-}
-
-async function nativeSetup(preferredGateway) {
+async function nativeSetup(preferredGateway, setupOpts = {}) {
     sendLog('Setting up MixFetch...');
     if (preferredGateway) {
         sendLog(`Using preferred gateway: ${preferredGateway}`);
@@ -148,17 +83,25 @@ async function nativeSetup(preferredGateway) {
         sendLog('Using random gateway selection');
     }
 
+    const {
+        forceTls = true,
+        clientId = 'client-' + Math.random().toString(36).slice(2, 8),
+        disablePoisson = true,
+        disableCover = true,
+        requestTimeoutMs = 60000,
+    } = setupOpts;
+
     const noCoverTrafficOverride = {
-        traffic: {disableMainPoissonPacketDistribution: true},
-        coverTraffic: {disableLoopCoverTrafficStream: true},
-    }
+        traffic: { disableMainPoissonPacketDistribution: disablePoisson },
+        coverTraffic: { disableLoopCoverTrafficStream: disableCover },
+    };
     const mixFetchOverride = {
-        requestTimeoutMs: 60000
-    }
+        requestTimeoutMs,
+    };
 
     const opts = {
-        forceTls: true,
-        clientId: "my-client",
+        forceTls,
+        clientId,
         clientOverride: noCoverTrafficOverride,
         mixFetchOverride,
     };
@@ -167,16 +110,19 @@ async function nativeSetup(preferredGateway) {
         opts.preferredGateway = preferredGateway;
     }
 
+    sendLog(
+        `Setup config: forceTls=${forceTls}, clientId=${clientId}, disablePoisson=${disablePoisson}, disableCover=${disableCover}, timeout=${requestTimeoutMs}ms`
+    );
     sendLog('Calling setupMixFetch...');
     await setupMixFetch(opts);
     sendLog('setupMixFetch completed');
 }
 
-async function startMixFetch(preferredGateway) {
+async function startMixFetch(preferredGateway, setupOpts) {
     sendLog('Instantiating MixFetch...');
 
     try {
-        await nativeSetup(preferredGateway);
+        await nativeSetup(preferredGateway, setupOpts);
         mixFetchReady = true;
         sendLog('MixFetch client running!');
         sendReady();
@@ -193,7 +139,7 @@ async function handleFetchPayload(target) {
     }
 
     const url = target;
-    const args = {mode: "unsafe-ignore-cors"};
+    const args = { mode: "unsafe-ignore-cors" };
 
     try {
         sendLog(`Fetching: ${url}`);
@@ -206,40 +152,50 @@ async function handleFetchPayload(target) {
     }
 }
 
-async function handlePostPayload(url, body) {
+async function handleStressTestFetch(id, url, label) {
     if (!mixFetchReady) {
         sendLog('MixFetch not ready yet', 'error');
         return;
     }
 
-    const args = {
-        method: 'POST',
-        mode: "unsafe-ignore-cors",
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: body,
-    };
+    const tag = `[stress #${id} ${label}]`;
+    const start = performance.now();
+    const args = { mode: "unsafe-ignore-cors" };
 
     try {
-        sendLog(`POST request to: ${url}`);
-        sendLog(`POST body: ${body}`);
-        const mixFetchRes = await mixFetch(url, args);
-        sendLog('POST completed');
-        await logFetchResult(mixFetchRes);
+        sendLog(`${tag} Fetching: ${url}`);
+        const res = await mixFetch(url, args);
+        const text = await res.text();
+        const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+        sendLog(`${tag} ${res.status} OK in ${elapsed}s (${text.length} bytes)`);
+        self.postMessage({
+            kind: 'StressTestFetchResult',
+            args: {
+                id,
+                label,
+                ok: true,
+                status: res.status,
+                elapsed,
+                textLength: text.length,
+            },
+        });
     } catch (e) {
-        sendLog('POST request failure: ' + e, 'error');
-        console.error("mix fetch POST request failure: ", e);
+        const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+        sendLog(`${tag} FAILED in ${elapsed}s: ${e}`, 'error');
+        self.postMessage({
+            kind: 'StressTestFetchResult',
+            args: { id, label, ok: false, elapsed, error: String(e) },
+        });
     }
 }
 
 function setupMessageHandler() {
-    self.onmessage = async event => {
+    self.onmessage = async (event) => {
         if (event.data && event.data.kind) {
             switch (event.data.kind) {
                 case 'StartMixFetch': {
-                    const { preferredGateway } = event.data.args;
-                    await startMixFetch(preferredGateway);
+                    const { preferredGateway, setupOpts } = event.data.args;
+                    await startMixFetch(preferredGateway, setupOpts);
                     break;
                 }
                 case 'FetchPayload': {
@@ -247,9 +203,17 @@ function setupMessageHandler() {
                     await handleFetchPayload(target);
                     break;
                 }
-                case 'PostPayload': {
-                    const { url, body } = event.data.args;
-                    await handlePostPayload(url, body);
+                case 'SetGoTimeout': {
+                    const { timeoutMs } = event.data.args;
+                    sendLog(`Setting Go-side request timeout to ${timeoutMs}ms`);
+                    self.__go_rs_bridge__.goWasmSetMixFetchRequestTimeout(timeoutMs);
+                    break;
+                }
+                case 'StressTestFetch': {
+                    const { id, url, label } = event.data.args;
+                    // NOT awaited — each request runs independently,
+                    // just like separate callers in a real app
+                    handleStressTestFetch(id, url, label);
                     break;
                 }
             }
@@ -257,31 +221,30 @@ function setupMessageHandler() {
     };
 }
 
-
 // TODO: look into https://www.aaron-powell.com/posts/2019-02-08-golang-wasm-5-compiling-with-webpack/
 async function loadGoWasm() {
     const resp = await fetch(GO_WASM_URL);
 
     if ('instantiateStreaming' in WebAssembly) {
-        const wasmObj = await WebAssembly.instantiateStreaming(resp, go.importObject)
-        goWasm = wasmObj.instance
-        go.run(goWasm)
+        const wasmObj = await WebAssembly.instantiateStreaming(resp, go.importObject);
+        goWasm = wasmObj.instance;
+        go.run(goWasm);
     } else {
-        const bytes = await resp.arrayBuffer()
-        const wasmObj = await WebAssembly.instantiate(bytes, go.importObject)
-        goWasm = wasmObj.instance
-        go.run(goWasm)
+        const bytes = await resp.arrayBuffer();
+        const wasmObj = await WebAssembly.instantiate(bytes, go.importObject);
+        goWasm = wasmObj.instance;
+        go.run(goWasm);
     }
 }
 
 function setupRsGoBridge() {
     // (note: reason for intermediate `__rs_go_bridge__` object is to decrease global scope bloat
     // and to discourage users from trying to call those methods directly)
-    self.__rs_go_bridge__ = {}
-    self.__rs_go_bridge__.send_client_data = send_client_data
-    self.__rs_go_bridge__.start_new_mixnet_connection = start_new_mixnet_connection
-    self.__rs_go_bridge__.mix_fetch_initialised = mix_fetch_initialised
-    self.__rs_go_bridge__.finish_mixnet_connection = finish_mixnet_connection
+    self.__rs_go_bridge__ = {};
+    self.__rs_go_bridge__.send_client_data = send_client_data;
+    self.__rs_go_bridge__.start_new_mixnet_connection = start_new_mixnet_connection;
+    self.__rs_go_bridge__.mix_fetch_initialised = mix_fetch_initialised;
+    self.__rs_go_bridge__.finish_mixnet_connection = finish_mixnet_connection;
 }
 
 async function main() {
@@ -289,7 +252,7 @@ async function main() {
 
     // load rust WASM package
     sendLog('Loading Rust WASM...');
-    await wasm_bindgen(RUST_WASM_URL);
+    await wasm_bindgen({ module_or_path: RUST_WASM_URL });
     sendLog('Loaded Rust WASM');
 
     // load go WASM package
@@ -302,7 +265,7 @@ async function main() {
 
     setupRsGoBridge();
 
-    goWasmSetLogging("trace")
+    goWasmSetLogging("trace");
 
     // Set up message handler (MixFetch will be started on demand)
     setupMessageHandler();

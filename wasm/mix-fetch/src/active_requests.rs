@@ -6,7 +6,7 @@ use crate::go_bridge::{goWasmCloseRemoteSocket, goWasmInjectConnError, goWasmInj
 use crate::RequestId;
 use nym_ordered_buffer::OrderedMessageBuffer;
 use nym_socks5_requests::SocketData;
-use nym_wasm_utils::{console_error, console_log};
+use nym_wasm_utils::{console_error, console_log, console_warn};
 use rand::{thread_rng, RngCore};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -69,7 +69,8 @@ impl ActiveRequests {
         let mut guard = self.inner.lock().await;
         let old = guard.remove(&id);
         if old.is_none() {
-            console_error!("attempted to reject request {id}, but it seems to have never existed?")
+            console_error!("attempted to reject request {id}, but it no longer exists — likely already cleaned up by Go timeout");
+            return;
         }
 
         goWasmInjectConnError(id.to_string(), err.to_string())
@@ -79,12 +80,15 @@ impl ActiveRequests {
         let id = data.header.connection_id;
         let mut guard = self.inner.lock().await;
         let Some(req) = guard.get_mut(&id) else {
-            // if there's no data and the socket is closed, we're all good because our local must have already closed
+            // if there's no data and the socket is closed, we're all good because our local
+            // must have already closed - this is likely just a retransmitted fragment that
+            // arrived after the original
             if !data.data.is_empty() || !data.header.local_socket_closed {
-                console_error!("attempted to send data for request {id}, however it no longer exists. Has it been aborted?");
+                console_warn!(
+                    "received data for request {id} which is no longer active \
+                    (likely a retransmitted packet for an already-completed request)"
+                );
             }
-
-            // TODO: if it doesn't exist here, make sure to clear Go's memory too
             return;
         };
 

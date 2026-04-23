@@ -595,11 +595,25 @@ mod tests {
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent1)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent1,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent2)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent2,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 // sanity: both agents present
                 assert!(storage
@@ -647,11 +661,25 @@ mod tests {
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator_a, agent_a)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator_a,
+                    agent_a,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator_b, agent_b)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator_b,
+                    agent_b,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 let deps = tester.deps_mut();
                 storage.remove_orchestrator_authorisation(deps, &admin, orchestrator_a.clone())?;
@@ -927,10 +955,17 @@ mod tests {
 
                 let env = tester.env();
                 let deps = tester.deps_mut();
-                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+                storage.authorise_monitor(
+                    deps,
+                    &env,
+                    &orchestrator,
+                    agent,
+                    "test_noise_key".to_string(),
+                    1,
+                )?;
 
                 let deps = tester.deps_mut();
-                storage.remove_monitor_authorisation(deps, &admin, agent)?;
+                storage.remove_monitor_authorisation(deps, &admin, agent.ip())?;
 
                 assert!(storage
                     .authorised_agents

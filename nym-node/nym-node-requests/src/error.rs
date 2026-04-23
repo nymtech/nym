@@ -18,7 +18,7 @@ pub enum Error {
     },
 
     #[cfg(feature = "client")]
-    #[error("node {node_id} has provided malformed host information ({host}: {source}")]
+    #[error("node {node_id} has provided malformed host information ({host}: {source})")]
     MalformedHost {
         host: String,
 
@@ -42,7 +42,7 @@ pub enum Error {
     #[cfg(feature = "client")]
     #[error(
         "node {node_id} with host '{host}' doesn't seem to expose its declared http port nor any of the standard API ports, i.e.: 80, 443 or {}",
-        crate::api::helpers::STANDARD_NYM_NODE_HTTP_PORT
+        nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT
     )]
     NoHttpPortsAvailable { host: String, node_id: u32 },
 

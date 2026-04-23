@@ -171,7 +171,7 @@ impl RoutableNetworkMonitors {
         // ensure the provided addresses are always canonical
         Self {
             inner: Arc::new(DeclaredNetworkMonitorsInner {
-                known: ArcSwap::from_pointee(known.into_iter().map(IpAddr::to_canonical).collect()),
+                known: ArcSwap::from_pointee(known.iter().map(IpAddr::to_canonical).collect()),
             }),
         }
     }

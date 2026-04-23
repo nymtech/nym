@@ -52,7 +52,7 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     // 2. build instance of the agent (loads the noise keys)
     let agent = NetworkMonitorAgent::new(
-        args.common_args.build_config(mix_address),
+        args.common_args.build_config(mix_address)?,
         noise_key,
         orchestrator_client,
     );

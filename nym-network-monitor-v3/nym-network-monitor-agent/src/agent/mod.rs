@@ -453,6 +453,8 @@ impl NetworkMonitorAgent {
             .send_connectivity_probe(&mut egress, &mut processor, &mut result)
             .await?
         {
+            shutdown_token.cancel();
+            let _ = listener_join.await?;
             return Ok(result);
         }
 

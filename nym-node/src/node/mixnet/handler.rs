@@ -175,7 +175,13 @@ impl ConnectionHandler {
             delay_ms = tracing::field::Empty,
         )
     )]
-    fn handle_forward_packet(&self, now: Instant, mix_packet: MixPacket, delay: Option<Delay>) {
+    fn handle_forward_packet(
+        &self,
+        now: Instant,
+        mix_packet: MixPacket,
+        delay: Option<Delay>,
+        network_monitor_packet: bool,
+    ) {
         if !self.shared.processing_config.forward_hop_processing_enabled {
             warn!(
                 event = "packet.dropped.forward_disabled",
@@ -193,7 +199,8 @@ impl ConnectionHandler {
                 target.saturating_duration_since(now).as_millis() as u64,
             );
         }
-        self.shared.forward_mix_packet(mix_packet, forward_instant);
+        self.shared
+            .forward_mix_packet(mix_packet, forward_instant, network_monitor_packet);
     }
 
     #[instrument(
@@ -207,12 +214,27 @@ impl ConnectionHandler {
             ack_forwarded = false,
         )
     )]
-    async fn handle_final_hop(&self, final_hop_data: ProcessedFinalHop) {
+    async fn handle_final_hop(
+        &self,
+        final_hop_data: ProcessedFinalHop,
+        network_monitor_packet: bool,
+    ) {
         if !self.shared.processing_config.final_hop_processing_enabled {
             warn!(
                 event = "packet.dropped.final_hop_disabled",
                 remote_addr = %self.remote_address,
                 "dropping packet: final hop processing disabled"
+            );
+            self.shared
+                .dropped_final_hop_packet(self.remote_address.ip());
+            return;
+        }
+
+        if network_monitor_packet {
+            warn!(
+                event = "packet.dropped.network_monitor_final_hop",
+                remote_addr = %self.remote_address,
+                "dropping packet: unsupported network monitor final hop packets"
             );
             self.shared
                 .dropped_final_hop_packet(self.remote_address.ip());
@@ -439,6 +461,7 @@ impl ConnectionHandler {
         &self,
         now: Instant,
         unwrapped_packet: Result<MixProcessingResult, PacketProcessingError>,
+        network_monitor_packet: bool,
     ) {
         // 2. increment our favourite metrics stats
         self.shared
@@ -451,10 +474,11 @@ impl ConnectionHandler {
             }
             Ok(processed_packet) => match processed_packet.processing_data {
                 MixProcessingResultData::ForwardHop { packet, delay } => {
-                    self.handle_forward_packet(now, packet, delay);
+                    self.handle_forward_packet(now, packet, delay, network_monitor_packet);
                 }
                 MixProcessingResultData::FinalHop { final_hop_data } => {
-                    self.handle_final_hop(final_hop_data).await;
+                    self.handle_final_hop(final_hop_data, network_monitor_packet)
+                        .await;
                 }
             },
         }
@@ -492,7 +516,8 @@ impl ConnectionHandler {
                 // - Authorisation is on-chain and strictly controlled
                 //
                 // All bypass activity is tracked via `ingress_network_monitor_packet` metric.
-                if replayed && !self.is_from_authorised_network_monitor_agent() {
+                let network_monitor_packet = self.is_from_authorised_network_monitor_agent();
+                if replayed && !network_monitor_packet {
                     replays_detected += 1;
                     warn!(
                         event = "packet.dropped.replay",
@@ -500,13 +525,18 @@ impl ConnectionHandler {
                         rotation_id,
                         "dropping replayed packet"
                     );
-                    self.handle_unwrapped_packet(now, Err(PacketProcessingError::PacketReplay))
-                        .await;
+                    self.handle_unwrapped_packet(
+                        now,
+                        Err(PacketProcessingError::PacketReplay),
+                        network_monitor_packet,
+                    )
+                    .await;
                     continue;
                 }
 
                 let unwrapped_packet = packet.finalise_unwrapping();
-                self.handle_unwrapped_packet(now, unwrapped_packet).await;
+                self.handle_unwrapped_packet(now, unwrapped_packet, network_monitor_packet)
+                    .await;
             }
         }
         if replays_detected > 0 {
@@ -598,7 +628,10 @@ impl ConnectionHandler {
         packet: FramedNymPacket,
     ) {
         let unwrapped_packet = self.try_full_unwrap_packet(packet);
-        self.handle_unwrapped_packet(now, unwrapped_packet).await;
+
+        let is_network_monitor_packet = self.is_from_authorised_network_monitor_agent();
+        self.handle_unwrapped_packet(now, unwrapped_packet, is_network_monitor_packet)
+            .await;
     }
 
     #[instrument(skip(self, packet), level = "debug")]

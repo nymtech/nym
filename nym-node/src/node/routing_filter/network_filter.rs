@@ -10,13 +10,14 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 impl RoutingFilter for NetworkRoutingFilter {
-    fn should_route(&self, ip: IpAddr) -> bool {
+    fn should_route(&self, ip: IpAddr, is_network_monitor_packet: bool) -> bool {
         // only allow non-global ips on testnets
         if self.testnet_mode && !is_global_ip(&ip) {
             return true;
         }
 
-        self.attempt_resolve(ip).should_route()
+        self.attempt_resolve(ip, is_network_monitor_packet)
+            .should_route()
     }
 }
 
@@ -53,18 +54,31 @@ impl NetworkRoutingFilter {
         self.resolved.network_monitors.clone()
     }
 
-    pub(crate) fn attempt_resolve(&self, ip: IpAddr) -> Resolution {
+    pub(crate) fn attempt_resolve(
+        &self,
+        ip: IpAddr,
+        is_network_monitor_packet: bool,
+    ) -> Resolution {
+        // if packet has come from a network monitor it can ONLY go to another network monitor
+        if is_network_monitor_packet {
+            return if self.resolved.network_monitors.is_known(&ip) {
+                Resolution::Accept
+            } else {
+                Resolution::Deny
+            };
+        }
+
         if self.resolved.nym_nodes.inner.allowed.load().contains(&ip) {
-            // accept any traffic from known and resolved nym-nodes
+            // accept any traffic to known and resolved nym-nodes
             Resolution::Accept
         } else if self.resolved.nym_nodes.inner.denied.load().contains(&ip) {
-            // deny any traffic from confirmed non-nym nodes
+            // deny any traffic to confirmed non-nym nodes
             Resolution::Deny
         } else if self.resolved.network_monitors.is_known(&ip) {
-            // accept any traffic from known network monitors
+            // accept any traffic to known network monitors
             Resolution::Accept
         } else {
-            // put any unknown sources into resolution queue
+            // put any unknown destinations into resolution queue
             self.pending.try_insert(ip);
             Resolution::Unknown
         }

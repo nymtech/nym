@@ -6533,7 +6533,7 @@ dependencies = [
 
 [[package]]
 name = "nym-data-observatory"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "async-trait",

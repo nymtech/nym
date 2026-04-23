@@ -1,14 +1,15 @@
 [package]
 name = "nym-network-monitor-agent"
+description = "Agent used for stress testing Nym mixnodes"
+version = "1.0.0"
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-version = "1.0.0"
 publish = false
 
 [dependencies]
@@ -31,8 +32,8 @@ url = { workspace = true }
 
 # methods to recreate lioness
 # we don't care about particular versions - just pull whatever is used by sphinx
-lioness = "*"
-arrayref = "*"
+lioness = { workspace = true }
+arrayref = { workspace = true }
 sha2 = { workspace = true }
 hkdf = { workspace = true }
 x25519-dalek = { workspace = true }

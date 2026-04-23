@@ -21,6 +21,7 @@ name = "network_monitors_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+bs58 = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true }

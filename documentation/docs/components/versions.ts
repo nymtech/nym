@@ -10,6 +10,7 @@
  *
  *   pages/developers/smolmix/tutorial.mdx
  *   pages/developers/smolmix/tutorial-udp.mdx
+ *   pages/developers/smolmix/tutorial-websocket.mdx
  *   pages/developers/rust/importing.mdx
  *   pages/developers/rust/mixnet/tutorial.mdx
  *   pages/developers/rust/stream/tutorial.mdx

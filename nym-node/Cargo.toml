@@ -28,6 +28,7 @@ console-subscriber = { workspace = true, optional = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 dashmap = { workspace = true }
+flume= { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
 humantime-serde = { workspace = true }

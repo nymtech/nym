@@ -110,7 +110,7 @@ pub enum PacketProcessingError {
     PacketReplay,
 }
 
-pub struct PartialyUnwrappedPacketWithKeyRotation {
+pub struct PartiallyUnwrappedPacketWithKeyRotation {
     pub packet: PartiallyUnwrappedPacket,
     pub used_key_rotation: u32,
 }
@@ -183,8 +183,8 @@ impl PartiallyUnwrappedPacket {
     pub fn with_key_rotation(
         self,
         used_key_rotation: u32,
-    ) -> PartialyUnwrappedPacketWithKeyRotation {
-        PartialyUnwrappedPacketWithKeyRotation {
+    ) -> PartiallyUnwrappedPacketWithKeyRotation {
+        PartiallyUnwrappedPacketWithKeyRotation {
             packet: self,
             used_key_rotation,
         }

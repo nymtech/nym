@@ -104,6 +104,12 @@ impl MixingStats {
             .dropped += 1;
     }
 
+    pub fn ingress_dropped_overflow_packet(&self) {
+        self.ingress
+            .overflow_packets_dropped
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
     pub fn ingress_dropped_final_hop_packet(&self, source: IpAddr) {
         self.ingress
             .final_hop_packets_dropped
@@ -252,6 +258,9 @@ pub struct IngressMixingStats {
     // final hop packets (i.e. to gateway)
     final_hop_packets_dropped: AtomicUsize,
 
+    /// Packets that were dropped because the ingress channel queue was full
+    overflow_packets_dropped: AtomicUsize,
+
     senders: DashMap<IpAddr, IngressRecipientStats>,
 }
 
@@ -282,6 +291,10 @@ impl IngressMixingStats {
 
     pub fn final_hop_packets_dropped(&self) -> usize {
         self.final_hop_packets_dropped.load(Ordering::Relaxed)
+    }
+
+    pub fn overflow_packets_dropped(&self) -> usize {
+        self.overflow_packets_dropped.load(Ordering::Relaxed)
     }
 
     pub fn senders(&self) -> &DashMap<IpAddr, IngressRecipientStats> {

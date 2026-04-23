@@ -1,9 +1,4 @@
-/**
- * Lints the webpack helper scripts in this package (index.js, webpack.*.js).
- *
- * Intentionally minimal - prettier + eslint:recommended only; matches the
- * pre-flat-config behavior from the previous .eslintrc.json.
- */
+// webpack package: root *.js only (matches `eslint *.js`).
 
 const js = require('@eslint/js');
 const prettierPlugin = require('eslint-plugin-prettier');

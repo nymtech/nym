@@ -1,10 +1,4 @@
-/**
- * Self-lint config for the shared eslint-config package itself.
- *
- * Intentionally lightweight - this file lints `index.js` (and only that), so
- * we avoid pulling in the full airbnb / typescript-eslint chain that the
- * exported config carries for consumers.
- */
+// Self-lint only: index.js, eslint.config.js (see package.json `eslint *.js`).
 
 const js = require('@eslint/js');
 const prettierPlugin = require('eslint-plugin-prettier');
@@ -13,7 +7,7 @@ const prettierConfig = require('eslint-config-prettier');
 module.exports = [
   js.configs.recommended,
   {
-    files: ['*.js'],
+    files: ['index.js', 'eslint.config.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',

@@ -1,9 +1,4 @@
-/**
- * Flat ESLint config for @nymproject/nym-wallet-app.
- *
- * Imports the shared React/TS preset and overrides parserOptions.project to
- * point at the wallet's dedicated lint tsconfig.
- */
+// nym-wallet: shared preset + tsconfig.eslint.json
 
 const sharedConfig = require('@nymproject/eslint-config-react-typescript');
 

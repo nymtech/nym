@@ -10,13 +10,14 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 impl RoutingFilter for NetworkRoutingFilter {
-    fn should_route(&self, ip: IpAddr) -> bool {
+    fn should_route(&self, ip: IpAddr, is_network_monitor_packet: bool) -> bool {
         // only allow non-global ips on testnets
         if self.testnet_mode && !is_global_ip(&ip) {
             return true;
         }
 
-        self.attempt_resolve(ip).should_route()
+        self.attempt_resolve(ip, is_network_monitor_packet)
+            .should_route()
     }
 }
 
@@ -40,26 +41,72 @@ impl NetworkRoutingFilter {
         }
     }
 
-    pub(crate) fn attempt_resolve(&self, ip: IpAddr) -> Resolution {
-        if self.resolved.inner.allowed.load().contains(&ip) {
+    #[must_use]
+    pub(crate) fn with_known_network_monitors(
+        mut self,
+        known_network_monitors: HashSet<IpAddr>,
+    ) -> Self {
+        self.resolved.network_monitors = DeclaredNetworkMonitors::new(known_network_monitors);
+        self
+    }
+
+    pub(crate) fn known_network_monitors_handle(&self) -> DeclaredNetworkMonitors {
+        self.resolved.network_monitors.clone()
+    }
+
+    pub(crate) fn attempt_resolve(
+        &self,
+        ip: IpAddr,
+        is_network_monitor_packet: bool,
+    ) -> Resolution {
+        // if packet has come from a network monitor it can ONLY go to another network monitor
+        if is_network_monitor_packet {
+            return if self.resolved.network_monitors.is_known(&ip) {
+                Resolution::Accept
+            } else {
+                Resolution::Deny
+            };
+        }
+
+        if self.resolved.nym_nodes.inner.allowed.load().contains(&ip) {
+            // accept any traffic to known and resolved nym-nodes
             Resolution::Accept
-        } else if self.resolved.inner.denied.load().contains(&ip) {
+        } else if self.resolved.nym_nodes.inner.denied.load().contains(&ip) {
+            // deny any traffic to confirmed non-nym nodes
             Resolution::Deny
+        } else if self.resolved.network_monitors.is_known(&ip) {
+            // accept any traffic to known network monitors
+            Resolution::Accept
         } else {
+            // put any unknown destinations into resolution queue
             self.pending.try_insert(ip);
             Resolution::Unknown
         }
     }
 
     pub(crate) fn allowed_nodes_copy(&self) -> HashSet<IpAddr> {
-        self.resolved.inner.allowed.load_full().as_ref().clone()
+        self.resolved.nym_nodes.clone_allowed()
     }
 
     pub(crate) fn denied_nodes_copy(&self) -> HashSet<IpAddr> {
-        self.resolved.inner.denied.load_full().as_ref().clone()
+        self.resolved.nym_nodes.clone_denied()
     }
 }
 
+/// Temporary queue of IP addresses that need resolution (are they Nym nodes or not?).
+///
+/// # Behaviour
+///
+/// - Packets from unknown IPs are denied initially and the IP is queued here
+/// - A background task periodically processes this queue via nym-api lookups
+/// - Once resolved, IPs are moved to either `allowed` or `denied` sets
+///
+/// # Lock Strategy
+///
+/// Uses `try_insert()` to avoid blocking the packet processing path:
+/// - If lock is immediately available: insert the IP
+/// - If lock is contended: skip insertion, will retry on next packet from same IP
+/// - This is acceptable because resolution happens periodically anyway
 #[derive(Clone, Default)]
 pub(crate) struct UnknownNodes(Arc<RwLock<HashSet<IpAddr>>>);
 
@@ -84,17 +131,122 @@ impl UnknownNodes {
 
 // for now we don't care about keys, etc.
 // we only want to know if given ip belongs to a known node
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct KnownNodes {
-    inner: Arc<KnownNodesInner>,
+    nym_nodes: KnownNymNodes,
+    network_monitors: DeclaredNetworkMonitors,
+}
+
+impl KnownNodes {
+    pub(crate) fn swap_allowed(&self, new: HashSet<IpAddr>) {
+        self.nym_nodes.swap_allowed(new)
+    }
+
+    pub(crate) fn swap_denied(&self, new: HashSet<IpAddr>) {
+        self.nym_nodes.swap_denied(new)
+    }
+}
+
+/// Thread-safe, lock-free storage for authorised Network Monitor agents IP addresses.
+///
+/// # Concurrency Strategy
+///
+/// Uses `ArcSwap` for lock-free reads on the hot path (packet processing). Writes are rare
+/// (only when blockchain authorisation events occur)
+/// and involve cloning the HashSet, but this is acceptable because:
+/// - Network monitor authorisations change extremely infrequently (on orchestrator startup with >5s per block)
+/// - Read performance is critical (happens on every packet from unknown IPs)
+/// - The HashSet is typically very small (<100 entries)
+///
+/// # Cloning
+///
+/// Cloning `DeclaredNetworkMonitors` is cheap (only clones the `Arc`), not the underlying data.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct DeclaredNetworkMonitors {
+    inner: Arc<DeclaredNetworkMonitorsInner>,
+}
+
+impl DeclaredNetworkMonitors {
+    pub(crate) fn new(known: HashSet<IpAddr>) -> Self {
+        Self {
+            inner: Arc::new(DeclaredNetworkMonitorsInner {
+                known: ArcSwap::from_pointee(known),
+            }),
+        }
+    }
+
+    fn swap(&self, new: HashSet<IpAddr>) {
+        self.inner.known.store(Arc::new(new))
+    }
+
+    pub(crate) fn add_known(&self, address: IpAddr) {
+        if self.is_known(&address) {
+            return;
+        }
+        let mut known = self.inner.known.load().as_ref().clone();
+        known.insert(address);
+        self.swap(known);
+    }
+
+    pub(crate) fn remove_known(&self, address: IpAddr) {
+        if !self.is_known(&address) {
+            return;
+        }
+        let mut known = self.inner.known.load().as_ref().clone();
+        known.remove(&address);
+        self.swap(known);
+    }
+
+    pub(crate) fn reset(&self) {
+        self.swap(HashSet::new())
+    }
+
+    pub(crate) fn is_known(&self, address: &IpAddr) -> bool {
+        self.inner.known.load().contains(address)
+    }
 }
 
 #[derive(Debug, Default)]
-struct KnownNodesInner {
+struct DeclaredNetworkMonitorsInner {
+    known: ArcSwap<HashSet<IpAddr>>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct KnownNymNodes {
+    inner: Arc<KnownNymNodesInner>,
+}
+
+impl KnownNymNodes {
+    fn clone_allowed(&self) -> HashSet<IpAddr> {
+        self.inner.allowed.load_full().as_ref().clone()
+    }
+
+    fn clone_denied(&self) -> HashSet<IpAddr> {
+        self.inner.denied.load_full().as_ref().clone()
+    }
+
+    fn swap_allowed(&self, new: HashSet<IpAddr>) {
+        self.inner.allowed.store(Arc::new(new))
+    }
+
+    fn swap_denied(&self, new: HashSet<IpAddr>) {
+        self.inner.denied.store(Arc::new(new))
+    }
+}
+
+#[derive(Debug, Default)]
+struct KnownNymNodesInner {
     allowed: ArcSwap<HashSet<IpAddr>>,
     denied: ArcSwap<HashSet<IpAddr>>,
 }
 
+/// Result of attempting to resolve whether an IP address should be allowed to route packets.
+///
+/// # Semantics
+///
+/// - `Accept`: IP is a known Nym node OR authorised network monitor - route the packet
+/// - `Deny`: IP has been confirmed as NOT a Nym node - drop the packet
+/// - `Unknown`: IP hasn't been resolved yet - queue for lookup but DENY the packet
 pub(crate) enum Resolution {
     Unknown,
     Deny,
@@ -114,15 +266,5 @@ impl From<bool> for Resolution {
 impl Resolution {
     pub(crate) fn should_route(&self) -> bool {
         matches!(self, Resolution::Accept)
-    }
-}
-
-impl KnownNodes {
-    pub(crate) fn swap_allowed(&self, new: HashSet<IpAddr>) {
-        self.inner.allowed.store(Arc::new(new))
-    }
-
-    pub(crate) fn swap_denied(&self, new: HashSet<IpAddr>) {
-        self.inner.denied.store(Arc::new(new))
     }
 }

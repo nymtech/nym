@@ -110,6 +110,7 @@ impl ConnectionHandler {
                 final_hop: shared.final_hop.clone(),
                 noise_config: shared.noise_config.clone(),
                 metrics: shared.metrics.clone(),
+                authorised_network_monitor_agents: shared.authorised_network_monitor_agents.clone(),
                 shutdown_token: shared.shutdown_token.child_token(),
             },
             remote_address,
@@ -117,8 +118,35 @@ impl ConnectionHandler {
         }
     }
 
+    /// Check if the current connection is from an authorised Network Monitor agent.
+    ///
+    /// # Replay Protection Bypass
+    ///
+    /// Network Monitor agents are granted special privileges to bypass replay protection.
+    /// This allows them to intentionally send replayed packets for testing purposes to reduce
+    /// the processing required to generate enough packets required for stress testing.
+    ///
+    /// # Security
+    ///
+    /// - Authorisation is controlled on-chain via the Network Monitors smart contract
+    /// - Only specific IP addresses can bypass replay protection (not public keys or other identifiers)
+    /// - All bypass events are logged and tracked via Prometheus metrics
+    /// - Regular nodes cannot bypass replay protection under any circumstances
+    ///
+    /// # Authorisation Source
+    ///
+    /// The list of authorised IPs is:
+    /// 1. Initially loaded from the contract at node startup
+    /// 2. Updated in real-time via blockchain subscription (see `NetworkMonitorAgentsModule`)
+    /// 3. Shared across all connection handlers via lock-free `ArcSwap`
+    fn is_from_authorised_network_monitor_agent(&self) -> bool {
+        self.shared
+            .authorised_network_monitor_agents
+            .is_known(&self.remote_address.ip())
+    }
+
     /// Determine instant at which packet should get forwarded to the next hop.
-    /// By using [`Instant`] rather than explicit [`Duration`] we minimise effects of
+    /// By using [`Instant`] rather than explicit [`Duration`], we minimise the effects of
     /// the skew caused by being stuck in the channel queue.
     /// This method also clamps the maximum allowed delay so that nobody could send a bunch of packets
     /// with, for example, delays of 1 year thus causing denial of service
@@ -147,7 +175,13 @@ impl ConnectionHandler {
             delay_ms = tracing::field::Empty,
         )
     )]
-    fn handle_forward_packet(&self, now: Instant, mix_packet: MixPacket, delay: Option<Delay>) {
+    fn handle_forward_packet(
+        &self,
+        now: Instant,
+        mix_packet: MixPacket,
+        delay: Option<Delay>,
+        network_monitor_packet: bool,
+    ) {
         if !self.shared.processing_config.forward_hop_processing_enabled {
             warn!(
                 event = "packet.dropped.forward_disabled",
@@ -165,7 +199,8 @@ impl ConnectionHandler {
                 target.saturating_duration_since(now).as_millis() as u64,
             );
         }
-        self.shared.forward_mix_packet(mix_packet, forward_instant);
+        self.shared
+            .forward_mix_packet(mix_packet, forward_instant, network_monitor_packet);
     }
 
     #[instrument(
@@ -179,12 +214,27 @@ impl ConnectionHandler {
             ack_forwarded = false,
         )
     )]
-    async fn handle_final_hop(&self, final_hop_data: ProcessedFinalHop) {
+    async fn handle_final_hop(
+        &self,
+        final_hop_data: ProcessedFinalHop,
+        network_monitor_packet: bool,
+    ) {
         if !self.shared.processing_config.final_hop_processing_enabled {
             warn!(
                 event = "packet.dropped.final_hop_disabled",
                 remote_addr = %self.remote_address,
                 "dropping packet: final hop processing disabled"
+            );
+            self.shared
+                .dropped_final_hop_packet(self.remote_address.ip());
+            return;
+        }
+
+        if network_monitor_packet {
+            warn!(
+                event = "packet.dropped.network_monitor_final_hop",
+                remote_addr = %self.remote_address,
+                "dropping packet: unsupported network monitor final hop packets"
             );
             self.shared
                 .dropped_final_hop_packet(self.remote_address.ip());
@@ -411,6 +461,7 @@ impl ConnectionHandler {
         &self,
         now: Instant,
         unwrapped_packet: Result<MixProcessingResult, PacketProcessingError>,
+        network_monitor_packet: bool,
     ) {
         // 2. increment our favourite metrics stats
         self.shared
@@ -423,10 +474,11 @@ impl ConnectionHandler {
             }
             Ok(processed_packet) => match processed_packet.processing_data {
                 MixProcessingResultData::ForwardHop { packet, delay } => {
-                    self.handle_forward_packet(now, packet, delay);
+                    self.handle_forward_packet(now, packet, delay, network_monitor_packet);
                 }
                 MixProcessingResultData::FinalHop { final_hop_data } => {
-                    self.handle_final_hop(final_hop_data).await;
+                    self.handle_final_hop(final_hop_data, network_monitor_packet)
+                        .await;
                 }
             },
         }
@@ -446,7 +498,26 @@ impl ConnectionHandler {
                 continue;
             };
             for (packet, &replayed) in packets.into_iter().zip(replay_checks) {
-                let unwrapped_packet = if replayed {
+                // CRITICAL SECURITY DECISION POINT: Replay Protection Bypass for Network Monitors
+                //
+                // This is where we decide whether to enforce replay protection for this packet.
+                // The decision tree is:
+                //
+                // 1. Is packet replayed? (bloomfilter check already completed)
+                //    NO  → Process normally (finalise_unwrapping)
+                //    YES → Go to step 2
+                //
+                // 2. Is source IP an authorised network monitor?
+                //    YES → BYPASS replay protection, process packet normally
+                //    NO  → DROP packet, increment metrics, log warning
+                //
+                // Why we allow network monitors to replay:
+                // - They need to be able to generate high volumes of packets in short bursts
+                // - Authorisation is on-chain and strictly controlled
+                //
+                // All bypass activity is tracked via `ingress_network_monitor_packet` metric.
+                let network_monitor_packet = self.is_from_authorised_network_monitor_agent();
+                if replayed && !network_monitor_packet {
                     replays_detected += 1;
                     warn!(
                         event = "packet.dropped.replay",
@@ -454,12 +525,18 @@ impl ConnectionHandler {
                         rotation_id,
                         "dropping replayed packet"
                     );
-                    Err(PacketProcessingError::PacketReplay)
-                } else {
-                    packet.finalise_unwrapping()
-                };
+                    self.handle_unwrapped_packet(
+                        now,
+                        Err(PacketProcessingError::PacketReplay),
+                        network_monitor_packet,
+                    )
+                    .await;
+                    continue;
+                }
 
-                self.handle_unwrapped_packet(now, unwrapped_packet).await;
+                let unwrapped_packet = packet.finalise_unwrapping();
+                self.handle_unwrapped_packet(now, unwrapped_packet, network_monitor_packet)
+                    .await;
             }
         }
         if replays_detected > 0 {
@@ -551,7 +628,10 @@ impl ConnectionHandler {
         packet: FramedNymPacket,
     ) {
         let unwrapped_packet = self.try_full_unwrap_packet(packet);
-        self.handle_unwrapped_packet(now, unwrapped_packet).await;
+
+        let is_network_monitor_packet = self.is_from_authorised_network_monitor_agent();
+        self.handle_unwrapped_packet(now, unwrapped_packet, is_network_monitor_packet)
+            .await;
     }
 
     #[instrument(skip(self, packet), level = "debug")]

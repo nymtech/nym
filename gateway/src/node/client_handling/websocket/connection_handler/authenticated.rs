@@ -241,7 +241,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
             .inner
             .shared_state
             .outbound_mix_sender
-            .forward_packet(mix_packet)
+            .forward_client_packet_without_delay(mix_packet)
         {
             error!("We failed to forward requested mix packet - {err}. Presumably our mix forwarder has crashed. We cannot continue.");
             process::exit(1);

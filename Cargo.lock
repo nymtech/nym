@@ -7610,6 +7610,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-kkt-ciphersuite",
+ "nym-network-defaults",
  "nym-noise-keys",
  "nym-test-utils",
  "nym-upgrade-mode-check",

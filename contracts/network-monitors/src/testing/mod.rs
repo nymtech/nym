@@ -100,7 +100,7 @@ pub trait NetworkMonitorsContractTesterExt:
             orchestrator,
             ExecuteMsg::AuthoriseNetworkMonitor {
                 mixnet_address: agent,
-                bs58_x25519_noise: "noise123".to_string(),
+                bs58_x25519_noise: "11111111111111111111111111111111".to_string(),
                 noise_version: 1,
             },
         )

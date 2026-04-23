@@ -1185,6 +1185,7 @@ name = "network-monitors"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",

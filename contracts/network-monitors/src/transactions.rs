@@ -61,6 +61,20 @@ pub fn try_authorise_network_monitor(
     bs58_x25519_noise: String,
     noise_version: u8,
 ) -> Result<Response, NetworkMonitorsContractError> {
+    // perform basic validation of the key, i.e. is it valid base58 and is it 32 bytes (i.e. x25519)?
+    let mut public_key = [0u8; 32];
+    let used = bs58::decode(&bs58_x25519_noise)
+        .onto(&mut public_key)
+        .map_err(|err| {
+            NetworkMonitorsContractError::MalformedX25519AgentNoiseKey(err.to_string())
+        })?;
+
+    if used != 32 {
+        return Err(NetworkMonitorsContractError::MalformedX25519AgentNoiseKey(
+            "Too few bytes provided for the public key".into(),
+        ));
+    }
+
     NETWORK_MONITORS_CONTRACT_STORAGE.authorise_monitor(
         deps,
         &env,
@@ -100,6 +114,9 @@ mod tests {
     use crate::testing::{init_contract_tester, NetworkMonitorsContractTesterExt};
     use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
     use nym_network_monitors_contract_common::ExecuteMsg;
+
+    // bs58 encoding of 32 zero bytes — a syntactically valid x25519 key for tests
+    const TEST_NOISE_KEY: &str = "11111111111111111111111111111111";
 
     #[cfg(test)]
     mod updating_contract_admin {
@@ -399,7 +416,7 @@ mod tests {
                     non_orchestrator.clone(),
                     ExecuteMsg::AuthoriseNetworkMonitor {
                         mixnet_address: agent,
-                        bs58_x25519_noise: "test_noise_key".to_string(),
+                        bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                         noise_version: 1,
                     },
                 )
@@ -417,7 +434,7 @@ mod tests {
                 orchestrator,
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             );
@@ -441,7 +458,7 @@ mod tests {
                 orchestrator.clone(),
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             )?;
@@ -466,7 +483,7 @@ mod tests {
                 orchestrator.clone(),
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             )?;
@@ -481,7 +498,7 @@ mod tests {
                 orchestrator.clone(),
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             )?;
@@ -513,7 +530,7 @@ mod tests {
                 orchestrator.clone(),
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             )?;
@@ -541,7 +558,7 @@ mod tests {
                 orchestrator,
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             )?;
@@ -574,7 +591,7 @@ mod tests {
                 orchestrator,
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             )?;
@@ -603,7 +620,7 @@ mod tests {
                 orchestrator.clone(),
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             )?;
@@ -675,7 +692,7 @@ mod tests {
                 orchestrator.clone(),
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent1,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             )?;
@@ -683,7 +700,7 @@ mod tests {
                 orchestrator.clone(),
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent2,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             )?;
@@ -691,7 +708,7 @@ mod tests {
                 orchestrator.clone(),
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent3,
-                    bs58_x25519_noise: "test_noise_key".to_string(),
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
                 },
             )?;

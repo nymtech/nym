@@ -112,7 +112,7 @@ impl SecretKeyAuth {
         let ys_len = self.ys.len();
         let mut bytes = Vec::with_capacity(8 + (ys_len + 1) * 32);
         bytes.extend_from_slice(&self.x.to_bytes());
-        bytes.extend_from_slice(&ys_len.to_le_bytes());
+        bytes.extend_from_slice(&(ys_len as u64).to_le_bytes());
         for y in self.ys.iter() {
             bytes.extend_from_slice(&y.to_bytes())
         }
@@ -337,7 +337,7 @@ impl VerificationKeyAuth {
 
         bytes.extend_from_slice(&self.alpha.to_affine().to_compressed());
 
-        bytes.extend_from_slice(&beta_g1_len.to_le_bytes());
+        bytes.extend_from_slice(&(beta_g1_len as u64).to_le_bytes());
 
         for beta_g1 in self.beta_g1.iter() {
             bytes.extend_from_slice(&beta_g1.to_affine().to_compressed())

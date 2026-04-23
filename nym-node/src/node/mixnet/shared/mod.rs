@@ -205,11 +205,20 @@ impl SharedData {
         }
     }
 
-    pub(super) fn forward_mix_packet(&self, packet: MixPacket, delay_until: Option<Instant>) {
+    pub(super) fn forward_mix_packet(
+        &self,
+        packet: MixPacket,
+        delay_until: Option<Instant>,
+        network_monitor_packet: bool,
+    ) {
         let has_delay = delay_until.is_some();
         if self
             .mixnet_forwarder
-            .forward_packet(PacketToForward::new(packet, delay_until))
+            .forward_packet(PacketToForward::new(
+                packet,
+                delay_until,
+                network_monitor_packet,
+            ))
             .is_err()
             && !self.shutdown_token.is_cancelled()
         {
@@ -224,7 +233,7 @@ impl SharedData {
 
     pub(super) fn forward_ack_packet(&self, forward_ack: Option<MixPacket>) {
         if let Some(forward_ack) = forward_ack {
-            self.forward_mix_packet(forward_ack, None);
+            self.forward_mix_packet(forward_ack, None, false);
             self.metrics.mixnet.egress_sent_ack();
         }
     }

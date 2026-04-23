@@ -1,9 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-/// The default HTTP API port exposed by nym-nodes that are not behind a reverse proxy.
-pub const STANDARD_NYM_NODE_HTTP_PORT: u16 = 8080;
-
 #[cfg(feature = "client")]
 pub use client_helpers::*;
 
@@ -12,9 +9,8 @@ mod client_helpers {
     use crate::api::SignedHostInformation;
     use crate::api::client::NymNodeApiClientExt;
     use nym_http_api_client::UserAgent;
+    use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
     use std::time::Duration;
-
-    use super::STANDARD_NYM_NODE_HTTP_PORT;
 
     /// Builder-style helper for obtaining a validated [`crate::api::Client`] for a nym-node.
     ///
@@ -215,7 +211,7 @@ mod client_helpers {
         // then default https (443)
         // finally default http (80)
         let mut addresses_to_try = vec![
-            format!("http://{base_host}:{STANDARD_NYM_NODE_HTTP_PORT}"), // 'standard' nym-node
+            format!("http://{base_host}:{DEFAULT_NYM_NODE_HTTP_PORT}"), // 'standard' nym-node
             format!("https://{base_host}"), // node behind https proxy (443)
             format!("http://{base_host}"),  // node behind http proxy (80)
         ];

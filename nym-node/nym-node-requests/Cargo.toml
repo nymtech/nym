@@ -42,6 +42,7 @@ nym-kkt-ciphersuite = { workspace = true }
 ## client:
 async-trait = { workspace = true, optional = true }
 nym-http-api-client = { workspace = true, optional = true }
+nym-network-defaults = { workspace = true, optional = true }
 
 ## openapi:
 utoipa = { workspace = true, features = ["time"], optional = true }
@@ -57,7 +58,7 @@ nym-crypto = { workspace = true, features = ["rand"] }
 
 [features]
 default = ["client"]
-client = ["nym-http-api-client", "async-trait"]
+client = ["nym-http-api-client", "async-trait", "nym-network-defaults"]
 openapi = ["utoipa", "nym-bin-common/openapi", "nym-exit-policy/openapi"]
 
 [lints]

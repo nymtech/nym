@@ -3,19 +3,53 @@ title: "smolmix: TCP/UDP Over the Nym Mixnet"
 description: "A userspace IP tunnel that provides standard TcpStream and UdpSocket types over the Nym mixnet. Drop-in compatible with tokio-rustls, hyper, tungstenite, and the async Rust ecosystem."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-04-17"
+lastUpdated: "2026-04-23"
 ---
 
 # smolmix
 
 import { Callout } from 'nextra/components'
-import { CratesPaused } from '../../components/crates-paused'
-
-<CratesPaused />
 
 `smolmix` is a TCP/UDP tunnel over the Nym mixnet. It uses a userspace network stack [`smoltcp`](https://docs.rs/smoltcp/latest/smoltcp/) to provide real `TcpStream` and `UdpSocket` types that work transparently with the async Rust ecosystem — `tokio-rustls`, `hyper`, `tokio-tungstenite`, and anything else built on `AsyncRead + AsyncWrite`.
 
-It also serves as the core for upcoming companion crates that plug into specific frameworks (e.g. `hyper` connectors, DNS resolvers).
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  Your application (TLS, HTTP, WebSocket, DNS, etc.)              │
+│       └─ smolmix::TcpStream / UdpSocket                         │
+│            └─ smoltcp (userspace TCP/IP)                         │
+│                 └─ Nym mixnet → IPR exit gateway → internet      │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+Traffic exits the mixnet at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway — the exit IP is the gateway's, not yours.
+
+## Installation
+
+Add `smolmix` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+smolmix = "X.Y.Z"
+nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+blake3 = "=1.7.0"  # required pin — see note below
+```
+
+<Callout type="warning">
+**Temporary pin required.** You must pin `blake3 = "=1.7.0"` to avoid a build failure caused by a transitive `digest` version conflict. This will be resolved in a future release.
+</Callout>
+
+`nym-bin-common` is optional but recommended — it sets up `tracing` logging so you can see mixnet connection progress. The tutorials all use it.
+
+**Minimum Rust version:** 1.70+
+
+### From Git
+
+For unreleased changes, import directly from the repository:
+
+```toml
+smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
+```
 
 ## Quick start
 
@@ -31,10 +65,6 @@ let udp = tunnel.udp_socket().await?;
 
 See [Tutorial 1](./smolmix/tutorial) for a full walkthrough.
 
-## API reference
-
-Full API documentation is available on [docs.rs/smolmix](https://docs.rs/smolmix).
-
 ## When to use smolmix
 
 | | smolmix | Stream module | mixFetch | SOCKS client |
@@ -46,6 +76,46 @@ Full API documentation is available on [docs.rs/smolmix](https://docs.rs/smolmix
 | **Composability** | Full — TLS, HTTP, WebSocket, DNS, etc. stack on top | Byte streams only | HTTP(S) only | Application-dependent |
 | **Best for** | Reaching external services from Rust with standard networking | Peer-to-peer / E2E protocols between Nym clients | Browser HTTP requests | Legacy apps with SOCKS support |
 
+## Security model
+
+<Callout type="warning">
+Traffic is Sphinx-encrypted inside the mixnet, but between the exit gateway and the remote host it travels as **normal internet traffic**. Always encrypt the final hop — TLS (rustls), Noise Protocol (snow/libp2p), or any authenticated encryption layer.
+</Callout>
+
+### What's protected
+
+| Segment | Encryption | Who sees what |
+|---|---|---|
+| Your machine → mixnet entry | Sphinx (layered) | Entry gateway sees your IP but not the destination |
+| Inside the mixnet (5 hops) | Sphinx (layered) | Each mix node only knows prev/next hop |
+| Exit gateway (IPR) | Decrypted to raw IP | IPR sees destination IP + port + unencrypted payload |
+| IPR → remote host | Whatever you add (TLS, Noise, etc.) | Remote host sees IPR's IP, not yours |
+
+### Trust boundaries
+
+- **You trust the mixnet** to provide unlinkability between sender and receiver. This is enforced cryptographically by Sphinx packet format and mixing.
+- **You trust the IPR exit gateway** in the same way you trust a VPN exit or Tor exit node — it can see your raw traffic unless you encrypt it. The difference is that the IPR doesn't know *who* is sending the traffic (the mixnet hides your identity).
+- **Encryption closes the gap.** When you layer TLS (as in [Tutorial 1](/developers/smolmix/tutorial)) or Noise Protocol, the IPR sees encrypted bytes going to a destination IP. It knows you're talking to `httpbin.org:443` but can't read the content.
+
+### Comparison with other privacy tools
+
+| | smolmix | Tor | VPN |
+|---|---|---|---|
+| **Exit node sees traffic?** | Yes (encrypt it) | Yes (encrypt it) | Yes (encrypt it) |
+| **Exit node knows sender?** | No (mixnet hides identity) | No (onion routing) | Yes (VPN provider knows) |
+| **Timing analysis resistance** | Strong (mixing, cover traffic) | Weak (low-latency) | None |
+| **UDP support** | Yes | No (TCP only) | Yes |
+
+## Performance
+
+The mixnet adds latency at each hop due to mixing delays (packets are held and reordered to prevent timing analysis). Expect:
+
+- **TCP round-trip:** 1–5 seconds for typical requests (vs. milliseconds on clearnet)
+- **UDP round-trip:** 1–3 seconds per datagram
+- **Throughput:** suitable for API calls, DNS, and moderate file transfers — not bulk streaming
+
+These trade-offs are inherent to the privacy guarantees. The mixing delay is what makes traffic analysis resistant — without it, an observer could correlate packets by timing.
+
 ## Examples
 
 Runnable examples in [`smolmix/core/examples/`](https://github.com/nymtech/nym/tree/max/mixtcp/smolmix/core/examples). Each is self-contained and compares clearnet vs. mixnet performance.
@@ -54,7 +124,7 @@ Runnable examples in [`smolmix/core/examples/`](https://github.com/nymtech/nym/t
 cargo run -p smolmix --example <name>
 ```
 
-All examples accept `--ipr <ADDRESS>` to [target a specific exit node](./smolmix/exit-gateway).
+All examples accept `--ipr <ADDRESS>` to target a specific exit node (pass a `Recipient` address to `Tunnel::builder().ipr_address()`).
 
 | Example | Source | What it demonstrates |
 |---|---|---|
@@ -62,8 +132,12 @@ All examples accept `--ipr <ADDRESS>` to [target a specific exit node](./smolmix
 | UDP | [`udp.rs`](https://github.com/nymtech/nym/blob/max/mixtcp/smolmix/core/examples/udp.rs) | DNS lookup via hickory-proto — sends a raw UDP query to `1.1.1.1:53` through the mixnet |
 | WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/max/mixtcp/smolmix/core/examples/websocket.rs) | WebSocket echo via tokio-tungstenite + tokio-rustls — shows the full TCP → TLS → WebSocket stack composing over smolmix |
 
-## Next steps
+## API reference
+
+Full API documentation including internal architecture (device adapter, bridge task, design decisions) is available on [docs.rs/smolmix](https://docs.rs/smolmix).
+
+## Tutorials
 
 - [Tutorial 1: Private File Downloads](./smolmix/tutorial) — resolve DNS, connect TCP+TLS, and download files over a single HTTP connection through the mixnet
 - [Tutorial 2: Private DNS & NTP via UDP](./smolmix/tutorial-udp) — resolve multiple hostnames and sync time via NTP, all over the mixnet's UDP transport
-- [Architecture](./smolmix/architecture) — how smolmix works internally, security model, and performance characteristics
+- [Tutorial 3: Private WebSocket Echo](./smolmix/tutorial-websocket) — stack tokio-tungstenite on tokio-rustls on a smolmix TcpStream

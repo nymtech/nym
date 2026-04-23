@@ -691,9 +691,7 @@ mod tests {
                     .is_none());
 
                 // orchestrator_b's agent is untouched
-                let remaining = storage
-                    .authorised_agents
-                    .load(&tester, agent_b.into())?;
+                let remaining = storage.authorised_agents.load(&tester, agent_b.into())?;
                 assert_eq!(remaining.mixnet_address, agent_b);
                 assert_eq!(remaining.authorised_by, orchestrator_b);
 

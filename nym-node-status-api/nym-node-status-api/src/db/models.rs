@@ -18,6 +18,26 @@ use strum_macros::{EnumString, FromRepr};
 use time::{Date, OffsetDateTime, UtcDateTime};
 use utoipa::ToSchema;
 
+pub(crate) fn detach_ports_check_from_probe_json(
+    mut probe: serde_json::Value,
+) -> (serde_json::Value, Option<serde_json::Value>) {
+    let nested = match &mut probe {
+        serde_json::Value::Object(map) => map.remove("ports_check").filter(|v| !v.is_null()),
+        _ => None,
+    };
+    (probe, nested)
+}
+
+fn strip_wg_port_check_results_from_last_probe(value: &mut serde_json::Value) {
+    let Some(outcome) = value.get_mut("outcome").and_then(|o| o.as_object_mut()) else {
+        return;
+    };
+    let Some(wg) = outcome.get_mut("wg").and_then(|w| w.as_object_mut()) else {
+        return;
+    };
+    wg.remove("port_check_results");
+}
+
 macro_rules! serialize_opt_to_value {
     ($var:expr) => {{
         match $var {
@@ -48,6 +68,8 @@ pub(crate) struct GatewayDto {
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_probe_result: Option<String>,
     pub(crate) last_probe_log: Option<String>,
+    pub(crate) ports_check: Option<serde_json::Value>,
+    pub(crate) last_ports_check_utc: Option<i64>,
     pub(crate) last_testrun_utc: Option<i64>,
     pub(crate) last_updated_utc: i64,
     pub(crate) moniker: String,
@@ -73,7 +95,7 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
             .explorer_pretty_bond
             .clone()
             .unwrap_or("null".to_string());
-        let last_probe_result = value
+        let last_probe_result_raw = value
             .last_probe_result
             .clone()
             .unwrap_or("null".to_string());
@@ -81,7 +103,26 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
 
         let self_described = serde_json::from_str(&self_described).unwrap_or(None);
         let explorer_pretty_bond = serde_json::from_str(&explorer_pretty_bond).unwrap_or(None);
-        let last_probe_result = serde_json::from_str(&last_probe_result).unwrap_or(None);
+        let last_probe_parsed =
+            serde_json::from_str::<serde_json::Value>(&last_probe_result_raw).ok();
+        let (last_probe_result, nested_ports) = last_probe_parsed
+            .map(detach_ports_check_from_probe_json)
+            .map(|(v, n)| {
+                let mut v = v;
+                strip_wg_port_check_results_from_last_probe(&mut v);
+                let v = (!v.is_null()).then_some(v);
+                (v, n)
+            })
+            .unwrap_or((None, None));
+
+        let ports_check = value
+            .ports_check
+            .clone()
+            .or(nested_ports)
+            .filter(|v| !v.is_null());
+        let last_ports_check_utc = value
+            .last_ports_check_utc
+            .map(unix_timestamp_to_utc_rfc3339);
 
         let bonded = value.bonded;
         let performance = value.performance as u8;
@@ -104,6 +145,8 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
             description,
             last_probe_result,
             last_probe_log,
+            ports_check,
+            last_ports_check_utc,
             routing_score,
             config_score,
             last_testrun_utc,
@@ -292,6 +335,7 @@ pub struct TestRunDto {
     pub id: i32,
     pub gateway_id: i32,
     pub status: i32,
+    pub kind: i16,
     pub created_utc: i64,
     pub ip_address: String,
     pub log: String,
@@ -304,6 +348,13 @@ pub(crate) enum TestRunStatus {
     Complete = 2,
     InProgress = 1,
     Queued = 0,
+}
+
+#[derive(Debug, Clone, Copy, strum_macros::Display, EnumString, FromRepr, PartialEq, Eq)]
+#[repr(i16)]
+pub(crate) enum TestRunKind {
+    Probe = 0,
+    PortsCheck = 1,
 }
 
 #[derive(Debug, Clone)]

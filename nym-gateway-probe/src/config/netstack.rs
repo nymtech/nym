@@ -3,6 +3,11 @@
 
 use clap::Args;
 
+// EXIT_POLICY_PORTS is generated at build time by parsing PORT_MAPPINGS
+// from scripts/nym-node-setup/network-tunnel-manager.sh.
+// To add or remove ports, update PORT_MAPPINGS in the shell script and rebuild.
+include!(concat!(env!("OUT_DIR"), "/exit_policy_ports.rs"));
+
 #[derive(Args, Clone, Debug)]
 pub struct NetstackArgs {
     #[arg(long, hide = true, env = "PROBE_NETSTACK_DOWNLOAD_TIMEOUT_SEC", default_value_t = NetstackArgs::default().netstack_download_timeout_sec)]
@@ -37,6 +42,18 @@ pub struct NetstackArgs {
 
     #[arg(long, hide = true, env = "PROBE_NETSTACK_PING_IPS_V6", default_values_t = NetstackArgs::default().netstack_ping_ips_v6)]
     pub netstack_ping_ips_v6: Vec<String>,
+
+    /// Target host for exit policy port checks (must listen on all tested ports)
+    #[arg(long = "use-target", default_value = "portquiz.net")]
+    pub port_check_target: String,
+
+    /// List ports to check, separated by a comma.
+    #[arg(long = "check-ports", value_delimiter = ',', default_values_t = Vec::<u16>::new())]
+    pub port_check_ports: Vec<u16>,
+
+    /// Timeout in seconds for each individual port check attempt
+    #[arg(long, default_value_t = NetstackArgs::default().port_check_timeout_sec)]
+    pub port_check_timeout_sec: u64,
 }
 
 impl Default for NetstackArgs {
@@ -57,6 +74,9 @@ impl Default for NetstackArgs {
                 "2606:4700:4700::1111".to_string(),
                 "2620:fe::fe".to_string(),
             ],
+            port_check_target: "portquiz.net".to_string(),
+            port_check_ports: vec![],
+            port_check_timeout_sec: 5,
         }
     }
 }
@@ -87,6 +107,9 @@ mod tests {
                 "2606:4700:4700::1111".to_string(),
                 "2620:fe::fe".to_string(),
             ],
+            port_check_target: "portquiz.net".to_string(),
+            port_check_ports: vec![],
+            port_check_timeout_sec: 5,
         };
 
         // Test IPv4 defaults
@@ -111,6 +134,11 @@ mod tests {
         assert_eq!(args.netstack_num_ping, 5);
         assert_eq!(args.netstack_send_timeout_sec, 3);
         assert_eq!(args.netstack_recv_timeout_sec, 3);
+
+        // Test port check defaults
+        assert_eq!(args.port_check_target, "portquiz.net");
+        assert!(args.port_check_ports.is_empty());
+        assert_eq!(args.port_check_timeout_sec, 5);
     }
 
     #[test]
@@ -128,6 +156,9 @@ mod tests {
             netstack_ping_ips_v4: vec!["8.8.8.8".to_string()],
             netstack_ping_hosts_v6: vec!["ipv6.example.com".to_string()],
             netstack_ping_ips_v6: vec!["2001:4860:4860::8888".to_string()],
+            port_check_target: "portquiz.net".to_string(),
+            port_check_ports: vec![80, 443, 8332],
+            port_check_timeout_sec: 10,
         };
 
         assert_eq!(args.netstack_ping_hosts_v4, vec!["example.com"]);
@@ -163,6 +194,9 @@ mod tests {
                 "2001:4860:4860::8888".to_string(),
                 "2606:4700:4700::1111".to_string(),
             ],
+            port_check_target: "portquiz.net".to_string(),
+            port_check_ports: vec![],
+            port_check_timeout_sec: 5,
         };
 
         assert_eq!(args.netstack_ping_hosts_v4, vec!["nym.com", "example.com"]);
@@ -192,6 +226,9 @@ mod tests {
             netstack_ping_ips_v4: vec![],
             netstack_ping_hosts_v6: vec![],
             netstack_ping_ips_v6: vec![],
+            port_check_target: "portquiz.net".to_string(),
+            port_check_ports: vec![],
+            port_check_timeout_sec: 0,
         };
 
         assert_eq!(args.netstack_num_ping, 0);
@@ -219,6 +256,9 @@ mod tests {
             netstack_ping_ips_v4: vec!["1.1.1.1".to_string()],
             netstack_ping_hosts_v6: vec!["cloudflare.com".to_string()],
             netstack_ping_ips_v6: vec!["2001:4860:4860::8888".to_string()],
+            port_check_target: "portquiz.net".to_string(),
+            port_check_ports: vec![],
+            port_check_timeout_sec: 5,
         };
 
         assert!(args.netstack_ping_hosts_v4[0].contains("nym"));
@@ -227,5 +267,28 @@ mod tests {
 
         assert_eq!(args.netstack_v4_dns, "1.1.1.1");
         assert_eq!(args.netstack_v6_dns, "2606:4700:4700::1111");
+    }
+
+    #[test]
+    fn test_exit_policy_ports_no_duplicates_and_sorted() {
+        let ports = EXIT_POLICY_PORTS;
+        assert!(!ports.is_empty(), "EXIT_POLICY_PORTS should not be empty");
+
+        // verify sorted
+        for window in ports.windows(2) {
+            assert!(
+                window[0] < window[1],
+                "EXIT_POLICY_PORTS out of order or duplicate: {} >= {}",
+                window[0],
+                window[1]
+            );
+        }
+
+        // spot-check a few well-known ports
+        assert!(ports.contains(&22), "should contain SSH (22)");
+        assert!(ports.contains(&443), "should contain HTTPS (443)");
+        assert!(ports.contains(&22021), "should contain Session (22021)");
+        assert!(ports.contains(&8332), "should contain Bitcoin (8332)");
+        assert!(ports.contains(&9735), "should contain Lightning (9735)");
     }
 }

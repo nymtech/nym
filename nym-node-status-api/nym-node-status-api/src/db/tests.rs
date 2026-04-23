@@ -11,6 +11,8 @@ mod db_tests {
             explorer_pretty_bond: Some("{\"key\":\"value\"}".to_string()),
             last_probe_result: Some("{\"key\":\"value\"}".to_string()),
             last_probe_log: Some("log".to_string()),
+            ports_check: None,
+            last_ports_check_utc: None,
             last_testrun_utc: Some(1672531200),
             last_updated_utc: 1672531200,
             moniker: "moniker".to_string(),
@@ -35,6 +37,43 @@ mod db_tests {
         assert_eq!(http_gateway.description.website, "website");
         assert_eq!(http_gateway.description.security_contact, "contact");
         assert_eq!(http_gateway.description.details, "details");
+    }
+
+    #[test]
+    fn test_gateway_dto_nested_ports_check_detached_to_top_level() {
+        let ports_payload = serde_json::json!({"https": 443, "wg": 51822});
+        let mut probe = serde_json::json!({
+            "node": "n1",
+            "used_entry": "e1",
+            "outcome": {"as_entry": "NotTested"},
+            "ports_check": ports_payload
+        });
+        let gateway_dto = crate::db::models::GatewayDto {
+            gateway_identity_key: "id1".to_string(),
+            bonded: true,
+            performance: 50,
+            self_described: Some("{}".to_string()),
+            explorer_pretty_bond: Some("{}".to_string()),
+            last_probe_result: Some(probe.to_string()),
+            last_probe_log: None,
+            ports_check: None,
+            last_ports_check_utc: None,
+            last_testrun_utc: None,
+            last_updated_utc: 1672531200,
+            moniker: "m".to_string(),
+            security_contact: "c".to_string(),
+            details: "d".to_string(),
+            website: "w".to_string(),
+            bridges: None,
+        };
+
+        let http_gateway: crate::http::models::Gateway = gateway_dto.try_into().unwrap();
+
+        assert_eq!(http_gateway.ports_check, Some(ports_payload));
+        assert!(http_gateway.last_ports_check_utc.is_none());
+
+        probe.as_object_mut().unwrap().remove("ports_check");
+        assert_eq!(http_gateway.last_probe_result, Some(probe));
     }
 
     #[test]
@@ -267,6 +306,8 @@ fn test_gateway_dto_with_null_values() {
         explorer_pretty_bond: None,
         last_probe_result: None,
         last_probe_log: None,
+        ports_check: None,
+        last_ports_check_utc: None,
         last_testrun_utc: None,
         last_updated_utc: 0,
         moniker: "".to_string(),

@@ -62,21 +62,27 @@ type NetstackRequestGo struct {
 	DownloadTimeoutSec uint64   `json:"download_timeout_sec"`
 	MetadataTimeoutSec uint64   `json:"metadata_timeout_sec"`
 	AwgArgs            string   `json:"awg_args"`
+	// exit policy port check
+	PortCheckTarget     string   `json:"port_check_target"`
+	PortCheckPorts      []uint16 `json:"port_check_ports"`
+	PortCheckOnly       bool     `json:"port_check_only"`
+	PortCheckTimeoutSec uint64   `json:"port_check_timeout_sec"`
 }
 
 type NetstackResponse struct {
-	CanHandshake                 bool   `json:"can_handshake"`
-	CanQueryMetadata             bool   `json:"can_query_metadata"`
-	SentIps                      uint16 `json:"sent_ips"`
-	ReceivedIps                  uint16 `json:"received_ips"`
-	SentHosts                    uint16 `json:"sent_hosts"`
-	ReceivedHosts                uint16 `json:"received_hosts"`
-	CanResolveDns                bool   `json:"can_resolve_dns"`
-	DownloadedFile               string `json:"downloaded_file"`
-	DownloadedFileSizeBytes      uint64 `json:"downloaded_file_size_bytes"`
-	DownloadDurationSec          uint64 `json:"download_duration_sec"`
-	DownloadDurationMilliseconds uint64 `json:"download_duration_milliseconds"`
-	DownloadError                string `json:"download_error"`
+	CanHandshake                 bool            `json:"can_handshake"`
+	CanQueryMetadata             bool            `json:"can_query_metadata"`
+	SentIps                      uint16          `json:"sent_ips"`
+	ReceivedIps                  uint16          `json:"received_ips"`
+	SentHosts                    uint16          `json:"sent_hosts"`
+	ReceivedHosts                uint16          `json:"received_hosts"`
+	CanResolveDns                bool            `json:"can_resolve_dns"`
+	DownloadedFile               string          `json:"downloaded_file"`
+	DownloadedFileSizeBytes      uint64          `json:"downloaded_file_size_bytes"`
+	DownloadDurationSec          uint64          `json:"download_duration_sec"`
+	DownloadDurationMilliseconds uint64          `json:"download_duration_milliseconds"`
+	DownloadError                string          `json:"download_error"`
+	PortCheckResults             map[string]bool `json:"port_check_results,omitempty"`
 }
 
 type SuccessResult = struct {
@@ -201,7 +207,7 @@ func pingTwoHop(req TwoHopNetstackRequest) (NetstackResponse, error) {
 	log.Printf("Exit WG IP: %s", req.ExitWgIp)
 	log.Printf("IP version: %d", req.IpVersion)
 
-	response := NetstackResponse{false, false, 0, 0, 0, 0, false, "", 0, 0, 0, ""}
+	response := NetstackResponse{}
 
 	// Parse the exit endpoint to determine IP version for forwarder
 	exitEndpoint, err := netip.ParseAddrPort(req.ExitEndpoint)
@@ -439,7 +445,7 @@ func ping(req NetstackRequestGo) (NetstackResponse, error) {
 		ipc.WriteString("\nallowed_ip=::/0\n")
 	}
 
-	response := NetstackResponse{false, false, 0, 0, 0, 0, false, "", 0, 0, 0, ""}
+	response := NetstackResponse{}
 
 	err = dev.IpcSet(ipc.String())
 	if err != nil {
@@ -462,6 +468,19 @@ func ping(req NetstackRequestGo) (NetstackResponse, error) {
 	}
 
 	response.CanHandshake = true
+
+	// port-check-only mode: skip pings/download, only test TCP port reachability
+	if req.PortCheckOnly && len(req.PortCheckPorts) > 0 {
+		log.Printf("=== Port Check Only Mode ===")
+		response.PortCheckResults = checkPorts(req.PortCheckTarget, req.PortCheckPorts, req.PortCheckTimeoutSec, tnet)
+		return response, nil
+	}
+
+	// run port checks alongside normal tests if ports were requested
+	if len(req.PortCheckPorts) > 0 {
+		log.Printf("=== Running Port Checks (alongside normal tests) ===")
+		response.PortCheckResults = checkPorts(req.PortCheckTarget, req.PortCheckPorts, req.PortCheckTimeoutSec, tnet)
+	}
 
 	// Skip metadata query if endpoint is empty (e.g., for IPv6 where the IPv4 metadata endpoint is not reachable)
 	if req.MetadataEndpoint != "" {
@@ -567,6 +586,92 @@ func ping(req NetstackRequestGo) (NetstackResponse, error) {
 	}
 
 	return response, nil
+}
+
+// checkPorts tests TCP connectivity to a target on each port through the WG
+// tunnel. blocked ports (NYM-EXIT iptables) will timeout or get reset.
+// runs concurrently.
+func checkPorts(target string, ports []uint16, timeoutSec uint64, tnet *netstack.Net) map[string]bool {
+	if target == "" {
+		target = "portquiz.net"
+	}
+	if timeoutSec == 0 {
+		timeoutSec = 5
+	}
+
+	// resolve target once via host DNS (we only care about TCP reachability
+	// through the tunnel, not DNS-through-tunnel behaviour)
+	targetIP := target
+	if net.ParseIP(target) == nil {
+		addrs, err := net.LookupHost(target)
+		if err != nil || len(addrs) == 0 {
+			log.Printf("Port check: DNS lookup for %s failed (%v), using hostname as-is", target, err)
+		} else {
+			targetIP = addrs[0]
+			log.Printf("Port check: resolved %s -> %s", target, targetIP)
+		}
+	}
+
+	timeout := time.Duration(timeoutSec) * time.Second
+
+	// batching: portquiz.net enforces a per-source-IP connection limit.
+	// testing all 114 ports in one burst trips it after ~29 connections.
+	// small batches with a cooldown in between keep us under the limit.
+	const batchSize = 20
+	const batchDelay = 25 * time.Second
+	const dialGap = 200 * time.Millisecond
+
+	results := make(map[string]bool)
+	totalBatches := (len(ports) + batchSize - 1) / batchSize
+
+	for batchIdx := 0; batchIdx < totalBatches; batchIdx++ {
+		start := batchIdx * batchSize
+		end := start + batchSize
+		if end > len(ports) {
+			end = len(ports)
+		}
+		batch := ports[start:end]
+
+		if batchIdx > 0 {
+			log.Printf("Batch %d/%d: cooldown %v before next batch...",
+				batchIdx+1, totalBatches, batchDelay)
+			time.Sleep(batchDelay)
+		}
+
+		log.Printf("Batch %d/%d: testing %d ports (%d–%d)...",
+			batchIdx+1, totalBatches, len(batch), batch[0], batch[len(batch)-1])
+
+		for i, p := range batch {
+			if i > 0 {
+				time.Sleep(dialGap)
+			}
+
+			addr := fmt.Sprintf("%s:%d", targetIP, p)
+
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			conn, err := tnet.DialContext(ctx, "tcp", addr)
+			cancel()
+
+			if err != nil {
+				log.Printf("Port %d: CLOSED (%v)", p, err)
+				results[fmt.Sprintf("%d", p)] = false
+			} else {
+				conn.Close()
+				log.Printf("Port %d: OPEN", p)
+				results[fmt.Sprintf("%d", p)] = true
+			}
+		}
+	}
+
+	openCount := 0
+	for _, open := range results {
+		if open {
+			openCount++
+		}
+	}
+	log.Printf("Port check complete: %d/%d ports open", openCount, len(ports))
+
+	return results
 }
 
 func sendPing(address string, seq uint8, sendTtimeoutSecs uint64, receiveTimoutSecs uint64, tnet *netstack.Net, ipVersion uint8) (time.Duration, error) {

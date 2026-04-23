@@ -9,7 +9,7 @@ mod socks5;
 mod test_mode;
 
 pub use credentials::{CredentialArgs, CredentialMode};
-pub use netstack::NetstackArgs;
+pub use netstack::{EXIT_POLICY_PORTS, NetstackArgs};
 pub use socks5::Socks5Args;
 pub use test_mode::TestMode;
 
@@ -22,7 +22,7 @@ pub struct ProbeConfig {
     /// Test mode - explicitly specify which tests to run
     ///
     /// Modes:
-    ///   core.       - Traditional mixnet testing (entry/exit pings + WireGuard via authenticator)
+    ///   core        - Traditional mixnet testing (entry/exit pings + WireGuard via authenticator)
     ///   wg-mix      - Wireguard via authenticator
     ///   wg-lp       - Entry LP + Exit LP (nested forwarding) + WireGuard
     ///   lp-only     - LP registration only (no WireGuard)

@@ -537,8 +537,8 @@ mod tests {
 
             let res = test.execute_raw(
                 orchestrator,
-                    ExecuteMsg::RevokeNetworkMonitor { address: agent },
-                );
+                ExecuteMsg::RevokeNetworkMonitor { address: agent },
+            );
             assert!(res.is_ok());
 
             Ok(())
@@ -561,10 +561,7 @@ mod tests {
                 },
             )?;
 
-            let res = test.execute_raw(
-                admin,
-                ExecuteMsg::RevokeNetworkMonitor { address: agent },
-            );
+            let res = test.execute_raw(admin, ExecuteMsg::RevokeNetworkMonitor { address: agent });
             assert!(res.is_ok());
 
             assert!(NETWORK_MONITORS_CONTRACT_STORAGE
@@ -595,9 +592,7 @@ mod tests {
             let res = test
                 .execute_raw(
                     non_privileged,
-                    ExecuteMsg::RevokeNetworkMonitor {
-                        address: agent.ip(),
-                    },
+                    ExecuteMsg::RevokeNetworkMonitor { address: agent },
                 )
                 .unwrap_err();
 
@@ -676,11 +671,15 @@ mod tests {
             let agent_a = SocketAddr::new(ip, 1000);
             let agent_b = SocketAddr::new(ip, 2000);
 
+            // two syntactically valid (32-byte) bs58 x25519 keys
+            let noise_key_a = TEST_NOISE_KEY.to_string();
+            let noise_key_b = "4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi".to_string();
+
             test.execute_raw(
                 orchestrator.clone(),
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent_a,
-                    bs58_x25519_noise: "noise_key_a".to_string(),
+                    bs58_x25519_noise: noise_key_a,
                     noise_version: 1,
                 },
             )?;
@@ -688,7 +687,7 @@ mod tests {
                 orchestrator.clone(),
                 ExecuteMsg::AuthoriseNetworkMonitor {
                     mixnet_address: agent_b,
-                    bs58_x25519_noise: "noise_key_b".to_string(),
+                    bs58_x25519_noise: noise_key_b.clone(),
                     noise_version: 1,
                 },
             )?;
@@ -718,7 +717,10 @@ mod tests {
                 .authorised_agents
                 .load(test.storage(), agent_b.into())?;
             assert_eq!(remaining.mixnet_address, agent_b);
-            assert_eq!(remaining.bs58_x25519_noise, "noise_key_b");
+            assert_eq!(
+                remaining.bs58_x25519_noise,
+                "4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi"
+            );
 
             Ok(())
         }

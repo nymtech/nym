@@ -1225,7 +1225,7 @@ mod tests {
                 )?;
 
                 let deps = tester.deps_mut();
-                storage.remove_monitor_authorisation(deps, &admin, agent.ip())?;
+                storage.remove_monitor_authorisation(deps, &admin, agent)?;
 
                 assert!(storage
                     .authorised_agents

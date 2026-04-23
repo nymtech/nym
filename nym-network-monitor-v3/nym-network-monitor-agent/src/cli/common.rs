@@ -3,7 +3,9 @@
 
 use super::env::vars::*;
 use crate::agent::config::Config;
+use anyhow::bail;
 use std::net::SocketAddr;
+use std::num::NonZeroUsize;
 use std::time::Duration;
 
 #[derive(clap::Args, Debug)]
@@ -24,7 +26,7 @@ pub(crate) struct CommonArgs {
 
     /// Specifies the target rate of packets (per second) to be sent.
     #[arg(long, default_value = "1000", env = NYM_NETWORK_MONITOR_AGENT_TARGET_RATE_ARG)]
-    target_rate: usize,
+    target_rate: NonZeroUsize,
 
     /// Specifies whether the agent should reuse the same header for all packets.
     /// And consequently replay them
@@ -42,7 +44,7 @@ pub(crate) struct CommonArgs {
     /// Number of packets sent in a single batch. Together with `target_rate` this controls
     /// how frequently batches are dispatched: one batch every `sending_batch_size / target_rate` seconds.
     #[arg(long, default_value = "50", env = NYM_NETWORK_MONITOR_AGENT_SENDING_BATCH_SIZE_ARG)]
-    sending_batch_size: usize,
+    sending_batch_size: NonZeroUsize,
 
     /// Specifies the path to the noise key file used for establishing tunnel with the node being tested
     #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_NOISE_KEY_PATH_ARG)]
@@ -52,17 +54,27 @@ pub(crate) struct CommonArgs {
 impl CommonArgs {
     /// Constructs a [`Config`] from the common CLI arguments.
     /// `mixnet_address` is provided separately as it is command-specific.
-    pub(crate) fn build_config(&self, mixnet_address: SocketAddr) -> Config {
-        Config {
+    pub(crate) fn build_config(&self, mixnet_address: SocketAddr) -> anyhow::Result<Config> {
+        if self.sending_duration.is_zero() {
+            bail!("attempted to set sending duration to 0s")
+        }
+        if self.egress_connection_timeout.is_zero() {
+            bail!("attempted to set egress connection timeout to 0s")
+        }
+        if self.noise_handshake_timeout.is_zero() {
+            bail!("attempted to set noise handshake timeout to 0s")
+        }
+
+        Ok(Config {
             sending_duration: self.sending_duration,
             waiting_duration: self.waiting_duration,
             packet_delay: self.packet_delay,
             egress_connection_timeout: self.egress_connection_timeout,
             noise_handshake_timeout: self.noise_handshake_timeout,
-            sending_batch_size: self.sending_batch_size,
-            target_rate: self.target_rate,
+            sending_batch_size: self.sending_batch_size.get(),
+            target_rate: self.target_rate.get(),
             reuse_header: self.reuse_header,
             mixnet_address,
-        }
+        })
     }
 }

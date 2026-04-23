@@ -40,7 +40,7 @@ pub(crate) struct Args {
 
 impl Args {
     /// Builds the agent [`Config`] from the flattened common args and the local mixnet listener address.
-    pub(crate) fn build_agent_config(&self) -> Config {
+    pub(crate) fn build_agent_config(&self) -> anyhow::Result<Config> {
         self.common_args.build_config(self.agent_mixnet_listener)
     }
 
@@ -59,7 +59,7 @@ impl Args {
     /// Constructs a fully initialised [`NetworkMonitorAgent`] from the parsed arguments.
     pub(crate) fn build_agent(&self) -> anyhow::Result<NetworkMonitorAgent> {
         NetworkMonitorAgent::new(
-            self.build_agent_config(),
+            self.build_agent_config()?,
             &self.common_args.noise_key_path,
             self.build_tested_node_details(),
         )

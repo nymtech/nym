@@ -195,6 +195,8 @@ default-members = [
     "service-providers/network-requester",
     "tools/nymvisor",
     "nym-registration-client",
+    "nym-network-monitor-v3/nym-network-monitor-orchestrator",
+    "nym-network-monitor-v3/nym-network-monitor-agent",
     "tools/internal/localnet-orchestrator"
 ]
 

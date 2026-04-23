@@ -168,9 +168,10 @@ pub(crate) struct RoutableNetworkMonitors {
 
 impl RoutableNetworkMonitors {
     pub(crate) fn new(known: HashSet<IpAddr>) -> Self {
+        // ensure the provided addresses are always canonical
         Self {
             inner: Arc::new(DeclaredNetworkMonitorsInner {
-                known: ArcSwap::from_pointee(known),
+                known: ArcSwap::from_pointee(known.into_iter().map(IpAddr::to_canonical).collect()),
             }),
         }
     }
@@ -180,20 +181,22 @@ impl RoutableNetworkMonitors {
     }
 
     pub(crate) fn add_known(&self, address: IpAddr) {
-        if self.is_known(&address) {
+        let to_add = address.to_canonical();
+        if self.is_known(&to_add) {
             return;
         }
         let mut known = self.inner.known.load().as_ref().clone();
-        known.insert(address);
+        known.insert(to_add);
         self.swap(known);
     }
 
     pub(crate) fn remove_known(&self, address: IpAddr) {
-        if !self.is_known(&address) {
+        let to_remove = address.to_canonical();
+        if !self.is_known(&to_remove) {
             return;
         }
         let mut known = self.inner.known.load().as_ref().clone();
-        known.remove(&address);
+        known.remove(&to_remove);
         self.swap(known);
     }
 
@@ -202,14 +205,7 @@ impl RoutableNetworkMonitors {
     }
 
     pub(crate) fn is_known(&self, address: &IpAddr) -> bool {
-        let guard = self.inner.known.load();
-        if guard.contains(address) {
-            return true;
-        }
-        if address.is_ipv6() {
-            return guard.contains(&address.to_canonical());
-        }
-        false
+        self.inner.known.load().contains(&address.to_canonical())
     }
 }
 

@@ -93,7 +93,7 @@ fn dummy_destination() -> Destination {
 /// is provided it is used as the sender's ephemeral key, allowing the resulting header to
 /// be deterministically reproduced (needed for `create_test_sphinx_packet_header`).
 pub(crate) fn build_test_sphinx_packet(
-    route: &[Node],
+    route: &[Node; 2],
     delay: Duration,
     initial_secret: Option<&StaticSecret>,
     message: &[u8],
@@ -129,7 +129,7 @@ pub(crate) fn build_test_sphinx_packet(
 /// The derived `payload_key` vec has one entry per hop; the last entry (index 1) is the
 /// key held by this agent as the final recipient and is used by [`TestPacketHeader::recover_payload`].
 pub(crate) fn create_test_sphinx_packet_header(
-    route: Vec<Node>,
+    route: [Node; 2],
     delay: Duration,
 ) -> anyhow::Result<TestPacketHeader> {
     let initial_secret = StaticSecret::random_from_rng(OsRng);
@@ -213,7 +213,7 @@ mod tests {
         let delay = Duration::from_millis(1);
 
         let test_header =
-            create_test_sphinx_packet_header(vec![remote_node, agent_node], delay).unwrap();
+            create_test_sphinx_packet_header([remote_node, agent_node], delay).unwrap();
 
         let payload1 = TestPacketContent::new(123);
         let payload2 = TestPacketContent::new(456);

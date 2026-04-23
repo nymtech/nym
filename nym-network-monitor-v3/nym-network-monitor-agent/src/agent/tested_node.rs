@@ -3,7 +3,7 @@
 
 use crate::sphinx_helpers::as_sphinx_node;
 use nym_crypto::asymmetric::x25519;
-use nym_noise::config::NoiseNode;
+use nym_noise::config::{NoiseNode, NoiseVersion, VersionedNoiseKeyV1};
 use nym_sphinx_params::SphinxKeyRotation;
 use std::net::SocketAddr;
 
@@ -32,6 +32,9 @@ impl TestedNodeDetails {
 
     /// Returns a [`NoiseNode`] representation of this node for use in the Noise network view.
     pub(crate) fn as_noise_node(&self) -> NoiseNode {
-        NoiseNode::new_from_inner_key(self.noise_key, 1, true)
+        NoiseNode::new_nym_node(VersionedNoiseKeyV1 {
+            x25519_pubkey: self.noise_key,
+            supported_version: NoiseVersion::V1,
+        })
     }
 }

@@ -3,12 +3,12 @@
 
 use arc_swap::ArcSwap;
 use nym_crypto::asymmetric::x25519;
-use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
 use snow::params::NoiseParams;
 use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
-
 use strum_macros::{EnumIter, FromRepr};
 use tokio::sync::{Mutex, MutexGuard};
+
+pub use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
 
 #[derive(Default, Debug, Clone, Copy, EnumIter, FromRepr, Eq, PartialEq)]
 #[repr(u8)]
@@ -80,20 +80,6 @@ pub struct NoiseNode {
 }
 
 impl NoiseNode {
-    pub fn new_from_inner_key(
-        key: x25519::PublicKey,
-        noise_version: impl Into<NoiseVersion>,
-        is_nym_node: bool,
-    ) -> Self {
-        NoiseNode {
-            key: VersionedNoiseKeyV1 {
-                supported_version: noise_version.into(),
-                x25519_pubkey: key,
-            },
-            is_nym_node,
-        }
-    }
-
     pub fn new_nym_node(key: VersionedNoiseKeyV1) -> Self {
         NoiseNode {
             key,

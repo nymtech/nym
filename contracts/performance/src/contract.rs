@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::queries::{
-    query_admin, query_epoch_measurements_paged, query_epoch_performance_paged,
-    query_full_historical_performance_paged, query_last_submission, query_network_monitor_details,
-    query_network_monitors_paged, query_node_measurements, query_node_performance,
-    query_node_performance_paged, query_retired_network_monitors_paged,
+    query_admin, query_all_node_measurements, query_epoch_measurements_paged,
+    query_epoch_performance_paged, query_full_historical_performance_paged, query_last_submission,
+    query_network_monitor_details, query_network_monitors_paged, query_node_measurements_for_kind,
+    query_node_performance, query_node_performance_paged, query_retired_network_monitors_paged,
 };
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use crate::transactions::{
     try_authorise_network_monitor, try_batch_submit_performance_results,
-    try_remove_epoch_measurements, try_remove_node_measurements, try_retire_network_monitor,
-    try_submit_performance_results, try_update_contract_admin,
+    try_define_measurement_kind, try_remove_epoch_measurements, try_remove_node_measurements,
+    try_retire_measurement_kind, try_retire_network_monitor, try_submit_performance_results,
+    try_update_contract_admin,
 };
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    Binary, Deps, DepsMut, Env, MessageInfo, Response, entry_point, to_json_binary,
 };
 use nym_contracts_common::set_build_information;
 use nym_performance_contract_common::{
@@ -62,12 +63,20 @@ pub fn execute(
         ExecuteMsg::BatchSubmit { epoch, data } => {
             try_batch_submit_performance_results(deps, env, info, epoch, data)
         }
+        ExecuteMsg::DefineMeasurementKind { measurement_kind } => {
+            try_define_measurement_kind(deps, &info.sender, measurement_kind)
+        }
+        ExecuteMsg::RetireMeasurementKind { measurement_kind } => {
+            try_retire_measurement_kind(deps, &info.sender, measurement_kind)
+        }
         ExecuteMsg::AuthoriseNetworkMonitor { address } => {
             try_authorise_network_monitor(deps, env, info, address)
         }
         ExecuteMsg::RetireNetworkMonitor { address } => {
             try_retire_network_monitor(deps, env, info, address)
         }
+        // TODO dz removing measurement for only a certain node shouldn't be allowed
+        // remove this message and corresponding path
         ExecuteMsg::RemoveNodeMeasurements { epoch_id, node_id } => {
             try_remove_node_measurements(deps, info, epoch_id, node_id)
         }
@@ -116,9 +125,17 @@ pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary, NymPerformance
         QueryMsg::RetiredNetworkMonitorsPaged { start_after, limit } => Ok(to_json_binary(
             &query_retired_network_monitors_paged(deps, start_after, limit)?,
         )?),
-        QueryMsg::NodeMeasurements { epoch_id, node_id } => Ok(to_json_binary(
-            &query_node_measurements(deps, epoch_id, node_id)?,
+        QueryMsg::NodeMeasurements {
+            epoch_id,
+            node_id,
+            kind,
+        } => Ok(to_json_binary(&query_node_measurements_for_kind(
+            deps, epoch_id, node_id, kind,
+        )?)?),
+        QueryMsg::AllNodeMeasurements { epoch_id, node_id } => Ok(to_json_binary(
+            &query_all_node_measurements(deps, epoch_id, node_id)?,
         )?),
+
         QueryMsg::EpochMeasurementsPaged {
             epoch_id,
             start_after,

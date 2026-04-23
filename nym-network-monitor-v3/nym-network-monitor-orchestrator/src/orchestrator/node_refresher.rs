@@ -147,15 +147,12 @@ impl NodeRefresher {
         info!("retrieved {} bonded nodes from the contract", nodes.len());
 
         // 2. retrieve detailed information from the self-described endpoints
-        let refreshed_nodes = Mutex::new(Vec::new());
-        stream::iter(nodes)
-            .for_each_concurrent(self.number_of_concurrent_node_queries, |bond| async {
-                let details = self.get_node_details(bond).await;
-                refreshed_nodes.lock().await.push(details);
-            })
+        let refreshed_nodes: Vec<_> = stream::iter(nodes)
+            .map(|b| self.get_node_details(b))
+            .buffer_unordered(self.number_of_concurrent_node_queries)
+            .collect()
             .await;
 
-        let refreshed_nodes = refreshed_nodes.into_inner();
         info!(
             "managed to retrieve full node information on {} nodes",
             refreshed_nodes.len()

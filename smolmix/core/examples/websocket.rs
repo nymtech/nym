@@ -48,7 +48,7 @@ async fn main() -> Result<(), BoxError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    // Resolve hostname via clearnet DNS - you can resolve via the Mixnet (see UDP example) but for this test its not necessary
+    // Resolve hostname via clearnet DNS — you can resolve via the mixnet (see UDP example) but for this test it's not necessary
     let addr = tokio::net::lookup_host(format!("{WS_HOST}:443"))
         .await?
         .next()

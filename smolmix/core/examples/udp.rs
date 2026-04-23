@@ -4,7 +4,6 @@
 //! (hickory-proto UDP query to Cloudflare 1.1.1.1), then compares resolved
 //! IPs and timing.
 //!
-//!
 //! Run with:
 //!   cargo run -p smolmix --example udp
 //!   cargo run -p smolmix --example udp -- --ipr <IPR_ADDRESS>

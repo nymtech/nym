@@ -32,10 +32,6 @@ use tracing::error;
 ///
 /// Watches for `MsgExecuteContract` messages targeting the Network Monitors smart contract
 /// and updates the runtime list of authorised agents accordingly.
-///
-/// # Thread Safety
-///
-/// Safe to use across threads - updates to `network_monitors` use lock-free ArcSwap internally.
 pub(crate) struct NetworkMonitorAgentsModule {
     /// The on-chain address of the Network Monitors smart contract.
     /// Only messages to this contract are processed.

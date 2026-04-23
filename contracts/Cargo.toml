@@ -97,6 +97,5 @@ unreachable = "deny"
 
 # For local development, import via path instead of crates.io, e.g.
 [patch.crates-io]
-# nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-network-monitors-contract-common = { path = "../common/cosmwasm-smart-contracts/network-monitors-contract" }
 nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }

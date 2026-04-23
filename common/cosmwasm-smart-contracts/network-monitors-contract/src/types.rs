@@ -15,7 +15,7 @@ pub struct AuthorisedNetworkMonitorOrchestrator {
     /// The address associated with the network monitor orchestrator.
     pub address: Addr,
 
-    /// Timestamp of when the network monitor was authorised or the authorisation was renewed.
+    /// Timestamp of when the network monitor was authorised.
     pub authorised_at: Timestamp,
 }
 
@@ -27,7 +27,7 @@ pub struct AuthorisedNetworkMonitor {
     /// The address of the orchestrator that authorised the network monitor agent.
     pub authorised_by: OrchestratorAddress,
 
-    /// Timestamp of when the network monitor was authorised or the authorisation was renewed.
+    /// Timestamp of when the network monitor was authorised.
     pub authorised_at: Timestamp,
 }
 

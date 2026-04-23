@@ -19,7 +19,6 @@ use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use rand::prelude::SliceRandom;
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::sync::Mutex;
 use tokio::time::interval;
 use tracing::{error, info};
 

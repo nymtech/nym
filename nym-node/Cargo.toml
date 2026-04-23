@@ -124,9 +124,9 @@ bincode = { workspace = true }
 
 # throughput tester to recreate lioness
 # we don't care about particular versions - just pull whatever is used by sphinx
-lioness = "*"
+lioness = { workspace = true }
 chacha = "0.3.0"
-arrayref = "*"
+arrayref = { workspace = true }
 blake2 = "=0.8.1"
 sha2 = { workspace = true }
 hkdf = { workspace = true }

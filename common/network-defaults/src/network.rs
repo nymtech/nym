@@ -74,6 +74,15 @@ pub struct ApiUrl {
     pub front_hosts: Option<Vec<String>>,
 }
 
+impl From<Url> for ApiUrl {
+    fn from(value: Url) -> Self {
+        ApiUrl {
+            url: value.to_string(),
+            front_hosts: None,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, Serialize)]
 pub struct ApiUrlConst<'a> {
     pub url: &'a str,
@@ -391,9 +400,13 @@ impl NymNetworkDetails {
         self
     }
 
+    pub fn set_nym_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
+        self.nym_api_urls = Some(urls.into_iter().map(Into::into).collect());
+    }
+
     #[must_use]
-    pub fn with_nym_api_urls(mut self, urls: Vec<ApiUrl>) -> Self {
-        self.nym_api_urls = Some(urls);
+    pub fn with_nym_api_urls<U: Into<ApiUrl>>(mut self, urls: Vec<U>) -> Self {
+        self.set_nym_api_urls(urls);
         self
     }
 

@@ -13,9 +13,9 @@
   "browser": "dist/esm/index.js",
   "scripts": {
     "build": "scripts/build-prod.sh",
-    "build:dev": "scripts/build.sh",
-    "build:dev:esm": "MIX_FETCH_DEV_MODE=true scripts/build-dev-esm.sh",
-    "build:dev:esm-no-inline": "scripts/build-dev-esm.sh",
+    "build:dev": "MIX_FETCH_DEBUG=true scripts/build.sh",
+    "build:dev:esm": "MIX_FETCH_DEV_MODE=true MIX_FETCH_DEBUG=true scripts/build-dev-esm.sh",
+    "build:dev:esm-no-inline": "MIX_FETCH_DEBUG=true scripts/build-dev-esm.sh",
     "build:worker": "rollup -c rollup-worker.config.mjs",
     "build:worker:full-fat": "rollup -c rollup-worker-full-fat.config.mjs",
     "clean": "rimraf dist",

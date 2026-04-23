@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-globals */
 import { setupMixFetch, disconnectMixFetch } from '@nymproject/mix-fetch-wasm';
 import * as Comlink from 'comlink';
+import { runIfDebugEnabled } from '../debug';
 import type { IMixFetchWebWorker, LoadedEvent } from '../types';
 import { EventKinds, ResponseBodyConfigMap, ResponseBodyConfigMapDefaults } from '../types';
 import { handleResponseMimeTypes } from './handle-response-mime-types';
@@ -17,14 +18,20 @@ export async function run() {
 
   const mixFetchWebWorker: IMixFetchWebWorker = {
     mixFetch: async (url, args) => {
-      console.log('[Worker] --- mixFetch ---', { url, args });
+      runIfDebugEnabled(() => {
+        console.log('[Worker] --- mixFetch ---', { url, args });
+      });
 
       const response: Response = await mixFetch(url, args);
 
-      console.log('[Worker]', { response, json: JSON.stringify(response, null, 2) });
+      runIfDebugEnabled(() => {
+        console.log('[Worker]', { response, json: JSON.stringify(response, null, 2) });
+      });
 
       const bodyResponse = await handleResponseMimeTypes(response, responseBodyConfigMap);
-      console.log('[Worker]', { bodyResponse });
+      runIfDebugEnabled(() => {
+        console.log('[Worker]', { bodyResponse });
+      });
 
       const headers: any = {};
       response.headers.forEach((value, key) => {
@@ -42,20 +49,25 @@ export async function run() {
         redirected: response.redirected,
       };
 
-      console.log('[Worker]', { output });
+      runIfDebugEnabled(() => {
+        console.log('[Worker]', { output });
+      });
 
       return output;
     },
     setupMixFetch: async (opts) => {
-      console.log('[Worker] --- setupMixFetch ---', { opts });
+      runIfDebugEnabled(() => {
+        console.log('[Worker] --- setupMixFetch ---', { opts });
+      });
       if (opts?.responseBodyConfigMap) {
         responseBodyConfigMap = opts.responseBodyConfigMap;
       }
       await setupMixFetch(opts || {});
     },
     disconnectMixFetch: async () => {
-      console.log('[Worker] --- disconnectMixFetch ---');
-
+      runIfDebugEnabled(() => {
+        console.log('[Worker] --- disconnectMixFetch ---');
+      });
       await disconnectMixFetch();
     },
   };

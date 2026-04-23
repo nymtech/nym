@@ -2,8 +2,10 @@ import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 import { wasm } from '@rollup/plugin-wasm';
 import webWorkerLoader from 'rollup-plugin-web-worker-loader';
+import replace from '@rollup/plugin-replace';
 
 const extensions = ['.js', '.jsx', '.ts', '.tsx'];
+const isDebugEnabled = process.env.MIX_FETCH_DEBUG === 'true';
 
 /**
  * Gets the config for bundling the package as a CommonJS module.
@@ -20,6 +22,13 @@ export const getConfig = (opts) => ({
   },
   plugins: [
     webWorkerLoader({ targetPlatform: 'browser', inline: opts.inline }), // the inline param is used here
+    replace({
+      values: {
+        'globalThis.__MIX_FETCH_DEBUG__': JSON.stringify(opts?.debug ?? isDebugEnabled),
+      },
+      delimiters: ['', ''],
+      preventAssignment: true,
+    }),
     resolve({ extensions }),
     wasm({ maxFileSize: 10000000, targetEnv: 'browser' }),
     typescript({

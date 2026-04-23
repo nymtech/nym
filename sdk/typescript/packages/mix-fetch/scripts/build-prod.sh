@@ -7,8 +7,8 @@ set -o pipefail
 rm -rf dist || true
 rm -rf ../../../../dist/ts/sdk/mix-fetch || true
 
-# run the build
-scripts/build.sh
+# run the build with debug logging disabled
+MIX_FETCH_DEBUG=false scripts/build.sh
 node scripts/buildPackageJson.mjs
 
 # move the output outside of the yarn/npm workspaces

@@ -44,6 +44,7 @@ members = [
     "common/cosmwasm-smart-contracts/nym-performance-contract",
     "common/cosmwasm-smart-contracts/nym-pool-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
+    "common/cosmwasm-smart-contracts/network-monitors-contract",
     "common/credential-proxy",
     "common/credential-storage",
     "common/credential-utils",
@@ -507,6 +508,7 @@ nym-types = { version = "1.20.4", path = "common/types" }
 nym-upgrade-mode-check = { version = "1.20.4", path = "common/upgrade-mode-check" }
 nym-validator-client = { version = "1.20.4", path = "common/client-libs/validator-client", default-features = false }
 nym-vesting-contract-common = { version = "1.20.4", path = "common/cosmwasm-smart-contracts/vesting-contract" }
+nym-network-monitors-contract-common = { version = "1.20.4", path = "common/cosmwasm-smart-contracts/network-monitors-contract" }
 nym-verloc = { version = "1.20.4", path = "common/verloc" }
 nym-wireguard = { version = "1.20.4", path = "common/wireguard" }
 nym-wireguard-types = { version = "1.20.4", path = "common/wireguard-types" }

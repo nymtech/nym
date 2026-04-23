@@ -19,8 +19,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::time::sleep;
-use tracing::log::error;
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
 use url::Url;
 
 #[derive(Clone)]

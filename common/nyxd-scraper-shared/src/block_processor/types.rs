@@ -47,11 +47,6 @@ pub struct ParsedTransactionResponse {
     pub tx_details: ParsedTransactionDetails,
 
     pub decoded_messages: BTreeMap<usize, DecodedMessage>,
-    /*
-        pub parsed_messages: BTreeMap<usize, serde_json::Value>,
-
-    pub parsed_message_urls: BTreeMap<usize, String>,
-     */
 }
 
 #[derive(Debug)]

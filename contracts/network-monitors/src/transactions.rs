@@ -512,8 +512,7 @@ mod tests {
                 ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
             )?;
 
-            let res =
-                test.execute_raw(admin, ExecuteMsg::RevokeNetworkMonitor { address: agent });
+            let res = test.execute_raw(admin, ExecuteMsg::RevokeNetworkMonitor { address: agent });
             assert!(res.is_ok());
 
             assert!(NETWORK_MONITORS_CONTRACT_STORAGE

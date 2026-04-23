@@ -1,4 +1,4 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::{retrieval_limits, NETWORK_MONITORS_CONTRACT_STORAGE};

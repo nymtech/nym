@@ -1,4 +1,4 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Addr, Deps, DepsMut, Env};
@@ -210,7 +210,7 @@ mod tests {
                     deps.as_mut(),
                     env.clone(),
                     admin1.clone(),
-                    orchestrator.clone().clone(),
+                    orchestrator.clone(),
                 )?;
                 assert!(storage.ensure_is_admin(deps.as_ref(), &admin1).is_ok());
 

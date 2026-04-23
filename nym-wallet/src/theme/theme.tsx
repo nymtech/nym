@@ -1,5 +1,5 @@
 import { PaletteMode, alpha, Theme } from '@mui/material';
-import { PaletteOptions, ThemeOptions, createTheme, Components } from '@mui/material/styles';
+import { PaletteOptions, ThemeOptions, createTheme, Components, darken } from '@mui/material/styles';
 
 /**
  * The Nym palette.
@@ -7,6 +7,9 @@ import { PaletteOptions, ThemeOptions, createTheme, Components } from '@mui/mate
  * IMPORTANT: do not export this constant, always use the MUI `useTheme` hook to get the correct
  * colours for dark/light mode.
  */
+/** Calmer accent for light mode (less neon on pale backgrounds). Dark mode keeps `nymPalette.highlight`. */
+const LIGHT_MODE_PRIMARY_GREEN = 'rgb(18, 149, 96)';
+
 const nymPalette = {
   /** emphasises important elements */
   highlight: 'rgb(20, 231, 111)',
@@ -81,47 +84,50 @@ const darkMode = {
 const lightMode = {
   mode: 'light' as const,
   background: {
-    main: '#FFFFFF',
-    paper: '#F4F6F8',
+    /** Full-window chrome: clearly off-white (no #fff). */
+    main: '#D8DEE4',
+    /** Cards / panels: a step lighter than main for depth. */
+    paper: '#E2E7EC',
     warn: '#F97316',
-    grey: '#E2E8EC',
-    greyStroke: '#8DA3B1',
-    elevated: '#FFFFFF',
-    subtle: '#F9FAFB',
+    grey: '#CCD4DB',
+    /** Dividers: visible but softer than body text. */
+    greyStroke: '#B0BAC4',
+    elevated: '#E8EDF1',
+    subtle: '#DFE4EA',
   },
   text: {
     main: '#1C1B1F',
-    muted: '#79747E',
+    muted: '#6B6570',
     warn: '#F97316',
     contrast: '#FFFFFF',
     grey: '#696571',
-    blue: '#60D7EF',
-    subdued: '#908E95',
+    blue: '#4DB8D4',
+    subdued: '#7A7680',
   },
   topNav: {
-    background: '#FFFFFF',
+    background: '#D8DEE4',
   },
   nav: {
-    background: '#F4F6F8',
+    background: '#DCE2E8',
   },
   hover: {
-    background: '#E2E8EC',
+    background: '#D0D8E0',
   },
   modal: {
-    border: 'transparent',
+    border: '#B0BAC4',
   },
   chart: {
     grey: '#79747E',
   },
   // New modern additions
   gradients: {
-    primary: 'linear-gradient(45deg, rgba(20, 231, 111, 0.9), rgba(20, 231, 111, 0.7))',
-    subtle: 'linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(244, 246, 248, 0.8))',
+    primary: 'linear-gradient(45deg, rgba(18, 149, 96, 0.9), rgba(18, 149, 96, 0.72))',
+    subtle: 'linear-gradient(180deg, #DFE4EA 0%, #D8DEE4 100%)',
   },
   shadows: {
-    light: '0 2px 8px rgba(0, 0, 0, 0.06)',
-    medium: '0 4px 12px rgba(0, 0, 0, 0.08)',
-    strong: '0 8px 24px rgba(0, 0, 0, 0.12)',
+    light: '0 1px 3px rgba(15, 23, 42, 0.06)',
+    medium: '0 2px 8px rgba(15, 23, 42, 0.08)',
+    strong: '0 5px 16px rgba(15, 23, 42, 0.1)',
   },
 };
 
@@ -141,7 +147,7 @@ const variantToMUIPalette = (variant: NymVariant): PaletteOptions => ({
   primary: {
     main: nymPalette.highlight,
     light: alpha(nymPalette.highlight, 0.8),
-    dark: alpha(nymPalette.highlight, 1.2),
+    dark: darken(nymPalette.highlight, 0.22),
     contrastText: variant.text.contrast,
   },
   secondary: {
@@ -151,17 +157,17 @@ const variantToMUIPalette = (variant: NymVariant): PaletteOptions => ({
   success: {
     main: nymPalette.success,
     light: alpha(nymPalette.success, 0.8),
-    dark: alpha(nymPalette.success, 1.2),
+    dark: darken(nymPalette.success, 0.22),
   },
   info: {
     main: nymPalette.info,
     light: alpha(nymPalette.info, 0.8),
-    dark: alpha(nymPalette.info, 1.2),
+    dark: darken(nymPalette.info, 0.22),
   },
   error: {
     main: nymPalette.red,
     light: alpha(nymPalette.red, 0.8),
-    dark: alpha(nymPalette.red, 1.2),
+    dark: darken(nymPalette.red, 0.22),
   },
   warning: {
     main: variant.background.warn,
@@ -174,13 +180,34 @@ const variantToMUIPalette = (variant: NymVariant): PaletteOptions => ({
   divider: variant.background.greyStroke,
 });
 
-const createLightModePalette = (): PaletteOptions => ({
-  nym: {
-    ...nymPalette,
-    ...nymWalletPalette(lightMode),
-  },
-  ...variantToMUIPalette(lightMode),
-});
+const createLightModePalette = (): PaletteOptions => {
+  const primaryMain = LIGHT_MODE_PRIMARY_GREEN;
+  return {
+    nym: {
+      ...nymPalette,
+      ...nymWalletPalette(lightMode),
+      highlight: primaryMain,
+      success: primaryMain,
+      linkHover: primaryMain,
+      text: {
+        ...nymPalette.text,
+        muted: '#5f6368',
+      },
+    },
+    ...variantToMUIPalette(lightMode),
+    primary: {
+      main: primaryMain,
+      light: alpha(primaryMain, 0.78),
+      dark: '#107a4f',
+      contrastText: lightMode.text.contrast,
+    },
+    success: {
+      main: primaryMain,
+      light: alpha(primaryMain, 0.8),
+      dark: '#0d6b44',
+    },
+  };
+};
 
 const createDarkModePalette = (): PaletteOptions => ({
   nym: {
@@ -190,27 +217,29 @@ const createDarkModePalette = (): PaletteOptions => ({
   ...variantToMUIPalette(darkMode),
 });
 
+const accentForMode = (mode: PaletteMode): string =>
+  mode === 'light' ? LIGHT_MODE_PRIMARY_GREEN : nymPalette.highlight;
+
 // Define component overrides with proper types
 const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
   MuiCssBaseline: {
     styleOverrides: {
-      body: {
-        scrollbarColor: `${
-          mode === 'dark' ? darkMode.background.greyStroke : lightMode.background.greyStroke
-        } transparent`,
-        '&::-webkit-scrollbar, & *::-webkit-scrollbar': {
-          width: '8px',
-          height: '8px',
-          backgroundColor: 'transparent',
-        },
-        '&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb': {
-          borderRadius: 8,
-          backgroundColor: mode === 'dark' ? darkMode.background.greyStroke : lightMode.background.greyStroke,
-          minHeight: 24,
-        },
-        '&::-webkit-scrollbar-corner, & *::-webkit-scrollbar-corner': {
-          backgroundColor: 'transparent',
-        },
+      html: {
+        WebkitFontSmoothing: 'auto',
+      },
+      body: ({ theme }: { theme: Theme }) => ({
+        backgroundColor: theme.palette.background.default,
+      }),
+      // Hide scrollbars app-wide while keeping overflow scroll behavior (Firefox / legacy Edge).
+      '*': {
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+      },
+      // Chromium / WebKit: hide scrollbars on all scrollable elements.
+      '*::-webkit-scrollbar': {
+        display: 'none',
+        width: 0,
+        height: 0,
       },
     },
   },
@@ -236,8 +265,16 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
       // Use different approach for overriding MUI styles that have type issues
       containedPrimary: () => ({
         background: mode === 'dark' ? darkMode.gradients.primary : lightMode.gradients.primary,
+        color: '#FFFFFF',
         '&:hover': {
           background: mode === 'dark' ? darkMode.gradients.primary : lightMode.gradients.primary,
+          color: '#FFFFFF',
+        },
+        '&.Mui-disabled': {
+          opacity: 1,
+          backgroundImage: 'none',
+          backgroundColor: mode === 'dark' ? alpha(nymPalette.highlight, 0.35) : alpha(LIGHT_MODE_PRIMARY_GREEN, 0.35),
+          color: alpha('#FFFFFF', 0.8),
         },
       }),
       outlined: {
@@ -260,9 +297,9 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
   },
   MuiCard: {
     styleOverrides: {
-      // Use callback format for proper typing
-      root: () => ({
+      root: ({ theme }) => ({
         borderRadius: 16,
+        backgroundColor: theme.palette.background.paper,
         boxShadow: mode === 'dark' ? darkMode.shadows.light : lightMode.shadows.light,
         transition: 'transform 0.3s, box-shadow 0.3s',
         '&:hover': {
@@ -317,6 +354,9 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
       },
       input: {
         padding: '14px 16px',
+        '&.MuiInputBase-inputSizeSmall': {
+          padding: '8.5px 14px',
+        },
       },
     },
   },
@@ -338,7 +378,7 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
           '&.Mui-checked': {
             transform: 'translateX(28px)',
             '& + .MuiSwitch-track': {
-              backgroundColor: nymPalette.highlight,
+              backgroundColor: accentForMode(mode),
               opacity: 1,
               border: 0,
             },
@@ -493,8 +533,8 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
         borderRadius: 8,
         fontWeight: 500,
         '&.MuiChip-colorPrimary': {
-          background: mode === 'dark' ? alpha(nymPalette.highlight, 0.15) : alpha(nymPalette.highlight, 0.12),
-          color: nymPalette.highlight,
+          background: mode === 'dark' ? alpha(accentForMode(mode), 0.15) : alpha(accentForMode(mode), 0.12),
+          color: accentForMode(mode),
         },
       },
       label: {
@@ -517,7 +557,7 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
         fontWeight: 500,
         transition: 'color 0.2s',
         '&:hover': {
-          color: nymPalette.linkHover,
+          color: accentForMode(mode),
         },
       },
     },
@@ -567,7 +607,7 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
           color: nymPalette.success,
         },
         '&.Mui-active': {
-          color: nymPalette.highlight,
+          color: accentForMode(mode),
         },
       },
     },
@@ -581,12 +621,12 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
             boxShadow: mode === 'dark' ? darkMode.shadows.medium : lightMode.shadows.medium,
             mt: 1,
             '&& .Mui-selected': {
-              color: nymPalette.highlight,
+              color: accentForMode(mode),
               backgroundColor:
                 mode === 'dark' ? alpha(darkMode.background.main, 0.9) : alpha(lightMode.background.main, 0.9),
             },
             '&& .Mui-selected:hover': {
-              backgroundColor: mode === 'dark' ? alpha(nymPalette.highlight, 0.08) : alpha(nymPalette.highlight, 0.08),
+              backgroundColor: mode === 'dark' ? alpha(accentForMode(mode), 0.08) : alpha(accentForMode(mode), 0.08),
             },
             '& .MuiMenuItem-root': {
               borderRadius: 1,
@@ -636,9 +676,10 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
   },
   MuiPaper: {
     styleOverrides: {
-      root: {
+      root: ({ theme }) => ({
         backgroundImage: 'none',
-      },
+        backgroundColor: theme.palette.background.paper,
+      }),
       // Using function format for styleOverrides to avoid type errors
       elevation1: () => ({
         boxShadow: mode === 'dark' ? darkMode.shadows.light : lightMode.shadows.light,

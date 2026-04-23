@@ -21,13 +21,15 @@ export const NodeTestPage = () => {
   const [testDate, setTestDate] = useState<string>();
 
   const testStateRef = useRef<TestStatus>('Stopped');
-  const timerRef = useRef<NodeJS.Timeout>();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { network } = useContext(AppContext);
   const { bondedNode } = useBondingContext();
 
   const handleTestTimeout = () => {
-    clearTimeout(timerRef.current);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
     timerRef.current = setTimeout(() => {
       if (testStateRef.current === 'Running') {
         setIsLoading(false);
@@ -78,7 +80,9 @@ export const NodeTestPage = () => {
     loadNodeTestClient();
 
     return () => {
-      clearTimeout(timerRef.current);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
       if (nodeTestClient) {
         nodeTestClient.tester.disconnectFromGateway();
         nodeTestClient.terminate();

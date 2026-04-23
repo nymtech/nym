@@ -5,7 +5,7 @@ import { AppContext } from '../main';
 export const MockMainContextProvider: FCWithChildren = ({ children }) => {
   const memoizedValue = useMemo<TAppContext>(
     () => ({
-      mode: 'light',
+      mode: 'dark',
       handleSwitchMode: () => undefined,
       appEnv: {
         ADMIN_ADDRESS: null,
@@ -15,11 +15,16 @@ export const MockMainContextProvider: FCWithChildren = ({ children }) => {
       appVersion: 'mock',
       isAdminAddress: false,
       isLoading: false,
+      loadingPresentation: 'auth-splash',
+      loadingOverlayTitle: '',
+      loadingOverlaySubtitle: undefined,
       clientDetails: {
         display_mix_denom: 'nymt',
         base_mix_denom: 'unymt',
         client_address: '',
       },
+      storedAccounts: undefined,
+      mixnodeDetails: null,
       userBalance: {
         balance: {
           amount: {
@@ -28,18 +33,21 @@ export const MockMainContextProvider: FCWithChildren = ({ children }) => {
           },
           printable_balance: '100 NYMT',
         },
+        error: undefined,
+        tokenAllocation: undefined,
+        originalVesting: undefined,
+        currentVestingPeriod: undefined,
+        vestingAccountInfo: undefined,
         clearAll: () => undefined,
         isLoading: false,
         clearBalance: () => undefined,
         fetchBalance: async () => undefined,
         fetchTokenAllocation: async () => undefined,
-        refreshBalances: async () => {},
+        refreshBalances: async () => undefined,
       },
-      displayDenom: 'NYM',
       showAdmin: false,
       showTerminal: false,
-      showSettings: false,
-      showSendModal: true,
+      showSendModal: false,
       showReceiveModal: false,
       network: 'SANDBOX',
       loginType: 'mnemonic',
@@ -53,11 +61,14 @@ export const MockMainContextProvider: FCWithChildren = ({ children }) => {
       logIn: () => undefined,
       logOut: () => undefined,
       onAccountChange: () => undefined,
-      handleShowSettings: () => undefined,
       handleShowSendModal: () => undefined,
       handleShowReceiveModal: () => undefined,
+      handleCloseSendModal: () => undefined,
+      handleCloseReceiveModal: () => undefined,
       keepState: async () => undefined,
       printBalance: '100.0000 NYMT',
+      printVestedBalance: undefined,
+      mixnetContractParams: undefined,
     }),
     [],
   );

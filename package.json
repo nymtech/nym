@@ -47,6 +47,7 @@
   },
   "private": true,
   "resolutions": {
+    "@tauri-apps/api": "2.10.1",
     "@cosmjs/amino": "^0.32.4",
     "@cosmjs/cosmwasm-stargate": "^0.32.4",
     "@cosmjs/proto-signing": "^0.32.4",

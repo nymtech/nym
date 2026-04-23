@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, LinkProps } from '@nymproject/react/link/Link';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { safeOpenUrl } from 'src/utils/safeOpenUrl';
 
 export const TauriLink: React.FC<LinkProps & any> = (props) => {
   const { href, onClick, ...restProps } = props;
@@ -12,7 +12,7 @@ export const TauriLink: React.FC<LinkProps & any> = (props) => {
 
     if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
       event.preventDefault();
-      await openUrl(href);
+      await safeOpenUrl(href);
     }
   };
 

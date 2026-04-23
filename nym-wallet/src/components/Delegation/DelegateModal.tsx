@@ -219,7 +219,7 @@ export const DelegateModal: FCWithChildren<{
             <BalanceWarning fee={fee?.amount?.amount} tx={amount} />
           </Box>
         )}
-        <ModalListItem label="Node identity key" value={identityKey} divider />
+        <ModalListItem label="Node identity key" value={identityKey} divider layout="stack" />
         <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
       </ConfirmTx>
     );
@@ -249,10 +249,12 @@ export const DelegateModal: FCWithChildren<{
       header={header || 'Delegate'}
       okLabel={buttonText || 'Delegate stake'}
       okDisabled={!isValidated}
+      dense
+      accent="primary"
       sx={sx}
       backdropProps={backdropProps}
     >
-      <Box sx={{ mt: 3 }}>
+      <Box sx={{ mt: 2.5 }}>
         <TextFieldWithPaste
           label="Node identity key"
           fullWidth
@@ -264,7 +266,7 @@ export const DelegateModal: FCWithChildren<{
           InputLabelProps={{ shrink: true }}
         />
       </Box>
-      <Box display="flex" gap={2} alignItems="center" sx={{ mt: 3 }}>
+      <Box display="flex" gap={2} alignItems="center" sx={{ mt: 2.5 }}>
         {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
         <CurrencyFormFieldWithPaste
           label="Amount"
@@ -275,7 +277,7 @@ export const DelegateModal: FCWithChildren<{
           validationError={errorAmount}
         />
       </Box>
-      <Box sx={{ mt: 3 }}>
+      <Box sx={{ mt: 2.5 }}>
         <ModalListItem label="Account balance" value={accountBalance?.toUpperCase()} divider fontWeight={600} />
       </Box>
 
@@ -299,7 +301,11 @@ export const DelegateModal: FCWithChildren<{
         hidden
         divider
       />
-      <ModalListItem label="Est. fee for this transaction will be calculated in the next page" />
+      <ModalListItem
+        label="Next step"
+        value="Fee for this transaction is calculated on the next page."
+        layout="stack"
+      />
     </SimpleModal>
   );
 };

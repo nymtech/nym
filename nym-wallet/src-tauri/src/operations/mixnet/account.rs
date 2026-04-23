@@ -18,6 +18,12 @@ use std::collections::HashMap;
 use strum::IntoEnumIterator;
 use url::Url;
 
+fn cosmos_derivation_path() -> Result<DerivationPath, BackendError> {
+    COSMOS_DERIVATION_PATH
+        .parse()
+        .map_err(|_| BackendError::InvalidInternalDerivationPath)
+}
+
 #[tauri::command]
 pub async fn connect_with_mnemonic(
     mnemonic: Mnemonic,
@@ -48,8 +54,9 @@ pub async fn get_balance(state: tauri::State<'_, WalletState>) -> Result<Balance
 }
 
 #[tauri::command]
-pub fn create_new_mnemonic() -> Mnemonic {
-    random_mnemonic()
+pub fn create_new_mnemonic() -> Result<Mnemonic, BackendError> {
+    let mut rng = rand::thread_rng();
+    Mnemonic::generate_in_with(&mut rng, Language::English, 24).map_err(Into::into)
 }
 
 #[tauri::command]
@@ -80,11 +87,6 @@ pub async fn switch_network(
 pub async fn logout(state: tauri::State<'_, WalletState>) -> Result<(), BackendError> {
     state.write().await.logout();
     Ok(())
-}
-
-fn random_mnemonic() -> Mnemonic {
-    let mut rng = rand::thread_rng();
-    Mnemonic::generate_in_with(&mut rng, Language::English, 24).unwrap()
 }
 
 async fn _connect_with_mnemonic(
@@ -129,12 +131,26 @@ async fn _connect_with_mnemonic(
 
     let default_nyxd_urls: HashMap<WalletNetwork, Url> = untested_nyxd_urls
         .iter()
-        .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
-        .collect();
+        .map(|(network, urls)| {
+            let url = urls
+                .iter()
+                .next()
+                .cloned()
+                .ok_or(BackendError::WalletNoDefaultValidator)?;
+            Ok((*network, url))
+        })
+        .collect::<Result<HashMap<_, _>, BackendError>>()?;
     let default_api_urls: HashMap<WalletNetwork, Url> = untested_api_urls
         .iter()
-        .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
-        .collect();
+        .map(|(network, urls)| {
+            let url = urls
+                .iter()
+                .next()
+                .cloned()
+                .ok_or(BackendError::WalletNoDefaultValidator)?;
+            Ok((*network, url))
+        })
+        .collect::<Result<HashMap<_, _>, BackendError>>()?;
 
     let nyxd_urls = pick_good_nyxd_urls(&default_nyxd_urls, &nyxd_urls).await?;
     let api_urls = pick_good_api_urls(&default_api_urls, &api_urls).await?;
@@ -339,7 +355,7 @@ pub fn create_password(mnemonic: Mnemonic, password: UserPassword) -> Result<(),
     }
     log::info!("Creating password");
 
-    let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+    let hd_path: DerivationPath = cosmos_derivation_path()?;
     // Currently we only support a single, default, login id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     wallet_storage::store_login_with_multiple_accounts(mnemonic, hd_path, login_id, &password)
@@ -451,7 +467,7 @@ pub async fn add_account_for_password(
     state: tauri::State<'_, WalletState>,
 ) -> Result<AccountEntry, BackendError> {
     log::info!("Adding account for the current password: {account_id}");
-    let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+    let hd_path: DerivationPath = cosmos_derivation_path()?;
     // Currently we only support a single, default, login id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id.to_string());
@@ -501,27 +517,24 @@ async fn set_state_with_all_accounts(
 
     let all_account_ids: Vec<WalletAccountIds> = all_accounts
         .iter()
-        .map(|account| {
+        .map(|account| -> Result<WalletAccountIds, BackendError> {
             let mnemonic = account.mnemonic();
             let addresses: HashMap<WalletNetwork, cosmrs::AccountId> = WalletNetwork::iter()
                 .map(|network| {
                     let config_network: NymNetworkDetails = network.into();
-                    (
-                        network,
-                        derive_address(
-                            mnemonic.clone(),
-                            &config_network.chain_details.bech32_account_prefix,
-                        )
-                        .unwrap(),
-                    )
+                    let addr = derive_address(
+                        mnemonic.clone(),
+                        &config_network.chain_details.bech32_account_prefix,
+                    )?;
+                    Ok((network, addr))
                 })
-                .collect();
-            WalletAccountIds {
+                .collect::<Result<HashMap<_, _>, BackendError>>()?;
+            Ok(WalletAccountIds {
                 id: account.id().clone(),
                 addresses,
-            }
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, BackendError>>()?;
 
     let mut w_state = state.write().await;
     w_state.set_all_accounts(all_account_ids);

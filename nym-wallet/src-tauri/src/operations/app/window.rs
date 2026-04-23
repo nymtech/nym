@@ -1,6 +1,7 @@
 use tauri::Manager;
 
 use crate::error::BackendError;
+use crate::webview_theme::NYM_WALLET_WEBVIEW_BG;
 
 #[tauri::command]
 pub async fn create_main_window(app_handle: tauri::AppHandle) -> Result<(), BackendError> {
@@ -32,6 +33,7 @@ async fn create_window(
         tauri::WebviewUrl::App(new_window_url.into()),
     )
     .title("Nym Wallet")
+    .background_color(NYM_WALLET_WEBVIEW_BG)
     .build()
     {
         Ok(window) => {

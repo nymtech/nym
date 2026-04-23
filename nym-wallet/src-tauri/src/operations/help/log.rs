@@ -1,4 +1,5 @@
 use crate::error::BackendError;
+use crate::webview_theme::NYM_WALLET_WEBVIEW_BG;
 use tauri::Manager;
 
 #[tauri::command]
@@ -18,6 +19,7 @@ pub fn help_log_toggle_window(app_handle: tauri::AppHandle) -> Result<(), Backen
         tauri::WebviewUrl::App("log.html".into()),
     )
     .title("Nym Wallet Logs")
+    .background_color(NYM_WALLET_WEBVIEW_BG)
     .build()
     {
         Ok(window) => {

@@ -15,7 +15,7 @@ const AdvancedSettings = () => {
           <Stack direction="row" justifyContent="space-between" padding={3}>
             <Stack direction="column" gap={1}>
               <Typography variant="h6">Terminal</Typography>
-              <Typography variant="caption" sx={{ color: 'nym.text.muted' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Open the terminal (dev mode)
               </Typography>
             </Stack>
@@ -31,7 +31,7 @@ const AdvancedSettings = () => {
       <Stack direction="row" justifyContent="space-between" padding={3}>
         <Stack direction="column" gap={1}>
           <Typography variant="h6">Logs</Typography>
-          <Typography variant="caption" sx={{ color: 'nym.text.muted' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Open logs to monitor all actions in the wallet
           </Typography>
         </Stack>

@@ -15,10 +15,29 @@ pub async fn check_version(handle: tauri::AppHandle) -> Result<AppVersion, Backe
     })?;
 
     // Then check for updates
-    let update_info = updater.check().await.map_err(|e| {
-        log::error!("An error occurred while checking for app update {e}");
-        BackendError::CheckAppVersionError
-    })?;
+    let update_info = match updater.check().await {
+        Ok(info) => info,
+        Err(e) => {
+            let msg = e.to_string();
+            // Hosted static JSON must include per-platform `signature` (base64) alongside `url`.
+            // Legacy manifests with only `url` fail serde in tauri-plugin-updater 2.x.
+            if msg.contains("missing field") && msg.contains("signature") {
+                let current_version = handle.package_info().version.to_string();
+                log::warn!(
+                    "Updater check skipped: manifest at configured endpoint is not Tauri 2-compatible \
+                     (missing or invalid `signature` field). Users will not be notified of updates \
+                     until the hosted updater.json is republished. Error: {msg}"
+                );
+                return Ok(AppVersion {
+                    current_version: current_version.clone(),
+                    latest_version: current_version,
+                    is_update_available: false,
+                });
+            }
+            log::error!("An error occurred while checking for app update {e}");
+            return Err(BackendError::CheckAppVersionError);
+        }
+    };
 
     // Process the result
     if let Some(update) = update_info {

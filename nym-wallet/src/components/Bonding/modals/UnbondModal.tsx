@@ -51,6 +51,8 @@ export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
   return (
     <SimpleModal
       open
+      dense
+      accent="primary"
       header="Unbond"
       subHeader="Unbond and remove your node from the mixnet"
       okLabel="Unbond"

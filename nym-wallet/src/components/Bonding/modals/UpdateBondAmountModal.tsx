@@ -104,8 +104,13 @@ export const UpdateBondAmountModal = ({
         onPrev={resetFeeState}
         onConfirm={handleConfirm}
       >
-        <ModalListItem label="New bond details" value={newBondToDisplay()} divider />
-        <ModalListItem label="Change bond details" value={`${currentBond.amount} ${currentBond.denom}`} divider />
+        <ModalListItem label="New bond details" value={newBondToDisplay()} divider layout="stack" />
+        <ModalListItem
+          label="Previous bond"
+          value={`${currentBond.amount} ${currentBond.denom}`}
+          divider
+          layout="stack"
+        />
         {userBalance.balance?.amount.amount && fee?.amount?.amount && (
           <Box sx={{ my: 2 }}>
             <BalanceWarning fee={fee?.amount?.amount} tx={newBond?.amount} />
@@ -117,6 +122,8 @@ export const UpdateBondAmountModal = ({
   return (
     <SimpleModal
       open
+      dense
+      accent="primary"
       header="Change bond amount"
       subHeader="Add or reduce amount of tokens on your node"
       okLabel="Next"
@@ -156,7 +163,12 @@ export const UpdateBondAmountModal = ({
           ) : (
             <ModalListItem label="Node saturation" value={`${stakeSaturation}%`} divider />
           )}
-          <ModalListItem label="Est. fee for this operation will be calculated in the next page" value="" divider />
+          <ModalListItem
+            label="Next step"
+            value="Fee for this operation is calculated on the next page."
+            divider
+            layout="stack"
+          />
         </Box>
       </Stack>
     </SimpleModal>

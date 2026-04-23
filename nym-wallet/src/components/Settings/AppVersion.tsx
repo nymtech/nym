@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
 import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { AppContext } from '../../context';
 import { checkVersion } from '../../requests';
 import { Console } from '../../utils/console';
@@ -26,25 +27,30 @@ const AppVersion = () => {
 
   const updateHandler = async () => {
     try {
-      // despite the name, this will spawn an external native window with
-      // an embedded "download and update the Wallet" flow
-      check();
+      const update = await check();
+      if (update) {
+        await update.downloadAndInstall();
+        await relaunch();
+      }
     } catch (e) {
       Console.error(e);
     }
   };
 
   return (
-    <Stack direction="column" alignItems="flex-end" gap={1}>
-      <Stack direction="row" gap={1} alignItems="center">
-        <Typography variant="caption" sx={{ color: 'nym.text.muted' }}>
-          Installed version
+    <Stack direction="column" alignItems="flex-end" gap={1} sx={{ textAlign: 'right' }}>
+      <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          Installed
         </Typography>
-        <Typography>{`Nym Wallet v${appVersion}`}</Typography>
+        <Typography fontWeight={600}>{`Nym Wallet v${appVersion}`}</Typography>
       </Stack>
+      <Button variant="outlined" size="small" onClick={() => updateCheck()}>
+        Check for updates
+      </Button>
       {updateAvailable && (
-        <Button variant="text" onClick={() => updateHandler()}>
-          Update available
+        <Button variant="contained" size="small" onClick={() => updateHandler()}>
+          Download update
         </Button>
       )}
     </Stack>

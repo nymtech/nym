@@ -386,8 +386,8 @@ impl WalletStateInner {
         // All urls for all networks
         let nyxd_urls = self
             .get_all_nyxd_urls()
-            .into_iter()
-            .flat_map(|(_, urls)| urls.into_iter());
+            .into_values()
+            .flat_map(|urls| urls.into_iter());
 
         // Fetch status for all urls
         let responses = fetch_status_for_urls(nyxd_urls).await?;

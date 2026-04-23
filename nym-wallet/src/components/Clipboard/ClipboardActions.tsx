@@ -71,6 +71,7 @@ export const ClipboardActions = ({
     if (!fieldRef) return;
 
     const keydownHandler = async (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       // Only handle if the associated field is focused
       const { activeElement } = document;
       if (fieldRef.current && activeElement === fieldRef.current) {

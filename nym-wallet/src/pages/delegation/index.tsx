@@ -1,6 +1,7 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
-import { Alert, AlertTitle, Box, Button, Paper, Stack, Typography } from '@mui/material';
-import { Theme, useTheme } from '@mui/material/styles';
+import { OpenInNew } from '@mui/icons-material';
+import { Alert, AlertTitle, Box, Button, CircularProgress, LinearProgress, Stack, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { DecCoin, decimalToFloatApproximation, DelegationWithEverything, FeeDetails } from '@nymproject/types';
 import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { AppContext, urls } from 'src/context/main';
@@ -11,7 +12,6 @@ import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlo
 import { getSpendableCoins, migrateVestedDelegations, userBalance } from 'src/requests';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { getIntervalAsDate, toPercentIntegerString } from 'src/utils';
-import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
 import { DelegationContextProvider, isDelegation, TDelegations, useDelegationContext } from '../../context/delegations';
 import { RewardsContextProvider, useRewardsContext } from '../../context/rewards';
 import { DelegateModal } from '../../components/Delegation/DelegateModal';
@@ -19,18 +19,10 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
-import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
 import { VestingWarningModal } from '../../components/VestingWarningModal';
+import { PageLayout } from '../../layouts';
 
-const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
-  isStorybook
-    ? {
-        backdropProps: { ...backDropStyles(theme), ...backdropProps },
-        sx: modalStyles(theme),
-      }
-    : {};
-
-export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
+export const Delegation: FC = () => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
   const [showDelegateMoreModal, setShowDelegateMoreModal] = useState<boolean>(false);
   const [showUndelegateModal, setShowUndelegateModal] = useState<boolean>(false);
@@ -51,8 +43,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const {
     delegations,
-    totalDelegations,
-    totalRewards,
     isLoading,
     addDelegation,
     undelegate,
@@ -319,7 +309,15 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   };
 
   const delegationsComponent = (delegationItems: TDelegations | undefined) => {
-    if (delegationItems && Boolean(delegationItems?.length)) {
+    if (delegationItems === undefined) {
+      return (
+        <Box sx={{ py: 10, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <CircularProgress size={36} aria-label="Loading delegations" />
+        </Box>
+      );
+    }
+
+    if (delegationItems.length > 0) {
       return (
         <>
           {delegationsUseVestingTokens && (
@@ -356,9 +354,9 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           )}
           <DelegationList
             explorerUrl={urls(network).networkExplorer}
-            isLoading={isLoading && !isActionModalOpen}
             items={delegationItems}
             onItemActionClick={handleDelegationItemActionClick}
+            nextEpoch={nextEpoch}
           />
         </>
       );
@@ -395,71 +393,99 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     );
   };
 
-  if (isLoading) {
-    return <LoadingModal />;
-  }
-
   return (
     <>
-      {/* Main container - make sure it constrains width properly */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 3,
-          mt: 4,
-          maxWidth: '100%',
-          overflowX: 'hidden',
-        }}
-      >
+      <PageLayout>
         <Stack spacing={3}>
-          <Box display="flex" justifyContent="space-between">
-            {' '}
-            <Box display="flex" flexDirection="column">
-              <Typography variant="h6" lineHeight={1.334} fontWeight={600}>
-                Delegations
-              </Typography>
+          <Box
+            sx={{
+              p: { xs: 2, md: 3 },
+              maxWidth: '100%',
+              overflowX: 'hidden',
+              borderRadius: 4,
+              bgcolor: 'background.paper',
+              border: (t) => `1px solid ${t.palette.divider}`,
+              boxShadow: (t) => t.palette.nym.nymWallet.shadows.light,
+            }}
+          >
+            <Stack spacing={3}>
               {!!delegations?.length && (
-                <Stack marginTop={1.5} gap={0.5} direction="row" alignItems="center">
-                  <Typography fontSize={14}>Select nodes to delegate to using the</Typography>
-                  <Link
-                    href={`${urls(network).networkExplorer}/nodes`}
-                    target="_blank"
-                    rel="noreferrer"
-                    text="network Explorer"
-                    fontSize={14}
-                    fontWeight={theme.palette.mode === 'light' ? 400 : 600}
-                    noIcon
-                  />
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  alignItems={{ xs: 'stretch', sm: 'center' }}
+                  justifyContent="space-between"
+                  gap={2}
+                >
+                  <Box
+                    sx={{
+                      flex: 1,
+                      minWidth: 0,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 1.25,
+                      p: 1.75,
+                      borderRadius: 2,
+                      border: (t) => `1px solid ${t.palette.divider}`,
+                      bgcolor: (t) =>
+                        t.palette.mode === 'dark'
+                          ? alpha(t.palette.common.white, 0.04)
+                          : alpha(t.palette.common.black, 0.04),
+                    }}
+                  >
+                    <OpenInNew
+                      sx={{
+                        fontSize: 20,
+                        mt: 0.125,
+                        color: 'primary.main',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Typography fontSize={14} color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                      Select nodes using the{' '}
+                      <Link
+                        href={`${urls(network).networkExplorer}/nodes`}
+                        target="_blank"
+                        rel="noreferrer"
+                        text="network explorer"
+                        fontSize={14}
+                        fontWeight={600}
+                        noIcon
+                      />
+                      . Compare performance and filters before you delegate.
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    disableElevation
+                    onClick={() => setShowNewDelegationModal(true)}
+                    sx={{
+                      py: 1.5,
+                      px: 4,
+                      color: 'primary.contrastText',
+                      flexShrink: 0,
+                      alignSelf: { xs: 'stretch', sm: 'center' },
+                    }}
+                  >
+                    New delegation
+                  </Button>
                 </Stack>
               )}
-            </Box>
-            {!!delegations?.length && (
-              <Button
-                variant="contained"
-                disableElevation
-                onClick={() => setShowNewDelegationModal(true)}
-                sx={{ py: 1.5, px: 5, color: 'primary.contrastText', height: 'fit-content' }}
-              >
-                Delegate
-              </Button>
-            )}
-          </Box>
 
-          {!!delegations?.length && (
-            <Box display="flex" justifyContent="space-between" alignItems="end">
-              <RewardsSummary isLoading={false} totalDelegation={totalDelegations} totalRewards={totalRewards} />
-              {nextEpoch instanceof Error ? null : (
-                <Typography fontSize={14}>
-                  Next epoch starts at <b>{nextEpoch}</b>
-                </Typography>
+              {isLoading && delegations !== undefined && !isActionModalOpen && (
+                <LinearProgress
+                  sx={{
+                    height: 3,
+                    borderRadius: 3,
+                    '& .MuiLinearProgress-bar': { borderRadius: 3 },
+                  }}
+                />
               )}
-            </Box>
-          )}
 
-          {/* Add a container to ensure delegations are constrained */}
-          <Box sx={{ width: '100%', overflowX: 'hidden' }}>{delegationsComponent(delegations)}</Box>
+              <Box sx={{ width: '100%', overflowX: 'hidden' }}>{delegationsComponent(delegations)}</Box>
+            </Stack>
+          </Box>
         </Stack>
-      </Paper>
+      </PageLayout>
 
       {showNewDelegationModal && (
         <DelegateModal
@@ -472,7 +498,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           accountBalance={balance?.printable_balance}
           rewardInterval="weekly"
           hasVestingContract={Boolean(originalVesting)}
-          {...storybookStyles(theme, isStorybook)}
         />
       )}
 
@@ -548,10 +573,10 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   );
 };
 
-export const DelegationPage: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => (
+export const DelegationPage: FC = () => (
   <DelegationContextProvider>
     <RewardsContextProvider>
-      <Delegation isStorybook={isStorybook} />
+      <Delegation />
     </RewardsContextProvider>
   </DelegationContextProvider>
 );

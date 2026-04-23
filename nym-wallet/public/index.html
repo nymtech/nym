@@ -4,6 +4,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Nym Wallet</title>
+    <style>
+      /* Match dark theme `background.default` (#242B2D) before React/MUI CssBaseline runs. */
+      html {
+        color-scheme: dark;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background-color: #242b2d;
+      }
+      #root {
+        height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        background-color: #242b2d;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

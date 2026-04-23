@@ -127,6 +127,23 @@ impl NetworkMonitorsStorage {
 
         self.authorised_orchestrators
             .remove(deps.storage, &orchestrator_address);
+
+        // cascade-remove agents authorised by the removed orchestrator
+        // TODO: optimise it in the future in case there are more agents than could be handled in a single block
+        let agents_to_remove = self
+            .authorised_agents
+            .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+            .filter(|r| {
+                r.as_ref()
+                    .map(|(_, v)| v.authorised_by == orchestrator_address)
+                    .unwrap_or(true)
+            })
+            .map(|r| r.map(|(k, _)| k))
+            .collect::<cosmwasm_std::StdResult<Vec<_>>>()?;
+        for agent in agents_to_remove {
+            self.authorised_agents.remove(deps.storage, agent);
+        }
+
         Ok(())
     }
 
@@ -420,7 +437,7 @@ mod tests {
         #[cfg(test)]
         mod removing_orchestrator_authorisation {
             use super::*;
-            use crate::testing::init_contract_tester;
+            use crate::testing::{init_contract_tester, NetworkMonitorsContractTesterExt};
             use cw_controllers::AdminError;
             use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
             use nym_network_monitors_contract_common::NetworkMonitorsContractError;
@@ -504,6 +521,102 @@ mod tests {
                     .authorised_orchestrators
                     .may_load(&tester, &orchestrator)?
                     .is_none());
+
+                Ok(())
+            }
+
+            #[test]
+            fn removes_agents_authorised_by_the_removed_orchestrator() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let admin = tester.admin_unchecked();
+                let orchestrator = tester.add_orchestrator()?;
+
+                let agent1 = tester.random_ip();
+                let agent2 = tester.random_ip();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator, agent1)?;
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator, agent2)?;
+
+                // sanity: both agents present
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent1.to_string())?
+                    .is_some());
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent2.to_string())?
+                    .is_some());
+
+                let deps = tester.deps_mut();
+                storage.remove_orchestrator_authorisation(deps, &admin, orchestrator.clone())?;
+
+                // orchestrator is gone
+                assert!(storage
+                    .authorised_orchestrators
+                    .may_load(&tester, &orchestrator)?
+                    .is_none());
+
+                // its agents are cascade-removed
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent1.to_string())?
+                    .is_none());
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent2.to_string())?
+                    .is_none());
+
+                Ok(())
+            }
+
+            #[test]
+            fn does_not_remove_agents_authorised_by_other_orchestrators() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let admin = tester.admin_unchecked();
+                let orchestrator_a = tester.add_orchestrator()?;
+                let orchestrator_b = tester.add_orchestrator()?;
+
+                let agent_a = tester.random_ip();
+                let agent_b = tester.random_ip();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator_a, agent_a)?;
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator_b, agent_b)?;
+
+                let deps = tester.deps_mut();
+                storage.remove_orchestrator_authorisation(deps, &admin, orchestrator_a.clone())?;
+
+                // orchestrator_a's agent is gone
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent_a.to_string())?
+                    .is_none());
+
+                // orchestrator_b's agent is untouched
+                let remaining = storage
+                    .authorised_agents
+                    .load(&tester, agent_b.to_string())?;
+                assert_eq!(remaining.address, agent_b);
+                assert_eq!(remaining.authorised_by, orchestrator_b);
+
+                // orchestrator_b itself is untouched
+                assert!(storage
+                    .authorised_orchestrators
+                    .may_load(&tester, &orchestrator_b)?
+                    .is_some());
 
                 Ok(())
             }
@@ -815,12 +928,15 @@ mod tests {
                 let (mut tester, orchestrator) = setup_prepopulated_tester();
 
                 let admin = tester.admin_unchecked();
-                let pre_all_agents = tester.all_agents();
 
                 let deps = tester.deps_mut();
 
-                // Revoke orchestrator privileges
+                // Revoke orchestrator privileges (cascade-removes its agents)
                 storage.remove_orchestrator_authorisation(deps, &admin, orchestrator.clone())?;
+
+                // snapshot the post-revocation agent set so we can assert the failed
+                // remove_all_monitors call below does not further mutate storage
+                let post_revoke_agents = tester.all_agents();
 
                 // Verify revoked orchestrator cannot call remove_all_monitors
                 let deps = tester.deps_mut();
@@ -829,8 +945,8 @@ mod tests {
                     .unwrap_err();
                 assert_eq!(NetworkMonitorsContractError::Unauthorized, res);
 
-                // Verify agent is still present after failed attempt
-                assert_eq!(tester.all_agents(), pre_all_agents);
+                // Verify the failed attempt did not mutate the agent set
+                assert_eq!(tester.all_agents(), post_revoke_agents);
 
                 Ok(())
             }

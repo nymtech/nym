@@ -23,7 +23,7 @@ impl From<mpsc::UnboundedSender<PacketToForward>> for MixForwardingSender {
 impl MixForwardingSender {
     pub fn forward_packet(&self, packet: PacketToForward) -> Result<(), SendError> {
         self.0
-            .unbounded_send(packet.into())
+            .unbounded_send(packet)
             .map_err(|err| err.into_send_error())
     }
 

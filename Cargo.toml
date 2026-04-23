@@ -407,6 +407,10 @@ zeroize = "1.7.0"
 
 prometheus = { version = "0.14.0" }
 
+# recreating lioness
+# we don't care about particular versions - just pull whatever is used by sphinx
+lioness = "*"
+arrayref = "*"
 
 # libcrux
 libcrux-kem = "0.0.7"

@@ -167,6 +167,7 @@ impl NodeRefresher {
 
     pub(crate) async fn run(&self) {
         let mut interval = interval(self.node_refresh_rate);
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
         loop {
             tokio::select! {

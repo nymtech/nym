@@ -1,15 +1,5 @@
 {
   "tutorial": "TCP Tutorial",
   "tutorial-udp": "UDP Tutorial",
-  "-----": {
-    "type": "separator",
-    "title": "How-to Guides"
-  },
-  "websocket": "WebSocket",
-  "exit-gateway": "Exit Gateway",
-  "-----2": {
-    "type": "separator",
-    "title": ""
-  },
-  "architecture": "Architecture"
+  "tutorial-websocket": "WebSocket Tutorial"
 }

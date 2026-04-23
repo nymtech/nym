@@ -157,7 +157,8 @@ impl StorageManager {
         now: OffsetDateTime,
         last_tested_before: OffsetDateTime,
     ) -> anyhow::Result<Option<NymNode>> {
-        let mut tx = self.connection_pool.begin().await?;
+        // Starts a write (IMMEDIATE) transaction, to prevent issue when upgrading from a read one to a write one
+        let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
 
         let node = sqlx::query_as::<_, NymNode>(
             r#"

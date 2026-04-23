@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
-readme.workspace = true
+readme = "src/ARCHITECTURE.md"
 publish = true
 
 [dependencies]

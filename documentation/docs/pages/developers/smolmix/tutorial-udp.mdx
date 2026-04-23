@@ -56,9 +56,11 @@ chrono = "0.4"
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 ```
 
-No TLS or HTTP crates needed — this tutorial is pure UDP.
+No HTTP crates needed — this tutorial is pure UDP. `rustls` is still required because the mixnet client uses TLS internally for gateway connections.
 
 ## Step 2: Scaffold `main()`
+
+Start with the boilerplate: a tokio runtime, tracing for logs, the rustls crypto provider, and `--ipr` arg parsing.
 
 Replace `src/main.rs` with:
 

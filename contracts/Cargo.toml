@@ -19,6 +19,8 @@ homepage = "https://nymtech.net"
 documentation = "https://nymtech.net"
 edition = "2021"
 license = "Apache-2.0"
+rust-version = "1.86.0"
+readme = "../README.md"
 
 [profile.release]
 opt-level = 3

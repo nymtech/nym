@@ -1,12 +1,16 @@
 [package]
 name = "network-monitors"
+description = "CosmWasm smart contract storing information on Nym network monitors"
 version = "0.1.0"
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = false
 
 [[bin]]
 name = "schema"
@@ -30,6 +34,9 @@ nym-contracts-common = { workspace = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 nym-contracts-common-testing = { workspace = true }
+
+[features]
+schema-gen = ["nym-network-monitors-contract-common/schema", "cosmwasm-schema"]
 
 [lints]
 workspace = true

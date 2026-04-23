@@ -31,3 +31,5 @@ pub use aes_gcm_siv::{Aes128GcmSiv, Aes256GcmSiv};
 pub use blake3;
 #[cfg(feature = "stream_cipher")]
 pub use ctr;
+#[cfg(feature = "hashing")]
+pub use sha2;

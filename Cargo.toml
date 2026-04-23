@@ -178,7 +178,7 @@ members = [
     "common/nym-kkt-ciphersuite",
     "common/nym-kkt-context",
     "nym-network-monitor-v3/nym-network-monitor-orchestrator",
-    "nym-network-monitor-v3/nym-network-monitor-agent",
+    "nym-network-monitor-v3/nym-network-monitor-agent", "nym-network-monitor-v3/nym-network-monitor-orchestrator-requests",
 ]
 
 default-members = [

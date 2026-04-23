@@ -4,6 +4,8 @@
 // to be used in subsequent PRs
 #![allow(dead_code)]
 
+use crate::http::api::{build_router, run_http_server};
+use crate::http::state::{AppState, KnownAgents};
 use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
 use crate::storage::NetworkMonitorStorage;
@@ -14,7 +16,8 @@ use anyhow::Context;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
-use nym_validator_client::nyxd::bip39;
+use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
+use nym_validator_client::nyxd::{AccountId, bip39};
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
@@ -39,7 +42,10 @@ pub(crate) struct NetworkMonitorOrchestrator {
     pub(crate) identity_keys: Arc<ed25519::KeyPair>,
 
     /// Bearer token presented by agents when requesting work assignments and submitting results.
-    pub(crate) http_auth_token: Arc<Zeroizing<String>>,
+    pub(crate) agents_http_auth_token: Arc<Zeroizing<String>>,
+
+    /// Bearer token required when attempting to access the metrics endpoint.
+    pub(crate) metrics_http_auth_token: Arc<Zeroizing<String>>,
 
     /// Handle to the local SQLite database used to track nodes and test runs.
     pub(crate) storage: NetworkMonitorStorage,
@@ -54,7 +60,8 @@ impl NetworkMonitorOrchestrator {
     pub(crate) async fn new(
         config: Config,
         identity_keys: Arc<ed25519::KeyPair>,
-        http_auth_token: Zeroizing<String>,
+        agents_http_auth_token: Zeroizing<String>,
+        metrics_http_auth_token: Zeroizing<String>,
         mnemonic: bip39::Mnemonic,
     ) -> anyhow::Result<Self> {
         let storage = NetworkMonitorStorage::init(&config.database_path).await?;
@@ -68,7 +75,8 @@ impl NetworkMonitorOrchestrator {
             config,
             client,
             identity_keys,
-            http_auth_token: Arc::new(http_auth_token),
+            agents_http_auth_token: Arc::new(agents_http_auth_token),
+            metrics_http_auth_token: Arc::new(metrics_http_auth_token),
             storage,
             shutdown_manager: ShutdownManager::build_new_default()?,
         };
@@ -78,6 +86,13 @@ impl NetworkMonitorOrchestrator {
         Ok(this)
     }
 
+    /// Returns the on-chain bech32 address of the orchestrator's signing account.
+    async fn address(&self) -> AccountId {
+        self.client.read().await.nyxd.address()
+    }
+
+    /// Verifies that the orchestrator's account is authorised to send transactions
+    /// to the network monitors contract (i.e. to authorise agents on-chain).
     async fn verify_orchestrator_chain_authorisation(&self) -> anyhow::Result<()> {
         // ensure our address is authorised to send transactions
         // to the network monitors contract to authorise the agents
@@ -85,12 +100,16 @@ impl NetworkMonitorOrchestrator {
         Ok(())
     }
 
+    /// Verifies that the orchestrator's identity key is authorised to submit
+    /// test results to the nym-api.
     async fn verify_orchestrator_nym_api_authorisation(&self) -> anyhow::Result<()> {
         // ensure our key is authorised to submit test results to the nym-api
         error!("unimplemented");
         Ok(())
     }
 
+    /// Starts all orchestrator background tasks (HTTP server, node refresher, etc.)
+    /// and blocks until a shutdown signal is received.
     pub(crate) async fn run(&mut self) -> anyhow::Result<()> {
         // this shouldn't fail as we have no tasks using this client yet
         let query_client = self
@@ -100,7 +119,20 @@ impl NetworkMonitorOrchestrator {
             .nyxd
             .clone_query_client();
 
-        // 1. build node information refresher
+        // 1. build the shared state
+        // 1.1. retrieve all registered agents (by this orchestrator) from the contract
+        // (we assume the orchestrator has restarted and the agents are still out there as authorised)
+        let address = self.address().await;
+        let agents = query_client
+            .get_all_network_monitor_agents()
+            .await?
+            .into_iter()
+            .filter(|a| a.authorised_by.as_str() == address.as_ref())
+            .collect::<Vec<_>>();
+        let agents_state = KnownAgents::try_from(agents)?;
+        let app_state = AppState::new(agents_state, self.client.clone());
+
+        // 2. build node information refresher
         let node_refresher = NodeRefresher::new(
             &self.config,
             query_client,
@@ -108,9 +140,23 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 2. build ...
+        // 3. build the http server
+        let http_router = build_router(
+            app_state,
+            self.agents_http_auth_token.clone(),
+            self.metrics_http_auth_token.clone(),
+        );
 
-        // XYZ. start all the tasks
+        // 4. start all the tasks
+        // http server
+        let http_server_fut = run_http_server(
+            http_router,
+            self.config.http_server_bind_address,
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+        self.shutdown_manager
+            .try_spawn_named(http_server_fut, "http-server");
+
         // node refresher
         self.shutdown_manager.try_spawn_named(
             async move {

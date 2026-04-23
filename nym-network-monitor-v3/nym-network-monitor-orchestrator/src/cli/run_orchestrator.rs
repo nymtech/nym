@@ -8,6 +8,7 @@ use anyhow::{Context, anyhow, bail};
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::bip39;
 use std::mem;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -18,17 +19,25 @@ use zeroize::Zeroizing;
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
     /// Bearer token required by the agents requesting work assignments and submitting results.
-    #[clap(long, env = NYM_NETWORK_MONITOR_ORCHESTRATOR_TOKEN_ARG)]
-    orchestrator_token: String,
+    #[clap(long, env = NYM_NETWORK_MONITOR_ORCHESTRATOR_AGENTS_TOKEN_ARG)]
+    agents_token: String,
+
+    /// Bearer token used for accessing the metrics endpoint.
+    #[clap(long, env = NYM_NETWORK_MONITOR_ORCHESTRATOR_METRICS_TOKEN_ARG)]
+    metrics_token: String,
 
     /// How often each node should be stress-tested (e.g. `30m`, `1h`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_TEST_INTERVAL_ARG, value_parser = humantime::parse_duration)]
+    #[clap(long, env = NYM_NETWORK_MONITOR_TEST_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "12h")]
     test_interval: Duration,
 
     /// Maximum time a single test run is allowed to run before being considered timed out
     /// (e.g. `5m`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_TEST_TIMEOUT_ARG, value_parser = humantime::parse_duration)]
+    #[clap(long, env = NYM_NETWORK_MONITOR_TEST_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "5m")]
     test_timeout: Duration,
+
+    /// HTTP address to bind the HTTP server to (e.g. `0.0.0.0:8080`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_HTTP_SERVER_BIND_ADDRESS_ARG, default_value = "0.0.0.0:8080")]
+    http_server_bind_address: SocketAddr,
 
     /// HTTP endpoint of the nym-api to which test results are submitted.
     #[clap(long, env = NYM_NETWORK_MONITOR_NYM_API_ENDPOINT_ARG)]
@@ -54,13 +63,13 @@ pub(crate) struct Args {
 
     /// How often the list of bonded nym-nodes is refreshed from the mixnet contract
     /// (e.g. `10m`, `1h`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_NODE_REFRESH_RATE_ARG, value_parser = humantime::parse_duration)]
+    #[clap(long, env = NYM_NETWORK_MONITOR_NODE_REFRESH_RATE_ARG, value_parser = humantime::parse_duration, default_value = "2h")]
     node_refresh_rate: Duration,
 
     /// Timeout for querying a single node for its detailed information (sphinx key, noise key,
     /// etc.). Queries that exceed this budget leave the corresponding fields as `NULL`
     /// (e.g. `10s`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_NODE_INFO_QUERY_TIMEOUT_ARG, value_parser = humantime::parse_duration)]
+    #[clap(long, env = NYM_NETWORK_MONITOR_NODE_INFO_QUERY_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "10s")]
     node_info_query_timeout: Duration,
 
     /// Bech32 address of the networks monitors contract used to authorise agents
@@ -76,7 +85,7 @@ pub(crate) struct Args {
     /// Maximum age of a completed test run row before it is evicted from the local database.
     /// Rows older than this are assumed to have already been submitted to the nym-api
     /// (e.g. `7d`, `24h`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_TESTRUN_EVICTION_AGE_ARG, value_parser = humantime::parse_duration)]
+    #[clap(long, env = NYM_NETWORK_MONITOR_TESTRUN_EVICTION_AGE_ARG, value_parser = humantime::parse_duration, default_value = "7d",)]
     testrun_eviction_age: Duration,
 
     /// Maximum number of nodes queried concurrently during a node refresh cycle.
@@ -95,6 +104,7 @@ impl Args {
         Ok(Config {
             nyxd_rpc_endpoint: self.rpc_url.clone(),
             nym_api_endpoint: self.nym_api_endpoint.clone(),
+            http_server_bind_address: self.http_server_bind_address,
             test_interval: self.test_interval,
             test_timeout: self.test_timeout,
             database_path: self.database_path.clone(),
@@ -117,15 +127,27 @@ impl Args {
         })
     }
 
-    /// Moves the orchestrator token out of `self`, zeroizing the original.
+    /// Moves the orchestrator agents token out of `self`, zeroizing the original.
     ///
     /// Returns an error if the token is empty.
-    pub(crate) fn take_orchestrator_token(&mut self) -> anyhow::Result<Zeroizing<String>> {
+    pub(crate) fn take_agents_orchestrator_token(&mut self) -> anyhow::Result<Zeroizing<String>> {
         // we must never accept empty tokens
-        if self.orchestrator_token.is_empty() {
+        if self.agents_token.is_empty() {
             bail!("provided orchestrator token is empty, please provide a non-empty value")
         }
-        let taken = mem::take(&mut self.orchestrator_token);
+        let taken = mem::take(&mut self.agents_token);
+        Ok(Zeroizing::new(taken))
+    }
+
+    /// Moves the orchestrator metrics token out of `self`, zeroizing the original.
+    ///
+    /// Returns an error if the token is empty.
+    pub(crate) fn take_metrics_orchestrator_token(&mut self) -> anyhow::Result<Zeroizing<String>> {
+        // we must never accept empty tokens
+        if self.metrics_token.is_empty() {
+            bail!("provided orchestrator token is empty, please provide a non-empty value")
+        }
+        let taken = mem::take(&mut self.metrics_token);
         Ok(Zeroizing::new(taken))
     }
 
@@ -152,11 +174,18 @@ pub(crate) async fn execute(mut args: Args) -> anyhow::Result<()> {
     info!("Starting network monitor orchestrator");
     let config = args.build_orchestrator_config()?;
     let identity_keys = args.take_identity_key()?;
-    let auth_token = args.take_orchestrator_token()?;
+    let agents_auth_token = args.take_agents_orchestrator_token()?;
+    let metrics_auth_token = args.take_metrics_orchestrator_token()?;
     let mnemonic = args.into_mnemonic();
 
-    let mut orchestrator =
-        NetworkMonitorOrchestrator::new(config, identity_keys, auth_token, mnemonic).await?;
+    let mut orchestrator = NetworkMonitorOrchestrator::new(
+        config,
+        identity_keys,
+        agents_auth_token,
+        metrics_auth_token,
+        mnemonic,
+    )
+    .await?;
     orchestrator.run().await?;
     Ok(())
 }

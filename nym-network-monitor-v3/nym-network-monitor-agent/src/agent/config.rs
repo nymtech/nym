@@ -4,9 +4,9 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-/// Configuration for the [`NetworkMonitorAgent`], controlling packet sending behaviour during a test run.
+/// Configuration for the [`NodeStressTester`], controlling packet sending behaviour during a test run.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Config {
+pub(crate) struct NodeTesterConfig {
     /// How long the agent should be sending test packets with the specified rate.
     pub(crate) sending_duration: Duration,
 
@@ -36,7 +36,7 @@ pub(crate) struct Config {
     pub(crate) mixnet_address: SocketAddr,
 }
 
-impl Config {
+impl NodeTesterConfig {
     /// Total number of packets the agent intends to send: `floor(target_rate * sending_duration)`.
     pub(crate) fn expected_packets(&self) -> usize {
         (self.target_rate as f32 * self.sending_duration.as_secs_f32()).floor() as usize
@@ -54,8 +54,12 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
-    fn config(target_rate: usize, sending_duration: Duration, batch_size: usize) -> Config {
-        Config {
+    fn config(
+        target_rate: usize,
+        sending_duration: Duration,
+        batch_size: usize,
+    ) -> NodeTesterConfig {
+        NodeTesterConfig {
             sending_duration,
             waiting_duration: Duration::from_secs(5),
             packet_delay: Duration::from_millis(50),

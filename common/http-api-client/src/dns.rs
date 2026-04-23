@@ -56,7 +56,6 @@ use std::{
 use hickory_resolver::{
     TokioResolver,
     config::{NameServerConfig, NameServerConfigGroup, ResolverConfig, ResolverOpts},
-    lookup_ip::LookupIpIntoIter,
     name_server::TokioConnectionProvider,
 };
 use once_cell::sync::OnceCell;
@@ -67,7 +66,12 @@ mod constants;
 mod static_resolver;
 pub(crate) use static_resolver::*;
 
-pub(crate) const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(1800);
+// Fastly (and similar CDNs) deliberately publish short A-record TTLs (30–60 s)
+// so that clients re-resolve when an edge node is removed. Pinning to 1800 s
+// defeats that mechanism and leaves the client hitting a dead IP for up to
+// 30 minutes after a Fastly failover. 60 s is long enough to amortise DNS
+// query overhead while still following CDN-signalled failovers within a minute.
+pub(crate) const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(60);
 pub(crate) const DEFAULT_OVERALL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(10);
 pub(crate) const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -227,9 +231,13 @@ async fn resolve(
     let primary_err = match resolve_fut.await {
         Err(_) => ResolveError::Timeout,
         Ok(Ok(lookup)) => {
-            let addrs: Addrs = Box::new(SocketAddrs {
-                iter: lookup.into_iter(),
-            });
+            // Shuffle so that successive connection attempts cycle through all
+            // returned IPs rather than always hitting the same first address.
+            // This distributes retries across the full set of CDN edge nodes
+            // even within the cache TTL window.
+            let mut ips: Vec<IpAddr> = lookup.into_iter().collect();
+            fastrand::shuffle(&mut ips);
+            let addrs: Addrs = Box::new(ips.into_iter().map(|ip| SocketAddr::new(ip, 0)));
             return Ok(addrs);
         }
         Ok(Err(e)) => {
@@ -254,18 +262,6 @@ async fn resolve(
     }
 
     Err(primary_err)
-}
-
-struct SocketAddrs {
-    iter: LookupIpIntoIter,
-}
-
-impl Iterator for SocketAddrs {
-    type Item = SocketAddr;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|ip_addr| SocketAddr::new(ip_addr, 0))
-    }
 }
 
 impl HickoryDnsResolver {
@@ -377,6 +373,24 @@ impl HickoryDnsResolver {
             && let Some(static_base) = cell.get()
         {
             static_base.clear_preresolve()
+        }
+    }
+
+    /// Remove the preresolve cache entry for a single host, forcing the next
+    /// lookup for that host to go through the network resolver again.
+    ///
+    /// Call this after a hard connection failure (RST, ECONNREFUSED, timeout)
+    /// to ensure the next attempt gets a fresh DNS answer rather than a cached
+    /// IP that may no longer be reachable.
+    pub fn invalidate_preresolve_for(&self, name: &str) {
+        debug!("invalidating pre-resolve for {name}");
+        if let Some(cell) = &self.static_base
+            && let Some(static_base) = cell.get()
+        {
+            static_base.invalidate_preresolve_entry(name)
+        }
+        if self.use_shared {
+            SHARED_RESOLVER.invalidate_preresolve_for(name);
         }
     }
 

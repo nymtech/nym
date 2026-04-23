@@ -177,6 +177,8 @@ members = [
     "integration-tests",
     "common/nym-kkt-ciphersuite",
     "common/nym-kkt-context",
+    "nym-network-monitor-v3/nym-network-monitor-orchestrator",
+    "nym-network-monitor-v3/nym-network-monitor-agent",
 ]
 
 default-members = [
@@ -193,6 +195,8 @@ default-members = [
     "service-providers/network-requester",
     "tools/nymvisor",
     "nym-registration-client",
+    "nym-network-monitor-v3/nym-network-monitor-orchestrator",
+    "nym-network-monitor-v3/nym-network-monitor-agent",
     "tools/internal/localnet-orchestrator"
 ]
 
@@ -403,6 +407,10 @@ zeroize = "1.7.0"
 
 prometheus = { version = "0.14.0" }
 
+# recreating lioness
+# we don't care about particular versions - just pull whatever is used by sphinx
+lioness = "*"
+arrayref = "*"
 
 # libcrux
 libcrux-kem = "0.0.7"

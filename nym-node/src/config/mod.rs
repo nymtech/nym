@@ -9,7 +9,6 @@ use celes::Country;
 use clap::ValueEnum;
 use human_repr::HumanCount;
 use nym_bin_common::logging::LoggingSettings;
-use nym_config::defaults::mainnet::read_parsed_var;
 use nym_config::defaults::{
     DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT, DEFAULT_VERLOC_LISTENING_PORT,
     WG_METADATA_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6, WG_TUNNEL_PORT,
@@ -603,7 +602,9 @@ impl Default for Nyx {
 
         #[allow(clippy::expect_used)]
         let nyxd_websocket_url = if let Ok(env_value) = env::var(var_names::NYXD_WEBSOCKET) {
-            read_parsed_var(&env_value).expect("malformed default nyxd websocket URL")
+            env_value
+                .parse()
+                .expect("malformed default nyxd websocket URL")
         } else {
             mainnet::NYXD_WS
                 .parse()

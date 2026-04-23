@@ -479,11 +479,10 @@ mod tests {
         use super::*;
 
         #[test]
-        fn can_only_be_performed_by_orchestrator() -> anyhow::Result<()> {
+        fn can_be_performed_by_orchestrator() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
 
             let orchestrator = test.add_orchestrator()?;
-            let non_orchestrator = test.generate_account();
             let agent = test.random_ip();
 
             test.execute_raw(
@@ -491,25 +490,61 @@ mod tests {
                 ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
             )?;
 
-            let res = test
-                .execute_raw(
-                    non_orchestrator.clone(),
-                    ExecuteMsg::RevokeNetworkMonitor { address: agent },
-                )
-                .unwrap_err();
-
-            assert_eq!(
-                res,
-                NetworkMonitorsContractError::NotAnOrchestrator {
-                    addr: non_orchestrator
-                }
-            );
-
             let res = test.execute_raw(
                 orchestrator,
                 ExecuteMsg::RevokeNetworkMonitor { address: agent },
             );
             assert!(res.is_ok());
+
+            Ok(())
+        }
+
+        #[test]
+        fn can_be_performed_by_admin() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+
+            let admin = test.admin_unchecked();
+            let orchestrator = test.add_orchestrator()?;
+            let agent = test.random_ip();
+
+            test.execute_raw(
+                orchestrator,
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+            )?;
+
+            let res =
+                test.execute_raw(admin, ExecuteMsg::RevokeNetworkMonitor { address: agent });
+            assert!(res.is_ok());
+
+            assert!(NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_agents
+                .may_load(test.storage(), agent.to_string())?
+                .is_none());
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_non_privileged_accounts() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+
+            let orchestrator = test.add_orchestrator()?;
+            let non_privileged = test.generate_account();
+            let agent = test.random_ip();
+
+            test.execute_raw(
+                orchestrator,
+                ExecuteMsg::AuthoriseNetworkMonitor { address: agent },
+            )?;
+
+            let res = test
+                .execute_raw(
+                    non_privileged,
+                    ExecuteMsg::RevokeNetworkMonitor { address: agent },
+                )
+                .unwrap_err();
+
+            assert_eq!(res, NetworkMonitorsContractError::Unauthorized);
 
             Ok(())
         }
@@ -657,7 +692,6 @@ mod tests {
         #[test]
         fn cannot_be_performed_by_revoked_orchestrator() -> anyhow::Result<()> {
             let (mut test, orchestrator) = setup_prepopulated_tester()?;
-            let agents = test.all_agents();
 
             test.execute_raw(
                 test.admin_unchecked(),
@@ -666,12 +700,16 @@ mod tests {
                 },
             )?;
 
+            // snapshot after revocation (cascade-delete has already run); the failed
+            // call below must not mutate this set
+            let post_revoke_agents = test.all_agents();
+
             let res = test
                 .execute_raw(orchestrator, ExecuteMsg::RevokeAllNetworkMonitors)
                 .unwrap_err();
 
             assert_eq!(res, NetworkMonitorsContractError::Unauthorized);
-            assert_eq!(test.all_agents(), agents);
+            assert_eq!(test.all_agents(), post_revoke_agents);
 
             Ok(())
         }

@@ -175,7 +175,11 @@ impl NetworkMonitorsStorage {
         sender: &Addr,
         monitor_address: IpAddr,
     ) -> Result<(), NetworkMonitorsContractError> {
-        self.ensure_is_orchestrator(deps.as_ref(), sender)?;
+        // the contract admin or an authorised orchestrator may revoke a monitor
+        if !self.is_admin(deps.as_ref(), sender)? && !self.is_orchestrator(deps.as_ref(), sender)? {
+            return Err(NetworkMonitorsContractError::Unauthorized);
+        }
+
         self.authorised_agents
             .remove(deps.storage, monitor_address.to_string());
         Ok(())
@@ -720,16 +724,16 @@ mod tests {
         mod removing_monitor_authorisation {
             use super::*;
             use crate::testing::{init_contract_tester, NetworkMonitorsContractTesterExt};
-            use nym_contracts_common_testing::{ContractOpts, RandExt};
+            use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
             use nym_network_monitors_contract_common::NetworkMonitorsContractError;
 
             #[test]
-            fn can_only_be_done_by_an_orchestrator() -> anyhow::Result<()> {
+            fn rejects_non_privileged_accounts() -> anyhow::Result<()> {
                 let mut tester = init_contract_tester();
                 let storage = NetworkMonitorsStorage::new();
 
                 let orchestrator = tester.add_orchestrator()?;
-                let non_orchestrator = tester.generate_account();
+                let non_privileged = tester.generate_account();
                 let agent = tester.random_ip();
 
                 let env = tester.env();
@@ -738,18 +742,37 @@ mod tests {
 
                 let deps = tester.deps_mut();
                 let res = storage
-                    .remove_monitor_authorisation(deps, &non_orchestrator, agent)
+                    .remove_monitor_authorisation(deps, &non_privileged, agent)
                     .unwrap_err();
-                assert_eq!(
-                    NetworkMonitorsContractError::NotAnOrchestrator {
-                        addr: non_orchestrator.clone()
-                    },
-                    res
-                );
+                assert_eq!(NetworkMonitorsContractError::Unauthorized, res);
 
                 let deps = tester.deps_mut();
                 let res2 = storage.remove_monitor_authorisation(deps, &orchestrator, agent);
                 assert_eq!(res2, Ok(()));
+
+                Ok(())
+            }
+
+            #[test]
+            fn can_be_done_by_admin() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let storage = NetworkMonitorsStorage::new();
+
+                let admin = tester.admin_unchecked();
+                let orchestrator = tester.add_orchestrator()?;
+                let agent = tester.random_ip();
+
+                let env = tester.env();
+                let deps = tester.deps_mut();
+                storage.authorise_monitor(deps, &env, &orchestrator, agent)?;
+
+                let deps = tester.deps_mut();
+                storage.remove_monitor_authorisation(deps, &admin, agent)?;
+
+                assert!(storage
+                    .authorised_agents
+                    .may_load(&tester, agent.to_string())?
+                    .is_none());
 
                 Ok(())
             }

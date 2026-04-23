@@ -60,7 +60,7 @@
     "semver": "^6.3.0",
     "string-to-color": "^2.2.2",
     "use-clipboard-copy": "^0.2.0",
-    "uuid": "^8.3.2",
+    "uuid": "^14.0.0",
     "yup": "^0.32.9",
     "zxcvbn": "^4.4.2"
   },

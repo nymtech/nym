@@ -21,10 +21,14 @@ impl From<mpsc::UnboundedSender<PacketToForward>> for MixForwardingSender {
 }
 
 impl MixForwardingSender {
-    pub fn forward_packet(&self, packet: impl Into<PacketToForward>) -> Result<(), SendError> {
+    pub fn forward_packet(&self, packet: PacketToForward) -> Result<(), SendError> {
         self.0
             .unbounded_send(packet.into())
             .map_err(|err| err.into_send_error())
+    }
+
+    pub fn forward_client_packet_without_delay(&self, packet: MixPacket) -> Result<(), SendError> {
+        self.forward_packet(PacketToForward::client_packet_without_delay(packet))
     }
 
     #[allow(clippy::len_without_is_empty)]
@@ -38,35 +42,23 @@ pub type MixForwardingReceiver = mpsc::UnboundedReceiver<PacketToForward>;
 pub struct PacketToForward {
     pub packet: MixPacket,
     pub forward_delay_target: Option<Instant>,
-}
-
-impl From<MixPacket> for PacketToForward {
-    fn from(packet: MixPacket) -> Self {
-        PacketToForward::new_no_delay(packet)
-    }
-}
-
-impl From<(MixPacket, Option<Instant>)> for PacketToForward {
-    fn from((packet, delay_until): (MixPacket, Option<Instant>)) -> Self {
-        PacketToForward::new(packet, delay_until)
-    }
-}
-
-impl From<(MixPacket, Instant)> for PacketToForward {
-    fn from((packet, delay_until): (MixPacket, Instant)) -> Self {
-        PacketToForward::new(packet, Some(delay_until))
-    }
+    pub network_monitor_packet: bool,
 }
 
 impl PacketToForward {
-    pub fn new(packet: MixPacket, forward_delay_target: Option<Instant>) -> Self {
+    pub fn new(
+        packet: MixPacket,
+        forward_delay_target: Option<Instant>,
+        network_monitor_packet: bool,
+    ) -> Self {
         PacketToForward {
             packet,
             forward_delay_target,
+            network_monitor_packet,
         }
     }
 
-    pub fn new_no_delay(packet: MixPacket) -> Self {
-        Self::new(packet, None)
+    pub fn client_packet_without_delay(packet: MixPacket) -> Self {
+        Self::new(packet, None, false)
     }
 }

@@ -1,19 +1,14 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    collections::HashMap,
-    net::{IpAddr, SocketAddr},
-    sync::Arc,
-    time::Duration,
-};
-
 use arc_swap::ArcSwap;
 use nym_crypto::asymmetric::x25519;
-use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
+use nym_noise_keys::VersionedNoiseKeyV1;
 use snow::params::NoiseParams;
+use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
 
 use strum_macros::{EnumIter, FromRepr};
+use tokio::sync::{Mutex, MutexGuard};
 
 #[derive(Default, Debug, Clone, Copy, EnumIter, FromRepr, Eq, PartialEq)]
 #[repr(u8)]
@@ -53,38 +48,85 @@ impl NoisePattern {
     }
 }
 
-#[derive(Debug, Default)]
-struct SocketAddrToKey {
-    inner: ArcSwap<HashMap<SocketAddr, VersionedNoiseKeyV1>>,
-}
-
-// SW NOTE : Only for phased upgrade. To remove once we decide all nodes have to support Noise
-#[derive(Debug, Default)]
-struct IpAddrToVersion {
-    inner: ArcSwap<HashMap<IpAddr, NoiseVersion>>,
-}
-
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct NoiseNetworkView {
-    keys: Arc<SocketAddrToKey>,
-    support: Arc<IpAddrToVersion>,
+    inner: Arc<NoiseNetworkViewInner>,
+}
+
+/// Inner state of [`NoiseNetworkView`], shared behind an `Arc`.
+///
+/// # Concurrency model
+///
+/// Reads (on the packet-processing hot path) use `ArcSwap` and are fully lock-free.
+/// Writers must first acquire `update_lock` to serialise concurrent updates, then call
+/// `swap_view` to atomically publish the new map.  The lock is intentionally *not* wrapping
+/// the map itself so that readers are never blocked.
+#[derive(Debug)]
+struct NoiseNetworkViewInner {
+    update_lock: Mutex<()>,
+    nodes: ArcSwap<HashMap<IpAddr, NoiseNode>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NoiseNode {
+    key: VersionedNoiseKeyV1,
+
+    // Distinguishes nym-node entries (sourced from nym-api topology refreshes) from
+    // network-monitor agent entries (sourced from blockchain events).
+    // This is needed because the two sources have independent lifecycles:
+    // `revoked_all_agents` must wipe NM entries while preserving nym-node entries,
+    // and `refresh_network_nodes` must rebuild nym-node entries without touching NM entries.
+    is_nym_node: bool,
+}
+
+impl NoiseNode {
+    pub fn new_nym_node(key: VersionedNoiseKeyV1) -> Self {
+        NoiseNode {
+            key,
+            is_nym_node: true,
+        }
+    }
+
+    pub fn new_network_monitor_agent(key: VersionedNoiseKeyV1) -> Self {
+        NoiseNode {
+            key,
+            is_nym_node: false,
+        }
+    }
+
+    pub fn is_nym_node(&self) -> bool {
+        self.is_nym_node
+    }
 }
 
 impl NoiseNetworkView {
     pub fn new_empty() -> Self {
         NoiseNetworkView {
-            keys: Default::default(),
-            support: Default::default(),
+            inner: Arc::new(NoiseNetworkViewInner {
+                update_lock: Mutex::new(()),
+                nodes: Default::default(),
+            }),
         }
     }
 
-    pub fn swap_view(&self, new: HashMap<SocketAddr, VersionedNoiseKeyV1>) {
-        let noise_support = new
-            .iter()
-            .map(|(s_addr, key)| (s_addr.ip(), key.supported_version))
-            .collect::<HashMap<_, _>>();
-        self.keys.inner.store(Arc::new(new));
-        self.support.inner.store(Arc::new(noise_support));
+    pub async fn get_update_permit(&self) -> MutexGuard<'_, ()> {
+        self.inner.update_lock.lock().await
+    }
+
+    /// Atomically replace the noise key map.
+    ///
+    /// # Precondition
+    ///
+    /// The caller **must** hold the permit returned by [`NoiseNetworkView::get_update_permit`].
+    /// Passing the `MutexGuard` by value enforces this at the type level — the guard is dropped
+    /// (releasing the lock) only after the swap completes, preventing torn writes from concurrent
+    /// update calls.
+    pub fn swap_view(&self, _permit: MutexGuard<'_, ()>, new: HashMap<IpAddr, NoiseNode>) {
+        self.inner.nodes.store(Arc::new(new));
+    }
+
+    pub fn all_nodes(&self) -> HashMap<IpAddr, NoiseNode> {
+        self.inner.nodes.load().as_ref().clone()
     }
 }
 
@@ -126,20 +168,24 @@ impl NoiseConfig {
         self
     }
 
-    pub(crate) fn get_noise_key(&self, s_address: &SocketAddr) -> Option<VersionedNoiseKeyV1> {
-        self.network.keys.inner.load().get(s_address).copied()
+    pub(crate) fn get_noise_key(&self, address: IpAddr) -> Option<VersionedNoiseKeyV1> {
+        // When a nym-node binds on `[::]:1789` (the default), it will accept connections on both
+        // IPv4 and IPv6.  If an IPv4 initiator connects, the kernel may present its address to the
+        // responder as an IPv4-mapped IPv6 address (e.g. `::ffff:1.2.3.4`) rather than the plain
+        // IPv4 address (`1.2.3.4`) that was registered in the noise map.
+        // `to_canonical()` strips that mapping so we can find the entry either way.
+        let base_ip = address;
+        let canonical_ip = base_ip.to_canonical();
+
+        if let Some(node) = self.network.inner.nodes.load().get(&base_ip) {
+            return Some(node.key);
+        }
+
+        Some(self.network.inner.nodes.load().get(&canonical_ip)?.key)
     }
 
-    // Only for phased update
-    //SW This can lead to some troubles if two nodes share the same IP and one support Noise but not the other.
-    // This in only for the progressive update though and there is no workaround
-    pub(crate) fn get_noise_support(&self, ip_addr: IpAddr) -> Option<NoiseVersion> {
-        let plain_ip_support = self.network.support.inner.load().get(&ip_addr).copied();
-
-        // SW default bind address being [::]:1789, it can happen that a responder sees the ipv6-mapped address of the initiator, this check for that
-        let canonical_ip = &ip_addr.to_canonical();
-        let canonical_ip_support = self.network.support.inner.load().get(canonical_ip).copied();
-        plain_ip_support.or(canonical_ip_support)
+    pub(crate) fn supports_noise(&self, ip_addr: IpAddr) -> bool {
+        self.get_noise_key(ip_addr).is_some()
     }
 }
 

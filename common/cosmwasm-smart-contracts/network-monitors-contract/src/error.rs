@@ -19,6 +19,9 @@ pub enum NetworkMonitorsContractError {
     #[error("address {addr} is not an authorised orchestrator")]
     NotAnOrchestrator { addr: Addr },
 
+    #[error("Failed to recover x25519 public key from its base58 representation: {0}")]
+    MalformedX25519AgentNoiseKey(String),
+
     #[error(transparent)]
     StdErr(#[from] cosmwasm_std::StdError),
 }

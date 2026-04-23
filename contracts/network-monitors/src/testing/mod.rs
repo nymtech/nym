@@ -5,9 +5,9 @@ use crate::contract::{execute, instantiate, migrate, query};
 use cosmwasm_std::{Addr, Order};
 use nym_contracts_common_testing::{
     mock_dependencies, AdminExt, ChainOpts, CommonStorageKeys, ContractFn, ContractOpts,
-    ContractTester, DenomExt, PermissionedFn, QueryFn, RandExt, Rng, TestableNymContract,
+    ContractTester, DenomExt, PermissionedFn, QueryFn, RandExt, Rng, RngCore, TestableNymContract,
 };
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use crate::storage::NetworkMonitorsStorage;
 use nym_network_monitors_contract_common::constants::storage_keys;
@@ -89,16 +89,74 @@ pub trait NetworkMonitorsContractTesterExt:
         }
     }
 
-    fn random_ip(&mut self) -> IpAddr {
+    fn add_dummy_agent(&mut self, agent: SocketAddr) {
+        let orchestrators = self.all_orchestrators();
+        let orchestrator = match orchestrators.first() {
+            Some(orchestrator) => orchestrator.clone(),
+            None => self.add_orchestrator().unwrap().clone(),
+        };
+
+        self.execute_raw(
+            orchestrator,
+            ExecuteMsg::AuthoriseNetworkMonitor {
+                mixnet_address: agent,
+                bs58_x25519_noise: "11111111111111111111111111111111".to_string(),
+                noise_version: 1,
+            },
+        )
+        .unwrap();
+    }
+
+    fn random_ipv4(&mut self) -> IpAddr {
         let rng = self.raw_rng();
         IpAddr::V4(Ipv4Addr::new(rng.gen(), rng.gen(), rng.gen(), rng.gen()))
     }
 
-    fn all_agents(&self) -> Vec<IpAddr> {
+    fn random_ipv6(&mut self) -> IpAddr {
+        let rng = self.raw_rng();
+        IpAddr::V6(Ipv6Addr::new(
+            rng.gen(),
+            rng.gen(),
+            rng.gen(),
+            rng.gen(),
+            rng.gen(),
+            rng.gen(),
+            rng.gen(),
+            rng.gen(),
+        ))
+    }
+
+    fn random_ip(&mut self) -> IpAddr {
+        let rng = self.raw_rng();
+
+        // toss a coin, if even => ipv4, if odd => ipv6
+        if rng.next_u32() % 2 == 0 {
+            self.random_ipv4()
+        } else {
+            self.random_ipv6()
+        }
+    }
+
+    fn random_socket_ipv4(&mut self) -> SocketAddr {
+        let port = self.raw_rng().gen();
+        SocketAddr::new(self.random_ipv4(), port)
+    }
+
+    fn random_socket_ipv6(&mut self) -> SocketAddr {
+        let port = self.raw_rng().gen();
+        SocketAddr::new(self.random_ipv6(), port)
+    }
+
+    fn random_socket(&mut self) -> SocketAddr {
+        let port = self.raw_rng().gen();
+        SocketAddr::new(self.random_ip(), port)
+    }
+
+    fn all_agents(&self) -> Vec<SocketAddr> {
         NetworkMonitorsStorage::new()
             .authorised_agents
             .range(self.storage(), None, None, Order::Ascending)
-            .map(|record| record.unwrap().0.parse().unwrap())
+            .map(|record| record.unwrap().1.mixnet_address)
             .collect()
     }
 
@@ -112,3 +170,12 @@ pub trait NetworkMonitorsContractTesterExt:
 }
 
 impl NetworkMonitorsContractTesterExt for ContractTester<NetworkMonitorsContract> {}
+
+pub(crate) fn storage_ip_comp(a: IpAddr, b: IpAddr) -> std::cmp::Ordering {
+    match (a, b) {
+        (IpAddr::V4(a), IpAddr::V4(b)) => a.octets().cmp(&b.octets()),
+        (IpAddr::V6(a), IpAddr::V6(b)) => a.octets().cmp(&b.octets()),
+        (IpAddr::V4(a), IpAddr::V6(b)) => a.octets().as_slice().cmp(&b.octets()),
+        (IpAddr::V6(a), IpAddr::V4(b)) => a.octets().as_slice().cmp(&b.octets()),
+    }
+}

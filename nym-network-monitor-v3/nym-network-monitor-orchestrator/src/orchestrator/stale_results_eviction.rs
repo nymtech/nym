@@ -115,13 +115,13 @@ impl StaleResultsEviction {
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => break,
-                _ = interval.tick() => {}
-            }
-
-            if let Err(err) = self.evict_stale_results().await {
-                // Transient storage errors shouldn't kill the task — the next
-                // tick will retry and any missed items simply age a bit longer.
-                error!("failed to evict stale results: {err}");
+                _ = interval.tick() => {
+                    if let Err(err) = self.evict_stale_results().await {
+                        // Transient storage errors shouldn't kill the task — the next
+                        // tick will retry and any missed items simply age a bit longer.
+                        error!("failed to evict stale results: {err}");
+                    }
+                }
             }
         }
 

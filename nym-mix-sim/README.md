@@ -56,7 +56,7 @@ cargo run --bin nym-mix-sim -- run [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--topology <PATH>` | `topology.json` | Topology file to load |
-| `--driver <DRIVER>` | `manual-sphinx` | Simulation driver (see below) |
+| `--driver <DRIVER>` | `discrete-sphinx` | Simulation driver (see below) |
 | `--tick-duration-ms <MS>` | `1` | Milliseconds between automatic ticks |
 | `--manual` | off | Enable manual stepping mode (ENTER per tick) |
 
@@ -78,13 +78,13 @@ The driver controls how packets are formatted, encrypted, and routed.
 |--------|-----------|------------|-------------|-------------|
 | `simple` | Discrete (u32 tick counter) | None | Yes | Pass-through packets, minimal overhead, useful for testing topology |
 | `sphinx` | Wall-clock (`Instant`) | Full Sphinx | No | Real Sphinx encryption with realistic timing |
-| `manual-sphinx` | Discrete (u32 tick counter) | Full Sphinx | Yes | Sphinx encryption with tick-based time, supports interactive stepping |
+| `discrete-sphinx` | Discrete (u32 tick counter) | Full Sphinx | Yes | Sphinx encryption with tick-based time, supports interactive stepping |
 
 **`simple`** — Each packet is a fixed 64-byte frame (16-byte UUID + 48-byte payload). Nodes forward to `node_id + 1`. No cryptography. Best for sanity-checking topology and observing raw packet flow.
 
 **`sphinx`** — Uses `nym_sphinx::SphinxPacket` for full onion encryption. Clients select 3 random nodes as the route. Delays are extracted from the decrypted packet and scheduled using real wall-clock time. Automatic mode only.
 
-**`manual-sphinx`** — Same Sphinx encryption as `sphinx` but uses a u32 tick counter instead of wall-clock time. This makes it fully deterministic and compatible with `--manual` mode.
+**`discrete-sphinx`** — Same Sphinx encryption as `sphinx` but uses a u32 tick counter instead of wall-clock time (1 tick = 1 ms). This makes it fully deterministic and compatible with `--manual` mode.
 
 ## Tick Mechanics
 
@@ -123,8 +123,8 @@ Each tick runs three phases across all nodes simultaneously:
   "clients": [
     {
       "client_id": 6,
-      "mixnet_address": "127.0.0.1:9500",
-      "app_address": "127.0.0.1:9600"
+      "mixnet_address": "127.0.0.1:9506",
+      "app_address": "127.0.0.1:9606"
     }
   ]
 }
@@ -147,7 +147,7 @@ Default level is `info`. Logs go to stderr; received message content goes to std
 
 ```bash
 # Terminal 1 — run in manual mode, one tick at a time
-cargo run --bin nym-mix-sim -- run --driver manual-sphinx --manual
+cargo run --bin nym-mix-sim -- run --driver discrete-sphinx --manual
 
 # Terminal 2 — send a message
 cargo run --bin mix-client -- --src 6 --dst 7

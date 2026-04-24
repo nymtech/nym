@@ -5,7 +5,7 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use crate::node::{Node, NodeId, TopologyNode};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Directory {
     nodes: HashMap<NodeId, DirectoryNode>,
 }
@@ -24,6 +24,7 @@ impl Directory {
     }
 }
 
+#[derive(Debug)]
 pub struct DirectoryNode {
     pub node_detail: TopologyNode,
     pub addr: SocketAddr,

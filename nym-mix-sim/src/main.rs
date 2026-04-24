@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::net::SocketAddr;
+use std::net::{SocketAddr, UdpSocket};
 
 use clap::{Parser, Subcommand};
 use mix_sim::{driver::MixSimDriver, node::TopologyNode, packet::SimplePacket};
@@ -84,6 +84,13 @@ async fn main() -> anyhow::Result<()> {
             info!("Loading topology from {topology}");
             let driver = MixSimDriver::<u32, SimplePacket>::new(topology)?;
             info!("MixSimDriver initialized successfully");
+            let init_packet = SimplePacket::new([b'A'; 48]);
+            let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], 9999)))?;
+            socket.send_to(
+                &init_packet.to_bytes(),
+                SocketAddr::from(([127, 0, 0, 1], 9000)),
+            )?;
+
             driver.run(manual, tick_duration_ms).await?;
         }
     }

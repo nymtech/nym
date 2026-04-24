@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
+    fmt::Debug,
+    io::ErrorKind,
     net::{SocketAddr, UdpSocket},
     sync::Arc,
 };
@@ -9,7 +11,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    packet::{SimplePacket, WirePacketFormat},
+    packet::WirePacketFormat,
     topology::{Directory, DirectoryNode},
 };
 
@@ -37,18 +39,23 @@ pub struct Node<Ts, Pkt> {
     details: TopologyNode,
     socket: UdpSocket,
 
-    packet_buffer: Vec<Pkt>,
+    // Internal Buffers
+    packets_to_process: Vec<Pkt>,
+    processed_packets: Vec<Pkt>,
+
     _ts_marker: std::marker::PhantomData<Ts>,
 }
 
 impl<Ts, Pkt> Node<Ts, Pkt> {
     pub fn from_topology_node(node: TopologyNode) -> anyhow::Result<Self> {
         let socket = UdpSocket::bind(node.addr)?;
+        socket.set_nonblocking(true)?;
         Ok(Node {
             directory: Default::default(),
             details: node,
             socket,
-            packet_buffer: Vec::new(),
+            packets_to_process: Vec::new(),
+            processed_packets: Vec::new(),
             _ts_marker: std::marker::PhantomData,
         })
     }
@@ -69,9 +76,39 @@ impl<Ts, Pkt> Node<Ts, Pkt> {
     }
 }
 
+impl<Ts: Debug, Pkt: Debug> Node<Ts, Pkt> {
+    pub fn display_state(&self) {
+        println!("│  Node {:2} @ {}", self.details.id, self.details.addr);
+        if self.packets_to_process.is_empty() {
+            println!("│    to_process buffer: (empty)");
+        } else {
+            println!(
+                "│    to_process buffer: {} packet(s)",
+                self.packets_to_process.len()
+            );
+            for (i, pkt) in self.packets_to_process.iter().enumerate() {
+                println!("│      [{i}] {pkt:?}");
+            }
+        }
+
+        if self.processed_packets.is_empty() {
+            println!("│    processed buffer: (empty)");
+        } else {
+            println!(
+                "│    processed buffer: {} packet(s)",
+                self.processed_packets.len()
+            );
+            for (i, pkt) in self.processed_packets.iter().enumerate() {
+                println!("│      [{i}] {pkt:?}");
+            }
+        }
+    }
+}
+
 impl<Ts, Pkt> Node<Ts, Pkt>
 where
-    Pkt: WirePacketFormat,
+    Ts: Clone,
+    Pkt: WirePacketFormat<Ts>,
 {
     pub fn send_to_node(&self, node_id: NodeId, packet: Pkt) {
         if let Some(node) = self.directory.node(node_id) {
@@ -96,11 +133,14 @@ where
 
     pub fn recv_packet(&self) -> Option<anyhow::Result<Pkt>> {
         let mut buf = [0; 1500];
-        let (nb_bytes, src_address) = self
-            .socket
-            .recv_from(&mut buf)
-            .inspect_err(|e| tracing::error!("Error receiving packet : {e}"))
-            .ok()?;
+        let (nb_bytes, src_address) = match self.socket.recv_from(&mut buf) {
+            Ok(result) => result,
+            Err(e) if e.kind() == ErrorKind::WouldBlock => return None,
+            Err(e) => {
+                tracing::error!("Error receiving packet : {e}");
+                return None;
+            }
+        };
 
         tracing::info!(
             "[Node {}] Received {nb_bytes} bytes from {src_address}",
@@ -108,16 +148,11 @@ where
         );
         Some(Pkt::try_from_bytes(&buf[..nb_bytes]))
     }
-}
 
-impl<Pkt> Node<u32, Pkt>
-where
-    Pkt: WirePacketFormat,
-{
-    pub fn tick_incoming(&mut self, _: u32) {
+    pub fn tick_incoming(&mut self, _: Ts) {
         while let Some(maybe_packet) = self.recv_packet() {
             match maybe_packet {
-                Ok(packet) => self.packet_buffer.push(packet),
+                Ok(packet) => self.packets_to_process.push(packet),
                 Err(e) => tracing::error!(
                     "[Node {}] Failed to deserialize packet : {e}",
                     self.details.id
@@ -125,8 +160,20 @@ where
             }
         }
     }
-    pub fn tick_outgoing(&mut self, _: u32) {
-        while let Some(packet) = self.packet_buffer.pop() {
+
+    pub fn tick_processing(&mut self, timestamp: Ts) {
+        while let Some(packet) = self.packets_to_process.pop() {
+            match packet.process(timestamp.clone()) {
+                Ok(packet) => self.processed_packets.push(packet),
+                Err(e) => {
+                    tracing::error!("[Node {}] Failed to process packet : {e}", self.details.id)
+                }
+            }
+        }
+    }
+
+    pub fn tick_outgoing(&mut self, _: Ts) {
+        while let Some(packet) = self.processed_packets.pop() {
             self.send_to_node(self.id() + 1, packet);
         }
     }

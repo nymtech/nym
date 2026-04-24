@@ -1,13 +1,29 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt;
+use std::fmt::Debug;
+
+use nym_lp::packet::utils::format_debug_bytes;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct SimplePacket {
     id: Uuid,
-    data: Vec<u8>,
+    pub data: Vec<u8>,
+}
+
+impl Debug for SimplePacket {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "SimplePacket {{")?;
+        writeln!(f, "    id: {:?},", self.id)?;
+        writeln!(f, "    data:")?;
+        for line in format_debug_bytes(&self.data)?.lines() {
+            writeln!(f, "        {line}")?;
+        }
+        write!(f, "}}")
+    }
 }
 
 impl SimplePacket {
@@ -53,9 +69,14 @@ impl SimplePacket {
     }
 }
 
-impl WirePacketFormat for SimplePacket {
+impl<Ts> WirePacketFormat<Ts> for SimplePacket {
     fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
         Self::try_from_bytes(bytes)
+    }
+
+    fn process(mut self, _: Ts) -> anyhow::Result<Self> {
+        self.data = self.data.into_iter().map(|b| b + 1).collect();
+        Ok(self)
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -63,7 +84,8 @@ impl WirePacketFormat for SimplePacket {
     }
 }
 
-pub trait WirePacketFormat: Sized + Send + 'static {
+pub trait WirePacketFormat<Ts>: Debug + Sized + Send + 'static {
     fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self>;
+    fn process(self, timestamp: Ts) -> anyhow::Result<Self>;
     fn to_bytes(&self) -> Vec<u8>;
 }

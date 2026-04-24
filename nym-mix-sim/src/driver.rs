@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{sync::Arc, time::Duration};
+use std::{fmt::Debug, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use tracing::{debug, info};
@@ -16,7 +16,11 @@ pub struct MixSimDriver<Ts, Pkt> {
     nodes: Vec<Node<Ts, Pkt>>,
 }
 
-impl<Ts, Pkt> MixSimDriver<Ts, Pkt> {
+impl<Ts, Pkt> MixSimDriver<Ts, Pkt>
+where
+    Ts: Debug,
+    Pkt: Debug,
+{
     pub fn new(topology_file_path: String) -> anyhow::Result<Self> {
         debug!(
             "Bootstrapping nodes from topology file: {}",
@@ -44,11 +48,19 @@ impl<Ts, Pkt> MixSimDriver<Ts, Pkt> {
 
         Ok(Self { nodes })
     }
+
+    pub fn display_state(&self, tick: u32) {
+        println!("┌─── Tick {tick} ─────────────────────────────────────┐");
+        for node in &self.nodes {
+            node.display_state();
+        }
+        println!("└──────────────────────────────────────────────────┘");
+    }
 }
 
 impl<Pkt> MixSimDriver<u32, Pkt>
 where
-    Pkt: WirePacketFormat,
+    Pkt: WirePacketFormat<u32> + Debug,
 {
     pub async fn run(self, manual_mode: bool, tick_duration_ms: u64) -> anyhow::Result<()> {
         if manual_mode {
@@ -63,7 +75,7 @@ where
         let handle = tokio::spawn(async move {
             let mut current_tick = 0;
             loop {
-                self.tick(current_tick).await;
+                self.tick(current_tick, false).await;
                 current_tick += 1;
                 tokio::time::sleep(tick_duration).await;
             }
@@ -81,17 +93,32 @@ where
             line.clear();
             std::io::stdin().read_line(&mut line)?;
             info!("Tick {current_tick}");
-            self.tick(current_tick).await;
+            self.tick(current_tick, true).await;
             current_tick += 1;
         }
     }
 
-    pub async fn tick(&mut self, timestamp: u32) {
-        // For fairness, Nodes will first all process incoming packets, then process outgoing ones
+    pub async fn tick(&mut self, timestamp: u32, display_state: bool) {
+        // Take in incoming packets everywhere
         for node in &mut self.nodes {
             node.tick_incoming(timestamp);
         }
 
+        // Optionnally display state
+        if display_state {
+            self.display_state(timestamp);
+        }
+        // Process packets everywhere
+        for node in &mut self.nodes {
+            node.tick_processing(timestamp);
+        }
+
+        // Optionnally display state again
+        if display_state {
+            self.display_state(timestamp);
+        }
+
+        // Send outgoing packets everywere
         for node in &mut self.nodes {
             node.tick_outgoing(timestamp);
         }

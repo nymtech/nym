@@ -113,14 +113,14 @@ where
 
 impl<Ts, Pkt, NdId, C, R, O, Rs, F, T> Transport<Ts, Pkt, NdId> for Pipeline<C, R, O, Rs, F, T>
 where
-    F: Framing<Ts, NdId>,
-    T: Transport<Ts, Pkt, NdId, Frame = F::Frame>,
+    T: Transport<Ts, Pkt, NdId>,
 {
-    const OVERHEAD_SIZE: usize = <T as Transport<Ts, Pkt, NdId>>::OVERHEAD_SIZE;
+    type Frame = T::Frame;
+    const OVERHEAD_SIZE: usize = T::OVERHEAD_SIZE;
 
     fn to_transport_packet(
         &self,
-        frame: AddressedTimedData<Ts, F::Frame, NdId>,
+        frame: AddressedTimedData<Ts, T::Frame, NdId>,
     ) -> AddressedTimedData<Ts, Pkt, NdId> {
         self.transport.to_transport_packet(frame)
     }

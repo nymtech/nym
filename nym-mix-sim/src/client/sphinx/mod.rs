@@ -297,6 +297,7 @@ impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> Framing<Ts, NodeId>
 impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> Transport<Ts, SimMixPacket, NodeId>
     for SphinxClientWrappingPipeline<Ts, R>
 {
+    type Frame = Vec<u8>;
     const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,

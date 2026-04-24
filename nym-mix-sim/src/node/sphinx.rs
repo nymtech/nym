@@ -192,6 +192,7 @@ impl<Ts: Clone> Framing<Ts, NodeId> for SphinxProcessingNode {
 }
 
 impl<Ts: Clone> Transport<Ts, SimMixPacket, NodeId> for SphinxProcessingNode {
+    type Frame = Vec<u8>;
     const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,

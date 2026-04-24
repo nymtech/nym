@@ -118,6 +118,7 @@ impl<Ts: Clone> Framing<Ts, NodeId> for SimpleProcessingNode {
 }
 
 impl<Ts: Clone> Transport<Ts, SimplePacket, NodeId> for SimpleProcessingNode {
+    type Frame = SimpleFrame;
     const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,

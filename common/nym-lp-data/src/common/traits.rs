@@ -52,13 +52,16 @@ pub trait FramingUnwrap<Ts, Mk> {
 /// - `Ts`: Timestamp type carried by the `TimedPayload`.
 /// - `Pkt`: Transport packet type produced as output.
 ///
+/// # Associated Types
+/// - `Frame`: Frame type consumed as input.
+///
 /// # Associated Constants
 /// - `OVERHEAD_SIZE`: Number of additional bytes added by the transport scheme.
 ///
 /// # Required Methods
-/// - `to_transport_packet`: Wraps a frame into a transport packet. The frame type is
-///   inherited from the [`Framing`] supertrait via `Self::Frame`.
-pub trait Transport<Ts, Pkt, NdId>: Framing<Ts, NdId> {
+/// - `to_transport_packet`: Wraps a frame into a transport packet.
+pub trait Transport<Ts, Pkt, NdId> {
+    type Frame;
     const OVERHEAD_SIZE: usize;
     fn to_transport_packet(
         &self,
@@ -95,6 +98,10 @@ pub trait TransportUnwrap<Ts, Pkt> {
 /// - `Ts`: Timestamp type.
 /// - `Pkt`: Final transport packet type.
 ///
+/// Both [`Framing`] and [`Transport`] declare their own `type Frame`; this
+/// supertrait cross-constrains them so `to_frame`'s output feeds directly into
+/// `to_transport_packet`.
+///
 /// # Required Methods
 /// - `packet_size`: Total on-wire size of an output packet in bytes.
 ///
@@ -102,7 +109,8 @@ pub trait TransportUnwrap<Ts, Pkt> {
 /// - `frame_size`: Derived from `packet_size` minus transport and framing overheads.
 /// - `wire_wrap`: Frames a payload and wraps each frame into a transport packet.
 pub trait WireWrappingPipeline<Ts, Pkt, NdId>:
-    Framing<Ts, NdId> + Transport<Ts, Pkt, NdId>
+    Transport<Ts, Pkt, NdId>
+    + Framing<Ts, NdId, Frame = <Self as Transport<Ts, Pkt, NdId>>::Frame>
 where
     Ts: Clone,
     NdId: Clone,

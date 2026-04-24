@@ -181,6 +181,7 @@ impl<Ts: Clone> Framing<Ts, NodeId> for SimpleClientWrappingPipeline {
 
 // Delegation to SimpleWireWrapper
 impl<Ts: Clone> Transport<Ts, SimplePacket, NodeId> for SimpleClientWrappingPipeline {
+    type Frame = SimpleFrame;
     const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,

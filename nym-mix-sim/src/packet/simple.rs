@@ -218,6 +218,7 @@ impl<Ts: Clone> Framing<Ts, NodeId> for SimpleWireWrapper {
 /// Transport wraps a [`SimpleFrame`] into a [`SimplePacket`].
 /// Overhead = 16 bytes (UUID), so effective payload = 48 bytes.
 impl<Ts: Clone> Transport<Ts, SimplePacket, NodeId> for SimpleWireWrapper {
+    type Frame = SimpleFrame;
     const OVERHEAD_SIZE: usize = 16;
     fn to_transport_packet(
         &self,

@@ -54,6 +54,9 @@ pub enum PrometheusMetric {
     #[strum(props(help = "The number of ingress replayed sphinx packets received"))]
     MixnetIngressReplayedPacketsReceived,
 
+    #[strum(props(help = "The number of ingress test sphinx packets received"))]
+    MixnetIngressTestPacketsReceived,
+
     #[strum(props(help = "The number of ingress malformed sphinx packets received"))]
     MixnetIngressMalformedPacketsReceived,
 
@@ -254,6 +257,9 @@ impl PrometheusMetric {
             PrometheusMetric::MixnetIngressReplayedPacketsReceived => {
                 Metric::new_int_gauge(&name, help)
             }
+            PrometheusMetric::MixnetIngressTestPacketsReceived => {
+                Metric::new_int_gauge(&name, help)
+            }
             PrometheusMetric::MixnetIngressMalformedPacketsReceived => {
                 Metric::new_int_gauge(&name, help)
             }
@@ -446,7 +452,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(45, PrometheusMetric::COUNT)
+        assert_eq!(46, PrometheusMetric::COUNT)
     }
 
     #[test]

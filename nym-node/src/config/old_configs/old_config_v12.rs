@@ -20,7 +20,7 @@ use crate::config::service_providers::{
 };
 use crate::config::{
     Config, Debug, GatewayTasksConfig, Host, Http, KeyRotation, KeyRotationDebug, MetricsConfig,
-    Mixnet, MixnetDebug, NodeModes, ReplayProtection, ReplayProtectionDebug,
+    Mixnet, MixnetDebug, NodeModes, Nyx, ReplayProtection, ReplayProtectionDebug,
     ServiceProvidersConfig, Verloc, VerlocDebug, Wireguard, gateway_tasks, metrics,
     service_providers,
 };
@@ -599,11 +599,16 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
             hostname: old_cfg.host.hostname,
             location: old_cfg.host.location,
         },
+        // \/ ADDED
+        nyx: Nyx {
+            nyxd_websocket_url: Nyx::default().nyxd_websocket_url,
+            nyxd_urls: old_cfg.mixnet.nyxd_urls,
+        },
+        // /\ ADDED
         mixnet: Mixnet {
             bind_address: old_cfg.mixnet.bind_address,
             announce_port: old_cfg.mixnet.announce_port,
             nym_api_urls: old_cfg.mixnet.nym_api_urls,
-            nyxd_urls: old_cfg.mixnet.nyxd_urls,
             replay_protection: ReplayProtection {
                 storage_paths: ReplayProtectionPaths {
                     current_bloomfilters_directory: old_cfg

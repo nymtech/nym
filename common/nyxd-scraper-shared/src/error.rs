@@ -82,10 +82,8 @@ pub enum ScraperError {
         source: cosmrs::ErrorReport,
     },
 
-    #[error("could not parse msg in tx {hash} at index {index} into {type_url}: {source}")]
+    #[error("could not parse msg of type {type_url}: {source}")]
     MsgParseFailure {
-        hash: Hash,
-        index: usize,
         type_url: String,
         #[source]
         source: cosmrs::ErrorReport,

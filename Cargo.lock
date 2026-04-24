@@ -7325,7 +7325,6 @@ version = "1.20.4"
 dependencies = [
  "cargo_metadata 0.19.2",
  "dotenvy",
- "log",
  "regex",
  "schemars 0.8.22",
  "serde",
@@ -7368,6 +7367,99 @@ dependencies = [
  "tokio-util",
  "utoipa",
  "utoipa-swagger-ui",
+]
+
+[[package]]
+name = "nym-network-monitor-agent"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "arrayref",
+ "clap",
+ "futures",
+ "hkdf",
+ "humantime",
+ "lioness",
+ "nym-bin-common",
+ "nym-crypto",
+ "nym-network-monitor-orchestrator-requests",
+ "nym-noise",
+ "nym-pemstore",
+ "nym-sphinx-addressing",
+ "nym-sphinx-framing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "nym-task",
+ "nym-test-utils",
+ "rand 0.8.5",
+ "sha2 0.10.9",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "x25519-dalek",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-network-monitor-orchestrator"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "axum 0.7.9",
+ "clap",
+ "futures",
+ "humantime",
+ "nym-bin-common",
+ "nym-crypto",
+ "nym-http-api-common",
+ "nym-metrics",
+ "nym-network-defaults",
+ "nym-network-monitor-orchestrator-requests",
+ "nym-node-requests",
+ "nym-task",
+ "nym-test-utils",
+ "nym-validator-client",
+ "rand 0.8.5",
+ "sqlx",
+ "strum 0.28.0",
+ "thiserror 2.0.12",
+ "time",
+ "tokio",
+ "tracing",
+ "url",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "utoipauto",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-network-monitor-orchestrator-requests"
+version = "1.20.4"
+dependencies = [
+ "anyhow",
+ "humantime-serde",
+ "nym-crypto",
+ "nym-http-api-client",
+ "serde",
+ "time",
+ "tracing",
+ "utoipa",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-network-monitors-contract-common"
+version = "1.20.4"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -7491,6 +7583,7 @@ dependencies = [
  "nym-verloc",
  "nym-wireguard",
  "nym-wireguard-types",
+ "nyxd-scraper-shared",
  "opentelemetry",
  "opentelemetry_sdk",
  "rand 0.8.5",
@@ -7541,6 +7634,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-kkt-ciphersuite",
+ "nym-network-defaults",
  "nym-noise-keys",
  "nym-test-utils",
  "nym-upgrade-mode-check",
@@ -8479,6 +8573,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
+ "nym-network-monitors-contract-common",
  "nym-performance-contract-common",
  "nym-serde-helpers",
  "nym-vesting-contract-common",

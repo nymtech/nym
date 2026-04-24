@@ -22,6 +22,10 @@ pub const VESTING_CONTRACT_ADDRESS: &str =
 pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
 
+// \/ TODO: this has to be updated once the contract is deployed
+pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str = "";
+// /\ TODO: this has to be updated once the contract is deployed
+
 pub const ECASH_CONTRACT_ADDRESS: &str =
     "n1r7s6aksyc6pqardx88k3rkgfagwvj4z4zum9mmz2sfk3zm2mha0sd4dnun";
 pub const GROUP_CONTRACT_ADDRESS: &str =
@@ -137,6 +141,11 @@ pub fn read_parsed_var_if_not_default<T: std::str::FromStr>(
         .map(std::str::FromStr::from_str)
 }
 
+#[cfg(feature = "env")]
+pub fn read_parsed_var<T: std::str::FromStr>(var: &str) -> Result<T, T::Err> {
+    std::env::var(var).unwrap_or_default().parse()
+}
+
 #[cfg(all(feature = "env", feature = "network"))]
 pub fn export_to_env() {
     use crate::var_names;
@@ -166,6 +175,14 @@ pub fn export_to_env() {
     set_var_to_default(
         var_names::COCONUT_DKG_CONTRACT_ADDRESS,
         COCONUT_DKG_CONTRACT_ADDRESS,
+    );
+    set_var_to_default(
+        var_names::PERFORMANCE_CONTRACT_ADDRESS,
+        PERFORMANCE_CONTRACT_ADDRESS,
+    );
+    set_var_to_default(
+        var_names::NETWORK_MONITORS_CONTRACT_ADDRESS,
+        NETWORK_MONITORS_CONTRACT_ADDRESS,
     );
     set_var_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,

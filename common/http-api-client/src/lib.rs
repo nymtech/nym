@@ -139,20 +139,19 @@
 //! ```
 #![warn(missing_docs)]
 
-use http::header::USER_AGENT;
+pub mod registry;
+
+pub use crate::path::RequestPath;
+pub use async_trait::async_trait;
 pub use inventory;
 pub use reqwest;
 pub use reqwest::ClientBuilder as ReqwestClientBuilder;
 pub use reqwest::StatusCode;
-use std::error::Error;
 
-pub mod registry;
-
-use crate::path::RequestPath;
-use async_trait::async_trait;
 use bytes::Bytes;
 use cfg_if::cfg_if;
 use http::HeaderMap;
+use http::header::USER_AGENT;
 use http::header::{ACCEPT, CONTENT_TYPE};
 use itertools::Itertools;
 use mime::Mime;
@@ -160,6 +159,7 @@ use reqwest::header::HeaderValue;
 use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::error::Error;
 use std::fmt::Display;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::ErrorKind;

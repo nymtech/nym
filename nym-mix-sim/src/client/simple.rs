@@ -106,7 +106,8 @@ impl<Ts: Clone> ProcessingClient<Ts, SimplePacket> for SimpleProcessingClient {
         _: ClientId,
         timestamp: Ts,
     ) -> Vec<AddressedTimedData<Ts, SimplePacket, NodeId>> {
-        self.wrapper.process(input, SimpleInputOptions, timestamp)
+        self.wrapper
+            .process(Some((input, SimpleInputOptions)), timestamp)
     }
 
     fn unwrap(&mut self, input: SimplePacket, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>> {

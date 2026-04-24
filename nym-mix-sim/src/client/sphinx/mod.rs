@@ -139,7 +139,8 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send, R: Rng + Send>
                 .directory
                 .random_next_hop(&mut self.wrapper.rng), // This substitutes for a real gateway selection — in the simulation every node is equally eligible as a first hop
         };
-        self.wrapper.process(input, input_options, timestamp)
+        self.wrapper
+            .process(Some((input, input_options)), timestamp)
     }
 
     fn unwrap(&mut self, input: Vec<u8>, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>> {

@@ -153,16 +153,19 @@ where
 
     fn process(
         &mut self,
-        input: Vec<u8>,
-        input_options: Opts,
+        input: Option<(Vec<u8>, Opts)>, // Optional to be able to tick the pipeline without input
         timestamp: Ts,
     ) -> Vec<AddressedTimedData<Ts, Pkt, NdId>> {
-        let mut chunks = self.chunked(
-            input,
-            input_options.clone(),
-            self.chunk_size(input_options.clone()),
-            timestamp.clone(),
-        );
+        let mut chunks = if let Some((input_data, input_options)) = input {
+            self.chunked(
+                input_data,
+                input_options.clone(),
+                self.chunk_size(input_options.clone()),
+                timestamp.clone(),
+            )
+        } else {
+            Vec::new()
+        };
 
         // Reliability stage with chunks that needs reliability
         chunks = chunks
@@ -238,8 +241,7 @@ pub trait DynClientWrappingPipeline<Ts, Fr, Pkt, Opts, NdId> {
 
     fn process(
         &mut self,
-        input: Vec<u8>,
-        input_options: Opts,
+        input: Option<(Vec<u8>, Opts)>,
         timestamp: Ts,
     ) -> Vec<AddressedTimedData<Ts, Pkt, NdId>>;
 }
@@ -285,34 +287,12 @@ where
 
     fn process(
         &mut self,
-        input: Vec<u8>,
-        input_options: Opts,
+        input: Option<(Vec<u8>, Opts)>,
         timestamp: Ts,
     ) -> Vec<AddressedTimedData<Ts, Pkt, NdId>> {
-        ClientWrappingPipeline::process(self, input, input_options, timestamp)
+        ClientWrappingPipeline::process(self, input, timestamp)
     }
 }
-
-// /// Dyn-compatible mirror of [`ClientUnwrappingPipeline`].
-// ///
-// /// Erases the `Fr` type parameter so the pipeline can be stored as
-// /// `dyn DynClientUnwrappingPipeline<Ts, Pkt>`.
-// ///
-// /// Implement [`ClientUnwrappingPipeline`] on your concrete type; the blanket
-// /// impl below provides `DynClientUnwrappingPipeline` for free.
-// pub trait DynClientUnwrappingPipeline<Ts, Pkt> {
-//     fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>>;
-// }
-
-// impl<T, Ts, Pkt> DynClientUnwrappingPipeline<Ts, Pkt> for T
-// where
-//     T: ClientUnwrappingPipeline<Ts, Pkt>,
-//     Ts: Clone,
-// {
-//     fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>> {
-//         ClientUnwrappingPipeline::unwrap(self, input, timestamp)
-//     }
-// }
 
 /// Full client-side inbound pipeline.
 ///

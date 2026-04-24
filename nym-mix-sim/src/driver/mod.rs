@@ -130,6 +130,7 @@ impl MixSimDriver<u32> {
     /// Run the simulation automatically, advancing one tick every
     /// `tick_duration_ms` milliseconds until Ctrl-C is received.
     pub async fn run_automatic(mut self, tick_duration_ms: u64) -> anyhow::Result<()> {
+        info!("Automatic mode: tick duration : {tick_duration_ms} ms");
         let tick_duration = Duration::from_millis(tick_duration_ms);
         let handle = tokio::spawn(async move {
             let mut current_tick = 0;
@@ -174,10 +175,11 @@ impl MixSimDriver<Instant> {
     /// Run the simulation automatically, advancing one tick every
     /// `tick_duration_ms` milliseconds until Ctrl-C is received.
     pub async fn run_automatic(mut self, tick_duration_ms: u64) -> anyhow::Result<()> {
+        info!("Automatic mode: tick duration : {tick_duration_ms} ms");
         let tick_duration = Duration::from_millis(tick_duration_ms);
         let handle = tokio::spawn(async move {
-            let current_tick = Instant::now();
             loop {
+                let current_tick = Instant::now();
                 self.tick(current_tick, false).await;
                 tokio::time::sleep(tick_duration).await;
             }

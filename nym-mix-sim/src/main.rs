@@ -64,7 +64,7 @@ enum Commands {
         manual: bool,
 
         /// Tick duration in milliseconds (automatic mode only).
-        #[arg(short = 'd', long, default_value = "100")]
+        #[arg(short = 'd', long, default_value = "1")]
         tick_duration_ms: u64,
 
         /// Simulation driver to use: simple | sphinx | manual-sphinx (default).

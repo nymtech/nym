@@ -156,7 +156,6 @@ impl NetworkMonitorOrchestrator {
         );
         self.shutdown_manager
             .try_spawn_named(http_server_fut, "http-server");
-
         // node refresher
         self.shutdown_manager.try_spawn_named(
             async move {

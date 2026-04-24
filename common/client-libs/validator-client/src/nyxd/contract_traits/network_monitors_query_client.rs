@@ -11,7 +11,7 @@ use nym_network_monitors_contract_common::{
     AuthorisedNetworkMonitorsPagedResponse, QueryMsg as NetworkMonitorsQueryMsg,
 };
 use serde::Deserialize;
-use std::net::IpAddr;
+use std::net::SocketAddr;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -39,7 +39,7 @@ pub trait NetworkMonitorsQueryClient {
 
     async fn get_network_monitor_agents_paged(
         &self,
-        start_next_after: Option<IpAddr>,
+        start_next_after: Option<SocketAddr>,
         limit: Option<u32>,
     ) -> Result<AuthorisedNetworkMonitorsPagedResponse, NyxdError> {
         self.query_network_monitors_contract(NetworkMonitorsQueryMsg::NetworkMonitorAgents {

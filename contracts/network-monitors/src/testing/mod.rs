@@ -171,11 +171,18 @@ pub trait NetworkMonitorsContractTesterExt:
 
 impl NetworkMonitorsContractTesterExt for ContractTester<NetworkMonitorsContract> {}
 
-pub(crate) fn storage_ip_comp(a: IpAddr, b: IpAddr) -> std::cmp::Ordering {
-    match (a, b) {
+/// Compare SocketAddrs in the same order as the storage key encoding.
+///
+/// Storage keys are: `[0, ip_len] [ip_octets...] [port_be_bytes]`
+/// This means IPv4 (len=4) always sorts before IPv6 (len=16),
+/// within the same type keys sort by IP octets then by port.
+pub(crate) fn storage_socket_comp(a: SocketAddr, b: SocketAddr) -> std::cmp::Ordering {
+    let ip_ord = match (a.ip(), b.ip()) {
         (IpAddr::V4(a), IpAddr::V4(b)) => a.octets().cmp(&b.octets()),
         (IpAddr::V6(a), IpAddr::V6(b)) => a.octets().cmp(&b.octets()),
-        (IpAddr::V4(a), IpAddr::V6(b)) => a.octets().as_slice().cmp(&b.octets()),
-        (IpAddr::V6(a), IpAddr::V4(b)) => a.octets().as_slice().cmp(&b.octets()),
-    }
+        // length prefix [0, 4] < [0, 16] so all IPv4 sorts before all IPv6
+        (IpAddr::V4(_), IpAddr::V6(_)) => std::cmp::Ordering::Less,
+        (IpAddr::V6(_), IpAddr::V4(_)) => std::cmp::Ordering::Greater,
+    };
+    ip_ord.then(a.port().cmp(&b.port()))
 }

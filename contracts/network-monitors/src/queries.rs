@@ -9,7 +9,7 @@ use nym_network_monitors_contract_common::{
     AuthorisedNetworkMonitorOrchestratorsResponse, AuthorisedNetworkMonitorsPagedResponse,
     NetworkMonitorsContractError,
 };
-use std::net::IpAddr;
+use std::net::SocketAddr;
 
 pub fn query_admin(deps: Deps) -> Result<AdminResponse, NetworkMonitorsContractError> {
     NETWORK_MONITORS_CONTRACT_STORAGE
@@ -33,7 +33,7 @@ pub fn query_network_monitor_orchestrators(
 
 pub fn query_network_monitor_agents(
     deps: Deps,
-    start_after: Option<IpAddr>,
+    start_after: Option<SocketAddr>,
     limit: Option<u32>,
 ) -> Result<AuthorisedNetworkMonitorsPagedResponse, NetworkMonitorsContractError> {
     let limit = limit
@@ -49,7 +49,7 @@ pub fn query_network_monitor_agents(
         .map(|record| record.map(|(_, details)| details))
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = authorised.last().map(|last| last.mixnet_address.ip());
+    let start_next_after = authorised.last().map(|last| last.mixnet_address);
 
     Ok(AuthorisedNetworkMonitorsPagedResponse {
         authorised,
@@ -187,7 +187,7 @@ mod tests {
     mod network_monitor_agents_query {
         use super::*;
         use crate::testing::{
-            init_contract_tester, storage_ip_comp, NetworkMonitorsContract,
+            init_contract_tester, storage_socket_comp, NetworkMonitorsContract,
             NetworkMonitorsContractTesterExt,
         };
         use nym_contracts_common_testing::{ContractOpts, ContractTester};
@@ -202,8 +202,7 @@ mod tests {
                 ips.push(test.random_socket());
             }
 
-            ips.sort_by(|a, b| storage_ip_comp(a.ip(), b.ip()));
-            // ips.into_iter().map(|ip| ip.parse().unwrap()).collect()
+            ips.sort_by(|a, b| storage_socket_comp(*a, *b));
             ips
         }
 
@@ -231,7 +230,7 @@ mod tests {
             let res = query_network_monitor_agents(test.deps(), None, None)?;
 
             assert_eq!(res.authorised.len(), agents.len());
-            assert_eq!(res.start_next_after, agents.last().map(|a| a.ip()));
+            assert_eq!(res.start_next_after, agents.last().copied());
 
             for agent in &agents {
                 assert!(res.authorised.iter().any(|a| a.mixnet_address == *agent));
@@ -254,7 +253,7 @@ mod tests {
             assert_eq!(res.authorised.len(), 2);
             assert_eq!(res.authorised[0].mixnet_address, agents[0]);
             assert_eq!(res.authorised[1].mixnet_address, agents[1]);
-            assert_eq!(res.start_next_after, Some(agents[1].ip()));
+            assert_eq!(res.start_next_after, Some(agents[1]));
 
             Ok(())
         }
@@ -268,12 +267,12 @@ mod tests {
                 test.add_dummy_agent(*agent)
             }
 
-            let res = query_network_monitor_agents(test.deps(), Some(agents[1].ip()), Some(2))?;
+            let res = query_network_monitor_agents(test.deps(), Some(agents[1]), Some(2))?;
 
             assert_eq!(res.authorised.len(), 2);
             assert_eq!(res.authorised[0].mixnet_address, agents[2]);
             assert_eq!(res.authorised[1].mixnet_address, agents[3]);
-            assert_eq!(res.start_next_after, Some(agents[3].ip()));
+            assert_eq!(res.start_next_after, Some(agents[3]));
 
             Ok(())
         }
@@ -300,7 +299,7 @@ mod tests {
             );
             assert_eq!(
                 res.start_next_after,
-                Some(agents[retrieval_limits::AGENTS_MAX_LIMIT as usize - 1].ip())
+                Some(agents[retrieval_limits::AGENTS_MAX_LIMIT as usize - 1])
             );
 
             Ok(())
@@ -315,7 +314,7 @@ mod tests {
                 test.add_dummy_agent(*agent)
             }
 
-            let res = query_network_monitor_agents(test.deps(), Some(agents[2].ip()), Some(10))?;
+            let res = query_network_monitor_agents(test.deps(), Some(agents[2]), Some(10))?;
 
             assert!(res.authorised.is_empty());
             assert_eq!(res.start_next_after, None);
@@ -334,9 +333,9 @@ mod tests {
 
             let res = query_network_monitor_agents(test.deps(), None, None)?;
 
-            assert!(res.authorised.windows(2).all(|window| storage_ip_comp(
-                window[0].mixnet_address.ip(),
-                window[1].mixnet_address.ip()
+            assert!(res.authorised.windows(2).all(|window| storage_socket_comp(
+                window[0].mixnet_address,
+                window[1].mixnet_address
             )
             .is_le()));
 

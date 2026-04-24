@@ -8,7 +8,7 @@ use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use nym_network_monitors_contract_common::ExecuteMsg as NetworkMonitorsExecuteMsg;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -89,7 +89,7 @@ pub trait NetworkMonitorsSigningClient {
 
     async fn revoke_network_monitor(
         &self,
-        address: IpAddr,
+        address: SocketAddr,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let msg = NetworkMonitorsExecuteMsg::RevokeNetworkMonitor { address };

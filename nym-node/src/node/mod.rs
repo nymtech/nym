@@ -69,12 +69,13 @@ use nym_node_metrics::events::MetricEventsSender;
 use nym_node_requests::api::SignedData;
 use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM, LewesProtocol};
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
-use nym_noise::config::{NoiseConfig, NoiseNetworkView};
+use nym_noise::config::{NetworkMonitorAgentNode, NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
 use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
+use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
 use nym_validator_client::{QueryHttpRpcNyxdClient, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
@@ -83,13 +84,13 @@ use nyxd_scraper_shared::watcher::{NyxdWatcher, WatcherConfig};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use rand09::SeedableRng;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{debug, info, trace};
+use tracing::{debug, error, info, trace};
 use zeroize::Zeroizing;
 
 pub mod bonding_information;
@@ -1351,7 +1352,7 @@ impl NymNode {
         Ok(())
     }
 
-    async fn known_network_monitors(&self) -> Result<HashSet<IpAddr>, NymNodeError> {
+    async fn known_network_monitors(&self) -> Result<Vec<AuthorisedNetworkMonitor>, NymNodeError> {
         // 1. create a nyx rpc client
         // (TODO: we should have unified client later on for all chain interactions)
         let client = QueryHttpRpcNyxdClient::connect_with_network_details(
@@ -1359,13 +1360,8 @@ impl NymNode {
             self.network.clone(),
         )?;
 
-        // 2. run the queries to retrieve all known ip addresses of the agents
-        Ok(client
-            .get_all_network_monitor_agents()
-            .await?
-            .into_iter()
-            .map(|agent| agent.mixnet_address.ip())
-            .collect())
+        // 2. run the queries to retrieve all agents
+        Ok(client.get_all_network_monitor_agents().await?)
     }
 
     async fn setup_nyx_chain_watcher(
@@ -1446,12 +1442,38 @@ impl NymNode {
         // obtain the initial list of known network monitors
         let known_network_monitors = self.known_network_monitors().await?;
 
+        let mut known_network_monitor_ips = HashSet::new();
+        let mut known_network_monitor_nodes: HashMap<IpAddr, Vec<NetworkMonitorAgentNode>> =
+            HashMap::new();
+        for agent in known_network_monitors {
+            let Ok(x25519_pubkey) = x25519::PublicKey::from_base58_string(&agent.bs58_x25519_noise)
+            else {
+                error!(
+                    "network monitor agent {} has announced an invalid noise key - ignoring",
+                    agent.mixnet_address
+                );
+                continue;
+            };
+
+            let ip = agent.mixnet_address.ip();
+            known_network_monitor_ips.insert(ip);
+
+            let entry = known_network_monitor_nodes.entry(ip).or_default();
+            entry.push(NetworkMonitorAgentNode {
+                port: agent.mixnet_address.port(),
+                key: VersionedNoiseKeyV1 {
+                    supported_version: agent.noise_version.into(),
+                    x25519_pubkey,
+                },
+            })
+        }
+
         // build routing filter
         let routing_filter = NetworkRoutingFilter::new_empty(self.config.debug.testnet)
-            .with_known_network_monitors(known_network_monitors);
+            .with_known_network_monitors(known_network_monitor_ips);
         let network_monitors_ref = routing_filter.known_network_monitors_handle();
 
-        let noise_view = NoiseNetworkView::new_empty();
+        let noise_view = NoiseNetworkView::new_with_agents(known_network_monitor_nodes);
         // retrieve the initial view of the network and update the known set of nym nodes in the routing filter
         let network_refresher = self
             .build_network_refresher(

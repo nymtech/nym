@@ -281,9 +281,9 @@ mod tests {
             identity_key: identity_key.to_string(),
             last_seen_bonded: datetime!(2025-01-01 00:00:00 UTC),
             mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
-            noise_key: None,
-            sphinx_key: None,
-            key_rotation_id: None,
+            noise_key: Some("placeholder_noise_key".to_string()),
+            sphinx_key: Some("placeholder_sphinx_key".to_string()),
+            key_rotation_id: Some(0),
         }
     }
 

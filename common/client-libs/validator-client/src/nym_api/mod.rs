@@ -15,6 +15,9 @@ use nym_api_requests::ecash::models::{
     VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
+use nym_api_requests::models::network_monitor::{
+    KnownNetworkMonitorResponse, StressTestBatchSubmission,
+};
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainBlocksStatusResponse,
     ChainStatusResponse, KeyRotationInfoResponse, NodePerformanceResponse, NodeRefreshBody,
@@ -1358,6 +1361,53 @@ pub trait NymApiClientExt: ApiClient {
         }
 
         Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata))
+    }
+
+    /// Queries the nym-api for whether a particular ed25519 identity key is currently recognised
+    /// as an authorised network monitor permitted to submit stress testing results.
+    ///
+    /// `identity_key` is expected to be the base58-encoded form of the ed25519 public key.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_known_network_monitor(
+        &self,
+        identity_key: IdentityKeyRef<'_>,
+    ) -> Result<KnownNetworkMonitorResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::STRESS_TESTING,
+                routes::STRESS_TESTING_KNOWN_MONITORS,
+                identity_key,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    /// Submit a signed batch of stress-testing results to nym-api on behalf of a network monitor
+    /// orchestrator.
+    ///
+    /// The caller is expected to have produced `request` via
+    /// `StressTestBatchSubmissionContent::new(...)` and signed it with the orchestrator's ed25519
+    /// key; nym-api will reject submissions that are stale, replayed, unauthorised, or whose
+    /// signature fails to verify.
+    #[instrument(level = "debug", skip(self, request))]
+    async fn submit_stress_testing_results(
+        &self,
+        request: &StressTestBatchSubmission,
+    ) -> Result<(), NymAPIError> {
+        self.post_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::STRESS_TESTING,
+                routes::STRESS_TESTING_BATCH_SUBMIT,
+            ],
+            NO_PARAMS,
+            request,
+        )
+        .await
     }
 }
 

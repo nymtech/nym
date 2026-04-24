@@ -10,6 +10,7 @@ use axum::Router;
 use nym_types::monitoring::MonitorMessage;
 use tracing::error;
 
+#[allow(deprecated)]
 pub(super) fn mandatory_routes() -> Router<AppState> {
     Router::new()
         .route(
@@ -33,6 +34,7 @@ pub(super) fn mandatory_routes() -> Router<AppState> {
         (status = 500, body = String, description = "TBD"),
     ),
 )]
+#[deprecated]
 pub(crate) async fn submit_gateway_monitoring_results(
     State(state): State<AppState>,
     Json(message): Json<MonitorMessage>,
@@ -77,6 +79,7 @@ pub(crate) async fn submit_gateway_monitoring_results(
         (status = 500, body = String, description = "TBD"),
     ),
 )]
+#[deprecated]
 pub(crate) async fn submit_node_monitoring_results(
     State(state): State<AppState>,
     Json(message): Json<MonitorMessage>,

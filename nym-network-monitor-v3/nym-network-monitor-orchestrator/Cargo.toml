@@ -41,6 +41,7 @@ nym-task = { workspace = true }
 nym-node-requests = { workspace = true, features = ["client"] }
 nym-metrics = { workspace = true }
 nym-http-api-common = { workspace = true, features = ["utoipa", "middleware"] }
+nym-api-requests = { workspace = true }
 
 nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["openapi"] }
 

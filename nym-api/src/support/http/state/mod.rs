@@ -16,6 +16,7 @@ use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
+use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
 use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::nyxd::Client;
 use crate::support::storage;
@@ -32,6 +33,7 @@ pub(crate) mod contract_details;
 pub(crate) mod force_refresh;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_contract_cache;
+pub(crate) mod network_monitors;
 pub(crate) mod node_annotations_cache;
 
 #[derive(Clone)]
@@ -56,8 +58,16 @@ pub(crate) struct AppState {
     /// It is used to prevent DoS by nodes constantly requesting the refresh.
     pub(crate) forced_refresh: ForcedRefresh,
 
+    /// Holds information on when the last stress testing submission was made by a network monitor.
+    /// It is used to prevent replay attacks by attempting to re-use request timestamps
+    /// Timestamps are used instead of nonces to avoid NM having to keep state with the expected values.
+    pub(crate) network_monitor_submissions: LastNMSubmissions,
+
     /// Holds cached state of the Nym Mixnet contract, e.g. bonded nym-nodes, rewarded set, current interval.
     pub(crate) mixnet_contract_cache: MixnetContractCacheState,
+
+    /// Holds information on known network monitors that are permitted to submit stress testing results.
+    pub(crate) network_monitors_cache: NetworkMonitorsCache,
 
     /// Holds processed information on network nodes, i.e. performance, config scores, etc.
     // TODO: also perhaps redundant?
@@ -99,6 +109,12 @@ impl FromRef<AppState> for ApiStatusState {
 impl FromRef<AppState> for Arc<EcashState> {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.ecash_state.clone()
+    }
+}
+
+impl FromRef<AppState> for NetworkMonitorsCache {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.network_monitors_cache.clone()
     }
 }
 
@@ -153,6 +169,11 @@ impl AppState {
 
     pub(crate) fn described_nodes_cache(&self) -> &SharedCache<DescribedNodes> {
         &self.described_nodes_cache
+    }
+
+    /// Access the cache of authorised network-monitor orchestrators.
+    pub(crate) fn network_monitors(&self) -> &NetworkMonitorsCache {
+        &self.network_monitors_cache
     }
 
     pub(crate) fn storage(&self) -> &storage::NymApiStorage {

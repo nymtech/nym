@@ -55,6 +55,19 @@ pub(crate) struct Config {
 
     /// Maximum number of nodes queried concurrently during a node refresh cycle.
     pub(crate) number_of_concurrent_node_queries: usize,
+
+    /// Maximum number of attempts (including the initial one) made to verify that the
+    /// orchestrator's account is authorised in the network monitors contract before start-up.
+    /// The process exits with an error once the budget is exhausted.
+    pub(crate) chain_authorisation_check_max_attempts: u32,
+
+    /// Delay between consecutive chain authorisation checks during start-up. Applied both when
+    /// the query itself fails and when it succeeds but the orchestrator is not (yet) listed.
+    pub(crate) chain_authorisation_check_retry_delay: Duration,
+
+    /// How often the orchestrator flushes accumulated test results to the nym-api as a signed
+    /// batch submission (e.g. `15m`, `1h`).
+    pub(crate) result_submission_interval: Duration,
 }
 
 impl Config {

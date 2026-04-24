@@ -12,7 +12,7 @@ use crate::storage::manager::StorageManager;
 use crate::storage::models::TestingRoute;
 use crate::support::storage::models::{
     GatewayDetails, HistoricalUptime, MixnodeDetails, MonitorRunReport, MonitorRunScore,
-    TestedGatewayStatus, TestedMixnodeStatus,
+    NymNodeStressTestingResult, TestedGatewayStatus, TestedMixnodeStatus,
 };
 use dashmap::DashMap;
 use nym_mixnet_contract_common::NodeId;
@@ -688,6 +688,18 @@ impl NymApiStorage {
     ) -> Result<(), NymApiStorageError> {
         self.manager
             .submit_gateway_statuses_v2(gateway_results)
+            .await?;
+        Ok(())
+    }
+
+    /// Persist the given stress-testing results, produced by an authorised network monitor
+    /// orchestrator, into the database.
+    pub(crate) async fn insert_nym_node_stress_testing_results(
+        &self,
+        results: Vec<NymNodeStressTestingResult>,
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .insert_nym_node_stress_testing_results(results)
             .await?;
         Ok(())
     }

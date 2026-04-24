@@ -310,7 +310,8 @@ impl GenerateDelay for std::time::Instant {
 /// Passthrough wrapper and unwrapper for sphinx compatibility demonstration
 pub struct SphinxNoOpWireWrapper;
 
-impl<Ts: Clone> Framing<Ts, Vec<u8>, NodeId> for SphinxNoOpWireWrapper {
+impl<Ts: Clone> Framing<Ts, NodeId> for SphinxNoOpWireWrapper {
+    type Frame = Vec<u8>;
     const OVERHEAD_SIZE: usize = 0;
     fn to_frame(
         &self,
@@ -321,7 +322,7 @@ impl<Ts: Clone> Framing<Ts, Vec<u8>, NodeId> for SphinxNoOpWireWrapper {
     }
 }
 
-impl<Ts: Clone> Transport<Ts, Vec<u8>, SimMixPacket, NodeId> for SphinxNoOpWireWrapper {
+impl<Ts: Clone> Transport<Ts, SimMixPacket, NodeId> for SphinxNoOpWireWrapper {
     const OVERHEAD_SIZE: usize = 0;
     fn to_transport_packet(
         &self,
@@ -331,7 +332,7 @@ impl<Ts: Clone> Transport<Ts, Vec<u8>, SimMixPacket, NodeId> for SphinxNoOpWireW
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, Vec<u8>, SimMixPacket, NodeId> for SphinxNoOpWireWrapper {
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimMixPacket, NodeId> for SphinxNoOpWireWrapper {
     fn packet_size(&self) -> usize {
         1500
     }
@@ -346,7 +347,8 @@ impl<Ts: Clone> WireWrappingPipeline<Ts, Vec<u8>, SimMixPacket, NodeId> for Sphi
 /// [`FramingUnwrap`]: nym_lp_data::common::traits::FramingUnwrap
 pub struct SphinxNoOpWireUnwrapper;
 
-impl<Ts> FramingUnwrap<Ts, Vec<u8>, SphinxMessage> for SphinxNoOpWireUnwrapper {
+impl<Ts> FramingUnwrap<Ts, SphinxMessage> for SphinxNoOpWireUnwrapper {
+    type Frame = Vec<u8>;
     fn frame_to_message(
         &mut self,
         frame: TimedPayload<Ts>,
@@ -355,7 +357,8 @@ impl<Ts> FramingUnwrap<Ts, Vec<u8>, SphinxMessage> for SphinxNoOpWireUnwrapper {
     }
 }
 
-impl<Ts: Clone> TransportUnwrap<Ts, Vec<u8>, SimMixPacket> for SphinxNoOpWireUnwrapper {
+impl<Ts: Clone> TransportUnwrap<Ts, SimMixPacket> for SphinxNoOpWireUnwrapper {
+    type Frame = Vec<u8>;
     fn packet_to_frame(
         &self,
         packet: SimMixPacket,
@@ -368,7 +371,4 @@ impl<Ts: Clone> TransportUnwrap<Ts, Vec<u8>, SimMixPacket> for SphinxNoOpWireUnw
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, Vec<u8>, SimMixPacket, SphinxMessage>
-    for SphinxNoOpWireUnwrapper
-{
-}
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimMixPacket, SphinxMessage> for SphinxNoOpWireUnwrapper {}

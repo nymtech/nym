@@ -167,8 +167,9 @@ impl NoOpObfuscation for SimpleClientWrappingPipeline {}
 impl NoOpRoutingSecurity for SimpleClientWrappingPipeline {}
 
 // Delegation to SimpleWireWrapper
-impl<Ts: Clone> Framing<Ts, SimpleFrame, NodeId> for SimpleClientWrappingPipeline {
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Framing<Ts, NodeId> for SimpleClientWrappingPipeline {
+    type Frame = SimpleFrame;
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
     fn to_frame(
         &self,
         payload: AddressedTimedPayload<Ts, NodeId>,
@@ -179,8 +180,8 @@ impl<Ts: Clone> Framing<Ts, SimpleFrame, NodeId> for SimpleClientWrappingPipelin
 }
 
 // Delegation to SimpleWireWrapper
-impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleClientWrappingPipeline {
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Transport<Ts, SimplePacket, NodeId> for SimpleClientWrappingPipeline {
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
         frame: AddressedTimedData<Ts, SimpleFrame, NodeId>,
@@ -190,15 +191,13 @@ impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleClien
 }
 
 // Delegation to SimpleWireWrapper
-impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket, NodeId>
-    for SimpleClientWrappingPipeline
-{
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimplePacket, NodeId> for SimpleClientWrappingPipeline {
     fn packet_size(&self) -> usize {
-        <SimpleWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(&self.0)
+        <SimpleWireWrapper as WireWrappingPipeline<Ts, _, _>>::packet_size(&self.0)
     }
 }
 
-impl<Ts: Clone> ClientWrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleInputOptions, NodeId>
+impl<Ts: Clone> ClientWrappingPipeline<Ts, SimplePacket, SimpleInputOptions, NodeId>
     for SimpleClientWrappingPipeline
 {
 }
@@ -215,7 +214,8 @@ impl Default for SimpleClientUnwrapping {
 }
 
 // Delegation to SimpleWireUnwrapper
-impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleClientUnwrapping {
+impl<Ts> FramingUnwrap<Ts, SimpleMessage> for SimpleClientUnwrapping {
+    type Frame = SimpleFrame;
     fn frame_to_message(
         &mut self,
         frame: TimedData<Ts, SimpleFrame>,
@@ -225,7 +225,8 @@ impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleClientUnwrappin
 }
 
 // Delegation to SimpleWireUnwrapper
-impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleClientUnwrapping {
+impl<Ts: Clone> TransportUnwrap<Ts, SimplePacket> for SimpleClientUnwrapping {
+    type Frame = SimpleFrame;
     fn packet_to_frame(
         &self,
         packet: SimplePacket,
@@ -235,14 +236,9 @@ impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleClientU
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
-    for SimpleClientUnwrapping
-{
-}
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimplePacket, SimpleMessage> for SimpleClientUnwrapping {}
 
-impl<Ts: Clone> ClientUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
-    for SimpleClientUnwrapping
-{
+impl<Ts: Clone> ClientUnwrappingPipeline<Ts, SimplePacket, SimpleMessage> for SimpleClientUnwrapping {
     fn process_unwrapped(
         &mut self,
         payload: TimedPayload<Ts>,

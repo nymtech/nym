@@ -12,41 +12,43 @@ pub struct Pipeline<F, T, NdId> {
     _marker: std::marker::PhantomData<NdId>,
 }
 
-impl<Ts, Fr, F, T, NdId> Framing<Ts, Fr, NdId> for Pipeline<F, T, NdId>
+impl<Ts, F, T, NdId> Framing<Ts, NdId> for Pipeline<F, T, NdId>
 where
-    F: Framing<Ts, Fr, NdId>,
+    F: Framing<Ts, NdId>,
 {
+    type Frame = F::Frame;
     const OVERHEAD_SIZE: usize = F::OVERHEAD_SIZE;
 
     fn to_frame(
         &self,
         payload: AddressedTimedPayload<Ts, NdId>,
         frame_size: usize,
-    ) -> Vec<AddressedTimedData<Ts, Fr, NdId>> {
+    ) -> Vec<AddressedTimedData<Ts, F::Frame, NdId>> {
         self.framing.to_frame(payload, frame_size)
     }
 }
 
-impl<Ts, Fr, Pkt, F, T, NdId> Transport<Ts, Fr, Pkt, NdId> for Pipeline<F, T, NdId>
+impl<Ts, Pkt, F, T, NdId> Transport<Ts, Pkt, NdId> for Pipeline<F, T, NdId>
 where
-    T: Transport<Ts, Fr, Pkt, NdId>,
+    F: Framing<Ts, NdId>,
+    T: Transport<Ts, Pkt, NdId, Frame = F::Frame>,
 {
-    const OVERHEAD_SIZE: usize = T::OVERHEAD_SIZE;
+    const OVERHEAD_SIZE: usize = <T as Transport<Ts, Pkt, NdId>>::OVERHEAD_SIZE;
 
     fn to_transport_packet(
         &self,
-        frame: AddressedTimedData<Ts, Fr, NdId>,
+        frame: AddressedTimedData<Ts, F::Frame, NdId>,
     ) -> AddressedTimedData<Ts, Pkt, NdId> {
         self.transport.to_transport_packet(frame)
     }
 }
 
-impl<Ts, Fr, Pkt, F, T, NdId> WireWrappingPipeline<Ts, Fr, Pkt, NdId> for Pipeline<F, T, NdId>
+impl<Ts, Pkt, F, T, NdId> WireWrappingPipeline<Ts, Pkt, NdId> for Pipeline<F, T, NdId>
 where
     Ts: Clone,
     NdId: Clone,
-    F: Framing<Ts, Fr, NdId>,
-    T: Transport<Ts, Fr, Pkt, NdId>,
+    F: Framing<Ts, NdId>,
+    T: Transport<Ts, Pkt, NdId, Frame = F::Frame>,
 {
     fn packet_size(&self) -> usize {
         self.packet_size

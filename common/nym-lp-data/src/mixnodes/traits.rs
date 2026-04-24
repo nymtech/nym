@@ -14,7 +14,7 @@ use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 // /// impl below provides `DynMixnodeProcessingPipeline` for free.  For
 // /// pass-through stubs that do not need the full wire layer, you may implement
 // /// this trait directly.
-// pub trait DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> {
+// pub trait DynMixnodeProcessingPipeline<Ts, Pkt, Mk, NodeId> {
 //     fn process(
 //         &mut self,
 //         input: TimedData<Ts, Pkt>,
@@ -22,9 +22,9 @@ use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 //     ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>>;
 // }
 
-// impl<T, Ts, Fr, Pkt, Mk, NodeId> DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> for T
+// impl<T, Ts, Pkt, Mk, NodeId> DynMixnodeProcessingPipeline<Ts, Pkt, Mk, NodeId> for T
 // where
-//     T: MixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId>,
+//     T: MixnodeProcessingPipeline<Ts, Pkt, Mk, NodeId>,
 //     Ts: Clone,
 //     NodeId: Clone,
 // {
@@ -45,10 +45,11 @@ use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 /// # Type Parameters
 /// - `Ts`: Timestamp / tick-context type.
 /// - `Pkt`: Transport packet type; the same type is consumed and produced.
-/// - `NodeId`: Identifier type for the next-hop destination.
+/// - `Mk`: Message-kind marker returned by the unwrap side.
+/// - `NdId`: Identifier type for the next-hop destination.
 ///
-/// # Associated Types
-/// - `Frame`: Intermediate frame type shared by the unwrapping and wrapping wire layers.
+/// Frame types are owned by the wire sub-traits as associated items and do not
+/// appear in this trait's parameter list.
 ///
 /// # Required Methods
 /// - `mix`: Given a reassembled payload and the current timestamp, return zero or more
@@ -58,8 +59,8 @@ use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 /// - `process`: Unwraps the incoming packet via [`WireUnwrappingPipeline::wire_unwrap`],
 ///   passes the result to [`mix`], and re-wraps each output payload via
 ///   [`WireWrappingPipeline::wire_wrap`].
-pub trait MixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NdId>:
-    WireUnwrappingPipeline<Ts, Fr, Pkt, Mk> + WireWrappingPipeline<Ts, Fr, Pkt, NdId>
+pub trait MixnodeProcessingPipeline<Ts, Pkt, Mk, NdId>:
+    WireUnwrappingPipeline<Ts, Pkt, Mk> + WireWrappingPipeline<Ts, Pkt, NdId>
 where
     Ts: Clone,
     NdId: Clone,

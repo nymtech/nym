@@ -24,12 +24,12 @@ use crate::clients::traits::DynClientWrappingPipeline;
 /// `Ts` must implement `Clone + PartialOrd` so that timestamps can be compared
 /// to decide which packets are due.
 ///
-pub struct ClientWrappingPipelineDriver<Ts, Fr, Pkt, Opts, NdId>
+pub struct ClientWrappingPipelineDriver<Ts, Pkt, Opts, NdId>
 where
     Ts: Clone + PartialOrd,
     Opts: InputOptions<NdId>,
 {
-    pipeline: Box<dyn DynClientWrappingPipeline<Ts, Fr, Pkt, Opts, NdId>>,
+    pipeline: Box<dyn DynClientWrappingPipeline<Ts, Pkt, Opts, NdId>>,
 
     packet_buffer: Vec<AddressedTimedData<Ts, Pkt, NdId>>,
 
@@ -37,10 +37,9 @@ where
 
     // Keeping a ref so we don't have problem about it being dropped
     input_sender: mpsc::SyncSender<(Vec<u8>, Opts)>,
-    _marker: std::marker::PhantomData<Fr>,
 }
 
-impl<Ts, Fr, Pkt, Opts, NdId> ClientWrappingPipelineDriver<Ts, Fr, Pkt, Opts, NdId>
+impl<Ts, Pkt, Opts, NdId> ClientWrappingPipelineDriver<Ts, Pkt, Opts, NdId>
 where
     Ts: Clone + PartialOrd,
     Opts: InputOptions<NdId>,
@@ -49,7 +48,7 @@ where
     ///
     /// Internally allocates a zero-capacity `sync_channel` for input payloads.
     pub fn new(
-        pipeline: impl DynClientWrappingPipeline<Ts, Fr, Pkt, Opts, NdId> + 'static,
+        pipeline: impl DynClientWrappingPipeline<Ts, Pkt, Opts, NdId> + 'static,
     ) -> Self {
         let (input_sender, input_receiver) = mpsc::sync_channel(0);
 
@@ -58,7 +57,6 @@ where
             packet_buffer: Vec::new(),
             input: input_receiver,
             input_sender,
-            _marker: std::marker::PhantomData,
         }
     }
 

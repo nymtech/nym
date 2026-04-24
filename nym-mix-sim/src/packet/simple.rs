@@ -190,7 +190,8 @@ pub struct SimpleMessage;
 /// pipeline that needs wire-wrapping by delegating to `SimpleWireWrapper`.
 pub struct SimpleWireWrapper;
 
-impl<Ts: Clone> Framing<Ts, SimpleFrame, NodeId> for SimpleWireWrapper {
+impl<Ts: Clone> Framing<Ts, NodeId> for SimpleWireWrapper {
+    type Frame = SimpleFrame;
     const OVERHEAD_SIZE: usize = SimpleFrame::HEADER.len();
     fn to_frame(
         &self,
@@ -216,7 +217,7 @@ impl<Ts: Clone> Framing<Ts, SimpleFrame, NodeId> for SimpleWireWrapper {
 
 /// Transport wraps a [`SimpleFrame`] into a [`SimplePacket`].
 /// Overhead = 16 bytes (UUID), so effective payload = 48 bytes.
-impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleWireWrapper {
+impl<Ts: Clone> Transport<Ts, SimplePacket, NodeId> for SimpleWireWrapper {
     const OVERHEAD_SIZE: usize = 16;
     fn to_transport_packet(
         &self,
@@ -228,7 +229,7 @@ impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleWireW
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleWireWrapper {
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimplePacket, NodeId> for SimpleWireWrapper {
     fn packet_size(&self) -> usize {
         SimplePacket::SIZE
     }
@@ -242,7 +243,8 @@ impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket, NodeId> for 
 /// `SimpleWireUnwrapper`.
 pub struct SimpleWireUnwrapper;
 
-impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleWireUnwrapper {
+impl<Ts> FramingUnwrap<Ts, SimpleMessage> for SimpleWireUnwrapper {
+    type Frame = SimpleFrame;
     fn frame_to_message(
         &mut self,
         frame: TimedData<Ts, SimpleFrame>,
@@ -257,7 +259,8 @@ impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleWireUnwrapper {
     }
 }
 
-impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleWireUnwrapper {
+impl<Ts: Clone> TransportUnwrap<Ts, SimplePacket> for SimpleWireUnwrapper {
+    type Frame = SimpleFrame;
     fn packet_to_frame(
         &self,
         packet: SimplePacket,
@@ -271,7 +274,4 @@ impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleWireUnw
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
-    for SimpleWireUnwrapper
-{
-}
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimplePacket, SimpleMessage> for SimpleWireUnwrapper {}

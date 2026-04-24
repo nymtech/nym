@@ -259,10 +259,10 @@ impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> RoutingSecurity<Ts, SphinxI
 
         // Useful payload size is packet size - transport overhead - framing overhead - routing overhead
         let plaintext_size =
-            <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(
+            <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _>>::packet_size(
                 &self.wire_wrapper,
-            ) - <Self as Framing<Ts, _, _>>::OVERHEAD_SIZE
-                - <Self as Transport<Ts, _, _, _>>::OVERHEAD_SIZE
+            ) - <Self as Framing<Ts, _>>::OVERHEAD_SIZE
+                - <Self as Transport<Ts, _, _>>::OVERHEAD_SIZE
                 - <Self as RoutingSecurity<Ts, _, _>>::OVERHEAD_SIZE;
 
         // Packet builder's size includes the payload overhead so we have to add it
@@ -280,10 +280,11 @@ impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> RoutingSecurity<Ts, SphinxI
     }
 }
 
-impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> Framing<Ts, Vec<u8>, NodeId>
+impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> Framing<Ts, NodeId>
     for SphinxClientWrappingPipeline<Ts, R>
 {
-    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
+    type Frame = Vec<u8>;
+    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
     fn to_frame(
         &self,
         payload: AddressedTimedPayload<Ts, NodeId>,
@@ -293,10 +294,10 @@ impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> Framing<Ts, Vec<u8>, NodeId
     }
 }
 
-impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> Transport<Ts, Vec<u8>, SimMixPacket, NodeId>
+impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> Transport<Ts, SimMixPacket, NodeId>
     for SphinxClientWrappingPipeline<Ts, R>
 {
-    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
+    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
         frame: AddressedTimedPayload<Ts, NodeId>,
@@ -305,19 +306,16 @@ impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> Transport<Ts, Vec<u8>, SimM
     }
 }
 
-impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng>
-    WireWrappingPipeline<Ts, Vec<u8>, SimMixPacket, NodeId>
+impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> WireWrappingPipeline<Ts, SimMixPacket, NodeId>
     for SphinxClientWrappingPipeline<Ts, R>
 {
     fn packet_size(&self) -> usize {
-        <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(
-            &self.wire_wrapper,
-        )
+        <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _>>::packet_size(&self.wire_wrapper)
     }
 }
 
 impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng>
-    ClientWrappingPipeline<Ts, Vec<u8>, SimMixPacket, SphinxInputOptions, NodeId>
+    ClientWrappingPipeline<Ts, SimMixPacket, SphinxInputOptions, NodeId>
     for SphinxClientWrappingPipeline<Ts, R>
 {
 }
@@ -333,7 +331,8 @@ pub struct SphinxClientUnwrapping {
     message_reconstructor: MessageReconstructor,
 }
 
-impl<Ts> FramingUnwrap<Ts, Vec<u8>, SphinxMessage> for SphinxClientUnwrapping {
+impl<Ts> FramingUnwrap<Ts, SphinxMessage> for SphinxClientUnwrapping {
+    type Frame = Vec<u8>;
     fn frame_to_message(
         &mut self,
         frame: TimedData<Ts, Vec<u8>>,
@@ -342,7 +341,8 @@ impl<Ts> FramingUnwrap<Ts, Vec<u8>, SphinxMessage> for SphinxClientUnwrapping {
     }
 }
 
-impl<Ts: Clone> TransportUnwrap<Ts, Vec<u8>, Vec<u8>> for SphinxClientUnwrapping {
+impl<Ts: Clone> TransportUnwrap<Ts, Vec<u8>> for SphinxClientUnwrapping {
+    type Frame = Vec<u8>;
     fn packet_to_frame(
         &self,
         packet: Vec<u8>,
@@ -355,14 +355,9 @@ impl<Ts: Clone> TransportUnwrap<Ts, Vec<u8>, Vec<u8>> for SphinxClientUnwrapping
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, Vec<u8>, Vec<u8>, SphinxMessage>
-    for SphinxClientUnwrapping
-{
-}
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, Vec<u8>, SphinxMessage> for SphinxClientUnwrapping {}
 
-impl<Ts: Clone> ClientUnwrappingPipeline<Ts, Vec<u8>, Vec<u8>, SphinxMessage>
-    for SphinxClientUnwrapping
-{
+impl<Ts: Clone> ClientUnwrappingPipeline<Ts, Vec<u8>, SphinxMessage> for SphinxClientUnwrapping {
     fn process_unwrapped(
         &mut self,
         timed_plaintext: TimedPayload<Ts>,

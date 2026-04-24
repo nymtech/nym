@@ -56,7 +56,7 @@ impl<Ts: Clone> ProcessingNode<Ts, SimplePacket> for SimpleProcessingNode {
         input: TimedData<Ts, SimplePacket>,
         timestamp: Ts,
     ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimplePacket, NodeId>>> {
-        MixnodeProcessingPipeline::<Ts, SimpleFrame, SimplePacket, SimpleMessage, NodeId>::process(
+        MixnodeProcessingPipeline::<Ts, SimplePacket, SimpleMessage, NodeId>::process(
             self, input, timestamp,
         )
     }
@@ -87,7 +87,7 @@ impl SimpleProcessingNode {
     }
 }
 
-impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage, NodeId>
+impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimplePacket, SimpleMessage, NodeId>
     for SimpleProcessingNode
 {
     /// Route the payload to the next node in the chain (`self.id + 1`).
@@ -105,8 +105,9 @@ impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimpleFrame, SimplePacket, SimpleM
 }
 
 // Delegation of subtraits
-impl<Ts: Clone> Framing<Ts, SimpleFrame, NodeId> for SimpleProcessingNode {
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Framing<Ts, NodeId> for SimpleProcessingNode {
+    type Frame = SimpleFrame;
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
     fn to_frame(
         &self,
         payload: AddressedTimedPayload<Ts, NodeId>,
@@ -116,8 +117,8 @@ impl<Ts: Clone> Framing<Ts, SimpleFrame, NodeId> for SimpleProcessingNode {
     }
 }
 
-impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleProcessingNode {
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Transport<Ts, SimplePacket, NodeId> for SimpleProcessingNode {
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
         frame: AddressedTimedData<Ts, SimpleFrame, NodeId>,
@@ -126,15 +127,14 @@ impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleProce
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket, NodeId>
-    for SimpleProcessingNode
-{
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimplePacket, NodeId> for SimpleProcessingNode {
     fn packet_size(&self) -> usize {
-        <SimpleWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(&self.wrapper)
+        <SimpleWireWrapper as WireWrappingPipeline<Ts, _, _>>::packet_size(&self.wrapper)
     }
 }
 
-impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleProcessingNode {
+impl<Ts> FramingUnwrap<Ts, SimpleMessage> for SimpleProcessingNode {
+    type Frame = SimpleFrame;
     fn frame_to_message(
         &mut self,
         frame: TimedData<Ts, SimpleFrame>,
@@ -143,7 +143,8 @@ impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleProcessingNode 
     }
 }
 
-impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleProcessingNode {
+impl<Ts: Clone> TransportUnwrap<Ts, SimplePacket> for SimpleProcessingNode {
+    type Frame = SimpleFrame;
     fn packet_to_frame(
         &self,
         packet: SimplePacket,
@@ -153,7 +154,4 @@ impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleProcess
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
-    for SimpleProcessingNode
-{
-}
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimplePacket, SimpleMessage> for SimpleProcessingNode {}

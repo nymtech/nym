@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::clients::{InputOptions, PipelinePayload};
-use crate::common::traits::{Framing, Transport, WireUnwrappingPipeline, WireWrappingPipeline};
+use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 use crate::{AddressedTimedData, TimedPayload};
 
 /// Trait for splitting an incoming payload into timestamped chunks.
@@ -116,7 +116,6 @@ where
 ///
 /// # Type Parameters
 /// - `Ts`: Timestamp type carried through the pipeline.
-/// - `Fr`: Intermediate frame type produced by framing.
 /// - `Pkt`: Final transport packet type produced by transport.
 ///
 /// # Provided Methods
@@ -124,12 +123,12 @@ where
 ///   routing-security and reliability overheads, accounting for `nb_frames` expansion.
 /// - `process`: Runs the full pipeline in order:
 ///   chunk → reliability encode → obfuscate → encrypt → frame → transport.
-pub trait ClientWrappingPipeline<Ts, Fr, Pkt, Opts, NdId>:
+pub trait ClientWrappingPipeline<Ts, Pkt, Opts, NdId>:
     Chunking<Ts, Opts, NdId>
     + Reliability<Ts, Opts, NdId>
     + Obfuscation<Ts, Opts, NdId>
     + RoutingSecurity<Ts, Opts, NdId>
-    + WireWrappingPipeline<Ts, Fr, Pkt, NdId>
+    + WireWrappingPipeline<Ts, Pkt, NdId>
 where
     Ts: Clone,
     NdId: Clone,
@@ -224,20 +223,8 @@ where
 ///
 /// Implement [`ClientWrappingPipeline`] on your concrete type; the blanket impl
 /// below provides `DynClientWrappingPipeline` for free.
-pub trait DynClientWrappingPipeline<Ts, Fr, Pkt, Opts, NdId> {
+pub trait DynClientWrappingPipeline<Ts, Pkt, Opts, NdId> {
     fn packet_size(&self) -> usize;
-
-    // --- overhead accessors (mirrors of the supertrait associated constants) ---
-    fn framing_overhead(&self) -> usize;
-    fn transport_overhead(&self) -> usize;
-    fn reliability_overhead(&self) -> usize;
-    fn routing_overhead(&self) -> usize;
-    fn nb_frames(&self) -> usize;
-
-    // --- sizing helpers ---
-    fn frame_size(&self) -> usize;
-
-    fn chunk_size(&self, input_options: Opts) -> usize;
 
     fn process(
         &mut self,
@@ -246,43 +233,15 @@ pub trait DynClientWrappingPipeline<Ts, Fr, Pkt, Opts, NdId> {
     ) -> Vec<AddressedTimedData<Ts, Pkt, NdId>>;
 }
 
-impl<T, Ts, Fr, Pkt, Opts, NdId> DynClientWrappingPipeline<Ts, Fr, Pkt, Opts, NdId> for T
+impl<T, Ts, Pkt, Opts, NdId> DynClientWrappingPipeline<Ts, Pkt, Opts, NdId> for T
 where
     Ts: Clone,
     NdId: Clone,
     Opts: InputOptions<NdId>,
-    T: ClientWrappingPipeline<Ts, Fr, Pkt, Opts, NdId>,
+    T: ClientWrappingPipeline<Ts, Pkt, Opts, NdId>,
 {
     fn packet_size(&self) -> usize {
         WireWrappingPipeline::packet_size(self)
-    }
-
-    fn framing_overhead(&self) -> usize {
-        <T as Framing<_, _, _>>::OVERHEAD_SIZE
-    }
-
-    fn transport_overhead(&self) -> usize {
-        <T as Transport<_, _, _, _>>::OVERHEAD_SIZE
-    }
-
-    fn reliability_overhead(&self) -> usize {
-        <T as Reliability<_, _, _>>::OVERHEAD_SIZE
-    }
-
-    fn routing_overhead(&self) -> usize {
-        <T as RoutingSecurity<_, _, _>>::OVERHEAD_SIZE
-    }
-
-    fn nb_frames(&self) -> usize {
-        <T as RoutingSecurity<_, _, _>>::nb_frames(self)
-    }
-
-    fn frame_size(&self) -> usize {
-        <T as WireWrappingPipeline<_, _, _, _>>::frame_size(self)
-    }
-
-    fn chunk_size(&self, input_options: Opts) -> usize {
-        <T as ClientWrappingPipeline<_, _, _, _, _>>::chunk_size(self, input_options)
     }
 
     fn process(
@@ -303,10 +262,7 @@ where
 /// # Type Parameters
 /// - `Ts`: Timestamp type.
 /// - `Pkt`: Transport packet type consumed as input.
-///
-/// # Associated Types
-/// - `Frame`: Intermediate frame type produced by the transport unwrap.
-///
+/// - `Mk`: Message-kind marker returned alongside reassembled payloads.
 ///
 /// # Required Methods
 /// - `process_unwrapped`: Called with the reassembled payload and its message kind
@@ -316,8 +272,7 @@ where
 /// # Provided Methods
 /// - `unwrap`: Strips the wire layers via [`WireUnwrappingPipeline::wire_unwrap`],
 ///   then delegates to `process_unwrapped`.
-pub trait ClientUnwrappingPipeline<Ts, Fr, Pkt, Mk>:
-    WireUnwrappingPipeline<Ts, Fr, Pkt, Mk>
+pub trait ClientUnwrappingPipeline<Ts, Pkt, Mk>: WireUnwrappingPipeline<Ts, Pkt, Mk>
 where
     Ts: Clone,
 {

@@ -66,7 +66,7 @@ where
         input: TimedData<Ts, SimMixPacket>,
         timestamp: Ts,
     ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimMixPacket, NodeId>>> {
-        MixnodeProcessingPipeline::<Ts, Vec<u8>, SimMixPacket, SphinxMessage, NodeId>::process(
+        MixnodeProcessingPipeline::<Ts, SimMixPacket, SphinxMessage, NodeId>::process(
             self, input, timestamp,
         )
     }
@@ -101,8 +101,7 @@ impl SphinxProcessingNode {
     }
 }
 
-impl<Ts> MixnodeProcessingPipeline<Ts, Vec<u8>, SimMixPacket, SphinxMessage, NodeId>
-    for SphinxProcessingNode
+impl<Ts> MixnodeProcessingPipeline<Ts, SimMixPacket, SphinxMessage, NodeId> for SphinxProcessingNode
 where
     Ts: AddDelay + Clone,
 {
@@ -180,8 +179,9 @@ where
 }
 
 // Boilerplate subtraits delegation
-impl<Ts: Clone> Framing<Ts, Vec<u8>, NodeId> for SphinxProcessingNode {
-    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Framing<Ts, NodeId> for SphinxProcessingNode {
+    type Frame = Vec<u8>;
+    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
     fn to_frame(
         &self,
         payload: AddressedTimedPayload<Ts, NodeId>,
@@ -191,8 +191,8 @@ impl<Ts: Clone> Framing<Ts, Vec<u8>, NodeId> for SphinxProcessingNode {
     }
 }
 
-impl<Ts: Clone> Transport<Ts, Vec<u8>, SimMixPacket, NodeId> for SphinxProcessingNode {
-    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Transport<Ts, SimMixPacket, NodeId> for SphinxProcessingNode {
+    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
         frame: AddressedTimedPayload<Ts, NodeId>,
@@ -201,13 +201,14 @@ impl<Ts: Clone> Transport<Ts, Vec<u8>, SimMixPacket, NodeId> for SphinxProcessin
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, Vec<u8>, SimMixPacket, NodeId> for SphinxProcessingNode {
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimMixPacket, NodeId> for SphinxProcessingNode {
     fn packet_size(&self) -> usize {
-        <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(&self.wrapper)
+        <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _>>::packet_size(&self.wrapper)
     }
 }
 
-impl<Ts> FramingUnwrap<Ts, Vec<u8>, SphinxMessage> for SphinxProcessingNode {
+impl<Ts> FramingUnwrap<Ts, SphinxMessage> for SphinxProcessingNode {
+    type Frame = Vec<u8>;
     fn frame_to_message(
         &mut self,
         frame: TimedPayload<Ts>,
@@ -216,7 +217,8 @@ impl<Ts> FramingUnwrap<Ts, Vec<u8>, SphinxMessage> for SphinxProcessingNode {
     }
 }
 
-impl<Ts: Clone> TransportUnwrap<Ts, Vec<u8>, SimMixPacket> for SphinxProcessingNode {
+impl<Ts: Clone> TransportUnwrap<Ts, SimMixPacket> for SphinxProcessingNode {
+    type Frame = Vec<u8>;
     fn packet_to_frame(
         &self,
         packet: SimMixPacket,
@@ -226,7 +228,4 @@ impl<Ts: Clone> TransportUnwrap<Ts, Vec<u8>, SimMixPacket> for SphinxProcessingN
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, Vec<u8>, SimMixPacket, SphinxMessage>
-    for SphinxProcessingNode
-{
-}
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimMixPacket, SphinxMessage> for SphinxProcessingNode {}

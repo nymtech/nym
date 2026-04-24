@@ -95,50 +95,51 @@ where
     }
 }
 
-impl<Ts, Fr, NdId, C, R, O, Rs, F, T> Framing<Ts, Fr, NdId> for Pipeline<C, R, O, Rs, F, T>
+impl<Ts, NdId, C, R, O, Rs, F, T> Framing<Ts, NdId> for Pipeline<C, R, O, Rs, F, T>
 where
-    F: Framing<Ts, Fr, NdId>,
+    F: Framing<Ts, NdId>,
 {
+    type Frame = F::Frame;
     const OVERHEAD_SIZE: usize = F::OVERHEAD_SIZE;
 
     fn to_frame(
         &self,
         payload: AddressedTimedPayload<Ts, NdId>,
         frame_size: usize,
-    ) -> Vec<AddressedTimedData<Ts, Fr, NdId>> {
+    ) -> Vec<AddressedTimedData<Ts, F::Frame, NdId>> {
         self.framing.to_frame(payload, frame_size)
     }
 }
 
-impl<Ts, Fr, Pkt, NdId, C, R, O, Rs, F, T> Transport<Ts, Fr, Pkt, NdId>
-    for Pipeline<C, R, O, Rs, F, T>
+impl<Ts, Pkt, NdId, C, R, O, Rs, F, T> Transport<Ts, Pkt, NdId> for Pipeline<C, R, O, Rs, F, T>
 where
-    T: Transport<Ts, Fr, Pkt, NdId>,
+    F: Framing<Ts, NdId>,
+    T: Transport<Ts, Pkt, NdId, Frame = F::Frame>,
 {
-    const OVERHEAD_SIZE: usize = T::OVERHEAD_SIZE;
+    const OVERHEAD_SIZE: usize = <T as Transport<Ts, Pkt, NdId>>::OVERHEAD_SIZE;
 
     fn to_transport_packet(
         &self,
-        frame: AddressedTimedData<Ts, Fr, NdId>,
+        frame: AddressedTimedData<Ts, F::Frame, NdId>,
     ) -> AddressedTimedData<Ts, Pkt, NdId> {
         self.transport.to_transport_packet(frame)
     }
 }
 
-impl<Ts, Fr, Pkt, NdId, C, R, O, Rs, F, T> WireWrappingPipeline<Ts, Fr, Pkt, NdId>
+impl<Ts, Pkt, NdId, C, R, O, Rs, F, T> WireWrappingPipeline<Ts, Pkt, NdId>
     for Pipeline<C, R, O, Rs, F, T>
 where
     Ts: Clone,
     NdId: Clone,
-    F: Framing<Ts, Fr, NdId>,
-    T: Transport<Ts, Fr, Pkt, NdId>,
+    F: Framing<Ts, NdId>,
+    T: Transport<Ts, Pkt, NdId, Frame = F::Frame>,
 {
     fn packet_size(&self) -> usize {
         self.packet_size
     }
 }
 
-impl<Ts, Fr, Pkt, Opts, NdId, C, R, O, Rs, F, T> ClientWrappingPipeline<Ts, Fr, Pkt, Opts, NdId>
+impl<Ts, Pkt, Opts, NdId, C, R, O, Rs, F, T> ClientWrappingPipeline<Ts, Pkt, Opts, NdId>
     for Pipeline<C, R, O, Rs, F, T>
 where
     Ts: Clone,
@@ -148,7 +149,7 @@ where
     R: Reliability<Ts, Opts, NdId>,
     O: Obfuscation<Ts, Opts, NdId>,
     Rs: RoutingSecurity<Ts, Opts, NdId>,
-    F: Framing<Ts, Fr, NdId>,
-    T: Transport<Ts, Fr, Pkt, NdId>,
+    F: Framing<Ts, NdId>,
+    T: Transport<Ts, Pkt, NdId, Frame = F::Frame>,
 {
 }

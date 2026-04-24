@@ -161,37 +161,36 @@ where
             timestamp.clone(),
         );
 
-        if chunks.is_empty() {
-            // Even if we have no input, we need to catch potential retransmissions
-            chunks = self.reliable_encode(None, timestamp.clone());
-        } else {
-            chunks = chunks
-                .into_iter()
-                .flat_map(|chunk| {
-                    if chunk.options.reliability() {
-                        self.reliable_encode(Some(chunk), timestamp.clone())
-                    } else {
-                        vec![chunk]
-                    }
-                })
-                .collect();
-        };
+        // Reliability stage with chunks that needs reliability
+        chunks = chunks
+            .into_iter()
+            .flat_map(|chunk| {
+                if chunk.options.reliability() {
+                    self.reliable_encode(Some(chunk), timestamp.clone())
+                } else {
+                    vec![chunk]
+                }
+            })
+            .collect();
 
-        if chunks.is_empty() {
-            // Even if we have no input, we need to catch potential cover traffic
-            chunks = self.obfuscate(None, timestamp.clone());
-        } else {
-            chunks = chunks
-                .into_iter()
-                .flat_map(|chunk| {
-                    if chunk.options.obfuscation() {
-                        self.obfuscate(Some(chunk), timestamp.clone())
-                    } else {
-                        vec![chunk]
-                    }
-                })
-                .collect();
-        }
+        // Even if we had nothing go into the reliablity stage, we need to catch potential retransmissions
+        // If we had, this should be a no-op, since it already has been called with the same timestamp
+        chunks.append(&mut self.reliable_encode(None, timestamp.clone()));
+
+        chunks = chunks
+            .into_iter()
+            .flat_map(|chunk| {
+                if chunk.options.obfuscation() {
+                    self.obfuscate(Some(chunk), timestamp.clone())
+                } else {
+                    vec![chunk]
+                }
+            })
+            .collect();
+
+        // Even if we had nothing go into the obfuscation stage, we need to catch potential cover traffic
+        // If we had, this should be a no-op, since it already has been called with the same timestamp
+        chunks.append(&mut self.obfuscate(None, timestamp.clone()));
 
         chunks = chunks
             .into_iter()

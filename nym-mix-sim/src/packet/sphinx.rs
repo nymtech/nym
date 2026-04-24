@@ -18,7 +18,7 @@ use rand_distr::{Distribution, Exp};
 use crate::{node::NodeId, packet::WirePacketFormat};
 
 /// Newtype wrapper around [`SphinxPacket`] that provides a trimmed [`Debug`]
-/// implementation (showing only the first 16 bytes of the serialised form to
+/// implementation (showing only the first 32 bytes of the serialised form to
 /// avoid flooding logs).
 pub struct SimSphinxPacket(SphinxPacket);
 
@@ -26,7 +26,7 @@ impl Debug for SimSphinxPacket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "SphinkPacket {{")?;
         writeln!(f, "    data start:")?;
-        for line in format_debug_bytes(&self.0.to_bytes()[..16])?.lines() {
+        for line in format_debug_bytes(&self.0.to_bytes()[..32])?.lines() {
             writeln!(f, "        {line}")?;
         }
         write!(f, "}}")

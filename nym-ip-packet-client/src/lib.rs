@@ -5,6 +5,7 @@ mod connect;
 mod error;
 mod helpers;
 mod listener;
+pub mod lp_stream;
 
 pub use connect::IprClientConnect;
 pub use error::Error;

@@ -9,11 +9,9 @@ use crate::ip_packet_client::{
 use crate::mixnet::{MixnetClient, MixnetStream, Recipient};
 use crate::Error;
 use bytes::Bytes;
+use current_ipr::response::IpPacketResponse;
 use nym_ip_packet_requests::response_helpers;
-use nym_ip_packet_requests::{
-    v9::{self, response::IpPacketResponse},
-    IpPair,
-};
+use nym_ip_packet_requests::{v9 as current_ipr, IpPair};
 use nym_network_defaults::NymNetworkDetails;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
@@ -107,7 +105,7 @@ impl IpMixStream {
     }
 
     async fn connect_tunnel(stream: &mut MixnetStream) -> Result<IpPair, Error> {
-        let (request, request_id) = v9::new_connect_request(None);
+        let (request, request_id) = current_ipr::new_connect_request(None);
         debug!("Sending connect request with ID: {}", request_id);
 
         let request_bytes = request.to_bytes()?;
@@ -146,7 +144,7 @@ impl IpMixStream {
     /// Send an IP packet through the tunnel.
     pub async fn send_ip_packet(&mut self, packet: &[u8]) -> Result<(), Error> {
         self.check_connected()?;
-        let request = v9::new_data_request(packet.to_vec().into());
+        let request = current_ipr::new_data_request(packet.to_vec().into());
         let request_bytes = request.to_bytes()?;
         self.stream
             .write_all(&request_bytes)

@@ -23,6 +23,7 @@ use crate::{
 };
 use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
+use nym_ip_packet_requests::{MAX_NON_STREAM_VERSION, SPHINX_STREAM_VERSION_THRESHOLD};
 use nym_lp::packet::frame::{LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes};
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
@@ -559,8 +560,9 @@ impl MixnetListener {
     ///
     /// # Version / transport enforcement
     ///
-    /// - LP Stream frames (`stream_id` is `Some`) **must** carry v9+ payloads.
-    /// - Non-stream messages (`stream_id` is `None`) **must** be v8 or lower.
+    /// - LP Stream frames (`stream_id` is `Some`) **must** carry payloads with version
+    ///   `>= SPHINX_STREAM_VERSION_THRESHOLD` (see `nym_ip_packet_requests`).
+    /// - Non-stream messages (`stream_id` is `None`) **must** be `<= MAX_NON_STREAM_VERSION`.
     ///
     /// Messages that violate these rules are dropped.
     async fn on_ipr_message(
@@ -578,16 +580,22 @@ impl MixnetListener {
         }?;
 
         // Enforce version/transport consistency:
-        // - LP Stream frames must carry v9+ payloads
-        // - Non-stream messages must be v8 or lower
+        // - LP Stream frames must carry payloads at/above the SphinxStream threshold
+        // - Non-stream messages must be at/below the max non-stream version
         let version_num = request.version().into_u8();
 
-        if stream_id.is_some() && version_num < 9 {
-            log::warn!("LP Stream frame contains v{version_num} payload, expected v9+; dropping",);
+        if stream_id.is_some() && version_num < SPHINX_STREAM_VERSION_THRESHOLD {
+            log::warn!(
+                "LP Stream frame contains v{version_num} payload, expected v{expected}+; dropping",
+                expected = SPHINX_STREAM_VERSION_THRESHOLD
+            );
             return Ok(vec![]);
         }
-        if stream_id.is_none() && version_num >= 9 {
-            log::warn!("Non-stream message claims v{version_num}, expected v8 or lower; dropping",);
+        if stream_id.is_none() && version_num > MAX_NON_STREAM_VERSION {
+            log::warn!(
+                "Non-stream message claims v{version_num}, expected v{expected} or lower; dropping",
+                expected = MAX_NON_STREAM_VERSION
+            );
             return Ok(vec![]);
         }
 

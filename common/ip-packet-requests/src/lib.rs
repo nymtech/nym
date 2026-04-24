@@ -12,6 +12,26 @@ pub mod v7;
 pub mod v8;
 pub mod v9;
 
+/// Highest IPR protocol version that is allowed to be sent as a **non-stream** mixnet payload
+/// (i.e. not wrapped in `LpFrameKind::SphinxStream`).
+pub const MAX_NON_STREAM_VERSION: u8 = v8::VERSION;
+
+/// First IPR protocol version that **requires** the SphinxStream (LP) transport for non-stream
+/// mixnet sends, matching the node-side enforcement in `ip-packet-router`.
+pub const SPHINX_STREAM_VERSION_THRESHOLD: u8 = v9::VERSION;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stream_transport_threshold_is_consistent() {
+        assert_eq!(MAX_NON_STREAM_VERSION, v8::VERSION);
+        assert_eq!(SPHINX_STREAM_VERSION_THRESHOLD, v9::VERSION);
+        assert!(SPHINX_STREAM_VERSION_THRESHOLD > MAX_NON_STREAM_VERSION);
+    }
+}
+
 // version 3: initial version
 // version 4: IPv6 support
 // version 5: Add severity level to info response

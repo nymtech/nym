@@ -3,6 +3,7 @@
 
 use crate::node_status_api::models::{ApiResult, AxumErrorResponse};
 use crate::support::http::state::AppState;
+use crate::support::storage::models::NymNodeStressTestingResult;
 use axum::extract::{Path, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -10,6 +11,7 @@ use nym_api_requests::models::network_monitor::KnownNetworkMonitorResponse;
 use nym_api_requests::models::StressTestBatchSubmission;
 use nym_crypto::asymmetric::ed25519;
 use std::time::Duration;
+use tracing::error;
 
 #[utoipa::path(
     tag = "Nym Nodes",
@@ -17,7 +19,9 @@ use std::time::Duration;
     path = "/stress-testing/batch-submit",
     context_path = "/v3/nym-nodes",
     responses(
-        (status = 501, description = "the endpoint has not been implemented yet"),
+        (status = 200, description = "the submitted batch has been accepted and stored"),
+        (status = 400, description = "the submitted request is stale or replayed"),
+        (status = 401, description = "the submitted request was unauthorised or failed integrity check"),
     ),
 )]
 async fn batch_submit_stress_testing_results(
@@ -36,7 +40,7 @@ async fn batch_submit_stress_testing_results(
     // 2. check if the sent public key is even in the authorised set
     if !state
         .network_monitors()
-        .is_authorised(&state.nyxd_client)
+        .is_authorised(&state.nyxd_client, &body.body.signer)
         .await?
     {
         return Err(AxumErrorResponse::unauthorised(
@@ -63,8 +67,33 @@ async fn batch_submit_stress_testing_results(
         ));
     }
 
-    // 5. process received results
-    Err(AxumErrorResponse::not_implemented())
+    // 5. update the latest submission timestamp
+    state
+        .network_monitor_submissions
+        .set_submitted(body.body.signer, body.body.timestamp)
+        .await;
+
+    // 6. process received results
+    let signer = body.body.signer;
+    let mut mixnode_results = Vec::with_capacity(body.body.results.len());
+    for result in body.body.results {
+        if result.is_mixnode {
+            mixnode_results.push(NymNodeStressTestingResult::from(result));
+        } else {
+            error!(
+                %signer,
+                node_id = result.node_id,
+                "received a stress testing result for a non-mixnode entry which should never happen - is the nym-api outdated?"
+            );
+        }
+    }
+
+    state
+        .storage()
+        .insert_nym_node_stress_testing_results(mixnode_results)
+        .await?;
+
+    Ok(())
 }
 
 #[utoipa::path(
@@ -92,7 +121,7 @@ async fn known_network_monitor(
         .get_or_refresh(&state.nyxd_client)
         .await?;
 
-    let authorised = known.contains(&identity_key).await;
+    let authorised = known.contains(&identity_key);
 
     Ok(Json(KnownNetworkMonitorResponse {
         identity_key,

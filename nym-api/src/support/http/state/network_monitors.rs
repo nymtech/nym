@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use tracing::{error, warn};
 
 #[derive(Clone)]
@@ -36,11 +36,8 @@ impl LastNMSubmissions {
             .unwrap_or_else(|| OffsetDateTime::now_utc())
     }
 
-    pub(crate) async fn set_submitted(&self, nm: ed25519::PublicKey) {
-        self.submissions
-            .write()
-            .await
-            .insert(nm, OffsetDateTime::now_utc());
+    pub(crate) async fn set_submitted(&self, nm: ed25519::PublicKey, timestamp: OffsetDateTime) {
+        self.submissions.write().await.insert(nm, timestamp);
     }
 }
 
@@ -62,6 +59,21 @@ impl NetworkMonitorsCache {
     pub(crate) fn new(cache_ttl: Duration) -> Self {
         NetworkMonitorsCache(ChainSharedCacheWithTtl::new(cache_ttl))
     }
+
+    pub(crate) async fn get_or_refresh(
+        &self,
+        client: &Client,
+    ) -> Result<KnownNetworkMonitors, AxumErrorResponse> {
+        self.0.get_or_refresh(client, refresh).await
+    }
+
+    pub(crate) async fn is_authorised(
+        &self,
+        nyxd_client: &Client,
+        key: &ed25519::PublicKey,
+    ) -> Result<bool, AxumErrorResponse> {
+        Ok(self.get_or_refresh(nyxd_client).await?.known.contains(key))
+    }
 }
 
 async fn refresh(client: &Client) -> Result<KnownNetworkMonitors, NyxdError> {
@@ -78,6 +90,7 @@ async fn refresh(client: &Client) -> Result<KnownNetworkMonitors, NyxdError> {
     for monitor in known_monitors {
         let Some(public_key) = monitor.identity_key else {
             warn!("{} orchestrator is authorised but has not announced its public key - is the process running correctly?", monitor.address);
+            continue;
         };
         let parsed = match ed25519::PublicKey::from_base58_string(&public_key) {
             Ok(key) => key,
@@ -91,13 +104,4 @@ async fn refresh(client: &Client) -> Result<KnownNetworkMonitors, NyxdError> {
     Ok(KnownNetworkMonitors {
         known: updated_monitors,
     })
-}
-
-impl NetworkMonitorsCache {
-    pub(crate) async fn get_or_refresh(
-        &self,
-        client: &Client,
-    ) -> Result<KnownNetworkMonitors, AxumErrorResponse> {
-        self.0.get_or_refresh(client, refresh).await
-    }
 }

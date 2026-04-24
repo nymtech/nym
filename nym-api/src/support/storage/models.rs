@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::models::TestNode;
+use nym_api_requests::models::{StressTestResult, TestNode};
 use nym_mixnet_contract_common::NodeId;
 use sqlx::FromRow;
 use time::Date;
@@ -145,4 +145,23 @@ pub struct HistoricalUptime {
     #[allow(dead_code)]
     pub date: Date,
     pub uptime: i64,
+}
+
+#[derive(FromRow)]
+pub struct NymNodeStressTestingResult {
+    pub node_id: NodeId,
+    pub result: f64,
+    pub was_reachable: bool,
+    pub test_timestamp: time::OffsetDateTime,
+}
+
+impl From<StressTestResult> for NymNodeStressTestingResult {
+    fn from(value: StressTestResult) -> Self {
+        NymNodeStressTestingResult {
+            node_id: value.node_id,
+            result: value.test_performance,
+            was_reachable: value.was_reachable,
+            test_timestamp: value.test_timestamp,
+        }
+    }
 }

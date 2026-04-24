@@ -26,7 +26,9 @@ use nym_lp_data::{
 };
 use nym_sphinx::{
     Delay, Destination, DestinationAddressBytes, Payload, SphinxPacket, SphinxPacketBuilder,
-    chunking::{self, fragment::Fragment, reconstruction::MessageReconstructor},
+    chunking::{fragment::Fragment, reconstruction::MessageReconstructor},
+    message::NymMessage,
+    message::PaddedMessage,
 };
 use rand::rngs::OsRng;
 
@@ -162,10 +164,12 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> Chunking<Ts, SphinxInputOptions, No
         timestamp: Ts,
     ) -> Vec<SphinxPipelinePayload<Ts>> {
         // This is using standard sphinx chunking. Proper LP should use a different one
-        let fragments = chunking::split_into_sets(&mut OsRng, &input, chunk_size);
+        let fragments = NymMessage::new_plain(input)
+            .pad_to_full_packet_lengths(chunk_size)
+            .split_into_fragments(&mut OsRng, chunk_size);
+
         fragments
             .into_iter()
-            .flatten()
             .map(|fragment| {
                 SphinxPipelinePayload::new(timestamp.clone(), fragment.into_bytes(), options)
             })
@@ -224,12 +228,17 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> RoutingSecurity<Ts, SphinxInputOpti
             .map(|_| Delay::new_from_millis(Ts::generate_mix_delay(&mut OsRng)))
             .collect::<Vec<_>>();
 
-        // If the pipeline is correct, the input we get is already the correct size
-        let payload_size = input.data.data.len();
+        // Useful payload size is packet size - transport overhead - framing overhead - routing overhead
+        let plaintext_size =
+            <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(
+                &self.wire_wrapper,
+            ) - <Self as Framing<Ts, _, _>>::OVERHEAD_SIZE
+                - <Self as Transport<Ts, _, _, _>>::OVERHEAD_SIZE
+                - <Self as RoutingSecurity<Ts, _, _>>::OVERHEAD_SIZE;
 
         // Packet builder's size includes the payload overhead so we have to add it
         let packet_builder = SphinxPacketBuilder::new()
-            .with_payload_size(payload_size + nym_sphinx::PAYLOAD_OVERHEAD_SIZE);
+            .with_payload_size(plaintext_size + nym_sphinx::PAYLOAD_OVERHEAD_SIZE);
 
         // SAFETY : Shut up clippy
         #[allow(clippy::unwrap_used)]
@@ -345,6 +354,16 @@ impl<Ts: Clone> ClientUnwrappingPipeline<Ts, Vec<u8>, Vec<u8>, SphinxMessage>
             .inspect_err(|e| tracing::warn!("Failed to deserialize fragment : {e}"))
             .ok()?;
 
-        Some(self.message_reconstructor.insert_new_fragment(fragment)?.0)
+        if let Some(reconstructed_message) =
+            self.message_reconstructor.insert_new_fragment(fragment)
+        {
+            let message = PaddedMessage::from(reconstructed_message.0)
+                .remove_padding()
+                .inspect_err(|e| tracing::warn!("Failed to remove padding : {e}"))
+                .ok()?;
+            Some(message.into_inner_data())
+        } else {
+            None
+        }
     }
 }

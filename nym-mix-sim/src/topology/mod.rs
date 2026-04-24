@@ -11,6 +11,7 @@
 use std::net::SocketAddr;
 
 use nym_crypto::asymmetric::x25519;
+use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_private_key;
 use serde::{Deserialize, Serialize};
 
 use crate::{client::ClientId, node::NodeId};
@@ -26,6 +27,7 @@ pub struct TopologyNode {
     /// Notional reliability percentage (0–100); reserved for future use.
     pub reliability: u8,
     /// Sphinx (X25519) private key used by this node to unwrap packets.
+    #[serde(with = "bs58_x25519_private_key")]
     pub sphinx_private_key: x25519::PrivateKey,
 }
 

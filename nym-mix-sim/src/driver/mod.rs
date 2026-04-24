@@ -34,7 +34,7 @@ mod simple;
 mod sphinx;
 
 pub use simple::SimpleMixDriver;
-pub use sphinx::SphinxMixDriver;
+pub use sphinx::{ManualSphinxMixDriver, SphinxMixDriver};
 
 /// Top-level orchestrator for the mix-network simulation.
 ///

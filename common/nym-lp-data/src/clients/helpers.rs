@@ -3,6 +3,7 @@
 
 use crate::TimedPayload;
 use crate::clients::traits::{Obfuscation, Reliability, RoutingSecurity};
+use crate::common::traits::InputOptions;
 
 /// Marker trait for a no-op [`Reliability`] implementation.
 ///
@@ -10,12 +11,13 @@ use crate::clients::traits::{Obfuscation, Reliability, RoutingSecurity};
 /// passes the payload through unchanged with zero byte overhead.
 pub trait NoOpReliability {}
 
-impl<T, Ts> Reliability<Ts> for T
+impl<T, Ts, Opts, NdId> Reliability<Ts, Opts, NdId> for T
 where
     T: NoOpReliability,
+    Opts: InputOptions<NdId>,
 {
     const OVERHEAD_SIZE: usize = 0;
-    fn reliable_encode(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts> {
+    fn reliable_encode(&self, input: TimedPayload<Ts>, _: Opts) -> TimedPayload<Ts> {
         input
     }
 }
@@ -26,9 +28,10 @@ where
 /// passes the payload through unchanged with zero byte overhead and `nb_frames() == 1`.
 pub trait NoOpRoutingSecurity {}
 
-impl<T, Ts> RoutingSecurity<Ts> for T
+impl<T, Ts, Opts, NdId> RoutingSecurity<Ts, Opts, NdId> for T
 where
     T: NoOpRoutingSecurity,
+    Opts: InputOptions<NdId>,
 {
     const OVERHEAD_SIZE: usize = 0;
 
@@ -36,7 +39,7 @@ where
         1
     }
 
-    fn encrypt(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts> {
+    fn encrypt(&self, input: TimedPayload<Ts>, _: Opts) -> TimedPayload<Ts> {
         input
     }
 }
@@ -48,11 +51,17 @@ where
 /// buffering.
 pub trait NoOpObfuscation {}
 
-impl<T, Ts> Obfuscation<Ts> for T
+impl<T, Ts, Opts, NdId> Obfuscation<Ts, Opts, NdId> for T
 where
     T: NoOpObfuscation,
+    Opts: InputOptions<NdId>,
 {
-    fn obfuscate(&mut self, input: Option<TimedPayload<Ts>>, _: Ts) -> Vec<TimedPayload<Ts>> {
+    fn obfuscate(
+        &mut self,
+        input: Option<TimedPayload<Ts>>,
+        _: Opts,
+        _: Ts,
+    ) -> Vec<TimedPayload<Ts>> {
         input.map(|payload| vec![payload]).unwrap_or_default()
     }
     fn buffer_size(&self) -> usize {

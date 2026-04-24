@@ -5,7 +5,7 @@ use std::fmt::Debug;
 
 use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
-    TimedData, TimedPayload,
+    AddressedTimedData, TimedData, TimedPayload,
     common::traits::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
@@ -14,7 +14,7 @@ use nym_lp_data::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::packet::WirePacketFormat;
+use crate::{node::NodeId, packet::WirePacketFormat};
 
 /// A minimal, fixed-size packet used by the simulation.
 ///
@@ -200,20 +200,21 @@ impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleWireWrapper {
 
 /// Transport wraps a [`SimpleFrame`] into a [`SimplePacket`].
 /// Overhead = 16 bytes (UUID), so effective payload = 48 bytes.
-impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket> for SimpleWireWrapper {
+impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleWireWrapper {
     const OVERHEAD_SIZE: usize = 16;
     fn to_transport_packet(
         &self,
         frame: TimedData<Ts, SimpleFrame>,
-    ) -> TimedData<Ts, SimplePacket> {
+        next_hop: NodeId,
+    ) -> AddressedTimedData<Ts, SimplePacket, NodeId> {
         // SAFETY: If the pipeline is implemented properly, frames perfectly fit in a packet
         #[allow(clippy::unwrap_used)]
         let packet = SimplePacket::new(frame.data.to_bytes().try_into().unwrap());
-        TimedData::new(frame.timestamp, packet)
+        AddressedTimedData::new(frame.timestamp, packet, next_hop)
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleWireWrapper {
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleWireWrapper {
     fn packet_size(&self) -> usize {
         SimplePacket::SIZE
     }

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use nym_crypto::asymmetric::x25519;
 use nym_lp_data::{
-    TimedData, TimedPayload,
+    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
     common::traits::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
@@ -59,7 +59,7 @@ where
         &mut self,
         input: TimedData<Ts, SimSphinxPacket>,
         timestamp: Ts,
-    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, SimSphinxPacket>)>> {
+    ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimSphinxPacket, NodeId>>> {
         MixnodeProcessingPipeline::<Ts, SphinxPacket, SimSphinxPacket, SphinxMessage, NodeId>::process(
             self, input, timestamp,
         )
@@ -98,7 +98,7 @@ where
         _: SphinxMessage,
         payload: TimedPayload<Ts>,
         timestamp: Ts,
-    ) -> Vec<(NodeId, TimedPayload<Ts>)> {
+    ) -> Vec<AddressedTimedPayload<Ts, NodeId>> {
         // SAFETY : Given the unwrapper we are using, it is guaranteed to be a sphinx packet here
         #[allow(clippy::unwrap_used)]
         let sphinx_packet = SphinxPacket::from_bytes(&payload.data).unwrap();
@@ -110,23 +110,22 @@ where
                     next_hop_address,
                     delay,
                 } => {
-                    let timed_sphinx = TimedData {
-                        timestamp: timestamp.add_delay(delay),
-                        data: next_hop_packet.to_bytes(),
-                    };
-                    vec![(next_hop_address.as_bytes()[0], timed_sphinx)]
+                    let timed_sphinx = AddressedTimedData::new(
+                        timestamp.add_delay(delay),
+                        next_hop_packet.to_bytes(),
+                        next_hop_address.as_bytes()[0],
+                    );
+                    vec![timed_sphinx]
                 }
                 nym_sphinx::ProcessedPacketData::FinalHop {
                     destination,
                     identifier: _,
                     payload,
                 } => {
-                    vec![(
+                    vec![AddressedTimedData::new(
+                        timestamp,
+                        payload.into_bytes(),
                         destination.as_bytes()[0],
-                        TimedData {
-                            data: payload.into_bytes(),
-                            timestamp,
-                        },
                     )]
                 }
             },
@@ -150,19 +149,22 @@ impl<Ts: Clone> Framing<Ts, SphinxPacket> for SphinxProcessingNode {
     }
 }
 
-impl<Ts: Clone> Transport<Ts, SphinxPacket, SimSphinxPacket> for SphinxProcessingNode {
-    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Transport<Ts, SphinxPacket, SimSphinxPacket, NodeId> for SphinxProcessingNode {
+    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
         frame: TimedData<Ts, SphinxPacket>,
-    ) -> TimedData<Ts, SimSphinxPacket> {
-        self.wrapper.to_transport_packet(frame)
+        next_hop: NodeId,
+    ) -> AddressedTimedData<Ts, SimSphinxPacket, NodeId> {
+        self.wrapper.to_transport_packet(frame, next_hop)
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket> for SphinxProcessingNode {
+impl<Ts: Clone> WireWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, NodeId>
+    for SphinxProcessingNode
+{
     fn packet_size(&self) -> usize {
-        <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _>>::packet_size(&self.wrapper)
+        <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(&self.wrapper)
     }
 }
 

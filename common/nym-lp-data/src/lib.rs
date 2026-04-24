@@ -80,8 +80,46 @@ impl<Ts, D> TimedData<Ts, D> {
     }
 }
 
+pub struct AddressedTimedData<Ts, D, NdId> {
+    pub dst: NdId,
+    pub data: TimedData<Ts, D>,
+}
+
+impl<Ts, D, NdId> AddressedTimedData<Ts, D, NdId> {
+    pub fn new(timestamp: Ts, data: D, dst: NdId) -> Self {
+        AddressedTimedData {
+            dst,
+            data: TimedData::new(timestamp, data),
+        }
+    }
+}
+
+impl<Ts, D, NdId> Debug for AddressedTimedData<Ts, D, NdId>
+where
+    D: Debug,
+    Ts: Debug,
+    NdId: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "AddressedTimedData {{")?;
+        writeln!(f, "    dst: {:#?}", &self.dst)?;
+        writeln!(f, "    data: {:#?}", &self.data)?;
+        write!(f, "}}")
+    }
+}
+
+impl<Ts, D, NdId> From<(NdId, TimedData<Ts, D>)> for AddressedTimedData<Ts, D, NdId> {
+    fn from(value: (NdId, TimedData<Ts, D>)) -> Self {
+        AddressedTimedData {
+            dst: value.0,
+            data: value.1,
+        }
+    }
+}
+
 /// Convenience alias for a [`TimedData`] whose payload is a raw byte buffer.
 ///
 /// Used as the input and output type for most pipeline stages before the data
 /// is wrapped into a typed frame or packet.
 pub type TimedPayload<Ts> = TimedData<Ts, Vec<u8>>;
+pub type AddressedTimedPayload<Ts, NdId> = AddressedTimedData<Ts, Vec<u8>, NdId>;

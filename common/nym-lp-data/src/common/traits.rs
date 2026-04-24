@@ -1,7 +1,15 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{TimedData, TimedPayload};
+use crate::{AddressedTimedData, TimedData, TimedPayload};
+
+pub trait InputOptions<NdId>: Clone {
+    fn reliability(&self) -> bool;
+    fn routing_security(&self) -> bool;
+    fn obfuscation(&self) -> bool;
+
+    fn next_hop(&self) -> NdId;
+}
 
 /// Trait for applying framing to a timed payload.
 ///
@@ -47,9 +55,13 @@ pub trait FramingUnwrap<Ts, Fr, Mk> {
 ///
 /// # Required Methods
 /// - `to_transport_packet`: Wraps a frame into a transport packet.
-pub trait Transport<Ts, Fr, Pkt> {
+pub trait Transport<Ts, Fr, Pkt, NdId> {
     const OVERHEAD_SIZE: usize;
-    fn to_transport_packet(&self, frame: TimedData<Ts, Fr>) -> TimedData<Ts, Pkt>;
+    fn to_transport_packet(
+        &self,
+        frame: TimedData<Ts, Fr>,
+        next_hop: NdId,
+    ) -> AddressedTimedData<Ts, Pkt, NdId>;
 }
 
 /// Trait for unwrapping a transport packet back into a frame.
@@ -81,23 +93,29 @@ pub trait TransportUnwrap<Ts, Fr, Pkt> {
 /// # Provided Methods
 /// - `frame_size`: Derived from `packet_size` minus transport and framing overheads.
 /// - `wire_wrap`: Frames a payload and wraps each frame into a transport packet.
-pub trait WireWrappingPipeline<Ts, Fr, Pkt>: Framing<Ts, Fr> + Transport<Ts, Fr, Pkt>
+pub trait WireWrappingPipeline<Ts, Fr, Pkt, NdId>:
+    Framing<Ts, Fr> + Transport<Ts, Fr, Pkt, NdId>
 where
     Ts: Clone,
+    NdId: Clone,
 {
     fn packet_size(&self) -> usize;
 
     fn frame_size(&self) -> usize {
         self.packet_size()
-            - <Self as Transport<_, _, _>>::OVERHEAD_SIZE
+            - <Self as Transport<_, _, _, _>>::OVERHEAD_SIZE
             - <Self as Framing<_, _>>::OVERHEAD_SIZE
     }
 
-    fn wire_wrap(&self, payload: TimedPayload<Ts>) -> Vec<TimedData<Ts, Pkt>> {
+    fn wire_wrap(
+        &self,
+        payload: TimedPayload<Ts>,
+        next_hop: NdId,
+    ) -> Vec<AddressedTimedData<Ts, Pkt, NdId>> {
         let frame_size = self.frame_size();
         self.to_frame(payload, frame_size)
             .into_iter()
-            .map(|frame| self.to_transport_packet(frame))
+            .map(|frame| self.to_transport_packet(frame, next_hop.clone()))
             .collect()
     }
 }

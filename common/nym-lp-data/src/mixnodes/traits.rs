@@ -1,53 +1,41 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{TimedData, TimedPayload};
+use crate::{AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload};
 
 use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 
-/// Trait for applying routing security processing (e.g. encryption) to a timed payload.
-///
-/// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
-///
-/// # Required Methods
-/// - `process_routing_security`: Process the routing security mechanism to the given payload,
-///   returning a new `TimedPayload` with the processed data.
-pub trait RoutingSecurityProcessing<Ts> {
-    fn process_routing_security(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts>;
-}
+// /// Dyn-compatible mirror of [`MixnodeProcessingPipeline`].
+// ///
+// /// Erases the `Frame` associated type so the pipeline can be stored as
+// /// `dyn DynMixnodeProcessingPipeline<Ts, Pkt, NodeId>`.
+// ///
+// /// Implement [`MixnodeProcessingPipeline`] on your concrete type; the blanket
+// /// impl below provides `DynMixnodeProcessingPipeline` for free.  For
+// /// pass-through stubs that do not need the full wire layer, you may implement
+// /// this trait directly.
+// pub trait DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> {
+//     fn process(
+//         &mut self,
+//         input: TimedData<Ts, Pkt>,
+//         timestamp: Ts,
+//     ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>>;
+// }
 
-/// Dyn-compatible mirror of [`MixnodeProcessingPipeline`].
-///
-/// Erases the `Frame` associated type so the pipeline can be stored as
-/// `dyn DynMixnodeProcessingPipeline<Ts, Pkt, NodeId>`.
-///
-/// Implement [`MixnodeProcessingPipeline`] on your concrete type; the blanket
-/// impl below provides `DynMixnodeProcessingPipeline` for free.  For
-/// pass-through stubs that do not need the full wire layer, you may implement
-/// this trait directly.
-pub trait DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> {
-    fn process(
-        &mut self,
-        input: TimedData<Ts, Pkt>,
-        timestamp: Ts,
-    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>>;
-}
-
-impl<T, Ts, Fr, Pkt, Mk, NodeId> DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> for T
-where
-    T: MixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId>,
-    Ts: Clone,
-    NodeId: Clone,
-{
-    fn process(
-        &mut self,
-        input: TimedData<Ts, Pkt>,
-        timestamp: Ts,
-    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>> {
-        MixnodeProcessingPipeline::process(self, input, timestamp)
-    }
-}
+// impl<T, Ts, Fr, Pkt, Mk, NodeId> DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> for T
+// where
+//     T: MixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId>,
+//     Ts: Clone,
+//     NodeId: Clone,
+// {
+//     fn process(
+//         &mut self,
+//         input: TimedData<Ts, Pkt>,
+//         timestamp: Ts,
+//     ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>> {
+//         MixnodeProcessingPipeline::process(self, input, timestamp)
+//     }
+// }
 
 /// Top-level processing trait for a mix node.
 ///
@@ -70,24 +58,24 @@ where
 /// - `process`: Unwraps the incoming packet via [`WireUnwrappingPipeline::wire_unwrap`],
 ///   passes the result to [`mix`], and re-wraps each output payload via
 ///   [`WireWrappingPipeline::wire_wrap`].
-pub trait MixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId>:
-    WireUnwrappingPipeline<Ts, Fr, Pkt, Mk> + WireWrappingPipeline<Ts, Fr, Pkt>
+pub trait MixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NdId>:
+    WireUnwrappingPipeline<Ts, Fr, Pkt, Mk> + WireWrappingPipeline<Ts, Fr, Pkt, NdId>
 where
     Ts: Clone,
-    NodeId: Clone,
+    NdId: Clone,
 {
     fn mix(
         &mut self,
         message_kind: Mk,
         payload: TimedPayload<Ts>,
         timestamp: Ts,
-    ) -> Vec<(NodeId, TimedPayload<Ts>)>;
+    ) -> Vec<AddressedTimedPayload<Ts, NdId>>;
 
     fn process(
         &mut self,
         input: TimedData<Ts, Pkt>,
         timestamp: Ts,
-    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>> {
+    ) -> anyhow::Result<Vec<AddressedTimedData<Ts, Pkt, NdId>>> {
         let TimedData {
             data: packet,
             timestamp: ts,
@@ -98,10 +86,9 @@ where
         let mixed = self.mix(kind, payload, timestamp);
         Ok(mixed
             .into_iter()
-            .flat_map(|(node_id, out_payload)| {
-                self.wire_wrap(out_payload)
+            .flat_map(|addressed_data| {
+                self.wire_wrap(addressed_data.data, addressed_data.dst)
                     .into_iter()
-                    .map(move |pkt| (node_id.clone(), pkt))
             })
             .collect())
     }

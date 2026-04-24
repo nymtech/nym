@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use nym_lp_data::TimedData;
+use nym_lp_data::{AddressedTimedData, TimedData};
 
 use crate::{packet::WirePacketFormat, topology::directory::Directory};
 
@@ -52,7 +52,7 @@ pub trait ProcessingNode<Ts, Pkt>: Send {
         &mut self,
         input: TimedData<Ts, Pkt>,
         timestamp: Ts,
-    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>>;
+    ) -> anyhow::Result<Vec<AddressedTimedData<Ts, Pkt, NodeId>>>;
 }
 
 /// Full mix-node state: UDP transport, routing directory, packet buffers, and
@@ -76,7 +76,7 @@ pub struct BaseNode<Ts, Pkt, Pn> {
     directory: Arc<Directory>,
 
     packets_to_process: Vec<TimedData<Ts, Pkt>>,
-    processed_packets: Vec<(NodeId, TimedData<Ts, Pkt>)>,
+    processed_packets: Vec<AddressedTimedData<Ts, Pkt, NodeId>>,
 
     processing_node: Pn,
 }
@@ -201,11 +201,10 @@ where
     fn tick_outgoing(&mut self, timestamp: Ts) {
         let to_send = self
             .processed_packets
-            .extract_if(.., |(_, pkt)| pkt.timestamp <= timestamp)
-            .map(|(next_hop, pkt)| (next_hop, pkt.data))
+            .extract_if(.., |pkt| pkt.data.timestamp <= timestamp)
             .collect::<Vec<_>>();
-        for (next_hop, pkt) in to_send {
-            self.send_to_node(next_hop, pkt);
+        for pkt in to_send {
+            self.send_to_node(pkt.dst, pkt.data.data);
         }
     }
 

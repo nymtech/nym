@@ -12,6 +12,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use nym_crypto::asymmetric::x25519;
+use nym_sphinx::{Node as SphinxNode, NodeAddressBytes};
 
 use crate::{
     client::ClientId,
@@ -44,6 +45,11 @@ impl Directory {
     /// Returns `None` when `id` is not present in the directory
     pub fn client(&self, id: NodeId) -> Option<&SocketAddr> {
         self.clients.get(&id)
+    }
+
+    /// Returns the node_id of every node in the network
+    pub fn node_ids(&self) -> Vec<NodeId> {
+        self.nodes.keys().copied().collect()
     }
 }
 
@@ -85,5 +91,13 @@ impl From<&TopologyNode> for DirectoryNode {
             addr: value.socket_address,
             sphinx_public_key: x25519::PublicKey::from(&value.sphinx_private_key),
         }
+    }
+}
+
+// Helper to convert to SphinxNode
+impl From<&DirectoryNode> for SphinxNode {
+    fn from(value: &DirectoryNode) -> Self {
+        let address = NodeAddressBytes::from_bytes([value.id; 32]);
+        SphinxNode::new(address, *value.sphinx_public_key)
     }
 }

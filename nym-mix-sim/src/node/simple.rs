@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use nym_lp_data::{
-    TimedData, TimedPayload,
+    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
     common::traits::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
@@ -53,7 +53,7 @@ impl<Ts: Clone> ProcessingNode<Ts, SimplePacket> for SimpleProcessingNode {
         &mut self,
         input: TimedData<Ts, SimplePacket>,
         timestamp: Ts,
-    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, SimplePacket>)>> {
+    ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimplePacket, NodeId>>> {
         MixnodeProcessingPipeline::<Ts, SimpleFrame, SimplePacket, SimpleMessage, NodeId>::process(
             self, input, timestamp,
         )
@@ -92,9 +92,9 @@ impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimpleFrame, SimplePacket, SimpleM
         _: SimpleMessage,
         payload: TimedPayload<Ts>,
         _timestamp: Ts,
-    ) -> Vec<(NodeId, TimedPayload<Ts>)> {
+    ) -> Vec<AddressedTimedPayload<Ts, NodeId>> {
         // Routing decision: forward to the next node
-        vec![(self.id + 1, payload)]
+        vec![(self.id + 1, payload).into()]
     }
 }
 
@@ -110,21 +110,22 @@ impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleProcessingNode {
     }
 }
 
-impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket> for SimpleProcessingNode {
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleProcessingNode {
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
         frame: TimedData<Ts, SimpleFrame>,
-    ) -> TimedData<Ts, SimplePacket> {
-        self.wrapper.to_transport_packet(frame)
+        next_hop: NodeId,
+    ) -> AddressedTimedData<Ts, SimplePacket, NodeId> {
+        self.wrapper.to_transport_packet(frame, next_hop)
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleProcessingNode {
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket, NodeId>
+    for SimpleProcessingNode
+{
     fn packet_size(&self) -> usize {
-        <SimpleWireWrapper as WireWrappingPipeline<Ts, SimpleFrame, SimplePacket>>::packet_size(
-            &self.wrapper,
-        )
+        <SimpleWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(&self.wrapper)
     }
 }
 

@@ -5,7 +5,7 @@ use std::fmt::Debug;
 
 use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
-    TimedData, TimedPayload,
+    AddressedTimedData, TimedData, TimedPayload,
     common::traits::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
@@ -13,7 +13,7 @@ use nym_lp_data::{
 };
 use nym_sphinx::SphinxPacket;
 
-use crate::packet::WirePacketFormat;
+use crate::{node::NodeId, packet::WirePacketFormat};
 
 // Simple Wrapper for sphinx packet to implement a (sort of) debug impl;
 pub struct SimSphinxPacket(SphinxPacket);
@@ -83,17 +83,20 @@ impl<Ts: Clone> Framing<Ts, SphinxPacket> for SphinxNoOpWireWrapper {
     }
 }
 
-impl<Ts: Clone> Transport<Ts, SphinxPacket, SimSphinxPacket> for SphinxNoOpWireWrapper {
+impl<Ts: Clone> Transport<Ts, SphinxPacket, SimSphinxPacket, NodeId> for SphinxNoOpWireWrapper {
     const OVERHEAD_SIZE: usize = 0;
     fn to_transport_packet(
         &self,
         frame: TimedData<Ts, SphinxPacket>,
-    ) -> TimedData<Ts, SimSphinxPacket> {
-        frame.data_transform(SimSphinxPacket)
+        next_hop: NodeId,
+    ) -> AddressedTimedData<Ts, SimSphinxPacket, NodeId> {
+        (next_hop, frame.data_transform(SimSphinxPacket)).into()
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket> for SphinxNoOpWireWrapper {
+impl<Ts: Clone> WireWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, NodeId>
+    for SphinxNoOpWireWrapper
+{
     fn packet_size(&self) -> usize {
         nym_sphinx::params::PacketSize::RegularPacket.size()
     }

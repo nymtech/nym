@@ -3,7 +3,7 @@
 
 use std::{fmt::Debug, io::ErrorKind, net::UdpSocket, sync::Arc};
 
-use nym_lp_data::{TimedData, clients::types::StreamOptions};
+use nym_lp_data::AddressedTimedData;
 
 use crate::{
     node::NodeId,
@@ -32,9 +32,9 @@ pub trait ProcessingClient<Ts, SndPkt, RcvPkt = SndPkt>: Send {
     fn process(
         &mut self,
         input: Vec<u8>,
-        processing_options: StreamOptions,
+        dst: ClientId,
         timestamp: Ts,
-    ) -> Vec<TimedData<Ts, SndPkt>>;
+    ) -> Vec<AddressedTimedData<Ts, SndPkt, NodeId>>;
 
     fn unwrap(&mut self, input: RcvPkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>>;
 }
@@ -51,7 +51,7 @@ pub struct BaseClient<Ts, Pc, SndPkt, RcvPkt = SndPkt> {
     app_socket: UdpSocket,
     directory: Arc<Directory>,
 
-    outgoing_queue: Vec<(NodeId, TimedData<Ts, SndPkt>)>,
+    outgoing_queue: Vec<AddressedTimedData<Ts, SndPkt, NodeId>>,
 
     processing_client: Pc,
 
@@ -179,7 +179,7 @@ where
                 }
             };
 
-            // SW This bit should be in simple client probably,
+            // We assume format is [dst, payload]
             if bytes.len() < 2 {
                 tracing::warn!(
                     "[Client {}] app message too short ({} bytes), dropping",
@@ -189,25 +189,19 @@ where
                 continue;
             }
 
-            let _dst: NodeId = bytes[0];
+            let dst: NodeId = bytes[0];
             let payload = bytes[1..].to_vec();
 
             tracing::info!(
-                "[Client {}] App input: {} byte(s) → client {_dst}",
+                "[Client {}] App input: {} byte(s) → client {dst}",
                 self.id,
                 payload.len()
             );
 
-            // SW actually, pipeline should tell me where to send it next
-            let packets = self.processing_client.process(
-                payload,
-                StreamOptions::default(),
-                timestamp.clone(),
-            );
-
-            for td in packets {
-                self.outgoing_queue.push((0, td));
-            }
+            let packets = self
+                .processing_client
+                .process(payload, dst, timestamp.clone());
+            self.outgoing_queue.extend(packets);
         }
     }
 
@@ -216,11 +210,10 @@ where
     fn tick_outgoing(&mut self, timestamp: Ts) {
         let to_send = self
             .outgoing_queue
-            .extract_if(.., |(_, td)| td.timestamp <= timestamp)
-            .map(|(node_id, td)| (node_id, td.data))
+            .extract_if(.., |pkt| pkt.data.timestamp <= timestamp)
             .collect::<Vec<_>>();
-        for (node_id, pkt) in to_send {
-            self.send_to_node(node_id, pkt);
+        for pkt in to_send {
+            self.send_to_node(pkt.dst, pkt.data.data);
         }
     }
 

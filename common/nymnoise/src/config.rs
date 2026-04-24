@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use arc_swap::{ArcSwap, Guard};
+use arc_swap::ArcSwap;
 use nym_crypto::asymmetric::x25519;
 use snow::params::NoiseParams;
 use std::{
@@ -120,10 +120,16 @@ pub struct NetworkMonitorAgentNode {
 
 impl NoiseNetworkView {
     pub fn new(nodes: HashMap<IpAddr, NoiseNode>) -> Self {
+        // ensure we're always storing canonical IPs
         NoiseNetworkView {
             inner: Arc::new(NoiseNetworkViewInner {
                 update_lock: Mutex::new(()),
-                nodes: ArcSwap::from_pointee(nodes),
+                nodes: ArcSwap::from_pointee(
+                    nodes
+                        .into_iter()
+                        .map(|(k, v)| (k.to_canonical(), v))
+                        .collect(),
+                ),
             }),
         }
     }
@@ -206,25 +212,19 @@ impl NoiseConfig {
     /// to start the handshake. For nym-nodes the port is ignored (one key per IP);
     /// for network monitor agents, the port disambiguates which agent's key to use.
     pub(crate) fn get_noise_key(&self, address: SocketAddr) -> Option<VersionedNoiseKeyV1> {
+        let ip_to_check = address.ip().to_canonical();
         let nodes = self.network.inner.nodes.load();
 
-        if let Some(key) = get_noise_key_from_guard(&nodes, address) {
-            return Some(key);
-        }
-
-        // When a nym-node binds on `[::]:1789` (the default), it will accept connections on both
-        // IPv4 and IPv6.  If an IPv4 initiator connects, the kernel may present its address to the
-        // responder as an IPv4-mapped IPv6 address (e.g. `::ffff:1.2.3.4`) rather than the plain
-        // IPv4 address (`1.2.3.4`) that was registered in the noise map.
-        // `to_canonical()` strips that mapping so we can find the entry either way.
-        let canonical = SocketAddr::new(address.ip().to_canonical(), address.port());
-        if canonical != address {
-            if let Some(key) = get_noise_key_from_guard(&nodes, canonical) {
-                return Some(key);
+        // Resolve the noise key for `address` from a loaded snapshot of the node map.
+        // For [`NoiseNode::NymNode`] entries the port is irrelevant — only the IP is matched.
+        // For [`NoiseNode::NetworkMonitorAgent`] entries the port selects the specific agent.
+        match nodes.get(&ip_to_check)? {
+            NoiseNode::NymNode { key } => Some(*key),
+            NoiseNode::NetworkMonitorAgent { nodes } => {
+                let port = address.port();
+                nodes.iter().find(|n| n.port == port).map(|n| n.key)
             }
         }
-
-        None
     }
 
     /// Check whether a remote IP is known to support noise.
@@ -233,37 +233,11 @@ impl NoiseConfig {
     // note: in the case of network monitor agents, it must hold
     // that ALL agents on given host support it (or don't support it)
     pub(crate) fn supports_noise(&self, ip_addr: IpAddr) -> bool {
-        let nodes = self.network.inner.nodes.load();
-
-        if nodes.contains_key(&ip_addr) {
-            return true;
-        }
-
-        let canonical = ip_addr.to_canonical();
-        if canonical != ip_addr && nodes.contains_key(&canonical) {
-            return true;
-        }
-
-        false
-    }
-}
-
-/// Resolve the noise key for `address` from a loaded snapshot of the node map.
-///
-/// For [`NoiseNode::NymNode`] entries the port is irrelevant — only the IP is matched.
-/// For [`NoiseNode::NetworkMonitorAgent`] entries the port selects the specific agent.
-fn get_noise_key_from_guard(
-    guard: &Guard<Arc<HashMap<IpAddr, NoiseNode>>>,
-    address: SocketAddr,
-) -> Option<VersionedNoiseKeyV1> {
-    let node = guard.get(&address.ip())?;
-
-    match node {
-        NoiseNode::NymNode { key } => Some(*key),
-        NoiseNode::NetworkMonitorAgent { nodes } => nodes
-            .iter()
-            .find(|n| n.port == address.port())
-            .map(|n| n.key),
+        self.network
+            .inner
+            .nodes
+            .load()
+            .contains_key(&ip_addr.to_canonical())
     }
 }
 

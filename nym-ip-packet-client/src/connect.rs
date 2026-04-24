@@ -14,7 +14,7 @@ use tracing::{debug, error};
 use nym_ip_packet_requests::response_helpers::{self, IprResponseError};
 
 use crate::{
-    current::{request::IpPacketRequest, response::IpPacketResponse},
+    current::{self, response::IpPacketResponse},
     error::{Error, Result},
     helpers::check_ipr_message_version,
 };
@@ -36,6 +36,7 @@ pub struct IprClientConnect {
     mixnet_client: MixnetClient,
     connected: ConnectionState,
     cancel_token: CancellationToken,
+    active_stream_id: Option<u64>,
 }
 
 impl IprClientConnect {
@@ -44,11 +45,16 @@ impl IprClientConnect {
             mixnet_client,
             connected: ConnectionState::Disconnected,
             cancel_token,
+            active_stream_id: None,
         }
     }
 
     pub fn into_mixnet_client(self) -> MixnetClient {
         self.mixnet_client
+    }
+
+    pub fn active_stream_id(&self) -> Option<u64> {
+        self.active_stream_id
     }
 
     pub async fn connect(&mut self, ip_packet_router_address: Recipient) -> Result<IpPair> {
@@ -79,16 +85,29 @@ impl IprClientConnect {
         self.listen_for_connect_response(request_id).await
     }
 
-    async fn send_connect_request(&self, ip_packet_router_address: Recipient) -> Result<u64> {
-        let (request, request_id) = IpPacketRequest::new_connect_request(None);
+    async fn send_connect_request(&mut self, ip_packet_router_address: Recipient) -> Result<u64> {
+        let (request, request_id) = current::new_connect_request(None);
+        tracing::info!(
+            request_id = request_id,
+            protocol_version = request.protocol.version,
+            current_version = crate::current::VERSION,
+            "Sending IPR connect request"
+        );
+        if let Ok(bytes) = request.to_bytes() {
+            let prefix = bytes.get(0..2).unwrap_or(&bytes);
+            tracing::info!(request_id = request_id, bytes_0_2 = ?prefix, "IPR connect bytes");
+        }
 
         // We use 20 surbs for the connect request because typically the IPR is configured to have
         // a min threshold of 10 surbs that it reserves for itself to request additional surbs.
         let surbs = 20;
+        let request_bytes = request.to_bytes()?;
+        let framed_bytes = maybe_wrap_stream_frame(request_id, 0, request_bytes);
+        self.active_stream_id = Some(request_id);
         self.mixnet_client
-            .send(create_input_message(
+            .send(create_input_message_bytes(
                 ip_packet_router_address,
-                request,
+                framed_bytes,
                 surbs,
             )?)
             .await
@@ -129,13 +148,19 @@ impl IprClientConnect {
                         for msg in msgs {
                             // Confirm that the version is correct
                             if let Err(err) = check_ipr_message_version(&msg) {
-                                tracing::info!("Mixnet message version mismatch: {err}");
+                                let raw: &[u8] = msg.message.as_ref();
+                                tracing::info!(
+                                    first_byte = raw.first().copied(),
+                                    expected = crate::current::VERSION,
+                                    len = raw.len(),
+                                    "Mixnet message version mismatch: {err}"
+                                );
                                 continue;
                             }
 
                             // Then we deserialize the message
                             tracing::debug!("IprClient: got message while waiting for connect response");
-                            let Ok(response) = IpPacketResponse::from_reconstructed_message(&msg) else {
+                            let Ok(response) = ipr_response_from_reconstructed_message(&msg) else {
                                 // This is ok, it's likely just one of our self-pings
                                 tracing::debug!("Failed to deserialize mixnet message");
                                 continue;
@@ -160,14 +185,33 @@ impl IprClientConnect {
     }
 }
 
-fn create_input_message(
+fn maybe_wrap_stream_frame(stream_id: u64, sequence_num: u32, payload: Vec<u8>) -> Vec<u8> {
+    if !crate::lp_stream::current_requires_sphinx_stream_transport() {
+        return payload;
+    }
+
+    crate::lp_stream::encode_stream_frame(stream_id, sequence_num, payload)
+}
+
+fn ipr_response_from_reconstructed_message(
+    msg: &nym_sdk::mixnet::ReconstructedMessage,
+) -> std::result::Result<IpPacketResponse, bincode::Error> {
+    let payload = if crate::lp_stream::current_requires_sphinx_stream_transport() {
+        crate::lp_stream::maybe_unwrap_lp_stream_payload_from_reconstructed(msg)
+    } else {
+        &msg.message
+    };
+    IpPacketResponse::from_bytes(payload)
+}
+
+fn create_input_message_bytes(
     recipient: Recipient,
-    request: IpPacketRequest,
+    bytes: Vec<u8>,
     surbs: u32,
 ) -> Result<InputMessage> {
     Ok(InputMessage::new_anonymous(
         recipient,
-        request.to_bytes()?,
+        bytes,
         surbs,
         TransmissionLane::General,
         None,

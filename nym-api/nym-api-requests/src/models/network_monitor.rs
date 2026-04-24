@@ -85,6 +85,23 @@ pub mod v3 {
     pub type StressTestBatchSubmission = SignedMessage<StressTestBatchSubmissionContent>;
 
     #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+    pub struct StressTestResult {
+        pub node_id: NodeId,
+
+        // to explicitly distinguish it from a gateway
+        pub is_mixnode: bool,
+
+        #[schema(value_type = String)]
+        #[serde(with = "time::serde::rfc3339")]
+        pub test_timestamp: OffsetDateTime,
+
+        pub test_performance: f64,
+
+        // distinguish between cases of node having 0 performance and being offline
+        pub was_reachable: bool,
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
     pub struct StressTestBatchSubmissionContent {
         #[schema(value_type = String)]
         #[serde(with = "ed25519::bs58_ed25519_pubkey")]
@@ -93,13 +110,16 @@ pub mod v3 {
         #[schema(value_type = String)]
         #[serde(with = "time::serde::rfc3339")]
         pub timestamp: OffsetDateTime,
+
+        pub results: Vec<StressTestResult>,
     }
 
     impl StressTestBatchSubmissionContent {
-        pub fn new(signer: ed25519::PublicKey) -> Self {
+        pub fn new(signer: ed25519::PublicKey, results: Vec<StressTestResult>) -> Self {
             StressTestBatchSubmissionContent {
                 signer,
                 timestamp: OffsetDateTime::now_utc(),
+                results,
             }
         }
 

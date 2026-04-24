@@ -21,7 +21,6 @@ use nym_coconut_dkg_common::{
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 use nym_config::defaults::NymNetworkDetails;
-use nym_crypto::asymmetric::ed25519;
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
@@ -170,6 +169,7 @@ impl Client {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn known_contracts(&self) -> TypedNymContracts {
         nyxd_query!(self, get_nym_contracts())
     }

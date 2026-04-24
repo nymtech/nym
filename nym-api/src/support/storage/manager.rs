@@ -5,8 +5,8 @@ use crate::node_status_api::models::{HistoricalUptime as ApiHistoricalUptime, Up
 use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses};
 use crate::support::storage::models::{
     ActiveGateway, ActiveMixnode, GatewayDetails, HistoricalUptime, MixnodeDetails,
-    MonitorRunReport, MonitorRunScore, NodeStatus, RewardingReport, TestedGatewayStatus,
-    TestedMixnodeStatus, TestingRoute,
+    MonitorRunReport, MonitorRunScore, NodeStatus, NymNodeStressTestingResult, RewardingReport,
+    TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
 };
 use crate::support::storage::DbIdCache;
 use nym_mixnet_contract_common::{EpochId, IdentityKey, NodeId};
@@ -777,6 +777,29 @@ impl StorageManager {
             .bind(monitor_run_id)
             .fetch_all(&self.connection_pool)
             .await
+    }
+
+    pub(super) async fn insert_nym_node_stress_testing_results(
+        &self,
+        results: Vec<NymNodeStressTestingResult>,
+    ) -> Result<(), sqlx::Error> {
+        if results.is_empty() {
+            return Ok(());
+        }
+
+        let mut query_builder = sqlx::QueryBuilder::new(
+            "INSERT INTO nym_node_stress_testing_result (node_id, result, was_reachable, test_timestamp) ",
+        );
+
+        query_builder.push_values(results, |mut b, entry| {
+            b.push_bind(entry.node_id)
+                .push_bind(entry.result)
+                .push_bind(entry.was_reachable)
+                .push_bind(entry.test_timestamp);
+        });
+
+        query_builder.build().execute(&self.connection_pool).await?;
+        Ok(())
     }
 
     /// Obtains number of network monitor test runs that have occurred within the specified interval.

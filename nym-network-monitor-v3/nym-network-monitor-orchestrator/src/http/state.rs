@@ -7,7 +7,10 @@ use crate::storage::models::NewTestRun;
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::x25519;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
-use nym_network_monitor_orchestrator_requests::models::{TestRunAssignment, TestRunResult};
+use nym_network_monitor_orchestrator_requests::models::{
+    NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment, TestRunData,
+    TestRunInProgressData, TestRunResult,
+};
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
@@ -192,8 +195,6 @@ pub(crate) struct KnownAgent {
 /// `testrun_staleness_age` when deciding which nodes are eligible for testing.
 #[derive(Clone)]
 pub(crate) struct TestrunManager {
-    storage: NetworkMonitorStorage,
-
     /// Minimum time that must elapse after a node's last test before it becomes
     /// eligible for another one. Passed to the storage layer as a staleness gate.
     testrun_staleness_age: Duration,
@@ -202,9 +203,11 @@ pub(crate) struct TestrunManager {
 impl TestrunManager {
     /// Selects the most stale idle node and atomically marks it as having a test
     /// in progress. Returns `None` if no node is currently eligible.
-    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
-        let node_to_test = match self
-            .storage
+    async fn assign_next_testrun(
+        &self,
+        storage: &NetworkMonitorStorage,
+    ) -> Result<Option<TestRunAssignment>, ApiError> {
+        let node_to_test = match storage
             .assign_next_testrun(self.testrun_staleness_age)
             .await
         {
@@ -256,14 +259,15 @@ impl TestrunManager {
 
     /// Persists a completed test run result to the database and updates the
     /// node's `last_testrun` pointer.
-    pub(crate) async fn submit_testrun_result(
+    async fn submit_testrun_result(
         &self,
+        storage: &NetworkMonitorStorage,
         result: TestRunResult,
         node_id: NodeId,
     ) -> Result<(), ApiError> {
         // currently all testruns are mixnode results
-        let testrun = NewTestRun::from_mixnode_result(result);
-        if let Err(err) = self.storage.insert_test_run(&testrun, node_id).await {
+        let testrun = NewTestRun::from_mixnode_result(node_id, result);
+        if let Err(err) = storage.insert_test_run(&testrun).await {
             error!("testrun result storage failure: {err}");
             return Err(ApiError::StorageFailure);
         }
@@ -278,6 +282,8 @@ pub(crate) struct AppState {
 
     pub(crate) testrun_manager: TestrunManager,
 
+    pub(crate) storage: NetworkMonitorStorage,
+
     pub(crate) validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
 }
 
@@ -290,12 +296,195 @@ impl AppState {
     ) -> Self {
         AppState {
             agents,
+            storage,
             testrun_manager: TestrunManager {
-                storage,
                 testrun_staleness_age,
             },
             validator_client,
         }
+    }
+
+    /// Selects the most stale idle node and atomically marks it as having a test
+    /// in progress. Returns `None` if no node is currently eligible.
+    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
+        self.testrun_manager
+            .assign_next_testrun(&self.storage)
+            .await
+    }
+
+    /// Persists a completed test run result to the database and updates the
+    /// node's `last_testrun` pointer.
+    pub(crate) async fn submit_testrun_result(
+        &self,
+        result: TestRunResult,
+        node_id: NodeId,
+    ) -> Result<(), ApiError> {
+        self.testrun_manager
+            .submit_testrun_result(&self.storage, result, node_id)
+            .await
+    }
+
+    /// Backs `GET /v1/results/testrun/{id}`. `Ok(None)` means the row doesn't
+    /// exist (the handler maps this to a 404); storage errors are logged and
+    /// collapsed to [`ApiError::StorageFailure`].
+    pub(crate) async fn get_testrun_by_id(&self, id: i64) -> Result<Option<TestRunData>, ApiError> {
+        let result = match self.storage.get_testrun_by_id(id).await {
+            Err(err) => {
+                error!("get_testrun_by_id storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(None) => return Ok(None),
+            Ok(Some(testrun)) => testrun,
+        };
+
+        Ok(Some(result.into()))
+    }
+
+    /// Backs `GET /v1/results/nym-node/{node_id}`. If the node is known, its
+    /// snapshot is returned along with the most recent completed test run
+    /// (fetched in a second query via [`Self::get_testrun_by_id`]);
+    /// `latest_test_run` is `None` when no such run exists.
+    ///
+    /// Malformed stored data (e.g. an unparsable base58 key) is surfaced as
+    /// [`ApiError::MalformedStoredData`]; this should never happen in practice
+    /// because the orchestrator writes these fields itself.
+    pub(crate) async fn get_nym_node_by_id(
+        &self,
+        node_id: NodeId,
+    ) -> Result<Option<NymNodeWithTestRun>, ApiError> {
+        let nym_node = match self.storage.get_nym_node_by_id(node_id).await {
+            Err(err) => {
+                error!("get_nym_node_by_id storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(None) => return Ok(None),
+            Ok(Some(nym_node)) => nym_node,
+        };
+
+        let latest_test_run = match nym_node.last_testrun {
+            None => None,
+            Some(testrun_id) => self.get_testrun_by_id(testrun_id).await?,
+        };
+
+        Ok(Some(NymNodeWithTestRun {
+            node: nym_node.try_into().map_err(|err| {
+                error!("get_nym_node_by_id malformed stored data: {err}");
+                ApiError::MalformedStoredData
+            })?,
+            latest_test_run,
+        }))
+    }
+
+    /// Backs `GET /v1/results/testruns-in-progress`. Returns a page of rows
+    /// from `testrun_in_progress` ordered oldest `started_at` first so stale
+    /// runs surface at the top.
+    pub(crate) async fn get_testruns_in_progress_paginated(
+        &self,
+        pagination: Pagination,
+    ) -> Result<PagedResult<TestRunInProgressData>, ApiError> {
+        let (in_progress, total) = match self
+            .storage
+            .get_testruns_in_progress_paginated(pagination)
+            .await
+        {
+            Err(err) => {
+                error!("get_testruns_in_progress_paginated storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(result) => result,
+        };
+
+        Ok(PagedResult {
+            page: pagination.page(),
+            per_page: in_progress.len(),
+            total,
+            items: in_progress.into_iter().map(Into::into).collect(),
+        })
+    }
+
+    /// Backs `GET /v1/results/testruns`. Returns a single page of completed
+    /// runs ordered newest first, together with the total row count at the
+    /// time the page was read (fetched in the same transaction as the page
+    /// itself for consistency).
+    pub(crate) async fn get_testruns_paginated(
+        &self,
+        pagination: Pagination,
+    ) -> Result<PagedResult<TestRunData>, ApiError> {
+        let (testruns, total) = match self.storage.get_testruns_paginated(pagination).await {
+            Err(err) => {
+                error!("get_testruns_paginated storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(testruns) => testruns,
+        };
+
+        Ok(PagedResult {
+            page: pagination.page(),
+            per_page: testruns.len(),
+            total,
+            items: testruns.into_iter().map(Into::into).collect(),
+        })
+    }
+
+    /// Backs `GET /v1/results/nym-nodes`. Returns a page of nodes ordered by
+    /// `node_id` ascending. Each row is converted to [`NymNodeData`] via the
+    /// fallible `TryFrom` impl that decodes stored base58 keys; a failure
+    /// anywhere in the page produces [`ApiError::MalformedStoredData`].
+    pub(crate) async fn get_nym_nodes_paginated(
+        &self,
+        pagination: Pagination,
+    ) -> Result<PagedResult<NymNodeData>, ApiError> {
+        let (nym_nodes, total) = match self.storage.get_nym_nodes_paginated(pagination).await {
+            Err(err) => {
+                error!("get_nym_nodes_paginated storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok((nym_nodes, total)) => (nym_nodes, total),
+        };
+
+        let mut items = Vec::with_capacity(nym_nodes.len());
+        for node in nym_nodes {
+            items.push(node.try_into().map_err(|err| {
+                error!("get_nym_nodes_paginated malformed stored data: {err}");
+                ApiError::MalformedStoredData
+            })?);
+        }
+
+        Ok(PagedResult {
+            page: pagination.page(),
+            per_page: items.len(),
+            total,
+            items,
+        })
+    }
+
+    /// Backs `GET /v1/results/nym-node/{node_id}/testruns`. Returns a page of
+    /// completed runs for a single node ordered newest first. Unknown or
+    /// never-tested nodes produce a valid empty page (`total: 0`) rather than
+    /// a 404.
+    pub(crate) async fn get_testruns_for_node_paginated(
+        &self,
+        node_id: NodeId,
+        pagination: Pagination,
+    ) -> Result<PagedResult<TestRunData>, ApiError> {
+        let (testruns, total) = match self
+            .storage
+            .get_testruns_for_node_paginated(node_id, pagination)
+            .await
+        {
+            Err(err) => {
+                error!("get_testruns_for_node_paginated storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok((testruns, total)) => (testruns, total),
+        };
+
+        Ok(PagedResult {
+            page: pagination.page(),
+            per_page: testruns.len(),
+            total,
+            items: testruns.into_iter().map(Into::into).collect(),
+        })
     }
 }
 

@@ -1,11 +1,16 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519;
-use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
+use nym_crypto::asymmetric::x25519::serde_helpers::{
+    bs58_x25519_pubkey, option_bs58_x25519_pubkey,
+};
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
+use time::OffsetDateTime;
 
 /// Request sent by an agent to obtain a unique mixnet port from the orchestrator.
 /// The orchestrator uses the agent's host IP and noise key to ensure no two agents
@@ -200,3 +205,182 @@ pub struct TestRunResult {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunSubmissionResponse {}
+
+// ------------------------------------------------------------------------
+// Response shapes for the read-only results API (`/v1/results/*`). These are
+// the public, serialisation-stable types returned to callers; conversion from
+// the storage layer's sqlx rows happens in `orchestrator/storage/models.rs`.
+// ------------------------------------------------------------------------
+
+pub const PAGINATION_SIZE_DEFAULT: usize = 50;
+pub const PAGINATION_SIZE_MAX: usize = 200;
+pub const PAGINATION_PAGE_DEFAULT: usize = 0;
+
+/// Query parameters for paginated endpoints. `size` defaults to
+/// [`PAGINATION_SIZE_DEFAULT`] and is capped at [`PAGINATION_SIZE_MAX`];
+/// `page` defaults to [`PAGINATION_PAGE_DEFAULT`].
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+#[cfg_attr(feature = "openapi", into_params(parameter_in = Query))]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct Pagination {
+    pub per_page: Option<usize>,
+    pub page: Option<usize>,
+}
+
+impl Default for Pagination {
+    fn default() -> Self {
+        Self {
+            per_page: Some(PAGINATION_SIZE_DEFAULT),
+            page: Some(PAGINATION_PAGE_DEFAULT),
+        }
+    }
+}
+
+impl Pagination {
+    pub fn new(per_page: Option<usize>, page: Option<usize>) -> Self {
+        Self { per_page, page }
+    }
+
+    /// Resolved page size — defaults to [`PAGINATION_SIZE_DEFAULT`] when absent
+    /// and is capped at [`PAGINATION_SIZE_MAX`].
+    pub fn per_page(&self) -> usize {
+        self.per_page
+            .unwrap_or(PAGINATION_SIZE_DEFAULT)
+            .min(PAGINATION_SIZE_MAX)
+    }
+
+    /// Resolved page index — defaults to [`PAGINATION_PAGE_DEFAULT`] when absent.
+    pub fn page(&self) -> usize {
+        self.page.unwrap_or(PAGINATION_PAGE_DEFAULT)
+    }
+
+    /// Value to bind to a SQL `LIMIT ?` clause. Equivalent to
+    /// [`Self::per_page`] cast to the `i64` sqlx bind type.
+    pub fn limit(&self) -> i64 {
+        self.per_page() as i64
+    }
+
+    /// Value to bind to a SQL `OFFSET ?` clause, i.e. `page * per_page`.
+    /// Saturating to avoid overflow on absurdly large `page` values from a client.
+    pub fn offset(&self) -> i64 {
+        (self.page() as i64).saturating_mul(self.limit())
+    }
+}
+
+/// Generic wrapper for a single page of results.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct PagedResult<T> {
+    pub page: usize,
+    pub per_page: usize,
+    pub total: usize,
+    pub items: Vec<T>,
+}
+
+/// Discriminator for the type of node targeted by a test run.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TestType {
+    Mixnode,
+    Gateway,
+}
+
+/// A completed test run as exposed by the results API.
+///
+/// Unlike the agent-facing [`TestRunResult`], this carries the database id,
+/// the node that was tested, and the timestamp at which the result was
+/// recorded by the orchestrator.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestRunData {
+    /// Database-assigned identifier of the test run.
+    pub id: i64,
+
+    /// Node that was tested.
+    pub node_id: u32,
+
+    /// Kind of node that was tested.
+    pub test_type: TestType,
+
+    /// When the test run completed and was recorded.
+    /// Serialised as an RFC 3339 timestamp string.
+    #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub test_timestamp: OffsetDateTime,
+
+    /// The test run result itself.
+    pub result: TestRunResult,
+}
+
+/// Public snapshot of a nym-node as tracked by the orchestrator.
+///
+/// Built from the on-chain bond plus any details the orchestrator has managed
+/// to retrieve directly from the node itself. The optional fields
+/// (`mixnet_socket_address`, `noise_key`, `sphinx_key`, `key_rotation_id`)
+/// are populated lazily by the node refresher and may be absent either because
+/// the node is newly observed or because the refresher failed to reach it.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NymNodeData {
+    pub node_id: u32,
+
+    /// Ed25519 identity key of the node, serialised as a base58 string.
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub identity_key: ed25519::PublicKey,
+
+    /// When this node was last observed as bonded in the contract.
+    #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub last_seen_bonded: OffsetDateTime,
+
+    /// Mixnet socket address (host:port) at which the node accepts sphinx packets.
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub mixnet_socket_address: Option<SocketAddr>,
+
+    /// X25519 public key used for Noise handshakes.
+    /// `None` if retrieval from the node failed.
+    #[serde(with = "option_bs58_x25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub noise_key: Option<x25519::PublicKey>,
+
+    /// Sphinx public key used for packet encryption.
+    /// `None` if retrieval from the node failed.
+    /// Always `None`/`Some` together with `key_rotation_id`.
+    #[serde(with = "option_bs58_x25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub sphinx_key: Option<x25519::PublicKey>,
+
+    /// Key rotation epoch ID that `sphinx_key` belongs to.
+    /// `None` if retrieval from the node failed.
+    /// Always `None`/`Some` together with `sphinx_key`.
+    pub key_rotation_id: Option<i64>,
+}
+
+/// Node snapshot paired with its most recent completed test run.
+///
+/// `latest_test_run` is `None` when the node has never been tested or when its
+/// most recent run has been evicted by the stale-result sweeper.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NymNodeWithTestRun {
+    pub node: NymNodeData,
+
+    pub latest_test_run: Option<TestRunData>,
+}
+
+/// Marker for a test run that has been handed out to an agent but whose result
+/// hasn't been submitted yet. Stripped of test-payload fields because by
+/// definition none of them exist yet.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestRunInProgressData {
+    pub node_id: u32,
+
+    /// When the test run was handed out to an agent. Serialised as an
+    /// RFC 3339 timestamp string.
+    #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub started_at: OffsetDateTime,
+}

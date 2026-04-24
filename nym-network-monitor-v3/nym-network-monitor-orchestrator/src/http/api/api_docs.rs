@@ -29,9 +29,9 @@ struct SecurityAddon;
 impl Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         if let Some(components) = openapi.components.as_mut() {
-            // token authorising access to prometheus metrics
+            // token authorising access to prometheus metrics and test-run results
             components.add_security_scheme(
-                "prometheus_token",
+                "metrics_and_results_token",
                 SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
             );
 
@@ -40,8 +40,6 @@ impl Modify for SecurityAddon {
                 "agents_token",
                 SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
             );
-
-            // TODO: possibly a third one for statistics/measurement results
         }
     }
 }

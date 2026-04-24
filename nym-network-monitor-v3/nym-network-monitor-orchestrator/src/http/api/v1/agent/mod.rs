@@ -24,10 +24,12 @@ use tracing::{error, info};
     request_body = AgentPortRequest,
     path = "/port-request",
     context_path = "/v1/agent",
+    security(("agents_token" = [])),
     responses(
         (status = 200, content(
             (AgentPortRequestResponse = "application/json"),
-        ))
+        )),
+        (status = 503, description = "no available ports on this host"),
     )
 )]
 #[tracing::instrument(
@@ -64,10 +66,13 @@ async fn request_mix_port(
     request_body = AgentAnnounceRequest,
     path = "/announce",
     context_path = "/v1/agent",
+    security(("agents_token" = [])),
     responses(
         (status = 200, content(
             (AgentAnnounceResponse = "application/json"),
-        ))
+        )),
+        (status = 400, description = "agent not found (orchestrator may have restarted since port assignment) or provided noise key does not match the one used during port assignment"),
+        (status = 500, description = "failed to announce agent to the network monitors contract"),
     )
 )]
 #[tracing::instrument(
@@ -131,10 +136,13 @@ async fn announce_agent(
     request_body = TestRunAssignmentRequest,
     path = "/request-testrun",
     context_path = "/v1/agent",
+    security(("agents_token" = [])),
     responses(
         (status = 200, content(
             (TestRunAssignmentResponse = "application/json"),
-        ))
+        )),
+        (status = 400, description = "agent not found in cache, or agent has not yet been announced to the contract"),
+        (status = 500, description = "failed to read from storage, or a stored field could not be decoded"),
     )
 )]
 #[tracing::instrument(
@@ -163,7 +171,7 @@ async fn request_testrun(
     }
 
     // 2. attempt to assign a testrun to the agent
-    let assignment = state.testrun_manager.assign_next_testrun().await?;
+    let assignment = state.assign_next_testrun().await?;
     Ok(Json(TestRunAssignmentResponse { assignment }))
 }
 
@@ -174,10 +182,12 @@ async fn request_testrun(
     request_body = TestRunResultSubmissionRequest,
     path = "/submit-testrun-result",
     context_path = "/v1/agent",
+    security(("agents_token" = [])),
     responses(
         (status = 200, content(
             (TestRunSubmissionResponse = "application/json"),
-        ))
+        )),
+        (status = 500, description = "failed to persist the test run result to storage"),
     )
 )]
 #[tracing::instrument(
@@ -199,7 +209,6 @@ async fn submit_testrun_result(
     );
 
     state
-        .testrun_manager
         .submit_testrun_result(body.result, body.node_id)
         .await?;
 

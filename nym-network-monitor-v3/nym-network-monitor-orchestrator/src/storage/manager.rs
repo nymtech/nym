@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::storage::models::{NewNymNode, NewTestRun, NymNode};
+use crate::storage::models::{NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress};
 use time::OffsetDateTime;
 
 #[derive(Clone)]
@@ -64,6 +64,7 @@ impl StorageManager {
         let id = sqlx::query!(
             r#"
             INSERT INTO testrun (
+                node_id,
                 test_type,
                 test_timestamp,
                 ingress_noise_handshake_us,
@@ -84,8 +85,9 @@ impl StorageManager {
                 sending_latency_std_dev_us,
                 received_duplicates,
                 error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
+            run.node_id,
             run.test_type,
             run.test_timestamp,
             run.ingress_noise_handshake_us,
@@ -222,6 +224,167 @@ impl StorageManager {
         Ok(node)
     }
 
+    /// Fetches a single `testrun` row by its primary key.
+    ///
+    /// Returns `None` if no row with that id exists.
+    pub(crate) async fn get_testrun_by_id(&self, id: i64) -> anyhow::Result<Option<TestRun>> {
+        let row = sqlx::query_as::<_, TestRun>("SELECT * FROM testrun WHERE id = ?")
+            .bind(id)
+            .fetch_optional(&self.connection_pool)
+            .await?;
+        Ok(row)
+    }
+
+    /// Fetches a single `nym_node` row by its `node_id`.
+    ///
+    /// Returns `None` if the orchestrator has never seen a bond for this node.
+    pub(crate) async fn get_nym_node_by_id(&self, node_id: i64) -> anyhow::Result<Option<NymNode>> {
+        let row = sqlx::query_as::<_, NymNode>("SELECT * FROM nym_node WHERE node_id = ?")
+            .bind(node_id)
+            .fetch_optional(&self.connection_pool)
+            .await?;
+        Ok(row)
+    }
+
+    /// Fetches a page of `testrun` rows filtered to a single `node_id`, ordered by
+    /// `test_timestamp` descending (newest first), together with the total number of rows
+    /// for that node (used to populate `PagedResult::total`).
+    ///
+    /// Backed by the `idx_testrun_node_id_timestamp` index.
+    ///
+    /// `limit` and `offset` translate directly to SQL `LIMIT` / `OFFSET`; the caller is
+    /// expected to derive them from the public pagination contract as
+    /// `limit = size` and `offset = page * size`.
+    ///
+    /// The page and total count are fetched inside a single transaction so that the `total`
+    /// is consistent with the rows returned.
+    pub(crate) async fn get_testruns_for_node_paginated(
+        &self,
+        node_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<(Vec<TestRun>, i64)> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        let rows = sqlx::query_as::<_, TestRun>(
+            "SELECT * FROM testrun WHERE node_id = ? ORDER BY test_timestamp DESC LIMIT ? OFFSET ?",
+        )
+        .bind(node_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM testrun WHERE node_id = ?")
+            .bind(node_id)
+            .fetch_one(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok((rows, total))
+    }
+
+    /// Fetches a page of `testrun` rows, ordered by `test_timestamp` descending (newest first),
+    /// together with the total number of rows in the table (used to populate
+    /// `PagedResult::total`).
+    ///
+    /// `limit` and `offset` translate directly to SQL `LIMIT` / `OFFSET`; the caller is
+    /// expected to derive them from the public pagination contract as
+    /// `limit = size` and `offset = page * size`.
+    ///
+    /// The page and total count are fetched inside a single transaction so that the `total`
+    /// is consistent with the rows returned (no tearing if another writer commits in between).
+    pub(crate) async fn get_testruns_paginated(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<(Vec<TestRun>, i64)> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        let rows = sqlx::query_as::<_, TestRun>(
+            "SELECT * FROM testrun ORDER BY test_timestamp DESC LIMIT ? OFFSET ?",
+        )
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM testrun")
+            .fetch_one(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok((rows, total))
+    }
+
+    /// Fetches a page of `nym_node` rows, ordered by `node_id` ascending, together with the
+    /// total number of rows in the table (used to populate `PagedResult::total`).
+    ///
+    /// `limit` and `offset` translate directly to SQL `LIMIT` / `OFFSET`; the caller is
+    /// expected to derive them from the public pagination contract as
+    /// `limit = size` and `offset = page * size`.
+    ///
+    /// The page and total count are fetched inside a single transaction so that the `total`
+    /// is consistent with the rows returned (no tearing if another writer commits in between).
+    pub(crate) async fn get_nym_nodes_paginated(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<(Vec<NymNode>, i64)> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        let rows = sqlx::query_as::<_, NymNode>(
+            "SELECT * FROM nym_node ORDER BY node_id ASC LIMIT ? OFFSET ?",
+        )
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM nym_node")
+            .fetch_one(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok((rows, total))
+    }
+
+    /// Fetches a page of `testrun_in_progress` rows, ordered from oldest `started_at` to
+    /// newest (so stale/hung runs surface first), together with the total number of rows in
+    /// the table (used to populate `PagedResult::total`).
+    ///
+    /// `limit` and `offset` translate directly to SQL `LIMIT` / `OFFSET`; the caller is
+    /// expected to derive them from the public pagination contract as
+    /// `limit = size` and `offset = page * size`.
+    ///
+    /// The page and total count are fetched inside a single transaction so that the `total`
+    /// is consistent with the rows returned (no tearing if another writer commits in between).
+    ///
+    /// At steady state this table holds roughly one row per concurrently-testing agent, so
+    /// the ordinary page-size cap from [`Pagination`] is more than enough headroom.
+    pub(crate) async fn get_testruns_in_progress_paginated(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<(Vec<TestRunInProgress>, i64)> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        let rows = sqlx::query_as::<_, TestRunInProgress>(
+            "SELECT * FROM testrun_in_progress ORDER BY started_at ASC LIMIT ? OFFSET ?",
+        )
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM testrun_in_progress")
+            .fetch_one(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok((rows, total))
+    }
+
     /// Deletes all `testrun` rows whose `test_timestamp` is older than `cutoff`.
     ///
     /// Intended to be called periodically with `now - eviction_age` as the cutoff to keep
@@ -289,8 +452,9 @@ mod tests {
         }
     }
 
-    fn minimal_test_run() -> NewTestRun {
+    fn minimal_test_run(node_id: i64) -> NewTestRun {
         NewTestRun {
+            node_id,
             test_type: TestType::Mixnode,
             test_timestamp: datetime!(2025-06-01 12:00:00 UTC),
             ingress_noise_handshake_us: None,
@@ -312,6 +476,13 @@ mod tests {
             received_duplicates: false,
             error: None,
         }
+    }
+
+    /// Seeds a single nym_node row so that testruns referencing `node_id` satisfy the FK.
+    async fn seed_node(db: &StorageManager, node_id: i64) {
+        db.batch_insert_or_update_nym_nodes(&[node(node_id, &format!("key_{node_id}"))])
+            .await
+            .unwrap();
     }
 
     mod batch_insert_or_update_nym_nodes {
@@ -379,15 +550,17 @@ mod tests {
         #[tokio::test]
         async fn returns_sequential_ids() {
             let db = setup().await;
-            let id1 = db.insert_test_run(&minimal_test_run()).await.unwrap();
-            let id2 = db.insert_test_run(&minimal_test_run()).await.unwrap();
+            seed_node(&db, 1).await;
+            let id1 = db.insert_test_run(&minimal_test_run(1)).await.unwrap();
+            let id2 = db.insert_test_run(&minimal_test_run(1)).await.unwrap();
             assert!(id2 > id1);
         }
 
         #[tokio::test]
         async fn persists_fields() {
             let db = setup().await;
-            let mut run = minimal_test_run();
+            seed_node(&db, 1).await;
+            let mut run = minimal_test_run(1);
             run.packets_sent = 100;
             run.packets_received = 95;
             run.received_duplicates = true;
@@ -418,7 +591,7 @@ mod tests {
             db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
-            let run_id = db.insert_test_run(&minimal_test_run()).await.unwrap();
+            let run_id = db.insert_test_run(&minimal_test_run(1)).await.unwrap();
             db.set_node_last_testrun(1, run_id).await.unwrap();
 
             let row = sqlx::query!("SELECT last_testrun FROM nym_node WHERE node_id = 1")
@@ -528,11 +701,12 @@ mod tests {
         #[tokio::test]
         async fn evicts_runs_older_than_cutoff() {
             let db = setup().await;
-            let mut old_run = minimal_test_run();
+            seed_node(&db, 1).await;
+            let mut old_run = minimal_test_run(1);
             old_run.test_timestamp = datetime!(2025-01-01 00:00:00 UTC);
             let old_id = db.insert_test_run(&old_run).await.unwrap();
 
-            let mut recent_run = minimal_test_run();
+            let mut recent_run = minimal_test_run(1);
             recent_run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
             let recent_id = db.insert_test_run(&recent_run).await.unwrap();
 
@@ -551,7 +725,8 @@ mod tests {
         #[tokio::test]
         async fn preserves_runs_at_or_after_cutoff() {
             let db = setup().await;
-            let mut run = minimal_test_run();
+            seed_node(&db, 1).await;
+            let mut run = minimal_test_run(1);
             run.test_timestamp = datetime!(2025-03-01 00:00:00 UTC);
             let id = db.insert_test_run(&run).await.unwrap();
 
@@ -574,7 +749,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            let mut run = minimal_test_run();
+            let mut run = minimal_test_run(1);
             run.test_timestamp = datetime!(2025-01-01 00:00:00 UTC);
             let run_id = db.insert_test_run(&run).await.unwrap();
             db.set_node_last_testrun(1, run_id).await.unwrap();
@@ -593,7 +768,8 @@ mod tests {
         #[tokio::test]
         async fn does_nothing_when_no_old_runs() {
             let db = setup().await;
-            db.insert_test_run(&minimal_test_run()).await.unwrap();
+            seed_node(&db, 1).await;
+            db.insert_test_run(&minimal_test_run(1)).await.unwrap();
 
             // cutoff is well in the past — nothing should be evicted
             let result = db
@@ -676,7 +852,7 @@ mod tests {
                 .unwrap();
 
             // give node 1 a completed test run
-            let run_id = db.insert_test_run(&minimal_test_run()).await.unwrap();
+            let run_id = db.insert_test_run(&minimal_test_run(1)).await.unwrap();
             db.set_node_last_testrun(1, run_id).await.unwrap();
 
             // node 2 has never been tested — it should be picked first
@@ -698,12 +874,12 @@ mod tests {
                 .await
                 .unwrap();
 
-            let mut old_run = minimal_test_run();
+            let mut old_run = minimal_test_run(1);
             old_run.test_timestamp = datetime!(2025-01-01 00:00:00 UTC);
             let old_id = db.insert_test_run(&old_run).await.unwrap();
             db.set_node_last_testrun(1, old_id).await.unwrap();
 
-            let mut new_run = minimal_test_run();
+            let mut new_run = minimal_test_run(2);
             new_run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
             let new_id = db.insert_test_run(&new_run).await.unwrap();
             db.set_node_last_testrun(2, new_id).await.unwrap();
@@ -747,7 +923,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            let mut run = minimal_test_run();
+            let mut run = minimal_test_run(1);
             run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
             let run_id = db.insert_test_run(&run).await.unwrap();
             db.set_node_last_testrun(1, run_id).await.unwrap();
@@ -770,7 +946,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            let mut run = minimal_test_run();
+            let mut run = minimal_test_run(1);
             run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
             let run_id = db.insert_test_run(&run).await.unwrap();
             db.set_node_last_testrun(1, run_id).await.unwrap();
@@ -797,7 +973,7 @@ mod tests {
                 .unwrap();
 
             // node 1 was tested very recently
-            let mut run = minimal_test_run();
+            let mut run = minimal_test_run(1);
             run.test_timestamp = datetime!(2025-06-01 12:00:00 UTC);
             let run_id = db.insert_test_run(&run).await.unwrap();
             db.set_node_last_testrun(1, run_id).await.unwrap();
@@ -813,6 +989,464 @@ mod tests {
                 .unwrap()
                 .unwrap();
             assert_eq!(assigned.inner.node_id, 2);
+        }
+    }
+
+    mod get_testrun_by_id {
+        use super::*;
+
+        #[tokio::test]
+        async fn returns_none_when_missing() {
+            let db = setup().await;
+            let result = db.get_testrun_by_id(123).await.unwrap();
+            assert!(result.is_none());
+        }
+
+        #[tokio::test]
+        async fn returns_inserted_run() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            let mut run = minimal_test_run(1);
+            run.packets_sent = 42;
+            run.packets_received = 41;
+            run.error = Some("boom".to_string());
+            let id = db.insert_test_run(&run).await.unwrap();
+
+            let fetched = db.get_testrun_by_id(id).await.unwrap().unwrap();
+            assert_eq!(fetched.id, id);
+            assert_eq!(fetched.inner.node_id, 1);
+            assert_eq!(fetched.inner.packets_sent, 42);
+            assert_eq!(fetched.inner.packets_received, 41);
+            assert_eq!(fetched.inner.error.as_deref(), Some("boom"));
+        }
+
+        #[tokio::test]
+        async fn returns_the_right_row_when_multiple_exist() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            let _ = db.insert_test_run(&minimal_test_run(1)).await.unwrap();
+            let mut other = minimal_test_run(1);
+            other.packets_sent = 7;
+            let target_id = db.insert_test_run(&other).await.unwrap();
+            let _ = db.insert_test_run(&minimal_test_run(1)).await.unwrap();
+
+            let fetched = db.get_testrun_by_id(target_id).await.unwrap().unwrap();
+            assert_eq!(fetched.id, target_id);
+            assert_eq!(fetched.inner.packets_sent, 7);
+        }
+    }
+
+    mod get_nym_node_by_id {
+        use super::*;
+
+        #[tokio::test]
+        async fn returns_none_when_missing() {
+            let db = setup().await;
+            let result = db.get_nym_node_by_id(1).await.unwrap();
+            assert!(result.is_none());
+        }
+
+        #[tokio::test]
+        async fn returns_inserted_node() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[node(42, "key_a")])
+                .await
+                .unwrap();
+
+            let fetched = db.get_nym_node_by_id(42).await.unwrap().unwrap();
+            assert_eq!(fetched.inner.node_id, 42);
+            assert_eq!(fetched.inner.identity_key, "key_a");
+            assert!(fetched.last_testrun.is_none());
+        }
+
+        #[tokio::test]
+        async fn reflects_last_testrun_when_linked() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
+                .await
+                .unwrap();
+            let run_id = db.insert_test_run(&minimal_test_run(1)).await.unwrap();
+            db.set_node_last_testrun(1, run_id).await.unwrap();
+
+            let fetched = db.get_nym_node_by_id(1).await.unwrap().unwrap();
+            assert_eq!(fetched.last_testrun, Some(run_id));
+        }
+    }
+
+    mod get_testruns_in_progress_paginated {
+        use super::*;
+
+        #[tokio::test]
+        async fn empty_when_table_empty() {
+            let db = setup().await;
+            let (rows, total) = db.get_testruns_in_progress_paginated(50, 0).await.unwrap();
+            assert!(rows.is_empty());
+            assert_eq!(total, 0);
+        }
+
+        #[tokio::test]
+        async fn ordering_is_started_at_ascending() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[
+                node(1, "key_a"),
+                node(2, "key_b"),
+                node(3, "key_c"),
+            ])
+            .await
+            .unwrap();
+
+            db.mark_testrun_in_progress(2, datetime!(2025-06-01 12:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(3, datetime!(2025-06-01 10:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(1, datetime!(2025-06-01 11:00:00 UTC))
+                .await
+                .unwrap();
+
+            let (rows, total) = db.get_testruns_in_progress_paginated(50, 0).await.unwrap();
+            assert_eq!(total, 3);
+            let ordered_node_ids: Vec<i64> = rows.iter().map(|r| r.node_id).collect();
+            assert_eq!(ordered_node_ids, vec![3, 1, 2]);
+        }
+
+        #[tokio::test]
+        async fn limit_truncates_page_but_preserves_total() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[
+                node(1, "key_a"),
+                node(2, "key_b"),
+                node(3, "key_c"),
+            ])
+            .await
+            .unwrap();
+
+            db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(2, datetime!(2025-06-01 11:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(3, datetime!(2025-06-01 12:00:00 UTC))
+                .await
+                .unwrap();
+
+            let (rows, total) = db.get_testruns_in_progress_paginated(2, 0).await.unwrap();
+            assert_eq!(total, 3);
+            let ordered_node_ids: Vec<i64> = rows.iter().map(|r| r.node_id).collect();
+            assert_eq!(ordered_node_ids, vec![1, 2]);
+        }
+
+        #[tokio::test]
+        async fn offset_skips_oldest_rows() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[
+                node(1, "key_a"),
+                node(2, "key_b"),
+                node(3, "key_c"),
+            ])
+            .await
+            .unwrap();
+
+            db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(2, datetime!(2025-06-01 11:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(3, datetime!(2025-06-01 12:00:00 UTC))
+                .await
+                .unwrap();
+
+            let (rows, total) = db.get_testruns_in_progress_paginated(2, 1).await.unwrap();
+            assert_eq!(total, 3);
+            let ordered_node_ids: Vec<i64> = rows.iter().map(|r| r.node_id).collect();
+            assert_eq!(ordered_node_ids, vec![2, 3]);
+        }
+
+        #[tokio::test]
+        async fn offset_past_end_returns_empty_but_accurate_total() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_a"), node(2, "key_b")])
+                .await
+                .unwrap();
+
+            db.mark_testrun_in_progress(1, datetime!(2025-06-01 10:00:00 UTC))
+                .await
+                .unwrap();
+            db.mark_testrun_in_progress(2, datetime!(2025-06-01 11:00:00 UTC))
+                .await
+                .unwrap();
+
+            let (rows, total) = db
+                .get_testruns_in_progress_paginated(10, 100)
+                .await
+                .unwrap();
+            assert!(rows.is_empty());
+            assert_eq!(total, 2);
+        }
+    }
+
+    mod get_nym_nodes_paginated {
+        use super::*;
+
+        #[tokio::test]
+        async fn empty_when_table_empty() {
+            let db = setup().await;
+            let (rows, total) = db.get_nym_nodes_paginated(50, 0).await.unwrap();
+            assert!(rows.is_empty());
+            assert_eq!(total, 0);
+        }
+
+        #[tokio::test]
+        async fn returns_first_page_and_correct_total() {
+            let db = setup().await;
+            let nodes: Vec<NewNymNode> = (1..=5).map(|i| node(i, &format!("key_{i}"))).collect();
+            db.batch_insert_or_update_nym_nodes(&nodes).await.unwrap();
+
+            let (rows, total) = db.get_nym_nodes_paginated(2, 0).await.unwrap();
+            assert_eq!(total, 5);
+            let ids: Vec<i64> = rows.iter().map(|r| r.inner.node_id).collect();
+            assert_eq!(ids, vec![1, 2]);
+        }
+
+        #[tokio::test]
+        async fn offset_skips_earlier_rows() {
+            let db = setup().await;
+            let nodes: Vec<NewNymNode> = (1..=5).map(|i| node(i, &format!("key_{i}"))).collect();
+            db.batch_insert_or_update_nym_nodes(&nodes).await.unwrap();
+
+            let (rows, total) = db.get_nym_nodes_paginated(2, 2).await.unwrap();
+            assert_eq!(total, 5);
+            let ids: Vec<i64> = rows.iter().map(|r| r.inner.node_id).collect();
+            assert_eq!(ids, vec![3, 4]);
+        }
+
+        #[tokio::test]
+        async fn offset_past_end_returns_empty_but_accurate_total() {
+            let db = setup().await;
+            let nodes: Vec<NewNymNode> = (1..=3).map(|i| node(i, &format!("key_{i}"))).collect();
+            db.batch_insert_or_update_nym_nodes(&nodes).await.unwrap();
+
+            let (rows, total) = db.get_nym_nodes_paginated(10, 100).await.unwrap();
+            assert!(rows.is_empty());
+            assert_eq!(total, 3);
+        }
+
+        #[tokio::test]
+        async fn ordering_is_node_id_ascending() {
+            let db = setup().await;
+            // insert in non-ascending order to confirm ORDER BY actually sorts
+            db.batch_insert_or_update_nym_nodes(&[
+                node(3, "key_c"),
+                node(1, "key_a"),
+                node(2, "key_b"),
+            ])
+            .await
+            .unwrap();
+
+            let (rows, _) = db.get_nym_nodes_paginated(10, 0).await.unwrap();
+            let ids: Vec<i64> = rows.iter().map(|r| r.inner.node_id).collect();
+            assert_eq!(ids, vec![1, 2, 3]);
+        }
+    }
+
+    mod get_testruns_paginated {
+        use super::*;
+
+        fn run_at(node_id: i64, ts: OffsetDateTime) -> NewTestRun {
+            let mut r = minimal_test_run(node_id);
+            r.test_timestamp = ts;
+            r
+        }
+
+        #[tokio::test]
+        async fn empty_when_table_empty() {
+            let db = setup().await;
+            let (rows, total) = db.get_testruns_paginated(50, 0).await.unwrap();
+            assert!(rows.is_empty());
+            assert_eq!(total, 0);
+        }
+
+        #[tokio::test]
+        async fn ordering_is_test_timestamp_descending() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            // insert in mixed order; ensure query returns newest first
+            let _ = db
+                .insert_test_run(&run_at(1, datetime!(2025-03-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+            let _ = db
+                .insert_test_run(&run_at(1, datetime!(2025-01-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+            let _ = db
+                .insert_test_run(&run_at(1, datetime!(2025-02-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+
+            let (rows, total) = db.get_testruns_paginated(10, 0).await.unwrap();
+            assert_eq!(total, 3);
+            let timestamps: Vec<OffsetDateTime> =
+                rows.iter().map(|r| r.inner.test_timestamp).collect();
+            assert_eq!(
+                timestamps,
+                vec![
+                    datetime!(2025-03-01 00:00:00 UTC),
+                    datetime!(2025-02-01 00:00:00 UTC),
+                    datetime!(2025-01-01 00:00:00 UTC),
+                ]
+            );
+        }
+
+        #[tokio::test]
+        async fn offset_skips_newest_rows() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            db.insert_test_run(&run_at(1, datetime!(2025-03-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+            db.insert_test_run(&run_at(1, datetime!(2025-02-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+            db.insert_test_run(&run_at(1, datetime!(2025-01-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+
+            let (rows, total) = db.get_testruns_paginated(2, 1).await.unwrap();
+            assert_eq!(total, 3);
+            let timestamps: Vec<OffsetDateTime> =
+                rows.iter().map(|r| r.inner.test_timestamp).collect();
+            assert_eq!(
+                timestamps,
+                vec![
+                    datetime!(2025-02-01 00:00:00 UTC),
+                    datetime!(2025-01-01 00:00:00 UTC),
+                ]
+            );
+        }
+
+        #[tokio::test]
+        async fn offset_past_end_returns_empty_but_accurate_total() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            db.insert_test_run(&minimal_test_run(1)).await.unwrap();
+            db.insert_test_run(&minimal_test_run(1)).await.unwrap();
+
+            let (rows, total) = db.get_testruns_paginated(10, 50).await.unwrap();
+            assert!(rows.is_empty());
+            assert_eq!(total, 2);
+        }
+    }
+
+    mod get_testruns_for_node_paginated {
+        use super::*;
+
+        fn run_at(node_id: i64, ts: OffsetDateTime) -> NewTestRun {
+            let mut r = minimal_test_run(node_id);
+            r.test_timestamp = ts;
+            r
+        }
+
+        #[tokio::test]
+        async fn empty_when_node_has_no_runs() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let (rows, total) = db.get_testruns_for_node_paginated(1, 50, 0).await.unwrap();
+            assert!(rows.is_empty());
+            assert_eq!(total, 0);
+        }
+
+        #[tokio::test]
+        async fn returns_only_runs_for_requested_node() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            seed_node(&db, 2).await;
+
+            db.insert_test_run(&minimal_test_run(1)).await.unwrap();
+            db.insert_test_run(&minimal_test_run(1)).await.unwrap();
+            db.insert_test_run(&minimal_test_run(2)).await.unwrap();
+
+            let (rows, total) = db.get_testruns_for_node_paginated(1, 50, 0).await.unwrap();
+            assert_eq!(total, 2);
+            assert_eq!(rows.len(), 2);
+            assert!(rows.iter().all(|r| r.inner.node_id == 1));
+
+            let (rows, total) = db.get_testruns_for_node_paginated(2, 50, 0).await.unwrap();
+            assert_eq!(total, 1);
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].inner.node_id, 2);
+        }
+
+        #[tokio::test]
+        async fn ordering_is_test_timestamp_descending() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            db.insert_test_run(&run_at(1, datetime!(2025-02-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+            db.insert_test_run(&run_at(1, datetime!(2025-03-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+            db.insert_test_run(&run_at(1, datetime!(2025-01-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+
+            let (rows, _) = db.get_testruns_for_node_paginated(1, 10, 0).await.unwrap();
+            let timestamps: Vec<OffsetDateTime> =
+                rows.iter().map(|r| r.inner.test_timestamp).collect();
+            assert_eq!(
+                timestamps,
+                vec![
+                    datetime!(2025-03-01 00:00:00 UTC),
+                    datetime!(2025-02-01 00:00:00 UTC),
+                    datetime!(2025-01-01 00:00:00 UTC),
+                ]
+            );
+        }
+
+        #[tokio::test]
+        async fn offset_skips_newest_rows() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            db.insert_test_run(&run_at(1, datetime!(2025-03-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+            db.insert_test_run(&run_at(1, datetime!(2025-02-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+            db.insert_test_run(&run_at(1, datetime!(2025-01-01 00:00:00 UTC)))
+                .await
+                .unwrap();
+
+            let (rows, total) = db.get_testruns_for_node_paginated(1, 2, 1).await.unwrap();
+            assert_eq!(total, 3);
+            let timestamps: Vec<OffsetDateTime> =
+                rows.iter().map(|r| r.inner.test_timestamp).collect();
+            assert_eq!(
+                timestamps,
+                vec![
+                    datetime!(2025-02-01 00:00:00 UTC),
+                    datetime!(2025-01-01 00:00:00 UTC),
+                ]
+            );
+        }
+
+        #[tokio::test]
+        async fn unknown_node_returns_empty_with_zero_total() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            db.insert_test_run(&minimal_test_run(1)).await.unwrap();
+
+            // node 99 was never seeded, so it has no runs and total is 0.
+            let (rows, total) = db.get_testruns_for_node_paginated(99, 50, 0).await.unwrap();
+            assert!(rows.is_empty());
+            assert_eq!(total, 0);
         }
     }
 }

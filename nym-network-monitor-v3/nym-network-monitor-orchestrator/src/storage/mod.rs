@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::storage::manager::StorageManager;
-use crate::storage::models::{NewNymNode, NewTestRun, NymNode};
+use crate::storage::models::{NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress};
 use anyhow::Context;
+use nym_network_monitor_orchestrator_requests::models::Pagination;
 use nym_validator_client::client::NodeId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
@@ -15,12 +16,22 @@ use tracing::log::{LevelFilter, debug};
 mod manager;
 pub(crate) mod models;
 
+/// High-level handle to the orchestrator's local SQLite database.
+///
+/// Wraps a [`StorageManager`] and translates between the orchestrator-level
+/// types (e.g. [`NodeId`], [`Pagination`], [`Duration`]) used by callers and
+/// the raw SQL-friendly primitives (`i64` ids, `limit`/`offset`, absolute
+/// timestamps) understood by the manager. All public methods are
+/// [`Clone`]-safe because [`sqlx::SqlitePool`] is internally reference-counted.
 #[derive(Clone)]
 pub(crate) struct NetworkMonitorStorage {
     pub(crate) storage_manager: StorageManager,
 }
 
 impl NetworkMonitorStorage {
+    /// Opens (or creates) the SQLite database at `database_path`, configures
+    /// WAL journaling and incremental auto-vacuum, and runs the embedded
+    /// migrations. Slow statements (>50ms) are logged at `WARN`.
     pub(crate) async fn init<P: AsRef<Path>>(database_path: P) -> anyhow::Result<Self> {
         debug!(
             "attempting to connect to database {}",
@@ -63,18 +74,17 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Inserts a completed test run.
-    pub(crate) async fn insert_test_run(
-        &self,
-        run: &NewTestRun,
-        node_id: NodeId,
-    ) -> anyhow::Result<()> {
+    /// Inserts a completed test run, updates the node's `last_testrun` pointer and
+    /// clears the corresponding `testrun_in_progress` marker. The target node is
+    /// taken from [`NewTestRun::node_id`].
+    pub(crate) async fn insert_test_run(&self, run: &NewTestRun) -> anyhow::Result<()> {
+        let node_id = run.node_id;
         let run_id = self.storage_manager.insert_test_run(run).await?;
         self.storage_manager
-            .set_node_last_testrun(node_id as i64, run_id)
+            .set_node_last_testrun(node_id, run_id)
             .await?;
         self.storage_manager
-            .clear_testrun_in_progress(node_id as i64)
+            .clear_testrun_in_progress(node_id)
             .await?;
         Ok(())
     }
@@ -115,6 +125,88 @@ impl NetworkMonitorStorage {
         self.storage_manager
             .assign_next_testrun(now, last_tested_before)
             .await
+    }
+
+    /// Fetches a single completed test run by its row id, or `None` if it has
+    /// been evicted or never existed.
+    pub(crate) async fn get_testrun_by_id(&self, id: i64) -> anyhow::Result<Option<TestRun>> {
+        self.storage_manager.get_testrun_by_id(id).await
+    }
+
+    /// Fetches a node by its contract-assigned `node_id`, or `None` if the
+    /// orchestrator has never observed a bond for it.
+    pub(crate) async fn get_nym_node_by_id(
+        &self,
+        node_id: NodeId,
+    ) -> anyhow::Result<Option<NymNode>> {
+        self.storage_manager
+            .get_nym_node_by_id(node_id as i64)
+            .await
+    }
+
+    /// Paginated list of outstanding `testrun_in_progress` rows, oldest `started_at`
+    /// first so stale/hung runs surface at the top, with the snapshot-consistent
+    /// total row count.
+    pub(crate) async fn get_testruns_in_progress_paginated(
+        &self,
+        pagination: Pagination,
+    ) -> anyhow::Result<(Vec<TestRunInProgress>, usize)> {
+        let (rows, total) = self
+            .storage_manager
+            .get_testruns_in_progress_paginated(pagination.limit(), pagination.offset())
+            .await?;
+
+        Ok((rows, total as usize))
+    }
+
+    /// Paginated list of nodes ordered by `node_id` ascending, with the
+    /// snapshot-consistent total row count. [`Pagination`] is resolved to
+    /// `limit`/`offset` here so the manager never sees the public contract.
+    pub(crate) async fn get_nym_nodes_paginated(
+        &self,
+        pagination: Pagination,
+    ) -> anyhow::Result<(Vec<NymNode>, usize)> {
+        let (nodes, total) = self
+            .storage_manager
+            .get_nym_nodes_paginated(pagination.limit(), pagination.offset())
+            .await?;
+
+        Ok((nodes, total as usize))
+    }
+
+    /// Paginated list of completed test runs ordered by `test_timestamp`
+    /// descending (newest first), with the snapshot-consistent total row count.
+    pub(crate) async fn get_testruns_paginated(
+        &self,
+        pagination: Pagination,
+    ) -> anyhow::Result<(Vec<TestRun>, usize)> {
+        let (test_results, total) = self
+            .storage_manager
+            .get_testruns_paginated(pagination.limit(), pagination.offset())
+            .await?;
+
+        Ok((test_results, total as usize))
+    }
+
+    /// Paginated list of completed test runs for a single node, ordered newest
+    /// first, with the snapshot-consistent total row count. Backed by the
+    /// `idx_testrun_node_id_timestamp` index. An unknown or never-tested
+    /// `node_id` produces `(vec![], 0)` rather than an error.
+    pub(crate) async fn get_testruns_for_node_paginated(
+        &self,
+        node_id: NodeId,
+        pagination: Pagination,
+    ) -> anyhow::Result<(Vec<TestRun>, usize)> {
+        let (test_results, total) = self
+            .storage_manager
+            .get_testruns_for_node_paginated(
+                node_id as i64,
+                pagination.limit(),
+                pagination.offset(),
+            )
+            .await?;
+
+        Ok((test_results, total as usize))
     }
 
     /// Deletes all `testrun` rows older than `eviction_age` relative to the current time.

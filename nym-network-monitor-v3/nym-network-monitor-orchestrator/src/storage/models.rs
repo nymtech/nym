@@ -1,7 +1,13 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_network_monitor_orchestrator_requests::models::TestRunResult;
+use anyhow::Context;
+use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_network_monitor_orchestrator_requests::models::{
+    self as api, LatencyDistribution, NymNodeData, TestRunData, TestRunInProgressData,
+    TestRunResult,
+};
+use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use time::OffsetDateTime;
 
@@ -18,6 +24,9 @@ pub(crate) enum TestType {
 /// is assigned by the database on insertion.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct NewTestRun {
+    /// Contract-assigned node id of the node under test.
+    pub(crate) node_id: i64,
+
     pub(crate) test_type: TestType,
     pub(crate) test_timestamp: OffsetDateTime,
 
@@ -64,8 +73,9 @@ impl NewTestRun {
     /// Converts an API-level [`TestRunResult`] into a database-ready row,
     /// flattening [`LatencyDistribution`](nym_network_monitor_orchestrator_requests::models::LatencyDistribution)
     /// fields into individual microsecond columns and recording the current UTC time as the test timestamp.
-    fn from_result(test_type: TestType, result: TestRunResult) -> Self {
+    fn from_result(test_type: TestType, node_id: NodeId, result: TestRunResult) -> Self {
         NewTestRun {
+            node_id: node_id as i64,
             test_type,
             test_timestamp: OffsetDateTime::now_utc(),
             ingress_noise_handshake_us: result.ingress_noise_handshake.map(duration_to_us),
@@ -94,14 +104,14 @@ impl NewTestRun {
     }
 
     /// Creates a new test run row for a mixnode stress test result.
-    pub(crate) fn from_mixnode_result(result: TestRunResult) -> Self {
-        Self::from_result(TestType::Mixnode, result)
+    pub(crate) fn from_mixnode_result(node_id: NodeId, result: TestRunResult) -> Self {
+        Self::from_result(TestType::Mixnode, node_id, result)
     }
 
     /// Creates a new test run row for a gateway stress test result.
     #[allow(dead_code)]
-    pub(crate) fn from_gateway_result(result: TestRunResult) -> Self {
-        Self::from_result(TestType::Gateway, result)
+    pub(crate) fn from_gateway_result(node_id: NodeId, result: TestRunResult) -> Self {
+        Self::from_result(TestType::Gateway, node_id, result)
     }
 }
 
@@ -112,6 +122,86 @@ pub(crate) struct TestRun {
 
     #[sqlx(flatten)]
     pub(crate) inner: NewTestRun,
+}
+
+fn us_to_duration(us: i64) -> std::time::Duration {
+    std::time::Duration::from_micros(us as u64)
+}
+
+/// Reassembles a [`LatencyDistribution`] from its four flattened microsecond columns.
+/// Returns `None` if any column is `NULL`; the four columns are always all-set or all-NULL
+/// together (see [`NewTestRun::from_result`]).
+fn latency_distribution(
+    min_us: Option<i64>,
+    mean_us: Option<i64>,
+    median_us: Option<i64>,
+    max_us: Option<i64>,
+    std_dev_us: Option<i64>,
+) -> Option<LatencyDistribution> {
+    match (min_us, mean_us, median_us, max_us, std_dev_us) {
+        (Some(min), Some(mean), Some(median), Some(max), Some(std_dev)) => {
+            Some(LatencyDistribution {
+                minimum: us_to_duration(min),
+                mean: us_to_duration(mean),
+                median: us_to_duration(median),
+                maximum: us_to_duration(max),
+                standard_deviation: us_to_duration(std_dev),
+            })
+        }
+        _ => None,
+    }
+}
+
+/// Maps the internal enum onto its public API counterpart. Kept as a separate
+/// type so `sqlx::Type` can be derived on the internal side without leaking
+/// sqlx into the public request crate.
+impl From<TestType> for api::TestType {
+    fn from(t: TestType) -> Self {
+        match t {
+            TestType::Mixnode => api::TestType::Mixnode,
+            TestType::Gateway => api::TestType::Gateway,
+        }
+    }
+}
+
+/// Lifts a `testrun` row into the public [`TestRunData`] shape: widens `i64`
+/// ids/counters to the API's `u32`/`usize`, reconstitutes each
+/// `LatencyDistribution` from its four microsecond columns, and converts
+/// microsecond integers back into `std::time::Duration`.
+impl From<TestRun> for TestRunData {
+    fn from(run: TestRun) -> Self {
+        let inner = run.inner;
+        TestRunData {
+            id: run.id,
+            node_id: inner.node_id as u32,
+            test_type: inner.test_type.into(),
+            test_timestamp: inner.test_timestamp,
+            result: TestRunResult {
+                ingress_noise_handshake: inner.ingress_noise_handshake_us.map(us_to_duration),
+                egress_noise_handshake: inner.egress_noise_handshake_us.map(us_to_duration),
+                sphinx_packet_delay: us_to_duration(inner.sphinx_packet_delay_us),
+                packets_sent: inner.packets_sent as usize,
+                packets_received: inner.packets_received as usize,
+                approximate_latency: inner.approximate_latency_us.map(us_to_duration),
+                packets_statistics: latency_distribution(
+                    inner.packets_rtt_min_us,
+                    inner.packets_rtt_mean_us,
+                    inner.packets_rtt_median_us,
+                    inner.packets_rtt_max_us,
+                    inner.packets_rtt_std_dev_us,
+                ),
+                sending_statistics: latency_distribution(
+                    inner.sending_latency_min_us,
+                    inner.sending_latency_mean_us,
+                    inner.sending_latency_median_us,
+                    inner.sending_latency_max_us,
+                    inner.sending_latency_std_dev_us,
+                ),
+                received_duplicates: inner.received_duplicates,
+                error: inner.error,
+            },
+        }
+    }
 }
 
 /// The data required to insert or update a row in `nym_node`. Does not carry `last_testrun`
@@ -168,6 +258,17 @@ pub(crate) struct TestRunInProgress {
     pub(crate) started_at: OffsetDateTime,
 }
 
+/// Lifts a `testrun_in_progress` row into the public shape, narrowing `node_id`
+/// from the sqlx-native `i64` to the API's `u32`.
+impl From<TestRunInProgress> for TestRunInProgressData {
+    fn from(row: TestRunInProgress) -> Self {
+        TestRunInProgressData {
+            node_id: row.node_id as u32,
+            started_at: row.started_at,
+        }
+    }
+}
+
 /// A row from the `nym_node` table, as returned by a SELECT.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct NymNode {
@@ -176,4 +277,55 @@ pub(crate) struct NymNode {
 
     /// ID of the most recent test run against this node. `None` if never tested.
     pub(crate) last_testrun: Option<i64>,
+}
+
+/// Decodes a node's stored base58 key strings and parses the socket address
+/// into typed counterparts for the public API. Fails (with context) when any
+/// stored value is malformed — this should not happen in practice because the
+/// orchestrator writes these fields itself, so a failure here indicates
+/// corruption or a schema regression and is surfaced as
+/// [`crate::http::api::v1::error::ApiError::MalformedStoredData`] by callers.
+impl TryFrom<NewNymNode> for NymNodeData {
+    type Error = anyhow::Error;
+
+    fn try_from(node: NewNymNode) -> anyhow::Result<Self> {
+        let identity_key = ed25519::PublicKey::from_base58_string(&node.identity_key)
+            .context("invalid identity_key")?;
+
+        let mixnet_socket_address = node
+            .mixnet_socket_address
+            .map(|s| s.parse().context("invalid mixnet_socket_address"))
+            .transpose()?;
+
+        let noise_key = node
+            .noise_key
+            .map(|s| x25519::PublicKey::from_base58_string(&s).context("invalid noise_key"))
+            .transpose()?;
+
+        let sphinx_key = node
+            .sphinx_key
+            .map(|s| x25519::PublicKey::from_base58_string(&s).context("invalid sphinx_key"))
+            .transpose()?;
+
+        Ok(NymNodeData {
+            node_id: node.node_id as u32,
+            identity_key,
+            last_seen_bonded: node.last_seen_bonded,
+            mixnet_socket_address,
+            noise_key,
+            sphinx_key,
+            key_rotation_id: node.key_rotation_id,
+        })
+    }
+}
+
+/// Convenience pass-through that drops `last_testrun` (callers that need the
+/// latest run fetch it explicitly via [`TestRun`]) and delegates to the
+/// [`NewNymNode`] conversion for the rest of the fields.
+impl TryFrom<NymNode> for NymNodeData {
+    type Error = anyhow::Error;
+
+    fn try_from(node: NymNode) -> anyhow::Result<Self> {
+        node.inner.try_into()
+    }
 }

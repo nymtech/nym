@@ -8,6 +8,12 @@ CREATE TABLE testrun
     -- Surrogate primary key.
     id                         INTEGER                                            NOT NULL PRIMARY KEY AUTOINCREMENT,
 
+    -- The node under test. References nym_node(node_id); forward reference is allowed in
+    -- SQLite since foreign keys are validated at INSERT time, not at CREATE TABLE time.
+    -- Kept as a full column (rather than relying on nym_node.last_testrun) so that the
+    -- node→testrun link survives once the node gets a newer run.
+    node_id                    INTEGER                                            NOT NULL REFERENCES nym_node (node_id),
+
     -- Discriminator for the type of node under test; future-proofs the table for when we start testing gateways.
     test_type                  TEXT CHECK ( test_type IN ('mixnode', 'gateway') ) NOT NULL,
 
@@ -59,6 +65,13 @@ CREATE TABLE testrun
     error                      TEXT
 
 );
+
+-- Supports efficient "all runs for node X, newest first" lookups.
+CREATE INDEX idx_testrun_node_id_timestamp ON testrun (node_id, test_timestamp DESC);
+
+-- Supports efficient "all runs, newest first" lookups (the global testruns pagination endpoint).
+-- The composite index above cannot serve this query because its leading column is node_id.
+CREATE INDEX idx_testrun_test_timestamp ON testrun (test_timestamp DESC);
 
 CREATE TABLE nym_node
 (

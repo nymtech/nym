@@ -29,6 +29,12 @@ pub(crate) enum ApiError {
 
     #[error("agent hasn't been announced to the contract - can't assign testruns")]
     AgentNotAnnounced,
+
+    #[error("no test run found with the requested id")]
+    TestRunNotFound,
+
+    #[error("no nym-node found with the requested node id")]
+    NymNodeNotFound,
 }
 
 impl ApiError {
@@ -38,6 +44,7 @@ impl ApiError {
         match self {
             NoPortsAvailable => StatusCode::SERVICE_UNAVAILABLE,
             AgentNotFound | NoiseKeyMismatch | AgentNotAnnounced => StatusCode::BAD_REQUEST,
+            TestRunNotFound | NymNodeNotFound => StatusCode::NOT_FOUND,
             ContractFailure | StorageFailure | MalformedStoredData => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }

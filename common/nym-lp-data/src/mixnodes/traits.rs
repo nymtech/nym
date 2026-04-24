@@ -78,3 +78,11 @@ where
             .collect::<Vec<_>>()
     }
 }
+
+pub trait MixnodeProcessingPipeline<Ts, Pkt, NodeId> {
+    fn process(
+        &mut self,
+        input: TimedData<Ts, Pkt>,
+        timestamp: Ts,
+    ) -> Vec<(NodeId, TimedData<Ts, Pkt>)>;
+}

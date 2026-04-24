@@ -24,13 +24,21 @@
 //! Nodes share a reference-counted [`Directory`] so they can resolve target
 //! addresses without locking.
 
-use std::{fmt::Debug, io::ErrorKind, net::UdpSocket, sync::Arc};
+use std::{
+    fmt::Debug,
+    io::ErrorKind,
+    net::{SocketAddr, UdpSocket},
+    sync::Arc,
+};
 
-use nym_lp_data::{TimedData, mixnodes::traits::ProcessingPipeline};
+use nym_lp_data::{TimedData, mixnodes::traits::MixnodeProcessingPipeline};
 
 use crate::{
     packet::WirePacketFormat,
-    topology::{Directory, NodeId, TopologyNode},
+    topology::{
+        TopologyNode,
+        directory::{Directory, DirectoryNode, NodeId},
+    },
 };
 
 /// A running mix-node instance inside the simulation.
@@ -41,16 +49,17 @@ use crate::{
 /// The struct is generic so that different packet formats (e.g. Sphinx-encrypted
 /// packets) and richer tick contexts can be plugged in without changing node
 /// internals.
-pub struct Node<Ts, Pkt, Fr, Pl> {
+pub struct Node<Ts, Pkt> {
     /// Shared routing table.  Set after construction via [`Node::set_directory`]
     /// once all nodes' sockets are bound and the [`Directory`] can be built.
     directory: Arc<Directory>,
 
     /// Static configuration for this node (id, reliability, listen address).
-    details: TopologyNode,
+    id: NodeId,
+    _reliability: u8,
+    socket_address: SocketAddr,
 
     /// Non-blocking UDP socket bound to `details.addr`.
-    ///
     /// Non-blocking mode is essential: [`Node::recv_packet`] must return
     /// immediately with `None` when no datagram is waiting, so that
     /// [`tick_incoming`] can drain the socket without blocking the entire
@@ -75,11 +84,10 @@ pub struct Node<Ts, Pkt, Fr, Pl> {
     /// Drained by [`tick_outgoing`].
     processed_packets: Vec<(NodeId, TimedData<Ts, Pkt>)>,
 
-    processing_pipeline: Pl,
-    _fr_marker: std::marker::PhantomData<Fr>,
+    processing_pipeline: Box<dyn MixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send>,
 }
 
-impl<Ts, Pkt, Fr, Pl> Node<Ts, Pkt, Fr, Pl> {
+impl<Ts, Pkt> Node<Ts, Pkt> {
     /// Create a [`Node`] from a [`TopologyNode`] description by binding a
     /// non-blocking UDP socket to `node.addr`.
     ///
@@ -91,24 +99,28 @@ impl<Ts, Pkt, Fr, Pl> Node<Ts, Pkt, Fr, Pl> {
     ///
     /// Returns an error if the UDP socket cannot be bound (e.g. address already
     /// in use) or if `set_nonblocking` fails.
-    pub fn from_topology_node(node: TopologyNode, pipeline: Pl) -> anyhow::Result<Self> {
-        let socket = UdpSocket::bind(node.addr)?;
+    pub fn new(
+        topology_node: TopologyNode,
+        pipeline: impl MixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send + 'static,
+    ) -> anyhow::Result<Self> {
+        let socket = UdpSocket::bind(topology_node.socket_address)?;
         socket.set_nonblocking(true)?;
         Ok(Node {
             directory: Default::default(),
-            details: node,
+            id: topology_node.node_id,
+            _reliability: topology_node.reliability,
+            socket_address: topology_node.socket_address,
             socket,
             packets_to_process: Vec::new(),
             processed_packets: Vec::new(),
-            processing_pipeline: pipeline,
-            _fr_marker: std::marker::PhantomData,
+            processing_pipeline: Box::new(pipeline),
         })
     }
 
-    /// Return this node's [`NodeId`].
-    pub fn id(&self) -> NodeId {
-        self.details.id
-    }
+    // /// Return this node's [`NodeId`].
+    // pub fn id(&self) -> NodeId {
+    //     self.id
+    // }
 
     /// Attach the shared [`Directory`] to this node.
     ///
@@ -120,16 +132,19 @@ impl<Ts, Pkt, Fr, Pl> Node<Ts, Pkt, Fr, Pl> {
         self.directory = directory
     }
 
-    /// Build a [`TopologyNode`] view of this node suitable for insertion into
+    /// Build a [`DirectoryNode`] view of this node suitable for insertion into
     /// a [`Directory`].
     ///
     /// Called by [`Directory::build_from_nodes`] during driver initialisation.
-    pub fn get_topology_node(&self) -> TopologyNode {
-        self.details.clone()
+    pub fn directory_node(&self) -> DirectoryNode {
+        DirectoryNode {
+            id: self.id,
+            addr: self.socket_address,
+        }
     }
 }
 
-impl<Ts: Debug, Pkt: Debug, Fr, Pl> Node<Ts, Pkt, Fr, Pl> {
+impl<Ts: Debug, Pkt: Debug> Node<Ts, Pkt> {
     /// Print a bordered summary of this node's current buffer state to stdout.
     ///
     /// Displays the node ID, listen address, and — for each internal buffer —
@@ -137,7 +152,7 @@ impl<Ts: Debug, Pkt: Debug, Fr, Pl> Node<Ts, Pkt, Fr, Pl> {
     /// Intended to be called by [`MixSimDriver::display_state`] which wraps all
     /// nodes' output inside a tick-labelled border.
     pub fn display_state(&self) {
-        println!("│  Node {:2} @ {}", self.details.id, self.details.addr);
+        println!("│  Node {:2} @ {}", self.id, self.socket_address);
         if self.packets_to_process.is_empty() {
             println!("│    to_process buffer: (empty)");
         } else {
@@ -164,10 +179,10 @@ impl<Ts: Debug, Pkt: Debug, Fr, Pl> Node<Ts, Pkt, Fr, Pl> {
     }
 }
 
-impl<Ts, Pkt, Fr, Pl> Node<Ts, Pkt, Fr, Pl>
+impl<Ts, Pkt> Node<Ts, Pkt>
 where
     Ts: Clone + PartialOrd,
-    Pkt: WirePacketFormat<Ts>,
+    Pkt: WirePacketFormat,
 {
     /// Send `packet` to the node identified by `node_id`.
     ///
@@ -182,18 +197,15 @@ where
             if let Err(e) = self.socket.send_to(&packet.to_bytes(), node.addr) {
                 tracing::error!(
                     "[Node {}] Failed to send data to node {node_id} : {e}",
-                    self.details.id
+                    self.id
                 );
             } else {
-                tracing::info!(
-                    "[Node {}] Successfully sent a packet to {node_id}",
-                    self.details.id
-                );
+                tracing::info!("[Node {}] Successfully sent a packet to {node_id}", self.id);
             }
         } else {
             tracing::error!(
                 "[Node {}] Trying to send to non-existing node {node_id}",
-                self.details.id
+                self.id
             );
         }
     }
@@ -224,7 +236,7 @@ where
 
         tracing::info!(
             "[Node {}] Received {nb_bytes} bytes from {src_address}",
-            self.details.id
+            self.id
         );
         Some(Pkt::try_from_bytes(&buf[..nb_bytes]))
     }
@@ -243,10 +255,7 @@ where
                 Ok(packet) => self
                     .packets_to_process
                     .push(TimedData::new(timestamp.clone(), packet)),
-                Err(e) => tracing::error!(
-                    "[Node {}] Failed to deserialize packet : {e}",
-                    self.details.id
-                ),
+                Err(e) => tracing::error!("[Node {}] Failed to deserialize packet : {e}", self.id),
             }
         }
     }
@@ -261,16 +270,8 @@ where
     ///
     pub fn tick_processing(&mut self, timestamp: Ts) {
         while let Some(packet) = self.packets_to_process.pop() {
-            // SW This need the proper processing pipeline from nodes
-            match packet.data.process(timestamp.clone()) {
-                Ok(processed_packet) => self.processed_packets.push((
-                    self.details.id + 1,
-                    TimedData::new(timestamp.clone(), processed_packet),
-                )),
-                Err(e) => {
-                    tracing::error!("[Node {}] Failed to process packet : {e}", self.details.id)
-                }
-            }
+            let processed_packets = self.processing_pipeline.process(packet, timestamp.clone());
+            self.processed_packets.extend(processed_packets);
         }
     }
 

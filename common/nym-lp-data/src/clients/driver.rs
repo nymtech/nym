@@ -4,14 +4,14 @@
 use std::sync::mpsc;
 
 use crate::TimedData;
-use crate::clients::{traits::ProcessingPipeline, types::StreamOptions};
+use crate::clients::traits::DynProcessingPipeline;
+use crate::clients::types::StreamOptions;
 
-pub struct PipelineDriver<Ts, Fr, Pkt, Pl>
+pub struct PipelineDriver<Ts, Fr, Pkt>
 where
-    Pl: ProcessingPipeline<Ts, Fr, Pkt>,
     Ts: Clone + PartialOrd,
 {
-    pipeline: Pl,
+    pipeline: Box<dyn DynProcessingPipeline<Ts, Fr, Pkt>>,
     processing_options: StreamOptions,
 
     packet_buffer: Vec<TimedData<Ts, Pkt>>,
@@ -23,16 +23,15 @@ where
     _marker: std::marker::PhantomData<Fr>,
 }
 
-impl<Ts, Fr, Pkt, Pl> PipelineDriver<Ts, Fr, Pkt, Pl>
+impl<Ts, Fr, Pkt> PipelineDriver<Ts, Fr, Pkt>
 where
-    Pl: ProcessingPipeline<Ts, Fr, Pkt>,
     Ts: Clone + PartialOrd,
 {
-    pub fn new(pipeline: Pl) -> Self {
+    pub fn new(pipeline: impl DynProcessingPipeline<Ts, Fr, Pkt> + 'static) -> Self {
         let (input_sender, input_receiver) = mpsc::sync_channel(0);
 
         Self {
-            pipeline,
+            pipeline: Box::new(pipeline),
             processing_options: Default::default(),
             packet_buffer: Vec::new(),
             input: input_receiver,
@@ -56,14 +55,15 @@ where
         // - a: Our buffer is empty
         // - b: Obfuscation layer reports an empty buffer
         // Otherwise, we will have buffers adding latencies to data
-        let next_message = if self.packet_buffer.is_empty() && self.pipeline.buffer_size() == 0 {
-            self.input.try_recv().unwrap_or_else(|_| {
-                tracing::trace!("No message in the queue");
+        let next_message =
+            if self.packet_buffer.is_empty() && self.pipeline.obfusctaion_buffer_size() == 0 {
+                self.input.try_recv().unwrap_or_else(|_| {
+                    tracing::trace!("No message in the queue");
+                    Vec::new()
+                })
+            } else {
                 Vec::new()
-            })
-        } else {
-            Vec::new()
-        };
+            };
         self.packet_buffer.extend(self.pipeline.process(
             next_message,
             self.processing_options,

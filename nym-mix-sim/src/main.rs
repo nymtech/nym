@@ -13,7 +13,11 @@
 use std::net::{SocketAddr, UdpSocket};
 
 use clap::{Parser, Subcommand};
-use mix_sim::{driver::MixSimDriver, packet::SimplePacket, topology::TopologyNode};
+use mix_sim::{
+    driver::MixSimDriver,
+    packet::{SimplePacket, SimplePassThroughPipeline},
+    topology::TopologyNode,
+};
 use tracing::info;
 
 #[derive(Parser)]
@@ -96,7 +100,9 @@ async fn main() -> anyhow::Result<()> {
             tick_duration_ms,
         } => {
             info!("Loading topology from {topology}");
-            let driver = MixSimDriver::<u32, SimplePacket>::new(topology)?;
+            let driver = MixSimDriver::<u32, SimplePacket>::new(topology, |top_node| {
+                SimplePassThroughPipeline::new(top_node.node_id.wrapping_add(1))
+            })?;
             info!("MixSimDriver initialized successfully");
             let init_packet = SimplePacket::new([b'A'; 48]);
             let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], 9999)))?;

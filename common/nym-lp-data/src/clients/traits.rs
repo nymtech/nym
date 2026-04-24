@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::clients::types::StreamOptions;
-use crate::{TimedData, TimedPayload};
-
 use crate::common::traits::{Framing, Transport};
+use crate::{TimedData, TimedPayload};
 
 /// Trait for splitting an incoming payload into timestamped chunks.
 ///
@@ -78,6 +77,94 @@ pub trait RoutingSecurity<Ts> {
         1
     }
     fn encrypt(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts>;
+}
+
+/// Dyn-compatible mirror of [`ProcessingPipeline`].
+///
+/// All associated constants from the sub-traits are exposed as methods so the
+/// trait can be used as `dyn DynProcessingPipeline<Ts, Fr, Pkt>`, erasing the
+/// concrete pipeline type while keeping `Ts`, `Fr`, and `Pkt`.
+///
+/// Implement [`ProcessingPipeline`] on your concrete type; the blanket impl
+/// below provides `DynProcessingPipeline` for free.
+pub trait DynProcessingPipeline<Ts, Fr, Pkt> {
+    fn packet_size(&self) -> usize;
+
+    // --- overhead accessors (mirrors of the supertrait associated constants) ---
+    fn framing_overhead(&self) -> usize;
+    fn transport_overhead(&self) -> usize;
+    fn reliability_overhead(&self) -> usize;
+    fn routing_overhead(&self) -> usize;
+    fn nb_frames(&self) -> usize;
+
+    // --- derived sizing helpers ---
+    fn frame_size(&self) -> usize {
+        self.packet_size() - self.transport_overhead() - self.framing_overhead()
+    }
+
+    fn chunk_size(&self, processing_options: StreamOptions) -> usize {
+        let mut chunk_size = self.frame_size();
+        if processing_options.security {
+            chunk_size = chunk_size * self.nb_frames() - self.routing_overhead();
+        }
+        if processing_options.reliability {
+            chunk_size -= self.reliability_overhead();
+        }
+        chunk_size
+    }
+
+    // --- buffer size from obfusctation ---
+    fn obfusctaion_buffer_size(&self) -> usize;
+
+    fn process(
+        &mut self,
+        input: Vec<u8>,
+        processing_options: StreamOptions,
+        timestamp: Ts,
+    ) -> Vec<TimedData<Ts, Pkt>>;
+}
+
+impl<T, Ts, Fr, Pkt> DynProcessingPipeline<Ts, Fr, Pkt> for T
+where
+    T: ProcessingPipeline<Ts, Fr, Pkt>,
+    Ts: Clone,
+{
+    fn packet_size(&self) -> usize {
+        ProcessingPipeline::packet_size(self)
+    }
+
+    fn framing_overhead(&self) -> usize {
+        <T as Framing<Ts, Fr>>::OVERHEAD_SIZE
+    }
+
+    fn transport_overhead(&self) -> usize {
+        <T as Transport<Ts, Fr, Pkt>>::OVERHEAD_SIZE
+    }
+
+    fn reliability_overhead(&self) -> usize {
+        <T as Reliability<Ts>>::OVERHEAD_SIZE
+    }
+
+    fn routing_overhead(&self) -> usize {
+        <T as RoutingSecurity<Ts>>::OVERHEAD_SIZE
+    }
+
+    fn obfusctaion_buffer_size(&self) -> usize {
+        self.buffer_size()
+    }
+
+    fn nb_frames(&self) -> usize {
+        self.nb_frames()
+    }
+
+    fn process(
+        &mut self,
+        input: Vec<u8>,
+        processing_options: StreamOptions,
+        timestamp: Ts,
+    ) -> Vec<TimedData<Ts, Pkt>> {
+        ProcessingPipeline::process(self, input, processing_options, timestamp)
+    }
 }
 
 /// Trait for a message pipeline.

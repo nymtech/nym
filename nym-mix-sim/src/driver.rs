@@ -18,10 +18,15 @@ use std::{fmt::Debug, sync::Arc, time::Duration};
 use anyhow::Context;
 use tracing::{debug, info};
 
+use nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline;
+
 use crate::{
     node::Node,
     packet::WirePacketFormat,
-    topology::{Directory, TopologyNode},
+    topology::{
+        TopologyNode,
+        directory::{Directory, NodeId},
+    },
 };
 
 /// Top-level orchestrator for the mix-network simulation.
@@ -32,9 +37,9 @@ use crate::{
 /// `Ts` is the tick-context / timestamp type; `Pkt` is the packet type.  The
 /// concrete instantiation used by `main.rs` is `MixSimDriver<u32, SimplePacket>`.
 ///
-pub struct MixSimDriver<Ts, Pkt, Fr, Pl> {
+pub struct MixSimDriver<Ts, Pkt> {
     /// All simulation nodes
-    nodes: Vec<Node<Ts, Pkt, Fr, Pl>>,
+    nodes: Vec<Node<Ts, Pkt>>,
 }
 
 impl<Ts, Pkt> MixSimDriver<Ts, Pkt>
@@ -59,7 +64,11 @@ where
     ///
     /// Returns an error if the topology file cannot be read, if the JSON is
     /// malformed, or if any node fails to bind its UDP socket.
-    pub fn new(topology_file_path: String) -> anyhow::Result<Self> {
+    pub fn new<Pb, P>(topology_file_path: String, pipeline_builder: Pb) -> anyhow::Result<Self>
+    where
+        Pb: Fn(&TopologyNode) -> P,
+        P: MixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send + 'static,
+    {
         debug!(
             "Bootstrapping nodes from topology file: {}",
             topology_file_path
@@ -72,8 +81,9 @@ where
 
         // 2. Init nodes (bind UDP sockets)
         let mut nodes = Vec::with_capacity(topology.len());
-        for node in topology {
-            nodes.push(Node::<Ts, Pkt>::from_topology_node(node)?);
+        for topology_node in topology {
+            let pipeline = pipeline_builder(&topology_node);
+            nodes.push(Node::new(topology_node, pipeline)?);
         }
 
         // 3. Build Directory
@@ -119,7 +129,7 @@ where
 /// If a richer timestamp type is needed in the future, a new impl block should be done.
 impl<Pkt> MixSimDriver<u32, Pkt>
 where
-    Pkt: WirePacketFormat<u32> + Debug,
+    Pkt: WirePacketFormat + Debug,
 {
     /// Start the simulation in either manual or automatic mode.
     ///

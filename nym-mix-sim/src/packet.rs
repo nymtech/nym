@@ -16,8 +16,40 @@ use std::fmt;
 use std::fmt::Debug;
 
 use nym_common::debug::format_debug_bytes;
+use nym_lp_data::{TimedData, mixnodes::traits::MixnodeProcessingPipeline};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::topology::directory::NodeId;
+
+/// Trait that every packet type must implement to participate in the simulation.
+///
+/// The type parameter `Ts` is a *timestamp* (or any per-tick context value)
+/// that is passed to [`process`] so that mix operations can be aware of the
+/// current simulation time if needed.
+///
+/// ## Bounds
+///
+/// * `Debug` — required so that [`crate::node::Node::display_state`] can print
+///   packet buffers without knowing the concrete type.
+/// * `Sized` — required because the trait is used with `Vec<Pkt>` and moved by
+///   value in several places.
+/// * `Send + 'static` — required because the simulation driver spawns a
+///   `tokio::task` that owns the node list.
+///
+pub trait WirePacketFormat: Debug + Sized + Send + 'static {
+    /// Deserialise a packet from the raw bytes received off the wire.
+    ///
+    /// # Errors
+    ///
+    /// Should return an error on length mismatch, invalid magic bytes, or any
+    /// other malformed-datagram condition.
+    fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self>;
+
+    /// Serialise the packet to its on-wire byte representation, ready to be
+    /// sent via UDP.
+    fn to_bytes(&self) -> Vec<u8>;
+}
 
 /// A minimal, fixed-size packet used by the simulation.
 ///
@@ -124,18 +156,9 @@ impl SimplePacket {
 }
 
 /// [`WirePacketFormat`] implementation for [`SimplePacket`].
-///
-/// The timestamp type `Ts` is unused — the mix operation is purely a function
-/// of the payload bytes and does not depend on when the packet was processed.
-impl<Ts> WirePacketFormat<Ts> for SimplePacket {
+impl WirePacketFormat for SimplePacket {
     fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
         Self::try_from_bytes(bytes)
-    }
-
-    /// Dummy processing
-    fn process(mut self, _: Ts) -> anyhow::Result<Self> {
-        self.data = self.data.into_iter().map(|b| b + 1).collect();
-        Ok(self)
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -143,42 +166,27 @@ impl<Ts> WirePacketFormat<Ts> for SimplePacket {
     }
 }
 
-/// Trait that every packet type must implement to participate in the simulation.
+/// A pass-through [`MixnodeProcessingPipeline`] for [`SimplePacket`].
 ///
-/// The type parameter `Ts` is a *timestamp* (or any per-tick context value)
-/// that is passed to [`process`] so that mix operations can be aware of the
-/// current simulation time if needed.
-///
-/// ## Bounds
-///
-/// * `Debug` — required so that [`crate::node::Node::display_state`] can print
-///   packet buffers without knowing the concrete type.
-/// * `Sized` — required because the trait is used with `Vec<Pkt>` and moved by
-///   value in several places.
-/// * `Send + 'static` — required because the simulation driver spawns a
-///   `tokio::task` that owns the node list.
-///
-pub trait WirePacketFormat<Ts>: Debug + Sized + Send + 'static {
-    /// Deserialise a packet from the raw bytes received off the wire.
-    ///
-    /// # Errors
-    ///
-    /// Should return an error on length mismatch, invalid magic bytes, or any
-    /// other malformed-datagram condition.
-    fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self>;
+/// Forwards every packet unchanged to a fixed `next_hop` node.  Used in
+/// `main.rs` as the placeholder pipeline until real Sphinx processing is wired
+/// in.
+pub struct SimplePassThroughPipeline {
+    id: NodeId,
+}
 
-    /// Apply the node's mix operation to the packet and return the result.
-    ///
-    /// `timestamp` carries the current tick's context value, used for cover
-    /// traffic generation, time-based batching, and delay policies.
-    ///
-    /// # Errors
-    ///
-    /// Should return an error if the packet cannot be processed (e.g. decryption
-    /// failure, unsupported version).
-    fn process(self, timestamp: Ts) -> anyhow::Result<Self>;
+impl SimplePassThroughPipeline {
+    pub fn new(id: NodeId) -> Self {
+        Self { id }
+    }
+}
 
-    /// Serialise the packet to its on-wire byte representation, ready to be
-    /// sent via UDP.
-    fn to_bytes(&self) -> Vec<u8>;
+impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimplePacket, NodeId> for SimplePassThroughPipeline {
+    fn process(
+        &mut self,
+        input: TimedData<Ts, SimplePacket>,
+        _timestamp: Ts,
+    ) -> Vec<(NodeId, TimedData<Ts, SimplePacket>)> {
+        vec![(self.id + 1, input)]
+    }
 }

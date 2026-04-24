@@ -49,9 +49,9 @@ impl SphinxMixDriver {
 }
 
 /// Concrete [`MixSimDriver`] instantiation that uses [`SphinxPacket`]s. Use this for manual mode, one tick is one ms
-pub struct ManualSphinxMixDriver(MixSimDriver<u32>);
+pub struct DiscreteSphinxMixDriver(MixSimDriver<u32>);
 
-impl ManualSphinxMixDriver {
+impl DiscreteSphinxMixDriver {
     /// Load a topology JSON file and initialise the driver with simple pipelines.
     pub fn new(topology: String) -> anyhow::Result<Self> {
         let topology_data =
@@ -75,11 +75,11 @@ impl ManualSphinxMixDriver {
             clients.push(Box::new(client));
         }
 
-        Ok(ManualSphinxMixDriver(MixSimDriver::new(nodes, clients)))
+        Ok(DiscreteSphinxMixDriver(MixSimDriver::new(nodes, clients)))
     }
 
     /// Run the simulation; delegates to [`MixSimDriver::run`].
-    pub async fn run(self, _manual_mode: bool, tick_duration_ms: u64) -> anyhow::Result<()> {
-        self.0.run(true, tick_duration_ms).await
+    pub async fn run(self, manual_mode: bool, tick_duration_ms: u64) -> anyhow::Result<()> {
+        self.0.run(manual_mode, tick_duration_ms).await
     }
 }

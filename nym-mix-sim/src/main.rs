@@ -17,7 +17,7 @@ use std::net::SocketAddr;
 
 use clap::{Parser, Subcommand};
 use mix_sim::{
-    driver::ManualSphinxMixDriver,
+    driver::SimDriver,
     topology::{Topology, TopologyClient, TopologyNode},
 };
 use tracing::info;
@@ -66,6 +66,10 @@ enum Commands {
         /// Tick duration in milliseconds (automatic mode only).
         #[arg(short = 'd', long, default_value = "100")]
         tick_duration_ms: u64,
+
+        /// Simulation driver to use: simple | sphinx | manual-sphinx (default).
+        #[arg(long, default_value_t = SimDriver::ManualSphinx)]
+        driver: SimDriver,
     },
 }
 
@@ -108,12 +112,10 @@ async fn main() -> anyhow::Result<()> {
             topology,
             manual,
             tick_duration_ms,
+            driver,
         } => {
-            info!("Loading topology from {topology}");
-            let driver = ManualSphinxMixDriver::new(topology)?;
-            info!("MixSimDriver initialized successfully");
-
-            driver.run(manual, tick_duration_ms).await?;
+            info!("Loading topology from {topology} with driver={driver}");
+            driver.run(topology, manual, tick_duration_ms).await?;
         }
     }
 

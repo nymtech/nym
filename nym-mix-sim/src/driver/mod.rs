@@ -34,7 +34,7 @@ mod simple;
 mod sphinx;
 
 pub use simple::SimpleMixDriver;
-pub use sphinx::{ManualSphinxMixDriver, SphinxMixDriver};
+pub use sphinx::{DiscreteSphinxMixDriver, SphinxMixDriver};
 
 /// Top-level orchestrator for the mix-network simulation.
 ///
@@ -185,5 +185,45 @@ impl MixSimDriver<Instant> {
         tokio::signal::ctrl_c().await?;
         handle.abort();
         Ok(())
+    }
+}
+
+/// Which simulation driver to use.
+#[derive(Clone, Debug, Default, strum::Display, strum::EnumString)]
+#[strum(serialize_all = "kebab-case")]
+pub enum SimDriver {
+    /// Simple pass-through packets, discrete tick counter.
+    Simple,
+    /// Full Sphinx encryption, wall-clock timestamps, automatic mode only.
+    Sphinx,
+    /// Full Sphinx encryption, discrete tick counter, supports manual mode.
+    #[default]
+    ManualSphinx,
+}
+
+impl SimDriver {
+    pub async fn run(
+        self,
+        topology: String,
+        manual: bool,
+        tick_duration_ms: u64,
+    ) -> anyhow::Result<()> {
+        match self {
+            SimDriver::Simple => {
+                SimpleMixDriver::new(topology)?
+                    .run(manual, tick_duration_ms)
+                    .await
+            }
+            SimDriver::Sphinx => {
+                SphinxMixDriver::new(topology)?
+                    .run(manual, tick_duration_ms)
+                    .await
+            }
+            SimDriver::ManualSphinx => {
+                DiscreteSphinxMixDriver::new(topology)?
+                    .run(manual, tick_duration_ms)
+                    .await
+            }
+        }
     }
 }

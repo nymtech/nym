@@ -136,19 +136,16 @@ where
     fn chunk_size(&self, input_options: Opts) -> usize {
         // Frame size comes from WireWrappingPipeline
         let mut chunk_size = self.frame_size();
-        println!("chunk-size : {chunk_size}");
 
         if input_options.routing_security() {
             chunk_size =
                 chunk_size * self.nb_frames() - <Self as RoutingSecurity<_, _, _>>::OVERHEAD_SIZE;
         }
-        println!("{}", self.nb_frames());
-        println!("{}", <Self as RoutingSecurity<_, _, _>>::OVERHEAD_SIZE);
-        println!("chunk-size : {chunk_size}");
+
         if input_options.reliability() {
             chunk_size -= <Self as Reliability<_, _, _>>::OVERHEAD_SIZE;
         }
-        println!("chunk-size : {chunk_size}");
+
         chunk_size
     }
 

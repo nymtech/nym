@@ -134,16 +134,20 @@ fn us_to_duration(us: i64) -> std::time::Duration {
 fn latency_distribution(
     min_us: Option<i64>,
     mean_us: Option<i64>,
+    median_us: Option<i64>,
     max_us: Option<i64>,
     std_dev_us: Option<i64>,
 ) -> Option<LatencyDistribution> {
-    match (min_us, mean_us, max_us, std_dev_us) {
-        (Some(min), Some(mean), Some(max), Some(std_dev)) => Some(LatencyDistribution {
-            minimum: us_to_duration(min),
-            mean: us_to_duration(mean),
-            maximum: us_to_duration(max),
-            standard_deviation: us_to_duration(std_dev),
-        }),
+    match (min_us, mean_us, median_us, max_us, std_dev_us) {
+        (Some(min), Some(mean), Some(median), Some(max), Some(std_dev)) => {
+            Some(LatencyDistribution {
+                minimum: us_to_duration(min),
+                mean: us_to_duration(mean),
+                median: us_to_duration(median),
+                maximum: us_to_duration(max),
+                standard_deviation: us_to_duration(std_dev),
+            })
+        }
         _ => None,
     }
 }
@@ -175,18 +179,21 @@ impl From<TestRun> for TestRunData {
             result: TestRunResult {
                 ingress_noise_handshake: inner.ingress_noise_handshake_us.map(us_to_duration),
                 egress_noise_handshake: inner.egress_noise_handshake_us.map(us_to_duration),
+                sphinx_packet_delay: us_to_duration(inner.sphinx_packet_delay_us),
                 packets_sent: inner.packets_sent as usize,
                 packets_received: inner.packets_received as usize,
                 approximate_latency: inner.approximate_latency_us.map(us_to_duration),
                 packets_statistics: latency_distribution(
                     inner.packets_rtt_min_us,
                     inner.packets_rtt_mean_us,
+                    inner.packets_rtt_median_us,
                     inner.packets_rtt_max_us,
                     inner.packets_rtt_std_dev_us,
                 ),
                 sending_statistics: latency_distribution(
                     inner.sending_latency_min_us,
                     inner.sending_latency_mean_us,
+                    inner.sending_latency_median_us,
                     inner.sending_latency_max_us,
                     inner.sending_latency_std_dev_us,
                 ),

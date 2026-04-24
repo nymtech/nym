@@ -8,30 +8,13 @@
 //! wire serialisation; mix logic is handled separately by
 //! [`nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline`].
 //!
-//! [`SimplePacket`] is a built-in concrete implementation: a fixed-size 64-byte
-//! packet (16-byte UUID + 48-byte payload)
 
-use std::fmt::Debug;
-
-mod simple;
-
-pub use simple::{
-    SimpleClientUnwrapping, SimpleClientWrappingPipeline, SimpleFrame, SimpleMessage,
-    SimpleMixnodePipeline, SimplePacket,
-};
+pub mod simple;
+pub mod sphinx;
 
 /// Trait that every packet type must implement to participate in the simulation.
 ///
-/// ## Bounds
-///
-/// * `Debug` — required so that [`crate::node::MixSimNode::display_state`] can print
-///   packet buffers without knowing the concrete type.
-/// * `Sized` — required because the trait is used with `Vec<Pkt>` and moved by
-///   value in several places.
-/// * `Send + 'static` — required because the simulation driver spawns a
-///   `tokio::task` that owns the node list.
-///
-pub trait WirePacketFormat: Debug + Sized + Send + 'static {
+pub trait WirePacketFormat: Sized {
     /// Deserialise a packet from the raw bytes received off the wire.
     ///
     /// # Errors
@@ -43,4 +26,14 @@ pub trait WirePacketFormat: Debug + Sized + Send + 'static {
     /// Serialise the packet to its on-wire byte representation, ready to be
     /// sent via UDP.
     fn to_bytes(&self) -> Vec<u8>;
+}
+
+impl WirePacketFormat for Vec<u8> {
+    fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
+        Ok(bytes.to_vec())
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.clone()
+    }
 }

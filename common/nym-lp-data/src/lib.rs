@@ -57,9 +57,10 @@ impl<Ts, D> TimedData<Ts, D> {
         TimedData { timestamp, data }
     }
     /// Apply `op` to the data component, leaving the timestamp unchanged.
-    pub fn data_transform<F>(self, mut op: F) -> Self
+    /// `Nd` can be a different type to allow type transform as well
+    pub fn data_transform<F, Nd>(self, mut op: F) -> TimedData<Ts, Nd>
     where
-        F: FnMut(D) -> D,
+        F: FnMut(D) -> Nd,
     {
         TimedData {
             data: op(self.data),

@@ -1,26 +1,20 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt;
 use std::fmt::Debug;
 
 use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
     TimedData, TimedPayload,
-    clients::{
-        helpers::{NoOpObfuscation, NoOpReliability, NoOpRoutingSecurity},
-        traits::{Chunking, ClientUnwrappingPipeline, ClientWrappingPipeline},
-    },
     common::traits::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
     },
-    mixnodes::traits::MixnodeProcessingPipeline,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{node::NodeId, packet::WirePacketFormat};
+use crate::packet::WirePacketFormat;
 
 /// A minimal, fixed-size packet used by the simulation.
 ///
@@ -52,7 +46,7 @@ pub struct SimplePacket {
 impl Debug for SimplePacket {
     /// Pretty-prints the packet ID followed by a hex dump of the payload via
     /// [`format_debug_bytes`].
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "SimplePacket {{")?;
         writeln!(f, "    id: {:?},", self.id)?;
         writeln!(f, "    data:")?;
@@ -231,9 +225,6 @@ impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleWi
 /// `SimpleFrame`/`SimplePacket` pair.  Compose this into any pipeline that
 /// needs frame-unwrapping by delegating to `SimpleFrameUnwrapper`.
 ///
-/// Note: [`TransportUnwrap`] is *not* included here because the unwrap
-/// direction differs between mixnode (strips the framing header) and client
-/// (keeps the raw bytes as-is).
 pub struct SimpleWireUnwrapper;
 
 impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleWireUnwrapper {
@@ -268,227 +259,4 @@ impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleWireUnw
 impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
     for SimpleWireUnwrapper
 {
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Concrete pipelines
-
-/// Stub client processing pipeline for [`SimplePacket`].
-///
-/// A no-op pass-through: returns the payload as a single packet with no
-/// Sphinx layering, chunking, reliability encoding, or obfuscation.
-///
-/// All required sub-traits of [`ClientWrappingPipeline`] are implemented here;
-/// [`DynClientWrappingPipeline`] is then provided automatically via the blanket
-/// impl in `nym_lp_data`.
-pub struct SimpleClientWrappingPipeline(SimpleWireWrapper);
-
-impl Default for SimpleClientWrappingPipeline {
-    fn default() -> Self {
-        Self(SimpleWireWrapper)
-    }
-}
-
-impl<Ts: Clone> Chunking<Ts> for SimpleClientWrappingPipeline {
-    fn chunked(
-        &self,
-        mut input: Vec<u8>,
-        chunk_size: usize,
-        timestamp: Ts,
-    ) -> Vec<TimedPayload<Ts>> {
-        // Padding with 10000...
-        input.push(1);
-        if !input.len().is_multiple_of(chunk_size) {
-            let padding = vec![0; chunk_size - input.len() % chunk_size];
-            input.extend_from_slice(&padding);
-        }
-
-        input
-            .chunks(chunk_size)
-            .map(|chunk| TimedData {
-                data: chunk.to_vec(),
-                timestamp: timestamp.clone(),
-            })
-            .collect()
-    }
-}
-
-impl NoOpReliability for SimpleClientWrappingPipeline {}
-impl NoOpObfuscation for SimpleClientWrappingPipeline {}
-impl NoOpRoutingSecurity for SimpleClientWrappingPipeline {}
-
-impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleClientWrappingPipeline {
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
-    fn to_frame(
-        &self,
-        payload: TimedPayload<Ts>,
-        frame_size: usize,
-    ) -> Vec<TimedData<Ts, SimpleFrame>> {
-        self.0.to_frame(payload, frame_size)
-    }
-}
-
-impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket> for SimpleClientWrappingPipeline {
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
-    fn to_transport_packet(
-        &self,
-        frame: TimedData<Ts, SimpleFrame>,
-    ) -> TimedData<Ts, SimplePacket> {
-        self.0.to_transport_packet(frame)
-    }
-}
-
-impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket>
-    for SimpleClientWrappingPipeline
-{
-    fn packet_size(&self) -> usize {
-        <SimpleWireWrapper as WireWrappingPipeline<Ts, SimpleFrame, SimplePacket>>::packet_size(
-            &self.0,
-        )
-    }
-}
-
-impl<Ts: Clone> ClientWrappingPipeline<Ts, SimpleFrame, SimplePacket>
-    for SimpleClientWrappingPipeline
-{
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// A simple [`MixnodeProcessingPipeline`] for [`SimplePacket`].
-///
-/// Demonstrates the full pipeline: unwraps the incoming packet through the
-/// wire layer (transport → frame → payload), applies a routing decision in
-/// [`mix`] (forwards to `self.id + 1`), then re-wraps the outgoing payload
-/// (payload → frame → transport) before sending.
-pub struct SimpleMixnodePipeline {
-    id: NodeId,
-    wrapper: SimpleWireWrapper,
-    unwrapper: SimpleWireUnwrapper,
-}
-
-impl SimpleMixnodePipeline {
-    pub fn new(id: NodeId) -> Self {
-        Self {
-            id,
-            wrapper: SimpleWireWrapper,
-            unwrapper: SimpleWireUnwrapper,
-        }
-    }
-}
-
-impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleMixnodePipeline {
-    const OVERHEAD_SIZE: usize = SimpleFrame::HEADER.len();
-    fn to_frame(
-        &self,
-        payload: TimedPayload<Ts>,
-        frame_size: usize,
-    ) -> Vec<TimedData<Ts, SimpleFrame>> {
-        self.wrapper.to_frame(payload, frame_size)
-    }
-}
-
-impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket> for SimpleMixnodePipeline {
-    const OVERHEAD_SIZE: usize = 16; // UUID overhead
-    fn to_transport_packet(
-        &self,
-        frame: TimedData<Ts, SimpleFrame>,
-    ) -> TimedData<Ts, SimplePacket> {
-        self.wrapper.to_transport_packet(frame)
-    }
-}
-
-impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleMixnodePipeline {
-    fn packet_size(&self) -> usize {
-        <SimpleWireWrapper as WireWrappingPipeline<Ts, SimpleFrame, SimplePacket>>::packet_size(
-            &self.wrapper,
-        )
-    }
-}
-
-impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleMixnodePipeline {
-    fn frame_to_message(
-        &mut self,
-        frame: TimedData<Ts, SimpleFrame>,
-    ) -> Option<(TimedPayload<Ts>, SimpleMessage)> {
-        self.unwrapper.frame_to_message(frame)
-    }
-}
-
-impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleMixnodePipeline {
-    fn packet_to_frame(
-        &self,
-        packet: SimplePacket,
-        timestamp: Ts,
-    ) -> anyhow::Result<TimedData<Ts, SimpleFrame>> {
-        self.unwrapper.packet_to_frame(packet, timestamp)
-    }
-}
-
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
-    for SimpleMixnodePipeline
-{
-}
-
-impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage, NodeId>
-    for SimpleMixnodePipeline
-{
-    fn mix(
-        &mut self,
-        payload: TimedPayload<Ts>,
-        _timestamp: Ts,
-    ) -> Vec<(NodeId, TimedPayload<Ts>)> {
-        // Routing decision: forward to the next node
-        vec![(self.id + 1, payload)]
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-pub struct SimpleClientUnwrapping(SimpleWireUnwrapper);
-
-impl Default for SimpleClientUnwrapping {
-    fn default() -> Self {
-        Self(SimpleWireUnwrapper)
-    }
-}
-
-impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleClientUnwrapping {
-    fn frame_to_message(
-        &mut self,
-        frame: TimedData<Ts, SimpleFrame>,
-    ) -> Option<(TimedPayload<Ts>, SimpleMessage)> {
-        self.0.frame_to_message(frame)
-    }
-}
-
-impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleClientUnwrapping {
-    fn packet_to_frame(
-        &self,
-        packet: SimplePacket,
-        timestamp: Ts,
-    ) -> anyhow::Result<TimedData<Ts, SimpleFrame>> {
-        self.0.packet_to_frame(packet, timestamp)
-    }
-}
-
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
-    for SimpleClientUnwrapping
-{
-}
-
-impl<Ts: Clone> ClientUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
-    for SimpleClientUnwrapping
-{
-    fn process_unwrapped(
-        &mut self,
-        payload: TimedPayload<Ts>,
-        _kind: SimpleMessage,
-    ) -> Option<Vec<u8>> {
-        let mut data = payload.data;
-        if let Some(pos) = data.iter().rposition(|&b| b == 1) {
-            data.truncate(pos);
-        }
-        Some(data)
-    }
 }

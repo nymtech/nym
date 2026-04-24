@@ -20,6 +20,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
+rand.workspace = true
 tokio = { workspace = true, features = [
     "rt-multi-thread",
     "macros",
@@ -35,6 +36,8 @@ uuid = { workspace = true, features = ["v4", "serde"] }
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }
 nym-common.workspace = true
 nym-lp-data.workspace = true
+nym-sphinx.workspace = true
+nym-crypto = { workspace = true, features = ["serde", "rand"] }
 
 [lints]
 workspace = true

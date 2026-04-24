@@ -76,7 +76,12 @@ where
     Ts: Clone,
     NodeId: Clone,
 {
-    fn mix(&mut self, payload: TimedPayload<Ts>, timestamp: Ts) -> Vec<(NodeId, TimedPayload<Ts>)>;
+    fn mix(
+        &mut self,
+        message_kind: Mk,
+        payload: TimedPayload<Ts>,
+        timestamp: Ts,
+    ) -> Vec<(NodeId, TimedPayload<Ts>)>;
 
     fn process(
         &mut self,
@@ -87,10 +92,10 @@ where
             data: packet,
             timestamp: ts,
         } = input;
-        let Some((payload, _kind)) = self.wire_unwrap(packet, ts)? else {
+        let Some((payload, kind)) = self.wire_unwrap(packet, ts)? else {
             return Ok(Vec::new());
         };
-        let mixed = self.mix(payload, timestamp);
+        let mixed = self.mix(kind, payload, timestamp);
         Ok(mixed
             .into_iter()
             .flat_map(|(node_id, out_payload)| {

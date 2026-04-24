@@ -31,8 +31,10 @@ use tracing::info;
 use crate::{client::MixSimClient, node::MixSimNode};
 
 mod simple;
+mod sphinx;
 
 pub use simple::SimpleMixDriver;
+pub use sphinx::SphinxMixDriver;
 
 /// Top-level orchestrator for the mix-network simulation.
 ///

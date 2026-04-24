@@ -10,6 +10,7 @@
 
 use std::net::SocketAddr;
 
+use nym_crypto::asymmetric::x25519;
 use serde::{Deserialize, Serialize};
 
 use crate::{client::ClientId, node::NodeId};
@@ -17,29 +18,29 @@ use crate::{client::ClientId, node::NodeId};
 pub mod directory;
 
 /// Per-node configuration stored in `topology.json`.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct TopologyNode {
     pub node_id: NodeId,
     /// UDP address on which the node listens for incoming packets.
     pub socket_address: SocketAddr,
     /// Notional reliability percentage (0–100); reserved for future use.
     pub reliability: u8,
-    //sphinx_private_key: String,
-    //sphinx_public_key: String,
+    /// Sphinx (X25519) private key used by this node to unwrap packets.
+    pub sphinx_private_key: x25519::PrivateKey,
 }
 
 impl TopologyNode {
-    /// Construct a [`TopologyNode`].
+    /// Construct a [`TopologyNode`] with a freshly generated Sphinx keypair.
     ///
     /// Intended for use by `init-topology` to generate a topology file for the
     /// simulation.
     pub fn new(node_id: NodeId, reliability: u8, socket_address: SocketAddr) -> Self {
+        let sphinx_private_key = x25519::PrivateKey::new(&mut rand::thread_rng());
         Self {
             node_id,
             socket_address,
             reliability,
-            //sphinx_private_key: format!("placeholder_private_key_{node_id}"),
-            //sphinx_public_key: format!("placeholder_public_key_{node_id}"),
+            sphinx_private_key,
         }
     }
 }
@@ -67,9 +68,7 @@ impl TopologyClient {
 
 /// Root topology file structure.
 ///
-/// Replaces the earlier bare `Vec<TopologyNode>` so that clients can live
-/// alongside nodes in the same file.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Topology {
     pub nodes: Vec<TopologyNode>,
     pub clients: Vec<TopologyClient>,

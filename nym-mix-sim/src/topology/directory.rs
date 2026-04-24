@@ -11,6 +11,8 @@
 
 use std::{collections::HashMap, net::SocketAddr};
 
+use nym_crypto::asymmetric::x25519;
+
 use crate::{
     client::ClientId,
     node::NodeId,
@@ -45,13 +47,13 @@ impl Directory {
     }
 }
 
-impl From<Topology> for Directory {
-    fn from(value: Topology) -> Self {
+impl From<&Topology> for Directory {
+    fn from(value: &Topology) -> Self {
         let mut directory = Directory::default();
-        for node in value.nodes {
+        for node in &value.nodes {
             directory.nodes.insert(node.node_id, node.into());
         }
-        for client in value.clients {
+        for client in &value.clients {
             directory
                 .clients
                 .insert(client.client_id, client.mixnet_address);
@@ -71,13 +73,17 @@ pub struct DirectoryNode {
 
     /// UDP socket address on which this node listens for incoming packets.
     pub addr: SocketAddr,
+
+    /// Sphinx (X25519) public key used to encrypt packets destined for this node.
+    pub sphinx_public_key: x25519::PublicKey,
 }
 
-impl From<TopologyNode> for DirectoryNode {
-    fn from(value: TopologyNode) -> Self {
+impl From<&TopologyNode> for DirectoryNode {
+    fn from(value: &TopologyNode) -> Self {
         DirectoryNode {
             id: value.node_id,
             addr: value.socket_address,
+            sphinx_public_key: x25519::PublicKey::from(&value.sphinx_private_key),
         }
     }
 }

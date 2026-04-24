@@ -17,7 +17,7 @@ use std::net::SocketAddr;
 
 use clap::{Parser, Subcommand};
 use mix_sim::{
-    driver::SimpleMixDriver,
+    driver::{SimpleMixDriver, SphinxMixDriver},
     topology::{Topology, TopologyClient, TopologyNode},
 };
 use tracing::info;
@@ -110,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
             tick_duration_ms,
         } => {
             info!("Loading topology from {topology}");
-            let driver = SimpleMixDriver::new(topology)?;
+            let driver = SphinxMixDriver::new(topology)?;
             info!("MixSimDriver initialized successfully");
 
             driver.run(manual, tick_duration_ms).await?;

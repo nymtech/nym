@@ -8,12 +8,12 @@ use std::{
     sync::Arc,
 };
 
-use crate::{
-    packet::WirePacketFormat,
-    topology::{TopologyNode, directory::Directory},
-};
+use nym_lp_data::TimedData;
+
+use crate::{packet::WirePacketFormat, topology::directory::Directory};
 
 pub mod simple;
+pub mod sphinx;
 
 /// Compact identifier for a mix node in the simulation topology.
 ///
@@ -21,32 +21,87 @@ pub mod simple;
 /// realistic simulated topology.
 pub type NodeId = u8;
 
-/// Shared UDP transport layer for mix nodes.
+/// Driver-facing interface for a mix node.
 ///
-/// Encapsulates the socket, address, and routing directory so that multiple
-/// concrete node types can reuse `send_to_node` and `recv_packet` without
-/// duplicating that logic.  The packet type `Pkt` is a method-level generic
-/// rather than a struct-level one, so `BaseNode` itself has no type
-/// parameters.
-pub struct BaseNode {
-    id: NodeId,
-    _reliability: u8,
-    socket_address: SocketAddr,
-    socket: UdpSocket,
-    directory: Arc<Directory>,
+/// Erases `Pkt` and `Pn` so that [`MixSimDriver`] only needs `Ts`.
+/// Implemented by [`BaseNode<Ts, Pkt, Pn>`] for any compatible `Pkt` and
+/// `Pn`.
+///
+/// [`MixSimDriver`]: crate::driver::MixSimDriver
+pub trait MixSimNode<Ts: Clone + PartialOrd + Debug + Send>: Send {
+    fn tick_incoming(&mut self, timestamp: Ts);
+    fn tick_processing(&mut self, timestamp: Ts);
+    fn tick_outgoing(&mut self, timestamp: Ts);
+    fn display_state(&self);
 }
 
-impl BaseNode {
-    /// Bind a non-blocking UDP socket to `socket_address`.
-    pub fn new(topology_node: TopologyNode, directory: Arc<Directory>) -> anyhow::Result<Self> {
-        let socket = UdpSocket::bind(topology_node.socket_address)?;
+/// Minimal pipeline interface used by [`BaseNode`].
+///
+/// Hides the phantom `Fr` / `Mk` type parameters of
+/// [`DynMixnodeProcessingPipeline`] so that [`BaseNode`] only needs
+/// `<Ts, Pkt, Pipeline>` rather than five generics.
+///
+/// Implement [`nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline`] on
+/// your concrete type and then add a trivial delegation impl of this trait;
+/// the two-line body just calls through to
+/// [`DynMixnodeProcessingPipeline::process`].
+///
+/// [`DynMixnodeProcessingPipeline`]: nym_lp_data::mixnodes::traits::DynMixnodeProcessingPipeline
+pub trait ProcessingNode<Ts, Pkt>: Send {
+    fn process(
+        &mut self,
+        input: TimedData<Ts, Pkt>,
+        timestamp: Ts,
+    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>>;
+}
+
+/// Full mix-node state: UDP transport, routing directory, packet buffers, and
+/// processing pipeline.
+///
+/// `Ts` is the timestamp / tick-context type.  `Pkt` is the wire packet type
+/// (e.g. [`SimplePacket`] or [`SphinxPacket`]).  `Pipeline` is any type that
+/// implements [`ProcessingNode<Ts, Pkt>`].
+///
+/// Concrete node variants (`SimpleNode`, `SphinxNode`, …) are type aliases
+/// over this struct and only need to supply a `new()` constructor that wires
+/// up the right pipeline.
+///
+/// [`SimplePacket`]: crate::packet::simple::SimplePacket
+/// [`SphinxPacket`]: nym_sphinx::SphinxPacket
+pub struct BaseNode<Ts, Pkt, Pn> {
+    pub(crate) id: NodeId,
+    _reliability: u8,
+    pub(crate) socket_address: SocketAddr,
+    socket: UdpSocket,
+    directory: Arc<Directory>,
+
+    packets_to_process: Vec<TimedData<Ts, Pkt>>,
+    processed_packets: Vec<(NodeId, TimedData<Ts, Pkt>)>,
+
+    processing_node: Pn,
+}
+
+impl<Ts, Pkt, Pn> BaseNode<Ts, Pkt, Pn> {
+    /// Bind a non-blocking UDP socket to `socket_address` and initialise the
+    /// node with the given `pipeline`.
+    pub(crate) fn with_pipeline(
+        id: NodeId,
+        reliability: u8,
+        socket_address: SocketAddr,
+        directory: Arc<Directory>,
+        processing_node: Pn,
+    ) -> anyhow::Result<Self> {
+        let socket = UdpSocket::bind(socket_address)?;
         socket.set_nonblocking(true)?;
         Ok(Self {
-            id: topology_node.node_id,
-            _reliability: topology_node.reliability,
-            socket_address: topology_node.socket_address,
+            id,
+            _reliability: reliability,
+            socket_address,
             socket,
             directory,
+            packets_to_process: Vec::new(),
+            processed_packets: Vec::new(),
+            processing_node,
         })
     }
 
@@ -55,7 +110,10 @@ impl BaseNode {
     /// Resolves `node_id` against the shared [`Directory`], serialises via
     /// [`WirePacketFormat::to_bytes`], and dispatches with a single `sendto`.
     /// Errors are logged but not propagated.
-    pub fn send_to_node<Pkt: WirePacketFormat>(&self, node_id: NodeId, packet: Pkt) {
+    pub fn send_to_node(&self, node_id: NodeId, packet: Pkt)
+    where
+        Pkt: WirePacketFormat,
+    {
         if let Some(node) = self.directory.node(node_id) {
             if let Err(e) = self.socket.send_to(&packet.to_bytes(), node.addr) {
                 tracing::error!(
@@ -91,7 +149,10 @@ impl BaseNode {
     /// Attempt to receive one UDP datagram and deserialise it as `Pkt`.
     ///
     /// Returns `None` when the socket would block (no datagram waiting).
-    pub fn recv_packet<Pkt: WirePacketFormat>(&self) -> Option<anyhow::Result<Pkt>> {
+    pub fn recv_packet(&self) -> Option<anyhow::Result<Pkt>>
+    where
+        Pkt: WirePacketFormat,
+    {
         let mut buf = [0; 1500];
         let (nb_bytes, src_address) = match self.socket.recv_from(&mut buf) {
             Ok(result) => result,
@@ -109,16 +170,69 @@ impl BaseNode {
     }
 }
 
-/// Driver-facing interface for a mix node.
-///
-/// Erases `Fr`, `Pkt`, and `Mk` so that [`MixSimDriver`] only needs `Ts`.
-/// Implemented by [`SimpleNode<Ts, Fr, Pkt, Mk>`] and any other concrete node
-/// types.
-///
-/// [`MixSimDriver`]: crate::driver::MixSimDriver
-pub trait MixSimNode<Ts: Clone + PartialOrd + Debug + Send>: Send {
-    fn tick_incoming(&mut self, timestamp: Ts);
-    fn tick_processing(&mut self, timestamp: Ts);
-    fn tick_outgoing(&mut self, timestamp: Ts);
-    fn display_state(&self);
+impl<Ts, Pkt, Pn> MixSimNode<Ts> for BaseNode<Ts, Pkt, Pn>
+where
+    Ts: Clone + PartialOrd + Debug + Send,
+    Pkt: WirePacketFormat + Debug + Send,
+    Pn: ProcessingNode<Ts, Pkt>,
+{
+    fn tick_incoming(&mut self, timestamp: Ts) {
+        while let Some(maybe_packet) = self.recv_packet() {
+            match maybe_packet {
+                Ok(packet) => self
+                    .packets_to_process
+                    .push(TimedData::new(timestamp.clone(), packet)),
+                Err(e) => tracing::error!("[Node {}] Failed to deserialize packet : {e}", self.id),
+            }
+        }
+    }
+
+    fn tick_processing(&mut self, timestamp: Ts) {
+        while let Some(packet) = self.packets_to_process.pop() {
+            match self.processing_node.process(packet, timestamp.clone()) {
+                Ok(processed_packets) => self.processed_packets.extend(processed_packets),
+                Err(e) => {
+                    tracing::error!("[Node {}] Failed to process packet : {e}", self.id)
+                }
+            }
+        }
+    }
+
+    fn tick_outgoing(&mut self, timestamp: Ts) {
+        let to_send = self
+            .processed_packets
+            .extract_if(.., |(_, pkt)| pkt.timestamp <= timestamp)
+            .map(|(next_hop, pkt)| (next_hop, pkt.data))
+            .collect::<Vec<_>>();
+        for (next_hop, pkt) in to_send {
+            self.send_to_node(next_hop, pkt);
+        }
+    }
+
+    fn display_state(&self) {
+        println!("│  Node {:2} @ {}", self.id, self.socket_address);
+        if self.packets_to_process.is_empty() {
+            println!("│    to_process buffer: (empty)");
+        } else {
+            println!(
+                "│    to_process buffer: {} packet(s)",
+                self.packets_to_process.len()
+            );
+            for (i, pkt) in self.packets_to_process.iter().enumerate() {
+                println!("│      [{i}] {pkt:?}");
+            }
+        }
+
+        if self.processed_packets.is_empty() {
+            println!("│    processed buffer: (empty)");
+        } else {
+            println!(
+                "│    processed buffer: {} packet(s)",
+                self.processed_packets.len()
+            );
+            for (i, pkt) in self.processed_packets.iter().enumerate() {
+                println!("│      [{i}] {pkt:?}");
+            }
+        }
+    }
 }

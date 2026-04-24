@@ -1,51 +1,33 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Individual mix-node model.
-//!
-//! A [`SimpleNode`] represents one mix node in the simulated network.  Each
-//! node owns a [`BaseNode`] (which manages the UDP socket and routing
-//! directory) and two internal packet buffers:
-//!
-//! * **`packets_to_process`** — packets received this tick that have not yet
-//!   been mixed.
-//! * **`processed_packets`** — packets that have been mixed and are waiting to
-//!   be forwarded.
-//!
-//! The three tick methods advance the node through one simulation step:
-//!
-//! ```text
-//! tick_incoming  →  packets_to_process
-//!                       ↓  tick_processing (MixnodeProcessingPipeline)
-//!                   processed_packets
-//!                       ↓  tick_outgoing
-//!                   (sent to next-hop via UDP)
-//! ```
+use std::sync::Arc;
 
-use std::{fmt::Debug, sync::Arc};
-
-use nym_lp_data::{TimedData, mixnodes::traits::DynMixnodeProcessingPipeline};
+use nym_lp_data::{
+    TimedData, TimedPayload,
+    common::traits::{
+        Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
+        WireWrappingPipeline,
+    },
+    mixnodes::traits::MixnodeProcessingPipeline,
+};
 
 use crate::{
-    node::{BaseNode, MixSimNode, NodeId},
-    packet::{SimpleMixnodePipeline, SimplePacket},
+    node::{BaseNode, NodeId, ProcessingNode},
+    packet::simple::{
+        SimpleFrame, SimpleMessage, SimplePacket, SimpleWireUnwrapper, SimpleWireWrapper,
+    },
     topology::{TopologyNode, directory::Directory},
 };
 
-/// A running mix-node instance inside the simulation.
+/// A mix-node that uses the simple (non-Sphinx) packet pipeline.
 ///
-/// `Ts` is the timestamp / tick-context type.  Packet type, frame type, and
-/// message marker are fixed to the `Simple*` concrete types.
+/// This is a type alias for [`BaseNode`] specialised to [`SimplePacket`] and
+/// [`SimpleMixnodePipeline`].  All tick logic lives in the generic
+/// [`MixSimNode`] impl on `BaseNode`.
 ///
-/// UDP transport and routing are handled by the embedded [`BaseNode`]; this
-/// struct adds the packet buffers and the mix-processing pipeline on top.
-pub struct SimpleNode<Ts> {
-    pub(crate) socket: BaseNode,
-
-    packets_to_process: Vec<TimedData<Ts, SimplePacket>>,
-    processed_packets: Vec<(NodeId, TimedData<Ts, SimplePacket>)>,
-    processing_pipeline: SimpleMixnodePipeline,
-}
+/// [`MixSimNode`]: crate::node::MixSimNode
+pub type SimpleNode<Ts> = BaseNode<Ts, SimplePacket, SimpleProcessingNode>;
 
 impl<Ts> SimpleNode<Ts> {
     /// Create a [`SimpleNode`] from a [`TopologyNode`] description by binding a
@@ -55,82 +37,117 @@ impl<Ts> SimpleNode<Ts> {
     ///
     /// Returns an error if the UDP socket cannot be bound or set non-blocking.
     pub fn new(topology_node: TopologyNode, directory: Arc<Directory>) -> anyhow::Result<Self> {
-        Ok(SimpleNode {
-            socket: BaseNode::new(topology_node.clone(), directory)?,
-            packets_to_process: Vec::new(),
-            processed_packets: Vec::new(),
-            processing_pipeline: SimpleMixnodePipeline::new(topology_node.node_id),
-        })
+        let pipeline = SimpleProcessingNode::new(topology_node.node_id);
+        BaseNode::with_pipeline(
+            topology_node.node_id,
+            topology_node.reliability,
+            topology_node.socket_address,
+            directory,
+            pipeline,
+        )
     }
 }
 
-impl<Ts> MixSimNode<Ts> for SimpleNode<Ts>
-where
-    Ts: Clone + PartialOrd + Debug + Send,
+impl<Ts: Clone> ProcessingNode<Ts, SimplePacket> for SimpleProcessingNode {
+    fn process(
+        &mut self,
+        input: TimedData<Ts, SimplePacket>,
+        timestamp: Ts,
+    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, SimplePacket>)>> {
+        MixnodeProcessingPipeline::<Ts, SimpleFrame, SimplePacket, SimpleMessage, NodeId>::process(
+            self, input, timestamp,
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A simple [`MixnodeProcessingPipeline`] for [`SimplePacket`].
+///
+/// Demonstrates the full pipeline: unwraps the incoming packet through the
+/// wire layer (transport → frame → payload), applies a routing decision in
+/// [`mix`] (forwards to `self.id + 1`), then re-wraps the outgoing payload
+/// (payload → frame → transport) before sending.
+pub struct SimpleProcessingNode {
+    id: NodeId,
+    wrapper: SimpleWireWrapper,
+    unwrapper: SimpleWireUnwrapper,
+}
+
+impl SimpleProcessingNode {
+    pub fn new(id: NodeId) -> Self {
+        Self {
+            id,
+            wrapper: SimpleWireWrapper,
+            unwrapper: SimpleWireUnwrapper,
+        }
+    }
+}
+
+impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage, NodeId>
+    for SimpleProcessingNode
 {
-    fn tick_incoming(&mut self, timestamp: Ts) {
-        while let Some(maybe_packet) = self.socket.recv_packet() {
-            match maybe_packet {
-                Ok(packet) => self
-                    .packets_to_process
-                    .push(TimedData::new(timestamp.clone(), packet)),
-                Err(e) => tracing::error!(
-                    "[Node {}] Failed to deserialize packet : {e}",
-                    self.socket.id
-                ),
-            }
-        }
+    fn mix(
+        &mut self,
+        _: SimpleMessage,
+        payload: TimedPayload<Ts>,
+        _timestamp: Ts,
+    ) -> Vec<(NodeId, TimedPayload<Ts>)> {
+        // Routing decision: forward to the next node
+        vec![(self.id + 1, payload)]
     }
+}
 
-    fn tick_processing(&mut self, timestamp: Ts) {
-        while let Some(packet) = self.packets_to_process.pop() {
-            match self.processing_pipeline.process(packet, timestamp.clone()) {
-                Ok(processed_packets) => self.processed_packets.extend(processed_packets),
-                Err(e) => {
-                    tracing::error!("[Node {}] Failed to process packet : {e}", self.socket.id)
-                }
-            }
-        }
+// Delegation of subtraits
+impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleProcessingNode {
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
+    fn to_frame(
+        &self,
+        payload: TimedPayload<Ts>,
+        frame_size: usize,
+    ) -> Vec<TimedData<Ts, SimpleFrame>> {
+        self.wrapper.to_frame(payload, frame_size)
     }
+}
 
-    fn tick_outgoing(&mut self, timestamp: Ts) {
-        let to_send = self
-            .processed_packets
-            .extract_if(.., |(_, pkt)| pkt.timestamp <= timestamp)
-            .map(|(next_hop, pkt)| (next_hop, pkt.data))
-            .collect::<Vec<_>>();
-        for (next_hop, pkt) in to_send {
-            self.socket.send_to_node(next_hop, pkt);
-        }
+impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket> for SimpleProcessingNode {
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
+    fn to_transport_packet(
+        &self,
+        frame: TimedData<Ts, SimpleFrame>,
+    ) -> TimedData<Ts, SimplePacket> {
+        self.wrapper.to_transport_packet(frame)
     }
+}
 
-    fn display_state(&self) {
-        println!(
-            "│  Node {:2} @ {}",
-            self.socket.id, self.socket.socket_address
-        );
-        if self.packets_to_process.is_empty() {
-            println!("│    to_process buffer: (empty)");
-        } else {
-            println!(
-                "│    to_process buffer: {} packet(s)",
-                self.packets_to_process.len()
-            );
-            for (i, pkt) in self.packets_to_process.iter().enumerate() {
-                println!("│      [{i}] {pkt:?}");
-            }
-        }
-
-        if self.processed_packets.is_empty() {
-            println!("│    processed buffer: (empty)");
-        } else {
-            println!(
-                "│    processed buffer: {} packet(s)",
-                self.processed_packets.len()
-            );
-            for (i, pkt) in self.processed_packets.iter().enumerate() {
-                println!("│      [{i}] {pkt:?}");
-            }
-        }
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleProcessingNode {
+    fn packet_size(&self) -> usize {
+        <SimpleWireWrapper as WireWrappingPipeline<Ts, SimpleFrame, SimplePacket>>::packet_size(
+            &self.wrapper,
+        )
     }
+}
+
+impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleProcessingNode {
+    fn frame_to_message(
+        &mut self,
+        frame: TimedData<Ts, SimpleFrame>,
+    ) -> Option<(TimedPayload<Ts>, SimpleMessage)> {
+        self.unwrapper.frame_to_message(frame)
+    }
+}
+
+impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleProcessingNode {
+    fn packet_to_frame(
+        &self,
+        packet: SimplePacket,
+        timestamp: Ts,
+    ) -> anyhow::Result<TimedData<Ts, SimpleFrame>> {
+        self.unwrapper.packet_to_frame(packet, timestamp)
+    }
+}
+
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
+    for SimpleProcessingNode
+{
 }

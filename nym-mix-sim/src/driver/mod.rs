@@ -122,11 +122,12 @@ impl MixSimDriver<u32> {
     pub async fn run(
         self,
         manual_mode: bool,
+        display_state: bool,
         start_tick: u32,
         tick_duration_ms: u64,
     ) -> anyhow::Result<()> {
         if manual_mode {
-            self.run_manual(start_tick).await
+            self.run_manual(start_tick, display_state).await
         } else {
             self.run_automatic(start_tick, tick_duration_ms).await
         }
@@ -155,7 +156,7 @@ impl MixSimDriver<u32> {
     }
 
     /// Run the simulation interactively: one tick per ENTER key press.
-    pub async fn run_manual(mut self, start_tick: u32) -> anyhow::Result<()> {
+    pub async fn run_manual(mut self, start_tick: u32, display_state: bool) -> anyhow::Result<()> {
         info!("Manual mode: press ENTER to advance a tick, Ctrl-C to quit");
         let mut current_tick = start_tick;
         let mut line = String::new();
@@ -163,7 +164,7 @@ impl MixSimDriver<u32> {
             line.clear();
             std::io::stdin().read_line(&mut line)?;
             info!("Tick {current_tick}");
-            self.tick(current_tick, true).await;
+            self.tick(current_tick, display_state).await;
             current_tick += 1;
         }
     }
@@ -218,12 +219,13 @@ impl SimDriver {
         self,
         topology: String,
         manual: bool,
+        display_state: bool,
         tick_duration_ms: u64,
     ) -> anyhow::Result<()> {
         match self {
             SimDriver::Simple => {
                 SimpleMixDriver::new(topology)?
-                    .run(manual, tick_duration_ms)
+                    .run(manual, display_state, tick_duration_ms)
                     .await
             }
             SimDriver::Sphinx => {
@@ -233,7 +235,7 @@ impl SimDriver {
             }
             SimDriver::DiscreteSphinx => {
                 DiscreteSphinxMixDriver::new(topology)?
-                    .run(manual, tick_duration_ms)
+                    .run(manual, display_state, tick_duration_ms)
                     .await
             }
         }

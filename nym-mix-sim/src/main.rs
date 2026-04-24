@@ -63,6 +63,10 @@ enum Commands {
         #[arg(short, long)]
         manual: bool,
 
+        /// Suppress node state display after each tick phase (manual mode only).
+        #[arg(long)]
+        no_display_state: bool,
+
         /// Tick duration in milliseconds (automatic mode only).
         #[arg(short = 'd', long, default_value = "1")]
         tick_duration_ms: u64,
@@ -111,11 +115,12 @@ async fn main() -> anyhow::Result<()> {
         Commands::Run {
             topology,
             manual,
+            no_display_state,
             tick_duration_ms,
             driver,
         } => {
             info!("Loading topology from {topology} with driver={driver}");
-            driver.run(topology, manual, tick_duration_ms).await?;
+            driver.run(topology, manual, !no_display_state, tick_duration_ms).await?;
         }
     }
 

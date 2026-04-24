@@ -13,8 +13,8 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx::{Node as SphinxNode, NodeAddressBytes};
-use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
+use rand::{prelude::SliceRandom, seq::IteratorRandom};
 
 use crate::{
     client::ClientId,
@@ -64,6 +64,14 @@ impl Directory {
         #[allow(clippy::unwrap_used)]
         *self.node_ids().choose(&mut OsRng).unwrap()
     }
+
+    pub fn random_route(&self, length: usize, rng: &mut impl rand::Rng) -> Vec<DirectoryNode> {
+        // SAFETY: The directory always contains at least one node in a valid simulation.
+        #[allow(clippy::unwrap_used)]
+        std::iter::repeat_with(|| *self.nodes.values().choose(rng).unwrap())
+            .take(length)
+            .collect()
+    }
 }
 
 impl From<&Topology> for Directory {
@@ -84,7 +92,7 @@ impl From<&Topology> for Directory {
 }
 
 /// Public routing information for a single mix node, stored in the [`Directory`].
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct DirectoryNode {
     /// Unique identifier for this node within the topology.
     ///
@@ -122,5 +130,11 @@ impl From<&DirectoryNode> for SphinxNode {
     fn from(value: &DirectoryNode) -> Self {
         let address = NodeAddressBytes::from_bytes([value.id; 32]);
         SphinxNode::new(address, *value.sphinx_public_key)
+    }
+}
+
+impl From<DirectoryNode> for SphinxNode {
+    fn from(value: DirectoryNode) -> Self {
+        (&value).into()
     }
 }

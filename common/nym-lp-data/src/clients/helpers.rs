@@ -17,7 +17,7 @@ where
 {
     const OVERHEAD_SIZE: usize = 0;
     fn reliable_encode(
-        &self,
+        &mut self,
         input: Option<PipelinePayload<Ts, Opts, NdId>>,
         _: Ts,
     ) -> Vec<PipelinePayload<Ts, Opts, NdId>> {

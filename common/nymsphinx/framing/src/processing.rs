@@ -379,7 +379,6 @@ fn split_into_ack_and_message(
     }
 }
 
-#[allow(dead_code)]
 fn split_hop_data_into_ack_and_message(
     mut extracted_data: Vec<u8>,
     packet_type: PacketType,

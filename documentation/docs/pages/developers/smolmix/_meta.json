@@ -1,5 +1,5 @@
 {
-  "tutorial": "TCP Tutorial",
-  "tutorial-udp": "UDP Tutorial",
-  "tutorial-websocket": "WebSocket Tutorial"
+  "tutorial": "Tutorial: Private File Downloads",
+  "tutorial-udp": "Tutorial: Private DNS & NTP",
+  "tutorial-websocket": "Tutorial: Private WebSocket Echo"
 }

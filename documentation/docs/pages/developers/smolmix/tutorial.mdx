@@ -1,18 +1,17 @@
 ---
-title: "smolmix Tutorial 1: Private File Downloads via DNS + TLS"
+title: "smolmix: Private File Downloads via DNS + TLS"
 description: "Step-by-step Rust tutorial that resolves a hostname via mixnet DNS, connects over mixnet TCP, negotiates TLS, and downloads files over a single HTTP connection — all through the Nym mixnet."
 schemaType: "HowTo"
 section: "Developers"
 lastUpdated: "2026-04-17"
 ---
 
-# Tutorial 1: Private File Downloads
+# Private File Downloads
 
 import { Callout } from 'nextra/components'
-import { CratesPaused } from '../../../components/crates-paused'
 import { CodeVerified } from '../../../components/code-verified'
+import { RUST_MSRV } from '../../../components/versions'
 
-<CratesPaused />
 <CodeVerified crate="smolmix" />
 
 In this tutorial you'll build a single program that sends HTTP requests to a public server — with every byte routed through the Nym mixnet:
@@ -35,14 +34,14 @@ Each layer stacks on the one below it using standard Rust traits. None of them k
 
 ## Prerequisites
 
-- Rust toolchain (1.70+)
+- Rust toolchain ({RUST_MSRV}+)
 - A working internet connection (the tunnel connects to the live Nym mixnet)
 
 ## Step 1: Set up the project
 
 ```sh
-cargo init smolmix-echo
-cd smolmix-echo
+cargo init smolmix-tcp
+cd smolmix-tcp
 ```
 
 Add dependencies to `Cargo.toml`:
@@ -253,6 +252,20 @@ Now send several GET requests to `httpbin.org/bytes/{n}` over the same connectio
     tunnel.shutdown().await;
 ```
 
+Add this helper function outside `main()`:
+
+```rust
+fn format_bytes(n: u64) -> String {
+    if n >= 1_000_000 {
+        format!("{:.1} MB", n as f64 / 1_000_000.0)
+    } else if n >= 1_000 {
+        format!("{:.1} KB", n as f64 / 1_000.0)
+    } else {
+        format!("{n} B")
+    }
+}
+```
+
 Key points:
 - `Empty::<Bytes>::new()` is an empty body for our GET requests
 - `collect().await?.to_bytes()` gathers each response body into memory
@@ -314,7 +327,7 @@ This is the same composability model as regular networking — swap `tokio::net:
 
 ## What you've learned
 
-- `Tunnel::new()` connects to the mixnet and gives you TCP/UDP socket access
+- `Tunnel::builder().build()` connects to the mixnet and gives you TCP/UDP socket access
 - `tunnel.udp_socket()` creates a UDP socket for sending datagrams (like DNS queries) through the mixnet
 - `tunnel.tcp_connect()` returns a `TcpStream` that implements `AsyncRead + AsyncWrite`
 - `hyper`'s low-level `http1::handshake()` works over any `AsyncRead + AsyncWrite` transport via `TokioIo`

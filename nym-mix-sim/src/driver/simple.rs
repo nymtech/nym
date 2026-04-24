@@ -1,41 +1,51 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::Arc;
+
+use anyhow::Context;
+
 use crate::{
+    client::{MixSimClient, simple::SimpleClient},
     driver::MixSimDriver,
-    packet::{
-        SimpleClientUnwrapping, SimpleClientWrappingPipeline, SimpleFrame, SimpleMessage,
-        SimpleMixnodePipeline, SimplePacket,
-    },
-    topology::{TopologyClient, TopologyNode},
+    node::{MixSimNode, simple::SimpleNode},
+    topology::{Topology, directory::Directory},
 };
 
 /// Concrete [`MixSimDriver`] instantiation that uses [`SimplePacket`]s and a
 /// pass-through processing pipeline.
 ///
-/// Each mix node runs a
-/// [`SimplePassThroughPipeline`] that forwards packets unchanged to the next
-/// node in the topology; each client uses a [`SimpleClientPipeline`] with no
-/// Sphinx layering, reliability encoding, or obfuscation.
-pub struct SimpleMixDriver(MixSimDriver<u32, SimpleFrame, SimplePacket, SimpleMessage>);
+/// Each mix node runs a [`SimpleMixnodePipeline`] that forwards packets
+/// unchanged to the next node in the topology; each client uses a
+/// [`SimpleClientWrappingPipeline`] with no Sphinx layering, reliability
+/// encoding, or obfuscation.
+pub struct SimpleMixDriver(MixSimDriver<u32>);
 
 impl SimpleMixDriver {
     /// Load a topology JSON file and initialise the driver with simple pipelines.
     pub fn new(topology: String) -> anyhow::Result<Self> {
-        let mixnode_pipeline =
-            |top_node: &TopologyNode| SimpleMixnodePipeline::new(top_node.node_id);
-        let client_processing_pipeline =
-            |_: &TopologyClient| SimpleClientWrappingPipeline::default();
+        let topology_data =
+            std::fs::read_to_string(&topology).context("Failed to read topology file")?;
+        let topology: Topology =
+            serde_json::from_str(&topology_data).context("Topology file malformed")?;
 
-        let client_unwrapping_pipeline = |_: &TopologyClient| SimpleClientUnwrapping::default();
+        let directory: Arc<Directory> = Arc::new(topology.clone().into());
 
-        let driver = MixSimDriver::<u32, SimpleFrame, SimplePacket, SimpleMessage>::new(
-            topology,
-            mixnode_pipeline,
-            client_processing_pipeline,
-            client_unwrapping_pipeline,
-        )?;
-        Ok(SimpleMixDriver(driver))
+        let mut nodes: Vec<Box<dyn MixSimNode<u32> + Send>> =
+            Vec::with_capacity(topology.nodes.len());
+        for top_node in topology.nodes {
+            let node = SimpleNode::new(top_node, directory.clone())?;
+            nodes.push(Box::new(node));
+        }
+
+        let mut clients: Vec<Box<dyn MixSimClient<u32> + Send>> =
+            Vec::with_capacity(topology.clients.len());
+        for top_client in topology.clients {
+            let client = SimpleClient::new(top_client, directory.clone())?;
+            clients.push(Box::new(client));
+        }
+
+        Ok(SimpleMixDriver(MixSimDriver::new(nodes, clients)))
     }
 
     /// Run the simulation; delegates to [`MixSimDriver::run`].

@@ -206,7 +206,7 @@ impl NetworkMonitorsStorage {
         // by checking if there is any data stored behind its address
         let Some(mut orchestrator_info) = self
             .authorised_orchestrators
-            .may_load(deps.storage, &sender)?
+            .may_load(deps.storage, sender)?
         else {
             return Err(NetworkMonitorsContractError::NotAnOrchestrator {
                 addr: sender.clone(),
@@ -215,7 +215,7 @@ impl NetworkMonitorsStorage {
 
         orchestrator_info.identity_key = Some(identity_key);
         self.authorised_orchestrators
-            .save(deps.storage, &sender, &orchestrator_info)?;
+            .save(deps.storage, sender, &orchestrator_info)?;
 
         Ok(())
     }

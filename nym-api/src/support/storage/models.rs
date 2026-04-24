@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_api_requests::models::{StressTestResult, TestNode};
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use sqlx::FromRow;
 use time::Date;
@@ -149,19 +150,25 @@ pub struct HistoricalUptime {
 
 /// Row model for the `nym_node_stress_testing_result` table.
 ///
-/// Produced from the wire-level [`StressTestResult`] via the [`From`] impl below, which also
-/// renames `test_performance` to `result` to match the on-disk column name.
+/// Produced from the wire-level [`StressTestResult`] via [`Self::from_submission`], which also
+/// renames `test_performance` to `result` to match the on-disk column name and attaches the
+/// submitting orchestrator's identity key so that `(testrun_id, submitter_pubkey)` dedupes
+/// retried at-least-once submissions.
 #[derive(FromRow)]
 pub struct NymNodeStressTestingResult {
+    pub testrun_id: i64,
+    pub submitter_pubkey: String,
     pub node_id: NodeId,
     pub result: f64,
     pub was_reachable: bool,
     pub test_timestamp: time::OffsetDateTime,
 }
 
-impl From<StressTestResult> for NymNodeStressTestingResult {
-    fn from(value: StressTestResult) -> Self {
+impl NymNodeStressTestingResult {
+    pub fn from_submission(signer: &ed25519::PublicKey, value: StressTestResult) -> Self {
         NymNodeStressTestingResult {
+            testrun_id: value.testrun_id,
+            submitter_pubkey: signer.to_base58_string(),
             node_id: value.node_id,
             result: value.test_performance,
             was_reachable: value.was_reachable,

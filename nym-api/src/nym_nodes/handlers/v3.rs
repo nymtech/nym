@@ -116,7 +116,7 @@ async fn batch_submit_stress_testing_results(
             );
             continue;
         }
-        mixnode_results.push(NymNodeStressTestingResult::from(result));
+        mixnode_results.push(NymNodeStressTestingResult::from_submission(&signer, result));
     }
 
     state

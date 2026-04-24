@@ -253,6 +253,7 @@ impl From<TestRun> for TestRunData {
 ///   an accurate "did we reach the node at all" signal.
 impl From<TestRun> for StressTestResult {
     fn from(run: TestRun) -> Self {
+        let id = run.id;
         let inner = run.inner;
         let test_performance = if inner.packets_sent > 0 {
             (inner.packets_received as f64 / inner.packets_sent as f64).clamp(0.0, 1.0)
@@ -260,6 +261,7 @@ impl From<TestRun> for StressTestResult {
             0.0
         };
         StressTestResult {
+            testrun_id: id,
             node_id: inner.node_id as u32,
             is_mixnode: matches!(inner.test_type, TestType::Mixnode),
             test_timestamp: inner.test_timestamp,

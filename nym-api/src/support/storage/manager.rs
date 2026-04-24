@@ -782,6 +782,10 @@ impl StorageManager {
     /// Batch-insert the given stress-testing results into the `nym_node_stress_testing_result`
     /// table. An empty input is a no-op rather than an invalid-SQL error, since an incoming
     /// submission may legitimately contain no mixnode entries after filtering.
+    ///
+    /// Uses `INSERT OR IGNORE` so that a retried submission carrying the same
+    /// `(testrun_id, submitter_pubkey)` pair - expected under the orchestrator's at-least-once
+    /// delivery semantics - silently drops the duplicate rows rather than failing the batch.
     pub(super) async fn insert_nym_node_stress_testing_results(
         &self,
         results: Vec<NymNodeStressTestingResult>,
@@ -791,11 +795,13 @@ impl StorageManager {
         }
 
         let mut query_builder = sqlx::QueryBuilder::new(
-            "INSERT INTO nym_node_stress_testing_result (node_id, result, was_reachable, test_timestamp) ",
+            "INSERT OR IGNORE INTO nym_node_stress_testing_result (testrun_id, submitter_pubkey, node_id, result, was_reachable, test_timestamp) ",
         );
 
         query_builder.push_values(results, |mut b, entry| {
-            b.push_bind(entry.node_id)
+            b.push_bind(entry.testrun_id)
+                .push_bind(entry.submitter_pubkey)
+                .push_bind(entry.node_id)
                 .push_bind(entry.result)
                 .push_bind(entry.was_reachable)
                 .push_bind(entry.test_timestamp);

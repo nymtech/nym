@@ -5,24 +5,63 @@ use nym_lp::packet::{
     LpFrame, LpHeader, LpPacket,
     frame::{LpFrameHeader, LpFrameKind},
 };
-use nym_lp_data::clients::traits::{Chunking, Obfuscation, Reliability, RoutingSecurity};
-use nym_lp_data::common::traits::{Framing, Transport};
-use nym_lp_data::{TimedData, TimedPayload};
 
-pub type TimedLpFrame<Ts> = TimedData<Ts, LpFrame>;
-pub type TimedLpPacket<Ts> = TimedData<Ts, LpPacket>;
+use nym_lp_data::{
+    AddressedTimedData,
+    common::traits::{Framing, Transport},
+};
+use nym_lp_data::{
+    AddressedTimedPayload,
+    clients::{
+        InputOptions, PipelinePayload,
+        traits::{Chunking, Obfuscation, Reliability, RoutingSecurity},
+    },
+};
+
+#[derive(Clone, Copy)]
+pub struct BasicOptions {
+    pub reliability: bool,
+    pub security: bool,
+    pub obfuscation: bool,
+    pub next_hop: u8,
+}
+
+impl InputOptions<u8> for BasicOptions {
+    fn reliability(&self) -> bool {
+        self.reliability
+    }
+
+    fn routing_security(&self) -> bool {
+        self.security
+    }
+
+    fn obfuscation(&self) -> bool {
+        self.obfuscation
+    }
+
+    fn next_hop(&self) -> u8 {
+        self.next_hop
+    }
+}
+
+pub type BasicPipelinePayload<Ts> = PipelinePayload<Ts, BasicOptions, u8>;
 
 pub struct MockChunking;
-impl<Ts> Chunking<Ts> for MockChunking
+impl<Ts> Chunking<Ts, BasicOptions, u8> for MockChunking
 where
     Ts: Clone,
 {
-    fn chunked(&self, input: Vec<u8>, chunk_size: usize, timestamp: Ts) -> Vec<TimedPayload<Ts>> {
+    fn chunked(
+        &mut self,
+        input: Vec<u8>,
+        input_options: BasicOptions,
+        chunk_size: usize,
+        timestamp: Ts,
+    ) -> Vec<BasicPipelinePayload<Ts>> {
         input
             .chunks(chunk_size)
-            .map(|chunk| TimedData {
-                data: chunk.to_vec(),
-                timestamp: timestamp.clone(),
+            .map(|chunk| {
+                BasicPipelinePayload::new(timestamp.clone(), chunk.to_vec(), input_options)
             })
             .collect()
     }
@@ -34,14 +73,22 @@ impl KcpReliability {
     const HEADER: &[u8; 5] = b"0KCP0";
 }
 
-impl<Ts> Reliability<Ts> for KcpReliability {
+impl<Ts> Reliability<Ts, BasicOptions, u8> for KcpReliability {
     const OVERHEAD_SIZE: usize = Self::HEADER.len();
-    fn reliable_encode(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts> {
-        input.data_transform(|data| {
-            let mut packet = Self::HEADER.to_vec();
-            packet.extend(data);
-            packet
-        })
+    fn reliable_encode(
+        &mut self,
+        input: Option<BasicPipelinePayload<Ts>>,
+        _: Ts,
+    ) -> Vec<BasicPipelinePayload<Ts>> {
+        input
+            .map(|data| {
+                vec![data.data_transform(|data| {
+                    let mut packet = Self::HEADER.to_vec();
+                    packet.extend(data);
+                    packet
+                })]
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -53,14 +100,14 @@ impl SphinxSecurity {
     const HEADER: &[u8; 8] = b"0SPHINX0";
 }
 
-impl<Ts> RoutingSecurity<Ts> for SphinxSecurity {
+impl<Ts> RoutingSecurity<Ts, BasicOptions, u8> for SphinxSecurity {
     const OVERHEAD_SIZE: usize = Self::HEADER.len();
 
     fn nb_frames(&self) -> usize {
         self.nb_frames
     }
 
-    fn encrypt(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts> {
+    fn encrypt(&mut self, input: BasicPipelinePayload<Ts>) -> BasicPipelinePayload<Ts> {
         input.data_transform(|data| {
             let mut packet = Self::HEADER.to_vec();
             packet.extend(data);
@@ -71,28 +118,27 @@ impl<Ts> RoutingSecurity<Ts> for SphinxSecurity {
 
 pub struct KekwObfuscation;
 
-impl Obfuscation<u32> for KekwObfuscation {
+impl Obfuscation<u32, BasicOptions, u8> for KekwObfuscation {
     fn obfuscate(
         &mut self,
-        input: Option<TimedPayload<u32>>,
+        input: Option<BasicPipelinePayload<u32>>,
         _timestamp: u32,
-    ) -> Vec<TimedPayload<u32>> {
+    ) -> Vec<BasicPipelinePayload<u32>> {
         if let Some(input) = input {
             vec![input.ts_transform(|ts| ts + 1)]
         } else {
             Vec::new()
         }
     }
-    fn buffer_size(&self) -> usize {
-        0
-    }
 }
 
+#[allow(dead_code)]
 pub struct ReallyOddObfuscation {
     next_ts: u32,
 }
 
 impl ReallyOddObfuscation {
+    #[allow(dead_code)]
     pub fn new(start_ts: u32) -> Self {
         let next_ts = if !start_ts.is_multiple_of(2) {
             start_ts
@@ -103,12 +149,12 @@ impl ReallyOddObfuscation {
     }
 }
 
-impl Obfuscation<u32> for ReallyOddObfuscation {
+impl Obfuscation<u32, BasicOptions, u8> for ReallyOddObfuscation {
     fn obfuscate(
         &mut self,
-        input: Option<TimedPayload<u32>>,
+        input: Option<BasicPipelinePayload<u32>>,
         _timestamp: u32,
-    ) -> Vec<TimedPayload<u32>> {
+    ) -> Vec<BasicPipelinePayload<u32>> {
         if let Some(input) = input {
             let pkt = input.ts_transform(|_| self.next_ts);
             self.next_ts += 2;
@@ -116,9 +162,6 @@ impl Obfuscation<u32> for ReallyOddObfuscation {
         } else {
             Vec::new()
         }
-    }
-    fn buffer_size(&self) -> usize {
-        0
     }
 }
 
@@ -128,25 +171,32 @@ impl LpFraming {
     const FRAME_ATTRIBUTES: &[u8; 14] = b"0LpFrameAttrs0";
 }
 
-impl<Ts> Framing<Ts, LpFrame> for LpFraming
+impl<Ts> Framing<Ts, u8> for LpFraming
 where
     Ts: Clone,
 {
+    type Frame = LpFrame;
     const OVERHEAD_SIZE: usize = LpFrameHeader::SIZE;
-    fn to_frame(&self, input: TimedPayload<Ts>, frame_size: usize) -> Vec<TimedLpFrame<Ts>> {
+    fn to_frame(
+        &self,
+        input: AddressedTimedPayload<Ts, u8>,
+        frame_size: usize,
+    ) -> Vec<AddressedTimedData<Ts, LpFrame, u8>> {
         input
+            .data
             .data
             .chunks(frame_size)
             .map(|frame_payload| {
                 let header = LpFrameHeader::new(LpFrameKind::Opaque, *Self::FRAME_ATTRIBUTES);
 
-                TimedData {
-                    data: LpFrame {
+                AddressedTimedData::new(
+                    input.data.timestamp.clone(),
+                    LpFrame {
                         header,
                         content: frame_payload.to_vec().into(),
                     },
-                    timestamp: input.timestamp.clone(),
-                }
+                    input.dst,
+                )
             })
             .collect()
     }
@@ -154,12 +204,17 @@ where
 
 pub struct LpTransport;
 
-impl<Ts> Transport<Ts, LpFrame, LpPacket> for LpTransport {
+impl<Ts> Transport<Ts, LpPacket, u8> for LpTransport {
+    type Frame = LpFrame;
     const OVERHEAD_SIZE: usize = LpHeader::SIZE;
-    fn to_transport_packet(&self, input: TimedLpFrame<Ts>) -> TimedLpPacket<Ts> {
-        TimedData {
-            data: LpPacket::new(LpHeader::new(7, 7, 7), input.data),
-            timestamp: input.timestamp,
-        }
+    fn to_transport_packet(
+        &self,
+        input: AddressedTimedData<Ts, Self::Frame, u8>,
+    ) -> AddressedTimedData<Ts, LpPacket, u8> {
+        AddressedTimedData::new(
+            input.data.timestamp,
+            LpPacket::new(LpHeader::new(7, 7, 7), input.data.data),
+            input.dst,
+        )
     }
 }

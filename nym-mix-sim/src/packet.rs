@@ -3,11 +3,10 @@
 
 //! Packet types and the generic wire-format trait used by the simulation.
 //!
-//! The central abstraction is [`WirePacketFormat<Ts>`]: a trait that any packet
-//! type must implement to participate in a simulation.  The `Ts` type parameter
-//! represents a *timestamp* (or more generally, any per-tick context) that is
-//! threaded through the [`WirePacketFormat::process`] call so that mix
-//! operations can be timestamp-aware if needed.
+//! The central abstraction is [`WirePacketFormat`]: a trait that any packet
+//! type must implement to participate in a simulation.  It covers only
+//! wire serialisation; mix logic is handled separately by
+//! [`nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline`].
 //!
 //! [`SimplePacket`] is a built-in concrete implementation: a fixed-size 64-byte
 //! packet (16-byte UUID + 48-byte payload)
@@ -23,10 +22,6 @@ use uuid::Uuid;
 use crate::topology::directory::NodeId;
 
 /// Trait that every packet type must implement to participate in the simulation.
-///
-/// The type parameter `Ts` is a *timestamp* (or any per-tick context value)
-/// that is passed to [`process`] so that mix operations can be aware of the
-/// current simulation time if needed.
 ///
 /// ## Bounds
 ///
@@ -125,7 +120,7 @@ impl SimplePacket {
     /// Layout: UUID as 16 little-endian bytes, followed by the 48-byte payload.
     /// The returned `Vec` is always exactly [`SimplePacket::SIZE`] bytes long.
     pub fn to_bytes(&self) -> Vec<u8> {
-        // simple length prefixed serialization
+        // fixed-size serialization: 16-byte UUID followed by 48-byte payload
         let mut bytes = Vec::with_capacity(Self::SIZE);
 
         bytes.extend_from_slice(&self.id.to_bytes_le()); // 16 bytes

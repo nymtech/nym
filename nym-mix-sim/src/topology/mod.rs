@@ -9,8 +9,8 @@ use crate::topology::directory::NodeId;
 
 pub mod directory;
 
-// Topology is from the file, has everything needed to build a node
-// Directory is the directory of public information for nodes, what can be seen to everybody
+// Topology is loaded from file and contains everything needed to construct a node (including private config).
+// Directory holds only the public-facing node information visible to other participants in the network.
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TopologyNode {

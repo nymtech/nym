@@ -75,7 +75,7 @@ where
         );
         // 1. Read topology from file
         let topology_data =
-            std::fs::read_to_string(&topology_file_path).context("Failed to read topolgy file")?;
+            std::fs::read_to_string(&topology_file_path).context("Failed to read topology file")?;
         let topology: Vec<TopologyNode> =
             serde_json::from_str(&topology_data).context("Topology file malformed")?;
 
@@ -215,8 +215,8 @@ where
     /// 3. **Processing** — every node mixes all packets in `packets_to_process`
     ///    into `processed_packets`.
     /// 4. *(optional state display)*
-    /// 5. **Outgoing** — every node forwards all packets in `processed_packets`
-    ///    to `node_id + 1`.
+    /// 5. **Outgoing** — every node forwards packets in `processed_packets`
+    ///    that are due this tick to their pipeline-assigned next hops.
     ///
     /// If `display_state` is `true`, the node buffers are printed after the
     /// incoming phase (so you can see what arrived) and again after processing
@@ -227,7 +227,7 @@ where
             node.tick_incoming(timestamp);
         }
 
-        // Optionnally display state
+        // Optionally display state
         if display_state {
             self.display_state(timestamp);
         }
@@ -236,12 +236,12 @@ where
             node.tick_processing(timestamp);
         }
 
-        // Optionnally display state again
+        // Optionally display state again
         if display_state {
             self.display_state(timestamp);
         }
 
-        // Send outgoing packets everywere
+        // Send outgoing packets everywhere
         for node in &mut self.nodes {
             node.tick_outgoing(timestamp);
         }

@@ -37,12 +37,11 @@ pub struct Directory {
 impl Directory {
     /// Construct a [`Directory`] from a fully-initialised slice of [`Node`]s.
     ///
-    /// Iterates over `node_list`, calls [`Node::get_directory_node`] on each
-    /// entry, and inserts the result keyed by [`Node::id`].
-    //
+    /// Iterates over `node_list`, calls [`Node::directory_node`] on each
+    /// entry, and inserts the result keyed by [`DirectoryNode::id`].
     ///
-    /// Overwrites earlier entries if two nodes
-    /// share the same ID — callers should ensure IDs are unique.
+    /// Overwrites earlier entries if two nodes share the same ID — callers
+    /// should ensure IDs are unique.
     pub fn build_from_nodes<Ts, Pkt>(node_list: &Vec<Node<Ts, Pkt>>) -> Self {
         let mut nodes = HashMap::new();
         for node in node_list {
@@ -60,8 +59,7 @@ impl Directory {
     }
 }
 
-/// Serialisable description of a mix node, used as the interchange format in
-/// `topology.json`.
+/// Public routing information for a single mix node, stored in the [`Directory`].
 ///
 #[derive(Clone, Debug)]
 pub struct DirectoryNode {

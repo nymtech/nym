@@ -15,7 +15,7 @@
 //!
 //! ```text
 //! tick_incoming  →  packets_to_process
-//!                       ↓  tick_processing (Sphinx layer peel)
+//!                       ↓  tick_processing (MixnodeProcessingPipeline)
 //!                   processed_packets
 //!                       ↓  tick_outgoing
 //!                   (sent to next-hop via UDP)
@@ -263,10 +263,9 @@ where
     /// **Phase 2 of a simulation tick**: apply the mix operation to every
     /// buffered packet.
     ///
-    /// Pops packets from `packets_to_process` one at a time, calls
-    /// [`WirePacketFormat::process`] with the current `timestamp`, and pushes
-    /// successful results onto `processed_packets`.  Processing failures are
-    /// logged and the packet is dropped.
+    /// Pops packets from `packets_to_process` one at a time, passes each to
+    /// [`MixnodeProcessingPipeline::process`], and extends `processed_packets`
+    /// with the results (a packet may produce zero or more outputs).
     ///
     pub fn tick_processing(&mut self, timestamp: Ts) {
         while let Some(packet) = self.packets_to_process.pop() {
@@ -278,9 +277,11 @@ where
     /// **Phase 3 of a simulation tick**: forward all processed packets to their
     /// next hop.
     ///
-    /// Pops packets from `processed_packets` and calls [`send_to_node`] with
-    /// the next-hop node ID resolved. If the resolved ID is not present in the [`Directory`]
-    ///  the send is logged as an error and the packet is dropped.
+    /// Extracts packets from `processed_packets` whose timestamp is ≤
+    /// `timestamp` (i.e. due for delivery this tick) and calls
+    /// [`send_to_node`] for each one.  Packets scheduled for a future tick
+    /// remain in the buffer.  If the resolved node ID is not present in the
+    /// [`Directory`] the send is logged as an error and the packet is dropped.
     ///
     pub fn tick_outgoing(&mut self, timestamp: Ts) {
         let to_send = self

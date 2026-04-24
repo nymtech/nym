@@ -30,6 +30,9 @@ where
 }
 
 impl<Ts, D> TimedData<Ts, D> {
+    pub fn new(timestamp: Ts, data: D) -> Self {
+        TimedData { timestamp, data }
+    }
     pub fn data_transform<F>(self, mut op: F) -> Self
     where
         F: FnMut(D) -> D,

@@ -26,6 +26,8 @@
 
 use std::{fmt::Debug, io::ErrorKind, net::UdpSocket, sync::Arc};
 
+use nym_lp_data::traits::types::TimedData;
+
 use crate::{
     packet::WirePacketFormat,
     topology::{Directory, NodeId, TopologyNode},
@@ -65,17 +67,14 @@ pub struct Node<Ts, Pkt> {
     ///
     /// [`tick_incoming`]: Node::tick_incoming
     /// [`tick_processing`]: Node::tick_processing
-    packets_to_process: Vec<Pkt>,
+    packets_to_process: Vec<TimedData<Ts, Pkt>>,
 
     /// Packets that have been processed (mixed) and are waiting to be
     /// forwarded to the next hop.
     ///
     /// Drained by [`tick_outgoing`].
-    ///
-    /// [`tick_outgoing`]: Node::tick_outgoing
-    processed_packets: Vec<Pkt>,
-
-    _ts_marker: std::marker::PhantomData<Ts>,
+    processed_packets: Vec<(NodeId, TimedData<Ts, Pkt>)>,
+    //processing_pipeline:
 }
 
 impl<Ts, Pkt> Node<Ts, Pkt> {
@@ -99,7 +98,6 @@ impl<Ts, Pkt> Node<Ts, Pkt> {
             socket,
             packets_to_process: Vec::new(),
             processed_packets: Vec::new(),
-            _ts_marker: std::marker::PhantomData,
         })
     }
 
@@ -164,7 +162,7 @@ impl<Ts: Debug, Pkt: Debug> Node<Ts, Pkt> {
 
 impl<Ts, Pkt> Node<Ts, Pkt>
 where
-    Ts: Clone,
+    Ts: Clone + PartialOrd,
     Pkt: WirePacketFormat<Ts>,
 {
     /// Send `packet` to the node identified by `node_id`.
@@ -235,10 +233,12 @@ where
     /// Deserialisation failures are logged and the offending datagram is
     /// discarded.
     ///
-    pub fn tick_incoming(&mut self, _: Ts) {
+    pub fn tick_incoming(&mut self, timestamp: Ts) {
         while let Some(maybe_packet) = self.recv_packet() {
             match maybe_packet {
-                Ok(packet) => self.packets_to_process.push(packet),
+                Ok(packet) => self
+                    .packets_to_process
+                    .push(TimedData::new(timestamp.clone(), packet)),
                 Err(e) => tracing::error!(
                     "[Node {}] Failed to deserialize packet : {e}",
                     self.details.id
@@ -255,12 +255,14 @@ where
     /// successful results onto `processed_packets`.  Processing failures are
     /// logged and the packet is dropped.
     ///
-    /// `timestamp` is cloned for each packet so that the same tick context can
-    /// be passed to multiple packets without moving out of the loop variable.
     pub fn tick_processing(&mut self, timestamp: Ts) {
         while let Some(packet) = self.packets_to_process.pop() {
-            match packet.process(timestamp.clone()) {
-                Ok(packet) => self.processed_packets.push(packet),
+            // SW This need the proper processing pipeline from nodes
+            match packet.data.process(timestamp.clone()) {
+                Ok(processed_packet) => self.processed_packets.push((
+                    self.details.id + 1,
+                    TimedData::new(timestamp.clone(), processed_packet),
+                )),
                 Err(e) => {
                     tracing::error!("[Node {}] Failed to process packet : {e}", self.details.id)
                 }
@@ -275,9 +277,14 @@ where
     /// the next-hop node ID resolved. If the resolved ID is not present in the [`Directory`]
     ///  the send is logged as an error and the packet is dropped.
     ///
-    pub fn tick_outgoing(&mut self, _: Ts) {
-        while let Some(packet) = self.processed_packets.pop() {
-            self.send_to_node(self.details.id + 1, packet);
+    pub fn tick_outgoing(&mut self, timestamp: Ts) {
+        let to_send = self
+            .processed_packets
+            .extract_if(.., |(_, pkt)| pkt.timestamp <= timestamp)
+            .map(|(next_hop, pkt)| (next_hop, pkt.data))
+            .collect::<Vec<_>>();
+        for (next_hop, pkt) in to_send {
+            self.send_to_node(next_hop, pkt);
         }
     }
 }

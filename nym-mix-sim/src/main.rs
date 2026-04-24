@@ -63,21 +63,6 @@ enum Commands {
     },
 }
 
-/// Initialise the global tracing subscriber.
-fn setup_logging() {
-    // SAFETY: those are valid directives
-    #[allow(clippy::unwrap_used)]
-    let filter = tracing_subscriber::EnvFilter::builder()
-        .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
-        .from_env()
-        .unwrap();
-
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .compact()
-        .init();
-}
-
 /// Async entry point.
 ///
 /// Parses CLI arguments, then dispatches to the appropriate handler:
@@ -87,7 +72,7 @@ fn setup_logging() {
 ///   simulation loop until Ctrl-C.
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     let cli = Cli::parse();
 

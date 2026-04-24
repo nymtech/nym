@@ -10,6 +10,7 @@ lastUpdated: "2026-04-17"
 
 import { Callout } from 'nextra/components'
 import { CodeVerified } from '../../../../components/code-verified'
+import { RUST_MSRV } from '../../../../components/versions'
 
 In this tutorial you'll build a program that uses `ClientPool` to handle bursts of concurrent Mixnet operations without blocking on client creation. You'll see how the pool pre-creates clients in the background, how to pop them under load, and what happens when demand exceeds supply.
 
@@ -25,7 +26,7 @@ In this tutorial you'll build a program that uses `ClientPool` to handle bursts 
 
 ## Prerequisites
 
-- Rust toolchain (1.70+)
+- Rust toolchain ({RUST_MSRV}+)
 - A working internet connection
 
 ## Step 1: Set up the project
@@ -231,20 +232,33 @@ async fn main() {
     setup_env(None::<String>);
 
     let pool = ClientPool::new(3);
-    let pool_bg = pool.clone();
-    tokio::spawn(async move { pool_bg.start().await.unwrap() });
 
-    println!("Waiting for pool to fill...");
+    let pool_bg = pool.clone();
+    tokio::spawn(async move {
+        pool_bg.start().await.unwrap();
+    });
+
+    println!("Pool started — waiting for clients to connect...");
     tokio::time::sleep(Duration::from_secs(15)).await;
-    println!("Pool has {} clients", pool.get_client_count().await);
+
+    let count = pool.get_client_count().await;
+    println!("Pool has {count} clients ready");
 
     let mut handles = vec![];
+
     for i in 1..=3 {
         let pool = pool.clone();
-        handles.push(tokio::spawn(async move {
+
+        let handle = tokio::spawn(async move {
             let mut client = match pool.get_mixnet_client().await {
-                Some(c) => c,
-                None => nym_sdk::mixnet::MixnetClient::connect_new().await.unwrap(),
+                Some(c) => {
+                    println!("Task {i}: got client {} from pool", c.nym_address());
+                    c
+                }
+                None => {
+                    println!("Task {i}: pool empty, creating client on the fly...");
+                    nym_sdk::mixnet::MixnetClient::connect_new().await.unwrap()
+                }
             };
 
             let addr = *client.nym_address();
@@ -254,24 +268,34 @@ async fn main() {
                 .unwrap();
 
             if let Some(msgs) = client.wait_for_messages().await {
-                for msg in msgs.iter().filter(|m| !m.message.is_empty()) {
-                    println!("Task {i}: {}", String::from_utf8_lossy(&msg.message));
+                for msg in msgs {
+                    if !msg.message.is_empty() {
+                        println!(
+                            "Task {i}: received {:?}",
+                            String::from_utf8_lossy(&msg.message)
+                        );
+                    }
                 }
             }
 
             client.disconnect().await;
-        }));
+            println!("Task {i}: done");
+        });
+
+        handles.push(handle);
     }
 
     for h in handles {
         h.await.unwrap();
     }
 
-    println!("Waiting for replenishment...");
+    println!("\nWaiting for pool to replenish...");
     tokio::time::sleep(Duration::from_secs(15)).await;
-    println!("Pool has {} clients", pool.get_client_count().await);
+
+    let count = pool.get_client_count().await;
+    println!("Pool has {count} clients ready again");
 
     pool.disconnect_pool().await;
-    println!("Done");
+    println!("Pool shut down");
 }
 ```

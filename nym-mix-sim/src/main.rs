@@ -1,10 +1,19 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Binary entry point for the `mix-sim` CLI tool.
+//!
+//! Provides two subcommands:
+//!
+//! * **`init-topology`** — generate a `topology.json` file describing N
+//!   localhost mix nodes with sequential UDP ports starting at 9000.
+//! * **`run`** — load a topology, spin up a [`MixSimDriver`], inject one
+//!   initial packet, and drive the simulation until Ctrl-C.
+
 use std::net::{SocketAddr, UdpSocket};
 
 use clap::{Parser, Subcommand};
-use mix_sim::{driver::MixSimDriver, node::TopologyNode, packet::SimplePacket};
+use mix_sim::{driver::MixSimDriver, packet::SimplePacket, topology::TopologyNode};
 use tracing::info;
 
 #[derive(Parser)]
@@ -18,7 +27,10 @@ struct Cli {
 enum Commands {
     /// Generate a topology.json file with a given number of nodes
     InitTopology {
-        /// Number of nodes to generate
+        /// Number of nodes to generate.
+        ///
+        /// Each node receives an auto-assigned ID (0..N-1) and a sequential
+        /// localhost address starting at `127.0.0.1:9000`
         #[arg(short, long)]
         nodes: u8,
 
@@ -33,16 +45,25 @@ enum Commands {
         #[arg(short, long, default_value = "topology.json")]
         topology: String,
 
-        /// Use manual (RETURN-driven) mode instead of automatic ticks
+        /// Use manual (RETURN-driven) mode instead of automatic ticks.
+        ///
+        /// In manual mode the simulation pauses after each tick and waits for
+        /// the user to press ENTER.  Node buffer state is displayed on every
+        /// tick so the user can inspect packet propagation step by step.
         #[arg(short, long)]
         manual: bool,
 
-        /// Tick duration in milliseconds (automatic mode only)
+        /// Tick duration in milliseconds (automatic mode only).
+        ///
+        /// Ignored when `--manual` is set.  Lower values produce faster
+        /// simulation but give less time for in-flight UDP datagrams to be
+        /// delivered between ticks.
         #[arg(short = 'd', long, default_value = "100")]
         tick_duration_ms: u64,
     },
 }
 
+/// Initialise the global tracing subscriber.
 fn setup_logging() {
     // SAFETY: those are valid directives
     #[allow(clippy::unwrap_used)]
@@ -57,6 +78,13 @@ fn setup_logging() {
         .init();
 }
 
+/// Async entry point.
+///
+/// Parses CLI arguments, then dispatches to the appropriate handler:
+///
+/// * [`Commands::InitTopology`] — serialises a fresh node list to JSON.
+/// * [`Commands::Run`] — bootstraps the driver, then runs the
+///   simulation loop until Ctrl-C.
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     setup_logging();
@@ -66,6 +94,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::InitTopology { nodes, output } => {
             info!("Generating topology with {nodes} nodes");
+            // Assign sequential IDs and ports: node 0 → :9000, node 1 → :9001, …
             let topology: Vec<TopologyNode> = (0..nodes)
                 .map(|id| {
                     let addr = SocketAddr::from(([127, 0, 0, 1], 9000 + id as u16));

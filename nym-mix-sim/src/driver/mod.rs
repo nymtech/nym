@@ -200,7 +200,7 @@ pub enum SimDriver {
     Sphinx,
     /// Full Sphinx encryption, discrete tick counter, supports manual mode.
     #[default]
-    ManualSphinx,
+    DiscreteSphinx,
 }
 
 impl SimDriver {
@@ -221,7 +221,7 @@ impl SimDriver {
                     .run(manual, tick_duration_ms)
                     .await
             }
-            SimDriver::ManualSphinx => {
+            SimDriver::DiscreteSphinx => {
                 DiscreteSphinxMixDriver::new(topology)?
                     .run(manual, tick_duration_ms)
                     .await

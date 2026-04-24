@@ -133,7 +133,7 @@ where
     ///
     /// Returns `None` when the socket would block (no datagram waiting).
     pub fn recv_from_app(&self) -> Option<anyhow::Result<Vec<u8>>> {
-        let mut buf = [0u8; 1500];
+        let mut buf = [0u8; 15000];
         let nb = match self.app_socket.recv(&mut buf) {
             Ok(n) => n,
             Err(e) if e.kind() == ErrorKind::WouldBlock => return None,

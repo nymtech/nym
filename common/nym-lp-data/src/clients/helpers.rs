@@ -17,8 +17,8 @@ where
     Opts: InputOptions<NdId>,
 {
     const OVERHEAD_SIZE: usize = 0;
-    fn reliable_encode(&self, input: TimedPayload<Ts>, _: Opts) -> TimedPayload<Ts> {
-        input
+    fn reliable_encode(&self, input: TimedPayload<Ts>, _: Opts) -> Vec<TimedPayload<Ts>> {
+        vec![input]
     }
 }
 

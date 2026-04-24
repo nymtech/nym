@@ -14,7 +14,10 @@ use nym_lp_data::{
         WireWrappingPipeline,
     },
 };
-use nym_sphinx::{Delay, Destination, DestinationAddressBytes, Payload, SphinxPacket};
+use nym_sphinx::{
+    Delay, Destination, DestinationAddressBytes, Payload, SphinxPacket, SphinxPacketBuilder,
+    chunking::{self, fragment::Fragment, reconstruction::MessageReconstructor},
+};
 use rand::{Rng, rngs::OsRng, seq::SliceRandom};
 
 use crate::{
@@ -45,7 +48,7 @@ impl<Ts> SphinxClient<Ts> {
                 wire_wrapper: SphinxNoOpWireWrapper,
                 directory: directory.clone(),
             },
-            unwrapper: SphinxClientUnwrapping,
+            unwrapper: SphinxClientUnwrapping::default(),
         };
         BaseClient::with_pipeline(&topology_client, directory, processing_client)
     }
@@ -125,11 +128,13 @@ impl<Ts: Clone> Chunking<Ts, SphinxInputOptions, NodeId> for SphinxClientWrappin
         chunk_size: usize,
         timestamp: Ts,
     ) -> Vec<TimedPayload<Ts>> {
-        // SW TODO Framing for chunking and reconstruction on the other side
-        input
-            .chunks(chunk_size)
-            .map(|chunk| TimedData {
-                data: chunk.to_vec(),
+        // This is using standard sphinx chunking. Proper LP should use a different one
+        let fragments = chunking::split_into_sets(&mut OsRng, &input, chunk_size);
+        fragments
+            .into_iter()
+            .flatten()
+            .map(|fragment| TimedData {
+                data: fragment.into_bytes(),
                 timestamp: timestamp.clone(),
             })
             .collect()
@@ -140,8 +145,7 @@ impl NoOpReliability for SphinxClientWrappingPipeline {}
 impl NoOpObfuscation for SphinxClientWrappingPipeline {}
 
 impl<Ts: Clone> RoutingSecurity<Ts, SphinxInputOptions, NodeId> for SphinxClientWrappingPipeline {
-    const OVERHEAD_SIZE: usize = nym_sphinx::params::PacketSize::RegularPacket.header_size()
-        + nym_sphinx::params::PacketSize::RegularPacket.payload_overhead();
+    const OVERHEAD_SIZE: usize = nym_sphinx::HEADER_SIZE + nym_sphinx::PAYLOAD_OVERHEAD_SIZE;
     fn nb_frames(&self) -> usize {
         1
     }
@@ -172,9 +176,22 @@ impl<Ts: Clone> RoutingSecurity<Ts, SphinxInputOptions, NodeId> for SphinxClient
             .map(|_| Delay::new_from_millis(OsRng.gen_range(0..=10)))
             .collect::<Vec<_>>();
 
+        // Useful payload size is packet size - transport overhead - framing overhead - routing overhead
+        let payload_size = <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(
+            &self.wire_wrapper,
+        ) - <Self as Framing<Ts, _>>::OVERHEAD_SIZE
+            - <Self as Transport<Ts, _, _, _>>::OVERHEAD_SIZE
+            - <Self as RoutingSecurity<Ts, _, _>>::OVERHEAD_SIZE;
+
+        // Packet builder's size includes the payload overhead so we have to add it
+        let packet_builder = SphinxPacketBuilder::new()
+            .with_payload_size(payload_size + nym_sphinx::PAYLOAD_OVERHEAD_SIZE);
+
         // SAFETY : Shut up clippy
         #[allow(clippy::unwrap_used)]
-        let packet = SphinxPacket::new(input.data, &route, &destination, &delays).unwrap();
+        let packet = packet_builder
+            .build_packet(input.data, &route, &destination, &delays)
+            .unwrap();
         TimedData {
             timestamp: input.timestamp,
             data: packet.to_bytes(),
@@ -224,7 +241,10 @@ impl<Ts: Clone>
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Since the client does not unwrap the last layer, we get the message directly
-pub struct SphinxClientUnwrapping;
+#[derive(Default)]
+pub struct SphinxClientUnwrapping {
+    message_reconstructor: MessageReconstructor,
+}
 
 impl<Ts> FramingUnwrap<Ts, Vec<u8>, SphinxMessage> for SphinxClientUnwrapping {
     fn frame_to_message(
@@ -261,12 +281,16 @@ impl<Ts: Clone> ClientUnwrappingPipeline<Ts, Vec<u8>, Vec<u8>, SphinxMessage>
         payload: TimedPayload<Ts>,
         _kind: SphinxMessage,
     ) -> Option<Vec<u8>> {
-        // SW TODO reconstruction
-        Payload::from_bytes(&payload.data)
+        let plaintext = Payload::from_bytes(&payload.data)
             .inspect_err(|e| tracing::warn!("Somehow received a packet that was too short : {e}"))
             .ok()?
             .recover_plaintext()
             .inspect_err(|e| tracing::warn!("Impossible to recover plaintext : {e}"))
-            .ok()
+            .ok()?;
+        let fragment = Fragment::try_from_bytes(&plaintext)
+            .inspect_err(|e| tracing::warn!("Failed to deserialize fragment : {e}"))
+            .ok()?;
+
+        Some(self.message_reconstructor.insert_new_fragment(fragment)?.0)
     }
 }

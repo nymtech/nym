@@ -98,7 +98,7 @@ impl<Ts: Clone> WireWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, NodeId>
     for SphinxNoOpWireWrapper
 {
     fn packet_size(&self) -> usize {
-        nym_sphinx::params::PacketSize::RegularPacket.size()
+        1500
     }
 }
 

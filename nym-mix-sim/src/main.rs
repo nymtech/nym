@@ -68,7 +68,7 @@ enum Commands {
         tick_duration_ms: u64,
 
         /// Simulation driver to use: simple | sphinx | manual-sphinx (default).
-        #[arg(long, default_value_t = SimDriver::ManualSphinx)]
+        #[arg(long, default_value_t = SimDriver::DiscreteSphinx)]
         driver: SimDriver,
     },
 }

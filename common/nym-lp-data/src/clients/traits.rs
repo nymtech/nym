@@ -42,13 +42,17 @@ where
 /// # Parameters
 /// - `input`: Payload to encode with the reliability mechanism.
 /// # Returns
-/// - A `TimedPayload` containing the reliability-encoded data.
+/// - A vector of `TimedPayload` containing the reliability-encoded data and potential retransmissions.
 pub trait Reliability<Ts, Opts, NdId>
 where
     Opts: InputOptions<NdId>,
 {
     const OVERHEAD_SIZE: usize;
-    fn reliable_encode(&self, input: TimedPayload<Ts>, input_options: Opts) -> TimedPayload<Ts>; // SW not sure if optionas are needed here
+    fn reliable_encode(
+        &self,
+        input: TimedPayload<Ts>,
+        input_options: Opts, // SW not sure if options are needed here§
+    ) -> Vec<TimedPayload<Ts>>;
 }
 
 /// Trait for applying obfuscation to a timed payload.
@@ -102,7 +106,7 @@ where
     fn nb_frames(&self) -> usize {
         1
     }
-    fn encrypt(&self, input: TimedPayload<Ts>, input_options: Opts) -> TimedPayload<Ts>; // SW this might need to take into account options from the obfuscation layer
+    fn encrypt(&self, input: TimedPayload<Ts>, input_options: Opts) -> TimedPayload<Ts>; // SW this might need to take into account options from the obfuscation layer (required to be able to send to multiple gateways)
 }
 
 /// Full client-side outbound message pipeline.
@@ -165,7 +169,7 @@ where
         if input_options.reliability() {
             chunks = chunks
                 .into_iter()
-                .map(|chunk| self.reliable_encode(chunk, input_options.clone()))
+                .flat_map(|chunk| self.reliable_encode(chunk, input_options.clone()))
                 .collect();
         };
 

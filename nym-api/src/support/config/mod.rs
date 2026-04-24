@@ -364,6 +364,11 @@ impl Default for ContractsInfoCache {
     }
 }
 
+/// Configuration for the in-memory cache of authorised network-monitor orchestrators.
+///
+/// Controls how often nym-api re-queries the network-monitors contract for the authorised set;
+/// a new orchestrator registering on-chain will not be recognised for submissions until the next
+/// refresh triggered by this TTL.
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NetworkMonitorsCache {
     pub time_to_live: Duration,

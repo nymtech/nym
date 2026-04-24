@@ -171,6 +171,7 @@ impl AppState {
         &self.described_nodes_cache
     }
 
+    /// Access the cache of authorised network-monitor orchestrators.
     pub(crate) fn network_monitors(&self) -> &NetworkMonitorsCache {
         &self.network_monitors_cache
     }

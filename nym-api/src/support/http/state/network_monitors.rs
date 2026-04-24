@@ -13,6 +13,8 @@ use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use tracing::{error, warn};
 
+/// Per-orchestrator high-water mark of accepted submission timestamps, kept in-memory to provide
+/// replay protection for the stress-test submission endpoint.
 #[derive(Clone)]
 pub(crate) struct LastNMSubmissions {
     pub(crate) submissions: Arc<RwLock<HashMap<ed25519::PublicKey, OffsetDateTime>>>,
@@ -25,22 +27,22 @@ impl LastNMSubmissions {
         }
     }
 
-    pub(crate) async fn submitted(&self, nm: ed25519::PublicKey) -> OffsetDateTime {
-        // if entry does not exist (e.g. we have restarted),
-        // we play it safe and use the current timestamp
-        self.submissions
-            .read()
-            .await
-            .get(&nm)
-            .copied()
-            .unwrap_or_else(|| OffsetDateTime::now_utc())
+    /// Last accepted submission timestamp for particular network monitor
+    pub(crate) async fn submitted(&self, nm: ed25519::PublicKey) -> Option<OffsetDateTime> {
+        self.submissions.read().await.get(&nm).copied()
     }
 
+    /// Record `timestamp` as the most recent accepted submission for `nm`.
+    ///
+    /// Callers are responsible for ensuring `timestamp` passes the monotonicity check against
+    /// [`submitted`][Self::submitted] before calling this.
     pub(crate) async fn set_submitted(&self, nm: ed25519::PublicKey, timestamp: OffsetDateTime) {
         self.submissions.write().await.insert(nm, timestamp);
     }
 }
 
+/// Snapshot of identity keys for network monitor orchestrators currently registered in the
+/// network-monitors contract.
 #[derive(Clone)]
 pub(crate) struct KnownNetworkMonitors {
     known: HashSet<ed25519::PublicKey>,
@@ -52,6 +54,8 @@ impl KnownNetworkMonitors {
     }
 }
 
+/// TTL-gated cache over [`KnownNetworkMonitors`] so that every submission doesn't re-query the
+/// network-monitors contract; refresh happens lazily on the first request after the TTL expires.
 #[derive(Clone)]
 pub(crate) struct NetworkMonitorsCache(ChainSharedCacheWithTtl<KnownNetworkMonitors>);
 
@@ -60,6 +64,7 @@ impl NetworkMonitorsCache {
         NetworkMonitorsCache(ChainSharedCacheWithTtl::new(cache_ttl))
     }
 
+    /// Return the currently-cached set of known orchestrators, refreshing from chain if stale.
     pub(crate) async fn get_or_refresh(
         &self,
         client: &Client,
@@ -67,6 +72,7 @@ impl NetworkMonitorsCache {
         self.0.get_or_refresh(client, refresh).await
     }
 
+    /// Shortcut for "is this key in the current (possibly just-refreshed) orchestrator set?".
     pub(crate) async fn is_authorised(
         &self,
         nyxd_client: &Client,
@@ -76,6 +82,10 @@ impl NetworkMonitorsCache {
     }
 }
 
+/// Fetch the orchestrator set from the network-monitors contract and decode each entry's identity
+/// key. Orchestrators without an announced key, or with an unparseable one, are logged and
+/// skipped - the rest still populate the cache so one bad entry doesn't take down submissions for
+/// everyone.
 async fn refresh(client: &Client) -> Result<KnownNetworkMonitors, NyxdError> {
     if client
         .get_network_monitors_contract_address()

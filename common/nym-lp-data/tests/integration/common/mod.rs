@@ -6,7 +6,8 @@ use nym_lp::packet::{
     frame::{LpFrameHeader, LpFrameKind},
 };
 use nym_lp_data::traits::{
-    Chunking, Framing, Obfuscation, Reliability, Security, TimedData, TimedPayload, Transport,
+    Chunking, Framing, Obfuscation, Reliability, Security, Transport, types::TimedData,
+    types::TimedPayload,
 };
 
 pub type TimedLpFrame<Ts> = TimedData<LpFrame, Ts>;

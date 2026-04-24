@@ -65,12 +65,12 @@ where
 
     /// Pretty-print the current state of every node at `tick`.
     pub fn display_state(&self, tick: Ts) {
-        println!("┌─── Tick {tick:?}────────────────────────────────────┐");
+        println!("┌─── Tick {tick:?}──────────────────────────────────────────────────────────┐");
         for node in &self.nodes {
             node.display_state();
-            println!("|----------------------")
+            println!("|------------------------------------------------------------------")
         }
-        println!("└──────────────────────────────────────────────────┘");
+        println!("└────────────────────────────────────────────────────────────────────────┘");
     }
 
     /// Advance the simulation by one tick.

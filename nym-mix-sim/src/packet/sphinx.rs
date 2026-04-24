@@ -1,8 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt::Debug, ops::Add, time::Duration};
-
 use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
     AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
@@ -11,35 +9,169 @@ use nym_lp_data::{
         WireWrappingPipeline,
     },
 };
-use nym_sphinx::SphinxPacket;
+use nym_sphinx::{Delay, Destination, DestinationAddressBytes, SphinxPacketBuilder};
+
 use rand::Rng;
 use rand_distr::{Distribution, Exp};
+use std::{fmt::Debug, ops::Add, time::Duration};
 
-use crate::{node::NodeId, packet::WirePacketFormat};
+use crate::{
+    client::ClientId, node::NodeId, packet::WirePacketFormat, topology::directory::Directory,
+};
 
 /// Newtype wrapper around [`SphinxPacket`] that provides a trimmed [`Debug`]
 /// implementation (showing only the first 32 bytes of the serialised form to
 /// avoid flooding logs).
-pub struct SimSphinxPacket(SphinxPacket);
+pub struct SimMixPacket(Vec<u8>);
 
-impl Debug for SimSphinxPacket {
+impl Debug for SimMixPacket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "SphinkPacket {{")?;
+        writeln!(f, "SimSphinkPacket {{")?;
         writeln!(f, "    data start:")?;
-        for line in format_debug_bytes(&self.0.to_bytes()[..32])?.lines() {
-            writeln!(f, "        {line}")?;
+        if self.0.len() > 32 {
+            for line in format_debug_bytes(&self.0.to_bytes()[..32])?.lines() {
+                writeln!(f, "        {line}")?;
+            }
+        } else {
+            for line in format_debug_bytes(&self.0.to_bytes())?.lines() {
+                writeln!(f, "        {line}")?;
+            }
         }
         write!(f, "}}")
     }
 }
 
-impl WirePacketFormat for SimSphinxPacket {
+impl WirePacketFormat for SimMixPacket {
     fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_bytes()
+        self.0.clone()
     }
 
     fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
-        Ok(SimSphinxPacket(SphinxPacket::from_bytes(bytes)?))
+        Ok(SimMixPacket(bytes.to_vec()))
+    }
+}
+
+impl From<Vec<u8>> for SimMixPacket {
+    fn from(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct SurbAck {
+    surb_ack_packet: SimMixPacket,
+    first_hop_id: NodeId,
+    expected_total_delay: Delay,
+}
+
+impl SurbAck {
+    pub const MARKER: &[u8; 8] = b"SURB_ACK";
+    const ACK_SIZE: usize = 8 + 8; // u64 ID and MARKER
+    const PAYLOAD_SIZE: usize = Self::ACK_SIZE + nym_sphinx::PAYLOAD_OVERHEAD_SIZE;
+
+    pub fn construct<Ts: GenerateDelay, R>(
+        rng: &mut R,
+        recipient: ClientId,
+        packet_id: u64,
+        directory: &Directory,
+    ) -> Self
+    where
+        R: Rng,
+    {
+        let route = directory
+            .random_route(3, rng)
+            .into_iter()
+            .collect::<Vec<_>>();
+        // SAFETY : We just sampled 3 nodes, the vec isn't empty
+        #[allow(clippy::unwrap_used)]
+        let first_hop_id = route.first().unwrap().id;
+        let sphinx_route = route.into_iter().map(Into::into).collect::<Vec<_>>();
+
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([recipient; 32]),
+            [recipient; 16],
+        );
+
+        let delays = (0..sphinx_route.len())
+            .map(|_| Delay::new_from_millis(Ts::generate_mix_delay(rng)))
+            .collect::<Vec<_>>();
+
+        let ack_payload = Self::MARKER
+            .iter()
+            .copied()
+            .chain(packet_id.to_le_bytes())
+            .collect::<Vec<_>>();
+
+        let builder = SphinxPacketBuilder::new().with_payload_size(Self::PAYLOAD_SIZE);
+
+        // SAFETY : We're living in a simulation, if it crashes, it crashes
+        #[allow(clippy::unwrap_used)]
+        let surb_ack_packet = builder
+            .build_packet(ack_payload, &sphinx_route, &destination, &delays)
+            .unwrap()
+            .to_bytes();
+
+        // in our case, the last hop is a gateway that does NOT do any delays
+        let expected_total_delay = delays.iter().take(delays.len() - 1).sum();
+
+        SurbAck {
+            surb_ack_packet: surb_ack_packet.into(),
+            first_hop_id,
+            expected_total_delay,
+        }
+    }
+
+    pub const fn len() -> usize {
+        Self::PAYLOAD_SIZE + nym_sphinx::HEADER_SIZE + 1 // SURB_FIRST_HOP || SURB_ACK
+    }
+
+    pub fn expected_total_delay(&self) -> Delay {
+        self.expected_total_delay
+    }
+
+    pub fn prepare_for_sending(self) -> (Delay, Vec<u8>) {
+        // SURB_FIRST_HOP || SURB_ACK
+        let surb_bytes: Vec<_> = std::iter::once(self.first_hop_id)
+            .chain(self.surb_ack_packet.to_bytes())
+            .collect();
+        (self.expected_total_delay, surb_bytes)
+    }
+
+    // partial reciprocal of `prepare_for_sending` performed by the gateway
+    pub fn try_recover_first_hop_packet(b: &[u8]) -> anyhow::Result<(NodeId, SimMixPacket)> {
+        let first_hop_id = b[0];
+        let packet = SimMixPacket::try_from_bytes(&b[1..])?;
+
+        Ok((first_hop_id, packet))
+    }
+
+    pub fn extract_ack_and_message(mut extracted_data: Vec<u8>) -> (Vec<u8>, Vec<u8>) {
+        let ack_len = SurbAck::len();
+
+        if extracted_data.len() < ack_len {
+            // No SURB Ack in packet, in the sim this will be the case for cover traffic
+            return (Vec::new(), extracted_data);
+        }
+
+        let message = extracted_data.split_off(ack_len);
+        let ack_data = extracted_data;
+        (ack_data, message)
+    }
+
+    pub fn is_surb_ack(data: &[u8]) -> bool {
+        if data.len() < Self::MARKER.len() {
+            return false;
+        }
+
+        // for i in 0..LOOP_COVER_MESSAGE_PAYLOAD.len() {
+        //     if data[i] != LOOP_COVER_MESSAGE_PAYLOAD[i] {
+        //         return false;
+        //     }
+        // }
+
+        data[..Self::MARKER.len()] == *Self::MARKER
+
+        //true
     }
 }
 
@@ -152,35 +284,28 @@ impl GenerateDelay for std::time::Instant {
 /// Passthrough wrapper and unwrapper for sphinx compatibility demonstration
 pub struct SphinxNoOpWireWrapper;
 
-impl<Ts: Clone> Framing<Ts, SphinxPacket, NodeId> for SphinxNoOpWireWrapper {
+impl<Ts: Clone> Framing<Ts, Vec<u8>, NodeId> for SphinxNoOpWireWrapper {
     const OVERHEAD_SIZE: usize = 0;
     fn to_frame(
         &self,
         payload: AddressedTimedPayload<Ts, NodeId>,
         _frame_size: usize,
-    ) -> Vec<AddressedTimedData<Ts, SphinxPacket, NodeId>> {
-        // Since we're passing through, payload shoud already be a single sphinx packet
-        // SAFETY: If the pipeline is implemented properly, payload is a correct sphinx packet
-        #[allow(clippy::unwrap_used)]
-        let sphinx_packet =
-            payload.data_transform(|bytes| SphinxPacket::from_bytes(&bytes).unwrap());
-        vec![sphinx_packet]
+    ) -> Vec<AddressedTimedPayload<Ts, NodeId>> {
+        vec![payload]
     }
 }
 
-impl<Ts: Clone> Transport<Ts, SphinxPacket, SimSphinxPacket, NodeId> for SphinxNoOpWireWrapper {
+impl<Ts: Clone> Transport<Ts, Vec<u8>, SimMixPacket, NodeId> for SphinxNoOpWireWrapper {
     const OVERHEAD_SIZE: usize = 0;
     fn to_transport_packet(
         &self,
-        frame: AddressedTimedData<Ts, SphinxPacket, NodeId>,
-    ) -> AddressedTimedData<Ts, SimSphinxPacket, NodeId> {
-        frame.data_transform(SimSphinxPacket)
+        frame: AddressedTimedPayload<Ts, NodeId>,
+    ) -> AddressedTimedData<Ts, SimMixPacket, NodeId> {
+        frame.data_transform(SimMixPacket)
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, NodeId>
-    for SphinxNoOpWireWrapper
-{
+impl<Ts: Clone> WireWrappingPipeline<Ts, Vec<u8>, SimMixPacket, NodeId> for SphinxNoOpWireWrapper {
     fn packet_size(&self) -> usize {
         1500
     }
@@ -195,24 +320,21 @@ impl<Ts: Clone> WireWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, NodeId>
 /// [`FramingUnwrap`]: nym_lp_data::common::traits::FramingUnwrap
 pub struct SphinxNoOpWireUnwrapper;
 
-impl<Ts> FramingUnwrap<Ts, SphinxPacket, SphinxMessage> for SphinxNoOpWireUnwrapper {
+impl<Ts> FramingUnwrap<Ts, Vec<u8>, SphinxMessage> for SphinxNoOpWireUnwrapper {
     fn frame_to_message(
         &mut self,
-        frame: TimedData<Ts, SphinxPacket>,
+        frame: TimedPayload<Ts>,
     ) -> Option<(TimedPayload<Ts>, SphinxMessage)> {
-        Some((
-            frame.data_transform(|sphinx| sphinx.to_bytes()),
-            SphinxMessage,
-        ))
+        Some((frame, SphinxMessage))
     }
 }
 
-impl<Ts: Clone> TransportUnwrap<Ts, SphinxPacket, SimSphinxPacket> for SphinxNoOpWireUnwrapper {
+impl<Ts: Clone> TransportUnwrap<Ts, Vec<u8>, SimMixPacket> for SphinxNoOpWireUnwrapper {
     fn packet_to_frame(
         &self,
-        packet: SimSphinxPacket,
+        packet: SimMixPacket,
         timestamp: Ts,
-    ) -> anyhow::Result<TimedData<Ts, SphinxPacket>> {
+    ) -> anyhow::Result<TimedPayload<Ts>> {
         Ok(TimedData {
             timestamp,
             data: packet.0,
@@ -220,7 +342,7 @@ impl<Ts: Clone> TransportUnwrap<Ts, SphinxPacket, SimSphinxPacket> for SphinxNoO
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, SphinxMessage>
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, Vec<u8>, SimMixPacket, SphinxMessage>
     for SphinxNoOpWireUnwrapper
 {
 }

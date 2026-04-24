@@ -18,8 +18,12 @@ use nym_sphinx::SphinxPacket;
 
 use crate::{
     node::{BaseNode, NodeId, ProcessingNode},
-    packet::sphinx::{
-        AddDelay, SimSphinxPacket, SphinxMessage, SphinxNoOpWireUnwrapper, SphinxNoOpWireWrapper,
+    packet::{
+        WirePacketFormat,
+        sphinx::{
+            AddDelay, SimMixPacket, SphinxMessage, SphinxNoOpWireUnwrapper, SphinxNoOpWireWrapper,
+            SurbAck,
+        },
     },
     topology::{TopologyNode, directory::Directory},
 };
@@ -31,7 +35,7 @@ use crate::{
 /// [`MixSimNode`] impl on `BaseNode`.
 ///
 /// [`MixSimNode`]: crate::node::MixSimNode
-pub type SphinxNode<Ts> = BaseNode<Ts, SimSphinxPacket, SphinxProcessingNode>;
+pub type SphinxNode<Ts> = BaseNode<Ts, SimMixPacket, SphinxProcessingNode>;
 
 impl<Ts> SphinxNode<Ts> {
     /// Create a [`SphinxNode`] from a [`TopologyNode`] description by binding a
@@ -53,16 +57,16 @@ impl<Ts> SphinxNode<Ts> {
     }
 }
 
-impl<Ts> ProcessingNode<Ts, SimSphinxPacket> for SphinxProcessingNode
+impl<Ts> ProcessingNode<Ts, SimMixPacket> for SphinxProcessingNode
 where
     Ts: AddDelay + Clone,
 {
     fn process(
         &mut self,
-        input: TimedData<Ts, SimSphinxPacket>,
+        input: TimedData<Ts, SimMixPacket>,
         timestamp: Ts,
-    ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimSphinxPacket, NodeId>>> {
-        MixnodeProcessingPipeline::<Ts, SphinxPacket, SimSphinxPacket, SphinxMessage, NodeId>::process(
+    ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimMixPacket, NodeId>>> {
+        MixnodeProcessingPipeline::<Ts, Vec<u8>, SimMixPacket, SphinxMessage, NodeId>::process(
             self, input, timestamp,
         )
     }
@@ -97,7 +101,7 @@ impl SphinxProcessingNode {
     }
 }
 
-impl<Ts> MixnodeProcessingPipeline<Ts, SphinxPacket, SimSphinxPacket, SphinxMessage, NodeId>
+impl<Ts> MixnodeProcessingPipeline<Ts, Vec<u8>, SimMixPacket, SphinxMessage, NodeId>
     for SphinxProcessingNode
 where
     Ts: AddDelay + Clone,
@@ -139,11 +143,32 @@ where
                     identifier: _,
                     payload,
                 } => {
-                    vec![AddressedTimedData::new(
-                        timestamp,
-                        payload.into_bytes(),
-                        destination.as_bytes()[0],
-                    )]
+                    if let Ok(plaintext) = payload
+                        .recover_plaintext()
+                        .inspect_err(|e| tracing::warn!("Impossible to recover plaintext : {e}"))
+                    {
+                        let (surb_ack_bytes, message) = SurbAck::extract_ack_and_message(plaintext);
+                        let mut packets_to_forward = vec![AddressedTimedData::new(
+                            timestamp.clone(),
+                            message,
+                            destination.as_bytes()[0],
+                        )];
+                        if !surb_ack_bytes.is_empty()
+                            && let Ok((next_hop, surb_ack)) = SurbAck::try_recover_first_hop_packet(
+                                &surb_ack_bytes,
+                            )
+                            .inspect_err(|e| tracing::warn!("Fail to deserialize SURB Ack : {e}"))
+                        {
+                            packets_to_forward.push(AddressedTimedData::new(
+                                timestamp,
+                                surb_ack.to_bytes(),
+                                next_hop,
+                            ));
+                        }
+                        packets_to_forward
+                    } else {
+                        Vec::new()
+                    }
                 }
             },
             Err(e) => {
@@ -155,55 +180,53 @@ where
 }
 
 // Boilerplate subtraits delegation
-impl<Ts: Clone> Framing<Ts, SphinxPacket, NodeId> for SphinxProcessingNode {
+impl<Ts: Clone> Framing<Ts, Vec<u8>, NodeId> for SphinxProcessingNode {
     const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_frame(
         &self,
         payload: AddressedTimedPayload<Ts, NodeId>,
         frame_size: usize,
-    ) -> Vec<AddressedTimedData<Ts, SphinxPacket, NodeId>> {
+    ) -> Vec<AddressedTimedPayload<Ts, NodeId>> {
         self.wrapper.to_frame(payload, frame_size)
     }
 }
 
-impl<Ts: Clone> Transport<Ts, SphinxPacket, SimSphinxPacket, NodeId> for SphinxProcessingNode {
+impl<Ts: Clone> Transport<Ts, Vec<u8>, SimMixPacket, NodeId> for SphinxProcessingNode {
     const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
-        frame: AddressedTimedData<Ts, SphinxPacket, NodeId>,
-    ) -> AddressedTimedData<Ts, SimSphinxPacket, NodeId> {
+        frame: AddressedTimedPayload<Ts, NodeId>,
+    ) -> AddressedTimedData<Ts, SimMixPacket, NodeId> {
         self.wrapper.to_transport_packet(frame)
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, NodeId>
-    for SphinxProcessingNode
-{
+impl<Ts: Clone> WireWrappingPipeline<Ts, Vec<u8>, SimMixPacket, NodeId> for SphinxProcessingNode {
     fn packet_size(&self) -> usize {
         <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(&self.wrapper)
     }
 }
 
-impl<Ts> FramingUnwrap<Ts, SphinxPacket, SphinxMessage> for SphinxProcessingNode {
+impl<Ts> FramingUnwrap<Ts, Vec<u8>, SphinxMessage> for SphinxProcessingNode {
     fn frame_to_message(
         &mut self,
-        frame: TimedData<Ts, SphinxPacket>,
+        frame: TimedPayload<Ts>,
     ) -> Option<(TimedPayload<Ts>, SphinxMessage)> {
         self.unwrapper.frame_to_message(frame)
     }
 }
 
-impl<Ts: Clone> TransportUnwrap<Ts, SphinxPacket, SimSphinxPacket> for SphinxProcessingNode {
+impl<Ts: Clone> TransportUnwrap<Ts, Vec<u8>, SimMixPacket> for SphinxProcessingNode {
     fn packet_to_frame(
         &self,
-        packet: SimSphinxPacket,
+        packet: SimMixPacket,
         timestamp: Ts,
-    ) -> anyhow::Result<TimedData<Ts, SphinxPacket>> {
+    ) -> anyhow::Result<TimedPayload<Ts>> {
         self.unwrapper.packet_to_frame(packet, timestamp)
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, SphinxMessage>
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, Vec<u8>, SimMixPacket, SphinxMessage>
     for SphinxProcessingNode
 {
 }

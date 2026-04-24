@@ -13,9 +13,8 @@ use nym_lp_data::{
     AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
     clients::{
         InputOptions, PipelinePayload,
-        helpers::NoOpReliability,
         traits::{
-            Chunking, ClientUnwrappingPipeline, ClientWrappingPipeline, Obfuscation,
+            Chunking, ClientUnwrappingPipeline, ClientWrappingPipeline, Obfuscation, Reliability,
             RoutingSecurity,
         },
     },
@@ -25,23 +24,24 @@ use nym_lp_data::{
     },
 };
 use nym_sphinx::{
-    Delay, Destination, DestinationAddressBytes, Payload, SphinxPacket, SphinxPacketBuilder,
+    Delay, Destination, DestinationAddressBytes, SphinxPacketBuilder,
     chunking::{fragment::Fragment, reconstruction::MessageReconstructor},
-    message::NymMessage,
-    message::PaddedMessage,
+    message::{NymMessage, PaddedMessage},
 };
 use rand::rngs::OsRng;
 
 use crate::{
     client::{
-        BaseClient, ClientId, ProcessingClient, sphinx::poisson_cover_traffic::PoissonCoverTraffic,
+        BaseClient, ClientId, ProcessingClient,
+        sphinx::{poisson_cover_traffic::PoissonCoverTraffic, surb_acks::SurbAcksReliability},
     },
     node::NodeId,
-    packet::sphinx::{GenerateDelay, SimSphinxPacket, SphinxMessage, SphinxNoOpWireWrapper},
+    packet::sphinx::{GenerateDelay, SimMixPacket, SphinxMessage, SphinxNoOpWireWrapper, SurbAck},
     topology::{TopologyClient, directory::Directory},
 };
 
 mod poisson_cover_traffic;
+mod surb_acks;
 
 /// A simulated client that injects packets into the mix network.
 ///
@@ -50,7 +50,7 @@ mod poisson_cover_traffic;
 ///
 /// UDP transport and routing are handled by the embedded [`BaseClient`]; this
 /// struct adds the outgoing queue and the wrapping/unwrapping pipelines.
-pub type SphinxClient<Ts> = BaseClient<Ts, SphinxProcessingClient<Ts>, SimSphinxPacket, Vec<u8>>;
+pub type SphinxClient<Ts> = BaseClient<Ts, SphinxProcessingClient<Ts>, SimMixPacket, Vec<u8>>;
 
 impl<Ts: Clone + GenerateDelay + PartialOrd + Send> SphinxClient<Ts> {
     /// Bind both UDP sockets and return a new client.
@@ -71,6 +71,11 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send> SphinxClient<Ts> {
                     directory.clone(),
                     current_timestamp,
                     OsRng,
+                ),
+                reliablity: SurbAcksReliability::new(
+                    OsRng,
+                    topology_client.client_id,
+                    directory.clone(),
                 ),
                 directory: directory.clone(),
             },
@@ -94,7 +99,7 @@ pub struct SphinxInputOptions {
 
 impl InputOptions<NodeId> for SphinxInputOptions {
     fn reliability(&self) -> bool {
-        false
+        true
     }
 
     fn routing_security(&self) -> bool {
@@ -116,7 +121,7 @@ pub struct SphinxProcessingClient<Ts: Clone + GenerateDelay + PartialOrd> {
     unwrapper: SphinxClientUnwrapping,
 }
 
-impl<Ts: Clone + GenerateDelay + PartialOrd + Send> ProcessingClient<Ts, SimSphinxPacket, Vec<u8>>
+impl<Ts: Clone + GenerateDelay + PartialOrd + Send> ProcessingClient<Ts, SimMixPacket, Vec<u8>>
     for SphinxProcessingClient<Ts>
 {
     fn process(
@@ -124,7 +129,7 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send> ProcessingClient<Ts, SimSphi
         input: Vec<u8>,
         dst: ClientId,
         timestamp: Ts,
-    ) -> Vec<AddressedTimedData<Ts, SimSphinxPacket, NodeId>> {
+    ) -> Vec<AddressedTimedData<Ts, SimMixPacket, NodeId>> {
         let input_options = SphinxInputOptions {
             dst,
             next_hop: self.wrapper.directory.random_next_hop(), // This substitutes for a real gateway selection — in the simulation every node is equally eligible as a first hop
@@ -148,6 +153,7 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send> ProcessingClient<Ts, SimSphi
 pub struct SphinxClientWrappingPipeline<Ts: Clone + GenerateDelay + PartialOrd> {
     wire_wrapper: SphinxNoOpWireWrapper,
     cover_traffic: PoissonCoverTraffic<Ts, OsRng>,
+    reliablity: SurbAcksReliability<OsRng>,
     directory: Arc<Directory>,
 }
 
@@ -163,6 +169,10 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> Chunking<Ts, SphinxInputOptions, No
         chunk_size: usize,
         timestamp: Ts,
     ) -> Vec<SphinxPipelinePayload<Ts>> {
+        if input.is_empty() {
+            return Vec::new();
+        }
+
         // This is using standard sphinx chunking. Proper LP should use a different one
         let fragments = NymMessage::new_plain(input)
             .pad_to_full_packet_lengths(chunk_size)
@@ -177,8 +187,21 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> Chunking<Ts, SphinxInputOptions, No
     }
 }
 
-impl<Ts: Clone + GenerateDelay + PartialOrd> NoOpReliability for SphinxClientWrappingPipeline<Ts> {}
-
+impl<Ts: Clone + GenerateDelay + PartialOrd> Reliability<Ts, SphinxInputOptions, NodeId>
+    for SphinxClientWrappingPipeline<Ts>
+{
+    const OVERHEAD_SIZE: usize =
+        <SurbAcksReliability<OsRng> as Reliability<Ts, SphinxInputOptions, _>>::OVERHEAD_SIZE;
+    fn reliable_encode(
+        &mut self,
+        input: Option<SphinxPipelinePayload<Ts>>,
+        timestamp: Ts,
+    ) -> Vec<SphinxPipelinePayload<Ts>> {
+        self.reliablity.reliable_encode(input, timestamp)
+    }
+}
+// impl<Ts: Clone + GenerateDelay + PartialOrd> NoOpReliability for SphinxClientWrappingPipeline<Ts> {}
+//impl<Ts: Clone + GenerateDelay + PartialOrd> NoOpObfuscation for SphinxClientWrappingPipeline<Ts> {}
 impl<Ts: Clone + GenerateDelay + PartialOrd> Obfuscation<Ts, SphinxInputOptions, NodeId>
     for SphinxClientWrappingPipeline<Ts>
 {
@@ -206,19 +229,19 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> RoutingSecurity<Ts, SphinxInputOpti
     /// `input_options.dst`.  Per-hop delays are drawn from
     /// [`GenerateDelay::generate_mix_delay`].
     fn encrypt(&self, input: SphinxPipelinePayload<Ts>) -> SphinxPipelinePayload<Ts> {
-        let mut route_ids = vec![input.options.next_hop];
-        for _ in 0..2 {
-            route_ids.push(self.directory.random_next_hop());
-        }
+        // SAFETY: IDs were sampled from the directory, so they are guaranteed to exist.
+        #[allow(clippy::unwrap_used)]
+        let first_hop = self.directory.node(input.options.next_hop).unwrap().into();
 
-        let route = route_ids
-            .into_iter()
-            .map(|id| {
-                // SAFETY: IDs were sampled from the directory, so they are guaranteed to exist.
-                #[allow(clippy::unwrap_used)]
-                self.directory.node(id).unwrap().into()
-            })
+        let route = std::iter::once(first_hop)
+            .chain(
+                self.directory
+                    .random_route(2, &mut OsRng)
+                    .iter()
+                    .map(Into::into),
+            )
             .collect::<Vec<_>>();
+
         let destination = Destination::new(
             DestinationAddressBytes::from_bytes([input.options.dst; 32]),
             [input.options.dst; 16],
@@ -250,7 +273,7 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> RoutingSecurity<Ts, SphinxInputOpti
     }
 }
 
-impl<Ts: Clone + GenerateDelay + PartialOrd> Framing<Ts, SphinxPacket, NodeId>
+impl<Ts: Clone + GenerateDelay + PartialOrd> Framing<Ts, Vec<u8>, NodeId>
     for SphinxClientWrappingPipeline<Ts>
 {
     const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
@@ -258,25 +281,24 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> Framing<Ts, SphinxPacket, NodeId>
         &self,
         payload: AddressedTimedPayload<Ts, NodeId>,
         frame_size: usize,
-    ) -> Vec<AddressedTimedData<Ts, SphinxPacket, NodeId>> {
+    ) -> Vec<AddressedTimedPayload<Ts, NodeId>> {
         self.wire_wrapper.to_frame(payload, frame_size)
     }
 }
 
-impl<Ts: Clone + GenerateDelay + PartialOrd> Transport<Ts, SphinxPacket, SimSphinxPacket, NodeId>
+impl<Ts: Clone + GenerateDelay + PartialOrd> Transport<Ts, Vec<u8>, SimMixPacket, NodeId>
     for SphinxClientWrappingPipeline<Ts>
 {
     const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
-        frame: AddressedTimedData<Ts, SphinxPacket, NodeId>,
-    ) -> AddressedTimedData<Ts, SimSphinxPacket, NodeId> {
+        frame: AddressedTimedPayload<Ts, NodeId>,
+    ) -> AddressedTimedData<Ts, SimMixPacket, NodeId> {
         self.wire_wrapper.to_transport_packet(frame)
     }
 }
 
-impl<Ts: Clone + GenerateDelay + PartialOrd>
-    WireWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, NodeId>
+impl<Ts: Clone + GenerateDelay + PartialOrd> WireWrappingPipeline<Ts, Vec<u8>, SimMixPacket, NodeId>
     for SphinxClientWrappingPipeline<Ts>
 {
     fn packet_size(&self) -> usize {
@@ -287,7 +309,7 @@ impl<Ts: Clone + GenerateDelay + PartialOrd>
 }
 
 impl<Ts: Clone + GenerateDelay + PartialOrd>
-    ClientWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, SphinxInputOptions, NodeId>
+    ClientWrappingPipeline<Ts, Vec<u8>, SimMixPacket, SphinxInputOptions, NodeId>
     for SphinxClientWrappingPipeline<Ts>
 {
 }
@@ -335,21 +357,26 @@ impl<Ts: Clone> ClientUnwrappingPipeline<Ts, Vec<u8>, Vec<u8>, SphinxMessage>
 {
     fn process_unwrapped(
         &mut self,
-        payload: TimedPayload<Ts>,
+        timed_plaintext: TimedPayload<Ts>,
         _kind: SphinxMessage,
     ) -> Option<Vec<u8>> {
-        let plaintext = Payload::from_bytes(&payload.data)
-            .inspect_err(|e| tracing::warn!("Somehow received a packet that was too short : {e}"))
-            .ok()?
-            .recover_plaintext()
-            .inspect_err(|e| tracing::warn!("Impossible to recover plaintext : {e}"))
-            .ok()?;
+        let plaintext = timed_plaintext.data;
 
         // Ditch cover traffic
         if nym_sphinx::cover::is_cover(&plaintext) {
             tracing::debug!("Received cover traffic packet");
             return None;
         }
+
+        // TODO Route acks elsewhere HERE
+        if SurbAck::is_surb_ack(&plaintext) {
+            // SAFETY : casting slice of len 8 into array of len 8
+            #[allow(clippy::unwrap_used)]
+            let id = u64::from_le_bytes(plaintext[8..16].try_into().unwrap());
+            tracing::debug!("Received a SURB_ACK for id : {id}");
+            return None;
+        }
+
         let fragment = Fragment::try_from_bytes(&plaintext)
             .inspect_err(|e| tracing::warn!("Failed to deserialize fragment : {e}"))
             .ok()?;

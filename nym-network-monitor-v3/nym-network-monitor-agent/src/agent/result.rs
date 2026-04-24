@@ -166,6 +166,9 @@ impl LatencyDistribution {
         sorted.sort();
 
         let minimum = sorted[0];
+
+        // SAFETY: we have ensured our list is not empty
+        #[allow(clippy::unwrap_used)]
         let maximum = *sorted.last().unwrap();
         let median = Self::duration_median(&sorted);
         let mean = Self::duration_mean(&sorted);
@@ -352,7 +355,7 @@ mod tests {
 
     #[test]
     fn result_setters_populate_fields() {
-        let mut result = TestRunResult::new();
+        let mut result = TestRunResult::new(ms(2));
         result.set_ingress_noise_handshake(ms(5));
         result.set_egress_noise_handshake(ms(7));
         result.set_packets_sent(100);

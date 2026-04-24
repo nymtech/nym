@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::topology::directory::NodeId;
+use crate::{client::ClientId, node::NodeId};
 
 pub mod directory;
 
@@ -13,9 +13,6 @@ pub mod directory;
 // node or client (including private config).
 // Directory holds only the public-facing node information visible to other
 // participants in the network.
-
-/// Compact identifier for a simulated client.
-pub type ClientId = u8;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TopologyNode {

@@ -37,9 +37,15 @@ use crate::{
     packet::WirePacketFormat,
     topology::{
         TopologyNode,
-        directory::{Directory, DirectoryNode, NodeId},
+        directory::{Directory, DirectoryNode},
     },
 };
+
+/// Compact identifier for a mix node in the simulation topology.
+///
+/// `u8` keeps the IDs small (max 255 nodes) and is large enough for any
+/// realistic simulated topology.
+pub type NodeId = u8;
 
 /// A running mix-node instance inside the simulation.
 ///
@@ -200,11 +206,26 @@ where
                     self.id
                 );
             } else {
-                tracing::info!("[Node {}] Successfully sent a packet to {node_id}", self.id);
+                tracing::info!(
+                    "[Node {}] Successfully sent a packet to node {node_id}",
+                    self.id
+                );
+            }
+        } else if let Some(client) = self.directory.client(node_id) {
+            if let Err(e) = self.socket.send_to(&packet.to_bytes(), client) {
+                tracing::error!(
+                    "[Node {}] Failed to send data to client {node_id} : {e}",
+                    self.id
+                );
+            } else {
+                tracing::info!(
+                    "[Node {}] Successfully sent a packet to client {node_id} @ {client}",
+                    self.id
+                );
             }
         } else {
             tracing::error!(
-                "[Node {}] Trying to send to non-existing node {node_id}",
+                "[Node {}] Trying to send to non-existing node/client {node_id}",
                 self.id
             );
         }

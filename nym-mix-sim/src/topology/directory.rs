@@ -11,13 +11,10 @@
 
 use std::{collections::HashMap, net::SocketAddr};
 
-use crate::node::Node;
-
-/// Compact identifier for a mix node in the simulation topology.
-///
-/// `u8` keeps the IDs small (max 255 nodes) and is large enough for any
-/// realistic simulated topology.
-pub type NodeId = u8;
+use crate::{
+    client::{Client, ClientId},
+    node::{Node, NodeId},
+};
 
 /// Shared, immutable routing table for the simulation.
 ///
@@ -32,6 +29,7 @@ pub type NodeId = u8;
 pub struct Directory {
     /// Keyed routing map: node ID → directory entry.
     nodes: HashMap<NodeId, DirectoryNode>,
+    clients: HashMap<ClientId, SocketAddr>,
 }
 
 impl Directory {
@@ -42,13 +40,20 @@ impl Directory {
     ///
     /// Overwrites earlier entries if two nodes share the same ID — callers
     /// should ensure IDs are unique.
-    pub fn build_from_nodes<Ts, Pkt>(node_list: &Vec<Node<Ts, Pkt>>) -> Self {
+    pub fn build_from_nodes<Ts, Fr, Pkt>(
+        node_list: &Vec<Node<Ts, Pkt>>,
+        client_list: &Vec<Client<Ts, Fr, Pkt>>,
+    ) -> Self {
         let mut nodes = HashMap::new();
         for node in node_list {
             let directory_node = node.directory_node();
             nodes.insert(directory_node.id, directory_node);
         }
-        Self { nodes }
+        let mut clients = HashMap::new();
+        for client in client_list {
+            clients.insert(client.id(), client.mixnet_address());
+        }
+        Self { nodes, clients }
     }
 
     /// Look up a node by its [`NodeId`].
@@ -56,6 +61,13 @@ impl Directory {
     /// Returns `None` when `id` is not present in the directory
     pub fn node(&self, id: NodeId) -> Option<&DirectoryNode> {
         self.nodes.get(&id)
+    }
+
+    /// Look up a client by its [`ClientId`].
+    ///
+    /// Returns `None` when `id` is not present in the directory
+    pub fn client(&self, id: NodeId) -> Option<&SocketAddr> {
+        self.clients.get(&id)
     }
 }
 

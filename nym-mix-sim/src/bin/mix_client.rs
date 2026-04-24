@@ -26,7 +26,7 @@
 use std::net::UdpSocket;
 
 use clap::Parser;
-use mix_sim::topology::{ClientId, Topology, directory::NodeId};
+use mix_sim::{client::ClientId, topology::Topology};
 
 #[derive(Parser)]
 #[command(name = "client", about = "Send stdin lines into a running mix-sim")]
@@ -39,9 +39,9 @@ struct Cli {
     #[arg(short, long)]
     src: ClientId,
 
-    /// ID of the mix-node to address packets to.
+    /// ID of the client to address packets to.
     #[arg(short, long)]
-    dst: NodeId,
+    dst: ClientId,
 }
 
 fn main() -> anyhow::Result<()> {

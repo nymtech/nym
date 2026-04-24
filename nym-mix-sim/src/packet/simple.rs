@@ -14,7 +14,7 @@ use nym_lp_data::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{packet::WirePacketFormat, topology::directory::NodeId};
+use crate::{node::NodeId, packet::WirePacketFormat};
 
 /// A minimal, fixed-size packet used by the simulation.
 ///
@@ -33,7 +33,7 @@ use crate::{packet::WirePacketFormat, topology::directory::NodeId};
 pub struct SimplePacket {
     /// Universally unique identifier assigned at creation time (UUID v4).
     /// Used to correlate a packet across hops for debugging and tracing.
-    id: Uuid,
+    pub id: Uuid,
 
     /// Variable-length payload buffer.
     ///
@@ -108,7 +108,7 @@ impl SimplePacket {
     pub fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
         if bytes.len() != Self::SIZE {
             return Err(anyhow::anyhow!(
-                "Length mismatch to deserialize a Payload : Expected {}, got {}",
+                "Length mismatch to deserialize a SimplePacket : Expected {}, got {}",
                 Self::SIZE,
                 bytes.len()
             ));
@@ -131,6 +131,35 @@ impl WirePacketFormat for SimplePacket {
     }
 }
 
+pub struct SimpleFrame {
+    pub data: Vec<u8>,
+}
+
+impl SimpleFrame {
+    pub const HEADER: &[u8; 7] = b"0FRAME0";
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+
+        bytes.extend_from_slice(Self::HEADER);
+        bytes.extend_from_slice(&self.data);
+
+        bytes
+    }
+
+    pub fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
+        if bytes.len() != Self::HEADER.len() {
+            return Err(anyhow::anyhow!(
+                "Length mismatch to deserialize a SimpleFrame : Expected at least {}, got {}",
+                Self::HEADER.len(),
+                bytes.len()
+            ));
+        }
+        let data = bytes[Self::HEADER.len()..].to_vec();
+        Ok(SimpleFrame { data })
+    }
+}
+
 /// Stub client processing pipeline for [`SimplePacket`].
 ///
 /// A no-op pass-through: returns the payload as a single packet with no
@@ -142,9 +171,14 @@ impl WirePacketFormat for SimplePacket {
 pub struct SimpleClientPipeline;
 
 impl<Ts: Clone> Chunking<Ts> for SimpleClientPipeline {
-    /// Returns the entire input as a single chunk, ignoring `chunk_size`.
-    fn chunked(&self, input: Vec<u8>, _chunk_size: usize, timestamp: Ts) -> Vec<TimedPayload<Ts>> {
-        vec![TimedData::new(timestamp, input)]
+    fn chunked(&self, input: Vec<u8>, chunk_size: usize, timestamp: Ts) -> Vec<TimedPayload<Ts>> {
+        input
+            .chunks(chunk_size)
+            .map(|chunk| TimedData {
+                data: chunk.to_vec(),
+                timestamp: timestamp.clone(),
+            })
+            .collect()
     }
 }
 
@@ -171,33 +205,55 @@ impl<Ts> RoutingSecurity<Ts> for SimpleClientPipeline {
     }
 }
 
-/// Frame type is `Vec<u8>` (raw bytes); no framing overhead.
-impl<Ts: Clone> Framing<Ts, Vec<u8>> for SimpleClientPipeline {
-    const OVERHEAD_SIZE: usize = 0;
+impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleClientPipeline {
+    const OVERHEAD_SIZE: usize = SimpleFrame::HEADER.len();
     fn to_frame(
         &self,
         payload: TimedPayload<Ts>,
-        _frame_size: usize,
-    ) -> Vec<TimedData<Ts, Vec<u8>>> {
-        vec![payload]
+        frame_size: usize,
+    ) -> Vec<TimedData<Ts, SimpleFrame>> {
+        // Padding with 10000...// SW This is suboptimal for now
+        let padded_payload = payload.data_transform(|mut data| {
+            data.push(1);
+            if !data.len().is_multiple_of(frame_size) {
+                let padding = vec![0; frame_size - data.len() % frame_size];
+                data.extend_from_slice(&padding);
+            }
+            data
+        });
+
+        padded_payload
+            .data
+            .chunks(frame_size)
+            .map(|frame_payload| TimedData {
+                data: SimpleFrame {
+                    data: frame_payload.to_vec(),
+                },
+                timestamp: padded_payload.timestamp.clone(),
+            })
+            .collect()
     }
 }
 
-/// Transport wraps a raw-byte frame into a [`SimplePacket`].
+/// Transport wraps a SimpleFrame frame into a [`SimplePacket`].
 /// Overhead = 16 bytes (UUID), so effective payload = 48 bytes.
-impl<Ts: Clone> Transport<Ts, Vec<u8>, SimplePacket> for SimpleClientPipeline {
+impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket> for SimpleClientPipeline {
     const OVERHEAD_SIZE: usize = 16;
-    fn to_transport_packet(&self, frame: TimedData<Ts, Vec<u8>>) -> TimedData<Ts, SimplePacket> {
-        let mut padded = [0u8; 48];
-        let len = frame.data.len().min(48);
-        padded[..len].copy_from_slice(&frame.data[..len]);
-        TimedData::new(frame.timestamp, SimplePacket::new(padded))
+    fn to_transport_packet(
+        &self,
+        frame: TimedData<Ts, SimpleFrame>,
+    ) -> TimedData<Ts, SimplePacket> {
+        // SATEFY : If the pipeline is implemented properly, frames perfectly fits in a packet
+        #[allow(clippy::unwrap_used)]
+        let simple_packet = SimplePacket::new(frame.data.to_bytes().try_into().unwrap());
+        tracing::info!("Created simple packet with uuid {}", simple_packet.id);
+        TimedData::new(frame.timestamp, simple_packet)
     }
 }
 
-impl<Ts: Clone> ProcessingPipeline<Ts, Vec<u8>, SimplePacket> for SimpleClientPipeline {
+impl<Ts: Clone> ProcessingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleClientPipeline {
     fn packet_size(&self) -> usize {
-        64
+        SimplePacket::SIZE
     }
 }
 

@@ -15,7 +15,7 @@ use std::fmt::Debug;
 
 mod simple;
 
-pub use simple::{SimpleClientPipeline, SimplePacket, SimplePassThroughPipeline};
+pub use simple::{SimpleClientPipeline, SimpleFrame, SimplePacket, SimplePassThroughPipeline};
 
 /// Trait that every packet type must implement to participate in the simulation.
 ///

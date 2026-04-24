@@ -30,7 +30,11 @@
 //! The first byte carries the destination [`NodeId`]; the rest is the
 //! plaintext payload passed verbatim to [`DynProcessingPipeline::process`].
 
-use std::{io::ErrorKind, net::UdpSocket, sync::Arc};
+use std::{
+    io::ErrorKind,
+    net::{SocketAddr, UdpSocket},
+    sync::Arc,
+};
 
 use nym_lp_data::{
     TimedData,
@@ -38,22 +42,20 @@ use nym_lp_data::{
 };
 
 use crate::{
+    node::NodeId,
     packet::WirePacketFormat,
-    topology::{
-        TopologyClient,
-        directory::{Directory, NodeId},
-    },
+    topology::{TopologyClient, directory::Directory},
 };
 
-pub use crate::topology::ClientId;
+/// Compact identifier for a simulated client.
+pub type ClientId = NodeId;
 
 /// A simulated client that injects packets into the mix network.
 ///
 /// `Ts` is the timestamp / tick-context type (must match the driver's `Ts`).
+/// `Fr` is the frame type
 /// `Pkt` is the packet type.
 ///
-/// The frame type is fixed to `Vec<u8>` for the pipeline trait bounds, which
-/// is sufficient for the current simulation.
 pub struct Client<Ts, Fr, Pkt> {
     id: ClientId,
 
@@ -63,6 +65,7 @@ pub struct Client<Ts, Fr, Pkt> {
 
     /// Sends packets to mix-network nodes; also receives reply packets.
     mix_socket: UdpSocket,
+    mix_socket_addres: SocketAddr,
 
     /// Receives injection requests from user applications.
     app_socket: UdpSocket,
@@ -109,6 +112,7 @@ impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt> {
             id: topology.client_id,
             directory: Default::default(),
             mix_socket,
+            mix_socket_addres: topology.mixnet_address,
             app_socket,
             outgoing_queue: Vec::new(),
             processing_pipeline: Box::new(processing_pipeline),
@@ -117,6 +121,10 @@ impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt> {
 
     pub fn id(&self) -> ClientId {
         self.id
+    }
+
+    pub fn mixnet_address(&self) -> SocketAddr {
+        self.mix_socket_addres
     }
 
     /// Attach the shared [`Directory`].  Must be called before the first tick.
@@ -133,7 +141,7 @@ where
     pub fn tick(&mut self, timestamp: Ts) {
         self.tick_app_incoming(timestamp.clone());
         self.tick_outgoing(timestamp.clone());
-        self.tick_outgoing(timestamp);
+        self.tick_mix_incoming(timestamp);
     }
     /// **Phase 1 — app incoming**: drain the app socket, log each payload,
     /// run it through the [`DynProcessingPipeline`], and enqueue the
@@ -160,11 +168,11 @@ where
                 continue;
             }
 
-            let dst: NodeId = buf[0];
+            let _dst: NodeId = buf[0]; // Not used yet
             let payload = buf[1..nb].to_vec();
 
             tracing::info!(
-                "[Client {}] App input: {} byte(s) → node {dst}",
+                "[Client {}] App input: {} byte(s) → client {_dst}",
                 self.id,
                 payload.len()
             );
@@ -176,7 +184,7 @@ where
             );
 
             for td in packets {
-                self.outgoing_queue.push((dst, td));
+                self.outgoing_queue.push((0, td)); // SW Hardcoded to node 0 for now
             }
         }
     }
@@ -209,8 +217,6 @@ where
     /// **Phase 3 — mix incoming**: drain the mix socket, log each received
     /// packet, and pass it through the unwrapping pipeline.
     ///
-    /// The unwrapping pipeline is not yet implemented; see the TODO field in
-    /// the struct.
     pub fn tick_mix_incoming(&mut self, _timestamp: Ts) {
         let mut buf = [0u8; 1500];
         loop {

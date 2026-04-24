@@ -27,12 +27,9 @@ use nym_lp_data::clients::traits::DynProcessingPipeline;
 
 use crate::{
     client::Client,
-    node::Node,
+    node::{Node, NodeId},
     packet::WirePacketFormat,
-    topology::{
-        Topology, TopologyClient, TopologyNode,
-        directory::{Directory, NodeId},
-    },
+    topology::{Topology, TopologyClient, TopologyNode, directory::Directory},
 };
 
 mod simple;
@@ -105,7 +102,7 @@ where
         }
 
         // 4. Build Directory from nodes
-        let directory = Arc::new(Directory::build_from_nodes(&nodes));
+        let directory = Arc::new(Directory::build_from_nodes(&nodes, &clients));
 
         // 5. Give Directory to nodes and clients
         for node in &mut nodes {
@@ -183,13 +180,16 @@ where
     ///
     /// ## Phases
     ///
-    /// 1. **Incoming** — every node drains its UDP socket into `packets_to_process`.
-    /// 2. *(optional state display)*
-    /// 3. **Processing** — every node mixes buffered packets.
-    /// 4. *(optional state display)*
-    /// 5. **Outgoing** — nodes forward due packets;
-    /// 6. **Client**  - clients tick.
+    /// 1. **Client**  - clients tick.
+    /// 2. **Incoming** — every node drains its UDP socket into `packets_to_process`.
+    /// 3. *(optional state display)*
+    /// 4. **Processing** — every node mixes buffered packets.
+    /// 5. *(optional state display)*
+    /// 6. **Outgoing** — nodes forward due packets;
     pub async fn tick(&mut self, timestamp: u32, display_state: bool) {
+        for client in &mut self.clients {
+            client.tick(timestamp);
+        }
         // Phase 1 — incoming
         for node in &mut self.nodes {
             node.tick_incoming(timestamp);
@@ -211,9 +211,6 @@ where
         // Phase 3 — outgoing
         for node in &mut self.nodes {
             node.tick_outgoing(timestamp);
-        }
-        for client in &mut self.clients {
-            client.tick(timestamp);
         }
     }
 }

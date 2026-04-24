@@ -222,7 +222,8 @@ impl MsgModule for NetworkMonitorAgentsModule {
             // we're not interested in those messages
             ExecuteMsg::UpdateAdmin { .. }
             | ExecuteMsg::AuthoriseNetworkMonitorOrchestrator { .. }
-            | ExecuteMsg::RevokeNetworkMonitorOrchestrator { .. } => {}
+            | ExecuteMsg::RevokeNetworkMonitorOrchestrator { .. }
+            | ExecuteMsg::UpdateOrchestratorIdentityKey { .. } => {}
         }
 
         Ok(())

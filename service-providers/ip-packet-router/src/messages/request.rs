@@ -88,6 +88,7 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
             .message
             .first_chunk::<2>()
             .ok_or(IpPacketRouterError::EmptyPacket)?;
+        log::info!("IPR recv header bytes: {:02x?}", request_version);
 
         // With version v8 and onwards, the type of the service provider is included in the
         // header.
@@ -103,6 +104,7 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
         }
 
         let request_version = request_version[0];
+        log::info!("IPR recv version byte: {request_version}");
         match request_version {
             6 => {
                 let request_v6 = IpPacketRequestV6::from_reconstructed_message(reconstructed)

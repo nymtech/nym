@@ -81,6 +81,16 @@ impl IprClientConnect {
 
     async fn send_connect_request(&self, ip_packet_router_address: Recipient) -> Result<u64> {
         let (request, request_id) = nym_ip_packet_requests::v9::new_connect_request(None);
+        tracing::info!(
+            request_id = request_id,
+            protocol_version = request.protocol.version,
+            current_version = crate::current::VERSION,
+            "Sending IPR connect request"
+        );
+        if let Ok(bytes) = request.to_bytes() {
+            let prefix = bytes.get(0..2).unwrap_or(&bytes);
+            tracing::info!(request_id = request_id, bytes_0_2 = ?prefix, "IPR connect bytes");
+        }
 
         // We use 20 surbs for the connect request because typically the IPR is configured to have
         // a min threshold of 10 surbs that it reserves for itself to request additional surbs.
@@ -129,7 +139,13 @@ impl IprClientConnect {
                         for msg in msgs {
                             // Confirm that the version is correct
                             if let Err(err) = check_ipr_message_version(&msg) {
-                                tracing::info!("Mixnet message version mismatch: {err}");
+                                let raw: &[u8] = msg.message.as_ref();
+                                tracing::info!(
+                                    first_byte = raw.first().copied(),
+                                    expected = crate::current::VERSION,
+                                    len = raw.len(),
+                                    "Mixnet message version mismatch: {err}"
+                                );
                                 continue;
                             }
 

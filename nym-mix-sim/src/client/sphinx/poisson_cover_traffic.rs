@@ -79,6 +79,10 @@ where
         }
     }
 
+    /// Build [`SphinxInputOptions`] for a self-addressed cover-traffic packet.
+    ///
+    /// The destination is set to this client's own address and the first hop is
+    /// chosen at random from the directory, matching the real-message behaviour.
     pub fn cover_traffic_options(&self) -> SphinxInputOptions {
         SphinxInputOptions {
             dst: self.address,

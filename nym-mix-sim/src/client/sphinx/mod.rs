@@ -85,8 +85,8 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send> SphinxClient<Ts> {
     }
 }
 
-/// [`InputOptions`] for the Sphinx pipeline — routing security and obfuscation
-/// are enabled; reliability is not.
+/// [`InputOptions`] for the Sphinx pipeline — reliability, routing security,
+/// and obfuscation are all enabled.
 #[derive(Clone, Copy)]
 pub struct SphinxInputOptions {
     /// Destination client ID, embedded in the Sphinx destination address.

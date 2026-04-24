@@ -57,6 +57,11 @@ impl From<Vec<u8>> for SimMixPacket {
     }
 }
 
+/// A pre-built Sphinx packet that the recipient sends back as an acknowledgement.
+///
+/// A `SurbAck` bundles the serialised Sphinx packet together with the first-hop
+/// node ID and the expected total mix delay so that the sender can compute the
+/// latest time by which the ACK should arrive.
 #[derive(Debug)]
 pub struct SurbAck {
     surb_ack_packet: SimMixPacket,
@@ -65,10 +70,17 @@ pub struct SurbAck {
 }
 
 impl SurbAck {
+    /// Magic bytes written at the start of every SURB ACK payload so that the
+    /// final-hop node can identify them and route them separately.
     pub const MARKER: &[u8; 8] = b"SURB_ACK";
     const ACK_SIZE: usize = 8 + 8; // u64 ID and MARKER
     const PAYLOAD_SIZE: usize = Self::ACK_SIZE + nym_sphinx::PAYLOAD_OVERHEAD_SIZE;
 
+    /// Build a fresh SURB ACK addressed to `recipient` with unique `packet_id`.
+    ///
+    /// Samples a 3-hop route from `directory`, draws per-hop Sphinx delays using
+    /// `Ts::generate_mix_delay`, and constructs a Sphinx packet whose payload is
+    /// `MARKER || packet_id.to_le_bytes()`.
     pub fn construct<Ts: GenerateDelay, R>(
         rng: &mut R,
         recipient: ClientId,
@@ -121,14 +133,26 @@ impl SurbAck {
         }
     }
 
+    /// Byte length of a serialised SURB ACK as prepended to outgoing payloads.
+    ///
+    /// Format: `first_hop_id (1 byte) || sphinx_header || ack_payload`.
     pub const fn len() -> usize {
         Self::PAYLOAD_SIZE + nym_sphinx::HEADER_SIZE + 1 // SURB_FIRST_HOP || SURB_ACK
     }
 
+    /// Return the sum of per-hop delays embedded in the SURB packet header.
+    ///
+    /// The terminal (gateway) hop is excluded because it applies no mix delay in
+    /// the simulation.
     pub fn expected_total_delay(&self) -> Delay {
         self.expected_total_delay
     }
 
+    /// Serialise the SURB ACK into the wire format prepended to outgoing packets.
+    ///
+    /// Returns `(total_delay, first_hop_id || sphinx_packet_bytes)`.  The caller
+    /// hands the byte vector to the reliability layer and the delay to the
+    /// scheduler.
     pub fn prepare_for_sending(self) -> (Delay, Vec<u8>) {
         // SURB_FIRST_HOP || SURB_ACK
         let surb_bytes: Vec<_> = std::iter::once(self.first_hop_id)
@@ -137,7 +161,11 @@ impl SurbAck {
         (self.expected_total_delay, surb_bytes)
     }
 
-    // partial reciprocal of `prepare_for_sending` performed by the gateway
+    /// Recover the first-hop node ID and the Sphinx ACK packet from the raw bytes
+    /// produced by [`prepare_for_sending`].
+    ///
+    /// This is the partial inverse of `prepare_for_sending`, performed by the
+    /// gateway (final-hop node) when it dispatches the SURB back into the network.
     pub fn try_recover_first_hop_packet(b: &[u8]) -> anyhow::Result<(NodeId, SimMixPacket)> {
         let first_hop_id = b[0];
         let packet = SimMixPacket::try_from_bytes(&b[1..])?;
@@ -145,6 +173,11 @@ impl SurbAck {
         Ok((first_hop_id, packet))
     }
 
+    /// Split a final-hop plaintext into `(surb_ack_bytes, message_bytes)`.
+    ///
+    /// If `extracted_data` is shorter than [`SurbAck::len`] (e.g. cover-traffic
+    /// packets carry no SURB), the ACK slice is empty and the full buffer is
+    /// returned as the message.
     pub fn extract_ack_and_message(mut extracted_data: Vec<u8>) -> (Vec<u8>, Vec<u8>) {
         let ack_len = SurbAck::len();
 
@@ -158,20 +191,13 @@ impl SurbAck {
         (ack_data, message)
     }
 
+    /// Return `true` if `data` starts with the [`MARKER`](SurbAck::MARKER) bytes.
     pub fn is_surb_ack(data: &[u8]) -> bool {
         if data.len() < Self::MARKER.len() {
             return false;
         }
 
-        // for i in 0..LOOP_COVER_MESSAGE_PAYLOAD.len() {
-        //     if data[i] != LOOP_COVER_MESSAGE_PAYLOAD[i] {
-        //         return false;
-        //     }
-        // }
-
         data[..Self::MARKER.len()] == *Self::MARKER
-
-        //true
     }
 }
 

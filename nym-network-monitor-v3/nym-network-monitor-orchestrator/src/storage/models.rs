@@ -27,6 +27,9 @@ pub(crate) struct NewTestRun {
     /// Noise handshake duration on the egress (initiator) side, in microseconds.
     pub(crate) egress_noise_handshake_us: Option<i64>,
 
+    /// Constant per-hop sphinx packet delay used during the test run, in microseconds.
+    pub(crate) sphinx_packet_delay_us: i64,
+
     pub(crate) packets_sent: i64,
     pub(crate) packets_received: i64,
 
@@ -67,6 +70,7 @@ impl NewTestRun {
             test_timestamp: OffsetDateTime::now_utc(),
             ingress_noise_handshake_us: result.ingress_noise_handshake.map(duration_to_us),
             egress_noise_handshake_us: result.egress_noise_handshake.map(duration_to_us),
+            sphinx_packet_delay_us: duration_to_us(result.sphinx_packet_delay),
             packets_sent: result.packets_sent as i64,
             packets_received: result.packets_received as i64,
             approximate_latency_us: result.approximate_latency.map(duration_to_us),

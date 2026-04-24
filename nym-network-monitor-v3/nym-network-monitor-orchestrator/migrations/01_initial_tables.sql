@@ -22,6 +22,9 @@ CREATE TABLE testrun
     -- NULL if the handshake did not complete.
     egress_noise_handshake_us  INTEGER,
 
+    -- The (constant) per-hop delay applied to sphinx packets during the test run, in microseconds.
+    sphinx_packet_delay_us     INTEGER                                            NOT NULL,
+
     -- Number of sphinx packets sent to the node under test.
     packets_sent               INTEGER                                            NOT NULL DEFAULT 0,
 

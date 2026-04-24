@@ -68,6 +68,7 @@ impl StorageManager {
                 test_timestamp,
                 ingress_noise_handshake_us,
                 egress_noise_handshake_us,
+                sphinx_packet_delay_us,
                 packets_sent,
                 packets_received,
                 approximate_latency_us,
@@ -83,12 +84,13 @@ impl StorageManager {
                 sending_latency_std_dev_us,
                 received_duplicates,
                 error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             run.test_type,
             run.test_timestamp,
             run.ingress_noise_handshake_us,
             run.egress_noise_handshake_us,
+            run.sphinx_packet_delay_us,
             run.packets_sent,
             run.packets_received,
             run.approximate_latency_us,
@@ -293,6 +295,7 @@ mod tests {
             test_timestamp: datetime!(2025-06-01 12:00:00 UTC),
             ingress_noise_handshake_us: None,
             egress_noise_handshake_us: None,
+            sphinx_packet_delay_us: 0,
             packets_sent: 0,
             packets_received: 0,
             approximate_latency_us: None,

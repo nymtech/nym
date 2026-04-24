@@ -419,7 +419,7 @@ impl NodeStressTester {
     /// port). Node-level failures (no response, bloomfilter misconfiguration, etc.) are
     /// recorded inside the returned [`TestRunResult`] so the caller always gets partial data.
     pub(crate) async fn run_stress_test(&mut self) -> anyhow::Result<TestRunResult> {
-        let mut result = TestRunResult::new_empty();
+        let mut result = TestRunResult::new(self.config.packet_delay);
 
         // 1. establish the egress connection — abort immediately if it fails
         let mut egress = match self.establish_egress_connection().await {

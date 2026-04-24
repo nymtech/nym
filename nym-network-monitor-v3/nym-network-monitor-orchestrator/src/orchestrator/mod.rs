@@ -193,6 +193,7 @@ impl NetworkMonitorOrchestrator {
             test_timestamp: OffsetDateTime::now_utc(),
             ingress_noise_handshake_us: None,
             egress_noise_handshake_us: None,
+            sphinx_packet_delay_us: 0,
             packets_sent: 0,
             packets_received: 0,
             approximate_latency_us: None,

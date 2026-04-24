@@ -9,13 +9,16 @@ use std::time::Duration;
 ///
 /// Fields are populated incrementally as the test progresses; absent values (`None`) indicate
 /// that the corresponding step was not reached or did not produce a result.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub(crate) struct TestRunResult {
     /// Duration of the Noise handshake on the ingress (responder) side, if completed.
     pub(crate) ingress_noise_handshake: Option<Duration>,
 
     /// Duration of the Noise handshake on the egress (initiator) side, if completed.
     pub(crate) egress_noise_handshake: Option<Duration>,
+
+    /// The (constant) delay of the sphinx packet set during the test run.
+    pub sphinx_packet_delay: Duration,
 
     /// Number of sphinx packets successfully sent to the node under test.
     pub(crate) packets_sent: usize,
@@ -47,8 +50,19 @@ pub(crate) struct TestRunResult {
 }
 
 impl TestRunResult {
-    pub(crate) fn new_empty() -> Self {
-        Default::default()
+    pub(crate) fn new(sphinx_packet_delay: Duration) -> Self {
+        TestRunResult {
+            ingress_noise_handshake: None,
+            egress_noise_handshake: None,
+            sphinx_packet_delay,
+            packets_sent: 0,
+            packets_received: 0,
+            approximate_latency: None,
+            packets_statistics: None,
+            sending_statistics: None,
+            received_duplicates: false,
+            error: None,
+        }
     }
 
     /// Calculates the percentage of packets received out of the total sent.
@@ -237,6 +251,7 @@ impl From<TestRunResult> for nym_network_monitor_orchestrator_requests::models::
         Self {
             ingress_noise_handshake: value.ingress_noise_handshake,
             egress_noise_handshake: value.egress_noise_handshake,
+            sphinx_packet_delay: value.sphinx_packet_delay,
             packets_sent: value.packets_sent,
             packets_received: value.packets_received,
             approximate_latency: value.approximate_latency,
@@ -337,7 +352,7 @@ mod tests {
 
     #[test]
     fn result_setters_populate_fields() {
-        let mut result = TestRunResult::new_empty();
+        let mut result = TestRunResult::new();
         result.set_ingress_noise_handshake(ms(5));
         result.set_egress_noise_handshake(ms(7));
         result.set_packets_sent(100);

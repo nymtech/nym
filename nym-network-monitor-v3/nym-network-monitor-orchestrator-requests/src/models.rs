@@ -158,6 +158,11 @@ pub struct TestRunResult {
     #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
     pub egress_noise_handshake: Option<Duration>,
 
+    /// The (constant) delay of the sphinx packet set during the test run.
+    #[serde(default, with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub sphinx_packet_delay: Duration,
+
     /// Number of sphinx packets successfully sent to the node under test.
     pub packets_sent: usize,
 

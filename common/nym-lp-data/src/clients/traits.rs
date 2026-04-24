@@ -79,6 +79,88 @@ pub trait RoutingSecurity<Ts> {
     fn encrypt(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts>;
 }
 
+/// Trait for a message pipeline.
+///
+/// # Type Parameters
+/// - `Ts`: Timestamp type carried by the `TimedPayload`.
+/// - `Fr`: Frame type used in input.
+/// - `P` : Packet type to return.
+///
+/// # Associated Constants
+/// - `packet_size`: Size of the outputted packets.
+pub trait ProcessingPipeline<Ts, Fr, Pkt>:
+    Chunking<Ts>
+    + Reliability<Ts>
+    + Obfuscation<Ts>
+    + RoutingSecurity<Ts>
+    + Framing<Ts, Fr>
+    + Transport<Ts, Fr, Pkt>
+where
+    Ts: Clone,
+{
+    fn packet_size(&self) -> usize;
+    fn frame_size(&self) -> usize {
+        self.packet_size()
+            - <Self as Transport<_, _, _>>::OVERHEAD_SIZE
+            - <Self as Framing<_, _>>::OVERHEAD_SIZE
+    }
+
+    fn chunk_size(&self, processing_options: StreamOptions) -> usize {
+        // Frame size
+        let mut chunk_size = self.frame_size();
+
+        if processing_options.security {
+            chunk_size =
+                chunk_size * self.nb_frames() - <Self as RoutingSecurity<_>>::OVERHEAD_SIZE;
+        }
+        if processing_options.reliability {
+            chunk_size -= <Self as Reliability<_>>::OVERHEAD_SIZE;
+        }
+        chunk_size
+    }
+
+    fn process(
+        &mut self,
+        input: Vec<u8>,
+        processing_options: StreamOptions,
+        timestamp: Ts,
+    ) -> Vec<TimedData<Ts, Pkt>> {
+        let mut chunks = self.chunked(
+            input,
+            self.chunk_size(processing_options),
+            timestamp.clone(),
+        );
+
+        if processing_options.reliability {
+            chunks = chunks
+                .into_iter()
+                .map(|chunk| self.reliable_encode(chunk))
+                .collect();
+        };
+
+        if processing_options.obfuscation {
+            // SW This needs to happen regarldess of if we took something as input. Obfuscation must become an option of the pipeline
+            chunks = chunks
+                .into_iter()
+                .flat_map(|chunk| self.obfuscate(chunk, timestamp.clone()))
+                .collect::<Vec<_>>();
+        };
+
+        if processing_options.security {
+            chunks = chunks
+                .into_iter()
+                .map(|chunk| self.encrypt(chunk))
+                .collect();
+        };
+
+        chunks
+            .into_iter()
+            .flat_map(|payload| self.to_frame(payload, self.frame_size()))
+            .map(|frame| self.to_transport_packet(frame))
+            .collect::<Vec<_>>()
+    }
+}
+
 /// Dyn-compatible mirror of [`ProcessingPipeline`].
 ///
 /// All associated constants from the sub-traits are exposed as methods so the
@@ -164,86 +246,5 @@ where
         timestamp: Ts,
     ) -> Vec<TimedData<Ts, Pkt>> {
         ProcessingPipeline::process(self, input, processing_options, timestamp)
-    }
-}
-
-/// Trait for a message pipeline.
-///
-/// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
-/// - `Fr`: Frame type used in input.
-/// - `P` : Packet type to return.
-///
-/// # Associated Constants
-/// - `packet_size`: Size of the outputted packets.
-pub trait ProcessingPipeline<Ts, Fr, Pkt>:
-    Chunking<Ts>
-    + Reliability<Ts>
-    + Obfuscation<Ts>
-    + RoutingSecurity<Ts>
-    + Framing<Ts, Fr>
-    + Transport<Ts, Fr, Pkt>
-where
-    Ts: Clone,
-{
-    fn packet_size(&self) -> usize;
-    fn frame_size(&self) -> usize {
-        self.packet_size()
-            - <Self as Transport<_, _, _>>::OVERHEAD_SIZE
-            - <Self as Framing<_, _>>::OVERHEAD_SIZE
-    }
-
-    fn chunk_size(&self, processing_options: StreamOptions) -> usize {
-        // Frame size
-        let mut chunk_size = self.frame_size();
-
-        if processing_options.security {
-            chunk_size =
-                chunk_size * self.nb_frames() - <Self as RoutingSecurity<_>>::OVERHEAD_SIZE;
-        }
-        if processing_options.reliability {
-            chunk_size -= <Self as Reliability<_>>::OVERHEAD_SIZE;
-        }
-        chunk_size
-    }
-
-    fn process(
-        &mut self,
-        input: Vec<u8>,
-        processing_options: StreamOptions,
-        timestamp: Ts,
-    ) -> Vec<TimedData<Ts, Pkt>> {
-        let mut chunks = self.chunked(
-            input,
-            self.chunk_size(processing_options),
-            timestamp.clone(),
-        );
-
-        if processing_options.reliability {
-            chunks = chunks
-                .into_iter()
-                .map(|chunk| self.reliable_encode(chunk))
-                .collect();
-        };
-
-        if processing_options.obfuscation {
-            chunks = chunks
-                .into_iter()
-                .flat_map(|chunk| self.obfuscate(chunk, timestamp.clone()))
-                .collect::<Vec<_>>();
-        };
-
-        if processing_options.security {
-            chunks = chunks
-                .into_iter()
-                .map(|chunk| self.encrypt(chunk))
-                .collect();
-        };
-
-        chunks
-            .into_iter()
-            .flat_map(|payload| self.to_frame(payload, self.frame_size()))
-            .map(|frame| self.to_transport_packet(frame))
-            .collect::<Vec<_>>()
     }
 }

@@ -87,12 +87,9 @@ impl NetworkMonitorsCache {
 /// skipped - the rest still populate the cache so one bad entry doesn't take down submissions for
 /// everyone.
 async fn refresh(client: &Client) -> Result<KnownNetworkMonitors, NyxdError> {
-    if client
-        .get_network_monitors_contract_address()
-        .await
-        .is_err()
-    {
-        warn!("network monitor contract address not set - can't accept any stress testing results")
+    if let Err(err) = client.get_network_monitors_contract_address().await {
+        warn!("network monitor contract address not set - can't accept any stress testing results");
+        return Err(err);
     }
 
     let known_monitors = client.get_all_network_monitor_orchestrators().await?;

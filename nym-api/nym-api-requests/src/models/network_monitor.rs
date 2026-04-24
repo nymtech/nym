@@ -96,6 +96,11 @@ pub mod v3 {
     /// Single stress-test measurement for one node, produced by a network monitor orchestrator.
     #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
     pub struct StressTestResult {
+        /// Orchestrator-local id of the test run that produced this result. Combined with the
+        /// batch's `signer` it uniquely identifies the measurement, allowing nym-api to dedupe
+        /// retried submissions on the at-least-once delivery path.
+        pub testrun_id: i64,
+
         /// Contract-assigned id of the node that was tested.
         pub node_id: NodeId,
 

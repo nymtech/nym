@@ -692,6 +692,8 @@ impl NymApiStorage {
         Ok(())
     }
 
+    /// Persist the given stress-testing results, produced by an authorised network monitor
+    /// orchestrator, into the database.
     pub(crate) async fn insert_nym_node_stress_testing_results(
         &self,
         results: Vec<NymNodeStressTestingResult>,

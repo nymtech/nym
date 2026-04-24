@@ -779,6 +779,9 @@ impl StorageManager {
             .await
     }
 
+    /// Batch-insert the given stress-testing results into the `nym_node_stress_testing_result`
+    /// table. An empty input is a no-op rather than an invalid-SQL error, since an incoming
+    /// submission may legitimately contain no mixnode entries after filtering.
     pub(super) async fn insert_nym_node_stress_testing_results(
         &self,
         results: Vec<NymNodeStressTestingResult>,

@@ -36,12 +36,14 @@ pub(crate) struct NewTestRun {
     // RTT distribution over received packets (all NULL when no packets were received).
     pub(crate) packets_rtt_min_us: Option<i64>,
     pub(crate) packets_rtt_mean_us: Option<i64>,
+    pub(crate) packets_rtt_median_us: Option<i64>,
     pub(crate) packets_rtt_max_us: Option<i64>,
     pub(crate) packets_rtt_std_dev_us: Option<i64>,
 
     // Batch send latency distribution (all NULL when no batches were sent).
     pub(crate) sending_latency_min_us: Option<i64>,
     pub(crate) sending_latency_mean_us: Option<i64>,
+    pub(crate) sending_latency_median_us: Option<i64>,
     pub(crate) sending_latency_max_us: Option<i64>,
     pub(crate) sending_latency_std_dev_us: Option<i64>,
 
@@ -70,12 +72,14 @@ impl NewTestRun {
             approximate_latency_us: result.approximate_latency.map(duration_to_us),
             packets_rtt_min_us: result.packets_statistics.map(|s| duration_to_us(s.minimum)),
             packets_rtt_mean_us: result.packets_statistics.map(|s| duration_to_us(s.mean)),
+            packets_rtt_median_us: result.packets_statistics.map(|s| duration_to_us(s.median)),
             packets_rtt_max_us: result.packets_statistics.map(|s| duration_to_us(s.maximum)),
             packets_rtt_std_dev_us: result
                 .packets_statistics
                 .map(|s| duration_to_us(s.standard_deviation)),
             sending_latency_min_us: result.sending_statistics.map(|s| duration_to_us(s.minimum)),
             sending_latency_mean_us: result.sending_statistics.map(|s| duration_to_us(s.mean)),
+            sending_latency_median_us: result.sending_statistics.map(|s| duration_to_us(s.median)),
             sending_latency_max_us: result.sending_statistics.map(|s| duration_to_us(s.maximum)),
             sending_latency_std_dev_us: result
                 .sending_statistics

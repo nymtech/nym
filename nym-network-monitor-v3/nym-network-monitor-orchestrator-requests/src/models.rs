@@ -116,6 +116,12 @@ pub struct LatencyDistribution {
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub mean: Duration,
 
+    /// Median latency duration it took to send or receive a test packet.
+    /// For an even number of samples, this is the arithmetic mean of the two middle values.
+    #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub median: Duration,
+
     /// Maximum latency duration it took to send or receive a test packet.
     #[serde(with = "humantime_serde")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]

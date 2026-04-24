@@ -9,6 +9,14 @@ repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 
+[[bin]]
+name = "mix-client"
+path = "src/bin/mix_client.rs"
+
+[[bin]]
+name = "mix-sim"
+path = "src/main.rs"
+
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }

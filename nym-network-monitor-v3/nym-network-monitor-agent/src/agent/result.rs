@@ -123,6 +123,10 @@ pub struct LatencyDistribution {
     /// Average latency duration it took to send or receive a test packet.
     pub mean: Duration,
 
+    /// Median latency duration it took to send or receive a test packet.
+    /// For an even number of samples, this is the arithmetic mean of the two middle values.
+    pub median: Duration,
+
     /// Maximum latency duration it took to send or receive a test packet.
     pub maximum: Duration,
 
@@ -134,17 +138,44 @@ impl LatencyDistribution {
     /// Computes statistics from a slice of per-packet RTT durations.
     /// Returns zeroed statistics if `raw_results` is empty.
     pub fn compute(raw_results: &[Duration]) -> Self {
-        let minimum = raw_results.iter().min().copied().unwrap_or_default();
-        let maximum = raw_results.iter().max().copied().unwrap_or_default();
+        if raw_results.is_empty() {
+            return LatencyDistribution {
+                minimum: Duration::ZERO,
+                mean: Duration::ZERO,
+                median: Duration::ZERO,
+                maximum: Duration::ZERO,
+                standard_deviation: Duration::ZERO,
+            };
+        }
 
-        let mean = Self::duration_mean(raw_results);
-        let standard_deviation = Self::duration_standard_deviation(raw_results, mean);
+        let mut sorted = raw_results.to_vec();
+        sorted.sort();
+
+        let minimum = sorted[0];
+        let maximum = *sorted.last().unwrap();
+        let median = Self::duration_median(&sorted);
+        let mean = Self::duration_mean(&sorted);
+        let standard_deviation = Self::duration_standard_deviation(&sorted, mean);
 
         LatencyDistribution {
             minimum,
             mean,
+            median,
             maximum,
             standard_deviation,
+        }
+    }
+
+    /// Computes the median of an already-sorted slice of durations.
+    /// For an even count, returns the arithmetic mean of the two middle elements.
+    /// Caller must ensure `sorted` is non-empty and ordered ascending.
+    fn duration_median(sorted: &[Duration]) -> Duration {
+        let len = sorted.len();
+        let mid = len / 2;
+        if len % 2 == 1 {
+            sorted[mid]
+        } else {
+            (sorted[mid - 1] + sorted[mid]) / 2
         }
     }
 
@@ -194,6 +225,7 @@ impl From<LatencyDistribution>
         Self {
             minimum: value.minimum,
             mean: value.mean,
+            median: value.median,
             maximum: value.maximum,
             standard_deviation: value.standard_deviation,
         }
@@ -230,6 +262,7 @@ mod tests {
         assert_eq!(stats.minimum, Duration::ZERO);
         assert_eq!(stats.maximum, Duration::ZERO);
         assert_eq!(stats.mean, Duration::ZERO);
+        assert_eq!(stats.median, Duration::ZERO);
         assert_eq!(stats.standard_deviation, Duration::ZERO);
     }
 
@@ -239,6 +272,7 @@ mod tests {
         assert_eq!(stats.minimum, ms(42));
         assert_eq!(stats.maximum, ms(42));
         assert_eq!(stats.mean, ms(42));
+        assert_eq!(stats.median, ms(42));
         assert_eq!(stats.standard_deviation, Duration::ZERO);
     }
 
@@ -246,7 +280,24 @@ mod tests {
     fn two_equal_values_have_zero_deviation() {
         let stats = LatencyDistribution::compute(&[ms(10), ms(10)]);
         assert_eq!(stats.mean, ms(10));
+        assert_eq!(stats.median, ms(10));
         assert_eq!(stats.standard_deviation, Duration::ZERO);
+    }
+
+    #[test]
+    fn median_odd_count_picks_middle() {
+        // sorted: 10, 20, 30, 40, 50 -> median = 30
+        let data = [ms(40), ms(10), ms(50), ms(20), ms(30)];
+        let stats = LatencyDistribution::compute(&data);
+        assert_eq!(stats.median, ms(30));
+    }
+
+    #[test]
+    fn median_even_count_averages_two_middle() {
+        // sorted: 10, 20, 30, 40 -> median = (20 + 30) / 2 = 25
+        let data = [ms(30), ms(10), ms(40), ms(20)];
+        let stats = LatencyDistribution::compute(&data);
+        assert_eq!(stats.median, ms(25));
     }
 
     #[test]

@@ -15,7 +15,7 @@
 use std::fmt;
 use std::fmt::Debug;
 
-use nym_lp::packet::utils::format_debug_bytes;
+use nym_common::debug::format_debug_bytes;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

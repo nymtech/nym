@@ -26,7 +26,7 @@
 
 use std::{fmt::Debug, io::ErrorKind, net::UdpSocket, sync::Arc};
 
-use nym_lp_data::TimedData;
+use nym_lp_data::{TimedData, mixnodes::traits::ProcessingPipeline};
 
 use crate::{
     packet::WirePacketFormat,
@@ -41,7 +41,7 @@ use crate::{
 /// The struct is generic so that different packet formats (e.g. Sphinx-encrypted
 /// packets) and richer tick contexts can be plugged in without changing node
 /// internals.
-pub struct Node<Ts, Pkt> {
+pub struct Node<Ts, Pkt, Fr, Pl> {
     /// Shared routing table.  Set after construction via [`Node::set_directory`]
     /// once all nodes' sockets are bound and the [`Directory`] can be built.
     directory: Arc<Directory>,
@@ -74,10 +74,12 @@ pub struct Node<Ts, Pkt> {
     ///
     /// Drained by [`tick_outgoing`].
     processed_packets: Vec<(NodeId, TimedData<Ts, Pkt>)>,
-    //processing_pipeline:
+
+    processing_pipeline: Pl,
+    _fr_marker: std::marker::PhantomData<Fr>,
 }
 
-impl<Ts, Pkt> Node<Ts, Pkt> {
+impl<Ts, Pkt, Fr, Pl> Node<Ts, Pkt, Fr, Pl> {
     /// Create a [`Node`] from a [`TopologyNode`] description by binding a
     /// non-blocking UDP socket to `node.addr`.
     ///
@@ -89,7 +91,7 @@ impl<Ts, Pkt> Node<Ts, Pkt> {
     ///
     /// Returns an error if the UDP socket cannot be bound (e.g. address already
     /// in use) or if `set_nonblocking` fails.
-    pub fn from_topology_node(node: TopologyNode) -> anyhow::Result<Self> {
+    pub fn from_topology_node(node: TopologyNode, pipeline: Pl) -> anyhow::Result<Self> {
         let socket = UdpSocket::bind(node.addr)?;
         socket.set_nonblocking(true)?;
         Ok(Node {
@@ -98,6 +100,8 @@ impl<Ts, Pkt> Node<Ts, Pkt> {
             socket,
             packets_to_process: Vec::new(),
             processed_packets: Vec::new(),
+            processing_pipeline: pipeline,
+            _fr_marker: std::marker::PhantomData,
         })
     }
 
@@ -125,7 +129,7 @@ impl<Ts, Pkt> Node<Ts, Pkt> {
     }
 }
 
-impl<Ts: Debug, Pkt: Debug> Node<Ts, Pkt> {
+impl<Ts: Debug, Pkt: Debug, Fr, Pl> Node<Ts, Pkt, Fr, Pl> {
     /// Print a bordered summary of this node's current buffer state to stdout.
     ///
     /// Displays the node ID, listen address, and — for each internal buffer —
@@ -160,7 +164,7 @@ impl<Ts: Debug, Pkt: Debug> Node<Ts, Pkt> {
     }
 }
 
-impl<Ts, Pkt> Node<Ts, Pkt>
+impl<Ts, Pkt, Fr, Pl> Node<Ts, Pkt, Fr, Pl>
 where
     Ts: Clone + PartialOrd,
     Pkt: WirePacketFormat<Ts>,

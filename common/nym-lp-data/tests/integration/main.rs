@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use nym_lp::packet::utils::format_debug_bytes;
+use nym_common::debug::format_debug_bytes;
 use nym_lp_data::clients::driver::PipelineDriver;
 use nym_lp_data::clients::{traits::ProcessingPipeline, types::Pipeline, types::StreamOptions};
 

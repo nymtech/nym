@@ -18,6 +18,7 @@ tracing.workspace = true
 [dev-dependencies]
 nym-client-core.workspace = true
 nym-lp.workspace = true
+nym-common.workspace = true
 
 
 [lints]

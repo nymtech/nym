@@ -4,6 +4,7 @@
 use std::fmt::Debug;
 
 pub mod clients;
+pub mod common;
 pub mod mixnodes;
 
 pub struct TimedData<Ts, D> {

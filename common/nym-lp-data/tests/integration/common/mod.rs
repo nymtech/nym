@@ -5,9 +5,8 @@ use nym_lp::packet::{
     LpFrame, LpHeader, LpPacket,
     frame::{LpFrameHeader, LpFrameKind},
 };
-use nym_lp_data::clients::traits::{
-    Chunking, Framing, Obfuscation, Reliability, Security, Transport,
-};
+use nym_lp_data::clients::traits::{Chunking, Obfuscation, Reliability, RoutingSecurity};
+use nym_lp_data::common::traits::{Framing, Transport};
 use nym_lp_data::{TimedData, TimedPayload};
 
 pub type TimedLpFrame<Ts> = TimedData<Ts, LpFrame>;
@@ -54,7 +53,7 @@ impl SphinxSecurity {
     const HEADER: &[u8; 8] = b"0SPHINX0";
 }
 
-impl<Ts> Security<Ts> for SphinxSecurity {
+impl<Ts> RoutingSecurity<Ts> for SphinxSecurity {
     const OVERHEAD_SIZE: usize = Self::HEADER.len();
 
     fn nb_frames(&self) -> usize {

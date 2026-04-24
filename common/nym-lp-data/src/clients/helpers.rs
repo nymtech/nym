@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::TimedPayload;
-use crate::clients::traits::{Obfuscation, Reliability, Security};
+use crate::clients::traits::{Obfuscation, Reliability, RoutingSecurity};
 
 pub struct NoOpReliability;
 
@@ -13,9 +13,9 @@ impl<Ts> Reliability<Ts> for NoOpReliability {
     }
 }
 
-pub struct NoOpSecurity;
+pub struct NoOpRoutingSecurity;
 
-impl<Ts> Security<Ts> for NoOpSecurity {
+impl<Ts> RoutingSecurity<Ts> for NoOpRoutingSecurity {
     const OVERHEAD_SIZE: usize = 0;
 
     fn nb_frames(&self) -> usize {

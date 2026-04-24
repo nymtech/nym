@@ -4,6 +4,8 @@
 use crate::clients::types::StreamOptions;
 use crate::{TimedData, TimedPayload};
 
+use crate::common::traits::{Framing, Transport};
+
 /// Trait for splitting an incoming payload into timestamped chunks.
 ///
 /// # Type Parameters
@@ -70,52 +72,12 @@ pub trait Obfuscation<Ts> {
 ///
 /// # Returns
 /// - A `TimedPayload` containing the encrypted data.
-pub trait Security<Ts> {
+pub trait RoutingSecurity<Ts> {
     const OVERHEAD_SIZE: usize;
     fn nb_frames(&self) -> usize {
         1
     }
     fn encrypt(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts>;
-}
-
-/// Trait for applying framing to a timed payload.
-///
-/// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
-/// - `Fr`: Frame type that will be returned.
-///
-/// # Associated Constants
-/// - `OVERHEAD_SIZE`: Number of additional bytes added by the framing scheme.
-///
-/// # Parameters
-/// - `payload`: Payload frame.
-/// - `framesize` : The size of the frame.
-///
-/// # Returns
-/// - A `Vec<TimedData<Ts, Fr>>`, result of the framing operation.
-pub trait Framing<Ts, Fr> {
-    const OVERHEAD_SIZE: usize;
-    fn to_frame(&self, payload: TimedPayload<Ts>, frame_size: usize) -> Vec<TimedData<Ts, Fr>>;
-}
-
-/// Trait for applying tranport layer to a timed payload.
-///
-/// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
-/// - `Fr`: Frame type used in input.
-/// - `P` : Packet type to return.
-///
-/// # Associated Constants
-/// - `OVERHEAD_SIZE`: Number of additional bytes added by the transport scheme.
-///
-/// # Parameters
-/// - `frame`: Input Frame.
-///
-/// # Returns
-/// - A `TimedData<Ts, Pkt>`, result of the transport operation.
-pub trait Transport<Ts, Fr, Pkt> {
-    const OVERHEAD_SIZE: usize;
-    fn to_transport_packet(&self, frame: TimedData<Ts, Fr>) -> TimedData<Ts, Pkt>;
 }
 
 /// Trait for a message pipeline.
@@ -131,7 +93,7 @@ pub trait ProcessingPipeline<Ts, Fr, Pkt>:
     Chunking<Ts>
     + Reliability<Ts>
     + Obfuscation<Ts>
-    + Security<Ts>
+    + RoutingSecurity<Ts>
     + Framing<Ts, Fr>
     + Transport<Ts, Fr, Pkt>
 where
@@ -149,7 +111,8 @@ where
         let mut chunk_size = self.frame_size();
 
         if processing_options.security {
-            chunk_size = chunk_size * self.nb_frames() - <Self as Security<_>>::OVERHEAD_SIZE;
+            chunk_size =
+                chunk_size * self.nb_frames() - <Self as RoutingSecurity<_>>::OVERHEAD_SIZE;
         }
         if processing_options.reliability {
             chunk_size -= <Self as Reliability<_>>::OVERHEAD_SIZE;

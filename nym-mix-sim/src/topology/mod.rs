@@ -38,7 +38,7 @@ impl Directory {
     ///
     /// Overwrites earlier entries if two nodes
     /// share the same ID — callers should ensure IDs are unique.
-    pub fn build_from_nodes<Ts, Pkt>(node_list: &Vec<Node<Ts, Pkt>>) -> Self {
+    pub fn build_from_nodes<Ts, Pkt, Fr, Pl>(node_list: &Vec<Node<Ts, Pkt, Fr, Pl>>) -> Self {
         let mut nodes = HashMap::new();
         for node in node_list {
             nodes.insert(node.id(), node.get_topology_node());

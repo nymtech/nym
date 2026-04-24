@@ -32,9 +32,9 @@ use crate::{
 /// `Ts` is the tick-context / timestamp type; `Pkt` is the packet type.  The
 /// concrete instantiation used by `main.rs` is `MixSimDriver<u32, SimplePacket>`.
 ///
-pub struct MixSimDriver<Ts, Pkt> {
+pub struct MixSimDriver<Ts, Pkt, Fr, Pl> {
     /// All simulation nodes
-    nodes: Vec<Node<Ts, Pkt>>,
+    nodes: Vec<Node<Ts, Pkt, Fr, Pl>>,
 }
 
 impl<Ts, Pkt> MixSimDriver<Ts, Pkt>

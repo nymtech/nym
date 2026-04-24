@@ -25,5 +25,5 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 uuid = { workspace = true, features = ["v4", "serde"] }
 
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }
-nym-lp.workspace = true
+nym-common.workspace = true
 nym-lp-data.workspace = true

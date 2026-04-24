@@ -5306,7 +5306,7 @@ dependencies = [
  "anyhow",
  "clap",
  "nym-bin-common",
- "nym-lp",
+ "nym-common",
  "nym-lp-data",
  "serde",
  "serde_json",
@@ -7249,6 +7249,7 @@ name = "nym-lp-data"
 version = "1.20.4"
 dependencies = [
  "nym-client-core",
+ "nym-common",
  "nym-lp",
  "tracing",
 ]

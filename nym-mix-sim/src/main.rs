@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Binary entry point for the `mix-sim` CLI tool.
+//! Binary entry point for the `nym-mix-sim` CLI tool.
 //!
 //! Provides two subcommands:
 //!
@@ -23,7 +23,7 @@ use nym_mix_sim::{
 use tracing::info;
 
 #[derive(Parser)]
-#[command(name = "mix-sim", about = "Nym mix network simulator")]
+#[command(name = "nym-mix-sim", about = "Nym mix network simulator")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

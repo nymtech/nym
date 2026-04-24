@@ -21,7 +21,7 @@
 //! ## Usage
 //!
 //! ```text
-//! cargo run --bin client -- --topology topology.json --src 6 --dst 0
+//! cargo run --bin mix-client -- --topology topology.json --src 6 --dst 0
 //! ```
 
 use std::net::UdpSocket;
@@ -30,7 +30,10 @@ use clap::Parser;
 use nym_mix_sim::{client::ClientId, topology::Topology};
 
 #[derive(Parser)]
-#[command(name = "client", about = "Send stdin lines into a running mix-sim")]
+#[command(
+    name = "mix-client",
+    about = "Send stdin lines into a running nym-mix-sim"
+)]
 struct Cli {
     /// Path to the topology.json file.
     #[arg(short, long, default_value = "topology.json")]

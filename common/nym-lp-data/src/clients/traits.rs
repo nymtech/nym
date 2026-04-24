@@ -178,7 +178,7 @@ where
             })
             .collect();
 
-        // Even if we had nothing go into the reliablity stage, we need to catch potential retransmissions
+        // Even if we had nothing go into the reliability stage, we need to catch potential retransmissions
         // If we had, this should be a no-op, since it already has been called with the same timestamp
         chunks.append(&mut self.reliable_encode(None, timestamp.clone()));
 

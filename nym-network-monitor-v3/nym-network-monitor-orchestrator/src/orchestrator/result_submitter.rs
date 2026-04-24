@@ -88,6 +88,7 @@ impl ResultSubmitter {
 
         // `get_testruns_after` returns rows ordered by id ASC, so the last row carries the
         // highest id and is what we advance the watermark to once the batch is accepted.
+        #[allow(clippy::expect_used)]
         let max_id = pending.last().expect("pending is non-empty").id;
         let batch_size = pending.len();
 

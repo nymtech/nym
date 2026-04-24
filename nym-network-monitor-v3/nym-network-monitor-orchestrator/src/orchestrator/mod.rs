@@ -18,6 +18,7 @@ use nym_validator_client::nyxd::contract_traits::{
 };
 use nym_validator_client::nyxd::{AccountId, CosmWasmClient, bip39};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 use tracing::{info, warn};
@@ -209,6 +210,9 @@ impl NetworkMonitorOrchestrator {
             .context(
                 "failed to announce the orchestrator identity key to the network monitors contract",
             )?;
+
+        info!("waiting for the key information to propagate");
+        sleep(Duration::from_secs(30)).await;
 
         Ok(())
     }

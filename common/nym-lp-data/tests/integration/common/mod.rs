@@ -10,8 +10,8 @@ use nym_lp_data::traits::{
     types::TimedPayload,
 };
 
-pub type TimedLpFrame<Ts> = TimedData<LpFrame, Ts>;
-pub type TimedLpPacket<Ts> = TimedData<LpPacket, Ts>;
+pub type TimedLpFrame<Ts> = TimedData<Ts, LpFrame>;
+pub type TimedLpPacket<Ts> = TimedData<Ts, LpPacket>;
 
 pub struct MockChunking;
 impl<Ts> Chunking<Ts> for MockChunking

@@ -5,15 +5,15 @@ use std::sync::mpsc;
 
 use crate::traits::{ProcessingPipeline, types::StreamOptions, types::TimedData};
 
-pub struct PipelineDriver<Ts, Fr, P, Pl>
+pub struct PipelineDriver<Ts, Fr, Pkt, Pl>
 where
-    Pl: ProcessingPipeline<Ts, Fr, P>,
+    Pl: ProcessingPipeline<Ts, Fr, Pkt>,
     Ts: Clone + PartialOrd,
 {
     pipeline: Pl,
     processing_options: StreamOptions,
 
-    packet_buffer: Vec<TimedData<P, Ts>>,
+    packet_buffer: Vec<TimedData<Ts, Pkt>>,
 
     input: mpsc::Receiver<Vec<u8>>,
 
@@ -22,9 +22,9 @@ where
     _marker: std::marker::PhantomData<Fr>,
 }
 
-impl<Ts, Fr, P, Pl> PipelineDriver<Ts, Fr, P, Pl>
+impl<Ts, Fr, Pkt, Pl> PipelineDriver<Ts, Fr, Pkt, Pl>
 where
-    Pl: ProcessingPipeline<Ts, Fr, P>,
+    Pl: ProcessingPipeline<Ts, Fr, Pkt>,
     Ts: Clone + PartialOrd,
 {
     pub fn new(pipeline: Pl) -> Self {
@@ -50,7 +50,7 @@ where
         self.input_sender.clone()
     }
 
-    pub fn tick(&mut self, timestamp: Ts) -> Vec<P> {
+    pub fn tick(&mut self, timestamp: Ts) -> Vec<Pkt> {
         // We're reading a message only if
         // - a: Our buffer is empty
         // - b: Obfuscation layer reports an empty buffer

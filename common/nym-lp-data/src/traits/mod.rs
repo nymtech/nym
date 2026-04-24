@@ -41,6 +41,25 @@ pub trait Reliability<Ts> {
     fn reliable_encode(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts>;
 }
 
+/// Trait for applying obfuscation to a timed payload.
+///
+/// # Type Parameters
+/// - `Ts`: Timestamp type carried by the `TimedPayload`.
+pub trait Obfuscation<Ts> {
+    /// Obfuscate a given timed payload
+    /// # Parameters
+    /// - `input`: Payload to encode with the encryption mechanism.
+    /// - `timestamp` : Current timestamp
+    ///
+    /// # Returns
+    /// - An `Vec<TimedPayload>`, result of the obfuscation algorithm
+    /// - The vector can be empty if there is nothing to return right away
+    fn obfuscate(&mut self, input: TimedPayload<Ts>, timestamp: Ts) -> Vec<TimedPayload<Ts>>;
+
+    /// Return the size of the inner timed payload buffer, to help with backpressure
+    fn buffer_size(&self) -> usize;
+}
+
 /// Trait for applying encryption to a timed payload.
 ///
 /// # Type Parameters
@@ -63,25 +82,6 @@ pub trait Security<Ts> {
     fn encrypt(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts>;
 }
 
-/// Trait for applying obfuscation to a timed payload.
-///
-/// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
-pub trait Obfuscation<Ts> {
-    /// Obfuscate a given timed payload
-    /// # Parameters
-    /// - `input`: Payload to encode with the encryption mechanism.
-    /// - `timestamp` : Current timestamp
-    ///
-    /// # Returns
-    /// - An `Vec<TimedPayload>`, result of the obfuscation algorithm
-    /// - The vector can be empty if there is nothing to return right away
-    fn obfuscate(&mut self, input: TimedPayload<Ts>, timestamp: Ts) -> Vec<TimedPayload<Ts>>;
-
-    /// Return the size of the inner timed payload buffer, to help with backpressure
-    fn buffer_size(&self) -> usize;
-}
-
 /// Trait for applying framing to a timed payload.
 ///
 /// # Type Parameters
@@ -96,10 +96,10 @@ pub trait Obfuscation<Ts> {
 /// - `framesize` : The size of the frame.
 ///
 /// # Returns
-/// - A `Vec<TimedData<Fr, Ts>>`, result of the framing operation.
+/// - A `Vec<TimedData<Ts, Fr>>`, result of the framing operation.
 pub trait Framing<Ts, Fr> {
     const OVERHEAD_SIZE: usize;
-    fn to_frame(&self, payload: TimedPayload<Ts>, frame_size: usize) -> Vec<TimedData<Fr, Ts>>;
+    fn to_frame(&self, payload: TimedPayload<Ts>, frame_size: usize) -> Vec<TimedData<Ts, Fr>>;
 }
 
 /// Trait for applying tranport layer to a timed payload.
@@ -116,10 +116,10 @@ pub trait Framing<Ts, Fr> {
 /// - `frame`: Input Frame.
 ///
 /// # Returns
-/// - A `TimedData<P, Ts>`, result of the transport operation.
-pub trait Transport<Ts, Fr, P> {
+/// - A `TimedData<Ts, Pkt>`, result of the transport operation.
+pub trait Transport<Ts, Fr, Pkt> {
     const OVERHEAD_SIZE: usize;
-    fn to_transport_packet(&self, frame: TimedData<Fr, Ts>) -> TimedData<P, Ts>;
+    fn to_transport_packet(&self, frame: TimedData<Ts, Fr>) -> TimedData<Ts, Pkt>;
 }
 
 /// Trait for a message pipeline.
@@ -131,13 +131,13 @@ pub trait Transport<Ts, Fr, P> {
 ///
 /// # Associated Constants
 /// - `packet_size`: Size of the outputted packets.
-pub trait ProcessingPipeline<Ts, Fr, P>:
+pub trait ProcessingPipeline<Ts, Fr, Pkt>:
     Chunking<Ts>
     + Reliability<Ts>
-    + Security<Ts>
     + Obfuscation<Ts>
+    + Security<Ts>
     + Framing<Ts, Fr>
-    + Transport<Ts, Fr, P>
+    + Transport<Ts, Fr, Pkt>
 where
     Ts: Clone,
 {
@@ -166,7 +166,7 @@ where
         input: Vec<u8>,
         processing_options: StreamOptions,
         timestamp: Ts,
-    ) -> Vec<TimedData<P, Ts>> {
+    ) -> Vec<TimedData<Ts, Pkt>> {
         let mut chunks = self.chunked(
             input,
             self.chunk_size(processing_options),
@@ -180,18 +180,18 @@ where
                 .collect();
         };
 
-        if processing_options.security {
-            chunks = chunks
-                .into_iter()
-                .map(|chunk| self.encrypt(chunk))
-                .collect();
-        };
-
         if processing_options.obfuscation {
             chunks = chunks
                 .into_iter()
                 .flat_map(|chunk| self.obfuscate(chunk, timestamp.clone()))
                 .collect::<Vec<_>>();
+        };
+
+        if processing_options.security {
+            chunks = chunks
+                .into_iter()
+                .map(|chunk| self.encrypt(chunk))
+                .collect();
         };
 
         chunks

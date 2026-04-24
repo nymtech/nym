@@ -135,6 +135,7 @@ members = [
     "nym-data-observatory",
     "nym-gateway-probe",
     "nym-ip-packet-client",
+    "nym-mix-sim",
     "nym-network-monitor",
     "nym-node",
     "nym-node-status-api/nym-node-status-agent",
@@ -185,6 +186,7 @@ default-members = [
     "nym-authenticator-client",
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
+    "nym-mix-sim",
     "nym-node",
     "nym-statistics-api",
     "nym-validator-rewarder",
@@ -193,7 +195,7 @@ default-members = [
     "service-providers/network-requester",
     "tools/nymvisor",
     "nym-registration-client",
-    "tools/internal/localnet-orchestrator"
+    "tools/internal/localnet-orchestrator",
 ]
 
 exclude = ["contracts", "nym-wallet", "cpu-cycles"]

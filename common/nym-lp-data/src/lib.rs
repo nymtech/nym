@@ -1,12 +1,35 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Trait definitions and data structures for low-level packet (LP) processing
+//! pipelines in the Nym mixnet.
+//!
+//! ## Crate layout
+//!
+//! | Module | Purpose |
+//! |--------|---------|
+//! | [`clients`]   | Client-side pipeline traits and types: chunking, reliability, obfuscation, routing security, framing, transport |
+//! | [`common`]    | Shared framing and transport traits used by both clients and mixnodes |
+//! | [`mixnodes`]  | Mixnode-side pipeline traits: unwrap incoming packets, re-wrap and forward them |
+//!
+//! ## Core types
+//!
+//! [`TimedData`] is the foundational wrapper that pairs any piece of data with a
+//! timestamp, threading timing information through every stage of the pipeline.
+//! [`TimedPayload`] is a convenience alias for `TimedData<Ts, Vec<u8>>`.
+
 use std::fmt::Debug;
 
 pub mod clients;
 pub mod common;
 pub mod mixnodes;
 
+/// A value of type `D` tagged with a timestamp of type `Ts`.
+///
+/// `TimedData` threads timing information through every stage of the LP
+/// pipeline.  It is produced by [`clients::traits::Chunking`] and propagated
+/// unchanged (or with the timestamp transformed) through every subsequent
+/// pipeline stage until the packet is sent on the wire.
 pub struct TimedData<Ts, D> {
     pub timestamp: Ts,
     pub data: D,
@@ -33,6 +56,7 @@ impl<Ts, D> TimedData<Ts, D> {
     pub fn new(timestamp: Ts, data: D) -> Self {
         TimedData { timestamp, data }
     }
+    /// Apply `op` to the data component, leaving the timestamp unchanged.
     pub fn data_transform<F>(self, mut op: F) -> Self
     where
         F: FnMut(D) -> D,
@@ -43,6 +67,7 @@ impl<Ts, D> TimedData<Ts, D> {
         }
     }
 
+    /// Apply `op` to the timestamp component, leaving the data unchanged.
     pub fn ts_transform<F>(self, mut op: F) -> Self
     where
         F: FnMut(Ts) -> Ts,
@@ -54,5 +79,8 @@ impl<Ts, D> TimedData<Ts, D> {
     }
 }
 
-/// Helper type to erase the Vec<u8> parameters
+/// Convenience alias for a [`TimedData`] whose payload is a raw byte buffer.
+///
+/// Used as the input and output type for most pipeline stages before the data
+/// is wrapped into a typed frame or packet.
 pub type TimedPayload<Ts> = TimedData<Ts, Vec<u8>>;

@@ -131,11 +131,17 @@ impl WirePacketFormat for SimplePacket {
     }
 }
 
+/// Intermediate frame type used by [`SimpleClientPipeline`].
+///
+/// A `SimpleFrame` wraps a chunk of payload bytes with a fixed 7-byte magic
+/// header (`b"0FRAME0"`).  It is produced by the [`Framing`] stage and
+/// consumed by the [`Transport`] stage, which packs it into a [`SimplePacket`].
 pub struct SimpleFrame {
     pub data: Vec<u8>,
 }
 
 impl SimpleFrame {
+    /// Magic header prepended to every serialised frame.
     pub const HEADER: &[u8; 7] = b"0FRAME0";
 
     pub fn to_bytes(&self) -> Vec<u8> {

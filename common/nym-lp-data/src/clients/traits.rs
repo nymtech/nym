@@ -57,20 +57,21 @@ pub trait Obfuscation<Ts> {
     fn buffer_size(&self) -> usize;
 }
 
-/// Trait for applying encryption to a timed payload.
+/// Trait for applying routing-security encryption to a timed payload.
 ///
 /// # Type Parameters
 /// - `Ts`: Timestamp type carried by the `TimedPayload`.
 ///
 /// # Associated Constants
 /// - `OVERHEAD_SIZE`: Number of additional bytes added by the encryption scheme.
-/// - `nb_frames`: Number of frames used by an encrypted payload (default is 1)
 ///
-/// # Parameters
-/// - `input`: Payload to encode with the encryption mechanism.
+/// # Required Methods
+/// - `encrypt`: Encrypt the given payload, returning a new `TimedPayload`.
 ///
-/// # Returns
-/// - A `TimedPayload` containing the encrypted data.
+/// # Provided Methods
+/// - `nb_frames`: Number of transport frames that one encrypted payload expands
+///   into; defaults to `1`.  Override when the encryption scheme (e.g. Sphinx)
+///   produces multiple frames per input chunk.
 pub trait RoutingSecurity<Ts> {
     const OVERHEAD_SIZE: usize;
     fn nb_frames(&self) -> usize {
@@ -79,15 +80,27 @@ pub trait RoutingSecurity<Ts> {
     fn encrypt(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts>;
 }
 
-/// Trait for a message pipeline.
+/// Full client-side message pipeline.
+///
+/// Composes all six processing stages — [`Chunking`], [`Reliability`],
+/// [`Obfuscation`], [`RoutingSecurity`], [`Framing`], and [`Transport`] — into
+/// a single `process` call that takes a raw byte payload and returns a list of
+/// timestamped transport packets ready for sending.
 ///
 /// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
-/// - `Fr`: Frame type used in input.
-/// - `P` : Packet type to return.
+/// - `Ts`: Timestamp type carried through the pipeline.
+/// - `Fr`: Intermediate frame type produced by [`Framing`].
+/// - `Pkt`: Final transport packet type produced by [`Transport`].
 ///
-/// # Associated Constants
-/// - `packet_size`: Size of the outputted packets.
+/// # Required Methods
+/// - `packet_size`: Total on-wire size of the outputted transport packets in bytes.
+///
+/// # Provided Methods
+/// - `frame_size`: Derived from `packet_size` minus transport and framing overheads.
+/// - `chunk_size`: Derived from `frame_size` minus routing-security and reliability
+///   overheads, accounting for `nb_frames` expansion.
+/// - `process`: Runs the full pipeline in order:
+///   chunk → reliability encode → obfuscate → encrypt → frame → transport.
 pub trait ProcessingPipeline<Ts, Fr, Pkt>:
     Chunking<Ts>
     + Reliability<Ts>

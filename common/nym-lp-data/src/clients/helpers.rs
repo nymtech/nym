@@ -4,6 +4,10 @@
 use crate::TimedPayload;
 use crate::clients::traits::{Obfuscation, Reliability, RoutingSecurity};
 
+/// No-op [`Reliability`] implementation.
+///
+/// Passes the payload through unchanged with zero byte overhead.
+/// Use this when reliability encoding (e.g. KCP) is not required.
 pub struct NoOpReliability;
 
 impl<Ts> Reliability<Ts> for NoOpReliability {
@@ -13,6 +17,11 @@ impl<Ts> Reliability<Ts> for NoOpReliability {
     }
 }
 
+/// No-op [`RoutingSecurity`] implementation.
+///
+/// Passes the payload through unchanged with zero byte overhead and
+/// `nb_frames() == 1`.  Use this when Sphinx (or other onion) encryption is
+/// not required.
 pub struct NoOpRoutingSecurity;
 
 impl<Ts> RoutingSecurity<Ts> for NoOpRoutingSecurity {
@@ -27,6 +36,11 @@ impl<Ts> RoutingSecurity<Ts> for NoOpRoutingSecurity {
     }
 }
 
+/// No-op [`Obfuscation`] implementation.
+///
+/// Returns the input payload as a single-element vector immediately, with no
+/// cover traffic, delay, or buffering.  Use this when traffic-shape obfuscation
+/// is not required.
 pub struct NoOpObfusctation;
 
 impl<Ts> Obfuscation<Ts> for NoOpObfusctation {

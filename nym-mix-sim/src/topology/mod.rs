@@ -1,6 +1,13 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Topology file types and the in-memory network directory.
+//!
+//! The topology is loaded from `topology.json` and contains everything needed
+//! to construct a node or client (including private config such as keys).
+//! The [`directory::Directory`] holds only the public-facing routing information
+//! visible to other participants in the network.
+
 use std::net::SocketAddr;
 
 use serde::{Deserialize, Serialize};
@@ -9,22 +16,20 @@ use crate::{client::ClientId, node::NodeId};
 
 pub mod directory;
 
-// Topology is loaded from file and contains everything needed to construct a
-// node or client (including private config).
-// Directory holds only the public-facing node information visible to other
-// participants in the network.
-
+/// Per-node configuration stored in `topology.json`.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TopologyNode {
     pub node_id: NodeId,
+    /// UDP address on which the node listens for incoming packets.
     pub socket_address: SocketAddr,
+    /// Notional reliability percentage (0–100); reserved for future use.
     pub reliability: u8,
     //sphinx_private_key: String,
     //sphinx_public_key: String,
 }
 
 impl TopologyNode {
-    /// Construct a [`TopologyNode`] with placeholder key strings.
+    /// Construct a [`TopologyNode`].
     ///
     /// Intended for use by `init-topology` to generate a topology file for the
     /// simulation.

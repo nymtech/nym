@@ -79,6 +79,16 @@ where
     }
 }
 
+/// Top-level processing trait for a mix node.
+///
+/// Takes a received transport packet, applies the full mix operation
+/// (unwrap, route, re-wrap), and returns zero or more `(next_hop, packet)`
+/// pairs indicating where each output packet should be forwarded.
+///
+/// # Type Parameters
+/// - `Ts`: Timestamp / tick-context type.
+/// - `Pkt`: Transport packet type; the same type is consumed and produced.
+/// - `NodeId`: Identifier type for the next-hop destination.
 pub trait MixnodeProcessingPipeline<Ts, Pkt, NodeId> {
     fn process(
         &mut self,

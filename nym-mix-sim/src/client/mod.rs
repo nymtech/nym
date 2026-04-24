@@ -83,8 +83,8 @@ pub struct Client<Ts, Fr, Pkt> {
     /// Outgoing pipeline: wraps plaintext application payloads into
     /// mix-network packets.
     ///
-    /// Uses [`DynProcessingPipeline`] from `nym_lp_data::clients::traits`.
-    /// The frame type `Fr` is erased to `Vec<u8>` for storage.
+    /// The concrete pipeline type is erased behind [`DynProcessingPipeline`]
+    /// so that different pipeline implementations can be swapped in at runtime.
     processing_pipeline: Box<dyn DynProcessingPipeline<Ts, Fr, Pkt> + Send>,
     // TODO: unwrapping_pipeline: Box<dyn UnwrappingPipeline<Ts, Fr, Pkt, MessageKind = Vec<u8>> + Send>
     //       (nym_lp_data::mixnodes::traits::UnwrappingPipeline)

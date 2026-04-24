@@ -9,10 +9,18 @@ use crate::clients::traits::{
 use crate::common::traits::{Framing, Transport};
 use crate::{TimedData, TimedPayload};
 
+/// Per-stream feature flags controlling which optional pipeline stages are active.
+///
+/// Pass a `StreamOptions` to [`ProcessingPipeline::process`] (or its
+/// dyn-compatible mirror) to enable or disable each stage independently.
+/// The default enables all three stages.
 #[derive(Clone, Copy, Debug)]
 pub struct StreamOptions {
+    /// Enable reliability encoding (e.g. KCP header).
     pub reliability: bool,
+    /// Enable routing-security encryption (e.g. Sphinx layering).
     pub security: bool,
+    /// Enable traffic-shape obfuscation (e.g. cover traffic, delays).
     pub obfuscation: bool,
 }
 
@@ -26,7 +34,16 @@ impl Default for StreamOptions {
     }
 }
 
-/// The generic pipeline struct
+/// Generic composition struct that implements [`ProcessingPipeline`] by
+/// delegating each stage to a held component.
+///
+/// Type parameters correspond to the six pipeline stages:
+/// - `C`: [`Chunking`]
+/// - `R`: [`Reliability`]
+/// - `O`: [`Obfuscation`]
+/// - `Rs`: [`RoutingSecurity`]
+/// - `F`: [`Framing`]
+/// - `T`: [`Transport`]
 pub struct Pipeline<C, R, O, Rs, F, T> {
     pub packet_size: usize,
     pub chunking: C,

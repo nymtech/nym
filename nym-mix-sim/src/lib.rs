@@ -27,10 +27,11 @@
 //!
 //! | Module | Purpose |
 //! |--------|---------|
-//! [`driver`] | Top-level orchestrator; owns all nodes and drives simulation ticks |
-//! [`node`]   | Individual mix node: UDP socket, inbound/outbound packet buffers |
-//! [`packet`] | Wire format types and the [`packet::WirePacketFormat`] trait |
-//! [`topology`] | In-memory directory mapping [`topology::directory::NodeId`] → address |
+//! | [`driver`]   | Top-level orchestrator; owns all nodes and clients, drives simulation ticks |
+//! | [`node`]     | Individual mix node: UDP socket, inbound/outbound packet buffers |
+//! | [`client`]   | Simulated client: injects application payloads into the mix network |
+//! | [`packet`]   | Wire format types and the [`packet::WirePacketFormat`] trait |
+//! | [`topology`] | Topology file types and the in-memory [`topology::directory::Directory`] |
 
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]

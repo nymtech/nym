@@ -39,7 +39,7 @@ struct Cli {
     #[arg(short, long)]
     src: ClientId,
 
-    /// ID of the client to address packets to.
+    /// ID of the destination client packets should be routed toward.
     #[arg(short, long)]
     dst: ClientId,
 }

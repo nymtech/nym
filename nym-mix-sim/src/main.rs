@@ -7,8 +7,9 @@
 //!
 //! * **`init-topology`** — generate a `topology.json` file describing N
 //!   localhost mix nodes and one client, with sequential UDP ports.
-//! * **`run`** — load a topology, spin up a [`MixSimDriver`], schedule an
-//!   initial packet on client 0, and drive the simulation until Ctrl-C.
+//! * **`run`** — load a topology, spin up a [`MixSimDriver`], and drive the
+//!   simulation until Ctrl-C.  Use the standalone `client` binary to inject
+//!   packets while the simulation is running.
 
 use std::net::SocketAddr;
 
@@ -39,9 +40,9 @@ enum Commands {
 
         /// Number of clients to generate.
         ///
-        /// Each node receives an auto-assigned ID (N..N+C) and a sequential
-        /// localhost address starting at `127.0.0.1:9500`.
-        /// One client is always generated at `127.0.0.1:9500+C`.
+        /// Each client receives an auto-assigned ID (`N..N+C`) and two
+        /// sequential localhost addresses: a mix-network socket starting at
+        /// `127.0.0.1:9500` and an app socket starting at `127.0.0.1:9600`.
         #[arg(short, long, default_value_t = 2)]
         clients: u8,
 

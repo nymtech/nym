@@ -8,13 +8,13 @@
 //!
 //! 1. **Bootstrapping** — loading `topology.json`, binding UDP sockets, and
 //!    distributing the shared [`Directory`] to every node and client.
-//! 2. **Scheduling** — allowing callers to enqueue client packets via
-//!    [`MixSimDriver::schedule_send`] before the simulation starts.
-//! 3. **Ticking** — advancing every node through the three phases of a
-//!    simulation step (incoming → processing → outgoing) and flushing client
-//!    outgoing queues in the same outgoing phase.
-//! 4. **Driving** — either automatically (sleeping between ticks) or manually
+//! 2. **Ticking** — advancing every node and client through the phases of a
+//!    simulation step (client tick → incoming → processing → outgoing).
+//! 3. **Driving** — either automatically (sleeping between ticks) or manually
 //!    (waiting for the user to press ENTER).
+//!
+//! To inject packets into a running simulation, use the standalone `client`
+//! binary, which sends payloads to a client's app socket.
 
 use std::{fmt::Debug, sync::Arc, time::Duration};
 
@@ -41,8 +41,8 @@ pub use simple::SimpleMixDriver;
 /// Holds ordered lists of [`Node`]s and [`Client`]s corresponding to the
 /// entries in the topology file.
 ///
-/// `Ts` is the tick-context / timestamp type; `Pkt` is the packet type.  The
-/// concrete instantiation used by `main.rs` is `MixSimDriver<u32, SimplePacket>`.
+/// `Ts` is the tick-context / timestamp type; `Fr` is the intermediate frame
+/// type; `Pkt` is the transport packet type.
 pub struct MixSimDriver<Ts, Fr, Pkt> {
     nodes: Vec<Node<Ts, Pkt>>,
     clients: Vec<Client<Ts, Fr, Pkt>>,

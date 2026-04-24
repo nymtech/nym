@@ -47,8 +47,7 @@ Options:
       --expose-system-hardware <EXPOSE_SYSTEM_HARDWARE>
           Specify whether basic system hardware information should be exposed. default: true [env: NYMNODE_HTTP_EXPOSE_SYSTEM_HARDWARE=] [possible values: true, false]
       --expose-crypto-hardware <EXPOSE_CRYPTO_HARDWARE>
-          Specify whether detailed system crypto hardware information should be exposed. default: true [env: NYMNODE_HTTP_EXPOSE_CRYPTO_HARDWARE=] [possible values: true,
-          false]
+          Specify whether detailed system crypto hardware information should be exposed. default: true [env: NYMNODE_HTTP_EXPOSE_CRYPTO_HARDWARE=] [possible values: true, false]
       --mixnet-bind-address <MIXNET_BIND_ADDRESS>
           Address this node will bind to for listening for mixnet packets default: `[::]:1789` [env: NYMNODE_MIXNET_BIND_ADDRESS=]
       --mixnet-announce-port <MIXNET_ANNOUNCE_PORT>
@@ -86,8 +85,8 @@ Options:
       --announce-wss-port <ANNOUNCE_WSS_PORT>
           If applicable, announced port for listening for secure websocket client traffic [env: NYMNODE_ENTRY_ANNOUNCE_WSS_PORT=]
       --enforce-zk-nyms <ENFORCE_ZK_NYMS>
-          Indicates whether this gateway is accepting only coconut credentials for accessing the mixnet or if it also accepts non-paying clients [env:
-          NYMNODE_ENFORCE_ZK_NYMS=] [possible values: true, false]
+          Indicates whether this gateway is accepting only coconut credentials for accessing the mixnet or if it also accepts non-paying clients [env: NYMNODE_ENFORCE_ZK_NYMS=]
+          [possible values: true, false]
       --mnemonic <MNEMONIC>
           Custom cosmos wallet mnemonic used for zk-nym redemption. If no value is provided, a fresh mnemonic is going to be generated [env: NYMNODE_MNEMONIC=]
       --upgrade-mode-attestation-url <UPGRADE_MODE_ATTESTATION_URL>
@@ -112,8 +111,8 @@ Options:
           Custom announced port for listening for the UDP LP data traffic. If unspecified, the value from the `lp_data_bind_address` will be used instead [env:
           NYMNODE_LP_DATA_ANNOUNCE_PORT=]
       --lp-use-mock-ecash <LP_USE_MOCK_ECASH>
-          Use mock ecash manager for LP testing. WARNING: Only use this for local testing! Never enable in production. When enabled, the LP listener will accept any
-          credential without blockchain verification [env: NYMNODE_LP_USE_MOCK_ECASH=] [possible values: true, false]
+          Use mock ecash manager for LP testing. WARNING: Only use this for local testing! Never enable in production. When enabled, the LP listener will accept any credential
+          without blockchain verification [env: NYMNODE_LP_USE_MOCK_ECASH=] [possible values: true, false]
   -h, --help
           Print help
 ```

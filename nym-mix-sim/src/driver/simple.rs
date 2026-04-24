@@ -50,6 +50,6 @@ impl SimpleMixDriver {
 
     /// Run the simulation; delegates to [`MixSimDriver::run`].
     pub async fn run(self, manual_mode: bool, tick_duration_ms: u64) -> anyhow::Result<()> {
-        self.0.run(manual_mode, tick_duration_ms).await
+        self.0.run(manual_mode, 0, tick_duration_ms).await
     }
 }

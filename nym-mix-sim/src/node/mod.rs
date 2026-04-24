@@ -121,7 +121,7 @@ impl<Ts, Pkt, Pn> BaseNode<Ts, Pkt, Pn> {
                     self.id
                 );
             } else {
-                tracing::info!(
+                tracing::debug!(
                     "[Node {}] Successfully sent a packet to node {node_id}",
                     self.id
                 );
@@ -133,7 +133,7 @@ impl<Ts, Pkt, Pn> BaseNode<Ts, Pkt, Pn> {
                     self.id
                 );
             } else {
-                tracing::info!(
+                tracing::debug!(
                     "[Node {}] Successfully sent a packet to client {node_id} @ {client}",
                     self.id
                 );
@@ -162,7 +162,7 @@ impl<Ts, Pkt, Pn> BaseNode<Ts, Pkt, Pn> {
                 return None;
             }
         };
-        tracing::info!(
+        tracing::debug!(
             "[Node {}] Received {nb_bytes} bytes from {src_address}",
             self.id
         );

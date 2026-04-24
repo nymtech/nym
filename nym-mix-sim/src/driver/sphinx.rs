@@ -35,7 +35,7 @@ impl SphinxMixDriver {
         let mut clients: Vec<Box<dyn MixSimClient<Instant> + Send>> =
             Vec::with_capacity(topology.clients.len());
         for top_client in topology.clients {
-            let client = SphinxClient::new(top_client, directory.clone())?;
+            let client = SphinxClient::new(top_client, directory.clone(), Instant::now())?;
             clients.push(Box::new(client));
         }
 
@@ -52,6 +52,7 @@ impl SphinxMixDriver {
 pub struct DiscreteSphinxMixDriver(MixSimDriver<u32>);
 
 impl DiscreteSphinxMixDriver {
+    const START_TICK: u32 = 0;
     /// Load a topology JSON file and initialise the driver with simple pipelines.
     pub fn new(topology: String) -> anyhow::Result<Self> {
         let topology_data =
@@ -71,7 +72,7 @@ impl DiscreteSphinxMixDriver {
         let mut clients: Vec<Box<dyn MixSimClient<u32> + Send>> =
             Vec::with_capacity(topology.clients.len());
         for top_client in topology.clients {
-            let client = SphinxClient::new(top_client, directory.clone())?;
+            let client = SphinxClient::new(top_client, directory.clone(), Self::START_TICK)?;
             clients.push(Box::new(client));
         }
 
@@ -80,6 +81,8 @@ impl DiscreteSphinxMixDriver {
 
     /// Run the simulation; delegates to [`MixSimDriver::run`].
     pub async fn run(self, manual_mode: bool, tick_duration_ms: u64) -> anyhow::Result<()> {
-        self.0.run(manual_mode, tick_duration_ms).await
+        self.0
+            .run(manual_mode, Self::START_TICK, tick_duration_ms)
+            .await
     }
 }

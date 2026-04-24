@@ -5,9 +5,6 @@ use rand::Rng;
 use rand_distr::{Distribution, Exp};
 use std::time;
 
-// TODO: ask @AP why we are actually using Distribution::Exp(1/L) rather than just
-// Distribution::Poisson(L) directly?
-
 // TODO: should we put an extra trait bound on this to require `CryptoRng`? Could there be any attacks
 // because of weak rng used?
 pub fn sample_poisson_duration<R: Rng + ?Sized>(

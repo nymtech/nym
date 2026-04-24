@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Add, time::Duration};
 
 use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
@@ -12,6 +12,8 @@ use nym_lp_data::{
     },
 };
 use nym_sphinx::SphinxPacket;
+use rand::Rng;
+use rand_distr::{Distribution, Exp};
 
 use crate::{node::NodeId, packet::WirePacketFormat};
 
@@ -56,6 +58,66 @@ impl AddDelay for u32 {
 impl AddDelay for std::time::Instant {
     fn add_delay(self, delay: nym_sphinx::Delay) -> Self {
         self + delay.to_duration()
+    }
+}
+
+pub trait GenerateDelay: Sized + Add<Self::Delay, Output = Self> {
+    type Delay;
+    fn generate_mix_delay(rng: &mut impl Rng) -> u64;
+    fn generate_sending_delay(rng: &mut impl Rng) -> Self::Delay;
+    fn generate_cover_traffic_delay(rng: &mut impl Rng) -> Self::Delay;
+}
+
+impl GenerateDelay for u32 {
+    type Delay = u32;
+
+    /// Uniform between 0 and 10
+    fn generate_mix_delay(rng: &mut impl Rng) -> u64 {
+        rng.gen_range(0..=10)
+    }
+
+    /// Exponential with a mean of 10
+    fn generate_sending_delay(rng: &mut impl Rng) -> u32 {
+        // SAFETY : hardcoded > 0 value
+        #[allow(clippy::unwrap_used)]
+        let exp: Exp<f64> = Exp::new(1.0 / 10.0).unwrap();
+        exp.sample(rng).round() as u32
+    }
+
+    /// Exponential with a mean of 100
+    fn generate_cover_traffic_delay(rng: &mut impl Rng) -> u32 {
+        // SAFETY : hardcoded > 0 value
+        #[allow(clippy::unwrap_used)]
+        let exp: Exp<f64> = Exp::new(1.0 / 100.0).unwrap();
+        exp.sample(rng).round() as u32
+    }
+}
+
+impl GenerateDelay for std::time::Instant {
+    type Delay = Duration;
+
+    /// Exponential 50ms
+    fn generate_mix_delay(rng: &mut impl Rng) -> u64 {
+        // SAFETY : hardcoded > 0 value
+        #[allow(clippy::unwrap_used)]
+        let exp: Exp<f64> = Exp::new(1.0 / 50.0).unwrap();
+        exp.sample(rng).round() as u64
+    }
+
+    /// Exponential 20ms
+    fn generate_sending_delay(rng: &mut impl Rng) -> Duration {
+        // SAFETY : hardcoded > 0 value
+        #[allow(clippy::unwrap_used)]
+        let exp: Exp<f64> = Exp::new(1.0 / 20.0).unwrap();
+        Duration::from_millis(exp.sample(rng).round() as u64)
+    }
+
+    /// Exponential 200ms
+    fn generate_cover_traffic_delay(rng: &mut impl Rng) -> Duration {
+        // SAFETY : hardcoded > 0 value
+        #[allow(clippy::unwrap_used)]
+        let exp: Exp<f64> = Exp::new(1.0 / 200.0).unwrap();
+        Duration::from_millis(exp.sample(rng).round() as u64)
     }
 }
 

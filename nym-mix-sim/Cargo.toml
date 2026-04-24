@@ -21,6 +21,7 @@ path = "src/main.rs"
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
 rand.workspace = true
+rand_distr.workspace = true
 tokio = { workspace = true, features = [
     "rt-multi-thread",
     "macros",

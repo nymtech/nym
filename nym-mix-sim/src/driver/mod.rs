@@ -119,21 +119,30 @@ where
 /// be added.
 impl MixSimDriver<u32> {
     /// Start the simulation in either manual or automatic mode.
-    pub async fn run(self, manual_mode: bool, tick_duration_ms: u64) -> anyhow::Result<()> {
+    pub async fn run(
+        self,
+        manual_mode: bool,
+        start_tick: u32,
+        tick_duration_ms: u64,
+    ) -> anyhow::Result<()> {
         if manual_mode {
-            self.run_manual().await
+            self.run_manual(start_tick).await
         } else {
-            self.run_automatic(tick_duration_ms).await
+            self.run_automatic(start_tick, tick_duration_ms).await
         }
     }
 
     /// Run the simulation automatically, advancing one tick every
     /// `tick_duration_ms` milliseconds until Ctrl-C is received.
-    pub async fn run_automatic(mut self, tick_duration_ms: u64) -> anyhow::Result<()> {
+    pub async fn run_automatic(
+        mut self,
+        start_tick: u32,
+        tick_duration_ms: u64,
+    ) -> anyhow::Result<()> {
         info!("Automatic mode: tick duration : {tick_duration_ms} ms");
         let tick_duration = Duration::from_millis(tick_duration_ms);
         let handle = tokio::spawn(async move {
-            let mut current_tick = 0;
+            let mut current_tick = start_tick;
             loop {
                 self.tick(current_tick, false).await;
                 current_tick += 1;
@@ -146,9 +155,9 @@ impl MixSimDriver<u32> {
     }
 
     /// Run the simulation interactively: one tick per ENTER key press.
-    pub async fn run_manual(mut self) -> anyhow::Result<()> {
+    pub async fn run_manual(mut self, start_tick: u32) -> anyhow::Result<()> {
         info!("Manual mode: press ENTER to advance a tick, Ctrl-C to quit");
-        let mut current_tick: u32 = 0;
+        let mut current_tick = start_tick;
         let mut line = String::new();
         loop {
             line.clear();

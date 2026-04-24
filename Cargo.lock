@@ -5311,6 +5311,7 @@ dependencies = [
  "nym-lp-data",
  "nym-sphinx",
  "rand 0.8.5",
+ "rand_distr",
  "serde",
  "serde_json",
  "strum 0.28.0",

@@ -98,7 +98,7 @@ where
             if let Err(e) = self.mix_socket.send_to(&packet.to_bytes(), node.addr) {
                 tracing::error!("[Client {}] Failed to send to node {node_id}: {e}", self.id);
             } else {
-                tracing::info!(
+                tracing::debug!(
                     "[Client {}] Sent packet to node {node_id} @ {}",
                     self.id,
                     node.addr
@@ -122,7 +122,7 @@ where
                 return None;
             }
         };
-        tracing::info!(
+        tracing::debug!(
             "[Client {}] Received {nb} byte(s) from mix node {src}",
             self.id
         );
@@ -170,6 +170,8 @@ where
     /// **Phase 1 — app incoming**: drain the app socket, run each payload
     /// through the processing pipeline, and enqueue the resulting packets.
     fn tick_app_incoming(&mut self, timestamp: Ts) {
+        // Collect (dst, payload) pairs from the app socket.
+        let mut inputs = Vec::new();
         while let Some(result) = self.recv_from_app() {
             let bytes = match result {
                 Ok(b) => b,
@@ -189,15 +191,23 @@ where
                 continue;
             }
 
-            let dst: NodeId = bytes[0];
+            let dst = bytes[0];
             let payload = bytes[1..].to_vec();
-
-            tracing::info!(
+            tracing::debug!(
                 "[Client {}] App input: {} byte(s) → client {dst}",
                 self.id,
                 payload.len()
             );
+            inputs.push((dst, payload));
+        }
 
+        // Always call process at least once; use an empty payload to self when idle.
+        // We need to tick cover traffic
+        if inputs.is_empty() {
+            inputs.push((self.id, vec![]));
+        }
+
+        for (dst, payload) in inputs {
             let packets = self
                 .processing_client
                 .process(payload, dst, timestamp.clone());

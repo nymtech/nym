@@ -15,7 +15,9 @@ use nym_api_requests::ecash::models::{
     VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
-use nym_api_requests::models::network_monitor::KnownNetworkMonitorResponse;
+use nym_api_requests::models::network_monitor::{
+    KnownNetworkMonitorResponse, StressTestBatchSubmission,
+};
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainBlocksStatusResponse,
     ChainStatusResponse, KeyRotationInfoResponse, NodePerformanceResponse, NodeRefreshBody,
@@ -1379,6 +1381,31 @@ pub trait NymApiClientExt: ApiClient {
                 identity_key,
             ],
             NO_PARAMS,
+        )
+        .await
+    }
+
+    /// Submit a signed batch of stress-testing results to nym-api on behalf of a network monitor
+    /// orchestrator.
+    ///
+    /// The caller is expected to have produced `request` via
+    /// `StressTestBatchSubmissionContent::new(...)` and signed it with the orchestrator's ed25519
+    /// key; nym-api will reject submissions that are stale, replayed, unauthorised, or whose
+    /// signature fails to verify.
+    #[instrument(level = "debug", skip(self, request))]
+    async fn submit_stress_testing_results(
+        &self,
+        request: &StressTestBatchSubmission,
+    ) -> Result<(), NymAPIError> {
+        self.post_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::STRESS_TESTING,
+                routes::STRESS_TESTING_BATCH_SUBMIT,
+            ],
+            NO_PARAMS,
+            request,
         )
         .await
     }

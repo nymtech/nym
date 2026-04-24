@@ -422,6 +422,52 @@ impl StorageManager {
         Ok(res.rows_affected())
     }
 
+    /// Returns the id of the most recent `testrun` that has been successfully submitted to the
+    /// nym-api, or `None` if no batch has been submitted yet (either because the orchestrator has
+    /// only just been started, or because no testruns have been produced at all).
+    ///
+    /// The underlying `metadata` row is allowed to not exist and is also allowed to exist with a
+    /// `NULL` column — both cases map to `None` here.
+    pub(crate) async fn get_last_submitted_testrun_id(&self) -> anyhow::Result<Option<i64>> {
+        let id = sqlx::query_scalar!("SELECT last_submitted_testrun_id FROM metadata WHERE id = 0")
+            .fetch_optional(&self.connection_pool)
+            .await?
+            .flatten();
+        Ok(id)
+    }
+
+    /// Records that all testruns with `id <= testrun_id` have been successfully submitted to the
+    /// nym-api. Inserts the singleton `metadata` row if it does not yet exist.
+    pub(crate) async fn set_last_submitted_testrun_id(
+        &self,
+        testrun_id: i64,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"
+            INSERT INTO metadata (id, last_submitted_testrun_id) VALUES (0, ?)
+            ON CONFLICT (id) DO UPDATE SET last_submitted_testrun_id = excluded.last_submitted_testrun_id
+            "#,
+            testrun_id,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Fetches every `testrun` row with an id strictly greater than `after_id`, ordered by id
+    /// ascending so the caller can pick the highest-id submitted row deterministically.
+    ///
+    /// `after_id = 0` (the default used before any batch has been submitted) returns every row in
+    /// the table, since `testrun.id` is `AUTOINCREMENT` and therefore always `>= 1`.
+    pub(crate) async fn get_testruns_after(&self, after_id: i64) -> anyhow::Result<Vec<TestRun>> {
+        let rows =
+            sqlx::query_as::<_, TestRun>("SELECT * FROM testrun WHERE id > ? ORDER BY id ASC")
+                .bind(after_id)
+                .fetch_all(&self.connection_pool)
+                .await?;
+        Ok(rows)
+    }
+
     /// Updates `nym_node.last_testrun` to point at the given test run ID.
     pub(crate) async fn set_node_last_testrun(
         &self,

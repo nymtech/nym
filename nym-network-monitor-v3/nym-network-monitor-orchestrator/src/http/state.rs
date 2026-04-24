@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::api::v1::error::ApiError;
+use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::NewTestRun;
 use axum::extract::FromRef;
@@ -61,6 +62,7 @@ impl KnownAgents {
             noise_key: agent_pubkey,
             announced: false,
         });
+        guard.publish_gauges();
 
         Some(next_port)
     }
@@ -129,6 +131,7 @@ impl KnownAgents {
         {
             agent.announced = true;
         }
+        guard.publish_gauges();
     }
 }
 
@@ -163,8 +166,10 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
                 });
         }
 
+        let inner = KnownAgentsInner { agents: agents_map };
+        inner.publish_gauges();
         Ok(KnownAgents {
-            inner: Arc::new(Mutex::new(KnownAgentsInner { agents: agents_map })),
+            inner: Arc::new(Mutex::new(inner)),
         })
     }
 }
@@ -174,6 +179,24 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
 struct KnownAgentsInner {
     /// Map from host IP to the list of agents running on that host.
     agents: HashMap<IpAddr, Vec<KnownAgent>>,
+}
+
+impl KnownAgentsInner {
+    /// Recomputes and publishes the `known_agents_*` gauges. Called from every mutation of
+    /// the inner map — we recount rather than incrementally adjust so the gauges stay correct
+    /// even if a future code path mutates state without going through a dedicated helper.
+    fn publish_gauges(&self) {
+        let (total, announced) =
+            self.agents
+                .values()
+                .fold((0i64, 0i64), |(total, announced), agents| {
+                    let t = total + agents.len() as i64;
+                    let a = announced + agents.iter().filter(|a| a.announced).count() as i64;
+                    (t, a)
+                });
+        PROMETHEUS_METRICS.set(PrometheusMetric::KnownAgentsTotal, total);
+        PROMETHEUS_METRICS.set(PrometheusMetric::KnownAgentsAnnounced, announced);
+    }
 }
 
 /// Cached state of a single known agent on a particular host.
@@ -201,14 +224,14 @@ pub(crate) struct TestrunManager {
 }
 
 impl TestrunManager {
-    /// Selects the most stale idle node and atomically marks it as having a test
-    /// in progress. Returns `None` if no node is currently eligible.
-    async fn assign_next_testrun(
+    /// Selects the most stale idle mixnode and atomically marks it as having a test
+    /// in progress. Returns `None` if no mixnode is currently eligible.
+    async fn assign_next_mixnode_testrun(
         &self,
         storage: &NetworkMonitorStorage,
     ) -> Result<Option<TestRunAssignment>, ApiError> {
         let node_to_test = match storage
-            .assign_next_testrun(self.testrun_staleness_age)
+            .assign_next_mixnode_testrun(self.testrun_staleness_age)
             .await
         {
             Ok(node) => node,
@@ -304,11 +327,13 @@ impl AppState {
         }
     }
 
-    /// Selects the most stale idle node and atomically marks it as having a test
-    /// in progress. Returns `None` if no node is currently eligible.
-    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
+    /// Selects the most stale idle mixnode and atomically marks it as having a test
+    /// in progress. Returns `None` if no mixnode is currently eligible.
+    pub(crate) async fn assign_next_mixnode_testrun(
+        &self,
+    ) -> Result<Option<TestRunAssignment>, ApiError> {
         self.testrun_manager
-            .assign_next_testrun(&self.storage)
+            .assign_next_mixnode_testrun(&self.storage)
             .await
     }
 

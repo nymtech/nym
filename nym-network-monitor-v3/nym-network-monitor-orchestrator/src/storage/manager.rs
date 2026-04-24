@@ -34,14 +34,16 @@ impl StorageManager {
                     mixnet_socket_address,
                     noise_key,
                     sphinx_key,
-                    key_rotation_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    key_rotation_id,
+                    node_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (node_id) DO UPDATE SET
                     last_seen_bonded      = excluded.last_seen_bonded,
                     mixnet_socket_address = excluded.mixnet_socket_address,
                     noise_key             = excluded.noise_key,
                     sphinx_key            = excluded.sphinx_key,
-                    key_rotation_id       = excluded.key_rotation_id
+                    key_rotation_id       = excluded.key_rotation_id,
+                    node_type             = excluded.node_type
                 "#,
                 node.node_id,
                 node.identity_key,
@@ -50,6 +52,7 @@ impl StorageManager {
                 node.noise_key,
                 node.sphinx_key,
                 node.key_rotation_id,
+                node.node_type,
             )
             .execute(&mut *tx)
             .await?;
@@ -67,6 +70,7 @@ impl StorageManager {
                 node_id,
                 test_type,
                 test_timestamp,
+                time_taken_us,
                 ingress_noise_handshake_us,
                 egress_noise_handshake_us,
                 sphinx_packet_delay_us,
@@ -85,11 +89,12 @@ impl StorageManager {
                 sending_latency_std_dev_us,
                 received_duplicates,
                 error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             run.node_id,
             run.test_type,
             run.test_timestamp,
+            run.time_taken_us,
             run.ingress_noise_handshake_us,
             run.egress_noise_handshake_us,
             run.sphinx_packet_delay_us,
@@ -148,15 +153,28 @@ impl StorageManager {
         Ok(res.rows_affected())
     }
 
-    /// Removes the in-progress marker for a node once its test run has completed or been abandoned.
-    pub(crate) async fn clear_testrun_in_progress(&self, node_id: i64) -> anyhow::Result<()> {
-        sqlx::query!("DELETE FROM testrun_in_progress WHERE node_id = ?", node_id,)
-            .execute(&self.connection_pool)
+    /// Returns the number of rows currently in `testrun_in_progress` — i.e. the number of
+    /// test runs that have been assigned to an agent but not yet submitted back.
+    pub(crate) async fn count_testruns_in_progress(&self) -> anyhow::Result<i64> {
+        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM testrun_in_progress")
+            .fetch_one(&self.connection_pool)
             .await?;
-        Ok(())
+        Ok(total)
     }
 
-    /// Atomically selects the most stale idle node and marks it as having a test run in progress.
+    /// Removes the in-progress marker for a node once its test run has completed or been abandoned.
+    /// Returns the number of rows actually deleted — callers use this to avoid decrementing the
+    /// `TestrunsInProgress` gauge when the row had already been cleared out by eviction (e.g. a
+    /// result submission that arrives after the agent's slot timed out).
+    pub(crate) async fn clear_testrun_in_progress(&self, node_id: i64) -> anyhow::Result<u64> {
+        let res = sqlx::query!("DELETE FROM testrun_in_progress WHERE node_id = ?", node_id,)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(res.rows_affected())
+    }
+
+    /// Atomically selects the most stale idle mixnode and marks it as having a test run in
+    /// progress.
     ///
     /// "Most stale" is defined as: nodes that have never been tested come first, followed by
     /// nodes whose last test run has the oldest timestamp.
@@ -173,9 +191,11 @@ impl StorageManager {
     /// Nodes with a row in `testrun_in_progress` are excluded entirely.
     /// Nodes where `mixnet_socket_address`, `noise_key`, or `sphinx_key` is NULL are also
     /// excluded, as they lack the information required to perform a test.
+    /// Only nodes whose `node_type` is `mixnode` or `mixnode_and_gateway` are eligible;
+    /// gateway-only and unclassified (`unknown`) nodes are excluded.
     ///
-    /// Returns `None` if no eligible idle node exists.
-    pub(crate) async fn assign_next_testrun(
+    /// Returns `None` if no eligible idle mixnode exists.
+    pub(crate) async fn assign_next_mixnode_testrun(
         &self,
         now: OffsetDateTime,
         last_tested_before: OffsetDateTime,
@@ -193,6 +213,7 @@ impl StorageManager {
                 n.noise_key,
                 n.sphinx_key,
                 n.key_rotation_id,
+                n.node_type,
                 n.last_testrun
             FROM nym_node n
             LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
@@ -201,6 +222,7 @@ impl StorageManager {
               AND n.mixnet_socket_address IS NOT NULL
               AND n.noise_key IS NOT NULL
               AND n.sphinx_key IS NOT NULL
+              AND n.node_type IN ('mixnode', 'mixnode_and_gateway')
               AND (n.last_testrun IS NULL OR tr.test_timestamp < ?)
             ORDER BY tr.test_timestamp ASC NULLS FIRST
             LIMIT 1
@@ -420,7 +442,7 @@ impl StorageManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::models::{NewNymNode, NewTestRun, TestType};
+    use crate::storage::models::{NewNymNode, NewTestRun, NodeType, TestType};
     use std::path::Path;
     use time::macros::datetime;
 
@@ -449,6 +471,7 @@ mod tests {
             noise_key: Some("placeholder_noise_key".to_string()),
             sphinx_key: Some("placeholder_sphinx_key".to_string()),
             key_rotation_id: Some(0),
+            node_type: NodeType::Mixnode,
         }
     }
 
@@ -457,6 +480,7 @@ mod tests {
             node_id,
             test_type: TestType::Mixnode,
             test_timestamp: datetime!(2025-06-01 12:00:00 UTC),
+            time_taken_us: 0,
             ingress_noise_handshake_us: None,
             egress_noise_handshake_us: None,
             sphinx_packet_delay_us: 0,
@@ -785,7 +809,7 @@ mod tests {
         }
     }
 
-    mod assign_next_testrun {
+    mod assign_next_mixnode_testrun {
         use super::*;
 
         // A far-future cutoff that effectively disables the staleness gate,
@@ -798,7 +822,10 @@ mod tests {
         async fn returns_none_when_no_nodes() {
             let db = setup().await;
             let result = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
+                .assign_next_mixnode_testrun(
+                    datetime!(2025-06-01 12:00:00 UTC),
+                    no_staleness_gate(),
+                )
                 .await
                 .unwrap();
             assert!(result.is_none());
@@ -810,12 +837,15 @@ mod tests {
             db.batch_insert_or_update_nym_nodes(&[node(1, "key_a")])
                 .await
                 .unwrap();
-            db.assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
+            db.assign_next_mixnode_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
                 .await
                 .unwrap();
 
             let result = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
+                .assign_next_mixnode_testrun(
+                    datetime!(2025-06-01 12:00:00 UTC),
+                    no_staleness_gate(),
+                )
                 .await
                 .unwrap();
             assert!(result.is_none());
@@ -828,7 +858,10 @@ mod tests {
                 .await
                 .unwrap();
             let assigned = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
+                .assign_next_mixnode_testrun(
+                    datetime!(2025-06-01 12:00:00 UTC),
+                    no_staleness_gate(),
+                )
                 .await
                 .unwrap();
             assert!(assigned.is_some());
@@ -857,7 +890,10 @@ mod tests {
 
             // node 2 has never been tested — it should be picked first
             let assigned = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
+                .assign_next_mixnode_testrun(
+                    datetime!(2025-06-01 12:00:00 UTC),
+                    no_staleness_gate(),
+                )
                 .await
                 .unwrap()
                 .unwrap();
@@ -886,7 +922,10 @@ mod tests {
 
             // node 1 has the older run — it should be picked
             let assigned = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
+                .assign_next_mixnode_testrun(
+                    datetime!(2025-06-01 12:00:00 UTC),
+                    no_staleness_gate(),
+                )
                 .await
                 .unwrap()
                 .unwrap();
@@ -909,7 +948,10 @@ mod tests {
                 .unwrap();
 
             let assigned = db
-                .assign_next_testrun(datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
+                .assign_next_mixnode_testrun(
+                    datetime!(2025-06-01 12:00:00 UTC),
+                    no_staleness_gate(),
+                )
                 .await
                 .unwrap()
                 .unwrap();
@@ -930,7 +972,7 @@ mod tests {
 
             // cutoff is before the last test — node is not stale enough
             let result = db
-                .assign_next_testrun(
+                .assign_next_mixnode_testrun(
                     datetime!(2025-06-01 13:00:00 UTC),
                     datetime!(2025-06-01 11:00:00 UTC),
                 )
@@ -953,7 +995,7 @@ mod tests {
 
             // cutoff is after the last test — node is eligible
             let assigned = db
-                .assign_next_testrun(
+                .assign_next_mixnode_testrun(
                     datetime!(2025-06-01 14:00:00 UTC),
                     datetime!(2025-06-01 13:00:00 UTC),
                 )
@@ -981,7 +1023,7 @@ mod tests {
             // cutoff is before node 1's last test — it is filtered out
             // node 2 has never been tested and must still be returned
             let assigned = db
-                .assign_next_testrun(
+                .assign_next_mixnode_testrun(
                     datetime!(2025-06-01 13:00:00 UTC),
                     datetime!(2025-06-01 11:00:00 UTC),
                 )

@@ -7,8 +7,10 @@ use nym_network_monitor_orchestrator_requests::models::{
     self as api, LatencyDistribution, NymNodeData, TestRunData, TestRunInProgressData,
     TestRunResult,
 };
+use nym_node_requests::api::v1::node::models::NodeRoles;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
+use std::time::Duration;
 use time::OffsetDateTime;
 
 /// Discriminator for the type of node targeted by a [`TestRun`].
@@ -20,6 +22,34 @@ pub(crate) enum TestType {
     Gateway,
 }
 
+/// Classification of a node based on the roles reported via its self-described endpoint.
+/// [`NodeType::Unknown`] is used both as the initial value before the node is successfully
+/// queried and when a queried node reports no roles at all.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+pub(crate) enum NodeType {
+    #[default]
+    Unknown,
+    Mixnode,
+    Gateway,
+    MixnodeAndGateway,
+}
+
+impl NodeType {
+    /// Classifies a node from the `NodeRoles` reported by its self-described endpoint.
+    /// We key off `gateway_enabled` (entry-gateway capability) only — the `exit` property is
+    /// not a useful distinction for test-target selection. A node reporting neither role maps
+    /// to [`NodeType::Unknown`] and will be ignored by the mixnode testrun assignment query.
+    pub(crate) fn from_roles(roles: &NodeRoles) -> Self {
+        match (roles.mixnode_enabled, roles.gateway_enabled) {
+            (true, true) => NodeType::MixnodeAndGateway,
+            (true, false) => NodeType::Mixnode,
+            (false, true) => NodeType::Gateway,
+            (false, false) => NodeType::Unknown,
+        }
+    }
+}
+
 /// The data required to insert a new row into `testrun`. Does not carry an `id` since that
 /// is assigned by the database on insertion.
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -29,6 +59,9 @@ pub(crate) struct NewTestRun {
 
     pub(crate) test_type: TestType,
     pub(crate) test_timestamp: OffsetDateTime,
+
+    /// How long the test took, in microseconds.
+    pub(crate) time_taken_us: i64,
 
     /// Noise handshake duration on the ingress (responder) side, in microseconds.
     pub(crate) ingress_noise_handshake_us: Option<i64>,
@@ -78,6 +111,7 @@ impl NewTestRun {
             node_id: node_id as i64,
             test_type,
             test_timestamp: OffsetDateTime::now_utc(),
+            time_taken_us: result.time_taken.as_micros() as i64,
             ingress_noise_handshake_us: result.ingress_noise_handshake.map(duration_to_us),
             egress_noise_handshake_us: result.egress_noise_handshake.map(duration_to_us),
             sphinx_packet_delay_us: duration_to_us(result.sphinx_packet_delay),
@@ -124,8 +158,8 @@ pub(crate) struct TestRun {
     pub(crate) inner: NewTestRun,
 }
 
-fn us_to_duration(us: i64) -> std::time::Duration {
-    std::time::Duration::from_micros(us as u64)
+fn us_to_duration(us: i64) -> Duration {
+    Duration::from_micros(us as u64)
 }
 
 /// Reassembles a [`LatencyDistribution`] from its four flattened microsecond columns.
@@ -177,6 +211,7 @@ impl From<TestRun> for TestRunData {
             test_type: inner.test_type.into(),
             test_timestamp: inner.test_timestamp,
             result: TestRunResult {
+                time_taken: Duration::from_micros(inner.time_taken_us as u64),
                 ingress_noise_handshake: inner.ingress_noise_handshake_us.map(us_to_duration),
                 egress_noise_handshake: inner.egress_noise_handshake_us.map(us_to_duration),
                 sphinx_packet_delay: us_to_duration(inner.sphinx_packet_delay_us),
@@ -235,6 +270,10 @@ pub(crate) struct NewNymNode {
     /// `None` if retrieval from the node failed.
     /// Always `None`/`Some` together with `sphinx_key`.
     pub(crate) key_rotation_id: Option<i64>,
+
+    /// Classification of the node based on the roles reported via its self-described endpoint.
+    /// [`NodeType::Unknown`] if the self-described retrieval failed.
+    pub(crate) node_type: NodeType,
 }
 
 impl NewNymNode {
@@ -247,6 +286,7 @@ impl NewNymNode {
             noise_key: None,
             sphinx_key: None,
             key_rotation_id: None,
+            node_type: NodeType::Unknown,
         }
     }
 }

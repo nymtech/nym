@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::orchestrator::config::Config;
+use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::NewNymNode;
+use crate::storage::models::{NewNymNode, NodeType};
 use anyhow::Context;
 use futures::{StreamExt, stream};
 use nym_bin_common::bin_info;
@@ -11,15 +12,17 @@ use nym_crypto::asymmetric::x25519;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
 use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::helpers::NymNodeApiClientRetriever;
+use nym_node_requests::api::v1::node::models::NodeRoles;
 use nym_task::ShutdownToken;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use nym_validator_client::models::KeyRotationId;
 use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use rand::prelude::SliceRandom;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::time::interval;
+use tokio::time::{Instant, interval};
 use tracing::{error, info};
 
 pub(crate) struct NodeRefresher {
@@ -55,6 +58,9 @@ struct SelfDescribedData {
 
     /// Key rotation epoch ID that `sphinx_key` belongs to.
     key_rotation_id: KeyRotationId,
+
+    /// The supported roles of the node in the network.
+    roles: NodeRoles,
 }
 
 impl NodeRefresher {
@@ -112,11 +118,19 @@ impl NodeRefresher {
             .mix_port
             .unwrap_or(DEFAULT_MIX_LISTENING_PORT);
 
+        // retrieve information about the node roles so that we can classify the node
+        // (we're not testing gateways yet, but we still store them for completeness)
+        let roles = api_client
+            .get_roles()
+            .await
+            .context("failed to retrieve node roles")?;
+
         Ok(SelfDescribedData {
             mixnet_socket_address: SocketAddr::new(*ip_address, mix_port),
             noise_key,
             sphinx_key,
             key_rotation_id,
+            roles,
         })
     }
 
@@ -136,14 +150,18 @@ impl NodeRefresher {
         node_update.noise_key = Some(self_described.noise_key.to_base58_string());
         node_update.sphinx_key = Some(self_described.sphinx_key.to_base58_string());
         node_update.key_rotation_id = Some(self_described.key_rotation_id as i64);
+        node_update.node_type = NodeType::from_roles(&self_described.roles);
 
         node_update
     }
 
     async fn refresh_bonded_nodes(&self) -> anyhow::Result<()> {
+        let start = Instant::now();
+
         // 1. retrieve all nodes from the contract
         let nodes = self.client.get_all_nymnode_bonds().await?;
-        info!("retrieved {} bonded nodes from the contract", nodes.len());
+        let num_nodes = nodes.len();
+        info!("retrieved {num_nodes} bonded nodes from the contract");
 
         // 2. retrieve detailed information from the self-described endpoints
         let refreshed_nodes: Vec<_> = stream::iter(nodes)
@@ -152,15 +170,44 @@ impl NodeRefresher {
             .collect()
             .await;
 
-        info!(
-            "managed to retrieve full node information on {} nodes",
-            refreshed_nodes.len()
-        );
+        let mut per_type: HashMap<NodeType, i64> = HashMap::new();
+        for node in &refreshed_nodes {
+            *per_type.entry(node.node_type).or_insert(0) += 1;
+        }
+        let count_of = |t: NodeType| per_type.get(&t).copied().unwrap_or(0);
+        let unknown = count_of(NodeType::Unknown);
+        let successful = (refreshed_nodes.len() as i64) - unknown;
+        info!("managed to retrieve full node information on {successful} nodes ({unknown} failed)");
 
-        // 3. update the storage
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::BondedMixnodeNymNodes,
+            count_of(NodeType::Mixnode),
+        );
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::BondedGatewayNymNodes,
+            count_of(NodeType::Gateway),
+        );
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::BondedMixnodeAndGatewayNymNodes,
+            count_of(NodeType::MixnodeAndGateway),
+        );
+        PROMETHEUS_METRICS.set(PrometheusMetric::BondedUnknownNymNodes, unknown);
+        PROMETHEUS_METRICS.set(PrometheusMetric::SuccessfulNymNodeDataRetrieval, successful);
+        PROMETHEUS_METRICS.set(PrometheusMetric::FailedNymNodeDataRetrieval, unknown);
+
+        // 3. persist every node (including unreachable ones so we keep their
+        //    previously-learned keys around for the next refresh). The testrun
+        //    assignment query filters out non-mixnode / unknown entries.
         self.storage
             .batch_insert_or_update_nym_nodes(&refreshed_nodes)
             .await?;
+
+        // Observe the cycle duration last so it reflects the full refresh path
+        // (contract query + per-node queries + storage write).
+        PROMETHEUS_METRICS.observe_histogram(
+            PrometheusMetric::NodeRefreshCycleSeconds,
+            start.elapsed().as_secs_f64(),
+        );
         Ok(())
     }
 

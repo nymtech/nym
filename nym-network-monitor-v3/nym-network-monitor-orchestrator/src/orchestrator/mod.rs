@@ -23,6 +23,7 @@ use zeroize::Zeroizing;
 
 pub(crate) mod config;
 mod node_refresher;
+pub(crate) mod prometheus;
 mod stale_results_eviction;
 pub(crate) mod testruns;
 

@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use nym_task::ShutdownToken;
 use std::time::Duration;
@@ -82,12 +83,27 @@ impl StaleResultsEviction {
             .await?;
 
         if cleared_in_progress > 0 || evicted_old > 0 {
+            PROMETHEUS_METRICS.inc_by(
+                PrometheusMetric::TimedOutTestrunsEvicted,
+                cleared_in_progress as i64,
+            );
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
+
             info!(
                 cleared_in_progress,
                 evicted_old, "stale data eviction sweep completed"
             );
         } else {
             debug!("stale data eviction sweep completed: nothing to evict");
+        }
+
+        // Reconcile the in-flight gauge against the authoritative row count. The gauge is
+        // primarily maintained live via inc/dec at assign/submit/timeout paths; this sweep is
+        // a safety net that corrects any drift (e.g. from a future code path that forgets to
+        // update the gauge) and bounds the worst-case staleness to one sweep interval.
+        match self.storage.count_testruns_in_progress().await {
+            Ok(count) => PROMETHEUS_METRICS.set(PrometheusMetric::TestrunsInProgress, count),
+            Err(err) => error!("failed to count in-flight testruns for metric: {err}"),
         }
         Ok(())
     }

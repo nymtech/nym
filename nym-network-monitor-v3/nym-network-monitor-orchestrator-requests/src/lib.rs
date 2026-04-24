@@ -53,7 +53,11 @@ pub mod routes {
         }
 
         pub mod metrics {
-            // use super::*;
+            use super::*;
+
+            pub const PROMETHEUS: &str = "/prometheus";
+
+            absolute_route!(prometheus_absolute, metrics_absolute(), PROMETHEUS);
         }
 
         pub mod results {

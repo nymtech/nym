@@ -20,6 +20,9 @@ CREATE TABLE testrun
     -- When this testrun has been performed.
     test_timestamp             TIMESTAMP WITHOUT TIME ZONE                        NOT NULL,
 
+    -- How long the test took to complete, in microseconds, from the point of view of an agent.
+    time_taken_us              INTEGER                                            NOT NULL,
+
     -- Duration of the Noise handshake on the ingress (responder) side, in microseconds.
     -- NULL if the handshake did not complete.
     ingress_noise_handshake_us INTEGER,
@@ -103,6 +106,12 @@ CREATE TABLE nym_node
     -- NULL if retrieval from the node failed.
     -- Always NULL/non-NULL together with sphinx_key.
     key_rotation_id       INTEGER,
+
+    -- Classification of the node based on the roles reported via its self-described endpoint.
+    -- 'unknown' is used both before the node has been successfully queried and when a queried
+    -- node reports no roles. Only nodes with node_type in ('mixnode', 'mixnode_and_gateway')
+    -- are eligible for testruns today.
+    node_type             TEXT CHECK ( node_type IN ('unknown', 'mixnode', 'gateway', 'mixnode_and_gateway') ) NOT NULL DEFAULT 'unknown',
 
     -- The most recent test run performed against this node. NULL if never tested.
     -- Set to NULL automatically when the referenced testrun row is evicted.

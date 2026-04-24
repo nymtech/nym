@@ -171,7 +171,19 @@ impl SimpleFrame {
 pub struct SimpleClientPipeline;
 
 impl<Ts: Clone> Chunking<Ts> for SimpleClientPipeline {
-    fn chunked(&self, input: Vec<u8>, chunk_size: usize, timestamp: Ts) -> Vec<TimedPayload<Ts>> {
+    fn chunked(
+        &self,
+        mut input: Vec<u8>,
+        chunk_size: usize,
+        timestamp: Ts,
+    ) -> Vec<TimedPayload<Ts>> {
+        // Padding with 10000...
+        input.push(1);
+        if !input.len().is_multiple_of(chunk_size) {
+            let padding = vec![0; chunk_size - input.len() % chunk_size];
+            input.extend_from_slice(&padding);
+        }
+
         input
             .chunks(chunk_size)
             .map(|chunk| TimedData {
@@ -212,24 +224,14 @@ impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleClientPipeline {
         payload: TimedPayload<Ts>,
         frame_size: usize,
     ) -> Vec<TimedData<Ts, SimpleFrame>> {
-        // Padding with 10000...// SW This is suboptimal for now
-        let padded_payload = payload.data_transform(|mut data| {
-            data.push(1);
-            if !data.len().is_multiple_of(frame_size) {
-                let padding = vec![0; frame_size - data.len() % frame_size];
-                data.extend_from_slice(&padding);
-            }
-            data
-        });
-
-        padded_payload
+        payload
             .data
             .chunks(frame_size)
             .map(|frame_payload| TimedData {
                 data: SimpleFrame {
                     data: frame_payload.to_vec(),
                 },
-                timestamp: padded_payload.timestamp.clone(),
+                timestamp: payload.timestamp.clone(),
             })
             .collect()
     }

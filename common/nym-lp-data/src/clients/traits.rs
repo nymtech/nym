@@ -22,7 +22,7 @@ where
     Opts: InputOptions<NdId>,
 {
     fn chunked(
-        &self,
+        &mut self,
         input: Vec<u8>,
         input_options: Opts,
         chunk_size: usize,
@@ -101,7 +101,10 @@ where
     fn nb_frames(&self) -> usize {
         1
     }
-    fn encrypt(&self, input: PipelinePayload<Ts, Opts, NdId>) -> PipelinePayload<Ts, Opts, NdId>;
+    fn encrypt(
+        &mut self,
+        input: PipelinePayload<Ts, Opts, NdId>,
+    ) -> PipelinePayload<Ts, Opts, NdId>;
 }
 
 /// Full client-side outbound message pipeline.

@@ -19,14 +19,14 @@ use crate::{
     client::ClientId, node::NodeId, packet::WirePacketFormat, topology::directory::Directory,
 };
 
-/// Newtype wrapper around [`SphinxPacket`] that provides a trimmed [`Debug`]
+/// Newtype wrapper that provides a trimmed [`Debug`]
 /// implementation (showing only the first 32 bytes of the serialised form to
 /// avoid flooding logs).
 pub struct SimMixPacket(Vec<u8>);
 
 impl Debug for SimMixPacket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "SimSphinkPacket {{")?;
+        writeln!(f, "SimMixPacket {{")?;
         writeln!(f, "    data start:")?;
         if self.0.len() > 32 {
             for line in format_debug_bytes(&self.0.to_bytes()[..32])?.lines() {

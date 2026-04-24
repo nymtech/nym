@@ -142,7 +142,7 @@ impl<Ts: Clone> Chunking<Ts, SimpleInputOptions, NodeId> for SimpleClientWrappin
     /// A `0x01` marker byte is appended before padding so the unwrapper can
     /// strip trailing zeros.
     fn chunked(
-        &self,
+        &mut self,
         mut input: Vec<u8>,
         options: SimpleInputOptions,
         chunk_size: usize,

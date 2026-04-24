@@ -13,7 +13,6 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx::{Node as SphinxNode, NodeAddressBytes};
-use rand::rngs::OsRng;
 use rand::{prelude::SliceRandom, seq::IteratorRandom};
 
 use crate::{
@@ -59,10 +58,10 @@ impl Directory {
     }
 
     /// Pick a random node
-    pub fn random_next_hop(&self) -> NodeId {
+    pub fn random_next_hop(&self, rng: &mut impl rand::Rng) -> NodeId {
         // SAFETY: The directory always contains at least one node in a valid simulation.
         #[allow(clippy::unwrap_used)]
-        *self.node_ids().choose(&mut OsRng).unwrap()
+        *self.node_ids().choose(rng).unwrap()
     }
 
     pub fn random_route(&self, length: usize, rng: &mut impl rand::Rng) -> Vec<DirectoryNode> {

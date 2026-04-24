@@ -12,6 +12,7 @@
 use std::{sync::Arc, time::Instant};
 
 use anyhow::Context;
+use rand::rngs::OsRng;
 
 use crate::{
     client::{MixSimClient, sphinx::SphinxClient},
@@ -43,7 +44,7 @@ impl SphinxMixDriver {
         let mut clients: Vec<Box<dyn MixSimClient<Instant> + Send>> =
             Vec::with_capacity(topology.clients.len());
         for top_client in topology.clients {
-            let client = SphinxClient::new(top_client, directory.clone(), Instant::now())?;
+            let client = SphinxClient::new(top_client, directory.clone(), Instant::now(), OsRng)?;
             clients.push(Box::new(client));
         }
 
@@ -89,7 +90,7 @@ impl DiscreteSphinxMixDriver {
         let mut clients: Vec<Box<dyn MixSimClient<u32> + Send>> =
             Vec::with_capacity(topology.clients.len());
         for top_client in topology.clients {
-            let client = SphinxClient::new(top_client, directory.clone(), Self::START_TICK)?;
+            let client = SphinxClient::new(top_client, directory.clone(), Self::START_TICK, OsRng)?;
             clients.push(Box::new(client));
         }
 
@@ -97,9 +98,19 @@ impl DiscreteSphinxMixDriver {
     }
 
     /// Run the simulation; delegates to [`MixSimDriver::run`].
-    pub async fn run(self, manual_mode: bool, display_state: bool, tick_duration_ms: u64) -> anyhow::Result<()> {
+    pub async fn run(
+        self,
+        manual_mode: bool,
+        display_state: bool,
+        tick_duration_ms: u64,
+    ) -> anyhow::Result<()> {
         self.0
-            .run(manual_mode, display_state, Self::START_TICK, tick_duration_ms)
+            .run(
+                manual_mode,
+                display_state,
+                Self::START_TICK,
+                tick_duration_ms,
+            )
             .await
     }
 }

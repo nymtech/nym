@@ -80,7 +80,7 @@ pub trait ProcessingNode<Ts, Pkt>: Send {
 /// [`SphinxPacket`]: nym_sphinx::SphinxPacket
 pub struct BaseNode<Ts, Pkt, Pn> {
     pub(crate) id: NodeId,
-    _reliability: u8,
+    _reliability: u8, // Unused yet, can be used later for testing the reliability layer
     pub(crate) socket_address: SocketAddr,
     socket: UdpSocket,
     directory: Arc<Directory>,

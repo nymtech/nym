@@ -83,10 +83,10 @@ where
     ///
     /// The destination is set to this client's own address and the first hop is
     /// chosen at random from the directory, matching the real-message behaviour.
-    pub fn cover_traffic_options(&self) -> SphinxInputOptions {
+    pub fn cover_traffic_options(&mut self) -> SphinxInputOptions {
         SphinxInputOptions {
             dst: self.address,
-            next_hop: self.directory.random_next_hop(),
+            next_hop: self.directory.random_next_hop(&mut self.rng),
         }
     }
 }

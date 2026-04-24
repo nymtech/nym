@@ -42,7 +42,10 @@ where
         1
     }
 
-    fn encrypt(&self, input: PipelinePayload<Ts, Opts, NdId>) -> PipelinePayload<Ts, Opts, NdId> {
+    fn encrypt(
+        &mut self,
+        input: PipelinePayload<Ts, Opts, NdId>,
+    ) -> PipelinePayload<Ts, Opts, NdId> {
         input
     }
 }

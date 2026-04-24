@@ -1,6 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! [`SphinxNode`] — mix node using the full Sphinx packet pipeline.
+
 use std::sync::Arc;
 
 use nym_crypto::asymmetric::x25519;
@@ -68,8 +70,13 @@ where
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// A [`MixnodeProcessingPipeline`] for [`SphinxPacket`], with no framing and no transport layer
+/// A [`MixnodeProcessingPipeline`] for [`SphinxPacket`].
 ///
+/// Uses no-op framing and transport wrappers because a Sphinx packet is already
+/// its own self-contained wire unit — no additional framing or transport header
+/// is needed.  The real work happens in [`mix`](SphinxProcessingNode::mix), which
+/// peels one onion layer with the node's private key and extracts the next-hop
+/// address and per-hop delay.
 pub struct SphinxProcessingNode {
     id: NodeId,
     sphinx_secret: x25519::PrivateKey,
@@ -78,6 +85,8 @@ pub struct SphinxProcessingNode {
 }
 
 impl SphinxProcessingNode {
+    /// Construct a pipeline for the node identified by `node_id`, using
+    /// `sphinx_secret` to decrypt incoming Sphinx packets.
     pub fn new(node_id: NodeId, sphinx_secret: x25519::PrivateKey) -> Self {
         Self {
             id: node_id,
@@ -93,13 +102,21 @@ impl<Ts> MixnodeProcessingPipeline<Ts, SphinxPacket, SimSphinxPacket, SphinxMess
 where
     Ts: AddDelay + Clone,
 {
+    /// Peel one Sphinx layer and forward or deliver the result.
+    ///
+    /// - **ForwardHop**: extracts the next-hop packet, address (byte 0 of the
+    ///   32-byte address field encodes the [`NodeId`]), and per-hop delay; schedules
+    ///   the re-wrapped packet at `timestamp + delay`.
+    /// - **FinalHop**: delivers the plaintext payload directly to the destination
+    ///   client (identified by byte 0 of the destination address).
     fn mix(
         &mut self,
         _: SphinxMessage,
         payload: TimedPayload<Ts>,
         timestamp: Ts,
     ) -> Vec<AddressedTimedPayload<Ts, NodeId>> {
-        // SAFETY : Given the unwrapper we are using, it is guaranteed to be a sphinx packet here
+        // SAFETY: Given the no-op unwrapper used here, payload.data is always a
+        // valid serialised SphinxPacket at this point.
         #[allow(clippy::unwrap_used)]
         let sphinx_packet = SphinxPacket::from_bytes(&payload.data).unwrap();
 

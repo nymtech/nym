@@ -1,6 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! [`SimpleMixDriver`] — concrete driver using the simple (non-Sphinx) packet pipeline.
+
 use std::sync::Arc;
 
 use anyhow::Context;

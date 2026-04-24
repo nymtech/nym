@@ -144,6 +144,7 @@ impl SimpleFrame {
     /// Magic header prepended to every serialised frame.
     pub const HEADER: &[u8; 7] = b"0FRAME0";
 
+    /// Serialise the frame: magic header followed by the payload bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
 
@@ -153,6 +154,11 @@ impl SimpleFrame {
         bytes
     }
 
+    /// Deserialise a [`SimpleFrame`] by stripping the leading magic header.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `bytes` is shorter than the 7-byte header.
     pub fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
         if bytes.len() < Self::HEADER.len() {
             return Err(anyhow::anyhow!(
@@ -166,6 +172,12 @@ impl SimpleFrame {
     }
 }
 
+/// Marker type identifying a fully-unwrapped simple payload.
+///
+/// Passed through the pipeline's [`FramingUnwrap`] stage; because the simple
+/// pipeline has only one message kind this is a zero-sized unit struct.
+///
+/// [`FramingUnwrap`]: nym_lp_data::common::traits::FramingUnwrap
 pub struct SimpleMessage;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -220,12 +232,12 @@ impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket, NodeId> for 
     }
 }
 
-/// Unwrapping building block: `SimpleFrame` → payload.
+/// Unwrapping building block: `SimplePacket` → payload.
 ///
-/// Implements [`FramingUnwrap`] and [`WireUnwrappingPipeline`] for the
-/// `SimpleFrame`/`SimplePacket` pair.  Compose this into any pipeline that
-/// needs frame-unwrapping by delegating to `SimpleFrameUnwrapper`.
-///
+/// Implements [`TransportUnwrap`], [`FramingUnwrap`], and
+/// [`WireUnwrappingPipeline`] for the `SimpleFrame`/`SimplePacket` pair.
+/// Compose into any pipeline that needs frame-unwrapping by delegating to
+/// `SimpleWireUnwrapper`.
 pub struct SimpleWireUnwrapper;
 
 impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleWireUnwrapper {

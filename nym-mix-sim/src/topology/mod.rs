@@ -50,6 +50,7 @@ impl TopologyNode {
 /// Per-client configuration stored in `topology.json`.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TopologyClient {
+    /// Unique identifier for this client within the topology.
     pub client_id: ClientId,
     /// UDP address the client uses to talk to the mix network.
     pub mixnet_address: SocketAddr,
@@ -59,6 +60,10 @@ pub struct TopologyClient {
 }
 
 impl TopologyClient {
+    /// Construct a [`TopologyClient`] with the given addresses.
+    ///
+    /// Intended for use by `init-topology` to generate a topology file for the
+    /// simulation.
     pub fn new(client_id: ClientId, mixnet_address: SocketAddr, app_address: SocketAddr) -> Self {
         Self {
             client_id,
@@ -68,8 +73,7 @@ impl TopologyClient {
     }
 }
 
-/// Root topology file structure.
-///
+/// Root topology file structure, deserialised from `topology.json`.
 #[derive(Serialize, Deserialize)]
 pub struct Topology {
     pub nodes: Vec<TopologyNode>,

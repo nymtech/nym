@@ -1,6 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Sphinx-based driver variants.
+//!
+//! Two flavours are provided:
+//!
+//! * [`SphinxMixDriver`] — wall-clock ([`Instant`]) timestamps; automatic mode only.
+//! * [`DiscreteSphinxMixDriver`] — discrete `u32` tick counter (1 tick = 1 ms);
+//!   supports both automatic and manual stepping modes.
+
 use std::{sync::Arc, time::Instant};
 
 use anyhow::Context;
@@ -16,7 +24,7 @@ use crate::{
 pub struct SphinxMixDriver(MixSimDriver<Instant>);
 
 impl SphinxMixDriver {
-    /// Load a topology JSON file and initialise the driver with simple pipelines.
+    /// Load a topology JSON file and initialise the driver with Sphinx pipelines.
     pub fn new(topology: String) -> anyhow::Result<Self> {
         let topology_data =
             std::fs::read_to_string(&topology).context("Failed to read topology file")?;
@@ -43,17 +51,26 @@ impl SphinxMixDriver {
     }
 
     /// Run the simulation; delegates to [`MixSimDriver::run`].
+    ///
+    /// `manual_mode` is ignored: [`Instant`]-based drivers cannot be stepped
+    /// manually because wall-clock time cannot be advanced by keypress.
     pub async fn run(self, _manual_mode: bool, tick_duration_ms: u64) -> anyhow::Result<()> {
         self.0.run(false, tick_duration_ms).await
     }
 }
 
-/// Concrete [`MixSimDriver`] instantiation that uses [`SphinxPacket`]s. Use this for manual mode, one tick is one ms
+/// Concrete [`MixSimDriver`] instantiation that uses full Sphinx encryption with a
+/// discrete tick counter.
+///
+/// Each tick corresponds to 1 ms of simulated time, enabling deterministic
+/// stepping and delay arithmetic without requiring wall-clock time.  This is
+/// the default driver and the only Sphinx variant that supports manual mode.
 pub struct DiscreteSphinxMixDriver(MixSimDriver<u32>);
 
 impl DiscreteSphinxMixDriver {
     const START_TICK: u32 = 0;
-    /// Load a topology JSON file and initialise the driver with simple pipelines.
+
+    /// Load a topology JSON file and initialise the driver with Sphinx pipelines.
     pub fn new(topology: String) -> anyhow::Result<Self> {
         let topology_data =
             std::fs::read_to_string(&topology).context("Failed to read topology file")?;

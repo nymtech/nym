@@ -1,19 +1,45 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Poisson cover traffic generator.
+//!
+//! Implements the [`Obfuscation`] trait for [`SphinxClient`] using two
+//! independent Poisson processes:
+//!
+//! * **Main loop** — schedules one slot per inter-arrival time drawn from an
+//!   exponential distribution.  Real messages are injected into these slots; if
+//!   no real message is ready when a slot fires, a cover-traffic payload is sent
+//!   instead.
+//! * **Secondary loop** — independently fires cover-traffic packets at a lower
+//!   rate, providing additional traffic volume that is independent of the main
+//!   loop's cadence.
+//!
+//! Together the two loops ensure that an observer cannot determine from traffic
+//! patterns alone whether the client is actively sending real messages.
+//!
+//! [`SphinxClient`]: super::SphinxClient
+
 use nym_lp_data::{TimedPayload, clients::traits::Obfuscation};
 use nym_sphinx::cover::LOOP_COVER_MESSAGE_PAYLOAD;
 use rand::Rng;
 
 use crate::{client::sphinx::SphinxInputOptions, node::NodeId, packet::sphinx::GenerateDelay};
 
+/// Two-loop Poisson cover traffic generator.
+///
+/// Maintains two independent next-fire timestamps — one for the main sending
+/// loop and one for the secondary cover loop — and advances them by independent
+/// exponential delays on each firing.
 pub struct PoissonCoverTraffic<Ts, R>
 where
     Ts: Clone + GenerateDelay + PartialOrd,
     R: Rng,
 {
+    /// Timestamp at which the main loop next fires (real or cover packet).
     main_loop_next_timestamp: Ts,
+    /// Timestamp at which the secondary cover loop next fires.
     secondary_loop_next_timestamp: Ts,
+    /// Random number generator used for exponential delay sampling.
     rng: R,
 }
 
@@ -22,6 +48,10 @@ where
     Ts: Clone + GenerateDelay + PartialOrd,
     R: Rng,
 {
+    /// Construct a new cover traffic generator.
+    ///
+    /// Both loops are initialised to fire immediately at `current_timestamp` so
+    /// that cover traffic begins on the very first tick.
     pub fn new(current_timestamp: Ts, rng: R) -> Self {
         Self {
             main_loop_next_timestamp: current_timestamp.clone(),
@@ -36,6 +66,11 @@ where
     Ts: Clone + GenerateDelay + PartialOrd,
     R: Rng,
 {
+    /// Produce the set of payloads to send at `timestamp`.
+    ///
+    /// Called once per tick with an optional real message (`input`).  May
+    /// return zero, one, or two payloads depending on which loops fire and
+    /// whether a real message is available.
     fn obfuscate(
         &mut self,
         input: Option<TimedPayload<Ts>>,
@@ -81,7 +116,7 @@ where
     }
 
     fn buffer_size(&self) -> usize {
-        // SW Do I need that after all?
+        // Cover traffic does not buffer real messages; it generates them on demand.
         0
     }
 }

@@ -213,6 +213,7 @@ pub enum SimDriver {
 }
 
 impl SimDriver {
+    /// Dispatch to the appropriate concrete driver and start the simulation.
     pub async fn run(
         self,
         topology: String,

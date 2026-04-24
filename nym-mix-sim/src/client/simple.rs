@@ -69,6 +69,8 @@ impl<Ts> SimpleClient<Ts> {
     }
 }
 
+/// [`InputOptions`] for the simple pipeline — all optional features disabled,
+/// next hop is always node 0.
 #[derive(Clone, Copy)]
 pub struct SimpleInputOptions;
 
@@ -90,6 +92,7 @@ impl InputOptions<NodeId> for SimpleInputOptions {
     }
 }
 
+/// Bridges [`BaseClient`] to the simple wrapping and unwrapping pipelines.
 pub struct SimpleProcessingClient {
     wrapper: SimpleClientWrappingPipeline,
     unwrapper: SimpleClientUnwrapping,
@@ -130,6 +133,11 @@ impl Default for SimpleClientWrappingPipeline {
 }
 
 impl<Ts: Clone> Chunking<Ts, SimpleInputOptions, NodeId> for SimpleClientWrappingPipeline {
+    /// Split `input` into chunks of `chunk_size` bytes, padding the last chunk
+    /// with zero bytes if necessary.
+    ///
+    /// A `0x01` marker byte is appended before padding so the unwrapper can
+    /// strip trailing zeros.
     fn chunked(
         &self,
         mut input: Vec<u8>,
@@ -137,7 +145,6 @@ impl<Ts: Clone> Chunking<Ts, SimpleInputOptions, NodeId> for SimpleClientWrappin
         chunk_size: usize,
         timestamp: Ts,
     ) -> Vec<TimedPayload<Ts>> {
-        // Padding with 10000...
         input.push(1);
         if !input.len().is_multiple_of(chunk_size) {
             let padding = vec![0; chunk_size - input.len() % chunk_size];
@@ -197,6 +204,8 @@ impl<Ts: Clone> ClientWrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleInpu
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Unwrapping pipeline for [`SimpleClient`]: strips the frame header and
+/// removes padding from the recovered payload.
 pub struct SimpleClientUnwrapping(SimpleWireUnwrapper);
 
 impl Default for SimpleClientUnwrapping {

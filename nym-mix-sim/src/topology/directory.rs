@@ -29,6 +29,10 @@ use crate::{
 pub struct Directory {
     /// Keyed routing map: node ID → directory entry.
     nodes: HashMap<NodeId, DirectoryNode>,
+    /// Mix-network socket address for each client, keyed by [`ClientId`].
+    ///
+    /// Used by nodes to deliver final-hop packets directly to the target client's
+    /// mix socket rather than forwarding to another node.
     clients: HashMap<ClientId, SocketAddr>,
 }
 
@@ -54,6 +58,8 @@ impl Directory {
 }
 
 impl From<&Topology> for Directory {
+    /// Build a [`Directory`] from a full [`Topology`], extracting only the
+    /// public routing information (addresses and public keys) from each entry.
     fn from(value: &Topology) -> Self {
         let mut directory = Directory::default();
         for node in &value.nodes {
@@ -69,7 +75,6 @@ impl From<&Topology> for Directory {
 }
 
 /// Public routing information for a single mix node, stored in the [`Directory`].
-///
 #[derive(Clone, Debug)]
 pub struct DirectoryNode {
     /// Unique identifier for this node within the topology.
@@ -85,6 +90,8 @@ pub struct DirectoryNode {
 }
 
 impl From<&TopologyNode> for DirectoryNode {
+    /// Derive the public [`DirectoryNode`] entry from a [`TopologyNode`] by
+    /// computing the corresponding X25519 public key from the private key.
     fn from(value: &TopologyNode) -> Self {
         DirectoryNode {
             id: value.node_id,
@@ -94,8 +101,15 @@ impl From<&TopologyNode> for DirectoryNode {
     }
 }
 
-// Helper to convert to SphinxNode
 impl From<&DirectoryNode> for SphinxNode {
+    /// Convert a [`DirectoryNode`] into a [`SphinxNode`] suitable for use with
+    /// [`SphinxPacketBuilder`].
+    ///
+    /// The Sphinx [`NodeAddressBytes`] are constructed by repeating the single-byte
+    /// [`NodeId`] across all 32 bytes — a simulation-only convention that lets the
+    /// node recover its own ID from the address after decryption.
+    ///
+    /// [`SphinxPacketBuilder`]: nym_sphinx::SphinxPacketBuilder
     fn from(value: &DirectoryNode) -> Self {
         let address = NodeAddressBytes::from_bytes([value.id; 32]);
         SphinxNode::new(address, *value.sphinx_public_key)

@@ -17,14 +17,16 @@ use rand_distr::{Distribution, Exp};
 
 use crate::{node::NodeId, packet::WirePacketFormat};
 
-// Simple Wrapper for sphinx packet to implement a (sort of) debug impl;
+/// Newtype wrapper around [`SphinxPacket`] that provides a trimmed [`Debug`]
+/// implementation (showing only the first 16 bytes of the serialised form to
+/// avoid flooding logs).
 pub struct SimSphinxPacket(SphinxPacket);
 
 impl Debug for SimSphinxPacket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "SphinkPacket {{")?;
         writeln!(f, "    data start:")?;
-        for line in format_debug_bytes(&self.0.to_bytes()[..64])?.lines() {
+        for line in format_debug_bytes(&self.0.to_bytes()[..16])?.lines() {
             writeln!(f, "        {line}")?;
         }
         write!(f, "}}")
@@ -41,6 +43,15 @@ impl WirePacketFormat for SimSphinxPacket {
     }
 }
 
+/// Marker type identifying a fully-unwrapped Sphinx payload.
+///
+/// Passed through the pipeline's [`FramingUnwrap`] stage so that
+/// [`ClientUnwrappingPipeline::process_unwrapped`] can dispatch on the message
+/// kind.  In the simulation there is only one kind, so this is a zero-sized
+/// unit struct.
+///
+/// [`FramingUnwrap`]: nym_lp_data::common::traits::FramingUnwrap
+/// [`ClientUnwrappingPipeline::process_unwrapped`]: nym_lp_data::clients::traits::ClientUnwrappingPipeline::process_unwrapped
 pub struct SphinxMessage;
 
 /// Abstracts adding a Sphinx [`Delay`](nym_sphinx::Delay) to a timestamp type.
@@ -61,22 +72,34 @@ impl AddDelay for std::time::Instant {
     }
 }
 
+/// Timestamp types that can generate Sphinx delays and be advanced by them.
+///
+/// Implemented for `u32` (discrete ticks, 1 tick = 1 ms) and [`Instant`]
+/// (wall-clock time).
 pub trait GenerateDelay: Sized + Add<Self::Delay, Output = Self> {
+    /// The delay unit that can be added to `Self` (e.g. `u32` ticks or
+    /// [`Duration`](std::time::Duration)).
     type Delay;
+
+    /// Draw a per-hop mix delay in milliseconds for inclusion in a Sphinx packet header.
     fn generate_mix_delay(rng: &mut impl Rng) -> u64;
+
+    /// Draw an inter-packet sending delay for the main Poisson loop.
     fn generate_sending_delay(rng: &mut impl Rng) -> Self::Delay;
+
+    /// Draw an inter-packet sending delay for the secondary cover traffic loop.
     fn generate_cover_traffic_delay(rng: &mut impl Rng) -> Self::Delay;
 }
 
 impl GenerateDelay for u32 {
     type Delay = u32;
 
-    /// Uniform between 0 and 10
+    /// Uniform in `[0, 10]` ms.
     fn generate_mix_delay(rng: &mut impl Rng) -> u64 {
         rng.gen_range(0..=10)
     }
 
-    /// Exponential with a mean of 10
+    /// Exponential with mean 10 ticks (ms).
     fn generate_sending_delay(rng: &mut impl Rng) -> u32 {
         // SAFETY : hardcoded > 0 value
         #[allow(clippy::unwrap_used)]
@@ -84,7 +107,7 @@ impl GenerateDelay for u32 {
         exp.sample(rng).round() as u32
     }
 
-    /// Exponential with a mean of 100
+    /// Exponential with mean 100 ticks (ms).
     fn generate_cover_traffic_delay(rng: &mut impl Rng) -> u32 {
         // SAFETY : hardcoded > 0 value
         #[allow(clippy::unwrap_used)]
@@ -96,7 +119,7 @@ impl GenerateDelay for u32 {
 impl GenerateDelay for std::time::Instant {
     type Delay = Duration;
 
-    /// Exponential 50ms
+    /// Exponential with mean 50 ms.
     fn generate_mix_delay(rng: &mut impl Rng) -> u64 {
         // SAFETY : hardcoded > 0 value
         #[allow(clippy::unwrap_used)]
@@ -104,7 +127,7 @@ impl GenerateDelay for std::time::Instant {
         exp.sample(rng).round() as u64
     }
 
-    /// Exponential 20ms
+    /// Exponential with mean 20 ms.
     fn generate_sending_delay(rng: &mut impl Rng) -> Duration {
         // SAFETY : hardcoded > 0 value
         #[allow(clippy::unwrap_used)]
@@ -112,7 +135,7 @@ impl GenerateDelay for std::time::Instant {
         Duration::from_millis(exp.sample(rng).round() as u64)
     }
 
-    /// Exponential 200ms
+    /// Exponential with mean 200 ms.
     fn generate_cover_traffic_delay(rng: &mut impl Rng) -> Duration {
         // SAFETY : hardcoded > 0 value
         #[allow(clippy::unwrap_used)]
@@ -164,6 +187,13 @@ impl<Ts: Clone> WireWrappingPipeline<Ts, SphinxPacket, SimSphinxPacket, NodeId>
     }
 }
 
+/// Unwrapping building block: `SimSphinxPacket` → `SphinxPacket`.
+///
+/// The inverse of [`SphinxNoOpWireWrapper`]: unwraps the [`SimSphinxPacket`]
+/// newtype to the inner [`SphinxPacket`] and serialises it back to bytes for
+/// the downstream [`FramingUnwrap`] stage.
+///
+/// [`FramingUnwrap`]: nym_lp_data::common::traits::FramingUnwrap
 pub struct SphinxNoOpWireUnwrapper;
 
 impl<Ts> FramingUnwrap<Ts, SphinxPacket, SphinxMessage> for SphinxNoOpWireUnwrapper {

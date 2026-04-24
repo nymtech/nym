@@ -1,6 +1,12 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! [`SphinxClient`] — simulated client using full Sphinx encryption.
+//!
+//! The wrapping pipeline applies chunking, Sphinx encryption (routing security),
+//! and Poisson cover traffic obfuscation.  The unwrapping pipeline reconstructs
+//! fragmented messages and filters out cover traffic.
+
 use std::sync::Arc;
 
 use nym_lp_data::{
@@ -66,11 +72,15 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send> SphinxClient<Ts> {
     }
 }
 
+/// [`InputOptions`] for the Sphinx pipeline — routing security and obfuscation
+/// are enabled; reliability is not.
 #[derive(Clone, Copy)]
 pub struct SphinxInputOptions {
+    /// Destination client ID, embedded in the Sphinx destination address.
     dst: ClientId,
-    // In practice, this is the gateway's ID
-    // Here since we're not doing gateway, it will get generated randomly and be the first node's ID
+    /// First-hop node ID.  In a real Nym network this would be the client's
+    /// gateway; here it is chosen at random from the topology because there is
+    /// no gateway concept in the simulation.
     next_hop: NodeId,
 }
 
@@ -92,6 +102,7 @@ impl InputOptions<NodeId> for SphinxInputOptions {
     }
 }
 
+/// Bridges [`BaseClient`] to the Sphinx wrapping and unwrapping pipelines.
 pub struct SphinxProcessingClient<Ts: Clone + GenerateDelay + PartialOrd> {
     wrapper: SphinxClientWrappingPipeline<Ts>,
     unwrapper: SphinxClientUnwrapping,
@@ -121,6 +132,11 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send> ProcessingClient<Ts, SimSphi
 // ─────────────────────────────────────────────────────────────────────────────
 // Concrete pipelines
 
+/// Full wrapping pipeline for [`SphinxClient`].
+///
+/// Applies, in order: chunking (using standard Sphinx fragmentation),
+/// Poisson cover traffic obfuscation, Sphinx onion encryption, and the no-op
+/// wire wrapper.
 pub struct SphinxClientWrappingPipeline<Ts: Clone + GenerateDelay + PartialOrd> {
     wire_wrapper: SphinxNoOpWireWrapper,
     cover_traffic: PoissonCoverTraffic<Ts, OsRng>,
@@ -128,10 +144,14 @@ pub struct SphinxClientWrappingPipeline<Ts: Clone + GenerateDelay + PartialOrd> 
 }
 
 impl<Ts: Clone + GenerateDelay + PartialOrd> SphinxClientWrappingPipeline<Ts> {
+    /// Pick a random node from the directory to use as the next hop (entry point).
+    ///
+    /// This substitutes for a real gateway selection — in the simulation every
+    /// node is equally eligible as a first hop.
     pub fn random_next_hop(&self) -> NodeId {
-        // SAFETY : Directory can't be empty of nodes in the sim
+        // SAFETY: The directory always contains at least one node in a valid simulation.
         #[allow(clippy::unwrap_used)]
-        *self.directory.node_ids().choose(&mut OsRng).unwrap() // see comments in SphinxInputOptions as to why we are doing this
+        *self.directory.node_ids().choose(&mut OsRng).unwrap()
     }
 }
 
@@ -185,6 +205,13 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> RoutingSecurity<Ts, SphinxInputOpti
     fn nb_frames(&self) -> usize {
         1
     }
+    /// Wrap `input` in a Sphinx onion packet with a 3-hop route.
+    ///
+    /// The route is built by taking `input_options.next_hop` as the first hop
+    /// and choosing two additional hops at random from the directory (repeats are
+    /// allowed).  The final destination is the client identified by
+    /// `input_options.dst`.  Per-hop delays are drawn from
+    /// [`GenerateDelay::generate_mix_delay`].
     fn encrypt(
         &self,
         input: TimedPayload<Ts>,
@@ -192,13 +219,13 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> RoutingSecurity<Ts, SphinxInputOpti
     ) -> TimedPayload<Ts> {
         let mut route_ids = vec![input_options.next_hop];
         for _ in 0..2 {
-            route_ids.push(self.random_next_hop()); // I don't care if we go through the same one multiple time
+            route_ids.push(self.random_next_hop());
         }
 
         let route = route_ids
             .into_iter()
             .map(|id| {
-                // SAFETY : We just took a random route from the directory, nodes must exists in said directory
+                // SAFETY: IDs were sampled from the directory, so they are guaranteed to exist.
                 #[allow(clippy::unwrap_used)]
                 self.directory.node(id).unwrap().into()
             })
@@ -279,7 +306,11 @@ impl<Ts: Clone + GenerateDelay + PartialOrd>
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Since the client does not unwrap the last layer, we get the message directly
+/// Unwrapping pipeline for [`SphinxClient`].
+///
+/// Receives the raw final-hop payload (the last Sphinx layer has already been
+/// stripped by the terminal mix node), recovers the plaintext, filters cover
+/// traffic, and reassembles Sphinx fragments into complete messages.
 #[derive(Default)]
 pub struct SphinxClientUnwrapping {
     message_reconstructor: MessageReconstructor,

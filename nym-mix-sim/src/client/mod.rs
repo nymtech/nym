@@ -28,7 +28,18 @@ pub trait MixSimClient<Ts: Clone + PartialOrd + Debug + Send>: Send {
     fn tick(&mut self, timestamp: Ts);
 }
 
+/// Pipeline interface used by [`BaseClient`] to convert raw app payloads into
+/// wire packets and to unwrap received packets back into plaintext.
+///
+/// `SndPkt` is the outgoing packet type (e.g. [`SimplePacket`] or
+/// [`SimSphinxPacket`]).  `RcvPkt` defaults to `SndPkt` but can differ when the
+/// inbound and outbound wire formats diverge (e.g. the Sphinx client receives
+/// raw `Vec<u8>` final-hop payloads from nodes).
+///
+/// [`SimplePacket`]: crate::packet::simple::SimplePacket
+/// [`SimSphinxPacket`]: crate::packet::sphinx::SimSphinxPacket
 pub trait ProcessingClient<Ts, SndPkt, RcvPkt = SndPkt>: Send {
+    /// Wrap `input` into one or more outbound packets addressed toward `dst`.
     fn process(
         &mut self,
         input: Vec<u8>,
@@ -36,6 +47,11 @@ pub trait ProcessingClient<Ts, SndPkt, RcvPkt = SndPkt>: Send {
         timestamp: Ts,
     ) -> Vec<AddressedTimedData<Ts, SndPkt, NodeId>>;
 
+    /// Unwrap an inbound packet received from the mix network.
+    ///
+    /// Returns `Ok(Some(plaintext))` for a real message, `Ok(None)` when the
+    /// packet is cover traffic or an incomplete fragment, and `Err` when
+    /// decryption or deserialisation fails.
     fn unwrap(&mut self, input: RcvPkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>>;
 }
 
@@ -51,10 +67,13 @@ pub struct BaseClient<Ts, Pc, SndPkt, RcvPkt = SndPkt> {
     app_socket: UdpSocket,
     directory: Arc<Directory>,
 
+    /// Packets that have been processed and are waiting to be forwarded to their
+    /// first-hop node, sorted (loosely) by scheduled send timestamp.
     outgoing_queue: Vec<AddressedTimedData<Ts, SndPkt, NodeId>>,
 
     processing_client: Pc,
 
+    /// Phantom data to carry the `RcvPkt` type parameter without storing a value.
     _marker: std::marker::PhantomData<RcvPkt>,
 }
 

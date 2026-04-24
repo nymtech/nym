@@ -1,6 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! [`SimpleNode`] — mix node using the simple (non-Sphinx) packet pipeline.
+
 use std::sync::Arc;
 
 use nym_lp_data::{
@@ -75,6 +77,7 @@ pub struct SimpleProcessingNode {
 }
 
 impl SimpleProcessingNode {
+    /// Construct a pipeline for the node identified by `id`.
     pub fn new(id: NodeId) -> Self {
         Self {
             id,
@@ -87,13 +90,16 @@ impl SimpleProcessingNode {
 impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage, NodeId>
     for SimpleProcessingNode
 {
+    /// Route the payload to the next node in the chain (`self.id + 1`).
+    ///
+    /// This is a trivial fixed routing rule used for simulation testing.
+    /// Real mix nodes would perform cryptographic route unwrapping here.
     fn mix(
         &mut self,
         _: SimpleMessage,
         payload: TimedPayload<Ts>,
         _timestamp: Ts,
     ) -> Vec<AddressedTimedPayload<Ts, NodeId>> {
-        // Routing decision: forward to the next node
         vec![(self.id + 1, payload).into()]
     }
 }

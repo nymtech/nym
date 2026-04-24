@@ -29,9 +29,19 @@ pub type NodeId = u8;
 ///
 /// [`MixSimDriver`]: crate::driver::MixSimDriver
 pub trait MixSimNode<Ts: Clone + PartialOrd + Debug + Send>: Send {
+    /// **Phase 1** — drain the UDP socket into the inbound buffer, tagging each
+    /// received packet with `timestamp`.
     fn tick_incoming(&mut self, timestamp: Ts);
+
+    /// **Phase 2** — pass every buffered packet through the mix pipeline and
+    /// move the results into the outbound queue.
     fn tick_processing(&mut self, timestamp: Ts);
+
+    /// **Phase 3** — forward all outbound packets whose scheduled timestamp is
+    /// ≤ `timestamp` to their next-hop address.
     fn tick_outgoing(&mut self, timestamp: Ts);
+
+    /// Pretty-print the node's current buffer state to stdout (used in manual mode).
     fn display_state(&self);
 }
 

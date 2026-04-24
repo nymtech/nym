@@ -26,7 +26,7 @@
 
 use std::{fmt::Debug, io::ErrorKind, net::UdpSocket, sync::Arc};
 
-use nym_lp_data::traits::types::TimedData;
+use nym_lp_data::TimedData;
 
 use crate::{
     packet::WirePacketFormat,

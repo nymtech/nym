@@ -4,8 +4,8 @@ use std::{
 };
 
 use nym_lp::packet::utils::format_debug_bytes;
-use nym_lp_data::client_driver::PipelineDriver;
-use nym_lp_data::traits::{ProcessingPipeline, types::Pipeline, types::StreamOptions};
+use nym_lp_data::clients::driver::PipelineDriver;
+use nym_lp_data::clients::{traits::ProcessingPipeline, types::Pipeline, types::StreamOptions};
 
 use crate::common::{
     KcpReliability, KekwObfuscation, LpFraming, LpTransport, MockChunking, ReallyOddObfuscation,

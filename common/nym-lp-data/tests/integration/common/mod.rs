@@ -5,10 +5,10 @@ use nym_lp::packet::{
     LpFrame, LpHeader, LpPacket,
     frame::{LpFrameHeader, LpFrameKind},
 };
-use nym_lp_data::traits::{
-    Chunking, Framing, Obfuscation, Reliability, Security, Transport, types::TimedData,
-    types::TimedPayload,
+use nym_lp_data::clients::traits::{
+    Chunking, Framing, Obfuscation, Reliability, Security, Transport,
 };
+use nym_lp_data::{TimedData, TimedPayload};
 
 pub type TimedLpFrame<Ts> = TimedData<Ts, LpFrame>;
 pub type TimedLpPacket<Ts> = TimedData<Ts, LpPacket>;

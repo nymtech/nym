@@ -1,12 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use helpers::{NoOpObfusctation, NoOpReliability, NoOpSecurity};
-
-use crate::traits::types::{StreamOptions, TimedData, TimedPayload};
-
-mod helpers;
-pub mod types;
+use crate::clients::types::StreamOptions;
+use crate::{TimedData, TimedPayload};
 
 /// Trait for splitting an incoming payload into timestamped chunks.
 ///

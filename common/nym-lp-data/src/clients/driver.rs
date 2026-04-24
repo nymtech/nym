@@ -3,7 +3,8 @@
 
 use std::sync::mpsc;
 
-use crate::traits::{ProcessingPipeline, types::StreamOptions, types::TimedData};
+use crate::TimedData;
+use crate::clients::{traits::ProcessingPipeline, types::StreamOptions};
 
 pub struct PipelineDriver<Ts, Fr, Pkt, Pl>
 where

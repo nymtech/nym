@@ -1,7 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::traits::{Obfuscation, Reliability, Security, TimedPayload};
+use crate::TimedPayload;
+use crate::clients::traits::{Obfuscation, Reliability, Security};
 
 pub struct NoOpReliability;
 

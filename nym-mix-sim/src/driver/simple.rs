@@ -3,7 +3,10 @@
 
 use crate::{
     driver::MixSimDriver,
-    packet::{SimpleClientPipeline, SimpleFrame, SimplePacket, SimplePassThroughPipeline},
+    packet::{
+        SimpleClientPipeline, SimpleClientUnwrapping, SimpleFrame, SimplePacket,
+        SimplePassThroughPipeline,
+    },
     topology::{TopologyClient, TopologyNode},
 };
 
@@ -23,10 +26,13 @@ impl SimpleMixDriver {
             |top_node: &TopologyNode| SimplePassThroughPipeline::new(top_node.node_id);
         let client_processing_pipeline = |_: &TopologyClient| SimpleClientPipeline;
 
+        let client_unwrapping_pipeline = |_: &TopologyClient| SimpleClientUnwrapping;
+
         let driver = MixSimDriver::<u32, SimpleFrame, SimplePacket>::new(
             topology,
             mixnode_pipeline,
             client_processing_pipeline,
+            client_unwrapping_pipeline,
         )?;
         Ok(SimpleMixDriver(driver))
     }

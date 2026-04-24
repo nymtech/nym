@@ -4,27 +4,32 @@
 use crate::TimedPayload;
 use crate::clients::traits::{Obfuscation, Reliability, RoutingSecurity};
 
-/// No-op [`Reliability`] implementation.
+/// Marker trait for a no-op [`Reliability`] implementation.
 ///
-/// Passes the payload through unchanged with zero byte overhead.
-/// Use this when reliability encoding (e.g. KCP) is not required.
-pub struct NoOpReliability;
+/// Implement this for your pipeline type to get a [`Reliability`] impl that
+/// passes the payload through unchanged with zero byte overhead.
+pub trait NoOpReliability {}
 
-impl<Ts> Reliability<Ts> for NoOpReliability {
+impl<T, Ts> Reliability<Ts> for T
+where
+    T: NoOpReliability,
+{
     const OVERHEAD_SIZE: usize = 0;
     fn reliable_encode(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts> {
         input
     }
 }
 
-/// No-op [`RoutingSecurity`] implementation.
+/// Marker trait for a no-op [`RoutingSecurity`] implementation.
 ///
-/// Passes the payload through unchanged with zero byte overhead and
-/// `nb_frames() == 1`.  Use this when Sphinx (or other onion) encryption is
-/// not required.
-pub struct NoOpRoutingSecurity;
+/// Implement this for your pipeline type to get a [`RoutingSecurity`] impl that
+/// passes the payload through unchanged with zero byte overhead and `nb_frames() == 1`.
+pub trait NoOpRoutingSecurity {}
 
-impl<Ts> RoutingSecurity<Ts> for NoOpRoutingSecurity {
+impl<T, Ts> RoutingSecurity<Ts> for T
+where
+    T: NoOpRoutingSecurity,
+{
     const OVERHEAD_SIZE: usize = 0;
 
     fn nb_frames(&self) -> usize {
@@ -36,16 +41,19 @@ impl<Ts> RoutingSecurity<Ts> for NoOpRoutingSecurity {
     }
 }
 
-/// No-op [`Obfuscation`] implementation.
+/// Marker trait for a no-op [`Obfuscation`] implementation.
 ///
-/// Returns the input payload as a single-element vector immediately, with no
-/// cover traffic, delay, or buffering.  Use this when traffic-shape obfuscation
-/// is not required.
-pub struct NoOpObfusctation;
+/// Implement this for your pipeline type to get an [`Obfuscation`] impl that
+/// passes the input through unchanged with no cover traffic, delay, or
+/// buffering.
+pub trait NoOpObfuscation {}
 
-impl<Ts> Obfuscation<Ts> for NoOpObfusctation {
-    fn obfuscate(&mut self, input: TimedPayload<Ts>, _: Ts) -> Vec<TimedPayload<Ts>> {
-        vec![input]
+impl<T, Ts> Obfuscation<Ts> for T
+where
+    T: NoOpObfuscation,
+{
+    fn obfuscate(&mut self, input: Option<TimedPayload<Ts>>, _: Ts) -> Vec<TimedPayload<Ts>> {
+        input.map(|payload| vec![payload]).unwrap_or_default()
     }
     fn buffer_size(&self) -> usize {
         0

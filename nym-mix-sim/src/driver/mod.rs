@@ -21,9 +21,8 @@ use std::{fmt::Debug, sync::Arc, time::Duration};
 use anyhow::Context;
 use tracing::{debug, info};
 
+use nym_lp_data::clients::traits::{ClientUnwrappingPipeline, DynProcessingPipeline};
 use nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline;
-
-use nym_lp_data::clients::traits::DynProcessingPipeline;
 
 use crate::{
     client::Client,
@@ -50,7 +49,7 @@ pub struct MixSimDriver<Ts, Fr, Pkt> {
 
 impl<Ts, Fr, Pkt> MixSimDriver<Ts, Fr, Pkt>
 where
-    Ts: Debug,
+    Ts: Debug + Clone,
     Pkt: Debug,
 {
     /// Load a topology from `topology_file_path` and initialise all nodes and
@@ -68,16 +67,19 @@ where
     ///
     /// Returns an error if the topology file cannot be read, if the JSON is
     /// malformed, or if any node or client fails to bind its UDP socket.
-    pub fn new<Pb, P, Cp, C>(
+    pub fn new<Pb, P, Cpb, Cp, Cub, Cu>(
         topology_file_path: String,
         pipeline_builder: Pb,
-        client_pipeline_builder: Cp,
+        client_processing_builder: Cpb,
+        client_unwrapping_builder: Cub,
     ) -> anyhow::Result<Self>
     where
         Pb: Fn(&TopologyNode) -> P,
         P: MixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send + 'static,
-        Cp: Fn(&TopologyClient) -> C,
-        C: DynProcessingPipeline<Ts, Fr, Pkt> + Send + 'static,
+        Cpb: Fn(&TopologyClient) -> Cp,
+        Cp: DynProcessingPipeline<Ts, Fr, Pkt> + Send + 'static,
+        Cub: Fn(&TopologyClient) -> Cu,
+        Cu: ClientUnwrappingPipeline<Ts, Pkt> + Send + 'static,
     {
         debug!("Bootstrapping from topology file: {}", topology_file_path);
 
@@ -97,8 +99,9 @@ where
         // 3. Init clients (bind UDP sockets)
         let mut clients = Vec::with_capacity(topology.clients.len());
         for client_topology in topology.clients {
-            let pipeline = client_pipeline_builder(&client_topology);
-            clients.push(Client::new(client_topology, pipeline)?);
+            let processing = client_processing_builder(&client_topology);
+            let unwrapping = client_unwrapping_builder(&client_topology);
+            clients.push(Client::new(client_topology, processing, unwrapping)?);
         }
 
         // 4. Build Directory from nodes

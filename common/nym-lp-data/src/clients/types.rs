@@ -78,7 +78,11 @@ impl<Ts, C, R, O, Rs, F, T> Obfuscation<Ts> for Pipeline<C, R, O, Rs, F, T>
 where
     O: Obfuscation<Ts>,
 {
-    fn obfuscate(&mut self, input: TimedPayload<Ts>, timestamp: Ts) -> Vec<TimedPayload<Ts>> {
+    fn obfuscate(
+        &mut self,
+        input: Option<TimedPayload<Ts>>,
+        timestamp: Ts,
+    ) -> Vec<TimedPayload<Ts>> {
         self.obfuscation.obfuscate(input, timestamp)
     }
     fn buffer_size(&self) -> usize {

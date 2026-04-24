@@ -72,8 +72,16 @@ impl<Ts> RoutingSecurity<Ts> for SphinxSecurity {
 pub struct KekwObfuscation;
 
 impl Obfuscation<u32> for KekwObfuscation {
-    fn obfuscate(&mut self, input: TimedPayload<u32>, _timestamp: u32) -> Vec<TimedPayload<u32>> {
-        vec![input.ts_transform(|ts| ts + 1)]
+    fn obfuscate(
+        &mut self,
+        input: Option<TimedPayload<u32>>,
+        _timestamp: u32,
+    ) -> Vec<TimedPayload<u32>> {
+        if let Some(input) = input {
+            vec![input.ts_transform(|ts| ts + 1)]
+        } else {
+            Vec::new()
+        }
     }
     fn buffer_size(&self) -> usize {
         0
@@ -96,10 +104,18 @@ impl ReallyOddObfuscation {
 }
 
 impl Obfuscation<u32> for ReallyOddObfuscation {
-    fn obfuscate(&mut self, input: TimedPayload<u32>, _timestamp: u32) -> Vec<TimedPayload<u32>> {
-        let pkt = input.ts_transform(|_| self.next_ts);
-        self.next_ts += 2;
-        vec![pkt]
+    fn obfuscate(
+        &mut self,
+        input: Option<TimedPayload<u32>>,
+        _timestamp: u32,
+    ) -> Vec<TimedPayload<u32>> {
+        if let Some(input) = input {
+            let pkt = input.ts_transform(|_| self.next_ts);
+            self.next_ts += 2;
+            vec![pkt]
+        } else {
+            Vec::new()
+        }
     }
     fn buffer_size(&self) -> usize {
         0

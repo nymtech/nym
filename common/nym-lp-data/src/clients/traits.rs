@@ -39,19 +39,24 @@ pub trait Reliability<Ts> {
 }
 
 /// Trait for applying obfuscation to a timed payload.
+/// If obfuscation is used, `obfuscate` should be called at every `Ts` not just the ones with input
 ///
 /// # Type Parameters
 /// - `Ts`: Timestamp type carried by the `TimedPayload`.
 pub trait Obfuscation<Ts> {
     /// Obfuscate a given timed payload
     /// # Parameters
-    /// - `input`: Payload to encode with the encryption mechanism.
+    /// - `input`: Optional payload to obfusctate
     /// - `timestamp` : Current timestamp
     ///
     /// # Returns
     /// - An `Vec<TimedPayload>`, result of the obfuscation algorithm
     /// - The vector can be empty if there is nothing to return right away
-    fn obfuscate(&mut self, input: TimedPayload<Ts>, timestamp: Ts) -> Vec<TimedPayload<Ts>>;
+    fn obfuscate(
+        &mut self,
+        input: Option<TimedPayload<Ts>>,
+        timestamp: Ts,
+    ) -> Vec<TimedPayload<Ts>>;
 
     /// Return the size of the inner timed payload buffer, to help with backpressure
     fn buffer_size(&self) -> usize;
@@ -152,11 +157,15 @@ where
         };
 
         if processing_options.obfuscation {
-            // SW This needs to happen regarldess of if we took something as input. Obfuscation must become an option of the pipeline
-            chunks = chunks
-                .into_iter()
-                .flat_map(|chunk| self.obfuscate(chunk, timestamp.clone()))
-                .collect::<Vec<_>>();
+            // This needs to happen regarldess of if we took something as input
+            if chunks.is_empty() {
+                chunks = self.obfuscate(None, timestamp.clone());
+            } else {
+                chunks = chunks
+                    .into_iter()
+                    .flat_map(|chunk| self.obfuscate(Some(chunk), timestamp.clone()))
+                    .collect::<Vec<_>>();
+            }
         };
 
         if processing_options.security {
@@ -229,19 +238,19 @@ where
     }
 
     fn framing_overhead(&self) -> usize {
-        <T as Framing<Ts, Fr>>::OVERHEAD_SIZE
+        <T as Framing<_, _>>::OVERHEAD_SIZE
     }
 
     fn transport_overhead(&self) -> usize {
-        <T as Transport<Ts, Fr, Pkt>>::OVERHEAD_SIZE
+        <T as Transport<_, _, _>>::OVERHEAD_SIZE
     }
 
     fn reliability_overhead(&self) -> usize {
-        <T as Reliability<Ts>>::OVERHEAD_SIZE
+        <T as Reliability<_>>::OVERHEAD_SIZE
     }
 
     fn routing_overhead(&self) -> usize {
-        <T as RoutingSecurity<Ts>>::OVERHEAD_SIZE
+        <T as RoutingSecurity<_>>::OVERHEAD_SIZE
     }
 
     fn obfusctaion_buffer_size(&self) -> usize {
@@ -260,4 +269,9 @@ where
     ) -> Vec<TimedData<Ts, Pkt>> {
         ProcessingPipeline::process(self, input, processing_options, timestamp)
     }
+}
+
+// SW How to integrate common::UnwrappingPipeline into that?
+pub trait ClientUnwrappingPipeline<Ts, Pkt> {
+    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> Option<Vec<u8>>;
 }

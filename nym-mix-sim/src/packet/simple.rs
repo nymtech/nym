@@ -7,7 +7,10 @@ use std::fmt::Debug;
 use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
     TimedData, TimedPayload,
-    clients::traits::{Chunking, Obfuscation, ProcessingPipeline, Reliability, RoutingSecurity},
+    clients::{
+        helpers::{NoOpObfuscation, NoOpReliability, NoOpRoutingSecurity},
+        traits::{Chunking, ClientUnwrappingPipeline, ProcessingPipeline},
+    },
     common::traits::{Framing, Transport},
     mixnodes::traits::MixnodeProcessingPipeline,
 };
@@ -166,6 +169,8 @@ impl SimpleFrame {
     }
 }
 
+pub struct SimpleMessage;
+
 /// Stub client processing pipeline for [`SimplePacket`].
 ///
 /// A no-op pass-through: returns the payload as a single packet with no
@@ -200,28 +205,9 @@ impl<Ts: Clone> Chunking<Ts> for SimpleClientPipeline {
     }
 }
 
-impl<Ts> Reliability<Ts> for SimpleClientPipeline {
-    const OVERHEAD_SIZE: usize = 0;
-    fn reliable_encode(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts> {
-        input
-    }
-}
-
-impl<Ts: Clone> Obfuscation<Ts> for SimpleClientPipeline {
-    fn obfuscate(&mut self, input: TimedPayload<Ts>, _timestamp: Ts) -> Vec<TimedPayload<Ts>> {
-        vec![input]
-    }
-    fn buffer_size(&self) -> usize {
-        0
-    }
-}
-
-impl<Ts> RoutingSecurity<Ts> for SimpleClientPipeline {
-    const OVERHEAD_SIZE: usize = 0;
-    fn encrypt(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts> {
-        input
-    }
-}
+impl NoOpReliability for SimpleClientPipeline {}
+impl NoOpObfuscation for SimpleClientPipeline {}
+impl NoOpRoutingSecurity for SimpleClientPipeline {}
 
 impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleClientPipeline {
     const OVERHEAD_SIZE: usize = SimpleFrame::HEADER.len();
@@ -289,5 +275,13 @@ impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimplePacket, NodeId> for SimplePa
         _timestamp: Ts,
     ) -> Vec<(NodeId, TimedData<Ts, SimplePacket>)> {
         vec![(self.id + 1, input)]
+    }
+}
+
+pub struct SimpleClientUnwrapping;
+
+impl<Ts: Clone> ClientUnwrappingPipeline<Ts, SimplePacket> for SimpleClientUnwrapping {
+    fn unwrap(&mut self, input: SimplePacket, timestamp: Ts) -> Option<Vec<u8>> {
+        todo!()
     }
 }

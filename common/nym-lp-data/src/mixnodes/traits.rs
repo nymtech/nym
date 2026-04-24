@@ -3,7 +3,7 @@
 
 use crate::{TimedData, TimedPayload};
 
-use crate::common::traits::{Framing, FramingUnwrap, Transport, TransportUnwrap};
+use crate::common::traits::{Framing, Transport};
 
 /// Trait for applying routing security processing (e.g. encryption) to a timed payload.
 ///
@@ -15,32 +15,6 @@ use crate::common::traits::{Framing, FramingUnwrap, Transport, TransportUnwrap};
 ///   returning a new `TimedPayload` with the processed data.
 pub trait RoutingSecurityProcessing<Ts> {
     fn process_routing_security(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts>;
-}
-
-/// Trait for a mixnode unwrapping pipeline.
-///
-/// Combines [`TransportUnwrap`] and [`FramingUnwrap`] into a single `process` step that
-/// takes a transport packet and returns a reassembled payload with its message kind, if
-/// the packet completes a message.
-///
-/// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
-/// - `Fr`: Frame type produced by the transport layer.
-/// - `Pkt`: Transport packet type consumed as input.
-pub trait UnwrappingPipeline<Ts, Fr, Pkt>:
-    TransportUnwrap<Ts, Fr, Pkt> + FramingUnwrap<Ts, Fr>
-where
-    Ts: Clone,
-{
-    fn process(
-        &mut self,
-        input: Pkt,
-        timestamp: Ts,
-    ) -> Option<(TimedPayload<Ts>, Self::MessageKind)> {
-        let frame = self.packet_to_frame(input, timestamp.clone());
-
-        self.frame_to_message(frame)
-    }
 }
 
 /// Trait for a mixnode processing pipeline.

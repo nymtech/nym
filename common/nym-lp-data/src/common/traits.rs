@@ -70,3 +70,29 @@ pub trait Transport<Ts, Fr, Pkt> {
 pub trait TransportUnwrap<Ts, Fr, Pkt> {
     fn packet_to_frame(&self, packet: Pkt, timestamp: Ts) -> TimedData<Ts, Fr>;
 }
+
+/// Trait for an unwrapping pipeline.
+///
+/// Combines [`TransportUnwrap`] and [`FramingUnwrap`] into a single `process` step that
+/// takes a transport packet and returns a reassembled payload with its message kind, if
+/// the packet completes a message.
+///
+/// # Type Parameters
+/// - `Ts`: Timestamp type carried by the `TimedPayload`.
+/// - `Fr`: Frame type produced by the transport layer.
+/// - `Pkt`: Transport packet type consumed as input.
+pub trait UnwrappingPipeline<Ts, Fr, Pkt>:
+    TransportUnwrap<Ts, Fr, Pkt> + FramingUnwrap<Ts, Fr>
+where
+    Ts: Clone,
+{
+    fn unwrap(
+        &mut self,
+        input: Pkt,
+        timestamp: Ts,
+    ) -> Option<(TimedPayload<Ts>, Self::MessageKind)> {
+        let frame = self.packet_to_frame(input, timestamp.clone());
+
+        self.frame_to_message(frame)
+    }
+}

@@ -36,9 +36,13 @@ use std::{
     sync::Arc,
 };
 
+use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
     TimedData,
-    clients::{traits::DynProcessingPipeline, types::StreamOptions},
+    clients::{
+        traits::{ClientUnwrappingPipeline, DynProcessingPipeline},
+        types::StreamOptions,
+    },
 };
 
 use crate::{
@@ -86,10 +90,10 @@ pub struct Client<Ts, Fr, Pkt> {
     /// The concrete pipeline type is erased behind [`DynProcessingPipeline`]
     /// so that different pipeline implementations can be swapped in at runtime.
     processing_pipeline: Box<dyn DynProcessingPipeline<Ts, Fr, Pkt> + Send>,
-    // TODO: unwrapping_pipeline: Box<dyn UnwrappingPipeline<Ts, Fr, Pkt, MessageKind = Vec<u8>> + Send>
-    //       (nym_lp_data::mixnodes::traits::UnwrappingPipeline)
-    //       Unwraps / decrypts packets received from the mix network and
-    //       recovers the original plaintext.
+
+    /// Unwraps / decrypts packets received from the mix network and
+    /// recovers the original plaintext.
+    unwrapping_pipeline: Box<dyn ClientUnwrappingPipeline<Ts, Pkt> + Send>,
 }
 
 impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt> {
@@ -101,6 +105,7 @@ impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt> {
     pub fn new(
         topology: TopologyClient,
         processing_pipeline: impl DynProcessingPipeline<Ts, Fr, Pkt> + Send + 'static,
+        unwrapping_pipeline: impl ClientUnwrappingPipeline<Ts, Pkt> + Send + 'static,
     ) -> anyhow::Result<Self> {
         let mix_socket = UdpSocket::bind(topology.mixnet_address)?;
         mix_socket.set_nonblocking(true)?;
@@ -116,6 +121,7 @@ impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt> {
             app_socket,
             outgoing_queue: Vec::new(),
             processing_pipeline: Box::new(processing_pipeline),
+            unwrapping_pipeline: Box::new(unwrapping_pipeline),
         })
     }
 
@@ -217,7 +223,7 @@ where
     /// **Phase 3 — mix incoming**: drain the mix socket, log each received
     /// packet, and pass it through the unwrapping pipeline.
     ///
-    pub fn tick_mix_incoming(&mut self, _timestamp: Ts) {
+    pub fn tick_mix_incoming(&mut self, timestamp: Ts) {
         let mut buf = [0u8; 1500];
         loop {
             let (nb, src) = match self.mix_socket.recv_from(&mut buf) {
@@ -232,14 +238,17 @@ where
             match Pkt::try_from_bytes(&buf[..nb]) {
                 Ok(pkt) => {
                     tracing::info!(
-                        "[Client {}] Received {nb} byte(s) from mix node {src}: {pkt:?}",
+                        "[Client {}] Received {nb} byte(s) from mix node {src}",
                         self.id
                     );
-                    // TODO: pass pkt through unwrapping_pipeline, then log the
-                    // recovered plaintext:
-                    //   if let Some(content) = self.unwrapping_pipeline.process(pkt, timestamp) {
-                    //       tracing::info!("[Client {}] Unwrapped: {:?}", self.id, content);
-                    //   }
+
+                    if let Some(content) = self.unwrapping_pipeline.unwrap(pkt, timestamp.clone()) {
+                        tracing::info!(
+                            "[Client {}] Unwrapped: {:?}",
+                            self.id,
+                            format_debug_bytes(&content)
+                        );
+                    }
                 }
                 Err(e) => {
                     tracing::error!(

@@ -21,8 +21,8 @@ use std::{fmt::Debug, sync::Arc, time::Duration};
 use anyhow::Context;
 use tracing::{debug, info};
 
-use nym_lp_data::clients::traits::{ClientUnwrappingPipeline, DynProcessingPipeline};
-use nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline;
+use nym_lp_data::clients::traits::{DynClientUnwrappingPipeline, DynClientWrappingPipeline};
+use nym_lp_data::mixnodes::traits::DynMixnodeProcessingPipeline;
 
 use crate::{
     client::Client,
@@ -75,11 +75,11 @@ where
     ) -> anyhow::Result<Self>
     where
         Pb: Fn(&TopologyNode) -> P,
-        P: MixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send + 'static,
+        P: DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send + 'static,
         Cpb: Fn(&TopologyClient) -> Cp,
-        Cp: DynProcessingPipeline<Ts, Fr, Pkt> + Send + 'static,
+        Cp: DynClientWrappingPipeline<Ts, Fr, Pkt> + Send + 'static,
         Cub: Fn(&TopologyClient) -> Cu,
-        Cu: ClientUnwrappingPipeline<Ts, Pkt> + Send + 'static,
+        Cu: DynClientUnwrappingPipeline<Ts, Pkt> + Send + 'static,
     {
         debug!("Bootstrapping from topology file: {}", topology_file_path);
 

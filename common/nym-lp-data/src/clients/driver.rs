@@ -4,10 +4,10 @@
 use std::sync::mpsc;
 
 use crate::TimedData;
-use crate::clients::traits::DynProcessingPipeline;
+use crate::clients::traits::DynClientWrappingPipeline;
 use crate::clients::types::StreamOptions;
 
-/// Drives a [`DynProcessingPipeline`] tick-by-tick, feeding it raw application
+/// Drives a [`DynClientWrappingPipeline`] tick-by-tick, feeding it raw application
 /// payloads and emitting transport packets whose scheduled timestamp is due.
 ///
 /// ## How it works
@@ -23,11 +23,11 @@ use crate::clients::types::StreamOptions;
 ///
 /// `Ts` must implement `Clone + PartialOrd` so that timestamps can be compared
 /// to decide which packets are due.
-pub struct PipelineDriver<Ts, Fr, Pkt>
+pub struct ClientWrappingPipelineDriver<Ts, Fr, Pkt>
 where
     Ts: Clone + PartialOrd,
 {
-    pipeline: Box<dyn DynProcessingPipeline<Ts, Fr, Pkt>>,
+    pipeline: Box<dyn DynClientWrappingPipeline<Ts, Fr, Pkt>>,
     processing_options: StreamOptions,
 
     packet_buffer: Vec<TimedData<Ts, Pkt>>,
@@ -39,7 +39,7 @@ where
     _marker: std::marker::PhantomData<Fr>,
 }
 
-impl<Ts, Fr, Pkt> PipelineDriver<Ts, Fr, Pkt>
+impl<Ts, Fr, Pkt> ClientWrappingPipelineDriver<Ts, Fr, Pkt>
 where
     Ts: Clone + PartialOrd,
 {
@@ -51,7 +51,7 @@ where
     /// override.
     ///
     /// [`with_processing_options`]: PipelineDriver::with_processing_options
-    pub fn new(pipeline: impl DynProcessingPipeline<Ts, Fr, Pkt> + 'static) -> Self {
+    pub fn new(pipeline: impl DynClientWrappingPipeline<Ts, Fr, Pkt> + 'static) -> Self {
         let (input_sender, input_receiver) = mpsc::sync_channel(0);
 
         Self {

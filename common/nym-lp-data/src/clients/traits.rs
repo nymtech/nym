@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::clients::types::StreamOptions;
-use crate::common::traits::{Framing, Transport};
+use crate::common::traits::{
+    Framing, FramingUnwrap, Transport, WireUnwrappingPipeline, WireWrappingPipeline,
+};
 use crate::{TimedData, TimedPayload};
 
 /// Trait for splitting an incoming payload into timestamped chunks.
@@ -85,46 +87,34 @@ pub trait RoutingSecurity<Ts> {
     fn encrypt(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts>;
 }
 
-/// Full client-side message pipeline.
+/// Full client-side outbound message pipeline.
 ///
 /// Composes all six processing stages — [`Chunking`], [`Reliability`],
-/// [`Obfuscation`], [`RoutingSecurity`], [`Framing`], and [`Transport`] — into
-/// a single `process` call that takes a raw byte payload and returns a list of
-/// timestamped transport packets ready for sending.
+/// [`Obfuscation`], [`RoutingSecurity`], and the shared [`WireWrappingPipeline`]
+/// (framing + transport) — into a single `process` call that takes a raw byte
+/// payload and returns a list of timestamped transport packets ready for sending.
 ///
 /// # Type Parameters
 /// - `Ts`: Timestamp type carried through the pipeline.
-/// - `Fr`: Intermediate frame type produced by [`Framing`].
-/// - `Pkt`: Final transport packet type produced by [`Transport`].
-///
-/// # Required Methods
-/// - `packet_size`: Total on-wire size of the outputted transport packets in bytes.
+/// - `Fr`: Intermediate frame type produced by framing.
+/// - `Pkt`: Final transport packet type produced by transport.
 ///
 /// # Provided Methods
-/// - `frame_size`: Derived from `packet_size` minus transport and framing overheads.
-/// - `chunk_size`: Derived from `frame_size` minus routing-security and reliability
-///   overheads, accounting for `nb_frames` expansion.
+/// - `chunk_size`: Derived from `frame_size` (via [`WireWrappingPipeline`]) minus
+///   routing-security and reliability overheads, accounting for `nb_frames` expansion.
 /// - `process`: Runs the full pipeline in order:
 ///   chunk → reliability encode → obfuscate → encrypt → frame → transport.
-pub trait ProcessingPipeline<Ts, Fr, Pkt>:
+pub trait ClientWrappingPipeline<Ts, Fr, Pkt>:
     Chunking<Ts>
     + Reliability<Ts>
     + Obfuscation<Ts>
     + RoutingSecurity<Ts>
-    + Framing<Ts, Fr>
-    + Transport<Ts, Fr, Pkt>
+    + WireWrappingPipeline<Ts, Fr, Pkt>
 where
     Ts: Clone,
 {
-    fn packet_size(&self) -> usize;
-    fn frame_size(&self) -> usize {
-        self.packet_size()
-            - <Self as Transport<_, _, _>>::OVERHEAD_SIZE
-            - <Self as Framing<_, _>>::OVERHEAD_SIZE
-    }
-
     fn chunk_size(&self, processing_options: StreamOptions) -> usize {
-        // Frame size
+        // Frame size comes from WireWrappingPipeline
         let mut chunk_size = self.frame_size();
 
         if processing_options.security {
@@ -177,21 +167,20 @@ where
 
         chunks
             .into_iter()
-            .flat_map(|payload| self.to_frame(payload, self.frame_size()))
-            .map(|frame| self.to_transport_packet(frame))
+            .flat_map(|payload| self.wire_wrap(payload))
             .collect::<Vec<_>>()
     }
 }
 
-/// Dyn-compatible mirror of [`ProcessingPipeline`].
+/// Dyn-compatible mirror of [`ClientWrappingPipeline`].
 ///
 /// All associated constants from the sub-traits are exposed as methods so the
-/// trait can be used as `dyn DynProcessingPipeline<Ts, Fr, Pkt>`, erasing the
+/// trait can be used as `dyn DynClientWrappingPipeline<Ts, Fr, Pkt>`, erasing the
 /// concrete pipeline type while keeping `Ts`, `Fr`, and `Pkt`.
 ///
-/// Implement [`ProcessingPipeline`] on your concrete type; the blanket impl
-/// below provides `DynProcessingPipeline` for free.
-pub trait DynProcessingPipeline<Ts, Fr, Pkt> {
+/// Implement [`ClientWrappingPipeline`] on your concrete type; the blanket impl
+/// below provides `DynClientWrappingPipeline` for free.
+pub trait DynClientWrappingPipeline<Ts, Fr, Pkt> {
     fn packet_size(&self) -> usize;
 
     // --- overhead accessors (mirrors of the supertrait associated constants) ---
@@ -228,13 +217,13 @@ pub trait DynProcessingPipeline<Ts, Fr, Pkt> {
     ) -> Vec<TimedData<Ts, Pkt>>;
 }
 
-impl<T, Ts, Fr, Pkt> DynProcessingPipeline<Ts, Fr, Pkt> for T
+impl<T, Ts, Fr, Pkt> DynClientWrappingPipeline<Ts, Fr, Pkt> for T
 where
-    T: ProcessingPipeline<Ts, Fr, Pkt>,
+    T: ClientWrappingPipeline<Ts, Fr, Pkt>,
     Ts: Clone,
 {
     fn packet_size(&self) -> usize {
-        ProcessingPipeline::packet_size(self)
+        WireWrappingPipeline::packet_size(self)
     }
 
     fn framing_overhead(&self) -> usize {
@@ -267,11 +256,66 @@ where
         processing_options: StreamOptions,
         timestamp: Ts,
     ) -> Vec<TimedData<Ts, Pkt>> {
-        ProcessingPipeline::process(self, input, processing_options, timestamp)
+        ClientWrappingPipeline::process(self, input, processing_options, timestamp)
     }
 }
 
-// SW How to integrate common::UnwrappingPipeline into that?
-pub trait ClientUnwrappingPipeline<Ts, Pkt> {
+/// Dyn-compatible mirror of [`ClientUnwrappingPipeline`].
+///
+/// Erases the `Fr` type parameter so the pipeline can be stored as
+/// `dyn DynClientUnwrappingPipeline<Ts, Pkt>`.
+///
+/// Implement [`ClientUnwrappingPipeline`] on your concrete type; the blanket
+/// impl below provides `DynClientUnwrappingPipeline` for free.
+pub trait DynClientUnwrappingPipeline<Ts, Pkt> {
     fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> Option<Vec<u8>>;
+}
+
+impl<T, Ts, Pkt> DynClientUnwrappingPipeline<Ts, Pkt> for T
+where
+    T: ClientUnwrappingPipeline<Ts, Pkt>,
+    Ts: Clone,
+{
+    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> Option<Vec<u8>> {
+        ClientUnwrappingPipeline::unwrap(self, input, timestamp)
+    }
+}
+
+/// Full client-side inbound pipeline.
+///
+/// Combines the shared [`WireUnwrappingPipeline`] (transport + framing unwrap) with a
+/// blank [`process_unwrapped`] step that the implementor fills in (routing-security
+/// decrypt, reliability decode, chunk reassembly, etc.).
+///
+/// # Type Parameters
+/// - `Ts`: Timestamp type.
+/// - `Pkt`: Transport packet type consumed as input.
+///
+/// # Associated Types
+/// - `Frame`: Intermediate frame type produced by the transport unwrap.
+///
+///
+/// # Required Methods
+/// - `process_unwrapped`: Called with the reassembled payload and its message kind
+///   once a complete message is available. Returns the decoded application bytes,
+///   or `None` if reassembly is still in progress.
+///
+/// # Provided Methods
+/// - `unwrap`: Strips the wire layers via [`WireUnwrappingPipeline::wire_unwrap`],
+///   then delegates to `process_unwrapped`.
+pub trait ClientUnwrappingPipeline<Ts, Pkt>: WireUnwrappingPipeline<Ts, Self::Frame, Pkt>
+where
+    Ts: Clone,
+{
+    type Frame;
+    fn process_unwrapped(
+        &mut self,
+        payload: TimedPayload<Ts>,
+        kind: <Self as FramingUnwrap<Ts, Self::Frame>>::MessageKind,
+    ) -> Option<Vec<u8>>;
+
+    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> Option<Vec<u8>> {
+        self.wire_unwrap(input, timestamp)
+            .and_then(|(payload, kind)| self.process_unwrapped(payload, kind))
+    }
 }

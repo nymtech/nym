@@ -35,7 +35,7 @@ pub trait FramingUnwrap<Ts, Fr> {
     // The enum describing the kind of message that can be returned
     type MessageKind;
     fn frame_to_message(
-        &self,
+        &mut self,
         frame: TimedData<Ts, Fr>,
     ) -> Option<(TimedPayload<Ts>, Self::MessageKind)>;
 }
@@ -71,28 +71,66 @@ pub trait TransportUnwrap<Ts, Fr, Pkt> {
     fn packet_to_frame(&self, packet: Pkt, timestamp: Ts) -> TimedData<Ts, Fr>;
 }
 
-/// Trait for an unwrapping pipeline.
+/// Supertrait combining [`Framing`] and [`Transport`] into a reusable wire-wrapping layer.
 ///
-/// Combines [`TransportUnwrap`] and [`FramingUnwrap`] into a single `process` step that
-/// takes a transport packet and returns a reassembled payload with its message kind, if
-/// the packet completes a message.
+/// Used as the bottom stage of any outbound pipeline (client or mixnode).
 ///
 /// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
-/// - `Fr`: Frame type produced by the transport layer.
+/// - `Ts`: Timestamp type.
+/// - `Fr`: Intermediate frame type produced by framing.
+/// - `Pkt`: Final transport packet type.
+///
+/// # Required Methods
+/// - `packet_size`: Total on-wire size of an output packet in bytes.
+///
+/// # Provided Methods
+/// - `frame_size`: Derived from `packet_size` minus transport and framing overheads.
+/// - `wire_wrap`: Frames a payload and wraps each frame into a transport packet.
+pub trait WireWrappingPipeline<Ts, Fr, Pkt>: Framing<Ts, Fr> + Transport<Ts, Fr, Pkt>
+where
+    Ts: Clone,
+{
+    fn packet_size(&self) -> usize;
+
+    fn frame_size(&self) -> usize {
+        self.packet_size()
+            - <Self as Transport<_, _, _>>::OVERHEAD_SIZE
+            - <Self as Framing<_, _>>::OVERHEAD_SIZE
+    }
+
+    fn wire_wrap(&self, payload: TimedPayload<Ts>) -> Vec<TimedData<Ts, Pkt>> {
+        let frame_size = self.frame_size();
+        self.to_frame(payload, frame_size)
+            .into_iter()
+            .map(|frame| self.to_transport_packet(frame))
+            .collect()
+    }
+}
+
+/// Supertrait combining [`TransportUnwrap`] and [`FramingUnwrap`] into a reusable
+/// wire-unwrapping layer.
+///
+/// Used as the bottom stage of any inbound pipeline (client or mixnode).
+///
+/// # Type Parameters
+/// - `Ts`: Timestamp type.
+/// - `Fr`: Frame type produced by transport unwrapping.
 /// - `Pkt`: Transport packet type consumed as input.
-pub trait UnwrappingPipeline<Ts, Fr, Pkt>:
+///
+/// # Provided Methods
+/// - `wire_unwrap`: Strips the transport layer from a packet and attempts to reassemble
+///   a payload, returning `Some((payload, kind))` when a complete message is available.
+pub trait WireUnwrappingPipeline<Ts, Fr, Pkt>:
     TransportUnwrap<Ts, Fr, Pkt> + FramingUnwrap<Ts, Fr>
 where
     Ts: Clone,
 {
-    fn unwrap(
+    fn wire_unwrap(
         &mut self,
         input: Pkt,
         timestamp: Ts,
     ) -> Option<(TimedPayload<Ts>, Self::MessageKind)> {
-        let frame = self.packet_to_frame(input, timestamp.clone());
-
+        let frame = self.packet_to_frame(input, timestamp);
         self.frame_to_message(frame)
     }
 }

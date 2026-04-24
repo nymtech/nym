@@ -40,7 +40,7 @@ use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
     TimedData,
     clients::{
-        traits::{ClientUnwrappingPipeline, DynProcessingPipeline},
+        traits::{DynClientUnwrappingPipeline, DynClientWrappingPipeline},
         types::StreamOptions,
     },
 };
@@ -87,13 +87,13 @@ pub struct Client<Ts, Fr, Pkt> {
     /// Outgoing pipeline: wraps plaintext application payloads into
     /// mix-network packets.
     ///
-    /// The concrete pipeline type is erased behind [`DynProcessingPipeline`]
+    /// The concrete pipeline type is erased behind [`DynClientWrappingPipeline`]
     /// so that different pipeline implementations can be swapped in at runtime.
-    processing_pipeline: Box<dyn DynProcessingPipeline<Ts, Fr, Pkt> + Send>,
+    processing_pipeline: Box<dyn DynClientWrappingPipeline<Ts, Fr, Pkt> + Send>,
 
     /// Unwraps / decrypts packets received from the mix network and
     /// recovers the original plaintext.
-    unwrapping_pipeline: Box<dyn ClientUnwrappingPipeline<Ts, Pkt> + Send>,
+    unwrapping_pipeline: Box<dyn DynClientUnwrappingPipeline<Ts, Pkt> + Send>,
 }
 
 impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt> {
@@ -104,8 +104,8 @@ impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt> {
     /// Returns an error if either socket fails to bind or set non-blocking.
     pub fn new(
         topology: TopologyClient,
-        processing_pipeline: impl DynProcessingPipeline<Ts, Fr, Pkt> + Send + 'static,
-        unwrapping_pipeline: impl ClientUnwrappingPipeline<Ts, Pkt> + Send + 'static,
+        processing_pipeline: impl DynClientWrappingPipeline<Ts, Fr, Pkt> + Send + 'static,
+        unwrapping_pipeline: impl DynClientUnwrappingPipeline<Ts, Pkt> + Send + 'static,
     ) -> anyhow::Result<Self> {
         let mix_socket = UdpSocket::bind(topology.mixnet_address)?;
         mix_socket.set_nonblocking(true)?;

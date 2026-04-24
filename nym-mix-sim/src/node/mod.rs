@@ -31,7 +31,7 @@ use std::{
     sync::Arc,
 };
 
-use nym_lp_data::{TimedData, mixnodes::traits::MixnodeProcessingPipeline};
+use nym_lp_data::{TimedData, mixnodes::traits::DynMixnodeProcessingPipeline};
 
 use crate::{
     packet::WirePacketFormat,
@@ -90,7 +90,7 @@ pub struct Node<Ts, Pkt> {
     /// Drained by [`tick_outgoing`].
     processed_packets: Vec<(NodeId, TimedData<Ts, Pkt>)>,
 
-    processing_pipeline: Box<dyn MixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send>,
+    processing_pipeline: Box<dyn DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send>,
 }
 
 impl<Ts, Pkt> Node<Ts, Pkt> {
@@ -107,7 +107,7 @@ impl<Ts, Pkt> Node<Ts, Pkt> {
     /// in use) or if `set_nonblocking` fails.
     pub fn new(
         topology_node: TopologyNode,
-        pipeline: impl MixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send + 'static,
+        pipeline: impl DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send + 'static,
     ) -> anyhow::Result<Self> {
         let socket = UdpSocket::bind(topology_node.socket_address)?;
         socket.set_nonblocking(true)?;

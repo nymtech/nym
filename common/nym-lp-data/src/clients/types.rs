@@ -4,14 +4,14 @@
 use std::fmt::Debug;
 
 use crate::clients::traits::{
-    Chunking, Obfuscation, ProcessingPipeline, Reliability, RoutingSecurity,
+    Chunking, ClientWrappingPipeline, Obfuscation, Reliability, RoutingSecurity,
 };
-use crate::common::traits::{Framing, Transport};
+use crate::common::traits::{Framing, Transport, WireWrappingPipeline};
 use crate::{TimedData, TimedPayload};
 
 /// Per-stream feature flags controlling which optional pipeline stages are active.
 ///
-/// Pass a `StreamOptions` to [`ProcessingPipeline::process`] (or its
+/// Pass a `StreamOptions` to [`ClientWrappingPipeline::process`] (or its
 /// dyn-compatible mirror) to enable or disable each stage independently.
 /// The default enables all three stages.
 #[derive(Clone, Copy, Debug)]
@@ -34,7 +34,7 @@ impl Default for StreamOptions {
     }
 }
 
-/// Generic composition struct that implements [`ProcessingPipeline`] by
+/// Generic composition struct that implements [`ClientWrappingPipeline`] by
 /// delegating each stage to a held component.
 ///
 /// Type parameters correspond to the six pipeline stages:
@@ -126,7 +126,20 @@ where
     }
 }
 
-impl<Ts, Fr, Pkt, C, R, O, Rs, F, T> ProcessingPipeline<Ts, Fr, Pkt> for Pipeline<C, R, O, Rs, F, T>
+impl<Ts, Fr, Pkt, C, R, O, Rs, F, T> WireWrappingPipeline<Ts, Fr, Pkt>
+    for Pipeline<C, R, O, Rs, F, T>
+where
+    Ts: Clone,
+    F: Framing<Ts, Fr>,
+    T: Transport<Ts, Fr, Pkt>,
+{
+    fn packet_size(&self) -> usize {
+        self.packet_size
+    }
+}
+
+impl<Ts, Fr, Pkt, C, R, O, Rs, F, T> ClientWrappingPipeline<Ts, Fr, Pkt>
+    for Pipeline<C, R, O, Rs, F, T>
 where
     Ts: Clone,
     C: Chunking<Ts>,
@@ -136,7 +149,4 @@ where
     F: Framing<Ts, Fr>,
     T: Transport<Ts, Fr, Pkt>,
 {
-    fn packet_size(&self) -> usize {
-        self.packet_size
-    }
 }

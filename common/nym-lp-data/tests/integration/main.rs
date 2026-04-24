@@ -4,8 +4,8 @@ use std::{
 };
 
 use nym_common::debug::format_debug_bytes;
-use nym_lp_data::clients::driver::PipelineDriver;
-use nym_lp_data::clients::{traits::ProcessingPipeline, types::Pipeline, types::StreamOptions};
+use nym_lp_data::clients::driver::ClientWrappingPipelineDriver;
+use nym_lp_data::clients::{traits::ClientWrappingPipeline, types::Pipeline, types::StreamOptions};
 
 use crate::common::{
     KcpReliability, KekwObfuscation, LpFraming, LpTransport, MockChunking, ReallyOddObfuscation,
@@ -110,7 +110,7 @@ fn driver_test() {
     };
 
     let mut mock_pipeline_driver =
-        PipelineDriver::new(mock_pipeline).with_processing_options(options);
+        ClientWrappingPipelineDriver::new(mock_pipeline).with_processing_options(options);
 
     let input_sender = mock_pipeline_driver.input_sender();
     thread::spawn(move || {

@@ -1,8 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::common::traits::{Framing, Transport};
-use crate::mixnodes::traits::ProcessingPipeline;
+use crate::common::traits::{Framing, Transport, WireWrappingPipeline};
 use crate::{TimedData, TimedPayload};
 
 /// The generic pipeline struct for a mixnode
@@ -34,7 +33,7 @@ where
     }
 }
 
-impl<Ts, Fr, Pkt, F, T> ProcessingPipeline<Ts, Fr, Pkt> for Pipeline<F, T>
+impl<Ts, Fr, Pkt, F, T> WireWrappingPipeline<Ts, Fr, Pkt> for Pipeline<F, T>
 where
     Ts: Clone,
     F: Framing<Ts, Fr>,

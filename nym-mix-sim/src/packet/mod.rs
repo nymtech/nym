@@ -16,7 +16,7 @@ use std::fmt::Debug;
 mod simple;
 
 pub use simple::{
-    SimpleClientPipeline, SimpleClientUnwrapping, SimpleFrame, SimpleMessage, SimplePacket,
+    SimpleClientUnwrapping, SimpleClientWrappingPipeline, SimpleFrame, SimpleMessage, SimplePacket,
     SimplePassThroughPipeline,
 };
 

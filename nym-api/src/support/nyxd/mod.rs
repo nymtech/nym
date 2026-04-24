@@ -195,7 +195,7 @@ impl Client {
         nyxd_query!(
             self,
             network_monitors_contract_address().cloned().ok_or_else(|| {
-                NyxdError::unavailable_contract_address("network monitors contract").into()
+                NyxdError::unavailable_contract_address("network monitors contract")
             })
         )
     }

@@ -1,18 +1,17 @@
 ---
-title: "smolmix Tutorial 3: Private WebSocket Echo"
+title: "smolmix: Private WebSocket Echo"
 description: "Step-by-step Rust tutorial that connects a WebSocket through the Nym mixnet by stacking tokio-tungstenite on tokio-rustls on a smolmix TcpStream."
 schemaType: "HowTo"
 section: "Developers"
 lastUpdated: "2026-04-23"
 ---
 
-# Tutorial 3: Private WebSocket Echo
+# Private WebSocket Echo
 
 import { Callout } from 'nextra/components'
-import { CratesPaused } from '../../../components/crates-paused'
 import { CodeVerified } from '../../../components/code-verified'
+import { RUST_MSRV } from '../../../components/versions'
 
-<CratesPaused />
 <CodeVerified crate="smolmix" />
 
 In this tutorial you'll open a WebSocket connection to a public echo server — with every byte routed through the Nym mixnet:
@@ -39,7 +38,7 @@ tokio-tungstenite (WebSocket framing)
 
 ## Prerequisites
 
-- Rust toolchain (1.70+)
+- Rust toolchain ({RUST_MSRV}+)
 - A working internet connection (the tunnel connects to the live Nym mixnet)
 
 ## Step 1: Set up the project
@@ -55,7 +54,7 @@ Add dependencies to `Cargo.toml`:
 [dependencies]
 smolmix = "X.Y.Z"
 nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
 tokio-rustls = "0.26"
 rustls = { version = "0.23", features = ["std", "ring"] }
 webpki-roots = "0.26"
@@ -99,10 +98,10 @@ async fn main() -> Result<(), BoxError> {
 
 ## Step 3: Create the tunnel and resolve the host
 
-We resolve the hostname via clearnet DNS here for simplicity. For production use, resolve through the mixnet instead (see [Tutorial 2](/developers/smolmix/tutorial-udp) for the DNS pattern).
+We resolve the hostname via clearnet DNS here for simplicity. For production use, resolve through the mixnet instead (see the [UDP tutorial](/developers/smolmix/tutorial-udp) for the DNS pattern).
 
 ```rust
-    // Resolve via clearnet DNS (see Tutorial 2 for mixnet DNS)
+    // Resolve via clearnet DNS (see UDP tutorial for mixnet DNS)
     let addr = tokio::net::lookup_host(format!("{WS_HOST}:443"))
         .await?
         .next()
@@ -125,7 +124,7 @@ We resolve the hostname via clearnet DNS here for simplicity. For production use
 
 ## Step 4: TCP + TLS through the mixnet
 
-Connect to the resolved IP over TCP, then layer TLS on top. This is identical to [Tutorial 1](/developers/smolmix/tutorial#step-5-tcp--tls-through-the-mixnet) — the smolmix `TcpStream` drops in where `tokio::net::TcpStream` would go.
+Connect to the resolved IP over TCP, then layer TLS on top. This is identical to the [TCP tutorial](/developers/smolmix/tutorial#step-5-tcp--tls-through-the-mixnet) — the smolmix `TcpStream` drops in where `tokio::net::TcpStream` would go.
 
 ```rust
     println!("TCP connecting via mixnet...");
@@ -204,13 +203,13 @@ The echo server sees traffic from the IPR exit gateway's IP — not yours. The f
 ## How it works
 
 ```text
-┌──────────────────────────────────────────────────────┐
-│  tokio-tungstenite (WebSocket framing)               │
-│    └─ tokio-rustls (TLS encryption)                  │
-│         └─ smolmix::TcpStream (TCP over mixnet)      │
+┌───────────────────────────────────────────────────────┐
+│  tokio-tungstenite (WebSocket framing)                │
+│    └─ tokio-rustls (TLS encryption)                   │
+│         └─ smolmix::TcpStream (TCP over mixnet)       │
 │              └─ smoltcp (userspace TCP state machine) │
 │                   └─ NymIprBridge → Nym mixnet → IPR  │
-└──────────────────────────────────────────────────────┘
+└───────────────────────────────────────────────────────┘
 ```
 
 Each layer only knows about the one directly below it:
@@ -228,7 +227,7 @@ This is the same composability model as regular networking — swap `tokio::net:
 - `tunnel.shutdown()` disconnects gracefully; dropping the tunnel triggers fire-and-forget cleanup
 
 <Callout type="info">
-For production use, resolve the hostname through the mixnet to avoid leaking DNS queries over clearnet. See [Tutorial 1](/developers/smolmix/tutorial#step-4-resolve-dns-through-the-mixnet) for the DNS-over-mixnet pattern.
+For production use, resolve the hostname through the mixnet to avoid leaking DNS queries over clearnet. See the [TCP tutorial](/developers/smolmix/tutorial#step-4-resolve-dns-through-the-mixnet) for the DNS-over-mixnet pattern.
 </Callout>
 
 ## Complete code
@@ -254,7 +253,7 @@ async fn main() -> Result<(), BoxError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    // Resolve via clearnet DNS
+    // Resolve via clearnet DNS (see UDP tutorial for mixnet DNS)
     let addr = tokio::net::lookup_host(format!("{WS_HOST}:443"))
         .await?
         .next()

@@ -1,18 +1,17 @@
 ---
-title: "smolmix Tutorial 2: Private DNS & NTP via UDP"
+title: "smolmix: Private DNS & NTP via UDP"
 description: "Step-by-step Rust tutorial that sends private DNS lookups and an NTP time query through the Nym mixnet using smolmix's UDP socket."
 schemaType: "HowTo"
 section: "Developers"
 lastUpdated: "2026-04-17"
 ---
 
-# Tutorial 2: Private DNS & NTP via UDP
+# Private DNS & NTP via UDP
 
 import { Callout } from 'nextra/components'
-import { CratesPaused } from '../../../components/crates-paused'
 import { CodeVerified } from '../../../components/code-verified'
+import { RUST_MSRV } from '../../../components/versions'
 
-<CratesPaused />
 <CodeVerified crate="smolmix" />
 
 In this tutorial you'll build a program that uses the mixnet's UDP socket for two real-world tasks:
@@ -33,7 +32,7 @@ Both are simple request/response protocols over UDP — perfect for the mixnet's
 
 ## Prerequisites
 
-- Rust toolchain (1.70+)
+- Rust toolchain ({RUST_MSRV}+)
 - A working internet connection (the tunnel connects to the live Nym mixnet)
 
 ## Step 1: Set up the project
@@ -56,7 +55,7 @@ chrono = "0.4"
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 ```
 
-No HTTP crates needed — this tutorial is pure UDP. `rustls` is still required because the mixnet client uses TLS internally for gateway connections.
+No HTTP crates needed — this tutorial is pure UDP. `rustls` is still required because the mixnet client uses TLS internally for gateway connections. The `ring` feature selects ring as the crypto backend (vs. `aws-lc-rs`, which needs a C compiler).
 
 ## Step 2: Scaffold `main()`
 
@@ -149,10 +148,10 @@ Create a UDP socket and resolve several hostnames. Each query goes through the m
                         _ => None,
                     })
                     .collect();
-                println!("{host:<20} → {} (rtt: {rtt:.1?})", ips.join(", "));
+                println!("{host:<16} → {} (rtt: {rtt:.1?})", ips.join(", "));
             }
-            Ok(Err(e)) => println!("{host:<20} → ERROR: {e}"),
-            Err(_) => println!("{host:<20} → TIMEOUT"),
+            Ok(Err(e)) => println!("{host:<16} → ERROR: {e}"),
+            Err(_) => println!("{host:<16} → TIMEOUT"),
         }
     }
 ```
@@ -202,7 +201,7 @@ async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr, BoxError> 
 Then build and send the NTP request:
 
 ```rust
-    println!("\n── NTP Time Sync (via mixnet UDP) ──\n");
+    println!("\nNTP Time Sync (via mixnet UDP)\n");
 
     let ntp_ip = resolve_dns(&tunnel, "pool.ntp.org").await?;
     println!("Resolved pool.ntp.org → {ntp_ip}");
@@ -238,7 +237,8 @@ The server's transmit timestamp lives at bytes 40–47: a 32-bit seconds count s
             let secs = u32::from_be_bytes([buf[40], buf[41], buf[42], buf[43]]);
             let frac = u32::from_be_bytes([buf[44], buf[45], buf[46], buf[47]]);
 
-            // Convert NTP epoch (1900) to Unix epoch (1970)
+            // Convert NTP epoch (1900) to Unix epoch (1970).
+            // Valid for Era 0 (until 2036-02-07); Era 1 wraps secs to 0.
             const NTP_TO_UNIX: u64 = 2_208_988_800;
             let unix_secs = secs as u64 - NTP_TO_UNIX;
             let millis = (frac as u64 * 1000) >> 32;
@@ -274,18 +274,18 @@ You'll see:
 ```
 Tunnel ready — allocated IP: 10.0.132.128
 
-── Private DNS Lookups (via mixnet UDP) ──
+Private DNS Lookups (via mixnet UDP)
 
-  example.com          → 104.20.23.154, 172.66.147.243 (rtt: 1.6s)
-  cloudflare.com       → 104.16.133.229, 104.16.132.229 (rtt: 1.9s)
-  nymtech.net          → 76.76.21.21 (rtt: 2.8s)
+example.com      → 104.20.23.154, 172.66.147.243 (rtt: 1.6s)
+cloudflare.com   → 104.16.133.229, 104.16.132.229 (rtt: 1.9s)
+nymtech.net      → 76.76.21.21 (rtt: 2.8s)
 
-── NTP Time Sync (via mixnet UDP) ──
+NTP Time Sync (via mixnet UDP)
 
-  Resolved pool.ntp.org → 172.232.146.46
-  NTP response in 1.5s
-  Unix timestamp: 1776188886.068
-  UTC: 2026-04-14 17:48:06.068 UTC
+Resolved pool.ntp.org → 172.232.146.46
+NTP response in 1.5s
+Unix timestamp: 1776188886.068
+UTC: 2026-04-14 17:48:06.068 UTC
 ```
 
 Every DNS query and the NTP request travel through the mixnet as UDP datagrams. The remote servers see the exit gateway's IP — not yours.
@@ -386,19 +386,19 @@ async fn main() -> Result<(), BoxError> {
                         _ => None,
                     })
                     .collect();
-                println!("{host:<20} → {} (rtt: {rtt:.1?})", ips.join(", "));
+                println!("{host:<16} → {} (rtt: {rtt:.1?})", ips.join(", "));
             }
-            Ok(Err(e)) => println!("{host:<20} → ERROR: {e}"),
-            Err(_) => println!("{host:<20} → TIMEOUT"),
+            Ok(Err(e)) => println!("{host:<16} → ERROR: {e}"),
+            Err(_) => println!("{host:<16} → TIMEOUT"),
         }
     }
 
     // NTP time sync
-    println!("\n── NTP Time Sync (via mixnet UDP) ──\n");
+    println!("\nNTP Time Sync (via mixnet UDP)\n");
 
     // Resolve pool.ntp.org
     let ntp_ip = resolve_dns(&tunnel, "pool.ntp.org").await?;
-    println!("  Resolved pool.ntp.org → {ntp_ip}");
+    println!("Resolved pool.ntp.org → {ntp_ip}");
 
     // Build NTP request (48 bytes, version 4, client mode)
     let mut ntp_req = [0u8; 48];
@@ -409,24 +409,12 @@ async fn main() -> Result<(), BoxError> {
     let ntp_dest: std::net::SocketAddr = (ntp_ip, 123).into();
     ntp_udp.send_to(&ntp_req, ntp_dest).await?;
 
-    // Spinner while waiting
-    let spinner = tokio::spawn(async {
-        let frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-        let mut i = 0;
-        loop {
-            eprint!("\rWaiting for NTP response {}", frames[i % frames.len()]);
-            i += 1;
-            tokio::time::sleep(std::time::Duration::from_millis(80)).await;
-        }
-    });
-
     let mut buf = [0u8; 48];
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(30),
         ntp_udp.recv_from(&mut buf),
     )
     .await;
-    spinner.abort();
 
     match result {
         Ok(Ok((n, _))) if n >= 48 => {
@@ -435,23 +423,23 @@ async fn main() -> Result<(), BoxError> {
             let secs = u32::from_be_bytes([buf[40], buf[41], buf[42], buf[43]]);
             let frac = u32::from_be_bytes([buf[44], buf[45], buf[46], buf[47]]);
 
-            // Convert NTP epoch (1900) to Unix epoch (1970)
+            // Convert NTP epoch (1900) to Unix epoch (1970).
+            // Valid for Era 0 (until 2036-02-07); Era 1 wraps secs to 0.
             const NTP_TO_UNIX: u64 = 2_208_988_800;
             let unix_secs = secs as u64 - NTP_TO_UNIX;
             let millis = (frac as u64 * 1000) >> 32;
 
             let dt = chrono::DateTime::from_timestamp(unix_secs as i64, (millis * 1_000_000) as u32)
                 .expect("valid timestamp");
-            eprintln!("\rNTP response in {rtt:.1?}");
+            println!("NTP response in {rtt:.1?}");
             println!("Unix timestamp: {unix_secs}.{millis:03}");
             println!("UTC: {}", dt.format("%Y-%m-%d %H:%M:%S%.3f UTC"));
         }
-        Ok(Ok((n, _))) => eprintln!("\rShort response: {n} bytes (expected 48)"),
-        Ok(Err(e)) => eprintln!("\rERROR: {e}"),
-        Err(_) => eprintln!("\rTIMEOUT (30s)"),
+        Ok(Ok((n, _))) => println!("Short response: {n} bytes (expected 48)"),
+        Ok(Err(e)) => println!("ERROR: {e}"),
+        Err(_) => println!("TIMEOUT (30s)"),
     }
 
-    println!();
     tunnel.shutdown().await;
     Ok(())
 }

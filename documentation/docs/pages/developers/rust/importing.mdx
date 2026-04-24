@@ -10,6 +10,7 @@ lastUpdated: "2026-04-17"
 
 import { Callout } from 'nextra/components';
 import { CratesPaused } from '../../../components/crates-paused'
+import { RUST_MSRV } from '../../../components/versions'
 
 <CratesPaused />
 
@@ -23,9 +24,9 @@ blake3 = "=1.7.0"  # pin to avoid a transitive dependency conflict — see note 
 **Temporary pin required.** You must pin `blake3 = "=1.7.0"` in your `Cargo.toml` to avoid a build failure caused by a transitive `digest` version conflict. This will be resolved in a future SDK release.
 </Callout>
 
-**Minimum Rust version:** 1.70+
+**Minimum Rust version:** {RUST_MSRV}+
 
-### Git (bleeding edge)
+### From Git
 
 You can also import directly from Git if you want unreleased changes:
 

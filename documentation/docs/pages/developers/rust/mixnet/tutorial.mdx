@@ -10,10 +10,11 @@ lastUpdated: "2026-04-17"
 
 import { Callout } from 'nextra/components'
 import { CodeVerified } from '../../../../components/code-verified'
+import { RUST_MSRV } from '../../../../components/versions'
 
 By the end of this tutorial you'll have a working program that sends a Sphinx-encrypted message to itself through the Nym Mixnet, receives it, and replies anonymously using SURBs. The later sections cover persistent identity and concurrent send/receive.
 
-**You'll need:** Rust 1.70+ and an internet connection (clients connect to the live Mixnet).
+**You'll need:** Rust {RUST_MSRV}+ and an internet connection (clients connect to the live Mixnet).
 
 <CodeVerified />
 
@@ -270,6 +271,7 @@ async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
     let paths = StoragePaths::new_from_dir("./my-client-data").unwrap();
+
     let mut client = mixnet::MixnetClientBuilder::new_with_default_storage(paths)
         .await
         .unwrap()
@@ -279,35 +281,18 @@ async fn main() {
         .await
         .unwrap();
 
-    let our_address = client.nym_address();
-    println!("Connected: {our_address}");
+    println!("Address: {}", client.nym_address());
 
     client
-        .send_plain_message(*our_address, "hello from the mixnet!")
+        .send_plain_message(*client.nym_address(), "persistent identity!")
         .await
         .unwrap();
-    println!("Sent — waiting for arrival...");
 
-    let message = loop {
-        if let Some(msgs) = client.wait_for_messages().await {
-            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
-                break msg;
-            }
+    if let Some(msgs) = client.wait_for_messages().await {
+        for m in msgs.into_iter().filter(|m| !m.message.is_empty()) {
+            println!("Received: {}", String::from_utf8_lossy(&m.message));
         }
-    };
-    println!("Received: {}", String::from_utf8_lossy(&message.message));
-
-    let sender_tag = message.sender_tag.expect("should have sender tag");
-    client.send_reply(sender_tag, "hello back, anonymously!").await.unwrap();
-
-    let reply = loop {
-        if let Some(msgs) = client.wait_for_messages().await {
-            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
-                break msg;
-            }
-        }
-    };
-    println!("Reply: {}", String::from_utf8_lossy(&reply.message));
+    }
 
     client.disconnect().await;
 }

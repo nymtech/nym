@@ -71,7 +71,7 @@ impl<Ts> SimpleClient<Ts> {
 }
 
 /// [`InputOptions`] for the simple pipeline — all optional features disabled,
-/// next hop is always node 0.
+/// next hop is always node 0, really simple routing
 #[derive(Clone, Copy)]
 pub struct SimpleInputOptions;
 

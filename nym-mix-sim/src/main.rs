@@ -16,7 +16,7 @@
 use std::net::SocketAddr;
 
 use clap::{Parser, Subcommand};
-use mix_sim::{
+use nym_mix_sim::{
     driver::SimDriver,
     topology::{Topology, TopologyClient, TopologyNode},
 };
@@ -120,7 +120,9 @@ async fn main() -> anyhow::Result<()> {
             driver,
         } => {
             info!("Loading topology from {topology} with driver={driver}");
-            driver.run(topology, manual, !no_display_state, tick_duration_ms).await?;
+            driver
+                .run(topology, manual, !no_display_state, tick_duration_ms)
+                .await?;
         }
     }
 

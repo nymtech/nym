@@ -262,7 +262,8 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> RoutingSecurity<Ts, SphinxInputOpti
         let packet_builder = SphinxPacketBuilder::new()
             .with_payload_size(plaintext_size + nym_sphinx::PAYLOAD_OVERHEAD_SIZE);
 
-        // SAFETY : Shut up clippy
+        // SAFETY : If the pipeline is built correctly, the packet building should not fail.
+        // If it does, something is wrong with the code. If it crashes it's fine since it's a simulator anyway
         #[allow(clippy::unwrap_used)]
         let packet = packet_builder
             .build_packet(input.data.data, &route, &destination, &delays)

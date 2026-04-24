@@ -27,7 +27,7 @@
 use std::net::UdpSocket;
 
 use clap::Parser;
-use mix_sim::{client::ClientId, topology::Topology};
+use nym_mix_sim::{client::ClientId, topology::Topology};
 
 #[derive(Parser)]
 #[command(name = "client", about = "Send stdin lines into a running mix-sim")]

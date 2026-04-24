@@ -1,5 +1,5 @@
 [package]
-name = "mix-sim"
+name = "nym-mix-sim"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

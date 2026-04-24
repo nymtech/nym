@@ -7228,6 +7228,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-lp-data"
+version = "1.20.4"
+dependencies = [
+ "nym-client-core",
+ "nym-lp",
+ "tracing",
+]
+
+[[package]]
 name = "nym-metrics"
 version = "1.20.4"
 dependencies = [

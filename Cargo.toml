@@ -74,7 +74,10 @@ members = [
     "common/nym-id",
     "common/nym-kcp",
     "common/nym-lp",
+    "common/nym-lp-data",
     "common/nym-kkt",
+    "common/nym-kkt-ciphersuite",
+    "common/nym-kkt-context",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
     "common/nymnoise",
@@ -122,6 +125,7 @@ members = [
     "common/zulip-client",
     "documentation/autodoc",
     "gateway",
+    "integration-tests",
     "nym-api",
     "nym-api/nym-api-requests",
     "nym-authenticator-client",
@@ -129,6 +133,7 @@ members = [
     "nym-credential-proxy/nym-credential-proxy",
     "nym-credential-proxy/nym-credential-proxy-requests",
     "nym-data-observatory",
+    "nym-gateway-probe",
     "nym-ip-packet-client",
     "nym-network-monitor",
     "nym-node",
@@ -172,10 +177,6 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
-    "nym-gateway-probe",
-    "integration-tests",
-    "common/nym-kkt-ciphersuite",
-    "common/nym-kkt-context",
 ]
 
 default-members = [
@@ -459,6 +460,7 @@ nym-id = { version = "1.20.4", path = "common/nym-id" }
 nym-ip-packet-client = { version = "1.20.4", path = "nym-ip-packet-client" }
 nym-ip-packet-requests = { version = "1.20.4", path = "common/ip-packet-requests" }
 nym-lp = { version = "1.20.4", path = "common/nym-lp" }
+nym-lp-data = { version = "1.20.4", path = "common/nym-lp-data" }
 nym-kkt = { version = "0.1.0", path = "common/nym-kkt" }
 nym-kkt-ciphersuite = { version = "1.20.4", path = "common/nym-kkt-ciphersuite" }
 nym-kkt-context = { version = "1.20.4", path = "common/nym-kkt-context" }

@@ -2940,7 +2940,7 @@ blake3 = "=1.7.0"  # pin to avoid a transitive dependency conflict — see note 
 
 **Minimum Rust version:** 1.70+
 
-### Git (bleeding edge)
+### From Git
 
 You can also import directly from Git if you want unreleased changes:
 
@@ -6446,7 +6446,7 @@ Options:
           Print help
 ```
 
-## `account` 
+## `account`
 ```sh
 Query and manage Nyx blockchain accounts
 
@@ -6488,7 +6488,7 @@ Options:
       --mnemonic <MNEMONIC>
           Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
       --word-count <WORD_COUNT>
-          
+
   -c, --config-env-file <CONFIG_ENV_FILE>
           Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
       --nyxd-url <NYXD_URL>
@@ -6581,7 +6581,7 @@ Options:
   -c, --config-env-file <CONFIG_ENV_FILE>
           Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
       --memo <MEMO>
-          
+
       --nyxd-url <NYXD_URL>
           Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
       --nym-api-url <NYM_API_URL>
@@ -6602,7 +6602,7 @@ Usage: nym-cli account send-multiple [OPTIONS] --input <INPUT>
 
 Options:
       --memo <MEMO>
-          
+
       --mnemonic <MNEMONIC>
           Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
   -c, --config-env-file <CONFIG_ENV_FILE>
@@ -6623,7 +6623,7 @@ Options:
           Print help
 ```
 
-## `signature` 
+## `signature`
 ```sh
 Sign and verify messages
 
@@ -6706,7 +6706,7 @@ Options:
           Print help
 ```
 
-## `ecash` 
+## `ecash`
 ```sh
 Ecash related stuff
 
@@ -6714,13 +6714,13 @@ Usage: nym-cli ecash [OPTIONS]
        nym-cli ecash <COMMAND>
 
 Commands:
-  issue-ticket-book                  
-  recover-ticket-book                
-  import-ticket-book                 
-  generate-ticket                    
-  import-coin-index-signatures       
-  import-expiration-date-signatures  
-  import-master-verification-key     
+  issue-ticket-book
+  recover-ticket-book
+  import-ticket-book
+  generate-ticket
+  import-coin-index-signatures
+  import-expiration-date-signatures
+  import-master-verification-key
   help                               Print this message or the help of the given subcommand(s)
 
 Options:
@@ -6831,7 +6831,7 @@ Options:
           Print help
 ```
 
-## `coconut` 
+## `coconut`
 
 ## `coconut generate-freepass`
 
@@ -6841,7 +6841,7 @@ Options:
 
 ## `coconut import-credential`
 
-## `block` 
+## `block`
 ```sh
 Query chain blocks
 
@@ -6946,7 +6946,7 @@ Options:
           Print help
 ```
 
-## `cosmwasm` 
+## `cosmwasm`
 ```sh
 Manage and execute WASM smart contracts
 
@@ -6989,11 +6989,11 @@ Options:
       --mnemonic <MNEMONIC>
           Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
       --wasm-path <WASM_PATH>
-          
+
   -c, --config-env-file <CONFIG_ENV_FILE>
           Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
       --memo <MEMO>
-          
+
       --nyxd-url <NYXD_URL>
           Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
       --nym-api-url <NYM_API_URL>
@@ -7016,19 +7016,19 @@ Arguments:
 
 Options:
       --memo <MEMO>
-          
+
       --mnemonic <MNEMONIC>
           Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
   -c, --config-env-file <CONFIG_ENV_FILE>
           Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
       --label <LABEL>
-          
+
       --init-message <INIT_MESSAGE>
-          
+
       --nyxd-url <NYXD_URL>
           Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
       --admin <ADMIN>
-          
+
       --nym-api-url <NYM_API_URL>
           Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
       --funds <FUNDS>
@@ -7051,11 +7051,11 @@ Usage: nym-cli cosmwasm generate-init-message [OPTIONS]
        nym-cli cosmwasm generate-init-message <COMMAND>
 
 Commands:
-  ecash-bandwidth  
-  coconut-dkg      
-  mixnet           
-  multisig         
-  vesting          
+  ecash-bandwidth
+  coconut-dkg
+  mixnet
+  multisig
+  vesting
   help             Print this message or the help of the given subcommand(s)
 
 Options:
@@ -7085,15 +7085,15 @@ Arguments:
 
 Options:
       --code-id <CODE_ID>
-          
+
       --mnemonic <MNEMONIC>
           Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
   -c, --config-env-file <CONFIG_ENV_FILE>
           Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
       --memo <MEMO>
-          
+
       --init-message <INIT_MESSAGE>
-          
+
       --nyxd-url <NYXD_URL>
           Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
       --nym-api-url <NYM_API_URL>
@@ -7119,7 +7119,7 @@ Arguments:
 
 Options:
       --memo <MEMO>
-          
+
       --mnemonic <MNEMONIC>
           Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
   -c, --config-env-file <CONFIG_ENV_FILE>
@@ -7138,7 +7138,7 @@ Options:
           Print help
 ```
 
-## `tx` 
+## `tx`
 ```sh
 Query for transactions
 
@@ -7219,7 +7219,7 @@ Options:
           Print help
 ```
 
-## `vesting-schedule` 
+## `vesting-schedule`
 ```sh
 Create and query for a vesting schedule
 
@@ -7260,25 +7260,25 @@ Options:
       --mnemonic <MNEMONIC>
           Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
       --periods-seconds <PERIODS_SECONDS>
-          
+
   -c, --config-env-file <CONFIG_ENV_FILE>
           Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
       --number-of-periods <NUMBER_OF_PERIODS>
-          
+
       --nyxd-url <NYXD_URL>
           Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
       --start-time <START_TIME>
-          
+
       --address <ADDRESS>
-          
+
       --nym-api-url <NYM_API_URL>
           Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
       --amount <AMOUNT>
-          
+
       --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
           Overrides the mixnet contract address provided either as an environment variable or in a config file
       --staking-address <STAKING_ADDRESS>
-          
+
       --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
           Overrides the vesting contract address provided either as an environment variable or in a config file
       --pledge-cap <PLEDGE_CAP>
@@ -7365,7 +7365,7 @@ Options:
           Print help
 ```
 
-## `mixnet` 
+## `mixnet`
 ```sh
 Manage your mixnet infrastructure, delegate stake or query the directory
 
@@ -7490,7 +7490,7 @@ Options:
           Print help
 ```
 
-## `generate-fig` 
+## `generate-fig`
 ```sh
 Generates shell completion
 
@@ -7528,7 +7528,7 @@ It’s also possible to run it within the daemon with the same CLI interface.
 
 ## Download Binary
 
-To get `nym-diagnostic` follow these steps:  
+To get `nym-diagnostic` follow these steps:
 
 ###### 1. Download `nym-vpn-core`
 - Navigate to [github.com/nymtech/nym-vpn-client/releases](https://github.com/nymtech/nym-vpn-client/releases)
@@ -7542,7 +7542,7 @@ To get `nym-diagnostic` follow these steps:
 sudo dpkg -i <FILE_NAME>
 ```
 
-- If you downloaded `.tar.gz`, in terminal you can extract the file with 
+- If you downloaded `.tar.gz`, in terminal you can extract the file with
 ```sh
 tar -xvf <FILE_NAME>
 ```
@@ -7556,7 +7556,7 @@ chmod +x ./*
 
 ## CLI Usage
 
-The Diagnostic Tool can be executed from the command line interface (CLI). Below are the usage instructions and options available. Read in the chapter [*Tests Performed*](#tests-performed) about the purpose and outcome of these commands. 
+The Diagnostic Tool can be executed from the command line interface (CLI). Below are the usage instructions and options available. Read in the chapter [*Tests Performed*](#tests-performed) about the purpose and outcome of these commands.
 
 ### Command Syntax
 
@@ -7601,7 +7601,7 @@ Command `register` requires valid credential. Here are the options for that comm
 
 - Register to a gateway:
 ```sh
-sudo ./nym-diagnostic register --gateway <ID_KEY> --storage-path /var/lib/nym-vpnd/mainnet 
+sudo ./nym-diagnostic register --gateway <ID_KEY> --storage-path /var/lib/nym-vpnd/mainnet
 # sudo is required to read the database
 ```
 
@@ -7986,9 +7986,9 @@ Options:
 
       --use-reply-surbs <USE_REPLY_SURBS>
           Specifies whether this client is going to use an anonymous sender tag for communication with the service provider. While this is going to hide its actual address information, it will make the actual communication slower and consume nearly double the bandwidth as it will require sending reply SURBs.
-          
+
           Note that some service providers might not support this.
-          
+
           [possible values: true, false]
 
   -p, --port <PORT>
@@ -8023,9 +8023,9 @@ Options:
 
       --use-anonymous-replies <USE_ANONYMOUS_REPLIES>
           Specifies whether this client is going to use an anonymous sender tag for communication with the service provider. While this is going to hide its actual address information, it will make the actual communication slower and consume nearly double the bandwidth as it will require sending reply SURBs.
-          
+
           Note that some service providers might not support this.
-          
+
           [possible values: true, false]
 
       --provider <PROVIDER>
@@ -9236,12 +9236,12 @@ url: https://nym.com/docs/developers/clients/websocket/config
 
 # Configuration
 
-## Default listening port 
+## Default listening port
 The Nym native client exposes a websocket interface that your code connects to. To program your app, choose a websocket library for whatever language you're using. The **default** websocket port is `1977`, you can override that in the client config if you want.
 
 You can either set this via the `--port` flag at `init` or `run`, or you can manually edit `~/.nym/clients/<CLIENT-ID>/config/config.toml`.
 
-> Remember to restart your client if you change your listening port via editing your config file. 
+> Remember to restart your client if you change your listening port via editing your config file.
 
 ## Choosing a Gateway
 By default your client will choose a random gateway to connect to.
@@ -10551,13 +10551,13 @@ New release is here and with it a completely new theme of the docs!
 
 2. Lewes protocol ports (`41264/tcp` and `51264/udp`) as well as all the essential ports for mixnet operation (before `ufw`) are now included in NTM
 - Follow [these steps](#network-tunnel-manager-ntm-updates) to implement changes if you run any Gateway type of Nym node
-- For operators running mixnode mode, make sure to open all ports via `ufw` as [documented here](/operators/nodes/preliminary-steps/vps-setup#3-configure-your-firewall), do *not* use NTM as you nodes do *not* need all exress ports (exit policy) opened   
+- For operators running mixnode mode, make sure to open all ports via `ufw` as [documented here](/operators/nodes/preliminary-steps/vps-setup#3-configure-your-firewall), do *not* use NTM as you nodes do *not* need all exress ports (exit policy) opened
 
 #### Network Tunnel Manager (NTM) Updates
 
 Nym team is testing an unreleased version of [Gateway Probe](/operators/performance-and-testing/gateway-probe). This new version checks whether the ports opened align with the governance decision about exit policy. If they don't, the nodes will be taken out of Service grant program and [Delegation program](https://nym.com/network/DP).
 
-NTM is now changed to be a standalone port manager for servers hosting Nym nodes running in a Gateway mode (with or without WireGuard). Operators of these nodes no longer need to manage mixnet fundamental ports by `ufw` separately, as the NTM will take care of it as well as adjusting the ports according to Nym exit policy. 
+NTM is now changed to be a standalone port manager for servers hosting Nym nodes running in a Gateway mode (with or without WireGuard). Operators of these nodes no longer need to manage mixnet fundamental ports by `ufw` separately, as the NTM will take care of it as well as adjusting the ports according to Nym exit policy.
 
 **Follow these steps to update the ports setting of your server using NTM.**
 
@@ -10577,12 +10577,12 @@ chmod +x network-tunnel-manager.sh
 
 ###### 3. Disable `ufw`
 
-Right now your NTM is handling the port management. You can disable `ufw`. 
+Right now your NTM is handling the port management. You can disable `ufw`.
 
 - We suggest to not uninstall it, just make it innactive for the time being:
 
 ```sh
-ufw disable 
+ufw disable
 ```
 
 ###### 4. Re-run NTM
@@ -10641,7 +10641,7 @@ cargo Profile:      release
 
 - **Follow the [steps to update your node exit policy](#update-nym-exit-policy)**, required for operators running wireguard or Exit gateway
 
-###### 2. [Lewes Protocol (LP)](#lewes-protocol-lp) is out 
+###### 2. [Lewes Protocol (LP)](#lewes-protocol-lp) is out
 
 - **Follow [these steps](#lewes-protocol-lp) to open your ports for the protocol to work**
 
@@ -10729,7 +10729,7 @@ cargo Profile:      release
 
 ### Tools
 
-- **Diagnostic Tool** - a standalone binary for network diagnostics. It performs DNS, HTTP, and gateway connectivity tests, helping developers identify connectivity issues and monitor network performance. It can also be run via the daemon CLI. Read the full guide [here](https://nym.com/docs/developers/tools/diagnostic-tool).  
+- **Diagnostic Tool** - a standalone binary for network diagnostics. It performs DNS, HTTP, and gateway connectivity tests, helping developers identify connectivity issues and monitor network performance. It can also be run via the daemon CLI. Read the full guide [here](https://nym.com/docs/developers/tools/diagnostic-tool).
 - **Socks5 Score Calculation** - performed by the Gateway probe, which tests `nym-node --mode exit-gateway` instances over Socks5. The probe assigns a latency-based rating: high, medium, low, or offline. Full guide [here](https://nym.com/docs/operators/performance-and-testing#socks5-score-calculation-process).
 
 ## `v2026.3-parmigiano`
@@ -10831,7 +10831,7 @@ journalctl -u nym-node -f --all
 
 #### Update Nym exit policy
 
-As a result of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), we updated [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh). Every operator is required to download and re-run the current version of NTM on the servers hosting Nym nodes. 
+As a result of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), we updated [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh). Every operator is required to download and re-run the current version of NTM on the servers hosting Nym nodes.
 
 These are the steps for the exit policy update, using NTM.
 
@@ -10857,7 +10857,7 @@ chmod +x network-tunnel-manager.sh
 
 - [Add `Copy+Clone` to `nym_api_provider::Config`](https://github.com/nymtech/nym/pull/6296): Add `Copy+Clone` to `nym_client_core::client::topology_control::nym_api_provider::Config`
 
-- [LP Registration + Telescoping + Gateway Probe Localnet Mode](https://github.com/nymtech/nym/pull/6286):  Combines LP registration protocol implementation, adds telescoping/nested sessions support, adds localnet mode for `gateway-probe` testing, integrates KKT & PSQ cryptographic primitives 
+- [LP Registration + Telescoping + Gateway Probe Localnet Mode](https://github.com/nymtech/nym/pull/6286):  Combines LP registration protocol implementation, adds telescoping/nested sessions support, adds localnet mode for `gateway-probe` testing, integrates KKT & PSQ cryptographic primitives
 
 - [Minor DNS improvements](https://github.com/nymtech/nym/pull/6283): Increase timeouts back to 10 seconds for overall lookup and 5 seconds per query, ignore unreliable test, remove JIT resolution in http client as it is at best not useful, and at worst increasing timeout
 
@@ -10915,13 +10915,13 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
-We’re excited to announce the first **nym-node release of 2026**. 
+We’re excited to announce the first **nym-node release of 2026**.
 
 **Exit Policy Ports Management**
 
 In December 2025, two NIP proposals were approved, introducing new ports to Nym network: [NIP-6](https://governator.nym.com/proposal/prop-ba886b9d-6f6e-4365-b4ed-fe7e604bc375), opening ports for WhatsApp and Session + Port `465` and [NIP-4](https://governator.nym.com/proposal/prop-ca6726ea-38b1-4568-97fe-8bdc5fdc83a0), opening port `587`.
 
-**Due to the concerns raised by the operators we built a rate limiting function to Network tunnel manager (NTM) to prevent spam abuse of the network. You can see the changes [here](https://github.com/nymtech/nym/pull/6317).** 
+**Due to the concerns raised by the operators we built a rate limiting function to Network tunnel manager (NTM) to prevent spam abuse of the network. You can see the changes [here](https://github.com/nymtech/nym/pull/6317).**
 
 To implement the changes and ensure that the nodes have expected performance, please re-run NTM following these steps:
 
@@ -10964,7 +10964,7 @@ Please, let us know how that worked for you.
 
 - [`gateway-probe` fixes for run-local](https://github.com/nymtech/nym/pull/6212)
 
-- [Upgrade mode: VPN adjustments](https://github.com/nymtech/nym/pull/6189): This PR further builds up on [\#6174](https://github.com/nymtech/nym/pull/6174) to include changes required by the VPN-client to fully support the upgrade mode, what is relevant here is that this PR modifies the credential storage to allow it to storage an opaque `emergency credential` that lets it be shared between sessions (if it is still valid) 
+- [Upgrade mode: VPN adjustments](https://github.com/nymtech/nym/pull/6189): This PR further builds up on [\#6174](https://github.com/nymtech/nym/pull/6174) to include changes required by the VPN-client to fully support the upgrade mode, what is relevant here is that this PR modifies the credential storage to allow it to storage an opaque `emergency credential` that lets it be shared between sessions (if it is still valid)
 
 - [Add weighted scoring to NS API](https://github.com/nymtech/nym/pull/6144)
 
@@ -10974,7 +10974,7 @@ Please, let us know how that worked for you.
 
 - [Do not re-derive wallet keys on every tx](https://github.com/nymtech/nym/pull/6213): The `cosmrs' trait bounds on `EcdsaSigner` got updated to include `Send` and `Sync`, meaning we no longer need to derive private keys on every transaction and instead we can just do it once, on construction
 
-- [Remove support for legacy mixnode within the performance contract](https://github.com/nymtech/nym/pull/6205): The network no longer supports those nodes, there's no point in having the "brand new" (kinda) contract support them either  
+- [Remove support for legacy mixnode within the performance contract](https://github.com/nymtech/nym/pull/6205): The network no longer supports those nodes, there's no point in having the "brand new" (kinda) contract support them either
 
 ## Last Update of 2025
 
@@ -10982,7 +10982,7 @@ We are not going to do a platform release this year anymore, but we have two imp
 
 ### Governance decisions
 
-During December operators were active in voting about new ports and changes in the quorum. 
+During December operators were active in voting about new ports and changes in the quorum.
 
 **As agreed in [NIP-4](https://forum.nym.com/t/nip-4-nym-exit-policy-update-opening-port-587/2029/2) and [NIP-6](https://forum.nym.com/t/nip-6-nym-exit-policy-update-opening-ports-for-whatsapp-and-session/2042/1), we are opening these ports on [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt):**
 ```ini
@@ -11024,7 +11024,7 @@ chmod +x network-tunnel-manager.sh && \
 - Mixnet exit policy is being pulled with `nym-node run` command from this source: [nymtech.net/.wellknown/network-requester/exit-policy.txt](https://nymtech.net/.wellknown/network-requester/exit-policy.txt)
 - All you need to do is to restart your node:
 ```sh
-service nym-node restart 
+service nym-node restart
 ```
 
 ### Orchestration with Ansible
@@ -11035,7 +11035,7 @@ Finally we release our initial version **[Ansible playbooks](/operators/orchestr
 - Upgrade
 - Bond
 
-Checkout the [docs](/operators/orchestration/ansible) and the [Ansible template](https://github.com/nymtech/nym/tree/develop/ansible/nym-node) and let us know how this flag ship worked for you. 
+Checkout the [docs](/operators/orchestration/ansible) and the [Ansible template](https://github.com/nymtech/nym/tree/develop/ansible/nym-node) and let us know how this flag ship worked for you.
 
 ## `v2025.21-mozzarella`
 
@@ -11061,31 +11061,31 @@ cargo Profile:      release
 
 **NOTE THAT THIS IS A NEW TOOL HANDLING VARIOUS COMPLEX SERVER SETTINGS, PLEASE RUN IT ON A FEW NODES AT A TIME, DO THE TESTING, MONITOR YOUR NODES AND [REPORT ANY ISSUES](https://matrix.to/#/#operators:nymtech.chat).**
 
-We will keep `nym-node v1.21.1` as the latest version on API side for another 3 days to not penalize operators taking time for a proper implementation. 
+We will keep `nym-node v1.21.1` as the latest version on API side for another 3 days to not penalize operators taking time for a proper implementation.
 </ Callout>
 
-We are proud to announce that there are several improvements on tools aiming to make node operators life easier. Please let us know how do these programs work for you. 
+We are proud to announce that there are several improvements on tools aiming to make node operators life easier. Please let us know how do these programs work for you.
 
 - [**New Nym Node CLI version**](/operators/tools#nym-node-cli): This version introduces arguments, allowing the operator to pass all needed variables (ie. hostname, mode etcetra) and let the program setup everything required for `nym-node` installation, server configuration, nginx, routing, tunnels and bridges, without further prompts for these values. This version also installs [QUIC bridge](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment).
 
-- [**New Network Tunnel Manager**](/operators/nodes/nym-node/configuration#routing-configuration): NTM went through an big overhaul ([\#6186](https://github.com/nymtech/nym/pull/6186/)) - this new version combines old NTM with WG scripts. If run with `complete_networking_configuration` the tool does entire routing configuration, creates interfaces, and configures WireGuard exit policy. 
+- [**New Network Tunnel Manager**](/operators/nodes/nym-node/configuration#routing-configuration): NTM went through an big overhaul ([\#6186](https://github.com/nymtech/nym/pull/6186/)) - this new version combines old NTM with WG scripts. If run with `complete_networking_configuration` the tool does entire routing configuration, creates interfaces, and configures WireGuard exit policy.
 
-- [**Updated QUIC Deployment Tool**](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment): The program is lighter, stripped of redundant functions reworking iptables rules. 
+- [**Updated QUIC Deployment Tool**](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment): The program is lighter, stripped of redundant functions reworking iptables rules.
 
 ### Features
 
 - [HTTP API resilience enable & domain rotation conditions](https://github.com/nymtech/nym/pull/6200): Changes to make sure fallback domains are updated / enabled only for relevant
 
-- [Typescript SDK 1.4.1](https://github.com/nymtech/nym/pull/6146): This PR is a new release of the Typescript SDK, `mixFetch` and `WASM` client. It also removes the Harbour Master client from `mixFetch`, replacing it with the Nym API's described endpoint for nym-nodes.  
+- [Typescript SDK 1.4.1](https://github.com/nymtech/nym/pull/6146): This PR is a new release of the Typescript SDK, `mixFetch` and `WASM` client. It also removes the Harbour Master client from `mixFetch`, replacing it with the Nym API's described endpoint for nym-nodes.
 
-- [Enable URL rotation and retries for mixnet gateway init](https://github.com/nymtech/nym/pull/6126): 
+- [Enable URL rotation and retries for mixnet gateway init](https://github.com/nymtech/nym/pull/6126):
   - Multiple URL fallback with configurable retries (defaults to 3)
   - Infallible URL conversion per feedback (`Url::from()` instead of `parse().ok()`)
   - Non-breaking builder pattern for `BuilderConfig` per feedback
   - Reverted redundant node filtering per clarification that API already filters by `supported_roles.entry`
 
 - [Credential proxy jwt](https://github.com/nymtech/nym/pull/5957): This PR is part of the 'Upgrade Mode' that should allow usage of the network in a situation where ecash credentials are unissuable, because, for example, we have lost signing quorum (i.e. we have fewer than the required number of threshold signers responding to requests). This version is more naive. Instead requesting actual 'emergency credentials' that would have been issued by a subset of ecash signers, the credentials proxy creates a JWT, signed with its key, attesting the upgrade mode has been enabled.
- 
+
 ### Bugfix
 
 - [Tunnel not waiting on `MixnetClient` to shut down cleanly](https://github.com/nymtech/nym/pull/6225): When there is a wireguard registration error, the mixnet client is signalled to shut down, but the tunnel doesn't wait. Now on errors, the registration client doesn't return until everything is properly stopped
@@ -11142,7 +11142,7 @@ cargo Profile:      release
 
 - [Expose more explicit `new_with_fronted_urls` builder for http API client](https://github.com/nymtech/nym/pull/6136)
 
-- [Domain fronting](https://github.com/nymtech/nym/pull/6134): Enable URL rotation and retries for mixnet gateway [`init`](https://github.com/nymtech/nym/pull/6126) 
+- [Domain fronting](https://github.com/nymtech/nym/pull/6134): Enable URL rotation and retries for mixnet gateway [`init`](https://github.com/nymtech/nym/pull/6126)
 
 ### Bugfix
 
@@ -11202,7 +11202,7 @@ Alongside this platform release we are happy to introduce several improvements a
 
 - [Propagate cancel token to mixnet client](https://github.com/nymtech/nym/pull/6105): Ensures cancellation token propagation to mixnet client
 
-- [[DOCs/operators] QUIC deployment script & docs](https://github.com/nymtech/nym/pull/6098): Script and documentation for QUIC deployment, referencing `nym-bridges` repository  
+- [[DOCs/operators] QUIC deployment script & docs](https://github.com/nymtech/nym/pull/6098): Script and documentation for QUIC deployment, referencing `nym-bridges` repository
 
 - [Move gateway probe to monorepo (Rust edition 2024)](https://github.com/nymtech/nym/pull/6094): Moves `nym-gateway-probe` and related packages into monorepo, updates to Rust 2024 edition
 
@@ -11210,14 +11210,14 @@ Alongside this platform release we are happy to introduce several improvements a
 
 ### Bugfix
 
-- [Cherry pick - request #6143 from nymtech/bugfix/mix-tx-closed-v2](https://github.com/nymtech/nym/pull/6153): Add circuit breaker  
+- [Cherry pick - request #6143 from nymtech/bugfix/mix-tx-closed-v2](https://github.com/nymtech/nym/pull/6153): Add circuit breaker
 <AccordionTemplate name={<TestingSteps/>}>
  **Summary:**
-- Network-requester started successfully  
-- SOCKS5 client started successfully  
-- Traffic was proxied through the mixnet  
-- Shutdown was clean  
-- No 'channel closed (outside of shutdown!)' errors  
+- Network-requester started successfully
+- SOCKS5 client started successfully
+- Traffic was proxied through the mixnet
+- Shutdown was clean
+- No 'channel closed (outside of shutdown!)' errors
 
 - [`nym-credential-proxy` query params parsing regression](https://github.com/nymtech/nym/pull/6121): Fix query deserialization issue with `serde_urlencoded` breaking compatibility with VPN API
 
@@ -16621,7 +16621,7 @@ If you don't already have one, please create a Nym address using the wallet, and
 
 `NYM` can be swapped in these places:
 
-- [SpectreDAO Swap](https://explorer.nym.spectredao.net/swap) (1000+ tokens supported) 
+- [SpectreDAO Swap](https://explorer.nym.spectredao.net/swap) (1000+ tokens supported)
 - [Binance bridge](https://bridge.nym.com/)
 - [ERC20 bridge](https://swapper.nym.com/swap) - follow [this guide](https://nym.com/blog/nym-for-nym-swapper-app-bridges-native-and-erc20-token)
 
@@ -17435,7 +17435,7 @@ virsh destroy <VM_NAME>
 virsh undefine <VM_NAME> --remove-all-storage
 
 # ensure the storage is deleted
-rm /var/lib/libvirt/images/<VM_NAME>.img 
+rm /var/lib/libvirt/images/<VM_NAME>.img
 ```
 
 ###### 4. List all VMs again
@@ -17986,7 +17986,7 @@ mkdir -p /var/www/<HOSTNAME>
 
 ###### 2. Create html landing page
 
-- Use your own html code (check this [markdown to html tool](https://markdowntohtml.com/)) or use [this template](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html) 
+- Use your own html code (check this [markdown to html tool](https://markdowntohtml.com/)) or use [this template](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html)
 
 - Copy the [template](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html) a new file called `index.html` located in `/var/www/<HOSTNAME>` directory.
 
@@ -20253,7 +20253,7 @@ Nymvisor will now manage your node process (for an in-depth overview of this com
 * Replace the old binary with the new one
 * Restart the process
 
-And that's it! 
+And that's it!
 
 ### Creating an Adhoc Upgrade
 
@@ -20567,17 +20567,17 @@ service nymvisor restart
 This lets your operating system know it's ok to reload the service configuration and restarts the node in a graceful way.
 
 ---
-title: Orchestration of Multiple Nym Nodes 
+title: Orchestration of Multiple Nym Nodes
 url: https://nym.com/docs/operators/orchestration
 ---
 
-# Orchestration of Multiple Nym Nodes 
+# Orchestration of Multiple Nym Nodes
 
-Nym is a distributed network operated by admins all around the world. As the network grows, it attracts experienced operators of various infrastructure and builds an ever evolving community of builders, developers, admins and privacy enthusiasts. 
+Nym is a distributed network operated by admins all around the world. As the network grows, it attracts experienced operators of various infrastructure and builds an ever evolving community of builders, developers, admins and privacy enthusiasts.
 
 Operators form squads, DAOs and different entities managing multiple nodes per organisation. Orchestration of multiple servers with Nym nodes allows operators to be more efficient in deployment, changes implementation and upgrade flow following our demanding [release cycle](/operators/release-cycle).
 
-The operators who understand well basic `nym-node` [requirements](/operators/nodes#minimum-requirements) and general server administration, can use these two guides to lower cost and energy spent to maintain their nodes. 
+The operators who understand well basic `nym-node` [requirements](/operators/nodes#minimum-requirements) and general server administration, can use these two guides to lower cost and energy spent to maintain their nodes.
 
 1. [**Virtualising dedicated server with KVM**](/operators/nodes/preliminary-steps/vps-setup/advanced)
 2. [**Orchestration of multiple nodes with Ansible**](/operators/orchestration/ansible)
@@ -20593,9 +20593,9 @@ url: https://nym.com/docs/operators/orchestration/ansible
 
 **This setup should be used only by operators who understand `nym-node` administration and [requirements](/operators/nodes#minimum-requirements)**
 
-**Ansible is more suitable for skilled power users managing multiple nodes at the same time!** 
+**Ansible is more suitable for skilled power users managing multiple nodes at the same time!**
 
-If you are not familiar with Ansible, operating Nym nodes may be a good motivation to learn something new and improve your admin skills, it's worth the time. 
+If you are not familiar with Ansible, operating Nym nodes may be a good motivation to learn something new and improve your admin skills, it's worth the time.
 
 Start by reading through [Ansible documentation pages](https://docs.ansible.com)
 
@@ -20603,7 +20603,7 @@ Start by reading through [Ansible documentation pages](https://docs.ansible.com)
 
 ### Ansible installation
 
-For anything regarding the installation and management of Ansible itself, the best is to refer to their documentation. On [this page](https://docs.ansible.com/projects/ansible/latest/installation_guide/intro_installation.html#latest-release-via-dnf-or-yum) you can see the installation guide. 
+For anything regarding the installation and management of Ansible itself, the best is to refer to their documentation. On [this page](https://docs.ansible.com/projects/ansible/latest/installation_guide/intro_installation.html#latest-release-via-dnf-or-yum) you can see the installation guide.
 
 If you are confident and want to start right away, install Ansible on your machine using one of these two ways:
 
@@ -20638,7 +20638,7 @@ git pull origin develop
 
 ###### 2. Save the template to your location:
 
-You may want to create a directory outside of the repository and move the template there so it can be modified without risking that your configuration will be accidentally shared when working with the repository in the future. 
+You may want to create a directory outside of the repository and move the template there so it can be modified without risking that your configuration will be accidentally shared when working with the repository in the future.
 
 - Navigate to any location and create a directory for your Ansible `nym-node` playbook:
 ```sh
@@ -20654,11 +20654,11 @@ cp -r <PATH>/nym/ansible/nym-node ./
 
 </ Steps>
 
-Now you have the template of Ansible playbook for `nym-node` remote administration. To make it work, there are a few variables requiring your attention. 
+Now you have the template of Ansible playbook for `nym-node` remote administration. To make it work, there are a few variables requiring your attention.
 
 ## Configuration
 
-After [getting the ansible Nym node playbook](#ansible-installation) to your location, it's time to configure it for your own needs. 
+After [getting the ansible Nym node playbook](#ansible-installation) to your location, it's time to configure it for your own needs.
 
 > Mind that *idempotency* is an essential character when dealing with orchestration. A playbook, even when run many times should ensure that state of your targeted system will not change from what you intended. Therefore, it is important to make sure that all tasks in your playbook do not change the system in any way if the change you required has already been applied.
 
@@ -20708,7 +20708,7 @@ ansible-inventory --graph
 ###### 4. Configure `nym-node run` command arguments
 Open `roles/nym/defaults/main.yml` and have a look on the variables used:
 
-- If you agree with [Terms and conditions](/operators/nodes/nym-node/setup#terms--conditions) uncomment the line: `accept_operator_terms: true` without which your node can never take part in Nym Network. 
+- If you agree with [Terms and conditions](/operators/nodes/nym-node/setup#terms--conditions) uncomment the line: `accept_operator_terms: true` without which your node can never take part in Nym Network.
 - The rest is up to your configuration but generally these flags workflows
 
 These variables are read by the main task for `nym-node` installation: `roles/nym/tasks/config.yaml`
@@ -20756,7 +20756,7 @@ The simplest way is to run `ansible-playbook` binary with a provided playbook as
 
 ###### 1. Deploy
 
-A playbook to deploy server and `nym-node` from scratch, configuring networking, routing, firewall, systemd, bridges, reverse proxy, exit policy and all required tasks.  
+A playbook to deploy server and `nym-node` from scratch, configuring networking, routing, firewall, systemd, bridges, reverse proxy, exit policy and all required tasks.
 
 This playbook will run roles on all the inventory entries in parallel by default.
 
@@ -20778,7 +20778,7 @@ ansible-playbook bond.yml
 
 ###### 3. Upgrade
 
-A playbook to upgrade `nym-node` binary to the *Latest* by default. Operators can hard code a specific binary version in `roles/upgrade/defaults/main.yml` by un-commenting the `nym-version` line and providing their desired version. 
+A playbook to upgrade `nym-node` binary to the *Latest* by default. Operators can hard code a specific binary version in `roles/upgrade/defaults/main.yml` by un-commenting the `nym-version` line and providing their desired version.
 
 This playbook will run roles on all the inventory entries in parallel by default.
 
@@ -20799,7 +20799,7 @@ Maintaining the VMs using this playbook and reclaiming space on hypervisor will 
 - `nym-node` log growth
 - `qcow2` like allocation growth inside VPS storage
 
-The playbook is located in `roles/upgrade/defaults/system-maintenance.yml`, but the most important part is in `playbooks/group_vars/all.yml`, starting with a header `## SYSTEM MAINTENANCE PLAYBOOK KNOBS`. This commented list of adjustable knobs serves as a dashboard to tweak values of the playbook. Any overwrite will superseed the default ones in the playbook itself. 
+The playbook is located in `roles/upgrade/defaults/system-maintenance.yml`, but the most important part is in `playbooks/group_vars/all.yml`, starting with a header `## SYSTEM MAINTENANCE PLAYBOOK KNOBS`. This commented list of adjustable knobs serves as a dashboard to tweak values of the playbook. Any overwrite will superseed the default ones in the playbook itself.
 
 This playbook will run roles on all the inventory entries in parallel by default.
 
@@ -20812,12 +20812,12 @@ ansible-playbook system-maintenance.yml
 
 ### Useful Commands
 
-[Ansible](https://docs.ansible.com) has many smart ways to manage your playbooks, roles or inventory entries. 
+[Ansible](https://docs.ansible.com) has many smart ways to manage your playbooks, roles or inventory entries.
 
 **Here are some useful tips:**
 
 ###### One node at a time
-To test new configuration, it's advised to try it on one server at first. Of course you can comment out any entries in the inventory, but there are easier ways to do it. 
+To test new configuration, it's advised to try it on one server at first. Of course you can comment out any entries in the inventory, but there are easier ways to do it.
 
 - Provide flag `-l` followed by inventory entry and Ansible will change state only of that entry:
 
@@ -21495,7 +21495,7 @@ The [NymVPN API directory](https://nymvpn.com/api/public/v1/directory/gateways) 
 ## Heisenberg’s Uncertainty Principle for Gateways
 
 > The uncertainty principle, also known as Heisenberg's indeterminacy principle, is a fundamental concept in quantum mechanics. It states that there is a limit to the precision with which certain pairs of physical properties, such as position and momentum, can be simultaneously known. In other words, the more accurately one property is measured, the less accurately the other property can be known.
-> 
+>
 > [https://en.wikipedia.org/wiki/Uncertainty\_principle](https://en.wikipedia.org/wiki/Uncertainty_principle)
 
 The nodes in the Nym network are run by independent operators, so we can only know:
@@ -21611,7 +21611,7 @@ url: https://nym.com/docs/operators/performance-and-testing/prometheus-grafana
 
 # Prometheus & Grafana
 
-Besides monitoring node performance, it's quite useful to setup monitoring system for servers on which operators run their nodes. 
+Besides monitoring node performance, it's quite useful to setup monitoring system for servers on which operators run their nodes.
 
 The combination of Prometheus and Grafana is a common stack used by Nym team for internal monitoring as well as by core community operators like [ExploreNym](https://github.com/ExploreNYM/self-hosted-monitor).
 
@@ -21811,7 +21811,7 @@ Nym Network stats can be humanly read on some of the explorers and dashboards.
 
 - **[SpectreDAO Explorer](https://explorer.nym.spectredao.net/):** By operators for operators - currently the most used Nym explorer
 
-- **[Nym Node Status Observatory](https://harbourmaster.nymtech.net/):** An explorer with a list of Nym Nodes, their properformance and per node data 
+- **[Nym Node Status Observatory](https://harbourmaster.nymtech.net/):** An explorer with a list of Nym Nodes, their properformance and per node data
 
 - **[Nym Node Status UI](https://node-status.nym.com/):** A dashboard displaying results of Gateway probes and much more in one table
 
@@ -21836,7 +21836,7 @@ chmod +x ./nym-node-cli.py
 
 ###### 3. Run the program
 
-There are two ways how to run the program. fully interactive or with provided arguments. The former has a shorter initial command but then operators must fill the values on the go, the latter requires more complex command, but then there is a minimum prompts during the process. 
+There are two ways how to run the program. fully interactive or with provided arguments. The former has a shorter initial command but then operators must fill the values on the go, the latter requires more complex command, but then there is a minimum prompts during the process.
 
 1. Fully interactive mode - just run:
 ```sh
@@ -21853,13 +21853,13 @@ There are two ways how to run the program. fully interactive or with provided ar
 - An example can look like this:
 ```sh
 # substitute with your real values:
-./nym-node-cli.py install 
-  --hostname node-install.devrel.nymte.ch 
-  --moniker MainnetGW-DE 
-  --description "This node is installed with nym-node-cli v1.2.0" 
-  --wireguard-enabled true 
-  --location DE  
-  --mode exit-gateway 
+./nym-node-cli.py install
+  --hostname node-install.devrel.nymte.ch
+  --moniker MainnetGW-DE
+  --description "This node is installed with nym-node-cli v1.2.0"
+  --wireguard-enabled true
+  --location DE
+  --mode exit-gateway
   --email kawa_hesinkar@example.ku
 ```
 
@@ -21873,7 +21873,7 @@ There ware a few required confirmations and in case of running the program witho
 
 Congratulation, your node is installed.
 
-This version of the program does not prompt an operator for the local node moniker (`--id <ID>`) therefore it asigns your node an automatic one `default-nym-node`. 
+This version of the program does not prompt an operator for the local node moniker (`--id <ID>`) therefore it asigns your node an automatic one `default-nym-node`.
 
 All configuration and data of your node can be found in this location:
 ```sh
@@ -21998,7 +21998,7 @@ url: https://nym.com/docs/operators/troubleshooting/vps-isp
 
 ## System Hygiene
 
-Maintaining a Nym node requires keeping a good care of the hosting server. Running a `nym-node` as a standalone process or wrapped in a service can produce gigabytes of logs. Eventually your operation can malfunction due to the logs chewing up too much disk space or memory. 
+Maintaining a Nym node requires keeping a good care of the hosting server. Running a `nym-node` as a standalone process or wrapped in a service can produce gigabytes of logs. Eventually your operation can malfunction due to the logs chewing up too much disk space or memory.
 
 This chapter guides operators to address these points:
 
@@ -23595,7 +23595,7 @@ The following part is for informational purposes only. Nym core team cannot prov
 
 ## Findings from our legal team
 
-> **Note:** The information shared below is in the stage of conclusions upon final confirmation. The text is a not edited exert from a legal counsel. Nym core team is asking for more clarifications. 
+> **Note:** The information shared below is in the stage of conclusions upon final confirmation. The text is a not edited exert from a legal counsel. Nym core team is asking for more clarifications.
 
 ### Operators of Exit Nodes
 
@@ -23609,7 +23609,7 @@ The regulatory consequences have already been laid out in section 5.1.2.2.1 abov
 Unlike normal mixnet nodes, exit nodes might have information about the communication party which uses the respective exit node (in particular its IP address). They might therefore be a target for surveillance authorities, at least at first glance.
 
 However, as the IP address of the communications party is disguised on the other side of the communications through the Nym encryption infrastructure, the usual situation, where an IP address or another trace of an Internet user is found in the connection with a criminal activity (e.g., in a web server protocol), and then used in cooperation with the user’s provider to identify the user, is not going to take place.
- 
+
 The same is true for the opposite side: The node operator does not see the communication party of his user.
 
 Experience has shown that Swiss investigative authorities are aware of these limitations and do not conduct investigations against individuals who operate TOR nodes, for example. In one specific case that I know of, the investigation was stopped by the police as soon as it was clear that a TOR node was being operated.
@@ -23628,7 +23628,7 @@ Operators of exit nodes do not provide wire-based telecommunications services ei
 
 #### Telecoms Law
 
-Nym as a VPN operator might be considered a telecommunication provider under the newly revised TCA, as the term now also covers operators of Over-the-Top services which are carried out over the internet. 
+Nym as a VPN operator might be considered a telecommunication provider under the newly revised TCA, as the term now also covers operators of Over-the-Top services which are carried out over the internet.
 
 However I consider possible administrative burdens arising from this qualification as negligible (see above, 5.1.2.1).
 
@@ -23651,12 +23651,12 @@ According to a EU commission proposal for a regulation laying down rules to prev
 Interpersonal communications services are services that enable interpersonal and interactive exchange of information. Interactive communication entails that the service allows the recipient of the information to respond. The proposal therefore only covers services like traditional voice calls between two individuals but also all types of emails, messaging services, or group chats. Examples for services which do not meet those requirements are linear broadcasting, video on demand, websites, social networks, blogs, or exchange of information between machines (Directive (EU) 2018/1972, Consideration 17).
 
 Neither the Nym encryption infrastructure nor the NYM VPN are used as means for an interactive exchange of information in the aforementioned sense (of e-mail, messaging, chats or similar).
- 
-I therefore consider the risk arising from the mentioned proposal for Nym as low, be it as software developer or VPN operator. 
+
+I therefore consider the risk arising from the mentioned proposal for Nym as low, be it as software developer or VPN operator.
 
 However, an application provider which uses the Nym encryption infrastructure to provide encrypted chat services or similar could still fall under the proposal. This might pose a commercial risk for Nym as the provider of the basic infrastructure for such services, because such services might lose their commercial value for end customers.
 
-Currently the EU decision on chat control has been postponed because there is a blocking minority which can prevent the adoption of the respective parts of the law. In addition, even EU internal lawyers held that the proposal was clearly in violation of the EU charter of fundamental rights and would therefore be nullified by the EU courts in case it would still be enacted by the parliament. 
+Currently the EU decision on chat control has been postponed because there is a blocking minority which can prevent the adoption of the respective parts of the law. In addition, even EU internal lawyers held that the proposal was clearly in violation of the EU charter of fundamental rights and would therefore be nullified by the EU courts in case it would still be enacted by the parliament.
 
 I therefore consider the risk that the mentioned proposal is enacted by the EU authorities and finally upheld by the courts in its planned form as low.
 
@@ -23671,7 +23671,7 @@ The following part is for informational purposes only. Nym core team cannot prov
 
 ## Findings from our legal team
 
-> **Note:** The information shared below is in the stage of conclusions upon final confirmation. The text is a not edited exert from a legal counsel. Nym core team is asking for more clarifications. 
+> **Note:** The information shared below is in the stage of conclusions upon final confirmation. The text is a not edited exert from a legal counsel. Nym core team is asking for more clarifications.
 
 The US legal counsel have so far provided the following advice:
 
@@ -23728,7 +23728,7 @@ Our aim is to establish a strong community network, sharing legal findings and o
 
 First of all, please join our [Node Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) (Matrix chat) and post any information or questions there.
 
-To add your information to this book, you can create a PR directly to our [repository](https://github.com/nymtech/nym/tree/develop/documentation/operators/src/legal). 
+To add your information to this book, you can create a PR directly to our [repository](https://github.com/nymtech/nym/tree/develop/documentation/operators/src/legal).
 
 ## Steps to make a pull request:
 

@@ -103,6 +103,11 @@ pub(crate) struct Args {
     /// (yet) listed.
     #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_AUTH_CHECK_RETRY_DELAY_ARG, value_parser = humantime::parse_duration, default_value = "1m")]
     chain_authorisation_check_retry_delay: Duration,
+
+    /// How often the orchestrator flushes accumulated test results to the nym-api as a signed
+    /// batch submission (e.g. `15m`, `1h`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15m")]
+    result_submission_interval: Duration,
 }
 
 impl Args {
@@ -138,6 +143,7 @@ impl Args {
             number_of_concurrent_node_queries: self.number_of_concurrent_node_queries,
             chain_authorisation_check_max_attempts: self.chain_authorisation_check_max_attempts,
             chain_authorisation_check_retry_delay: self.chain_authorisation_check_retry_delay,
+            result_submission_interval: self.result_submission_interval,
         })
     }
 

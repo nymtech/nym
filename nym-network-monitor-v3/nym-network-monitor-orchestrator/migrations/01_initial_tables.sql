@@ -3,6 +3,12 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+CREATE TABLE metadata
+(
+    id                        INTEGER PRIMARY KEY CHECK (id = 0),
+    last_submitted_testrun_id INTEGER
+);
+
 CREATE TABLE testrun
 (
     -- Surrogate primary key.
@@ -79,16 +85,16 @@ CREATE INDEX idx_testrun_test_timestamp ON testrun (test_timestamp DESC);
 CREATE TABLE nym_node
 (
     -- Node ID as assigned by the mixnet contract.
-    node_id               INTEGER PRIMARY KEY         NOT NULL,
+    node_id               INTEGER PRIMARY KEY                                                                  NOT NULL,
 
     -- Ed25519 identity key of the node, base58-encoded.
     -- A node_id always maps to exactly one identity_key and is never reassigned.
     -- The inverse is not true: the same identity_key may appear under multiple node_ids
     -- if the operator unbonds and rebonds, receiving a new contract-assigned node_id.
-    identity_key          TEXT                        NOT NULL,
+    identity_key          TEXT                                                                                 NOT NULL,
 
     -- When this node was last observed as bonded in the contract.
-    last_seen_bonded      TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    last_seen_bonded      TIMESTAMP WITHOUT TIME ZONE                                                          NOT NULL,
 
     -- Mixnet socket address (host:port) at which the node accepts sphinx packets.
     mixnet_socket_address TEXT,
@@ -115,7 +121,7 @@ CREATE TABLE nym_node
 
     -- The most recent test run performed against this node. NULL if never tested.
     -- Set to NULL automatically when the referenced testrun row is evicted.
-    last_testrun          INTEGER                     REFERENCES testrun (id) ON DELETE SET NULL,
+    last_testrun          INTEGER                                                                              REFERENCES testrun (id) ON DELETE SET NULL,
 
     CHECK ((sphinx_key IS NULL) = (key_rotation_id IS NULL))
 );

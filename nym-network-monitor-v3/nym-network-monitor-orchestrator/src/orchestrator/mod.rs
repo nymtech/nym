@@ -5,6 +5,7 @@ use crate::http::api::{build_router, run_http_server};
 use crate::http::state::{AppState, KnownAgents};
 use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
+use crate::orchestrator::result_submitter::ResultSubmitter;
 use crate::orchestrator::stale_results_eviction::StaleResultsEviction;
 use crate::storage::NetworkMonitorStorage;
 use anyhow::{Context, bail};
@@ -25,6 +26,7 @@ use zeroize::Zeroizing;
 pub(crate) mod config;
 mod node_refresher;
 pub(crate) mod prometheus;
+mod result_submitter;
 mod stale_results_eviction;
 pub(crate) mod testruns;
 
@@ -282,7 +284,16 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 5. evict stale data before starting anything else so any test runs
+        // 5. build task for submitting accumulated results to the nym-api
+        let result_submitter = ResultSubmitter::new(
+            &self.config,
+            self.client.read().await.nym_api.clone(),
+            self.storage.clone(),
+            self.identity_keys.clone(),
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+
+        // 6. evict stale data before starting anything else so any test runs
         //    left "in progress" by a prior crashed/restarted orchestrator are
         //    freed up before agents start polling for work. Note: this is a
         //    blocking call — a hung DB at start-up will prevent the
@@ -292,7 +303,7 @@ impl NetworkMonitorOrchestrator {
             .await
             .context("failed to evict stale data")?;
 
-        // 6. start all the tasks
+        // 7. start all the tasks
         // http server
         let http_server_fut = run_http_server(
             http_router,
@@ -312,6 +323,11 @@ impl NetworkMonitorOrchestrator {
         self.shutdown_manager.try_spawn_named(
             async move { stale_results_eviction.run().await },
             "stale-data-eviction",
+        );
+        // nym-api result submitter
+        self.shutdown_manager.try_spawn_named(
+            async move { result_submitter.run().await },
+            "result-submitter",
         );
 
         self.shutdown_manager.run_until_shutdown().await;

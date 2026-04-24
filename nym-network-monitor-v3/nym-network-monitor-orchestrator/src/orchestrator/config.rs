@@ -64,6 +64,10 @@ pub(crate) struct Config {
     /// Delay between consecutive chain authorisation checks during start-up. Applied both when
     /// the query itself fails and when it succeeds but the orchestrator is not (yet) listed.
     pub(crate) chain_authorisation_check_retry_delay: Duration,
+
+    /// How often the orchestrator flushes accumulated test results to the nym-api as a signed
+    /// batch submission (e.g. `15m`, `1h`).
+    pub(crate) result_submission_interval: Duration,
 }
 
 impl Config {

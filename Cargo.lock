@@ -7248,6 +7248,7 @@ dependencies = [
 name = "nym-lp-data"
 version = "1.20.4"
 dependencies = [
+ "anyhow",
  "nym-client-core",
  "nym-common",
  "nym-lp",

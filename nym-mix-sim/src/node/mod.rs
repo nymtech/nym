@@ -290,8 +290,10 @@ where
     ///
     pub fn tick_processing(&mut self, timestamp: Ts) {
         while let Some(packet) = self.packets_to_process.pop() {
-            let processed_packets = self.processing_pipeline.process(packet, timestamp.clone());
-            self.processed_packets.extend(processed_packets);
+            match self.processing_pipeline.process(packet, timestamp.clone()) {
+                Ok(processed_packets) => self.processed_packets.extend(processed_packets),
+                Err(e) => tracing::error!("[Node {}] Failed to process packet : {e}", self.id),
+            }
         }
     }
 

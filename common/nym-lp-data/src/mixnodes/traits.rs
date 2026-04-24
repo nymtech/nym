@@ -31,7 +31,7 @@ pub trait DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> {
         &mut self,
         input: TimedData<Ts, Pkt>,
         timestamp: Ts,
-    ) -> Vec<(NodeId, TimedData<Ts, Pkt>)>;
+    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>>;
 }
 
 impl<T, Ts, Pkt, NodeId> DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> for T
@@ -44,7 +44,7 @@ where
         &mut self,
         input: TimedData<Ts, Pkt>,
         timestamp: Ts,
-    ) -> Vec<(NodeId, TimedData<Ts, Pkt>)> {
+    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>> {
         MixnodeProcessingPipeline::process(self, input, timestamp)
     }
 }
@@ -78,32 +78,28 @@ where
 {
     type Frame;
 
-    fn mix(
-        &mut self,
-        payload: TimedPayload<Ts>,
-        timestamp: Ts,
-    ) -> Vec<(NodeId, TimedPayload<Ts>)>;
+    fn mix(&mut self, payload: TimedPayload<Ts>, timestamp: Ts) -> Vec<(NodeId, TimedPayload<Ts>)>;
 
     fn process(
         &mut self,
         input: TimedData<Ts, Pkt>,
         timestamp: Ts,
-    ) -> Vec<(NodeId, TimedData<Ts, Pkt>)> {
+    ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>> {
         let TimedData {
             data: packet,
             timestamp: ts,
         } = input;
-        let Some((payload, _kind)) = self.wire_unwrap(packet, ts) else {
-            return Vec::new();
+        let Some((payload, _kind)) = self.wire_unwrap(packet, ts)? else {
+            return Ok(Vec::new());
         };
         let mixed = self.mix(payload, timestamp);
-        mixed
+        Ok(mixed
             .into_iter()
             .flat_map(|(node_id, out_payload)| {
                 self.wire_wrap(out_payload)
                     .into_iter()
                     .map(move |pkt| (node_id.clone(), pkt))
             })
-            .collect()
+            .collect())
     }
 }

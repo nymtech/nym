@@ -68,7 +68,7 @@ pub trait Transport<Ts, Fr, Pkt> {
 /// - `packet_to_frame`: Strips the transport layer from a packet, returning the inner frame
 ///   tagged with the given timestamp.
 pub trait TransportUnwrap<Ts, Fr, Pkt> {
-    fn packet_to_frame(&self, packet: Pkt, timestamp: Ts) -> TimedData<Ts, Fr>;
+    fn packet_to_frame(&self, packet: Pkt, timestamp: Ts) -> anyhow::Result<TimedData<Ts, Fr>>;
 }
 
 /// Supertrait combining [`Framing`] and [`Transport`] into a reusable wire-wrapping layer.
@@ -129,8 +129,8 @@ where
         &mut self,
         input: Pkt,
         timestamp: Ts,
-    ) -> Option<(TimedPayload<Ts>, Self::MessageKind)> {
-        let frame = self.packet_to_frame(input, timestamp);
-        self.frame_to_message(frame)
+    ) -> anyhow::Result<Option<(TimedPayload<Ts>, Self::MessageKind)>> {
+        let frame = self.packet_to_frame(input, timestamp)?;
+        Ok(self.frame_to_message(frame))
     }
 }

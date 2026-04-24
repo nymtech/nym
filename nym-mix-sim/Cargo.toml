@@ -35,3 +35,6 @@ uuid = { workspace = true, features = ["v4", "serde"] }
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }
 nym-common.workspace = true
 nym-lp-data.workspace = true
+
+[lints]
+workspace = true

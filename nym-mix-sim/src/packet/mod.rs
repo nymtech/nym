@@ -16,8 +16,8 @@ use std::fmt::Debug;
 mod simple;
 
 pub use simple::{
-    SimpleClientUnwrapping, SimpleClientWrappingPipeline, SimpleFrame, SimpleMessage, SimplePacket,
-    SimplePassThroughPipeline,
+    SimpleClientUnwrapping, SimpleClientWrappingPipeline, SimpleFrame, SimpleMessage,
+    SimpleMixnodePipeline, SimplePacket,
 };
 
 /// Trait that every packet type must implement to participate in the simulation.

@@ -33,11 +33,6 @@
 //! | [`packet`]   | Wire format types and the [`packet::WirePacketFormat`] trait |
 //! | [`topology`] | Topology file types and the in-memory [`topology::directory::Directory`] |
 
-#![warn(clippy::expect_used)]
-#![warn(clippy::unwrap_used)]
-#![warn(clippy::todo)]
-#![warn(clippy::dbg_macro)]
-
 pub mod client;
 pub mod driver;
 pub mod node;

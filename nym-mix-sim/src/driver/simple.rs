@@ -4,8 +4,8 @@
 use crate::{
     driver::MixSimDriver,
     packet::{
-        SimpleClientWrappingPipeline, SimpleClientUnwrapping, SimpleFrame, SimplePacket,
-        SimplePassThroughPipeline,
+        SimpleClientUnwrapping, SimpleClientWrappingPipeline, SimpleFrame, SimpleMixnodePipeline,
+        SimplePacket,
     },
     topology::{TopologyClient, TopologyNode},
 };
@@ -23,10 +23,11 @@ impl SimpleMixDriver {
     /// Load a topology JSON file and initialise the driver with simple pipelines.
     pub fn new(topology: String) -> anyhow::Result<Self> {
         let mixnode_pipeline =
-            |top_node: &TopologyNode| SimplePassThroughPipeline::new(top_node.node_id);
-        let client_processing_pipeline = |_: &TopologyClient| SimpleClientWrappingPipeline;
+            |top_node: &TopologyNode| SimpleMixnodePipeline::new(top_node.node_id);
+        let client_processing_pipeline =
+            |_: &TopologyClient| SimpleClientWrappingPipeline::default();
 
-        let client_unwrapping_pipeline = |_: &TopologyClient| SimpleClientUnwrapping;
+        let client_unwrapping_pipeline = |_: &TopologyClient| SimpleClientUnwrapping::default();
 
         let driver = MixSimDriver::<u32, SimpleFrame, SimplePacket>::new(
             topology,

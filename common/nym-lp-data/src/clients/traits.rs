@@ -268,7 +268,7 @@ where
 /// Implement [`ClientUnwrappingPipeline`] on your concrete type; the blanket
 /// impl below provides `DynClientUnwrappingPipeline` for free.
 pub trait DynClientUnwrappingPipeline<Ts, Pkt> {
-    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> Option<Vec<u8>>;
+    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>>;
 }
 
 impl<T, Ts, Pkt> DynClientUnwrappingPipeline<Ts, Pkt> for T
@@ -276,7 +276,7 @@ where
     T: ClientUnwrappingPipeline<Ts, Pkt>,
     Ts: Clone,
 {
-    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> Option<Vec<u8>> {
+    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>> {
         ClientUnwrappingPipeline::unwrap(self, input, timestamp)
     }
 }
@@ -314,8 +314,9 @@ where
         kind: <Self as FramingUnwrap<Ts, Self::Frame>>::MessageKind,
     ) -> Option<Vec<u8>>;
 
-    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> Option<Vec<u8>> {
-        self.wire_unwrap(input, timestamp)
-            .and_then(|(payload, kind)| self.process_unwrapped(payload, kind))
+    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>> {
+        Ok(self
+            .wire_unwrap(input, timestamp)?
+            .and_then(|(payload, kind)| self.process_unwrapped(payload, kind)))
     }
 }

@@ -36,7 +36,6 @@ use std::{
     sync::Arc,
 };
 
-use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
     TimedData,
     clients::{
@@ -242,12 +241,18 @@ where
                         self.id
                     );
 
-                    if let Some(content) = self.unwrapping_pipeline.unwrap(pkt, timestamp.clone()) {
-                        tracing::info!(
-                            "[Client {}] Unwrapped: {:?}",
-                            self.id,
-                            format_debug_bytes(&content)
-                        );
+                    match self.unwrapping_pipeline.unwrap(pkt, timestamp.clone()) {
+                        Ok(Some(content)) => {
+                            tracing::info!(
+                                "[Client {}] Received: {:?}",
+                                self.id,
+                                String::from_utf8_lossy(&content)
+                            );
+                        }
+                        Err(e) => {
+                            tracing::error!("[Client {}] Error unwrapping packet : {e}", self.id);
+                        }
+                        Ok(None) => {}
                     }
                 }
                 Err(e) => {

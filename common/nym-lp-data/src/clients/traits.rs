@@ -1,9 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::common::traits::{
-    Framing, InputOptions, Transport, WireUnwrappingPipeline, WireWrappingPipeline,
-};
+use crate::clients::{InputOptions, PipelinePayload};
+use crate::common::traits::{Framing, Transport, WireUnwrappingPipeline, WireWrappingPipeline};
 use crate::{AddressedTimedData, TimedPayload};
 
 /// Trait for splitting an incoming payload into timestamped chunks.
@@ -25,10 +24,10 @@ where
     fn chunked(
         &self,
         input: Vec<u8>,
-        input_options: Opts, // SW not sure if this is needed here
+        input_options: Opts,
         chunk_size: usize,
         timestamp: Ts,
-    ) -> Vec<TimedPayload<Ts>>;
+    ) -> Vec<PipelinePayload<Ts, Opts, NdId>>;
 }
 
 /// Trait for applying reliability encoding to a timed payload.
@@ -50,9 +49,9 @@ where
     const OVERHEAD_SIZE: usize;
     fn reliable_encode(
         &self,
-        input: TimedPayload<Ts>,
-        input_options: Opts, // SW not sure if options are needed here§
-    ) -> Vec<TimedPayload<Ts>>;
+        input: Option<PipelinePayload<Ts, Opts, NdId>>,
+        timestamp: Ts,
+    ) -> Vec<PipelinePayload<Ts, Opts, NdId>>;
 }
 
 /// Trait for applying obfuscation to a timed payload.
@@ -74,13 +73,9 @@ where
     /// - The vector can be empty if there is nothing to return right away
     fn obfuscate(
         &mut self,
-        input: Option<TimedPayload<Ts>>,
-        input_options: Opts,
+        input: Option<PipelinePayload<Ts, Opts, NdId>>,
         timestamp: Ts,
-    ) -> Vec<TimedPayload<Ts>>; // SW this might need to be addressed already! And return it's own set of options?
-
-    /// Return the size of the inner timed payload buffer, to help with backpressure
-    fn buffer_size(&self) -> usize;
+    ) -> Vec<PipelinePayload<Ts, Opts, NdId>>;
 }
 
 /// Trait for applying routing-security encryption to a timed payload.
@@ -106,7 +101,7 @@ where
     fn nb_frames(&self) -> usize {
         1
     }
-    fn encrypt(&self, input: TimedPayload<Ts>, input_options: Opts) -> TimedPayload<Ts>; // SW this might need to take into account options from the obfuscation layer (required to be able to send to multiple gateways)
+    fn encrypt(&self, input: PipelinePayload<Ts, Opts, NdId>) -> PipelinePayload<Ts, Opts, NdId>;
 }
 
 /// Full client-side outbound message pipeline.
@@ -166,37 +161,52 @@ where
             timestamp.clone(),
         );
 
-        if input_options.reliability() {
+        if chunks.is_empty() {
+            // Even if we have no input, we need to catch potential retransmissions
+            chunks = self.reliable_encode(None, timestamp.clone());
+        } else {
             chunks = chunks
                 .into_iter()
-                .flat_map(|chunk| self.reliable_encode(chunk, input_options.clone()))
+                .flat_map(|chunk| {
+                    if chunk.options.reliability() {
+                        self.reliable_encode(Some(chunk), timestamp.clone())
+                    } else {
+                        vec![chunk]
+                    }
+                })
                 .collect();
         };
 
-        if input_options.obfuscation() {
-            // This needs to happen regarldess of if we took something as input
-            if chunks.is_empty() {
-                chunks = self.obfuscate(None, input_options.clone(), timestamp.clone());
-            } else {
-                chunks = chunks
-                    .into_iter()
-                    .flat_map(|chunk| {
-                        self.obfuscate(Some(chunk), input_options.clone(), timestamp.clone())
-                    })
-                    .collect::<Vec<_>>();
-            }
-        };
-
-        if input_options.routing_security() {
+        if chunks.is_empty() {
+            // Even if we have no input, we need to catch potential cover traffic
+            chunks = self.obfuscate(None, timestamp.clone());
+        } else {
             chunks = chunks
                 .into_iter()
-                .map(|chunk| self.encrypt(chunk, input_options.clone()))
+                .flat_map(|chunk| {
+                    if chunk.options.obfuscation() {
+                        self.obfuscate(Some(chunk), timestamp.clone())
+                    } else {
+                        vec![chunk]
+                    }
+                })
                 .collect();
-        };
+        }
+
+        chunks = chunks
+            .into_iter()
+            .map(|chunk| {
+                if chunk.options.routing_security() {
+                    self.encrypt(chunk)
+                } else {
+                    chunk
+                }
+            })
+            .collect();
 
         chunks
             .into_iter()
-            .flat_map(|payload| self.wire_wrap(payload, input_options.next_hop().clone()))
+            .flat_map(|payload| self.wire_wrap(payload.into()))
             .collect::<Vec<_>>()
     }
 }
@@ -219,24 +229,10 @@ pub trait DynClientWrappingPipeline<Ts, Fr, Pkt, Opts, NdId> {
     fn routing_overhead(&self) -> usize;
     fn nb_frames(&self) -> usize;
 
-    // --- derived sizing helpers ---
-    fn frame_size(&self) -> usize; // {
-    //    self.packet_size() - self.transport_overhead() - self.framing_overhead()
-    //}
+    // --- sizing helpers ---
+    fn frame_size(&self) -> usize;
 
-    fn chunk_size(&self, input_options: Opts) -> usize; //{
-    //     let mut chunk_size = self.frame_size();
-    //     if processing_options.security {
-    //         chunk_size = chunk_size * self.nb_frames() - self.routing_overhead();
-    //     }
-    //     if processing_options.reliability {
-    //         chunk_size -= self.reliability_overhead();
-    //     }
-    //     chunk_size
-    // }
-
-    // --- buffer size from obfusctation ---
-    fn obfusctaion_buffer_size(&self) -> usize;
+    fn chunk_size(&self, input_options: Opts) -> usize;
 
     fn process(
         &mut self,
@@ -258,7 +254,7 @@ where
     }
 
     fn framing_overhead(&self) -> usize {
-        <T as Framing<_, _>>::OVERHEAD_SIZE
+        <T as Framing<_, _, _>>::OVERHEAD_SIZE
     }
 
     fn transport_overhead(&self) -> usize {
@@ -271,10 +267,6 @@ where
 
     fn routing_overhead(&self) -> usize {
         <T as RoutingSecurity<_, _, _>>::OVERHEAD_SIZE
-    }
-
-    fn obfusctaion_buffer_size(&self) -> usize {
-        self.buffer_size()
     }
 
     fn nb_frames(&self) -> usize {

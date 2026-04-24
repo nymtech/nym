@@ -155,13 +155,13 @@ where
 }
 
 // Boilerplate subtraits delegation
-impl<Ts: Clone> Framing<Ts, SphinxPacket> for SphinxProcessingNode {
-    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Framing<Ts, SphinxPacket, NodeId> for SphinxProcessingNode {
+    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_frame(
         &self,
-        payload: TimedPayload<Ts>,
+        payload: AddressedTimedPayload<Ts, NodeId>,
         frame_size: usize,
-    ) -> Vec<TimedData<Ts, SphinxPacket>> {
+    ) -> Vec<AddressedTimedData<Ts, SphinxPacket, NodeId>> {
         self.wrapper.to_frame(payload, frame_size)
     }
 }
@@ -170,10 +170,9 @@ impl<Ts: Clone> Transport<Ts, SphinxPacket, SimSphinxPacket, NodeId> for SphinxP
     const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
-        frame: TimedData<Ts, SphinxPacket>,
-        next_hop: NodeId,
+        frame: AddressedTimedData<Ts, SphinxPacket, NodeId>,
     ) -> AddressedTimedData<Ts, SimSphinxPacket, NodeId> {
-        self.wrapper.to_transport_packet(frame, next_hop)
+        self.wrapper.to_transport_packet(frame)
     }
 }
 

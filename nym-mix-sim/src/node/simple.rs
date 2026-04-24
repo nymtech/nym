@@ -105,13 +105,13 @@ impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimpleFrame, SimplePacket, SimpleM
 }
 
 // Delegation of subtraits
-impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleProcessingNode {
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Framing<Ts, SimpleFrame, NodeId> for SimpleProcessingNode {
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_frame(
         &self,
-        payload: TimedPayload<Ts>,
+        payload: AddressedTimedPayload<Ts, NodeId>,
         frame_size: usize,
-    ) -> Vec<TimedData<Ts, SimpleFrame>> {
+    ) -> Vec<AddressedTimedData<Ts, SimpleFrame, NodeId>> {
         self.wrapper.to_frame(payload, frame_size)
     }
 }
@@ -120,10 +120,9 @@ impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleProce
     const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
-        frame: TimedData<Ts, SimpleFrame>,
-        next_hop: NodeId,
+        frame: AddressedTimedData<Ts, SimpleFrame, NodeId>,
     ) -> AddressedTimedData<Ts, SimplePacket, NodeId> {
-        self.wrapper.to_transport_packet(frame, next_hop)
+        self.wrapper.to_transport_packet(frame)
     }
 }
 

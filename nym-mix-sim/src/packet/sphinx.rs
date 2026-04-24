@@ -5,7 +5,7 @@ use std::{fmt::Debug, ops::Add, time::Duration};
 
 use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
-    AddressedTimedData, TimedData, TimedPayload,
+    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
     common::traits::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
@@ -152,13 +152,13 @@ impl GenerateDelay for std::time::Instant {
 /// Passthrough wrapper and unwrapper for sphinx compatibility demonstration
 pub struct SphinxNoOpWireWrapper;
 
-impl<Ts: Clone> Framing<Ts, SphinxPacket> for SphinxNoOpWireWrapper {
+impl<Ts: Clone> Framing<Ts, SphinxPacket, NodeId> for SphinxNoOpWireWrapper {
     const OVERHEAD_SIZE: usize = 0;
     fn to_frame(
         &self,
-        payload: TimedPayload<Ts>,
+        payload: AddressedTimedPayload<Ts, NodeId>,
         _frame_size: usize,
-    ) -> Vec<TimedData<Ts, SphinxPacket>> {
+    ) -> Vec<AddressedTimedData<Ts, SphinxPacket, NodeId>> {
         // Since we're passing through, payload shoud already be a single sphinx packet
         // SAFETY: If the pipeline is implemented properly, payload is a correct sphinx packet
         #[allow(clippy::unwrap_used)]
@@ -172,10 +172,9 @@ impl<Ts: Clone> Transport<Ts, SphinxPacket, SimSphinxPacket, NodeId> for SphinxN
     const OVERHEAD_SIZE: usize = 0;
     fn to_transport_packet(
         &self,
-        frame: TimedData<Ts, SphinxPacket>,
-        next_hop: NodeId,
+        frame: AddressedTimedData<Ts, SphinxPacket, NodeId>,
     ) -> AddressedTimedData<Ts, SimSphinxPacket, NodeId> {
-        (next_hop, frame.data_transform(SimSphinxPacket)).into()
+        frame.data_transform(SimSphinxPacket)
     }
 }
 

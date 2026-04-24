@@ -1,15 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{AddressedTimedData, TimedData, TimedPayload};
-
-pub trait InputOptions<NdId>: Clone {
-    fn reliability(&self) -> bool;
-    fn routing_security(&self) -> bool;
-    fn obfuscation(&self) -> bool;
-
-    fn next_hop(&self) -> NdId;
-}
+use crate::{AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload};
 
 /// Trait for applying framing to a timed payload.
 ///
@@ -22,9 +14,13 @@ pub trait InputOptions<NdId>: Clone {
 ///
 /// # Required Methods
 /// - `to_frame`: Splits the payload into a `Vec<TimedData<Ts, Fr>>` of frames of the given size.
-pub trait Framing<Ts, Fr> {
+pub trait Framing<Ts, Fr, NdId> {
     const OVERHEAD_SIZE: usize;
-    fn to_frame(&self, payload: TimedPayload<Ts>, frame_size: usize) -> Vec<TimedData<Ts, Fr>>;
+    fn to_frame(
+        &self,
+        payload: AddressedTimedPayload<Ts, NdId>,
+        frame_size: usize,
+    ) -> Vec<AddressedTimedData<Ts, Fr, NdId>>;
 }
 
 /// Trait for unwrapping framing from a frame back into a payload.
@@ -59,8 +55,7 @@ pub trait Transport<Ts, Fr, Pkt, NdId> {
     const OVERHEAD_SIZE: usize;
     fn to_transport_packet(
         &self,
-        frame: TimedData<Ts, Fr>,
-        next_hop: NdId,
+        frame: AddressedTimedData<Ts, Fr, NdId>,
     ) -> AddressedTimedData<Ts, Pkt, NdId>;
 }
 
@@ -94,7 +89,7 @@ pub trait TransportUnwrap<Ts, Fr, Pkt> {
 /// - `frame_size`: Derived from `packet_size` minus transport and framing overheads.
 /// - `wire_wrap`: Frames a payload and wraps each frame into a transport packet.
 pub trait WireWrappingPipeline<Ts, Fr, Pkt, NdId>:
-    Framing<Ts, Fr> + Transport<Ts, Fr, Pkt, NdId>
+    Framing<Ts, Fr, NdId> + Transport<Ts, Fr, Pkt, NdId>
 where
     Ts: Clone,
     NdId: Clone,
@@ -104,18 +99,17 @@ where
     fn frame_size(&self) -> usize {
         self.packet_size()
             - <Self as Transport<_, _, _, _>>::OVERHEAD_SIZE
-            - <Self as Framing<_, _>>::OVERHEAD_SIZE
+            - <Self as Framing<_, _, _>>::OVERHEAD_SIZE
     }
 
     fn wire_wrap(
         &self,
-        payload: TimedPayload<Ts>,
-        next_hop: NdId,
+        payload: AddressedTimedPayload<Ts, NdId>,
     ) -> Vec<AddressedTimedData<Ts, Pkt, NdId>> {
         let frame_size = self.frame_size();
         self.to_frame(payload, frame_size)
             .into_iter()
-            .map(|frame| self.to_transport_packet(frame, next_hop.clone()))
+            .map(|frame| self.to_transport_packet(frame))
             .collect()
     }
 }

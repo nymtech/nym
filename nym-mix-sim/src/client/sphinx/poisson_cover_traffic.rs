@@ -19,11 +19,21 @@
 //!
 //! [`SphinxClient`]: super::SphinxClient
 
-use nym_lp_data::{TimedPayload, clients::traits::Obfuscation};
+use std::sync::Arc;
+
+use nym_lp_data::clients::traits::Obfuscation;
 use nym_sphinx::cover::LOOP_COVER_MESSAGE_PAYLOAD;
 use rand::Rng;
 
-use crate::{client::sphinx::SphinxInputOptions, node::NodeId, packet::sphinx::GenerateDelay};
+use crate::{
+    client::{
+        ClientId,
+        sphinx::{SphinxInputOptions, SphinxPipelinePayload},
+    },
+    node::NodeId,
+    packet::sphinx::GenerateDelay,
+    topology::directory::Directory,
+};
 
 /// Two-loop Poisson cover traffic generator.
 ///
@@ -35,6 +45,8 @@ where
     Ts: Clone + GenerateDelay + PartialOrd,
     R: Rng,
 {
+    address: ClientId,
+    directory: Arc<Directory>,
     /// Timestamp at which the main loop next fires (real or cover packet).
     main_loop_next_timestamp: Ts,
     /// Timestamp at which the secondary cover loop next fires.
@@ -52,11 +64,25 @@ where
     ///
     /// Both loops are initialised to fire immediately at `current_timestamp` so
     /// that cover traffic begins on the very first tick.
-    pub fn new(current_timestamp: Ts, rng: R) -> Self {
+    pub fn new(
+        address: ClientId,
+        directory: Arc<Directory>,
+        current_timestamp: Ts,
+        rng: R,
+    ) -> Self {
         Self {
+            address,
+            directory,
             main_loop_next_timestamp: current_timestamp.clone(),
             secondary_loop_next_timestamp: current_timestamp,
             rng,
+        }
+    }
+
+    pub fn cover_traffic_options(&self) -> SphinxInputOptions {
+        SphinxInputOptions {
+            dst: self.address,
+            next_hop: self.directory.random_next_hop(),
         }
     }
 }
@@ -73,18 +99,18 @@ where
     /// whether a real message is available.
     fn obfuscate(
         &mut self,
-        input: Option<TimedPayload<Ts>>,
-        _: SphinxInputOptions,
+        input: Option<SphinxPipelinePayload<Ts>>,
         timestamp: Ts,
-    ) -> Vec<TimedPayload<Ts>> {
+    ) -> Vec<SphinxPipelinePayload<Ts>> {
         let mut output = Vec::new();
 
         // Secondary cover traffic loop
         // We should not schedule those in advance, because backpressure can't tell if it has real or cover traffic.
         if timestamp >= self.secondary_loop_next_timestamp {
-            output.push(TimedPayload::new(
+            output.push(SphinxPipelinePayload::new(
                 timestamp.clone(),
                 LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
+                self.cover_traffic_options(),
             ));
             self.secondary_loop_next_timestamp = self.secondary_loop_next_timestamp.clone()
                 + Ts::generate_cover_traffic_delay(&mut self.rng);
@@ -101,9 +127,10 @@ where
             }
             // No message, but we need to send something => Send cover traffic right away, prepare next timestamp
             None if timestamp >= self.main_loop_next_timestamp => {
-                output.push(TimedPayload::new(
+                output.push(SphinxPipelinePayload::new(
                     timestamp,
                     LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
+                    self.cover_traffic_options(),
                 ));
                 self.main_loop_next_timestamp = self.main_loop_next_timestamp.clone()
                     + Ts::generate_sending_delay(&mut self.rng);
@@ -113,10 +140,5 @@ where
         }
 
         output
-    }
-
-    fn buffer_size(&self) -> usize {
-        // Cover traffic does not buffer real messages; it generates them on demand.
-        0
     }
 }

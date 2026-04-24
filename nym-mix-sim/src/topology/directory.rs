@@ -13,6 +13,8 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx::{Node as SphinxNode, NodeAddressBytes};
+use rand::prelude::SliceRandom;
+use rand::rngs::OsRng;
 
 use crate::{
     client::ClientId,
@@ -54,6 +56,13 @@ impl Directory {
     /// Returns the node_id of every node in the network
     pub fn node_ids(&self) -> Vec<NodeId> {
         self.nodes.keys().copied().collect()
+    }
+
+    /// Pick a random node
+    pub fn random_next_hop(&self) -> NodeId {
+        // SAFETY: The directory always contains at least one node in a valid simulation.
+        #[allow(clippy::unwrap_used)]
+        *self.node_ids().choose(&mut OsRng).unwrap()
     }
 }
 

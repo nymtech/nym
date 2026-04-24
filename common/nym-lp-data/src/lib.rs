@@ -92,6 +92,29 @@ impl<Ts, D, NdId> AddressedTimedData<Ts, D, NdId> {
             data: TimedData::new(timestamp, data),
         }
     }
+
+    /// Apply `op` to the data component, leaving the timestamp unchanged.
+    /// `Nd` can be a different type to allow type transform as well
+    pub fn data_transform<F, Nd>(self, op: F) -> AddressedTimedData<Ts, Nd, NdId>
+    where
+        F: FnMut(D) -> Nd,
+    {
+        AddressedTimedData {
+            dst: self.dst,
+            data: self.data.data_transform(op),
+        }
+    }
+
+    /// Apply `op` to the timestamp component, leaving the data unchanged.
+    pub fn ts_transform<F>(self, op: F) -> Self
+    where
+        F: FnMut(Ts) -> Ts,
+    {
+        AddressedTimedData {
+            dst: self.dst,
+            data: self.data.ts_transform(op),
+        }
+    }
 }
 
 impl<Ts, D, NdId> Debug for AddressedTimedData<Ts, D, NdId>

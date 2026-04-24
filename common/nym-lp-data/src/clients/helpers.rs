@@ -1,9 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::TimedPayload;
 use crate::clients::traits::{Obfuscation, Reliability, RoutingSecurity};
-use crate::common::traits::InputOptions;
+use crate::clients::{InputOptions, PipelinePayload};
 
 /// Marker trait for a no-op [`Reliability`] implementation.
 ///
@@ -17,8 +16,12 @@ where
     Opts: InputOptions<NdId>,
 {
     const OVERHEAD_SIZE: usize = 0;
-    fn reliable_encode(&self, input: TimedPayload<Ts>, _: Opts) -> Vec<TimedPayload<Ts>> {
-        vec![input]
+    fn reliable_encode(
+        &self,
+        input: Option<PipelinePayload<Ts, Opts, NdId>>,
+        _: Ts,
+    ) -> Vec<PipelinePayload<Ts, Opts, NdId>> {
+        input.map(|payload| vec![payload]).unwrap_or_default()
     }
 }
 
@@ -39,7 +42,7 @@ where
         1
     }
 
-    fn encrypt(&self, input: TimedPayload<Ts>, _: Opts) -> TimedPayload<Ts> {
+    fn encrypt(&self, input: PipelinePayload<Ts, Opts, NdId>) -> PipelinePayload<Ts, Opts, NdId> {
         input
     }
 }
@@ -58,13 +61,9 @@ where
 {
     fn obfuscate(
         &mut self,
-        input: Option<TimedPayload<Ts>>,
-        _: Opts,
+        input: Option<PipelinePayload<Ts, Opts, NdId>>,
         _: Ts,
-    ) -> Vec<TimedPayload<Ts>> {
+    ) -> Vec<PipelinePayload<Ts, Opts, NdId>> {
         input.map(|payload| vec![payload]).unwrap_or_default()
-    }
-    fn buffer_size(&self) -> usize {
-        0
     }
 }

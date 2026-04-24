@@ -5,7 +5,7 @@ use std::fmt::Debug;
 
 use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
-    AddressedTimedData, TimedData, TimedPayload,
+    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
     common::traits::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
@@ -190,21 +190,25 @@ pub struct SimpleMessage;
 /// pipeline that needs wire-wrapping by delegating to `SimpleWireWrapper`.
 pub struct SimpleWireWrapper;
 
-impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleWireWrapper {
+impl<Ts: Clone> Framing<Ts, SimpleFrame, NodeId> for SimpleWireWrapper {
     const OVERHEAD_SIZE: usize = SimpleFrame::HEADER.len();
     fn to_frame(
         &self,
-        payload: TimedPayload<Ts>,
+        payload: AddressedTimedPayload<Ts, NodeId>,
         frame_size: usize,
-    ) -> Vec<TimedData<Ts, SimpleFrame>> {
+    ) -> Vec<AddressedTimedData<Ts, SimpleFrame, NodeId>> {
         payload
             .data
+            .data
             .chunks(frame_size)
-            .map(|chunk| TimedData {
-                data: SimpleFrame {
-                    data: chunk.to_vec(),
-                },
-                timestamp: payload.timestamp.clone(),
+            .map(|chunk| {
+                AddressedTimedData::new(
+                    payload.data.timestamp.clone(),
+                    SimpleFrame {
+                        data: chunk.to_vec(),
+                    },
+                    payload.dst,
+                )
             })
             .collect()
     }
@@ -216,13 +220,11 @@ impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleWireW
     const OVERHEAD_SIZE: usize = 16;
     fn to_transport_packet(
         &self,
-        frame: TimedData<Ts, SimpleFrame>,
-        next_hop: NodeId,
+        frame: AddressedTimedData<Ts, SimpleFrame, NodeId>,
     ) -> AddressedTimedData<Ts, SimplePacket, NodeId> {
         // SAFETY: If the pipeline is implemented properly, frames perfectly fit in a packet
         #[allow(clippy::unwrap_used)]
-        let packet = SimplePacket::new(frame.data.to_bytes().try_into().unwrap());
-        AddressedTimedData::new(frame.timestamp, packet, next_hop)
+        frame.data_transform(|inner| SimplePacket::new(inner.to_bytes().try_into().unwrap()))
     }
 }
 

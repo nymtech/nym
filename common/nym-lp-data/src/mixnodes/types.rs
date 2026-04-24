@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::common::traits::{Framing, Transport, WireWrappingPipeline};
-use crate::{AddressedTimedData, TimedData, TimedPayload};
+use crate::{AddressedTimedData, AddressedTimedPayload};
 
 /// The generic pipeline struct for a mixnode
 pub struct Pipeline<F, T, NdId> {
@@ -12,13 +12,17 @@ pub struct Pipeline<F, T, NdId> {
     _marker: std::marker::PhantomData<NdId>,
 }
 
-impl<Ts, Fr, F, T, NdId> Framing<Ts, Fr> for Pipeline<F, T, NdId>
+impl<Ts, Fr, F, T, NdId> Framing<Ts, Fr, NdId> for Pipeline<F, T, NdId>
 where
-    F: Framing<Ts, Fr>,
+    F: Framing<Ts, Fr, NdId>,
 {
     const OVERHEAD_SIZE: usize = F::OVERHEAD_SIZE;
 
-    fn to_frame(&self, payload: TimedPayload<Ts>, frame_size: usize) -> Vec<TimedData<Ts, Fr>> {
+    fn to_frame(
+        &self,
+        payload: AddressedTimedPayload<Ts, NdId>,
+        frame_size: usize,
+    ) -> Vec<AddressedTimedData<Ts, Fr, NdId>> {
         self.framing.to_frame(payload, frame_size)
     }
 }
@@ -31,10 +35,9 @@ where
 
     fn to_transport_packet(
         &self,
-        frame: TimedData<Ts, Fr>,
-        next_hop: NdId,
+        frame: AddressedTimedData<Ts, Fr, NdId>,
     ) -> AddressedTimedData<Ts, Pkt, NdId> {
-        self.transport.to_transport_packet(frame, next_hop)
+        self.transport.to_transport_packet(frame)
     }
 }
 
@@ -42,7 +45,7 @@ impl<Ts, Fr, Pkt, F, T, NdId> WireWrappingPipeline<Ts, Fr, Pkt, NdId> for Pipeli
 where
     Ts: Clone,
     NdId: Clone,
-    F: Framing<Ts, Fr>,
+    F: Framing<Ts, Fr, NdId>,
     T: Transport<Ts, Fr, Pkt, NdId>,
 {
     fn packet_size(&self) -> usize {

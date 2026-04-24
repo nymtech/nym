@@ -10,8 +10,9 @@
 use std::sync::Arc;
 
 use nym_lp_data::{
-    AddressedTimedData, TimedData, TimedPayload,
+    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
     clients::{
+        InputOptions, PipelinePayload,
         helpers::NoOpReliability,
         traits::{
             Chunking, ClientUnwrappingPipeline, ClientWrappingPipeline, Obfuscation,
@@ -19,7 +20,7 @@ use nym_lp_data::{
         },
     },
     common::traits::{
-        Framing, FramingUnwrap, InputOptions, Transport, TransportUnwrap, WireUnwrappingPipeline,
+        Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
     },
 };
@@ -27,7 +28,7 @@ use nym_sphinx::{
     Delay, Destination, DestinationAddressBytes, Payload, SphinxPacket, SphinxPacketBuilder,
     chunking::{self, fragment::Fragment, reconstruction::MessageReconstructor},
 };
-use rand::{rngs::OsRng, seq::SliceRandom};
+use rand::rngs::OsRng;
 
 use crate::{
     client::{
@@ -63,7 +64,12 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send> SphinxClient<Ts> {
         let processing_client = SphinxProcessingClient {
             wrapper: SphinxClientWrappingPipeline {
                 wire_wrapper: SphinxNoOpWireWrapper,
-                cover_traffic: PoissonCoverTraffic::new(current_timestamp, OsRng),
+                cover_traffic: PoissonCoverTraffic::new(
+                    topology_client.client_id,
+                    directory.clone(),
+                    current_timestamp,
+                    OsRng,
+                ),
                 directory: directory.clone(),
             },
             unwrapper: SphinxClientUnwrapping::default(),
@@ -119,7 +125,7 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send> ProcessingClient<Ts, SimSphi
     ) -> Vec<AddressedTimedData<Ts, SimSphinxPacket, NodeId>> {
         let input_options = SphinxInputOptions {
             dst,
-            next_hop: self.wrapper.random_next_hop(),
+            next_hop: self.wrapper.directory.random_next_hop(), // This substitutes for a real gateway selection — in the simulation every node is equally eligible as a first hop
         };
         self.wrapper.process(input, input_options, timestamp)
     }
@@ -143,17 +149,7 @@ pub struct SphinxClientWrappingPipeline<Ts: Clone + GenerateDelay + PartialOrd> 
     directory: Arc<Directory>,
 }
 
-impl<Ts: Clone + GenerateDelay + PartialOrd> SphinxClientWrappingPipeline<Ts> {
-    /// Pick a random node from the directory to use as the next hop (entry point).
-    ///
-    /// This substitutes for a real gateway selection — in the simulation every
-    /// node is equally eligible as a first hop.
-    pub fn random_next_hop(&self) -> NodeId {
-        // SAFETY: The directory always contains at least one node in a valid simulation.
-        #[allow(clippy::unwrap_used)]
-        *self.directory.node_ids().choose(&mut OsRng).unwrap()
-    }
-}
+pub(crate) type SphinxPipelinePayload<Ts> = PipelinePayload<Ts, SphinxInputOptions, NodeId>;
 
 impl<Ts: Clone + GenerateDelay + PartialOrd> Chunking<Ts, SphinxInputOptions, NodeId>
     for SphinxClientWrappingPipeline<Ts>
@@ -161,18 +157,17 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> Chunking<Ts, SphinxInputOptions, No
     fn chunked(
         &self,
         input: Vec<u8>,
-        _: SphinxInputOptions,
+        options: SphinxInputOptions,
         chunk_size: usize,
         timestamp: Ts,
-    ) -> Vec<TimedPayload<Ts>> {
+    ) -> Vec<SphinxPipelinePayload<Ts>> {
         // This is using standard sphinx chunking. Proper LP should use a different one
         let fragments = chunking::split_into_sets(&mut OsRng, &input, chunk_size);
         fragments
             .into_iter()
             .flatten()
-            .map(|fragment| TimedData {
-                data: fragment.into_bytes(),
-                timestamp: timestamp.clone(),
+            .map(|fragment| {
+                SphinxPipelinePayload::new(timestamp.clone(), fragment.into_bytes(), options)
             })
             .collect()
     }
@@ -185,16 +180,10 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> Obfuscation<Ts, SphinxInputOptions,
 {
     fn obfuscate(
         &mut self,
-        input: Option<TimedPayload<Ts>>,
-        input_options: SphinxInputOptions,
+        input: Option<SphinxPipelinePayload<Ts>>,
         timestamp: Ts,
-    ) -> Vec<TimedPayload<Ts>> {
-        self.cover_traffic
-            .obfuscate(input, input_options, timestamp)
-    }
-
-    fn buffer_size(&self) -> usize {
-        self.cover_traffic.buffer_size()
+    ) -> Vec<SphinxPipelinePayload<Ts>> {
+        self.cover_traffic.obfuscate(input, timestamp)
     }
 }
 
@@ -212,14 +201,10 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> RoutingSecurity<Ts, SphinxInputOpti
     /// allowed).  The final destination is the client identified by
     /// `input_options.dst`.  Per-hop delays are drawn from
     /// [`GenerateDelay::generate_mix_delay`].
-    fn encrypt(
-        &self,
-        input: TimedPayload<Ts>,
-        input_options: SphinxInputOptions,
-    ) -> TimedPayload<Ts> {
-        let mut route_ids = vec![input_options.next_hop];
+    fn encrypt(&self, input: SphinxPipelinePayload<Ts>) -> SphinxPipelinePayload<Ts> {
+        let mut route_ids = vec![input.options.next_hop];
         for _ in 0..2 {
-            route_ids.push(self.random_next_hop());
+            route_ids.push(self.directory.random_next_hop());
         }
 
         let route = route_ids
@@ -231,20 +216,16 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> RoutingSecurity<Ts, SphinxInputOpti
             })
             .collect::<Vec<_>>();
         let destination = Destination::new(
-            DestinationAddressBytes::from_bytes([input_options.dst; 32]),
-            [input_options.dst; 16],
+            DestinationAddressBytes::from_bytes([input.options.dst; 32]),
+            [input.options.dst; 16],
         );
 
         let delays = (0..route.len())
             .map(|_| Delay::new_from_millis(Ts::generate_mix_delay(&mut OsRng)))
             .collect::<Vec<_>>();
 
-        // Useful payload size is packet size - transport overhead - framing overhead - routing overhead
-        let payload_size = <SphinxNoOpWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(
-            &self.wire_wrapper,
-        ) - <Self as Framing<Ts, _>>::OVERHEAD_SIZE
-            - <Self as Transport<Ts, _, _, _>>::OVERHEAD_SIZE
-            - <Self as RoutingSecurity<Ts, _, _>>::OVERHEAD_SIZE;
+        // If the pipeline is correct, the input we get is already the correct size
+        let payload_size = input.data.data.len();
 
         // Packet builder's size includes the payload overhead so we have to add it
         let packet_builder = SphinxPacketBuilder::new()
@@ -253,24 +234,22 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> RoutingSecurity<Ts, SphinxInputOpti
         // SAFETY : Shut up clippy
         #[allow(clippy::unwrap_used)]
         let packet = packet_builder
-            .build_packet(input.data, &route, &destination, &delays)
+            .build_packet(input.data.data, &route, &destination, &delays)
             .unwrap();
-        TimedData {
-            timestamp: input.timestamp,
-            data: packet.to_bytes(),
-        }
+
+        SphinxPipelinePayload::new(input.data.timestamp, packet.to_bytes(), input.options)
     }
 }
 
-impl<Ts: Clone + GenerateDelay + PartialOrd> Framing<Ts, SphinxPacket>
+impl<Ts: Clone + GenerateDelay + PartialOrd> Framing<Ts, SphinxPacket, NodeId>
     for SphinxClientWrappingPipeline<Ts>
 {
-    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
+    const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_frame(
         &self,
-        payload: TimedPayload<Ts>,
+        payload: AddressedTimedPayload<Ts, NodeId>,
         frame_size: usize,
-    ) -> Vec<TimedData<Ts, SphinxPacket>> {
+    ) -> Vec<AddressedTimedData<Ts, SphinxPacket, NodeId>> {
         self.wire_wrapper.to_frame(payload, frame_size)
     }
 }
@@ -281,10 +260,9 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> Transport<Ts, SphinxPacket, SimSphi
     const OVERHEAD_SIZE: usize = <SphinxNoOpWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
-        frame: TimedData<Ts, SphinxPacket>,
-        next_hop: NodeId,
+        frame: AddressedTimedData<Ts, SphinxPacket, NodeId>,
     ) -> AddressedTimedData<Ts, SimSphinxPacket, NodeId> {
-        self.wire_wrapper.to_transport_packet(frame, next_hop)
+        self.wire_wrapper.to_transport_packet(frame)
     }
 }
 

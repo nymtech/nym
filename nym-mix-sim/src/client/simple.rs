@@ -25,13 +25,14 @@
 use std::sync::Arc;
 
 use nym_lp_data::{
-    AddressedTimedData, TimedData, TimedPayload,
+    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
     clients::{
+        InputOptions, PipelinePayload,
         helpers::{NoOpObfuscation, NoOpReliability, NoOpRoutingSecurity},
         traits::{Chunking, ClientUnwrappingPipeline, ClientWrappingPipeline},
     },
     common::traits::{
-        Framing, FramingUnwrap, InputOptions, Transport, TransportUnwrap, WireUnwrappingPipeline,
+        Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
     },
 };
@@ -126,6 +127,8 @@ impl<Ts: Clone> ProcessingClient<Ts, SimplePacket> for SimpleProcessingClient {
 /// impl in `nym_lp_data`.
 pub struct SimpleClientWrappingPipeline(SimpleWireWrapper);
 
+pub(crate) type SimplePipelinePayload<Ts> = PipelinePayload<Ts, SimpleInputOptions, NodeId>;
+
 impl Default for SimpleClientWrappingPipeline {
     fn default() -> Self {
         Self(SimpleWireWrapper)
@@ -141,10 +144,10 @@ impl<Ts: Clone> Chunking<Ts, SimpleInputOptions, NodeId> for SimpleClientWrappin
     fn chunked(
         &self,
         mut input: Vec<u8>,
-        _: SimpleInputOptions,
+        options: SimpleInputOptions,
         chunk_size: usize,
         timestamp: Ts,
-    ) -> Vec<TimedPayload<Ts>> {
+    ) -> Vec<SimplePipelinePayload<Ts>> {
         input.push(1);
         if !input.len().is_multiple_of(chunk_size) {
             let padding = vec![0; chunk_size - input.len() % chunk_size];
@@ -153,10 +156,7 @@ impl<Ts: Clone> Chunking<Ts, SimpleInputOptions, NodeId> for SimpleClientWrappin
 
         input
             .chunks(chunk_size)
-            .map(|chunk| TimedData {
-                data: chunk.to_vec(),
-                timestamp: timestamp.clone(),
-            })
+            .map(|chunk| SimplePipelinePayload::new(timestamp.clone(), chunk.to_vec(), options))
             .collect()
     }
 }
@@ -166,13 +166,13 @@ impl NoOpObfuscation for SimpleClientWrappingPipeline {}
 impl NoOpRoutingSecurity for SimpleClientWrappingPipeline {}
 
 // Delegation to SimpleWireWrapper
-impl<Ts: Clone> Framing<Ts, SimpleFrame> for SimpleClientWrappingPipeline {
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
+impl<Ts: Clone> Framing<Ts, SimpleFrame, NodeId> for SimpleClientWrappingPipeline {
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_frame(
         &self,
-        payload: TimedPayload<Ts>,
+        payload: AddressedTimedPayload<Ts, NodeId>,
         frame_size: usize,
-    ) -> Vec<TimedData<Ts, SimpleFrame>> {
+    ) -> Vec<AddressedTimedData<Ts, SimpleFrame, NodeId>> {
         self.0.to_frame(payload, frame_size)
     }
 }
@@ -182,10 +182,9 @@ impl<Ts: Clone> Transport<Ts, SimpleFrame, SimplePacket, NodeId> for SimpleClien
     const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
         &self,
-        frame: TimedData<Ts, SimpleFrame>,
-        next_hop: NodeId,
+        frame: AddressedTimedData<Ts, SimpleFrame, NodeId>,
     ) -> AddressedTimedData<Ts, SimplePacket, NodeId> {
-        self.0.to_transport_packet(frame, next_hop)
+        self.0.to_transport_packet(frame)
     }
 }
 

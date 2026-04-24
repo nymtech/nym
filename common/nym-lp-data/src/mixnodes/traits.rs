@@ -86,10 +86,7 @@ where
         let mixed = self.mix(kind, payload, timestamp);
         Ok(mixed
             .into_iter()
-            .flat_map(|addressed_data| {
-                self.wire_wrap(addressed_data.data, addressed_data.dst)
-                    .into_iter()
-            })
+            .flat_map(|addressed_data| self.wire_wrap(addressed_data).into_iter())
             .collect())
     }
 }

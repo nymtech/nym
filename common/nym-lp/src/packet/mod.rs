@@ -28,6 +28,7 @@ pub(crate) const IP_HEADER_LEN: usize = 40; // v4 - 20, v6 - 40
 pub(crate) const MTU: usize = 1500;
 #[allow(dead_code)]
 pub(crate) const UDP_OVERHEAD: usize = UDP_HEADER_LEN + IP_HEADER_LEN;
+#[allow(dead_code)]
 pub(crate) const UDP_PAYLOAD_SIZE: usize = MTU - UDP_OVERHEAD;
 
 #[derive(Clone)]
@@ -90,8 +91,6 @@ impl Debug for LpPacket {
 }
 
 impl LpPacket {
-    pub const SIZE: usize = UDP_PAYLOAD_SIZE;
-
     pub fn new(header: LpHeader, frame: LpFrame) -> Self {
         Self { header, frame }
     }

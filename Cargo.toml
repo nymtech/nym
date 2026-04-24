@@ -76,8 +76,6 @@ members = [
     "common/nym-lp",
     "common/nym-lp-data",
     "common/nym-kkt",
-    "common/nym-kkt-ciphersuite",
-    "common/nym-kkt-context",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
     "common/nymnoise",
@@ -125,7 +123,6 @@ members = [
     "common/zulip-client",
     "documentation/autodoc",
     "gateway",
-    "integration-tests",
     "nym-api",
     "nym-api/nym-api-requests",
     "nym-authenticator-client",
@@ -133,7 +130,6 @@ members = [
     "nym-credential-proxy/nym-credential-proxy",
     "nym-credential-proxy/nym-credential-proxy-requests",
     "nym-data-observatory",
-    "nym-gateway-probe",
     "nym-ip-packet-client",
     "nym-mix-sim",
     "nym-network-monitor",
@@ -178,6 +174,10 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
+    "nym-gateway-probe",
+    "integration-tests",
+    "common/nym-kkt-ciphersuite",
+    "common/nym-kkt-context",
 ]
 
 default-members = [

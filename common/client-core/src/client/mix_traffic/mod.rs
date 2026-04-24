@@ -100,7 +100,7 @@ impl MixTrafficController {
             // SAFETY: we just checked we have one packet
             #[allow(clippy::unwrap_used)]
             let mix_packet = mix_packets.pop().unwrap();
-            self.gateway_transceiver.send_mix_packet(mix_packet) // SW Will be sent here, framed and obfuscated
+            self.gateway_transceiver.send_mix_packet(mix_packet)
         } else {
             self.gateway_transceiver.batch_send_mix_packets(mix_packets)
         };

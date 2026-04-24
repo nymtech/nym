@@ -118,8 +118,6 @@ pub struct LpHeader {
 }
 
 impl LpHeader {
-    pub const SIZE: usize = OuterHeader::SIZE + InnerHeader::SIZE;
-
     pub fn new(receiver_idx: LpReceiverIndex, counter: u64, protocol_version: u8) -> Self {
         Self {
             outer: OuterHeader {

@@ -223,7 +223,7 @@ where
                     tracing::trace!("InputMessageListener: Received shutdown");
                     break;
                 }
-                input_msg = self.input_receiver.recv() => match input_msg { // SW message coming in here
+                input_msg = self.input_receiver.recv() => match input_msg {
                     Some(input_msg) => {
                         self.on_input_message(input_msg).await;
                     },

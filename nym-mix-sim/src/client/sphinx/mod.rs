@@ -200,8 +200,7 @@ impl<Ts: Clone + GenerateDelay + PartialOrd> Reliability<Ts, SphinxInputOptions,
         self.reliablity.reliable_encode(input, timestamp)
     }
 }
-// impl<Ts: Clone + GenerateDelay + PartialOrd> NoOpReliability for SphinxClientWrappingPipeline<Ts> {}
-//impl<Ts: Clone + GenerateDelay + PartialOrd> NoOpObfuscation for SphinxClientWrappingPipeline<Ts> {}
+
 impl<Ts: Clone + GenerateDelay + PartialOrd> Obfuscation<Ts, SphinxInputOptions, NodeId>
     for SphinxClientWrappingPipeline<Ts>
 {

@@ -65,10 +65,12 @@ where
 
     /// Pretty-print the current state of every node at `tick`.
     pub fn display_state(&self, tick: Ts) {
-        println!("┌─── Tick {tick:?}──────────────────────────────────────────────────────────┐");
+        println!(
+            "┌─── Tick {tick:─<3?}────────────────────────────────────────────────────────────┐"
+        );
         for node in &self.nodes {
             node.display_state();
-            println!("|------------------------------------------------------------------")
+            println!("|------------------------------------------------------------------------|")
         }
         println!("└────────────────────────────────────────────────────────────────────────┘");
     }
@@ -83,7 +85,7 @@ where
     /// 4. **Processing** — every node mixes buffered packets.
     /// 5. *(optional state display)*
     /// 6. **Outgoing** — nodes forward due packets;
-    pub async fn tick(&mut self, timestamp: Ts, display_state: bool) {
+    pub fn tick(&mut self, timestamp: Ts, display_state: bool) {
         for client in &mut self.clients {
             client.tick(timestamp.clone());
         }
@@ -127,7 +129,7 @@ impl MixSimDriver<u32> {
         tick_duration_ms: u64,
     ) -> anyhow::Result<()> {
         if manual_mode {
-            self.run_manual(start_tick, display_state).await
+            self.run_manual(start_tick, display_state)
         } else {
             self.run_automatic(start_tick, tick_duration_ms).await
         }
@@ -145,7 +147,7 @@ impl MixSimDriver<u32> {
         let handle = tokio::spawn(async move {
             let mut current_tick = start_tick;
             loop {
-                self.tick(current_tick, false).await;
+                self.tick(current_tick, false);
                 current_tick += 1;
                 tokio::time::sleep(tick_duration).await;
             }
@@ -156,7 +158,7 @@ impl MixSimDriver<u32> {
     }
 
     /// Run the simulation interactively: one tick per ENTER key press.
-    pub async fn run_manual(mut self, start_tick: u32, display_state: bool) -> anyhow::Result<()> {
+    pub fn run_manual(mut self, start_tick: u32, display_state: bool) -> anyhow::Result<()> {
         info!("Manual mode: press ENTER to advance a tick, Ctrl-C to quit");
         let mut current_tick = start_tick;
         let mut line = String::new();
@@ -164,7 +166,7 @@ impl MixSimDriver<u32> {
             line.clear();
             std::io::stdin().read_line(&mut line)?;
             info!("Tick {current_tick}");
-            self.tick(current_tick, display_state).await;
+            self.tick(current_tick, display_state);
             current_tick += 1;
         }
     }
@@ -190,7 +192,7 @@ impl MixSimDriver<Instant> {
         let handle = tokio::spawn(async move {
             loop {
                 let current_tick = Instant::now();
-                self.tick(current_tick, false).await;
+                self.tick(current_tick, false);
                 tokio::time::sleep(tick_duration).await;
             }
         });

@@ -40,10 +40,16 @@ pub mod routes {
             pub const PORT_REQUEST: &str = "/port-request";
             pub const ANNOUNCE: &str = "/announce";
             pub const REQUEST_TESTRUN: &str = "/request-testrun";
+            pub const SUBMIT_TESTRUN_RESULT: &str = "/submit-testrun-result";
 
             absolute_route!(port_request_absolute, agent_absolute(), PORT_REQUEST);
             absolute_route!(announce_absolute, agent_absolute(), ANNOUNCE);
             absolute_route!(request_testrun_absolute, agent_absolute(), REQUEST_TESTRUN);
+            absolute_route!(
+                submit_testrun_absolute,
+                agent_absolute(),
+                SUBMIT_TESTRUN_RESULT
+            );
         }
 
         pub mod metrics {

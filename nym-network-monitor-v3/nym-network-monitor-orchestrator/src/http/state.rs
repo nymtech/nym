@@ -1,17 +1,23 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::http::api::v1::error::ApiError;
+use crate::storage::NetworkMonitorStorage;
+use crate::storage::models::NewTestRun;
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::x25519;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
+use nym_network_monitor_orchestrator_requests::models::{TestRunAssignment, TestRunResult};
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
+use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
 use std::collections::{BTreeSet, HashMap};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
+use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLock};
-use tracing::info;
+use tracing::{error, info};
 
 /// Thread-safe cache of all agents known to this orchestrator, keyed by host IP.
 /// Used to coordinate port assignments and validate announcements.
@@ -47,7 +53,6 @@ impl KnownAgents {
 
         // insert agent information into the cache
         host_agents.push(KnownAgent {
-            host_ip,
             mixnet_port: next_port,
             last_active_at: OffsetDateTime::now_utc(),
             noise_key: agent_pubkey,
@@ -55,6 +60,18 @@ impl KnownAgents {
         });
 
         Some(next_port)
+    }
+
+    /// Looks up an agent by its full mixnet socket address (host IP + port).
+    /// Returns `None` if no agent is registered at that address.
+    pub(crate) async fn get_agent(&self, address: SocketAddr) -> Option<KnownAgent> {
+        let guard = self.inner.lock().await;
+        let host_agents = guard.agents.get(&address.ip())?;
+
+        host_agents
+            .iter()
+            .find(|a| a.mixnet_port == address.port())
+            .copied()
     }
 
     /// Validates and marks the agent at `mix_listener` as announced.
@@ -135,7 +152,6 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
                 .entry(host_ip)
                 .or_insert_with(Vec::new)
                 .push(KnownAgent {
-                    host_ip,
                     mixnet_port: agent.mixnet_address.port(),
                     // or should we use the authorisation ts?
                     last_active_at: OffsetDateTime::now_utc(),
@@ -158,17 +174,129 @@ struct KnownAgentsInner {
 }
 
 /// Cached state of a single known agent on a particular host.
-#[allow(dead_code)]
-struct KnownAgent {
-    host_ip: IpAddr,
-    mixnet_port: u16,
-    last_active_at: OffsetDateTime,
-    noise_key: x25519::PublicKey,
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct KnownAgent {
+    pub(crate) mixnet_port: u16,
+    pub(crate) last_active_at: OffsetDateTime,
+    pub(crate) noise_key: x25519::PublicKey,
 
     /// Whether this agent has been successfully registered in the smart contract.
     /// Set to `true` when restored from the chain at startup, or after a successful
     /// `/announce` contract transaction.
-    announced: bool,
+    pub(crate) announced: bool,
+}
+
+/// Coordinates test run assignment and result storage.
+///
+/// Wraps the underlying [`NetworkMonitorStorage`] and applies the configured
+/// `testrun_staleness_age` when deciding which nodes are eligible for testing.
+#[derive(Clone)]
+pub(crate) struct TestrunManager {
+    storage: NetworkMonitorStorage,
+
+    /// Minimum time that must elapse after a node's last test before it becomes
+    /// eligible for another one. Passed to the storage layer as a staleness gate.
+    testrun_staleness_age: Duration,
+}
+
+impl TestrunManager {
+    /// Selects the most stale idle node and atomically marks it as having a test
+    /// in progress. Returns `None` if no node is currently eligible.
+    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
+        let node_to_test = match self
+            .storage
+            .assign_next_testrun(self.testrun_staleness_age)
+            .await
+        {
+            Ok(node) => node,
+            Err(err) => {
+                error!("testrun assignment storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+        };
+
+        let Some(node) = node_to_test.map(|n| n.inner) else {
+            return Ok(None);
+        };
+
+        let (Some(address), Some(noise_key), Some(sphinx_key), Some(key_rotation)) = (
+            node.mixnet_socket_address,
+            node.noise_key,
+            node.sphinx_key,
+            node.key_rotation_id,
+        ) else {
+            // this should never happen as the db query should ignore entries where those fields are set to NULL
+            error!(
+                "database inconsistency - attempted to assign node {} for stress testing, but we don't have its complete data",
+                node.node_id
+            );
+            return Err(ApiError::StorageFailure);
+        };
+
+        let Ok(node_address) = address.parse() else {
+            return Err(ApiError::MalformedStoredData);
+        };
+
+        let Ok(noise_key) = noise_key.parse() else {
+            return Err(ApiError::MalformedStoredData);
+        };
+
+        let Ok(sphinx_key) = sphinx_key.parse() else {
+            return Err(ApiError::MalformedStoredData);
+        };
+
+        Ok(Some(TestRunAssignment {
+            node_id: node.node_id as u32,
+            node_address,
+            noise_key,
+            sphinx_key,
+            key_rotation_id: key_rotation as u32,
+        }))
+    }
+
+    /// Persists a completed test run result to the database and updates the
+    /// node's `last_testrun` pointer.
+    pub(crate) async fn submit_testrun_result(
+        &self,
+        result: TestRunResult,
+        node_id: NodeId,
+    ) -> Result<(), ApiError> {
+        // currently all testruns are mixnode results
+        let testrun = NewTestRun::from_mixnode_result(result);
+        if let Err(err) = self.storage.insert_test_run(&testrun, node_id).await {
+            error!("testrun result storage failure: {err}");
+            return Err(ApiError::StorageFailure);
+        }
+        Ok(())
+    }
+}
+
+/// Shared application state available to all axum request handlers.
+#[derive(Clone, FromRef)]
+pub(crate) struct AppState {
+    pub(crate) agents: KnownAgents,
+
+    pub(crate) testrun_manager: TestrunManager,
+
+    pub(crate) validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
+}
+
+impl AppState {
+    pub(crate) fn new(
+        agents: KnownAgents,
+        storage: NetworkMonitorStorage,
+        testrun_staleness_age: Duration,
+        validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
+    ) -> Self {
+        AppState {
+            agents,
+            testrun_manager: TestrunManager {
+                storage,
+                testrun_staleness_age,
+            },
+            validator_client,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -286,25 +414,5 @@ mod tests {
         assert_eq!(p1, DEFAULT_MIX_LISTENING_PORT);
         assert_eq!(p2, DEFAULT_MIX_LISTENING_PORT + 1);
         assert_eq!(p3, DEFAULT_MIX_LISTENING_PORT + 2);
-    }
-}
-
-/// Shared application state available to all axum request handlers.
-#[derive(Clone, FromRef)]
-pub(crate) struct AppState {
-    pub(crate) agents: KnownAgents,
-
-    pub(crate) validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
-}
-
-impl AppState {
-    pub(crate) fn new(
-        agents: KnownAgents,
-        validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
-    ) -> Self {
-        AppState {
-            agents,
-            validator_client,
-        }
     }
 }

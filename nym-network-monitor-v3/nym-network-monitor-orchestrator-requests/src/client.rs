@@ -3,10 +3,11 @@
 
 use crate::models::{
     AgentAnnounceRequest, AgentAnnounceResponse, AgentPortRequest, AgentPortRequestResponse,
-    TestRunAssignment,
+    TestRunAssignmentRequest, TestRunAssignmentResponse, TestRunResultSubmissionRequest,
+    TestRunSubmissionResponse,
 };
 use crate::routes::v1::agent::{
-    announce_absolute, port_request_absolute, request_testrun_absolute,
+    announce_absolute, port_request_absolute, request_testrun_absolute, submit_testrun_absolute,
 };
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, HttpClientError, NO_PARAMS, Url, parse_response};
@@ -53,21 +54,6 @@ impl OrchestratorClient {
         parse_response(res, false).await
     }
 
-    /// Sends an authenticated GET request and deserialises the response.
-    async fn get_with_auth<T>(&self, path: &str) -> Result<T, HttpClientError>
-    where
-        for<'a> T: Deserialize<'a>,
-    {
-        let res = self
-            .inner
-            .create_get_request(path, NO_PARAMS)?
-            .bearer_auth(self.bearer_token.as_str())
-            .send()
-            .await?;
-
-        parse_response(res, false).await
-    }
-
     /// Requests a mixnet port assignment from the orchestrator for this agent.
     /// The orchestrator ensures no two agents on the same host share a port.
     pub async fn get_mix_port_assignment(
@@ -88,7 +74,18 @@ impl OrchestratorClient {
 
     /// Asks the orchestrator for the next test run to execute. Returns `None`
     /// inside the assignment if no work is currently available.
-    pub async fn request_work_assignment(&self) -> Result<TestRunAssignment, HttpClientError> {
-        self.get_with_auth(&request_testrun_absolute()).await
+    pub async fn request_work_assignment(
+        &self,
+        body: &TestRunAssignmentRequest,
+    ) -> Result<TestRunAssignmentResponse, HttpClientError> {
+        self.post_with_auth(&request_testrun_absolute(), body).await
+    }
+
+    /// Submits the result of a completed test run back to the orchestrator for storage.
+    pub async fn submit_test_run_result(
+        &self,
+        body: &TestRunResultSubmissionRequest,
+    ) -> Result<TestRunSubmissionResponse, HttpClientError> {
+        self.post_with_auth(&submit_testrun_absolute(), body).await
     }
 }

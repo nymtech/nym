@@ -68,34 +68,40 @@ impl StorageManager {
                 test_timestamp,
                 ingress_noise_handshake_us,
                 egress_noise_handshake_us,
+                sphinx_packet_delay_us,
                 packets_sent,
                 packets_received,
                 approximate_latency_us,
                 packets_rtt_min_us,
                 packets_rtt_mean_us,
+                packets_rtt_median_us,
                 packets_rtt_max_us,
                 packets_rtt_std_dev_us,
                 sending_latency_min_us,
                 sending_latency_mean_us,
+                sending_latency_median_us,
                 sending_latency_max_us,
                 sending_latency_std_dev_us,
                 received_duplicates,
                 error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             run.test_type,
             run.test_timestamp,
             run.ingress_noise_handshake_us,
             run.egress_noise_handshake_us,
+            run.sphinx_packet_delay_us,
             run.packets_sent,
             run.packets_received,
             run.approximate_latency_us,
             run.packets_rtt_min_us,
             run.packets_rtt_mean_us,
+            run.packets_rtt_median_us,
             run.packets_rtt_max_us,
             run.packets_rtt_std_dev_us,
             run.sending_latency_min_us,
             run.sending_latency_mean_us,
+            run.sending_latency_median_us,
             run.sending_latency_max_us,
             run.sending_latency_std_dev_us,
             run.received_duplicates,
@@ -163,6 +169,8 @@ impl StorageManager {
     /// callers can use a consistent timestamp across related operations.
     ///
     /// Nodes with a row in `testrun_in_progress` are excluded entirely.
+    /// Nodes where `mixnet_socket_address`, `noise_key`, or `sphinx_key` is NULL are also
+    /// excluded, as they lack the information required to perform a test.
     ///
     /// Returns `None` if no eligible idle node exists.
     pub(crate) async fn assign_next_testrun(
@@ -188,6 +196,9 @@ impl StorageManager {
             LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
             LEFT JOIN testrun             tr  ON tr.id       = n.last_testrun
             WHERE tip.node_id IS NULL
+              AND n.mixnet_socket_address IS NOT NULL
+              AND n.noise_key IS NOT NULL
+              AND n.sphinx_key IS NOT NULL
               AND (n.last_testrun IS NULL OR tr.test_timestamp < ?)
             ORDER BY tr.test_timestamp ASC NULLS FIRST
             LIMIT 1
@@ -272,9 +283,9 @@ mod tests {
             identity_key: identity_key.to_string(),
             last_seen_bonded: datetime!(2025-01-01 00:00:00 UTC),
             mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
-            noise_key: None,
-            sphinx_key: None,
-            key_rotation_id: None,
+            noise_key: Some("placeholder_noise_key".to_string()),
+            sphinx_key: Some("placeholder_sphinx_key".to_string()),
+            key_rotation_id: Some(0),
         }
     }
 
@@ -284,15 +295,18 @@ mod tests {
             test_timestamp: datetime!(2025-06-01 12:00:00 UTC),
             ingress_noise_handshake_us: None,
             egress_noise_handshake_us: None,
+            sphinx_packet_delay_us: 0,
             packets_sent: 0,
             packets_received: 0,
             approximate_latency_us: None,
             packets_rtt_min_us: None,
             packets_rtt_mean_us: None,
+            packets_rtt_median_us: None,
             packets_rtt_max_us: None,
             packets_rtt_std_dev_us: None,
             sending_latency_min_us: None,
             sending_latency_mean_us: None,
+            sending_latency_median_us: None,
             sending_latency_max_us: None,
             sending_latency_std_dev_us: None,
             received_duplicates: false,

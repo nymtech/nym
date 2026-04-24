@@ -22,6 +22,9 @@ CREATE TABLE testrun
     -- NULL if the handshake did not complete.
     egress_noise_handshake_us  INTEGER,
 
+    -- The (constant) per-hop delay applied to sphinx packets during the test run, in microseconds.
+    sphinx_packet_delay_us     INTEGER                                            NOT NULL,
+
     -- Number of sphinx packets sent to the node under test.
     packets_sent               INTEGER                                            NOT NULL DEFAULT 0,
 
@@ -33,16 +36,18 @@ CREATE TABLE testrun
     approximate_latency_us     INTEGER,
 
     -- RTT distribution (in microseconds) computed over all received packets.
-    -- All four columns are NULL together when no packets were received.
+    -- All five columns are NULL together when no packets were received.
     packets_rtt_min_us         INTEGER,
     packets_rtt_mean_us        INTEGER,
+    packets_rtt_median_us      INTEGER,
     packets_rtt_max_us         INTEGER,
     packets_rtt_std_dev_us     INTEGER,
 
     -- Batch send latency distribution (in microseconds) recorded during the load test.
-    -- All four columns are NULL together when no batches were sent.
+    -- All five columns are NULL together when no batches were sent.
     sending_latency_min_us     INTEGER,
     sending_latency_mean_us    INTEGER,
+    sending_latency_median_us  INTEGER,
     sending_latency_max_us     INTEGER,
     sending_latency_std_dev_us INTEGER,
 

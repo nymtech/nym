@@ -4,12 +4,13 @@
 use crate::http::api::v1::error::ApiError;
 use crate::http::state::{AppState, KnownAgents};
 use axum::extract::{ConnectInfo, State};
-use axum::routing::{get, post};
+use axum::routing::post;
 use axum::{Json, Router};
 use nym_http_api_common::middleware::bearer_auth::AuthLayer;
 use nym_network_monitor_orchestrator_requests::models::{
     AgentAnnounceRequest, AgentAnnounceResponse, AgentPortRequest, AgentPortRequestResponse,
-    TestRunAssignment,
+    TestRunAssignmentRequest, TestRunAssignmentResponse, TestRunResultSubmissionRequest,
+    TestRunSubmissionResponse,
 };
 use nym_network_monitor_orchestrator_requests::routes;
 use nym_validator_client::nyxd::contract_traits::NetworkMonitorsSigningClient;
@@ -65,7 +66,7 @@ async fn request_mix_port(
     context_path = "/v1/agent",
     responses(
         (status = 200, content(
-
+            (AgentAnnounceResponse = "application/json"),
         ))
     )
 )]
@@ -126,12 +127,13 @@ async fn announce_agent(
 #[utoipa::path(
     operation_id = "v1_agent_request_testrun",
     tag = "Network Monitor Agent",
-    get,
+    post,
+    request_body = TestRunAssignmentRequest,
     path = "/request-testrun",
     context_path = "/v1/agent",
     responses(
         (status = 200, content(
-
+            (TestRunAssignmentResponse = "application/json"),
         ))
     )
 )]
@@ -144,16 +146,64 @@ async fn announce_agent(
 )]
 async fn request_testrun(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-) -> Result<Json<TestRunAssignment>, ApiError> {
+    State(state): State<AppState>,
+    Json(body): Json<TestRunAssignmentRequest>,
+) -> Result<Json<TestRunAssignmentResponse>, ApiError> {
     let pod_ip = addr.ip();
-
     info!("received testrun request from pod at {pod_ip}");
 
-    error!("unimplemented");
+    // 1. ensure the agent still exists in our announced cache
+    // in case there was a weird network failure between the calls
+    let Some(agent) = state.agents.get_agent(body.agent_mix_socket_address).await else {
+        return Err(ApiError::AgentNotFound);
+    };
 
-    Ok(Json(TestRunAssignment {
-        assignment: Some(()),
-    }))
+    if !agent.announced {
+        return Err(ApiError::AgentNotAnnounced);
+    }
+
+    // 2. attempt to assign a testrun to the agent
+    let assignment = state.testrun_manager.assign_next_testrun().await?;
+    Ok(Json(TestRunAssignmentResponse { assignment }))
+}
+
+#[utoipa::path(
+    operation_id = "v1_agent_submit_testrun_result",
+    tag = "Network Monitor Agent",
+    post,
+    request_body = TestRunResultSubmissionRequest,
+    path = "/submit-testrun-result",
+    context_path = "/v1/agent",
+    responses(
+        (status = 200, content(
+            (TestRunSubmissionResponse = "application/json"),
+        ))
+    )
+)]
+#[tracing::instrument(
+    level = "debug",
+    skip_all,
+    fields(
+        agent_pod = %addr
+    )
+)]
+async fn submit_testrun_result(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<AppState>,
+    Json(body): Json<TestRunResultSubmissionRequest>,
+) -> Result<Json<TestRunSubmissionResponse>, ApiError> {
+    let pod_ip = addr.ip();
+    info!(
+        "received testrun result for node {} from pod at {pod_ip}",
+        body.node_id
+    );
+
+    state
+        .testrun_manager
+        .submit_testrun_result(body.result, body.node_id)
+        .await?;
+
+    Ok(Json(TestRunSubmissionResponse {}))
 }
 
 /// Builds the agent sub-router with all agent endpoints behind bearer-token auth.
@@ -161,6 +211,10 @@ pub(super) fn routes(auth_layer: AuthLayer) -> Router<AppState> {
     Router::new()
         .route(routes::v1::agent::PORT_REQUEST, post(request_mix_port))
         .route(routes::v1::agent::ANNOUNCE, post(announce_agent))
-        .route(routes::v1::agent::REQUEST_TESTRUN, get(request_testrun))
+        .route(routes::v1::agent::REQUEST_TESTRUN, post(request_testrun))
+        .route(
+            routes::v1::agent::SUBMIT_TESTRUN_RESULT,
+            post(submit_testrun_result),
+        )
         .route_layer(auth_layer)
 }

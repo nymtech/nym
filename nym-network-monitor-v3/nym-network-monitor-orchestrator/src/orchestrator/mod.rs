@@ -130,7 +130,12 @@ impl NetworkMonitorOrchestrator {
             .filter(|a| a.authorised_by.as_str() == address.as_ref())
             .collect::<Vec<_>>();
         let agents_state = KnownAgents::try_from(agents)?;
-        let app_state = AppState::new(agents_state, self.client.clone());
+        let app_state = AppState::new(
+            agents_state,
+            self.storage.clone(),
+            self.config.test_interval,
+            self.client.clone(),
+        );
 
         // 2. build node information refresher
         let node_refresher = NodeRefresher::new(
@@ -188,15 +193,18 @@ impl NetworkMonitorOrchestrator {
             test_timestamp: OffsetDateTime::now_utc(),
             ingress_noise_handshake_us: None,
             egress_noise_handshake_us: None,
+            sphinx_packet_delay_us: 0,
             packets_sent: 0,
             packets_received: 0,
             approximate_latency_us: None,
             packets_rtt_min_us: None,
             packets_rtt_mean_us: None,
+            packets_rtt_median_us: None,
             packets_rtt_max_us: None,
             packets_rtt_std_dev_us: None,
             sending_latency_min_us: None,
             sending_latency_mean_us: None,
+            sending_latency_median_us: None,
             sending_latency_max_us: None,
             sending_latency_std_dev_us: None,
             received_duplicates: false,

@@ -3,6 +3,7 @@
 
 use crate::sphinx_helpers::as_sphinx_node;
 use nym_crypto::asymmetric::x25519;
+use nym_network_monitor_orchestrator_requests::models::TestRunAssignment;
 use nym_noise::config::{NoiseNode, NoiseVersion, VersionedNoiseKeyV1};
 use nym_sphinx_params::SphinxKeyRotation;
 use std::net::SocketAddr;
@@ -24,6 +25,15 @@ pub(crate) struct TestedNodeDetails {
 }
 
 impl TestedNodeDetails {
+    pub(crate) fn from_testrun_assignment(assignment: TestRunAssignment) -> Self {
+        TestedNodeDetails {
+            address: assignment.node_address,
+            noise_key: assignment.noise_key,
+            key_rotation: SphinxKeyRotation::from_key_rotation_id(assignment.key_rotation_id),
+            sphinx_key: assignment.sphinx_key,
+        }
+    }
+
     /// Returns a sphinx [`Node`](nym_sphinx_types::Node) representation of this node,
     /// suitable for use as a hop in a sphinx route.
     pub(crate) fn as_sphinx_node(&self) -> nym_sphinx_types::Node {

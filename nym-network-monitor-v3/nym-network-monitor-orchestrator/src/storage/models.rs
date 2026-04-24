@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_network_monitor_orchestrator_requests::models::TestRunResult;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use time::OffsetDateTime;
 
@@ -26,6 +27,9 @@ pub(crate) struct NewTestRun {
     /// Noise handshake duration on the egress (initiator) side, in microseconds.
     pub(crate) egress_noise_handshake_us: Option<i64>,
 
+    /// Constant per-hop sphinx packet delay used during the test run, in microseconds.
+    pub(crate) sphinx_packet_delay_us: i64,
+
     pub(crate) packets_sent: i64,
     pub(crate) packets_received: i64,
 
@@ -35,12 +39,14 @@ pub(crate) struct NewTestRun {
     // RTT distribution over received packets (all NULL when no packets were received).
     pub(crate) packets_rtt_min_us: Option<i64>,
     pub(crate) packets_rtt_mean_us: Option<i64>,
+    pub(crate) packets_rtt_median_us: Option<i64>,
     pub(crate) packets_rtt_max_us: Option<i64>,
     pub(crate) packets_rtt_std_dev_us: Option<i64>,
 
     // Batch send latency distribution (all NULL when no batches were sent).
     pub(crate) sending_latency_min_us: Option<i64>,
     pub(crate) sending_latency_mean_us: Option<i64>,
+    pub(crate) sending_latency_median_us: Option<i64>,
     pub(crate) sending_latency_max_us: Option<i64>,
     pub(crate) sending_latency_std_dev_us: Option<i64>,
 
@@ -48,6 +54,55 @@ pub(crate) struct NewTestRun {
 
     /// First error that caused the test to abort. `None` if the run completed without error.
     pub(crate) error: Option<String>,
+}
+
+fn duration_to_us(d: std::time::Duration) -> i64 {
+    d.as_micros() as i64
+}
+
+impl NewTestRun {
+    /// Converts an API-level [`TestRunResult`] into a database-ready row,
+    /// flattening [`LatencyDistribution`](nym_network_monitor_orchestrator_requests::models::LatencyDistribution)
+    /// fields into individual microsecond columns and recording the current UTC time as the test timestamp.
+    fn from_result(test_type: TestType, result: TestRunResult) -> Self {
+        NewTestRun {
+            test_type,
+            test_timestamp: OffsetDateTime::now_utc(),
+            ingress_noise_handshake_us: result.ingress_noise_handshake.map(duration_to_us),
+            egress_noise_handshake_us: result.egress_noise_handshake.map(duration_to_us),
+            sphinx_packet_delay_us: duration_to_us(result.sphinx_packet_delay),
+            packets_sent: result.packets_sent as i64,
+            packets_received: result.packets_received as i64,
+            approximate_latency_us: result.approximate_latency.map(duration_to_us),
+            packets_rtt_min_us: result.packets_statistics.map(|s| duration_to_us(s.minimum)),
+            packets_rtt_mean_us: result.packets_statistics.map(|s| duration_to_us(s.mean)),
+            packets_rtt_median_us: result.packets_statistics.map(|s| duration_to_us(s.median)),
+            packets_rtt_max_us: result.packets_statistics.map(|s| duration_to_us(s.maximum)),
+            packets_rtt_std_dev_us: result
+                .packets_statistics
+                .map(|s| duration_to_us(s.standard_deviation)),
+            sending_latency_min_us: result.sending_statistics.map(|s| duration_to_us(s.minimum)),
+            sending_latency_mean_us: result.sending_statistics.map(|s| duration_to_us(s.mean)),
+            sending_latency_median_us: result.sending_statistics.map(|s| duration_to_us(s.median)),
+            sending_latency_max_us: result.sending_statistics.map(|s| duration_to_us(s.maximum)),
+            sending_latency_std_dev_us: result
+                .sending_statistics
+                .map(|s| duration_to_us(s.standard_deviation)),
+            received_duplicates: result.received_duplicates,
+            error: result.error,
+        }
+    }
+
+    /// Creates a new test run row for a mixnode stress test result.
+    pub(crate) fn from_mixnode_result(result: TestRunResult) -> Self {
+        Self::from_result(TestType::Mixnode, result)
+    }
+
+    /// Creates a new test run row for a gateway stress test result.
+    #[allow(dead_code)]
+    pub(crate) fn from_gateway_result(result: TestRunResult) -> Self {
+        Self::from_result(TestType::Gateway, result)
+    }
 }
 
 /// A row from the `testrun` table, as returned by a SELECT.

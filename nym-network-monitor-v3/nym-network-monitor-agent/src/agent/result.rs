@@ -9,13 +9,16 @@ use std::time::Duration;
 ///
 /// Fields are populated incrementally as the test progresses; absent values (`None`) indicate
 /// that the corresponding step was not reached or did not produce a result.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub(crate) struct TestRunResult {
     /// Duration of the Noise handshake on the ingress (responder) side, if completed.
     pub(crate) ingress_noise_handshake: Option<Duration>,
 
     /// Duration of the Noise handshake on the egress (initiator) side, if completed.
     pub(crate) egress_noise_handshake: Option<Duration>,
+
+    /// The (constant) delay of the sphinx packet set during the test run.
+    pub sphinx_packet_delay: Duration,
 
     /// Number of sphinx packets successfully sent to the node under test.
     pub(crate) packets_sent: usize,
@@ -47,8 +50,19 @@ pub(crate) struct TestRunResult {
 }
 
 impl TestRunResult {
-    pub(crate) fn new_empty() -> Self {
-        Default::default()
+    pub(crate) fn new(sphinx_packet_delay: Duration) -> Self {
+        TestRunResult {
+            ingress_noise_handshake: None,
+            egress_noise_handshake: None,
+            sphinx_packet_delay,
+            packets_sent: 0,
+            packets_received: 0,
+            approximate_latency: None,
+            packets_statistics: None,
+            sending_statistics: None,
+            received_duplicates: false,
+            error: None,
+        }
     }
 
     /// Calculates the percentage of packets received out of the total sent.
@@ -123,6 +137,10 @@ pub struct LatencyDistribution {
     /// Average latency duration it took to send or receive a test packet.
     pub mean: Duration,
 
+    /// Median latency duration it took to send or receive a test packet.
+    /// For an even number of samples, this is the arithmetic mean of the two middle values.
+    pub median: Duration,
+
     /// Maximum latency duration it took to send or receive a test packet.
     pub maximum: Duration,
 
@@ -134,17 +152,47 @@ impl LatencyDistribution {
     /// Computes statistics from a slice of per-packet RTT durations.
     /// Returns zeroed statistics if `raw_results` is empty.
     pub fn compute(raw_results: &[Duration]) -> Self {
-        let minimum = raw_results.iter().min().copied().unwrap_or_default();
-        let maximum = raw_results.iter().max().copied().unwrap_or_default();
+        if raw_results.is_empty() {
+            return LatencyDistribution {
+                minimum: Duration::ZERO,
+                mean: Duration::ZERO,
+                median: Duration::ZERO,
+                maximum: Duration::ZERO,
+                standard_deviation: Duration::ZERO,
+            };
+        }
 
-        let mean = Self::duration_mean(raw_results);
-        let standard_deviation = Self::duration_standard_deviation(raw_results, mean);
+        let mut sorted = raw_results.to_vec();
+        sorted.sort();
+
+        let minimum = sorted[0];
+
+        // SAFETY: we have ensured our list is not empty
+        #[allow(clippy::unwrap_used)]
+        let maximum = *sorted.last().unwrap();
+        let median = Self::duration_median(&sorted);
+        let mean = Self::duration_mean(&sorted);
+        let standard_deviation = Self::duration_standard_deviation(&sorted, mean);
 
         LatencyDistribution {
             minimum,
             mean,
+            median,
             maximum,
             standard_deviation,
+        }
+    }
+
+    /// Computes the median of an already-sorted slice of durations.
+    /// For an even count, returns the arithmetic mean of the two middle elements.
+    /// Caller must ensure `sorted` is non-empty and ordered ascending.
+    fn duration_median(sorted: &[Duration]) -> Duration {
+        let len = sorted.len();
+        let mid = len / 2;
+        if len % 2 == 1 {
+            sorted[mid]
+        } else {
+            (sorted[mid - 1] + sorted[mid]) / 2
         }
     }
 
@@ -187,6 +235,37 @@ impl LatencyDistribution {
     }
 }
 
+impl From<LatencyDistribution>
+    for nym_network_monitor_orchestrator_requests::models::LatencyDistribution
+{
+    fn from(value: LatencyDistribution) -> Self {
+        Self {
+            minimum: value.minimum,
+            mean: value.mean,
+            median: value.median,
+            maximum: value.maximum,
+            standard_deviation: value.standard_deviation,
+        }
+    }
+}
+
+impl From<TestRunResult> for nym_network_monitor_orchestrator_requests::models::TestRunResult {
+    fn from(value: TestRunResult) -> Self {
+        Self {
+            ingress_noise_handshake: value.ingress_noise_handshake,
+            egress_noise_handshake: value.egress_noise_handshake,
+            sphinx_packet_delay: value.sphinx_packet_delay,
+            packets_sent: value.packets_sent,
+            packets_received: value.packets_received,
+            approximate_latency: value.approximate_latency,
+            packets_statistics: value.packets_statistics.map(Into::into),
+            sending_statistics: value.sending_statistics.map(Into::into),
+            received_duplicates: value.received_duplicates,
+            error: value.error,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,6 +280,7 @@ mod tests {
         assert_eq!(stats.minimum, Duration::ZERO);
         assert_eq!(stats.maximum, Duration::ZERO);
         assert_eq!(stats.mean, Duration::ZERO);
+        assert_eq!(stats.median, Duration::ZERO);
         assert_eq!(stats.standard_deviation, Duration::ZERO);
     }
 
@@ -210,6 +290,7 @@ mod tests {
         assert_eq!(stats.minimum, ms(42));
         assert_eq!(stats.maximum, ms(42));
         assert_eq!(stats.mean, ms(42));
+        assert_eq!(stats.median, ms(42));
         assert_eq!(stats.standard_deviation, Duration::ZERO);
     }
 
@@ -217,7 +298,24 @@ mod tests {
     fn two_equal_values_have_zero_deviation() {
         let stats = LatencyDistribution::compute(&[ms(10), ms(10)]);
         assert_eq!(stats.mean, ms(10));
+        assert_eq!(stats.median, ms(10));
         assert_eq!(stats.standard_deviation, Duration::ZERO);
+    }
+
+    #[test]
+    fn median_odd_count_picks_middle() {
+        // sorted: 10, 20, 30, 40, 50 -> median = 30
+        let data = [ms(40), ms(10), ms(50), ms(20), ms(30)];
+        let stats = LatencyDistribution::compute(&data);
+        assert_eq!(stats.median, ms(30));
+    }
+
+    #[test]
+    fn median_even_count_averages_two_middle() {
+        // sorted: 10, 20, 30, 40 -> median = (20 + 30) / 2 = 25
+        let data = [ms(30), ms(10), ms(40), ms(20)];
+        let stats = LatencyDistribution::compute(&data);
+        assert_eq!(stats.median, ms(25));
     }
 
     #[test]
@@ -257,7 +355,7 @@ mod tests {
 
     #[test]
     fn result_setters_populate_fields() {
-        let mut result = TestRunResult::new_empty();
+        let mut result = TestRunResult::new(ms(2));
         result.set_ingress_noise_handshake(ms(5));
         result.set_egress_noise_handshake(ms(7));
         result.set_packets_sent(100);

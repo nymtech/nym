@@ -1,50 +1,20 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Packet types and the generic wire-format trait used by the simulation.
-//!
-//! The central abstraction is [`WirePacketFormat`]: a trait that any packet
-//! type must implement to participate in a simulation.  It covers only
-//! wire serialisation; mix logic is handled separately by
-//! [`nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline`].
-//!
-//! [`SimplePacket`] is a built-in concrete implementation: a fixed-size 64-byte
-//! packet (16-byte UUID + 48-byte payload)
-
 use std::fmt;
 use std::fmt::Debug;
 
 use nym_common::debug::format_debug_bytes;
-use nym_lp_data::{TimedData, mixnodes::traits::MixnodeProcessingPipeline};
+use nym_lp_data::{
+    TimedData, TimedPayload,
+    clients::traits::{Chunking, Obfuscation, ProcessingPipeline, Reliability, RoutingSecurity},
+    common::traits::{Framing, Transport},
+    mixnodes::traits::MixnodeProcessingPipeline,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::topology::directory::NodeId;
-
-/// Trait that every packet type must implement to participate in the simulation.
-///
-/// ## Bounds
-///
-/// * `Debug` — required so that [`crate::node::Node::display_state`] can print
-///   packet buffers without knowing the concrete type.
-/// * `Sized` — required because the trait is used with `Vec<Pkt>` and moved by
-///   value in several places.
-/// * `Send + 'static` — required because the simulation driver spawns a
-///   `tokio::task` that owns the node list.
-///
-pub trait WirePacketFormat: Debug + Sized + Send + 'static {
-    /// Deserialise a packet from the raw bytes received off the wire.
-    ///
-    /// # Errors
-    ///
-    /// Should return an error on length mismatch, invalid magic bytes, or any
-    /// other malformed-datagram condition.
-    fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self>;
-
-    /// Serialise the packet to its on-wire byte representation, ready to be
-    /// sent via UDP.
-    fn to_bytes(&self) -> Vec<u8>;
-}
+use crate::{packet::WirePacketFormat, topology::directory::NodeId};
 
 /// A minimal, fixed-size packet used by the simulation.
 ///
@@ -160,6 +130,78 @@ impl WirePacketFormat for SimplePacket {
         self.to_bytes()
     }
 }
+
+/// Stub client processing pipeline for [`SimplePacket`].
+///
+/// A no-op pass-through: returns the payload as a single packet with no
+/// Sphinx layering, chunking, reliability encoding, or obfuscation.
+///
+/// All required sub-traits of [`ProcessingPipeline`] are implemented here;
+/// [`DynProcessingPipeline`] is then provided automatically via the blanket
+/// impl in `nym_lp_data`.
+pub struct SimpleClientPipeline;
+
+impl<Ts: Clone> Chunking<Ts> for SimpleClientPipeline {
+    /// Returns the entire input as a single chunk, ignoring `chunk_size`.
+    fn chunked(&self, input: Vec<u8>, _chunk_size: usize, timestamp: Ts) -> Vec<TimedPayload<Ts>> {
+        vec![TimedData::new(timestamp, input)]
+    }
+}
+
+impl<Ts> Reliability<Ts> for SimpleClientPipeline {
+    const OVERHEAD_SIZE: usize = 0;
+    fn reliable_encode(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts> {
+        input
+    }
+}
+
+impl<Ts: Clone> Obfuscation<Ts> for SimpleClientPipeline {
+    fn obfuscate(&mut self, input: TimedPayload<Ts>, _timestamp: Ts) -> Vec<TimedPayload<Ts>> {
+        vec![input]
+    }
+    fn buffer_size(&self) -> usize {
+        0
+    }
+}
+
+impl<Ts> RoutingSecurity<Ts> for SimpleClientPipeline {
+    const OVERHEAD_SIZE: usize = 0;
+    fn encrypt(&self, input: TimedPayload<Ts>) -> TimedPayload<Ts> {
+        input
+    }
+}
+
+/// Frame type is `Vec<u8>` (raw bytes); no framing overhead.
+impl<Ts: Clone> Framing<Ts, Vec<u8>> for SimpleClientPipeline {
+    const OVERHEAD_SIZE: usize = 0;
+    fn to_frame(
+        &self,
+        payload: TimedPayload<Ts>,
+        _frame_size: usize,
+    ) -> Vec<TimedData<Ts, Vec<u8>>> {
+        vec![payload]
+    }
+}
+
+/// Transport wraps a raw-byte frame into a [`SimplePacket`].
+/// Overhead = 16 bytes (UUID), so effective payload = 48 bytes.
+impl<Ts: Clone> Transport<Ts, Vec<u8>, SimplePacket> for SimpleClientPipeline {
+    const OVERHEAD_SIZE: usize = 16;
+    fn to_transport_packet(&self, frame: TimedData<Ts, Vec<u8>>) -> TimedData<Ts, SimplePacket> {
+        let mut padded = [0u8; 48];
+        let len = frame.data.len().min(48);
+        padded[..len].copy_from_slice(&frame.data[..len]);
+        TimedData::new(frame.timestamp, SimplePacket::new(padded))
+    }
+}
+
+impl<Ts: Clone> ProcessingPipeline<Ts, Vec<u8>, SimplePacket> for SimpleClientPipeline {
+    fn packet_size(&self) -> usize {
+        64
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 /// A pass-through [`MixnodeProcessingPipeline`] for [`SimplePacket`].
 ///

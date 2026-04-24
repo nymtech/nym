@@ -37,6 +37,7 @@
 #![warn(clippy::todo)]
 #![warn(clippy::dbg_macro)]
 
+pub mod client;
 pub mod driver;
 pub mod node;
 pub mod packet;

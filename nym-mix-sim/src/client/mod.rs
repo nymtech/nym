@@ -39,7 +39,7 @@ use std::{
 use nym_lp_data::{
     TimedData,
     clients::{
-        traits::{DynClientUnwrappingPipeline, DynClientWrappingPipeline},
+        traits::{ClientUnwrappingPipeline, DynClientWrappingPipeline},
         types::StreamOptions,
     },
 };
@@ -59,7 +59,7 @@ pub type ClientId = NodeId;
 /// `Fr` is the frame type
 /// `Pkt` is the packet type.
 ///
-pub struct Client<Ts, Fr, Pkt> {
+pub struct Client<Ts, Fr, Pkt, Mk> {
     id: ClientId,
 
     /// Shared routing table, set via [`Client::set_directory`] after all
@@ -92,10 +92,10 @@ pub struct Client<Ts, Fr, Pkt> {
 
     /// Unwraps / decrypts packets received from the mix network and
     /// recovers the original plaintext.
-    unwrapping_pipeline: Box<dyn DynClientUnwrappingPipeline<Ts, Pkt> + Send>,
+    unwrapping_pipeline: Box<dyn ClientUnwrappingPipeline<Ts, Fr, Pkt, Mk> + Send>,
 }
 
-impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt> {
+impl<Ts: Clone, Fr, Pkt, Mk> Client<Ts, Fr, Pkt, Mk> {
     /// Bind both UDP sockets and return a new client.
     ///
     /// # Errors
@@ -104,7 +104,7 @@ impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt> {
     pub fn new(
         topology: TopologyClient,
         processing_pipeline: impl DynClientWrappingPipeline<Ts, Fr, Pkt> + Send + 'static,
-        unwrapping_pipeline: impl DynClientUnwrappingPipeline<Ts, Pkt> + Send + 'static,
+        unwrapping_pipeline: impl ClientUnwrappingPipeline<Ts, Fr, Pkt, Mk> + Send + 'static,
     ) -> anyhow::Result<Self> {
         let mix_socket = UdpSocket::bind(topology.mixnet_address)?;
         mix_socket.set_nonblocking(true)?;
@@ -138,7 +138,7 @@ impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt> {
     }
 }
 
-impl<Ts, Fr, Pkt> Client<Ts, Fr, Pkt>
+impl<Ts, Fr, Pkt, Mk> Client<Ts, Fr, Pkt, Mk>
 where
     Ts: Clone + PartialOrd,
     Pkt: WirePacketFormat,

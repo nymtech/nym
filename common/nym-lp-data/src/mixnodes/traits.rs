@@ -26,7 +26,7 @@ pub trait RoutingSecurityProcessing<Ts> {
 /// impl below provides `DynMixnodeProcessingPipeline` for free.  For
 /// pass-through stubs that do not need the full wire layer, you may implement
 /// this trait directly.
-pub trait DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> {
+pub trait DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> {
     fn process(
         &mut self,
         input: TimedData<Ts, Pkt>,
@@ -34,9 +34,9 @@ pub trait DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> {
     ) -> anyhow::Result<Vec<(NodeId, TimedData<Ts, Pkt>)>>;
 }
 
-impl<T, Ts, Pkt, NodeId> DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> for T
+impl<T, Ts, Fr, Pkt, Mk, NodeId> DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> for T
 where
-    T: MixnodeProcessingPipeline<Ts, Pkt, NodeId>,
+    T: MixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId>,
     Ts: Clone,
     NodeId: Clone,
 {
@@ -70,14 +70,12 @@ where
 /// - `process`: Unwraps the incoming packet via [`WireUnwrappingPipeline::wire_unwrap`],
 ///   passes the result to [`mix`], and re-wraps each output payload via
 ///   [`WireWrappingPipeline::wire_wrap`].
-pub trait MixnodeProcessingPipeline<Ts, Pkt, NodeId>:
-    WireUnwrappingPipeline<Ts, Self::Frame, Pkt> + WireWrappingPipeline<Ts, Self::Frame, Pkt>
+pub trait MixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId>:
+    WireUnwrappingPipeline<Ts, Fr, Pkt, Mk> + WireWrappingPipeline<Ts, Fr, Pkt>
 where
     Ts: Clone,
     NodeId: Clone,
 {
-    type Frame;
-
     fn mix(&mut self, payload: TimedPayload<Ts>, timestamp: Ts) -> Vec<(NodeId, TimedPayload<Ts>)>;
 
     fn process(

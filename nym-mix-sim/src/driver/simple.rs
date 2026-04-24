@@ -4,8 +4,8 @@
 use crate::{
     driver::MixSimDriver,
     packet::{
-        SimpleClientUnwrapping, SimpleClientWrappingPipeline, SimpleFrame, SimpleMixnodePipeline,
-        SimplePacket,
+        SimpleClientUnwrapping, SimpleClientWrappingPipeline, SimpleFrame, SimpleMessage,
+        SimpleMixnodePipeline, SimplePacket,
     },
     topology::{TopologyClient, TopologyNode},
 };
@@ -17,7 +17,7 @@ use crate::{
 /// [`SimplePassThroughPipeline`] that forwards packets unchanged to the next
 /// node in the topology; each client uses a [`SimpleClientPipeline`] with no
 /// Sphinx layering, reliability encoding, or obfuscation.
-pub struct SimpleMixDriver(MixSimDriver<u32, SimpleFrame, SimplePacket>);
+pub struct SimpleMixDriver(MixSimDriver<u32, SimpleFrame, SimplePacket, SimpleMessage>);
 
 impl SimpleMixDriver {
     /// Load a topology JSON file and initialise the driver with simple pipelines.
@@ -29,7 +29,7 @@ impl SimpleMixDriver {
 
         let client_unwrapping_pipeline = |_: &TopologyClient| SimpleClientUnwrapping::default();
 
-        let driver = MixSimDriver::<u32, SimpleFrame, SimplePacket>::new(
+        let driver = MixSimDriver::<u32, SimpleFrame, SimplePacket, SimpleMessage>::new(
             topology,
             mixnode_pipeline,
             client_processing_pipeline,

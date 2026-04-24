@@ -236,8 +236,7 @@ impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleWi
 /// (keeps the raw bytes as-is).
 pub struct SimpleWireUnwrapper;
 
-impl<Ts> FramingUnwrap<Ts, SimpleFrame> for SimpleWireUnwrapper {
-    type MessageKind = SimpleMessage;
+impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleWireUnwrapper {
     fn frame_to_message(
         &mut self,
         frame: TimedData<Ts, SimpleFrame>,
@@ -266,7 +265,10 @@ impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleWireUnw
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleWireUnwrapper {}
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
+    for SimpleWireUnwrapper
+{
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Concrete pipelines
@@ -404,8 +406,7 @@ impl<Ts: Clone> WireWrappingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleMi
     }
 }
 
-impl<Ts> FramingUnwrap<Ts, SimpleFrame> for SimpleMixnodePipeline {
-    type MessageKind = SimpleMessage;
+impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleMixnodePipeline {
     fn frame_to_message(
         &mut self,
         frame: TimedData<Ts, SimpleFrame>,
@@ -424,11 +425,14 @@ impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleMixnode
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleMixnodePipeline {}
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
+    for SimpleMixnodePipeline
+{
+}
 
-impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimplePacket, NodeId> for SimpleMixnodePipeline {
-    type Frame = SimpleFrame;
-
+impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage, NodeId>
+    for SimpleMixnodePipeline
+{
     fn mix(
         &mut self,
         payload: TimedPayload<Ts>,
@@ -449,8 +453,7 @@ impl Default for SimpleClientUnwrapping {
     }
 }
 
-impl<Ts> FramingUnwrap<Ts, SimpleFrame> for SimpleClientUnwrapping {
-    type MessageKind = SimpleMessage;
+impl<Ts> FramingUnwrap<Ts, SimpleFrame, SimpleMessage> for SimpleClientUnwrapping {
     fn frame_to_message(
         &mut self,
         frame: TimedData<Ts, SimpleFrame>,
@@ -469,11 +472,14 @@ impl<Ts: Clone> TransportUnwrap<Ts, SimpleFrame, SimplePacket> for SimpleClientU
     }
 }
 
-impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket> for SimpleClientUnwrapping {}
+impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
+    for SimpleClientUnwrapping
+{
+}
 
-impl<Ts: Clone> ClientUnwrappingPipeline<Ts, SimplePacket> for SimpleClientUnwrapping {
-    type Frame = SimpleFrame;
-
+impl<Ts: Clone> ClientUnwrappingPipeline<Ts, SimpleFrame, SimplePacket, SimpleMessage>
+    for SimpleClientUnwrapping
+{
     fn process_unwrapped(
         &mut self,
         payload: TimedPayload<Ts>,

@@ -55,7 +55,7 @@ pub type NodeId = u8;
 /// The struct is generic so that different packet formats (e.g. Sphinx-encrypted
 /// packets) and richer tick contexts can be plugged in without changing node
 /// internals.
-pub struct Node<Ts, Pkt> {
+pub struct Node<Ts, Fr, Pkt, Mk> {
     /// Shared routing table.  Set after construction via [`Node::set_directory`]
     /// once all nodes' sockets are bound and the [`Directory`] can be built.
     directory: Arc<Directory>,
@@ -90,10 +90,10 @@ pub struct Node<Ts, Pkt> {
     /// Drained by [`tick_outgoing`].
     processed_packets: Vec<(NodeId, TimedData<Ts, Pkt>)>,
 
-    processing_pipeline: Box<dyn DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send>,
+    processing_pipeline: Box<dyn DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> + Send>,
 }
 
-impl<Ts, Pkt> Node<Ts, Pkt> {
+impl<Ts, Fr, Pkt, Mk> Node<Ts, Fr, Pkt, Mk> {
     /// Create a [`Node`] from a [`TopologyNode`] description by binding a
     /// non-blocking UDP socket to `node.addr`.
     ///
@@ -107,7 +107,7 @@ impl<Ts, Pkt> Node<Ts, Pkt> {
     /// in use) or if `set_nonblocking` fails.
     pub fn new(
         topology_node: TopologyNode,
-        pipeline: impl DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send + 'static,
+        pipeline: impl DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> + Send + 'static,
     ) -> anyhow::Result<Self> {
         let socket = UdpSocket::bind(topology_node.socket_address)?;
         socket.set_nonblocking(true)?;
@@ -150,7 +150,7 @@ impl<Ts, Pkt> Node<Ts, Pkt> {
     }
 }
 
-impl<Ts: Debug, Pkt: Debug> Node<Ts, Pkt> {
+impl<Ts: Debug, Fr, Pkt: Debug, Mk> Node<Ts, Fr, Pkt, Mk> {
     /// Print a bordered summary of this node's current buffer state to stdout.
     ///
     /// Displays the node ID, listen address, and — for each internal buffer —
@@ -185,7 +185,7 @@ impl<Ts: Debug, Pkt: Debug> Node<Ts, Pkt> {
     }
 }
 
-impl<Ts, Pkt> Node<Ts, Pkt>
+impl<Ts, Fr, Pkt, Mk> Node<Ts, Fr, Pkt, Mk>
 where
     Ts: Clone + PartialOrd,
     Pkt: WirePacketFormat,

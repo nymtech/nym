@@ -31,13 +31,8 @@ pub trait Framing<Ts, Fr> {
 /// # Required Methods
 /// - `frame_to_message`: Attempts to reassemble a payload from the given frame, returning
 ///   `Some((payload, kind))` when a complete message is available, or `None` otherwise.
-pub trait FramingUnwrap<Ts, Fr> {
-    // The enum describing the kind of message that can be returned
-    type MessageKind;
-    fn frame_to_message(
-        &mut self,
-        frame: TimedData<Ts, Fr>,
-    ) -> Option<(TimedPayload<Ts>, Self::MessageKind)>;
+pub trait FramingUnwrap<Ts, Fr, Mk> {
+    fn frame_to_message(&mut self, frame: TimedData<Ts, Fr>) -> Option<(TimedPayload<Ts>, Mk)>;
 }
 
 /// Trait for applying a transport layer to a framed payload.
@@ -120,8 +115,8 @@ where
 /// # Provided Methods
 /// - `wire_unwrap`: Strips the transport layer from a packet and attempts to reassemble
 ///   a payload, returning `Some((payload, kind))` when a complete message is available.
-pub trait WireUnwrappingPipeline<Ts, Fr, Pkt>:
-    TransportUnwrap<Ts, Fr, Pkt> + FramingUnwrap<Ts, Fr>
+pub trait WireUnwrappingPipeline<Ts, Fr, Pkt, Mk>:
+    TransportUnwrap<Ts, Fr, Pkt> + FramingUnwrap<Ts, Fr, Mk>
 where
     Ts: Clone,
 {
@@ -129,7 +124,7 @@ where
         &mut self,
         input: Pkt,
         timestamp: Ts,
-    ) -> anyhow::Result<Option<(TimedPayload<Ts>, Self::MessageKind)>> {
+    ) -> anyhow::Result<Option<(TimedPayload<Ts>, Mk)>> {
         let frame = self.packet_to_frame(input, timestamp)?;
         Ok(self.frame_to_message(frame))
     }

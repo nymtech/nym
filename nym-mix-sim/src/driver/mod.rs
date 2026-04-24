@@ -21,7 +21,7 @@ use std::{fmt::Debug, sync::Arc, time::Duration};
 use anyhow::Context;
 use tracing::{debug, info};
 
-use nym_lp_data::clients::traits::{DynClientUnwrappingPipeline, DynClientWrappingPipeline};
+use nym_lp_data::clients::traits::{ClientUnwrappingPipeline, DynClientWrappingPipeline};
 use nym_lp_data::mixnodes::traits::DynMixnodeProcessingPipeline;
 
 use crate::{
@@ -42,12 +42,12 @@ pub use simple::SimpleMixDriver;
 ///
 /// `Ts` is the tick-context / timestamp type; `Fr` is the intermediate frame
 /// type; `Pkt` is the transport packet type.
-pub struct MixSimDriver<Ts, Fr, Pkt> {
-    nodes: Vec<Node<Ts, Pkt>>,
-    clients: Vec<Client<Ts, Fr, Pkt>>,
+pub struct MixSimDriver<Ts, Fr, Pkt, Mk> {
+    nodes: Vec<Node<Ts, Fr, Pkt, Mk>>,
+    clients: Vec<Client<Ts, Fr, Pkt, Mk>>,
 }
 
-impl<Ts, Fr, Pkt> MixSimDriver<Ts, Fr, Pkt>
+impl<Ts, Fr, Pkt, Mk> MixSimDriver<Ts, Fr, Pkt, Mk>
 where
     Ts: Debug + Clone,
     Pkt: Debug,
@@ -75,11 +75,11 @@ where
     ) -> anyhow::Result<Self>
     where
         Pb: Fn(&TopologyNode) -> P,
-        P: DynMixnodeProcessingPipeline<Ts, Pkt, NodeId> + Send + 'static,
+        P: DynMixnodeProcessingPipeline<Ts, Fr, Pkt, Mk, NodeId> + Send + 'static,
         Cpb: Fn(&TopologyClient) -> Cp,
         Cp: DynClientWrappingPipeline<Ts, Fr, Pkt> + Send + 'static,
         Cub: Fn(&TopologyClient) -> Cu,
-        Cu: DynClientUnwrappingPipeline<Ts, Pkt> + Send + 'static,
+        Cu: ClientUnwrappingPipeline<Ts, Fr, Pkt, Mk> + Send + 'static,
     {
         debug!("Bootstrapping from topology file: {}", topology_file_path);
 
@@ -134,10 +134,11 @@ where
 /// The timestamp is a monotonically increasing tick counter starting at zero.
 /// If a richer timestamp type is needed in the future, a new impl block should
 /// be added.
-impl<Fr, Pkt> MixSimDriver<u32, Fr, Pkt>
+impl<Fr, Pkt, Mk> MixSimDriver<u32, Fr, Pkt, Mk>
 where
     Fr: Send + 'static,
     Pkt: WirePacketFormat + Debug,
+    Mk: Send + 'static,
 {
     /// Start the simulation in either manual or automatic mode.
     pub async fn run(self, manual_mode: bool, tick_duration_ms: u64) -> anyhow::Result<()> {

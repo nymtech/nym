@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::clients::types::StreamOptions;
-use crate::common::traits::{
-    Framing, FramingUnwrap, Transport, WireUnwrappingPipeline, WireWrappingPipeline,
-};
+use crate::common::traits::{Framing, Transport, WireUnwrappingPipeline, WireWrappingPipeline};
 use crate::{TimedData, TimedPayload};
 
 /// Trait for splitting an incoming payload into timestamped chunks.
@@ -260,26 +258,26 @@ where
     }
 }
 
-/// Dyn-compatible mirror of [`ClientUnwrappingPipeline`].
-///
-/// Erases the `Fr` type parameter so the pipeline can be stored as
-/// `dyn DynClientUnwrappingPipeline<Ts, Pkt>`.
-///
-/// Implement [`ClientUnwrappingPipeline`] on your concrete type; the blanket
-/// impl below provides `DynClientUnwrappingPipeline` for free.
-pub trait DynClientUnwrappingPipeline<Ts, Pkt> {
-    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>>;
-}
+// /// Dyn-compatible mirror of [`ClientUnwrappingPipeline`].
+// ///
+// /// Erases the `Fr` type parameter so the pipeline can be stored as
+// /// `dyn DynClientUnwrappingPipeline<Ts, Pkt>`.
+// ///
+// /// Implement [`ClientUnwrappingPipeline`] on your concrete type; the blanket
+// /// impl below provides `DynClientUnwrappingPipeline` for free.
+// pub trait DynClientUnwrappingPipeline<Ts, Pkt> {
+//     fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>>;
+// }
 
-impl<T, Ts, Pkt> DynClientUnwrappingPipeline<Ts, Pkt> for T
-where
-    T: ClientUnwrappingPipeline<Ts, Pkt>,
-    Ts: Clone,
-{
-    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>> {
-        ClientUnwrappingPipeline::unwrap(self, input, timestamp)
-    }
-}
+// impl<T, Ts, Pkt> DynClientUnwrappingPipeline<Ts, Pkt> for T
+// where
+//     T: ClientUnwrappingPipeline<Ts, Pkt>,
+//     Ts: Clone,
+// {
+//     fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>> {
+//         ClientUnwrappingPipeline::unwrap(self, input, timestamp)
+//     }
+// }
 
 /// Full client-side inbound pipeline.
 ///
@@ -303,16 +301,12 @@ where
 /// # Provided Methods
 /// - `unwrap`: Strips the wire layers via [`WireUnwrappingPipeline::wire_unwrap`],
 ///   then delegates to `process_unwrapped`.
-pub trait ClientUnwrappingPipeline<Ts, Pkt>: WireUnwrappingPipeline<Ts, Self::Frame, Pkt>
+pub trait ClientUnwrappingPipeline<Ts, Fr, Pkt, Mk>:
+    WireUnwrappingPipeline<Ts, Fr, Pkt, Mk>
 where
     Ts: Clone,
 {
-    type Frame;
-    fn process_unwrapped(
-        &mut self,
-        payload: TimedPayload<Ts>,
-        kind: <Self as FramingUnwrap<Ts, Self::Frame>>::MessageKind,
-    ) -> Option<Vec<u8>>;
+    fn process_unwrapped(&mut self, payload: TimedPayload<Ts>, kind: Mk) -> Option<Vec<u8>>;
 
     fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>> {
         Ok(self

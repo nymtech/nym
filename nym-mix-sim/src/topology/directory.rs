@@ -40,9 +40,9 @@ impl Directory {
     ///
     /// Overwrites earlier entries if two nodes share the same ID — callers
     /// should ensure IDs are unique.
-    pub fn build_from_nodes<Ts, Fr, Pkt>(
-        node_list: &Vec<Node<Ts, Pkt>>,
-        client_list: &Vec<Client<Ts, Fr, Pkt>>,
+    pub fn build_from_nodes<Ts: Clone, Fr, Pkt, Mk>(
+        node_list: &Vec<Node<Ts, Fr, Pkt, Mk>>,
+        client_list: &Vec<Client<Ts, Fr, Pkt, Mk>>,
     ) -> Self {
         let mut nodes = HashMap::new();
         for node in node_list {

@@ -169,6 +169,7 @@ impl Client {
         }
     }
 
+    /// Return the full set of Nym contract addresses currently configured on this client.
     #[allow(dead_code)]
     pub(crate) async fn known_contracts(&self) -> TypedNymContracts {
         nyxd_query!(self, get_nym_contracts())
@@ -183,6 +184,11 @@ impl Client {
         )
     }
 
+    /// Return the configured network-monitors contract address.
+    ///
+    /// Returns [`NyxdError::UnavailableContractAddress`] if the address is not configured - this
+    /// is the signal used upstream (e.g. in `NetworkMonitorsCache`) to warn that stress-test
+    /// submissions cannot be accepted.
     pub(crate) async fn get_network_monitors_contract_address(
         &self,
     ) -> Result<AccountId, NyxdError> {
@@ -436,6 +442,11 @@ impl Client {
         nyxd_query!(self, get_all_epoch_performance(epoch_id).await)
     }
 
+    /// Query the network-monitors contract for the full set of authorised orchestrators.
+    ///
+    /// This returns every orchestrator registered in the contract regardless of whether they
+    /// have announced an identity key yet - callers are responsible for filtering entries with
+    /// `identity_key == None`.
     pub(crate) async fn get_all_network_monitor_orchestrators(
         &self,
     ) -> Result<Vec<AuthorisedNetworkMonitorOrchestrator>, NyxdError> {

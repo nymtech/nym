@@ -147,6 +147,10 @@ pub struct HistoricalUptime {
     pub uptime: i64,
 }
 
+/// Row model for the `nym_node_stress_testing_result` table.
+///
+/// Produced from the wire-level [`StressTestResult`] via the [`From`] impl below, which also
+/// renames `test_performance` to `result` to match the on-disk column name.
 #[derive(FromRow)]
 pub struct NymNodeStressTestingResult {
     pub node_id: NodeId,

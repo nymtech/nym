@@ -11,8 +11,20 @@ use nym_api_requests::models::network_monitor::KnownNetworkMonitorResponse;
 use nym_api_requests::models::StressTestBatchSubmission;
 use nym_crypto::asymmetric::ed25519;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tracing::error;
 
+/// Accept a batch of stress-test results from an authorised network monitor orchestrator.
+///
+/// The batch is rejected unless all of the following hold:
+/// - the submission timestamp is within a short staleness window of the current time,
+/// - the signer's key is currently registered in the network-monitors contract,
+/// - the submission timestamp is strictly greater than the signer's previous accepted submission
+///   (timestamp-based replay protection, so orchestrators don't need to keep a nonce counter),
+/// - the signature on the body verifies against the signer's key.
+///
+/// Individual result entries that fail per-entry validation (non-mixnode role, performance score
+/// outside `[0.0, 1.0]`) are logged as errors and dropped, but do not fail the batch.
 #[utoipa::path(
     tag = "Nym Nodes",
     post,
@@ -54,7 +66,17 @@ async fn batch_submit_stress_testing_results(
         .submitted(body.body.signer)
         .await;
 
-    if body.body.timestamp <= last_request {
+    // if we have no known requests, we might have just restarted
+    // so we use the time of when we came back online - it's impossible there were any other requests since then
+    let last_known = match last_request {
+        Some(last) => last,
+        None => {
+            let uptime = state.api_status.uptime();
+            OffsetDateTime::now_utc() - uptime
+        }
+    };
+
+    if body.body.timestamp <= last_known {
         return Err(AxumErrorResponse::bad_request(
             "each request must have an explicitly greater timestamp than the previous one",
         ));
@@ -77,15 +99,24 @@ async fn batch_submit_stress_testing_results(
     let signer = body.body.signer;
     let mut mixnode_results = Vec::with_capacity(body.body.results.len());
     for result in body.body.results {
-        if result.is_mixnode {
-            mixnode_results.push(NymNodeStressTestingResult::from(result));
-        } else {
+        if !result.is_mixnode {
             error!(
                 %signer,
                 node_id = result.node_id,
                 "received a stress testing result for a non-mixnode entry which should never happen - is the nym-api outdated?"
             );
+            continue;
         }
+        if !(0.0..=1.0).contains(&result.test_performance) {
+            error!(
+                %signer,
+                node_id = result.node_id,
+                test_performance = result.test_performance,
+                "received a stress testing result with performance outside the [0, 1] range - is the monitor misconfigured?"
+            );
+            continue;
+        }
+        mixnode_results.push(NymNodeStressTestingResult::from(result));
     }
 
     state
@@ -96,6 +127,12 @@ async fn batch_submit_stress_testing_results(
     Ok(())
 }
 
+/// Report whether the given identity key is currently recognised by this nym-api as an
+/// authorised network monitor orchestrator.
+///
+/// Intended for orchestrators to self-check after (re)announcing their key on-chain - a
+/// successful response with `authorised: true` means this nym-api has picked up the chain change
+/// and is ready to accept stress-test submissions signed by that key.
 #[utoipa::path(
     tag = "Nym Nodes",
     get,
@@ -135,6 +172,7 @@ fn stress_testing_routes() -> Router<AppState> {
         .route("/known-monitors/:identity_key", get(known_network_monitor))
 }
 
+/// Build the `/v3/nym-nodes` subtree hosting the v3 network-monitor endpoints.
 pub(crate) fn routes() -> Router<AppState> {
     Router::new().nest("/stress-testing", stress_testing_routes())
 }

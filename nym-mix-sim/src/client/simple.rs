@@ -3,7 +3,7 @@
 
 //! Simulated mix-network client.
 //!
-//! A [`SimpleClient`] owns a [`ClientSocket`] (which manages both UDP sockets
+//! A [`SimpleClient`] owns a [`BaseClient`] (which manages both UDP sockets
 //! and the routing directory) plus the mix and unwrapping pipelines.
 //!
 //! ## Tick phases
@@ -42,10 +42,10 @@ use crate::{
 
 /// A simulated client that injects packets into the mix network.
 ///
-/// `Ts` is the timestamp / tick-context type; `Fr` is the intermediate frame
-/// type; `Pkt` is the transport packet type; `Mk` is the message marker type.
+/// `Ts` is the timestamp / tick-context type.  Packet type, frame type, and
+/// message marker are fixed to the `Simple*` concrete types.
 ///
-/// UDP transport and routing are handled by the embedded [`ClientSocket`]; this
+/// UDP transport and routing are handled by the embedded [`BaseClient`]; this
 /// struct adds the outgoing queue and the wrapping/unwrapping pipelines.
 pub struct SimpleClient<Ts> {
     pub(crate) socket: BaseClient,

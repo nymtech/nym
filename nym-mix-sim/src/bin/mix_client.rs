@@ -3,19 +3,20 @@
 
 //! Standalone client CLI — inject packets into a running mix-sim.
 //!
-//! Reads lines from stdin and, on each ENTER, wraps the text in a
-//! [`SimplePacket`] and sends it to the running client identified by `--src`.
-//! The client forwards the packet into the mix network toward node `--dst`.
+//! Reads lines from stdin and, on each ENTER, sends the text as a raw payload
+//! to the app socket of the running client identified by `--src`.  The client
+//! wraps it into a [`SimplePacket`] and forwards it into the mix network toward
+//! node `--dst`.
 //!
-//! ## Message format
+//! ## Message format (app-socket datagram)
 //!
 //! ```text
-//! ┌─────────────────────┬──────────────────────────────┐
-//! │  dst_node_id (1 B)  │  SimplePacket wire bytes     │
-//! └─────────────────────┴──────────────────────────────┘
+//! ┌─────────────────────┬─────────────────────┐
+//! │  dst_node_id (1 B)  │  raw payload bytes  │
+//! └─────────────────────┴─────────────────────┘
 //! ```
 //!
-//! The running client's `tick_incoming` parses this datagram on the next tick.
+//! The running client's `tick_app_incoming` parses this datagram on the next tick.
 //!
 //! ## Usage
 //!

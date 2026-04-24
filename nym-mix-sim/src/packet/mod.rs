@@ -24,7 +24,7 @@ pub use simple::{
 ///
 /// ## Bounds
 ///
-/// * `Debug` — required so that [`crate::node::Node::display_state`] can print
+/// * `Debug` — required so that [`crate::node::MixSimNode::display_state`] can print
 ///   packet buffers without knowing the concrete type.
 /// * `Sized` — required because the trait is used with `Vec<Pkt>` and moved by
 ///   value in several places.

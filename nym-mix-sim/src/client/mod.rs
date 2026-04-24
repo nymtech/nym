@@ -24,7 +24,7 @@ pub type ClientId = NodeId;
 /// Encapsulates both sockets, the routing directory, and the client id so that
 /// multiple concrete client types can reuse `send_to_node`, `recv_from_mix`,
 /// and `recv_from_app` without duplicating that logic.  Packet types are
-/// method-level generics so `ClientSocket` itself has no type parameters.
+/// method-level generics so `BaseClient` itself has no type parameters.
 pub struct BaseClient {
     id: ClientId,
     mix_socket: UdpSocket,

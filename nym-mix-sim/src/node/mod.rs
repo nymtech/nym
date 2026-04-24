@@ -26,7 +26,7 @@ pub type NodeId = u8;
 /// Encapsulates the socket, address, and routing directory so that multiple
 /// concrete node types can reuse `send_to_node` and `recv_packet` without
 /// duplicating that logic.  The packet type `Pkt` is a method-level generic
-/// rather than a struct-level one, so `NodeSocket` itself has no type
+/// rather than a struct-level one, so `BaseNode` itself has no type
 /// parameters.
 pub struct BaseNode {
     id: NodeId,

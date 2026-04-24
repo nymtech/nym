@@ -4,7 +4,7 @@
 //! Individual mix-node model.
 //!
 //! A [`SimpleNode`] represents one mix node in the simulated network.  Each
-//! node owns a [`NodeSocket`] (which manages the UDP socket and routing
+//! node owns a [`BaseNode`] (which manages the UDP socket and routing
 //! directory) and two internal packet buffers:
 //!
 //! * **`packets_to_process`** — packets received this tick that have not yet
@@ -34,10 +34,10 @@ use crate::{
 
 /// A running mix-node instance inside the simulation.
 ///
-/// `Ts` is the timestamp / tick-context type; `Fr` is the intermediate frame
-/// type; `Pkt` is the transport packet type; `Mk` is the message marker type.
+/// `Ts` is the timestamp / tick-context type.  Packet type, frame type, and
+/// message marker are fixed to the `Simple*` concrete types.
 ///
-/// UDP transport and routing are handled by the embedded [`NodeSocket`]; this
+/// UDP transport and routing are handled by the embedded [`BaseNode`]; this
 /// struct adds the packet buffers and the mix-processing pipeline on top.
 pub struct SimpleNode<Ts> {
     pub(crate) socket: BaseNode,
@@ -50,10 +50,6 @@ pub struct SimpleNode<Ts> {
 impl<Ts> SimpleNode<Ts> {
     /// Create a [`SimpleNode`] from a [`TopologyNode`] description by binding a
     /// non-blocking UDP socket to `node.socket_address`.
-    ///
-    /// The [`Directory`] is initialised to its default (empty) value and must
-    /// be set later with [`MixSimNode::set_directory`] before the node attempts
-    /// to send any packets.
     ///
     /// # Errors
     ///

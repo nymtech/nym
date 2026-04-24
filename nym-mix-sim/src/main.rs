@@ -7,9 +7,11 @@
 //!
 //! * **`init-topology`** — generate a `topology.json` file describing N
 //!   localhost mix nodes and one client, with sequential UDP ports.
-//! * **`run`** — load a topology, spin up a [`MixSimDriver`], and drive the
-//!   simulation until Ctrl-C.  Use the standalone `client` binary to inject
-//!   packets while the simulation is running.
+//! * **`run`** — load a topology, spin up a [`SimpleMixDriver`], and drive the
+//!   simulation until Ctrl-C.  Supports automatic tick mode (configurable
+//!   interval via `--tick-duration-ms`) or manual RETURN-driven stepping
+//!   (`--manual`).  Use the standalone `client` binary to inject packets while
+//!   the simulation is running.
 
 use std::net::SocketAddr;
 

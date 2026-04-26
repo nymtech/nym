@@ -3,11 +3,26 @@
 
 //! Pre-warmed pool of ephemeral Mixnet clients.
 //!
-//! The pool keeps a reserve of connected clients so that new connections
+//! The pool keeps a reserve of connected clients so that new operations
 //! can be served instantly. When the pool is empty, a fallback ephemeral
 //! client is created on-demand (with higher latency).
 //!
-//! Run with: cargo run --example client_pool -- ../../../envs/<NETWORK>.env
+//! ## What this demonstrates
+//!
+//! - `ClientPool::new(n)` creates a pool targeting `n` reserve clients
+//! - `pool.start()` runs a background loop that creates clients whenever
+//!   the pool drops below the reserve
+//! - `pool.get_mixnet_client()` pops a client; returns `None` if empty
+//! - Clients are consumed, not returned — the pool automatically creates
+//!   replacements in the background
+//! - `pool.disconnect_pool()` shuts down all remaining clients
+//!
+//! Use the pool when you have bursty traffic and can't afford the
+//! several-second delay of creating a client per request.
+//!
+//! ```sh
+//! cargo run --example client_pool -- ../../../envs/<NETWORK>.env
+//! ```
 
 use anyhow::Result;
 use nym_network_defaults::setup_env;

@@ -1,16 +1,34 @@
 // Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
 
 //! HTTPS request through the Nym mixnet.
 //!
-//! Fetches Cloudflare's `/cdn-cgi/trace` diagnostic endpoint over clearnet
-//! (reqwest) and through the mixnet (hyper over tokio-rustls over smolmix),
-//! then compares the responses. The exit IP should differ — the mixnet path
-//! exits through an IPR gateway.
+//! Fetches Cloudflare's `/cdn-cgi/trace` over clearnet (reqwest) and through
+//! the mixnet (hyper over tokio-rustls over smolmix), then compares the exit
+//! IPs. The mixnet path should show a different IP — traffic exits through
+//! an IPR (Internet Packet Router) gateway, not your machine.
 //!
-//! Run with:
-//!   cargo run -p smolmix --example tcp
-//!   cargo run -p smolmix --example tcp -- --ipr <IPR_ADDRESS>
+//! ```text
+//! hyper (HTTP/1.1 client)
+//!   └─ tokio-rustls (TLS encryption)
+//!        └─ smolmix::TcpStream (TCP over mixnet)
+//!             └─ smoltcp (userspace TCP/IP)
+//!                  └─ Nym mixnet → IPR exit gateway → internet
+//! ```
+//!
+//! ## What this demonstrates
+//!
+//! - Creating a [`Tunnel`] and connecting TCP through the mixnet
+//! - Layering TLS ([`tokio_rustls`]) on a [`smolmix::TcpStream`] — it
+//!   implements `AsyncRead + AsyncWrite`, so standard crates work unchanged
+//! - Using [`hyper`]'s HTTP/1.1 client over a custom transport via
+//!   [`TokioIo`](hyper_util::rt::TokioIo)
+//! - The exit IP differs from clearnet — the remote server sees the IPR
+//!   gateway's IP, not yours
+//!
+//! ```sh
+//! cargo run -p smolmix --example tcp
+//! cargo run -p smolmix --example tcp -- --ipr <IPR_ADDRESS>
+//! ```
 
 use std::sync::Arc;
 
@@ -53,7 +71,10 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
 
-    // Mixnet: smolmix TCP -> tokio-rustls -> hyper
+    // -- Mixnet path --
+    // Create a tunnel, then stack the same TLS + HTTP layers on top.
+    // The only difference: smolmix::TcpStream instead of tokio::net::TcpStream.
+
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -66,7 +87,10 @@ async fn main() -> Result<(), BoxError> {
     }
     let tunnel = builder.build().await?;
 
-    // Phase 1: Setup (TCP + TLS + HTTP handshakes)
+    // Stage 1: TCP + TLS + HTTP handshakes through the mixnet.
+    // tcp_connect() returns a TcpStream that implements AsyncRead + AsyncWrite.
+    // tokio-rustls accepts it directly — no adapters or trait shims needed.
+    // TokioIo then bridges hyper's I/O traits with tokio's.
     let setup_start = tokio::time::Instant::now();
 
     info!("TCP connecting to 1.1.1.1:443 via mixnet...");
@@ -86,7 +110,9 @@ async fn main() -> Result<(), BoxError> {
     let setup_duration = setup_start.elapsed();
     info!("Setup complete ({:?})", setup_duration);
 
-    // Phase 2: Request/response
+    // Stage 2: Send request and read response.
+    // From here the code is identical to any hyper client — the mixnet
+    // transport is invisible to higher layers.
     let request_start = tokio::time::Instant::now();
 
     info!("Sending GET {PATH}...");

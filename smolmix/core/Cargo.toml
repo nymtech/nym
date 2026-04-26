@@ -42,3 +42,4 @@ hyper = { workspace = true, features = ["client", "http1"] }
 hyper-util = { workspace = true, features = ["tokio"] }
 http-body-util = { workspace = true }
 reqwest = { workspace = true, features = ["rustls"] }
+chrono = { workspace = true }

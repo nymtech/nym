@@ -1,12 +1,31 @@
 //! DNS lookup through the Nym mixnet.
 //!
 //! Resolves `example.com` via clearnet (hickory-resolver) and via the mixnet
-//! (hickory-proto UDP query to Cloudflare 1.1.1.1), then compares resolved
-//! IPs and timing.
+//! (hickory-proto raw UDP query to Cloudflare `1.1.1.1`), then compares
+//! resolved IPs and timing.
 //!
-//! Run with:
-//!   cargo run -p smolmix --example udp
-//!   cargo run -p smolmix --example udp -- --ipr <IPR_ADDRESS>
+//! ```text
+//! DNS query / response (application-layer UDP)
+//!   └─ smolmix::UdpSocket (UDP over mixnet)
+//!        └─ smoltcp (userspace IP stack)
+//!             └─ Nym mixnet → IPR exit gateway → internet
+//! ```
+//!
+//! ## What this demonstrates
+//!
+//! - Creating a [`Tunnel`] and using its [`UdpSocket`](smolmix::UdpSocket)
+//! - The `send_to` / `recv_from` API matches [`tokio::net::UdpSocket`]
+//! - Constructing a raw DNS query with [`hickory_proto`] and parsing the
+//!   response — standard crates work unchanged over smolmix UDP
+//! - The DNS server sees the IPR gateway's IP, not yours
+//!
+//! For a more complete UDP example (multiple lookups + NTP time sync), see
+//! the test tutorial in `test-tutorials/smolmix-udp/`.
+//!
+//! ```sh
+//! cargo run -p smolmix --example udp
+//! cargo run -p smolmix --example udp -- --ipr <IPR_ADDRESS>
+//! ```
 
 use std::net::Ipv4Addr;
 
@@ -39,7 +58,10 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {:?} in {:?}", clearnet_ips, clearnet_duration);
 
-    // Mixnet: hickory-proto query over smolmix UDP
+    // We use hickory-proto (not hickory-resolver) because we want to send
+    // the raw UDP query through the tunnel ourselves, rather than relying
+    // on the system resolver which would go over clearnet.
+
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -59,7 +81,8 @@ async fn main() -> Result<(), BoxError> {
     query.add_query(Query::query(Name::from_ascii(domain)?, RecordType::A));
     let query_bytes = query.to_vec()?;
 
-    // UDP is connectionless — no setup phase, just send/recv
+    // Send the DNS query through the mixnet.
+    // UDP is connectionless — no handshake, just send_to / recv_from.
     info!("Sending DNS query via mixnet...");
     let mixnet_start = tokio::time::Instant::now();
     udp.send_to(&query_bytes, "1.1.1.1:53".parse()?).await?;

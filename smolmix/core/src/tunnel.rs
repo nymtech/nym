@@ -1,5 +1,4 @@
 // Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 //! High-level tunnel providing TCP and UDP sockets over the Nym mixnet.
 //!

@@ -42,7 +42,7 @@ Add `smolmix` to your `Cargo.toml`:
 ```toml
 [dependencies]
 smolmix = "X.Y.Z"
-nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
+nym-bin-common = { version = "1.20.4", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 blake3 = "=1.7.0"  # required pin — see note below
 ```
@@ -51,7 +51,9 @@ blake3 = "=1.7.0"  # required pin — see note below
 **Temporary pin required.** You must pin [`blake3`](https://docs.rs/blake3) `= "=1.7.0"` to avoid a build failure caused by a transitive [`digest`](https://docs.rs/digest) version conflict. This will be resolved in a future release.
 </Callout>
 
-`nym-bin-common` is optional but recommended — it sets up [`tracing`](https://docs.rs/tracing) logging so you can see mixnet connection progress. The tutorials all use it.
+`tokio` is a transitive dependency of smolmix, but you need to enable `rt-multi-thread` (smolmix spawns multiple tasks internally) and `macros` (for `#[tokio::main]`).
+
+`nym-bin-common` is optional but recommended — it sets up [`tracing`](https://docs.rs/tracing) logging so you can see mixnet connection progress.
 
 **Minimum Rust version:** {RUST_MSRV}+
 
@@ -67,7 +69,7 @@ smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
 
 | | smolmix | Stream module | mixFetch | SOCKS client |
 |---|---|---|---|---|
-| **Layer** | IP (TCP/UDP) | Message (multiplexed streams) | HTTP | TCP (SOCKS proxy) |
+| **Layer** | Transport (TCP/UDP) | Message (multiplexed streams) | HTTP | TCP (SOCKS proxy) |
 | **Controls both sides?** | No — proxy mode | Yes — E2E | No — proxy mode | No — proxy mode |
 | **API** | `TcpStream`, `UdpSocket` | `AsyncRead + AsyncWrite` | `fetch()` drop-in | SOCKS4/5 protocol |
 | **Composability** | Full — TLS, HTTP, WebSocket, DNS, etc. stack on top | Byte streams only | HTTP(S) only | Application-dependent |
@@ -90,7 +92,7 @@ Traffic is Sphinx-encrypted inside the mixnet, but between the exit gateway and 
 
 The Sphinx encryption is the **mixnet transport layer** — it protects packets as they traverse the mix nodes. At the exit gateway, the Sphinx layers are stripped and the original IP packet is forwarded to the destination. This is analogous to how a Tor exit node or VPN endpoint unwraps its tunnel.
 
-**What's inside that IP packet is entirely up to you.** If you connect with TLS (as in the [TCP tutorial](/developers/smolmix/tutorial)), the IPR sees encrypted TLS ciphertext going to a destination IP — it knows *where* but not *what*. If you send plaintext HTTP, the IPR can read the full request and response.
+**What's inside that IP packet is entirely up to you.** If you connect with TLS (as in the [TCP example](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs)), the IPR sees encrypted TLS ciphertext going to a destination IP — it knows *where* but not *what*. If you send plaintext HTTP, the IPR can read the full request and response.
 
 ### Trust boundaries
 
@@ -109,7 +111,7 @@ The Sphinx encryption is the **mixnet transport layer** — it protects packets 
 
 ## Examples
 
-Runnable examples in [`smolmix/core/examples/`](https://github.com/nymtech/nym/tree/develop/smolmix/core/examples). Each is self-contained and compares clearnet vs. mixnet timing performance.
+Runnable examples in [`smolmix/core/examples/`](https://github.com/nymtech/nym/tree/develop/smolmix/core/examples). Each is self-contained — read the `//!` doc comments at the top of each file for a walkthrough.
 
 ```sh
 cargo run -p smolmix --example <name>
@@ -120,15 +122,11 @@ All examples accept `--ipr <ADDRESS>` to target a specific exit node (pass a `Re
 | Example | Source | What it demonstrates |
 |---|---|---|
 | TCP | [`tcp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs) | HTTPS request via [`hyper`](https://docs.rs/hyper) + [`tokio-rustls`](https://docs.rs/tokio-rustls) — fetches Cloudflare's `/cdn-cgi/trace` to show that the exit IP differs from clearnet |
+| TCP download | [`tcp_download.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp_download.rs) | DNS-over-mixnet + multi-request HTTP/1.1 download over a single keep-alive connection — the full real-world pattern |
 | UDP | [`udp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp.rs) | DNS lookup via [`hickory-proto`](https://docs.rs/hickory-proto) — sends a raw UDP query to `1.1.1.1:53` through the mixnet |
-| WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket.rs) | WebSocket echo via [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite) + [`tokio-rustls`](https://docs.rs/tokio-rustls) — shows the full TCP → TLS → WebSocket stack composing over smolmix |
+| UDP multi | [`udp_multi.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp_multi.rs) | Multiple DNS lookups with timeout handling + NTP time sync — all over mixnet UDP |
+| WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket.rs) | WebSocket echo via [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite) + [`tokio-rustls`](https://docs.rs/tokio-rustls) — full TCP → TLS → WebSocket stack composing over smolmix |
 
 ## API reference
 
 Full API documentation including internal architecture is available on [docs.rs/smolmix](https://docs.rs/smolmix).
-
-## Tutorials
-
-- [Private File Downloads (TCP)](/developers/smolmix/tutorial) — resolve DNS, connect TCP+TLS, and download files over a single HTTP connection through the mixnet
-- [Private DNS & NTP (UDP)](/developers/smolmix/tutorial-udp) — resolve multiple hostnames and sync time via NTP, all over the mixnet's UDP transport
-- [Private WebSocket Echo](/developers/smolmix/tutorial-websocket) — stack [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite) on [`tokio-rustls`](https://docs.rs/tokio-rustls) on a smolmix `TcpStream`

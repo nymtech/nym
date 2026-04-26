@@ -11,7 +11,7 @@ import { Callout } from 'nextra/components';
 import { CodeVerified } from '../../../components/code-verified'
 
 <Callout type="error">
-  **This module is unmaintained.** The TcpProxy is no longer actively developed in favour of the [Stream module](./stream), which provides `AsyncRead + AsyncWrite` streams directly over the Mixnet without the TCP socket overhead. Existing users should plan to migrate to streams when possible. The TcpProxy will continue to work but will not receive new features or bug fixes.
+  **This module is unmaintained.** The TcpProxy is no longer actively developed in favour of the [Stream module](/developers/rust/stream), which provides `AsyncRead + AsyncWrite` streams directly over the Mixnet without the TCP socket overhead. Existing users should plan to migrate to streams when possible. The TcpProxy will continue to work but will not receive new features or bug fixes.
 </Callout>
 
 The Stream module offers the same key benefit (familiar I/O patterns on top of the Mixnet) with a simpler API. Streams multiplex connections on a single client, eliminate the localhost socket overhead, and now include sequence-based message reordering. There is no remaining reason to choose TcpProxy over Streams for new projects.
@@ -54,9 +54,9 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = "X.Y.Z"
-nym-network-defaults = "X.Y.Z"
-nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
+nym-sdk = "1.20.4"
+nym-network-defaults = "1.20.4"
+nym-bin-common = { version = "1.20.4", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 
@@ -168,7 +168,7 @@ The response will take 30–60 seconds to arrive as it traverses the Mixnet in b
 ## Architecture
 
 Each sub-module handles Nym clients differently:
-- **`NymProxyClient`** relies on the [Client Pool](./client-pool) to create clients and keep a reserve. If incoming TCP connections outpace the pool, it creates an ephemeral client per connection. One client maps to one TCP connection.
+- **`NymProxyClient`** relies on the [Client Pool](/developers/rust/client-pool) to create clients and keep a reserve. If incoming TCP connections outpace the pool, it creates an ephemeral client per connection. One client maps to one TCP connection.
 - **`NymProxyServer`** has a single Nym client with a persistent identity.
 
 ### Sessions & message ordering

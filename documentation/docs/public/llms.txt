@@ -27,9 +27,12 @@
 - [Rust SDK Overview](https://nym.com/docs/developers/rust): Module overview and quick-start for the Rust SDK
 - [Rust SDK Installation](https://nym.com/docs/developers/rust/importing): Adding nym-sdk to your Cargo.toml
 - [Mixnet Module](https://nym.com/docs/developers/rust/mixnet): Send and receive Sphinx-encrypted messages
+- [Mixnet Tutorial](https://nym.com/docs/developers/rust/mixnet/tutorial): Step-by-step — send, receive, SURBs, persistent identity
 - [Mixnet Examples](https://nym.com/docs/developers/rust/mixnet/examples): Runnable examples — simple send, SURB reply, builder, storage, parallel tasks
 - [Stream Module](https://nym.com/docs/developers/rust/stream): TCP-like AsyncRead/AsyncWrite streams over the mixnet
+- [Stream Tutorial](https://nym.com/docs/developers/rust/stream/tutorial): Build a private echo server with streams
 - [Client Pool](https://nym.com/docs/developers/rust/client-pool): Pre-warm MixnetClients for bursty workloads
+- [Client Pool Tutorial](https://nym.com/docs/developers/rust/client-pool/tutorial): Handle bursty traffic with pooled clients
 - [TcpProxy Module](https://nym.com/docs/developers/rust/tcpproxy): Tunnel existing TCP services through the mixnet (unmaintained — use stream instead)
 - [smolmix](https://nym.com/docs/developers/smolmix): TCP/UDP over the mixnet via a userspace IP stack — drop-in TcpStream and UdpSocket (see examples in source)
 - [TypeScript SDK](https://nym.com/docs/developers/typescript): Browser and Node.js SDK using WebAssembly

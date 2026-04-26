@@ -2,10 +2,22 @@
 //!
 //! Sends a message to self, extracts the `AnonymousSenderTag` from the
 //! incoming message, and replies using `send_reply()` — without knowing
-//! the sender's Nym address. The SDK includes SURBs with every message
-//! by default, so the recipient can always reply anonymously.
+//! the sender's Nym address. The SDK bundles SURBs with every outgoing
+//! message by default, so the recipient can always reply anonymously.
 //!
-//! Run with: cargo run --example surb_reply
+//! ## What this demonstrates
+//!
+//! - Every incoming message carries a `sender_tag` — an opaque
+//!   [`AnonymousSenderTag`] that enables replies without revealing the
+//!   sender's address
+//! - `send_reply()` consumes a SURB to route the reply back through the
+//!   mixnet. Each SURB is single-use; the SDK replenishes them automatically
+//! - This is the foundation for anonymous communication: the server never
+//!   learns who is talking to it
+//!
+//! ```sh
+//! cargo run --example surb_reply
+//! ```
 
 use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,

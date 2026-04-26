@@ -3,10 +3,24 @@
 
 //! Demonstrates concurrent streams over the Mixnet.
 //!
-//! One sender opens streams to two receivers.
-//! Both receivers accept, read, and reply concurrently.
+//! One sender opens streams to two receivers. Both receivers accept, read,
+//! and reply concurrently using `AsyncRead + AsyncWrite` — the same traits
+//! as TCP sockets.
 //!
-//! Run with: cargo run --example stream_simple_read_write
+//! ## What this demonstrates
+//!
+//! - `client.listener()` activates stream mode and returns a `MixnetListener`
+//! - `listener.accept()` blocks until a remote peer opens a stream
+//! - `client.open_stream(recipient, surbs)` opens an outbound stream
+//! - `MixnetStream` implements `AsyncRead + AsyncWrite` — standard tokio
+//!   I/O (`read`, `write_all`, `flush`) works unchanged
+//! - Multiple streams are multiplexed over a single client connection
+//! - Replies travel via SURBs — receivers never learn the sender's address
+//! - Streams deregister on `drop`; no close handshake is needed
+//!
+//! ```sh
+//! cargo run --example stream_simple_read_write
+//! ```
 
 use nym_sdk::mixnet;
 use std::time::Duration;

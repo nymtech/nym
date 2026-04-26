@@ -11303,6 +11303,7 @@ dependencies = [
 name = "smolmix"
 version = "0.0.1"
 dependencies = [
+ "chrono",
  "futures",
  "hickory-proto",
  "hickory-resolver",

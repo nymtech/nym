@@ -9,6 +9,9 @@
  *
  *   pages/developers/rust/importing.mdx
  *   pages/developers/rust/tcpproxy.mdx
+ *   pages/developers/rust/mixnet/tutorial.mdx
+ *   pages/developers/rust/stream/tutorial.mdx
+ *   pages/developers/rust/client-pool/tutorial.mdx
  *   public/llms.txt
  *
  * RUST_MSRV is imported directly by all pages that display the Rust version —

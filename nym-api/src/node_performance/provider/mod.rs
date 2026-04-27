@@ -4,11 +4,11 @@
 use crate::node_performance::provider::contract_provider::ContractPerformanceProvider;
 use async_trait::async_trait;
 use legacy_storage_provider::LegacyStoragePerformanceProvider;
-use nym_api_requests::models::RoutingScore;
+use nym_api_requests::models::{RoutingScore, StressTestingScore};
 use nym_mixnet_contract_common::{EpochId, NodeId};
 use std::collections::HashMap;
 use thiserror::Error;
-use tracing::debug;
+use tracing::{debug, error};
 
 pub(crate) mod contract_provider;
 pub(crate) mod legacy_storage_provider;
@@ -29,6 +29,10 @@ impl PerformanceRetrievalFailure {
             error: error.into(),
         }
     }
+}
+
+pub(crate) struct NodesStressTestingScores {
+    inner: HashMap<NodeId, Result<StressTestingScore, PerformanceRetrievalFailure>>,
 }
 
 pub(crate) struct NodesRoutingScores {
@@ -57,24 +61,39 @@ impl NodesRoutingScores {
 pub(crate) trait NodePerformanceProvider {
     /// Obtain a performance/routing score of a particular node for given epoch
     #[allow(unused)]
-    async fn get_node_score(
+    async fn get_node_routing_score(
         &self,
         node_id: NodeId,
         epoch_id: EpochId,
     ) -> Result<RoutingScore, PerformanceRetrievalFailure>;
 
     /// An optimisation for obtaining node scores of multiple nodes at once
-    async fn get_batch_node_scores(
+    async fn get_batch_node_routing_scores(
         &self,
         node_ids: Vec<NodeId>,
         epoch_id: EpochId,
     ) -> Result<NodesRoutingScores, PerformanceRetrievalFailure>;
+
+    /// Obtain a stress-testing score of a particular node for given epoch
+    #[allow(unused)]
+    async fn get_node_stress_testing_score(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<StressTestingScore, PerformanceRetrievalFailure>;
+
+    /// An optimisation for obtaining node scores of multiple nodes at once
+    async fn get_batch_node_stress_testing_scores(
+        &self,
+        node_ids: Vec<NodeId>,
+        epoch_id: EpochId,
+    ) -> Result<NodesStressTestingScores, PerformanceRetrievalFailure>;
 }
 
 #[async_trait]
 impl NodePerformanceProvider for ContractPerformanceProvider {
     #[allow(unused)]
-    async fn get_node_score(
+    async fn get_node_routing_score(
         &self,
         node_id: NodeId,
         epoch_id: EpochId,
@@ -82,19 +101,45 @@ impl NodePerformanceProvider for ContractPerformanceProvider {
         self.node_routing_score(node_id, epoch_id).await
     }
 
-    async fn get_batch_node_scores(
+    async fn get_batch_node_routing_scores(
         &self,
         node_ids: Vec<NodeId>,
         epoch_id: EpochId,
     ) -> Result<NodesRoutingScores, PerformanceRetrievalFailure> {
         self.node_routing_scores(node_ids, epoch_id).await
     }
+
+    async fn get_node_stress_testing_score(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<StressTestingScore, PerformanceRetrievalFailure> {
+        error!("stress testing data not available in contract data");
+        Err(PerformanceRetrievalFailure {
+            node_id,
+            epoch_id,
+            error: "stress testing data not available in contract data".to_string(),
+        })
+    }
+
+    async fn get_batch_node_stress_testing_scores(
+        &self,
+        _: Vec<NodeId>,
+        epoch_id: EpochId,
+    ) -> Result<NodesStressTestingScores, PerformanceRetrievalFailure> {
+        error!("stress testing data not available in contract data");
+        Err(PerformanceRetrievalFailure {
+            node_id: 0,
+            epoch_id,
+            error: "stress testing data not available in contract data".to_string(),
+        })
+    }
 }
 
 #[async_trait]
 impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
     #[allow(unused)]
-    async fn get_node_score(
+    async fn get_node_routing_score(
         &self,
         node_id: NodeId,
         epoch_id: EpochId,
@@ -102,7 +147,7 @@ impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
         self.node_routing_score(node_id, epoch_id).await
     }
 
-    async fn get_batch_node_scores(
+    async fn get_batch_node_routing_scores(
         &self,
         node_ids: Vec<NodeId>,
         epoch_id: EpochId,
@@ -119,5 +164,21 @@ impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
         }
 
         Ok(NodesRoutingScores { inner: scores })
+    }
+
+    async fn get_node_stress_testing_score(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<StressTestingScore, PerformanceRetrievalFailure> {
+        todo!()
+    }
+
+    async fn get_batch_node_stress_testing_scores(
+        &self,
+        node_ids: Vec<NodeId>,
+        epoch_id: EpochId,
+    ) -> Result<NodesStressTestingScores, PerformanceRetrievalFailure> {
+        todo!()
     }
 }

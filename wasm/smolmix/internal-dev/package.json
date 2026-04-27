@@ -1,0 +1,19 @@
+{
+  "name": "smolmix-wasm-internal-dev",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "webpack serve --open",
+    "build": "webpack --mode production"
+  },
+  "dependencies": {
+    "comlink": "^4.3.1",
+    "smolmix-wasm": "file:../pkg"
+  },
+  "devDependencies": {
+    "copy-webpack-plugin": "^11.0.0",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.2.1"
+  }
+}

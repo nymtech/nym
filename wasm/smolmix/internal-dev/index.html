@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>smolmix-wasm dev</title>
+    <script src="bundle.js" defer></script>
+  </head>
+
+  <body>
+    <h1>smolmix-wasm dev</h1>
+
+    <!-- Connection -->
+    <fieldset id="startup-controls">
+      <legend>Connection</legend>
+      <div>
+        <label>IPR address: </label>
+        <input type="text" size="80" id="ipr-address"
+          value="6B6iuWX4bQP4GVA4Yq7XmZencaaGw6BaPY6xJWYSwsbF.6g6LRx1fgU2Q2A4ZPKonYHtfBARh1GPMe1LtXk6vpRR8@q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1"
+          placeholder="<nym-address of IPR exit node>" />
+      </div>
+      <details style="margin-top: 8px" open>
+        <summary style="cursor: pointer; font-size: 0.9em; color: #555">Advanced Options</summary>
+        <div style="margin-top: 6px; padding: 8px; background: #f9f9f9; font-size: 0.9em">
+          <div>
+            <label><input type="checkbox" id="opt-force-tls" checked /> Force TLS</label>
+          </div>
+          <div style="margin-top: 4px">
+            <label>Client ID: <input type="text" id="opt-client-id" size="20" /></label>
+            <span style="font-size: 0.85em; color: #888">(randomised on load for clean state)</span>
+          </div>
+          <div style="margin-top: 4px">
+            <label><input type="checkbox" id="opt-disable-poisson" checked /> Disable Poisson traffic</label>
+          </div>
+          <div style="margin-top: 4px">
+            <label><input type="checkbox" id="opt-disable-cover" checked /> Disable cover traffic</label>
+          </div>
+        </div>
+      </details>
+      <div style="margin-top: 8px">
+        <button id="btn-setup">setupMixTunnel</button>
+        <button id="btn-disconnect" disabled>disconnectMixTunnel</button>
+        <span id="tunnel-status" style="margin-left: 10px; color: gray">Not started</span>
+      </div>
+    </fieldset>
+
+    <!-- Tests -->
+    <fieldset id="test-controls" disabled>
+      <legend>Tests</legend>
+
+      <!-- HTTP (plain) -->
+      <h3>HTTP (plain)</h3>
+      <div>
+        <input type="text" size="60" id="http-url" value="http://httpbin.org/get" />
+        <button id="btn-http">GET</button>
+      </div>
+      <p style="font-size: 0.85em; color: #666">
+        Full pipeline: DNS + TCP + HTTP/1.1 (no TLS).
+      </p>
+
+      <hr />
+
+      <!-- HTTPS -->
+      <h3>HTTPS</h3>
+      <div>
+        <input type="text" size="60" id="https-url" value="https://httpbin.org/get" />
+        <button id="btn-https">GET</button>
+      </div>
+      <p style="font-size: 0.85em; color: #666">
+        Full pipeline: DNS + TCP + TLS (futures-rustls) + HTTP/1.1.
+      </p>
+
+      <hr />
+
+      <!-- POST -->
+      <h3>POST</h3>
+      <div>
+        <input type="text" size="60" id="post-url" value="https://jsonplaceholder.typicode.com/posts" />
+      </div>
+      <div style="margin-top: 4px">
+        <textarea id="post-body" rows="3" cols="60">{"title": "Test Post", "body": "Hello from smolmix-wasm!", "userId": 1}</textarea>
+      </div>
+      <button id="btn-post">POST</button>
+
+      <hr />
+
+      <!-- File Transfer (throughput measurement) -->
+      <h3>File Transfer</h3>
+      <div>
+        <label>Size:</label>
+        <select id="xfer-size">
+          <option value="102400">100 KB</option>
+          <option value="524288">512 KB</option>
+          <option value="1048576" selected>1 MB</option>
+          <option value="5242880">5 MB</option>
+        </select>
+        <label style="margin-left: 8px">Protocol:</label>
+        <select id="xfer-proto">
+          <option value="https" selected>HTTPS</option>
+          <option value="http">HTTP</option>
+        </select>
+        <button id="btn-download" style="margin-left: 8px">Download</button>
+        <button id="btn-upload">Upload</button>
+      </div>
+      <p style="font-size: 0.85em; color: #666; margin: 4px 0">
+        Measures sustained throughput (KB/s). Download uses <code>httpbin.org/bytes/N</code>,
+        upload POSTs to <code>httpbin.org/post</code>. First request includes DNS+TCP+TLS setup;
+        repeat requests hit the connection pool.
+      </p>
+
+      <hr />
+
+      <!-- WebSocket -->
+      <h3>WebSocket</h3>
+      <div>
+        <input type="text" size="60" id="ws-url" value="wss://echo.websocket.org" />
+        <button id="btn-ws-connect">Connect</button>
+        <button id="btn-ws-close" disabled>Close</button>
+        <span id="ws-status" style="margin-left: 10px; color: gray">Not connected</span>
+      </div>
+      <div style="margin-top: 4px">
+        <input type="text" size="50" id="ws-message" value="Hello from smolmix-wasm!" />
+        <button id="btn-ws-send" disabled>Send</button>
+      </div>
+      <div style="margin-top: 4px">
+        <label>Echo burst:</label>
+        <input type="number" id="ws-burst-count" value="10" min="1" max="500" style="width: 60px" />
+        <label style="margin-left: 8px">Size:</label>
+        <input type="number" id="ws-burst-min" value="64" min="1" max="1048576" style="width: 80px" />
+        <span>&ndash;</span>
+        <input type="number" id="ws-burst-max" value="1024" min="1" max="1048576" style="width: 80px" />
+        <span style="font-size: 0.85em; color: #888">bytes</span>
+        <button id="btn-ws-burst" disabled style="margin-left: 8px">Send Burst</button>
+      </div>
+      <p style="font-size: 0.85em; color: #666; margin: 4px 0 0">
+        Sends N random binary payloads (size uniformly sampled from range), verifies echo matches, reports RTT stats.
+      </p>
+      <p style="font-size: 0.85em; color: #666; margin: 4px 0">
+        Drop-in <code>MixSocket</code> class (mirrors browser <code>WebSocket</code> API).
+        DNS + TCP + TLS + HTTP 101 upgrade through the mixnet, then framed messages.
+      </p>
+
+      <hr />
+
+      <!-- Stress Test -->
+      <h3>Stress Test</h3>
+      <div>
+        <label>Requests:</label>
+        <input type="number" id="stress-count" value="10" min="1" max="200" style="width: 60px" />
+        <label style="margin-left: 8px">Mode:</label>
+        <select id="stress-mode">
+          <option value="uniform">Uniform (same URL, incremented ID)</option>
+          <option value="mixed" selected>Mixed sizes</option>
+          <option value="drip">Slow drip (timeout boundary)</option>
+        </select>
+      </div>
+
+      <div id="stress-uniform-opts" style="display: none; margin-top: 8px; padding: 8px; background: #f9f9f9">
+        <label>Base URL:</label>
+        <input type="text" size="50" id="stress-url" value="https://jsonplaceholder.typicode.com/posts/" />
+        <p style="margin: 4px 0 0; font-size: 0.85em; color: #666">
+          Request ID (1..N) appended. All requests same size.
+        </p>
+      </div>
+
+      <div id="stress-mixed-opts" style="margin-top: 8px; padding: 8px; background: #f9f9f9">
+        <p style="margin: 0 0 4px; font-size: 0.85em; color: #666">
+          Random payload sizes via <code>httpbin.org/bytes/{n}</code>.
+        </p>
+        <table style="font-size: 0.9em; border-collapse: collapse">
+          <tr><td style="padding: 1px 10px 1px 0"><b>tiny</b></td><td>128 B</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>small</b></td><td>1 KB</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>medium</b></td><td>10 KB</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>large</b></td><td>100 KB</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>xlarge</b></td><td>1 MB</td></tr>
+        </table>
+      </div>
+
+      <div id="stress-drip-opts" style="display: none; margin-top: 8px; padding: 8px; background: #f9f9f9">
+        <p style="margin: 0 0 4px; font-size: 0.85em; color: #666">
+          Uses <code>httpbin.org/drip</code> to slowly drip bytes, testing timeout boundaries.
+          Profiles computed from the request timeout.
+        </p>
+        <table style="font-size: 0.9em; border-collapse: collapse">
+          <tr><td style="padding: 1px 10px 1px 0"><b>safe</b></td><td>~50% of timeout</td><td style="padding-left: 10px; color: #666">well under limit</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>boundary</b></td><td>~92% of timeout</td><td style="padding-left: 10px; color: #666">mixnet latency pushes over</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>over</b></td><td>~108% of timeout</td><td style="padding-left: 10px; color: #666">exceeds on its own</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>slow-start</b></td><td>~17% delay + ~83% drip</td><td style="padding-left: 10px; color: #666">late first byte</td></tr>
+        </table>
+        <div style="margin-top: 6px">
+          <label>Request timeout (s):</label>
+          <input type="number" id="stress-timeout" value="60" min="5" max="300" style="width: 60px" />
+        </div>
+      </div>
+
+      <div style="margin-top: 8px">
+        <button id="btn-stress">Run Stress Test</button>
+        <span id="stress-status" style="margin-left: 10px"></span>
+      </div>
+    </fieldset>
+
+    <!-- Output -->
+    <fieldset>
+      <legend>Output</legend>
+      <pre id="output" style="background: #f5f5f5; padding: 8px; max-height: 400px; overflow-y: auto; font-size: 0.85em; white-space: pre-wrap"></pre>
+    </fieldset>
+  </body>
+</html>

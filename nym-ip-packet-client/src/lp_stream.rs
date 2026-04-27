@@ -4,7 +4,7 @@ use nym_lp::packet::frame::{
     LpFrame, LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
 use nym_sdk::mixnet::ReconstructedMessage;
-use tracing::trace;
+use tracing::warn;
 
 /// Whether the "current" IPR client is operating at a version where the node expects
 /// non-stream mixnet IPR messages to be LP Stream framed (see `SPHINX_STREAM_VERSION_THRESHOLD`).
@@ -12,24 +12,46 @@ pub(crate) fn current_requires_sphinx_stream_transport() -> bool {
     crate::current::VERSION >= SPHINX_STREAM_VERSION_THRESHOLD
 }
 
-pub fn maybe_unwrap_lp_stream_payload(data: &[u8]) -> &[u8] {
+pub fn maybe_unwrap_lp_stream_payload(data: &[u8], warn_on_unexpected: bool) -> &[u8] {
     if data.len() < LpFrameHeader::SIZE {
+        if warn_on_unexpected {
+            warn!(
+                len = data.len(),
+                header_size = LpFrameHeader::SIZE,
+                "expected LP SphinxStream frame for IPR payload, but message is shorter than LP header; treating as raw payload"
+            );
+        }
         return data;
     }
+
     let Ok(header) = LpFrameHeader::parse(data) else {
-        warn!("expected LP header but failed to parse; treating as raw payload");
+        if warn_on_unexpected {
+            warn!(
+                "expected LP SphinxStream frame for IPR payload, but failed to parse LP header; treating as raw payload"
+            );
+        }
         return data;
     };
+
     if header.kind == LpFrameKind::SphinxStream {
         &data[LpFrameHeader::SIZE..]
     } else {
-        trace!(kind = ?header.kind, "lp header parsed but not a sphinx stream frame; treating as raw payload");
+        if warn_on_unexpected {
+            warn!(
+                kind = ?header.kind,
+                "expected LP SphinxStream frame for IPR payload, but got different LP frame kind; treating as raw payload"
+            );
+        }
         data
     }
 }
 
 pub fn maybe_unwrap_lp_stream_payload_from_reconstructed(message: &ReconstructedMessage) -> &[u8] {
-    maybe_unwrap_lp_stream_payload(&message.message)
+    maybe_unwrap_lp_stream_payload(&message.message, false)
+}
+
+pub fn unwrap_ipr_payload_from_reconstructed(message: &ReconstructedMessage) -> &[u8] {
+    maybe_unwrap_lp_stream_payload(&message.message, current_requires_sphinx_stream_transport())
 }
 
 pub fn encode_stream_frame(stream_id: u64, sequence_num: u32, payload: Vec<u8>) -> Vec<u8> {
@@ -66,17 +88,17 @@ mod tests {
         assert_eq!(attrs.sequence_num, seq);
         assert_eq!(attrs.msg_type, SphinxStreamMsgType::Data);
 
-        let unwrapped = maybe_unwrap_lp_stream_payload(&framed);
+        let unwrapped = maybe_unwrap_lp_stream_payload(&framed, false);
         assert_eq!(unwrapped, payload.as_slice());
     }
 
     #[test]
     fn unwrap_noops_on_non_stream_or_malformed_data() {
         let raw = b"\x09\x00\x01\x02\x03";
-        assert_eq!(maybe_unwrap_lp_stream_payload(raw), raw);
+        assert_eq!(maybe_unwrap_lp_stream_payload(raw, false), raw);
 
         // malformed header: not enough bytes for LP header
         let short = b"\x00\x01";
-        assert_eq!(maybe_unwrap_lp_stream_payload(short), short);
+        assert_eq!(maybe_unwrap_lp_stream_payload(short, false), short);
     }
 }

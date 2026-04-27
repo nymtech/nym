@@ -7232,8 +7232,6 @@ name = "nym-lp-data"
 version = "1.20.4"
 dependencies = [
  "anyhow",
- "nym-client-core",
- "nym-common",
  "nym-lp",
  "tracing",
 ]
@@ -7266,7 +7264,6 @@ dependencies = [
  "strum 0.28.0",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "uuid",
 ]
 

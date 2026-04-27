@@ -306,7 +306,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         mixnet_contract_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
 
     let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
-        &config.node_status_api,
+        &config,
         &mixnet_contract_cache_state,
         &described_nodes_cache,
         &node_status_cache_state,

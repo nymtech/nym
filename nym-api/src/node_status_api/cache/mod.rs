@@ -5,7 +5,7 @@ use self::data::NodeStatusCacheData;
 use crate::node_performance::provider::PerformanceRetrievalFailure;
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::Cache;
-use nym_api_requests::models::NodeAnnotation;
+use nym_api_requests::models::NodeAnnotationV2;
 use nym_mixnet_contract_common::NodeId;
 use std::collections::HashMap;
 use std::path::Path;
@@ -73,7 +73,7 @@ impl NodeStatusCache {
     }
 
     /// Updates the cache with the latest data.
-    async fn update(&self, node_annotations: HashMap<NodeId, NodeAnnotation>) {
+    async fn update(&self, node_annotations: HashMap<NodeId, NodeAnnotationV2>) {
         if self
             .inner
             .try_overwrite_old_value(node_annotations, "node-status")
@@ -100,7 +100,7 @@ impl NodeStatusCache {
 
     pub(crate) async fn node_annotations(
         &self,
-    ) -> Result<RwLockReadGuard<'_, HashMap<NodeId, NodeAnnotation>>, UninitialisedCache> {
+    ) -> Result<RwLockReadGuard<'_, HashMap<NodeId, NodeAnnotationV2>>, UninitialisedCache> {
         self.get(|c| &c.node_annotations).await
     }
 }

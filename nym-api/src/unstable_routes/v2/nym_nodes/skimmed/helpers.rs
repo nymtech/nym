@@ -7,7 +7,7 @@ use crate::unstable_routes::v2::nym_nodes::helpers::NodesParams;
 use crate::unstable_routes::v2::nym_nodes::skimmed::PaginatedSkimmedNodes;
 use axum::extract::{Query, State};
 use nym_api_requests::models::{
-    NodeAnnotation, NymNodeDescriptionV2, OffsetDateTimeJsonSchemaWrapper,
+    NodeAnnotationV1, NodeAnnotationV2, NymNodeDescriptionV2, OffsetDateTimeJsonSchemaWrapper,
 };
 use nym_api_requests::nym_nodes::{NodeRole, PaginatedCachedNodesResponseV2, SkimmedNodeV1};
 use nym_http_api_common::Output;
@@ -20,7 +20,7 @@ use std::time::Duration;
 fn build_nym_nodes_response<'a, NI>(
     rewarded_set: &CachedEpochRewardedSet,
     nym_nodes_subset: NI,
-    annotations: &HashMap<NodeId, NodeAnnotation>,
+    annotations: &HashMap<NodeId, NodeAnnotationV2>,
     current_key_rotation: u32,
     active_only: bool,
 ) -> Vec<SkimmedNodeV1>
@@ -40,7 +40,11 @@ where
 
         // honestly, not sure under what exact circumstances this value could be missing,
         // but in that case just use 0 performance
-        let annotation = annotations.get(&node_id).copied().unwrap_or_default();
+        let annotation: NodeAnnotationV1 = annotations
+            .get(&node_id)
+            .copied()
+            .unwrap_or_default()
+            .into();
 
         nodes.push(nym_node.to_skimmed_node(
             current_key_rotation,

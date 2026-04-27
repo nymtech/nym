@@ -406,17 +406,17 @@ pub struct NodePerformance {
     feature = "generate-ts",
     ts(
         export,
-        export_to = "ts-packages/types/src/types/rust/NodeAnnotation.ts"
+        export_to = "ts-packages/types/src/types/rust/NodeAnnotationV1.ts"
     )
 )]
-pub struct NodeAnnotation {
+pub struct NodeAnnotationV1 {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     // legacy
     #[schema(value_type = String)]
     pub last_24h_performance: Performance,
     pub current_role: Option<DisplayRole>,
 
-    pub detailed_performance: DetailedNodePerformance,
+    pub detailed_performance: DetailedNodePerformanceV1,
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -425,11 +425,47 @@ pub struct NodeAnnotation {
     feature = "generate-ts",
     ts(
         export,
-        export_to = "ts-packages/types/src/types/rust/DetailedNodePerformance.ts"
+        export_to = "ts-packages/types/src/types/rust/NodeAnnotationV2.ts"
+    )
+)]
+pub struct NodeAnnotationV2 {
+    pub current_role: Option<DisplayRole>,
+
+    pub detailed_performance: DetailedNodePerformanceV2,
+}
+
+impl From<NodeAnnotationV2> for NodeAnnotationV1 {
+    fn from(value: NodeAnnotationV2) -> Self {
+        // map it from 0-1 range into 0-100
+        let scaled_performance =
+            value.detailed_performance.performance_score.clamp(0.0, 1.0) * 100.;
+        #[allow(clippy::unwrap_used)]
+        let legacy_performance =
+            Performance::from_percentage_value(scaled_performance as u64).unwrap();
+
+        NodeAnnotationV1 {
+            last_24h_performance: legacy_performance,
+            current_role: value.current_role,
+            detailed_performance: DetailedNodePerformanceV1 {
+                performance_score: value.detailed_performance.performance_score,
+                routing_score: value.detailed_performance.routing_score,
+                config_score: value.detailed_performance.config_score,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/DetailedNodePerformanceV1.ts"
     )
 )]
 #[non_exhaustive]
-pub struct DetailedNodePerformance {
+pub struct DetailedNodePerformanceV1 {
     /// routing_score * config_score
     pub performance_score: f64,
 
@@ -437,16 +473,57 @@ pub struct DetailedNodePerformance {
     pub config_score: ConfigScore,
 }
 
-impl DetailedNodePerformance {
+impl DetailedNodePerformanceV1 {
     pub fn new(
         performance_score: f64,
         routing_score: RoutingScore,
         config_score: ConfigScore,
-    ) -> DetailedNodePerformance {
+    ) -> DetailedNodePerformanceV1 {
         Self {
             performance_score,
             routing_score,
             config_score,
+        }
+    }
+
+    pub fn to_rewarding_performance(&self) -> Performance {
+        Performance::naive_try_from_f64(self.performance_score).unwrap_or_default()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/DetailedNodePerformanceV2.ts"
+    )
+)]
+#[non_exhaustive]
+pub struct DetailedNodePerformanceV2 {
+    /// routing_score * config_score
+    /// or
+    /// routing_score * config_score * stress_testing_score, if enabled
+    pub performance_score: f64,
+
+    pub routing_score: RoutingScore,
+    pub config_score: ConfigScore,
+    pub stress_testing_score: StressTestingScore,
+}
+
+impl DetailedNodePerformanceV2 {
+    pub fn new(
+        performance_score: f64,
+        routing_score: RoutingScore,
+        config_score: ConfigScore,
+        stress_testing_score: StressTestingScore,
+    ) -> DetailedNodePerformanceV2 {
+        Self {
+            performance_score,
+            routing_score,
+            config_score,
+            stress_testing_score,
         }
     }
 
@@ -482,6 +559,14 @@ impl RoutingScore {
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/StressTestingScore.ts"
+    )
+)]
 pub struct StressTestingScore {
     pub score: f64,
     // distinguish between zero-score and not being unavailable
@@ -554,7 +639,7 @@ impl ConfigScore {
 pub struct AnnotationResponse {
     #[schema(value_type = u32)]
     pub node_id: NodeId,
-    pub annotation: Option<NodeAnnotation>,
+    pub annotation: Option<NodeAnnotationV1>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]

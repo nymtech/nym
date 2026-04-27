@@ -3,7 +3,7 @@
 use nym_api_requests::models::{
     AnnotationResponse, DeclaredRolesV1, DescribedNodeTypeV1, GatewayCoreStatusResponse,
     HistoricalPerformanceResponse, HistoricalUptimeResponse, MixnodeCoreStatusResponse,
-    MixnodeStatus, MixnodeStatusResponse, NodeAnnotation, NodeDatePerformanceResponse,
+    MixnodeStatus, MixnodeStatusResponse, NodeAnnotationV2, NodeDatePerformanceResponse,
     NodePerformanceResponse, PerformanceHistoryResponse, StakeSaturationResponse,
     UptimeHistoryResponse,
 };
@@ -150,7 +150,7 @@ fn main() -> anyhow::Result<()> {
     do_export!(MixnodeStatus);
     do_export!(MixnodeStatusResponse);
     do_export!(StakeSaturationResponse);
-    do_export!(NodeAnnotation);
+    do_export!(NodeAnnotationV1);
     do_export!(AnnotationResponse);
     do_export!(NodePerformanceResponse);
     do_export!(NodeDatePerformanceResponse);

@@ -4,32 +4,55 @@
 use super::NodeStatusCache;
 use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
 use crate::node_describe_cache::cache::DescribedNodes;
-use crate::node_performance::provider::{NodePerformanceProvider, NodesRoutingScores};
+use crate::node_performance::provider::{
+    NodePerformanceProvider, NodesRoutingScores, NodesStressTestingScores,
+};
 use crate::node_status_api::cache::config_score::calculate_config_score;
-use crate::node_status_api::models::Uptime;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
+use crate::support::caching::CacheNotificationWatcher;
 use crate::{
     mixnet_contract_cache::cache::MixnetContractCache,
     node_status_api::cache::NodeStatusCacheError, support::caching::CacheNotification,
 };
 use ::time::OffsetDateTime;
-use nym_api_requests::models::{DetailedNodePerformance, NodeAnnotation};
+use nym_api_requests::models::{DetailedNodePerformanceV2, NodeAnnotationV2};
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_task::ShutdownToken;
 use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
-use tokio::sync::watch;
 use tokio::time;
 use tracing::{error, info, trace, warn};
 
+pub(crate) struct NodeStatusCacheConfig {
+    pub(crate) fallback_caching_interval: Duration,
+
+    /// Specify whether external stress testing data should be used for calculating node performance
+    /// score used for rewarding and active set selection
+    /// note: this can only be enabled if use_performance_contract_data is set to false!
+    pub use_stress_testing_data: bool,
+
+    /// If `use_stress_testing_data` is set to true, this specifies the minimum % of nodes,
+    /// that must have their stress data available in the `stress_testing_data_period`,
+    /// in order to include that metric in performance calculation.
+    /// This is done to protect against Network Monitor failures and not receiving any data.
+    pub minimum_available_stress_testing_results: f32,
+
+    /// If use_stress_testing_data is enabled, specifies the weight of the stress testing score in the overall performance score.
+    pub stress_testing_score_weight: f64,
+
+    /// Specifies the duration of the rolling average used for stress testing score.
+    pub stress_testing_data_period: Duration,
+}
+
 // Long running task responsible for keeping the node status cache up-to-date.
 pub struct NodeStatusCacheRefresher {
+    config: NodeStatusCacheConfig,
+
     // Main stored data
     cache: NodeStatusCache,
-    fallback_caching_interval: Duration,
 
     // Sources for when refreshing data
     mixnet_contract_cache: MixnetContractCache,
@@ -37,11 +60,11 @@ pub struct NodeStatusCacheRefresher {
 
     /// channel notifying us when mixnet cache has been refreshed,
     /// so that this cache could also be recreated
-    mixnet_contract_cache_listener: watch::Receiver<CacheNotification>,
+    mixnet_contract_cache_listener: CacheNotificationWatcher,
 
     /// channel notifying us when the describe cache has been refreshed,
     /// so that this cache could also be recreated
-    describe_cache_listener: watch::Receiver<CacheNotification>,
+    describe_cache_listener: CacheNotificationWatcher,
 
     /// channel explicitly requesting cache refresh. it does not follow the usual rate limiting
     refresh_requester: RefreshRequester,
@@ -57,17 +80,17 @@ impl NodeStatusCacheRefresher {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         cache: NodeStatusCache,
-        fallback_caching_interval: Duration,
+        config: NodeStatusCacheConfig,
         contract_cache: MixnetContractCache,
         described_cache: SharedCache<DescribedNodes>,
-        contract_cache_listener: watch::Receiver<CacheNotification>,
-        describe_cache_listener: watch::Receiver<CacheNotification>,
+        contract_cache_listener: CacheNotificationWatcher,
+        describe_cache_listener: CacheNotificationWatcher,
         performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
         on_disk_file: PathBuf,
     ) -> Self {
         Self {
             cache,
-            fallback_caching_interval,
+            config,
             mixnet_contract_cache: contract_cache,
             described_cache,
             mixnet_contract_cache_listener: contract_cache_listener,
@@ -85,7 +108,7 @@ impl NodeStatusCacheRefresher {
     /// Runs the node status cache refresher task.
     pub async fn run(&mut self, shutdown_token: ShutdownToken) {
         let mut last_update = OffsetDateTime::now_utc();
-        let mut fallback_interval = time::interval(self.fallback_caching_interval);
+        let mut fallback_interval = time::interval(self.config.fallback_caching_interval);
         loop {
             tokio::select! {
                 biased;
@@ -171,7 +194,7 @@ impl NodeStatusCacheRefresher {
             return;
         }
 
-        if OffsetDateTime::now_utc() - *last_updated < self.fallback_caching_interval {
+        if OffsetDateTime::now_utc() - *last_updated < self.config.fallback_caching_interval {
             // don't update too often
             trace!("not updating the cache since they've been updated recently");
             return;
@@ -186,32 +209,53 @@ impl NodeStatusCacheRefresher {
         &self,
         config_score_data: &ConfigScoreData,
         routing_scores: &NodesRoutingScores,
+        stress_testing_scores: &NodesStressTestingScores,
         nym_nodes: &[NymNodeDetails],
         rewarded_set: &CachedEpochRewardedSet,
         described_nodes: &DescribedNodes,
-    ) -> HashMap<NodeId, NodeAnnotation> {
+    ) -> HashMap<NodeId, NodeAnnotationV2> {
         let mut annotations = HashMap::new();
+        if nym_nodes.is_empty() {
+            return annotations;
+        }
+
+        let use_stress_testing_scores = self.config.use_stress_testing_data;
+        let available_ratio = stress_testing_scores.count() as f32 / nym_nodes.len() as f32;
+
+        // must be explicitly enabled in the config AND we must have sufficient number of entries
+        let include_stress_testing = use_stress_testing_scores
+            && available_ratio >= self.config.minimum_available_stress_testing_results;
+
+        // stress testing
+        let sw = self.config.stress_testing_score_weight;
+
+        // not stress testing
+        let nsw = 1.0 - sw;
 
         for nym_node in nym_nodes {
             let node_id = nym_node.node_id();
             let routing_score = routing_scores.get_or_log(node_id);
             let config_score =
                 calculate_config_score(config_score_data, described_nodes.get_node(&node_id));
+            let stress_testing_score = stress_testing_scores.get_or_log(node_id);
 
-            let performance = routing_score.score * config_score.score;
-            // map it from 0-1 range into 0-100
-            let scaled_performance = performance * 100.;
-            let legacy_performance = Uptime::new(scaled_performance as f32).into();
+            let performance = if include_stress_testing {
+                // use weighted arithmetic mean (we don't want a single 0 to cause the whole thing to be 0)
+                sw * stress_testing_score.score + nsw * routing_score.score * config_score.score
+            } else {
+                info!("not using stress testing data for performance calculation");
+                routing_score.score * config_score.score
+            };
 
             annotations.insert(
                 nym_node.node_id(),
-                NodeAnnotation {
-                    last_24h_performance: legacy_performance,
+                NodeAnnotationV2 {
                     current_role: rewarded_set.role(nym_node.node_id()).map(|r| r.into()),
-                    detailed_performance: DetailedNodePerformance::new(
+                    detailed_performance: DetailedNodePerformanceV2::new(
                         performance,
                         routing_score,
                         config_score,
+                        stress_testing_score,
                     ),
                 },
             );
@@ -238,12 +282,20 @@ impl NodeStatusCacheRefresher {
         let all_ids = nym_nodes
             .iter()
             .map(|n| n.bond_information.node_id)
-            .collect();
+            .collect::<Vec<_>>();
 
         // note: any internal errors imply failures for that node in particular
         let routing_scores = self
             .performance_provider
-            .get_batch_node_routing_scores(all_ids, current_interval.current_epoch_absolute_id())
+            .get_batch_node_routing_scores(&all_ids, current_interval.current_epoch_absolute_id())
+            .await?;
+
+        let stress_testing_scores = self
+            .performance_provider
+            .get_batch_node_stress_testing_scores(
+                &all_ids,
+                current_interval.current_epoch_absolute_id(),
+            )
             .await?;
 
         // Create annotated data
@@ -251,6 +303,7 @@ impl NodeStatusCacheRefresher {
             .produce_node_annotations(
                 &config_score_data,
                 &routing_scores,
+                &stress_testing_scores,
                 &nym_nodes,
                 &rewarded_set,
                 &described,

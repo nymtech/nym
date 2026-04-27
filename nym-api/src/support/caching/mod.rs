@@ -4,6 +4,8 @@
 pub(crate) mod cache;
 pub(crate) mod refresher;
 
+use tokio::sync::watch;
+
 // don't break existing imports
 pub(crate) use cache::Cache;
 
@@ -13,3 +15,5 @@ pub enum CacheNotification {
     Start,
     Updated,
 }
+
+pub type CacheNotificationWatcher = watch::Receiver<CacheNotification>;

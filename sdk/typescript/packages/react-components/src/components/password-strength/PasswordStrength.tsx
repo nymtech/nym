@@ -1,16 +1,15 @@
-/* eslint-disable no-nested-ternary */
 import React from 'react';
 import zxcvbn, { ZXCVBNScore } from 'zxcvbn';
 import { LockOutlined } from '@mui/icons-material';
 import { LinearProgress, Stack, Typography, Box } from '@mui/material';
 
 const colorMap = {
-  4: 'success' as 'success',
-  3: 'success' as 'success',
-  2: 'warning' as 'warning',
-  1: 'error' as 'error',
-  0: 'error' as 'error',
-};
+  4: 'success',
+  3: 'success',
+  2: 'warning',
+  1: 'error',
+  0: 'error',
+} as const;
 
 const getText = (score: ZXCVBNScore) => {
   switch (score) {

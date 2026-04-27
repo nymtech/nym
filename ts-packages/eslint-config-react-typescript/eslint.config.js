@@ -7,7 +7,7 @@ const prettierConfig = require('eslint-config-prettier');
 module.exports = [
   js.configs.recommended,
   {
-    files: ['index.js', 'eslint.config.js'],
+    files: ['index.js', 'airbnb-typescript-base-flat.js', 'eslint.config.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',

@@ -1,12 +1,11 @@
 import { createTheme, Palette, ThemeOptions } from '@mui/material/styles';
 import { PaletteMode } from '@mui/material';
 import { nymPalette, NymPalette } from './common';
-// eslint-disable-next-line import/no-cycle
+/* eslint-disable import/no-cycle -- palette modules reference each other (MUI theme graph) */
 import { NymWalletPalette } from './wallet';
-// eslint-disable-next-line import/no-cycle
 import { NetworkExplorerPalette } from './network-explorer';
-// eslint-disable-next-line import/no-cycle
 import { createDarkModePalette, createLightModePalette } from './utils';
+/* eslint-enable import/no-cycle */
 
 /**
  * To use the theme, copy the file in `../../template/mui-theme.d.ts` into `src/typings/mui-theme.d.ts` in your project.
@@ -24,7 +23,6 @@ export interface NymPaletteWithExtensions {
 /**
  * Add anything Nym specific to the MUI theme.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface NymTheme {
   palette: Palette & NymPaletteWithExtensions;
 }

@@ -89,8 +89,8 @@
     "tsc": "tsc --noEmit true",
     "build": "tsc --noEmit false",
     "watch": "tsc --noEmit false -w",
-    "lint": "eslint src .storybook --no-error-on-unmatched-pattern",
-    "lint:fix": "eslint src .storybook --no-error-on-unmatched-pattern --fix",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "storybook": "start-storybook -p 6006",
     "storybook:build": "build-storybook"
   },

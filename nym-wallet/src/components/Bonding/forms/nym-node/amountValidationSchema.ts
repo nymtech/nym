@@ -23,7 +23,7 @@ const operatingCostAndPmValidation = (params?: TauriContractStateParams) => {
     interval_operating_cost: Yup.object().shape({
       amount: Yup.string()
         .required('An operating cost is required')
-        // eslint-disable-next-line prefer-arrow-callback
+
         .test('valid-operating-cost', 'A valid amount is required', async function isValidAmount(this, value) {
           if (
             value &&

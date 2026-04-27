@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
   CurrencyDenom,

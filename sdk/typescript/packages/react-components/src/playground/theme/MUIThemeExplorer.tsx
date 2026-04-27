@@ -1,4 +1,3 @@
-/* eslint-disable react/no-array-index-key */
 import * as React from 'react';
 import type { Theme } from '@mui/material/styles';
 import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';

@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 import React from 'react';
 import zxcvbn, { ZXCVBNScore } from 'zxcvbn';
 import { LockOutlined } from '@mui/icons-material';

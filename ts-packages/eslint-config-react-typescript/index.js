@@ -38,7 +38,6 @@ module.exports = [
       'plugin:jest/recommended',
       'plugin:jest/style',
     ],
-    ignorePatterns: ['dist/**', 'node_modules/**'],
     rules: {
       'jest/prefer-strict-equal': 'error',
       'jest/prefer-to-have-length': 'warn',

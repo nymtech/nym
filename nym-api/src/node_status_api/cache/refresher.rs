@@ -243,7 +243,7 @@ impl NodeStatusCacheRefresher {
         // note: any internal errors imply failures for that node in particular
         let routing_scores = self
             .performance_provider
-            .get_batch_node_scores(all_ids, current_interval.current_epoch_absolute_id())
+            .get_batch_node_routing_scores(all_ids, current_interval.current_epoch_absolute_id())
             .await?;
 
         // Create annotated data

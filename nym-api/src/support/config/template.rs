@@ -90,6 +90,7 @@ use_performance_contract_data = {{ performance_provider.use_performance_contract
 [performance_provider.debug]
 # Specify whether external stress testing data should be used for calculating node performance
 # score used for rewarding and active set selection
+# note: this can only be enabled if use_performance_contract_data is set to false!
 use_stress_testing_data = {{ performance_provider.debug.use_stress_testing_data }}
 
 # If `use_stress_testing_data` is set to true, this specifies the minimum % of nodes,

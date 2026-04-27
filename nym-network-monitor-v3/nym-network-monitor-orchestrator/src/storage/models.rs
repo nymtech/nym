@@ -255,8 +255,11 @@ impl From<TestRun> for StressTestResult {
     fn from(run: TestRun) -> Self {
         let id = run.id;
         let inner = run.inner;
-        let test_performance = if inner.packets_sent > 0 {
-            (inner.packets_received as f64 / inner.packets_sent as f64).clamp(0.0, 1.0)
+
+        // if we have received any duplicate packets, we have to discard the entire result,
+        // as an honest node would never replay a packet
+        let test_performance = if inner.packets_sent > 0 && !inner.received_duplicates {
+            inner.packets_received as f64 / inner.packets_sent as f64
         } else {
             0.0
         };

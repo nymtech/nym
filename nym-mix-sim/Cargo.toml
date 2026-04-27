@@ -1,0 +1,45 @@
+[package]
+name = "nym-mix-sim"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+
+[[bin]]
+name = "mix-client"
+path = "src/bin/mix_client.rs"
+
+[[bin]]
+name = "nym-mix-sim"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap = { workspace = true, features = ["derive"] }
+rand.workspace = true
+rand_distr.workspace = true
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "macros",
+    "time",
+    "signal",
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+strum = { workspace = true, features = ["derive"] }
+uuid = { workspace = true, features = ["v4", "serde"] }
+
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+nym-common.workspace = true
+nym-lp-data.workspace = true
+nym-sphinx.workspace = true
+nym-crypto = { workspace = true, features = ["serde", "rand"] }
+
+[lints]
+workspace = true

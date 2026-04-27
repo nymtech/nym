@@ -207,7 +207,9 @@ fn maybe_wrap_stream_frame(stream_id: u64, sequence_num: u32, payload: Vec<u8>) 
 fn ipr_response_from_reconstructed_message(
     msg: &nym_sdk::mixnet::ReconstructedMessage,
 ) -> std::result::Result<IpPacketResponse, bincode::Error> {
-    let payload = crate::lp_stream::unwrap_ipr_payload_from_reconstructed(msg);
+    let warn_on_unexpected = crate::lp_stream::current_requires_sphinx_stream_transport();
+    let payload =
+        crate::lp_stream::maybe_unwrap_lp_stream_payload(&msg.message, warn_on_unexpected);
     IpPacketResponse::from_bytes(payload)
 }
 

@@ -50,10 +50,6 @@ pub fn maybe_unwrap_lp_stream_payload_from_reconstructed(message: &Reconstructed
     maybe_unwrap_lp_stream_payload(&message.message, false)
 }
 
-pub fn unwrap_ipr_payload_from_reconstructed(message: &ReconstructedMessage) -> &[u8] {
-    maybe_unwrap_lp_stream_payload(&message.message, current_requires_sphinx_stream_transport())
-}
-
 pub fn encode_stream_frame(stream_id: u64, sequence_num: u32, payload: Vec<u8>) -> Vec<u8> {
     let attrs = SphinxStreamFrameAttributes {
         stream_id,

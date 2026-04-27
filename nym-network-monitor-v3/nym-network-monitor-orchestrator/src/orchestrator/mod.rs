@@ -1,29 +1,33 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// to be used in subsequent PRs
-#![allow(dead_code)]
-
 use crate::http::api::{build_router, run_http_server};
 use crate::http::state::{AppState, KnownAgents};
 use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
+use crate::orchestrator::result_submitter::ResultSubmitter;
 use crate::orchestrator::stale_results_eviction::StaleResultsEviction;
 use crate::storage::NetworkMonitorStorage;
-use anyhow::Context;
+use anyhow::{Context, bail};
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
-use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
-use nym_validator_client::nyxd::{AccountId, bip39};
+use nym_validator_client::client::NymApiClientExt;
+use nym_validator_client::nyxd::contract_traits::{
+    NetworkMonitorsQueryClient, NetworkMonitorsSigningClient, PagedNetworkMonitorsQueryClient,
+};
+use nym_validator_client::nyxd::{AccountId, CosmWasmClient, bip39};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::error;
+use tokio::time::sleep;
+use tracing::{info, warn};
 use zeroize::Zeroizing;
 
 pub(crate) mod config;
 mod node_refresher;
 pub(crate) mod prometheus;
+mod result_submitter;
 mod stale_results_eviction;
 pub(crate) mod testruns;
 
@@ -79,7 +83,11 @@ impl NetworkMonitorOrchestrator {
             storage,
             shutdown_manager: ShutdownManager::build_new_default()?,
         };
-        this.verify_orchestrator_chain_authorisation().await?;
+        this.verify_on_chain_balance().await?;
+
+        let announced_identity_key = this.verify_orchestrator_chain_authorisation().await?;
+        this.reconcile_announced_identity_key(announced_identity_key)
+            .await?;
         this.verify_orchestrator_nym_api_authorisation().await?;
 
         Ok(this)
@@ -90,12 +98,118 @@ impl NetworkMonitorOrchestrator {
         self.client.read().await.nyxd.address()
     }
 
-    /// Verifies that the orchestrator's account is authorised to send transactions
-    /// to the network monitors contract (i.e. to authorise agents on-chain).
-    async fn verify_orchestrator_chain_authorisation(&self) -> anyhow::Result<()> {
-        // ensure our address is authorised to send transactions
-        // to the network monitors contract to authorise the agents
-        error!("unimplemented");
+    /// Ensure the orchestrator has sufficient balance for transaction fees
+    async fn verify_on_chain_balance(&self) -> anyhow::Result<()> {
+        let address = self.address().await;
+        let Some(balance) = self
+            .client
+            .read()
+            .await
+            .nyxd
+            .get_balance(&address, "unym".to_string())
+            .await?
+        else {
+            bail!("the orchestrator does not hold any unym balance");
+        };
+        if balance.amount < 1_000_000 {
+            bail!(
+                "the orchestrator does not hold sufficient amount of tokens. its current balance is {balance}"
+            )
+        }
+        Ok(())
+    }
+
+    /// Verifies that the orchestrator's account is authorised to send transactions to the network
+    /// monitors contract (i.e. to authorise agents on-chain) and returns the identity key it has
+    /// previously announced on-chain, if any.
+    ///
+    /// Retries both on query failures (RPC flakiness) and on successful queries that don't list
+    /// this orchestrator - the latter happens routinely when the admin has scheduled an
+    /// authorisation transaction that hasn't landed yet, so giving it a bounded window to appear
+    /// avoids crash-looping the process in that race. The total budget is
+    /// `chain_authorisation_check_max_attempts` attempts spaced by
+    /// `chain_authorisation_check_retry_delay`; once exhausted the function returns an error and
+    /// `new()` aborts before any background tasks are spawned.
+    async fn verify_orchestrator_chain_authorisation(&self) -> anyhow::Result<Option<String>> {
+        let query_client = self.client.read().await.nyxd.clone_query_client();
+        let address = self.address().await;
+        let max_attempts = self.config.chain_authorisation_check_max_attempts.get();
+        let retry_delay = self.config.chain_authorisation_check_retry_delay;
+
+        for attempt in 1..=max_attempts {
+            match query_client.get_network_monitor_orchestrators().await {
+                Ok(res) => {
+                    if let Some(entry) = res
+                        .authorised
+                        .into_iter()
+                        .find(|o| o.address.as_str() == address.as_ref())
+                    {
+                        info!(
+                            "orchestrator {address} is authorised in the network monitors contract"
+                        );
+                        return Ok(entry.identity_key);
+                    }
+                    warn!(
+                        attempt,
+                        max_attempts,
+                        "orchestrator {address} is not (yet) listed in the network monitors contract"
+                    );
+                }
+                Err(err) => {
+                    warn!(
+                        attempt,
+                        max_attempts,
+                        "failed to query network monitors contract for orchestrator authorisation: {err}"
+                    );
+                }
+            }
+
+            if attempt < max_attempts {
+                sleep(retry_delay).await;
+            }
+        }
+
+        Err(anyhow::anyhow!(
+            "orchestrator {address} failed to confirm its authorisation in the network monitors contract after {max_attempts} attempts"
+        ))
+    }
+
+    /// Ensures the identity key announced on-chain matches the key the orchestrator is running
+    /// with. If the on-chain key is missing or stale, an update transaction is submitted so that
+    /// agents and the nym-api can verify signatures against the correct key.
+    async fn reconcile_announced_identity_key(
+        &self,
+        announced: Option<String>,
+    ) -> anyhow::Result<()> {
+        let current = self.identity_keys.public_key().to_base58_string();
+
+        if announced.as_deref() == Some(current.as_str()) {
+            info!("on-chain announced identity key matches the local identity key");
+            return Ok(());
+        }
+
+        match &announced {
+            Some(stale) => info!(
+                "on-chain announced identity key ({stale}) does not match the local identity key ({current}); submitting an update"
+            ),
+            None => info!(
+                "no identity key currently announced on-chain for this orchestrator; submitting the local one ({current})"
+            ),
+        }
+
+        self.client
+            .write()
+            .await
+            .nyxd
+            .update_orchestrator_identity_key(current, None)
+            .await
+            .context(
+                "failed to announce the orchestrator identity key to the network monitors contract",
+            )?;
+
+        info!("waiting for the key information to propagate");
+        sleep(Duration::from_secs(30)).await;
+
         Ok(())
     }
 
@@ -103,7 +217,18 @@ impl NetworkMonitorOrchestrator {
     /// test results to the nym-api.
     async fn verify_orchestrator_nym_api_authorisation(&self) -> anyhow::Result<()> {
         // ensure our key is authorised to submit test results to the nym-api
-        error!("unimplemented");
+        let auth_result = self
+            .client
+            .read()
+            .await
+            .nym_api
+            .get_known_network_monitor(&self.identity_keys.public_key().to_base58_string())
+            .await?;
+        if !auth_result.authorised {
+            bail!(
+                "orchestrator identity key is not authorised to submit test results to the nym-api"
+            );
+        }
         Ok(())
     }
 
@@ -159,7 +284,16 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 5. evict stale data before starting anything else so any test runs
+        // 5. build task for submitting accumulated results to the nym-api
+        let result_submitter = ResultSubmitter::new(
+            &self.config,
+            self.client.read().await.nym_api.clone(),
+            self.storage.clone(),
+            self.identity_keys.clone(),
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+
+        // 6. evict stale data before starting anything else so any test runs
         //    left "in progress" by a prior crashed/restarted orchestrator are
         //    freed up before agents start polling for work. Note: this is a
         //    blocking call — a hung DB at start-up will prevent the
@@ -169,7 +303,7 @@ impl NetworkMonitorOrchestrator {
             .await
             .context("failed to evict stale data")?;
 
-        // 6. start all the tasks
+        // 7. start all the tasks
         // http server
         let http_server_fut = run_http_server(
             http_router,
@@ -189,6 +323,11 @@ impl NetworkMonitorOrchestrator {
         self.shutdown_manager.try_spawn_named(
             async move { stale_results_eviction.run().await },
             "stale-data-eviction",
+        );
+        // nym-api result submitter
+        self.shutdown_manager.try_spawn_named(
+            async move { result_submitter.run().await },
+            "result-submitter",
         );
 
         self.shutdown_manager.run_until_shutdown().await;

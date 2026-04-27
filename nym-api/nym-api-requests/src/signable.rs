@@ -55,7 +55,8 @@ impl<T> SignedMessage<T> {
 pub(crate) mod sealed {
     use crate::ecash::models::*;
     use crate::models::{
-        ChainBlocksStatusResponseBody, DetailedSignersStatusResponseBody, SignersStatusResponseBody,
+        v3, ChainBlocksStatusResponseBody, DetailedSignersStatusResponseBody,
+        SignersStatusResponseBody,
     };
 
     pub trait Sealed {}
@@ -72,4 +73,7 @@ pub(crate) mod sealed {
     impl Sealed for ChainBlocksStatusResponseBody {}
     impl Sealed for SignersStatusResponseBody {}
     impl Sealed for DetailedSignersStatusResponseBody {}
+
+    // v3 stress testing
+    impl Sealed for v3::StressTestBatchSubmissionContent {}
 }

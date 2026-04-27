@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Context;
+use nym_api_requests::models::network_monitor::StressTestResult;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
     self as api, LatencyDistribution, NymNodeData, TestRunData, TestRunInProgressData,
@@ -235,6 +236,40 @@ impl From<TestRun> for TestRunData {
                 received_duplicates: inner.received_duplicates,
                 error: inner.error,
             },
+        }
+    }
+}
+
+/// Projects a completed `testrun` row onto the nym-api's `StressTestResult` shape used by the
+/// stress-test batch submission endpoint.
+///
+/// Two fields are synthesised here rather than stored directly:
+///
+/// - `test_performance` is `packets_received / packets_sent` clamped to `[0.0, 1.0]`. A run that
+///   sent no packets collapses to `0.0`; `was_reachable` is the signal that lets the server tell
+///   that case apart from a genuine zero score.
+/// - `was_reachable` is `error.is_none()` — i.e. the test completed without an abort error. A run
+///   that aborted before the node responded sets `error` to the first failure, so the inverse is
+///   an accurate "did we reach the node at all" signal.
+impl From<TestRun> for StressTestResult {
+    fn from(run: TestRun) -> Self {
+        let id = run.id;
+        let inner = run.inner;
+
+        // if we have received any duplicate packets, we have to discard the entire result,
+        // as an honest node would never replay a packet
+        let test_performance = if inner.packets_sent > 0 && !inner.received_duplicates {
+            inner.packets_received as f64 / inner.packets_sent as f64
+        } else {
+            0.0
+        };
+        StressTestResult {
+            testrun_id: id,
+            node_id: inner.node_id as u32,
+            is_mixnode: matches!(inner.test_type, TestType::Mixnode),
+            test_timestamp: inner.test_timestamp,
+            test_performance,
+            was_reachable: inner.error.is_none(),
         }
     }
 }

@@ -236,6 +236,34 @@ impl NetworkMonitorStorage {
         Ok((test_results, total as usize))
     }
 
+    /// Returns the id of the newest `testrun` already submitted to the nym-api, or `None` if no
+    /// batch has been submitted yet. Callers treat `None` as "submit everything currently in
+    /// storage".
+    pub(crate) async fn get_last_submitted_testrun_id(&self) -> anyhow::Result<Option<i64>> {
+        self.storage_manager.get_last_submitted_testrun_id().await
+    }
+
+    /// Persists the id of the newest `testrun` whose batch submission to the nym-api has
+    /// succeeded. Subsequent [`Self::get_testruns_after`] calls use this value to avoid
+    /// resubmitting already-acknowledged rows.
+    pub(crate) async fn set_last_submitted_testrun_id(
+        &self,
+        testrun_id: i64,
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .set_last_submitted_testrun_id(testrun_id)
+            .await
+    }
+
+    /// Fetches every `testrun` row with `id > after_id`, ordered by id ascending.
+    ///
+    /// Used by the nym-api submission task to build the next batch of pending results. Ascending
+    /// ordering lets the caller record the highest-id row as the new submission watermark once
+    /// the batch is acknowledged.
+    pub(crate) async fn get_testruns_after(&self, after_id: i64) -> anyhow::Result<Vec<TestRun>> {
+        self.storage_manager.get_testruns_after(after_id).await
+    }
+
     /// Deletes all `testrun` rows older than `eviction_age` relative to the current time.
     ///
     /// Intended to be called periodically to keep the local database from growing unboundedly.

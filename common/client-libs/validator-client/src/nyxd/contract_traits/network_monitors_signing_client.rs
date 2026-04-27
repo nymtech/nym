@@ -51,6 +51,25 @@ pub trait NetworkMonitorsSigningClient {
         .await
     }
 
+    /// Announce (or rotate) the ed25519 identity key of the calling network monitor orchestrator.
+    ///
+    /// The caller must already be an authorised orchestrator; the contract validates that
+    /// `identity_key` is a well-formed base-58 encoding of a 32-byte ed25519 public key.
+    async fn update_orchestrator_identity_key(
+        &self,
+        identity_key: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let msg = NetworkMonitorsExecuteMsg::UpdateOrchestratorIdentityKey { key: identity_key };
+        self.execute_network_monitors_contract(
+            fee,
+            msg,
+            "NetworkMonitorsExecuteMsg::UpdateOrchestratorIdentityKey".into(),
+            vec![],
+        )
+        .await
+    }
+
     async fn revoke_network_monitor_orchestrator(
         &self,
         address: String,
@@ -162,6 +181,9 @@ mod tests {
             ExecuteMsg::AuthoriseNetworkMonitorOrchestrator { address } => client
                 .authorise_network_monitor_orchestrator(address, None)
                 .ignore(),
+            ExecuteMsg::UpdateOrchestratorIdentityKey { key } => {
+                client.update_orchestrator_identity_key(key, None).ignore()
+            }
             ExecuteMsg::RevokeNetworkMonitorOrchestrator { address } => client
                 .revoke_network_monitor_orchestrator(address, None)
                 .ignore(),

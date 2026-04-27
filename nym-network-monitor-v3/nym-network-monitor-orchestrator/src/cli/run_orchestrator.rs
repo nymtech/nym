@@ -9,6 +9,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::bip39;
 use std::mem;
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -91,6 +92,23 @@ pub(crate) struct Args {
     /// Maximum number of nodes queried concurrently during a node refresh cycle.
     #[clap(long, env = NYM_NETWORK_MONITOR_CONCURRENT_NODE_QUERIES_ARG, default_value_t = 32)]
     number_of_concurrent_node_queries: usize,
+
+    /// Maximum number of attempts (including the initial one) made to verify that this
+    /// orchestrator's account is authorised in the network monitors contract before start-up.
+    /// The process exits with an error once the budget is exhausted.
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_AUTH_CHECK_MAX_ATTEMPTS_ARG, default_value = "10")]
+    chain_authorisation_check_max_attempts: NonZeroU32,
+
+    /// Delay between consecutive chain authorisation checks during start-up (e.g. `1m`, `30s`).
+    /// Applied both when the query itself fails and when it succeeds but the orchestrator is not
+    /// (yet) listed.
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_AUTH_CHECK_RETRY_DELAY_ARG, value_parser = humantime::parse_duration, default_value = "1m")]
+    chain_authorisation_check_retry_delay: Duration,
+
+    /// How often the orchestrator flushes accumulated test results to the nym-api as a signed
+    /// batch submission (e.g. `15m`, `1h`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15m")]
+    result_submission_interval: Duration,
 }
 
 impl Args {
@@ -124,6 +142,9 @@ impl Args {
                 .map_err(|err| anyhow!("invalid mixnet contract address: {err}"))?,
             testrun_eviction_age: self.testrun_eviction_age,
             number_of_concurrent_node_queries: self.number_of_concurrent_node_queries,
+            chain_authorisation_check_max_attempts: self.chain_authorisation_check_max_attempts,
+            chain_authorisation_check_retry_delay: self.chain_authorisation_check_retry_delay,
+            result_submission_interval: self.result_submission_interval,
         })
     }
 

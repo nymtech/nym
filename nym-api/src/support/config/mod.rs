@@ -69,6 +69,7 @@ pub(crate) const CHAIN_STALL_THRESHOLD: Duration = Duration::from_secs(5 * 60);
 // contract info is changed very infrequently (essentially once per release cycle)
 // so this default is more than enough
 pub(crate) const DEFAULT_CONTRACT_DETAILS_CACHE_TTL: Duration = Duration::from_secs(60 * 60);
+pub(crate) const DEFAULT_NETWORK_MONITORS_CACHE_TTL: Duration = Duration::from_secs(30 * 60);
 
 pub(crate) const DEFAULT_NODE_SIGNERS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(600);
 pub(crate) const DEFAULT_NODE_SIGNERS_CACHE_REFRESHER_START_DELAY: Duration =
@@ -130,6 +131,9 @@ pub struct Config {
     #[serde(default)]
     pub contracts_info_cache: ContractsInfoCache,
 
+    #[serde(default)]
+    pub network_monitors_cache: NetworkMonitorsCache,
+
     pub rewarding: Rewarding,
 
     #[serde(default)]
@@ -159,6 +163,7 @@ impl Config {
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
             describe_cache: Default::default(),
             contracts_info_cache: Default::default(),
+            network_monitors_cache: Default::default(),
             rewarding: Default::default(),
             signers_cache: Default::default(),
             ecash_signer: EcashSigner::new_default(id.as_ref()),
@@ -355,6 +360,24 @@ impl Default for ContractsInfoCache {
     fn default() -> Self {
         ContractsInfoCache {
             time_to_live: DEFAULT_CONTRACT_DETAILS_CACHE_TTL,
+        }
+    }
+}
+
+/// Configuration for the in-memory cache of authorised network-monitor orchestrators.
+///
+/// Controls how often nym-api re-queries the network-monitors contract for the authorised set;
+/// a new orchestrator registering on-chain will not be recognised for submissions until the next
+/// refresh triggered by this TTL.
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct NetworkMonitorsCache {
+    pub time_to_live: Duration,
+}
+
+impl Default for NetworkMonitorsCache {
+    fn default() -> Self {
+        NetworkMonitorsCache {
+            time_to_live: DEFAULT_NETWORK_MONITORS_CACHE_TTL,
         }
     }
 }

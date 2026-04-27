@@ -7411,6 +7411,7 @@ dependencies = [
  "clap",
  "futures",
  "humantime",
+ "nym-api-requests",
  "nym-bin-common",
  "nym-crypto",
  "nym-http-api-common",

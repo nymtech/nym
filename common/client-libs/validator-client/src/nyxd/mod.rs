@@ -307,6 +307,10 @@ impl<C, S> NyxdClient<C, S> {
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
         self.config.simulated_gas_multiplier = multiplier;
     }
+
+    pub fn get_nym_contracts(&self) -> TypedNymContracts {
+        self.config.contracts.clone()
+    }
 }
 
 impl<C, S> NymContractsProvider for NyxdClient<C, S> {

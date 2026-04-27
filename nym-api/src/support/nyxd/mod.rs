@@ -39,9 +39,11 @@ use nym_validator_client::nyxd::contract_traits::performance_query_client::{
     LastSubmission, NodePerformance,
 };
 use nym_validator_client::nyxd::contract_traits::{
-    PagedDkgQueryClient, PagedPerformanceQueryClient, PerformanceQueryClient,
+    NetworkMonitorsQueryClient, PagedDkgQueryClient, PagedPerformanceQueryClient,
+    PerformanceQueryClient, TypedNymContracts,
 };
 use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitorOrchestrator;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
     contract_traits::{
@@ -167,12 +169,34 @@ impl Client {
         }
     }
 
+    /// Return the full set of Nym contract addresses currently configured on this client.
+    #[allow(dead_code)]
+    pub(crate) async fn known_contracts(&self) -> TypedNymContracts {
+        nyxd_query!(self, get_nym_contracts())
+    }
+
     pub(crate) async fn get_ecash_contract_address(&self) -> Result<AccountId, EcashError> {
         nyxd_query!(
             self,
             ecash_contract_address()
                 .cloned()
                 .ok_or_else(|| NyxdError::unavailable_contract_address("ecash contract").into())
+        )
+    }
+
+    /// Return the configured network-monitors contract address.
+    ///
+    /// Returns [`NyxdError::UnavailableContractAddress`] if the address is not configured - this
+    /// is the signal used upstream (e.g. in `NetworkMonitorsCache`) to warn that stress-test
+    /// submissions cannot be accepted.
+    pub(crate) async fn get_network_monitors_contract_address(
+        &self,
+    ) -> Result<AccountId, NyxdError> {
+        nyxd_query!(
+            self,
+            network_monitors_contract_address().cloned().ok_or_else(|| {
+                NyxdError::unavailable_contract_address("network monitors contract")
+            })
         )
     }
 
@@ -416,6 +440,17 @@ impl Client {
         epoch_id: nym_mixnet_contract_common::EpochId,
     ) -> Result<Vec<NodePerformance>, NyxdError> {
         nyxd_query!(self, get_all_epoch_performance(epoch_id).await)
+    }
+
+    /// Query the network-monitors contract for the full set of authorised orchestrators.
+    ///
+    /// This returns every orchestrator registered in the contract regardless of whether they
+    /// have announced an identity key yet - callers are responsible for filtering entries with
+    /// `identity_key == None`.
+    pub(crate) async fn get_all_network_monitor_orchestrators(
+        &self,
+    ) -> Result<Vec<AuthorisedNetworkMonitorOrchestrator>, NyxdError> {
+        Ok(nyxd_query!(self, get_network_monitor_orchestrators().await)?.authorised)
     }
 }
 

@@ -283,7 +283,7 @@ async fn get_node_annotation(
 
     Ok(output.to_response(AnnotationResponse {
         node_id,
-        annotation: annotations.get(&node_id).cloned(),
+        annotation: annotations.get(&node_id).cloned().map(Into::into),
     }))
 }
 
@@ -314,7 +314,7 @@ async fn get_current_node_performance(
         node_id,
         performance: annotations
             .get(&node_id)
-            .map(|n| n.last_24h_performance.naive_to_f64()),
+            .map(|n| n.detailed_performance.performance_score),
     }))
 }
 

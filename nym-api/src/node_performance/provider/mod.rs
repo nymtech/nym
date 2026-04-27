@@ -35,6 +35,24 @@ pub(crate) struct NodesStressTestingScores {
     inner: HashMap<NodeId, Result<StressTestingScore, PerformanceRetrievalFailure>>,
 }
 
+impl NodesStressTestingScores {
+    pub(crate) fn get_or_log(&self, node_id: NodeId) -> StressTestingScore {
+        todo!()
+        // match self.inner.get(&node_id) {
+        //     Some(Ok(score)) => *score,
+        //     Some(Err(err)) => {
+        //         debug!("{err}");
+        //         RoutingScore::zero()
+        //     }
+        //     None => RoutingScore::zero(),
+        // }
+    }
+
+    pub(crate) fn count(&self) -> usize {
+        self.inner.len()
+    }
+}
+
 pub(crate) struct NodesRoutingScores {
     inner: HashMap<NodeId, Result<RoutingScore, PerformanceRetrievalFailure>>,
 }
@@ -70,7 +88,7 @@ pub(crate) trait NodePerformanceProvider {
     /// An optimisation for obtaining node scores of multiple nodes at once
     async fn get_batch_node_routing_scores(
         &self,
-        node_ids: Vec<NodeId>,
+        node_ids: &[NodeId],
         epoch_id: EpochId,
     ) -> Result<NodesRoutingScores, PerformanceRetrievalFailure>;
 
@@ -85,7 +103,7 @@ pub(crate) trait NodePerformanceProvider {
     /// An optimisation for obtaining node scores of multiple nodes at once
     async fn get_batch_node_stress_testing_scores(
         &self,
-        node_ids: Vec<NodeId>,
+        node_ids: &[NodeId],
         epoch_id: EpochId,
     ) -> Result<NodesStressTestingScores, PerformanceRetrievalFailure>;
 }
@@ -103,7 +121,7 @@ impl NodePerformanceProvider for ContractPerformanceProvider {
 
     async fn get_batch_node_routing_scores(
         &self,
-        node_ids: Vec<NodeId>,
+        node_ids: &[NodeId],
         epoch_id: EpochId,
     ) -> Result<NodesRoutingScores, PerformanceRetrievalFailure> {
         self.node_routing_scores(node_ids, epoch_id).await
@@ -124,7 +142,7 @@ impl NodePerformanceProvider for ContractPerformanceProvider {
 
     async fn get_batch_node_stress_testing_scores(
         &self,
-        _: Vec<NodeId>,
+        _: &[NodeId],
         epoch_id: EpochId,
     ) -> Result<NodesStressTestingScores, PerformanceRetrievalFailure> {
         error!("stress testing data not available in contract data");
@@ -149,13 +167,13 @@ impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
 
     async fn get_batch_node_routing_scores(
         &self,
-        node_ids: Vec<NodeId>,
+        node_ids: &[NodeId],
         epoch_id: EpochId,
     ) -> Result<NodesRoutingScores, PerformanceRetrievalFailure> {
         let mut scores = HashMap::new();
 
         let epoch_timestamp = self.epoch_id_unix_timestamp(epoch_id).await?;
-        for node_id in node_ids {
+        for &node_id in node_ids {
             scores.insert(
                 node_id,
                 self.get_node_routing_score_with_unix_timestamp(node_id, epoch_id, epoch_timestamp)
@@ -176,7 +194,7 @@ impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
 
     async fn get_batch_node_stress_testing_scores(
         &self,
-        node_ids: Vec<NodeId>,
+        node_ids: &[NodeId],
         epoch_id: EpochId,
     ) -> Result<NodesStressTestingScores, PerformanceRetrievalFailure> {
         todo!()

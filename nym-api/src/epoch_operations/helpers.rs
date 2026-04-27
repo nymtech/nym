@@ -4,7 +4,7 @@
 use crate::epoch_operations::EpochAdvancer;
 use crate::support::caching::cache::UninitialisedCache;
 use cosmwasm_std::{Decimal, Fraction};
-use nym_api_requests::models::NodeAnnotation;
+use nym_api_requests::models::NodeAnnotationV2;
 use nym_mixnet_contract_common::helpers::IntoBaseDecimal;
 use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance, WorkFactor};
 use nym_mixnet_contract_common::{
@@ -211,7 +211,7 @@ fn determine_per_node_work(
 impl EpochAdvancer {
     fn load_performance(
         status_cache: &Result<
-            RwLockReadGuard<'_, HashMap<NodeId, NodeAnnotation>>,
+            RwLockReadGuard<'_, HashMap<NodeId, NodeAnnotationV2>>,
             UninitialisedCache,
         >,
         node_id: NodeId,

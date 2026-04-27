@@ -83,6 +83,8 @@ const DEFAULT_MIN_STRESS_TESTED_NODES: f32 = 0.8;
 // for now, try to use last 24h of data
 const DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
+const DEFAULT_STRESS_TESTING_SCORE_WEIGHT: f64 = 0.2;
+
 /// Derive default path to nym-api's config directory.
 /// It should get resolved to `$HOME/.nym/nym-api/<id>/config`
 pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
@@ -466,6 +468,9 @@ pub struct PerformanceProviderDebug {
     /// This is done to protect against Network Monitor failures and not receiving any data.
     pub minimum_available_stress_testing_results: f32,
 
+    /// If use_stress_testing_data is enabled, specifies the weight of the stress testing score in the overall performance score.
+    pub stress_testing_score_weight: f64,
+
     /// Specifies the duration of the rolling average used for stress testing score.
     #[serde(with = "humantime_serde")]
     pub stress_testing_data_period: Duration,
@@ -482,6 +487,7 @@ impl Default for PerformanceProviderDebug {
             // set this to true once sufficient number of nodes are being tested
             use_stress_testing_data: false,
             minimum_available_stress_testing_results: DEFAULT_MIN_STRESS_TESTED_NODES,
+            stress_testing_score_weight: DEFAULT_STRESS_TESTING_SCORE_WEIGHT,
             stress_testing_data_period: DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL,
         }
     }

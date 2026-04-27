@@ -170,6 +170,7 @@ members = [
     "wasm/client",
     # "wasm/full-nym-wasm",  # If we uncomment this again, remember to also uncomment the profile settings below
     "wasm/mix-fetch",
+    "wasm/smolmix",
     "wasm/node-tester",
     "wasm/zknym-lib",
     "nym-gateway-probe",
@@ -273,6 +274,7 @@ eyre = "0.6.9"
 fastrand = "2.1.1"
 flate2 = "1.1.1"
 futures = "0.3.31"
+futures-rustls = { version = "0.26", default-features = false }
 futures-util = "0.3"
 generic-array = "0.14.7"
 getrandom = "0.2.10"
@@ -286,6 +288,7 @@ hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "1"
 http-body-util = "0.1"
+httparse = "1.10"
 httpcodec = "0.2.3"
 human-repr = "1.1.0"
 humantime = "2.2.0"
@@ -336,6 +339,8 @@ regex = "1.10.6"
 reqwest = { version = "0.13.1", default-features = false }
 rs_merkle = "1.5.0"
 rustls = { version = "0.23.37", default-features = false }
+rustls-pki-types = "1"
+rustls-rustcrypto = "0.0.2-alpha"
 schemars = "0.8.22"
 semver = "1.0.26"
 serde = "1.0.219"
@@ -349,6 +354,7 @@ serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
 sha2 = "0.10.3"
 si-scale = "0.2.3"
+simple-dns = "0.11"
 smolmix = { version = "0.0.1", path = "smolmix/core" }
 smoltcp = "0.12"
 snow = "0.9.6"
@@ -596,6 +602,10 @@ opt-level = 'z'
 #opt-level = 'z'
 
 [profile.release.package.mix-fetch-wasm]
+# lto = true
+opt-level = 'z'
+
+[profile.release.package.smolmix-wasm]
 # lto = true
 opt-level = 'z'
 

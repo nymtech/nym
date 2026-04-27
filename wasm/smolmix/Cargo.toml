@@ -1,0 +1,63 @@
+[package]
+name = "smolmix-wasm"
+version = "0.0.1"
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+publish = false
+keywords = ["nym", "fetch", "wasm", "mixnet", "privacy"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+futures = { workspace = true }
+js-sys = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+wasmtimer = { workspace = true }
+
+# DNS resolution (no_std, pure Rust, wasm-safe)
+simple-dns = { workspace = true }
+
+# TLS
+rustls = { workspace = true, features = ["std"] }
+rustls-pki-types = { workspace = true, features = ["web"] }
+futures-rustls = { workspace = true }
+webpki-roots = { workspace = true }
+
+# HTTP parsing (no_std, zero-alloc, wasm-safe)
+httparse = { workspace = true }
+
+# WebSocket handshake (base64 for key encoding + accept verification)
+base64 = { workspace = true }
+
+# WASM utils (panic hook, console_log)
+nym-wasm-utils = { workspace = true }
+
+# Phase 2: Tunnel — smoltcp stack + Nym mixnet client + IPR protocol
+smoltcp = { workspace = true, features = ["std", "medium-ip", "proto-ipv4", "socket-tcp", "socket-udp"] }
+nym-wasm-client-core = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+bytes = { workspace = true }
+rand = { workspace = true }
+nym-bin-common = { workspace = true }
+
+# Pure-Rust TLS crypto provider (ring doesn't compile on wasm32-unknown-unknown)
+rustls-rustcrypto = { workspace = true, optional = true }
+
+# getrandom needs the "js" feature on wasm32 to use crypto.getRandomValues().
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
+workspace = true
+features = ["js"]
+
+[features]
+default = ["rustcrypto"]
+ring-crypto = ["rustls/ring", "futures-rustls/ring", "futures-rustls/tls12"]
+rustcrypto = ["dep:rustls-rustcrypto", "futures-rustls/tls12"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

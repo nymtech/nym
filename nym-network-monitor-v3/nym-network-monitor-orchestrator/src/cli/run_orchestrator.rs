@@ -9,6 +9,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::bip39;
 use std::mem;
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -95,8 +96,8 @@ pub(crate) struct Args {
     /// Maximum number of attempts (including the initial one) made to verify that this
     /// orchestrator's account is authorised in the network monitors contract before start-up.
     /// The process exits with an error once the budget is exhausted.
-    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_AUTH_CHECK_MAX_ATTEMPTS_ARG, default_value_t = 10)]
-    chain_authorisation_check_max_attempts: u32,
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_AUTH_CHECK_MAX_ATTEMPTS_ARG, default_value = "10")]
+    chain_authorisation_check_max_attempts: NonZeroU32,
 
     /// Delay between consecutive chain authorisation checks during start-up (e.g. `1m`, `30s`).
     /// Applied both when the query itself fails and when it succeeds but the orchestrator is not

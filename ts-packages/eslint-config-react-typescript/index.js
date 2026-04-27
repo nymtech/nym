@@ -23,7 +23,6 @@ module.exports = [
       },
       ecmaVersion: 2019,
       sourceType: 'module',
-      project: './tsconfig.json',
     },
     globals: {
       Atomics: 'readonly',
@@ -40,7 +39,7 @@ module.exports = [
     ],
     rules: {
       'jest/prefer-strict-equal': 'error',
-      'jest/prefer-to-have-length': 'warn',
+      'jest/prefer-to-have-length': 'error',
       'prettier/prettier': 'error',
       'import/prefer-default-export': 'off',
       'react/prop-types': 'off',

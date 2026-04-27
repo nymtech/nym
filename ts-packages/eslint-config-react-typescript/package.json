@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "license": "Apache-2.0",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./airbnb-typescript-base-flat": "./airbnb-typescript-base-flat.js"
+  },
   "peerDependencies": {
     "@typescript-eslint/eslint-plugin": ">= 8",
     "@typescript-eslint/parser": ">= 8",

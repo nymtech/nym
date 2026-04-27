@@ -7,6 +7,8 @@ module.exports = [
     typedGlobs: ['**/*.ts', '**/*.tsx'],
   }),
   {
+    // .storybook excluded: those .js files use JSX/optional-chaining without a matching parser.
+    // Follow-up: add a Storybook-scoped ESLint slice (parser + plugin:storybook/recommended).
     ignores: ['tsconfig.json', '**/*.d.ts', '.storybook/**', 'dist/**', 'node_modules/**', '*.config.js'],
   },
 ];

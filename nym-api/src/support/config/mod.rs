@@ -78,6 +78,10 @@ pub(crate) const DEFAULT_NODE_SIGNERS_CACHE_REFRESHER_START_DELAY: Duration =
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
 const DEFAULT_MIN_GATEWAY_RELIABILITY: u8 = 20;
+const DEFAULT_MIN_STRESS_TESTED_NODES: f32 = 0.8;
+
+// for now, try to use last 24h of data
+const DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// Derive default path to nym-api's config directory.
 /// It should get resolved to `$HOME/.nym/nym-api/<id>/config`
@@ -105,7 +109,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Config {
     // additional metadata holding on-disk location of this config file
     #[serde(skip)]
@@ -412,7 +416,7 @@ impl Default for MixnetContractCacheDebug {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct PerformanceProvider {
     /// Specifies whether this nym-api should attempt to retrieve node performance
     /// information from the performance contract.
@@ -432,7 +436,7 @@ impl Default for PerformanceProvider {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct PerformanceProviderDebug {
     /// Specifies interval of polling the performance contract. Note it is only applicable
     /// if the contract data is being used.
@@ -448,6 +452,22 @@ pub struct PerformanceProviderDebug {
     /// Specify the maximum number of epoch entries to be kept in the cache in case we needed non-current data
     // (currently we need an equivalent of full day worth of data for legacy endpoints)
     pub max_epoch_entries_to_retain: usize,
+
+    // this is semi-temporary. in the long-run this information will be stored in a smart contract
+    // and the nym-api will have no influence over its usage
+    /// Specify whether external stress testing data should be used for calculating node performance
+    /// score used for rewarding and active set selection
+    pub use_stress_testing_data: bool,
+
+    /// If `use_stress_testing_data` is set to true, this specifies the minimum % of nodes,
+    /// that must have their stress data available in the `stress_testing_data_period`,
+    /// in order to include that metric in performance calculation.
+    /// This is done to protect against Network Monitor failures and not receiving any data.
+    pub minimum_available_stress_testing_results: f32,
+
+    /// Specifies the duration of the rolling average used for stress testing score.
+    #[serde(with = "humantime_serde")]
+    pub stress_testing_data_period: Duration,
 }
 
 #[allow(clippy::derivable_impls)]
@@ -457,6 +477,11 @@ impl Default for PerformanceProviderDebug {
             contract_polling_interval: DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL,
             max_performance_fallback_epochs: DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS,
             max_epoch_entries_to_retain: DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS,
+
+            // set this to true once sufficient number of nodes are being tested
+            use_stress_testing_data: false,
+            minimum_available_stress_testing_results: DEFAULT_MIN_STRESS_TESTED_NODES,
+            stress_testing_data_period: DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL,
         }
     }
 }
@@ -680,7 +705,7 @@ impl Default for DescribeCacheDebug {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct Rewarding {
     /// Specifies whether rewarding service is enabled in this process.
@@ -702,7 +727,7 @@ impl Default for Rewarding {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct RewardingDebug {
     /// Specifies the minimum percentage of monitor test run data present in order to

@@ -220,13 +220,7 @@ fn create_ip_packet_response(
         ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
         ClientVersion::V9 => {
             let resp = v9::new_ip_packet_response(packets);
-            log::info!("IPR send data resp version byte: {}", resp.version);
-            let bytes = resp.to_bytes()?;
-            log::info!(
-                "IPR send data resp first byte: {:?}",
-                bytes.first().copied()
-            );
-            Ok(bytes)
+            resp.to_bytes()
         }
     }
 }

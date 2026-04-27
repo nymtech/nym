@@ -133,14 +133,7 @@ impl VersionedResponse {
             ClientVersion::V9 => {
                 let mut resp = IpPacketResponseV8::try_from(self)?;
                 resp.version = nym_ip_packet_requests::v9::VERSION;
-                log::info!("IPR send control resp version byte: {}", resp.version);
                 let bytes = resp.to_bytes();
-                if let Ok(ref bytes) = bytes {
-                    log::info!(
-                        "IPR send control resp first byte: {:?}",
-                        bytes.first().copied()
-                    );
-                }
                 bytes
             }
         }

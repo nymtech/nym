@@ -26,8 +26,8 @@ mod tests {
 
     #[test]
     fn stream_transport_threshold_is_consistent() {
-        assert_eq!(MAX_NON_STREAM_VERSION, v8::VERSION);
-        assert_eq!(SPHINX_STREAM_VERSION_THRESHOLD, v9::VERSION);
+        assert_eq!(MAX_NON_STREAM_VERSION, 8);
+        assert_eq!(SPHINX_STREAM_VERSION_THRESHOLD, 9);
         assert!(SPHINX_STREAM_VERSION_THRESHOLD > MAX_NON_STREAM_VERSION);
     }
 }

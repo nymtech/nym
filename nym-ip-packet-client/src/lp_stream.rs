@@ -4,6 +4,7 @@ use nym_lp::packet::frame::{
     LpFrame, LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
 use nym_sdk::mixnet::ReconstructedMessage;
+use tracing::trace;
 
 /// Whether the "current" IPR client is operating at a version where the node expects
 /// non-stream mixnet IPR messages to be LP Stream framed (see `SPHINX_STREAM_VERSION_THRESHOLD`).
@@ -16,11 +17,13 @@ pub fn maybe_unwrap_lp_stream_payload(data: &[u8]) -> &[u8] {
         return data;
     }
     let Ok(header) = LpFrameHeader::parse(data) else {
+        trace!("expected LP header but failed to parse; treating as raw payload");
         return data;
     };
     if header.kind == LpFrameKind::SphinxStream {
         &data[LpFrameHeader::SIZE..]
     } else {
+        trace!(kind = ?header.kind, "lp header parsed but not a sphinx stream frame; treating as raw payload");
         data
     }
 }

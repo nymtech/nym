@@ -315,7 +315,7 @@ async fn connect_exit(
     let mut ipr_client = IprClientConnect::new(mixnet_client, cancel_token);
 
     let maybe_ip_pair = ipr_client.connect(exit_router_address).await;
-    let stream_id = ipr_client.active_stream_id();
+    let stream_id = ipr_client.stream_id();
     let mixnet_client = ipr_client.into_mixnet_client();
 
     if let Ok(our_ips) = maybe_ip_pair {

@@ -5,6 +5,7 @@ use nym_network_defaults::{NymNetworkDetails, ValidatorDetails};
 use nym_validator_client::client;
 use nym_validator_client::nyxd::AccountId;
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
@@ -59,7 +60,7 @@ pub(crate) struct Config {
     /// Maximum number of attempts (including the initial one) made to verify that the
     /// orchestrator's account is authorised in the network monitors contract before start-up.
     /// The process exits with an error once the budget is exhausted.
-    pub(crate) chain_authorisation_check_max_attempts: u32,
+    pub(crate) chain_authorisation_check_max_attempts: NonZeroU32,
 
     /// Delay between consecutive chain authorisation checks during start-up. Applied both when
     /// the query itself fails and when it succeeds but the orchestrator is not (yet) listed.

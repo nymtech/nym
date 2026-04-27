@@ -17,7 +17,7 @@ pub fn maybe_unwrap_lp_stream_payload(data: &[u8]) -> &[u8] {
         return data;
     }
     let Ok(header) = LpFrameHeader::parse(data) else {
-        trace!("expected LP header but failed to parse; treating as raw payload");
+        warn!("expected LP header but failed to parse; treating as raw payload");
         return data;
     };
     if header.kind == LpFrameKind::SphinxStream {

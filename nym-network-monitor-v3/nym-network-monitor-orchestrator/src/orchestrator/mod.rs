@@ -133,12 +133,8 @@ impl NetworkMonitorOrchestrator {
     async fn verify_orchestrator_chain_authorisation(&self) -> anyhow::Result<Option<String>> {
         let query_client = self.client.read().await.nyxd.clone_query_client();
         let address = self.address().await;
-        let max_attempts = self.config.chain_authorisation_check_max_attempts;
+        let max_attempts = self.config.chain_authorisation_check_max_attempts.get();
         let retry_delay = self.config.chain_authorisation_check_retry_delay;
-
-        if max_attempts == 0 {
-            bail!("chain_authorisation_check_max_attempts must be at least 1");
-        }
 
         for attempt in 1..=max_attempts {
             match query_client.get_network_monitor_orchestrators().await {

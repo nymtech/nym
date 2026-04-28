@@ -1,11 +1,11 @@
 #![allow(deprecated)]
 
 use nym_api_requests::models::{
-    AnnotationResponseV1, DeclaredRolesV1, DescribedNodeTypeV1, GatewayCoreStatusResponse,
-    HistoricalPerformanceResponse, HistoricalUptimeResponse, MixnodeCoreStatusResponse,
-    MixnodeStatus, MixnodeStatusResponse, NodeAnnotationV2, NodeDatePerformanceResponse,
-    NodePerformanceResponse, PerformanceHistoryResponse, StakeSaturationResponse,
-    UptimeHistoryResponse,
+    AnnotationResponseV1, AnnotationResponseV2, DeclaredRolesV1, DescribedNodeTypeV1,
+    GatewayCoreStatusResponse, HistoricalPerformanceResponse, HistoricalUptimeResponse,
+    MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusResponse, NodeAnnotationV1,
+    NodeAnnotationV2, NodeDatePerformanceResponse, NodePerformanceResponse,
+    PerformanceHistoryResponse, StakeSaturationResponse, UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, Role};
@@ -152,6 +152,8 @@ fn main() -> anyhow::Result<()> {
     do_export!(StakeSaturationResponse);
     do_export!(NodeAnnotationV1);
     do_export!(AnnotationResponseV1);
+    do_export!(NodeAnnotationV2);
+    do_export!(AnnotationResponseV2);
     do_export!(NodePerformanceResponse);
     do_export!(NodeDatePerformanceResponse);
     do_export!(PerformanceHistoryResponse);

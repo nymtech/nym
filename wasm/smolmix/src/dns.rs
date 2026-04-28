@@ -1,5 +1,4 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 //! DNS A/AAAA resolution over the WASM tunnel's UDP transport.
 //!

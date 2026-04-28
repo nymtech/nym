@@ -1,5 +1,4 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 //! Fetch orchestrator — wires DNS → TCP → TLS → HTTP and handles JS interop.
 //!
@@ -200,9 +199,7 @@ pub(crate) async fn new_connection(
     }
 }
 
-// ---------------------------------------------------------------------------
 // RequestInit extraction (via js_sys::Reflect, no serde)
-// ---------------------------------------------------------------------------
 
 /// Extract method, headers, and body from a JS `RequestInit` object.
 fn parse_init(init: &JsValue) -> Result<FetchInit, FetchError> {
@@ -284,9 +281,7 @@ fn extract_body(init: &JsValue) -> Result<Option<Vec<u8>>, FetchError> {
     ))
 }
 
-// ---------------------------------------------------------------------------
 // Response serialisation (Rust → JS plain object)
-// ---------------------------------------------------------------------------
 
 /// Serialise an `HttpResponse` into a plain JS object for Comlink transfer.
 ///

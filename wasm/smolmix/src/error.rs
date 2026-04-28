@@ -1,9 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 use thiserror::Error;
 
-/// Unified error type — DNS, TLS, HTTP, and JS interop.
 #[derive(Error, Debug)]
 pub enum FetchError {
     #[error("URL error: {0}")]

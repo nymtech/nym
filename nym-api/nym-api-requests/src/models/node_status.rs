@@ -644,13 +644,28 @@ impl ConfigScore {
     feature = "generate-ts",
     ts(
         export,
-        export_to = "ts-packages/types/src/types/rust/AnnotationResponse.ts"
+        export_to = "ts-packages/types/src/types/rust/AnnotationResponseV1.ts"
     )
 )]
-pub struct AnnotationResponse {
+pub struct AnnotationResponseV1 {
     #[schema(value_type = u32)]
     pub node_id: NodeId,
     pub annotation: Option<NodeAnnotationV1>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/AnnotationResponseV2.ts"
+    )
+)]
+pub struct AnnotationResponseV2 {
+    #[schema(value_type = u32)]
+    pub node_id: NodeId,
+    pub annotation: Option<NodeAnnotationV2>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]

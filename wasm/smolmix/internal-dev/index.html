@@ -48,18 +48,6 @@
     <fieldset id="test-controls" disabled>
       <legend>Tests</legend>
 
-      <!-- HTTP (plain) -->
-      <h3>HTTP (plain)</h3>
-      <div>
-        <input type="text" size="60" id="http-url" value="http://httpbin.org/get" />
-        <button id="btn-http">GET</button>
-      </div>
-      <p style="font-size: 0.85em; color: #666">
-        Full pipeline: DNS + TCP + HTTP/1.1 (no TLS).
-      </p>
-
-      <hr />
-
       <!-- HTTPS -->
       <h3>HTTPS</h3>
       <div>
@@ -81,32 +69,6 @@
         <textarea id="post-body" rows="3" cols="60">{"title": "Test Post", "body": "Hello from smolmix-wasm!", "userId": 1}</textarea>
       </div>
       <button id="btn-post">POST</button>
-
-      <hr />
-
-      <!-- File Transfer (throughput measurement) -->
-      <h3>File Transfer</h3>
-      <div>
-        <label>Size:</label>
-        <select id="xfer-size">
-          <option value="102400">100 KB</option>
-          <option value="524288">512 KB</option>
-          <option value="1048576" selected>1 MB</option>
-          <option value="5242880">5 MB</option>
-        </select>
-        <label style="margin-left: 8px">Protocol:</label>
-        <select id="xfer-proto">
-          <option value="https" selected>HTTPS</option>
-          <option value="http">HTTP</option>
-        </select>
-        <button id="btn-download" style="margin-left: 8px">Download</button>
-        <button id="btn-upload">Upload</button>
-      </div>
-      <p style="font-size: 0.85em; color: #666; margin: 4px 0">
-        Measures sustained throughput (KB/s). Download uses <code>httpbin.org/bytes/N</code>,
-        upload POSTs to <code>httpbin.org/post</code>. First request includes DNS+TCP+TLS setup;
-        repeat requests hit the connection pool.
-      </p>
 
       <hr />
 
@@ -196,6 +158,48 @@
       <div style="margin-top: 8px">
         <button id="btn-stress">Run Stress Test</button>
         <span id="stress-status" style="margin-left: 10px"></span>
+      </div>
+
+      <hr />
+
+      <!-- File Download -->
+      <h3>File Download</h3>
+      <p style="font-size: 0.85em; color: #666; margin: 0 0 8px">
+        Download files through the mixnet. Saved to disk.
+      </p>
+
+      <div style="display: flex; gap: 12px; flex-wrap: wrap">
+        <!-- Text: UTF-8 Demo -->
+        <div style="flex: 1; min-width: 220px; padding: 8px; background: #f9f9f9; border: 1px solid #ddd">
+          <b>UTF-8 Demo</b>
+          <div style="font-size: 0.85em; color: #666; margin: 2px 0 6px">
+            ~14 KB — every Unicode script (Cambridge CS)
+          </div>
+          <button id="btn-verify-text">Fetch</button>
+          <span id="verify-text-status" style="margin-left: 6px; font-size: 0.85em"></span>
+          <pre id="verify-text-output" style="margin-top: 6px; max-height: 200px; overflow-y: auto; font-size: 0.8em; white-space: pre-wrap; display: none; background: #fff; padding: 6px; border: 1px solid #eee"></pre>
+        </div>
+
+        <!-- File download (configurable URL) -->
+        <div style="flex: 1; min-width: 220px; padding: 8px; background: #f9f9f9; border: 1px solid #ddd">
+          <b>File Download</b>
+          <div style="margin: 4px 0 6px">
+            <input type="text" size="50" id="download-url"
+              value="https://nymtech.net/uploads/Nym_WFP_Paper_5_58a1105679.pdf" />
+          </div>
+          <button id="btn-verify-pdf">Fetch</button>
+          <button id="btn-save-pdf" disabled style="margin-left: 4px">Save</button>
+          <span id="verify-pdf-status" style="margin-left: 6px; font-size: 0.85em"></span>
+          <div id="verify-pdf-output" style="margin-top: 6px; font-size: 0.8em; display: none">
+            <div>Size: <code id="verify-pdf-size"></code></div>
+            <div>SHA-256: <code id="verify-pdf-sha"></code></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 8px">
+        <button id="btn-verify-all">Run Both</button>
+        <span id="verify-all-status" style="margin-left: 6px; font-size: 0.85em"></span>
       </div>
     </fieldset>
 

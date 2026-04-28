@@ -3,8 +3,8 @@
 
 //! IPR (IP Packet Router) protocol layer for the WASM tunnel.
 //!
-//! Handles the v9 connect handshake and IP packet send/recv, using our local
-//! LP framing (lp.rs) instead of `MixnetStream` (which depends on tokio).
+//! Handles the v9 connect handshake and IP packet send/recv, using the
+//! upstream `nym_lp::packet::frame` wire format directly (no tokio deps).
 //!
 //! Data flow:
 //! ```text
@@ -14,7 +14,7 @@
 //!
 //! Reference: `sdk/rust/nym-sdk/src/ipr_wrapper/ip_mix_stream.rs`
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use std::sync::Arc;
@@ -22,6 +22,9 @@ use std::time::Duration;
 
 use nym_ip_packet_requests::v9::{self, response::IpPacketResponse};
 use nym_ip_packet_requests::IpPair;
+use nym_lp::packet::frame::{
+    LpFrame, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
+};
 use nym_wasm_client_core::client::base_client::ClientInput;
 use nym_wasm_client_core::client::inbound_messages::InputMessage;
 use nym_wasm_client_core::nym_task::connections::TransmissionLane;
@@ -29,12 +32,16 @@ use nym_wasm_client_core::Recipient;
 use nym_wasm_client_core::ReconstructedMessage;
 
 use crate::error::FetchError;
-use crate::lp;
 
-/// SURBs attached to the LP Open frame (establishes reply capability).
-const OPEN_REPLY_SURBS: u32 = 10;
+/// SURBs for the LP Open frame — higher than DATA so the IPR has a reply
+/// pool before data flows back.
+const OPEN_REPLY_SURBS: u32 = 5;
 
-/// SURBs attached to each data message (replenishes reply pool).
+/// SURBs per data message (replenishes reply pool).
+///
+/// Trade-off: fewer SURBs = smaller outgoing packets (faster sends),
+/// but limits download throughput (IPR can only reply with N packets).
+/// 2 fits in 1 Sphinx packet with minimal overhead.
 const DATA_REPLY_SURBS: u32 = 2;
 
 /// Timeout for the IPR connect handshake.
@@ -46,7 +53,7 @@ pub type ReconstructedReceiver = mpsc::UnboundedReceiver<Vec<ReconstructedMessag
 /// Open an LP stream to the IPR and perform the v9 connect handshake.
 ///
 /// Sends an LP Open frame (seq=0, empty payload), then a ConnectRequest
-/// (seq=1), and waits for a ConnectSuccess response with allocated IPs.
+/// (Data seq=0), and waits for a ConnectSuccess response with allocated IPs.
 pub async fn open_and_connect(
     client_input: &Arc<ClientInput>,
     receiver: &mut ReconstructedReceiver,
@@ -56,7 +63,7 @@ pub async fn open_and_connect(
     nym_wasm_utils::console_log!("[ipr] sending connect handshake (stream={stream_id:#018x})...");
 
     // 1. Send LP Open frame (empty payload, seq=0) — establishes the stream
-    let open_frame = lp::encode(stream_id, lp::MsgType::Open, 0, &[]);
+    let open_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Open, 0, &[]);
     send_anonymous(client_input, ipr_address, open_frame, OPEN_REPLY_SURBS).await?;
 
     // 2. Send v9 ConnectRequest as LP Data frame (seq=0).
@@ -69,7 +76,7 @@ pub async fn open_and_connect(
     let request_bytes = request
         .to_bytes()
         .map_err(|e| FetchError::Tunnel(format!("failed to serialise connect request: {e}")))?;
-    let data_frame = lp::encode(stream_id, lp::MsgType::Data, 0, &request_bytes);
+    let data_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Data, 0, &request_bytes);
     send_anonymous(client_input, ipr_address, data_frame, DATA_REPLY_SURBS).await?;
 
     // 3. Wait for ConnectSuccess response
@@ -81,15 +88,15 @@ pub async fn open_and_connect(
                 .ok_or_else(|| FetchError::Tunnel("message channel closed".into()))?;
 
             for msg in batch {
-                let Some(frame) = lp::decode(&msg.message) else {
+                let Some((attrs, content)) = decode_lp_stream(&msg.message) else {
                     continue;
                 };
 
-                if frame.stream_id != stream_id || frame.msg_type != lp::MsgType::Data {
+                if attrs.stream_id != stream_id || attrs.msg_type != SphinxStreamMsgType::Data {
                     continue;
                 }
 
-                let response = match IpPacketResponse::from_bytes(&frame.payload) {
+                let response = match IpPacketResponse::from_bytes(&content) {
                     Ok(r) => r,
                     Err(_) => continue,
                 };
@@ -120,7 +127,9 @@ pub async fn send_ip_packet(
     seq: u32,
     packet: &[u8],
 ) -> Result<(), FetchError> {
-    let bundled = bundle_one_packet(packet);
+    let bundled = nym_ip_packet_requests::codec::MultiIpPacketCodec::bundle_one_packet(
+        Bytes::copy_from_slice(packet),
+    );
 
     // Wrap in v9 DataRequest
     let request = v9::new_data_request(bundled);
@@ -129,7 +138,7 @@ pub async fn send_ip_packet(
         .map_err(|e| FetchError::Tunnel(format!("failed to serialise data request: {e}")))?;
 
     // LP-frame and send
-    let frame = lp::encode(stream_id, lp::MsgType::Data, seq, &request_bytes);
+    let frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Data, seq, &request_bytes);
     send_anonymous(client_input, ipr_address, frame, DATA_REPLY_SURBS).await
 }
 
@@ -145,15 +154,15 @@ pub fn parse_incoming(
     msg: &ReconstructedMessage,
     expected_stream_id: u64,
 ) -> Result<Option<Vec<Vec<u8>>>, FetchError> {
-    let Some(frame) = lp::decode(&msg.message) else {
+    let Some((attrs, content)) = decode_lp_stream(&msg.message) else {
         return Ok(None);
     };
 
-    if frame.stream_id != expected_stream_id || frame.msg_type != lp::MsgType::Data {
+    if attrs.stream_id != expected_stream_id || attrs.msg_type != SphinxStreamMsgType::Data {
         return Ok(None);
     }
 
-    match nym_ip_packet_requests::response_helpers::handle_ipr_response(&frame.payload) {
+    match nym_ip_packet_requests::response_helpers::handle_ipr_response(&content) {
         Some(nym_ip_packet_requests::response_helpers::MixnetMessageOutcome::IpPackets(
             packets,
         )) => Ok(Some(packets.into_iter().map(|b| b.to_vec()).collect())),
@@ -166,7 +175,44 @@ pub fn parse_incoming(
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// LP frame helpers
+// ---------------------------------------------------------------------------
+
+/// Encode a SphinxStream LP frame into bytes.
+fn encode_lp_frame(
+    stream_id: u64,
+    msg_type: SphinxStreamMsgType,
+    seq: u32,
+    payload: &[u8],
+) -> Vec<u8> {
+    let frame = LpFrame::new_stream(
+        SphinxStreamFrameAttributes {
+            stream_id,
+            msg_type,
+            sequence_num: seq,
+        },
+        payload.to_vec(),
+    );
+    let mut buf = BytesMut::with_capacity(16 + payload.len());
+    frame.encode(&mut buf);
+    buf.to_vec()
+}
+
+/// Decode a SphinxStream LP frame, returning (attributes, content).
+///
+/// Returns `None` if the data is too short, the frame kind isn't
+/// `SphinxStream`, or the attributes can't be parsed.
+fn decode_lp_stream(data: &[u8]) -> Option<(SphinxStreamFrameAttributes, Bytes)> {
+    let frame = LpFrame::decode(data).ok()?;
+    if frame.kind() != LpFrameKind::SphinxStream {
+        return None;
+    }
+    let attrs = SphinxStreamFrameAttributes::parse(&frame.header.frame_attributes).ok()?;
+    Some((attrs, frame.content))
+}
+
+// ---------------------------------------------------------------------------
+// Mixnet send helper
 // ---------------------------------------------------------------------------
 
 /// Send an anonymous mixnet message to the IPR with reply SURBs.
@@ -187,18 +233,4 @@ async fn send_anonymous(
         .send(msg)
         .await
         .map_err(|_| FetchError::Tunnel("mixnet input channel closed".into()))
-}
-
-/// Bundle a single IP packet in `MultiIpPacketCodec` format.
-///
-/// Wire format: `[len: u16 BE][packet bytes]`
-///
-/// Reimplemented locally to avoid depending on `tokio_util::codec` traits
-/// (the `MultiIpPacketCodec::bundle_one_packet` static method does exactly
-/// this, but the crate's codec module pulls in tokio-util).
-fn bundle_one_packet(packet: &[u8]) -> Bytes {
-    let mut buf = Vec::with_capacity(2 + packet.len());
-    buf.extend_from_slice(&(packet.len() as u16).to_be_bytes());
-    buf.extend_from_slice(packet);
-    Bytes::from(buf)
 }

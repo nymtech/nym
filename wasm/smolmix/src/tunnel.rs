@@ -1,33 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-2.0-only
 
-//! WASM mixnet tunnel — the browser-side equivalent of `smolmix::Tunnel`.
+//! WASM mixnet tunnel — manages a smoltcp TCP/IP stack connected to the Nym
+//! mixnet via an IPR (IP Packet Router), running in a browser Web Worker.
 //!
-//! Manages a smoltcp stack connected to the Nym mixnet via an IPR (IP Packet
-//! Router), running entirely in the browser's single-threaded WASM environment.
-//!
-//! # Architecture differences from native smolmix
-//!
-//! | Concern | Native | WASM |
-//! |---------|--------|------|
-//! | smoltcp driver | tokio-smoltcp (tokio reactor) | direct `Interface::poll` via `spawn_local` |
-//! | LP framing | `MixnetStream` (tokio AsyncWrite) | manual `lp::encode` / `lp::decode` |
-//! | I/O traits | `tokio::io::{AsyncRead, AsyncWrite}` | `futures::io::{AsyncRead, AsyncWrite}` |
-//! | Task spawning | `tokio::spawn` | `wasm_bindgen_futures::spawn_local` |
-//! | Shared state | `Arc<Mutex<>>` | `Arc<Mutex<>>` (no-op lock on wasm32) |
-//!
-//! # Data flow
-//!
+//! Data flow:
 //! ```text
-//! WasmTcpStream::poll_write(data)
-//!   → smoltcp tcp::Socket::send_slice(data)
-//!   → reactor: Interface::poll() → IP packets in device tx queue
-//!   → bridge: drain tx → bundle → LP frame → mixnet → IPR → internet
-//!
-//! internet → IPR → mixnet → ReconstructedMessage
-//!   → bridge: LP decode → parse IPR response → unbundle
-//!   → device rx queue → reactor: Interface::poll() → tcp::Socket rx buffer
-//!   → WasmTcpStream::poll_read() → data to caller
+//! poll_write → smoltcp → device tx → bridge → LP frame → mixnet → IPR → internet
+//! internet → IPR → mixnet → bridge → LP decode → device rx → smoltcp → poll_read
 //! ```
 
 use std::collections::HashMap;
@@ -67,7 +47,7 @@ use crate::reactor::{self, smoltcp_now, ReactorNotify, SmoltcpStack, SocketKind,
 /// Starting ephemeral port for TCP/UDP sockets.
 const EPHEMERAL_PORT_START: u16 = 49152;
 
-/// Configuration parsed from the JS `setupMixTunnel(opts)` object.
+/// Configuration for `setupMixTunnel(opts)`.
 pub struct TunnelOpts {
     pub ipr_address: Recipient,
     /// Client storage ID. Randomise per session to get a clean client.
@@ -80,10 +60,7 @@ pub struct TunnelOpts {
     pub disable_cover_traffic: bool,
 }
 
-/// WASM mixnet tunnel — the browser-side equivalent of `smolmix::Tunnel`.
-///
-/// Manages a smoltcp stack connected to the Nym mixnet via an IPR,
-/// running entirely in the browser's single-threaded WASM environment.
+/// The mixnet tunnel. Owns the smoltcp stack, base client, and connection pool.
 pub struct WasmTunnel {
     stack: Arc<Mutex<SmoltcpStack>>,
     client_input: Arc<ClientInput>,
@@ -96,50 +73,32 @@ pub struct WasmTunnel {
     /// Ephemeral port counter for new sockets.
     next_port: AtomicU16,
     allocated_ips: IpPair,
-    /// DNS resolution cache — avoids re-querying the same hostname.
     dns_cache: Mutex<HashMap<String, IpAddr>>,
-    /// Serialises DNS lookups so concurrent requests for the same hostname
-    /// coalesce: the first caller does the actual query and populates the
-    /// cache; subsequent callers acquire the lock, hit the cache, and return
-    /// immediately without creating duplicate UDP sockets.
+    /// Serialises DNS lookups so concurrent requests coalesce.
     dns_lock: futures::lock::Mutex<()>,
-    /// Connection pool keyed by (host, port). Holds at most one idle
-    /// connection per origin — sufficient for sequential `mixFetch` calls.
+    /// One idle connection per (host, port).
     conn_pool: Mutex<HashMap<(String, u16), PooledConn>>,
-    /// Per-origin locks: serialises requests to the same (host, port) so
-    /// concurrent fetches queue behind one connection instead of each opening
-    /// a separate TCP+TLS connection (which triggers server rate-limiting).
+    /// Per-origin locks to avoid stampeding parallel TCP+TLS handshakes.
     origin_locks: Mutex<HashMap<(String, u16), Arc<futures::lock::Mutex<()>>>>,
-    // Keep-alive fields: dropping these would shut down the base client
-    // or disconnect the received buffer pipeline.
+    // Dropping these shuts down the base client.
     _request_sender: ReceivedBufferRequestSender,
     _shutdown_handle: ShutdownTracker,
 }
 
-/// A connection that can be pooled — either TLS-wrapped or plain TCP.
-///
-/// Implements `futures::io::{AsyncRead, AsyncWrite}` by delegating to the
-/// inner stream, so `http::request()` works identically regardless of variant.
+/// A pooled connection — TLS or plain TCP. Delegates `AsyncRead + AsyncWrite`.
 pub(crate) enum PooledConn {
     Tls(futures_rustls::client::TlsStream<WasmTcpStream>),
     Plain(WasmTcpStream),
 }
 
-/// TCP stream over the WASM tunnel.
-///
-/// Implements `futures::io::{AsyncRead, AsyncWrite}` (NOT tokio traits)
-/// because tokio's reactor doesn't exist on wasm32. The fetch layer
-/// (tls.rs, http.rs) is built on these traits via `futures-rustls`.
+/// TCP stream over the WASM tunnel. Implements `futures::io::{AsyncRead, AsyncWrite}`.
 pub struct WasmTcpStream {
     stack: Arc<Mutex<SmoltcpStack>>,
     handle: SocketHandle,
     notify: ReactorNotify,
 }
 
-/// UDP socket over the WASM tunnel.
-///
-/// Provides `send_to` / `recv_from` for datagram I/O. Used by the DNS
-/// resolver to query nameservers through the mixnet.
+/// UDP socket over the WASM tunnel. Used for DNS queries.
 pub struct WasmUdpSocket {
     stack: Arc<Mutex<SmoltcpStack>>,
     handle: SocketHandle,
@@ -147,14 +106,7 @@ pub struct WasmUdpSocket {
 }
 
 impl WasmTunnel {
-    /// Create a new tunnel connected to the specified IPR exit node.
-    ///
-    /// This is the full startup sequence:
-    /// 1. Start a Nym base client (connects to gateway)
-    /// 2. Open an LP stream to the IPR
-    /// 3. Perform the v9 IPR connect handshake (allocates virtual IPs)
-    /// 4. Configure a smoltcp network stack
-    /// 5. Start the bridge (shuttles packets) and reactor (drives smoltcp)
+    /// Connect to the mixnet and establish an IPR tunnel.
     pub async fn new(opts: TunnelOpts) -> Result<Self, FetchError> {
         let ipr_address = opts.ipr_address;
         nym_wasm_utils::console_log!("[smolmix] starting tunnel...");
@@ -171,7 +123,6 @@ impl WasmTunnel {
         )
         .map_err(|e| FetchError::Tunnel(format!("config error: {e}")))?;
 
-        // Required for current network topology handling.
         config.debug.topology.ignore_egress_epoch_role = true;
 
         config
@@ -194,7 +145,6 @@ impl WasmTunnel {
                 .map_err(|e| FetchError::Tunnel(format!("keygen error: {e}")))?;
         }
 
-        // Check if we have an active gateway; if not, add one.
         let has_gateway = client_store
             .get_active_gateway_id()
             .await
@@ -231,7 +181,6 @@ impl WasmTunnel {
         let client_output = started_client.client_output.register_consumer();
         let shutdown_handle = started_client.shutdown_handle;
 
-        // -- 2. Set up message receiver --
         let (reconstructed_sender, mut reconstructed_receiver) = mpsc::unbounded();
         client_output
             .received_buffer_request_sender
@@ -284,10 +233,7 @@ impl WasmTunnel {
             wakers: Default::default(),
         }));
 
-        // -- 5. Start bridge + reactor --
-        // Data frames use a separate sequence space from Open frames (the
-        // receiver's reorder buffer only tracks Data).  ConnectRequest was
-        // Data seq=0, so the bridge continues from seq=1.
+        // Bridge starts at seq=1 (ConnectRequest was Data seq=0).
         let seq = Arc::new(AtomicU32::new(1));
         let shutdown = Arc::new(AtomicBool::new(false));
         let (notify_tx, notify_rx) = mpsc::unbounded();
@@ -326,23 +272,33 @@ impl WasmTunnel {
         })
     }
 
-    /// Open a TCP connection through the mixnet tunnel.
-    ///
-    /// Creates a smoltcp TCP socket, initiates the three-way handshake via
-    /// the tunnel, and returns a stream implementing `futures::io::AsyncRead
-    /// + AsyncWrite` once the connection is established.
+    /// Allocate the next ephemeral port (wraps at range boundary).
+    fn next_ephemeral_port(&self) -> u16 {
+        loop {
+            let current = self.next_port.load(Ordering::Relaxed);
+            let next = if current >= u16::MAX {
+                EPHEMERAL_PORT_START
+            } else {
+                current + 1
+            };
+            if self
+                .next_port
+                .compare_exchange(current, next, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                return current;
+            }
+        }
+    }
+
+    /// Open a TCP connection through the tunnel (SYN → established).
     pub async fn tcp_connect(&self, addr: SocketAddr) -> Result<WasmTcpStream, io::Error> {
         let remote = to_smoltcp_endpoint(addr);
-        let local_port = self.next_port.fetch_add(1, Ordering::Relaxed);
-        // 64 KiB buffers: TCP window ≈ rx buffer size, so with ~300 ms
-        // mixnet RTT this gives ~213 KB/s throughput per connection
-        // (vs 27 KB/s with the previous 8 KiB buffers).
+        let local_port = self.next_ephemeral_port();
         let tcp_rx = smoltcp_tcp::SocketBuffer::new(vec![0; 65536]);
         let tcp_tx = smoltcp_tcp::SocketBuffer::new(vec![0; 65536]);
         let mut socket = smoltcp_tcp::Socket::new(tcp_rx, tcp_tx);
-        // Keepalive probes every 10s prevent the IPR from timing out idle
-        // sessions. The probes are real IP packets that flow through the
-        // tunnel, keeping the entire path alive (gateway WS, mixnet, IPR).
+        // Keepalive probes keep the entire tunnel path alive (gateway WS, mixnet, IPR).
         socket.set_keep_alive(Some(smoltcp::time::Duration::from_millis(10_000)));
 
         let handle = {
@@ -350,7 +306,6 @@ impl WasmTunnel {
             let handle = s.sockets.add(socket);
             s.wakers.insert(handle, SocketWakers::new(SocketKind::Tcp));
 
-            // Split the borrow so we can access iface and sockets simultaneously.
             let SmoltcpStack {
                 ref mut iface,
                 ref mut sockets,
@@ -403,7 +358,7 @@ impl WasmTunnel {
 
     /// Create a UDP socket bound to an ephemeral port.
     pub async fn udp_socket(&self) -> Result<WasmUdpSocket, io::Error> {
-        let local_port = self.next_port.fetch_add(1, Ordering::Relaxed);
+        let local_port = self.next_ephemeral_port();
         let udp_rx = smoltcp_udp::PacketBuffer::new(
             vec![smoltcp_udp::PacketMetadata::EMPTY; 16],
             vec![0; 65535],
@@ -496,10 +451,21 @@ impl AsyncRead for WasmTcpStream {
             let n = socket
                 .recv_slice(buf)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
+            nym_wasm_utils::console_log!("[tcp:read] Ready({n})");
+            // Notify reactor — recv_slice() frees rx buffer, needs a
+            // prompt window update ACK to keep the sender flowing.
+            let _ = self.notify.unbounded_send(());
             Poll::Ready(Ok(n))
-        } else if !socket.is_open() {
+        } else if !socket.may_recv() {
+            // Remote sent FIN — EOF. `may_recv()` is false for CloseWait,
+            // LastAck, Closed, TimeWait (unlike `is_open()` which misses CloseWait).
             Poll::Ready(Ok(0))
         } else {
+            nym_wasm_utils::console_log!(
+                "[tcp:read] Pending (state={:?}, buf={})",
+                socket.state(),
+                buf.len(),
+            );
             s.wakers.get_mut(&self.handle).unwrap().read = Some(cx.waker().clone());
             Poll::Pending
         }

@@ -70,11 +70,15 @@ fn make_client_config() -> Result<Arc<ClientConfig>, FetchError> {
     let mut root_store = rustls::RootCertStore::empty();
     root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
-    let config = ClientConfig::builder_with_provider(provider)
+    let mut config = ClientConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
         .map_err(|e| FetchError::Http(format!("TLS config error: {e}")))?
         .with_root_certificates(root_store)
         .with_no_client_auth();
+
+    // ALPN: advertise HTTP/1.1 so CDNs (GitHub, Cloudflare) that require
+    // protocol negotiation don't abort the handshake with an EOF.
+    config.alpn_protocols = vec![b"http/1.1".to_vec()];
 
     let config = Arc::new(config);
     Ok(TLS_CONFIG.get_or_init(|| config.clone()).clone())

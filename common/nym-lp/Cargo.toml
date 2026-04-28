@@ -13,26 +13,31 @@ readme.workspace = true
 publish = true
 
 [dependencies]
+# Always available (light deps only). Consumers that need just the data
+# types (frame, header, codec) can set `default-features = false` on nym-lp
+# and avoid pulling in the heavy crypto stack below. See
+# `wasm/smolmix/Cargo.toml` for the wasm32 consumer that does this.
 thiserror = { workspace = true }
-bs58 = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
-rand09 = { workspace = true }
-tls_codec = { workspace = true }
-tokio = { workspace = true, features = ["net", "io-util"] }
-
-nym-crypto = { workspace = true, features = ["hashing"] }
+num_enum = { workspace = true }
 nym-common.workspace = true
-nym-kkt = { workspace = true }
-nym-kkt-ciphersuite = { workspace = true }
 nym-lp-data.workspace = true
 
-# libcrux dependencies for PSQ (Post-Quantum PSK derivation)
-libcrux-psq = { workspace = true, features = ["test-utils"] }
-zeroize = { workspace = true, features = ["zeroize_derive"] }
+# Heavy deps — gated behind the `full` feature. These (libcrux-psq, nym-kkt,
+# nym-crypto, etc.) do not compile to `wasm32-unknown-unknown`, so any
+# wasm32 consumer must opt out via `default-features = false`.
+bs58 = { workspace = true, optional = true }
+rand09 = { workspace = true, optional = true }
+tls_codec = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["net", "io-util"], optional = true }
+zeroize = { workspace = true, features = ["zeroize_derive"], optional = true }
+nym-crypto = { workspace = true, features = ["hashing"], optional = true }
+nym-kkt = { workspace = true, optional = true }
+nym-kkt-ciphersuite = { workspace = true, optional = true }
+libcrux-psq = { workspace = true, features = ["test-utils"], optional = true }
 
-
-# needed for the 'mock 'feature
+# Needed only for the `mock` feature (test-mode handshakes etc).
 nym-test-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -41,9 +46,20 @@ nym-test-utils = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
-
 [features]
-mock = ["nym-test-utils"]
+default = ["full"]
+full = [
+    "dep:bs58",
+    "dep:rand09",
+    "dep:tls_codec",
+    "dep:tokio",
+    "dep:zeroize",
+    "dep:nym-crypto",
+    "dep:nym-kkt",
+    "dep:nym-kkt-ciphersuite",
+    "dep:libcrux-psq",
+]
+mock = ["full", "nym-test-utils"]
 
 [[bench]]
 name = "replay_protection"

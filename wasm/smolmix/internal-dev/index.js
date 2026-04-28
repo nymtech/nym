@@ -48,6 +48,14 @@ function display(msg, colour) {
   outputEl.scrollTop = outputEl.scrollHeight;
 }
 
+// Hex preview of a Uint8Array/ArrayBuffer — first `maxBytes` shown as hex pairs
+function hexPreview(data, maxBytes = 64) {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const len = Math.min(bytes.length, maxBytes);
+  const hex = Array.from(bytes.slice(0, len), b => b.toString(16).padStart(2, '0')).join(' ');
+  return bytes.length > maxBytes ? `${hex} ...` : hex;
+}
+
 // ---------------------------------------------------------------------------
 // Response wrapper
 // ---------------------------------------------------------------------------
@@ -136,7 +144,7 @@ document.getElementById('btn-disconnect').addEventListener('click', async () => 
 });
 
 // ---------------------------------------------------------------------------
-// HTTP (plain) / HTTPS
+// HTTPS GET
 // ---------------------------------------------------------------------------
 
 async function doGet(url) {
@@ -148,22 +156,11 @@ async function doGet(url) {
     const ms = (performance.now() - t0).toFixed(0);
     display(`${resp.status} ${resp.statusText} (${ms} ms)`, 'green');
 
-    const ct = resp.headers.get('content-type') || '';
-    if (ct.includes('json')) {
-      const json = await resp.json();
-      display(`Body: ${JSON.stringify(json)}`);
-    } else {
-      const text = await resp.text();
-      display(`Body (${text.length} chars): ${text.slice(0, 500)}`);
-    }
+    // Body logged to browser devtools (Rust side) — keep output panel clean
   } catch (e) {
     display(`GET failed: ${e}`, 'red');
   }
 }
-
-document.getElementById('btn-http').addEventListener('click', () => {
-  doGet(document.getElementById('http-url').value.trim());
-});
 
 document.getElementById('btn-https').addEventListener('click', () => {
   doGet(document.getElementById('https-url').value.trim());
@@ -188,15 +185,14 @@ document.getElementById('btn-post').addEventListener('click', async () => {
     const resp = toResponse(raw);
     const ms = (performance.now() - t0).toFixed(0);
     display(`${resp.status} ${resp.statusText} (${ms} ms)`, 'green');
-    const json = await resp.json();
-    display(`Body: ${JSON.stringify(json)}`);
+    await resp.text(); // consume body (logged on Rust side)
   } catch (e) {
     display(`POST failed: ${e}`, 'red');
   }
 });
 
 // ---------------------------------------------------------------------------
-// File transfer (throughput measurement)
+// Formatting helpers
 // ---------------------------------------------------------------------------
 
 function formatSize(bytes) {
@@ -210,66 +206,6 @@ function formatRate(bytes, ms) {
   return kbps.toFixed(1) + ' KB/s';
 }
 
-document.getElementById('btn-download').addEventListener('click', async () => {
-  const size = parseInt(document.getElementById('xfer-size').value, 10);
-  const proto = document.getElementById('xfer-proto').value;
-  const url = `${proto}://httpbin.org/bytes/${size}`;
-
-  document.getElementById('btn-download').disabled = true;
-  display(`Download ${formatSize(size)} from ${url}...`);
-
-  const t0 = performance.now();
-  try {
-    const raw = await api.mixFetch(url, {});
-    const resp = toResponse(raw);
-    const body = await resp.arrayBuffer();
-    const ms = performance.now() - t0;
-
-    display(
-      `Download complete: ${formatSize(body.byteLength)} in ${(ms / 1000).toFixed(2)}s ` +
-      `(${formatRate(body.byteLength, ms)})`,
-      'green'
-    );
-  } catch (e) {
-    const ms = performance.now() - t0;
-    display(`Download failed after ${(ms / 1000).toFixed(2)}s: ${e}`, 'red');
-  }
-  document.getElementById('btn-download').disabled = false;
-});
-
-document.getElementById('btn-upload').addEventListener('click', async () => {
-  const size = parseInt(document.getElementById('xfer-size').value, 10);
-  const proto = document.getElementById('xfer-proto').value;
-  const url = `${proto}://httpbin.org/post`;
-
-  // Generate a payload of random bytes
-  const payload = new Uint8Array(size);
-  crypto.getRandomValues(payload);
-
-  document.getElementById('btn-upload').disabled = true;
-  display(`Upload ${formatSize(size)} to ${url}...`);
-
-  const t0 = performance.now();
-  try {
-    const raw = await api.mixFetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: payload,
-    });
-    const resp = toResponse(raw);
-    const ms = performance.now() - t0;
-
-    display(
-      `Upload complete: ${resp.status} ${resp.statusText}, ${formatSize(size)} in ` +
-      `${(ms / 1000).toFixed(2)}s (${formatRate(size, ms)})`,
-      'green'
-    );
-  } catch (e) {
-    const ms = performance.now() - t0;
-    display(`Upload failed after ${(ms / 1000).toFixed(2)}s: ${e}`, 'red');
-  }
-  document.getElementById('btn-upload').disabled = false;
-});
 
 // ---------------------------------------------------------------------------
 // WebSocket
@@ -324,9 +260,16 @@ document.getElementById('btn-ws-connect').addEventListener('click', () => {
   };
 
   ws.onmessage = (e) => {
-    const preview = typeof e.data === 'string'
-      ? e.data.slice(0, 200)
-      : `[binary ${e.data.byteLength || e.data.size} bytes]`;
+    let preview;
+    if (typeof e.data === 'string') {
+      preview = e.data.length <= 200 ? e.data : e.data.slice(0, 200) + '...';
+    } else if (e.data instanceof ArrayBuffer) {
+      preview = `[binary ${e.data.byteLength} bytes] ${hexPreview(e.data)}`;
+    } else if (e.data instanceof Blob) {
+      preview = `[blob ${e.data.size} bytes]`;
+    } else {
+      preview = `[unknown ${typeof e.data}]`;
+    }
 
     let rttMs = null;
     if (wsSendQueue.length > 0) {
@@ -440,6 +383,7 @@ document.getElementById('btn-ws-burst').addEventListener('click', async () => {
   let verified = 0;
   let mismatches = 0;
   const sizes = [];
+  let firstRecvHex = null;
 
   const burstDone = new Promise((resolve) => {
     wsBurstResolve = resolve;
@@ -457,6 +401,7 @@ document.getElementById('btn-ws-burst').addEventListener('click', async () => {
       const sent = payloads[received];
       const recvBuf = new Uint8Array(e.data);
       sizes.push(recvBuf.byteLength);
+      if (firstRecvHex === null) firstRecvHex = hexPreview(recvBuf);
 
       if (sent && recvBuf.byteLength === sent.byteLength) {
         let match = true;
@@ -577,6 +522,7 @@ async function runOneStressRequest(req) {
     const body = await resp.text();
     const elapsed = ((performance.now() - start) / 1000).toFixed(2);
     display(`[${tag}] ${resp.status} OK ${elapsed}s (${body.length}B)`, 'green');
+
     return { id: req.id, label: req.label, ok: true, status: resp.status, elapsed, textLength: body.length };
   } catch (e) {
     const elapsed = ((performance.now() - start) / 1000).toFixed(2);
@@ -635,6 +581,139 @@ document.getElementById('stress-mode').addEventListener('change', function () {
   document.getElementById('stress-uniform-opts').style.display = this.value === 'uniform' ? 'block' : 'none';
   document.getElementById('stress-mixed-opts').style.display = this.value === 'mixed' ? 'block' : 'none';
   document.getElementById('stress-drip-opts').style.display = this.value === 'drip' ? 'block' : 'none';
+});
+
+// ---------------------------------------------------------------------------
+// File download
+// ---------------------------------------------------------------------------
+
+const VERIFY_TEXT_URL = 'https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-demo.txt';
+
+
+async function sha256hex(bytes) {
+  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Trigger a browser download (Save As) for an ArrayBuffer
+function saveFile(buf, filename, mimeType) {
+  const blob = new Blob([buf], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Cached ArrayBuffer for Save button
+let cachedPdf = null;
+
+// -- Text: UTF-8 demo --
+
+async function verifyText() {
+  const statusEl = document.getElementById('verify-text-status');
+  const outputEl = document.getElementById('verify-text-output');
+  document.getElementById('btn-verify-text').disabled = true;
+  statusEl.textContent = 'Fetching...';
+  statusEl.style.color = 'orange';
+
+  const t0 = performance.now();
+  try {
+    const raw = await api.mixFetch(VERIFY_TEXT_URL, {});
+    const resp = toResponse(raw);
+    const text = await resp.text();
+    const ms = (performance.now() - t0).toFixed(0);
+
+    statusEl.textContent = `${formatSize(text.length)} in ${ms} ms`;
+    statusEl.style.color = 'green';
+    outputEl.style.display = 'block';
+    outputEl.textContent = text;
+    display(`[verify] UTF-8 demo: ${formatSize(text.length)} in ${ms} ms`, 'green');
+  } catch (e) {
+    statusEl.textContent = `Failed: ${e}`;
+    statusEl.style.color = 'red';
+    display(`[verify] UTF-8 demo FAILED: ${e}`, 'red');
+  }
+  document.getElementById('btn-verify-text').disabled = false;
+}
+
+// -- File download (configurable URL) --
+
+async function fetchFile() {
+  const url = document.getElementById('download-url').value.trim();
+  if (!url) {
+    display('Download URL is required', 'red');
+    return;
+  }
+
+  const statusEl = document.getElementById('verify-pdf-status');
+  const outputEl = document.getElementById('verify-pdf-output');
+  document.getElementById('btn-verify-pdf').disabled = true;
+  document.getElementById('btn-save-pdf').disabled = true;
+  cachedPdf = null;
+  statusEl.textContent = 'Fetching...';
+  statusEl.style.color = 'orange';
+
+  const t0 = performance.now();
+  try {
+    const raw = await api.mixFetch(url, {});
+    const resp = toResponse(raw);
+    const buf = await resp.arrayBuffer();
+    const ms = (performance.now() - t0).toFixed(0);
+    const hash = await sha256hex(buf);
+
+    document.getElementById('verify-pdf-size').textContent =
+      `${buf.byteLength.toLocaleString()} bytes`;
+    document.getElementById('verify-pdf-sha').textContent = hash;
+
+    statusEl.textContent = `${formatSize(buf.byteLength)} in ${(parseFloat(ms) / 1000).toFixed(1)}s`;
+    statusEl.style.color = 'green';
+    outputEl.style.display = 'block';
+
+    cachedPdf = buf;
+    document.getElementById('btn-save-pdf').disabled = false;
+
+    display(
+      `[download] ${formatSize(buf.byteLength)} in ${(parseFloat(ms) / 1000).toFixed(1)}s ` +
+      `(${formatRate(buf.byteLength, parseFloat(ms))}) — SHA-256: ${hash.slice(0, 16)}...`,
+      'green'
+    );
+  } catch (e) {
+    statusEl.textContent = `Failed: ${e}`;
+    statusEl.style.color = 'red';
+    display(`[download] FAILED: ${e}`, 'red');
+  }
+  document.getElementById('btn-verify-pdf').disabled = false;
+}
+
+
+// Event listeners
+
+document.getElementById('btn-verify-text').addEventListener('click', verifyText);
+document.getElementById('btn-verify-pdf').addEventListener('click', fetchFile);
+
+document.getElementById('btn-save-pdf').addEventListener('click', () => {
+  if (!cachedPdf) return;
+  // Extract filename from URL, fall back to 'download'
+  const url = document.getElementById('download-url').value.trim();
+  const filename = url.split('/').pop()?.split('?')[0] || 'download';
+  saveFile(cachedPdf, filename, 'application/octet-stream');
+});
+
+document.getElementById('btn-verify-all').addEventListener('click', async () => {
+  const statusEl = document.getElementById('verify-all-status');
+  statusEl.textContent = 'Running...';
+  statusEl.style.color = 'orange';
+  display('[download] running both downloads...');
+
+  const t0 = performance.now();
+  await Promise.allSettled([verifyText(), fetchFile()]);
+  const totalMs = (performance.now() - t0).toFixed(0);
+
+  statusEl.textContent = `Done in ${(parseFloat(totalMs) / 1000).toFixed(1)}s`;
+  statusEl.style.color = 'green';
+  display(`[download] both complete in ${(parseFloat(totalMs) / 1000).toFixed(1)}s`, 'green');
 });
 
 // ---------------------------------------------------------------------------

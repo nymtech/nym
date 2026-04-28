@@ -26,3 +26,4 @@ tracing.workspace = true
 
 nym-sdk = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
+nym-lp = { workspace = true }

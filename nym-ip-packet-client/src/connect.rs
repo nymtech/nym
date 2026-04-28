@@ -14,7 +14,7 @@ use tracing::{debug, error};
 use nym_ip_packet_requests::response_helpers::{self, IprResponseError};
 
 use crate::{
-    current::{request::IpPacketRequest, response::IpPacketResponse},
+    current::{self, response::IpPacketResponse},
     error::{Error, Result},
     helpers::check_ipr_message_version,
 };
@@ -24,8 +24,12 @@ const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum ConnectionState {
     Disconnected,
-    Connecting,
-    Connected,
+    Connecting {
+        stream_id: u64,
+    },
+    Connected {
+        stream_id: u64,
+    },
     #[allow(unused)]
     Disconnecting,
 }
@@ -51,17 +55,27 @@ impl IprClientConnect {
         self.mixnet_client
     }
 
+    pub fn stream_id(&self) -> Option<u64> {
+        match self.connected {
+            ConnectionState::Connecting { stream_id }
+            | ConnectionState::Connected { stream_id } => Some(stream_id),
+            ConnectionState::Disconnected | ConnectionState::Disconnecting => None,
+        }
+    }
+
     pub async fn connect(&mut self, ip_packet_router_address: Recipient) -> Result<IpPair> {
         if self.connected != ConnectionState::Disconnected {
             return Err(Error::AlreadyConnected);
         }
 
         tracing::info!("Connecting to exit gateway");
-        self.connected = ConnectionState::Connecting;
         match self.connect_inner(ip_packet_router_address).await {
             Ok(ips) => {
                 debug!("Successfully connected to the ip-packet-router");
-                self.connected = ConnectionState::Connected;
+                let Some(stream_id) = self.stream_id() else {
+                    return Err(Error::UnexpectedConnectResponse);
+                };
+                self.connected = ConnectionState::Connected { stream_id };
                 Ok(ips)
             }
             Err(err) => {
@@ -74,21 +88,37 @@ impl IprClientConnect {
 
     async fn connect_inner(&mut self, ip_packet_router_address: Recipient) -> Result<IpPair> {
         let request_id = self.send_connect_request(ip_packet_router_address).await?;
+        self.connected = ConnectionState::Connecting {
+            stream_id: request_id,
+        };
 
         debug!("Waiting for reply...");
         self.listen_for_connect_response(request_id).await
     }
 
-    async fn send_connect_request(&self, ip_packet_router_address: Recipient) -> Result<u64> {
-        let (request, request_id) = IpPacketRequest::new_connect_request(None);
+    async fn send_connect_request(&mut self, ip_packet_router_address: Recipient) -> Result<u64> {
+        let (request, request_id) = current::new_connect_request(None);
+        tracing::info!(
+            request_id = request_id,
+            protocol_version = request.protocol.version,
+            current_version = crate::current::VERSION,
+            "Sending IPR connect request"
+        );
+        if let Ok(bytes) = request.to_bytes() {
+            let prefix = bytes.get(0..2).unwrap_or(&bytes);
+            let prefix_hex = format!("{:02x?}", prefix);
+            tracing::info!(request_id = request_id, prefix = %prefix_hex, "IPR connect bytes prefix");
+        }
 
         // We use 20 surbs for the connect request because typically the IPR is configured to have
         // a min threshold of 10 surbs that it reserves for itself to request additional surbs.
         let surbs = 20;
+        let request_bytes = request.to_bytes()?;
+        let framed_bytes = maybe_wrap_stream_frame(request_id, 0, request_bytes);
         self.mixnet_client
             .send(create_input_message(
                 ip_packet_router_address,
-                request,
+                framed_bytes,
                 surbs,
             )?)
             .await
@@ -129,13 +159,19 @@ impl IprClientConnect {
                         for msg in msgs {
                             // Confirm that the version is correct
                             if let Err(err) = check_ipr_message_version(&msg) {
-                                tracing::info!("Mixnet message version mismatch: {err}");
+                                let raw: &[u8] = msg.message.as_ref();
+                                tracing::warn!(
+                                    first_byte = raw.first().copied(),
+                                    expected = crate::current::VERSION,
+                                    len = raw.len(),
+                                    "Mixnet message version mismatch: {err}"
+                                );
                                 continue;
                             }
 
                             // Then we deserialize the message
                             tracing::debug!("IprClient: got message while waiting for connect response");
-                            let Ok(response) = IpPacketResponse::from_reconstructed_message(&msg) else {
+                            let Ok(response) = ipr_response_from_reconstructed_message(&msg) else {
                                 // This is ok, it's likely just one of our self-pings
                                 tracing::debug!("Failed to deserialize mixnet message");
                                 continue;
@@ -160,14 +196,27 @@ impl IprClientConnect {
     }
 }
 
-fn create_input_message(
-    recipient: Recipient,
-    request: IpPacketRequest,
-    surbs: u32,
-) -> Result<InputMessage> {
+fn maybe_wrap_stream_frame(stream_id: u64, sequence_num: u32, payload: Vec<u8>) -> Vec<u8> {
+    if !crate::lp_stream::current_requires_sphinx_stream_transport() {
+        return payload;
+    }
+
+    crate::lp_stream::encode_stream_frame(stream_id, sequence_num, payload)
+}
+
+fn ipr_response_from_reconstructed_message(
+    msg: &nym_sdk::mixnet::ReconstructedMessage,
+) -> std::result::Result<IpPacketResponse, bincode::Error> {
+    let warn_on_unexpected = crate::lp_stream::current_requires_sphinx_stream_transport();
+    let payload =
+        crate::lp_stream::maybe_unwrap_lp_stream_payload(&msg.message, warn_on_unexpected);
+    IpPacketResponse::from_bytes(payload)
+}
+
+fn create_input_message(recipient: Recipient, bytes: Vec<u8>, surbs: u32) -> Result<InputMessage> {
     Ok(InputMessage::new_anonymous(
         recipient,
-        request.to_bytes()?,
+        bytes,
         surbs,
         TransmissionLane::General,
         None,

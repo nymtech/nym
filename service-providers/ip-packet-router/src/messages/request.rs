@@ -10,6 +10,7 @@ use nym_ip_packet_requests::{
     IpPair, v6::request::IpPacketRequest as IpPacketRequestV6,
     v7::request::IpPacketRequest as IpPacketRequestV7,
     v8::request::IpPacketRequest as IpPacketRequestV8,
+    v9::request::IpPacketRequest as IpPacketRequestV9,
 };
 use nym_sdk::mixnet::ReconstructedMessage;
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
@@ -131,14 +132,14 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                 Ok(IpPacketRequest::from((request_v8, sender_tag)))
             }
             9 => {
-                let request_v8 = IpPacketRequestV8::from_reconstructed_message(reconstructed)
+                let request_v9 = IpPacketRequestV9::from_reconstructed_message(reconstructed)
                     .map_err(
                         |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
                     )?;
                 let sender_tag = reconstructed
                     .sender_tag
                     .ok_or(IpPacketRouterError::MissingSenderTag)?;
-                Ok(v9::convert(request_v8, sender_tag))
+                Ok(v9::convert(request_v9, sender_tag))
             }
             _ => {
                 log::info!("Received packet with invalid version: v{request_version}");

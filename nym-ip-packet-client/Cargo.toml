@@ -25,5 +25,5 @@ tokio.workspace = true
 tracing.workspace = true
 
 nym-sdk = { workspace = true }
-nym-ip-packet-requests = { workspace = true }
+nym-ip-packet-requests = { workspace = true, default-features = true }
 nym-lp = { workspace = true }

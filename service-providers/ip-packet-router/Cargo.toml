@@ -25,8 +25,8 @@ nym-config = { workspace = true }
 nym-crypto = { workspace = true }
 nym-exit-policy = { workspace = true }
 nym-id = { workspace = true }
-nym-ip-packet-requests = { workspace = true }
-nym-lp = { workspace = true }
+nym-ip-packet-requests = { workspace = true, default-features = true }
+nym-lp = { workspace = true, default-features = true }
 nym-network-defaults = { workspace = true }
 nym-network-requester = { path = "../network-requester" }
 nym-sdk = { workspace = true }

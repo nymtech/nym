@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use bytes::{Buf, Bytes, BytesMut};
+#[cfg(feature = "codec")]
 use tokio_util::codec::{Decoder, Encoder};
 
 #[derive(thiserror::Error, Debug)]
@@ -37,6 +38,23 @@ impl MultiIpPacketCodec {
         bundled_packets.extend_from_slice(&(packet.len() as u16).to_be_bytes());
         bundled_packets.extend_from_slice(&packet);
         bundled_packets.freeze()
+    }
+
+    /// Decode one length-prefixed packet from `src`, advancing past it.
+    ///
+    /// Same logic as the `Decoder` impl but available without the `codec`
+    /// feature (i.e. without depending on `tokio-util`).
+    pub fn decode_one(&mut self, src: &mut BytesMut) -> Result<Option<IprPacket>, Error> {
+        if src.len() < LENGTH_PREFIX_SIZE {
+            return Ok(None);
+        }
+        let packet_size = u16::from_be_bytes([src[0], src[1]]) as usize;
+        if src.len() < packet_size + LENGTH_PREFIX_SIZE {
+            return Ok(None);
+        }
+        src.advance(LENGTH_PREFIX_SIZE);
+        let packet = src.split_to(packet_size);
+        Ok(Some(IprPacket::Data(packet.freeze())))
     }
 }
 
@@ -82,6 +100,7 @@ impl From<Vec<u8>> for IprPacket {
     }
 }
 
+#[cfg(feature = "codec")]
 impl Encoder<IprPacket> for MultiIpPacketCodec {
     type Error = Error;
 
@@ -125,6 +144,7 @@ impl Encoder<IprPacket> for MultiIpPacketCodec {
     }
 }
 
+#[cfg(feature = "codec")]
 impl Decoder for MultiIpPacketCodec {
     type Item = IprPacket;
     type Error = Error;

@@ -7155,7 +7155,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "time",
- "tokio",
  "tokio-util",
  "tracing",
 ]
@@ -11389,15 +11388,18 @@ dependencies = [
 name = "smolmix-wasm"
 version = "0.0.1"
 dependencies = [
- "base64 0.22.1",
+ "async-tungstenite",
  "bytes",
  "futures",
  "futures-rustls",
  "getrandom 0.2.16",
- "httparse",
+ "http 1.3.1",
+ "http-body-util",
+ "hyper 1.6.0",
  "js-sys",
  "nym-bin-common",
  "nym-ip-packet-requests",
+ "nym-lp",
  "nym-wasm-client-core",
  "nym-wasm-utils",
  "rand 0.8.5",

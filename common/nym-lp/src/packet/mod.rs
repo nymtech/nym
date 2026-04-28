@@ -1,19 +1,20 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bytes::{BufMut, BytesMut};
-use std::fmt::{Debug, Formatter};
-
-use nym_common::debug::format_debug_bytes;
-
-pub use error::MalformedLpPacketError;
-pub use frame::{ForwardPacketData, LpFrame};
-pub use header::{InnerHeader, LpHeader, OuterHeader};
-
+// Always available (light deps only)
 pub mod error;
 pub mod frame;
+pub use error::MalformedLpPacketError;
+pub use frame::{ForwardPacketData, LpFrame};
+
+// Heavy: header uses peer_config (→ nym-crypto), replay uses LpError + LpPacket
+#[cfg(feature = "full")]
 pub mod header;
+#[cfg(feature = "full")]
 pub mod replay;
+
+#[cfg(feature = "full")]
+pub use header::{InnerHeader, LpHeader, OuterHeader};
 
 pub mod version {
     /// The current version of the Lewes Protocol that is put into each new constructed header.
@@ -31,6 +32,14 @@ pub(crate) const UDP_OVERHEAD: usize = UDP_HEADER_LEN + IP_HEADER_LEN;
 #[allow(dead_code)]
 pub(crate) const UDP_PAYLOAD_SIZE: usize = MTU - UDP_OVERHEAD;
 
+#[cfg(feature = "full")]
+use bytes::{BufMut, BytesMut};
+#[cfg(feature = "full")]
+use nym_common::debug::format_debug_bytes;
+#[cfg(feature = "full")]
+use std::fmt::{Debug, Formatter};
+
+#[cfg(feature = "full")]
 #[derive(Clone)]
 pub struct EncryptedLpPacket {
     // The outer header that's sent in plaintext
@@ -40,12 +49,14 @@ pub struct EncryptedLpPacket {
     pub(crate) ciphertext: Vec<u8>,
 }
 
+#[cfg(feature = "full")]
 impl std::fmt::Debug for EncryptedLpPacket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", format_debug_bytes(&self.debug_bytes())?)
     }
 }
 
+#[cfg(feature = "full")]
 impl EncryptedLpPacket {
     pub fn new(outer_header: OuterHeader, ciphertext: Vec<u8>) -> EncryptedLpPacket {
         EncryptedLpPacket {
@@ -78,18 +89,21 @@ impl EncryptedLpPacket {
     }
 }
 
+#[cfg(feature = "full")]
 #[derive(Clone, PartialEq)]
 pub struct LpPacket {
     pub(crate) header: LpHeader,
     pub(crate) frame: LpFrame,
 }
 
+#[cfg(feature = "full")]
 impl Debug for LpPacket {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", format_debug_bytes(&self.debug_bytes())?)
     }
 }
 
+#[cfg(feature = "full")]
 impl LpPacket {
     pub fn new(header: LpHeader, frame: LpFrame) -> Self {
         Self { header, frame }

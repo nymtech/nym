@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use bytes::{Bytes, BytesMut};
-use tokio_util::codec::Decoder;
 use tracing::{error, info, warn};
 
 use crate::{
@@ -84,7 +83,7 @@ pub fn handle_ipr_response(data: &[u8]) -> Option<MixnetMessageOutcome> {
                 let mut buf = BytesMut::from(data_response.ip_packet.as_ref());
                 let mut packets = Vec::new();
                 loop {
-                    match codec.decode(&mut buf) {
+                    match codec.decode_one(&mut buf) {
                         Ok(Some(packet)) => packets.push(packet.into_bytes()),
                         Ok(None) => break,
                         Err(e) => {

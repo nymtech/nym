@@ -1,26 +1,43 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod codec;
-pub mod error;
+// Always available (light deps: bytes, num_enum, thiserror, nym-common)
 pub mod packet;
+
+// Heavy modules — gated behind "full"
+#[cfg(feature = "full")]
+pub mod codec;
+#[cfg(feature = "full")]
+pub mod error;
+#[cfg(feature = "full")]
 pub mod peer;
+#[cfg(feature = "full")]
 pub mod peer_config;
+#[cfg(feature = "full")]
 pub mod psq;
+#[cfg(feature = "full")]
 pub mod replay;
+#[cfg(feature = "full")]
 pub mod session;
+#[cfg(feature = "full")]
 mod session_integration;
+#[cfg(feature = "full")]
 pub mod session_manager;
+#[cfg(feature = "full")]
 pub mod transport;
 
+#[cfg(feature = "full")]
 pub use error::LpError;
+#[cfg(feature = "full")]
 pub use nym_kkt_ciphersuite::{
     Ciphersuite, HashFunction, HashLength, KEM, KEMKeyDigests, SignatureScheme,
 };
 
 #[cfg(any(feature = "mock", test))]
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
+#[cfg(feature = "full")]
 pub use session::LpTransportSession;
+#[cfg(feature = "full")]
 pub use session_manager::SessionManager;
 
 #[cfg(any(feature = "mock", test))]

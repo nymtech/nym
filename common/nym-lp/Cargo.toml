@@ -13,26 +13,25 @@ readme.workspace = true
 publish = true
 
 [dependencies]
+# Always available (light deps only)
 thiserror = { workspace = true }
-bs58 = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
-rand09 = { workspace = true }
-tls_codec = { workspace = true }
-tokio = { workspace = true, features = ["net", "io-util"] }
-
-nym-crypto = { workspace = true, features = ["hashing"] }
-nym-common.workspace = true
-nym-kkt = { workspace = true }
-nym-kkt-ciphersuite = { workspace = true }
-
-# libcrux dependencies for PSQ (Post-Quantum PSK derivation)
-libcrux-psq = { workspace = true, features = ["test-utils"] }
 num_enum = { workspace = true }
-zeroize = { workspace = true, features = ["zeroize_derive"] }
+nym-common.workspace = true
 
+# Heavy deps — gated behind "full"
+bs58 = { workspace = true, optional = true }
+rand09 = { workspace = true, optional = true }
+tls_codec = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["net", "io-util"], optional = true }
+zeroize = { workspace = true, features = ["zeroize_derive"], optional = true }
+nym-crypto = { workspace = true, features = ["hashing"], optional = true }
+nym-kkt = { workspace = true, optional = true }
+nym-kkt-ciphersuite = { workspace = true, optional = true }
+libcrux-psq = { workspace = true, features = ["test-utils"], optional = true }
 
-# needed for the 'mock 'feature
+# needed for the 'mock' feature
 nym-test-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -41,9 +40,20 @@ nym-test-utils = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
-
 [features]
-mock = ["nym-test-utils"]
+default = ["full"]
+full = [
+    "dep:bs58",
+    "dep:rand09",
+    "dep:tls_codec",
+    "dep:tokio",
+    "dep:zeroize",
+    "dep:nym-crypto",
+    "dep:nym-kkt",
+    "dep:nym-kkt-ciphersuite",
+    "dep:libcrux-psq",
+]
+mock = ["full", "nym-test-utils"]
 
 [[bench]]
 name = "replay_protection"

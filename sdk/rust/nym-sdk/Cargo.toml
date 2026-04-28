@@ -39,7 +39,7 @@ nym-credentials-interface = { workspace = true }
 nym-credential-storage = { workspace = true }
 nym-credential-utils = { workspace = true }
 nym-network-defaults = { workspace = true }
-nym-lp = { workspace = true }
+nym-lp = { workspace = true, default-features = true }
 nym-sphinx = { workspace = true }
 nym-statistics-common = { workspace = true }
 nym-task = { workspace = true }
@@ -71,7 +71,7 @@ url = { workspace = true }
 toml = { workspace = true }
 tempfile = { workspace = true }
 
-nym-ip-packet-requests = { workspace = true }
+nym-ip-packet-requests = { workspace = true, default-features = true }
 semver = { workspace = true }
 
 # tcpproxy dependencies
@@ -104,7 +104,7 @@ tokio-util = { workspace = true, features = ["codec"] }
 parking_lot = { workspace = true }
 hex = { workspace = true }
 pnet_packet = { workspace = true }
-nym-ip-packet-requests = { workspace = true, features = ["test-utils"] }
+nym-ip-packet-requests = { workspace = true, default-features = true, features = ["test-utils"] }
 
 [features]
 libp2p-vanilla = []

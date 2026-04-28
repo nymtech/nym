@@ -23,7 +23,7 @@ tracing = { workspace = true }
 nym-authenticator-requests = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-crypto = { workspace = true }
-nym-ip-packet-requests = { workspace = true }
+nym-ip-packet-requests = { workspace = true, default-features = true }
 nym-sphinx = { workspace = true }
 nym-wireguard-types = { workspace = true }
 nym-kkt-ciphersuite = { workspace = true }

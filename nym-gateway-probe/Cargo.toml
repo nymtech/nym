@@ -57,7 +57,7 @@ nym-crypto = { workspace = true }
 nym-http-api-client = { path = "../common/http-api-client" }
 nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
 nym-ip-packet-client = { workspace = true }
-nym-ip-packet-requests = { workspace = true }
+nym-ip-packet-requests = { workspace = true, default-features = true }
 nym-kkt-ciphersuite = { workspace = true }
 nym-lp = { path = "../common/nym-lp" }
 nym-network-defaults = { path = "../common/network-defaults" }

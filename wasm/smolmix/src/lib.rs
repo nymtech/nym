@@ -1,5 +1,4 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 //! smolmix-wasm: drop-in browser networking over the Nym mixnet.
 //!
@@ -165,9 +164,7 @@ pub fn disconnect_mix_tunnel() -> js_sys::Promise {
     })
 }
 
-// ---------------------------------------------------------------------------
 // WebSocket
-// ---------------------------------------------------------------------------
 
 #[cfg(target_arch = "wasm32")]
 struct WsHandle {

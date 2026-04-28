@@ -18,14 +18,12 @@ import initWasm, {
   mixSocket as wasmMixSocket,
   wsSend as wasmWsSend,
   wsClose as wasmWsClose,
-} from 'smolmix-wasm';
-import * as Comlink from 'comlink';
+} from "smolmix-wasm";
+import * as Comlink from "comlink";
 
 let wasmReady = false;
 
-// ---------------------------------------------------------------------------
 // Comlink API (fetch)
-// ---------------------------------------------------------------------------
 
 const api = {
   async setupMixTunnel(opts) {
@@ -47,25 +45,23 @@ const api = {
 
 Comlink.expose(api);
 
-// ---------------------------------------------------------------------------
 // Raw postMessage API (WebSocket)
-// ---------------------------------------------------------------------------
 
 // Maps main-thread connId → WASM handleId
 const wsConnMap = new Map();
 
-self.addEventListener('message', async (event) => {
+self.addEventListener("message", async (event) => {
   const msg = event.data;
-  if (!msg || typeof msg.kind !== 'string') return;
+  if (!msg || typeof msg.kind !== "string") return;
 
   switch (msg.kind) {
-    case 'ws-connect': {
+    case "ws-connect": {
       if (!wasmReady) {
         self.postMessage({
-          kind: 'ws-event',
+          kind: "ws-event",
           connId: msg.connId,
-          type: 'error',
-          data: 'WASM not initialised — call setupMixTunnel first',
+          type: "error",
+          data: "WASM not initialised — call setupMixTunnel first",
         });
         return;
       }
@@ -76,49 +72,49 @@ self.addEventListener('message', async (event) => {
         if (!wsConnMap.has(msg.connId)) {
           wsConnMap.set(msg.connId, handleId);
         }
-        self.postMessage({ kind: 'ws-event', connId: msg.connId, type, data });
+        self.postMessage({ kind: "ws-event", connId: msg.connId, type, data });
       };
 
       try {
         await wasmMixSocket(msg.url, msg.protocols, onEvent);
       } catch (e) {
-        console.error('[ws] connect failed:', e);
+        console.error("[ws] connect failed:", e);
         self.postMessage({
-          kind: 'ws-event',
+          kind: "ws-event",
           connId: msg.connId,
-          type: 'error',
+          type: "error",
           data: String(e),
         });
       }
       break;
     }
 
-    case 'ws-send': {
+    case "ws-send": {
       const handleId = wsConnMap.get(msg.connId);
       if (handleId == null) return;
       try {
         wasmWsSend(handleId, msg.payload);
       } catch (e) {
         self.postMessage({
-          kind: 'ws-event',
+          kind: "ws-event",
           connId: msg.connId,
-          type: 'error',
+          type: "error",
           data: String(e),
         });
       }
       break;
     }
 
-    case 'ws-close': {
+    case "ws-close": {
       const handleId = wsConnMap.get(msg.connId);
       if (handleId == null) return;
       try {
-        wasmWsClose(handleId, msg.code || 1000, msg.reason || '');
+        wasmWsClose(handleId, msg.code || 1000, msg.reason || "");
       } catch (e) {
         self.postMessage({
-          kind: 'ws-event',
+          kind: "ws-event",
           connId: msg.connId,
-          type: 'error',
+          type: "error",
           data: String(e),
         });
       }
@@ -128,4 +124,4 @@ self.addEventListener('message', async (event) => {
   }
 });
 
-self.postMessage({ kind: 'Loaded' });
+self.postMessage({ kind: "Loaded" });

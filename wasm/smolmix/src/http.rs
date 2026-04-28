@@ -1,5 +1,4 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 //! HTTP/1.1 client built on hyper 1.x (tokio-free).
 //!

@@ -1,5 +1,4 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 //! WASM mixnet tunnel — manages a smoltcp TCP/IP stack connected to the Nym
 //! mixnet via an IPR (IP Packet Router), running in a browser Web Worker.
@@ -434,9 +433,7 @@ impl WasmTunnel {
     }
 }
 
-// ---------------------------------------------------------------------------
 // WasmTcpStream — futures::io::{AsyncRead, AsyncWrite}
-// ---------------------------------------------------------------------------
 
 impl AsyncRead for WasmTcpStream {
     fn poll_read(
@@ -526,9 +523,7 @@ impl Drop for WasmTcpStream {
     }
 }
 
-// ---------------------------------------------------------------------------
 // PooledConn — AsyncRead + AsyncWrite delegation
-// ---------------------------------------------------------------------------
 
 impl AsyncRead for PooledConn {
     fn poll_read(
@@ -572,9 +567,7 @@ impl AsyncWrite for PooledConn {
 
 impl Unpin for PooledConn {}
 
-// ---------------------------------------------------------------------------
 // WasmUdpSocket — send_to / recv_from
-// ---------------------------------------------------------------------------
 
 impl WasmUdpSocket {
     /// Send a datagram to the given address.
@@ -634,9 +627,7 @@ impl Drop for WasmUdpSocket {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Address conversion helpers
-// ---------------------------------------------------------------------------
 
 fn to_smoltcp_endpoint(addr: SocketAddr) -> IpEndpoint {
     let ip = match addr.ip() {

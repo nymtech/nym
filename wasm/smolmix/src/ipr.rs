@@ -1,5 +1,4 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 //! IPR (IP Packet Router) protocol layer for the WASM tunnel.
 //!
@@ -174,9 +173,7 @@ pub fn parse_incoming(
     }
 }
 
-// ---------------------------------------------------------------------------
 // LP frame helpers
-// ---------------------------------------------------------------------------
 
 /// Encode a SphinxStream LP frame into bytes.
 fn encode_lp_frame(
@@ -211,9 +208,7 @@ fn decode_lp_stream(data: &[u8]) -> Option<(SphinxStreamFrameAttributes, Bytes)>
     Some((attrs, frame.content))
 }
 
-// ---------------------------------------------------------------------------
 // Mixnet send helper
-// ---------------------------------------------------------------------------
 
 /// Send an anonymous mixnet message to the IPR with reply SURBs.
 async fn send_anonymous(

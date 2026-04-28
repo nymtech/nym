@@ -8,7 +8,7 @@ use axum::extract::{Path, Query, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_api_requests::models::{
-    AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NodeRefreshBody,
+    AnnotationResponseV1, NodeDatePerformanceResponse, NodePerformanceResponse, NodeRefreshBody,
     NoiseDetails, NymNodeDescriptionV1, PerformanceHistoryResponse, RewardedSetResponse,
     StakeSaturationResponse, UptimeHistoryResponse,
 };
@@ -265,9 +265,9 @@ async fn get_described_nodes(
     context_path = "/v1/nym-nodes",
     responses(
         (status = 200, content(
-            (AnnotationResponse = "application/json"),
-            (AnnotationResponse = "application/yaml"),
-            (AnnotationResponse = "application/bincode")
+            (AnnotationResponseV1 = "application/json"),
+            (AnnotationResponseV1 = "application/yaml"),
+            (AnnotationResponseV1 = "application/bincode")
         ))
     ),
     params(NodeIdParam, OutputParams),
@@ -276,12 +276,12 @@ async fn get_node_annotation(
     Path(NodeIdParam { node_id }): Path<NodeIdParam>,
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<FormattedResponse<AnnotationResponse>> {
+) -> AxumResult<FormattedResponse<AnnotationResponseV1>> {
     let output = output.output.unwrap_or_default();
 
     let annotations = state.node_status_cache().node_annotations().await?;
 
-    Ok(output.to_response(AnnotationResponse {
+    Ok(output.to_response(AnnotationResponseV1 {
         node_id,
         annotation: annotations.get(&node_id).cloned().map(Into::into),
     }))

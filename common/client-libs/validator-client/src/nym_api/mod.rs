@@ -19,10 +19,10 @@ use nym_api_requests::models::network_monitor::{
     KnownNetworkMonitorResponse, StressTestBatchSubmission,
 };
 use nym_api_requests::models::{
-    AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainBlocksStatusResponse,
-    ChainStatusResponse, KeyRotationInfoResponse, NodePerformanceResponse, NodeRefreshBody,
-    NymNodeDescriptionV1, NymNodeDescriptionV2, PerformanceHistoryResponse, RewardedSetResponse,
-    SignerInformationResponse,
+    AnnotationResponseV1, ApiHealthResponse, BinaryBuildInformationOwned,
+    ChainBlocksStatusResponse, ChainStatusResponse, KeyRotationInfoResponse,
+    NodePerformanceResponse, NodeRefreshBody, NymNodeDescriptionV1, NymNodeDescriptionV2,
+    PerformanceHistoryResponse, RewardedSetResponse, SignerInformationResponse,
 };
 use nym_api_requests::pagination::PaginatedResponse;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
@@ -979,7 +979,7 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_node_annotation(
         &self,
         node_id: NodeId,
-    ) -> Result<AnnotationResponse, NymAPIError> {
+    ) -> Result<AnnotationResponseV1, NymAPIError> {
         self.get_json(
             &[
                 routes::V1_API_VERSION,

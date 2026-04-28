@@ -3,10 +3,7 @@
 
 use thiserror::Error;
 
-/// Unified error type for the smolmix-wasm fetch layer.
-///
-/// Covers every failure mode across DNS, TLS, HTTP, and JS interop.
-/// Converts to `JsValue` for wasm_bindgen boundary crossings.
+/// Unified error type — DNS, TLS, HTTP, and JS interop.
 #[derive(Error, Debug)]
 pub enum FetchError {
     #[error("URL error: {0}")]
@@ -18,11 +15,14 @@ pub enum FetchError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("HTTP parse error: {0}")]
-    HttpParse(#[from] httparse::Error),
+    #[error("hyper error: {0}")]
+    Hyper(#[from] hyper::Error),
 
     #[error("HTTP error: {0}")]
     Http(String),
+
+    #[error("WebSocket error: {0}")]
+    WebSocket(#[from] async_tungstenite::tungstenite::Error),
 
     #[error("JS interop error: {0}")]
     Js(String),

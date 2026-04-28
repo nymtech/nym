@@ -21,7 +21,7 @@ const MAX_CNAME_HOPS: usize = 8;
 
 const PRIMARY_DNS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8)), 53);
 const FALLBACK_DNS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 53);
-const DNS_TIMEOUT: Duration = Duration::from_secs(10);
+const DNS_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Resolve a hostname to an IP address via DNS over the mixnet tunnel.
 ///
@@ -112,9 +112,9 @@ async fn query_record(
     record_type: TYPE,
     server: SocketAddr,
 ) -> Result<DnsResult, FetchError> {
-    let query = build_query(hostname, record_type)?;
+    let (query, query_id) = build_query(hostname, record_type)?;
     udp.send_to(&query, server).await.map_err(FetchError::Io)?;
-    nym_wasm_utils::console_log!("[dns] query sent to {server}, waiting for response...");
+    nym_wasm_utils::console_log!("[dns] query sent to {server} (id={query_id:#06x}), waiting...");
 
     let mut buf = [0u8; 512];
     let (len, _) = wasmtimer::tokio::timeout(DNS_TIMEOUT, udp.recv_from(&mut buf))
@@ -125,11 +125,24 @@ async fn query_record(
         })?
         .map_err(FetchError::Io)?;
 
-    parse_response(&buf[..len], hostname)
+    // Verify the response ID matches our query to avoid consuming stale
+    // responses from previous timed-out queries.
+    let data = &buf[..len];
+    if len >= 2 {
+        let resp_id = u16::from_be_bytes([data[0], data[1]]);
+        if resp_id != query_id {
+            return Err(FetchError::Dns(format!(
+                "DNS response ID mismatch: expected {query_id:#06x}, got {resp_id:#06x}"
+            )));
+        }
+    }
+
+    parse_response(data, hostname)
 }
 
 /// Build a DNS query packet for the given hostname and record type.
-fn build_query(hostname: &str, record_type: TYPE) -> Result<Vec<u8>, FetchError> {
+/// Returns (wire bytes, query ID) so the caller can verify the response.
+fn build_query(hostname: &str, record_type: TYPE) -> Result<(Vec<u8>, u16), FetchError> {
     let id = random_query_id();
     let mut packet = Packet::new_query(id);
     packet.set_flags(PacketFlag::RECURSION_DESIRED);
@@ -140,9 +153,10 @@ fn build_query(hostname: &str, record_type: TYPE) -> Result<Vec<u8>, FetchError>
         QCLASS::CLASS(CLASS::IN),
         false,
     ));
-    packet
+    let bytes = packet
         .build_bytes_vec()
-        .map_err(|e| FetchError::Dns(format!("failed to build DNS query: {e}")))
+        .map_err(|e| FetchError::Dns(format!("failed to build DNS query: {e}")))?;
+    Ok((bytes, id))
 }
 
 /// Parse a DNS response, returning an IP or CNAME target for following.

@@ -39,10 +39,8 @@ const MAX_TX_PER_TICK: usize = 8;
 /// 2. Drain all pending incoming messages (non-blocking)
 /// 3. Drain outgoing packets (capped at `MAX_TX_PER_TICK`)
 ///
-/// Incoming is processed first and non-blockingly to prevent starvation:
-/// `futures::select!` is declaration-order biased, so a fast-ticking timer
-/// can starve the other branch if it's always ready. By processing both
-/// incoming and outgoing after any wakeup, connections always make progress.
+/// Incoming is processed first to prevent starvation — the timer can
+/// dominate `select!` if always ready.
 #[allow(clippy::too_many_arguments)]
 pub fn start_bridge(
     stack: Arc<Mutex<SmoltcpStack>>,
@@ -91,14 +89,9 @@ pub fn start_bridge(
                 s.device.drain_tx().take(MAX_TX_PER_TICK).collect()
             };
 
-            // Uncomment for debugging packet flow:
-            // if !packets.is_empty() {
-            //     let first_seq = seq.load(Ordering::Relaxed);
-            //     nym_wasm_utils::console_log!(
-            //         "[bridge] sending {} tx packets (seq={}..)",
-            //         packets.len(), first_seq
-            //     );
-            // }
+            if !packets.is_empty() {
+                nym_wasm_utils::console_log!("[bridge] ▲ tx");
+            }
             for packet in packets {
                 let current_seq = seq.fetch_add(1, Ordering::Relaxed);
                 if let Err(e) = ipr::send_ip_packet(
@@ -143,11 +136,7 @@ fn process_incoming(
     }
 
     if pushed > 0 {
-        // Uncomment for debugging packet flow:
-        // nym_wasm_utils::console_log!(
-        //     "[bridge] received {} messages → {} IP packets",
-        //     messages.len(), pushed
-        // );
+        nym_wasm_utils::console_log!("[bridge] ▼ rx");
         let _ = notify_reactor.unbounded_send(());
     }
 }

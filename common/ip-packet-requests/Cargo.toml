@@ -14,6 +14,8 @@ publish = true
 
 
 [features]
+default = ["codec"]
+codec = ["dep:tokio-util"]
 test-utils = ["pnet_packet"]
 
 [dependencies]
@@ -29,6 +31,5 @@ semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true }
-tokio = { workspace = true, features = ["time"] }
-tokio-util = { workspace = true, features = ["codec"] }
+tokio-util = { workspace = true, features = ["codec"], optional = true }
 tracing = { workspace = true }

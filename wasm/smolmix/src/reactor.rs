@@ -110,13 +110,9 @@ pub fn start_reactor(
                 _ = notify.next().fuse() => {},
             }
 
-            // Coalesce: drain all queued notifications so one poll() handles
-            // all accumulated state changes.  Without this, N rapid-fire
-            // notifications (from concurrent TLS writes + flushes) cause N
-            // separate poll cycles — N lock acquisitions, N full socket scans —
-            // monopolising the single-threaded WASM event loop and blocking
-            // UI rendering.  With the drain, the select! above sees an empty
-            // channel on the next iteration and properly yields to the browser.
+            // Coalesce: drain queued notifications so one poll() handles all
+            // state changes. Without this, rapid-fire notifications from TLS
+            // writes monopolise the single-threaded WASM event loop.
             while notify.next().now_or_never().flatten().is_some() {}
 
             if shutdown.load(Ordering::Relaxed) {
@@ -156,12 +152,21 @@ fn wake_tcp_socket(stack: &mut SmoltcpStack, handle: SocketHandle) {
     let socket = stack.sockets.get_mut::<smoltcp_tcp::Socket>(handle);
     let can_recv = socket.can_recv();
     let can_send = socket.can_send();
+    let may_recv = socket.may_recv();
     let state = socket.state();
 
     let wakers = stack.wakers.get_mut(&handle).unwrap();
 
-    if can_recv {
+    // Wake read waker when data is available OR when no more data will
+    // ever arrive. `may_recv()` is false for CloseWait, LastAck, Closed,
+    // TimeWait — all states where the remote has sent FIN. Without this,
+    // a read waker registered just before FIN arrives never fires and
+    // the body.frame() future hangs forever.
+    if can_recv || !may_recv {
         if let Some(w) = wakers.read.take() {
+            nym_wasm_utils::console_log!(
+                "[reactor] wake read (can_recv={can_recv}, may_recv={may_recv}, state={state:?})"
+            );
             w.wake();
         }
     }
@@ -176,15 +181,12 @@ fn wake_tcp_socket(stack: &mut SmoltcpStack, handle: SocketHandle) {
             w.wake();
         }
     }
-    // Wake on failure/close states so connect/read futures don't hang
+    // Wake on terminal states so connect futures don't hang
     if matches!(
         state,
         smoltcp_tcp::State::Closed | smoltcp_tcp::State::TimeWait
     ) {
         if let Some(w) = wakers.connect.take() {
-            w.wake();
-        }
-        if let Some(w) = wakers.read.take() {
             w.wake();
         }
     }

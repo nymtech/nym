@@ -29,11 +29,13 @@ rustls-pki-types = { workspace = true, features = ["web"] }
 futures-rustls = { workspace = true }
 webpki-roots = { workspace = true }
 
-# HTTP parsing (no_std, zero-alloc, wasm-safe)
-httparse = { workspace = true }
+# HTTP/1.1 client (tokio-free — workspace declares default-features = false)
+hyper = { workspace = true, features = ["client", "http1"] }
+http-body-util = { workspace = true }
+http = { workspace = true }
 
-# WebSocket handshake (base64 for key encoding + accept verification)
-base64 = { workspace = true }
+# WebSocket (RFC 6455 client over futures::io streams)
+async-tungstenite = { version = "0.24", default-features = false, features = ["handshake"] }
 
 # WASM utils (panic hook, console_log)
 nym-wasm-utils = { workspace = true }
@@ -42,6 +44,7 @@ nym-wasm-utils = { workspace = true }
 smoltcp = { workspace = true, features = ["std", "medium-ip", "proto-ipv4", "socket-tcp", "socket-udp"] }
 nym-wasm-client-core = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
+nym-lp = { workspace = true }
 bytes = { workspace = true }
 rand = { workspace = true }
 nym-bin-common = { workspace = true }

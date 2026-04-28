@@ -1,391 +1,270 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-2.0-only
 
-//! Minimal HTTP/1.1 client built on httparse.
+//! HTTP/1.1 client built on hyper 1.x (tokio-free).
 //!
-//! Three stages:
-//! 1. Request serialisation — build `METHOD /path HTTP/1.1\r\n...` into a buffer
-//! 2. Response header parsing — read until `\r\n\r\n`, feed to httparse
-//! 3. Body reading — Content-Length, chunked transfer, or read-until-EOF
+//! hyper 1.6+ makes tokio optional. With `default-features = false` and
+//! `features = ["client", "http1"]`, it compiles on wasm32. The only glue
+//! needed is `FuturesIo<T>`: an adapter from `futures::io::{AsyncRead,
+//! AsyncWrite}` to `hyper::rt::{Read, Write}`.
 //!
-//! Supports connection reuse: `request()` returns `(HttpResponse, bool)` where
-//! the bool indicates whether the connection can be pooled for subsequent
-//! requests (deterministic body boundary + no `Connection: close`).
+//! The connection driver is spawned via `wasm_bindgen_futures::spawn_local`.
+//! After the request/response exchange, the IO is recovered through
+//! `conn.without_shutdown()` so the underlying stream can be returned to
+//! the connection pool.
 
-use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use std::io;
+use std::mem::MaybeUninit;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
+use futures::io::{AsyncRead, AsyncWrite};
+use http_body_util::{BodyExt, Full};
+use hyper::body::Bytes;
+use hyper::client::conn::http1;
 
 use crate::error::FetchError;
-
-/// Maximum header section size (16 KiB). Prevents unbounded allocation
-/// if a server sends endless headers.
-const MAX_HEADER_SIZE: usize = 16_384;
-
-/// Read buffer chunk size.
-const READ_CHUNK: usize = 4096;
-
-/// Maximum number of headers httparse will parse.
-const MAX_HEADERS: usize = 64;
 
 /// Parsed HTTP response.
 pub struct HttpResponse {
     pub status: u16,
     pub status_text: String,
-    /// Headers with original casing preserved (for forwarding to the browser).
     pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
 }
 
-/// Send an HTTP/1.1 request and read the complete response.
+/// Adapter: `futures::io::{AsyncRead, AsyncWrite}` → `hyper::rt::{Read, Write}`.
 ///
-/// Returns `(response, reusable)` where `reusable` is `true` when the
-/// connection can be returned to a pool: the body was read via a
-/// deterministic boundary (Content-Length or chunked) and the server
-/// did not send `Connection: close`.
-///
-/// Generic over any stream implementing `futures::io::{AsyncRead, AsyncWrite}`.
-/// Works equally with a plain `WasmTcpStream` (HTTP) or a
-/// `futures_rustls::client::TlsStream<WasmTcpStream>` (HTTPS).
-pub async fn request<S>(
-    stream: &mut S,
-    method: &str,
-    url: &url::Url,
-    headers: &[(String, String)],
-    body: Option<&[u8]>,
-) -> Result<(HttpResponse, bool), FetchError>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    nym_wasm_utils::console_log!("[http] sending {method} request...");
-    send_request(stream, method, url, headers, body).await?;
-    nym_wasm_utils::console_log!("[http] request sent, reading response...");
-    read_response(stream).await
+/// hyper's `Read` trait hands us a `ReadBufCursor` backed by uninitialised
+/// memory. `futures::io::AsyncRead` requires an initialised `&mut [u8]`, so
+/// we zero the buffer first. This is a cheap memset per read call.
+struct FuturesIo<T>(T);
+
+impl<T: AsyncRead + Unpin> hyper::rt::Read for FuturesIo<T> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        mut buf: hyper::rt::ReadBufCursor<'_>,
+    ) -> Poll<io::Result<()>> {
+        // Safety: we initialise the buffer below before passing to poll_read.
+        let uninit_slice = unsafe { buf.as_mut() };
+        // Zero the uninitialised memory so futures::io::AsyncRead is happy.
+        let slice = init_slice(uninit_slice);
+
+        match Pin::new(&mut self.get_mut().0).poll_read(cx, slice) {
+            Poll::Ready(Ok(n)) => {
+                unsafe { buf.advance(n) };
+                Poll::Ready(Ok(()))
+            }
+            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
 }
 
-// ---------------------------------------------------------------------------
-// Request serialisation
-// ---------------------------------------------------------------------------
+impl<T: AsyncWrite + Unpin> hyper::rt::Write for FuturesIo<T> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.get_mut().0).poll_write(cx, buf)
+    }
 
-/// Format and send a complete HTTP/1.1 request.
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().0).poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().0).poll_close(cx)
+    }
+}
+
+/// Zero a `MaybeUninit<u8>` slice and return it as `&mut [u8]`.
+fn init_slice(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
+    for b in buf.iter_mut() {
+        b.write(0);
+    }
+    // Safety: we just initialised every element.
+    unsafe { &mut *(buf as *mut [MaybeUninit<u8>] as *mut [u8]) }
+}
+
+/// Send an HTTP/1.1 request and read the complete response.
 ///
-/// Builds the entire request into a single buffer before writing,
-/// minimising the number of TLS records when the stream is encrypted.
-async fn send_request<S>(
-    stream: &mut S,
+/// Takes ownership of the stream (hyper's handshake consumes it) and
+/// returns it as the third tuple element. The `bool` indicates whether
+/// the connection can be pooled (deterministic body boundary + no
+/// `Connection: close`).
+pub async fn request<S>(
+    stream: S,
     method: &str,
     url: &url::Url,
     headers: &[(String, String)],
     body: Option<&[u8]>,
-) -> Result<(), FetchError>
+) -> Result<(HttpResponse, bool, S), FetchError>
 where
-    S: AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + 'static,
 {
-    let mut buf = Vec::with_capacity(256);
+    nym_wasm_utils::console_log!("[http] sending {method} request via hyper...");
 
-    // Request line: METHOD /path?query HTTP/1.1
+    // Build the HTTP request
     let path = match url.query() {
         Some(q) => format!("{}?{q}", url.path()),
         None => url.path().to_string(),
     };
-    buf.extend_from_slice(format!("{method} {path} HTTP/1.1\r\n").as_bytes());
 
-    // Host header (include port only if non-default)
     let host = match url.port() {
         Some(port) => format!("{}:{port}", url.host_str().unwrap_or("")),
         None => url.host_str().unwrap_or("").to_string(),
     };
-    buf.extend_from_slice(format!("Host: {host}\r\n").as_bytes());
 
-    // User-supplied headers
+    let body_bytes = body.map(Bytes::copy_from_slice).unwrap_or_default();
+    let mut builder = http::Request::builder()
+        .method(method)
+        .uri(&path)
+        .header("Host", &host)
+        .header("Connection", "keep-alive");
+
     let mut has_content_length = false;
     for (name, value) in headers {
-        buf.extend_from_slice(format!("{name}: {value}\r\n").as_bytes());
+        builder = builder.header(name.as_str(), value.as_str());
         if name.eq_ignore_ascii_case("content-length") {
             has_content_length = true;
         }
     }
 
-    // Auto-add Content-Length for bodies (unless caller set it)
-    if let Some(b) = body {
-        if !has_content_length {
-            buf.extend_from_slice(format!("Content-Length: {}\r\n", b.len()).as_bytes());
-        }
+    if body.is_some() && !has_content_length {
+        builder = builder.header("Content-Length", body_bytes.len().to_string());
     }
 
-    buf.extend_from_slice(b"Connection: keep-alive\r\n");
+    let req = builder
+        .body(Full::new(body_bytes))
+        .map_err(|e| FetchError::Http(format!("failed to build request: {e}")))?;
 
-    // End of headers
-    buf.extend_from_slice(b"\r\n");
+    // Perform HTTP/1 handshake — hyper takes ownership of the IO
+    let (mut sender, conn) = http1::handshake(FuturesIo(stream))
+        .await
+        .map_err(FetchError::Hyper)?;
 
-    // Body (if any)
-    if let Some(b) = body {
-        buf.extend_from_slice(b);
-    }
+    // Spawn the connection driver. When we drop `sender`, the connection
+    // completes and `without_shutdown()` returns the IO for reuse.
+    let (parts_tx, parts_rx) = futures::channel::oneshot::channel();
+    wasm_bindgen_futures::spawn_local(async move {
+        let result = conn.without_shutdown().await;
+        let _ = parts_tx.send(result);
+    });
 
-    stream.write_all(&buf).await?;
-    stream.flush().await?;
-    Ok(())
-}
+    // Send the request
+    let response = sender.send_request(req).await.map_err(FetchError::Hyper)?;
 
-// ---------------------------------------------------------------------------
-// Response header parsing
-// ---------------------------------------------------------------------------
+    let status = response.status().as_u16();
+    let status_text = response
+        .status()
+        .canonical_reason()
+        .unwrap_or("")
+        .to_string();
 
-/// Read and parse an HTTP/1.1 response (headers + body).
-///
-/// Returns `(response, reusable)` — see `request()`.
-async fn read_response<S>(stream: &mut S) -> Result<(HttpResponse, bool), FetchError>
-where
-    S: AsyncRead + Unpin,
-{
-    let mut buf = Vec::with_capacity(READ_CHUNK);
-    let mut tmp = [0u8; READ_CHUNK];
-
-    // Phase 1: Read until we see the header/body boundary (\r\n\r\n).
-    loop {
-        let n = stream.read(&mut tmp).await?;
-        if n == 0 {
-            nym_wasm_utils::console_error!(
-                "[http] connection closed before headers complete (got {} bytes so far)",
-                buf.len()
-            );
-            return Err(FetchError::Http(
-                "connection closed before headers complete".into(),
-            ));
-        }
-        buf.extend_from_slice(&tmp[..n]);
-
-        if buf.len() > MAX_HEADER_SIZE {
-            return Err(FetchError::Http("headers exceed 16 KiB limit".into()));
-        }
-
-        if buf.windows(4).any(|w| w == b"\r\n\r\n") {
-            break;
-        }
-    }
-
-    // Phase 2: Parse headers with httparse.
-    let mut headers_buf = [httparse::EMPTY_HEADER; MAX_HEADERS];
-    let mut parsed = httparse::Response::new(&mut headers_buf);
-    let body_offset = match parsed.parse(&buf)? {
-        httparse::Status::Complete(n) => n,
-        httparse::Status::Partial => {
-            return Err(FetchError::Http("incomplete HTTP response headers".into()));
-        }
-    };
-
-    let status = parsed.code.unwrap_or(0);
-    let status_text = parsed.reason.unwrap_or("").to_string();
-
-    // Preserve original header casing — browsers may rely on it, and the
-    // Headers constructor is case-insensitive anyway.
-    let response_headers: Vec<(String, String)> = parsed
-        .headers
+    // Collect response headers
+    let response_headers: Vec<(String, String)> = response
+        .headers()
         .iter()
-        .map(|h| {
-            (
-                h.name.to_string(),
-                String::from_utf8_lossy(h.value).to_string(),
-            )
-        })
+        .map(|(k, v)| (k.as_str().to_string(), v.to_str().unwrap_or("").to_string()))
         .collect();
 
-    // Phase 3: Read the body.
-    let body_strategy = if get_header(&response_headers, "content-length").is_some() {
-        "content-length"
-    } else if get_header(&response_headers, "transfer-encoding")
-        .map(|v| v.to_ascii_lowercase().contains("chunked"))
-        .unwrap_or(false)
-    {
-        "chunked"
-    } else {
-        "read-until-eof"
-    };
-    nym_wasm_utils::console_log!("[http] {status} {status_text} — body via {body_strategy}");
+    // Reusable unless the server signals `Connection: close`.
+    let server_close = response_headers
+        .iter()
+        .any(|(k, v)| k.eq_ignore_ascii_case("connection") && v.eq_ignore_ascii_case("close"));
+    let reusable = !server_close;
 
-    let initial_body = buf[body_offset..].to_vec();
-    let (body, deterministic) = read_body(stream, &response_headers, initial_body).await?;
+    // Log headers immediately so we know the server responded, even if
+    // the body takes a long time to stream through the mixnet.
+    let content_length = response_headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case("content-length"))
+        .and_then(|(_, v)| v.parse::<u64>().ok());
 
-    // Connection is reusable when we know exactly where this response ends
-    // (Content-Length or chunked) AND the server didn't ask us to close.
-    let server_close = get_header(&response_headers, "connection")
-        .map(|v| v.eq_ignore_ascii_case("close"))
-        .unwrap_or(false);
-    let reusable = deterministic && !server_close;
+    match content_length {
+        Some(len) => nym_wasm_utils::console_log!(
+            "[http] {status} {status_text} — collecting body ({len} bytes)..."
+        ),
+        None => nym_wasm_utils::console_log!(
+            "[http] {status} {status_text} — collecting body (chunked/unknown size)..."
+        ),
+    }
+
+    // Dump response headers for diagnostics.
+    for (k, v) in &response_headers {
+        nym_wasm_utils::console_log!("[http]   {k}: {v}");
+    }
+
+    // Read body frame-by-frame to log progress (large mixnet downloads
+    // can take 30s+ with no visible output otherwise).
+    let mut body = response.into_body();
+    let mut body_data = Vec::new();
+    let expected = content_length.unwrap_or(0);
+    let mut next_log_at: usize = 4096;
+
+    loop {
+        match body.frame().await {
+            Some(Ok(frame)) => {
+                if let Ok(data) = frame.into_data() {
+                    let chunk_len = data.len();
+                    body_data.extend_from_slice(&data);
+                    if body_data.len() >= next_log_at {
+                        nym_wasm_utils::console_log!(
+                            "[http] progress: {} / {expected} bytes (chunk={chunk_len})",
+                            body_data.len(),
+                        );
+                        next_log_at = body_data.len() + 4096;
+                    }
+                }
+            }
+            Some(Err(e)) => return Err(FetchError::Hyper(e)),
+            None => break,
+        }
+    }
+
+    nym_wasm_utils::console_log!(
+        "[http] body complete: {} bytes, reusable={reusable}",
+        body_data.len()
+    );
+
+    // Content preview — text for UTF-8-valid bodies, hex for binary
+    if !body_data.is_empty() {
+        let preview_len = body_data.len().min(200);
+        let chunk = &body_data[..preview_len];
+        let suffix = if body_data.len() > 200 { "..." } else { "" };
+
+        if let Ok(text) = std::str::from_utf8(chunk) {
+            nym_wasm_utils::console_log!("[http] body: {text}{suffix}");
+        } else {
+            nym_wasm_utils::console_log!(
+                "[http] body ({} bytes): {}",
+                body_data.len(),
+                crate::hex_preview(&body_data, 64)
+            );
+        }
+    }
+
+    // Drop sender to signal the connection driver to complete
+    drop(sender);
+
+    // Recover the underlying stream from the connection driver
+    let parts = parts_rx
+        .await
+        .map_err(|_| FetchError::Http("connection driver dropped".into()))?
+        .map_err(FetchError::Hyper)?;
+    let stream = parts.io.0;
 
     Ok((
         HttpResponse {
             status,
             status_text,
             headers: response_headers,
-            body,
+            body: body_data,
         },
         reusable,
+        stream,
     ))
-}
-
-// ---------------------------------------------------------------------------
-// Body reading strategies
-// ---------------------------------------------------------------------------
-
-/// Dispatch to the appropriate body reader based on response headers.
-///
-/// Returns `(body, deterministic)` where `deterministic` is `true` when
-/// Content-Length or chunked encoding provided a clear message boundary
-/// (meaning the stream is positioned at the start of the next response).
-async fn read_body<S>(
-    stream: &mut S,
-    headers: &[(String, String)],
-    initial: Vec<u8>,
-) -> Result<(Vec<u8>, bool), FetchError>
-where
-    S: AsyncRead + Unpin,
-{
-    if let Some(len_str) = get_header(headers, "content-length") {
-        let len: usize = len_str
-            .trim()
-            .parse()
-            .map_err(|_| FetchError::Http(format!("invalid Content-Length: {len_str}")))?;
-        let body = read_content_length(stream, len, initial).await?;
-        return Ok((body, true));
-    }
-
-    if let Some(te) = get_header(headers, "transfer-encoding") {
-        if te.to_ascii_lowercase().contains("chunked") {
-            let body = read_chunked(stream, initial).await?;
-            return Ok((body, true));
-        }
-    }
-
-    // Default: read until the server closes the connection.
-    let body = read_until_eof(stream, initial).await?;
-    Ok((body, false))
-}
-
-/// Read exactly `total_len` bytes of body.
-async fn read_content_length<S>(
-    stream: &mut S,
-    total_len: usize,
-    initial: Vec<u8>,
-) -> Result<Vec<u8>, FetchError>
-where
-    S: AsyncRead + Unpin,
-{
-    let mut body = initial;
-    if body.len() >= total_len {
-        body.truncate(total_len);
-        return Ok(body);
-    }
-
-    let remaining = total_len - body.len();
-    let mut rest = vec![0u8; remaining];
-    stream.read_exact(&mut rest).await?;
-    body.extend_from_slice(&rest);
-    Ok(body)
-}
-
-/// Parse chunked transfer encoding.
-///
-/// Format per chunk: `<hex-size>\r\n<data>\r\n`
-/// Terminated by: `0\r\n\r\n`
-async fn read_chunked<S>(stream: &mut S, initial: Vec<u8>) -> Result<Vec<u8>, FetchError>
-where
-    S: AsyncRead + Unpin,
-{
-    let mut raw = initial;
-    let mut body = Vec::new();
-
-    loop {
-        // Ensure we have a complete chunk-size line.
-        while !has_crlf(&raw) {
-            let n = read_more(stream, &mut raw).await?;
-            if n == 0 {
-                return Err(FetchError::Http("unexpected EOF in chunked body".into()));
-            }
-        }
-
-        // Parse the hex chunk size (ignore optional chunk extensions after ';').
-        let crlf_pos = raw
-            .windows(2)
-            .position(|w| w == b"\r\n")
-            .ok_or_else(|| FetchError::Http("missing CRLF in chunk header".into()))?;
-
-        let size_line = std::str::from_utf8(&raw[..crlf_pos])
-            .map_err(|_| FetchError::Http("invalid chunk size encoding".into()))?;
-        let size_hex = size_line.split(';').next().unwrap_or("0").trim();
-        let chunk_size = usize::from_str_radix(size_hex, 16)
-            .map_err(|_| FetchError::Http(format!("invalid chunk size: {size_hex}")))?;
-
-        // Consume chunk-size line.
-        raw = raw[crlf_pos + 2..].to_vec();
-
-        // Zero-size chunk signals end of body.
-        if chunk_size == 0 {
-            break;
-        }
-
-        // Read chunk data + trailing CRLF.
-        let needed = chunk_size + 2;
-        while raw.len() < needed {
-            let n = read_more(stream, &mut raw).await?;
-            if n == 0 {
-                return Err(FetchError::Http("unexpected EOF in chunk data".into()));
-            }
-        }
-
-        body.extend_from_slice(&raw[..chunk_size]);
-        raw = raw[chunk_size + 2..].to_vec();
-    }
-
-    Ok(body)
-}
-
-/// Read until the server closes the connection (Connection: close fallback).
-///
-/// Treats `UnexpectedEof` as a clean close — this is what rustls returns
-/// when the peer closes the TLS connection without sending a `close_notify`
-/// alert.  Technically a protocol violation, but extremely common (CDNs,
-/// reverse proxies, many HTTP servers).  The data buffered so far is valid.
-async fn read_until_eof<S>(stream: &mut S, initial: Vec<u8>) -> Result<Vec<u8>, FetchError>
-where
-    S: AsyncRead + Unpin,
-{
-    let mut body = initial;
-    let mut tmp = [0u8; READ_CHUNK];
-    loop {
-        match stream.read(&mut tmp).await {
-            Ok(0) => break,
-            Ok(n) => body.extend_from_slice(&tmp[..n]),
-            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
-            Err(e) => return Err(e.into()),
-        }
-    }
-    Ok(body)
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/// Case-insensitive header lookup.
-fn get_header<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str> {
-    headers
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case(name))
-        .map(|(_, v)| v.as_str())
-}
-
-/// Check if the buffer contains a CRLF sequence.
-fn has_crlf(buf: &[u8]) -> bool {
-    buf.windows(2).any(|w| w == b"\r\n")
-}
-
-/// Read a chunk from the stream into the buffer. Returns bytes read.
-async fn read_more<S>(stream: &mut S, buf: &mut Vec<u8>) -> Result<usize, FetchError>
-where
-    S: AsyncRead + Unpin,
-{
-    let mut tmp = [0u8; READ_CHUNK];
-    let n = stream.read(&mut tmp).await?;
-    buf.extend_from_slice(&tmp[..n]);
-    Ok(n)
 }

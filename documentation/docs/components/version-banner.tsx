@@ -3,7 +3,7 @@ import { NYM_SDK_VERSION } from "./versions";
 
 const INSTALL_PATH = "/developers/rust/importing";
 
-export const CratesPaused = () => (
+export const VersionBanner = () => (
   <Callout type="info">
     Code examples target <strong>v{NYM_SDK_VERSION}</strong> of the Nym crates
     on{" "}

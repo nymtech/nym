@@ -1,7 +1,7 @@
 /**
  * Centralised version constants for documentation.
  *
- * Components (CratesPaused, CodeVerified, etc.) import from here so there is a
+ * Components (VersionBanner, CodeVerified, etc.) import from here so there is a
  * single place to update on each release.
  *
  * Fenced code blocks still hardcode versions for copy-paste friendliness.

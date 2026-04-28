@@ -175,7 +175,7 @@ members = [
     "nym-gateway-probe",
     "integration-tests",
     "common/nym-kkt-ciphersuite",
-    "common/nym-kkt-context",
+    "common/nym-kkt-context", "common/cosmwasm-smart-contracts/node-families-contract",
 ]
 
 default-members = [

@@ -1,0 +1,42 @@
+[package]
+name = "node-families"
+description = "Nym Node Families contract"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = false
+
+[[bin]]
+name = "schema"
+required-features = ["schema-gen"]
+
+[lib]
+name = "node_families_contract"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cw2 = { workspace = true }
+cw-storage-plus = { workspace = true }
+
+cosmwasm-schema = { workspace = true, optional = true }
+
+nym-contracts-common = { workspace = true }
+node-families-contract-common = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+nym-contracts-common-testing = { workspace = true }
+
+[features]
+schema-gen = ["node-families-contract-common/schema", "cosmwasm-schema"]
+
+
+[lints]
+workspace = true

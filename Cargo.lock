@@ -11190,6 +11190,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "smolmix-dns"
+version = "0.0.1"
+dependencies = [
+ "hickory-proto",
+ "hickory-resolver",
+ "smolmix",
+ "tokio",
+ "tokio-smoltcp",
+ "tracing",
+]
+
+[[package]]
+name = "smolmix-hyper"
+version = "0.0.1"
+dependencies = [
+ "bytes",
+ "http-body-util",
+ "hyper 1.6.0",
+ "hyper-util",
+ "pin-project-lite",
+ "reqwest 0.13.1",
+ "rustls 0.23.37",
+ "smolmix",
+ "smolmix-dns",
+ "smolmix-tls",
+ "tokio",
+ "tokio-smoltcp",
+ "tower 0.5.2",
+ "tracing",
+]
+
+[[package]]
+name = "smolmix-tls"
+version = "0.0.1"
+dependencies = [
+ "rustls 0.23.37",
+ "tokio-rustls 0.26.2",
+ "tokio-smoltcp",
+ "webpki-roots 0.26.11",
+]
+
+[[package]]
 name = "smoltcp"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

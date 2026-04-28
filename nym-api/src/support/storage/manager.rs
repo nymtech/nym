@@ -5,8 +5,9 @@ use crate::node_status_api::models::{HistoricalUptime as ApiHistoricalUptime, Up
 use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses};
 use crate::support::storage::models::{
     ActiveGateway, ActiveMixnode, GatewayDetails, HistoricalUptime, MixnodeDetails,
-    MonitorRunReport, MonitorRunScore, NodeStatus, NymNodeStressTestingResult, RewardingReport,
-    TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
+    MonitorRunReport, MonitorRunScore, NodeStatus, NymNodeStressTestingResult,
+    RetrievedAverageStressTestResult, RewardingReport, TestedGatewayStatus, TestedMixnodeStatus,
+    TestingRoute,
 };
 use crate::support::storage::DbIdCache;
 use nym_mixnet_contract_common::{EpochId, IdentityKey, NodeId};
@@ -306,6 +307,42 @@ impl StorageManager {
         .fetch_one(&self.connection_pool)
         .await?;
         Ok(result.reliability)
+    }
+
+    /// Returns the rolling average stress-testing score for a single node over the given window.
+    ///
+    /// `was_reachable` is `MAX(was_reachable)` so it is `true` if **any** sample reported the
+    /// node reachable, and `false` only if every sample marked it unreachable — matching the
+    /// "false only when all entries are false" rule used by the consumers.
+    ///
+    /// `GROUP BY node_id` (rather than a bare aggregate) ensures that an empty selection yields
+    /// no row (so `fetch_optional` returns `None`) instead of a single all-NULL row that would
+    /// be indistinguishable from "node was never tested".
+    pub(super) async fn get_average_node_stress_test_score(
+        &self,
+        node_id: i64,
+        start_ts: OffsetDateTime,
+        end_ts: OffsetDateTime,
+    ) -> Result<Option<RetrievedAverageStressTestResult>, sqlx::Error> {
+        sqlx::query_as!(
+            RetrievedAverageStressTestResult,
+            r#"
+                SELECT
+                    node_id as "node_id!: NodeId",
+                    AVG(result) as "result!: f64",
+                    MAX(was_reachable) as "was_reachable!: bool"
+                FROM nym_node_stress_testing_result
+                WHERE node_id = ?
+                  AND test_timestamp >= ?
+                  AND test_timestamp <= ?
+                GROUP BY node_id
+            "#,
+            node_id,
+            start_ts,
+            end_ts,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 
     /// Gets all reliability statuses for gateway with particular id that were inserted

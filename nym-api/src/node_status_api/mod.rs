@@ -4,6 +4,7 @@
 use self::cache::refresher::NodeStatusCacheRefresher;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_performance::provider::NodePerformanceProvider;
+use crate::node_status_api::cache::refresher::NodeStatusCacheConfig;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
 use crate::support::config;
@@ -34,7 +35,7 @@ pub(crate) const ONE_DAY: Duration = Duration::from_secs(86400);
 /// caching interval that is twice the nym contract cache
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn start_cache_refresh(
-    config: &config::NodeStatusAPI,
+    config: &config::Config,
     nym_contract_cache_state: &MixnetContractCache,
     described_cache: &SharedCache<DescribedNodes>,
     node_status_cache_state: &NodeStatusCache,
@@ -44,9 +45,22 @@ pub(crate) fn start_cache_refresh(
     on_disk_file: PathBuf,
     shutdown_manager: &ShutdownManager,
 ) -> RefreshRequester {
+    let config = NodeStatusCacheConfig {
+        fallback_caching_interval: config.node_status_api.debug.caching_interval,
+        use_stress_testing_data: config.performance_provider.debug.use_stress_testing_data,
+        minimum_available_stress_testing_results: config
+            .performance_provider
+            .debug
+            .minimum_available_stress_testing_results,
+        stress_testing_score_weight: config
+            .performance_provider
+            .debug
+            .stress_testing_score_weight,
+    };
+
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
         node_status_cache_state.to_owned(),
-        config.debug.caching_interval,
+        config,
         nym_contract_cache_state.to_owned(),
         described_cache.clone(),
         nym_contract_cache_listener,

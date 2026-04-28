@@ -79,6 +79,29 @@ per_node_test_packets = {{ network_monitor.debug.per_node_test_packets }}
 # Path to the database file containing uptime statuses for all mixnodes and gateways.
 database_path = '{{ node_status_api.storage_paths.database_path }}'
 
+
+##### performance provider config options #####
+[performance_provider]
+
+# Specifies whether this nym-api should attempt to retrieve node performance
+# information from the performance contract.
+use_performance_contract_data = {{ performance_provider.use_performance_contract_data }}
+
+[performance_provider.debug]
+# Specify whether external stress testing data should be used for calculating node performance
+# score used for rewarding and active set selection
+# note: this can only be enabled if use_performance_contract_data is set to false!
+use_stress_testing_data = {{ performance_provider.debug.use_stress_testing_data }}
+
+# If `use_stress_testing_data` is set to true, this specifies the minimum % of nodes,
+# that must have their stress data available in the `stress_testing_data_period`,
+# in order to include that metric in performance calculation.
+# This is done to protect against Network Monitor failures and not receiving any data.
+minimum_available_stress_testing_results = {{ performance_provider.debug.minimum_available_stress_testing_results }}
+
+# Specifies the duration of the rolling average used for stress testing score.
+stress_testing_data_period = '{{ performance_provider.debug.stress_testing_data_period }}'
+
 ##### rewarding config options #####
 
 [rewarding]
@@ -92,6 +115,7 @@ enabled = {{ rewarding.enabled }}
 # distribute rewards for given interval.
 # Note, only values in range 0-100 are valid
 minimum_interval_monitor_threshold = {{ rewarding.debug.minimum_interval_monitor_threshold }}
+
 
 [ecash_signer]
 

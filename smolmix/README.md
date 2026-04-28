@@ -53,8 +53,6 @@ target library expects:
 | `smolmix-dns` | ~110 | hickory `RuntimeProvider` | `AsyncIoTokioAsStd` (tokio→futures) |
 | `smolmix-tls` | ~60 | *(none — factory only)* | direct (tokio-rustls takes `AsyncRead/Write`) |
 | `smolmix-hyper` | ~170 | `tower::Service<Uri>` | `TokioIo` + `pin_project!` enum |
-| `smolmix-tungstenite` | ~140 | *(none — composition)* | direct (tungstenite takes `AsyncRead/Write`) |
-| `smolmix-libp2p` | ~175 | libp2p `Transport` | `Compat` (tokio→futures) |
 
 ### smolmix-dns
 
@@ -107,43 +105,16 @@ SmolmixConnector::call(uri)
   → TokioIo<MaybeTlsStream>   (implements hyper's Read/Write/Connection)
 ```
 
-### smolmix-tungstenite
+### Advanced patterns (not published crates)
 
-No new types or trait impls — pure function composition.
-`tokio_tungstenite::client_async()` takes any `AsyncRead + AsyncWrite`
-stream, and `TlsStream<TcpStream>` qualifies. The `connect()` function
-chains four steps:
+WebSocket and libp2p integration are demonstrated as examples rather than
+separate crates — the glue code is minimal enough that users are better served
+by copy-pasting and adapting:
 
-```text
-connect(tunnel, request)
-  → smolmix_dns::resolve(host, port)    DNS through tunnel
-  → tunnel.tcp_connect(addr)            TCP through mixnet
-  → smolmix_tls::connect(tcp, host)     TLS handshake
-  → client_async(request, tls_stream)   WebSocket upgrade
-```
-
-### smolmix-libp2p
-
-libp2p's extension point is the `Transport` trait. `SmolmixTransport`
-implements it for dial-only connections (no inbound — that would require IPR
-listener support).
-
-libp2p uses `futures_io::AsyncRead/Write`, not tokio's. The bridge is
-`tokio_util::compat::Compat<T>` — called via `.compat()` on the TcpStream.
-This is zero-cost trait delegation (no buffering, no copying):
-
-```text
-SmolmixTransport::dial(multiaddr)
-  → parse /ip4/.../tcp/... or /dns4/.../tcp/...
-  → smolmix_dns::resolve() if hostname
-  → tunnel.tcp_connect(addr)
-  → tcp.compat()   →  Compat<TcpStream>  (futures_io AsyncRead/Write)
-```
-
-libp2p's built-in upgrade pipeline — noise (encryption) → yamux
-(multiplexing) — works over any `futures_io::AsyncRead + AsyncWrite`, so
-the standard `.upgrade(V1).authenticate(noise).multiplex(yamux)` chain
-works without modification.
+- **WebSocket**: `tokio-tungstenite` takes any `AsyncRead + AsyncWrite`, so
+  `TlsStream<TcpStream>` works directly. See `core/examples/websocket.rs`.
+- **libp2p**: implement the `Transport` trait, resolve DNS through the tunnel,
+  and bridge with `tokio_util::compat`. See `core/examples/libp2p_ping.rs`.
 
 ## Quick start
 
@@ -170,20 +141,16 @@ udp.send_to(&packet, "1.1.1.1:53".parse()?).await?;
 | [`smolmix-dns`](dns/) | `Resolver` newtype wrapping hickory-resolver |
 | [`smolmix-tls`](tls/) | Shared `TlsConnector` and `connect()` with webpki roots |
 | [`smolmix-hyper`](hyper/) | `Client` newtype wrapping hyper-util |
-| [`smolmix-tungstenite`](tungstenite/) | `connect()` for WebSocket over TLS |
-| [`smolmix-libp2p`](libp2p/) | `SmolmixTransport` implementing libp2p `Transport` |
 
-`smolmix-hyper` and `smolmix-tungstenite` depend on `smolmix-dns` (hostname
-resolution through the tunnel) and `smolmix-tls` (shared TLS setup).
+`smolmix-hyper` depends on `smolmix-dns` (hostname resolution through the
+tunnel) and `smolmix-tls` (shared TLS setup).
 
 ```toml
 [dependencies]
 smolmix = { workspace = true }
 smolmix-dns = { workspace = true }         # DNS resolution
-smolmix-tls = { workspace = true }         # TLS (used by hyper + tungstenite)
+smolmix-tls = { workspace = true }         # TLS
 smolmix-hyper = { workspace = true }       # HTTP client
-smolmix-tungstenite = { workspace = true } # WebSocket client
-smolmix-libp2p = { workspace = true }     # libp2p transport
 ```
 
 ## Examples
@@ -191,17 +158,14 @@ smolmix-libp2p = { workspace = true }     # libp2p transport
 Each crate has its own examples with clearnet-vs-mixnet comparisons:
 
 ```sh
-cargo run -p smolmix             --example tcp         # raw TCP
-cargo run -p smolmix             --example udp         # raw UDP
-cargo run -p smolmix             --example websocket   # WebSocket over TLS
-cargo run -p smolmix-dns         --example resolve     # DNS resolution
-cargo run -p smolmix-hyper       --example get         # HTTPS GET
-cargo run -p smolmix-hyper       --example post        # HTTP POST
-cargo run -p smolmix-tungstenite --example echo        # WebSocket echo
-
-# libp2p: start the clearnet listener, then dial through the mixnet
-cargo run -p smolmix-libp2p      --example listener
-cargo run -p smolmix-libp2p      --example ping -- <MULTIADDR from listener>
+cargo run -p smolmix       --example tcp              # raw TCP
+cargo run -p smolmix       --example udp              # raw UDP
+cargo run -p smolmix       --example https            # HTTPS via tokio-rustls
+cargo run -p smolmix       --example websocket        # WebSocket over TLS
+cargo run -p smolmix       --example libp2p_ping      # libp2p ping through mixnet
+cargo run -p smolmix-dns   --example resolve          # DNS resolution
+cargo run -p smolmix-hyper --example get              # HTTPS GET via hyper
+cargo run -p smolmix-hyper --example post             # HTTP POST via hyper
 ```
 
 ## Architecture

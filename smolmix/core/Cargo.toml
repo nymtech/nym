@@ -44,3 +44,13 @@ hyper-util = { workspace = true, features = ["tokio"] }
 http-body-util = { workspace = true }
 reqwest = { workspace = true, features = ["rustls"] }
 chrono = { workspace = true }
+libp2p = { version = "0.56", features = ["tokio", "noise", "yamux", "ping", "macros"] }
+tokio-util = { workspace = true, features = ["compat"] }
+tokio-smoltcp = "0.5"
+tracing = { workspace = true }
+
+[[example]]
+name = "websocket"
+
+[[example]]
+name = "libp2p_ping"

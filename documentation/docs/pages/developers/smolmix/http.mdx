@@ -1,0 +1,130 @@
+---
+title: "smolmix-hyper: HTTP Client Over the Mixnet"
+description: "Make HTTP and HTTPS requests through the Nym mixnet using smolmix-hyper. Full hyper API with DNS, TCP, and TLS routed through the tunnel."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-04-28"
+---
+
+# HTTP Client
+
+import { Callout } from 'nextra/components'
+import { VersionBanner } from '../../../components/version-banner'
+
+<VersionBanner />
+
+`smolmix-hyper` is the highest-level companion crate — it gives you a familiar HTTP client that routes DNS resolution, TCP connections, and TLS handshakes through the mixnet. This is what most users want: "fetch a URL anonymously".
+
+## Installation
+
+```toml
+[dependencies]
+smolmix = "0.0.1"
+smolmix-hyper = "0.0.1"
+```
+
+You also need to install a rustls crypto provider. Add this at the start of `main()`:
+
+```rust
+rustls::crypto::ring::default_provider()
+    .install_default()
+    .expect("Failed to install rustls crypto provider");
+```
+
+## GET request
+
+```rust
+use smolmix::Tunnel;
+use smolmix_hyper::{Client, Request, EmptyBody, BodyExt};
+use bytes::Bytes;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    smolmix::init_logging();
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
+    let tunnel = Tunnel::new().await?;
+    let client = Client::new(&tunnel);
+
+    let req = Request::get("https://cloudflare.com/cdn-cgi/trace")
+        .header("Host", "cloudflare.com")
+        .body(EmptyBody::<Bytes>::new())?;
+
+    let resp = client.request(req).await?;
+    println!("Status: {}", resp.status());
+
+    let body = resp.into_body().collect().await?.to_bytes();
+    println!("{}", String::from_utf8_lossy(&body));
+
+    tunnel.shutdown().await;
+    Ok(())
+}
+```
+
+The `ip=` line in the response shows the IPR exit gateway's IP — your real IP is hidden by the mixnet.
+
+## POST request
+
+The convenience `Client` wrapper uses `Empty<Bytes>` as its body type (suitable for GET). For POST/PUT, construct a client with a different body type using `SmolmixConnector` directly:
+
+```rust
+use http_body_util::Full;
+use hyper_util::{client::legacy, rt::TokioExecutor};
+use bytes::Bytes;
+use smolmix_hyper::SmolmixConnector;
+
+let tunnel = smolmix::Tunnel::new().await?;
+let connector = SmolmixConnector::new(&tunnel);
+let client = legacy::Client::builder(TokioExecutor::new())
+    .build::<_, Full<Bytes>>(connector);
+
+let body = Full::new(Bytes::from(r#"{"key": "value"}"#));
+let req = hyper::Request::post("https://httpbin.org/post")
+    .header("Host", "httpbin.org")
+    .header("Content-Type", "application/json")
+    .body(body)?;
+
+let resp = client.request(req).await?;
+```
+
+## How it works
+
+```text
+Client::request(req)
+  → SmolmixConnector::call(uri)    (tower::Service<Uri>)
+    → smolmix_dns::resolve()       DNS through tunnel
+    → tunnel.tcp_connect()         TCP through mixnet
+    → smolmix_tls::connect_with()  TLS if https://
+    → TokioIo<MaybeTlsStream>     hyper-compatible stream
+  → hyper sends HTTP over that stream
+```
+
+The `SmolmixConnector` implements `tower::Service<Uri>` — this is hyper-util's extension point for custom connection logic. All the privacy-critical parts (DNS, TCP, TLS) go through the tunnel; hyper handles HTTP framing normally on top.
+
+## API reference
+
+| Type/Function | Description |
+|---|---|
+| `Client::new(tunnel)` | HTTP client with `Empty<Bytes>` body (GET/HEAD) |
+| `client(tunnel)` | Free function, same as `Client::new()` |
+| `SmolmixConnector::new(tunnel)` | Connector for custom body types |
+| `Request`, `Response`, `StatusCode`, `Uri` | Re-exported from hyper |
+| `BodyExt`, `EmptyBody` | Re-exported from http-body-util |
+| `bytes` | Re-exported bytes crate |
+| `MaybeTlsStream` | Plain/TLS stream enum (internal) |
+
+## Examples
+
+```sh
+cargo run -p smolmix-hyper --example get
+cargo run -p smolmix-hyper --example post
+cargo run -p smolmix-hyper --example get -- --ipr <IPR_ADDRESS>
+```
+
+## Performance notes
+
+<Callout type="info">
+The first request takes several seconds (mixnet connection setup + multi-hop TCP handshake). Subsequent requests on the same client reuse the tunnel and are significantly faster. hyper-util's connection pooling also helps — HTTP keep-alive connections avoid repeated TCP/TLS setup.
+</Callout>

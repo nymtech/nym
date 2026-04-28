@@ -1,22 +1,54 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-2.0-only
 
-//! Shared TLS setup for smolmix tunneled connections.
+//! Shared TLS configuration for smolmix tunneled connections.
 //!
-//! Provides a pre-configured [`TlsConnector`] with webpki root certificates
-//! and convenience functions for TLS over [`TcpStream`].
+//! # Why a separate TLS crate?
 //!
-//! # Quick start
+//! Every protocol that needs encryption over smolmix (HTTPS, WebSocket, etc.)
+//! requires the same setup: build a `ClientConfig` with webpki root
+//! certificates, wrap it in a `TlsConnector`. Rather than duplicating this
+//! in every crate, `smolmix-tls` provides a single source of truth.
 //!
-//! ```ignore
-//! // One-shot: TLS handshake over an existing TCP stream.
-//! let tls_stream = smolmix_tls::connect(tcp, "example.com").await?;
+//! The crate is deliberately minimal — 60 lines of pure configuration, no
+//! trait impls needed. `tokio-rustls` works directly with anything that
+//! implements tokio's `AsyncRead + AsyncWrite`, which `smolmix::TcpStream`
+//! does out of the box.
 //!
-//! // Reusable: create a connector once, use it for many connections.
-//! let tls = smolmix_tls::connector();
-//! let stream1 = smolmix_tls::connect_with(&tls, tcp1, "a.com").await?;
-//! let stream2 = smolmix_tls::connect_with(&tls, tcp2, "b.com").await?;
+//! # Usage patterns
+//!
+//! ```no_run
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # let tunnel = smolmix::Tunnel::new().await?;
+//! // One-shot: creates a fresh connector internally.
+//! // Simple but rebuilds the root cert store each time.
+//! let tcp = tunnel.tcp_connect("93.184.216.34:443".parse()?).await?;
+//! let tls = smolmix_tls::connect(tcp, "example.com").await?;
+//!
+//! // Reusable: create a connector once, use for many connections.
+//! // The TlsConnector wraps an Arc<ClientConfig> — cloning is cheap.
+//! let connector = smolmix_tls::connector();
+//! let tcp1 = tunnel.tcp_connect("1.1.1.1:443".parse()?).await?;
+//! let stream1 = smolmix_tls::connect_with(&connector, tcp1, "one.one.one.one").await?;
+//! # Ok(())
+//! # }
 //! ```
+//!
+//! # What's inside
+//!
+//! - [`connector()`] — builds a `TlsConnector` with Mozilla's root CA bundle
+//!   ([`webpki-roots`](https://docs.rs/webpki-roots))
+//! - [`connect()`] — one-shot TLS handshake (convenience, creates connector internally)
+//! - [`connect_with()`] — TLS handshake using a pre-built connector (preferred for repeated use)
+//! - Re-exports [`TlsStream`] and [`TlsConnector`] so downstream code doesn't
+//!   need `tokio-rustls` in its `Cargo.toml`
+//!
+//! # Security
+//!
+//! The connector uses rustls with the standard webpki root certificates and
+//! no client authentication. SNI (Server Name Indication) is set from the
+//! hostname you pass to `connect`/`connect_with`. There is no way to disable
+//! certificate verification — this is intentional.
 
 use std::io;
 use std::sync::Arc;

@@ -1,0 +1,182 @@
+---
+title: "libp2p Transport Over the Mixnet"
+description: "Implement a libp2p Transport trait over smolmix for dial-only peer-to-peer connections through the Nym mixnet. Full pattern with noise and yamux."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-04-28"
+---
+
+# libp2p Transport
+
+import { Callout } from 'nextra/components'
+import { VersionBanner } from '../../../../components/version-banner'
+
+<VersionBanner />
+
+libp2p's extension point for custom networking is the `Transport` trait. Implementing it for smolmix gives you a dial-only transport that routes connections through the Nym mixnet — libp2p's built-in noise encryption and yamux multiplexing work natively on top.
+
+<Callout type="info">
+This is a **pattern to copy and adapt**, not a published crate. The implementation is ~80 lines — simple enough to own directly in your project, and you'll likely want to customise it (add listening support, change multiaddr parsing, etc.).
+</Callout>
+
+## Dependencies
+
+```toml
+[dependencies]
+smolmix = "0.0.1"
+smolmix-dns = "0.0.1"
+libp2p = { version = "0.56", features = ["tokio", "noise", "yamux", "ping", "macros"] }
+tokio-smoltcp = "0.5"
+tokio-util = { version = "0.7", features = ["compat"] }
+```
+
+## The Transport implementation
+
+```rust
+use std::future::Future;
+use std::io;
+use std::net::SocketAddr;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
+use libp2p::core::multiaddr::Protocol;
+use libp2p::core::transport::{DialOpts, ListenerId, TransportError, TransportEvent};
+use libp2p::core::Transport;
+use libp2p::Multiaddr;
+use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
+
+use smolmix::Tunnel;
+
+pub struct SmolmixTransport {
+    tunnel: Tunnel,
+}
+
+impl SmolmixTransport {
+    pub fn new(tunnel: &Tunnel) -> Self {
+        Self { tunnel: tunnel.clone() }
+    }
+}
+
+enum DialTarget {
+    Ip(SocketAddr),
+    Dns { host: String, port: u16 },
+}
+
+fn parse_multiaddr(addr: &Multiaddr) -> Option<DialTarget> {
+    let mut iter = addr.iter();
+    match iter.next()? {
+        Protocol::Ip4(ip) => {
+            if let Some(Protocol::Tcp(port)) = iter.next() {
+                Some(DialTarget::Ip(SocketAddr::new(ip.into(), port)))
+            } else { None }
+        }
+        Protocol::Ip6(ip) => {
+            if let Some(Protocol::Tcp(port)) = iter.next() {
+                Some(DialTarget::Ip(SocketAddr::new(ip.into(), port)))
+            } else { None }
+        }
+        Protocol::Dns4(host) | Protocol::Dns(host) => {
+            if let Some(Protocol::Tcp(port)) = iter.next() {
+                Some(DialTarget::Dns { host: host.to_string(), port })
+            } else { None }
+        }
+        _ => None,
+    }
+}
+
+impl Transport for SmolmixTransport {
+    type Output = Compat<tokio_smoltcp::TcpStream>;
+    type Error = io::Error;
+    type ListenerUpgrade = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
+    type Dial = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
+
+    fn listen_on(&mut self, _id: ListenerId, addr: Multiaddr)
+        -> Result<(), TransportError<Self::Error>>
+    {
+        Err(TransportError::MultiaddrNotSupported(addr))
+    }
+
+    fn remove_listener(&mut self, _id: ListenerId) -> bool { false }
+
+    fn dial(&mut self, addr: Multiaddr, _opts: DialOpts)
+        -> Result<Self::Dial, TransportError<Self::Error>>
+    {
+        let target = parse_multiaddr(&addr)
+            .ok_or(TransportError::MultiaddrNotSupported(addr))?;
+        let tunnel = self.tunnel.clone();
+
+        Ok(Box::pin(async move {
+            let socket_addr = match target {
+                DialTarget::Ip(addr) => addr,
+                DialTarget::Dns { host, port } => {
+                    let addrs = smolmix_dns::resolve(&tunnel, &host, port).await?;
+                    addrs.into_iter().next().ok_or_else(|| {
+                        io::Error::new(io::ErrorKind::AddrNotAvailable, "no addresses")
+                    })?
+                }
+            };
+            let tcp = tunnel.tcp_connect(socket_addr).await
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            Ok(tcp.compat())
+        }))
+    }
+
+    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>)
+        -> Poll<TransportEvent<Self::ListenerUpgrade, Self::Error>>
+    {
+        Poll::Pending
+    }
+}
+```
+
+## Using it with a Swarm
+
+```rust
+use libp2p::{noise, yamux, ping, SwarmBuilder};
+use libp2p::core::upgrade::Version;
+use libp2p::core::Transport;
+
+let tunnel = smolmix::Tunnel::new().await?;
+
+let mut swarm = SwarmBuilder::with_new_identity()
+    .with_tokio()
+    .with_other_transport(|keypair| {
+        SmolmixTransport::new(&tunnel)
+            .upgrade(Version::V1)
+            .authenticate(noise::Config::new(keypair).expect("noise config"))
+            .multiplex(yamux::Config::default())
+            .boxed()
+    })?
+    .with_behaviour(|_| ping::Behaviour::default())?
+    .build();
+
+// Dial a remote peer through the mixnet
+let remote: Multiaddr = "/ip4/1.2.3.4/tcp/4001".parse()?;
+swarm.dial(remote)?;
+```
+
+## Why this works
+
+The key insight is the I/O trait bridge:
+
+- libp2p requires `futures_io::AsyncRead + AsyncWrite`
+- smolmix provides `tokio::io::AsyncRead + AsyncWrite`
+- `tokio_util::compat::Compat<T>` bridges between them (zero-cost delegation)
+
+Once you have a `Compat<TcpStream>`, libp2p's standard upgrade pipeline — noise (encryption) → yamux (multiplexing) — works without modification. No custom connection types, no custom framing.
+
+## Limitations
+
+- **Dial-only**: `listen_on()` returns `MultiaddrNotSupported`. The mixnet currently doesn't support inbound TCP.
+- **No TLS in transport**: libp2p uses noise for encryption, so TLS would be redundant.
+- **Single address**: DNS resolution takes the first result without fallback. Add retry logic if needed.
+
+## Comparison with existing Nym SDK libp2p integration
+
+The existing `libp2p_shared` package in the Nym SDK is ~2400 lines — it implements custom `Connection` (StreamMuxer), custom `Substream` (AsyncRead/Write), nonce-based ordering, and a custom handshake at the message layer.
+
+The smolmix version is ~80 lines because it operates at the TCP layer. Real TCP state machines handle ordering, retransmits, and flow control — libp2p's existing noise + yamux work unchanged.
+
+<Callout type="info">
+A complete runnable example (including CLI argument parsing) lives at [`smolmix/core/examples/libp2p_ping.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/libp2p_ping.rs).
+</Callout>

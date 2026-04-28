@@ -1,15 +1,41 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-2.0-only
 
 //! DNS resolution through the Nym mixnet.
 //!
-//! This crate wraps [hickory-resolver] with a newtype [`Resolver`] that routes
-//! all DNS traffic through a smolmix [`Tunnel`], ensuring hostnames are resolved
-//! via the mixnet rather than leaking queries to the local network.
+//! # Why a separate DNS crate?
+//!
+//! If you resolve hostnames using the OS resolver or a clearnet DNS library,
+//! the queries travel over your local network — leaking which domains you're
+//! visiting even though the TCP traffic itself goes through the mixnet. This
+//! crate routes all DNS queries (both UDP and TCP) through the smolmix
+//! [`Tunnel`], so hostname lookups are as private as the rest of your traffic.
+//!
+//! # How it works
+//!
+//! [hickory-resolver]'s extension point is the [`RuntimeProvider`] trait — it
+//! controls how the resolver creates TCP connections and UDP sockets.
+//! [`SmolmixRuntimeProvider`] implements this trait, routing all I/O through
+//! the tunnel:
+//!
+//! ```text
+//! RuntimeProvider::connect_tcp()  →  tunnel.tcp_connect()  →  AsyncIoTokioAsStd<TcpStream>
+//! RuntimeProvider::bind_udp()     →  tunnel.udp_socket()   →  SmolmixUdpSocket (newtype)
+//! ```
+//!
+//! hickory expects `futures_io::AsyncRead/Write` for TCP, not tokio's version.
+//! `AsyncIoTokioAsStd` (from hickory-proto) adapts between them — and because
+//! hickory's `DnsTcpStream` has a blanket impl for any `futures_io::AsyncRead +
+//! AsyncWrite`, the wrapped stream satisfies it automatically.
+//!
+//! For UDP, [`SmolmixUdpSocket`] is a thin newtype over `tokio_smoltcp::UdpSocket`
+//! that implements hickory's [`DnsUdpSocket`](hickory_proto::udp::DnsUdpSocket)
+//! — just delegates `poll_recv_from` and `poll_send_to`.
 //!
 //! # Quick start
 //!
-//! ```ignore
+//! ```no_run
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use smolmix_dns::Resolver;
 //!
 //! let tunnel = smolmix::Tunnel::new().await?;
@@ -21,7 +47,33 @@
 //!
 //! // Convenience one-shot:
 //! let addrs = resolver.resolve("example.com", 443).await?;
+//! # Ok(())
+//! # }
 //! ```
+//!
+//! # Caching
+//!
+//! hickory-resolver maintains an internal LRU cache for DNS responses. To
+//! benefit from caching, **reuse the [`Resolver`] across requests** rather
+//! than creating a new one per lookup. The free function [`resolve()`]
+//! constructs a fresh resolver each time and does not cache.
+//!
+//! # Custom upstream DNS
+//!
+//! By default, queries go to Cloudflare (`1.1.1.1`). Use
+//! [`Resolver::with_config()`] for other upstreams:
+//!
+//! ```no_run
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! use smolmix_dns::{Resolver, ResolverConfig};
+//!
+//! let tunnel = smolmix::Tunnel::new().await?;
+//! let resolver = Resolver::with_config(&tunnel, ResolverConfig::quad9());
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! [`RuntimeProvider`]: hickory_proto::runtime::RuntimeProvider
 
 mod provider;
 
@@ -34,10 +86,22 @@ use hickory_resolver::name_server::GenericConnector;
 use hickory_proto::runtime::TokioHandle;
 use smolmix::Tunnel;
 
-// Re-exports so users don't need hickory-resolver in their Cargo.toml
+/// Re-exported from hickory-resolver. Used with [`Resolver::with_config()`]
+/// to select a custom upstream DNS server (Cloudflare, Quad9, Google, etc.).
 pub use hickory_resolver::config::ResolverConfig;
+
+/// Re-exported from hickory-resolver. The result of a successful `lookup_ip()`
+/// call — iterate with `.iter()` to get `IpAddr` values.
 pub use hickory_resolver::lookup_ip::LookupIp;
+
+/// Re-exported from hickory-resolver. The error type for DNS resolution failures.
 pub use hickory_resolver::ResolveError;
+
+/// The runtime provider that routes DNS I/O through the tunnel.
+///
+/// You don't usually need to use this directly — [`Resolver::new()`] wires it
+/// up for you. Exposed for advanced use cases (custom resolver configurations
+/// beyond what `with_config` covers).
 pub use provider::SmolmixRuntimeProvider;
 
 /// Inner resolver type alias for readability.
@@ -99,10 +163,11 @@ pub fn resolver(tunnel: &Tunnel) -> Resolver {
     Resolver::new(tunnel)
 }
 
-/// Resolve a hostname through the tunnel.
+/// Resolve a hostname through the tunnel (uncached).
 ///
-/// Convenience wrapper for one-shot lookups. Equivalent to
-/// `Resolver::new(tunnel).resolve(host, port)`.
+/// Convenience wrapper for one-shot lookups. Creates a fresh [`Resolver`]
+/// internally, so **DNS responses are not cached** across calls. If you're
+/// making multiple lookups, create a [`Resolver`] once and reuse it.
 pub async fn resolve(tunnel: &Tunnel, host: &str, port: u16) -> io::Result<Vec<SocketAddr>> {
     let r = resolver(tunnel);
     r.resolve(host, port).await

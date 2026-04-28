@@ -1,0 +1,110 @@
+---
+title: "smolmix-dns: DNS Resolution Through the Mixnet"
+description: "Resolve hostnames privately using smolmix-dns. Routes all DNS queries through the Nym mixnet to prevent hostname leaks."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-04-28"
+---
+
+# DNS Resolution
+
+import { Callout } from 'nextra/components'
+import { VersionBanner } from '../../../components/version-banner'
+
+<VersionBanner />
+
+If you resolve hostnames using the OS resolver or a clearnet DNS library, the queries travel over your local network — leaking which domains you're visiting even though the TCP traffic goes through the mixnet. `smolmix-dns` routes all DNS queries (both UDP and TCP fallback) through the tunnel.
+
+## Installation
+
+```toml
+[dependencies]
+smolmix = "0.0.1"
+smolmix-dns = "0.0.1"
+```
+
+## Basic usage
+
+```rust
+use smolmix::Tunnel;
+use smolmix_dns::Resolver;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let tunnel = Tunnel::new().await?;
+    let resolver = Resolver::new(&tunnel);
+
+    // Full hickory-resolver API via Deref:
+    let lookup = resolver.lookup_ip("example.com").await?;
+    for ip in lookup.iter() {
+        println!("{ip}");
+    }
+
+    // Convenience method returning SocketAddr with port:
+    let addrs = resolver.resolve("nymtech.net", 443).await?;
+    println!("nymtech.net:443 → {addrs:?}");
+
+    tunnel.shutdown().await;
+    Ok(())
+}
+```
+
+## Caching
+
+<Callout type="info">
+**Reuse your `Resolver` across requests.** hickory-resolver maintains an internal LRU cache for DNS responses. Creating a new `Resolver` per lookup (or using the free function `smolmix_dns::resolve()`) bypasses caching entirely — every lookup triggers a full round-trip through the mixnet.
+</Callout>
+
+```rust
+// Good: resolver created once, cache shared across lookups
+let resolver = Resolver::new(&tunnel);
+let a = resolver.resolve("example.com", 443).await?;
+let b = resolver.resolve("example.com", 80).await?; // cache hit
+
+// Avoid: creates a fresh resolver (and empty cache) each time
+let a = smolmix_dns::resolve(&tunnel, "example.com", 443).await?;
+let b = smolmix_dns::resolve(&tunnel, "example.com", 80).await?; // cache miss
+```
+
+## Custom upstream DNS
+
+By default, queries go to Cloudflare (`1.1.1.1`). Use `Resolver::with_config()` for other upstreams:
+
+```rust
+use smolmix_dns::{Resolver, ResolverConfig};
+
+// Quad9
+let resolver = Resolver::with_config(&tunnel, ResolverConfig::quad9());
+
+// Google
+let resolver = Resolver::with_config(&tunnel, ResolverConfig::google());
+```
+
+## How it works
+
+`smolmix-dns` implements hickory-resolver's `RuntimeProvider` trait, which controls how the resolver creates network connections:
+
+```text
+RuntimeProvider::connect_tcp()  →  tunnel.tcp_connect()  →  AsyncIoTokioAsStd<TcpStream>
+RuntimeProvider::bind_udp()     →  tunnel.udp_socket()   →  SmolmixUdpSocket (newtype)
+```
+
+All DNS I/O is routed through the smolmix tunnel. The resolver itself is standard hickory-resolver — full DNS protocol support, caching, DNSSEC validation (if configured), etc.
+
+## API reference
+
+| Type/Function | Description |
+|---|---|
+| `Resolver::new(tunnel)` | Resolver using Cloudflare DNS |
+| `Resolver::with_config(tunnel, config)` | Resolver with custom upstream |
+| `resolver.resolve(host, port)` | Convenience: returns `Vec<SocketAddr>` |
+| `resolver.lookup_ip(host)` | Full hickory API (via `Deref`) |
+| `smolmix_dns::resolve(tunnel, host, port)` | One-shot (uncached) convenience |
+| `ResolverConfig` | Re-exported hickory config type |
+
+## Example
+
+```sh
+cargo run -p smolmix-dns --example resolve
+cargo run -p smolmix-dns --example resolve -- --ipr <IPR_ADDRESS>
+```

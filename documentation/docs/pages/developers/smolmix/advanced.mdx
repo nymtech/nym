@@ -1,0 +1,24 @@
+---
+title: "Advanced Patterns"
+description: "Advanced integration patterns for smolmix: WebSocket, libp2p, and other protocols over the Nym mixnet."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-04-28"
+---
+
+# Advanced Patterns
+
+import { VersionBanner } from '../../../components/version-banner'
+
+<VersionBanner />
+
+The published companion crates (`smolmix-dns`, `smolmix-tls`, `smolmix-hyper`) cover the most common use cases. For other protocols, the same principle applies: if a library accepts `AsyncRead + AsyncWrite` (or can be adapted to it), it works over smolmix with minimal glue.
+
+These pages show complete, self-contained patterns you can copy and adapt:
+
+| Pattern | Lines of glue | What you learn |
+|---|---:|---|
+| [WebSocket](./advanced/websocket) | ~10 | Composing DNS + TCP + TLS + protocol upgrade |
+| [libp2p Transport](./advanced/libp2p) | ~80 | Implementing a trait for a third-party framework |
+
+The key insight: `smolmix::TcpStream` implements tokio's `AsyncRead + AsyncWrite`, and most async Rust libraries are built on those traits. You rarely need a dedicated crate — just the right adapter call.

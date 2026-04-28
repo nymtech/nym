@@ -1,0 +1,4 @@
+{
+  "websocket": "WebSocket",
+  "libp2p": "libp2p Transport"
+}

@@ -706,7 +706,7 @@ dependencies = [
  "cw4",
  "cw4-group",
  "easy-addr",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-contracts-common-testing",
  "nym-group-contract-common",
  "nym-multisig-contract-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -737,7 +737,7 @@ dependencies = [
  "cw2",
  "cw4",
  "easy-addr",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-contracts-common-testing",
  "nym-group-contract-common",
  "schemars",
@@ -1166,6 +1166,48 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
 
 [[package]]
+name = "mixnet-vesting-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-multi-test",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nym-crypto",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
+ "rand_chacha",
+]
+
+[[package]]
+name = "node-families"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw2",
+ "node-families-contract-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nym-contracts-common-testing",
+]
+
+[[package]]
+name = "node-families-contract-common"
+version = "1.20.4"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-contracts-common 1.20.4",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1225,7 +1267,7 @@ dependencies = [
  "cw4-group",
  "easy-addr",
  "nym-coconut-dkg-common",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-contracts-common-testing",
  "nym-group-contract-common",
  "thiserror 2.0.12",
@@ -1242,8 +1284,22 @@ dependencies = [
  "cw-utils",
  "cw2",
  "cw4",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-multisig-contract-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "nym-contracts-common"
+version = "1.20.4"
+dependencies = [
+ "bs58",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+ "vergen",
 ]
 
 [[package]]
@@ -1272,7 +1328,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-multi-test",
  "cw-storage-plus",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand",
  "rand_chacha",
  "serde",
@@ -1313,7 +1369,7 @@ dependencies = [
  "cw2",
  "cw3",
  "cw4",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-contracts-common-testing",
  "nym-crypto",
  "nym-ecash-contract-common",
@@ -1365,7 +1421,7 @@ dependencies = [
  "cw-storage-plus",
  "cw2",
  "easy-addr",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-contracts-common-testing",
  "nym-crypto",
  "nym-mixnet-contract",
@@ -1390,7 +1446,7 @@ dependencies = [
  "cw-storage-plus",
  "cw2",
  "humantime-serde",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "semver",
  "serde",
@@ -1462,7 +1518,7 @@ dependencies = [
  "cw-controllers",
  "cw-storage-plus",
  "cw2",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-contracts-common-testing",
  "nym-crypto",
  "nym-mixnet-contract",
@@ -1480,7 +1536,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
  "thiserror 2.0.12",
@@ -1496,7 +1552,7 @@ dependencies = [
  "cw-controllers",
  "cw-storage-plus",
  "cw2",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-contracts-common-testing",
  "nym-pool-contract-common",
 ]
@@ -1537,7 +1593,7 @@ dependencies = [
  "cw-storage-plus",
  "cw2",
  "hex",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-mixnet-contract-common",
  "nym-vesting-contract-common",
  "rand_chacha",
@@ -1555,7 +1611,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw2",
- "nym-contracts-common",
+ "nym-contracts-common 1.20.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-mixnet-contract-common",
  "serde",
  "thiserror 2.0.12",

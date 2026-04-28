@@ -42,9 +42,6 @@ pub(crate) struct NodeStatusCacheConfig {
 
     /// If use_stress_testing_data is enabled, specifies the weight of the stress testing score in the overall performance score.
     pub stress_testing_score_weight: f64,
-
-    /// Specifies the duration of the rolling average used for stress testing score.
-    pub stress_testing_data_period: Duration,
 }
 
 // Long running task responsible for keeping the node status cache up-to-date.
@@ -220,7 +217,8 @@ impl NodeStatusCacheRefresher {
         }
 
         let use_stress_testing_scores = self.config.use_stress_testing_data;
-        let available_ratio = stress_testing_scores.count() as f32 / nym_nodes.len() as f32;
+        let available_ratio =
+            stress_testing_scores.available_count() as f32 / nym_nodes.len() as f32;
 
         // must be explicitly enabled in the config AND we must have sufficient number of entries
         let include_stress_testing = use_stress_testing_scores

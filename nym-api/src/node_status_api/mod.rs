@@ -56,7 +56,6 @@ pub(crate) fn start_cache_refresh(
             .performance_provider
             .debug
             .stress_testing_score_weight,
-        stress_testing_data_period: config.performance_provider.debug.stress_testing_data_period,
     };
 
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(

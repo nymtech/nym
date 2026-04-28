@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::models::{StressTestResult, TestNode};
+use nym_api_requests::models::{StressTestResult, StressTestingScore, TestNode};
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use sqlx::FromRow;
@@ -173,6 +173,22 @@ impl NymNodeStressTestingResult {
             result: value.test_performance,
             was_reachable: value.was_reachable,
             test_timestamp: value.test_timestamp,
+        }
+    }
+}
+
+#[derive(FromRow)]
+pub struct RetrievedAverageStressTestResult {
+    pub node_id: NodeId,
+    pub result: f64,
+    pub was_reachable: bool,
+}
+
+impl From<RetrievedAverageStressTestResult> for StressTestingScore {
+    fn from(value: RetrievedAverageStressTestResult) -> Self {
+        StressTestingScore {
+            score: value.result,
+            was_reachable: value.was_reachable,
         }
     }
 }

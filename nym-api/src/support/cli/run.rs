@@ -298,6 +298,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         Box::new(LegacyStoragePerformanceProvider::new(
             storage.clone(),
             mixnet_contract_cache_state.clone(),
+            config.performance_provider.debug.stress_testing_data_period,
         ))
     };
 

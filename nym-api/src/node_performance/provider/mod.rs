@@ -37,19 +37,18 @@ pub(crate) struct NodesStressTestingScores {
 
 impl NodesStressTestingScores {
     pub(crate) fn get_or_log(&self, node_id: NodeId) -> StressTestingScore {
-        todo!()
-        // match self.inner.get(&node_id) {
-        //     Some(Ok(score)) => *score,
-        //     Some(Err(err)) => {
-        //         debug!("{err}");
-        //         RoutingScore::zero()
-        //     }
-        //     None => RoutingScore::zero(),
-        // }
+        match self.inner.get(&node_id) {
+            Some(Ok(score)) => *score,
+            Some(Err(err)) => {
+                debug!("{err}");
+                StressTestingScore::unreachable()
+            }
+            None => StressTestingScore::unreachable(),
+        }
     }
 
-    pub(crate) fn count(&self) -> usize {
-        self.inner.len()
+    pub(crate) fn available_count(&self) -> usize {
+        self.inner.iter().filter(|(_, v)| v.is_ok()).count()
     }
 }
 
@@ -172,7 +171,7 @@ impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
     ) -> Result<NodesRoutingScores, PerformanceRetrievalFailure> {
         let mut scores = HashMap::new();
 
-        let epoch_timestamp = self.epoch_id_unix_timestamp(epoch_id).await?;
+        let epoch_timestamp = self.epoch_id_timestamp(epoch_id).await?.unix_timestamp();
         for &node_id in node_ids {
             scores.insert(
                 node_id,
@@ -184,12 +183,13 @@ impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
         Ok(NodesRoutingScores { inner: scores })
     }
 
+    #[allow(unused)]
     async fn get_node_stress_testing_score(
         &self,
         node_id: NodeId,
         epoch_id: EpochId,
     ) -> Result<StressTestingScore, PerformanceRetrievalFailure> {
-        todo!()
+        self.node_stress_testing_score(node_id, epoch_id).await
     }
 
     async fn get_batch_node_stress_testing_scores(
@@ -197,6 +197,7 @@ impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
         node_ids: &[NodeId],
         epoch_id: EpochId,
     ) -> Result<NodesStressTestingScores, PerformanceRetrievalFailure> {
-        todo!()
+        self.get_node_stress_testing_scores(node_ids, epoch_id)
+            .await
     }
 }

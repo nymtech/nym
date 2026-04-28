@@ -573,6 +573,15 @@ pub struct StressTestingScore {
     pub was_reachable: bool,
 }
 
+impl StressTestingScore {
+    pub fn unreachable() -> Self {
+        StressTestingScore {
+            score: 0.0,
+            was_reachable: false,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(

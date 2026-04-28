@@ -569,7 +569,9 @@ impl RoutingScore {
 )]
 pub struct StressTestingScore {
     pub score: f64,
-    // distinguish between zero-score and not being unavailable
+    /// Distinguishes a genuine zero score (node was tested and scored 0) from
+    /// "node was unreachable" (no successful sample was collected). Consumers may use
+    /// this to decide whether to penalise the node or treat the score as missing.
     pub was_reachable: bool,
 }
 

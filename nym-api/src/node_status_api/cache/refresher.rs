@@ -217,12 +217,24 @@ impl NodeStatusCacheRefresher {
         }
 
         let use_stress_testing_scores = self.config.use_stress_testing_data;
+        let threshold = self.config.minimum_available_stress_testing_results;
         let available_ratio =
             stress_testing_scores.available_count() as f32 / nym_nodes.len() as f32;
 
-        // must be explicitly enabled in the config AND we must have sufficient number of entries
-        let include_stress_testing = use_stress_testing_scores
-            && available_ratio >= self.config.minimum_available_stress_testing_results;
+        // Guard against an orchestrator outage silently slashing every node's performance:
+        // if too few nodes have a reachable stress-test sample for the configured window we
+        // assume the orchestrator (rather than the network) is at fault and fall back to the
+        // routing × config score alone. The threshold is a network-wide ratio, not per-node —
+        // once it is met, individual nodes without data still score 0 in the weighted formula
+        // by design, on the assumption that the orchestrator tried to test them and failed.
+        let include_stress_testing = use_stress_testing_scores && available_ratio >= threshold;
+
+        if use_stress_testing_scores && !include_stress_testing {
+            info!(
+                "not using stress testing data for performance calculation: \
+                 available ratio {available_ratio:.3} is below threshold {threshold:.3}"
+            );
+        }
 
         // stress testing
         let sw = self.config.stress_testing_score_weight;
@@ -241,7 +253,6 @@ impl NodeStatusCacheRefresher {
                 // use weighted arithmetic mean (we don't want a single 0 to cause the whole thing to be 0)
                 sw * stress_testing_score.score + nsw * routing_score.score * config_score.score
             } else {
-                info!("not using stress testing data for performance calculation");
                 routing_score.score * config_score.score
             };
 

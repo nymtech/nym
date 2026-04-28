@@ -47,8 +47,22 @@ impl NodesStressTestingScores {
         }
     }
 
+    /// Number of nodes for which the orchestrator has produced at least one reachable sample
+    /// in the configured window. Used by the refresher to gate whether stress-testing data is
+    /// applied at all: if the orchestrator is down or has not yet submitted anything, this
+    /// returns 0 and the refresher falls back to routing × config score only.
+    ///
+    /// Note: nodes that were tested but found unreachable (`was_reachable=false`) intentionally
+    /// do **not** count here. Counting them would let a single recently-rebooted orchestrator
+    /// pass the threshold while every node it touched still scored 0.
     pub(crate) fn available_count(&self) -> usize {
-        self.inner.iter().filter(|(_, v)| v.is_ok()).count()
+        self.inner
+            .iter()
+            .filter(|(_, v)| match v {
+                Ok(score) => score.was_reachable,
+                Err(_) => false,
+            })
+            .count()
     }
 }
 

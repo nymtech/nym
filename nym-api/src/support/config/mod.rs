@@ -194,6 +194,15 @@ impl Config {
                 NymApiPaths::new_default(&self.base.id).persistent_cache_directory;
         }
 
+        if self.performance_provider.debug.use_stress_testing_data
+            && self.performance_provider.use_performance_contract_data
+        {
+            bail!(
+                "[performance_provider.debug].use_stress_testing_data cannot be enabled while \
+                 [performance_provider].use_performance_contract_data is also enabled"
+            )
+        }
+
         self.ecash_signer.validate()?;
 
         Ok(())

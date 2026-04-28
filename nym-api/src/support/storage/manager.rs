@@ -309,6 +309,15 @@ impl StorageManager {
         Ok(result.reliability)
     }
 
+    /// Returns the rolling average stress-testing score for a single node over the given window.
+    ///
+    /// `was_reachable` is `MAX(was_reachable)` so it is `true` if **any** sample reported the
+    /// node reachable, and `false` only if every sample marked it unreachable — matching the
+    /// "false only when all entries are false" rule used by the consumers.
+    ///
+    /// `GROUP BY node_id` (rather than a bare aggregate) ensures that an empty selection yields
+    /// no row (so `fetch_optional` returns `None`) instead of a single all-NULL row that would
+    /// be indistinguishable from "node was never tested".
     pub(super) async fn get_average_node_stress_test_score(
         &self,
         node_id: i64,

@@ -1,6 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// storage will be used in subsequent PRs/tickets
+#![allow(dead_code)]
+
 use crate::storage::storage_indexes::{
     NodeFamiliesIndex, NodeFamilyInvitationIndex, PastFamilyInvitationsIndex,
     PastFamilyMembersIndex,
@@ -10,8 +13,8 @@ use cw_controllers::Admin;
 use cw_storage_plus::{IndexedMap, Item, Map};
 use node_families_contract_common::constants::storage_keys;
 use node_families_contract_common::{
-    FamilyInvitation, NodeFamiliesContractError, NodeFamily, NodeFamilyId, PastFamilyInvitation,
-    PastFamilyMember,
+    FamilyInvitation, FamilyInvitationStatus, NodeFamiliesContractError, NodeFamily, NodeFamilyId,
+    PastFamilyInvitation, PastFamilyMember,
 };
 use nym_mixnet_contract_common::NodeId;
 
@@ -65,12 +68,23 @@ pub struct NodeFamiliesStorage<'a> {
     pub(crate) past_family_members:
         IndexedMap<(FamilyMember, u64), PastFamilyMember, PastFamilyMembersIndex<'a>>,
 
-    /// Archive of invitations that reached a terminal `Rejected` / `Revoked`
-    /// state. Timed-out invitations are **not** archived here — there is no
-    /// background process that sweeps expired entries out of
+    /// Per-`(family, node)` counter for the [`Self::past_family_members`]
+    /// archive — yields the next free `counter` slot when archiving a new
+    /// past-membership record. Stored explicitly (rather than derived via
+    /// range scan) to keep archival writes O(1).
+    pub(crate) past_family_member_counter: Map<FamilyMember, u64>,
+
+    /// Archive of invitations that reached a terminal `Accepted` / `Rejected`
+    /// / `Revoked` state. Timed-out invitations are **not** archived here —
+    /// there is no background process that sweeps expired entries out of
     /// [`Self::pending_family_invitations`].
     pub(crate) past_family_invitations:
         IndexedMap<(FamilyMember, u64), PastFamilyInvitation, PastFamilyInvitationsIndex<'a>>,
+
+    /// Per-`(family, node)` counter for the [`Self::past_family_invitations`]
+    /// archive — yields the next free `counter` slot when archiving a
+    /// terminal invitation event.
+    pub(crate) past_family_invitation_counter: Map<FamilyMember, u64>,
 }
 
 impl<'a> NodeFamiliesStorage<'a> {
@@ -90,9 +104,15 @@ impl<'a> NodeFamiliesStorage<'a> {
                 storage_keys::PAST_FAMILY_MEMBER_NAMESPACE,
                 PastFamilyMembersIndex::new(),
             ),
+            past_family_member_counter: Map::new(
+                storage_keys::PAST_FAMILY_MEMBER_COUNTER_NAMESPACE,
+            ),
             past_family_invitations: IndexedMap::new(
                 storage_keys::PAST_INVITATIONS_NAMESPACE,
                 PastFamilyInvitationsIndex::new(),
+            ),
+            past_family_invitation_counter: Map::new(
+                storage_keys::PAST_INVITATIONS_COUNTER_NAMESPACE,
             ),
         }
     }
@@ -112,6 +132,42 @@ impl<'a> NodeFamiliesStorage<'a> {
             + 1;
         self.node_family_id_counter.save(store, &next_id)?;
         Ok(next_id)
+    }
+
+    /// Allocate the next free archive slot for the [`Self::past_family_invitations`]
+    /// map under the given `(family, node)` key, and persist the bumped counter.
+    ///
+    /// Slots are issued starting from `0` and increase by 1 on every call.
+    pub(crate) fn next_past_invitation_counter(
+        &self,
+        store: &mut dyn Storage,
+        key: FamilyMember,
+    ) -> Result<u64, NodeFamiliesContractError> {
+        let counter = self
+            .past_family_invitation_counter
+            .may_load(store, key)?
+            .unwrap_or_default();
+        self.past_family_invitation_counter
+            .save(store, key, &(counter + 1))?;
+        Ok(counter)
+    }
+
+    /// Allocate the next free archive slot for the [`Self::past_family_members`]
+    /// map under the given `(family, node)` key, and persist the bumped counter.
+    ///
+    /// Slots are issued starting from `0` and increase by 1 on every call.
+    pub(crate) fn next_past_member_counter(
+        &self,
+        store: &mut dyn Storage,
+        key: FamilyMember,
+    ) -> Result<u64, NodeFamiliesContractError> {
+        let counter = self
+            .past_family_member_counter
+            .may_load(store, key)?
+            .unwrap_or_default();
+        self.past_family_member_counter
+            .save(store, key, &(counter + 1))?;
+        Ok(counter)
     }
 
     /// Persist a brand-new family in storage.
@@ -148,6 +204,77 @@ impl<'a> NodeFamiliesStorage<'a> {
             created_at: env.block.time.seconds(),
         };
         self.families.save(store, id, &family)?;
+        Ok(family)
+    }
+
+    /// Accept a pending invitation for `node_id` to join `family_id`.
+    ///
+    /// Performs the full storage transition atomically:
+    /// 1. loads the pending invitation (errors with [`InvitationNotFound`] if
+    ///    none exists for the given pair);
+    /// 2. verifies it has not expired (`now < expires_at`, errors with
+    ///    [`InvitationExpired`] otherwise);
+    /// 3. removes it from the pending map;
+    /// 4. records `node_id -> family_id` in [`Self::family_members`];
+    /// 5. increments the family's `members` counter (errors with
+    ///    [`FamilyNotFound`] if the family has somehow been removed);
+    /// 6. archives the invitation in [`Self::past_family_invitations`] with
+    ///    status [`FamilyInvitationStatus::Accepted`], using the next free
+    ///    per-`(family, node)` counter.
+    ///
+    /// The caller is responsible for verifying that `node_id` is owned by
+    /// the transaction sender and is not already a member of any family.
+    ///
+    /// Returns the updated [`NodeFamily`] (with the bumped `members` count).
+    ///
+    /// [`InvitationNotFound`]: NodeFamiliesContractError::InvitationNotFound
+    /// [`InvitationExpired`]: NodeFamiliesContractError::InvitationExpired
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    pub(crate) fn accept_invitation(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        let now = env.block.time.seconds();
+        let key: FamilyMember = (family_id, node_id);
+
+        let invitation = self
+            .pending_family_invitations
+            .may_load(store, key)?
+            .ok_or(NodeFamiliesContractError::InvitationNotFound { family_id, node_id })?;
+
+        if now >= invitation.expires_at {
+            return Err(NodeFamiliesContractError::InvitationExpired {
+                family_id,
+                node_id,
+                expires_at: invitation.expires_at,
+                now,
+            });
+        }
+
+        self.pending_family_invitations.remove(store, key)?;
+
+        self.family_members.save(store, node_id, &family_id)?;
+
+        let mut family = self
+            .families
+            .may_load(store, family_id)?
+            .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
+        family.members += 1;
+        self.families.save(store, family_id, &family)?;
+
+        let counter = self.next_past_invitation_counter(store, key)?;
+        self.past_family_invitations.save(
+            store,
+            (key, counter),
+            &PastFamilyInvitation {
+                invitation,
+                status: FamilyInvitationStatus::Accepted { at: now },
+            },
+        )?;
+
         Ok(family)
     }
 }

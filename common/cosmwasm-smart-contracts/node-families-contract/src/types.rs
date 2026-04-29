@@ -90,8 +90,8 @@ pub enum FamilyInvitationStatus {
 }
 
 /// Historical record of an invitation that has reached a terminal state
-/// (rejected or revoked). Accepted invitations turn into family memberships
-/// directly rather than being archived here.
+/// (`Accepted`, `Rejected`, or `Revoked`). Timed-out invitations are **not**
+/// archived here — they remain in the pending map until explicitly cleared.
 #[cw_serde]
 pub struct PastFamilyInvitation {
     /// The original invitation as it was issued.

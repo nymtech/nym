@@ -29,12 +29,16 @@ pub mod storage_keys {
     /// (a node can be invited to multiple families simultaneously).
     pub const INVITATIONS_NODE_IDX_NAMESPACE: &str = "invitations__node";
 
-    /// Primary namespace for the archived (rejected/revoked) invitations `IndexedMap`.
+    /// Primary namespace for the archived (accepted/rejected/revoked) invitations `IndexedMap`.
     pub const PAST_INVITATIONS_NAMESPACE: &str = "past-invitations";
     /// Multi-index over past invitations keyed by family id.
     pub const PAST_INVITATIONS_FAMILY_IDX_NAMESPACE: &str = "past-invitations__family";
     /// Multi-index over past invitations keyed by node id.
     pub const PAST_INVITATIONS_NODE_IDX_NAMESPACE: &str = "past-invitations__node";
+    /// `Map<(NodeFamilyId, NodeId), u64>`: per-`(family, node)` counter used to
+    /// disambiguate repeat archive entries (a node can be invited and have the
+    /// invitation reach a terminal state more than once).
+    pub const PAST_INVITATIONS_COUNTER_NAMESPACE: &str = "past-invitations-counter";
 
     /// Primary namespace for the past-members `IndexedMap`.
     pub const PAST_FAMILY_MEMBER_NAMESPACE: &str = "past-family-member";
@@ -42,4 +46,8 @@ pub mod storage_keys {
     pub const PAST_FAMILY_MEMBER_FAMILY_IDX_NAMESPACE: &str = "past-family-member__family";
     /// Multi-index over past members keyed by node id.
     pub const PAST_FAMILY_MEMBER_NODE_IDX_NAMESPACE: &str = "past-family-member__node";
+    /// `Map<(NodeFamilyId, NodeId), u64>`: per-`(family, node)` counter used to
+    /// disambiguate repeat past-membership entries (a node can join and leave
+    /// the same family more than once).
+    pub const PAST_FAMILY_MEMBER_COUNTER_NAMESPACE: &str = "past-family-member-counter";
 }

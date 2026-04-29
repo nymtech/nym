@@ -24,11 +24,13 @@ crate-type = ["cdylib", "rlib"]
 cosmwasm-std = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true }
+cw-controllers = { workspace = true }
 
 cosmwasm-schema = { workspace = true, optional = true }
 
 nym-contracts-common = { workspace = true }
 node-families-contract-common = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

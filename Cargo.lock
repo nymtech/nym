@@ -5586,6 +5586,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-controllers",
  "nym-contracts-common",
+ "nym-mixnet-contract-common",
  "schemars 0.8.22",
  "serde",
  "thiserror 2.0.12",

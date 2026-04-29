@@ -26,6 +26,14 @@ pub enum NodeFamiliesContractError {
         node_id: NodeId,
     },
 
+    /// A pending invitation for the given `(family, node)` pair already exists;
+    /// issuing a new one would silently overwrite it.
+    #[error("a pending invitation for node {node_id} from family {family_id} already exists")]
+    PendingInvitationAlreadyExists {
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    },
+
     /// The invitation exists but its `expires_at` is at or before the current
     /// block time, so it can no longer be acted on.
     #[error(

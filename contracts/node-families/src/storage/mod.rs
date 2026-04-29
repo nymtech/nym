@@ -207,6 +207,63 @@ impl<'a> NodeFamiliesStorage<'a> {
         Ok(family)
     }
 
+    /// Persist a new pending invitation for `node_id` to join `family_id`.
+    ///
+    /// `expires_at` is taken as a unix-seconds absolute deadline (the caller
+    /// is expected to compute it from the current block time plus the
+    /// configured invitation duration).
+    ///
+    /// The caller (a transaction handler) is responsible for:
+    /// - verifying that `family_id` exists and that the transaction sender
+    ///   is its owner;
+    /// - verifying that `node_id` refers to a real, registered node;
+    /// - ensuring `node_id` is not already a member of any family;
+    /// - ensuring `expires_at` is strictly in the future.
+    ///
+    /// As defence-in-depth, this method errors with [`FamilyNotFound`] if
+    /// `family_id` is unknown and with [`PendingInvitationAlreadyExists`] if
+    /// a pending invitation for the same `(family, node)` pair is already
+    /// stored — the underlying `IndexedMap` would otherwise silently
+    /// overwrite it.
+    ///
+    /// Returns the freshly persisted [`FamilyInvitation`].
+    ///
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    /// [`PendingInvitationAlreadyExists`]: NodeFamiliesContractError::PendingInvitationAlreadyExists
+    pub(crate) fn add_pending_invitation(
+        &self,
+        store: &mut dyn Storage,
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+        expires_at: u64,
+    ) -> Result<FamilyInvitation, NodeFamiliesContractError> {
+        let key: FamilyMember = (family_id, node_id);
+
+        if !self.families.has(store, family_id) {
+            return Err(NodeFamiliesContractError::FamilyNotFound { family_id });
+        }
+
+        if self
+            .pending_family_invitations
+            .may_load(store, key)?
+            .is_some()
+        {
+            return Err(NodeFamiliesContractError::PendingInvitationAlreadyExists {
+                family_id,
+                node_id,
+            });
+        }
+
+        let invitation = FamilyInvitation {
+            family_id,
+            node_id,
+            expires_at,
+        };
+        self.pending_family_invitations
+            .save(store, key, &invitation)?;
+        Ok(invitation)
+    }
+
     /// Accept a pending invitation for `node_id` to join `family_id`.
     ///
     /// Performs the full storage transition atomically:

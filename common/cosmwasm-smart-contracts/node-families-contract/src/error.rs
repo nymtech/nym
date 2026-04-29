@@ -19,6 +19,10 @@ pub enum NodeFamiliesContractError {
     #[error("family with id {family_id} does not exist")]
     FamilyNotFound { family_id: NodeFamilyId },
 
+    /// The given node is not currently a member of any family.
+    #[error("node {node_id} is not currently a member of any family")]
+    NodeNotInFamily { node_id: NodeId },
+
     /// No pending invitation exists for the given `(family, node)` pair.
     #[error("no pending invitation for node {node_id} from family {family_id}")]
     InvitationNotFound {

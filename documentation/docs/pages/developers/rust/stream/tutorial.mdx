@@ -3,14 +3,13 @@ title: "Stream Tutorial: Build a Private Echo Server"
 description: "Step-by-step Rust tutorial to build an echo server and client communicating through the Nym mixnet using AsyncRead and AsyncWrite streams."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-04-17"
+lastUpdated: "2026-03-26"
 ---
 
 # Tutorial: Build a Private Echo Server
 
 import { Callout } from 'nextra/components'
 import { CodeVerified } from '../../../../components/code-verified'
-import { RUST_MSRV } from '../../../../components/versions'
 
 In this tutorial you'll build two programs: a server that listens for incoming streams and echoes back whatever it receives, and a client that opens a stream, sends data, and reads the echo. Both communicate through the Nym Mixnet using `AsyncRead` and `AsyncWrite`, just like TCP sockets.
 
@@ -26,7 +25,7 @@ In this tutorial you'll build two programs: a server that listens for incoming s
 
 ## Prerequisites
 
-- Rust toolchain ({RUST_MSRV}+)
+- Rust toolchain (1.70+)
 - A working internet connection (clients connect to the live Nym Mixnet)
 
 ## Step 1: Set up the project
@@ -41,8 +40,8 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = "X.Y.Z"
-nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
+nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
+nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "97068b2", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
@@ -280,10 +279,7 @@ async fn main() {
     loop {
         let mut stream = match listener.accept().await {
             Some(s) => s,
-            None => {
-                println!("Listener closed");
-                break;
-            }
+            None => break,
         };
 
         let stream_id = stream.id();
@@ -291,27 +287,16 @@ async fn main() {
 
         tokio::spawn(async move {
             let mut buf = vec![0u8; 32_000];
-
             loop {
                 let n = match stream.read(&mut buf).await {
-                    Ok(0) => break,
+                    Ok(0) | Err(_) => break,
                     Ok(n) => n,
-                    Err(e) => {
-                        eprintln!("Stream {stream_id} read error: {e}");
-                        break;
-                    }
                 };
-
-                let data = &buf[..n];
-                println!("Stream {stream_id} received {n} bytes");
-
-                if let Err(e) = stream.write_all(data).await {
-                    eprintln!("Stream {stream_id} write error: {e}");
+                if let Err(_) = stream.write_all(&buf[..n]).await {
                     break;
                 }
                 stream.flush().await.unwrap();
             }
-
             println!("Stream {stream_id} closed");
         });
     }

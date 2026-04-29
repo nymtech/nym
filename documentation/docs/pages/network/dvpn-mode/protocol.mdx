@@ -60,6 +60,4 @@ Replay protection comes from WireGuard's counter-based mechanism and from zk-nym
 
 dVPN mode shares infrastructure with mixnet mode. Both use the same Entry and Exit Gateways and the same credential system. The difference is in how traffic is handled: mixnet mode routes through three additional Mix Node layers with delays and cover traffic using fixed-size [Sphinx packets](/network/cryptography/sphinx), while dVPN mode routes directly between gateways using WireGuard. The two modes are distinguishable at the protocol level due to their different packet formats and traffic patterns.
 
-In anonymous (5-hop) mode, NymVPN routes traffic through the full mixnet to the Exit Gateway's [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router), which tunnels raw IP packets to the internet. See [Exit Gateway Services](/network/infrastructure/exit-services) for how the IPR and Network Requester work.
-
 This shared infrastructure means improvements to Gateways and credentials benefit both modes.

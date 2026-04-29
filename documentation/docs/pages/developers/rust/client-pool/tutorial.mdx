@@ -3,14 +3,13 @@ title: "Client Pool Tutorial: Handle Bursty Traffic"
 description: "Step-by-step Rust tutorial to use Nym ClientPool for handling bursts of concurrent mixnet operations without blocking on client creation."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-04-17"
+lastUpdated: "2026-03-26"
 ---
 
 # Tutorial: Handle Bursty Traffic with Client Pool
 
 import { Callout } from 'nextra/components'
 import { CodeVerified } from '../../../../components/code-verified'
-import { RUST_MSRV } from '../../../../components/versions'
 
 In this tutorial you'll build a program that uses `ClientPool` to handle bursts of concurrent Mixnet operations without blocking on client creation. You'll see how the pool pre-creates clients in the background, how to pop them under load, and what happens when demand exceeds supply.
 
@@ -26,7 +25,7 @@ In this tutorial you'll build a program that uses `ClientPool` to handle bursts 
 
 ## Prerequisites
 
-- Rust toolchain ({RUST_MSRV}+)
+- Rust toolchain (1.70+)
 - A working internet connection
 
 ## Step 1: Set up the project
@@ -40,9 +39,9 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = "X.Y.Z"
-nym-network-defaults = "X.Y.Z"
-nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
+nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
+nym-network-defaults = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
+nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "97068b2", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 ```
@@ -232,33 +231,20 @@ async fn main() {
     setup_env(None::<String>);
 
     let pool = ClientPool::new(3);
-
     let pool_bg = pool.clone();
-    tokio::spawn(async move {
-        pool_bg.start().await.unwrap();
-    });
+    tokio::spawn(async move { pool_bg.start().await.unwrap() });
 
-    println!("Pool started — waiting for clients to connect...");
+    println!("Waiting for pool to fill...");
     tokio::time::sleep(Duration::from_secs(15)).await;
-
-    let count = pool.get_client_count().await;
-    println!("Pool has {count} clients ready");
+    println!("Pool has {} clients", pool.get_client_count().await);
 
     let mut handles = vec![];
-
     for i in 1..=3 {
         let pool = pool.clone();
-
-        let handle = tokio::spawn(async move {
+        handles.push(tokio::spawn(async move {
             let mut client = match pool.get_mixnet_client().await {
-                Some(c) => {
-                    println!("Task {i}: got client {} from pool", c.nym_address());
-                    c
-                }
-                None => {
-                    println!("Task {i}: pool empty, creating client on the fly...");
-                    nym_sdk::mixnet::MixnetClient::connect_new().await.unwrap()
-                }
+                Some(c) => c,
+                None => nym_sdk::mixnet::MixnetClient::connect_new().await.unwrap(),
             };
 
             let addr = *client.nym_address();
@@ -268,34 +254,24 @@ async fn main() {
                 .unwrap();
 
             if let Some(msgs) = client.wait_for_messages().await {
-                for msg in msgs {
-                    if !msg.message.is_empty() {
-                        println!(
-                            "Task {i}: received {:?}",
-                            String::from_utf8_lossy(&msg.message)
-                        );
-                    }
+                for msg in msgs.iter().filter(|m| !m.message.is_empty()) {
+                    println!("Task {i}: {}", String::from_utf8_lossy(&msg.message));
                 }
             }
 
             client.disconnect().await;
-            println!("Task {i}: done");
-        });
-
-        handles.push(handle);
+        }));
     }
 
     for h in handles {
         h.await.unwrap();
     }
 
-    println!("\nWaiting for pool to replenish...");
+    println!("Waiting for replenishment...");
     tokio::time::sleep(Duration::from_secs(15)).await;
-
-    let count = pool.get_client_count().await;
-    println!("Pool has {count} clients ready again");
+    println!("Pool has {} clients", pool.get_client_count().await);
 
     pool.disconnect_pool().await;
-    println!("Pool shut down");
+    println!("Done");
 }
 ```

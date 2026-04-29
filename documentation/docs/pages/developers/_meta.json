@@ -8,15 +8,6 @@
   "native": "Native Apps",
   "browsers": "Browser Apps",
   "concepts": "Nym-Specific Concepts for Integrations",
-  "-----": {
-    "type": "separator",
-    "title": "Standalone Crates"
-  },
-  "smolmix": "smolmix",
-  "smolmix-dns": "smolmix-dns",
-  "smolmix-tls": "smolmix-tls",
-  "smolmix-hyper": "smolmix-hyper",
-  "smolmix-extending": "Building on smolmix",
   "-": {
     "type": "separator",
     "title": "SDKs"

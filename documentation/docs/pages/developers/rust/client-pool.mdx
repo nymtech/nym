@@ -45,7 +45,7 @@ use nym_sdk::client_pool::ClientPool;
 use nym_network_defaults::setup_env;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() -> anyhow::Result<()> {
     nym_bin_common::logging::setup_tracing_logger();
     // Load mainnet network defaults into env vars (required by ClientPool)
     setup_env(None::<String>);

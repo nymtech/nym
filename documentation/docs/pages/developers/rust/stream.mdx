@@ -9,9 +9,9 @@ lastUpdated: "2026-03-15"
 # Stream Module
 
 import { Callout } from 'nextra/components'
-import { VersionBanner } from '../../../components/version-banner'
+import { CratesPaused } from '../../../components/crates-paused'
 
-<VersionBanner />
+<CratesPaused />
 
 The Mixnet is fundamentally message-based: no persistent connections, no guaranteed ordering, no TCP. The default [message API](./mixnet) works at this level, sending individual payloads independently through Mix Nodes. This is effective for privacy but unlike how most networking code is structured.
 

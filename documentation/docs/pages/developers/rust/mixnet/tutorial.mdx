@@ -3,18 +3,17 @@ title: "Mixnet Tutorial: Send Your First Private Message"
 description: "Step-by-step Rust tutorial to connect to the Nym mixnet, send and receive messages, reply anonymously with SURBs, and persist client identity."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-04-17"
+lastUpdated: "2026-03-26"
 ---
 
 # Tutorial: Send Your First Private Message
 
 import { Callout } from 'nextra/components'
 import { CodeVerified } from '../../../../components/code-verified'
-import { RUST_MSRV } from '../../../../components/versions'
 
 By the end of this tutorial you'll have a working program that sends a Sphinx-encrypted message to itself through the Nym Mixnet, receives it, and replies anonymously using SURBs. The later sections cover persistent identity and concurrent send/receive.
 
-**You'll need:** Rust {RUST_MSRV}+ and an internet connection (clients connect to the live Mixnet).
+**You'll need:** Rust 1.70+ and an internet connection (clients connect to the live Mixnet).
 
 <CodeVerified />
 
@@ -29,8 +28,8 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = "X.Y.Z"
-nym-bin-common = { version = "X.Y.Z", features = ["basic_tracing"] }
+nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
+nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "97068b2", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 ```
@@ -141,36 +140,19 @@ async fn main() {
         .await
         .unwrap();
 
-    let our_address = client.nym_address();
-    println!("Address: {our_address}");
+    println!("Address: {}", client.nym_address());
 
-    // Same API as before — send, receive, SURB reply.
+    // Same API as before — send, receive, reply.
     client
-        .send_plain_message(*our_address, "hello from persistent client!")
+        .send_plain_message(*client.nym_address(), "persistent identity!")
         .await
         .unwrap();
-    println!("Sent — waiting for arrival...");
 
-    let message = loop {
-        if let Some(msgs) = client.wait_for_messages().await {
-            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
-                break msg;
-            }
+    if let Some(msgs) = client.wait_for_messages().await {
+        for m in msgs.into_iter().filter(|m| !m.message.is_empty()) {
+            println!("Received: {}", String::from_utf8_lossy(&m.message));
         }
-    };
-    println!("Received: {}", String::from_utf8_lossy(&message.message));
-
-    let sender_tag = message.sender_tag.expect("should have sender tag");
-    client.send_reply(sender_tag, "anonymous reply!").await.unwrap();
-
-    let reply = loop {
-        if let Some(msgs) = client.wait_for_messages().await {
-            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
-                break msg;
-            }
-        }
-    };
-    println!("Reply: {}", String::from_utf8_lossy(&reply.message));
+    }
 
     // Always disconnect for clean shutdown — background tasks need to be
     // stopped and state files flushed.
@@ -288,7 +270,6 @@ async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
     let paths = StoragePaths::new_from_dir("./my-client-data").unwrap();
-
     let mut client = mixnet::MixnetClientBuilder::new_with_default_storage(paths)
         .await
         .unwrap()
@@ -299,10 +280,10 @@ async fn main() {
         .unwrap();
 
     let our_address = client.nym_address();
-    println!("Address: {our_address}");
+    println!("Connected: {our_address}");
 
     client
-        .send_plain_message(*our_address, "hello from persistent client!")
+        .send_plain_message(*our_address, "hello from the mixnet!")
         .await
         .unwrap();
     println!("Sent — waiting for arrival...");
@@ -317,7 +298,7 @@ async fn main() {
     println!("Received: {}", String::from_utf8_lossy(&message.message));
 
     let sender_tag = message.sender_tag.expect("should have sender tag");
-    client.send_reply(sender_tag, "anonymous reply!").await.unwrap();
+    client.send_reply(sender_tag, "hello back, anonymously!").await.unwrap();
 
     let reply = loop {
         if let Some(msgs) = client.wait_for_messages().await {

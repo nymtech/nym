@@ -16,8 +16,8 @@ Any application that integrates with Nym sends its traffic through the Mixnet vi
 
 Different runtimes have different transport constraints: a browser cannot open raw sockets or access the filesystem, while a desktop app can.
 
-- **Native / Desktop**: full access to system networking and persistent storage. Use the [Rust SDK](/developers/rust) or [`smolmix`](/developers/smolmix).
-- **Browser**: restricted to WebSockets, Web Transport, and `fetch`, with HTTPS-only mixed content rules and no filesystem access. Use the [TypeScript SDK](/developers/typescript).
+- **Native / Desktop**: full access to system networking and persistent storage. Use the [Rust SDK](./rust).
+- **Browser**: restricted to WebSockets, Web Transport, and `fetch`, with HTTPS-only mixed content rules and no filesystem access. Use the [TypeScript SDK](./typescript).
 
 ## Architecture
 
@@ -25,10 +25,10 @@ The second factor is whether you control both sides of the communication.
 
 **End-to-end (E2E)**: both sides run Nym clients. All traffic stays Sphinx-encrypted the entire way. Appropriate for peer-to-peer setups or any case where you control both endpoints.
 
-**Proxy**: only the client side runs Nym. Traffic exits the Mixnet at an Exit Gateway and continues to the destination as normal internet traffic. Appropriate when connecting to third-party services (blockchain RPCs, external APIs) that you do not control. For Rust, [`smolmix`](/developers/smolmix) provides `TcpStream` and `UdpSocket` types that work as drop-in replacements for their tokio equivalents. Companion crates add DNS ([`smolmix-dns`](/developers/smolmix-dns)), TLS ([`smolmix-tls`](/developers/smolmix-tls)), and HTTP ([`smolmix-hyper`](/developers/smolmix-hyper)) on top.
+**Proxy**: only the client side runs Nym. Traffic exits the Mixnet at an Exit Gateway and continues to the destination as normal internet traffic. Appropriate when connecting to third-party services (blockchain RPCs, external APIs) that you do not control.
 
 <Callout type="warning">
 In proxy mode, the last hop from Exit Gateway to the remote host travels as standard internet traffic. This is weaker than E2E against a global passive adversary, but still provides timing obfuscation and sender-receiver unlinkability.
 </Callout>
 
-See the [Native / Desktop](/developers/native) and [Browser](/developers/browsers) pages for the specific modules available in each environment.
+See the [Native / Desktop](./native) and [Browser](./browsers) pages for the specific modules available in each environment.

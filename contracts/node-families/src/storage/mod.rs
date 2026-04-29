@@ -5,7 +5,7 @@ use crate::storage::storage_indexes::{
     NodeFamiliesIndex, NodeFamilyInvitationIndex, PastFamilyInvitationsIndex,
     PastFamilyMembersIndex,
 };
-use cosmwasm_std::{Addr, Storage};
+use cosmwasm_std::{Addr, Env, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{IndexedMap, Item, Map};
 use node_families_contract_common::constants::storage_keys;
@@ -112,5 +112,42 @@ impl<'a> NodeFamiliesStorage<'a> {
             + 1;
         self.node_family_id_counter.save(store, &next_id)?;
         Ok(next_id)
+    }
+
+    /// Persist a brand-new family in storage.
+    ///
+    /// Assigns a fresh [`NodeFamilyId`], stamps `created_at` from `env`
+    /// (unix seconds) and starts the membership counter at `0` — the owner
+    /// is **not** counted as a member.
+    ///
+    /// The caller (a transaction handler) is responsible for:
+    /// - validating `name`, `description` and `owner`;
+    /// - ensuring `owner` does not already own a family **and** is not
+    ///   currently a member of one.
+    ///
+    /// Returns the freshly persisted [`NodeFamily`]. The underlying
+    /// `IndexedMap` enforces the one-family-per-owner invariant via the
+    /// unique index on `owner` as a defence-in-depth check, so this call
+    /// will fail if `owner` already owns a family — but the caller must not
+    /// rely on it for the membership check.
+    pub(crate) fn register_new_family(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        owner: Addr,
+        name: String,
+        description: String,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        let id = self.next_family_id(store)?;
+        let family = NodeFamily {
+            id,
+            name,
+            description,
+            owner,
+            members: 0,
+            created_at: env.block.time.seconds(),
+        };
+        self.families.save(store, id, &family)?;
+        Ok(family)
     }
 }

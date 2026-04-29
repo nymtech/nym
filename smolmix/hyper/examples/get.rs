@@ -23,7 +23,7 @@ async fn main() -> Result<(), BoxError> {
     let host = "cloudflare.com";
     let path = "/cdn-cgi/trace";
 
-    // --- Clearnet baseline via reqwest ---
+    // Clearnet baseline via reqwest
     info!("Fetching via clearnet...");
     let clearnet_start = tokio::time::Instant::now();
     let clearnet_resp = reqwest::get(format!("https://{host}{path}")).await?;
@@ -32,7 +32,7 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
 
-    // --- Mixnet via smolmix-hyper ---
+    // Mixnet via smolmix-hyper
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -59,8 +59,8 @@ async fn main() -> Result<(), BoxError> {
     let mixnet_body = String::from_utf8_lossy(&body_bytes);
     let mixnet_duration = mixnet_start.elapsed();
 
-    // --- Compare ---
-    info!("=== Results ===");
+    // Compare
+    info!("Results");
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
     info!("Mixnet:   {} in {:?}", mixnet_status, mixnet_duration);
     info!("Status match: {}", clearnet_status == mixnet_status);

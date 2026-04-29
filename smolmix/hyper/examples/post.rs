@@ -32,7 +32,7 @@ async fn main() -> Result<(), BoxError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    // --- Clearnet baseline via reqwest ---
+    // Clearnet baseline via reqwest
     info!("POST via clearnet...");
     let clearnet_start = tokio::time::Instant::now();
     let clearnet_resp = reqwest::Client::new()
@@ -46,7 +46,7 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
 
-    // --- Mixnet via smolmix-hyper ---
+    // Mixnet via smolmix-hyper
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -78,8 +78,8 @@ async fn main() -> Result<(), BoxError> {
     let mixnet_body = String::from_utf8_lossy(&body_bytes);
     let mixnet_duration = mixnet_start.elapsed();
 
-    // --- Compare ---
-    info!("=== Results ===");
+    // Compare
+    info!("Results");
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
     info!("Mixnet:   {} in {:?}", mixnet_status, mixnet_duration);
     info!("Status match: {}", clearnet_status == mixnet_status);

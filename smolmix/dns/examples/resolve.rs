@@ -22,7 +22,7 @@ async fn main() -> Result<(), BoxError> {
 
     let domain = "example.com";
 
-    // --- Clearnet baseline via hickory-resolver ---
+    // Clearnet baseline via hickory-resolver
     info!("Clearnet DNS lookup for '{domain}'...");
     let clearnet_resolver = TokioResolver::builder_tokio()?.build();
     let clearnet_start = tokio::time::Instant::now();
@@ -37,7 +37,7 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {:?} in {:?}", clearnet_ips, clearnet_duration);
 
-    // --- Mixnet via smolmix-dns ---
+    // Mixnet via smolmix-dns
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -69,8 +69,8 @@ async fn main() -> Result<(), BoxError> {
     let addrs = resolver.resolve("nymtech.net", 443).await?;
     info!("Resolved nymtech.net:443 → {addrs:?}");
 
-    // --- Compare ---
-    info!("=== Results ===");
+    // Compare
+    info!("Results");
     info!("Clearnet: {:?} ({:?})", clearnet_ips, clearnet_duration);
     info!("Mixnet:   {:?} ({:?})", mixnet_ips, mixnet_duration);
 

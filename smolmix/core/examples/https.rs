@@ -72,7 +72,7 @@ async fn main() -> Result<(), BoxError> {
     let tls = tls_connector();
     let addr = ADDR.parse()?;
 
-    // --- Clearnet baseline ---
+    // Clearnet baseline
     info!("Fetching https://{HOST}{PATH} via clearnet...");
     let clearnet_start = tokio::time::Instant::now();
     let clearnet_tcp = tokio::net::TcpStream::connect(addr).await?;
@@ -80,7 +80,7 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
 
-    // --- Mixnet via smolmix ---
+    // Mixnet via smolmix
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -100,8 +100,8 @@ async fn main() -> Result<(), BoxError> {
     let (_mixnet_status, mixnet_body) = https_get(mixnet_tcp, &tls, HOST, PATH).await?;
     let mixnet_duration = mixnet_start.elapsed();
 
-    // --- Compare ---
-    info!("=== Results ===");
+    // Compare
+    info!("Results");
     let clearnet_ip = clearnet_body.lines().find(|l| l.starts_with("ip="));
     let mixnet_ip = mixnet_body.lines().find(|l| l.starts_with("ip="));
     info!("Clearnet IP: {}", clearnet_ip.unwrap_or("?"));

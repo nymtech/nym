@@ -29,7 +29,7 @@ async fn main() -> Result<(), BoxError> {
     let host = "example.com";
     let addr: std::net::SocketAddr = "93.184.216.34:443".parse()?;
 
-    // --- Clearnet baseline via tokio + tokio-rustls ---
+    // Clearnet baseline via tokio + tokio-rustls
     info!("Clearnet TLS connection to {host}...");
     let clearnet_start = tokio::time::Instant::now();
 
@@ -60,7 +60,7 @@ async fn main() -> Result<(), BoxError> {
         clearnet_duration
     );
 
-    // --- Mixnet via smolmix-tls ---
+    // Mixnet via smolmix-tls
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -98,8 +98,8 @@ async fn main() -> Result<(), BoxError> {
         mixnet_duration
     );
 
-    // --- Compare ---
-    info!("=== Results ===");
+    // Compare
+    info!("Results");
     info!(
         "Clearnet: {} bytes in {:?}",
         clearnet_buf.len(),

@@ -20,6 +20,8 @@ pub mod storage_keys {
     pub const FAMILIES_NAMESPACE: &str = "families";
     /// Secondary unique index keyed by `owner` (one family per owner).
     pub const FAMILIES_OWNER_IDX_NAMESPACE: &str = "families__owner";
+    /// Secondary unique index keyed by `name` (family names are globally unique).
+    pub const FAMILIES_NAME_IDX_NAMESPACE: &str = "families__name";
 
     /// Primary namespace for the pending invitations `IndexedMap`.
     pub const INVITATIONS_NAMESPACE: &str = "invitations";

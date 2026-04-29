@@ -42,8 +42,10 @@ pub struct NodeFamiliesStorage<'a> {
     /// reserved as a "no family" sentinel.
     pub(crate) node_family_id_counter: Item<NodeFamilyId>,
 
-    /// All existing families, keyed by id, with a unique secondary index on
-    /// `owner` enforcing the **one-family-per-owner-address** invariant.
+    /// All existing families, keyed by id, with unique secondary indexes on
+    /// `owner` (one-family-per-owner-address) and on `name`
+    /// (family names are globally unique — compared by raw bytes, so
+    /// callers normalise upstream if case-insensitive uniqueness is desired).
     pub(crate) families: IndexedMap<NodeFamilyId, NodeFamily, NodeFamiliesIndex<'a>>,
 
     /// Mapping from a node id to the family it currently belongs to. A node
@@ -178,14 +180,16 @@ impl<'a> NodeFamiliesStorage<'a> {
     ///
     /// The caller (a transaction handler) is responsible for:
     /// - validating `name`, `description` and `owner`;
+    /// - normalising `name` (e.g. trim/lowercase) if case-insensitive
+    ///   uniqueness is desired — the storage layer compares raw bytes;
     /// - ensuring `owner` does not already own a family **and** is not
     ///   currently a member of one.
     ///
     /// Returns the freshly persisted [`NodeFamily`]. The underlying
-    /// `IndexedMap` enforces the one-family-per-owner invariant via the
-    /// unique index on `owner` as a defence-in-depth check, so this call
-    /// will fail if `owner` already owns a family — but the caller must not
-    /// rely on it for the membership check.
+    /// `IndexedMap` enforces the one-family-per-owner and unique-name
+    /// invariants via unique indexes on `owner` and `name` as a
+    /// defence-in-depth check, so this call will fail if either is already
+    /// taken — but the caller must not rely on it for the membership check.
     pub(crate) fn register_new_family(
         &self,
         store: &mut dyn Storage,
@@ -671,6 +675,34 @@ mod tests {
 
         assert_eq!(f1.id, 1);
         assert_eq!(f2.id, 2);
+    }
+
+    #[test]
+    fn register_new_family_rejects_duplicate_name() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let bob = tester.addr_make("bob");
+
+        s.register_new_family(
+            tester.storage_mut(),
+            &env,
+            alice,
+            "shared".into(),
+            "".into(),
+        )
+        .unwrap();
+
+        // unique-index defence-in-depth check
+        let res = s.register_new_family(
+            tester.storage_mut(),
+            &env,
+            bob,
+            "shared".into(),
+            "".into(),
+        );
+        assert!(res.is_err());
     }
 
     #[test]

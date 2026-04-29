@@ -365,10 +365,7 @@ impl<'a> NodeFamiliesStorage<'a> {
         let invitation = self
             .pending_family_invitations
             .may_load(store, key)?
-            .ok_or(NodeFamiliesContractError::InvitationNotFound {
-                family_id,
-                node_id,
-            })?;
+            .ok_or(NodeFamiliesContractError::InvitationNotFound { family_id, node_id })?;
 
         self.pending_family_invitations.remove(store, key)?;
 
@@ -416,10 +413,7 @@ impl<'a> NodeFamiliesStorage<'a> {
         let invitation = self
             .pending_family_invitations
             .may_load(store, key)?
-            .ok_or(NodeFamiliesContractError::InvitationNotFound {
-                family_id,
-                node_id,
-            })?;
+            .ok_or(NodeFamiliesContractError::InvitationNotFound { family_id, node_id })?;
 
         self.pending_family_invitations.remove(store, key)?;
 
@@ -567,5 +561,561 @@ impl<'a> NodeFamiliesStorage<'a> {
         self.families.remove(store, family_id)?;
 
         Ok(family)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testing::{init_contract_tester, NodeFamiliesContractTesterExt};
+    use nym_contracts_common_testing::ContractOpts;
+
+    // ---- counters ----
+
+    #[test]
+    fn next_family_id_starts_at_1_and_increments() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+
+        assert_eq!(s.next_family_id(tester.storage_mut()).unwrap(), 1);
+        assert_eq!(s.next_family_id(tester.storage_mut()).unwrap(), 2);
+        assert_eq!(s.next_family_id(tester.storage_mut()).unwrap(), 3);
+    }
+
+    #[test]
+    fn past_invitation_counter_starts_at_0_per_key() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let k1: FamilyMember = (1, 100);
+        let k2: FamilyMember = (2, 100);
+
+        assert_eq!(
+            s.next_past_invitation_counter(tester.storage_mut(), k1)
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            s.next_past_invitation_counter(tester.storage_mut(), k1)
+                .unwrap(),
+            1
+        );
+        // independent counter for a different key
+        assert_eq!(
+            s.next_past_invitation_counter(tester.storage_mut(), k2)
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            s.next_past_invitation_counter(tester.storage_mut(), k1)
+                .unwrap(),
+            2
+        );
+    }
+
+    #[test]
+    fn past_member_counter_starts_at_0_per_key() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let k: FamilyMember = (1, 100);
+
+        assert_eq!(
+            s.next_past_member_counter(tester.storage_mut(), k).unwrap(),
+            0
+        );
+        assert_eq!(
+            s.next_past_member_counter(tester.storage_mut(), k).unwrap(),
+            1
+        );
+    }
+
+    // ---- register_new_family ----
+
+    #[test]
+    fn register_new_family_persists_with_expected_fields() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let owner = tester.addr_make("alice");
+
+        let family = s
+            .register_new_family(
+                tester.storage_mut(),
+                &env,
+                owner.clone(),
+                "fam".into(),
+                "desc".into(),
+            )
+            .unwrap();
+
+        assert_eq!(family.id, 1);
+        assert_eq!(family.owner, owner);
+        assert_eq!(family.name, "fam");
+        assert_eq!(family.description, "desc");
+        assert_eq!(family.members, 0);
+        assert_eq!(family.created_at, tester.env().block.time.seconds());
+
+        let stored = s.families.load(tester.storage(), 1).unwrap();
+        assert_eq!(stored, family);
+    }
+
+    #[test]
+    fn register_new_family_assigns_sequential_ids() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let bob = tester.addr_make("bob");
+
+        let f1 = tester.add_dummy_family();
+        let f2 = tester.add_dummy_family();
+
+        assert_eq!(f1.id, 1);
+        assert_eq!(f2.id, 2);
+    }
+
+    #[test]
+    fn register_new_family_rejects_duplicate_owner() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+
+        tester.make_family(&alice);
+
+        // unique-index defence-in-depth check
+        let res = s.register_new_family(
+            tester.storage_mut(),
+            &env,
+            alice,
+            "second".into(),
+            "".into(),
+        );
+        assert!(res.is_err());
+    }
+
+    // ---- add_pending_invitation ----
+
+    #[test]
+    fn add_pending_invitation_persists() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        let expires_at = tester.env().block.time.seconds() + 100;
+
+        let inv = s
+            .add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+            .unwrap();
+
+        assert_eq!(inv.family_id, f.id);
+        assert_eq!(inv.node_id, 42);
+        assert_eq!(inv.expires_at, expires_at);
+        let stored = s
+            .pending_family_invitations
+            .load(tester.storage(), (f.id, 42))
+            .unwrap();
+        assert_eq!(stored, inv);
+    }
+
+    #[test]
+    fn add_pending_invitation_errors_on_unknown_family() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let expires_at = env.block.time.seconds() + 100;
+
+        let res = s.add_pending_invitation(tester.storage_mut(), 99, 42, expires_at);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::FamilyNotFound { family_id: 99 }
+        );
+    }
+
+    #[test]
+    fn add_pending_invitation_errors_on_duplicate() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+
+        tester.invite_to_family(f.id, 42);
+
+        let expires_at = env.block.time.seconds() + 200;
+        let res = s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::PendingInvitationAlreadyExists {
+                family_id: f.id,
+                node_id: 42,
+            }
+        );
+    }
+
+    // ---- accept_invitation ----
+
+    #[test]
+    fn accept_invitation_happy_path() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        let expires_at = env.block.time.seconds() + 100;
+        s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+            .unwrap();
+
+        let updated = s
+            .accept_invitation(tester.storage_mut(), &env, f.id, 42)
+            .unwrap();
+
+        assert_eq!(updated.members, 1);
+        assert!(s
+            .pending_family_invitations
+            .may_load(tester.storage(), (f.id, 42))
+            .unwrap()
+            .is_none());
+        assert_eq!(s.family_members.load(tester.storage(), 42).unwrap(), f.id);
+        assert_eq!(s.families.load(tester.storage(), f.id).unwrap().members, 1);
+
+        let past = s
+            .past_family_invitations
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        assert_eq!(
+            past.status,
+            FamilyInvitationStatus::Accepted {
+                at: tester.env().block.time.seconds()
+            }
+        );
+        assert_eq!(past.invitation.family_id, f.id);
+        assert_eq!(past.invitation.node_id, 42);
+    }
+
+    #[test]
+    fn accept_invitation_errors_when_no_pending() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+
+        let res = s.accept_invitation(tester.storage_mut(), &env, 1, 42);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::InvitationNotFound {
+                family_id: 1,
+                node_id: 42,
+            }
+        );
+    }
+
+    #[test]
+    fn accept_invitation_errors_when_expired() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        // expires at exactly `now` — `now >= expires_at` triggers
+        let expires_at = tester.env().block.time.seconds();
+        s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+            .unwrap();
+
+        let res = s.accept_invitation(tester.storage_mut(), &env, f.id, 42);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::InvitationExpired {
+                family_id: f.id,
+                node_id: 42,
+                expires_at,
+                now: tester.env().block.time.seconds(),
+            }
+        );
+    }
+
+    // ---- reject_pending_invitation ----
+
+    #[test]
+    fn reject_invitation_happy_path() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        tester.invite_to_family(f.id, 42);
+
+        let inv = s
+            .reject_pending_invitation(tester.storage_mut(), &env, f.id, 42)
+            .unwrap();
+        assert_eq!(inv.node_id, 42);
+        assert!(s
+            .pending_family_invitations
+            .may_load(tester.storage(), (f.id, 42))
+            .unwrap()
+            .is_none());
+        let past = s
+            .past_family_invitations
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        assert_eq!(
+            past.status,
+            FamilyInvitationStatus::Rejected {
+                at: tester.env().block.time.seconds()
+            }
+        );
+    }
+
+    #[test]
+    fn reject_invitation_works_on_expired() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        let expires_at = env.block.time.seconds();
+        s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+            .unwrap();
+
+        s.reject_pending_invitation(tester.storage_mut(), &env, f.id, 42)
+            .unwrap();
+    }
+
+    #[test]
+    fn reject_invitation_errors_when_no_pending() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+
+        let res = s.reject_pending_invitation(tester.storage_mut(), &env, 1, 42);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::InvitationNotFound {
+                family_id: 1,
+                node_id: 42,
+            }
+        );
+    }
+
+    // ---- revoke_pending_invitation ----
+
+    #[test]
+    fn revoke_invitation_happy_path() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        tester.invite_to_family(f.id, 42);
+
+        s.revoke_pending_invitation(tester.storage_mut(), &env, f.id, 42)
+            .unwrap();
+        let past = s
+            .past_family_invitations
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        assert_eq!(
+            past.status,
+            FamilyInvitationStatus::Revoked {
+                at: tester.env().block.time.seconds()
+            }
+        );
+    }
+
+    #[test]
+    fn revoke_invitation_errors_when_no_pending() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+
+        let res = s.revoke_pending_invitation(tester.storage_mut(), &env, 1, 42);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::InvitationNotFound {
+                family_id: 1,
+                node_id: 42,
+            }
+        );
+    }
+
+    // ---- remove_family_member ----
+
+    #[test]
+    fn remove_family_member_happy_path() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        tester.add_to_family(f.id, 42);
+
+        let updated = s
+            .remove_family_member(tester.storage_mut(), &env, 42)
+            .unwrap();
+
+        assert_eq!(updated.members, 0);
+        assert!(s
+            .family_members
+            .may_load(tester.storage(), 42)
+            .unwrap()
+            .is_none());
+        let past = s
+            .past_family_members
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        assert_eq!(past.family_id, f.id);
+        assert_eq!(past.node_id, 42);
+        assert_eq!(past.removed_at, tester.env().block.time.seconds());
+    }
+
+    #[test]
+    fn remove_family_member_errors_when_node_not_in_any_family() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+
+        let res = s.remove_family_member(tester.storage_mut(), &env, 999);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::NodeNotInFamily { node_id: 999 }
+        );
+    }
+
+    #[test]
+    fn remove_family_member_uses_per_pair_archive_counter() {
+        // joining and leaving the same family twice must not collide on the archive key
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+
+        let expires_at = env.block.time.seconds() + 100;
+        for _ in 0..2 {
+            s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+                .unwrap();
+            s.accept_invitation(tester.storage_mut(), &env, f.id, 42)
+                .unwrap();
+            s.remove_family_member(tester.storage_mut(), &env, 42)
+                .unwrap();
+        }
+
+        // both archive slots present
+        s.past_family_members
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        s.past_family_members
+            .load(tester.storage(), ((f.id, 42), 1))
+            .unwrap();
+    }
+
+    // ---- disband_family ----
+
+    #[test]
+    fn disband_family_happy_path_no_pending() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+
+        let snap = s.disband_family(tester.storage_mut(), &env, f.id).unwrap();
+        assert_eq!(snap.id, f.id);
+        assert!(s
+            .families
+            .may_load(tester.storage(), f.id)
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn disband_family_sweeps_all_pending_invitations_as_revoked() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        tester.invite_to_family(f.id, 42);
+        tester.invite_to_family(f.id, 43);
+
+        s.disband_family(tester.storage_mut(), &env, f.id).unwrap();
+
+        assert!(s
+            .pending_family_invitations
+            .may_load(tester.storage(), (f.id, 42))
+            .unwrap()
+            .is_none());
+        assert!(s
+            .pending_family_invitations
+            .may_load(tester.storage(), (f.id, 43))
+            .unwrap()
+            .is_none());
+        assert_eq!(
+            s.past_family_invitations
+                .load(tester.storage(), ((f.id, 42), 0))
+                .unwrap()
+                .status,
+            FamilyInvitationStatus::Revoked {
+                at: tester.env().block.time.seconds()
+            }
+        );
+        assert_eq!(
+            s.past_family_invitations
+                .load(tester.storage(), ((f.id, 43), 0))
+                .unwrap()
+                .status,
+            FamilyInvitationStatus::Revoked {
+                at: tester.env().block.time.seconds()
+            }
+        );
+    }
+
+    #[test]
+    fn disband_family_errors_when_not_empty() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        tester.add_to_family(f.id, 42);
+
+        let res = s.disband_family(tester.storage_mut(), &env, f.id);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::FamilyNotEmpty {
+                family_id: f.id,
+                members: 1,
+            }
+        );
+    }
+
+    #[test]
+    fn disband_family_errors_on_unknown_family() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+
+        let res = s.disband_family(tester.storage_mut(), &env, 99);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::FamilyNotFound { family_id: 99 }
+        );
+    }
+
+    #[test]
+    fn after_disband_owner_can_register_again_with_new_id() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+
+        let f1 = tester.make_family(&alice);
+        s.disband_family(tester.storage_mut(), &env, f1.id).unwrap();
+        let f2 = s
+            .register_new_family(tester.storage_mut(), &env, alice, "2".into(), "".into())
+            .unwrap();
+
+        // ids monotonically increase, never recycled
+        assert_eq!(f1.id, 1);
+        assert_eq!(f2.id, 2);
     }
 }

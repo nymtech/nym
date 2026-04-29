@@ -97,8 +97,6 @@ tokio = { workspace = true, features = ["full", "test-util"] }
 time = { workspace = true }
 nym-bin-common = {workspace = true, features = ["basic_tracing"] }
 
-# extra dependencies for libp2p examples
-#libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 parking_lot = { workspace = true }

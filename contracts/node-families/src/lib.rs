@@ -16,6 +16,7 @@ pub mod queued_migrations;
 /// `cw-storage-plus` definitions: typed maps, items and secondary indexes.
 pub mod storage;
 
+mod helpers;
 /// Read-only query handlers backing [`contract::query`].
 mod queries;
 /// Test-only helpers — only compiled when running the contract's unit tests.

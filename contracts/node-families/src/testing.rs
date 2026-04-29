@@ -117,14 +117,10 @@ pub trait NodeFamiliesContractTesterExt:
 
     fn make_family(&mut self, owner: &Addr) -> NodeFamily {
         let env = self.env();
+        // names must be globally unique; derive from owner addr (also unique)
+        let name = format!("family-{owner}");
         NodeFamiliesStorage::new()
-            .register_new_family(
-                self,
-                &env,
-                owner.clone(),
-                "dummy".to_string(),
-                "dummy".to_string(),
-            )
+            .register_new_family(self, &env, owner.clone(), name, "dummy".to_string())
             .unwrap()
     }
 

@@ -6,14 +6,14 @@ section: "Developers"
 lastUpdated: "2026-04-28"
 ---
 
-# HTTP Client
+# smolmix-hyper
 
 import { Callout } from 'nextra/components'
-import { VersionBanner } from '../../../components/version-banner'
+import { VersionBanner } from '../../components/version-banner'
 
 <VersionBanner />
 
-`smolmix-hyper` is the highest-level companion crate — it gives you a familiar HTTP client that routes DNS resolution, TCP connections, and TLS handshakes through the mixnet. This is what most users want: "fetch a URL anonymously".
+`smolmix-hyper` is the highest-level companion crate — a familiar HTTP client that routes DNS resolution, TCP connections, and TLS handshakes through the mixnet. This is what most users want: "fetch a URL anonymously".
 
 ## Installation
 
@@ -23,7 +23,7 @@ smolmix = "0.0.1"
 smolmix-hyper = "0.0.1"
 ```
 
-You also need to install a rustls crypto provider. Add this at the start of `main()`:
+You also need a rustls crypto provider installed. Add this at the start of `main()`:
 
 ```rust
 rustls::crypto::ring::default_provider()
@@ -40,7 +40,6 @@ use bytes::Bytes;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    smolmix::init_logging();
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install rustls crypto provider");
@@ -101,7 +100,7 @@ Client::request(req)
   → hyper sends HTTP over that stream
 ```
 
-The `SmolmixConnector` implements `tower::Service<Uri>` — this is hyper-util's extension point for custom connection logic. All the privacy-critical parts (DNS, TCP, TLS) go through the tunnel; hyper handles HTTP framing normally on top.
+The `SmolmixConnector` implements `tower::Service<Uri>` — hyper-util's extension point for custom connection logic. All the privacy-critical parts (DNS, TCP, TLS) go through the tunnel; hyper handles HTTP framing normally on top.
 
 ## API reference
 
@@ -113,7 +112,12 @@ The `SmolmixConnector` implements `tower::Service<Uri>` — this is hyper-util's
 | `Request`, `Response`, `StatusCode`, `Uri` | Re-exported from hyper |
 | `BodyExt`, `EmptyBody` | Re-exported from http-body-util |
 | `bytes` | Re-exported bytes crate |
-| `MaybeTlsStream` | Plain/TLS stream enum (internal) |
+
+## Performance notes
+
+<Callout type="info">
+The first request takes several seconds (mixnet connection setup + multi-hop TCP handshake). Subsequent requests on the same client reuse the tunnel and are significantly faster. hyper-util's connection pooling also helps — HTTP keep-alive connections avoid repeated TCP/TLS setup.
+</Callout>
 
 ## Examples
 
@@ -123,8 +127,4 @@ cargo run -p smolmix-hyper --example post
 cargo run -p smolmix-hyper --example get -- --ipr <IPR_ADDRESS>
 ```
 
-## Performance notes
-
-<Callout type="info">
-The first request takes several seconds (mixnet connection setup + multi-hop TCP handshake). Subsequent requests on the same client reuse the tunnel and are significantly faster. hyper-util's connection pooling also helps — HTTP keep-alive connections avoid repeated TCP/TLS setup.
-</Callout>
+Source: [`hyper/examples/get.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/hyper/examples/get.rs), [`hyper/examples/post.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/hyper/examples/post.rs)

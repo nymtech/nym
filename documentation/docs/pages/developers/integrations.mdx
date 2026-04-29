@@ -25,7 +25,7 @@ The second factor is whether you control both sides of the communication.
 
 **End-to-end (E2E)**: both sides run Nym clients. All traffic stays Sphinx-encrypted the entire way. Appropriate for peer-to-peer setups or any case where you control both endpoints.
 
-**Proxy**: only the client side runs Nym. Traffic exits the Mixnet at an Exit Gateway and continues to the destination as normal internet traffic. Appropriate when connecting to third-party services (blockchain RPCs, external APIs) that you do not control. For Rust, [`smolmix`](/developers/smolmix) provides `TcpStream` and `UdpSocket` types that work as drop-in replacements for their tokio equivalents.
+**Proxy**: only the client side runs Nym. Traffic exits the Mixnet at an Exit Gateway and continues to the destination as normal internet traffic. Appropriate when connecting to third-party services (blockchain RPCs, external APIs) that you do not control. For Rust, [`smolmix`](/developers/smolmix) provides `TcpStream` and `UdpSocket` types that work as drop-in replacements for their tokio equivalents. Companion crates add DNS ([`smolmix-dns`](/developers/smolmix-dns)), TLS ([`smolmix-tls`](/developers/smolmix-tls)), and HTTP ([`smolmix-hyper`](/developers/smolmix-hyper)) on top.
 
 <Callout type="warning">
 In proxy mode, the last hop from Exit Gateway to the remote host travels as standard internet traffic. This is weaker than E2E against a global passive adversary, but still provides timing obfuscation and sender-receiver unlinkability.

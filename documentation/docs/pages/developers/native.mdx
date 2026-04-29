@@ -39,7 +39,10 @@ Traffic is Sphinx-encrypted until the Exit Gateway, where it's unwrapped into HT
 
 | Standalone Crate | What it does | Links |
 |---|---|---|
-| **`smolmix`** | Userspace IP tunnel — `TcpStream` and `UdpSocket` over the mixnet, compatible with the entire async Rust ecosystem. Also serves as the core for companion crates that plug into specific frameworks (e.g. hyper connectors, DNS resolvers) | [docs](/developers/smolmix) |
+| **`smolmix`** | Userspace IP tunnel — `TcpStream` and `UdpSocket` over the mixnet, compatible with the entire async Rust ecosystem | [docs](/developers/smolmix) |
+| **`smolmix-dns`** | DNS resolution through the tunnel — prevents hostname leaks to local network | [docs](/developers/smolmix-dns) |
+| **`smolmix-tls`** | TLS connector with webpki roots — encrypts the final hop between exit gateway and destination | [docs](/developers/smolmix-tls) |
+| **`smolmix-hyper`** | HTTP client routing DNS + TCP + TLS through the mixnet — the "fetch a URL anonymously" crate | [docs](/developers/smolmix-hyper) |
 
 | SDK Module | What it does | Links |
 |---|---|---|

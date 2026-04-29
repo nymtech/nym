@@ -13,6 +13,10 @@
     "title": "Standalone Crates"
   },
   "smolmix": "smolmix",
+  "smolmix-dns": "smolmix-dns",
+  "smolmix-tls": "smolmix-tls",
+  "smolmix-hyper": "smolmix-hyper",
+  "smolmix-extending": "Building on smolmix",
   "-": {
     "type": "separator",
     "title": "SDKs"

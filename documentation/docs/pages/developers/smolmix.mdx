@@ -126,6 +126,19 @@ All examples accept `--ipr <ADDRESS>` to target a specific exit node (pass a `Re
 | UDP | [`udp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp.rs) | DNS lookup via [`hickory-proto`](https://docs.rs/hickory-proto) — sends a raw UDP query to `1.1.1.1:53` through the mixnet |
 | UDP multi | [`udp_multi.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp_multi.rs) | Multiple DNS lookups with timeout handling + NTP time sync — all over mixnet UDP |
 | WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket.rs) | WebSocket echo via [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite) + [`tokio-rustls`](https://docs.rs/tokio-rustls) — full TCP → TLS → WebSocket stack composing over smolmix |
+| libp2p ping | [`libp2p_ping.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/libp2p_ping.rs) | Custom libp2p `Transport` over the mixnet — noise+yamux handshake, dial-only (no listening) |
+
+## Companion crates
+
+Thin adapter crates that plug smolmix into common libraries. Each is published separately so you only pull in the dependencies you need:
+
+| Crate | What it provides | Docs |
+|---|---|---|
+| [`smolmix-dns`](https://docs.rs/smolmix-dns) | DNS resolution through the tunnel (prevents hostname leaks) | [guide](/developers/smolmix-dns) |
+| [`smolmix-tls`](https://docs.rs/smolmix-tls) | TLS connector with webpki roots (encrypts the final hop) | [guide](/developers/smolmix-tls) |
+| [`smolmix-hyper`](https://docs.rs/smolmix-hyper) | HTTP client routing DNS + TCP + TLS through the mixnet | [guide](/developers/smolmix-hyper) |
+
+Want to integrate a different protocol? See [Building on smolmix](/developers/smolmix-extending).
 
 ## API reference
 

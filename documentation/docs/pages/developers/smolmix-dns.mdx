@@ -6,10 +6,10 @@ section: "Developers"
 lastUpdated: "2026-04-28"
 ---
 
-# DNS Resolution
+# smolmix-dns
 
 import { Callout } from 'nextra/components'
-import { VersionBanner } from '../../../components/version-banner'
+import { VersionBanner } from '../../components/version-banner'
 
 <VersionBanner />
 
@@ -23,7 +23,7 @@ smolmix = "0.0.1"
 smolmix-dns = "0.0.1"
 ```
 
-## Basic usage
+## Usage
 
 ```rust
 use smolmix::Tunnel;
@@ -108,3 +108,5 @@ All DNS I/O is routed through the smolmix tunnel. The resolver itself is standar
 cargo run -p smolmix-dns --example resolve
 cargo run -p smolmix-dns --example resolve -- --ipr <IPR_ADDRESS>
 ```
+
+Source: [`dns/examples/resolve.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/dns/examples/resolve.rs)

@@ -143,7 +143,7 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send, R: Rng + Send>
     }
 
     fn unwrap(&mut self, input: Vec<u8>, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>> {
-        self.unwrapper.unwrap(input, timestamp)
+        Ok(self.unwrapper.unwrap(input, timestamp)?)
     }
 }
 

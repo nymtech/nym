@@ -262,6 +262,7 @@ impl<Ts> FramingUnwrap<Ts, SimpleMessage> for SimpleWireUnwrapper {
 
 impl<Ts: Clone> TransportUnwrap<Ts, SimplePacket> for SimpleWireUnwrapper {
     type Frame = SimpleFrame;
+    type Error = anyhow::Error;
     fn packet_to_frame(
         &self,
         packet: SimplePacket,

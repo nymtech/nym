@@ -1,13 +1,12 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use clap::{ArgGroup, Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
 use nym_gateway_probe::config::{CredentialArgs, CredentialMode, NetstackArgs, ProbeConfig};
 use nym_gateway_probe::{
-    DirectPortCheckProtocol, NymApiDirectory, PortCheckResult, ProbeResult, RunPortsConfig,
-    query_gateway_by_ip,
+    NymApiDirectory, PortCheckResult, ProbeResult, RunPortsConfig, query_gateway_by_ip,
 };
 use nym_sdk::mixnet::NodeIdentity;
 use serde::Serialize;
@@ -94,19 +93,11 @@ enum Commands {
         config_dir: Option<PathBuf>,
 
         /// Bonded gateway identity.
-        /// Cannot be used with --gateway-ip.
-        #[arg(long, short = 'g', alias = "gateway", conflicts_with = "gateway_ip")]
-        entry_gateway: Option<NodeIdentity>,
+        #[arg(long, short = 'g', alias = "gateway")]
+        entry_gateway: NodeIdentity,
 
-        /// Gateway queried directly by IP address (unannounced/local gateways)
-        /// Cannot be used with --gateway/--entry-gateway.
-        /// Cannot be used with --mnemonic or --use-mock-ecash.
-        #[arg(long, conflicts_with = "entry_gateway")]
-        gateway_ip: Option<String>,
-
-        /// Separate exit gateway to test (entry_gateway is used for mixnet entry)
-        /// Cannot be used with --gateway-ip.
-        #[arg(long, conflicts_with = "gateway_ip")]
+        /// Separate exit gateway to test (entry_gateway is used for mixnet entry).
+        #[arg(long)]
         exit_gateway: Option<NodeIdentity>,
 
         /// Test every port in the canonical exit policy (network-tunnel-manager.sh PORT_MAPPINGS).
@@ -114,14 +105,9 @@ enum Commands {
         #[arg(long)]
         check_all_ports: bool,
 
-        /// Specify the protocol used for tests with --gateway-ip.
-        #[arg(long, value_enum, default_value_t = PortCheckProtocol::Auto)]
-        check_protocol: PortCheckProtocol,
-
-        /// Optional credential arguments.
-        /// Required only in bonded mode (when using --gateway/--entry-gateway).
+        /// Arguments to manage credentials
         #[command(flatten)]
-        credential_mode: OptionalCredentialMode,
+        credential_mode: CredentialMode,
 
         #[command(flatten)]
         probe_config: RunPortsProbeConfig,
@@ -140,45 +126,6 @@ enum Commands {
         #[command(flatten)]
         probe_config: ProbeConfig,
     },
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
-enum PortCheckProtocol {
-    Auto,
-    Tcp,
-    Udp,
-}
-
-#[derive(Debug, Args, Clone)]
-#[command(group(
-    ArgGroup::new("run_ports_credential_mode")
-        .args(["use_mock_ecash","mnemonic"])
-        .required(false)
-        .multiple(false)
-))]
-struct OptionalCredentialMode {
-    /// Use mock ecash credentials for testing
-    #[arg(long, action = clap::ArgAction::SetTrue, conflicts_with = "gateway_ip")]
-    use_mock_ecash: bool,
-
-    /// Mnemonic to get credentials from the blockchain
-    #[arg(long, conflicts_with = "gateway_ip")]
-    mnemonic: Option<String>,
-}
-
-impl OptionalCredentialMode {
-    fn into_required(self) -> anyhow::Result<CredentialMode> {
-        if self.use_mock_ecash || self.mnemonic.is_some() {
-            Ok(CredentialMode {
-                use_mock_ecash: self.use_mock_ecash,
-                mnemonic: self.mnemonic,
-            })
-        } else {
-            anyhow::bail!(
-                "missing credentials for bonded run-ports mode: provide --mnemonic <MNEMONIC> or --use-mock-ecash"
-            )
-        }
-    }
 }
 
 #[derive(Debug, Args, Clone)]
@@ -325,11 +272,9 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
         }
         Commands::RunPorts {
             entry_gateway,
-            gateway_ip,
             exit_gateway,
             config_dir,
             check_all_ports,
-            check_protocol,
             credential_mode,
             probe_config,
         } => {
@@ -349,47 +294,6 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
                 );
             }
 
-            if let Some(gateway_ip) = gateway_ip {
-                info!("Using direct IP-only port check mode for gateway: {gateway_ip}");
-                if entry_gateway.is_some() {
-                    anyhow::bail!("--gateway/--entry-gateway cannot be used with --gateway-ip");
-                }
-
-                let target_ip: std::net::IpAddr = gateway_ip.parse().map_err(|_| {
-                    anyhow::anyhow!(
-                        "invalid --gateway-ip value '{gateway_ip}': expected plain IP address"
-                    )
-                })?;
-
-                let direct_protocol = match check_protocol {
-                    PortCheckProtocol::Auto => DirectPortCheckProtocol::Auto,
-                    PortCheckProtocol::Tcp => DirectPortCheckProtocol::Tcp,
-                    PortCheckProtocol::Udp => DirectPortCheckProtocol::Udp,
-                };
-
-                return Box::pin(nym_gateway_probe::Probe::probe_run_ports_direct_ip(
-                    &gateway_ip,
-                    target_ip,
-                    &run_ports_config,
-                    direct_protocol,
-                ))
-                .await
-                .map(ProbeOutput::PortCheck);
-            }
-
-            if check_protocol == PortCheckProtocol::Udp {
-                anyhow::bail!(
-                    "--check-protocol udp is only supported with --gateway-ip direct mode"
-                );
-            }
-            if check_protocol == PortCheckProtocol::Auto {
-                info!(
-                    "Bonded run-ports mode uses TCP checks; treating --check-protocol auto as tcp"
-                );
-            }
-
-            let credential_mode = credential_mode.into_required()?;
-
             let api_url = network
                 .endpoints
                 .first()
@@ -397,11 +301,6 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
                 .ok_or(anyhow::anyhow!("missing api url"))?;
 
             let directory = NymApiDirectory::new(api_url).await?;
-            let entry_gateway = entry_gateway.ok_or_else(|| {
-                anyhow::anyhow!(
-                    "missing gateway selection: provide --gateway <ID> or --gateway-ip <IP[:PORT]>"
-                )
-            })?;
 
             let entry_details = directory
                 .entry_gateway(&entry_gateway)?
@@ -430,7 +329,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
                 config_dir.display()
             );
 
-            Box::pin(nym_gateway_probe::Probe::run_ports_bonded(
+            Box::pin(nym_gateway_probe::Probe::run_ports(
                 entry_details,
                 exit_details,
                 network,

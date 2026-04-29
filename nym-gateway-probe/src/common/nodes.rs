@@ -16,7 +16,6 @@ use nym_lp::packet::version;
 use nym_lp::peer::{DHPublicKey, LpRemotePeer};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::client::NymNodeApiClientExt;
-use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::node::models::AuxiliaryDetails as NodeAuxiliaryDetails;
 use nym_sdk::mixnet::NodeIdentity;
 use nym_sdk::mixnet::Recipient;
@@ -360,55 +359,6 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
     }
 
     Err(last_error.unwrap_or_else(|| anyhow!("Failed to connect to gateway at {}", address)))
-}
-
-/// Query only the exit policy from a gateway HTTP API by address.
-pub async fn query_exit_policy_by_ip(address: &str) -> anyhow::Result<UsedExitPolicy> {
-    let addresses_to_try = if address.contains(':') {
-        vec![format!("http://{address}"), format!("https://{address}")]
-    } else {
-        vec![
-            format!("http://{address}:{DEFAULT_NYM_NODE_HTTP_PORT}"),
-            format!("https://{address}"),
-            format!("http://{address}"),
-        ]
-    };
-
-    let user_agent: UserAgent = nym_bin_common::bin_info_local_vergen!().into();
-    let mut last_error = None;
-
-    for base in addresses_to_try {
-        let client = match nym_node_requests::api::Client::builder(base.clone()) {
-            Ok(builder) => match builder
-                .with_timeout(Duration::from_secs(5))
-                .no_hickory_dns()
-                .with_user_agent(user_agent.clone())
-                .build()
-            {
-                Ok(c) => c,
-                Err(e) => {
-                    warn!("Failed to build client for {}: {}", base, e);
-                    last_error = Some(e.into());
-                    continue;
-                }
-            },
-            Err(e) => {
-                warn!("Failed to create client builder for {}: {}", base, e);
-                last_error = Some(e.into());
-                continue;
-            }
-        };
-
-        match client.get_exit_policy().await {
-            Ok(policy) => return Ok(policy),
-            Err(e) => {
-                debug!("Failed to query exit policy at {}: {}", base, e);
-                last_error = Some(e.into());
-            }
-        }
-    }
-
-    Err(last_error.unwrap_or_else(|| anyhow!("Failed to query exit policy at {}", address)))
 }
 
 pub struct NymApiDirectory {

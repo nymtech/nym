@@ -4,6 +4,7 @@ use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
 use std::{env, sync::OnceLock};
 
+pub(crate) mod common;
 pub(crate) mod generate_keypair;
 pub(crate) mod run_ports_check;
 pub(crate) mod run_probe;
@@ -21,7 +22,7 @@ fn pretty_build_info_static() -> &'static str {
     PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
-fn parse_server_config(s: &str) -> Result<ServerConfig, String> {
+pub(super) fn parse_server_config(s: &str) -> Result<ServerConfig, String> {
     let parts: Vec<&str> = s.split('|').collect();
     if parts.len() != 2 {
         return Err("Server config must be in format 'address|port'".to_string());
@@ -97,17 +98,7 @@ impl Args {
     pub(crate) async fn execute(self, log_capture: LogCapture) -> anyhow::Result<()> {
         match self.command {
             Command::RunProbe(args) => {
-                // Parse server configs
-                let mut servers = Vec::new();
-                for s in &args.server {
-                    match parse_server_config(s) {
-                        Ok(config) => servers.push(config),
-                        Err(e) => {
-                            tracing::error!("Invalid server config '{}': {}", s, e);
-                            anyhow::bail!("Invalid server config '{}': {}", s, e);
-                        }
-                    }
-                }
+                let servers = common::parse_servers(&args.server)?;
 
                 run_probe::run_probe(&servers, args.probe_config, log_capture)
                     .await
@@ -116,16 +107,7 @@ impl Args {
                     })?
             }
             Command::RunPortsCheck(args) => {
-                let mut servers = Vec::new();
-                for s in &args.server {
-                    match parse_server_config(s) {
-                        Ok(config) => servers.push(config),
-                        Err(e) => {
-                            tracing::error!("Invalid server config '{}': {}", s, e);
-                            anyhow::bail!("Invalid server config '{}': {}", s, e);
-                        }
-                    }
-                }
+                let servers = common::parse_servers(&args.server)?;
 
                 run_ports_check::run_ports_check(
                     &servers,

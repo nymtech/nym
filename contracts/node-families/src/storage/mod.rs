@@ -8,7 +8,7 @@ use crate::storage::storage_indexes::{
     NodeFamiliesIndex, NodeFamilyInvitationIndex, PastFamilyInvitationsIndex,
     PastFamilyMembersIndex,
 };
-use cosmwasm_std::{Addr, Env, Storage};
+use cosmwasm_std::{Addr, Env, Order, StdResult, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{IndexedMap, Item, Map};
 use node_families_contract_common::constants::storage_keys;
@@ -493,6 +493,78 @@ impl<'a> NodeFamiliesStorage<'a> {
                 removed_at: now,
             },
         )?;
+
+        Ok(family)
+    }
+
+    /// Disband (delete) `family_id`.
+    ///
+    /// Only succeeds when the family has **zero current members** — errors
+    /// with [`FamilyNotEmpty`] otherwise. The owner is responsible for
+    /// kicking any remaining members first.
+    ///
+    /// Sweeps every still-pending invitation issued by the family
+    /// (iterating via the `family` multi-index over
+    /// [`Self::pending_family_invitations`]), removing each from the
+    /// pending map and archiving it as
+    /// [`FamilyInvitationStatus::Revoked`] at `env.block.time` — disbanding
+    /// the family is treated as the family withdrawing all of its
+    /// outstanding invitations. Gas cost therefore scales with the number
+    /// of leftover invitations; if that becomes a concern, the owner can
+    /// revoke them manually before disbanding.
+    ///
+    /// The caller is responsible for verifying that the transaction sender
+    /// is the owner of `family_id`.
+    ///
+    /// Errors with [`FamilyNotFound`] if `family_id` does not exist.
+    /// Returns the disbanded [`NodeFamily`] (final snapshot) for use in
+    /// event attributes.
+    ///
+    /// [`FamilyNotEmpty`]: NodeFamiliesContractError::FamilyNotEmpty
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    pub(crate) fn disband_family(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        family_id: NodeFamilyId,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        let now = env.block.time.seconds();
+
+        let family = self
+            .families
+            .may_load(store, family_id)?
+            .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
+
+        if family.members != 0 {
+            return Err(NodeFamiliesContractError::FamilyNotEmpty {
+                family_id,
+                members: family.members,
+            });
+        }
+
+        // collect first, then mutate — iterating an IndexedMap while modifying it is unsafe
+        let pending: Vec<(FamilyMember, FamilyInvitation)> = self
+            .pending_family_invitations
+            .idx
+            .family
+            .prefix(family_id)
+            .range(store, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        for (key, invitation) in pending {
+            self.pending_family_invitations.remove(store, key)?;
+            let counter = self.next_past_invitation_counter(store, key)?;
+            self.past_family_invitations.save(
+                store,
+                (key, counter),
+                &PastFamilyInvitation {
+                    invitation,
+                    status: FamilyInvitationStatus::Revoked { at: now },
+                },
+            )?;
+        }
+
+        self.families.remove(store, family_id)?;
 
         Ok(family)
     }

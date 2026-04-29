@@ -19,6 +19,13 @@ pub enum NodeFamiliesContractError {
     #[error("family with id {family_id} does not exist")]
     FamilyNotFound { family_id: NodeFamilyId },
 
+    /// Disbanding was requested on a family that still has members.
+    #[error("family {family_id} cannot be disbanded: it still has {members} member(s)")]
+    FamilyNotEmpty {
+        family_id: NodeFamilyId,
+        members: u64,
+    },
+
     /// The given node is not currently a member of any family.
     #[error("node {node_id} is not currently a member of any family")]
     NodeNotInFamily { node_id: NodeId },

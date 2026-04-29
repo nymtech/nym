@@ -48,25 +48,33 @@ pub(crate) async fn start_http_api(
     let server = router.build_server(bind_addr).await?;
     let shutdown = shutdown_tracker.clone_shutdown_token().cancelled_owned();
 
-    // Soft-TTL ports-check scheduler (enqueue due jobs periodically)
-    let mut interval = tokio::time::interval(std::time::Duration::from_secs(60 * 10));
-    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    let scheduler_shutdown = shutdown_tracker.clone_shutdown_token().cancelled_owned();
-    shutdown_tracker.spawn(async move {
-        tokio::select! {
-            _ = async {
-                loop {
-                    interval.tick().await;
-                    match crate::db::queries::testruns::enqueue_due_ports_check_testruns(&db_pool_for_scheduler).await {
-                        Ok(enqueued) if enqueued > 0 => tracing::info!("Enqueued {enqueued} due ports-check testruns"),
-                        Ok(_) => {}
-                        Err(e) => tracing::warn!("Failed to enqueue due ports-check testruns: {e}"),
+    let ports_check_scheduler_enabled = std::env::var("PORTS_CHECK_SCHEDULER_ENABLED")
+        .ok()
+        .map(|v| matches!(v.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+        .unwrap_or(true);
+
+    if ports_check_scheduler_enabled {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60 * 10));
+        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        let scheduler_shutdown = shutdown_tracker.clone_shutdown_token().cancelled_owned();
+        shutdown_tracker.spawn(async move {
+            tokio::select! {
+                _ = async {
+                    loop {
+                        interval.tick().await;
+                        match crate::db::queries::testruns::enqueue_due_ports_check_testruns(&db_pool_for_scheduler).await {
+                            Ok(enqueued) if enqueued > 0 => tracing::info!("Enqueued {enqueued} due ports-check testruns"),
+                            Ok(_) => {}
+                            Err(e) => tracing::warn!("Failed to enqueue due ports-check testruns: {e}"),
+                        }
                     }
-                }
-            } => {},
-            _ = scheduler_shutdown => {}
-        }
-    });
+                } => {},
+                _ = scheduler_shutdown => {}
+            }
+        });
+    } else {
+        tracing::info!("Ports-check scheduler disabled (PORTS_CHECK_SCHEDULER_ENABLED=false)");
+    }
 
     shutdown_tracker.spawn(async move {
         axum::serve(

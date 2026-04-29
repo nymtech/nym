@@ -97,6 +97,12 @@ impl NsApiClient {
         let response_text = res.text().await?;
 
         if status.is_client_error() {
+            if matches!(status, reqwest::StatusCode::NOT_FOUND) {
+                tracing::warn!(
+                    "Ports-check request endpoint not available on server (404), skipping iteration"
+                );
+                return Ok(None);
+            }
             bail!("{}: {}", status, response_text);
         } else if status.is_server_error() {
             if matches!(status, reqwest::StatusCode::SERVICE_UNAVAILABLE)

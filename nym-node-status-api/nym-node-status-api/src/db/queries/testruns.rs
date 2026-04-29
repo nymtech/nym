@@ -97,6 +97,12 @@ pub(crate) async fn assign_oldest_testrun(
     assign_oldest_testrun_by_kind(conn, TestRunKind::Probe).await
 }
 
+pub(crate) async fn assign_oldest_ports_check_testrun(
+    conn: &mut DbConnection,
+) -> anyhow::Result<Option<TestrunAssignment>> {
+    assign_oldest_testrun_by_kind(conn, TestRunKind::PortsCheck).await
+}
+
 async fn assign_oldest_testrun_by_kind(
     conn: &mut DbConnection,
     kind: TestRunKind,
@@ -220,11 +226,75 @@ pub(crate) async fn update_gateway_last_probe_result(
 
 // NOTE: port-check submissions must not re-embed `ports_check` into `last_probe_result`.
 
+pub(crate) async fn update_gateway_ports_check_only(
+    conn: &mut DbConnection,
+    gateway_pk: i32,
+    port_check_result: &nym_gateway_probe::PortCheckResult,
+) -> anyhow::Result<()> {
+    let now_ts = now_utc().unix_timestamp();
+    let value = serde_json::to_value(port_check_result)
+        .map_err(|e| anyhow::anyhow!("Invalid port_check_result JSON: {e}"))?;
+
+    sqlx::query(
+        r#"UPDATE gateways SET
+            ports_check = $1,
+            last_ports_check_utc = $2
+        WHERE id = $3"#,
+    )
+    .bind(Json(value))
+    .bind(now_ts)
+    .bind(gateway_pk)
+    .execute(conn.as_mut())
+    .await
+    .map(drop)
+    .map_err(From::from)
+}
+
+pub(crate) async fn insert_external_ports_check_testrun(
+    conn: &mut DbConnection,
+    testrun_id: i32,
+    gateway_id: i32,
+    assigned_at_utc: i64,
+) -> anyhow::Result<()> {
+    let now = now_utc().unix_timestamp();
+
+    sqlx::query!(
+        r#"INSERT INTO testruns (
+            id,
+            gateway_id,
+            status,
+            kind,
+            created_utc,
+            last_assigned_utc,
+            ip_address,
+            log
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#,
+        testrun_id,
+        gateway_id,
+        TestRunStatus::InProgress as i32,
+        TestRunKind::PortsCheck as i16,
+        now,
+        assigned_at_utc,
+        "external",
+        ""
+    )
+    .execute(conn.as_mut())
+    .await?;
+
+    tracing::debug!(
+        "Created external ports-check testrun {} for gateway {}",
+        testrun_id,
+        gateway_id
+    );
+    Ok(())
+}
+
 pub(crate) async fn enqueue_due_ports_check_testruns(db: &DbPool) -> anyhow::Result<u64> {
     let mut conn = db.acquire().await?;
     let now = now_utc().unix_timestamp();
-    // 3 days soft TTL
-    let cutoff = now - time::Duration::days(3).whole_seconds();
+    // 14 days soft TTL — must match the in-probe fallback TTL in
+    // `nym_gateway_probe::exit_policy_ports_check_due`.
+    let cutoff = now - time::Duration::days(14).whole_seconds();
 
     let res = sqlx::query!(
         r#"

@@ -16,7 +16,8 @@ use axum::{
     extract::{Path, State},
 };
 use nym_node_status_client::models::{
-    TestrunAssignmentWithTickets, get_testrun, submit_results, submit_results_v2,
+    TestrunAssignmentWithTickets, get_testrun, submit_ports_check_results_v2, submit_results,
+    submit_results_v2,
 };
 use reqwest::StatusCode;
 use tracing::error;
@@ -26,8 +27,16 @@ use tracing::error;
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(request_testrun))
+        .route(
+            "/ports-check",
+            axum::routing::get(request_ports_check_testrun),
+        )
         .route("/:testrun_id", axum::routing::post(submit_testrun))
         .route("/:testrun_id/v2", axum::routing::post(submit_testrun_v2))
+        .route(
+            "/:testrun_id/ports-check/v2",
+            axum::routing::post(submit_ports_check_testrun_v2),
+        )
         .layer(DefaultBodyLimit::max(1024 * 1024 * 5))
 }
 
@@ -67,6 +76,64 @@ async fn request_testrun(
 
             tracing::info!(
                 "🏃‍ Assigned testrun row_id {} gateway {} to agent",
+                &assignment.testrun_id,
+                assignment.gateway_identity_key,
+            );
+
+            let materials = state
+                .ticketbook_manager_state()
+                .attempt_assign_ticket_materials(assignment.testrun_id)
+                .await
+                .map_err(|err| {
+                    error!(
+                        "failed to get ticket materials for runner {}: {err}",
+                        assignment.testrun_id
+                    );
+                    HttpError::internal_with_logging(format!(
+                        "could not retrieve needed tickets: {err}"
+                    ))
+                })?;
+            Ok(Json(assignment.with_ticket_materials(materials)))
+        }
+        Err(err) => Err(HttpError::internal_with_logging(err)),
+    }
+}
+
+#[tracing::instrument(level = "debug", skip_all)]
+async fn request_ports_check_testrun(
+    State(state): State<AppState>,
+    Json(request): Json<get_testrun::GetTestrunRequest>,
+) -> HttpResult<Json<TestrunAssignmentWithTickets>> {
+    state.authenticate_agent_submission(&request)?;
+    state.is_fresh(&request.payload.timestamp)?;
+
+    tracing::debug!("Agent requested ports-check testrun");
+
+    let db = state.db_pool();
+    let mut conn = db
+        .acquire()
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    let active_testruns = db::queries::testruns::count_testruns_in_progress(&mut conn)
+        .await
+        .map_err(HttpError::internal_with_logging)?
+        .unwrap_or_default();
+    let max_count = state.agent_max_count();
+    if active_testruns >= max_count {
+        tracing::warn!("{active_testruns}/{max_count} testruns in progress, rejecting",);
+        return Err(HttpError::no_testruns_available());
+    }
+
+    match db::queries::testruns::assign_oldest_ports_check_testrun(&mut conn).await {
+        Ok(res) => {
+            let Some(assignment) = res else {
+                tracing::debug!("No ports-check testruns available");
+                return Err(HttpError::no_testruns_available());
+            };
+
+            tracing::info!(
+                "🏃‍ Assigned ports-check testrun row_id {} gateway {} to agent",
                 &assignment.testrun_id,
                 assignment.gateway_identity_key,
             );
@@ -331,6 +398,139 @@ async fn process_testrun_submission_by_gateway(
     let now = now_utc();
     tracing::info!(
         "✅ Testrun for gateway {} complete (assigned at {}, current time {})",
+        gw_identity,
+        assigned_at,
+        now
+    );
+
+    Ok(StatusCode::CREATED)
+}
+
+#[tracing::instrument(level = "debug", skip_all)]
+async fn submit_ports_check_testrun_v2(
+    Path(submitted_testrun_id): Path<i32>,
+    State(state): State<AppState>,
+    Json(submission): Json<submit_ports_check_results_v2::SubmitPortsCheckResultsV2>,
+) -> HttpResult<StatusCode> {
+    state.authenticate_agent_submission(&submission)?;
+
+    let db = state.db_pool();
+    let mut conn = db
+        .acquire()
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    match queries::testruns::get_testrun_by_id(&mut conn, submitted_testrun_id).await {
+        Ok(testrun) => {
+            let gw_identity = queries::select_gateway_identity(&mut conn, testrun.gateway_id)
+                .await
+                .map_err(HttpError::internal_with_logging)?;
+
+            if gw_identity != submission.payload.gateway_identity_key {
+                tracing::warn!(
+                    "Gateway mismatch for ports-check testrun {}: expected {}, got {}",
+                    submitted_testrun_id,
+                    gw_identity,
+                    submission.payload.gateway_identity_key
+                );
+                return Err(HttpError::invalid_input("Gateway identity mismatch"));
+            }
+
+            if Some(submission.payload.assigned_at_utc) != testrun.last_assigned_utc {
+                tracing::warn!(
+                    "Submitted ports-check testrun timestamp mismatch: {} != {:?}, rejecting",
+                    submission.payload.assigned_at_utc,
+                    testrun.last_assigned_utc
+                );
+                return Err(HttpError::invalid_input(format!(
+                    "Ports-check testrun {} timestamp mismatch: expected {:?}, got {}",
+                    submitted_testrun_id,
+                    testrun.last_assigned_utc,
+                    submission.payload.assigned_at_utc
+                )));
+            }
+
+            process_ports_check_submission(
+                submitted_testrun_id,
+                testrun.gateway_id,
+                submission.payload,
+                &mut conn,
+            )
+            .await
+        }
+        Err(_) => {
+            tracing::info!(
+                "Creating external ports-check testrun {} for gateway {}",
+                submitted_testrun_id,
+                submission.payload.gateway_identity_key
+            );
+
+            let gateway_id =
+                queries::get_or_create_gateway(&mut conn, &submission.payload.gateway_identity_key)
+                    .await
+                    .map_err(HttpError::internal_with_logging)?;
+
+            queries::testruns::insert_external_ports_check_testrun(
+                &mut conn,
+                submitted_testrun_id,
+                gateway_id,
+                submission.payload.assigned_at_utc,
+            )
+            .await
+            .map_err(HttpError::internal_with_logging)?;
+
+            process_ports_check_submission(
+                submitted_testrun_id,
+                gateway_id,
+                submission.payload,
+                &mut conn,
+            )
+            .await
+        }
+    }
+}
+
+async fn process_ports_check_submission(
+    testrun_id: i32,
+    gateway_id: i32,
+    payload: submit_ports_check_results_v2::Payload,
+    conn: &mut DbConnection,
+) -> HttpResult<StatusCode> {
+    let gw_identity = &payload.gateway_identity_key;
+    let open_ports = payload
+        .port_check_result
+        .ports
+        .values()
+        .filter(|&&v| v)
+        .count();
+    let total_ports = payload.port_check_result.ports.len();
+
+    tracing::debug!(
+        "Processing ports-check submission for gateway {} ({} bytes, {}/{} ports open, can_register={})",
+        gw_identity,
+        payload.probe_log.len(),
+        open_ports,
+        total_ports,
+        payload.port_check_result.can_register,
+    );
+
+    queries::testruns::update_gateway_ports_check_only(
+        conn,
+        gateway_id,
+        &payload.port_check_result,
+    )
+    .await
+    .map_err(HttpError::internal_with_logging)?;
+
+    queries::testruns::update_testrun_status(conn, testrun_id, TestRunStatus::Complete)
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    let assigned_at = unix_timestamp_to_utc_rfc3339(payload.assigned_at_utc);
+    let now = now_utc();
+    tracing::info!(
+        "✅ Ports-check testrun {} for gateway {} complete (assigned at {}, current time {})",
+        testrun_id,
         gw_identity,
         assigned_at,
         now

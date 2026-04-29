@@ -41,11 +41,14 @@ pub enum AgentPortsSchedule {
     NsAgent { last_ports_check_utc: Option<i64> },
 }
 
+// In-probe fallback TTL for the exit-policy port scan. It only fires
+// when the regular probe runs and finds the gateway hasn't been scanned recently.
+const PORTS_CHECK_FALLBACK_TTL_SECS: i64 = 14 * 24 * 60 * 60;
+
 fn exit_policy_ports_check_due(last_ports_check_utc: Option<i64>, now: i64) -> bool {
-    const FOURTEEN_DAYS_SECS: i64 = 14 * 24 * 60 * 60;
     match last_ports_check_utc {
         None => true,
-        Some(ts) => now.saturating_sub(ts) >= FOURTEEN_DAYS_SECS,
+        Some(ts) => now.saturating_sub(ts) >= PORTS_CHECK_FALLBACK_TTL_SECS,
     }
 }
 

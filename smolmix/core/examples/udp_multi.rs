@@ -18,7 +18,6 @@
 //! - Multiple DNS queries over a single `UdpSocket`
 //! - Timeout handling with `tokio::time::timeout` (essential for UDP)
 //! - NTP time sync via a raw 48-byte UDP packet
-//! - Converting NTP epoch (1900) to Unix epoch (1970)
 //!
 //! Compare with `udp.rs` which does a single DNS lookup with clearnet comparison.
 //!
@@ -51,7 +50,7 @@ async fn main() -> Result<(), BoxError> {
         .position(|a| a == "--ipr")
         .and_then(|i| args.get(i + 1));
 
-    // Stage 1: Create the tunnel
+    // Create the tunnel
     let mut builder = Tunnel::builder();
     if let Some(addr) = ipr_addr {
         builder = builder.ipr_address(addr.parse().expect("invalid IPR address"));
@@ -62,7 +61,7 @@ async fn main() -> Result<(), BoxError> {
         tunnel.allocated_ips().ipv4
     );
 
-    // Stage 2: Multiple DNS lookups over one UdpSocket
+    // Multiple DNS lookups over one UdpSocket
     // Each query goes to Cloudflare DNS (1.1.1.1:53) through the mixnet.
     // The DNS server sees the IPR exit gateway's IP, not yours.
     println!("\nPrivate DNS Lookups (via mixnet UDP)\n");
@@ -102,7 +101,7 @@ async fn main() -> Result<(), BoxError> {
         }
     }
 
-    // Stage 3: NTP time sync via mixnet UDP
+    // NTP time sync via mixnet UDP
     // NTP uses a simple 48-byte request/response over UDP port 123.
     // We first resolve pool.ntp.org via the mixnet, then send the NTP request.
     println!("\nNTP Time Sync (via mixnet UDP)\n");

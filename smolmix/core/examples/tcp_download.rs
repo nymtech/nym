@@ -20,7 +20,6 @@
 //! - DNS resolution via mixnet UDP (avoids clearnet DNS leaks)
 //! - TCP + TLS connection to the resolved IP
 //! - HTTP/1.1 keep-alive: multiple requests over one mixnet connection
-//! - Progress spinner during downloads
 //!
 //! Compare with `tcp.rs` which does a single request with clearnet comparison.
 //!

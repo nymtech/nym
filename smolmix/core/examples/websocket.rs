@@ -100,7 +100,7 @@ async fn main() -> Result<(), BoxError> {
     let tunnel = builder.build().await?;
     info!("Allocated IP: {}", tunnel.allocated_ips().ipv4);
 
-    // Stage 1: TCP + TLS + WebSocket handshakes through the mixnet.
+    // TCP + TLS + WebSocket handshakes through the mixnet.
     // Each layer only knows about the one directly below it:
     //   tungstenite thinks it's talking to a normal TLS stream
     //   rustls thinks it's talking to a normal TCP stream
@@ -122,7 +122,7 @@ async fn main() -> Result<(), BoxError> {
     let setup_duration = setup_start.elapsed();
     info!("Setup complete ({:?})", setup_duration);
 
-    // Stage 2: Send a message and verify the echo.
+    // Send a message and verify the echo.
     let request_start = tokio::time::Instant::now();
 
     mixnet_ws.send(Message::Text(ECHO_MSG.into())).await?;

@@ -18,7 +18,7 @@ type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
-    smolmix::init_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     let domain = "example.com";
 

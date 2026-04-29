@@ -30,7 +30,6 @@ thiserror.workspace = true
 
 [dev-dependencies]
 smolmix-dns = { workspace = true }
-futures = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread", "time", "net"] }
 tokio-tungstenite.workspace = true
 webpki-roots.workspace = true
@@ -46,8 +45,6 @@ reqwest = { workspace = true, features = ["rustls"] }
 chrono = { workspace = true }
 libp2p = { version = "0.56", features = ["tokio", "noise", "yamux", "ping", "macros"] }
 tokio-util = { workspace = true, features = ["compat"] }
-tokio-smoltcp = "0.5"
-tracing = { workspace = true }
 
 [[example]]
 name = "websocket"

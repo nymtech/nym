@@ -1,6 +1,6 @@
 # smolmix-tls
 
-Shared TLS setup for smolmix tunneled connections. Provides a pre-configured `TlsConnector` with webpki root certificates and convenience functions for TLS over `TcpStream`, used internally by `smolmix-hyper` and `smolmix-tungstenite`.
+Shared TLS setup for smolmix tunneled connections. Provides a pre-configured `TlsConnector` with webpki root certificates and convenience functions for TLS over `TcpStream`, used internally by `smolmix-hyper`.
 
 ## Quick start
 

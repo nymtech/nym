@@ -148,7 +148,7 @@ impl Transport for SmolmixTransport {
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
-    smolmix::init_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     let args: Vec<String> = std::env::args().collect();
 

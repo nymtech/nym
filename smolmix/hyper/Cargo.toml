@@ -1,25 +1,39 @@
 [package]
 name = "smolmix-hyper"
+description = "HTTP client routing all traffic through the Nym mixnet via hyper"
 version = "0.0.1"
+authors.workspace = true
 edition = "2021"
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+publish = true
 
 [dependencies]
 smolmix = { workspace = true }
 smolmix-dns = { workspace = true }
+smolmix-tls = { workspace = true }
 bytes = { workspace = true }
 hyper = { workspace = true, features = ["client", "http1"] }
 hyper-util = { workspace = true, features = ["tokio", "client-legacy"] }
 http-body-util = { workspace = true }
-smolmix-tls = { workspace = true }
-tokio-smoltcp = "0.5"
+tokio-smoltcp = { workspace = true }
 pin-project-lite = "0.2"
 tower = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
-# Clearnet baseline in example
 reqwest = { workspace = true }
 rustls = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 tracing = { workspace = true }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+
+[[example]]
+name = "get"
+
+[[example]]
+name = "post"

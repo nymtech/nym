@@ -385,4 +385,65 @@ impl<'a> NodeFamiliesStorage<'a> {
 
         Ok(invitation)
     }
+
+    /// Remove `node_id` from whichever family it currently belongs to.
+    ///
+    /// Shared storage path for both routes that drop a member:
+    /// - **kick** — invoked by the family owner against another node;
+    /// - **leave** — invoked by the node's own controller.
+    ///
+    /// Looks up the node's family via [`Self::family_members`] (errors with
+    /// [`NodeNotInFamily`] if the node has no membership record), removes
+    /// the membership entry, decrements the family's `members` counter
+    /// (saturating at `0` as defence-in-depth — a underflow would indicate
+    /// an invariant break elsewhere), and archives a [`PastFamilyMember`]
+    /// record stamped with `removed_at = env.block.time.seconds()` using
+    /// the next per-`(family, node)` archive slot.
+    ///
+    /// The caller is responsible for verifying that the transaction sender
+    /// is authorised to remove this node — either as the family owner
+    /// (kick) or as the node's controller (leave).
+    ///
+    /// Returns the updated [`NodeFamily`] (with the decremented `members`
+    /// count). Errors with [`FamilyNotFound`] if the node's family has
+    /// somehow been removed.
+    ///
+    /// [`NodeNotInFamily`]: NodeFamiliesContractError::NodeNotInFamily
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    pub(crate) fn remove_family_member(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        node_id: NodeId,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        let now = env.block.time.seconds();
+
+        let family_id = self
+            .family_members
+            .may_load(store, node_id)?
+            .ok_or(NodeFamiliesContractError::NodeNotInFamily { node_id })?;
+
+        self.family_members.remove(store, node_id);
+
+        let mut family = self
+            .families
+            .may_load(store, family_id)?
+            .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
+        family.members = family.members.saturating_sub(1);
+        self.families.save(store, family_id, &family)?;
+
+        let key: FamilyMember = (family_id, node_id);
+        let counter = self.next_past_member_counter(store, key)?;
+        self.past_family_members.save(
+            store,
+            (key, counter),
+            &PastFamilyMember {
+                family_id,
+                node_id,
+                removed_at: now,
+            },
+        )?;
+
+        Ok(family)
+    }
 }

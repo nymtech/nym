@@ -1,3 +1,5 @@
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
+
 //! WebSocket echo over the Nym mixnet.
 //!
 //! Sends a message to a public echo server via clearnet and via the mixnet,
@@ -7,7 +9,7 @@
 //! ```text
 //! tokio-tungstenite (WebSocket framing)
 //!   └─ tokio-rustls (TLS encryption)
-//!        └─ tokio::net::TcpStream  (clearnet)
+//!        ├─ tokio::net::TcpStream  (clearnet)
 //!        └─ smolmix::TcpStream     (mixnet)
 //! ```
 //!

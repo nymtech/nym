@@ -1,3 +1,5 @@
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
+
 //! DNS lookup through the Nym mixnet.
 //!
 //! Resolves `example.com` via clearnet (hickory-resolver) and via the mixnet
@@ -20,7 +22,7 @@
 //! - The DNS server sees the IPR gateway's IP, not yours
 //!
 //! For a more complete UDP example (multiple lookups + NTP time sync), see
-//! the test tutorial in `test-tutorials/smolmix-udp/`.
+//! `udp_multi.rs` in this directory.
 //!
 //! ```sh
 //! cargo run -p smolmix --example udp

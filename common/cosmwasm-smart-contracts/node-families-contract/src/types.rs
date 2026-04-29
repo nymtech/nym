@@ -23,6 +23,12 @@ pub struct NodeFamily {
     /// The id of the node family
     pub id: NodeFamilyId,
 
+    /// The name of the node family
+    pub name: String,
+
+    /// The optional description of the node family
+    pub description: String,
+
     /// The owner of the node family
     pub owner: Addr,
 

@@ -334,4 +334,55 @@ impl<'a> NodeFamiliesStorage<'a> {
 
         Ok(family)
     }
+
+    /// Revoke a pending invitation for `node_id` from `family_id`.
+    ///
+    /// Removes the invitation from [`Self::pending_family_invitations`] and
+    /// archives it in [`Self::past_family_invitations`] with status
+    /// [`FamilyInvitationStatus::Revoked`], using the next free
+    /// per-`(family, node)` counter. Errors with [`InvitationNotFound`] if
+    /// no pending invitation exists for the given pair.
+    ///
+    /// Works regardless of whether the invitation has expired — this is the
+    /// only path that can clean expired entries out of the pending map, since
+    /// no background sweeper exists.
+    ///
+    /// The caller is responsible for verifying that the transaction sender
+    /// is the owner of `family_id`.
+    ///
+    /// Returns the revoked [`FamilyInvitation`].
+    ///
+    /// [`InvitationNotFound`]: NodeFamiliesContractError::InvitationNotFound
+    pub(crate) fn revoke_pending_invitation(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    ) -> Result<FamilyInvitation, NodeFamiliesContractError> {
+        let now = env.block.time.seconds();
+        let key: FamilyMember = (family_id, node_id);
+
+        let invitation = self
+            .pending_family_invitations
+            .may_load(store, key)?
+            .ok_or(NodeFamiliesContractError::InvitationNotFound {
+                family_id,
+                node_id,
+            })?;
+
+        self.pending_family_invitations.remove(store, key)?;
+
+        let counter = self.next_past_invitation_counter(store, key)?;
+        self.past_family_invitations.save(
+            store,
+            (key, counter),
+            &PastFamilyInvitation {
+                invitation: invitation.clone(),
+                status: FamilyInvitationStatus::Revoked { at: now },
+            },
+        )?;
+
+        Ok(invitation)
+    }
 }

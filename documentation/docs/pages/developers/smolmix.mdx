@@ -3,7 +3,7 @@ title: "smolmix: TCP/UDP Over the Nym Mixnet"
 description: "A userspace IP tunnel that provides standard TcpStream and UdpSocket types over the Nym mixnet. Drop-in compatible with async tokio Rust ecosystem."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-04-23"
+lastUpdated: "2026-04-29"
 ---
 
 # smolmix
@@ -16,12 +16,12 @@ import { RUST_MSRV } from '../../components/versions'
 The `TcpStream` type implements tokio's `AsyncRead`/`AsyncWrite` traits and `UdpSocket` provides `send_to`/`recv_from` for datagrams.
 
 ```text
-┌──────────────────────────────────────────────────────────────────┐
-│  Your application (TLS, HTTP, WebSocket, DNS, etc.)              │
-│       └─ smolmix::TcpStream / UdpSocket                          │
-│            └─ smoltcp (userspace TCP/IP)                         │
-│                 └─ Nym mixnet → IPR exit gateway → internet      │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Your application (TLS, HTTP, WebSocket, DNS, etc.)          │
+│       └─ smolmix::TcpStream / UdpSocket                      │
+│            └─ smoltcp (userspace TCP/IP)                     │
+│                 └─ Nym mixnet → IPR exit gateway → internet  │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 Traffic exits the mixnet at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway — the exit IP is the gateway's, not yours.
@@ -63,6 +63,7 @@ For unreleased changes, import directly from the repository:
 
 ```toml
 smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
+blake3 = "=1.7.0"  # required pin — see note above
 ```
 
 ## When to use smolmix
@@ -121,12 +122,17 @@ All examples accept `--ipr <ADDRESS>` to target a specific exit node (pass a `Re
 
 | Example | Source | What it demonstrates |
 |---|---|---|
-| TCP | [`tcp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs) | HTTPS request via [`hyper`](https://docs.rs/hyper) + [`tokio-rustls`](https://docs.rs/tokio-rustls) — fetches Cloudflare's `/cdn-cgi/trace` to show that the exit IP differs from clearnet |
-| TCP download | [`tcp_download.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp_download.rs) | DNS-over-mixnet + multi-request HTTP/1.1 download over a single keep-alive connection — the full real-world pattern |
 | UDP | [`udp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp.rs) | DNS lookup via [`hickory-proto`](https://docs.rs/hickory-proto) — sends a raw UDP query to `1.1.1.1:53` through the mixnet |
-| UDP multi | [`udp_multi.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp_multi.rs) | Multiple DNS lookups with timeout handling + NTP time sync — all over mixnet UDP |
+| TCP | [`tcp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs) | HTTPS request via [`hyper`](https://docs.rs/hyper) + [`tokio-rustls`](https://docs.rs/tokio-rustls) — fetches Cloudflare's `/cdn-cgi/trace` to show that the exit IP differs from clearnet |
 | WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket.rs) | WebSocket echo via [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite) + [`tokio-rustls`](https://docs.rs/tokio-rustls) — full TCP → TLS → WebSocket stack composing over smolmix |
+| UDP multi | [`udp_multi.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp_multi.rs) | Multiple DNS lookups with timeout handling + NTP time sync — all over mixnet UDP |
+| TCP download | [`tcp_download.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp_download.rs) | DNS-over-mixnet + multi-request HTTP/1.1 download over a single keep-alive connection — the full real-world pattern |
+| WebSocket multi | [`websocket_multi.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket_multi.rs) | Burst echo (varying message sizes) + idle survival probes with clearnet baseline — sustained multi-message WebSocket usage over the mixnet |
+
+## Architecture
+
+The internal stack — smoltcp reactor, device adapter, bridge task, packet flow — is documented in [`ARCHITECTURE.md`](https://github.com/nymtech/nym/blob/develop/smolmix/core/src/ARCHITECTURE.md). This is also the crate-level documentation on docs.rs.
 
 ## API reference
 
-Full API documentation including internal architecture is available on [docs.rs/smolmix](https://docs.rs/smolmix).
+Full API documentation is available on [docs.rs/smolmix](https://docs.rs/smolmix).

@@ -71,7 +71,7 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
 
-    // -- Mixnet path --
+    // Mixnet path
     // Create a tunnel, then stack the same TLS + HTTP layers on top.
     // The only difference: smolmix::TcpStream instead of tokio::net::TcpStream.
 
@@ -87,7 +87,7 @@ async fn main() -> Result<(), BoxError> {
     }
     let tunnel = builder.build().await?;
 
-    // Stage 1: TCP + TLS + HTTP handshakes through the mixnet.
+    // TCP + TLS + HTTP handshakes through the mixnet.
     // tcp_connect() returns a TcpStream that implements AsyncRead + AsyncWrite.
     // tokio-rustls accepts it directly — no adapters or trait shims needed.
     // TokioIo then bridges hyper's I/O traits with tokio's.
@@ -110,7 +110,7 @@ async fn main() -> Result<(), BoxError> {
     let setup_duration = setup_start.elapsed();
     info!("Setup complete ({:?})", setup_duration);
 
-    // Stage 2: Send request and read response.
+    // Send request and read response.
     // From here the code is identical to any hyper client — the mixnet
     // transport is invisible to higher layers.
     let request_start = tokio::time::Instant::now();

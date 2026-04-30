@@ -1,5 +1,5 @@
 use crate::db::DbConnection;
-use crate::db::models::{TestRunDto, TestRunStatus};
+use crate::db::models::{TestRunDto, TestRunKind, TestRunStatus};
 use crate::db::queries;
 use crate::utils::{now_utc, unix_timestamp_to_utc_rfc3339};
 use crate::{
@@ -422,6 +422,18 @@ async fn submit_ports_check_testrun_v2(
 
     match queries::testruns::get_testrun_by_id(&mut conn, submitted_testrun_id).await {
         Ok(testrun) => {
+            if testrun.kind != TestRunKind::PortsCheck as i16 {
+                tracing::warn!(
+                    "Testrun {} has wrong kind for ports-check submit: {}",
+                    submitted_testrun_id,
+                    testrun.kind
+                );
+                return Err(HttpError::invalid_input(format!(
+                    "Testrun {} is not a ports-check run",
+                    submitted_testrun_id
+                )));
+            }
+
             let gw_identity = queries::select_gateway_identity(&mut conn, testrun.gateway_id)
                 .await
                 .map_err(HttpError::internal_with_logging)?;

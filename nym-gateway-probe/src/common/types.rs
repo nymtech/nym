@@ -9,40 +9,38 @@ pub use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PortsCheckSummary {
     pub all_pass: bool,
-    pub failed_ports: Vec<u16>,
     pub error: Option<String>,
-    pub ports_tested: usize,
+    pub port_check_target: String,
+    pub failed_ports: Vec<String>,
 }
 
 impl PortsCheckSummary {
-    pub fn from_port_map(can_register: bool, ports: &BTreeMap<String, bool>) -> Self {
-        let failed_ports: Vec<u16> = ports
+    pub fn from_port_map(
+        can_register: bool,
+        port_check_target: impl Into<String>,
+        ports: &BTreeMap<String, bool>,
+    ) -> Self {
+        let failed_ports: Vec<String> = ports
             .iter()
-            .filter_map(|(port, open)| {
-                if *open {
-                    None
-                } else {
-                    port.parse::<u16>().ok()
-                }
-            })
+            .filter_map(|(port, open)| if *open { None } else { Some(port.clone()) })
             .collect();
 
         let all_pass = can_register && failed_ports.is_empty() && !ports.is_empty();
 
         Self {
             all_pass,
-            failed_ports,
             error: None,
-            ports_tested: ports.len(),
+            port_check_target: port_check_target.into(),
+            failed_ports,
         }
     }
 
-    pub fn probe_error(_can_register: bool, message: impl Into<String>) -> Self {
+    pub fn probe_error(port_check_target: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             all_pass: false,
-            failed_ports: vec![],
             error: Some(message.into()),
-            ports_tested: 0,
+            port_check_target: port_check_target.into(),
+            failed_ports: vec![],
         }
     }
 }

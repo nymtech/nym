@@ -53,8 +53,6 @@ impl Default for TicketbookManagerConfig {
                 V1WireguardExit,
                 // additional wg entry for lp tests
                 V1WireguardEntry,
-                // additional wg exit for the in-probe exit-policy port scan
-                V1WireguardExit,
             ],
         }
     }

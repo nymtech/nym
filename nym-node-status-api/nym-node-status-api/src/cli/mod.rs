@@ -177,12 +177,11 @@ pub(crate) struct TicketbookArgs {
     pub(crate) quorum_check_interval: Duration,
 
     /// Specify types of tickets to buffer
-    /// one V1WireguardEntry for wg test, additional for lp tests,
-    /// one V1WireguardExit for the wg exit test, additional for the in-probe exit-policy port scan
+    /// one V1WireguardEntry for wg test, additional for lp tests
     #[clap(
         long,
         env = "NYM_NODE_STATUS_BUFFERED_TICKET_TYPES",
-        default_values_t = [TicketType::V1MixnetEntry, TicketType::V1WireguardEntry, TicketType::V1WireguardExit, TicketType::V1WireguardEntry, TicketType::V1WireguardExit]
+        default_values_t = [TicketType::V1MixnetEntry, TicketType::V1WireguardEntry, TicketType::V1WireguardExit, TicketType::V1WireguardEntry]
     )]
     #[arg(value_delimiter = ',')]
     pub(crate) buffered_ticket_types: Vec<TicketType>,

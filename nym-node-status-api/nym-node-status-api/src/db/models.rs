@@ -38,6 +38,103 @@ fn strip_wg_port_check_results_from_last_probe(value: &mut serde_json::Value) {
     wg.remove("port_check_results");
 }
 
+fn build_ports_check_summary_json(
+    can_register: bool,
+    port_check_target: Option<String>,
+    ports: Option<&serde_json::Map<String, serde_json::Value>>,
+    error: Option<String>,
+) -> serde_json::Value {
+    let failed_ports = ports
+        .map(|ports| {
+            ports
+                .iter()
+                .filter_map(|(port, open)| open.as_bool().filter(|is_open| !is_open).map(|_| port))
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let has_ports = ports.is_some_and(|p| !p.is_empty());
+    let all_pass = can_register && failed_ports.is_empty() && has_ports;
+
+    serde_json::json!({
+        "all_pass": all_pass,
+        "error": error,
+        "port_check_target": port_check_target,
+        "failed_ports": failed_ports,
+    })
+}
+
+pub(crate) fn ports_check_summary_json_from_result(
+    result: &nym_gateway_probe::PortCheckResult,
+) -> serde_json::Value {
+    let ports = result
+        .ports
+        .iter()
+        .map(|(k, v)| (k.clone(), serde_json::Value::Bool(*v)))
+        .collect::<serde_json::Map<_, _>>();
+
+    build_ports_check_summary_json(
+        result.can_register,
+        Some(result.port_check_target.clone()),
+        Some(&ports),
+        result.error.clone(),
+    )
+}
+
+pub(crate) fn normalize_ports_check_payload(value: serde_json::Value) -> Option<serde_json::Value> {
+    let serde_json::Value::Object(map) = value else {
+        return None;
+    };
+
+    // New shape is already in place; pass through untouched.
+    if map.contains_key("all_pass")
+        && map.contains_key("error")
+        && map.contains_key("port_check_target")
+        && map.contains_key("failed_ports")
+    {
+        return Some(serde_json::Value::Object(map));
+    }
+
+    // Legacy dedicated shape: { gateway, can_register, port_check_target, ports, error }
+    if map.contains_key("can_register") && map.contains_key("ports") {
+        let can_register = map
+            .get("can_register")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+        let port_check_target = map
+            .get("port_check_target")
+            .and_then(serde_json::Value::as_str)
+            .map(ToOwned::to_owned);
+        let ports = map.get("ports").and_then(serde_json::Value::as_object);
+        let error = map
+            .get("error")
+            .and_then(serde_json::Value::as_str)
+            .map(ToOwned::to_owned);
+
+        return Some(build_ports_check_summary_json(
+            can_register,
+            port_check_target,
+            ports,
+            error,
+        ));
+    }
+
+    if map.contains_key("all_pass") && map.contains_key("failed_ports") {
+        let mut normalized = map;
+        normalized.remove("ports_tested");
+        normalized
+            .entry("port_check_target".to_string())
+            .or_insert(serde_json::Value::Null);
+        normalized
+            .entry("error".to_string())
+            .or_insert(serde_json::Value::Null);
+        return Some(serde_json::Value::Object(normalized));
+    }
+
+    Some(serde_json::Value::Object(map))
+}
+
 macro_rules! serialize_opt_to_value {
     ($var:expr) => {{
         match $var {
@@ -119,7 +216,8 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
             .ports_check
             .clone()
             .or(nested_ports)
-            .filter(|v| !v.is_null());
+            .filter(|v| !v.is_null())
+            .and_then(normalize_ports_check_payload);
         let last_ports_check_utc = value
             .last_ports_check_utc
             .map(unix_timestamp_to_utc_rfc3339);

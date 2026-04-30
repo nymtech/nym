@@ -1,7 +1,6 @@
 use crate::cli::ServerConfig;
 use crate::cli::common;
 use crate::log_capture::LogCapture;
-use nym_gateway_probe::AgentPortsSchedule;
 use tracing::instrument;
 
 pub(crate) async fn run_probe(
@@ -49,10 +48,7 @@ pub(crate) async fn run_probe(
 
     // Run the probe, capturing all tracing output
     log_capture.start();
-    let ports_schedule = Some(AgentPortsSchedule::NsAgent {
-        last_ports_check_utc: testrun.assignment.last_ports_check_utc,
-    });
-    let probe_result = Box::pin(probe.probe_run_agent(credentials_args, ports_schedule)).await?;
+    let probe_result = Box::pin(probe.probe_run_agent(credentials_args)).await?;
     let probe_log = log_capture.stop_and_drain();
 
     // Inspect the probe output for socks5 field

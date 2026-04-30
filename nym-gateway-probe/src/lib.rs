@@ -8,7 +8,7 @@ use crate::common::probe_tests::{
     do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe,
 };
 use crate::common::types::{Entry, LpProbeResults};
-use crate::config::{CredentialArgs, CredentialMode, EXIT_POLICY_PORTS, NetstackArgs, ProbeConfig};
+use crate::config::{CredentialArgs, CredentialMode, NetstackArgs, ProbeConfig};
 use nym_authenticator_client::{
     AuthClientMixnetListener, AuthClientMixnetListenerHandle, AuthenticatorClient,
 };
@@ -35,29 +35,6 @@ pub use crate::common::types::{PortCheckResult, PortsCheckSummary, ProbeOutcome,
 mod common;
 pub use common::types;
 pub mod config;
-
-#[derive(Debug, Clone, Copy)]
-pub enum AgentPortsSchedule {
-    NsAgent { last_ports_check_utc: Option<i64> },
-}
-
-// In-probe fallback TTL for the exit-policy port scan. It only fires
-// when the regular probe runs and finds the gateway hasn't been scanned recently.
-const PORTS_CHECK_FALLBACK_TTL_SECS: i64 = 14 * 24 * 60 * 60;
-
-fn exit_policy_ports_check_due(last_ports_check_utc: Option<i64>, now: i64) -> bool {
-    match last_ports_check_utc {
-        None => true,
-        Some(ts) => now.saturating_sub(ts) >= PORTS_CHECK_FALLBACK_TTL_SECS,
-    }
-}
-
-fn unix_timestamp_secs() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
-}
 
 pub struct Probe {
     /// Entry node
@@ -335,7 +312,6 @@ impl Probe {
     pub async fn probe_run_agent(
         mut self,
         credential_args: CredentialArgs,
-        ports_schedule: Option<AgentPortsSchedule>,
     ) -> anyhow::Result<ProbeResult> {
         let storage = Ephemeral::default();
 
@@ -389,8 +365,7 @@ impl Probe {
             None
         };
 
-        self.do_probe_test(mixnet_client, bandwidth_provider, ports_schedule)
-            .await
+        self.do_probe_test(mixnet_client, bandwidth_provider).await
     }
 
     /// Run a probe on unannounced gateway(s) some tests will not be available
@@ -428,7 +403,7 @@ impl Probe {
             nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
         }
 
-        self.do_probe_test(None, bandwidth_provider, None).await
+        self.do_probe_test(None, bandwidth_provider).await
     }
 
     pub async fn probe_run(
@@ -496,8 +471,7 @@ impl Probe {
             None
         };
 
-        self.do_probe_test(mixnet_client, bandwidth_provider, None)
-            .await
+        self.do_probe_test(mixnet_client, bandwidth_provider).await
     }
 
     pub async fn run_ports(
@@ -673,7 +647,6 @@ impl Probe {
         self,
         mixnet_client: Option<nym_sdk::Result<MixnetClient>>,
         bandwith_provider: Box<dyn BandwidthTicketProvider>,
-        ports_schedule: Option<AgentPortsSchedule>,
     ) -> anyhow::Result<ProbeResult> {
         // Setup exit node
         let entry_under_test = self.exit_node.is_none();
@@ -807,87 +780,6 @@ impl Probe {
 
                     // Add wg results to probe result
                     probe_result.outcome.wg = Some(outcome);
-
-                    if let Some(AgentPortsSchedule::NsAgent {
-                        last_ports_check_utc,
-                    }) = ports_schedule
-                    {
-                        let now = unix_timestamp_secs();
-                        if exit_policy_ports_check_due(last_ports_check_utc, now) {
-                            if let Some(ref wg1) = probe_result.outcome.wg {
-                                if wg1.can_register {
-                                    info!(
-                                        "Running scheduled exit-policy port scan (stale or unset last_ports_check_utc)"
-                                    );
-                                    let mut netstack_ports = self.config.netstack_args.clone();
-                                    netstack_ports.port_check_ports = EXIT_POLICY_PORTS.to_vec();
-
-                                    let credential2 = bandwith_provider
-                                        .get_ecash_ticket(wg_ticket_type, credential_provider, 1)
-                                        .await?
-                                        .data;
-
-                                    let mut rng2 = rand::thread_rng();
-                                    let auth_client2 = AuthenticatorClient::new(
-                                        mixnet_listener_task.subscribe(),
-                                        mixnet_listener_task.mixnet_sender(),
-                                        nym_address,
-                                        authenticator,
-                                        exit_node.authenticator_version,
-                                        Arc::new(x25519::KeyPair::new(&mut rng2)),
-                                        ip_address,
-                                    );
-
-                                    match wg_probe(
-                                        auth_client2,
-                                        ip_address,
-                                        exit_node.authenticator_version,
-                                        self.config.amnezia_args.clone(),
-                                        netstack_ports,
-                                        true,
-                                        credential2,
-                                    )
-                                    .await
-                                    {
-                                        Ok(scan) => {
-                                            if let Some(ref mut wg) = probe_result.outcome.wg {
-                                                wg.port_check_results =
-                                                    scan.port_check_results.clone();
-                                            }
-                                            probe_result.ports_check = Some(
-                                                match &scan.port_check_results {
-                                                    Some(m) if !m.is_empty() => {
-                                                        PortsCheckSummary::from_port_map(
-                                                            scan.can_register,
-                                                            m,
-                                                        )
-                                                    }
-                                                    _ => PortsCheckSummary::probe_error(
-                                                        scan.can_register,
-                                                        "exit-policy port scan returned no per-port data",
-                                                    ),
-                                                },
-                                            );
-                                        }
-                                        Err(err) => {
-                                            warn!("Scheduled exit-policy port scan failed: {err}");
-                                            probe_result.ports_check =
-                                                Some(PortsCheckSummary::probe_error(
-                                                    false,
-                                                    format!(
-                                                        "exit-policy port scan failed: {err:#}"
-                                                    ),
-                                                ));
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            trace!(
-                                "Skipping exit-policy port scan: checked within the last 14 days"
-                            );
-                        }
-                    }
 
                     mixnet_listener_task.stop().await;
                 } else {

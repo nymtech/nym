@@ -231,9 +231,10 @@ pub(crate) async fn update_gateway_ports_check_only(
     gateway_pk: i32,
     port_check_result: &nym_gateway_probe::PortCheckResult,
 ) -> anyhow::Result<()> {
+    use crate::db::models::ports_check_summary_json_from_result;
+
     let now_ts = now_utc().unix_timestamp();
-    let value = serde_json::to_value(port_check_result)
-        .map_err(|e| anyhow::anyhow!("Invalid port_check_result JSON: {e}"))?;
+    let value = ports_check_summary_json_from_result(port_check_result);
 
     sqlx::query(
         r#"UPDATE gateways SET
@@ -292,8 +293,7 @@ pub(crate) async fn insert_external_ports_check_testrun(
 pub(crate) async fn enqueue_due_ports_check_testruns(db: &DbPool) -> anyhow::Result<u64> {
     let mut conn = db.acquire().await?;
     let now = now_utc().unix_timestamp();
-    // 14 days soft TTL — must match the in-probe fallback TTL in
-    // `nym_gateway_probe::exit_policy_ports_check_due`.
+    // 14 days soft TTL for dedicated ports-check queueing.
     let cutoff = now - time::Duration::days(14).whole_seconds();
 
     let res = sqlx::query!(

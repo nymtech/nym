@@ -15,6 +15,12 @@ pub type NodeFamilyId = u32;
 pub struct Config {
     /// Fee charged on each successful `create_family` execution.
     pub create_family_fee: Coin,
+
+    /// Maximum allowed length, in characters, of a family name.
+    pub family_name_length_limit: usize,
+
+    /// Maximum allowed length, in characters, of a family description.
+    pub family_description_length_limit: usize,
 }
 
 /// On-chain representation of a node family.
@@ -140,4 +146,15 @@ pub struct PendingFamilyInvitationResponse {
     /// The matching pending invitation along with an explicit expiry flag,
     /// or `None` if no such invitation exists.
     pub invitation: Option<PendingFamilyInvitationDetails>,
+}
+
+/// Response to [`QueryMsg::GetFamiliesPaged`](crate::QueryMsg::GetFamiliesPaged).
+#[cw_serde]
+pub struct FamiliesPagedResponse {
+    /// The families on this page, in ascending [`NodeFamilyId`] order.
+    pub families: Vec<NodeFamily>,
+
+    /// Cursor to pass as `start_after` on the next call, or `None` if this
+    /// page is empty (which the caller should treat as end-of-list).
+    pub start_next_after: Option<NodeFamilyId>,
 }

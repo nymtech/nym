@@ -1,11 +1,12 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::storage::NodeFamiliesStorage;
-use cosmwasm_std::{Deps, Env};
+use crate::storage::{retrieval_limits, NodeFamiliesStorage};
+use cosmwasm_std::{Deps, Env, Order, StdResult};
+use cw_storage_plus::Bound;
 use node_families_contract_common::{
-    NodeFamiliesContractError, NodeFamilyId, NodeFamilyMembershipResponse, NodeFamilyResponse,
-    PendingFamilyInvitationDetails, PendingFamilyInvitationResponse,
+    FamiliesPagedResponse, NodeFamiliesContractError, NodeFamilyId, NodeFamilyMembershipResponse,
+    NodeFamilyResponse, PendingFamilyInvitationDetails, PendingFamilyInvitationResponse,
 };
 use nym_mixnet_contract_common::NodeId;
 
@@ -53,6 +54,39 @@ pub fn query_pending_invitation(
         family_id,
         node_id,
         invitation,
+    })
+}
+
+/// Page through every existing family in ascending [`NodeFamilyId`] order.
+///
+/// `start_after` is exclusive — pass the previous page's `start_next_after`
+/// to fetch the next page; pass `None` to start from the first family.
+/// `limit` defaults to [`retrieval_limits::FAMILIES_DEFAULT_LIMIT`] and is
+/// clamped to [`retrieval_limits::FAMILIES_MAX_LIMIT`].
+pub fn query_families_paged(
+    deps: Deps,
+    start_after: Option<NodeFamilyId>,
+    limit: Option<u32>,
+) -> Result<FamiliesPagedResponse, NodeFamiliesContractError> {
+    let limit = limit
+        .unwrap_or(retrieval_limits::FAMILIES_DEFAULT_LIMIT)
+        .min(retrieval_limits::FAMILIES_MAX_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let storage = NodeFamiliesStorage::new();
+    let families = storage
+        .families
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = families.last().map(|family| family.id);
+
+    Ok(FamiliesPagedResponse {
+        families,
+        start_next_after,
     })
 }
 
@@ -171,6 +205,137 @@ mod tests {
             let details = res.invitation.unwrap();
             assert_eq!(details.invitation.expires_at, expires_at);
             assert!(details.expired);
+        }
+    }
+
+    #[cfg(test)]
+    mod families_paged {
+        use super::*;
+
+        #[test]
+        fn empty_when_no_families_exist() {
+            let tester = init_contract_tester();
+
+            let res = query_families_paged(tester.deps(), None, None).unwrap();
+            assert!(res.families.is_empty());
+            assert!(res.start_next_after.is_none());
+        }
+
+        #[test]
+        fn returns_all_families_within_default_limit() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            let f3 = tester.add_dummy_family();
+
+            let res = query_families_paged(tester.deps(), None, None).unwrap();
+            assert_eq!(res.families, vec![f1, f2, f3.clone()]);
+            assert_eq!(res.start_next_after, Some(f3.id));
+        }
+
+        #[test]
+        fn returns_families_in_ascending_id_order() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            let f3 = tester.add_dummy_family();
+
+            let res = query_families_paged(tester.deps(), None, None).unwrap();
+            let ids: Vec<_> = res.families.iter().map(|f| f.id).collect();
+            assert_eq!(ids, vec![f1.id, f2.id, f3.id]);
+        }
+
+        #[test]
+        fn limit_caps_page_size() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            let _f3 = tester.add_dummy_family();
+
+            let res = query_families_paged(tester.deps(), None, Some(2)).unwrap();
+            assert_eq!(res.families, vec![f1, f2.clone()]);
+            assert_eq!(res.start_next_after, Some(f2.id));
+        }
+
+        #[test]
+        fn start_after_is_exclusive() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            let f3 = tester.add_dummy_family();
+
+            let res = query_families_paged(tester.deps(), Some(f1.id), None).unwrap();
+            assert_eq!(res.families, vec![f2, f3.clone()]);
+            assert_eq!(res.start_next_after, Some(f3.id));
+        }
+
+        #[test]
+        fn paginates_through_all_families() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            let f3 = tester.add_dummy_family();
+            let f4 = tester.add_dummy_family();
+            let f5 = tester.add_dummy_family();
+
+            let page1 = query_families_paged(tester.deps(), None, Some(2)).unwrap();
+            assert_eq!(page1.families, vec![f1, f2.clone()]);
+            assert_eq!(page1.start_next_after, Some(f2.id));
+
+            let page2 =
+                query_families_paged(tester.deps(), page1.start_next_after, Some(2)).unwrap();
+            assert_eq!(page2.families, vec![f3, f4.clone()]);
+            assert_eq!(page2.start_next_after, Some(f4.id));
+
+            let page3 =
+                query_families_paged(tester.deps(), page2.start_next_after, Some(2)).unwrap();
+            assert_eq!(page3.families, vec![f5.clone()]);
+            assert_eq!(page3.start_next_after, Some(f5.id));
+
+            let page4 =
+                query_families_paged(tester.deps(), page3.start_next_after, Some(2)).unwrap();
+            assert!(page4.families.is_empty());
+            assert!(page4.start_next_after.is_none());
+        }
+
+        #[test]
+        fn limit_is_clamped_to_max() {
+            let mut tester = init_contract_tester();
+            let total = retrieval_limits::FAMILIES_MAX_LIMIT as usize + 5;
+            for _ in 0..total {
+                tester.add_dummy_family();
+            }
+
+            let res = query_families_paged(tester.deps(), None, Some(u32::MAX)).unwrap();
+            assert_eq!(
+                res.families.len(),
+                retrieval_limits::FAMILIES_MAX_LIMIT as usize
+            );
+        }
+
+        #[test]
+        fn default_limit_applied_when_unspecified() {
+            let mut tester = init_contract_tester();
+            let total = retrieval_limits::FAMILIES_DEFAULT_LIMIT as usize + 5;
+            for _ in 0..total {
+                tester.add_dummy_family();
+            }
+
+            let res = query_families_paged(tester.deps(), None, None).unwrap();
+            assert_eq!(
+                res.families.len(),
+                retrieval_limits::FAMILIES_DEFAULT_LIMIT as usize
+            );
+        }
+
+        #[test]
+        fn start_after_past_end_returns_empty() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+
+            let res = query_families_paged(tester.deps(), Some(f.id), None).unwrap();
+            assert!(res.families.is_empty());
+            assert!(res.start_next_after.is_none());
         }
     }
 }

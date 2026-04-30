@@ -18,6 +18,7 @@ use node_families_contract_common::{
 };
 use nym_mixnet_contract_common::NodeId;
 
+pub(crate) mod retrieval_limits;
 mod storage_indexes;
 
 /// Composite primary key for the invitation / past-member maps:

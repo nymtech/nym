@@ -152,6 +152,20 @@ pub trait NodeFamiliesContractTesterExt:
             .unwrap();
     }
 
+    fn reject_invitation(&mut self, family: NodeFamilyId, node: NodeId) {
+        let env = self.env();
+        NodeFamiliesStorage::new()
+            .reject_pending_invitation(self, &env, family, node)
+            .unwrap();
+    }
+
+    fn revoke_invitation(&mut self, family: NodeFamilyId, node: NodeId) {
+        let env = self.env();
+        NodeFamiliesStorage::new()
+            .revoke_pending_invitation(self, &env, family, node)
+            .unwrap();
+    }
+
     fn add_to_family(&mut self, family: NodeFamilyId, node: NodeId) {
         self.invite_to_family(family, node);
         self.accept_invitation(family, node);
@@ -162,6 +176,12 @@ pub trait NodeFamiliesContractTesterExt:
         NodeFamiliesStorage::new()
             .remove_family_member(self, &env, node)
             .unwrap();
+    }
+
+    fn add_n_family_members(&mut self, family: NodeFamilyId, count: u32) {
+        for n in 1..=count {
+            self.add_to_family(family, n);
+        }
     }
 }
 

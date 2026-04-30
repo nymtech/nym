@@ -1,14 +1,15 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::NodeFamilyId;
+use crate::{GlobalPastFamilyInvitationCursor, NodeFamilyId, PastFamilyInvitationCursor};
 use cosmwasm_schema::cw_serde;
 use nym_mixnet_contract_common::NodeId;
 
 #[cfg(feature = "schema")]
 use crate::{
-    FamiliesPagedResponse, FamilyMembersPagedResponse, NodeFamilyMembershipResponse,
-    NodeFamilyResponse, PendingFamilyInvitationResponse, PendingFamilyInvitationsPagedResponse,
+    AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse, FamilyMembersPagedResponse,
+    NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationsPagedResponse,
+    PendingFamilyInvitationResponse, PendingFamilyInvitationsPagedResponse,
     PendingInvitationsPagedResponse,
 };
 
@@ -70,6 +71,23 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(PendingInvitationsPagedResponse))]
     GetAllPendingInvitationsPaged {
         start_after: Option<(NodeFamilyId, NodeId)>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every archived (terminal-state) invitation issued by a
+    /// given family.
+    #[cfg_attr(feature = "schema", returns(PastFamilyInvitationsPagedResponse))]
+    GetPastInvitationsForFamilyPaged {
+        family_id: NodeFamilyId,
+        start_after: Option<PastFamilyInvitationCursor>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every archived (terminal-state) invitation across all
+    /// families.
+    #[cfg_attr(feature = "schema", returns(AllPastFamilyInvitationsPagedResponse))]
+    GetAllPastInvitationsPaged {
+        start_after: Option<GlobalPastFamilyInvitationCursor>,
         limit: Option<u32>,
     },
 }

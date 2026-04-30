@@ -26,3 +26,9 @@ pub const PAST_INVITATIONS_DEFAULT_LIMIT: u32 = 50;
 
 /// Hard cap on the page size for paginated past-invitation listings; larger values are clamped.
 pub const PAST_INVITATIONS_MAX_LIMIT: u32 = 100;
+
+/// Default page size for paginated past-member (archive) listings when the caller omits `limit`.
+pub const PAST_MEMBERS_DEFAULT_LIMIT: u32 = 50;
+
+/// Hard cap on the page size for paginated past-member listings; larger values are clamped.
+pub const PAST_MEMBERS_MAX_LIMIT: u32 = 100;

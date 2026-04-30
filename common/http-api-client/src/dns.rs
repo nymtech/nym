@@ -376,24 +376,6 @@ impl HickoryDnsResolver {
         }
     }
 
-    /// Remove the preresolve cache entry for a single host, forcing the next
-    /// lookup for that host to go through the network resolver again.
-    ///
-    /// Call this after a hard connection failure (RST, ECONNREFUSED, timeout)
-    /// to ensure the next attempt gets a fresh DNS answer rather than a cached
-    /// IP that may no longer be reachable.
-    pub fn invalidate_preresolve_for(&self, name: &str) {
-        debug!("invalidating pre-resolve for {name}");
-        if let Some(cell) = &self.static_base
-            && let Some(static_base) = cell.get()
-        {
-            static_base.invalidate_preresolve_entry(name)
-        }
-        if self.use_shared {
-            SHARED_RESOLVER.invalidate_preresolve_for(name);
-        }
-    }
-
     /// Get the current map of hostnames to addresses used in the fallback static lookup stage if one
     /// exists.
     pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {

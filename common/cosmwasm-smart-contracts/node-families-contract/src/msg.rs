@@ -1,15 +1,19 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::{GlobalPastFamilyInvitationCursor, NodeFamilyId, PastFamilyInvitationCursor};
+use crate::{
+    GlobalPastFamilyInvitationCursor, NodeFamilyId, PastFamilyInvitationCursor,
+    PastFamilyInvitationForNodeCursor,
+};
 use cosmwasm_schema::cw_serde;
 use nym_mixnet_contract_common::NodeId;
 
 #[cfg(feature = "schema")]
 use crate::{
     AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse, FamilyMembersPagedResponse,
-    NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationsPagedResponse,
-    PendingFamilyInvitationResponse, PendingFamilyInvitationsPagedResponse,
+    NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationsForNodePagedResponse,
+    PastFamilyInvitationsPagedResponse, PendingFamilyInvitationResponse,
+    PendingFamilyInvitationsPagedResponse, PendingInvitationsForNodePagedResponse,
     PendingInvitationsPagedResponse,
 };
 
@@ -67,6 +71,14 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 
+    /// Page through every pending invitation issued for a given node.
+    #[cfg_attr(feature = "schema", returns(PendingInvitationsForNodePagedResponse))]
+    GetPendingInvitationsForNodePaged {
+        node_id: NodeId,
+        start_after: Option<NodeFamilyId>,
+        limit: Option<u32>,
+    },
+
     /// Page through every pending invitation across all families.
     #[cfg_attr(feature = "schema", returns(PendingInvitationsPagedResponse))]
     GetAllPendingInvitationsPaged {
@@ -80,6 +92,15 @@ pub enum QueryMsg {
     GetPastInvitationsForFamilyPaged {
         family_id: NodeFamilyId,
         start_after: Option<PastFamilyInvitationCursor>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every archived (terminal-state) invitation issued to a
+    /// given node.
+    #[cfg_attr(feature = "schema", returns(PastFamilyInvitationsForNodePagedResponse))]
+    GetPastInvitationsForNodePaged {
+        node_id: NodeId,
+        start_after: Option<PastFamilyInvitationForNodeCursor>,
         limit: Option<u32>,
     },
 

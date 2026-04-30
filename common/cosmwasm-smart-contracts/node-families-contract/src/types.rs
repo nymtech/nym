@@ -212,6 +212,23 @@ pub struct PendingFamilyInvitationsPagedResponse {
     pub start_next_after: Option<NodeId>,
 }
 
+/// Response to [`QueryMsg::GetPendingInvitationsForNodePaged`](crate::QueryMsg::GetPendingInvitationsForNodePaged).
+#[cw_serde]
+pub struct PendingInvitationsForNodePagedResponse {
+    /// The node whose pending invitations were queried, echoed back so
+    /// paginated callers can correlate.
+    pub node_id: NodeId,
+
+    /// The pending invitations addressed to this node on this page, in
+    /// ascending [`NodeFamilyId`] order, each stamped with whether it had
+    /// already timed out at the time the query was served.
+    pub invitations: Vec<PendingFamilyInvitationDetails>,
+
+    /// Cursor (last issuing family id) to pass as `start_after` on the
+    /// next call, or `None` if this page is empty (treat as end-of-list).
+    pub start_next_after: Option<NodeFamilyId>,
+}
+
 /// Response to [`QueryMsg::GetAllPendingInvitationsPaged`](crate::QueryMsg::GetAllPendingInvitationsPaged).
 #[cw_serde]
 pub struct PendingInvitationsPagedResponse {
@@ -233,6 +250,10 @@ pub struct PendingInvitationsPagedResponse {
 /// invited and have the invitation reach a terminal state more than once).
 pub type PastFamilyInvitationCursor = (NodeId, u64);
 
+/// Cursor for paginating per-node past-invitation listings: identifies a
+/// single archive entry addressed to a fixed node by `(family_id, counter)`.
+pub type PastFamilyInvitationForNodeCursor = (NodeFamilyId, u64);
+
 /// Cursor for paginating global past-invitation listings: identifies a
 /// single archive entry across all families by `((family_id, node_id), counter)`.
 pub type GlobalPastFamilyInvitationCursor = ((NodeFamilyId, NodeId), u64);
@@ -251,6 +272,22 @@ pub struct PastFamilyInvitationsPagedResponse {
     /// Cursor to pass as `start_after` on the next call, or `None` if this
     /// page is empty (treat as end-of-list).
     pub start_next_after: Option<PastFamilyInvitationCursor>,
+}
+
+/// Response to [`QueryMsg::GetPastInvitationsForNodePaged`](crate::QueryMsg::GetPastInvitationsForNodePaged).
+#[cw_serde]
+pub struct PastFamilyInvitationsForNodePagedResponse {
+    /// The node whose past invitations were queried, echoed back so
+    /// paginated callers can correlate.
+    pub node_id: NodeId,
+
+    /// The archived invitations addressed to this node on this page, in
+    /// ascending `(family_id, counter)` order across all terminal statuses.
+    pub invitations: Vec<PastFamilyInvitation>,
+
+    /// Cursor to pass as `start_after` on the next call, or `None` if this
+    /// page is empty (treat as end-of-list).
+    pub start_next_after: Option<PastFamilyInvitationForNodeCursor>,
 }
 
 /// Response to [`QueryMsg::GetAllPastInvitationsPaged`](crate::QueryMsg::GetAllPastInvitationsPaged).

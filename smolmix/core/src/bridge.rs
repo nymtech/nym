@@ -1,5 +1,4 @@
 // Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 use crate::error::SmolmixError;
 use futures::channel::mpsc;

@@ -1,5 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 
 //! TLS stream abstraction for plain and encrypted connections.
 
@@ -13,6 +12,9 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 pin_project! {
     /// A stream that may or may not be wrapped in TLS.
+    ///
+    /// Returned by [`SmolmixConnector`](crate::SmolmixConnector) — you won't
+    /// normally interact with this directly.
     #[project = MaybeTlsProj]
     pub enum MaybeTlsStream {
         Plain { #[pin] inner: tokio_smoltcp::TcpStream },

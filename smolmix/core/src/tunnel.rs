@@ -48,7 +48,6 @@ struct TunnelInner {
 /// (Internet Packet Router). It spawns a background bridge task and a network reactor,
 /// then provides familiar socket APIs on top.
 ///
-///
 /// # Shutdown
 ///
 /// Call [`shutdown()`](Self::shutdown) for a clean disconnect. Rust has no async `Drop`,
@@ -115,9 +114,6 @@ pub struct Tunnel {
 /// For full control over the mixnet client (credentials, gateway selection,
 /// storage, etc.), configure an [`IpMixStream`] directly and pass it to
 /// [`Tunnel::from_stream()`].
-///
-/// **Note:** deeper builder integration with `MixnetClientBuilder` requires
-/// upstream SDK changes to expose `IpMixStream` internals.
 pub struct TunnelBuilder {
     ipr_address: Option<Recipient>,
 }

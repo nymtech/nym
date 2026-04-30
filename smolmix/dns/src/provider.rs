@@ -1,5 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 
 //! hickory-resolver [`RuntimeProvider`] routing all DNS I/O through a [`Tunnel`].
 

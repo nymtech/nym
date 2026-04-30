@@ -1,5 +1,4 @@
 // Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 //! HTTP client routing all traffic through the Nym mixnet.
 //!
@@ -19,7 +18,7 @@
 //!
 //! ```text
 //! SmolmixConnector::call(uri)
-//!   → smolmix_dns::resolve(host, port)    DNS through tunnel
+//!   → resolver.resolve(host, port)        DNS through tunnel (cached)
 //!   → tunnel.tcp_connect(addr)            TCP through mixnet
 //!   → smolmix_tls::connect_with(tls, tcp, host)   TLS if https
 //!   → MaybeTlsStream::Plain { TcpStream }
@@ -116,12 +115,7 @@ pub use http_body_util::Empty as EmptyBody;
 /// Re-exported hyper types for building requests without depending on hyper directly.
 pub use hyper::{Request, Response, StatusCode, Uri};
 
-/// The connector implementing `tower::Service<Uri>`. Use this directly when you
-/// need a custom body type (e.g. `Full<Bytes>` for POST requests).
 pub use connector::SmolmixConnector;
-
-/// A stream that may or may not be wrapped in TLS. Returned by [`SmolmixConnector`]
-/// — you won't normally interact with this directly.
 pub use tls_stream::MaybeTlsStream;
 
 /// Inner hyper-util client type alias for readability.

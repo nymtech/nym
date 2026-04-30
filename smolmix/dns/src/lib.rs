@@ -1,5 +1,4 @@
 // Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
 
 //! DNS resolution through the Nym mixnet.
 //!
@@ -13,10 +12,10 @@
 //!
 //! # How it works
 //!
-//! [hickory-resolver]'s extension point is the [`RuntimeProvider`] trait — it
-//! controls how the resolver creates TCP connections and UDP sockets.
-//! [`SmolmixRuntimeProvider`] implements this trait, routing all I/O through
-//! the tunnel:
+//! [hickory-resolver](https://docs.rs/hickory-resolver)'s extension point is
+//! the [`RuntimeProvider`] trait — it controls how the resolver creates TCP
+//! connections and UDP sockets. [`SmolmixRuntimeProvider`] implements this
+//! trait, routing all I/O through the tunnel:
 //!
 //! ```text
 //! RuntimeProvider::connect_tcp()  →  tunnel.tcp_connect()  →  AsyncIoTokioAsStd<TcpStream>
@@ -28,7 +27,7 @@
 //! hickory's `DnsTcpStream` has a blanket impl for any `futures_io::AsyncRead +
 //! AsyncWrite`, the wrapped stream satisfies it automatically.
 //!
-//! For UDP, [`SmolmixUdpSocket`] is a thin newtype over `tokio_smoltcp::UdpSocket`
+//! For UDP, `SmolmixUdpSocket` is a thin newtype over `tokio_smoltcp::UdpSocket`
 //! that implements hickory's [`DnsUdpSocket`](hickory_proto::udp::DnsUdpSocket)
 //! — just delegates `poll_recv_from` and `poll_send_to`.
 //!
@@ -68,7 +67,7 @@
 //! use smolmix_dns::{Resolver, ResolverConfig};
 //!
 //! let tunnel = smolmix::Tunnel::new().await?;
-//! let resolver = Resolver::with_config(&tunnel, ResolverConfig::quad9());
+//! let resolver = Resolver::with_config(&tunnel, ResolverConfig::cloudflare());
 //! # Ok(())
 //! # }
 //! ```
@@ -81,6 +80,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::ops::Deref;
 
+use hickory_resolver::config::NameServerConfigGroup;
 use hickory_resolver::name_server::GenericConnector;
 
 use hickory_proto::runtime::TokioHandle;
@@ -122,7 +122,17 @@ impl Resolver {
     }
 
     /// Create a resolver with a custom upstream DNS configuration.
+    ///
+    /// IPv6 nameservers are filtered out because the tunnel's smoltcp
+    /// interface is IPv4-only (see [`tokio_smoltcp::NetConfig`]). Passing a
+    /// config with *only* IPv6 nameservers will cause lookups to fail.
     pub fn with_config(tunnel: &Tunnel, config: ResolverConfig) -> Self {
+        // tokio-smoltcp only supports a single IpCidr (IPv4), so contacting
+        // an IPv6 nameserver panics in smoltcp's wire layer (IP version
+        // mismatch). Strip IPv6 nameservers until the tunnel supports
+        // dual-stack.
+        let config = ipv4_only_nameservers(config);
+
         let provider = SmolmixRuntimeProvider {
             tunnel: tunnel.clone(),
             handle: TokioHandle::default(),
@@ -171,4 +181,25 @@ pub fn resolver(tunnel: &Tunnel) -> Resolver {
 pub async fn resolve(tunnel: &Tunnel, host: &str, port: u16) -> io::Result<Vec<SocketAddr>> {
     let r = resolver(tunnel);
     r.resolve(host, port).await
+}
+
+/// Strip IPv6 nameservers from a resolver config.
+///
+/// hickory's preset configs (quad9, cloudflare, google) all include IPv6
+/// nameservers. The smolmix tunnel is IPv4-only (tokio-smoltcp's `NetConfig`
+/// takes a single `IpCidr`), so sending a UDP packet to an IPv6 nameserver
+/// panics in smoltcp's wire layer with "IP version mismatch".
+fn ipv4_only_nameservers(config: ResolverConfig) -> ResolverConfig {
+    let ipv4_servers: Vec<_> = config
+        .name_servers()
+        .iter()
+        .filter(|ns| ns.socket_addr.is_ipv4())
+        .cloned()
+        .collect();
+
+    ResolverConfig::from_parts(
+        config.domain().cloned(),
+        config.search().to_vec(),
+        NameServerConfigGroup::from(ipv4_servers),
+    )
 }

@@ -1,5 +1,8 @@
 // Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 
+//! TCP/UDP tunnel over the Nym mixnet — standard `TcpStream` and `UdpSocket`
+//! types that route all traffic through a mixnet for metadata privacy.
+
 #![doc = include_str!("ARCHITECTURE.md")]
 
 mod bridge;
@@ -35,12 +38,7 @@ pub use tunnel::Recipient;
 /// ```
 pub use tunnel::TcpStream;
 
-/// A mixnet tunnel providing TCP and UDP socket access.
 pub use tunnel::Tunnel;
-
-/// Builder for configuring and creating a [`Tunnel`].
-///
-/// See [`Tunnel::builder()`] for usage.
 pub use tunnel::TunnelBuilder;
 
 /// A UDP socket routed through the mixnet. Supports `send_to` / `recv_from`.

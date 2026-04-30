@@ -6,6 +6,7 @@ usage: nym-node-cli install [-h] [-V] [-d BRANCH] [-v]
                             [--email EMAIL] [--moniker MONIKER]
                             [--description DESCRIPTION]
                             [--public-ip PUBLIC_IP]
+                            [--host-ssh-port HOST_SSH_PORT]
                             [--nym-node-binary NYM_NODE_BINARY]
                             [--uplink-dev UPLINK_DEV] [--env KEY=VALUE]
 
@@ -27,6 +28,8 @@ options:
                         Short public description of the node
   --public-ip PUBLIC_IP
                         External IPv4 address (autodetected if omitted)
+  --host-ssh-port HOST_SSH_PORT
+                        Host SSH port to allow in the firewall (default: 22)
   --nym-node-binary NYM_NODE_BINARY
                         URL for nym-node binary (autodetected if omitted)
   --uplink-dev UPLINK_DEV

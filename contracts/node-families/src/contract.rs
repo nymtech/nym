@@ -3,7 +3,8 @@
 
 //! CosmWasm entry points for the node families contract.
 
-use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response};
+use crate::queries::{query_family_by_id, query_family_membership, query_pending_invitation};
+use cosmwasm_std::{entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use node_families_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NodeFamiliesContractError, QueryMsg,
 };
@@ -55,10 +56,17 @@ pub fn execute(
 /// wired up here as variants are added to [`QueryMsg`].
 #[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NodeFamiliesContractError> {
-    let _ = deps;
-    let _ = env;
-    let _ = msg;
-    Ok(Binary::default())
+    match msg {
+        QueryMsg::GetFamilyById { family_id } => {
+            Ok(to_json_binary(&query_family_by_id(deps, family_id)?)?)
+        }
+        QueryMsg::GetFamilyMembership { node_id } => {
+            Ok(to_json_binary(&query_family_membership(deps, node_id)?)?)
+        }
+        QueryMsg::GetPendingInvitation { family_id, node_id } => Ok(to_json_binary(
+            &query_pending_invitation(deps, env, family_id, node_id)?,
+        )?),
+    }
 }
 
 /// Migration entry point.

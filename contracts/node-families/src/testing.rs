@@ -156,6 +156,13 @@ pub trait NodeFamiliesContractTesterExt:
         self.invite_to_family(family, node);
         self.accept_invitation(family, node);
     }
+
+    fn remove_from_family(&mut self, node: NodeId) {
+        let env = self.env();
+        NodeFamiliesStorage::new()
+            .remove_family_member(self, &env, node)
+            .unwrap();
+    }
 }
 
 impl NodeFamiliesContractTesterExt for ContractTester<NodeFamiliesContract> {}

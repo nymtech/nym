@@ -99,3 +99,45 @@ pub struct PastFamilyInvitation {
     /// What ultimately happened to it.
     pub status: FamilyInvitationStatus,
 }
+
+/// Response to [`QueryMsg::GetFamilyById`](crate::QueryMsg::GetFamilyById).
+#[cw_serde]
+pub struct NodeFamilyResponse {
+    /// The id that was queried, echoed back so paginated callers can correlate.
+    pub family_id: NodeFamilyId,
+    /// The matching family, or `None` if no family with `family_id` exists.
+    pub family: Option<NodeFamily>,
+}
+
+/// Response to [`QueryMsg::GetFamilyMembership`](crate::QueryMsg::GetFamilyMembership).
+#[cw_serde]
+pub struct NodeFamilyMembershipResponse {
+    /// The node that was queried.
+    pub node_id: NodeId,
+    /// The id of the family the node currently belongs to, or `None` if the
+    /// node is not currently a member of any family.
+    pub family_id: Option<NodeFamilyId>,
+}
+
+/// A pending [`FamilyInvitation`] paired with whether it has already timed
+/// out at the time the query was served.
+#[cw_serde]
+pub struct PendingFamilyInvitationDetails {
+    /// The stored invitation as it was issued.
+    pub invitation: FamilyInvitation,
+    /// `true` iff `now >= invitation.expires_at` at query time, i.e. the
+    /// invitation is still in the pending map but can no longer be acted on.
+    pub expired: bool,
+}
+
+/// Response to [`QueryMsg::GetPendingInvitation`](crate::QueryMsg::GetPendingInvitation).
+#[cw_serde]
+pub struct PendingFamilyInvitationResponse {
+    /// The family component of the queried `(family_id, node_id)` key.
+    pub family_id: NodeFamilyId,
+    /// The node component of the queried `(family_id, node_id)` key.
+    pub node_id: NodeId,
+    /// The matching pending invitation along with an explicit expiry flag,
+    /// or `None` if no such invitation exists.
+    pub invitation: Option<PendingFamilyInvitationDetails>,
+}

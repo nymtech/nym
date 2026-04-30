@@ -66,12 +66,7 @@ mod constants;
 mod static_resolver;
 pub(crate) use static_resolver::*;
 
-// Fastly (and similar CDNs) deliberately publish short A-record TTLs (30–60 s)
-// so that clients re-resolve when an edge node is removed. Pinning to 1800 s
-// defeats that mechanism and leaves the client hitting a dead IP for up to
-// 30 minutes after a Fastly failover. 60 s is long enough to amortise DNS
-// query overhead while still following CDN-signalled failovers within a minute.
-pub(crate) const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(60);
+pub(crate) const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(1800);
 pub(crate) const DEFAULT_OVERALL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(10);
 pub(crate) const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 

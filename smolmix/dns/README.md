@@ -20,7 +20,7 @@ let addrs = resolver.resolve("example.com", 443).await?;
 
 ## API
 
-- **`Resolver::new(&tunnel)`** — Cloudflare upstream (`1.1.1.1`)
+- **`Resolver::new(&tunnel)`** — Quad9 upstream (`9.9.9.9`)
 - **`Resolver::with_config(&tunnel, config)`** — custom upstream DNS
 - **`Resolver::resolve(&self, host, port)`** — convenience one-shot returning `Vec<SocketAddr>`
 - **`Deref` to hickory's `Resolver`** — full `lookup_ip()`, `lookup()`, etc.

@@ -60,7 +60,7 @@
 //!
 //! # Custom upstream DNS
 //!
-//! By default, queries go to Cloudflare (`1.1.1.1`). Use
+//! By default, queries go to Quad9 (`9.9.9.9`). Use
 //! [`Resolver::with_config()`] for other upstreams:
 //!
 //! ```no_run
@@ -87,7 +87,7 @@ use hickory_proto::runtime::TokioHandle;
 use smolmix::Tunnel;
 
 /// Re-exported from hickory-resolver. Used with [`Resolver::with_config()`]
-/// to select a custom upstream DNS server (Cloudflare, Quad9, Google, etc.).
+/// to select a custom upstream DNS server (Quad9, Cloudflare, Google, etc.).
 pub use hickory_resolver::config::ResolverConfig;
 
 /// Re-exported from hickory-resolver. The result of a successful `lookup_ip()`
@@ -116,9 +116,9 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    /// Create a resolver using Cloudflare (`1.1.1.1`) as upstream DNS.
+    /// Create a resolver using Quad9 (`9.9.9.9`) as upstream DNS.
     pub fn new(tunnel: &Tunnel) -> Self {
-        Self::with_config(tunnel, ResolverConfig::cloudflare())
+        Self::with_config(tunnel, ResolverConfig::quad9())
     }
 
     /// Create a resolver with a custom upstream DNS configuration.
@@ -157,7 +157,7 @@ impl Deref for Resolver {
 
 /// Create a hickory [`Resolver`] that routes all DNS through the tunnel.
 ///
-/// Uses Cloudflare (`1.1.1.1`) as the upstream DNS server. Equivalent to
+/// Uses Quad9 (`9.9.9.9`) as the upstream DNS server. Equivalent to
 /// [`Resolver::new()`].
 pub fn resolver(tunnel: &Tunnel) -> Resolver {
     Resolver::new(tunnel)

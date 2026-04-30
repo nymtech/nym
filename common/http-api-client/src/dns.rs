@@ -233,8 +233,6 @@ async fn resolve(
         Ok(Ok(lookup)) => {
             // Shuffle so that successive connection attempts cycle through all
             // returned IPs rather than always hitting the same first address.
-            // This distributes retries across the full set of CDN edge nodes
-            // even within the cache TTL window.
             let mut ips: Vec<IpAddr> = lookup.into_iter().collect();
             fastrand::shuffle(&mut ips);
             let addrs: Addrs = Box::new(ips.into_iter().map(|ip| SocketAddr::new(ip, 0)));

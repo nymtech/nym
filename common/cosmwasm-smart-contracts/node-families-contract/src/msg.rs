@@ -3,7 +3,7 @@
 
 use crate::{
     GlobalPastFamilyInvitationCursor, NodeFamilyId, PastFamilyInvitationCursor,
-    PastFamilyInvitationForNodeCursor,
+    PastFamilyInvitationForNodeCursor, PastFamilyMemberCursor,
 };
 use cosmwasm_schema::cw_serde;
 use nym_mixnet_contract_common::NodeId;
@@ -12,9 +12,9 @@ use nym_mixnet_contract_common::NodeId;
 use crate::{
     AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse, FamilyMembersPagedResponse,
     NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationsForNodePagedResponse,
-    PastFamilyInvitationsPagedResponse, PendingFamilyInvitationResponse,
-    PendingFamilyInvitationsPagedResponse, PendingInvitationsForNodePagedResponse,
-    PendingInvitationsPagedResponse,
+    PastFamilyInvitationsPagedResponse, PastFamilyMembersPagedResponse,
+    PendingFamilyInvitationResponse, PendingFamilyInvitationsPagedResponse,
+    PendingInvitationsForNodePagedResponse, PendingInvitationsPagedResponse,
 };
 
 /// Message used to instantiate the node families contract.
@@ -109,6 +109,15 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(AllPastFamilyInvitationsPagedResponse))]
     GetAllPastInvitationsPaged {
         start_after: Option<GlobalPastFamilyInvitationCursor>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every archived membership record for a given family
+    /// (nodes that used to belong to it but have since been removed).
+    #[cfg_attr(feature = "schema", returns(PastFamilyMembersPagedResponse))]
+    GetPastMembersForFamilyPaged {
+        family_id: NodeFamilyId,
+        start_after: Option<PastFamilyMemberCursor>,
         limit: Option<u32>,
     },
 }

@@ -26,6 +26,7 @@ use std::collections::BTreeMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing::*;
 
@@ -118,6 +119,29 @@ impl PortCheckSetup {
 }
 
 impl Probe {
+    fn parse_port_check_targets(raw: &str) -> Vec<String> {
+        raw.split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToOwned::to_owned)
+            .collect()
+    }
+
+    async fn is_target_reachable(host: &str) -> bool {
+        let timeout = Duration::from_secs(2);
+
+        for port in [80u16, 443u16] {
+            if tokio::time::timeout(timeout, tokio::net::TcpStream::connect((host, port)))
+                .await
+                .is_ok_and(|res| res.is_ok())
+            {
+                return true;
+            }
+        }
+
+        false
+    }
+
     async fn run_port_scan_with_retries(
         mixnet_listener_task: &AuthClientMixnetListenerHandle,
         nym_address: nym_sdk::mixnet::Recipient,
@@ -217,6 +241,41 @@ impl Probe {
         bandwidth_provider: &dyn BandwidthTicketProvider,
         netstack_args: NetstackArgs,
     ) -> PortCheckResult {
+        let targets = Self::parse_port_check_targets(&setup.port_check_target);
+        let mut selected_target = targets
+            .first()
+            .cloned()
+            .unwrap_or_else(|| setup.port_check_target.clone());
+
+        if targets.len() > 1 {
+            let mut found = false;
+            for candidate in &targets {
+                if Self::is_target_reachable(candidate).await {
+                    selected_target = candidate.clone();
+                    found = true;
+                    break;
+                }
+                warn!(
+                    "Port-check target '{}' is unreachable, trying next",
+                    candidate
+                );
+            }
+            if !found {
+                warn!(
+                    "All port-check targets unreachable; falling back to first: '{}'",
+                    selected_target
+                );
+            } else if selected_target != *targets.first().unwrap() {
+                info!(
+                    "Port check: selected target '{}' (first reachable from list)",
+                    selected_target
+                );
+            }
+        }
+
+        let mut netstack_args = netstack_args;
+        netstack_args.port_check_target = selected_target.clone();
+
         info!("Warming up mixnet routes...");
         let nym_address = *mixnet_client.nym_address();
         let (warmup_result, mixnet_client) = do_ping(
@@ -255,7 +314,7 @@ impl Probe {
         PortCheckResult {
             gateway: setup.exit_identity,
             can_register: scan.can_register,
-            port_check_target: setup.port_check_target,
+            port_check_target: selected_target,
             ports: scan.port_results,
             error: if scan.can_register {
                 None

@@ -44,7 +44,11 @@ pub struct NetstackArgs {
     pub netstack_ping_ips_v6: Vec<String>,
 
     /// Target host for exit policy port checks (must listen on all tested ports)
-    #[arg(long = "use-target", default_value = "portquiz.net")]
+    #[arg(
+        long = "use-target",
+        env = "PROBE_NETSTACK_PORT_CHECK_TARGET",
+        default_value = "portquiz.net"
+    )]
     pub port_check_target: String,
 
     /// List ports to check, separated by a comma.

@@ -8,7 +8,8 @@ use nym_mixnet_contract_common::NodeId;
 #[cfg(feature = "schema")]
 use crate::{
     FamiliesPagedResponse, FamilyMembersPagedResponse, NodeFamilyMembershipResponse,
-    NodeFamilyResponse, PendingFamilyInvitationResponse,
+    NodeFamilyResponse, PendingFamilyInvitationResponse, PendingFamilyInvitationsPagedResponse,
+    PendingInvitationsPagedResponse,
 };
 
 /// Message used to instantiate the node families contract.
@@ -55,6 +56,21 @@ pub enum QueryMsg {
     GetPendingInvitation {
         family_id: NodeFamilyId,
         node_id: NodeId,
+    },
+
+    /// Page through every pending invitation issued by a given family.
+    #[cfg_attr(feature = "schema", returns(PendingFamilyInvitationsPagedResponse))]
+    GetPendingInvitationsForFamilyPaged {
+        family_id: NodeFamilyId,
+        start_after: Option<NodeId>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every pending invitation across all families.
+    #[cfg_attr(feature = "schema", returns(PendingInvitationsPagedResponse))]
+    GetAllPendingInvitationsPaged {
+        start_after: Option<(NodeFamilyId, NodeId)>,
+        limit: Option<u32>,
     },
 }
 

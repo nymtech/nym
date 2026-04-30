@@ -8,6 +8,7 @@ use node_families_contract_common::{
     FamiliesPagedResponse, FamilyMemberRecord, FamilyMembersPagedResponse,
     NodeFamiliesContractError, NodeFamilyId, NodeFamilyMembershipResponse, NodeFamilyResponse,
     PendingFamilyInvitationDetails, PendingFamilyInvitationResponse,
+    PendingFamilyInvitationsPagedResponse, PendingInvitationsPagedResponse,
 };
 use nym_mixnet_contract_common::NodeId;
 
@@ -104,6 +105,103 @@ pub fn query_family_members_paged(
     Ok(FamilyMembersPagedResponse {
         family_id,
         members,
+        start_next_after,
+    })
+}
+
+/// Page through every pending invitation issued by `family_id`, in ascending
+/// invitee [`NodeId`] order. Each entry is stamped with `expired` based on
+/// the current block time, so callers don't have to compare it themselves.
+///
+/// Backed by a prefix scan on the composite primary key
+/// `(family_id, node_id)` of `pending_family_invitations`, so cost is
+/// O(page size). Does not verify that `family_id` refers to an existing
+/// family — an unknown id simply yields an empty page.
+///
+/// `start_after` is exclusive — pass the previous page's `start_next_after`
+/// to fetch the next page; pass `None` to start from the lowest-id invitee.
+/// `limit` defaults to [`retrieval_limits::PENDING_INVITATIONS_DEFAULT_LIMIT`]
+/// and is clamped to [`retrieval_limits::PENDING_INVITATIONS_MAX_LIMIT`].
+pub fn query_pending_invitations_for_family_paged(
+    deps: Deps,
+    env: Env,
+    family_id: NodeFamilyId,
+    start_after: Option<NodeId>,
+    limit: Option<u32>,
+) -> Result<PendingFamilyInvitationsPagedResponse, NodeFamiliesContractError> {
+    let limit = limit
+        .unwrap_or(retrieval_limits::PENDING_INVITATIONS_DEFAULT_LIMIT)
+        .min(retrieval_limits::PENDING_INVITATIONS_MAX_LIMIT) as usize;
+
+    let now = env.block.time.seconds();
+    let start = start_after.map(Bound::exclusive);
+
+    let storage = NodeFamiliesStorage::new();
+    let invitations = storage
+        .pending_family_invitations
+        .prefix(family_id)
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| {
+            res.map(|(_node_id, invitation)| PendingFamilyInvitationDetails {
+                expired: now >= invitation.expires_at,
+                invitation,
+            })
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = invitations.last().map(|d| d.invitation.node_id);
+
+    Ok(PendingFamilyInvitationsPagedResponse {
+        family_id,
+        invitations,
+        start_next_after,
+    })
+}
+
+/// Page through every pending invitation across all families, in ascending
+/// `(family_id, node_id)` order. Each entry is stamped with `expired` based
+/// on the current block time.
+///
+/// Cost is O(page size) — full range scan over the
+/// `pending_family_invitations` map without any prefix filter.
+///
+/// `start_after` is exclusive — pass the previous page's `start_next_after`
+/// to fetch the next page; pass `None` to start from the first entry.
+/// `limit` defaults to [`retrieval_limits::PENDING_INVITATIONS_DEFAULT_LIMIT`]
+/// and is clamped to [`retrieval_limits::PENDING_INVITATIONS_MAX_LIMIT`].
+pub fn query_all_pending_invitations_paged(
+    deps: Deps,
+    env: Env,
+    start_after: Option<(NodeFamilyId, NodeId)>,
+    limit: Option<u32>,
+) -> Result<PendingInvitationsPagedResponse, NodeFamiliesContractError> {
+    let limit = limit
+        .unwrap_or(retrieval_limits::PENDING_INVITATIONS_DEFAULT_LIMIT)
+        .min(retrieval_limits::PENDING_INVITATIONS_MAX_LIMIT) as usize;
+
+    let now = env.block.time.seconds();
+    let start = start_after.map(Bound::exclusive);
+
+    let storage = NodeFamiliesStorage::new();
+    let invitations = storage
+        .pending_family_invitations
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| {
+            res.map(|(_key, invitation)| PendingFamilyInvitationDetails {
+                expired: now >= invitation.expires_at,
+                invitation,
+            })
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = invitations
+        .last()
+        .map(|d| (d.invitation.family_id, d.invitation.node_id));
+
+    Ok(PendingInvitationsPagedResponse {
+        invitations,
         start_next_after,
     })
 }
@@ -558,6 +656,304 @@ mod tests {
             let res = query_family_members_paged(tester.deps(), f.id, None, None).unwrap();
             let ids: Vec<_> = res.members.iter().map(|m| m.node_id).collect();
             assert_eq!(ids, vec![11]);
+        }
+    }
+
+    #[cfg(test)]
+    mod pending_invitations_for_family_paged {
+        use super::*;
+
+        #[test]
+        fn empty_when_family_has_no_pending_invitations() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            let env = tester.env();
+
+            let res = query_pending_invitations_for_family_paged(
+                tester.deps(),
+                env,
+                f.id,
+                None,
+                None,
+            )
+            .unwrap();
+            assert_eq!(res.family_id, f.id);
+            assert!(res.invitations.is_empty());
+            assert!(res.start_next_after.is_none());
+        }
+
+        #[test]
+        fn empty_for_unknown_family_id() {
+            let tester = init_contract_tester();
+            let env = tester.env();
+
+            let res =
+                query_pending_invitations_for_family_paged(tester.deps(), env, 99, None, None)
+                    .unwrap();
+            assert_eq!(res.family_id, 99);
+            assert!(res.invitations.is_empty());
+        }
+
+        #[test]
+        fn returns_only_invitations_from_requested_family() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            tester.invite_to_family(f1.id, 10);
+            tester.invite_to_family(f1.id, 11);
+            tester.invite_to_family(f2.id, 20);
+
+            let env = tester.env();
+            let res = query_pending_invitations_for_family_paged(
+                tester.deps(),
+                env,
+                f1.id,
+                None,
+                None,
+            )
+            .unwrap();
+            let ids: Vec<_> = res.invitations.iter().map(|d| d.invitation.node_id).collect();
+            assert_eq!(ids, vec![10, 11]);
+            for d in &res.invitations {
+                assert_eq!(d.invitation.family_id, f1.id);
+            }
+        }
+
+        #[test]
+        fn returned_in_ascending_node_id_order() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            // out-of-order inserts
+            tester.invite_to_family(f.id, 30);
+            tester.invite_to_family(f.id, 10);
+            tester.invite_to_family(f.id, 20);
+
+            let env = tester.env();
+            let res =
+                query_pending_invitations_for_family_paged(tester.deps(), env, f.id, None, None)
+                    .unwrap();
+            let ids: Vec<_> = res.invitations.iter().map(|d| d.invitation.node_id).collect();
+            assert_eq!(ids, vec![10, 20, 30]);
+        }
+
+        #[test]
+        fn flags_expired_against_current_block_time() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            let now = tester.env().block.time.seconds();
+
+            tester.invite_to_family_with_expiration(f.id, 10, now + 5);
+            tester.invite_to_family_with_expiration(f.id, 11, now + 1000);
+
+            tester.advance_time_by(60);
+            let env = tester.env();
+            let res =
+                query_pending_invitations_for_family_paged(tester.deps(), env, f.id, None, None)
+                    .unwrap();
+
+            assert_eq!(res.invitations[0].invitation.node_id, 10);
+            assert!(res.invitations[0].expired);
+            assert_eq!(res.invitations[1].invitation.node_id, 11);
+            assert!(!res.invitations[1].expired);
+        }
+
+        #[test]
+        fn limit_caps_page_size_and_start_after_is_exclusive() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            for n in [10, 11, 12] {
+                tester.invite_to_family(f.id, n);
+            }
+
+            let env = tester.env();
+            let p1 = query_pending_invitations_for_family_paged(
+                tester.deps(),
+                env.clone(),
+                f.id,
+                None,
+                Some(2),
+            )
+            .unwrap();
+            let ids: Vec<_> = p1.invitations.iter().map(|d| d.invitation.node_id).collect();
+            assert_eq!(ids, vec![10, 11]);
+            assert_eq!(p1.start_next_after, Some(11));
+
+            let p2 = query_pending_invitations_for_family_paged(
+                tester.deps(),
+                env,
+                f.id,
+                p1.start_next_after,
+                Some(2),
+            )
+            .unwrap();
+            let ids: Vec<_> = p2.invitations.iter().map(|d| d.invitation.node_id).collect();
+            assert_eq!(ids, vec![12]);
+        }
+
+        #[test]
+        fn limit_is_clamped_to_max() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            let total = retrieval_limits::PENDING_INVITATIONS_MAX_LIMIT as u32 + 5;
+            for n in 1..=total {
+                tester.invite_to_family(f.id, n);
+            }
+
+            let env = tester.env();
+            let res = query_pending_invitations_for_family_paged(
+                tester.deps(),
+                env,
+                f.id,
+                None,
+                Some(u32::MAX),
+            )
+            .unwrap();
+            assert_eq!(
+                res.invitations.len(),
+                retrieval_limits::PENDING_INVITATIONS_MAX_LIMIT as usize
+            );
+        }
+
+        #[test]
+        fn excludes_invitation_after_it_is_revoked() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            tester.invite_to_family(f.id, 10);
+            tester.invite_to_family(f.id, 11);
+
+            // accepting moves the invitation out of the pending map
+            tester.accept_invitation(f.id, 10);
+
+            let env = tester.env();
+            let res =
+                query_pending_invitations_for_family_paged(tester.deps(), env, f.id, None, None)
+                    .unwrap();
+            let ids: Vec<_> = res.invitations.iter().map(|d| d.invitation.node_id).collect();
+            assert_eq!(ids, vec![11]);
+        }
+    }
+
+    #[cfg(test)]
+    mod all_pending_invitations_paged {
+        use super::*;
+
+        #[test]
+        fn empty_when_no_pending_invitations() {
+            let tester = init_contract_tester();
+            let env = tester.env();
+
+            let res = query_all_pending_invitations_paged(tester.deps(), env, None, None).unwrap();
+            assert!(res.invitations.is_empty());
+            assert!(res.start_next_after.is_none());
+        }
+
+        #[test]
+        fn returns_invitations_across_all_families() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            tester.invite_to_family(f1.id, 10);
+            tester.invite_to_family(f1.id, 20);
+            tester.invite_to_family(f2.id, 5);
+
+            let env = tester.env();
+            let res = query_all_pending_invitations_paged(tester.deps(), env, None, None).unwrap();
+
+            let pairs: Vec<_> = res
+                .invitations
+                .iter()
+                .map(|d| (d.invitation.family_id, d.invitation.node_id))
+                .collect();
+            // ordered by (family_id asc, node_id asc)
+            assert_eq!(pairs, vec![(f1.id, 10), (f1.id, 20), (f2.id, 5)]);
+            assert_eq!(res.start_next_after, Some((f2.id, 5)));
+        }
+
+        #[test]
+        fn flags_expired_against_current_block_time() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            let now = tester.env().block.time.seconds();
+            tester.invite_to_family_with_expiration(f.id, 10, now + 5);
+            tester.invite_to_family_with_expiration(f.id, 11, now + 1000);
+
+            tester.advance_time_by(60);
+            let env = tester.env();
+            let res = query_all_pending_invitations_paged(tester.deps(), env, None, None).unwrap();
+
+            let by_node: std::collections::HashMap<_, _> = res
+                .invitations
+                .iter()
+                .map(|d| (d.invitation.node_id, d.expired))
+                .collect();
+            assert_eq!(by_node[&10], true);
+            assert_eq!(by_node[&11], false);
+        }
+
+        #[test]
+        fn paginates_with_composite_cursor() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            tester.invite_to_family(f1.id, 10);
+            tester.invite_to_family(f1.id, 20);
+            tester.invite_to_family(f2.id, 5);
+            tester.invite_to_family(f2.id, 15);
+
+            let env = tester.env();
+            let p1 =
+                query_all_pending_invitations_paged(tester.deps(), env.clone(), None, Some(2))
+                    .unwrap();
+            let pairs: Vec<_> = p1
+                .invitations
+                .iter()
+                .map(|d| (d.invitation.family_id, d.invitation.node_id))
+                .collect();
+            assert_eq!(pairs, vec![(f1.id, 10), (f1.id, 20)]);
+            assert_eq!(p1.start_next_after, Some((f1.id, 20)));
+
+            let p2 = query_all_pending_invitations_paged(
+                tester.deps(),
+                env.clone(),
+                p1.start_next_after,
+                Some(2),
+            )
+            .unwrap();
+            let pairs: Vec<_> = p2
+                .invitations
+                .iter()
+                .map(|d| (d.invitation.family_id, d.invitation.node_id))
+                .collect();
+            assert_eq!(pairs, vec![(f2.id, 5), (f2.id, 15)]);
+
+            let p3 = query_all_pending_invitations_paged(
+                tester.deps(),
+                env,
+                p2.start_next_after,
+                Some(2),
+            )
+            .unwrap();
+            assert!(p3.invitations.is_empty());
+            assert!(p3.start_next_after.is_none());
+        }
+
+        #[test]
+        fn limit_is_clamped_to_max() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            let total = retrieval_limits::PENDING_INVITATIONS_MAX_LIMIT as u32 + 5;
+            for n in 1..=total {
+                tester.invite_to_family(f.id, n);
+            }
+
+            let env = tester.env();
+            let res =
+                query_all_pending_invitations_paged(tester.deps(), env, None, Some(u32::MAX))
+                    .unwrap();
+            assert_eq!(
+                res.invitations.len(),
+                retrieval_limits::PENDING_INVITATIONS_MAX_LIMIT as usize
+            );
         }
     }
 }

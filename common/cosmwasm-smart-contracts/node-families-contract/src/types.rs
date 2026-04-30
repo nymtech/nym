@@ -195,6 +195,37 @@ pub struct FamilyMembersPagedResponse {
     pub start_next_after: Option<NodeId>,
 }
 
+/// Response to [`QueryMsg::GetPendingInvitationsForFamilyPaged`](crate::QueryMsg::GetPendingInvitationsForFamilyPaged).
+#[cw_serde]
+pub struct PendingFamilyInvitationsPagedResponse {
+    /// The family whose pending invitations were queried, echoed back so
+    /// paginated callers can correlate.
+    pub family_id: NodeFamilyId,
+
+    /// The pending invitations on this page, in ascending invitee
+    /// [`NodeId`] order, each stamped with whether it had already timed out
+    /// at the time the query was served.
+    pub invitations: Vec<PendingFamilyInvitationDetails>,
+
+    /// Cursor (last invitee node id) to pass as `start_after` on the next
+    /// call, or `None` if this page is empty (treat as end-of-list).
+    pub start_next_after: Option<NodeId>,
+}
+
+/// Response to [`QueryMsg::GetAllPendingInvitationsPaged`](crate::QueryMsg::GetAllPendingInvitationsPaged).
+#[cw_serde]
+pub struct PendingInvitationsPagedResponse {
+    /// The pending invitations on this page, in ascending
+    /// `(family_id, node_id)` order, each stamped with whether it had
+    /// already timed out at the time the query was served.
+    pub invitations: Vec<PendingFamilyInvitationDetails>,
+
+    /// Cursor (last `(family_id, node_id)` pair) to pass as `start_after`
+    /// on the next call, or `None` if this page is empty (treat as
+    /// end-of-list).
+    pub start_next_after: Option<(NodeFamilyId, NodeId)>,
+}
+
 /// Response to [`QueryMsg::GetFamiliesPaged`](crate::QueryMsg::GetFamiliesPaged).
 #[cw_serde]
 pub struct FamiliesPagedResponse {

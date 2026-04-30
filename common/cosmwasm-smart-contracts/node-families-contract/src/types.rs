@@ -63,6 +63,21 @@ pub struct FamilyInvitation {
     pub expires_at: u64,
 }
 
+/// On-chain record of a node's current family membership.
+///
+/// A node belongs to at most one family at a time, so this is keyed by
+/// `NodeId` alone — `family_id` is carried in the value to support reverse
+/// lookups (all nodes in a given family) via a secondary index.
+#[cw_serde]
+pub struct FamilyMembership {
+    /// The family the node is currently a member of.
+    pub family_id: NodeFamilyId,
+
+    /// Block timestamp (unix seconds) at which the node accepted its
+    /// invitation and joined the family.
+    pub joined_at: u64,
+}
+
 /// Historical record of a node that used to be part of a family but has since been
 /// removed (kicked, left voluntarily, or because the family was disbanded).
 #[cw_serde]
@@ -102,6 +117,7 @@ pub enum FamilyInvitationStatus {
 pub struct PastFamilyInvitation {
     /// The original invitation as it was issued.
     pub invitation: FamilyInvitation,
+
     /// What ultimately happened to it.
     pub status: FamilyInvitationStatus,
 }
@@ -111,6 +127,7 @@ pub struct PastFamilyInvitation {
 pub struct NodeFamilyResponse {
     /// The id that was queried, echoed back so paginated callers can correlate.
     pub family_id: NodeFamilyId,
+
     /// The matching family, or `None` if no family with `family_id` exists.
     pub family: Option<NodeFamily>,
 }
@@ -120,6 +137,7 @@ pub struct NodeFamilyResponse {
 pub struct NodeFamilyMembershipResponse {
     /// The node that was queried.
     pub node_id: NodeId,
+
     /// The id of the family the node currently belongs to, or `None` if the
     /// node is not currently a member of any family.
     pub family_id: Option<NodeFamilyId>,
@@ -131,6 +149,7 @@ pub struct NodeFamilyMembershipResponse {
 pub struct PendingFamilyInvitationDetails {
     /// The stored invitation as it was issued.
     pub invitation: FamilyInvitation,
+
     /// `true` iff `now >= invitation.expires_at` at query time, i.e. the
     /// invitation is still in the pending map but can no longer be acted on.
     pub expired: bool,
@@ -141,11 +160,39 @@ pub struct PendingFamilyInvitationDetails {
 pub struct PendingFamilyInvitationResponse {
     /// The family component of the queried `(family_id, node_id)` key.
     pub family_id: NodeFamilyId,
+
     /// The node component of the queried `(family_id, node_id)` key.
     pub node_id: NodeId,
+
     /// The matching pending invitation along with an explicit expiry flag,
     /// or `None` if no such invitation exists.
     pub invitation: Option<PendingFamilyInvitationDetails>,
+}
+
+/// One entry in a [`FamilyMembersPagedResponse`] page — pairs a node id with
+/// its [`FamilyMembership`] record (notably its `joined_at` timestamp).
+#[cw_serde]
+pub struct FamilyMemberRecord {
+    /// The node currently in the family.
+    pub node_id: NodeId,
+
+    /// The membership record (carries `family_id` and `joined_at`).
+    pub membership: FamilyMembership,
+}
+
+/// Response to [`QueryMsg::GetFamilyMembersPaged`](crate::QueryMsg::GetFamilyMembersPaged).
+#[cw_serde]
+pub struct FamilyMembersPagedResponse {
+    /// The family whose members were queried, echoed back so paginated
+    /// callers can correlate.
+    pub family_id: NodeFamilyId,
+
+    /// The members on this page, in ascending [`NodeId`] order.
+    pub members: Vec<FamilyMemberRecord>,
+
+    /// Cursor to pass as `start_after` on the next call, or `None` if this
+    /// page is empty (which the caller should treat as end-of-list).
+    pub start_next_after: Option<NodeId>,
 }
 
 /// Response to [`QueryMsg::GetFamiliesPaged`](crate::QueryMsg::GetFamiliesPaged).

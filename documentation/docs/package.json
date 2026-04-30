@@ -54,7 +54,7 @@
     "react-dom": "^18.2.0",
     "redoc": "^2.5.2",
     "save": "^2.9.0",
-    "uuid": "^9.0.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@next/swc-linux-x64-gnu": "15.5.0",

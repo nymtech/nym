@@ -8,7 +8,7 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-rust-version.workspace = true
+rust-version = "1.85"
 readme.workspace = true
 publish = true
 

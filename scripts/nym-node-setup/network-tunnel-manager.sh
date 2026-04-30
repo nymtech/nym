@@ -1,5 +1,5 @@
 #!/bin/bash
-# nym tunnel and wireguard exit policy manager
+# nym host network firewall, tunnel and wireguard exit policy manager
 # run this script as root
 
 set -euo pipefail
@@ -556,6 +556,34 @@ apply_smtps_465_rate_limit() {
 ###############################################################################
 
 NETWORK_FIREWALL_COMMENT="NYM-NETWORK-FW"
+HOST_SSH_PORT="${HOST_SSH_PORT:-22}"
+NETWORK_FIREWALL_TCP_PORTS=("$HOST_SSH_PORT" 80 443 1789 1790 8080 9000 9001 41264)
+NETWORK_FIREWALL_UDP_PORTS=(4443 51822 51264)
+NETWORK_FIREWALL_WG_TCP_PORT=51830
+
+validate_port_value() {
+  local name="$1"
+  local value="$2"
+
+  if ! [[ "$value" =~ ^[0-9]+$ ]] || (( 10#$value < 1 || 10#$value > 65535 )); then
+    error "invalid ${name}='${value}'. expected integer 1-65535"
+    exit 1
+  fi
+}
+
+validate_port_value "HOST_SSH_PORT" "$HOST_SSH_PORT"
+
+build_network_firewall_status_pattern() {
+  local patterns=("$NETWORK_FIREWALL_COMMENT")
+  local port
+
+  for port in "${NETWORK_FIREWALL_TCP_PORTS[@]}" "${NETWORK_FIREWALL_UDP_PORTS[@]}" "$NETWORK_FIREWALL_WG_TCP_PORT"; do
+    patterns+=("dpt:${port}")
+  done
+
+  local IFS='|'
+  printf '%s' "${patterns[*]}"
+}
 
 delete_managed_input_rules() {
   local cmd="$1"
@@ -593,22 +621,19 @@ configure_network_firewall() {
   delete_managed_input_rules iptables
   delete_managed_input_rules ip6tables
 
-  local tcp_ports=(22 80 443 1789 1790 8080 9000 9001 41264)
-  local udp_ports=(4443 51822 51264)
-
   local port
-  for port in "${tcp_ports[@]}"; do
+  for port in "${NETWORK_FIREWALL_TCP_PORTS[@]}"; do
     add_input_port_rule iptables "$port" tcp
     add_input_port_rule ip6tables "$port" tcp
   done
 
-  for port in "${udp_ports[@]}"; do
+  for port in "${NETWORK_FIREWALL_UDP_PORTS[@]}"; do
     add_input_port_rule iptables "$port" udp
     add_input_port_rule ip6tables "$port" udp
   done
 
-  add_input_port_rule iptables 51830 tcp "$WG_INTERFACE"
-  add_input_port_rule ip6tables 51830 tcp "$WG_INTERFACE"
+  add_input_port_rule iptables "$NETWORK_FIREWALL_WG_TCP_PORT" tcp "$WG_INTERFACE"
+  add_input_port_rule ip6tables "$NETWORK_FIREWALL_WG_TCP_PORT" tcp "$WG_INTERFACE"
 
   save_iptables_rules
   ok "host network firewall configuration completed"
@@ -616,23 +641,25 @@ configure_network_firewall() {
 
 show_network_firewall_status() {
   info "managed host network firewall rules"
+  local status_pattern
+
+  status_pattern="$(build_network_firewall_status_pattern)"
+
   echo
   info "ipv4 input rules:"
-  iptables -L INPUT -n -v --line-numbers | grep -E "($NETWORK_FIREWALL_COMMENT|dpt:22|dpt:80|dpt:443|dpt:1789|dpt:1790|dpt:8080|dpt:9000|dpt:9001|dpt:51822|dpt:51830|dpt:41264|dpt:51264)" || true
+  iptables -L INPUT -n -v --line-numbers | grep -E "(${status_pattern})" || true
   echo
   info "ipv6 input rules:"
-  ip6tables -L INPUT -n -v --line-numbers | grep -E "($NETWORK_FIREWALL_COMMENT|dpt:22|dpt:80|dpt:443|dpt:1789|dpt:1790|dpt:8080|dpt:9000|dpt:9001|dpt:51822|dpt:51830|dpt:41264|dpt:51264)" || true
+  ip6tables -L INPUT -n -v --line-numbers | grep -E "(${status_pattern})" || true
 }
 
 test_network_firewall_rules() {
   info "testing host network firewall rules"
 
   local failures=0
-  local tcp_ports=(22 80 443 1789 1790 8080 9000 9001 41264)
-  local udp_ports=(4443 51822 51264)
   local port
 
-  for port in "${tcp_ports[@]}"; do
+  for port in "${NETWORK_FIREWALL_TCP_PORTS[@]}"; do
     if iptables -C INPUT -p tcp --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
       ok "ipv4 tcp port $port allowed"
     else
@@ -648,7 +675,7 @@ test_network_firewall_rules() {
     fi
   done
 
-  for port in "${udp_ports[@]}"; do
+  for port in "${NETWORK_FIREWALL_UDP_PORTS[@]}"; do
     if iptables -C INPUT -p udp --dport "$port" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
       ok "ipv4 udp port $port allowed"
     else
@@ -664,17 +691,17 @@ test_network_firewall_rules() {
     fi
   done
 
-  if iptables -C INPUT -i "$WG_INTERFACE" -p tcp --dport 51830 -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
-    ok "ipv4 tcp port 51830 allowed on $WG_INTERFACE"
+  if iptables -C INPUT -i "$WG_INTERFACE" -p tcp --dport "$NETWORK_FIREWALL_WG_TCP_PORT" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+    ok "ipv4 tcp port $NETWORK_FIREWALL_WG_TCP_PORT allowed on $WG_INTERFACE"
   else
-    error "ipv4 tcp port 51830 missing on $WG_INTERFACE"
+    error "ipv4 tcp port $NETWORK_FIREWALL_WG_TCP_PORT missing on $WG_INTERFACE"
     ((failures++))
   fi
 
-  if ip6tables -C INPUT -i "$WG_INTERFACE" -p tcp --dport 51830 -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
-    ok "ipv6 tcp port 51830 allowed on $WG_INTERFACE"
+  if ip6tables -C INPUT -i "$WG_INTERFACE" -p tcp --dport "$NETWORK_FIREWALL_WG_TCP_PORT" -m conntrack --ctstate NEW -m comment --comment "$NETWORK_FIREWALL_COMMENT" -j ACCEPT 2>/dev/null; then
+    ok "ipv6 tcp port $NETWORK_FIREWALL_WG_TCP_PORT allowed on $WG_INTERFACE"
   else
-    error "ipv6 tcp port 51830 missing on $WG_INTERFACE"
+    error "ipv6 tcp port $NETWORK_FIREWALL_WG_TCP_PORT missing on $WG_INTERFACE"
     ((failures++))
   fi
 
@@ -1695,6 +1722,7 @@ environment overrides:
   NETWORK_DEVICE_V6                 Auto-detected IPv6 uplink (e.g., eth2). Optional; if unset, IPv6-specific setup is skipped.
   TUNNEL_INTERFACE                  Default: nymtun0. Requires root privileges (sudo) to manage.
   WG_INTERFACE                      Default: nymwg - Must match your WireGuard interface name.
+  HOST_SSH_PORT                     Default: 22. Set manually if you connect to your host's SSH daemon through another port.
 
 EOF
     status=0

@@ -19,3 +19,10 @@ pub const PENDING_INVITATIONS_DEFAULT_LIMIT: u32 = 50;
 
 /// Hard cap on the page size for paginated pending-invitation listings; larger values are clamped.
 pub const PENDING_INVITATIONS_MAX_LIMIT: u32 = 100;
+
+/// Default page size for paginated past-invitation (archive) listings (both
+/// per-family and global) when the caller omits `limit`.
+pub const PAST_INVITATIONS_DEFAULT_LIMIT: u32 = 50;
+
+/// Hard cap on the page size for paginated past-invitation listings; larger values are clamped.
+pub const PAST_INVITATIONS_MAX_LIMIT: u32 = 100;

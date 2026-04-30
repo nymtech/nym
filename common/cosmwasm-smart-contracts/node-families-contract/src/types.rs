@@ -226,6 +226,45 @@ pub struct PendingInvitationsPagedResponse {
     pub start_next_after: Option<(NodeFamilyId, NodeId)>,
 }
 
+/// Cursor for paginating per-family past-invitation listings: identifies a
+/// single archive entry within a family by `(node_id, counter)`. The
+/// `counter` is the per-`(family, node)` archive slot — multiple archived
+/// invitations can exist for the same `(family, node)` pair (a node may be
+/// invited and have the invitation reach a terminal state more than once).
+pub type PastFamilyInvitationCursor = (NodeId, u64);
+
+/// Cursor for paginating global past-invitation listings: identifies a
+/// single archive entry across all families by `((family_id, node_id), counter)`.
+pub type GlobalPastFamilyInvitationCursor = ((NodeFamilyId, NodeId), u64);
+
+/// Response to [`QueryMsg::GetPastInvitationsForFamilyPaged`](crate::QueryMsg::GetPastInvitationsForFamilyPaged).
+#[cw_serde]
+pub struct PastFamilyInvitationsPagedResponse {
+    /// The family whose archived invitations were queried, echoed back so
+    /// paginated callers can correlate.
+    pub family_id: NodeFamilyId,
+
+    /// The archived invitations on this page, in ascending
+    /// `(node_id, counter)` order across all terminal statuses.
+    pub invitations: Vec<PastFamilyInvitation>,
+
+    /// Cursor to pass as `start_after` on the next call, or `None` if this
+    /// page is empty (treat as end-of-list).
+    pub start_next_after: Option<PastFamilyInvitationCursor>,
+}
+
+/// Response to [`QueryMsg::GetAllPastInvitationsPaged`](crate::QueryMsg::GetAllPastInvitationsPaged).
+#[cw_serde]
+pub struct AllPastFamilyInvitationsPagedResponse {
+    /// The archived invitations on this page, in ascending
+    /// `((family_id, node_id), counter)` order across all terminal statuses.
+    pub invitations: Vec<PastFamilyInvitation>,
+
+    /// Cursor to pass as `start_after` on the next call, or `None` if this
+    /// page is empty (treat as end-of-list).
+    pub start_next_after: Option<GlobalPastFamilyInvitationCursor>,
+}
+
 /// Response to [`QueryMsg::GetFamiliesPaged`](crate::QueryMsg::GetFamiliesPaged).
 #[cw_serde]
 pub struct FamiliesPagedResponse {

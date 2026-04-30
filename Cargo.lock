@@ -11983,9 +11983,13 @@ dependencies = [
 name = "smolmix-tls"
 version = "0.0.1"
 dependencies = [
+ "http-body-util",
+ "hyper 1.6.0",
+ "hyper-util",
  "nym-bin-common",
  "rustls 0.23.37",
  "smolmix",
+ "smolmix-dns",
  "tokio",
  "tokio-rustls 0.26.2",
  "tokio-smoltcp",

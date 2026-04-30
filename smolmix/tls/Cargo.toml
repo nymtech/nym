@@ -20,6 +20,7 @@ webpki-roots = { workspace = true }
 
 [dev-dependencies]
 smolmix = { workspace = true }
+smolmix-dns = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net", "io-util"] }
 tracing = { workspace = true }
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }

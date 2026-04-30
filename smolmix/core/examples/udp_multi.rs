@@ -32,6 +32,7 @@ use std::net::Ipv4Addr;
 use hickory_proto::op::{Message, Query};
 use hickory_proto::rr::{Name, RData, RecordType};
 use smolmix::Tunnel;
+use tracing::info;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -51,21 +52,21 @@ async fn main() -> Result<(), BoxError> {
         .position(|a| a == "--ipr")
         .and_then(|i| args.get(i + 1));
 
-    // Stage 1: Create the tunnel
+    // Create the tunnel
     let mut builder = Tunnel::builder();
     if let Some(addr) = ipr_addr {
         builder = builder.ipr_address(addr.parse().expect("invalid IPR address"));
     }
     let tunnel = builder.build().await?;
-    println!(
+    info!(
         "Tunnel ready — allocated IP: {}",
         tunnel.allocated_ips().ipv4
     );
 
-    // Stage 2: Multiple DNS lookups over one UdpSocket
+    // Multiple DNS lookups over one UdpSocket
     // Each query goes to Cloudflare DNS (1.1.1.1:53) through the mixnet.
     // The DNS server sees the IPR exit gateway's IP, not yours.
-    println!("\nPrivate DNS Lookups (via mixnet UDP)\n");
+    info!("Private DNS Lookups (via mixnet UDP)");
 
     let udp = tunnel.udp_socket().await?;
 
@@ -95,20 +96,20 @@ async fn main() -> Result<(), BoxError> {
                         _ => None,
                     })
                     .collect();
-                println!("{host:<16} → {} (rtt: {rtt:.1?})", ips.join(", "));
+                info!("{host:<16} → {} (rtt: {rtt:.1?})", ips.join(", "));
             }
-            Ok(Err(e)) => println!("{host:<16} → ERROR: {e}"),
-            Err(_) => println!("{host:<16} → TIMEOUT"),
+            Ok(Err(e)) => info!("{host:<16} → ERROR: {e}"),
+            Err(_) => info!("{host:<16} → TIMEOUT"),
         }
     }
 
-    // Stage 3: NTP time sync via mixnet UDP
+    // NTP time sync via mixnet UDP
     // NTP uses a simple 48-byte request/response over UDP port 123.
     // We first resolve pool.ntp.org via the mixnet, then send the NTP request.
-    println!("\nNTP Time Sync (via mixnet UDP)\n");
+    info!("NTP Time Sync (via mixnet UDP)");
 
     let ntp_ip = resolve_dns(&tunnel, "pool.ntp.org").await?;
-    println!("Resolved pool.ntp.org → {ntp_ip}");
+    info!("Resolved pool.ntp.org → {ntp_ip}");
 
     // NTP request: 48 bytes, LI=0 Version=4 Mode=3 (client)
     let mut ntp_req = [0u8; 48];
@@ -143,13 +144,13 @@ async fn main() -> Result<(), BoxError> {
             let dt =
                 chrono::DateTime::from_timestamp(unix_secs as i64, (millis * 1_000_000) as u32)
                     .expect("valid timestamp");
-            println!("NTP response in {rtt:.1?}");
-            println!("Unix timestamp: {unix_secs}.{millis:03}");
-            println!("UTC: {}", dt.format("%Y-%m-%d %H:%M:%S%.3f UTC"));
+            info!("NTP response in {rtt:.1?}");
+            info!("Unix timestamp: {unix_secs}.{millis:03}");
+            info!("UTC: {}", dt.format("%Y-%m-%d %H:%M:%S%.3f UTC"));
         }
-        Ok(Ok((n, _))) => println!("Short response: {n} bytes (expected 48)"),
-        Ok(Err(e)) => println!("ERROR: {e}"),
-        Err(_) => println!("TIMEOUT (30s)"),
+        Ok(Ok((n, _))) => info!("Short response: {n} bytes (expected 48)"),
+        Ok(Err(e)) => info!("ERROR: {e}"),
+        Err(_) => info!("TIMEOUT (30s)"),
     }
 
     tunnel.shutdown().await;

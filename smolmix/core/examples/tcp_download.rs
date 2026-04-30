@@ -2,10 +2,10 @@
 
 //! Multi-request HTTPS download through the Nym mixnet.
 //!
-//! Resolves a hostname via mixnet UDP DNS, then makes multiple HTTP/1.1
-//! requests over a single keep-alive TCP+TLS connection — all routed
-//! through the mixnet. Demonstrates DNS resolution, connection reuse,
-//! and progress feedback.
+//! Resolves a hostname via the smolmix-dns resolver, then makes multiple
+//! HTTP/1.1 requests over a single keep-alive TCP+TLS connection — all
+//! routed through the mixnet. Demonstrates DNS resolution, connection
+//! reuse, and progress feedback.
 //!
 //! ```text
 //! hyper (HTTP/1.1 client, keep-alive)
@@ -17,7 +17,7 @@
 //!
 //! ## What this demonstrates
 //!
-//! - DNS resolution via mixnet UDP (avoids clearnet DNS leaks)
+//! - DNS resolution via smolmix-dns (avoids clearnet DNS leaks)
 //! - TCP + TLS connection to the resolved IP
 //! - HTTP/1.1 keep-alive: multiple requests over one mixnet connection
 //! - Progress spinner during downloads
@@ -29,17 +29,16 @@
 //! cargo run -p smolmix --example tcp_download -- --ipr <IPR_ADDRESS>
 //! ```
 
-use std::net::Ipv4Addr;
 use std::sync::Arc;
 
-use hickory_proto::op::{Message, Query};
-use hickory_proto::rr::{Name, RData, RecordType};
 use http_body_util::{BodyExt, Empty};
 use hyper::body::Bytes;
 use hyper::client::conn::http1;
 use hyper_util::rt::TokioIo;
 use rustls::pki_types::ServerName;
 use smolmix::Tunnel;
+use smolmix_dns::Resolver;
+use tracing::info;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -67,21 +66,21 @@ async fn main() -> Result<(), BoxError> {
         builder = builder.ipr_address(addr.parse().expect("invalid IPR address"));
     }
     let tunnel = builder.build().await?;
-    println!(
+    info!(
         "Tunnel ready — allocated IP: {}",
         tunnel.allocated_ips().ipv4
     );
 
-    // DNS resolution via mixnet UDP
-    // We use hickory-proto to send a raw DNS query through the tunnel's
-    // UdpSocket, so even the DNS lookup is hidden from your ISP.
-    let ip = resolve_dns(&tunnel, HOST).await?;
-    println!("Resolved {HOST} → {ip} (via mixnet DNS)");
+    // DNS resolution via mixnet
+    let resolver = Resolver::new(&tunnel);
+    let addrs = resolver.resolve(HOST, 443).await?;
+    let addr = addrs.into_iter().next().ok_or("no addresses resolved")?;
+    info!("Resolved {HOST} → {addr} (via mixnet DNS)");
 
     // TCP + TLS through the mixnet
-    println!("Connecting to {HOST}:443...");
-    let tcp = tunnel.tcp_connect((ip, 443).into()).await?;
-    println!("TCP connected to {ip}:443 via mixnet");
+    info!("Connecting to {HOST}:443...");
+    let tcp = tunnel.tcp_connect(addr).await?;
+    info!("TCP connected to {addr} via mixnet");
 
     let mut root_store = rustls::RootCertStore::empty();
     root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
@@ -91,7 +90,7 @@ async fn main() -> Result<(), BoxError> {
     let connector = tokio_rustls::TlsConnector::from(Arc::new(tls_config));
     let domain = ServerName::try_from(HOST)?.to_owned();
     let tls = connector.connect(domain, tcp).await?;
-    println!("TLS established with {HOST}");
+    info!("TLS established with {HOST}");
 
     // HTTP/1.1 connection (reused for all requests)
     let io = TokioIo::new(tls);
@@ -100,7 +99,7 @@ async fn main() -> Result<(), BoxError> {
 
     // Multiple requests over the same connection
     let total = SIZES.len();
-    println!("\nSending {total} requests over one connection...\n");
+    info!("Sending {total} requests over one connection...");
     let overall = std::time::Instant::now();
     let mut total_bytes = 0usize;
 
@@ -117,7 +116,7 @@ async fn main() -> Result<(), BoxError> {
             let mut i = 0;
             loop {
                 eprint!(
-                    "\r  [{seq}/{total}] GET /bytes/{size:<5} {}",
+                    "\r  {} [{seq}/{total}] GET /bytes/{size}",
                     frames[i % frames.len()]
                 );
                 i += 1;
@@ -130,10 +129,11 @@ async fn main() -> Result<(), BoxError> {
         let body = resp.into_body().collect().await?.to_bytes();
         let elapsed = start.elapsed();
         spinner.abort();
+        eprint!("\r                                                  \r");
 
         let speed = body.len() as f64 / elapsed.as_secs_f64();
-        eprintln!(
-            "\r  [{seq}/{total}] GET /bytes/{size:<5} → {status} {} in {elapsed:.1?} ({}/s)   ",
+        info!(
+            "[{seq}/{total}] GET /bytes/{size} → {status} {} in {elapsed:.1?} ({}/s)",
             format_bytes(body.len() as u64),
             format_bytes(speed as u64),
         );
@@ -141,38 +141,13 @@ async fn main() -> Result<(), BoxError> {
     }
 
     let elapsed = overall.elapsed();
-    println!(
-        "\nDone! {} in {total} requests over {elapsed:.1?}",
+    info!(
+        "Done! {} in {total} requests over {elapsed:.1?}",
         format_bytes(total_bytes as u64),
     );
 
     tunnel.shutdown().await;
     Ok(())
-}
-
-/// Resolve a hostname to an IPv4 address via mixnet UDP DNS.
-async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr, BoxError> {
-    let mut query = Message::new();
-    query.set_recursion_desired(true);
-    query.add_query(Query::query(Name::from_ascii(host)?, RecordType::A));
-    let query_bytes = query.to_vec()?;
-
-    let udp = tunnel.udp_socket().await?;
-    udp.send_to(&query_bytes, "1.1.1.1:53".parse()?).await?;
-
-    let mut buf = vec![0u8; 1500];
-    let (n, _) = udp.recv_from(&mut buf).await?;
-
-    let response = Message::from_vec(&buf[..n])?;
-    let ip = response
-        .answers()
-        .iter()
-        .find_map(|r| match r.data() {
-            RData::A(a) => Some(a.0),
-            _ => None,
-        })
-        .ok_or("no A record in DNS response")?;
-    Ok(ip)
 }
 
 fn format_bytes(n: u64) -> String {

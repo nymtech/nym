@@ -36,6 +36,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 itertools = { workspace = true }
 inventory = { workspace = true }
+fastrand = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros", "time"] }
 rustls = { workspace=true }
 # used for decoding text responses (they were already implicitly included)

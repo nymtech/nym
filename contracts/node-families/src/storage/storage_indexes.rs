@@ -21,7 +21,7 @@ pub(crate) struct NodeFamiliesIndex<'a> {
     pub(crate) name: UniqueIndex<'a, String, NodeFamily, NodeFamilyId>,
 }
 
-impl<'a> NodeFamiliesIndex<'a> {
+impl NodeFamiliesIndex<'_> {
     #[allow(clippy::new_without_default)]
     pub(crate) fn new() -> Self {
         NodeFamiliesIndex {
@@ -53,7 +53,7 @@ pub(crate) struct NodeFamilyInvitationIndex<'a> {
     pub(crate) node: MultiIndex<'a, NodeId, FamilyInvitation, FamilyMember>,
 }
 
-impl<'a> NodeFamilyInvitationIndex<'a> {
+impl NodeFamilyInvitationIndex<'_> {
     pub(crate) fn new() -> Self {
         NodeFamilyInvitationIndex {
             family: MultiIndex::new(
@@ -85,7 +85,7 @@ pub(crate) struct PastFamilyMembersIndex<'a> {
     pub(crate) node: MultiIndex<'a, NodeId, PastFamilyMember, (FamilyMember, u64)>,
 }
 
-impl<'a> PastFamilyMembersIndex<'a> {
+impl PastFamilyMembersIndex<'_> {
     #[allow(clippy::new_without_default)]
     pub(crate) fn new() -> Self {
         PastFamilyMembersIndex {
@@ -119,7 +119,7 @@ pub(crate) struct PastFamilyInvitationsIndex<'a> {
     pub(crate) node: MultiIndex<'a, NodeId, PastFamilyInvitation, (FamilyMember, u64)>,
 }
 
-impl<'a> PastFamilyInvitationsIndex<'a> {
+impl PastFamilyInvitationsIndex<'_> {
     #[allow(clippy::new_without_default)]
     pub(crate) fn new() -> Self {
         PastFamilyInvitationsIndex {

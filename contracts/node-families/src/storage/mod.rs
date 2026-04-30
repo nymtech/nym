@@ -89,7 +89,7 @@ pub struct NodeFamiliesStorage<'a> {
     pub(crate) past_family_invitation_counter: Map<FamilyMember, u64>,
 }
 
-impl<'a> NodeFamiliesStorage<'a> {
+impl NodeFamiliesStorage<'_> {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         NodeFamiliesStorage {
@@ -665,10 +665,6 @@ mod tests {
     #[test]
     fn register_new_family_assigns_sequential_ids() {
         let mut tester = init_contract_tester();
-        let s = NodeFamiliesStorage::new();
-        let env = tester.env();
-        let alice = tester.addr_make("alice");
-        let bob = tester.addr_make("bob");
 
         let f1 = tester.add_dummy_family();
         let f2 = tester.add_dummy_family();
@@ -695,13 +691,8 @@ mod tests {
         .unwrap();
 
         // unique-index defence-in-depth check
-        let res = s.register_new_family(
-            tester.storage_mut(),
-            &env,
-            bob,
-            "shared".into(),
-            "".into(),
-        );
+        let res =
+            s.register_new_family(tester.storage_mut(), &env, bob, "shared".into(), "".into());
         assert!(res.is_err());
     }
 
@@ -731,7 +722,6 @@ mod tests {
     fn add_pending_invitation_persists() {
         let mut tester = init_contract_tester();
         let s = NodeFamiliesStorage::new();
-        let env = tester.env();
         let alice = tester.addr_make("alice");
         let f = tester.make_family(&alice);
         let expires_at = tester.env().block.time.seconds() + 100;

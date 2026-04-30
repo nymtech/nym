@@ -3,9 +3,7 @@
 
 //! CosmWasm entry points for the node families contract.
 
-use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-};
+use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use node_families_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NodeFamiliesContractError, QueryMsg,
 };
@@ -28,7 +26,11 @@ pub fn instantiate(
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     set_build_information!(deps.storage)?;
 
-    // NYM_POOL_STORAGE.initialise(deps, env, info.sender, &msg.pool_denomination, msg.grants)?;
+    let _ = env;
+    let _ = info;
+    let _ = msg;
+
+    // NodeFamiliesStorage::new().initialise(deps, env, info.sender, &msg)?;
 
     Ok(Response::default())
 }
@@ -42,14 +44,21 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, NodeFamiliesContractError> {
-    todo!()
+    let _ = deps;
+    let _ = env;
+    let _ = info;
+    let _ = msg;
+    Ok(Response::default())
 }
 
 /// Read-only dispatcher. Concrete handlers live in [`crate::queries`] and are
 /// wired up here as variants are added to [`QueryMsg`].
 #[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NodeFamiliesContractError> {
-    todo!()
+    let _ = deps;
+    let _ = env;
+    let _ = msg;
+    Ok(Binary::default())
 }
 
 /// Migration entry point.

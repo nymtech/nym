@@ -4,7 +4,8 @@
 //! CosmWasm entry points for the node families contract.
 
 use crate::queries::{
-    query_families_paged, query_family_by_id, query_family_membership, query_pending_invitation,
+    query_families_paged, query_family_by_id, query_family_members_paged, query_family_membership,
+    query_pending_invitation,
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
@@ -67,6 +68,16 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NodeFamilies
         QueryMsg::GetFamilyMembership { node_id } => {
             Ok(to_json_binary(&query_family_membership(deps, node_id)?)?)
         }
+        QueryMsg::GetFamilyMembersPaged {
+            family_id,
+            start_after,
+            limit,
+        } => Ok(to_json_binary(&query_family_members_paged(
+            deps,
+            family_id,
+            start_after,
+            limit,
+        )?)?),
         QueryMsg::GetPendingInvitation { family_id, node_id } => Ok(to_json_binary(
             &query_pending_invitation(deps, env, family_id, node_id)?,
         )?),

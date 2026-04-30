@@ -24,11 +24,14 @@ pub const SPHINX_STREAM_VERSION_THRESHOLD: u8 = v9::VERSION;
 mod tests {
     use super::*;
 
+    const _: () = {
+        assert!(SPHINX_STREAM_VERSION_THRESHOLD > MAX_NON_STREAM_VERSION);
+    };
+
     #[test]
     fn stream_transport_threshold_is_consistent() {
         assert_eq!(MAX_NON_STREAM_VERSION, 8);
         assert_eq!(SPHINX_STREAM_VERSION_THRESHOLD, 9);
-        assert!(SPHINX_STREAM_VERSION_THRESHOLD > MAX_NON_STREAM_VERSION);
     }
 }
 

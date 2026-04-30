@@ -45,7 +45,7 @@ type BoxError = Box<dyn std::error::Error + Send + Sync>;
 const HOST: &str = "httpbin.org";
 
 /// Sizes (in bytes) to download sequentially over one connection.
-const SIZES: &[usize] = &[100, 1_000, 10_000];
+const SIZES: &[usize] = &[100, 1_000, 10_000, 100_000];
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {

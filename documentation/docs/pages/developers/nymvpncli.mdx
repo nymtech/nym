@@ -197,16 +197,18 @@ You can omit `--source` to use the default:
 nym-vpnc account obtain-ticketbooks --amount 1
 ```
 
-The `--amount` flag specifies how many ticketbooks to obtain **per ticket type**. Each request issues one ticketbook for each of the three types:
+The `--amount` flag specifies how many ticketbooks to obtain **per ticket type**. Each request issues one ticketbook for each of the three types listed below, so `--amount 1` produces 3 ticketbooks total and `--amount 2` produces 6.
 
-- **Mixnet Entry** — used for 5-hop mixnet mode
-- **WireGuard Entry** — used for 2-hop WireGuard mode (entry side)
-- **WireGuard Exit** — used for 2-hop WireGuard mode (exit side)
+Each ticketbook contains **50 tickets** and is valid for **7 days**. Each ticketbook costs **75 NYM**, so `--amount 1` deposits **225 NYM** (75 × 3 types) and `--amount 2` deposits **450 NYM**.
 
-So `--amount 1` produces 3 ticketbooks total (one of each type), and `--amount 2` produces 6.
+| Kind | Ticket size | Ticketbook capacity | Used for |
+|------|-------------|---------------------|----------|
+| Mixnet Entry | 200 MB | 10 GB (200 MB × 50) | 5-hop mixnet mode |
+| WireGuard Entry | 500 MB | 25 GB (500 MB × 50) | 2-hop WireGuard mode (entry side) |
+| WireGuard Exit | 500 MB | 25 GB (500 MB × 50) | 2-hop WireGuard mode (exit side) |
 
-<Callout type="warning" emoji="⚠️">
-  Each ticketbook costs 75 NYM. Because `--amount` applies per type, `--amount 1` deposits **225 NYM** (75 × 3 types), and `--amount 2` deposits **450 NYM**. If you only use two-hop (WireGuard) mode, the Mixnet Entry ticketbooks will go unused. There is currently no way to obtain ticketbooks for a single type.
+<Callout type="info">
+  If you only use two-hop (WireGuard) mode, the Mixnet Entry ticketbooks will go unused. There is currently no way to obtain ticketbooks for a single type.
 </Callout>
 
 This command:

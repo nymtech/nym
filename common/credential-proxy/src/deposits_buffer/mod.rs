@@ -146,9 +146,14 @@ impl DepositsBuffer {
 
     // if we're here, we know we're below the threshold
     fn maybe_refill_deposits(&self) {
-        if let Some(mut guard) = self.inner.deposits_refill_task.try_get_new_task_guard() {
+        if let Some((mut guard, completion_guard)) =
+            self.inner.deposits_refill_task.try_get_new_task_guard()
+        {
             let this = self.clone();
-            *guard = Some(tokio::spawn(async move { this.refill_deposits().await }));
+            *guard = Some(tokio::spawn(async move {
+                let _completion_guard = completion_guard;
+                this.refill_deposits().await
+            }));
         }
     }
 

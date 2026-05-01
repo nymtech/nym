@@ -11,7 +11,8 @@ use nym_mixnet_contract_common::NodeId;
 #[cfg(feature = "schema")]
 use crate::{
     AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse, FamilyMembersPagedResponse,
-    NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationsForNodePagedResponse,
+    NodeFamilyByNameResponse, NodeFamilyByOwnerResponse, NodeFamilyMembershipResponse,
+    NodeFamilyResponse, PastFamilyInvitationsForNodePagedResponse,
     PastFamilyInvitationsPagedResponse, PastFamilyMembersForNodePagedResponse,
     PastFamilyMembersPagedResponse, PendingFamilyInvitationResponse,
     PendingFamilyInvitationsPagedResponse, PendingInvitationsForNodePagedResponse,
@@ -37,6 +38,16 @@ pub enum QueryMsg {
     /// Look up a single family by its id.
     #[cfg_attr(feature = "schema", returns(NodeFamilyResponse))]
     GetFamilyById { family_id: NodeFamilyId },
+
+    /// Look up the (at most one) family owned by a given address.
+    #[cfg_attr(feature = "schema", returns(NodeFamilyByOwnerResponse))]
+    GetFamilyByOwner { owner: String },
+
+    /// Look up a single family by its (globally-unique) name. Compared by raw
+    /// bytes — callers must normalise upstream if they want case-insensitive
+    /// matching.
+    #[cfg_attr(feature = "schema", returns(NodeFamilyByNameResponse))]
+    GetFamilyByName { name: String },
 
     #[cfg_attr(feature = "schema", returns(FamiliesPagedResponse))]
     GetFamiliesPaged {

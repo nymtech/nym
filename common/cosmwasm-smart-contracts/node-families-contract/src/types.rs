@@ -132,6 +132,29 @@ pub struct NodeFamilyResponse {
     pub family: Option<NodeFamily>,
 }
 
+/// Response to [`QueryMsg::GetFamilyByOwner`](crate::QueryMsg::GetFamilyByOwner).
+#[cw_serde]
+pub struct NodeFamilyByOwnerResponse {
+    /// The (validated) owner address that was queried, echoed back so callers
+    /// can correlate.
+    pub owner: Addr,
+
+    /// The matching family, or `None` if `owner` does not currently own one.
+    pub family: Option<NodeFamily>,
+}
+
+/// Response to [`QueryMsg::GetFamilyByName`](crate::QueryMsg::GetFamilyByName).
+#[cw_serde]
+pub struct NodeFamilyByNameResponse {
+    /// The name that was queried, echoed back so callers can correlate.
+    /// Compared by raw bytes — callers must normalise (e.g. lowercase/trim)
+    /// upstream if they want case-insensitive matching.
+    pub name: String,
+
+    /// The matching family, or `None` if no family with that name exists.
+    pub family: Option<NodeFamily>,
+}
+
 /// Response to [`QueryMsg::GetFamilyMembership`](crate::QueryMsg::GetFamilyMembership).
 #[cw_serde]
 pub struct NodeFamilyMembershipResponse {

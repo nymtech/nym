@@ -91,7 +91,7 @@ where
         }
         // Phase 1 — incoming
         for node in &mut self.nodes {
-            node.tick_incoming(timestamp.clone());
+            node.tick_incoming();
         }
 
         if display_state {

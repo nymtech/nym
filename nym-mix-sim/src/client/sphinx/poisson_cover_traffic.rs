@@ -111,10 +111,12 @@ where
         // Secondary cover traffic loop
         // We should not schedule those in advance, because backpressure can't tell if it has real or cover traffic.
         if timestamp >= self.secondary_loop_next_timestamp {
+            let cover_options = self.cover_traffic_options();
             output.push(SphinxPipelinePayload::new(
                 timestamp.clone(),
                 LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
-                self.cover_traffic_options(),
+                cover_options,
+                cover_options.next_hop,
             ));
             self.secondary_loop_next_timestamp = self.secondary_loop_next_timestamp.clone()
                 + Ts::generate_cover_traffic_delay(&mut self.rng);
@@ -131,10 +133,12 @@ where
             }
             // No message, but we need to send something => Send cover traffic right away, prepare next timestamp
             None if timestamp >= self.main_loop_next_timestamp => {
+                let cover_options = self.cover_traffic_options();
                 output.push(SphinxPipelinePayload::new(
                     timestamp,
                     LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
-                    self.cover_traffic_options(),
+                    cover_options,
+                    cover_options.next_hop,
                 ));
                 self.main_loop_next_timestamp = self.main_loop_next_timestamp.clone()
                     + Ts::generate_sending_delay(&mut self.rng);

@@ -1,13 +1,15 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::helpers::normalise_family_name;
 use crate::storage::{retrieval_limits, NodeFamiliesStorage};
 use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::Bound;
 use node_families_contract_common::{
     AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse, FamilyMemberRecord,
     FamilyMembersPagedResponse, GlobalPastFamilyInvitationCursor, NodeFamiliesContractError,
-    NodeFamilyId, NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationCursor,
+    NodeFamilyByNameResponse, NodeFamilyByOwnerResponse, NodeFamilyId,
+    NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationCursor,
     PastFamilyInvitationForNodeCursor, PastFamilyInvitationsForNodePagedResponse,
     PastFamilyInvitationsPagedResponse, PastFamilyMemberCursor, PastFamilyMemberForNodeCursor,
     PastFamilyMembersForNodePagedResponse, PastFamilyMembersPagedResponse,
@@ -27,6 +29,45 @@ pub fn query_family_by_id(
         .families
         .may_load(deps.storage, family_id)?;
     Ok(NodeFamilyResponse { family_id, family })
+}
+
+/// Resolve the (at most one) family owned by `owner`. Returns `family: None`
+/// if `owner` does not currently own a family. Backed by the `owner`
+/// `UniqueIndex`, so cost is O(1).
+pub fn query_family_by_owner(
+    deps: Deps,
+    owner: String,
+) -> Result<NodeFamilyByOwnerResponse, NodeFamiliesContractError> {
+    let owner = deps.api.addr_validate(&owner)?;
+    let family = NodeFamiliesStorage::new()
+        .families
+        .idx
+        .owner
+        .item(deps.storage, owner.clone())?
+        .map(|(_, family)| family);
+    Ok(NodeFamilyByOwnerResponse { owner, family })
+}
+
+/// Resolve a single family by its name. The lookup runs the input through
+/// [`normalise_family_name`] before hitting the `name` `UniqueIndex`, so
+/// e.g. `"foo"`, `"FoO"` and `"  foo!  "` all resolve to the same family.
+/// Returns `family: None` if no family with that (normalised) name exists.
+/// Backed by the `name` `UniqueIndex`, so cost is O(1).
+///
+/// The echoed `name` in the response is the normalised form actually used
+/// for the lookup, so callers can correlate after the normalisation.
+pub fn query_family_by_name(
+    deps: Deps,
+    name: String,
+) -> Result<NodeFamilyByNameResponse, NodeFamiliesContractError> {
+    let name = normalise_family_name(&name);
+    let family = NodeFamiliesStorage::new()
+        .families
+        .idx
+        .name
+        .item(deps.storage, name.clone())?
+        .map(|(_, family)| family);
+    Ok(NodeFamilyByNameResponse { name, family })
 }
 
 /// Report which family — if any — a node currently belongs to.
@@ -329,8 +370,8 @@ pub fn query_past_invitations_for_node_paged(
         .unwrap_or(retrieval_limits::PAST_INVITATIONS_DEFAULT_LIMIT)
         .min(retrieval_limits::PAST_INVITATIONS_MAX_LIMIT) as usize;
 
-    let start = start_after
-        .map(|(family_id, counter)| Bound::exclusive(((family_id, node_id), counter)));
+    let start =
+        start_after.map(|(family_id, counter)| Bound::exclusive(((family_id, node_id), counter)));
 
     let storage = NodeFamiliesStorage::new();
     let entries = storage
@@ -463,8 +504,8 @@ pub fn query_past_members_for_node_paged(
         .unwrap_or(retrieval_limits::PAST_MEMBERS_DEFAULT_LIMIT)
         .min(retrieval_limits::PAST_MEMBERS_MAX_LIMIT) as usize;
 
-    let start = start_after
-        .map(|(family_id, counter)| Bound::exclusive(((family_id, node_id), counter)));
+    let start =
+        start_after.map(|(family_id, counter)| Bound::exclusive(((family_id, node_id), counter)));
 
     let storage = NodeFamiliesStorage::new();
     let entries = storage
@@ -549,6 +590,130 @@ mod tests {
             let res = query_family_by_id(tester.deps(), f.id).unwrap();
             assert_eq!(res.family_id, f.id);
             assert_eq!(res.family, Some(f));
+        }
+    }
+
+    #[cfg(test)]
+    mod family_by_owner {
+        use super::*;
+
+        #[test]
+        fn returns_none_when_owner_owns_no_family() {
+            let tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+
+            let res = query_family_by_owner(tester.deps(), alice.to_string()).unwrap();
+            assert_eq!(res.owner, alice);
+            assert!(res.family.is_none());
+        }
+
+        #[test]
+        fn returns_persisted_family_for_owner() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let f = tester.make_family(&alice);
+
+            let res = query_family_by_owner(tester.deps(), alice.to_string()).unwrap();
+            assert_eq!(res.owner, alice);
+            assert_eq!(res.family, Some(f));
+        }
+
+        #[test]
+        fn distinguishes_owners() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let bob = tester.addr_make("bob");
+            let f_alice = tester.make_family(&alice);
+            let f_bob = tester.make_family(&bob);
+
+            let res = query_family_by_owner(tester.deps(), alice.to_string()).unwrap();
+            assert_eq!(res.family, Some(f_alice));
+            let res = query_family_by_owner(tester.deps(), bob.to_string()).unwrap();
+            assert_eq!(res.family, Some(f_bob));
+        }
+
+        #[test]
+        fn errors_on_invalid_address() {
+            let tester = init_contract_tester();
+
+            let res = query_family_by_owner(tester.deps(), "not a valid addr".to_string());
+            assert!(res.is_err());
+        }
+    }
+
+    #[cfg(test)]
+    mod family_by_name {
+        use super::*;
+
+        #[test]
+        fn returns_none_when_name_does_not_exist() {
+            let tester = init_contract_tester();
+
+            let res = query_family_by_name(tester.deps(), "missing".to_string()).unwrap();
+            assert_eq!(res.name, "missing");
+            assert!(res.family.is_none());
+        }
+
+        #[test]
+        fn returns_persisted_family_by_exact_name() {
+            let mut tester = init_contract_tester();
+            let s = NodeFamiliesStorage::new();
+            let env = tester.env();
+            let alice = tester.addr_make("alice");
+            let f = s
+                .register_new_family(tester.storage_mut(), &env, alice, "foo".into(), "".into())
+                .unwrap();
+
+            let res = query_family_by_name(tester.deps(), "foo".to_string()).unwrap();
+            assert_eq!(res.name, "foo");
+            assert_eq!(res.family, Some(f));
+        }
+
+        #[test]
+        fn lookup_is_case_insensitive() {
+            let mut tester = init_contract_tester();
+            let s = NodeFamiliesStorage::new();
+            let env = tester.env();
+            let alice = tester.addr_make("alice");
+            let f = s
+                .register_new_family(tester.storage_mut(), &env, alice, "foo".into(), "".into())
+                .unwrap();
+
+            for variant in ["foo", "FOO", "FoO", "fOo"] {
+                let res = query_family_by_name(tester.deps(), variant.to_string()).unwrap();
+                assert_eq!(res.name, "foo");
+                assert_eq!(res.family, Some(f.clone()));
+            }
+        }
+
+        #[test]
+        fn lookup_strips_non_alphanumerics() {
+            let mut tester = init_contract_tester();
+            let s = NodeFamiliesStorage::new();
+            let env = tester.env();
+            let alice = tester.addr_make("alice");
+            let f = s
+                .register_new_family(
+                    tester.storage_mut(),
+                    &env,
+                    alice,
+                    "foobar".into(),
+                    "".into(),
+                )
+                .unwrap();
+
+            let res = query_family_by_name(tester.deps(), "  Foo-Bar! ".to_string()).unwrap();
+            assert_eq!(res.name, "foobar");
+            assert_eq!(res.family, Some(f));
+        }
+
+        #[test]
+        fn echoes_normalised_name_even_when_no_match() {
+            let tester = init_contract_tester();
+
+            let res = query_family_by_name(tester.deps(), "  Foo-Bar! ".to_string()).unwrap();
+            assert_eq!(res.name, "foobar");
+            assert!(res.family.is_none());
         }
     }
 
@@ -1515,9 +1680,8 @@ mod tests {
             let tester = init_contract_tester();
             let env = tester.env();
 
-            let res =
-                query_pending_invitations_for_node_paged(tester.deps(), env, 42, None, None)
-                    .unwrap();
+            let res = query_pending_invitations_for_node_paged(tester.deps(), env, 42, None, None)
+                .unwrap();
             assert_eq!(res.node_id, 42);
             assert!(res.invitations.is_empty());
             assert!(res.start_next_after.is_none());
@@ -1533,9 +1697,8 @@ mod tests {
             tester.invite_to_family(f2.id, 10);
 
             let env = tester.env();
-            let res =
-                query_pending_invitations_for_node_paged(tester.deps(), env, 10, None, None)
-                    .unwrap();
+            let res = query_pending_invitations_for_node_paged(tester.deps(), env, 10, None, None)
+                .unwrap();
             let pairs: Vec<_> = res
                 .invitations
                 .iter()
@@ -1556,9 +1719,8 @@ mod tests {
             tester.invite_to_family(f2.id, 7);
 
             let env = tester.env();
-            let res =
-                query_pending_invitations_for_node_paged(tester.deps(), env, 7, None, None)
-                    .unwrap();
+            let res = query_pending_invitations_for_node_paged(tester.deps(), env, 7, None, None)
+                .unwrap();
             let ids: Vec<_> = res
                 .invitations
                 .iter()
@@ -1633,9 +1795,8 @@ mod tests {
 
             tester.advance_time_by(60);
             let env = tester.env();
-            let res =
-                query_pending_invitations_for_node_paged(tester.deps(), env, 7, None, None)
-                    .unwrap();
+            let res = query_pending_invitations_for_node_paged(tester.deps(), env, 7, None, None)
+                .unwrap();
             let by_family: std::collections::HashMap<_, _> = res
                 .invitations
                 .iter()
@@ -1679,8 +1840,7 @@ mod tests {
         fn empty_when_node_has_no_archive_entries() {
             let tester = init_contract_tester();
 
-            let res =
-                query_past_invitations_for_node_paged(tester.deps(), 42, None, None).unwrap();
+            let res = query_past_invitations_for_node_paged(tester.deps(), 42, None, None).unwrap();
             assert_eq!(res.node_id, 42);
             assert!(res.invitations.is_empty());
             assert!(res.start_next_after.is_none());
@@ -1695,8 +1855,7 @@ mod tests {
             tester.add_to_family(f1.id, 8);
             tester.add_to_family(f2.id, 7);
 
-            let res =
-                query_past_invitations_for_node_paged(tester.deps(), 7, None, None).unwrap();
+            let res = query_past_invitations_for_node_paged(tester.deps(), 7, None, None).unwrap();
             assert_eq!(res.invitations.len(), 2);
             for entry in &res.invitations {
                 assert_eq!(entry.invitation.node_id, 7);
@@ -1718,8 +1877,7 @@ mod tests {
             tester.invite_to_family(f3.id, 7);
             tester.revoke_invitation(f3.id, 7);
 
-            let res =
-                query_past_invitations_for_node_paged(tester.deps(), 7, None, None).unwrap();
+            let res = query_past_invitations_for_node_paged(tester.deps(), 7, None, None).unwrap();
             let by_family: std::collections::HashMap<_, _> = res
                 .invitations
                 .iter()
@@ -1752,8 +1910,7 @@ mod tests {
             // one Accepted in f2
             tester.add_to_family(f2.id, 7);
 
-            let res =
-                query_past_invitations_for_node_paged(tester.deps(), 7, None, None).unwrap();
+            let res = query_past_invitations_for_node_paged(tester.deps(), 7, None, None).unwrap();
             let pairs: Vec<_> = res
                 .invitations
                 .iter()
@@ -1818,13 +1975,8 @@ mod tests {
                 tester.remove_from_family(7);
             }
 
-            let res = query_past_invitations_for_node_paged(
-                tester.deps(),
-                7,
-                None,
-                Some(u32::MAX),
-            )
-            .unwrap();
+            let res = query_past_invitations_for_node_paged(tester.deps(), 7, None, Some(u32::MAX))
+                .unwrap();
             assert_eq!(
                 res.invitations.len(),
                 retrieval_limits::PAST_INVITATIONS_MAX_LIMIT as usize
@@ -1841,8 +1993,7 @@ mod tests {
             let mut tester = init_contract_tester();
             let f = tester.add_dummy_family();
 
-            let res =
-                query_past_members_for_family_paged(tester.deps(), f.id, None, None).unwrap();
+            let res = query_past_members_for_family_paged(tester.deps(), f.id, None, None).unwrap();
             assert_eq!(res.family_id, f.id);
             assert!(res.members.is_empty());
             assert!(res.start_next_after.is_none());
@@ -1852,8 +2003,7 @@ mod tests {
         fn empty_for_unknown_family_id() {
             let tester = init_contract_tester();
 
-            let res =
-                query_past_members_for_family_paged(tester.deps(), 99, None, None).unwrap();
+            let res = query_past_members_for_family_paged(tester.deps(), 99, None, None).unwrap();
             assert_eq!(res.family_id, 99);
             assert!(res.members.is_empty());
             assert!(res.start_next_after.is_none());
@@ -1884,8 +2034,7 @@ mod tests {
             let removed_at = tester.env().block.time.seconds();
             tester.remove_from_family(42);
 
-            let res =
-                query_past_members_for_family_paged(tester.deps(), f.id, None, None).unwrap();
+            let res = query_past_members_for_family_paged(tester.deps(), f.id, None, None).unwrap();
             let entry = res.members.into_iter().next().unwrap();
             assert_eq!(entry.family_id, f.id);
             assert_eq!(entry.node_id, 42);
@@ -1905,8 +2054,7 @@ mod tests {
             tester.add_to_family(f.id, 7);
             tester.remove_from_family(7);
 
-            let res =
-                query_past_members_for_family_paged(tester.deps(), f.id, None, None).unwrap();
+            let res = query_past_members_for_family_paged(tester.deps(), f.id, None, None).unwrap();
             let ids: Vec<_> = res.members.iter().map(|m| m.node_id).collect();
             // 7 comes before 42; 42 appears twice
             assert_eq!(ids, vec![7, 42, 42]);
@@ -1959,13 +2107,9 @@ mod tests {
                 tester.remove_from_family(n);
             }
 
-            let res = query_past_members_for_family_paged(
-                tester.deps(),
-                f.id,
-                None,
-                Some(u32::MAX),
-            )
-            .unwrap();
+            let res =
+                query_past_members_for_family_paged(tester.deps(), f.id, None, Some(u32::MAX))
+                    .unwrap();
             assert_eq!(
                 res.members.len(),
                 retrieval_limits::PAST_MEMBERS_MAX_LIMIT as usize
@@ -2052,30 +2196,21 @@ mod tests {
             tester.add_to_family(f3.id, 7);
             tester.remove_from_family(7);
 
-            let p1 =
-                query_past_members_for_node_paged(tester.deps(), 7, None, Some(2)).unwrap();
+            let p1 = query_past_members_for_node_paged(tester.deps(), 7, None, Some(2)).unwrap();
             let ids: Vec<_> = p1.members.iter().map(|m| m.family_id).collect();
             assert_eq!(ids, vec![f1.id, f2.id]);
             assert_eq!(p1.start_next_after, Some((f2.id, 0)));
 
-            let p2 = query_past_members_for_node_paged(
-                tester.deps(),
-                7,
-                p1.start_next_after,
-                Some(2),
-            )
-            .unwrap();
+            let p2 =
+                query_past_members_for_node_paged(tester.deps(), 7, p1.start_next_after, Some(2))
+                    .unwrap();
             let ids: Vec<_> = p2.members.iter().map(|m| m.family_id).collect();
             assert_eq!(ids, vec![f3.id]);
             assert_eq!(p2.start_next_after, Some((f3.id, 0)));
 
-            let p3 = query_past_members_for_node_paged(
-                tester.deps(),
-                7,
-                p2.start_next_after,
-                Some(2),
-            )
-            .unwrap();
+            let p3 =
+                query_past_members_for_node_paged(tester.deps(), 7, p2.start_next_after, Some(2))
+                    .unwrap();
             assert!(p3.members.is_empty());
             assert!(p3.start_next_after.is_none());
         }

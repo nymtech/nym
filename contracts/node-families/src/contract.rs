@@ -5,11 +5,11 @@
 
 use crate::queries::{
     query_all_past_invitations_paged, query_all_pending_invitations_paged, query_families_paged,
-    query_family_by_id, query_family_members_paged, query_family_membership,
-    query_past_invitations_for_family_paged, query_past_invitations_for_node_paged,
-    query_past_members_for_family_paged, query_past_members_for_node_paged,
-    query_pending_invitation, query_pending_invitations_for_family_paged,
-    query_pending_invitations_for_node_paged,
+    query_family_by_id, query_family_by_name, query_family_by_owner, query_family_members_paged,
+    query_family_membership, query_past_invitations_for_family_paged,
+    query_past_invitations_for_node_paged, query_past_members_for_family_paged,
+    query_past_members_for_node_paged, query_pending_invitation,
+    query_pending_invitations_for_family_paged, query_pending_invitations_for_node_paged,
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
@@ -69,6 +69,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NodeFamilies
         QueryMsg::GetFamilyById { family_id } => {
             Ok(to_json_binary(&query_family_by_id(deps, family_id)?)?)
         }
+        QueryMsg::GetFamilyByOwner { owner } => {
+            Ok(to_json_binary(&query_family_by_owner(deps, owner)?)?)
+        }
+        QueryMsg::GetFamilyByName { name } => {
+            Ok(to_json_binary(&query_family_by_name(deps, name)?)?)
+        }
         QueryMsg::GetFamilyMembership { node_id } => {
             Ok(to_json_binary(&query_family_membership(deps, node_id)?)?)
         }
@@ -89,13 +95,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NodeFamilies
             family_id,
             start_after,
             limit,
-        } => Ok(to_json_binary(&query_pending_invitations_for_family_paged(
-            deps,
-            env,
-            family_id,
-            start_after,
-            limit,
-        )?)?),
+        } => Ok(to_json_binary(
+            &query_pending_invitations_for_family_paged(deps, env, family_id, start_after, limit)?,
+        )?),
         QueryMsg::GetPendingInvitationsForNodePaged {
             node_id,
             start_after,

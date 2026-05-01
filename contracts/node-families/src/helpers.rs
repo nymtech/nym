@@ -8,7 +8,6 @@
 /// the storage layer's unique-name index. Callers should pass the normalised
 /// value to [`node_families_contract_common::NodeFamily::name`] when creating a family and when looking one
 /// up by name.
-#[allow(dead_code)]
 pub fn normalise_family_name(name: &str) -> String {
     name.chars()
         .filter(|c| c.is_ascii_alphanumeric())

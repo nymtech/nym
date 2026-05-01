@@ -43,9 +43,9 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(NodeFamilyByOwnerResponse))]
     GetFamilyByOwner { owner: String },
 
-    /// Look up a single family by its (globally-unique) name. Compared by raw
-    /// bytes — callers must normalise upstream if they want case-insensitive
-    /// matching.
+    /// Look up a single family by its name. The lookup is normalised
+    /// contract-side (lowercased, non-alphanumerics stripped), so equivalent
+    /// inputs resolve to the same family.
     #[cfg_attr(feature = "schema", returns(NodeFamilyByNameResponse))]
     GetFamilyByName { name: String },
 

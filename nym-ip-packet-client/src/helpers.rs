@@ -2,21 +2,31 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_sdk::mixnet::ReconstructedMessage;
+use tracing::debug;
 
 use crate::error::{Error, Result};
 
+/// Minimum wire version accepted from the IPR.
+const MIN_ACCEPTED_VERSION: u8 = 8;
+/// Maximum wire version accepted from the IPR.
+const MAX_ACCEPTED_VERSION: u8 = 9;
+
 fn check_ipr_wire_reply_version(version: u8) -> Result<()> {
-    if version == 8 || version == 9 {
+    if version >= MIN_ACCEPTED_VERSION && version <= MAX_ACCEPTED_VERSION {
+        if version == MIN_ACCEPTED_VERSION {
+            // v8 reply: IPR exit is on the older protocol version, still compatible.
+            debug!("Received IPR response with wire version v{version} (accepting v8 and v9)");
+        }
         return Ok(());
     }
-    if version < 8 {
+    if version < MIN_ACCEPTED_VERSION {
         return Err(Error::ReceivedResponseWithOldVersion {
-            expected: 8,
+            expected: MIN_ACCEPTED_VERSION,
             received: version,
         });
     }
     Err(Error::ReceivedResponseWithNewVersion {
-        expected: 9,
+        expected: MAX_ACCEPTED_VERSION,
         received: version,
     })
 }
@@ -33,7 +43,7 @@ pub(crate) fn check_ipr_message_version(message: &ReconstructedMessage) -> Resul
 
 #[cfg(test)]
 mod tests {
-    use super::check_ipr_wire_reply_version;
+    use super::{MAX_ACCEPTED_VERSION, MIN_ACCEPTED_VERSION, check_ipr_wire_reply_version};
     use crate::Error;
 
     #[test]
@@ -47,7 +57,7 @@ mod tests {
         let err = check_ipr_wire_reply_version(7).unwrap_err();
         match err {
             Error::ReceivedResponseWithOldVersion { expected, received } => {
-                assert_eq!(expected, 8);
+                assert_eq!(expected, MIN_ACCEPTED_VERSION);
                 assert_eq!(received, 7);
             }
             _ => panic!("unexpected error: {err:?}"),
@@ -59,7 +69,7 @@ mod tests {
         let err = check_ipr_wire_reply_version(10).unwrap_err();
         match err {
             Error::ReceivedResponseWithNewVersion { expected, received } => {
-                assert_eq!(expected, 9);
+                assert_eq!(expected, MAX_ACCEPTED_VERSION);
                 assert_eq!(received, 10);
             }
             _ => panic!("unexpected error: {err:?}"),

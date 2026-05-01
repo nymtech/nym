@@ -5,9 +5,7 @@
 ///
 /// Drops every character that isn't an ASCII letter or digit and lowercases
 /// the rest, so `"  Foo-Bar! "`, `"foobar"` and `"FOO BAR"` all collide on
-/// the storage layer's unique-name index. Callers should pass the normalised
-/// value to [`node_families_contract_common::NodeFamily::name`] when creating a family and when looking one
-/// up by name.
+/// the storage layer's unique-name index.
 pub fn normalise_family_name(name: &str) -> String {
     name.chars()
         .filter(|c| c.is_ascii_alphanumeric())

@@ -147,8 +147,6 @@ pub struct NodeFamilyByOwnerResponse {
 #[cw_serde]
 pub struct NodeFamilyByNameResponse {
     /// The name that was queried, echoed back so callers can correlate.
-    /// Compared by raw bytes — callers must normalise (e.g. lowercase/trim)
-    /// upstream if they want case-insensitive matching.
     pub name: String,
 
     /// The matching family, or `None` if no family with that name exists.

@@ -53,19 +53,16 @@ pub fn query_family_by_owner(
 /// e.g. `"foo"`, `"FoO"` and `"  foo!  "` all resolve to the same family.
 /// Returns `family: None` if no family with that (normalised) name exists.
 /// Backed by the `name` `UniqueIndex`, so cost is O(1).
-///
-/// The echoed `name` in the response is the normalised form actually used
-/// for the lookup, so callers can correlate after the normalisation.
 pub fn query_family_by_name(
     deps: Deps,
     name: String,
 ) -> Result<NodeFamilyByNameResponse, NodeFamiliesContractError> {
-    let name = normalise_family_name(&name);
+    let normalised_name = normalise_family_name(&name);
     let family = NodeFamiliesStorage::new()
         .families
         .idx
         .name
-        .item(deps.storage, name.clone())?
+        .item(deps.storage, normalised_name)?
         .map(|(_, family)| family);
     Ok(NodeFamilyByNameResponse { name, family })
 }
@@ -644,6 +641,7 @@ mod tests {
     #[cfg(test)]
     mod family_by_name {
         use super::*;
+        use nym_contracts_common_testing::RandExt;
 
         #[test]
         fn returns_none_when_name_does_not_exist() {
@@ -657,12 +655,8 @@ mod tests {
         #[test]
         fn returns_persisted_family_by_exact_name() {
             let mut tester = init_contract_tester();
-            let s = NodeFamiliesStorage::new();
-            let env = tester.env();
             let alice = tester.addr_make("alice");
-            let f = s
-                .register_new_family(tester.storage_mut(), &env, alice, "foo".into(), "".into())
-                .unwrap();
+            let f = tester.make_named_family(&alice, "foo");
 
             let res = query_family_by_name(tester.deps(), "foo".to_string()).unwrap();
             assert_eq!(res.name, "foo");
@@ -670,50 +664,21 @@ mod tests {
         }
 
         #[test]
-        fn lookup_is_case_insensitive() {
-            let mut tester = init_contract_tester();
-            let s = NodeFamiliesStorage::new();
-            let env = tester.env();
-            let alice = tester.addr_make("alice");
-            let f = s
-                .register_new_family(tester.storage_mut(), &env, alice, "foo".into(), "".into())
-                .unwrap();
+        fn lookup_normalises_name() {
+            let variants = ["foo", "FOO", "FoO", "fOo", "foo🚀", "🚀Foo", "   foo-!"];
 
-            for variant in ["foo", "FOO", "FoO", "fOo"] {
-                let res = query_family_by_name(tester.deps(), variant.to_string()).unwrap();
-                assert_eq!(res.name, "foo");
-                assert_eq!(res.family, Some(f.clone()));
+            for family_name in variants {
+                let mut tester = init_contract_tester();
+                let owner = tester.generate_account();
+                let f = tester.make_named_family(&owner, family_name);
+
+                for query_name in variants {
+                    let res = query_family_by_name(tester.deps(), query_name.to_string()).unwrap();
+                    assert_eq!(res.name, query_name);
+                    assert_eq!(res.family, Some(f.clone()));
+                    assert_eq!(res.family.unwrap().name, normalise_family_name(family_name));
+                }
             }
-        }
-
-        #[test]
-        fn lookup_strips_non_alphanumerics() {
-            let mut tester = init_contract_tester();
-            let s = NodeFamiliesStorage::new();
-            let env = tester.env();
-            let alice = tester.addr_make("alice");
-            let f = s
-                .register_new_family(
-                    tester.storage_mut(),
-                    &env,
-                    alice,
-                    "foobar".into(),
-                    "".into(),
-                )
-                .unwrap();
-
-            let res = query_family_by_name(tester.deps(), "  Foo-Bar! ".to_string()).unwrap();
-            assert_eq!(res.name, "foobar");
-            assert_eq!(res.family, Some(f));
-        }
-
-        #[test]
-        fn echoes_normalised_name_even_when_no_match() {
-            let tester = init_contract_tester();
-
-            let res = query_family_by_name(tester.deps(), "  Foo-Bar! ".to_string()).unwrap();
-            assert_eq!(res.name, "foobar");
-            assert!(res.family.is_none());
         }
     }
 

@@ -76,3 +76,34 @@ impl RefillTask {
         self.join_handle.lock().expect("mutex got poisoned").take()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn in_progress_resets_after_guard_drop() {
+        let task = RefillTask::default();
+
+        let (guard, completion_guard) = task.try_get_new_task_guard().unwrap();
+        drop(guard);
+        assert!(task.try_get_new_task_guard().is_none());
+
+        drop(completion_guard);
+        assert!(task.try_get_new_task_guard().is_some());
+    }
+
+    #[test]
+    fn in_progress_resets_on_panic() {
+        let task = RefillTask::default();
+
+        let (guard, completion_guard) = task.try_get_new_task_guard().unwrap();
+        drop(guard);
+
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _g = completion_guard;
+            panic!("simulated refill task panic");
+        }));
+        assert!(task.try_get_new_task_guard().is_some());
+    }
+}

@@ -37,6 +37,15 @@ type TunDevice = crate::non_linux_dummy::DummyDevice;
 #[cfg(target_os = "linux")]
 type TunDevice = tokio_tun::Tun;
 
+/// v9+ on non-stream sphinx is limited to [`ControlRequest::DynamicConnect`] (handshake). Other
+/// v9+ payloads must be sent inside LP Stream frames (`stream_id` is `Some` on dispatch).
+fn allows_non_stream_v9_ipr_request(request: &IpPacketRequest) -> bool {
+    matches!(
+        request,
+        IpPacketRequest::Control(ControlRequest::DynamicConnect(_))
+    )
+}
+
 // #[cfg(target_os = "linux")]
 pub(crate) struct MixnetListener {
     // The configuration for the mixnet listener
@@ -560,9 +569,9 @@ impl MixnetListener {
     /// # Version / transport enforcement
     ///
     /// - LP Stream frames (`stream_id` is `Some`) **must** carry v9+ payloads.
-    /// - Non-stream messages (`stream_id` is `None`) **must** be v8 or lower.
-    ///
-    /// Messages that violate these rules are dropped.
+    /// - Non-stream sphinx (`stream_id` is `None`): v8 or lower for all messages **except**
+    ///   [`ControlRequest::DynamicConnect`], which may use v9 for the anonymous handshake.
+    /// - Other non-stream v9+ payloads are dropped.
     async fn on_ipr_message(
         &mut self,
         reconstructed: ReconstructedMessage,
@@ -577,16 +586,14 @@ impl MixnetListener {
             req => req,
         }?;
 
-        // Enforce version/transport consistency:
-        // - LP Stream frames must carry v9+ payloads
-        // - Non-stream messages must be v8 or lower
+        // Enforce version/transport consistency (see `on_ipr_message` doc).
         let version_num = request.version().into_u8();
 
         if stream_id.is_some() && version_num < 9 {
             log::warn!("LP Stream frame contains v{version_num} payload, expected v9+; dropping",);
             return Ok(vec![]);
         }
-        if stream_id.is_none() && version_num >= 9 {
+        if stream_id.is_none() && version_num >= 9 && !allows_non_stream_v9_ipr_request(&request) {
             log::warn!("Non-stream message claims v{version_num}, expected v8 or lower; dropping",);
             return Ok(vec![]);
         }
@@ -693,6 +700,45 @@ pub(crate) type PacketHandleResult = Result<Option<VersionedResponse>>;
 
 #[cfg(test)]
 mod tests {
+    use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+
+    use super::allows_non_stream_v9_ipr_request;
+    use crate::{
+        clients::ConnectedClientId,
+        messages::{
+            ClientVersion,
+            request::{
+                ControlRequest, DataRequest, DynamicConnectRequest, IpPacketRequest, PingRequest,
+            },
+        },
+    };
+
+    #[test]
+    fn non_stream_v9_allowed_for_dynamic_connect_only() {
+        let sent_by = ConnectedClientId::from(AnonymousSenderTag::from_bytes([9u8; 16]));
+        let dynamic_connect =
+            IpPacketRequest::Control(ControlRequest::DynamicConnect(DynamicConnectRequest {
+                version: ClientVersion::V9,
+                request_id: 1,
+                sent_by,
+                buffer_timeout: None,
+            }));
+        assert!(allows_non_stream_v9_ipr_request(&dynamic_connect));
+
+        let data = IpPacketRequest::Data(DataRequest {
+            version: ClientVersion::V9,
+            ip_packets: bytes::Bytes::new(),
+        });
+        assert!(!allows_non_stream_v9_ipr_request(&data));
+
+        let ping = IpPacketRequest::Control(ControlRequest::Ping(PingRequest {
+            version: ClientVersion::V9,
+            request_id: 2,
+            sent_by: ConnectedClientId::from(AnonymousSenderTag::from_bytes([1u8; 16])),
+        }));
+        assert!(!allows_non_stream_v9_ipr_request(&ping));
+    }
+
     #[test]
     fn test_lp_stream_frame_detected() {
         use bytes::BytesMut;

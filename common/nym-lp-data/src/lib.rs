@@ -24,9 +24,11 @@ pub mod clients;
 pub mod common;
 pub mod mixnodes;
 
-/// Convenience alias for types where payload is a raw byte buffer.
+/// Convenience alias for [`TimedData`] when the payload is a raw byte buffer.
 pub type TimedPayload<Ts> = TimedData<Ts, Vec<u8>>;
+/// Convenience alias for [`AddressedTimedData`] when the payload is a raw byte buffer.
 pub type AddressedTimedPayload<Ts, NdId> = AddressedTimedData<Ts, Vec<u8>, NdId>;
+/// Convenience alias for [`PipelineData`] when the payload is a raw byte buffer.
 pub type PipelinePayload<Ts, Opts, NdId> = PipelineData<Ts, Vec<u8>, Opts, NdId>;
 
 /// A value of type `D` tagged with a timestamp of type `Ts`.
@@ -62,7 +64,8 @@ impl<Ts, D> TimedData<Ts, D> {
         TimedData { timestamp, data }
     }
     /// Apply `op` to the data component, leaving the timestamp unchanged.
-    /// `Nd` can be a different type to allow type transform as well
+    ///
+    /// `Nd` can differ from `D`, so this also acts as a type transform.
     pub fn data_transform<F, Nd>(self, mut op: F) -> TimedData<Ts, Nd>
     where
         F: FnMut(D) -> Nd,
@@ -85,6 +88,25 @@ impl<Ts, D> TimedData<Ts, D> {
     }
 }
 
+/// A timestamped payload extended with pipeline-stage options and a destination address.
+///
+/// `PipelineData` is the value flowing between client-side pipeline stages
+/// ([`Chunking`], [`Reliability`], [`Obfuscation`], [`RoutingSecurity`], [`Framing`],
+/// [`Transport`]).  It carries:
+///
+/// - `data`: a [`TimedData`] pairing the payload with its scheduled timestamp,
+/// - `options`: per-message configuration consumed by the pipeline (typically an
+///   [`InputOptions`] implementor on the client side; `()` once the message is
+///   reduced to an addressed payload),
+/// - `dst`: the next-hop destination identifier the wire layer should send to.
+///
+/// [`Chunking`]: crate::clients::traits::Chunking
+/// [`Reliability`]: crate::clients::traits::Reliability
+/// [`Obfuscation`]: crate::clients::traits::Obfuscation
+/// [`RoutingSecurity`]: crate::clients::traits::RoutingSecurity
+/// [`Framing`]: crate::common::traits::Framing
+/// [`Transport`]: crate::common::traits::Transport
+/// [`InputOptions`]: crate::clients::InputOptions
 pub struct PipelineData<Ts, D, Opts, NdId> {
     pub data: TimedData<Ts, D>,
     pub options: Opts,
@@ -92,6 +114,7 @@ pub struct PipelineData<Ts, D, Opts, NdId> {
 }
 
 impl<Ts, D, Opts, NdId> PipelineData<Ts, D, Opts, NdId> {
+    /// Construct a new [`PipelineData`] from its parts.
     pub fn new(timestamp: Ts, data: D, options: Opts, dst: NdId) -> Self {
         PipelineData {
             data: TimedData::new(timestamp, data),
@@ -100,8 +123,10 @@ impl<Ts, D, Opts, NdId> PipelineData<Ts, D, Opts, NdId> {
         }
     }
 
-    /// Apply `op` to the data component, leaving the timestamp unchanged.
-    /// `Nd` can be a different type to allow type transform as well
+    /// Apply `op` to the data component, leaving the timestamp, options, and
+    /// destination unchanged.
+    ///
+    /// `Nd` can differ from `D`, so this also acts as a type transform.
     pub fn data_transform<F, Nd>(self, op: F) -> PipelineData<Ts, Nd, Opts, NdId>
     where
         F: FnMut(D) -> Nd,
@@ -149,10 +174,12 @@ where
     }
 }
 
-/// Convenience alis if options are not needed. Avoids code duplication
+/// Convenience alias for [`PipelineData`] when no per-message pipeline options
+/// are needed. Avoids duplicating the pipeline data structure.
 pub type AddressedTimedData<Ts, D, NdId> = PipelineData<Ts, D, (), NdId>;
 
 impl<Ts, D, NdId> AddressedTimedData<Ts, D, NdId> {
+    /// Construct a new [`AddressedTimedData`] with unit `options`.
     pub fn new_addressed(timestamp: Ts, data: D, dst: NdId) -> Self {
         AddressedTimedData {
             data: TimedData::new(timestamp, data),

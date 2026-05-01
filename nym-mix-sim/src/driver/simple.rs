@@ -14,8 +14,9 @@ use crate::{
     topology::{Topology, directory::Directory},
 };
 
-/// Concrete [`MixSimDriver`] instantiation that uses [`SimplePacket`]s and a
-/// pass-through processing pipeline.
+/// Concrete [`MixSimDriver`] instantiation that uses
+/// [`SimplePacket`](crate::packet::simple::SimplePacket)s and a pass-through
+/// processing pipeline.
 ///
 /// Each mix node runs a [`SimpleProcessingNode`] that forwards packets
 /// unchanged to the next node in the topology; each client uses a

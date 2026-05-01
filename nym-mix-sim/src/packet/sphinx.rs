@@ -12,9 +12,11 @@ use crate::{
     client::ClientId, node::NodeId, packet::WirePacketFormat, topology::directory::Directory,
 };
 
-/// Newtype wrapper that provides a trimmed [`Debug`]
-/// implementation (showing only the first 32 bytes of the serialised form to
-/// avoid flooding logs).
+/// On-wire packet exchanged between mix nodes in the Sphinx pipeline.
+///
+/// Wraps a serialised Sphinx packet as a `Vec<u8>` and supplies a
+/// [`WirePacketFormat`] impl plus a trimmed [`Debug`] implementation that shows
+/// only the first 32 bytes of the serialised form to avoid flooding logs.
 pub struct SimMixPacket(Vec<u8>);
 
 impl Debug for SimMixPacket {
@@ -161,7 +163,7 @@ impl SurbAck {
     }
 
     /// Recover the first-hop node ID and the Sphinx ACK packet from the raw bytes
-    /// produced by [`prepare_for_sending`].
+    /// produced by [`prepare_for_sending`](Self::prepare_for_sending).
     ///
     /// This is the partial inverse of `prepare_for_sending`, performed by the
     /// gateway (final-hop node) when it dispatches the SURB back into the network.
@@ -212,8 +214,12 @@ impl SurbAck {
 #[derive(Default)]
 pub struct SphinxMessage;
 
-/// Abstracts adding a Sphinx [`Delay`](nym_sphinx::Delay) to a timestamp type.
+/// Abstracts adding a Sphinx [`Delay`] to a timestamp type.
+///
+/// Implemented for `u32` (1 tick = 1 ms) and [`Instant`](std::time::Instant)
+/// so the same mix logic can run against either timestamp flavour.
 pub trait AddDelay: Sized {
+    /// Return a new timestamp shifted forward by `delay`.
     fn add_delay(self, delay: nym_sphinx::Delay) -> Self;
 }
 
@@ -232,11 +238,11 @@ impl AddDelay for std::time::Instant {
 
 /// Timestamp types that can generate Sphinx delays and be advanced by them.
 ///
-/// Implemented for `u32` (discrete ticks, 1 tick = 1 ms) and [`Instant`]
-/// (wall-clock time).
+/// Implemented for `u32` (discrete ticks, 1 tick = 1 ms) and
+/// [`Instant`](std::time::Instant) (wall-clock time).
 pub trait GenerateDelay: Sized + Add<Self::Delay, Output = Self> {
     /// The delay unit that can be added to `Self` (e.g. `u32` ticks or
-    /// [`Duration`](std::time::Duration)).
+    /// [`Duration`]).
     type Delay;
 
     /// Draw a per-hop mix delay in milliseconds for inclusion in a Sphinx packet header.

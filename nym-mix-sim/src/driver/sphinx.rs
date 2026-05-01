@@ -21,7 +21,7 @@ use crate::{
     topology::{Topology, directory::Directory},
 };
 
-/// Concrete [`MixSimDriver`] instantiation that uses [`SphinxPacket`]s.
+/// Concrete [`MixSimDriver`] instantiation that uses [`SphinxPacket`](nym_sphinx::SphinxPacket)s.
 pub struct SphinxMixDriver(MixSimDriver<Instant>);
 
 impl SphinxMixDriver {

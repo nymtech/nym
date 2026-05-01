@@ -1,4 +1,4 @@
-use nym_crypto::{blake3, hmac::hmac::digest::ExtendableOutput};
+use nym_crypto::blake3;
 
 use crate::error::{
     MaskedByteError,
@@ -37,7 +37,8 @@ impl MaskedByte {
         hasher.update(mask);
         // avoid zero update
         hasher.update(&[0xFF, byte]);
-        hasher.finalize_xof_into(&mut output);
+        let mut xof = hasher.finalize_xof();
+        xof.fill(&mut output);
 
         Self(output)
     }
@@ -66,7 +67,8 @@ impl MaskedByte {
         for i in supported_versions {
             let mut t_hasher = hasher.clone();
             t_hasher.update(&[*i]);
-            t_hasher.finalize_xof_into(&mut buf);
+            let mut xof = t_hasher.finalize_xof();
+            xof.fill(&mut buf);
             if buf == self.0 {
                 return Ok(*i);
             }

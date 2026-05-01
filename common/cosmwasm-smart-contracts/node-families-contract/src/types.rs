@@ -309,6 +309,10 @@ pub struct AllPastFamilyInvitationsPagedResponse {
 /// re-join the same family more than once).
 pub type PastFamilyMemberCursor = (NodeId, u64);
 
+/// Cursor for paginating per-node past-member listings: identifies a single
+/// archive entry for a fixed node by `(family_id, counter)`.
+pub type PastFamilyMemberForNodeCursor = (NodeFamilyId, u64);
+
 /// Response to [`QueryMsg::GetPastMembersForFamilyPaged`](crate::QueryMsg::GetPastMembersForFamilyPaged).
 #[cw_serde]
 pub struct PastFamilyMembersPagedResponse {
@@ -323,6 +327,22 @@ pub struct PastFamilyMembersPagedResponse {
     /// Cursor to pass as `start_after` on the next call, or `None` if this
     /// page is empty (treat as end-of-list).
     pub start_next_after: Option<PastFamilyMemberCursor>,
+}
+
+/// Response to [`QueryMsg::GetPastMembersForNodePaged`](crate::QueryMsg::GetPastMembersForNodePaged).
+#[cw_serde]
+pub struct PastFamilyMembersForNodePagedResponse {
+    /// The node whose archived memberships were queried, echoed back so
+    /// paginated callers can correlate.
+    pub node_id: NodeId,
+
+    /// The archived membership records for this node on this page, in
+    /// ascending `(family_id, counter)` order.
+    pub members: Vec<PastFamilyMember>,
+
+    /// Cursor to pass as `start_after` on the next call, or `None` if this
+    /// page is empty (treat as end-of-list).
+    pub start_next_after: Option<PastFamilyMemberForNodeCursor>,
 }
 
 /// Response to [`QueryMsg::GetFamiliesPaged`](crate::QueryMsg::GetFamiliesPaged).

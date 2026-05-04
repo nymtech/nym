@@ -113,3 +113,27 @@ impl PeerInformation {
             .unwrap_or(i64::MAX)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const GIB: u64 = 1024 * 1024 * 1024;
+
+    #[test]
+    fn seeding_cache_from_empty_peer_recounts_all_existing_kernel_traffic() {
+        let registration_peer = Peer::default();
+        let cached_from_registration = PeerInformation::from(&registration_peer);
+        let kernel_peer = PeerInformation {
+            rx_bytes: 37 * GIB,
+            tx_bytes: 6 * GIB,
+        };
+
+        let old_spent = kernel_peer.consumed_kernel_bandwidth(&cached_from_registration);
+        assert_eq!(old_spent, (43 * GIB) as i64);
+
+        let cached_from_kernel = kernel_peer;
+        let fixed_spent = kernel_peer.consumed_kernel_bandwidth(&cached_from_kernel);
+        assert_eq!(fixed_spent, 0);
+    }
+}

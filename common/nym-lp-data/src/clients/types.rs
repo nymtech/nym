@@ -124,7 +124,7 @@ where
     const OVERHEAD_SIZE: usize = T::OVERHEAD_SIZE;
 
     fn to_transport_packet(
-        &self,
+        &mut self,
         frame: AddressedTimedData<Ts, T::Frame, NdId>,
     ) -> AddressedTimedData<Ts, Pkt, NdId> {
         self.transport.to_transport_packet(frame)

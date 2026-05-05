@@ -34,6 +34,7 @@ nym-mixnet-contract-common = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
 nym-contracts-common-testing = { workspace = true }
 
 [features]

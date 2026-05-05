@@ -8,12 +8,12 @@ use crate::storage::storage_indexes::{
     FamilyMembersIndex, NodeFamiliesIndex, NodeFamilyInvitationIndex, PastFamilyInvitationsIndex,
     PastFamilyMembersIndex,
 };
-use cosmwasm_std::{Addr, Env, Order, StdResult, Storage};
+use cosmwasm_std::{Addr, Coin, DepsMut, Env, Order, StdResult, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{IndexedMap, Item, Map};
 use node_families_contract_common::constants::storage_keys;
 use node_families_contract_common::{
-    FamilyInvitation, FamilyInvitationStatus, FamilyMembership, NodeFamiliesContractError,
+    Config, FamilyInvitation, FamilyInvitationStatus, FamilyMembership, NodeFamiliesContractError,
     NodeFamily, NodeFamilyId, PastFamilyInvitation, PastFamilyMember,
 };
 use nym_mixnet_contract_common::NodeId;
@@ -33,6 +33,10 @@ pub(crate) type FamilyMember = (NodeFamilyId, NodeId);
 pub struct NodeFamiliesStorage<'a> {
     /// Admin of the contract; gates privileged operations.
     pub(crate) contract_admin: Admin,
+
+    /// Runtime configuration (fees, length limits) persisted at instantiation
+    /// and consulted by transaction handlers.
+    pub(crate) config: Item<Config>,
 
     /// Address of the mixnet contract; used to verify a node id refers to a
     /// real, registered node.
@@ -97,6 +101,7 @@ impl NodeFamiliesStorage<'_> {
     pub fn new() -> Self {
         NodeFamiliesStorage {
             contract_admin: Admin::new(storage_keys::CONTRACT_ADMIN),
+            config: Item::new(storage_keys::CONFIG),
             mixnet_contract_address: Item::new(storage_keys::MIXNET_CONTRACT_ADDRESS),
             node_family_id_counter: Item::new(storage_keys::NODE_FAMILY_ID_COUNTER),
             families: IndexedMap::new(storage_keys::FAMILIES_NAMESPACE, NodeFamiliesIndex::new()),
@@ -123,6 +128,24 @@ impl NodeFamiliesStorage<'_> {
                 storage_keys::PAST_INVITATIONS_COUNTER_NAMESPACE,
             ),
         }
+    }
+
+    /// One-time storage initialisation called from the contract's `instantiate`
+    /// entry point. Persists the runtime [`Config`] and mixnet contract
+    /// address, and sets `sender` as the contract admin.
+    pub(crate) fn initialise(
+        &self,
+        deps: DepsMut,
+        sender: Addr,
+        mixnet_contract_address: Addr,
+        config: Config,
+    ) -> Result<(), NodeFamiliesContractError> {
+        self.config.save(deps.storage, &config)?;
+        self.mixnet_contract_address
+            .save(deps.storage, &mixnet_contract_address)?;
+
+        self.contract_admin.set(deps, Some(sender))?;
+        Ok(())
     }
 
     /// Allocate the next [`NodeFamilyId`] and persist the bumped counter.
@@ -200,6 +223,7 @@ impl NodeFamiliesStorage<'_> {
         &self,
         store: &mut dyn Storage,
         env: &Env,
+        fee: Coin,
         owner: Addr,
         name: String,
         description: String,
@@ -210,6 +234,7 @@ impl NodeFamiliesStorage<'_> {
             name,
             description,
             owner,
+            paid_fee: fee,
             members: 0,
             created_at: env.block.time.seconds(),
         };
@@ -652,6 +677,7 @@ mod tests {
     fn register_new_family_persists_with_expected_fields() {
         let mut tester = init_contract_tester();
         let s = NodeFamiliesStorage::new();
+        let fee = tester.family_fee();
         let env = tester.env();
         let owner = tester.addr_make("alice");
 
@@ -659,6 +685,7 @@ mod tests {
             .register_new_family(
                 tester.storage_mut(),
                 &env,
+                fee,
                 owner.clone(),
                 "fam".into(),
                 "desc".into(),
@@ -694,10 +721,12 @@ mod tests {
         let env = tester.env();
         let alice = tester.addr_make("alice");
         let bob = tester.addr_make("bob");
+        let fee = tester.family_fee();
 
         s.register_new_family(
             tester.storage_mut(),
             &env,
+            fee.clone(),
             alice,
             "shared".into(),
             "".into(),
@@ -705,8 +734,14 @@ mod tests {
         .unwrap();
 
         // unique-index defence-in-depth check
-        let res =
-            s.register_new_family(tester.storage_mut(), &env, bob, "shared".into(), "".into());
+        let res = s.register_new_family(
+            tester.storage_mut(),
+            &env,
+            fee,
+            bob,
+            "shared".into(),
+            "".into(),
+        );
         assert!(res.is_err());
     }
 
@@ -716,6 +751,7 @@ mod tests {
         let s = NodeFamiliesStorage::new();
         let env = tester.env();
         let alice = tester.addr_make("alice");
+        let fee = tester.family_fee();
 
         tester.make_family(&alice);
 
@@ -723,6 +759,7 @@ mod tests {
         let res = s.register_new_family(
             tester.storage_mut(),
             &env,
+            fee,
             alice,
             "second".into(),
             "".into(),
@@ -1142,6 +1179,7 @@ mod tests {
     #[test]
     fn after_disband_owner_can_register_again_with_new_id() {
         let mut tester = init_contract_tester();
+        let fee = tester.family_fee();
         let s = NodeFamiliesStorage::new();
         let env = tester.env();
         let alice = tester.addr_make("alice");
@@ -1149,7 +1187,14 @@ mod tests {
         let f1 = tester.make_family(&alice);
         s.disband_family(tester.storage_mut(), &env, f1.id).unwrap();
         let f2 = s
-            .register_new_family(tester.storage_mut(), &env, alice, "2".into(), "".into())
+            .register_new_family(
+                tester.storage_mut(),
+                &env,
+                fee,
+                alice,
+                "2".into(),
+                "".into(),
+            )
             .unwrap();
 
         // ids monotonically increase, never recycled

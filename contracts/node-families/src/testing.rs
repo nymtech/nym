@@ -4,15 +4,17 @@
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::helpers::normalise_family_name;
 use crate::storage::NodeFamiliesStorage;
-use cosmwasm_std::{Addr, MessageInfo, StdError, StdResult, Storage};
+use cosmwasm_std::{coin, Addr, Coin, MessageInfo, StdError, StdResult, Storage};
+use mixnet_contract::testable_mixnet_contract::MixnetContract;
+use node_families_contract_common::constants::storage_keys;
 use node_families_contract_common::{
-    ExecuteMsg, FamilyInvitation, InstantiateMsg, MigrateMsg, NodeFamiliesContractError,
-    NodeFamily, NodeFamilyId, QueryMsg,
+    msg::Percent, Config, ExecuteMsg, FamilyInvitation, InstantiateMsg, MigrateMsg,
+    NodeFamiliesContractError, NodeFamily, NodeFamilyId, QueryMsg,
 };
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, ChainOpts,
-    ContractFn, ContractOpts, ContractTester, DenomExt, PermissionedFn, QueryFn, RandExt,
-    TestableNymContract,
+    CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
+    PermissionedFn, QueryFn, RandExt, TestableNymContract,
 };
 use nym_mixnet_contract_common::NodeId;
 use serde::{de::DeserializeOwned, Serialize};
@@ -43,13 +45,36 @@ impl TestableNymContract for NodeFamiliesContract {
         migrate
     }
 
-    fn base_init_msg() -> Self::InitMsg {
-        InstantiateMsg {}
+    fn init() -> ContractTester<Self>
+    where
+        Self: Sized,
+    {
+        let builder = ContractTesterBuilder::new().instantiate::<MixnetContract>(None);
+
+        // we just instantiated it
+        let mixnet_address = builder
+            .well_known_contracts
+            .get(MixnetContract::NAME)
+            .unwrap()
+            .clone();
+
+        builder
+            .instantiate::<Self>(Some(InstantiateMsg {
+                config: Config {
+                    create_family_fee: coin(100_000000, "unym"),
+                    returned_fee_percent: Percent::from_percentage_value(50).unwrap(),
+                    family_name_length_limit: 20,
+                    family_description_length_limit: 200,
+                },
+                mixnet_contract_address: mixnet_address.to_string(),
+            }))
+            .build()
     }
 }
 
 pub fn init_contract_tester() -> ContractTester<NodeFamiliesContract> {
     NodeFamiliesContract::init()
+        .with_common_storage_key(CommonStorageKeys::Admin, storage_keys::CONTRACT_ADMIN)
 }
 
 pub trait NodeFamiliesContractTesterExt:
@@ -116,13 +141,20 @@ pub trait NodeFamiliesContractTesterExt:
         self.set_contract_storage_value(address, key, value)
     }
 
+    fn family_fee(&self) -> Coin {
+        let s = NodeFamiliesStorage::new();
+        s.config.load(self).unwrap().create_family_fee
+    }
+
     fn make_named_family(&mut self, owner: &Addr, name: &str) -> NodeFamily {
         let name = normalise_family_name(name);
         let env = self.env();
+        let fee = self.family_fee();
         NodeFamiliesStorage::new()
             .register_new_family(
                 self,
                 &env,
+                fee,
                 owner.clone(),
                 name.to_string(),
                 "dummy".to_string(),

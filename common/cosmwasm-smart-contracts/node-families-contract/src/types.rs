@@ -3,6 +3,7 @@
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
+use nym_contracts_common::Percent;
 use nym_mixnet_contract_common::NodeId;
 
 /// Identifier of a node family.
@@ -11,10 +12,22 @@ use nym_mixnet_contract_common::NodeId;
 /// family is later disbanded.
 pub type NodeFamilyId = u32;
 
+fn fifty_percent() -> Percent {
+    // SAFETY: correct hardcoded value
+    #[allow(clippy::unwrap_used)]
+    Percent::from_percentage_value(50).unwrap()
+}
+
 /// Runtime configuration of the node families contract.
+#[cw_serde]
 pub struct Config {
     /// Fee charged on each successful `create_family` execution.
     pub create_family_fee: Coin,
+
+    /// Fraction of `create_family_fee` returned to the owner when their family
+    /// is disbanded.
+    #[serde(default = "fifty_percent")]
+    pub returned_fee_percent: Percent,
 
     /// Maximum allowed length, in characters, of a family name.
     pub family_name_length_limit: usize,
@@ -37,6 +50,10 @@ pub struct NodeFamily {
 
     /// The owner of the node family
     pub owner: Addr,
+
+    /// Records the fee paid when the family was created,
+    /// so that the appropriate amount could be returned upon it getting disbanded.
+    pub paid_fee: Coin,
 
     /// Memoized value of the current number of members in the node family
     /// Used to detect if the family is empty

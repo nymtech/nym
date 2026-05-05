@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::{
-    GlobalPastFamilyInvitationCursor, NodeFamilyId, PastFamilyInvitationCursor,
+    Config, GlobalPastFamilyInvitationCursor, NodeFamilyId, PastFamilyInvitationCursor,
     PastFamilyInvitationForNodeCursor, PastFamilyMemberCursor, PastFamilyMemberForNodeCursor,
 };
 use cosmwasm_schema::cw_serde;
@@ -19,10 +19,14 @@ use crate::{
     PendingInvitationsPagedResponse,
 };
 
+pub use nym_contracts_common::Percent;
+
 /// Message used to instantiate the node families contract.
 #[cw_serde]
 pub struct InstantiateMsg {
-    //
+    pub config: Config,
+
+    pub mixnet_contract_address: String,
 }
 
 /// Execute messages accepted by the contract.

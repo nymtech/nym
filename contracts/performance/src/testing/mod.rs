@@ -2,35 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::{execute, instantiate, migrate, query};
-use crate::helpers::MixnetContractQuerier;
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::testing::{message_info, mock_env, MockApi};
-use cosmwasm_std::{
-    coin, coins, Addr, ContractInfo, Deps, DepsMut, Env, MessageInfo, QuerierWrapper, StdError,
-    StdResult,
-};
-use mixnet_contract::testable_mixnet_contract::MixnetContract;
-use nym_contracts_common::signing::{ContractMessageContent, MessageSignature};
+use cosmwasm_std::testing::{mock_env, MockApi};
+use cosmwasm_std::{Addr, ContractInfo, Deps, DepsMut, Env, QuerierWrapper, StdError, StdResult};
+use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
 use nym_contracts_common::Percent;
 use nym_contracts_common_testing::{
     addr, AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt,
     ChainOpts, CommonStorageKeys, ContractFn, ContractOpts, ContractStorageWrapper, ContractTester,
     ContractTesterBuilder, DenomExt, PermissionedFn, QueryFn, RandExt, TestableNymContract,
-    TEST_DENOM,
 };
-use nym_crypto::asymmetric::ed25519;
-use nym_mixnet_contract_common::nym_node::{NodeDetailsResponse, NodeOwnershipResponse, Role};
-use nym_mixnet_contract_common::{
-    CurrentIntervalResponse, EpochId, Interval, NodeCostParams, NymNode, NymNodeBondingPayload,
-    RoleAssignment, SignableNymNodeBondingMsg, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT,
-    DEFAULT_PROFIT_MARGIN_PERCENT,
-};
+use nym_mixnet_contract_common::EpochId;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NodeId, NodePerformance, NodeResults,
     NymPerformanceContractError, QueryMsg,
 };
-use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::str::FromStr;
 
@@ -214,136 +201,8 @@ pub(crate) trait PerformanceContractTesterExt:
     + BankExt
     + ArbitraryContractStorageReader
     + ArbitraryContractStorageWriter
+    + EmbeddedMixnetContractExt
 {
-    fn mixnet_contract_address(&self) -> StdResult<Addr> {
-        NYM_PERFORMANCE_CONTRACT_STORAGE
-            .mixnet_contract_address
-            .load(self.deps().storage)
-    }
-
-    fn execute_mixnet_contract(
-        &mut self,
-        sender: MessageInfo,
-        msg: &nym_mixnet_contract_common::ExecuteMsg,
-    ) -> StdResult<()> {
-        let address = self.mixnet_contract_address()?;
-
-        self.execute_arbitrary_contract(address, sender, msg)
-            .map_err(|err| {
-                StdError::generic_err(format!("mixnet contract execution failure: {err}"))
-            })?;
-        Ok(())
-    }
-
-    fn read_from_mixnet_contract_storage<T: DeserializeOwned>(
-        &self,
-        key: impl AsRef<[u8]>,
-    ) -> StdResult<T> {
-        let address = self.mixnet_contract_address()?;
-
-        self.must_read_value_from_contract_storage(address, key)
-    }
-
-    fn write_to_mixnet_contract_storage(
-        &mut self,
-        key: impl AsRef<[u8]>,
-        value: impl AsRef<[u8]>,
-    ) -> StdResult<()> {
-        let address = self.mixnet_contract_address()?;
-
-        <Self as ArbitraryContractStorageWriter>::set_contract_storage(self, address, key, value);
-        Ok(())
-    }
-
-    fn write_to_mixnet_contract_storage_value<T: Serialize>(
-        &mut self,
-        key: impl AsRef<[u8]>,
-        value: &T,
-    ) -> StdResult<()> {
-        let address = self.mixnet_contract_address()?;
-
-        self.set_contract_storage_value(address, key, value)
-    }
-
-    fn current_mixnet_epoch(&self) -> StdResult<EpochId> {
-        let address = self.mixnet_contract_address()?;
-
-        Ok(self
-            .deps()
-            .querier
-            .query_current_mixnet_interval(address.clone())?
-            .current_epoch_absolute_id())
-    }
-
-    fn advance_mixnet_epoch(&mut self) -> StdResult<()> {
-        let interval_details: CurrentIntervalResponse = self.query_arbitrary_contract(
-            self.mixnet_contract_address()?,
-            &nym_mixnet_contract_common::QueryMsg::GetCurrentIntervalDetails {},
-        )?;
-        let until_end = interval_details.time_until_current_epoch_end().as_secs();
-        let timestamp = self.env().block.time.plus_seconds(until_end + 1);
-        self.set_block_time(timestamp);
-        self.next_block();
-
-        // this was hardcoded in mixnet init
-        let mixnet_rewarder = self.addr_make("rewarder");
-        let rewarder = message_info(&mixnet_rewarder, &[]);
-        self.execute_mixnet_contract(
-            rewarder.clone(),
-            &nym_mixnet_contract_common::ExecuteMsg::BeginEpochTransition {},
-        )?;
-        self.execute_mixnet_contract(
-            rewarder.clone(),
-            &nym_mixnet_contract_common::ExecuteMsg::ReconcileEpochEvents { limit: None },
-        )?;
-
-        for role in [
-            Role::ExitGateway,
-            Role::EntryGateway,
-            Role::Layer1,
-            Role::Layer2,
-            Role::Layer3,
-            Role::Standby,
-        ] {
-            self.execute_mixnet_contract(
-                rewarder.clone(),
-                &nym_mixnet_contract_common::ExecuteMsg::AssignRoles {
-                    assignment: RoleAssignment {
-                        role,
-                        nodes: vec![],
-                    },
-                },
-            )?;
-        }
-        Ok(())
-    }
-
-    fn set_mixnet_epoch(&mut self, epoch_id: EpochId) -> StdResult<()> {
-        let address = self.mixnet_contract_address()?;
-
-        let interval = self
-            .deps()
-            .querier
-            .query_current_mixnet_interval(address.clone())?;
-
-        let mut to_update = if interval.current_epoch_absolute_id() <= epoch_id {
-            interval
-        } else {
-            Interval::init_interval(
-                interval.epochs_in_interval(),
-                interval.epoch_length(),
-                &mock_env(),
-            )
-        };
-
-        let current = to_update.current_epoch_absolute_id();
-        let diff = epoch_id - current;
-        for _ in 0..diff {
-            to_update = to_update.advance_epoch();
-        }
-        self.set_contract_storage_value(&address, b"ci", &to_update)
-    }
-
     fn authorise_network_monitor(
         &mut self,
         addr: &Addr,
@@ -434,68 +293,6 @@ pub(crate) trait PerformanceContractTesterExt:
             .results
             .load(self.deps().storage, (epoch_id, node_id))?;
         Ok(scores)
-    }
-
-    fn bond_dummy_nymnode(&mut self) -> Result<NodeId, NymPerformanceContractError> {
-        let node_owner = self.generate_account_with_balance();
-        let pledge = coins(100_000000, TEST_DENOM);
-        let keypair = ed25519::KeyPair::new(self.raw_rng());
-        let identity_key = keypair.public_key().to_base58_string();
-
-        let node = NymNode {
-            host: "1.2.3.4".to_string(),
-            custom_http_port: None,
-            identity_key,
-        };
-        let cost_params = NodeCostParams {
-            profit_margin_percent: Percent::from_percentage_value(DEFAULT_PROFIT_MARGIN_PERCENT)
-                .unwrap(),
-            interval_operating_cost: coin(DEFAULT_INTERVAL_OPERATING_COST_AMOUNT, TEST_DENOM),
-        };
-        // initial signing nonce is 0 for a new address
-        let signing_nonce = 0;
-
-        let payload = NymNodeBondingPayload::new(node.clone(), cost_params.clone());
-        let content = ContractMessageContent::new(node_owner.clone(), pledge.clone(), payload);
-        let msg = SignableNymNodeBondingMsg::new(signing_nonce, content);
-
-        let owner_signature = keypair.private_key().sign(msg.to_plaintext()?);
-        let owner_signature = MessageSignature::from(owner_signature.to_bytes().as_ref());
-
-        self.execute_mixnet_contract(
-            message_info(&node_owner, &pledge),
-            &nym_mixnet_contract_common::ExecuteMsg::BondNymNode {
-                node,
-                cost_params,
-                owner_signature,
-            },
-        )?;
-
-        let bond: NodeOwnershipResponse = self.query_arbitrary_contract(
-            self.mixnet_contract_address()?,
-            &nym_mixnet_contract_common::QueryMsg::GetOwnedNymNode {
-                address: node_owner.to_string(),
-            },
-        )?;
-
-        Ok(bond.details.unwrap().bond_information.node_id)
-    }
-
-    fn unbond_nymnode(&mut self, node_id: NodeId) -> Result<(), NymPerformanceContractError> {
-        let bond: NodeDetailsResponse = self.query_arbitrary_contract(
-            self.mixnet_contract_address()?,
-            &nym_mixnet_contract_common::QueryMsg::GetNymNodeDetails { node_id },
-        )?;
-
-        let node_owner = bond.details.unwrap().bond_information.owner;
-
-        self.execute_mixnet_contract(
-            message_info(&node_owner, &[]),
-            &nym_mixnet_contract_common::ExecuteMsg::UnbondNymNode {},
-        )?;
-
-        self.advance_mixnet_epoch()?;
-        Ok(())
     }
 }
 

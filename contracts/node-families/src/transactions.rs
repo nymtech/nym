@@ -47,7 +47,7 @@ pub(crate) fn try_create_family(
     let storage = NodeFamiliesStorage::new();
     let config = storage.config.load(deps.storage)?;
 
-    // check for correct number of coins and denom
+    // check for the correct number of coins and denom
     let submitted = cw_utils::must_pay(&info, &config.create_family_fee.denom)?;
 
     // verify the amount
@@ -263,6 +263,8 @@ mod tests {
         use super::*;
         use crate::testing::NodeFamiliesContractTesterExt;
         use cosmwasm_std::coins;
+        use cw_utils::PaymentError;
+        use nym_contracts_common_testing::TEST_DENOM;
 
         #[test]
         fn happy_path_persists_normalised_family() -> anyhow::Result<()> {
@@ -295,7 +297,6 @@ mod tests {
         #[test]
         fn rejects_when_no_funds_attached() {
             let mut tester = init_contract_tester();
-            let fee = tester.family_fee();
             let alice = tester.make_sender_with_funds("alice", &[]);
             let env = tester.env();
             let deps = tester.deps_mut();
@@ -310,10 +311,7 @@ mod tests {
             .unwrap_err();
             assert_eq!(
                 err,
-                NodeFamiliesContractError::InvalidFamilyCreationFee {
-                    expected: fee,
-                    received: vec![],
-                }
+                NodeFamiliesContractError::InvalidDeposit(PaymentError::NoFunds {})
             );
         }
 
@@ -363,10 +361,9 @@ mod tests {
             .unwrap_err();
             assert_eq!(
                 err,
-                NodeFamiliesContractError::InvalidFamilyCreationFee {
-                    expected: fee,
-                    received: wrong_denom,
-                }
+                NodeFamiliesContractError::InvalidDeposit(PaymentError::MissingDenom(
+                    TEST_DENOM.to_string()
+                ))
             );
         }
 

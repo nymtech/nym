@@ -12,9 +12,9 @@ use node_families_contract_common::{
     NodeFamily, NodeFamilyId, QueryMsg,
 };
 use nym_contracts_common_testing::{
-    AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, ChainOpts,
+    AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
     CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
-    PermissionedFn, QueryFn, RandExt, TestableNymContract,
+    PermissionedFn, QueryFn, RandExt, TestableNymContract, TEST_DENOM,
 };
 use nym_mixnet_contract_common::NodeId;
 use serde::{de::DeserializeOwned, Serialize};
@@ -61,7 +61,7 @@ impl TestableNymContract for NodeFamiliesContract {
         builder
             .instantiate::<Self>(Some(InstantiateMsg {
                 config: Config {
-                    create_family_fee: coin(100_000000, "unym"),
+                    create_family_fee: coin(100_000000, TEST_DENOM),
                     family_name_length_limit: 20,
                     family_description_length_limit: 200,
                 },
@@ -84,6 +84,7 @@ pub trait NodeFamiliesContractTesterExt:
     > + ChainOpts
     + AdminExt
     + DenomExt
+    + BankExt
     + RandExt
     + Storage
     + ArbitraryContractStorageReader

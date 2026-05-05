@@ -19,8 +19,6 @@ use crate::{
     PendingInvitationsPagedResponse,
 };
 
-pub use nym_contracts_common::Percent;
-
 /// Message used to instantiate the node families contract.
 #[cw_serde]
 pub struct InstantiateMsg {

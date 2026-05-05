@@ -61,3 +61,10 @@ pub mod storage_keys {
     /// the same family more than once).
     pub const PAST_FAMILY_MEMBER_COUNTER_NAMESPACE: &str = "past-family-member-counter";
 }
+
+pub mod events {
+    pub const FAMILY_CREATION_EVENT_NAME: &str = "family_creation";
+    pub const FAMILY_CREATION_EVENT_FAMILY_NAME: &str = "family_name";
+    pub const FAMILY_CREATION_EVENT_OWNER_ADDRESS: &str = "owner_address";
+    pub const FAMILY_CREATION_EVENT_FAMILY_ID: &str = "family_id";
+}

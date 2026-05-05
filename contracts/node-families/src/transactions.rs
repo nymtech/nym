@@ -114,13 +114,11 @@ mod tests {
     use cosmwasm_std::coin;
     use cosmwasm_std::testing::message_info;
     use cw_controllers::AdminError;
-    use node_families_contract_common::msg::Percent;
     use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
 
     fn updated_config() -> Config {
         Config {
             create_family_fee: coin(999, "unym"),
-            returned_fee_percent: Percent::from_percentage_value(75).unwrap(),
             family_name_length_limit: 1,
             family_description_length_limit: 2,
         }

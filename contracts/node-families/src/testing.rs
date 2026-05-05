@@ -8,8 +8,8 @@ use cosmwasm_std::{coin, Addr, Coin, MessageInfo, StdError, StdResult, Storage};
 use mixnet_contract::testable_mixnet_contract::MixnetContract;
 use node_families_contract_common::constants::storage_keys;
 use node_families_contract_common::{
-    msg::Percent, Config, ExecuteMsg, FamilyInvitation, InstantiateMsg, MigrateMsg,
-    NodeFamiliesContractError, NodeFamily, NodeFamilyId, QueryMsg,
+    Config, ExecuteMsg, FamilyInvitation, InstantiateMsg, MigrateMsg, NodeFamiliesContractError,
+    NodeFamily, NodeFamilyId, QueryMsg,
 };
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, ChainOpts,
@@ -62,7 +62,6 @@ impl TestableNymContract for NodeFamiliesContract {
             .instantiate::<Self>(Some(InstantiateMsg {
                 config: Config {
                     create_family_fee: coin(100_000000, "unym"),
-                    returned_fee_percent: Percent::from_percentage_value(50).unwrap(),
                     family_name_length_limit: 20,
                     family_description_length_limit: 200,
                 },

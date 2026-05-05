@@ -211,13 +211,11 @@ mod tests {
         use super::*;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
-        use node_families_contract_common::msg::Percent;
         use node_families_contract_common::Config;
 
         fn mock_config() -> Config {
             Config {
                 create_family_fee: coin(123, "unym"),
-                returned_fee_percent: Percent::from_percentage_value(50).unwrap(),
                 family_name_length_limit: 20,
                 family_description_length_limit: 100,
             }

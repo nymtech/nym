@@ -12,6 +12,11 @@ use crate::queries::{
     query_pending_invitations_for_family_paged, query_pending_invitations_for_node_paged,
 };
 use crate::storage::NodeFamiliesStorage;
+use crate::transactions::{
+    try_accept_family_invitation, try_create_family, try_disband_family, try_invite_to_family,
+    try_kick_from_family, try_leave_family, try_reject_family_invitation,
+    try_revoke_family_invitation, try_update_config,
+};
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
@@ -58,11 +63,25 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, NodeFamiliesContractError> {
-    let _ = deps;
-    let _ = env;
-    let _ = info;
-    let _ = msg;
-    Ok(Response::default())
+    match msg {
+        ExecuteMsg::UpdateConfig { config } => try_update_config(deps, env, info, config),
+        ExecuteMsg::CreateFamily { name, description } => {
+            try_create_family(deps, env, info, name, description)
+        }
+        ExecuteMsg::DisbandFamily {} => try_disband_family(deps, env, info),
+        ExecuteMsg::InviteToFamily { node_id } => try_invite_to_family(deps, env, info, node_id),
+        ExecuteMsg::RevokeFamilyInvitation { node_id } => {
+            try_revoke_family_invitation(deps, env, info, node_id)
+        }
+        ExecuteMsg::AcceptFamilyInvitation { family_id, node_id } => {
+            try_accept_family_invitation(deps, env, info, family_id, node_id)
+        }
+        ExecuteMsg::RejectFamilyInvitation { family_id, node_id } => {
+            try_reject_family_invitation(deps, env, info, family_id, node_id)
+        }
+        ExecuteMsg::LeaveFamily { node_id } => try_leave_family(deps, env, info, node_id),
+        ExecuteMsg::KickFromFamily { node_id } => try_kick_from_family(deps, env, info, node_id),
+    }
 }
 
 /// Read-only dispatcher. Concrete handlers live in [`crate::queries`] and are

@@ -32,7 +32,43 @@ pub struct InstantiateMsg {
 /// Execute messages accepted by the contract.
 #[cw_serde]
 pub enum ExecuteMsg {
-    //
+    /// Replace the contract's runtime [`Config`]. Restricted to the contract
+    /// admin.
+    UpdateConfig { config: Config },
+
+    /// Create a new family owned by the message sender. The configured
+    /// `create_family_fee` must be attached as funds.
+    CreateFamily { name: String, description: String },
+
+    /// Disband the family owned by the message sender. The family must have
+    /// no current members; any still-pending invitations are revoked.
+    DisbandFamily {},
+
+    /// Invite a node to the family owned by the message sender.
+    InviteToFamily { node_id: NodeId },
+
+    /// Revoke a still-pending invitation previously issued by the sender's
+    /// family.
+    RevokeFamilyInvitation { node_id: NodeId },
+
+    /// Accept a pending invitation. The sender must control `node_id`.
+    AcceptFamilyInvitation {
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    },
+
+    /// Reject a pending invitation. The sender must control `node_id`.
+    RejectFamilyInvitation {
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    },
+
+    /// Leave the family `node_id` currently belongs to. The sender must
+    /// control `node_id`.
+    LeaveFamily { node_id: NodeId },
+
+    /// Remove `node_id` from the family owned by the message sender.
+    KickFromFamily { node_id: NodeId },
 }
 
 /// Query messages accepted by the contract.

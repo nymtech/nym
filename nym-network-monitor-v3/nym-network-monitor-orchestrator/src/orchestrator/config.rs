@@ -8,6 +8,7 @@ use std::net::SocketAddr;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::time::Duration;
+use tracing::info;
 use url::Url;
 
 #[derive(Debug, Clone)]
@@ -81,24 +82,34 @@ impl Config {
             || self.mixnet_contract_address.is_none()
             || self.network_monitors_contract_address.is_none()
         {
+            info!("using NymNetworkDetails from env vars");
             NymNetworkDetails::new_from_env()
         } else {
+            info!("using mainnet as base for NymNetworkDetails");
             NymNetworkDetails::new_mainnet()
         };
 
         base_network_details.set_nym_api_urls(vec![self.nym_api_endpoint.clone()]);
 
         if let Some(rpc_endpoint) = &self.nyxd_rpc_endpoint {
-            base_network_details.endpoints =
-                vec![ValidatorDetails::new_nyxd_only(rpc_endpoint.as_str())];
+            info!("overwriting RPC endpoint with {rpc_endpoint}");
+            base_network_details.endpoints = vec![ValidatorDetails::new(
+                rpc_endpoint.as_str(),
+                Some(self.nym_api_endpoint.as_str()),
+                None,
+            )];
         }
 
         if let Some(mixnet_contract_address) = &self.mixnet_contract_address {
+            info!("overwriting mixnet contract address with {mixnet_contract_address}");
             base_network_details.contracts.mixnet_contract_address =
                 Some(mixnet_contract_address.to_string());
         }
 
         if let Some(network_monitors_contract_address) = &self.network_monitors_contract_address {
+            info!(
+                "overwriting network monitors contract address with {network_monitors_contract_address}"
+            );
             base_network_details
                 .contracts
                 .network_monitors_contract_address =
@@ -106,6 +117,8 @@ impl Config {
         }
 
         let client_config = client::Config::try_from_nym_network_details(&base_network_details)?;
+
+        info!("using the following config: {client_config:#?}");
         Ok(client_config)
     }
 }

@@ -9,6 +9,10 @@
 pub mod storage_keys {
     /// `Item<Addr>`: address of the mixnet contract used to validate node existence.
     pub const MIXNET_CONTRACT_ADDRESS: &str = "mixnet-contract-address";
+
+    /// `Item<Config>`: runtime configuration (fees, length limits) set at instantiation.
+    pub const CONFIG: &str = "config";
+
     /// `Admin` (cw-controllers): admin allowed to perform privileged operations.
     pub const CONTRACT_ADMIN: &str = "contract-admin";
     /// `Item<NodeFamilyId>`: monotonically increasing id counter for new families.

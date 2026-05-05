@@ -11,6 +11,7 @@ use crate::queries::{
     query_past_members_for_node_paged, query_pending_invitation,
     query_pending_invitations_for_family_paged, query_pending_invitations_for_node_paged,
 };
+use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
@@ -29,18 +30,21 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, NodeFamiliesContractError> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     set_build_information!(deps.storage)?;
 
-    let _ = env;
-    let _ = info;
-    let _ = msg;
+    let mixnet_contract_address = deps.api.addr_validate(&msg.mixnet_contract_address)?;
 
-    // NodeFamiliesStorage::new().initialise(deps, env, info.sender, &msg)?;
+    NodeFamiliesStorage::new().initialise(
+        deps,
+        info.sender,
+        mixnet_contract_address,
+        msg.config,
+    )?;
 
     Ok(Response::default())
 }
@@ -177,4 +181,147 @@ pub fn migrate(
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Default::default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(test)]
+    mod contract_instantiation {
+        use super::*;
+        use cosmwasm_std::coin;
+        use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
+        use node_families_contract_common::msg::Percent;
+        use node_families_contract_common::Config;
+
+        fn mock_config() -> Config {
+            Config {
+                create_family_fee: coin(123, "unym"),
+                returned_fee_percent: Percent::from_percentage_value(50).unwrap(),
+                family_name_length_limit: 20,
+                family_description_length_limit: 100,
+            }
+        }
+
+        #[test]
+        fn sets_contract_admin_to_the_message_sender() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let mixnet_contract_address = deps.api.addr_make("mixnet-contract");
+            let some_sender = deps.api.addr_make("some_sender");
+
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&some_sender, &[]),
+                InstantiateMsg {
+                    config: mock_config(),
+                    mixnet_contract_address: mixnet_contract_address.to_string(),
+                },
+            )?;
+
+            let deps = deps.as_ref();
+
+            NodeFamiliesStorage::new()
+                .contract_admin
+                .assert_admin(deps, &some_sender)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn persists_the_provided_config() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let mixnet_contract_address = deps.api.addr_make("mixnet-contract");
+            let sender = deps.api.addr_make("some_sender");
+            let config = mock_config();
+
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&sender, &[]),
+                InstantiateMsg {
+                    config: config.clone(),
+                    mixnet_contract_address: mixnet_contract_address.to_string(),
+                },
+            )?;
+
+            let stored = NodeFamiliesStorage::new()
+                .config
+                .load(deps.as_ref().storage)?;
+            assert_eq!(stored, config);
+
+            Ok(())
+        }
+
+        #[test]
+        fn persists_the_validated_mixnet_contract_address() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let mixnet_contract_address = deps.api.addr_make("mixnet-contract");
+            let sender = deps.api.addr_make("some_sender");
+
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&sender, &[]),
+                InstantiateMsg {
+                    config: mock_config(),
+                    mixnet_contract_address: mixnet_contract_address.to_string(),
+                },
+            )?;
+
+            let stored = NodeFamiliesStorage::new()
+                .mixnet_contract_address
+                .load(deps.as_ref().storage)?;
+            assert_eq!(stored, mixnet_contract_address);
+
+            Ok(())
+        }
+
+        #[test]
+        fn errors_on_invalid_mixnet_contract_address() {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let sender = deps.api.addr_make("some_sender");
+
+            let res = instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&sender, &[]),
+                InstantiateMsg {
+                    config: mock_config(),
+                    mixnet_contract_address: "not-a-valid-bech32-address".to_string(),
+                },
+            );
+
+            assert!(res.is_err());
+        }
+
+        #[test]
+        fn records_the_cw2_contract_version() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let mixnet_contract_address = deps.api.addr_make("mixnet-contract");
+            let sender = deps.api.addr_make("some_sender");
+
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&sender, &[]),
+                InstantiateMsg {
+                    config: mock_config(),
+                    mixnet_contract_address: mixnet_contract_address.to_string(),
+                },
+            )?;
+
+            let version = cw2::get_contract_version(deps.as_ref().storage)?;
+            assert_eq!(version.contract, CONTRACT_NAME);
+            assert_eq!(version.version, CONTRACT_VERSION);
+
+            Ok(())
+        }
+    }
 }

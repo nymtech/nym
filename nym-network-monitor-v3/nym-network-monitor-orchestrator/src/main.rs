@@ -3,6 +3,7 @@
 
 use crate::cli::Cli;
 use clap::Parser;
+use nym_bin_common::bin_info_owned;
 use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;
 use nym_bin_common::logging::tracing_subscriber::util::SubscriberInitExt;
 use nym_bin_common::logging::{
@@ -38,6 +39,9 @@ async fn main() -> anyhow::Result<()> {
     setup_logger()?;
     let cli = Cli::parse();
     setup_env(cli.config_env_file.as_ref());
+
+    let bin_info = bin_info_owned!();
+    info!("using the following version: {bin_info}");
 
     cli.execute().await?;
 

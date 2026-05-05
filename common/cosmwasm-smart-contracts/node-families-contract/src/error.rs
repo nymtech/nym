@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::NodeFamilyId;
+use cosmwasm_std::{Addr, Coin};
 use cw_controllers::AdminError;
+use cw_utils::PaymentError;
 use nym_mixnet_contract_common::NodeId;
 use thiserror::Error;
 
@@ -55,6 +57,51 @@ pub enum NodeFamiliesContractError {
         node_id: NodeId,
         expires_at: u64,
         now: u64,
+    },
+
+    // AI-DEV: add comments here
+    #[error("invalid fee provided: {0}")]
+    InvalidDeposit(#[from] PaymentError),
+
+    /// The funds attached to a `CreateFamily` execution don't match the
+    /// configured `create_family_fee`.
+    #[error("expected exactly {expected} as family creation fee; received {received:?}")]
+    InvalidFamilyCreationFee { expected: Coin, received: Vec<Coin> },
+
+    /// The submitted family name normalised to the empty string (i.e. it
+    /// contained no ASCII alphanumeric characters).
+    #[error("family name cannot be empty after normalisation")]
+    EmptyFamilyName,
+
+    /// The submitted family name exceeds the configured length limit.
+    #[error("family name length {length} exceeds the configured limit of {limit}")]
+    FamilyNameTooLong { length: usize, limit: usize },
+
+    /// The submitted family description exceeds the configured length limit.
+    #[error("family description length {length} exceeds the configured limit of {limit}")]
+    FamilyDescriptionTooLong { length: usize, limit: usize },
+
+    /// The transaction sender already owns a family.
+    #[error("address {address} already owns family {family_id}")]
+    SenderAlreadyOwnsAFamily {
+        address: Addr,
+        family_id: NodeFamilyId,
+    },
+
+    /// A family with the requested (normalised) name already exists.
+    #[error("a family with name {name:?} already exists (id {family_id})")]
+    FamilyNameAlreadyTaken {
+        name: String,
+        family_id: NodeFamilyId,
+    },
+
+    /// A node controlled by the address is currently a member of a family,
+    /// so the address cannot also become a family owner or join another family.
+    #[error("address {address} controls node {node_id} which is currently in family {family_id}")]
+    AlreadyInFamily {
+        address: Addr,
+        node_id: NodeId,
+        family_id: NodeFamilyId,
     },
 
     /// Wraps errors raised by `cw-controllers::Admin` (e.g. caller is not admin).

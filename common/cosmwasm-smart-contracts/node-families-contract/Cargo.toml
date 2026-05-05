@@ -20,6 +20,7 @@ schemars = { workspace = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-controllers = { workspace = true }
+cw-utils = { workspace = true }
 
 nym-contracts-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }

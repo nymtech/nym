@@ -27,6 +27,7 @@ cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
 serde = { workspace = true }
 cosmwasm-schema = { workspace = true, optional = true }
+cw-utils = { workspace = true }
 
 nym-contracts-common = { workspace = true }
 node-families-contract-common = { workspace = true }

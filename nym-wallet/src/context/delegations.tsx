@@ -1,5 +1,7 @@
-import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { getDelegationSummary, undelegateFromMixnode } from 'src/requests/delegation';
+import React, { createContext, FC, useCallback, useContext, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { undelegateFromMixnode } from 'src/requests/delegation';
 import {
   DecCoin,
   DelegationWithEverything,
@@ -9,19 +11,19 @@ import {
   WrappedDelegationEvent,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
-import {
-  delegateToMixnode,
-  getAllPendingDelegations,
-  vestingDelegateToMixnode,
-  vestingUndelegateFromMixnode,
-} from 'src/requests';
+import { delegateToMixnode, vestingDelegateToMixnode, vestingUndelegateFromMixnode } from 'src/requests';
 import { TPoolOption } from 'src/components';
-import { decCoinToDisplay } from 'src/utils';
 import { Console } from 'src/utils/console';
+import { AppContext } from 'src/context/main';
+import { delegationQueryKeys } from './delegationQueryKeys';
+import { fetchDelegationSummaryQuery } from './delegationQuery';
 
 export type TDelegationContext = {
   delegationItemErrors?: { nodeId: string; errors: string };
   isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  lastUpdatedAtMs: number;
   delegations?: TDelegations;
   pendingDelegations?: WrappedDelegationEvent[];
   totalDelegations?: string;
@@ -52,7 +54,10 @@ export const isDelegation = (delegation: DelegationWithEvent): delegation is Del
   'owner' in delegation;
 
 export const DelegationContext = createContext<TDelegationContext>({
-  isLoading: true,
+  isLoading: false,
+  isFetching: false,
+  isError: false,
+  lastUpdatedAtMs: 0,
   refresh: async () => undefined,
   addDelegation: async () => {
     throw new Error('Not implemented');
@@ -66,18 +71,47 @@ export const DelegationContext = createContext<TDelegationContext>({
   setDelegationItemErrors: () => undefined,
 });
 
+function isDelegationRoutePath(pathname: string): boolean {
+  return pathname === '/delegation' || pathname.endsWith('/delegation');
+}
+
 export const DelegationContextProvider: FC<{
   network?: Network;
   children: React.ReactNode;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ network, children }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [delegationItemErrors, setDelegationItemErrors] = useState<{ nodeId: string; errors: string }>();
-  const [delegations, setDelegations] = useState<undefined | TDelegations>();
-  const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
-  const [totalRewards, setTotalRewards] = useState<undefined | string>();
-  const [totalDelegationsAndRewards, setTotalDelegationsAndRewards] = useState<undefined | string>();
-  const [pendingDelegations, setPendingDelegations] = useState<WrappedDelegationEvent[]>();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const { clientDetails } = useContext(AppContext);
+  const clientAddress = clientDetails?.client_address;
+  const onDelegationRoute = isDelegationRoutePath(location.pathname);
+
+  const [delegationItemErrors, setDelegationItemErrors] = React.useState<{ nodeId: string; errors: string }>();
+
+  const query = useQuery({
+    queryKey: delegationQueryKeys.summary(clientAddress ?? ''),
+    queryFn: fetchDelegationSummaryQuery,
+    enabled: Boolean(clientAddress) && onDelegationRoute,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (!clientAddress) {
+      queryClient.removeQueries({ queryKey: delegationQueryKeys.all });
+    }
+  }, [clientAddress, queryClient]);
+
+  const bundle = clientAddress && onDelegationRoute ? query.data : undefined;
+
+  const refresh = useCallback(async () => {
+    if (!clientAddress || !onDelegationRoute) {
+      return;
+    }
+    await queryClient.invalidateQueries({
+      queryKey: delegationQueryKeys.summary(clientAddress),
+    });
+  }, [clientAddress, onDelegationRoute, queryClient]);
 
   const addDelegation = async (data: { mix_id: number; amount: DecCoin }, tokenPool: TPoolOption, fee?: FeeDetails) => {
     try {
@@ -91,51 +125,29 @@ export const DelegationContextProvider: FC<{
 
       return tx;
     } catch (e) {
-      throw new Error(e as string);
+      const message = e instanceof Error ? e.message : String(e);
+      throw new Error(message);
     }
   };
 
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await getDelegationSummary();
-      const pending = await getAllPendingDelegations();
+  const delegations = bundle?.delegations;
+  const pendingDelegations = bundle?.pendingDelegations;
+  const totalDelegations = bundle?.totalDelegations;
+  const totalRewards = bundle?.totalRewards;
+  const totalDelegationsAndRewards = bundle?.totalDelegationsAndRewards;
 
-      const pendingOnNewNodes = pending.filter((event) => {
-        const some = data.delegations.some(({ node_identity }) => node_identity === event.node_identity);
-        return !some;
-      });
-      const items = data.delegations.map((delegation) => ({
-        ...delegation,
-        amount: decCoinToDisplay(delegation.amount),
-        unclaimed_rewards: delegation.unclaimed_rewards && decCoinToDisplay(delegation.unclaimed_rewards),
-        cost_params: delegation.cost_params && {
-          ...delegation.cost_params,
-          interval_operating_cost: decCoinToDisplay(delegation.cost_params.interval_operating_cost),
-        },
-      }));
-
-      const delegationsAndRewards = (+data.total_delegations.amount + +data.total_rewards.amount).toFixed(6);
-
-      setPendingDelegations(pending);
-      setDelegations([...items, ...pendingOnNewNodes]);
-      setTotalDelegations(`${data.total_delegations.amount} ${data.total_delegations.denom}`);
-      setTotalRewards(`${data.total_rewards.amount} ${data.total_rewards.denom}`);
-      setTotalDelegationsAndRewards(`${delegationsAndRewards} ${data.total_delegations.denom}`);
-    } catch (e) {
-      Console.error(e);
-    }
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, []);
+  const isLoading = Boolean(clientAddress) && onDelegationRoute && query.isPending;
+  const isFetching = Boolean(clientAddress) && onDelegationRoute && query.isFetching;
+  const isError = Boolean(clientAddress) && onDelegationRoute && query.isError && !query.data;
+  const lastUpdatedAtMs = bundle ? query.dataUpdatedAt : 0;
 
   const memoizedValue = useMemo(
     () => ({
       delegationItemErrors,
       isLoading,
+      isFetching,
+      isError,
+      lastUpdatedAtMs,
       delegations,
       pendingDelegations,
       totalDelegations,
@@ -148,15 +160,25 @@ export const DelegationContextProvider: FC<{
       undelegateVesting: vestingUndelegateFromMixnode,
     }),
     [
-      isLoading,
-      delegations,
       delegationItemErrors,
+      isLoading,
+      isFetching,
+      isError,
+      lastUpdatedAtMs,
+      delegations,
       pendingDelegations,
       totalDelegations,
       totalRewards,
       totalDelegationsAndRewards,
+      refresh,
     ],
   );
+
+  useEffect(() => {
+    if (query.isError && query.error) {
+      Console.error(query.error);
+    }
+  }, [query.isError, query.error]);
 
   return <DelegationContext.Provider value={memoizedValue}>{children}</DelegationContext.Provider>;
 };

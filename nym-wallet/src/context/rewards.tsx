@@ -3,23 +3,27 @@ import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import { useDelegationContext } from './delegations';
 import { claimDelegatorRewards } from '../requests';
 
+export type TRewardsTransaction = {
+  transactionUrl: string;
+  transactionHash: string;
+};
+
 type TRewardsContext = {
   isLoading: boolean;
   error?: string;
   totalRewards?: string;
   refresh: () => Promise<void>;
   claimRewards: (mixId: number, fee?: FeeDetails) => Promise<TransactionExecuteResult[]>;
-};
-
-export type TRewardsTransaction = {
-  transactionUrl: string;
-  transactionHash: string;
+  redeemAllRewards: () => Promise<TRewardsTransaction[]>;
 };
 
 export const RewardsContext = createContext<TRewardsContext>({
-  isLoading: true,
+  isLoading: false,
   refresh: async () => undefined,
   claimRewards: async () => {
+    throw new Error('Not implemented');
+  },
+  redeemAllRewards: async () => {
     throw new Error('Not implemented');
   },
 });
@@ -47,7 +51,7 @@ export const RewardsContextProvider: FCWithChildren = ({ children }) => {
         throw new Error('Not implemented');
       },
     }),
-    [isLoading, error, totalRewards],
+    [isLoading, error, totalRewards, refresh],
   );
 
   return <RewardsContext.Provider value={memoizedValue}>{children}</RewardsContext.Provider>;

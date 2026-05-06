@@ -62,9 +62,16 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
                 message: record.args().to_string(),
                 level: record.level().into(),
             };
-            // Tauri 2: target the log webview explicitly so the dedicated window receives events.
-            if let Some(log_win) = log_window_app.get_webview_window("log") {
-                let _ = log_win.emit("log://log", msg);
+            let app = log_window_app.clone();
+            let app_for_emit = app.clone();
+            if let Err(e) = app.run_on_main_thread(move || {
+                if let Some(log_win) = app_for_emit.get_webview_window("log") {
+                    if let Err(err) = log_win.emit("log://log", msg) {
+                        log::warn!("failed to emit log line to log webview: {err}");
+                    }
+                }
+            }) {
+                log::warn!("failed to schedule log line for log webview: {e}");
             }
         }));
 

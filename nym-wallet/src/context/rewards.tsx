@@ -3,27 +3,18 @@ import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import { useDelegationContext } from './delegations';
 import { claimDelegatorRewards } from '../requests';
 
-export type TRewardsTransaction = {
-  transactionUrl: string;
-  transactionHash: string;
-};
-
 type TRewardsContext = {
   isLoading: boolean;
   error?: string;
   totalRewards?: string;
   refresh: () => Promise<void>;
   claimRewards: (mixId: number, fee?: FeeDetails) => Promise<TransactionExecuteResult[]>;
-  redeemAllRewards: () => Promise<TRewardsTransaction[]>;
 };
 
 export const RewardsContext = createContext<TRewardsContext>({
   isLoading: false,
   refresh: async () => undefined,
   claimRewards: async () => {
-    throw new Error('Not implemented');
-  },
-  redeemAllRewards: async () => {
     throw new Error('Not implemented');
   },
 });
@@ -47,9 +38,6 @@ export const RewardsContextProvider: FCWithChildren = ({ children }) => {
       totalRewards,
       refresh,
       claimRewards: claimDelegatorRewards,
-      redeemAllRewards: async () => {
-        throw new Error('Not implemented');
-      },
     }),
     [isLoading, error, totalRewards, refresh],
   );

@@ -53,6 +53,10 @@ export const isPendingDelegation = (delegation: DelegationWithEvent): delegation
 export const isDelegation = (delegation: DelegationWithEvent): delegation is DelegationWithEverything =>
   'owner' in delegation;
 
+function formatDelegationSummaryCoin(coin: DecCoin): string {
+  return `${coin.amount} ${coin.denom}`;
+}
+
 export const DelegationContext = createContext<TDelegationContext>({
   isLoading: false,
   isFetching: false,
@@ -89,7 +93,7 @@ export const DelegationContextProvider: FC<{
   const [delegationItemErrors, setDelegationItemErrors] = React.useState<{ nodeId: string; errors: string }>();
 
   const query = useQuery({
-    queryKey: delegationQueryKeys.summary(clientAddress ?? ''),
+    queryKey: clientAddress ? delegationQueryKeys.summary(clientAddress) : delegationQueryKeys.summaryDisabled,
     queryFn: fetchDelegationSummaryQuery,
     enabled: Boolean(clientAddress) && onDelegationRoute,
     staleTime: 5 * 60 * 1000,
@@ -132,9 +136,11 @@ export const DelegationContextProvider: FC<{
 
   const delegations = bundle?.delegations;
   const pendingDelegations = bundle?.pendingDelegations;
-  const totalDelegations = bundle?.totalDelegations;
-  const totalRewards = bundle?.totalRewards;
-  const totalDelegationsAndRewards = bundle?.totalDelegationsAndRewards;
+  const totalDelegations = bundle ? formatDelegationSummaryCoin(bundle.totalDelegations) : undefined;
+  const totalRewards = bundle ? formatDelegationSummaryCoin(bundle.totalRewards) : undefined;
+  const totalDelegationsAndRewards = bundle
+    ? formatDelegationSummaryCoin(bundle.totalDelegationsAndRewards)
+    : undefined;
 
   const isLoading = Boolean(clientAddress) && onDelegationRoute && query.isPending;
   const isFetching = Boolean(clientAddress) && onDelegationRoute && query.isFetching;

@@ -7,7 +7,7 @@ import {
   FeeDetails,
   TransactionExecuteResult,
 } from '@nymproject/types';
-import { DelegationContext, TDelegationTransaction } from '../delegations';
+import { DelegationContext, TDelegationRefreshOptions, TDelegationTransaction } from '../delegations';
 
 import { mockSleep } from './utils';
 import { TPoolOption } from '../../components';
@@ -213,7 +213,7 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     setDelegations([]);
   };
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (_opts?: TDelegationRefreshOptions) => {
     resetState();
     setTimeout(async () => {
       try {

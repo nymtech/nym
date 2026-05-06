@@ -32,7 +32,8 @@ const AdvancedSettings = () => {
         <Stack direction="column" gap={1}>
           <Typography variant="h6">Logs</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Open logs to monitor all actions in the wallet
+            Stream logs in a separate window. Open logs again from here to close (toggle). You can also use Close in
+            that window.
           </Typography>
         </Stack>
         <Box alignSelf="flex-end">

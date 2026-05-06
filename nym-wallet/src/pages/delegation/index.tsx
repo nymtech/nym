@@ -1,4 +1,4 @@
-import React, { FC, useContext, useEffect, useState } from 'react';
+import React, { FC, useContext, useEffect, useRef, useState } from 'react';
 import { OpenInNew } from '@mui/icons-material';
 import { Alert, AlertTitle, Box, Button, CircularProgress, LinearProgress, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -12,8 +12,8 @@ import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlo
 import { getSpendableCoins, migrateVestedDelegations, userBalance } from 'src/requests';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { getIntervalAsDate, toPercentIntegerString } from 'src/utils';
-import { DelegationContextProvider, isDelegation, TDelegations, useDelegationContext } from '../../context/delegations';
-import { RewardsContextProvider, useRewardsContext } from '../../context/rewards';
+import { isDelegation, TDelegations, useDelegationContext } from '../../context/delegations';
+import { useRewardsContext } from '../../context/rewards';
 import { DelegateModal } from '../../components/Delegation/DelegateModal';
 import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
@@ -22,7 +22,7 @@ import { DelegationModal, DelegationModalProps } from '../../components/Delegati
 import { VestingWarningModal } from '../../components/VestingWarningModal';
 import { PageLayout } from '../../layouts';
 
-export const Delegation: FC = () => {
+export const DelegationPage: FC = () => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
   const [showDelegateMoreModal, setShowDelegateMoreModal] = useState<boolean>(false);
   const [showUndelegateModal, setShowUndelegateModal] = useState<boolean>(false);
@@ -55,9 +55,9 @@ export const Delegation: FC = () => {
     [delegations],
   );
 
-  const { refresh: refreshRewards, claimRewards } = useRewardsContext();
+  const { claimRewards } = useRewardsContext();
 
-  const refresh = async () => Promise.all([refreshDelegations(), refreshRewards()]);
+  const refresh = async () => refreshDelegations(delegations !== undefined ? { background: true } : undefined);
 
   // If an action modal is open, don't show the loading modal
   const isActionModalOpen =
@@ -106,13 +106,25 @@ export const Delegation: FC = () => {
   const doMigrateNow = async () => {
     setShowVestingMigrationProgressModal(true);
     await migrateVestedDelegations();
-    await refresh();
+    await refreshDelegations(undefined);
     setShowVestingMigrationProgressModal(false);
   };
 
   useEffect(() => {
-    refreshWithIntervalUpdate();
-  }, [clientDetails, confirmationModalProps]);
+    getNextInterval().catch((err) => {
+      Console.error(err);
+    });
+  }, [clientDetails]);
+
+  const prevConfirmationModalProps = useRef<DelegationModalProps | undefined>(undefined);
+  useEffect(() => {
+    if (prevConfirmationModalProps.current !== undefined && confirmationModalProps === undefined) {
+      refreshWithIntervalUpdate().catch((err) => {
+        Console.error(err);
+      });
+    }
+    prevConfirmationModalProps.current = confirmationModalProps;
+  }, [confirmationModalProps]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
     if (
@@ -572,11 +584,3 @@ export const Delegation: FC = () => {
     </>
   );
 };
-
-export const DelegationPage: FC = () => (
-  <DelegationContextProvider>
-    <RewardsContextProvider>
-      <Delegation />
-    </RewardsContextProvider>
-  </DelegationContextProvider>
-);

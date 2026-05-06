@@ -1,4 +1,5 @@
-import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getDelegationSummary, undelegateFromMixnode } from 'src/requests/delegation';
 import {
   DecCoin,
@@ -18,6 +19,12 @@ import {
 import { TPoolOption } from 'src/components';
 import { decCoinToDisplay } from 'src/utils';
 import { Console } from 'src/utils/console';
+import { AppContext } from 'src/context/main';
+
+export type TDelegationRefreshOptions = {
+  /** When true, do not flip the global loading state (keeps cached list visible during refetch). */
+  background?: boolean;
+};
 
 export type TDelegationContext = {
   delegationItemErrors?: { nodeId: string; errors: string };
@@ -27,7 +34,7 @@ export type TDelegationContext = {
   totalDelegations?: string;
   totalRewards?: string;
   totalDelegationsAndRewards?: string;
-  refresh: () => Promise<void>;
+  refresh: (opts?: TDelegationRefreshOptions) => Promise<void>;
   addDelegation: (
     data: { mix_id: number; amount: DecCoin },
     tokenPool: TPoolOption,
@@ -52,8 +59,8 @@ export const isDelegation = (delegation: DelegationWithEvent): delegation is Del
   'owner' in delegation;
 
 export const DelegationContext = createContext<TDelegationContext>({
-  isLoading: true,
-  refresh: async () => undefined,
+  isLoading: false,
+  refresh: async (_opts?: TDelegationRefreshOptions) => undefined,
   addDelegation: async () => {
     throw new Error('Not implemented');
   },
@@ -71,13 +78,18 @@ export const DelegationContextProvider: FC<{
   children: React.ReactNode;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ network, children }) => {
-  const [isLoading, setIsLoading] = useState(true);
+  const location = useLocation();
+  const { clientDetails } = useContext(AppContext);
+  const clientAddress = clientDetails?.client_address;
+  const [isLoading, setIsLoading] = useState(false);
   const [delegationItemErrors, setDelegationItemErrors] = useState<{ nodeId: string; errors: string }>();
   const [delegations, setDelegations] = useState<undefined | TDelegations>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
   const [totalDelegationsAndRewards, setTotalDelegationsAndRewards] = useState<undefined | string>();
   const [pendingDelegations, setPendingDelegations] = useState<WrappedDelegationEvent[]>();
+  const delegationsRef = useRef<TDelegations | undefined>(undefined);
+  delegationsRef.current = delegations;
 
   const addDelegation = async (data: { mix_id: number; amount: DecCoin }, tokenPool: TPoolOption, fee?: FeeDetails) => {
     try {
@@ -95,8 +107,10 @@ export const DelegationContextProvider: FC<{
     }
   };
 
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
+  const refresh = useCallback(async (opts?: TDelegationRefreshOptions) => {
+    if (!opts?.background) {
+      setIsLoading(true);
+    }
     try {
       const data = await getDelegationSummary();
       const pending = await getAllPendingDelegations();
@@ -129,8 +143,29 @@ export const DelegationContextProvider: FC<{
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, []);
+    if (!clientAddress) {
+      setDelegations(undefined);
+      setPendingDelegations(undefined);
+      setTotalDelegations(undefined);
+      setTotalRewards(undefined);
+      setTotalDelegationsAndRewards(undefined);
+      setIsLoading(false);
+    }
+  }, [clientAddress]);
+
+  useEffect(() => {
+    if (!clientAddress) {
+      return;
+    }
+    const onDelegationRoute = location.pathname === '/delegation' || location.pathname.endsWith('/delegation');
+    if (!onDelegationRoute) {
+      return;
+    }
+    const hasCache = delegationsRef.current !== undefined;
+    refresh(hasCache ? { background: true } : undefined).catch((err) => {
+      Console.error(err);
+    });
+  }, [clientAddress, location.pathname, refresh]);
 
   const memoizedValue = useMemo(
     () => ({
@@ -155,6 +190,7 @@ export const DelegationContextProvider: FC<{
       totalDelegations,
       totalRewards,
       totalDelegationsAndRewards,
+      refresh,
     ],
   );
 

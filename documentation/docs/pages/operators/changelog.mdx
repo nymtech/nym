@@ -59,6 +59,44 @@ This page displays a full list of all the changes during our release cycle from 
 
 ## `v2026.8-urda`
 
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.9-venaco)
+- [`nym-node`](nodes/nym-node.mdx) version `1.31.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-05-06T05:19:51.973494120Z
+Build Version:      1.31.0
+Commit SHA:         f84de25302e886d4bd97a898885c569724c002a7
+Commit Date:        2026-05-06T07:16:42.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+### Operators Updates & Tools
+
+- [**NIP-11 is out, please vote!**](https://governator.nym.com/proposal/prop-fe98cb2a-fa34-4e7d-82ac-4aa0e6e64aa2) Another upgrade of Nym exit policy opened for operators decision, this time expanding ports to support Gemini and enabling partial Telegram support for NymVPN users.
+
+### Features
+
+-[Only init `SHARED_CLIENT` if requested](https://github.com/nymtech/nym/pull/6708): This PR prevents shared reqwest client from being initialized even when `self.reqwest_client` is used instead
+
+- [Return IPv6 addresses](https://github.com/nymtech/nym/pull/6684)
+
+- [Block non-public IPR/NR checks](https://github.com/nymtech/nym/pull/6670)
+
+### Bugfix
+
+- [Fix for v9 IPR ](https://github.com/nymtech/nym/pull/6710)
+
+- [Fixes to crates and CI](https://github.com/nymtech/nym/pull/6686)
+
+- [Fix invalid ticket spend](https://github.com/nymtech/nym/pull/6683)
+
+
+## `v2026.8-urda`
+
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.8-urda)
 - [`nym-node`](nodes/nym-node.mdx) version `1.30.0`
 

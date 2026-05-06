@@ -95,6 +95,8 @@ export const NodeSettings = ({
   return (
     <SimpleModal
       open
+      dense
+      accent="primary"
       hideCloseIcon
       sx={{ p: 0 }}
       header={
@@ -129,7 +131,11 @@ export const NodeSettings = ({
           <FormHelperText>Your new profit margin will be applied in the next interval</FormHelperText>
         </Box>
         <Box sx={{ mb: 3 }}>
-          <ModalListItem label="Est. fee for this operation will be caculated in the next page" value="" />
+          <ModalListItem
+            label="Next step"
+            value="Fee for this operation is calculated on the next page."
+            layout="stack"
+          />
         </Box>
         <Button variant="contained" fullWidth size="large" onClick={handleValidate} disabled={error}>
           Next

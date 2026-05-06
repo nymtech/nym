@@ -1,7 +1,9 @@
 import React, { useMemo, useEffect } from 'react';
+import { CacheProvider } from '@emotion/react';
 import { CssBaseline, PaletteMode } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { getDesignTokens } from './theme';
+import { muiEmotionCache } from './emotionCache';
 import '@assets/fonts/non-variable/fonts.css';
 
 let fontsInitialized = false;
@@ -43,10 +45,12 @@ export const NymWalletThemeWithMode: FCWithChildren<{ mode: PaletteMode; childre
   const theme = useMemo(() => createTheme(getDesignTokens(mode)), [mode]);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <FontLoader />
-      {children}
-    </ThemeProvider>
+    <CacheProvider value={muiEmotionCache}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <FontLoader />
+        {children}
+      </ThemeProvider>
+    </CacheProvider>
   );
 };

@@ -20,6 +20,7 @@ import { BondedNymNode } from 'src/components/Bonding/BondedNymNode';
 import { UpdateBondAmountNymNode } from 'src/components/Bonding/modals/UpdateBondAmountNymNode';
 import { BondNymNode } from 'src/components/Bonding/modals/BondNymNodeModal';
 import { BondingContextProvider, useBondingContext } from '../../context';
+import { PageLayout } from '../../layouts';
 
 export const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -200,7 +201,7 @@ export const Bonding = () => {
     return (
       <ErrorModal
         open
-        title="An error occured, please check logs for details"
+        title="An error occurred, please check logs for details"
         message={error}
         onClose={() => refresh()}
       />
@@ -208,125 +209,129 @@ export const Bonding = () => {
   }
 
   return (
-    <Box sx={{ mt: 4 }}>
-      {bondedNode && !isNymNode(bondedNode) && bondedNode?.proxy && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <AlertTitle sx={{ fontWeight: 600 }}>Your bonded node is using tokens from the vesting contract!</AlertTitle>
-          <Typography>
-            In order to claim your rewards, you will need to migrate it out of the vesting contract.{' '}
-          </Typography>
-          <Typography mt={1}>
-            <strong>Never fear</strong>, if you do not migrate them, <strong>you will continue to get rewards</strong>.
-            However, please migrate your bonded node as soon as possible.
-          </Typography>
-          <Button variant="contained" size="small" sx={{ mt: 1 }} onClick={() => setShowMigrationModal(true)}>
-            Migrate now
-          </Button>
-        </Alert>
-      )}
+    <PageLayout maxWidth={bondedNode ? 'wide' : 'narrow'}>
+      <Box>
+        {bondedNode && !isNymNode(bondedNode) && bondedNode?.proxy && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            <AlertTitle sx={{ fontWeight: 600 }}>
+              Your bonded node is using tokens from the vesting contract!
+            </AlertTitle>
+            <Typography>
+              In order to claim your rewards, you will need to migrate it out of the vesting contract.{' '}
+            </Typography>
+            <Typography mt={1}>
+              <strong>Never fear</strong>, if you do not migrate them, <strong>you will continue to get rewards</strong>
+              . However, please migrate your bonded node as soon as possible.
+            </Typography>
+            <Button variant="contained" size="small" sx={{ mt: 1 }} onClick={() => setShowMigrationModal(true)}>
+              Migrate now
+            </Button>
+          </Alert>
+        )}
 
-      <VestingWarningModal
-        kind="bond"
-        isVisible={showMigrationModal}
-        handleClose={() => {
-          setShowMigrationModal(false);
-        }}
-        handleMigrate={async () => {
-          await handleMigrateVestedMixnode();
-        }}
-      />
-
-      <MigrateLegacyNode
-        open={showMigrateLegacyNodeModal}
-        onClose={() => setShowMigrateLegacyNodeModal(false)}
-        handleMigrate={handleMigrateLegacyNode}
-      />
-
-      {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-nymnode')} />}
-
-      {bondedNode && isNymNode(bondedNode) && (
-        <BondedNymNode
-          nymnode={bondedNode}
-          network={network}
-          onActionSelect={(action) => handleBondedNymNodeAction(action)}
-        />
-      )}
-
-      {bondedNode && isMixnode(bondedNode) && (
-        <BondedMixnode
-          mixnode={bondedNode}
-          network={network}
-          onShowMigrateToNymNodeModal={() => setShowMigrateLegacyNodeModal(true)}
-          onActionSelect={(action) => handleBondedMixnodeAction(action)}
-        />
-      )}
-
-      {bondedNode && isGateway(bondedNode) && (
-        <BondedGateway
-          gateway={bondedNode}
-          network={network}
-          onShowMigrateToNymNodeModal={() => setShowMigrateLegacyNodeModal(true)}
-          onActionSelect={handleBondedMixnodeAction}
-        />
-      )}
-
-      <BondNymNode open={showModal === 'bond-nymnode'} onClose={handleCloseModal} onBond={handleBondNymNode} />
-
-      {showModal === 'update-bond-oversaturated' && uncappedSaturation && (
-        <BondOversaturatedModal
-          open
-          onClose={() => setShowModal(undefined)}
-          onContinue={() => setShowModal('update-bond')}
-          saturationPercentage={uncappedSaturation.toString()}
-        />
-      )}
-
-      {showModal === 'update-bond' && bondedNode && isMixnode(bondedNode) && (
-        <UpdateBondAmountModal
-          node={bondedNode}
-          onUpdateBond={handleUpdateBond}
-          onClose={() => setShowModal(undefined)}
-          onError={handleError}
-        />
-      )}
-
-      {showModal === 'update-bond-nymnode' && bondedNode && isNymNode(bondedNode) && (
-        <UpdateBondAmountNymNode
-          node={bondedNode}
-          onUpdateBond={handleUpdateBond}
-          onClose={() => setShowModal(undefined)}
-          onError={handleError}
-        />
-      )}
-
-      {showModal === 'redeem' && bondedNode && isNymNode(bondedNode) && (
-        <RedeemRewardsModal
-          node={bondedNode}
-          onClose={() => setShowModal(undefined)}
-          onConfirm={handleRedeemReward}
-          onError={handleError}
-        />
-      )}
-
-      {confirmationDetails && confirmationDetails.status === 'success' && (
-        <ConfirmationDetailsModal
-          title={confirmationDetails.title}
-          subtitle={confirmationDetails.subtitle}
-          status={confirmationDetails.status}
-          txUrl={confirmationDetails.txUrl}
-          onClose={() => {
-            setConfirmationDetails(undefined);
-            handleCloseModal();
+        <VestingWarningModal
+          kind="bond"
+          isVisible={showMigrationModal}
+          handleClose={() => {
+            setShowMigrationModal(false);
+          }}
+          handleMigrate={async () => {
+            await handleMigrateVestedMixnode();
           }}
         />
-      )}
 
-      {confirmationDetails && confirmationDetails.status === 'error' && (
-        <ErrorModal open message={confirmationDetails.subtitle} onClose={() => setConfirmationDetails(undefined)} />
-      )}
+        <MigrateLegacyNode
+          open={showMigrateLegacyNodeModal}
+          onClose={() => setShowMigrateLegacyNodeModal(false)}
+          handleMigrate={handleMigrateLegacyNode}
+        />
 
-      {isLoading && <LoadingModal />}
-    </Box>
+        {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-nymnode')} />}
+
+        {bondedNode && isNymNode(bondedNode) && (
+          <BondedNymNode
+            nymnode={bondedNode}
+            network={network}
+            onActionSelect={(action) => handleBondedNymNodeAction(action)}
+          />
+        )}
+
+        {bondedNode && isMixnode(bondedNode) && (
+          <BondedMixnode
+            mixnode={bondedNode}
+            network={network}
+            onShowMigrateToNymNodeModal={() => setShowMigrateLegacyNodeModal(true)}
+            onActionSelect={(action) => handleBondedMixnodeAction(action)}
+          />
+        )}
+
+        {bondedNode && isGateway(bondedNode) && (
+          <BondedGateway
+            gateway={bondedNode}
+            network={network}
+            onShowMigrateToNymNodeModal={() => setShowMigrateLegacyNodeModal(true)}
+            onActionSelect={handleBondedMixnodeAction}
+          />
+        )}
+
+        <BondNymNode open={showModal === 'bond-nymnode'} onClose={handleCloseModal} onBond={handleBondNymNode} />
+
+        {showModal === 'update-bond-oversaturated' && uncappedSaturation && (
+          <BondOversaturatedModal
+            open
+            onClose={() => setShowModal(undefined)}
+            onContinue={() => setShowModal('update-bond')}
+            saturationPercentage={uncappedSaturation.toString()}
+          />
+        )}
+
+        {showModal === 'update-bond' && bondedNode && isMixnode(bondedNode) && (
+          <UpdateBondAmountModal
+            node={bondedNode}
+            onUpdateBond={handleUpdateBond}
+            onClose={() => setShowModal(undefined)}
+            onError={handleError}
+          />
+        )}
+
+        {showModal === 'update-bond-nymnode' && bondedNode && isNymNode(bondedNode) && (
+          <UpdateBondAmountNymNode
+            node={bondedNode}
+            onUpdateBond={handleUpdateBond}
+            onClose={() => setShowModal(undefined)}
+            onError={handleError}
+          />
+        )}
+
+        {showModal === 'redeem' && bondedNode && isNymNode(bondedNode) && (
+          <RedeemRewardsModal
+            node={bondedNode}
+            onClose={() => setShowModal(undefined)}
+            onConfirm={handleRedeemReward}
+            onError={handleError}
+          />
+        )}
+
+        {confirmationDetails && confirmationDetails.status === 'success' && (
+          <ConfirmationDetailsModal
+            title={confirmationDetails.title}
+            subtitle={confirmationDetails.subtitle}
+            status={confirmationDetails.status}
+            txUrl={confirmationDetails.txUrl}
+            onClose={() => {
+              setConfirmationDetails(undefined);
+              handleCloseModal();
+            }}
+          />
+        )}
+
+        {confirmationDetails && confirmationDetails.status === 'error' && (
+          <ErrorModal open message={confirmationDetails.subtitle} onClose={() => setConfirmationDetails(undefined)} />
+        )}
+
+        {isLoading && <LoadingModal />}
+      </Box>
+    </PageLayout>
   );
 };
 

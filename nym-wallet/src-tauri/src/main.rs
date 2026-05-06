@@ -4,10 +4,9 @@
 )]
 
 use nym_mixnet_contract_common::{Gateway, MixNode};
-use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Manager;
 use tauri_plugin_opener::init as init_opener;
-use tauri_plugin_shell::init as init_shell;
+use tauri_plugin_process::init as init_process;
 use tauri_plugin_updater::Builder as UpdaterBuilder;
 
 use crate::menu::SHOW_LOG_WINDOW;
@@ -30,15 +29,17 @@ mod platform_constants;
 mod state;
 mod utils;
 mod wallet_storage;
+mod webview_theme;
 
 #[allow(clippy::too_many_lines)]
 fn main() {
     dotenvy::dotenv().ok();
+    configure_linux_wayland_defaults();
 
     let context = tauri::generate_context!();
     tauri::Builder::default()
-        .plugin(init_shell())
         .plugin(init_opener())
+        .plugin(init_process())
         .plugin(UpdaterBuilder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(WalletState::default())
@@ -217,25 +218,7 @@ fn main() {
             app::react::set_react_state,
             app::react::get_react_state,
         ])
-        .menu(|app| {
-            // Create a menu builder
-            let menu_builder = MenuBuilder::new(app);
-            if ::std::env::var("NYM_WALLET_ENABLE_LOG").is_ok() {
-                let help_text = MenuItemBuilder::with_id(SHOW_LOG_WINDOW, "Show logs")
-                    .build(app)
-                    .expect("Failed to create menu item");
-
-                let submenu = SubmenuBuilder::new(app, "Help")
-                    .items(&[&help_text])
-                    .build()
-                    .expect("Failed to create help submenu");
-
-                menu_builder.item(&submenu).build()
-            } else {
-                // Build a default menu without the submenu
-                menu_builder.build()
-            }
-        })
+        .menu(menu::build_app_menu)
         .on_menu_event(|app, event| {
             if event.id() == SHOW_LOG_WINDOW {
                 let _r = help::log::help_log_toggle_window(app.app_handle().clone());
@@ -244,4 +227,33 @@ fn main() {
         .setup(|app| Ok(log::setup_logging(app.app_handle().clone())?))
         .run(context)
         .expect("error while running tauri application");
+}
+
+/// Sets GTK/Wayland-related env vars before GTK or the webview initializes.
+///
+/// `std::env::set_var` is `unsafe` in current Rust because mutating the process environment is not
+/// defined as thread-safe if other threads read the environment concurrently. This runs from
+/// `main()` before `tauri::Builder` spawns worker threads, so no other Rust threads should be
+/// reading `std::env` yet. If that ordering ever changes, prefer setting these variables in a
+/// launcher script (for example AppImage `AppRun`) instead of here.
+fn configure_linux_wayland_defaults() {
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+            if std::env::var_os("GDK_BACKEND").is_none() {
+                unsafe { std::env::set_var("GDK_BACKEND", "wayland") };
+            }
+
+            if std::env::var_os("GDK_SCALE").is_none() {
+                unsafe { std::env::set_var("GDK_SCALE", "1") };
+            }
+
+            if std::env::var_os("GDK_DPI_SCALE").is_none() {
+                unsafe { std::env::set_var("GDK_DPI_SCALE", "0.8") };
+            }
+            if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+                unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+            }
+        }
+    }
 }

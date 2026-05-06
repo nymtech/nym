@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useRef, useState } from 'react';
 import type { UnlistenFn } from '@tauri-apps/api/event';
-import { listen } from '@tauri-apps/api/event';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import {
   Box,
   Paper,
@@ -90,32 +90,43 @@ interface RecordPayload {
 
 export const LogViewer: FC = () => {
   const theme = useTheme();
-  const unlisten = useRef<UnlistenFn>();
+  const unlisten = useRef<UnlistenFn | null>(null);
   const [messages, setMessages] = useState<RecordPayload[]>([]);
   const [messageCount, setMessageCount] = useState(0);
   const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    listen('log://log', (event) => {
-      const payload = event.payload as RecordPayload;
-      const payloadWithTimestamp = {
-        ...payload,
-        timestamp: Date.now(),
-      };
+    let cancelled = false;
 
-      setMessages((prev) => [payloadWithTimestamp, ...prev]);
-      setMessageCount((prev) => prev + 1);
+    const setupListener = async () => {
+      const unlistenFn = await getCurrentWebview().listen<RecordPayload>('log://log', (event) => {
+        const { payload } = event;
+        const payloadWithTimestamp = {
+          ...payload,
+          timestamp: Date.now(),
+        };
 
-      if (tableRef.current) {
-        tableRef.current.scrollTop = 0;
+        setMessages((prev) => [payloadWithTimestamp, ...prev]);
+        setMessageCount((prev) => prev + 1);
+
+        if (tableRef.current) {
+          tableRef.current.scrollTop = 0;
+        }
+      });
+      if (cancelled) {
+        unlistenFn();
+      } else {
+        unlisten.current = unlistenFn;
       }
-    }).then((fn) => {
-      unlisten.current = fn;
-    });
+    };
+
+    setupListener();
 
     return () => {
+      cancelled = true;
       if (unlisten.current) {
         unlisten.current();
+        unlisten.current = null;
       }
     };
   }, []);

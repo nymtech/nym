@@ -1,0 +1,41 @@
+name: ci-nym-wallet-frontend
+
+on:
+  pull_request:
+    paths:
+      - 'nym-wallet/**'
+      - '.github/workflows/ci-nym-wallet-frontend.yml'
+
+jobs:
+  types-lint:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: nym-wallet/.nvmrc
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --network-timeout 100000
+
+      - name: Build TypeScript packages (wallet depends on @nymproject/types, etc.)
+        run: yarn build:types
+
+      - name: Build @nymproject/mui-theme and @nymproject/react (wallet imports subpaths)
+        run: yarn build:packages
+
+      - name: Typecheck nym-wallet
+        run: yarn --cwd nym-wallet tsc
+
+      - name: Lint nym-wallet
+        run: yarn --cwd nym-wallet lint
+
+      - name: Yarn audit (workspace lockfile; informational)
+        run: yarn audit --level critical
+        continue-on-error: true
+
+      - name: Unit tests (nym-wallet)
+        run: yarn --cwd nym-wallet test

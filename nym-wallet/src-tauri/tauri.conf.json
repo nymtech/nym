@@ -14,7 +14,7 @@
     ],
     "resources": [],
     "externalBin": [],
-    "copyright": "Copyright © 2021-2025 Nym Technologies SA",
+    "copyright": "Copyright © 2021-2026 Nym Technologies SA",
     "category": "Business",
     "shortDescription": "Nym desktop wallet allows you to manage your NYM tokens",
     "longDescription": "",
@@ -26,6 +26,9 @@
       "entitlements": null
     },
     "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      },
       "deb": {
         "depends": []
       }
@@ -40,7 +43,7 @@
   },
   "productName": "NymWallet",
   "mainBinaryName": "NymWallet",
-  "version": "1.2.19",
+  "version": "1.2.20",
   "identifier": "net.nymtech.wallet",
   "plugins": {
     "updater": {
@@ -55,15 +58,33 @@
       "capabilities": [
         "main-capability"
       ],
-      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'; connect-src ipc: http://ipc.localhost"
+      "dangerousDisableAssetCspModification": [
+        "style-src"
+      ],
+      "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "script-src": "'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
+        "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com",
+        "img-src": "'self' asset: http://asset.localhost https://asset.localhost blob: data:",
+        "font-src": "'self' data: https://fonts.gstatic.com",
+        "connect-src": "ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:* wss://127.0.0.1:* wss://localhost:* http: https: ws: wss:",
+        "media-src": "'self' blob: data:",
+        "worker-src": "'self' blob:",
+        "frame-src": "'none'",
+        "object-src": "'none'",
+        "base-uri": "'self'"
+      }
     },
     "windows": [
       {
         "title": "Nym Wallet",
         "width": 1268,
         "height": 768,
+        "minWidth": 1024,
+        "minHeight": 640,
         "resizable": true,
-        "useHttpsScheme": true
+        "useHttpsScheme": true,
+        "backgroundColor": "#242b2d"
       }
     ]
   }

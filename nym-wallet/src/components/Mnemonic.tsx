@@ -29,19 +29,29 @@ export const Mnemonic = ({
     </Box>
     <TextField
       label="Mnemonic"
-      type="input"
       value={mnemonic}
       multiline
       autoFocus={false}
       fullWidth
       inputProps={{
+        readOnly: true,
+        'aria-readonly': true,
         style: {
-          height: '160px',
+          minHeight: '160px',
+          alignSelf: 'flex-start',
         },
       }}
       InputLabelProps={{ shrink: true }}
+      helperText="Read-only - copy or write it down. It cannot be edited here."
+      FormHelperTextProps={{ sx: { textAlign: 'center' } }}
       sx={{
-        'input::-webkit-textfield-decoration-container': {
+        '& .MuiInputBase-input': {
+          cursor: 'text',
+          caretColor: 'transparent',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          lineHeight: 1.5,
+        },
+        'textarea::-webkit-textfield-decoration-container': {
           alignItems: 'start',
         },
       }}

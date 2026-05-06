@@ -24,6 +24,7 @@
         "opener:allow-open-url",
         "opener:allow-default-urls",
         "core:window:allow-set-title",
+        "core:window:allow-maximize",
         "core:app:allow-version",
         "clipboard-manager:allow-read-text",
         "clipboard-manager:allow-write-text",
@@ -33,6 +34,6 @@
         "updater:allow-download-and-install",
         "updater:allow-install",
         "core:event:allow-listen",
-        "shell:allow-open"
+        "process:default"
     ]
 }

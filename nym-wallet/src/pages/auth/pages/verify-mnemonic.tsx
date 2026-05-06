@@ -40,22 +40,32 @@ export const VerifyMnemonic = () => {
 
   if (randomWords && hiddenRandomWords) {
     return (
-      <>
+      <Stack spacing={3} sx={{ width: '100%', alignItems: 'stretch' }}>
         <Title title="Verify your mnemonic" />
-        <Subtitle subtitle="Select the words from your mnmonic based on their order" />
+        <Subtitle subtitle="Select the words from your mnemonic in the order shown above" />
         <HiddenWords mnemonicWords={hiddenRandomWords} />
         <WordTiles
           mnemonicWords={randomWords}
           onClick={currentSelection !== numberOfRandomWords ? revealWord : undefined}
           buttons
         />
-        <Stack spacing={3} sx={{ width: 300 }}>
+        <Stack
+          spacing={2}
+          sx={{
+            width: '100%',
+            maxWidth: 400,
+            alignSelf: 'center',
+            pt: { xs: 3, sm: 4 },
+            mt: { xs: 0.5, sm: 1 },
+          }}
+        >
           <Button
             variant="contained"
             fullWidth
             size="large"
             disabled={currentSelection !== numberOfRandomWords}
             onClick={() => navigate('/create-password')}
+            sx={{ fontWeight: 700 }}
           >
             Next
           </Button>
@@ -63,7 +73,7 @@ export const VerifyMnemonic = () => {
             Back
           </Button>
         </Stack>
-      </>
+      </Stack>
     );
   }
   return null;

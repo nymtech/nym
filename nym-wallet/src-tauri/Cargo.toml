@@ -14,15 +14,14 @@ default-run = "NymWallet"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "2.1.1", features = [] }
+tauri-build = { version = "2.5.6", features = [] }
 
 [dependencies]
 async-trait = "0.1.68"
-tauri-plugin-updater = "2.7.0"
-tauri-plugin-clipboard-manager = "2.0.0"
-tauri-plugin-shell = "2.2.1"
-tauri-plugin-process = "2.2.1"
-tauri-plugin-opener = "2.2.6"
+tauri-plugin-updater = "2.10.1"
+tauri-plugin-clipboard-manager = "2.3.2"
+tauri-plugin-process = "2.3.1"
+tauri-plugin-opener = "2.5.3"
 bip39 = { version = "2.0.0", features = ["zeroize", "rand"] }
 cfg-if = "1.0.0"
 colored = "2.0"
@@ -34,7 +33,6 @@ futures = "0.3.15"
 itertools = "0.10"
 log = { version = "0.4", features = ["serde"] }
 once_cell = "1.7.2"
-open = "5.3.2"
 pretty_env_logger = "0.4"
 reqwest = { version = "0.12.4", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -42,7 +40,7 @@ serde_json = "1.0"
 serde_repr = "0.1"
 strum = { version = "0.27.2", features = ["derive"] }
 tap = "1"
-tauri = { version = "2", features = [] }
+tauri = { version = "2.10.3", features = ["devtools"] }
 #tendermint-rpc = "0.23.0"
 time = { version = "0.3.30", features = ["local-offset"] }
 thiserror = "1.0"

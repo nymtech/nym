@@ -3,7 +3,7 @@ use std::str::FromStr;
 use fern::colors::{Color, ColoredLevelConfig};
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use time::{format_description, OffsetDateTime};
 
 fn formatted_time() -> String {
@@ -24,6 +24,7 @@ fn formatted_time() -> String {
 }
 
 pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerError> {
+    let log_window_app = app_handle.clone();
     let colors = ColoredLevelConfig::new()
         .trace(Color::Magenta)
         .debug(Color::Blue)
@@ -61,7 +62,10 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
                 message: record.args().to_string(),
                 level: record.level().into(),
             };
-            app_handle.emit("log://log", msg).unwrap();
+            // Tauri 2: target the log webview explicitly so the dedicated window receives events.
+            if let Some(log_win) = log_window_app.get_webview_window("log") {
+                let _ = log_win.emit("log://log", msg);
+            }
         }));
 
     base_config

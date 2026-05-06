@@ -47,12 +47,21 @@
   },
   "private": true,
   "resolutions": {
+    "eslint": "8.57.1",
     "@cosmjs/amino": "^0.32.4",
     "@cosmjs/cosmwasm-stargate": "^0.32.4",
     "@cosmjs/proto-signing": "^0.32.4",
     "@cosmjs/stargate": "^0.32.4",
-    "cosmjs-types": "^0.9.0",
-    "@types/minimatch": "5.1.2"
+    "@tauri-apps/api": "2.10.1",
+    "@types/minimatch": "5.1.2",
+    "@typescript-eslint/eslint-plugin": "5.62.0",
+    "@typescript-eslint/parser": "5.62.0",
+    "@typescript-eslint/scope-manager": "5.62.0",
+    "@typescript-eslint/type-utils": "5.62.0",
+    "@typescript-eslint/types": "5.62.0",
+    "@typescript-eslint/typescript-estree": "5.62.0",
+    "@typescript-eslint/utils": "5.62.0",
+    "cosmjs-types": "^0.9.0"
   },
   "workspaces": [
     "ts-packages/*",

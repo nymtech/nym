@@ -1,22 +1,23 @@
 import React from 'react';
 import { Box } from '@mui/material';
+import { ContentRailWidth, resolveContentRailMaxWidth } from './contentRail';
 
-export const PageLayout: FCWithChildren<{ position?: 'flex-start' | 'flex-end'; children: React.ReactNode }> = ({
-  position,
-  children,
-}) => (
+export const PageLayout: FCWithChildren<{
+  position?: 'flex-start' | 'flex-end';
+  maxWidth?: ContentRailWidth;
+  children: React.ReactNode;
+}> = ({ position, maxWidth, children }) => (
   <Box
     sx={{
-      maxHeight: 'calc(100% - 65px)',
+      minHeight: '100%',
       display: 'flex',
-      flexFlow: 'column wrap',
-      justifyContent: 'start',
-      alignItems: position || 'center',
-      overflow: 'auto',
-      mt: 4,
+      flexDirection: 'column',
+      justifyContent: 'flex-start',
+      alignItems: position || 'stretch',
+      mt: { xs: 2, md: 3 },
     }}
   >
-    <Box width="100%" margin="auto">
+    <Box width="100%" maxWidth={resolveContentRailMaxWidth(maxWidth)} mx="auto">
       {children}
     </Box>
   </Box>

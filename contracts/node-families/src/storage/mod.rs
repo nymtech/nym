@@ -540,10 +540,6 @@ impl NodeFamiliesStorage<'_> {
 
     /// Disband (delete) `family_id`.
     ///
-    /// Only succeeds when the family has **zero current members** — errors
-    /// with [`FamilyNotEmpty`] otherwise. The owner is responsible for
-    /// kicking any remaining members first.
-    ///
     /// Sweeps every still-pending invitation issued by the family
     /// (iterating via the `family` multi-index over
     /// [`Self::pending_family_invitations`]), removing each from the
@@ -554,8 +550,12 @@ impl NodeFamiliesStorage<'_> {
     /// of leftover invitations; if that becomes a concern, the owner can
     /// revoke them manually before disbanding.
     ///
-    /// The caller is responsible for verifying that the transaction sender
-    /// is the owner of `family_id`.
+    /// The caller (a transaction handler) is responsible for:
+    /// - verifying that the transaction sender is the owner of `family_id`;
+    /// - verifying that the family has zero current members (errors with
+    ///   [`FamilyNotEmpty`] are raised at the transaction layer, not here)
+    ///   — disbanding a family with members would otherwise leak orphaned
+    ///   `FamilyMembership` records pointing at a removed family.
     ///
     /// Errors with [`FamilyNotFound`] if `family_id` does not exist.
     /// Returns the disbanded [`NodeFamily`] (final snapshot) for use in
@@ -575,13 +575,6 @@ impl NodeFamiliesStorage<'_> {
             .families
             .may_load(store, family_id)?
             .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
-
-        if family.members != 0 {
-            return Err(NodeFamiliesContractError::FamilyNotEmpty {
-                family_id,
-                members: family.members,
-            });
-        }
 
         // collect first, then mutate — iterating an IndexedMap while modifying it is unsafe
         let pending: Vec<(FamilyMember, FamilyInvitation)> = self
@@ -1150,25 +1143,6 @@ mod tests {
                 .status,
             FamilyInvitationStatus::Revoked {
                 at: tester.env().block.time.seconds()
-            }
-        );
-    }
-
-    #[test]
-    fn disband_family_errors_when_not_empty() {
-        let mut tester = init_contract_tester();
-        let s = NodeFamiliesStorage::new();
-        let env = tester.env();
-        let alice = tester.addr_make("alice");
-        let f = tester.make_family(&alice);
-        tester.add_to_family(f.id, 42);
-
-        let res = s.disband_family(tester.storage_mut(), &env, f.id);
-        assert_eq!(
-            res.unwrap_err(),
-            NodeFamiliesContractError::FamilyNotEmpty {
-                family_id: f.id,
-                members: 1,
             }
         );
     }

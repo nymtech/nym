@@ -1,3 +1,4 @@
+import Big from 'big.js';
 import type { DecCoin, DelegationWithEverything, WrappedDelegationEvent } from '@nymproject/types';
 import { getAllPendingDelegations, getDelegationSummary } from 'src/requests';
 import { decCoinToDisplay } from 'src/utils';
@@ -26,15 +27,18 @@ export async function fetchDelegationSummaryQuery(): Promise<DelegationSummaryBu
     },
   }));
 
-  const td = parseFloat(data.total_delegations.amount);
-  const tr = parseFloat(data.total_rewards.amount);
-  const combinedAmount = Number.isFinite(td) && Number.isFinite(tr) ? (td + tr).toFixed(6) : '0';
+  let combinedAmount = '0';
+  try {
+    combinedAmount = Big(data.total_delegations.amount).plus(Big(data.total_rewards.amount)).toFixed(6);
+  } catch {
+    combinedAmount = '0';
+  }
 
   return {
     delegations: [...items, ...pendingOnNewNodes],
     pendingDelegations: pending,
-    totalDelegations: data.total_delegations,
-    totalRewards: data.total_rewards,
+    totalDelegations: decCoinToDisplay(data.total_delegations),
+    totalRewards: decCoinToDisplay(data.total_rewards),
     totalDelegationsAndRewards: {
       amount: combinedAmount,
       denom: data.total_delegations.denom,

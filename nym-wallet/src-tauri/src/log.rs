@@ -67,11 +67,12 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
             if let Err(e) = app.run_on_main_thread(move || {
                 if let Some(log_win) = app_for_emit.get_webview_window("log") {
                     if let Err(err) = log_win.emit("log://log", msg) {
-                        log::warn!("failed to emit log line to log webview: {err}");
+                        // Avoid log:: macros here: this runs inside fern's sink and can recurse.
+                        eprintln!("nym-wallet: failed to emit log line to log webview: {err}");
                     }
                 }
             }) {
-                log::warn!("failed to schedule log line for log webview: {e}");
+                eprintln!("nym-wallet: failed to schedule log line for log webview: {e}");
             }
         }));
 

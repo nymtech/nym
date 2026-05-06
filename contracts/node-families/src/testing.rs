@@ -4,8 +4,8 @@
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::helpers::normalise_family_name;
 use crate::storage::NodeFamiliesStorage;
-use cosmwasm_std::{coin, Addr, Coin, MessageInfo, StdError, StdResult, Storage};
-use mixnet_contract::testable_mixnet_contract::MixnetContract;
+use cosmwasm_std::{coin, Addr, Coin, Storage};
+use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
 use node_families_contract_common::constants::storage_keys;
 use node_families_contract_common::{
     Config, ExecuteMsg, FamilyInvitation, InstantiateMsg, MigrateMsg, NodeFamiliesContractError,
@@ -17,7 +17,6 @@ use nym_contracts_common_testing::{
     PermissionedFn, QueryFn, RandExt, TestableNymContract, TEST_DENOM,
 };
 use nym_mixnet_contract_common::NodeId;
-use serde::{de::DeserializeOwned, Serialize};
 
 pub struct NodeFamiliesContract;
 
@@ -89,58 +88,9 @@ pub trait NodeFamiliesContractTesterExt:
     + Storage
     + ArbitraryContractStorageReader
     + ArbitraryContractStorageWriter
+    + EmbeddedMixnetContractExt
     + Sized
 {
-    fn mixnet_contract_address(&self) -> StdResult<Addr> {
-        NodeFamiliesStorage::new()
-            .mixnet_contract_address
-            .load(self.deps().storage)
-    }
-
-    fn execute_mixnet_contract(
-        &mut self,
-        sender: MessageInfo,
-        msg: &nym_mixnet_contract_common::ExecuteMsg,
-    ) -> StdResult<()> {
-        let address = self.mixnet_contract_address()?;
-
-        self.execute_arbitrary_contract(address, sender, msg)
-            .map_err(|err| {
-                StdError::generic_err(format!("mixnet contract execution failure: {err}"))
-            })?;
-        Ok(())
-    }
-
-    fn read_from_mixnet_contract_storage<T: DeserializeOwned>(
-        &self,
-        key: impl AsRef<[u8]>,
-    ) -> StdResult<T> {
-        let address = self.mixnet_contract_address()?;
-
-        self.must_read_value_from_contract_storage(address, key)
-    }
-
-    fn write_to_mixnet_contract_storage(
-        &mut self,
-        key: impl AsRef<[u8]>,
-        value: impl AsRef<[u8]>,
-    ) -> StdResult<()> {
-        let address = self.mixnet_contract_address()?;
-
-        <Self as ArbitraryContractStorageWriter>::set_contract_storage(self, address, key, value);
-        Ok(())
-    }
-
-    fn write_to_mixnet_contract_storage_value<T: Serialize>(
-        &mut self,
-        key: impl AsRef<[u8]>,
-        value: &T,
-    ) -> StdResult<()> {
-        let address = self.mixnet_contract_address()?;
-
-        self.set_contract_storage_value(address, key, value)
-    }
-
     fn family_fee(&self) -> Coin {
         let s = NodeFamiliesStorage::new();
         s.config.load(self).unwrap().create_family_fee
@@ -167,6 +117,13 @@ pub trait NodeFamiliesContractTesterExt:
         // names must be globally unique; derive from owner addr (also unique)
         let name = format!("family-{owner}");
         self.make_named_family(owner, &name)
+    }
+
+    fn disband_family(&mut self, family: NodeFamilyId) {
+        let env = self.env();
+        NodeFamiliesStorage::new()
+            .disband_family(self, &env, family)
+            .unwrap();
     }
 
     fn add_dummy_family(&mut self) -> NodeFamily {

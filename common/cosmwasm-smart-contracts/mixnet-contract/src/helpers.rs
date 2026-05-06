@@ -3,12 +3,14 @@
 
 use crate::error::MixnetContractError;
 use crate::mixnode::PendingMixNodeChanges;
+use crate::nym_node::NodeOwnershipResponse;
 use crate::{
     EpochEventId, EpochId, Interval, IntervalEventId, MixNodeBond, MixNodeDetails, NodeId,
     NodeRewarding, NymNodeBond, NymNodeDetails, PendingNodeChanges, QueryMsg,
 };
 use cosmwasm_std::{
-    Binary, Coin, CustomQuery, Decimal, QuerierWrapper, StdError, StdResult, Uint128, from_json,
+    Addr, Binary, Coin, CustomQuery, Decimal, QuerierWrapper, StdError, StdResult, Uint128,
+    from_json,
 };
 use cw_storage_plus::{Key, Namespace, Path, PrimaryKey};
 use nym_contracts_common::IdentityKeyRef;
@@ -79,6 +81,20 @@ pub trait MixnetContractQuerier {
         let storage_key = path.deref();
 
         self.query_mixnet_contract_storage_value(address, storage_key)
+    }
+
+    fn query_nymnode_ownership(
+        &self,
+        address: impl Into<String>,
+        owner: &Addr,
+    ) -> StdResult<Option<NymNodeBond>> {
+        let resp: NodeOwnershipResponse = self.query_mixnet_contract(
+            address,
+            &QueryMsg::GetOwnedNymNode {
+                address: owner.to_string(),
+            },
+        )?;
+        Ok(resp.details.map(|d| d.bond_information))
     }
 }
 

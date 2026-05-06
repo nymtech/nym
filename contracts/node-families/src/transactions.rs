@@ -219,14 +219,41 @@ pub(crate) fn try_invite_to_family(
     ))
 }
 
+/// Revoke a still-pending invitation previously issued by the sender's
+/// family.
+///
+/// The sender must currently own a family — the `(family, node)` pair
+/// targeted for revocation is derived from that ownership rather than passed
+/// explicitly, so a sender cannot revoke another family's invitations.
+/// Errors with [`SenderDoesntOwnAFamily`] if the sender owns no family, or
+/// [`InvitationNotFound`] if no pending invitation for `node_id` exists in
+/// the sender's family. Expired invitations *can* be revoked — this is the
+/// only path that cleans them out of the pending map.
+///
+/// [`SenderDoesntOwnAFamily`]: NodeFamiliesContractError::SenderDoesntOwnAFamily
+/// [`InvitationNotFound`]: NodeFamiliesContractError::InvitationNotFound
 pub(crate) fn try_revoke_family_invitation(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     node_id: NodeId,
 ) -> Result<Response, NodeFamiliesContractError> {
-    let _ = (deps, env, info, node_id);
-    Ok(Response::default())
+    let storage = NodeFamiliesStorage::new();
+    let owned = storage.must_get_owned_family(deps.storage, &info.sender)?;
+
+    storage.revoke_pending_invitation(deps.storage, &env, owned.id, node_id)?;
+
+    Ok(Response::new().add_event(
+        Event::new(events::FAMILY_INVITATION_REVOKED_EVENT_NAME)
+            .add_attribute(
+                events::FAMILY_INVITATION_REVOKED_EVENT_FAMILY_ID,
+                owned.id.to_string(),
+            )
+            .add_attribute(
+                events::FAMILY_INVITATION_REVOKED_EVENT_NODE_ID,
+                node_id.to_string(),
+            ),
+    ))
 }
 
 pub(crate) fn try_accept_family_invitation(
@@ -895,6 +922,139 @@ mod tests {
                     node_id,
                 }
             );
+            Ok(())
+        }
+    }
+
+    mod revoke_family_invitation {
+        use super::*;
+        use crate::testing::NodeFamiliesContractTesterExt;
+        use node_families_contract_common::FamilyInvitationStatus;
+
+        #[test]
+        fn happy_path_removes_pending_and_archives_revoked() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let node_id = 7;
+            tester.invite_to_family(family.id, node_id);
+
+            let env = tester.env();
+            try_revoke_family_invitation(
+                tester.deps_mut(),
+                env.clone(),
+                message_info(&alice, &[]),
+                node_id,
+            )?;
+
+            let storage = NodeFamiliesStorage::new();
+            assert!(storage
+                .pending_family_invitations
+                .may_load(tester.deps().storage, (family.id, node_id))?
+                .is_none());
+
+            let archived = storage
+                .past_family_invitations
+                .load(tester.deps().storage, ((family.id, node_id), 0))?;
+            assert!(matches!(
+                archived.status,
+                FamilyInvitationStatus::Revoked { at } if at == env.block.time.seconds()
+            ));
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_when_sender_owns_no_family() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let env = tester.env();
+
+            let err =
+                try_revoke_family_invitation(tester.deps_mut(), env, message_info(&alice, &[]), 42)
+                    .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::SenderDoesntOwnAFamily { address: alice }
+            );
+        }
+
+        #[test]
+        fn rejects_when_no_pending_invitation_for_node() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let env = tester.env();
+
+            let err =
+                try_revoke_family_invitation(tester.deps_mut(), env, message_info(&alice, &[]), 42)
+                    .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::InvitationNotFound {
+                    family_id: family.id,
+                    node_id: 42,
+                }
+            );
+        }
+
+        #[test]
+        fn cannot_revoke_another_familys_invitation() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let bob = tester.addr_make("bob");
+            tester.make_family(&alice);
+            let bob_family = tester.make_family(&bob);
+            let node_id = 7;
+            tester.invite_to_family(bob_family.id, node_id);
+
+            // alice is targeting node 7 — but there is no pending invitation
+            // in *her* family for it, so the lookup misses against alice's id
+            let env = tester.env();
+            let err = try_revoke_family_invitation(
+                tester.deps_mut(),
+                env,
+                message_info(&alice, &[]),
+                node_id,
+            )
+            .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::InvitationNotFound {
+                    family_id: 1,
+                    node_id,
+                }
+            );
+
+            // bob's invitation is still pending and untouched
+            let still_pending = NodeFamiliesStorage::new()
+                .pending_family_invitations
+                .may_load(tester.deps().storage, (bob_family.id, node_id))
+                .unwrap();
+            assert!(still_pending.is_some());
+        }
+
+        #[test]
+        fn revoking_expired_invitation_is_allowed() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let node_id = 7;
+            // already-expired (expires_at = 1, well before block.time)
+            tester.invite_to_family_with_expiration(family.id, node_id, 1);
+
+            let env = tester.env();
+            try_revoke_family_invitation(
+                tester.deps_mut(),
+                env,
+                message_info(&alice, &[]),
+                node_id,
+            )?;
+
+            // pending entry is gone
+            assert!(NodeFamiliesStorage::new()
+                .pending_family_invitations
+                .may_load(tester.deps().storage, (family.id, node_id))?
+                .is_none());
             Ok(())
         }
     }

@@ -3,16 +3,24 @@ import type { UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import {
   Box,
-  Paper,
+  Button,
   Chip,
+  Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Typography,
   useTheme,
 } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { useSnackbar } from 'notistack';
+import { helpLogToggleWindow } from 'src/requests/logging';
+import { Console } from 'src/utils/console';
 
 // see https://github.com/tauri-apps/tauri-plugin-log/blob/dev/webview-src/index.ts#L4
 enum LogLevel {
@@ -40,7 +48,7 @@ const getLogLevelName = (value: LogLevel) => {
   }
 };
 
-const getLogLevelColor = (level: LogLevel, theme: any) => {
+const getLogLevelColor = (level: LogLevel, theme: Theme) => {
   switch (level) {
     case LogLevel.Trace:
       return {
@@ -90,6 +98,7 @@ interface RecordPayload {
 
 export const LogViewer: FC = () => {
   const theme = useTheme();
+  const { enqueueSnackbar } = useSnackbar();
   const unlisten = useRef<UnlistenFn | null>(null);
   const [messages, setMessages] = useState<RecordPayload[]>([]);
   const [messageCount, setMessageCount] = useState(0);
@@ -130,6 +139,44 @@ export const LogViewer: FC = () => {
       }
     };
   }, []);
+
+  const handleCloseLogs = async () => {
+    try {
+      await helpLogToggleWindow();
+    } catch (e) {
+      Console.error(e);
+      enqueueSnackbar('Could not close the log window', { variant: 'error' });
+    }
+  };
+
+  const formatLine = (m: RecordPayload) => `${getLogLevelName(m.level)}\t${m.message}`;
+
+  const handleCopyAll = async () => {
+    if (messages.length === 0) return;
+    try {
+      const chronological = [...messages].reverse();
+      await writeText(chronological.map(formatLine).join('\n'));
+    } catch (e) {
+      Console.error(e);
+      enqueueSnackbar('Could not copy logs to the clipboard', { variant: 'error' });
+    }
+  };
+
+  const handleCopyLatest = async () => {
+    const latest = messages[0];
+    if (!latest) return;
+    try {
+      await writeText(formatLine(latest));
+    } catch (e) {
+      Console.error(e);
+      enqueueSnackbar('Could not copy to the clipboard', { variant: 'error' });
+    }
+  };
+
+  const handleClearList = () => {
+    setMessages([]);
+    setMessageCount(0);
+  };
 
   return (
     <Box
@@ -180,54 +227,70 @@ export const LogViewer: FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {messages.map((m, index) => {
-                const levelColors = getLogLevelColor(m.level, theme);
-                return (
-                  <TableRow
-                    key={`log-${m.timestamp || index}`}
-                    sx={{
-                      bgcolor: levelColors.bg,
-                      '&:hover': {
-                        filter: 'brightness(0.95)',
-                      },
-                    }}
-                  >
-                    <TableCell
+              {messages.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={2} sx={{ border: 'none', py: 4, bgcolor: '#fafafa' }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ textAlign: 'center', maxWidth: 560, mx: 'auto' }}
+                    >
+                      No log lines yet. The wallet streams new lines here in real time - older log history is not
+                      replayed. Use the wallet or set RUST_LOG for more detail. Close with the button below or use Open
+                      logs again in Settings - Advanced (same action toggles this window).
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                messages.map((m, index) => {
+                  const levelColors = getLogLevelColor(m.level, theme);
+                  return (
+                    <TableRow
+                      key={`log-${m.timestamp || index}`}
                       sx={{
-                        padding: 1,
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                        width: '120px',
-                        bgcolor: 'transparent',
+                        bgcolor: levelColors.bg,
+                        '&:hover': {
+                          filter: 'brightness(0.95)',
+                        },
                       }}
                     >
-                      <Chip
-                        label={getLogLevelName(m.level)}
-                        variant="filled"
-                        size="small"
+                      <TableCell
                         sx={{
-                          bgcolor: levelColors.chipBg,
-                          color: levelColors.color,
-                          fontWeight: 'medium',
-                          minWidth: '70px',
-                          border: '1px solid rgba(0,0,0,0.1)',
+                          padding: 1,
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                          width: '120px',
+                          bgcolor: 'transparent',
                         }}
-                      />
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        padding: 1,
-                        fontFamily: 'monospace',
-                        fontSize: '0.875rem',
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                        color: levelColors.color,
-                        bgcolor: 'transparent',
-                      }}
-                    >
-                      {m.message}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                      >
+                        <Chip
+                          label={getLogLevelName(m.level)}
+                          variant="filled"
+                          size="small"
+                          sx={{
+                            bgcolor: levelColors.chipBg,
+                            color: levelColors.color,
+                            fontWeight: 'medium',
+                            minWidth: '70px',
+                            border: '1px solid rgba(0,0,0,0.1)',
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          padding: 1,
+                          fontFamily: 'monospace',
+                          fontSize: '0.875rem',
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                          color: levelColors.color,
+                          bgcolor: 'transparent',
+                        }}
+                      >
+                        {m.message}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </TableContainer>
@@ -235,14 +298,32 @@ export const LogViewer: FC = () => {
       <Box
         sx={{
           p: 1,
-          textAlign: 'right',
-          fontSize: '0.75rem',
           borderTop: '1px solid #e0e0e0',
           bgcolor: '#ffffff',
           color: '#666666',
         }}
       >
-        {messageCount} log entries since opening this window
+        <Stack spacing={1}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} flexWrap="wrap">
+            <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+              {messageCount} log entries since opening this window
+            </Typography>
+            <Button variant="outlined" size="small" onClick={handleCloseLogs}>
+              Close log window
+            </Button>
+          </Stack>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button variant="text" size="small" onClick={handleCopyLatest} disabled={messages.length === 0}>
+              Copy latest
+            </Button>
+            <Button variant="text" size="small" onClick={handleCopyAll} disabled={messages.length === 0}>
+              Copy all
+            </Button>
+            <Button variant="text" size="small" onClick={handleClearList} disabled={messages.length === 0}>
+              Clear list
+            </Button>
+          </Stack>
+        </Stack>
       </Box>
     </Box>
   );

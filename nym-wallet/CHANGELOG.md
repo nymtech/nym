@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [v1.2.20] (2026-05-06)
+
+- Delegation query cache, log webview streaming, HTTPS webviews ([#6740])
+- Nym Wallet: deps updates, clipboard/updater/, icon, polishing ([#5844])
+
+[#6740]: https://github.com/nymtech/nym/pull/6740
+[#6681]: https://github.com/nymtech/nym/pull/6681
+
+
 ## [v1.2.19] (2025-07-15)
 
 - Amended the buy section ([#5841])

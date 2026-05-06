@@ -1,5 +1,6 @@
 use crate::error::BackendError;
 use crate::webview_theme::NYM_WALLET_WEBVIEW_BG;
+use tauri::webview::PageLoadEvent;
 use tauri::Manager;
 
 #[tauri::command]
@@ -20,6 +21,22 @@ pub fn help_log_toggle_window(app_handle: tauri::AppHandle) -> Result<(), Backen
     )
     .title("Nym Wallet Logs")
     .background_color(NYM_WALLET_WEBVIEW_BG)
+    .use_https_scheme(true)
+    .on_page_load(|window, payload| match payload.event() {
+        PageLoadEvent::Started => {
+            log::debug!("Log webview load started: {}", payload.url());
+        }
+        PageLoadEvent::Finished => {
+            log::info!("Log webview load finished: {}", payload.url());
+            if std::env::var("NYM_WALLET_LOG_WEBVIEW_DEVTOOLS")
+                .ok()
+                .as_deref()
+                == Some("1")
+            {
+                window.open_devtools();
+            }
+        }
+    })
     .build()
     {
         Ok(window) => {

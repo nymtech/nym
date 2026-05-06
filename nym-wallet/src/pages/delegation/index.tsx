@@ -1,4 +1,4 @@
-import React, { FC, useContext, useEffect, useState } from 'react';
+import React, { FC, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenInNew } from '@mui/icons-material';
 import { Alert, AlertTitle, Box, Button, CircularProgress, LinearProgress, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -11,6 +11,7 @@ import { Console } from 'src/utils/console';
 import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
 import { getSpendableCoins, migrateVestedDelegations, userBalance } from 'src/requests';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
+import { format } from 'date-fns';
 import { getIntervalAsDate, toPercentIntegerString } from 'src/utils';
 import { DelegationContextProvider, isDelegation, TDelegations, useDelegationContext } from '../../context/delegations';
 import { RewardsContextProvider, useRewardsContext } from '../../context/rewards';
@@ -44,6 +45,9 @@ export const Delegation: FC = () => {
   const {
     delegations,
     isLoading,
+    isFetching,
+    isError,
+    lastUpdatedAtMs,
     addDelegation,
     undelegate,
     undelegateVesting,
@@ -55,9 +59,11 @@ export const Delegation: FC = () => {
     [delegations],
   );
 
-  const { refresh: refreshRewards, claimRewards } = useRewardsContext();
+  const { claimRewards } = useRewardsContext();
 
-  const refresh = async () => Promise.all([refreshDelegations(), refreshRewards()]);
+  const refreshWithData = useCallback(async () => {
+    await refreshDelegations();
+  }, [refreshDelegations]);
 
   // If an action modal is open, don't show the loading modal
   const isActionModalOpen =
@@ -83,36 +89,54 @@ export const Delegation: FC = () => {
     };
   };
 
-  const getNextInterval = async () => {
+  const getNextInterval = useCallback(async () => {
     try {
       const { nextEpoch: newNextEpoch } = await getIntervalAsDate();
       setNextEpoch(newNextEpoch);
     } catch {
       setNextEpoch(Error());
     }
-  };
+  }, []);
 
-  const refreshWithIntervalUpdate = async () => {
-    refresh();
-    getNextInterval();
-  };
+  const refreshWithIntervalUpdate = useCallback(async () => {
+    await refreshWithData();
+    await getNextInterval();
+  }, [refreshWithData, getNextInterval]);
 
-  // Refresh the rewards and delegations periodically when page is mounted
+  const refreshWithIntervalUpdateRef = useRef(refreshWithIntervalUpdate);
+  refreshWithIntervalUpdateRef.current = refreshWithIntervalUpdate;
+
   useEffect(() => {
-    const timer = setInterval(refreshWithIntervalUpdate, 5 * 60 * 1000); // every 5 minutes
+    const timer = setInterval(() => {
+      refreshWithIntervalUpdateRef.current().catch((err) => {
+        Console.error(err);
+      });
+    }, 5 * 60 * 1000);
     return () => clearInterval(timer);
   }, []);
 
   const doMigrateNow = async () => {
     setShowVestingMigrationProgressModal(true);
     await migrateVestedDelegations();
-    await refresh();
+    await refreshDelegations();
     setShowVestingMigrationProgressModal(false);
   };
 
   useEffect(() => {
-    refreshWithIntervalUpdate();
-  }, [clientDetails, confirmationModalProps]);
+    getNextInterval().catch((err) => {
+      Console.error(err);
+    });
+  }, [clientDetails, getNextInterval]);
+
+  const prevConfirmationModalProps = useRef<DelegationModalProps | undefined>(undefined);
+  useEffect(() => {
+    if (prevConfirmationModalProps.current !== undefined && confirmationModalProps === undefined) {
+      refreshWithIntervalUpdate().catch((err) => {
+        Console.error(err);
+      });
+    }
+    prevConfirmationModalProps.current = confirmationModalProps;
+  }, [confirmationModalProps, refreshWithIntervalUpdate]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
     if (
@@ -409,6 +433,14 @@ export const Delegation: FC = () => {
             }}
           >
             <Stack spacing={3}>
+              {isError && (
+                <Alert severity="error">Could not load delegation data. Check your connection and try again.</Alert>
+              )}
+              {lastUpdatedAtMs > 0 && (
+                <Typography variant="caption" color="text.secondary">
+                  Last updated: {format(lastUpdatedAtMs, 'yyyy-MM-dd HH:mm:ss')}
+                </Typography>
+              )}
               {!!delegations?.length && (
                 <Stack
                   direction={{ xs: 'column', sm: 'row' }}
@@ -471,7 +503,7 @@ export const Delegation: FC = () => {
                 </Stack>
               )}
 
-              {isLoading && delegations !== undefined && !isActionModalOpen && (
+              {isFetching && delegations !== undefined && !isActionModalOpen && (
                 <LinearProgress
                   sx={{
                     height: 3,

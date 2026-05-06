@@ -7,7 +7,7 @@
 
 use crate::helpers::{ensure_address_holds_no_family_membership, normalise_family_name};
 use crate::storage::NodeFamiliesStorage;
-use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response};
+use cosmwasm_std::{BankMsg, DepsMut, Env, Event, MessageInfo, Response};
 use node_families_contract_common::constants::events;
 use node_families_contract_common::{Config, NodeFamiliesContractError, NodeFamilyId};
 use nym_mixnet_contract_common::NodeId;
@@ -128,13 +128,61 @@ pub(crate) fn try_create_family(
     ))
 }
 
+/// Disband the family owned by `info.sender` and refund the original
+/// creation fee.
+///
+/// Looks up the sender's family via the `owner` unique index (errors with
+/// [`SenderDoesntOwnAFamily`] if none). The storage layer enforces the
+/// "family must have zero current members" precondition and sweeps any
+/// still-pending invitations as `Revoked`. The originally paid creation fee
+/// is returned to the sender via a [`BankMsg::Send`] attached to the
+/// response.
+///
+/// [`SenderDoesntOwnAFamily`]: NodeFamiliesContractError::SenderDoesntOwnAFamily
 pub(crate) fn try_disband_family(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, NodeFamiliesContractError> {
-    let _ = (deps, env, info);
-    Ok(Response::default())
+    let storage = NodeFamiliesStorage::new();
+
+    let (_, owned) = storage
+        .families
+        .idx
+        .owner
+        .item(deps.storage, info.sender.clone())?
+        .ok_or_else(|| NodeFamiliesContractError::SenderDoesntOwnAFamily {
+            address: info.sender.clone(),
+        })?;
+
+    if owned.members != 0 {
+        return Err(NodeFamiliesContractError::FamilyNotEmpty {
+            family_id: owned.id,
+            members: owned.members,
+        });
+    }
+
+    let family = storage.disband_family(deps.storage, &env, owned.id)?;
+
+    let refund = BankMsg::Send {
+        to_address: family.owner.to_string(),
+        amount: vec![family.paid_fee.clone()],
+    };
+
+    Ok(Response::new()
+        .add_message(refund)
+        .add_event(
+            Event::new(events::FAMILY_DISBAND_EVENT_NAME)
+                .add_attribute(
+                    events::FAMILY_DISBAND_EVENT_FAMILY_ID,
+                    family.id.to_string(),
+                )
+                .add_attribute(events::FAMILY_DISBAND_EVENT_OWNER_ADDRESS, &family.owner)
+                .add_attribute(
+                    events::FAMILY_DISBAND_EVENT_REFUNDED_FEE,
+                    family.paid_fee.to_string(),
+                ),
+        ))
 }
 
 pub(crate) fn try_invite_to_family(
@@ -185,6 +233,7 @@ pub(crate) fn try_leave_family(
     info: MessageInfo,
     node_id: NodeId,
 ) -> Result<Response, NodeFamiliesContractError> {
+    // TODO: similar codepath will have to be called upon node unbonding
     let _ = (deps, env, info, node_id);
     Ok(Response::default())
 }
@@ -565,6 +614,98 @@ mod tests {
                 "description".to_string(),
             )?;
 
+            Ok(())
+        }
+    }
+
+    mod disband_family {
+        use super::*;
+        use crate::testing::NodeFamiliesContractTesterExt;
+        use cosmwasm_std::{BankMsg, CosmosMsg, SubMsg};
+
+        #[test]
+        fn happy_path_removes_family_and_refunds_fee() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let info = message_info(&alice, &[]);
+            let env = tester.env();
+
+            let res = try_disband_family(tester.deps_mut(), env, info)?;
+
+            // family is gone from storage
+            let storage = NodeFamiliesStorage::new();
+            assert!(storage
+                .families
+                .may_load(tester.deps().storage, family.id)?
+                .is_none());
+
+            // single bank refund attached, going to the original owner with the
+            // exact paid fee
+            assert_eq!(res.messages.len(), 1);
+            assert_eq!(
+                res.messages[0],
+                SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+                    to_address: alice.to_string(),
+                    amount: vec![family.paid_fee.clone()],
+                }))
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_when_sender_owns_no_family() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let info = message_info(&alice, &[]);
+            let env = tester.env();
+
+            let err = try_disband_family(tester.deps_mut(), env, info).unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::SenderDoesntOwnAFamily { address: alice }
+            );
+        }
+
+        #[test]
+        fn rejects_when_family_still_has_members() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            tester.add_to_family(family.id, 42);
+
+            let info = message_info(&alice, &[]);
+            let env = tester.env();
+            let err = try_disband_family(tester.deps_mut(), env, info).unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::FamilyNotEmpty {
+                    family_id: family.id,
+                    members: 1,
+                }
+            );
+        }
+
+        #[test]
+        fn after_disband_owner_can_create_a_new_family() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            tester.make_family(&alice);
+
+            let env = tester.env();
+            try_disband_family(tester.deps_mut(), env.clone(), message_info(&alice, &[]))?;
+
+            // owner-index slot freed → a fresh create_family should succeed
+            let fee = tester.family_fee();
+            let alice_with_fee = message_info(&alice, &[fee]);
+            try_create_family(
+                tester.deps_mut(),
+                env,
+                alice_with_fee,
+                "second".to_string(),
+                "".to_string(),
+            )?;
             Ok(())
         }
     }

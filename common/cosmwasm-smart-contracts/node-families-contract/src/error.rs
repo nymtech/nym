@@ -88,6 +88,12 @@ pub enum NodeFamiliesContractError {
         family_id: NodeFamilyId,
     },
 
+    /// The transaction sender does not currently own any family - emitted by
+    /// owner-gated operations like `disband_family` when the sender has
+    /// nothing to act on.
+    #[error("address {address} does not currently own any family")]
+    SenderDoesntOwnAFamily { address: Addr },
+
     /// A family with the requested (normalised) name already exists.
     #[error("a family with name {name:?} already exists (id {family_id})")]
     FamilyNameAlreadyTaken {

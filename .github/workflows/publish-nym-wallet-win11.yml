@@ -26,6 +26,9 @@ jobs:
     outputs:
       release_tag: ${{ github.ref_name }}
 
+    env:
+      SIGN_WINDOWS: ${{ github.event_name == 'release' || inputs.sign }}
+
     steps:
       - uses: actions/checkout@v6
 
@@ -48,23 +51,39 @@ jobs:
         shell: bash
         run: npm install -g yarn@1.22.22
 
+      - name: Strip Authenticode thumbprint (avoid signtool on runner)
+        working-directory: nym-wallet/src-tauri
+        if: ${{ env.SIGN_WINDOWS == 'true' || (github.event_name == 'workflow_dispatch' && !inputs.sign) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v yq >/dev/null 2>&1; then
+            echo "yq is required on this runner to edit tauri.conf.json"
+            exit 1
+          fi
+          yq eval --inplace '
+            del(.bundle.windows.certificateThumbprint) |
+            del(.bundle.windows.digestAlgorithm) |
+            del(.bundle.windows.timestampUrl)
+          ' tauri.conf.json
+
       - name: Download EV CodeSignTool from ssl.com
         working-directory: nym-wallet/src-tauri
-        if: ${{ inputs.sign }}
+        if: env.SIGN_WINDOWS == 'true'
         shell: bash
         run: |
           curl -L0 https://www.ssl.com/download/codesigntool-for-linux-and-macos/ -o codesigntool.zip
           unzip codesigntool.zip
       - name: Get EV certificate credential id
         working-directory: nym-wallet/src-tauri
-        if: ${{ inputs.sign }}
+        if: env.SIGN_WINDOWS == 'true'
         id: get_credential_ids
         shell: bash
         run: |
           echo "SSL_COM_CREDENTIAL_ID=$(./CodeSignTool.sh get_credential_ids -username=${{ secrets.SSL_COM_USERNAME }} -password=${{ secrets.SSL_COM_PASSWORD }} | sed -n '1!p' | sed 's/- //')" >> "$GITHUB_OUTPUT"
       - name: Add custom sign command to tauri.conf.json
         working-directory: nym-wallet/src-tauri
-        if: ${{ inputs.sign }}
+        if: env.SIGN_WINDOWS == 'true'
         shell: bash
         env:
           SSL_SIGN_USER: ${{ secrets.SSL_COM_USERNAME }}
@@ -111,10 +130,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          SSL_COM_USERNAME: ${{ inputs.sign && secrets.SSL_COM_USERNAME }}
-          SSL_COM_PASSWORD: ${{ inputs.sign && secrets.SSL_COM_PASSWORD }}
-          SSL_COM_CREDENTIAL_ID: ${{ inputs.sign && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}
-          SSL_COM_TOTP_SECRET: ${{ inputs.sign && secrets.SSL_COM_TOTP_SECRET }}
+          SSL_COM_USERNAME: ${{ env.SIGN_WINDOWS == 'true' && secrets.SSL_COM_USERNAME }}
+          SSL_COM_PASSWORD: ${{ env.SIGN_WINDOWS == 'true' && secrets.SSL_COM_PASSWORD }}
+          SSL_COM_CREDENTIAL_ID: ${{ env.SIGN_WINDOWS == 'true' && steps.get_credential_ids.outputs.SSL_COM_CREDENTIAL_ID }}
+          SSL_COM_TOTP_SECRET: ${{ env.SIGN_WINDOWS == 'true' && secrets.SSL_COM_TOTP_SECRET }}
         run: |
           echo "Starting build process..."
           yarn build

@@ -1,4 +1,3 @@
-/* eslint-disable react/no-unused-prop-types */
 import React from 'react';
 import { Button, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';

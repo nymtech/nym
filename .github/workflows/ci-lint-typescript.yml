@@ -6,23 +6,43 @@ on:
     paths:
       - "ts-packages/**"
       - "sdk/typescript/**"
-      - "nym-wallet/src/**"
-      - "nym-wallet/package.json"
+      - "nym-wallet/**"
       - "explorer-v2/**"
       - ".github/workflows/ci-lint-typescript.yml"
+      - "scripts/eslint-ci-smoke.sh"
+      - "package.json"
+      - ".nvmrc"
 
 jobs:
+  eslint-smoke:
+    runs-on: arc-linux-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Setup yarn
+        run: npm install -g yarn
+
+      - name: Install
+        run: yarn
+
+      - name: ESLint flat config smoke (print-config + max-warnings 0)
+        run: yarn lint:ci:eslint-smoke
+
   build:
     runs-on: arc-linux-latest
     env:
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: rlespinasse/github-slug-action@v3.x
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: '.nvmrc'
 
       - name: Setup yarn
         run: npm install -g yarn

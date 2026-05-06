@@ -21,6 +21,7 @@
     "docs:prod:build": "run-s docs:prod:build:ws",
     "docs:prod:build:ws": "lerna run docs:prod:build --stream",
     "lint": "lerna run lint --stream",
+    "lint:ci:eslint-smoke": "bash scripts/eslint-ci-smoke.sh",
     "lint:fix": "lerna run lint:fix --stream",
     "nuke": "npx rimraf **/node_modules node_modules",
     "postbuild:ci": "yarn dev:off",

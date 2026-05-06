@@ -1,13 +1,12 @@
-/* eslint-disable react/no-array-index-key */
 import * as React from 'react';
 import type { DecCoin } from '@nymproject/types';
 import { Stack, SxProps, Typography } from '@mui/material';
 
 export const CURRENCY_AMOUNT_SPACING = 0.35;
 
-const toReverseChunks = (value: String, size: number = 3): Array<string> => {
+const toReverseChunks = (value: string, size: number = 3): Array<string> => {
   const reversed = value.split('').reverse();
-  const chunks: Array<Array<String>> = [];
+  const chunks: Array<Array<string>> = [];
   let chunksIndex = 0;
   reversed.forEach((char, index) => {
     if (index > 0 && index % size === 0) {
@@ -21,8 +20,8 @@ const toReverseChunks = (value: String, size: number = 3): Array<string> => {
   return chunks.map((chars) => chars.reverse().join('')).reverse();
 };
 
-const toChunks = (value: String, size: number = 3): Array<string> => {
-  const chunks: Array<Array<String>> = [];
+const toChunks = (value: string, size: number = 3): Array<string> => {
+  const chunks: Array<Array<string>> = [];
   let chunksIndex = 0;
   value.split('').forEach((char, index) => {
     if (index > 0 && index % size === 0) {

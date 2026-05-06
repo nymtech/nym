@@ -1,11 +1,16 @@
 [package]
 name = "nym-crypto"
-version.workspace = true
 description = "Crypto library for the nym mixnet"
-edition = { workspace = true }
+version.workspace = true
 authors = { workspace = true }
+edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 [dependencies]
 aes-gcm-siv = { workspace = true, optional = true }

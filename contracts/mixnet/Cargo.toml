@@ -1,13 +1,13 @@
 [package]
 name = "nym-mixnet-contract"
-version = "1.5.1"
 description = "Nym mixnet contract"
-edition = { workspace = true }
+version = "1.5.1"
 authors = { workspace = true }
+edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 readme = "README.md"
-
+publish = false
 exclude = [
     # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
     "contract.wasm",

@@ -1,8 +1,8 @@
 [package]
 name = "nym-lp-client"
+description = "LP+KCP mixnet client"
 version = "0.1.0"
 edition = "2021"
-description = "LP+KCP mixnet client"
 license.workspace = true
 publish = false
 

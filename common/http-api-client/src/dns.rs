@@ -56,7 +56,6 @@ use std::{
 use hickory_resolver::{
     TokioResolver,
     config::{NameServerConfig, NameServerConfigGroup, ResolverConfig, ResolverOpts},
-    lookup_ip::LookupIpIntoIter,
     name_server::TokioConnectionProvider,
 };
 use once_cell::sync::OnceCell;
@@ -227,9 +226,11 @@ async fn resolve(
     let primary_err = match resolve_fut.await {
         Err(_) => ResolveError::Timeout,
         Ok(Ok(lookup)) => {
-            let addrs: Addrs = Box::new(SocketAddrs {
-                iter: lookup.into_iter(),
-            });
+            // Shuffle so that successive connection attempts cycle through all
+            // returned IPs rather than always hitting the same first address.
+            let mut ips: Vec<IpAddr> = lookup.into_iter().collect();
+            fastrand::shuffle(&mut ips);
+            let addrs: Addrs = Box::new(ips.into_iter().map(|ip| SocketAddr::new(ip, 0)));
             return Ok(addrs);
         }
         Ok(Err(e)) => {
@@ -254,18 +255,6 @@ async fn resolve(
     }
 
     Err(primary_err)
-}
-
-struct SocketAddrs {
-    iter: LookupIpIntoIter,
-}
-
-impl Iterator for SocketAddrs {
-    type Item = SocketAddr;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|ip_addr| SocketAddr::new(ip_addr, 0))
-    }
 }
 
 impl HickoryDnsResolver {

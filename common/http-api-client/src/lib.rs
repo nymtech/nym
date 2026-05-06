@@ -1152,7 +1152,10 @@ impl ApiClientCore for Client {
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
-                let client = self.reqwest_client.as_ref().unwrap_or(&*SHARED_CLIENT);
+                let client = self
+                    .reqwest_client
+                    .as_ref()
+                    .unwrap_or_else(|| &*SHARED_CLIENT);
                 Ok(
                     wasmtimer::tokio::timeout(self.request_timeout, client.execute(req))
                         .await
@@ -1162,7 +1165,10 @@ impl ApiClientCore for Client {
 
             #[cfg(not(target_arch = "wasm32"))]
             let response = {
-                let client = self.reqwest_client.as_ref().unwrap_or(&*SHARED_CLIENT);
+                let client = self
+                    .reqwest_client
+                    .as_ref()
+                    .unwrap_or_else(|| &*SHARED_CLIENT);
                 client.execute(req).await
             };
 

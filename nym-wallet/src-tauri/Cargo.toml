@@ -1,14 +1,15 @@
 [package]
 name = "NymWallet"
-version = "1.2.19"
 description = "Nym Native Wallet"
+version = "1.2.19"
 authors = ["Nym Technologies SA"]
+edition = "2021"
 license = ""
 repository = ""
-default-run = "NymWallet"
-edition = "2021"
-build = "src/build.rs"
 rust-version = "1.85"
+publish = false
+build = "src/build.rs"
+default-run = "NymWallet"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -1,11 +1,16 @@
 [package]
 name = "nym-vesting-contract-common"
-version.workspace = true
 description = "Common library for the Nym vesting contract"
-edition = { workspace = true }
+version.workspace = true
 authors = { workspace = true }
+edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
+homepage.workspace = true
+documentation.workspace = true
+rust-version = "1.85"
+readme.workspace = true
+publish = true
 
 [dependencies]
 cosmwasm-std = { workspace = true }

@@ -1,15 +1,16 @@
 [package]
 name = "nym-http-api-client-macro"
+description = "Proc-macros for configuring HTTP clients globally via the `inventory` crate"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-description = "Proc-macros for configuring HTTP clients globally via the `inventory` crate"
+publish = true
 
 [lib]
 proc-macro = true

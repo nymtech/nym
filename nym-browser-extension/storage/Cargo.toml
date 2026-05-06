@@ -1,11 +1,11 @@
 [package]
 name = "extension-storage"
+description = "WebAssembly-based secure storage for browser extension mnemonics"
 version = "1.4.1"
+authors = ["Nym Technologies SA <contact@nymtech.net>"]
 edition = "2024"
 license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"
-description = "WebAssembly-based secure storage for browser extension mnemonics"
-authors = ["Nym Technologies SA <contact@nymtech.net>"]
 publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

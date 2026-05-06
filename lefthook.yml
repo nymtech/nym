@@ -61,3 +61,6 @@ pre-commit:
         fi
         cargo fmt --all
       stage_fixed: true
+    cargo-toml-order:
+      glob: "**/Cargo.toml"
+      run: python3 tools/internal/check_cargo_toml_field_order.py {staged_files}

@@ -35,7 +35,6 @@ pub(crate) fn build_router(
 
     Router::new()
         .route(routes::ROOT, swagger_redirect())
-        .route("/swagger/index.html", swagger_redirect())
         .merge(api_docs::route())
         .nest(
             routes::V1,

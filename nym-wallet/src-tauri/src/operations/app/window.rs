@@ -34,6 +34,7 @@ async fn create_window(
     )
     .title("Nym Wallet")
     .background_color(NYM_WALLET_WEBVIEW_BG)
+    .use_https_scheme(true)
     .build()
     {
         Ok(window) => {

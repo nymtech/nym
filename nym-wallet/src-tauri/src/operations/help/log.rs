@@ -20,6 +20,7 @@ pub fn help_log_toggle_window(app_handle: tauri::AppHandle) -> Result<(), Backen
     )
     .title("Nym Wallet Logs")
     .background_color(NYM_WALLET_WEBVIEW_BG)
+    .use_https_scheme(true)
     .build()
     {
         Ok(window) => {

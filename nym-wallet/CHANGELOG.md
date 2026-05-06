@@ -3,10 +3,11 @@
 ## [Unreleased]
 
 ## [v1.2.20] (2026-05-06)
-
+- Fix windows open log viewer ([#6741])
 - Delegation query cache, log webview streaming, HTTPS webviews ([#6740])
 - Nym Wallet: deps updates, clipboard/updater/, icon, polishing ([#5844])
 
+[#6741]: https://github.com/nymtech/nym/pull/6741
 [#6740]: https://github.com/nymtech/nym/pull/6740
 [#6681]: https://github.com/nymtech/nym/pull/6681
 

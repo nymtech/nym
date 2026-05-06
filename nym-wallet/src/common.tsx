@@ -1,4 +1,5 @@
 import React, { ComponentType, useEffect } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import { BrowserRouter, HashRouter } from 'react-router-dom';
 import { SnackbarProvider } from 'notistack';
@@ -10,6 +11,15 @@ import { config } from './config';
 import { useTauriTextEditingClipboard } from './hooks/useTauriTextEditingClipboard';
 
 type RouterComponent = ComponentType<{ children?: React.ReactNode }>;
+
+const walletQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const ClipboardBridge: FCWithChildren = ({ children }) => {
   useTauriTextEditingClipboard();
@@ -48,18 +58,20 @@ export const AppCommon = ({
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <Router>
-        <SnackbarProvider
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-        >
-          <AppProvider>
-            <NymWalletTheme>
-              <ClipboardBridge>{children}</ClipboardBridge>
-            </NymWalletTheme>
-          </AppProvider>
-        </SnackbarProvider>
+        <QueryClientProvider client={walletQueryClient}>
+          <SnackbarProvider
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+          >
+            <AppProvider>
+              <NymWalletTheme>
+                <ClipboardBridge>{children}</ClipboardBridge>
+              </NymWalletTheme>
+            </AppProvider>
+          </SnackbarProvider>
+        </QueryClientProvider>
       </Router>
     </ErrorBoundary>
   );

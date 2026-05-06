@@ -16,6 +16,7 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { helpLogToggleWindow } from 'src/requests/logging';
 import { Console } from 'src/utils/console';
 
@@ -144,6 +145,33 @@ export const LogViewer: FC = () => {
     }
   };
 
+  const formatLine = (m: RecordPayload) => `${getLogLevelName(m.level)}\t${m.message}`;
+
+  const handleCopyAll = async () => {
+    if (messages.length === 0) return;
+    try {
+      const chronological = [...messages].reverse();
+      await writeText(chronological.map(formatLine).join('\n'));
+    } catch (e) {
+      Console.error(e);
+    }
+  };
+
+  const handleCopyLatest = async () => {
+    const latest = messages[0];
+    if (!latest) return;
+    try {
+      await writeText(formatLine(latest));
+    } catch (e) {
+      Console.error(e);
+    }
+  };
+
+  const handleClearList = () => {
+    setMessages([]);
+    setMessageCount(0);
+  };
+
   return (
     <Box
       sx={{
@@ -269,13 +297,26 @@ export const LogViewer: FC = () => {
           color: '#666666',
         }}
       >
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} flexWrap="wrap">
-          <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-            {messageCount} log entries since opening this window
-          </Typography>
-          <Button variant="outlined" size="small" onClick={handleCloseLogs}>
-            Close log window
-          </Button>
+        <Stack spacing={1}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} flexWrap="wrap">
+            <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+              {messageCount} log entries since opening this window
+            </Typography>
+            <Button variant="outlined" size="small" onClick={handleCloseLogs}>
+              Close log window
+            </Button>
+          </Stack>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button variant="text" size="small" onClick={handleCopyLatest} disabled={messages.length === 0}>
+              Copy latest
+            </Button>
+            <Button variant="text" size="small" onClick={handleCopyAll} disabled={messages.length === 0}>
+              Copy all
+            </Button>
+            <Button variant="text" size="small" onClick={handleClearList} disabled={messages.length === 0}>
+              Clear list
+            </Button>
+          </Stack>
         </Stack>
       </Box>
     </Box>

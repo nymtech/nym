@@ -28,7 +28,8 @@ pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
 pub(crate) const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
 
-pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str = "n1x5krtvyqklj360x38v62ze42g8s8trfsfqzlv8c9296chcpvqadssqnem5";
+pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
+    "n1x5krtvyqklj360x38v62ze42g8s8trfsfqzlv8c9296chcpvqadssqnem5";
 
 // -- Constructor functions --
 

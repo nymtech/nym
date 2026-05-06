@@ -219,8 +219,7 @@ pub trait EmbeddedMixnetContractExt:
         self.set_contract_storage_value(&address, b"ci", &to_update)
     }
 
-    fn bond_dummy_nymnode(&mut self) -> Result<NodeId, StdError> {
-        let node_owner = self.generate_account_with_balance();
+    fn bond_dummy_nymnode_for(&mut self, node_owner: &Addr) -> Result<NodeId, StdError> {
         let pledge = coins(100_000000, TEST_DENOM);
         let keypair = ed25519::KeyPair::new(self.raw_rng());
         let identity_key = keypair.public_key().to_base58_string();
@@ -246,7 +245,7 @@ pub trait EmbeddedMixnetContractExt:
         let owner_signature = MessageSignature::from(owner_signature.to_bytes().as_ref());
 
         self.execute_mixnet_contract(
-            message_info(&node_owner, &pledge),
+            message_info(node_owner, &pledge),
             &ExecuteMsg::BondNymNode {
                 node,
                 cost_params,
@@ -262,6 +261,11 @@ pub trait EmbeddedMixnetContractExt:
         )?;
 
         Ok(bond.details.unwrap().bond_information.node_id)
+    }
+
+    fn bond_dummy_nymnode(&mut self) -> Result<NodeId, StdError> {
+        let node_owner = self.generate_account_with_balance();
+        self.bond_dummy_nymnode_for(&node_owner)
     }
 
     fn unbond_nymnode(&mut self, node_id: NodeId) -> Result<(), StdError> {

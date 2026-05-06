@@ -105,7 +105,7 @@ pub(crate) fn try_create_family(
     }
 
     // check whether this owner has a bonded node which belongs to a family
-    ensure_address_holds_no_family_membership(deps.as_ref(), &info.sender)?;
+    ensure_address_holds_no_family_membership(&storage, deps.as_ref(), &info.sender)?;
 
     let family = storage.register_new_family(
         deps.storage,
@@ -265,6 +265,7 @@ mod tests {
         use crate::testing::NodeFamiliesContractTesterExt;
         use cosmwasm_std::coins;
         use cw_utils::PaymentError;
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::TEST_DENOM;
 
         #[test]
@@ -482,9 +483,9 @@ mod tests {
         #[test]
         fn rejects_when_normalised_name_is_already_taken() {
             let mut tester = init_contract_tester();
-            let fee = tester.family_fee();
-            let alice = tester.make_sender_with_funds("alice", &[fee.clone()]);
-            let bob = tester.make_sender_with_funds("bob", &[fee]);
+            let fee = vec![tester.family_fee()];
+            let alice = tester.make_sender_with_funds("alice", &fee);
+            let bob = tester.make_sender_with_funds("bob", &fee);
             let env = tester.env();
 
             tester.make_named_family(&alice.sender, "MyFamily");
@@ -510,8 +511,61 @@ mod tests {
         }
 
         #[test]
-        fn rejects_when_owner_owns_node_in_different_family() {
-            todo!()
+        fn rejects_when_owner_owns_node_in_different_family() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let fee = tester.family_fee();
+            let alice = tester.generate_account_with_balance();
+            let env = tester.env();
+
+            let other_family = tester.make_family(&tester.addr_make("bob"));
+            let node_id = tester.bond_dummy_nymnode_for(&alice)?;
+
+            let alice = message_info(&alice, &[fee]);
+
+            // has node which is not in a family - that's still allowed!
+            let deps = tester.deps_mut();
+            try_create_family(
+                deps,
+                env.clone(),
+                alice.clone(),
+                "My Family!".to_string(),
+                "description".to_string(),
+            )?;
+            tester.disband_family(2);
+
+            // after joining family we error out
+            tester.add_to_family(other_family.id, node_id);
+
+            let deps = tester.deps_mut();
+            let err = try_create_family(
+                deps,
+                env.clone(),
+                alice.clone(),
+                "My Family!".to_string(),
+                "description".to_string(),
+            )
+            .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::AlreadyInFamily {
+                    address: alice.sender.clone(),
+                    node_id,
+                    family_id: other_family.id,
+                }
+            );
+
+            // after unbonding it is fine again
+            tester.unbond_nymnode(node_id)?;
+            let deps = tester.deps_mut();
+            try_create_family(
+                deps,
+                env.clone(),
+                alice.clone(),
+                "My Family!".to_string(),
+                "description".to_string(),
+            )?;
+
+            Ok(())
         }
     }
 }

@@ -1,9 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_network_defaults::{NymNetworkDetails, ValidatorDetails};
-use nym_validator_client::client;
+use anyhow::Context;
+use nym_network_defaults::{NymNetworkDetails, env_configured};
 use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::{client, nyxd};
 use std::net::SocketAddr;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
@@ -77,28 +78,24 @@ impl Config {
     /// Falls back to environment-provided network details when RPC endpoint or
     /// contract addresses are not explicitly set.
     pub(crate) fn try_build_validator_client_config(&self) -> anyhow::Result<client::Config> {
-        // if one if the values is missing, we have no choice but to attempt to use the env
-        let mut base_network_details = if self.nyxd_rpc_endpoint.is_none()
-            || self.mixnet_contract_address.is_none()
-            || self.network_monitors_contract_address.is_none()
-        {
-            info!("using NymNetworkDetails from env vars");
+        let mut base_network_details = if env_configured() {
+            info!("using base NymNetworkDetails from env vars");
             NymNetworkDetails::new_from_env()
         } else {
             info!("using mainnet as base for NymNetworkDetails");
             NymNetworkDetails::new_mainnet()
         };
 
-        base_network_details.set_nym_api_urls(vec![self.nym_api_endpoint.clone()]);
-
-        if let Some(rpc_endpoint) = &self.nyxd_rpc_endpoint {
-            info!("overwriting RPC endpoint with {rpc_endpoint}");
-            base_network_details.endpoints = vec![ValidatorDetails::new(
-                rpc_endpoint.as_str(),
-                Some(self.nym_api_endpoint.as_str()),
-                None,
-            )];
-        }
+        let nyxd_endpoint = if let Some(provided) = &self.nyxd_rpc_endpoint {
+            provided.clone()
+        } else {
+            base_network_details
+                .endpoints
+                .first()
+                .context("no nyxd endpoints provided")?
+                .nyxd_url
+                .parse()?
+        };
 
         if let Some(mixnet_contract_address) = &self.mixnet_contract_address {
             info!("overwriting mixnet contract address with {mixnet_contract_address}");
@@ -116,7 +113,9 @@ impl Config {
                 Some(network_monitors_contract_address.to_string());
         }
 
-        let client_config = client::Config::try_from_nym_network_details(&base_network_details)?;
+        let nyxd_config = nyxd::Config::try_from_nym_network_details(&base_network_details)?;
+        let client_config =
+            client::Config::new(nyxd_endpoint, self.nym_api_endpoint.clone(), nyxd_config);
 
         info!("using the following config: {client_config:#?}");
         Ok(client_config)

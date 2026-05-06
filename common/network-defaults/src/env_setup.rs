@@ -31,6 +31,10 @@ fn print_env_vars_with_keys_in_file<P: AsRef<Path> + Copy>(config_env_file: P) {
     }
 }
 
+pub fn env_configured() -> bool {
+    std::env::var(var_names::CONFIGURED).is_ok()
+}
+
 pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
     match std::env::var(var_names::CONFIGURED) {
         // if the configuration is not already set in the env vars

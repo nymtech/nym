@@ -7,7 +7,7 @@ import {
   FeeDetails,
   TransactionExecuteResult,
 } from '@nymproject/types';
-import { DelegationContext, TDelegationRefreshOptions, TDelegationTransaction } from '../delegations';
+import { DelegationContext, TDelegationTransaction } from '../delegations';
 
 import { mockSleep } from './utils';
 import { TPoolOption } from '../../components';
@@ -71,6 +71,9 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
   const [error, setError] = useState<string>();
   const [delegations, setDelegations] = useState<undefined | DelegationWithEverything[]>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
+  const [totalRewards, setTotalRewards] = useState<undefined | string>();
+  const [totalDelegationsAndRewards, setTotalDelegationsAndRewards] = useState<undefined | string>();
+  const [lastUpdatedAtMs, setLastUpdatedAtMs] = useState(0);
   const [delegationItemErrors, setDelegationItemErrors] = useState<{ nodeId: string; errors: string }>();
 
   const triggerStateUpdate = () => setTrigger(new Date());
@@ -81,8 +84,16 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
   const recalculate = async () => {
     const newDelegations = await getDelegations();
     const newTotalDelegations = `${newDelegations.length * 100} NYM`;
+    const rewardsSum = newDelegations.reduce((acc, d) => {
+      const n = parseFloat(d.unclaimed_rewards?.amount ?? '0');
+      return acc + (Number.isFinite(n) ? n : 0);
+    }, 0);
+    const newTotalRewards = `${rewardsSum} nym`;
     setDelegations(newDelegations);
     setTotalDelegations(newTotalDelegations);
+    setTotalRewards(newTotalRewards);
+    setTotalDelegationsAndRewards(`${newTotalDelegations} + ${newTotalRewards}`);
+    setLastUpdatedAtMs(Date.now());
   };
 
   const addDelegation = async (
@@ -193,8 +204,7 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     };
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const undelegateVesting = async (mix_id: number, _fee?: FeeDetails) => ({
+  const undelegateVesting = async (_mix_id: number) => ({
     msg_responses_json: '',
     data_json: '',
     logs_json: '',
@@ -210,10 +220,13 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     setIsLoading(true);
     setError(undefined);
     setTotalDelegations(undefined);
+    setTotalRewards(undefined);
+    setTotalDelegationsAndRewards(undefined);
+    setLastUpdatedAtMs(0);
     setDelegations([]);
   };
 
-  const refresh = useCallback(async (_opts?: TDelegationRefreshOptions) => {
+  const refresh = useCallback(async () => {
     resetState();
     setTimeout(async () => {
       try {
@@ -239,18 +252,32 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
       isLoading,
       isFetching: isLoading,
       isError: Boolean(error),
-      lastUpdatedAtMs: 0,
-      error,
+      lastUpdatedAtMs,
       delegations,
+      pendingDelegations: [],
       totalDelegations,
+      totalRewards,
+      totalDelegationsAndRewards,
       refresh,
-      getDelegations,
       addDelegation,
-      updateDelegation,
       undelegate,
       undelegateVesting,
     }),
-    [isLoading, error, delegations, totalDelegations, trigger],
+    [
+      isLoading,
+      error,
+      delegations,
+      totalDelegations,
+      totalRewards,
+      totalDelegationsAndRewards,
+      lastUpdatedAtMs,
+      refresh,
+      addDelegation,
+      undelegate,
+      undelegateVesting,
+      delegationItemErrors,
+      trigger,
+    ],
   );
 
   return <DelegationContext.Provider value={memoizedValue}>{children}</DelegationContext.Provider>;

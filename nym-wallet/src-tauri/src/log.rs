@@ -62,10 +62,14 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
                 message: record.args().to_string(),
                 level: record.level().into(),
             };
-            // Tauri 2: target the log webview explicitly so the dedicated window receives events.
-            if let Some(log_win) = log_window_app.get_webview_window("log") {
-                let _ = log_win.emit("log://log", msg);
-            }
+            let app = log_window_app.clone();
+            let app_for_emit = app.clone();
+            // Logging callbacks often run off the UI thread; WebView event delivery must run on main (macOS).
+            let _ = app.run_on_main_thread(move || {
+                if let Some(log_win) = app_for_emit.get_webview_window("log") {
+                    let _ = log_win.emit("log://log", msg);
+                }
+            });
         }));
 
     base_config

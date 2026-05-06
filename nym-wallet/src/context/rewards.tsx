@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
-import { type TDelegationRefreshOptions, useDelegationContext } from './delegations';
+import { useDelegationContext } from './delegations';
 import { claimDelegatorRewards } from '../requests';
 
 type TRewardsContext = {
   isLoading: boolean;
   error?: string;
   totalRewards?: string;
-  refresh: (opts?: TDelegationRefreshOptions) => Promise<void>;
+  refresh: () => Promise<void>;
   claimRewards: (mixId: number, fee?: FeeDetails) => Promise<TransactionExecuteResult[]>;
 };
 
@@ -18,7 +18,7 @@ export type TRewardsTransaction = {
 
 export const RewardsContext = createContext<TRewardsContext>({
   isLoading: false,
-  refresh: async (_opts?: TDelegationRefreshOptions) => undefined,
+  refresh: async () => undefined,
   claimRewards: async () => {
     throw new Error('Not implemented');
   },

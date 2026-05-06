@@ -9,7 +9,7 @@ use nym_connection_monitor::{
         wrap_icmp_in_ipv6,
     },
 };
-use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec, v8::request::IpPacketRequest};
+use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_sdk::mixnet::{
     InputMessage, MixnetClient, MixnetMessageSender, Recipient, TransmissionLane,
 };
@@ -25,6 +25,7 @@ pub async fn send_ping_v4(
     sequence_number: u16,
     destination: Ipv4Addr,
     exit_router_address: Recipient,
+    stream_id: u64,
 ) -> anyhow::Result<()> {
     let icmp_identifier = icmp_identifier();
     let icmp_echo_request = create_icmpv4_echo_request(sequence_number, icmp_identifier)?;
@@ -35,7 +36,12 @@ pub async fn send_ping_v4(
         MultiIpPacketCodec::bundle_one_packet(ipv4_packet.packet().to_vec().into());
 
     // Wrap into a mixnet input message addressed to the IPR
-    let mixnet_message = create_input_message(exit_router_address, bundled_packet)?;
+    let mixnet_message = create_input_message(
+        exit_router_address,
+        bundled_packet,
+        stream_id,
+        sequence_number,
+    )?;
 
     mixnet_client.send(mixnet_message).await?;
     Ok(())
@@ -47,6 +53,7 @@ pub async fn send_ping_v6(
     sequence_number: u16,
     destination: Ipv6Addr,
     exit_router_address: Recipient,
+    stream_id: u64,
 ) -> anyhow::Result<()> {
     let icmp_identifier = icmp_identifier();
     let icmp_echo_request = create_icmpv6_echo_request(
@@ -62,7 +69,12 @@ pub async fn send_ping_v6(
         MultiIpPacketCodec::bundle_one_packet(ipv6_packet.packet().to_vec().into());
 
     // Wrap into a mixnet input message addressed to the IPR
-    let mixnet_message = create_input_message(exit_router_address, bundled_packet)?;
+    let mixnet_message = create_input_message(
+        exit_router_address,
+        bundled_packet,
+        stream_id,
+        sequence_number,
+    )?;
 
     // Send across the mixnet
     mixnet_client.send(mixnet_message).await?;
@@ -72,15 +84,22 @@ pub async fn send_ping_v6(
 fn create_input_message(
     recipient: impl Into<Recipient>,
     bundled_packets: Bytes,
+    stream_id: u64,
+    sequence_number: u16,
 ) -> anyhow::Result<InputMessage> {
-    let packet = IpPacketRequest::new_data_request(bundled_packets).to_bytes()?;
+    let packet = nym_ip_packet_client::current::new_data_request(bundled_packets).to_bytes()?;
+    let framed_packet = nym_ip_packet_client::lp_stream::encode_stream_frame(
+        stream_id,
+        sequence_number as u32,
+        packet,
+    );
 
     let lane = TransmissionLane::General;
     let packet_type = None;
     let surbs = 0;
     Ok(InputMessage::new_anonymous(
         recipient.into(),
-        packet,
+        framed_packet,
         surbs,
         lane,
         packet_type,

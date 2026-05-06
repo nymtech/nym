@@ -1,13 +1,16 @@
 [package]
 name = "nym-authenticator-requests"
+description = "Crate defining requests and responses for the Nym authenticator client"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "Crate defining requests and responses for the Nym authenticator client"
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 [dependencies]
 base64 = { workspace = true }

@@ -81,6 +81,11 @@ nr_description = '{{ storage_paths.nr_description }}'
 # and thus would attempt to resolve **ANY** request it receives.
 open_proxy = {{ network_requester.open_proxy }}
 
+# Allow forwarding traffic to non-globally-routable addresses.
+# Intended for local development for security reasons.
+# Only enable if you know what you're doing.
+allow_local_ips = {{ network_requester.allow_local_ips }}
+
 # Disable Poisson sending rate
 # This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
 disable_poisson_rate = {{ network_requester.disable_poisson_rate }}

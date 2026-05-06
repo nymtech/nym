@@ -1,11 +1,16 @@
 [package]
 name = "nym-config"
+description = "Config related helpers and functions"
 version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
+repository.workspace = true
 homepage.workspace = true
-description = "Config related helpers and functions"
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

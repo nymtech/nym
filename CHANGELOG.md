@@ -4,6 +4,22 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.9-venaco] (2026-05-06)
+
+- Fix for v9 IPR  ([#6710])
+- Only init SHARED_CLIENT if requested ([#6708])
+- Fixes to crates and CI ([#6686])
+- Return ipv6 addresses as well ([#6684])
+- Fix invalid ticket spend ([#6683])
+- Block non-public IPR/NR checks ([#6670])
+
+[#6710]: https://github.com/nymtech/nym/pull/6710
+[#6708]: https://github.com/nymtech/nym/pull/6708
+[#6686]: https://github.com/nymtech/nym/pull/6686
+[#6684]: https://github.com/nymtech/nym/pull/6684
+[#6683]: https://github.com/nymtech/nym/pull/6683
+[#6670]: https://github.com/nymtech/nym/pull/6670
+
 ## [2026.8-urda] (2026-04-20)
 
 - Include all gateways in the returned list ([#6649])

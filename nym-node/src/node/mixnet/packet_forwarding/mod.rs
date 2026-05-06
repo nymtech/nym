@@ -15,8 +15,6 @@ use std::io;
 use tokio::time::Instant;
 use tracing::{debug, error, trace, warn};
 
-pub(crate) mod global;
-
 pub struct PacketForwarder<C, F> {
     delay_queue: NonExhaustiveDelayQueue<MixPacket>,
     mixnet_client: C,

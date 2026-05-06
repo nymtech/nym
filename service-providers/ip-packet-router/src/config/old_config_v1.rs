@@ -95,6 +95,7 @@ impl From<IpPacketRouterV1> for IpPacketRouter {
     fn from(value: IpPacketRouterV1) -> Self {
         IpPacketRouter {
             open_proxy: false,
+            allow_local_ips: false,
             disable_poisson_rate: value.disable_poisson_rate,
             upstream_exit_policy_url: value.upstream_exit_policy_url,
         }

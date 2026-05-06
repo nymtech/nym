@@ -1,13 +1,16 @@
 [package]
 name = "nym-gateway-client"
+description = "Functions and types for Nym client <> Gateway connections"
 version.workspace = true
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
-description = "Functions and types for Nym client <> Gateway connections"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

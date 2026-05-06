@@ -1,14 +1,16 @@
 [package]
 name = "nym-gateway-stats-storage"
+description = "Functionality Nym Gateway statistics storage"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
-description = "Functionality Nym Gateway statistics storage"
+readme.workspace = true
+publish = true
 
 [dependencies]
 sqlx = { workspace = true, features = [

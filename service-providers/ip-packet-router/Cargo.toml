@@ -2,11 +2,11 @@
 name = "nym-ip-packet-router"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license = "GPL-3.0"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license = "GPL-3.0"
 publish = false
 
 [dependencies]
@@ -19,7 +19,7 @@ etherparse = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 
-nym-bin-common = { workspace = true, features = ["clap", "basic_tracing"] }
+nym-bin-common = { workspace = true, features = ["clap", "basic_tracing", "ip_check"] }
 nym-client-core = { workspace = true }
 nym-config = { workspace = true }
 nym-crypto = { workspace = true }

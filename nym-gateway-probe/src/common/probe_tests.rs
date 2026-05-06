@@ -256,8 +256,8 @@ pub async fn do_ping(
         let (maybe_ip_pair, mut mixnet_client) =
             connect_exit(mixnet_client, exit_router_address).await;
         match maybe_ip_pair {
-            Some(ip_pair) => (
-                do_ping_exit(&mut mixnet_client, ip_pair, exit_router_address).await,
+            Some((ip_pair, stream_id)) => (
+                do_ping_exit(&mut mixnet_client, ip_pair, stream_id, exit_router_address).await,
                 mixnet_client,
             ),
             None => (Ok(Some(Exit::fail_to_connect())), mixnet_client),
@@ -304,7 +304,7 @@ async fn do_ping_entry(
 async fn connect_exit(
     mixnet_client: MixnetClient,
     exit_router_address: Recipient,
-) -> (Option<IpPair>, MixnetClient) {
+) -> (Option<(IpPair, u64)>, MixnetClient) {
     // Step 2: connect to the exit gateway
     info!(
         "Connecting to exit gateway: {}",
@@ -315,12 +315,19 @@ async fn connect_exit(
     let mut ipr_client = IprClientConnect::new(mixnet_client, cancel_token);
 
     let maybe_ip_pair = ipr_client.connect(exit_router_address).await;
+    let stream_id = ipr_client.stream_id();
     let mixnet_client = ipr_client.into_mixnet_client();
 
     if let Ok(our_ips) = maybe_ip_pair {
         info!("Successfully connected to exit gateway");
         info!("Using mixnet VPN IP addresses: {our_ips}");
-        (Some(our_ips), mixnet_client)
+        let Some(stream_id) = stream_id else {
+            tracing::warn!(
+                "No active IPR stream id set after connect; cannot run IPR data-plane tests"
+            );
+            return (None, mixnet_client);
+        };
+        (Some((our_ips, stream_id)), mixnet_client)
     } else {
         (None, mixnet_client)
     }
@@ -329,10 +336,11 @@ async fn connect_exit(
 pub async fn do_ping_exit(
     mixnet_client: &mut MixnetClient,
     our_ips: IpPair,
+    stream_id: u64,
     exit_router_address: Recipient,
 ) -> anyhow::Result<Option<Exit>> {
     // Step 3: perform ICMP connectivity checks for the exit gateway
-    send_icmp_pings(mixnet_client, our_ips, exit_router_address).await?;
+    send_icmp_pings(mixnet_client, our_ips, exit_router_address, stream_id).await?;
     listen_for_icmp_ping_replies(mixnet_client, our_ips).await
 }
 
@@ -340,6 +348,7 @@ async fn send_icmp_pings(
     mixnet_client: &MixnetClient,
     our_ips: IpPair,
     exit_router_address: Recipient,
+    stream_id: u64,
 ) -> anyhow::Result<()> {
     // ipv4 addresses for testing
     let ipr_tun_ip_v4 = NYM_TUN_DEVICE_ADDRESS_V4;
@@ -361,6 +370,7 @@ async fn send_icmp_pings(
             ii,
             ipr_tun_ip_v4,
             exit_router_address,
+            stream_id,
         )
         .await?;
         icmp::send_ping_v4(
@@ -369,6 +379,7 @@ async fn send_icmp_pings(
             ii,
             external_ip_v4,
             exit_router_address,
+            stream_id,
         )
         .await?;
     }
@@ -381,6 +392,7 @@ async fn send_icmp_pings(
             ii,
             ipr_tun_ip_v6,
             exit_router_address,
+            stream_id,
         )
         .await?;
         icmp::send_ping_v6(
@@ -389,6 +401,7 @@ async fn send_icmp_pings(
             ii,
             external_ip_v6,
             exit_router_address,
+            stream_id,
         )
         .await?;
     }

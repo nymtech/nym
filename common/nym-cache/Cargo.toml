@@ -1,15 +1,16 @@
 [package]
 name = "nym-cache"
+description = "Helper functions around a RwLock for writing to local cache of items"
 version.workspace = true
 authors.workspace = true
+edition.workspace = true
+license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
-description = "Helper functions around a RwLock for writing to local cache of items"
+publish = true
 
 [dependencies]
 tokio = { workspace = true, features = ["sync"] }

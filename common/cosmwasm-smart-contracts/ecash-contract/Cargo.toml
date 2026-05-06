@@ -1,12 +1,16 @@
 [package]
 name = "nym-ecash-contract-common"
+description = "Common crate for Nym's ecash/zknym cosmwasm contract"
 version.workspace = true
+authors.workspace = true
 edition = "2021"
 license.workspace = true
-description = "Common crate for Nym's ecash/zknym cosmwasm contract"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
+rust-version = "1.85"
+readme.workspace = true
+publish = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -3,13 +3,13 @@
 
 [package]
 name = "nym-node"
-version = "1.30.0"
+version = "1.31.0"
 authors.workspace = true
+edition.workspace = true
+license = "GPL-3.0"
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-edition.workspace = true
-license = "GPL-3.0"
 publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -58,6 +58,7 @@ sysinfo = { workspace = true }
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
     "output_format",
+    "ip_check"
 ] }
 nym-client-core-config-types = { workspace = true, features = [
     "disk-persistence",

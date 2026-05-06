@@ -33,6 +33,9 @@ pub struct NodeFamily {
     /// The name of the node family
     pub name: String,
 
+    /// Normalised name of the node family used for uniqueness checks
+    pub normalised_name: String,
+
     /// The optional description of the node family
     pub description: String,
 

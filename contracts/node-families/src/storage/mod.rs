@@ -48,9 +48,10 @@ pub struct NodeFamiliesStorage<'a> {
     pub(crate) node_family_id_counter: Item<NodeFamilyId>,
 
     /// All existing families, keyed by id, with unique secondary indexes on
-    /// `owner` (one-family-per-owner-address) and on `name`
-    /// (family names are globally unique — compared by raw bytes, so
-    /// callers normalise upstream if case-insensitive uniqueness is desired).
+    /// `owner` (one-family-per-owner-address) and on `normalised_name`
+    /// (family names are globally unique under their normalised form, so
+    /// `"MyFamily"` and `"myfamily"` collide while the original `name` field
+    /// preserves the user-submitted formatting).
     pub(crate) families: IndexedMap<NodeFamilyId, NodeFamily, NodeFamiliesIndex<'a>>,
 
     /// Current family membership records, keyed by [`NodeId`]. A node
@@ -209,14 +210,15 @@ impl NodeFamiliesStorage<'_> {
     ///
     /// The caller (a transaction handler) is responsible for:
     /// - validating `name`, `description` and `owner`;
-    /// - normalising `name` (e.g. trim/lowercase) if case-insensitive
-    ///   uniqueness is desired — the storage layer compares raw bytes;
+    /// - computing `normalised_name` from `name` (e.g. via
+    ///   [`crate::helpers::normalise_family_name`]) — the unique-name index
+    ///   keys on this field, so it is what enforces global uniqueness;
     /// - ensuring `owner` does not already own a family **and** is not
     ///   currently a member of one.
     ///
     /// Returns the freshly persisted [`NodeFamily`]. The underlying
     /// `IndexedMap` enforces the one-family-per-owner and unique-name
-    /// invariants via unique indexes on `owner` and `name` as a
+    /// invariants via unique indexes on `owner` and `normalised_name` as a
     /// defence-in-depth check, so this call will fail if either is already
     /// taken — but the caller must not rely on it for the membership check.
     pub(crate) fn register_new_family(
@@ -226,12 +228,14 @@ impl NodeFamiliesStorage<'_> {
         fee: Coin,
         owner: Addr,
         name: String,
+        normalised_name: String,
         description: String,
     ) -> Result<NodeFamily, NodeFamiliesContractError> {
         let id = self.next_family_id(store)?;
         let family = NodeFamily {
             id,
             name,
+            normalised_name,
             description,
             owner,
             paid_fee: fee,
@@ -687,6 +691,7 @@ mod tests {
                 &env,
                 fee,
                 owner.clone(),
+                "Fam!".into(),
                 "fam".into(),
                 "desc".into(),
             )
@@ -694,7 +699,8 @@ mod tests {
 
         assert_eq!(family.id, 1);
         assert_eq!(family.owner, owner);
-        assert_eq!(family.name, "fam");
+        assert_eq!(family.name, "Fam!");
+        assert_eq!(family.normalised_name, "fam");
         assert_eq!(family.description, "desc");
         assert_eq!(family.members, 0);
         assert_eq!(family.created_at, tester.env().block.time.seconds());
@@ -728,17 +734,20 @@ mod tests {
             &env,
             fee.clone(),
             alice,
+            "Shared".into(),
             "shared".into(),
             "".into(),
         )
         .unwrap();
 
-        // unique-index defence-in-depth check
+        // unique-index defence-in-depth check: same normalised_name even though
+        // the user-submitted `name` differs in casing/punctuation.
         let res = s.register_new_family(
             tester.storage_mut(),
             &env,
             fee,
             bob,
+            "$$shared$$".into(),
             "shared".into(),
             "".into(),
         );
@@ -761,6 +770,7 @@ mod tests {
             &env,
             fee,
             alice,
+            "second".into(),
             "second".into(),
             "".into(),
         );
@@ -1192,6 +1202,7 @@ mod tests {
                 &env,
                 fee,
                 alice,
+                "2".into(),
                 "2".into(),
                 "".into(),
             )

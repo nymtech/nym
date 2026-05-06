@@ -110,6 +110,24 @@ pub enum NodeFamiliesContractError {
         family_id: NodeFamilyId,
     },
 
+    /// The node referenced by an invitation does not exist as a bonded node
+    /// in the mixnet contract (or has already unbonded).
+    #[error("node {node_id} is not a bonded node in the mixnet contract")]
+    NodeDoesntExist { node_id: NodeId },
+
+    /// The node referenced by an invitation is already a member of a family,
+    /// so it cannot be invited to another one until it leaves / is removed.
+    #[error("node {node_id} is already a member of family {family_id}")]
+    NodeAlreadyInFamily {
+        node_id: NodeId,
+        family_id: NodeFamilyId,
+    },
+
+    /// The sender supplied a `validity_secs` of `0` for an invitation, which
+    /// would create one that is already expired at the moment it is stored.
+    #[error("invitation validity must be strictly positive")]
+    ZeroInvitationValidity,
+
     /// Wraps errors raised by `cw-controllers::Admin` (e.g. caller is not admin).
     #[error(transparent)]
     Admin(#[from] AdminError),

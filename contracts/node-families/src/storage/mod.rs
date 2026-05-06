@@ -602,6 +602,44 @@ impl NodeFamiliesStorage<'_> {
 
         Ok(family)
     }
+
+    // helpers
+
+    /// Look up the family owned by `owner` via the unique `owner` index.
+    ///
+    /// Returns `Ok(None)` if the address owns no family. The unique index
+    /// guarantees the lookup is `O(log n)` and that at most one family can
+    /// ever match.
+    pub(crate) fn may_get_owned_family(
+        &self,
+        storage: &dyn Storage,
+        owner: &Addr,
+    ) -> Result<Option<NodeFamily>, NodeFamiliesContractError> {
+        Ok(self
+            .families
+            .idx
+            .owner
+            .item(storage, owner.clone())?
+            .map(|(_, owned)| owned))
+    }
+
+    /// Like [`Self::may_get_owned_family`] but errors with
+    /// [`SenderDoesntOwnAFamily`] when the address doesn't own one — meant
+    /// for owner-gated execute paths (`disband`, `invite`, …) where the
+    /// absence of a family is itself an error.
+    ///
+    /// [`SenderDoesntOwnAFamily`]: NodeFamiliesContractError::SenderDoesntOwnAFamily
+    pub(crate) fn must_get_owned_family(
+        &self,
+        storage: &dyn Storage,
+        owner: &Addr,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        self.may_get_owned_family(storage, owner)?.ok_or_else(|| {
+            NodeFamiliesContractError::SenderDoesntOwnAFamily {
+                address: owner.clone(),
+            }
+        })
+    }
 }
 
 #[cfg(test)]
@@ -1185,5 +1223,106 @@ mod tests {
         // ids monotonically increase, never recycled
         assert_eq!(f1.id, 1);
         assert_eq!(f2.id, 2);
+    }
+
+    // ---- may_get_owned_family ----
+
+    #[test]
+    fn may_get_owned_family_returns_none_when_address_owns_nothing() {
+        let tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+
+        let res = s.may_get_owned_family(tester.storage(), &alice).unwrap();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn may_get_owned_family_returns_the_family_for_its_owner() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let res = s
+            .may_get_owned_family(tester.storage(), &alice)
+            .unwrap()
+            .unwrap();
+        assert_eq!(res, family);
+    }
+
+    #[test]
+    fn may_get_owned_family_does_not_leak_other_owners_family() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let bob = tester.addr_make("bob");
+        tester.make_family(&alice);
+
+        let res = s.may_get_owned_family(tester.storage(), &bob).unwrap();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn may_get_owned_family_returns_none_after_disband() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let env = tester.env();
+        s.disband_family(tester.storage_mut(), &env, family.id)
+            .unwrap();
+
+        let res = s.may_get_owned_family(tester.storage(), &alice).unwrap();
+        assert!(res.is_none());
+    }
+
+    // ---- must_get_owned_family ----
+
+    #[test]
+    fn must_get_owned_family_returns_the_family_for_its_owner() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let res = s.must_get_owned_family(tester.storage(), &alice).unwrap();
+        assert_eq!(res, family);
+    }
+
+    #[test]
+    fn must_get_owned_family_errors_when_address_owns_nothing() {
+        let tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+
+        let err = s
+            .must_get_owned_family(tester.storage(), &alice)
+            .unwrap_err();
+        assert_eq!(
+            err,
+            NodeFamiliesContractError::SenderDoesntOwnAFamily { address: alice }
+        );
+    }
+
+    #[test]
+    fn must_get_owned_family_errors_after_disband() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let env = tester.env();
+        s.disband_family(tester.storage_mut(), &env, family.id)
+            .unwrap();
+
+        let err = s
+            .must_get_owned_family(tester.storage(), &alice)
+            .unwrap_err();
+        assert_eq!(
+            err,
+            NodeFamiliesContractError::SenderDoesntOwnAFamily { address: alice }
+        );
     }
 }

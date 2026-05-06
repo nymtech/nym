@@ -63,6 +63,7 @@ impl TestableNymContract for NodeFamiliesContract {
                     create_family_fee: coin(100_000000, TEST_DENOM),
                     family_name_length_limit: 20,
                     family_description_length_limit: 200,
+                    default_invitation_validity_secs: 24 * 60 * 60,
                 },
                 mixnet_contract_address: mixnet_address.to_string(),
             }))

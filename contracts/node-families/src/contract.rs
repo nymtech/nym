@@ -69,7 +69,10 @@ pub fn execute(
             try_create_family(deps, env, info, name, description)
         }
         ExecuteMsg::DisbandFamily {} => try_disband_family(deps, env, info),
-        ExecuteMsg::InviteToFamily { node_id } => try_invite_to_family(deps, env, info, node_id),
+        ExecuteMsg::InviteToFamily {
+            node_id,
+            validity_secs,
+        } => try_invite_to_family(deps, env, info, node_id, validity_secs),
         ExecuteMsg::RevokeFamilyInvitation { node_id } => {
             try_revoke_family_invitation(deps, env, info, node_id)
         }
@@ -218,6 +221,7 @@ mod tests {
                 create_family_fee: coin(123, "unym"),
                 family_name_length_limit: 20,
                 family_description_length_limit: 100,
+                default_invitation_validity_secs: 24 * 60 * 60,
             }
         }
 

@@ -22,6 +22,11 @@ pub struct Config {
 
     /// Maximum allowed length, in characters, of a family description.
     pub family_description_length_limit: usize,
+
+    /// Default lifetime, in seconds, used by `invite_to_family` when the
+    /// sender doesn't supply an explicit value. Senders may override this
+    /// per-invitation via the optional `validity_secs` argument.
+    pub default_invitation_validity_secs: u64,
 }
 
 /// On-chain representation of a node family.

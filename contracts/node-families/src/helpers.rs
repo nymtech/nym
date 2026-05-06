@@ -4,7 +4,7 @@
 use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{Addr, Deps};
 use node_families_contract_common::NodeFamiliesContractError;
-use nym_mixnet_contract_common::MixnetContractQuerier;
+use nym_mixnet_contract_common::{MixnetContractQuerier, NodeId};
 
 /// Normalise a family name into the canonical form used as the unique-index key.
 ///
@@ -45,5 +45,42 @@ pub(crate) fn ensure_address_holds_no_family_membership(
         });
     }
 
+    Ok(())
+}
+
+/// Cross-contract query: ensure `node_id` is a currently-bonded node in the
+/// mixnet contract. Returns [`NodeDoesntExist`] otherwise.
+///
+/// [`NodeDoesntExist`]: NodeFamiliesContractError::NodeDoesntExist
+pub(crate) fn ensure_node_is_bonded(
+    storage: &NodeFamiliesStorage,
+    deps: Deps,
+    node_id: NodeId,
+) -> Result<(), NodeFamiliesContractError> {
+    let mixnet_contract = storage.mixnet_contract_address.load(deps.storage)?;
+    if !deps
+        .querier
+        .check_node_existence(&mixnet_contract, node_id)?
+    {
+        return Err(NodeFamiliesContractError::NodeDoesntExist { node_id });
+    }
+    Ok(())
+}
+
+/// Ensure `node_id` is not currently a member of any family. Returns
+/// [`NodeAlreadyInFamily`] if it is.
+///
+/// [`NodeAlreadyInFamily`]: NodeFamiliesContractError::NodeAlreadyInFamily
+pub(crate) fn ensure_node_not_in_family(
+    storage: &NodeFamiliesStorage,
+    deps: Deps,
+    node_id: NodeId,
+) -> Result<(), NodeFamiliesContractError> {
+    if let Some(membership) = storage.family_members.may_load(deps.storage, node_id)? {
+        return Err(NodeFamiliesContractError::NodeAlreadyInFamily {
+            node_id,
+            family_id: membership.family_id,
+        });
+    }
     Ok(())
 }

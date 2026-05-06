@@ -42,8 +42,14 @@ pub enum ExecuteMsg {
     /// no current members; any still-pending invitations are revoked.
     DisbandFamily {},
 
-    /// Invite a node to the family owned by the message sender.
-    InviteToFamily { node_id: NodeId },
+    /// Invite a node to the family owned by the message sender. If
+    /// `validity_secs` is omitted the invitation expires
+    /// `default_invitation_validity_secs` seconds (from [`Config`]) after the
+    /// current block time.
+    InviteToFamily {
+        node_id: NodeId,
+        validity_secs: Option<u64>,
+    },
 
     /// Revoke a still-pending invitation previously issued by the sender's
     /// family.

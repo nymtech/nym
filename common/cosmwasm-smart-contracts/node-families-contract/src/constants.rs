@@ -72,4 +72,9 @@ pub mod events {
     pub const FAMILY_DISBAND_EVENT_FAMILY_ID: &str = "family_id";
     pub const FAMILY_DISBAND_EVENT_OWNER_ADDRESS: &str = "owner_address";
     pub const FAMILY_DISBAND_EVENT_REFUNDED_FEE: &str = "refunded_fee";
+
+    pub const FAMILY_INVITATION_EVENT_NAME: &str = "family_invitation";
+    pub const FAMILY_INVITATION_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_INVITATION_EVENT_NODE_ID: &str = "node_id";
+    pub const FAMILY_INVITATION_EVENT_EXPIRES_AT: &str = "expires_at";
 }

@@ -1,8 +1,13 @@
 use std::str::FromStr;
 
+// Log webview emit chain: keep `cfg(not(windows))` here aligned with
+// `platform_constants::SECONDARY_LOG_WEBVIEW_SUPPORTED` (compile-time strip on Windows).
 use fern::colors::{Color, ColoredLevelConfig};
+#[cfg(not(target_os = "windows"))]
 use serde::Serialize;
+#[cfg(not(target_os = "windows"))]
 use serde_repr::{Deserialize_repr, Serialize_repr};
+#[cfg(not(target_os = "windows"))]
 use tauri::{Emitter, Manager};
 use time::{format_description, OffsetDateTime};
 
@@ -23,7 +28,9 @@ fn formatted_time() -> String {
     _now.format(&format).unwrap()
 }
 
+#[cfg_attr(target_os = "windows", allow(unused_variables))]
 pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerError> {
+    #[cfg(not(target_os = "windows"))]
     let log_window_app = app_handle.clone();
     let colors = ColoredLevelConfig::new()
         .trace(Color::Magenta)
@@ -48,6 +55,7 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
         })
         .chain(std::io::stdout());
 
+    #[cfg(not(target_os = "windows"))]
     let tauri_event_config = fern::Dispatch::new()
         .format(move |out, message, record| {
             out.finish(format_args!(
@@ -76,10 +84,12 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
             }
         }));
 
-    base_config
-        .chain(stdout_config)
-        .chain(tauri_event_config)
-        .apply()
+    #[cfg(not(target_os = "windows"))]
+    let dispatch = base_config.chain(stdout_config).chain(tauri_event_config);
+    #[cfg(target_os = "windows")]
+    let dispatch = base_config.chain(stdout_config);
+
+    dispatch.apply()
 }
 
 trait FernExt {
@@ -118,13 +128,14 @@ fn global_level() -> log::LevelFilter {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 #[derive(Debug, Serialize, Clone)]
 struct LogMessage {
     message: String,
     level: LogLevel,
 }
 
-// Serialize to u16 instead of strings.
+#[cfg(not(target_os = "windows"))]
 #[derive(Debug, Clone, Deserialize_repr, Serialize_repr)]
 #[repr(u16)]
 enum LogLevel {
@@ -135,6 +146,7 @@ enum LogLevel {
     Error,
 }
 
+#[cfg(not(target_os = "windows"))]
 impl From<log::Level> for LogLevel {
     fn from(level: log::Level) -> Self {
         match level {

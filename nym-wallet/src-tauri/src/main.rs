@@ -213,6 +213,7 @@ fn main() {
             signatures::ed25519_signing_payload::generate_nym_node_bonding_msg_payload,
             signatures::ed25519_signing_payload::vesting_generate_gateway_bonding_msg_payload,
             help::log::help_log_toggle_window,
+            help::log::log_viewer_window_supported,
             app::window::create_main_window,
             app::window::create_auth_window,
             app::react::set_react_state,
@@ -221,7 +222,9 @@ fn main() {
         .menu(menu::build_app_menu)
         .on_menu_event(|app, event| {
             if event.id() == SHOW_LOG_WINDOW {
-                let _r = help::log::help_log_toggle_window(app.app_handle().clone());
+                if let Err(err) = help::log::help_log_toggle_window(app.app_handle().clone()) {
+                    ::log::warn!("Show logs menu action failed: {err}");
+                }
             }
         })
         .setup(|app| Ok(log::setup_logging(app.app_handle().clone())?))

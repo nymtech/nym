@@ -147,7 +147,7 @@ pub trait NodeFamiliesContractTesterExt:
     }
 
     fn make_named_family(&mut self, owner: &Addr, name: &str) -> NodeFamily {
-        let name = normalise_family_name(name);
+        let normalised = normalise_family_name(name);
         let env = self.env();
         let fee = self.family_fee();
         NodeFamiliesStorage::new()
@@ -157,6 +157,7 @@ pub trait NodeFamiliesContractTesterExt:
                 fee,
                 owner.clone(),
                 name.to_string(),
+                normalised,
                 "dummy".to_string(),
             )
             .unwrap()

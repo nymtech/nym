@@ -16,10 +16,10 @@ use nym_mixnet_contract_common::NodeId;
 pub(crate) struct NodeFamiliesIndex<'a> {
     /// Unique index: at most one family per owner [`Addr`].
     pub(crate) owner: UniqueIndex<'a, Addr, NodeFamily, NodeFamilyId>,
-    /// Unique index: family names are globally unique. Compares by raw bytes —
-    /// callers must normalise (e.g. lowercase/trim) before insert if they
-    /// want case-insensitive uniqueness.
-    pub(crate) name: UniqueIndex<'a, String, NodeFamily, NodeFamilyId>,
+    /// Unique index keyed on [`NodeFamily::normalised_name`]: enforces global
+    /// uniqueness on the normalised form, so families with the same
+    /// canonical name but different user-submitted formatting collide.
+    pub(crate) normalised_name: UniqueIndex<'a, String, NodeFamily, NodeFamilyId>,
 }
 
 impl NodeFamiliesIndex<'_> {
@@ -30,8 +30,8 @@ impl NodeFamiliesIndex<'_> {
                 |family| family.owner.clone(),
                 storage_keys::FAMILIES_OWNER_IDX_NAMESPACE,
             ),
-            name: UniqueIndex::new(
-                |family| family.name.clone(),
+            normalised_name: UniqueIndex::new(
+                |family| family.normalised_name.clone(),
                 storage_keys::FAMILIES_NAME_IDX_NAMESPACE,
             ),
         }
@@ -40,7 +40,7 @@ impl NodeFamiliesIndex<'_> {
 
 impl IndexList<NodeFamily> for NodeFamiliesIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<NodeFamily>> + '_> {
-        let v: Vec<&dyn Index<NodeFamily>> = vec![&self.owner, &self.name];
+        let v: Vec<&dyn Index<NodeFamily>> = vec![&self.owner, &self.normalised_name];
         Box::new(v.into_iter())
     }
 }

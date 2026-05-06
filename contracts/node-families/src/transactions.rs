@@ -95,7 +95,7 @@ pub(crate) fn try_create_family(
     if let Some((_, existing)) = storage
         .families
         .idx
-        .name
+        .normalised_name
         .item(deps.storage, normalised.clone())?
     {
         return Err(NodeFamiliesContractError::FamilyNameAlreadyTaken {
@@ -112,6 +112,7 @@ pub(crate) fn try_create_family(
         &env,
         config.create_family_fee,
         info.sender,
+        name,
         normalised,
         description,
     )?;
@@ -267,25 +268,29 @@ mod tests {
         use nym_contracts_common_testing::TEST_DENOM;
 
         #[test]
-        fn happy_path_persists_normalised_family() -> anyhow::Result<()> {
+        fn happy_path_persists_family_preserving_submitted_name() -> anyhow::Result<()> {
             let mut tester = init_contract_tester();
             let fee = tester.family_fee();
             let alice = tester.make_sender_with_funds("alice", &[fee]);
             let env = tester.env();
             let deps = tester.deps_mut();
 
+            // user-submitted formatting includes punctuation + casing that
+            // the normaliser strips; both forms should end up on the stored
+            // record.
             try_create_family(
                 deps,
                 env,
                 alice.clone(),
-                "name".to_string(),
+                "My Family!".to_string(),
                 "description".to_string(),
             )?;
 
             let storage = NodeFamiliesStorage::new();
             let family = storage.families.load(tester.deps().storage, 1)?;
             assert_eq!(family.id, 1);
-            assert_eq!(family.name, "name");
+            assert_eq!(family.name, "My Family!");
+            assert_eq!(family.normalised_name, "myfamily");
             assert_eq!(family.owner, alice.sender);
             assert_eq!(family.description, "description");
             assert_eq!(family.paid_fee, alice.funds[0]);

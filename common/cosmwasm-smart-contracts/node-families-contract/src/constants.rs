@@ -77,4 +77,8 @@ pub mod events {
     pub const FAMILY_INVITATION_EVENT_FAMILY_ID: &str = "family_id";
     pub const FAMILY_INVITATION_EVENT_NODE_ID: &str = "node_id";
     pub const FAMILY_INVITATION_EVENT_EXPIRES_AT: &str = "expires_at";
+
+    pub const FAMILY_INVITATION_REVOKED_EVENT_NAME: &str = "family_invitation_revoked";
+    pub const FAMILY_INVITATION_REVOKED_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_INVITATION_REVOKED_EVENT_NODE_ID: &str = "node_id";
 }

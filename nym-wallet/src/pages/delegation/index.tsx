@@ -1,4 +1,4 @@
-import React, { FC, useContext, useEffect, useRef, useState } from 'react';
+import React, { FC, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenInNew } from '@mui/icons-material';
 import { Alert, AlertTitle, Box, Button, CircularProgress, LinearProgress, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -11,6 +11,7 @@ import { Console } from 'src/utils/console';
 import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
 import { getSpendableCoins, migrateVestedDelegations, userBalance } from 'src/requests';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
+import { format } from 'date-fns';
 import { getIntervalAsDate, toPercentIntegerString } from 'src/utils';
 import { isDelegation, TDelegations, useDelegationContext } from '../../context/delegations';
 import { useRewardsContext } from '../../context/rewards';
@@ -44,6 +45,9 @@ export const DelegationPage: FC = () => {
   const {
     delegations,
     isLoading,
+    isFetching,
+    isError,
+    lastUpdatedAtMs,
     addDelegation,
     undelegate,
     undelegateVesting,
@@ -56,8 +60,6 @@ export const DelegationPage: FC = () => {
   );
 
   const { claimRewards } = useRewardsContext();
-
-  const refresh = async () => refreshDelegations(delegations !== undefined ? { background: true } : undefined);
 
   // If an action modal is open, don't show the loading modal
   const isActionModalOpen =
@@ -83,23 +85,29 @@ export const DelegationPage: FC = () => {
     };
   };
 
-  const getNextInterval = async () => {
+  const getNextInterval = useCallback(async () => {
     try {
       const { nextEpoch: newNextEpoch } = await getIntervalAsDate();
       setNextEpoch(newNextEpoch);
     } catch {
       setNextEpoch(Error());
     }
-  };
+  }, []);
 
-  const refreshWithIntervalUpdate = async () => {
-    refresh();
-    getNextInterval();
-  };
+  const refreshWithIntervalUpdate = useCallback(async () => {
+    await refreshDelegations();
+    await getNextInterval();
+  }, [refreshDelegations, getNextInterval]);
 
-  // Refresh the rewards and delegations periodically when page is mounted
+  const refreshWithIntervalUpdateRef = useRef(refreshWithIntervalUpdate);
+  refreshWithIntervalUpdateRef.current = refreshWithIntervalUpdate;
+
   useEffect(() => {
-    const timer = setInterval(refreshWithIntervalUpdate, 5 * 60 * 1000); // every 5 minutes
+    const timer = setInterval(() => {
+      refreshWithIntervalUpdateRef.current().catch((err) => {
+        Console.error(err);
+      });
+    }, 5 * 60 * 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -322,11 +330,21 @@ export const DelegationPage: FC = () => {
 
   const delegationsComponent = (delegationItems: TDelegations | undefined) => {
     if (delegationItems === undefined) {
-      return (
-        <Box sx={{ py: 10, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <CircularProgress size={36} aria-label="Loading delegations" />
-        </Box>
-      );
+      if (isError) {
+        return (
+          <Alert severity="error" sx={{ my: 2 }}>
+            Could not load delegation data. Check your connection and try again.
+          </Alert>
+        );
+      }
+      if (isLoading) {
+        return (
+          <Box sx={{ py: 10, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <CircularProgress size={36} aria-label="Loading delegations" />
+          </Box>
+        );
+      }
+      return null;
     }
 
     if (delegationItems.length > 0) {
@@ -483,7 +501,7 @@ export const DelegationPage: FC = () => {
                 </Stack>
               )}
 
-              {isLoading && delegations !== undefined && !isActionModalOpen && (
+              {isFetching && delegations !== undefined && !isActionModalOpen && (
                 <LinearProgress
                   sx={{
                     height: 3,
@@ -491,6 +509,12 @@ export const DelegationPage: FC = () => {
                     '& .MuiLinearProgress-bar': { borderRadius: 3 },
                   }}
                 />
+              )}
+
+              {lastUpdatedAtMs > 0 && (
+                <Typography variant="caption" color="text.secondary">
+                  Last updated {format(lastUpdatedAtMs, 'PPpp')}
+                </Typography>
               )}
 
               <Box sx={{ width: '100%', overflowX: 'hidden' }}>{delegationsComponent(delegations)}</Box>

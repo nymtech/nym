@@ -112,7 +112,7 @@ export const DelegationList: FCWithChildren<{
     totalDelegations,
     totalRewards,
     totalDelegationsAndRewards,
-    isLoading: delegationsSummaryLoading,
+    isFetching: delegationsSummaryLoading,
   } = useDelegationContext();
 
   const sorted = useSortDelegations(items, order, orderBy);

@@ -4736,6 +4736,7 @@ dependencies = [
  "bytes",
  "cfg-if",
  "encoding_rs",
+ "fastrand",
  "hickory-resolver",
  "http 1.3.1",
  "inventory",

@@ -17,11 +17,6 @@ import { Console } from 'src/utils/console';
 import { AppContext } from 'src/context/main';
 import { delegationQueryKeys, fetchDelegationSummaryQuery } from './delegationQuery';
 
-export type TDelegationRefreshOptions = {
-  /** When true, do not flip the global loading state (keeps cached list visible during refetch). */
-  background?: boolean;
-};
-
 export type TDelegationContext = {
   delegationItemErrors?: { nodeId: string; errors: string };
   isLoading: boolean;
@@ -33,7 +28,7 @@ export type TDelegationContext = {
   totalDelegations?: string;
   totalRewards?: string;
   totalDelegationsAndRewards?: string;
-  refresh: (opts?: TDelegationRefreshOptions) => Promise<void>;
+  refresh: () => Promise<void>;
   addDelegation: (
     data: { mix_id: number; amount: DecCoin },
     tokenPool: TPoolOption,
@@ -62,7 +57,7 @@ export const DelegationContext = createContext<TDelegationContext>({
   isFetching: false,
   isError: false,
   lastUpdatedAtMs: 0,
-  refresh: async (_opts?: TDelegationRefreshOptions) => undefined,
+  refresh: async () => undefined,
   addDelegation: async () => {
     throw new Error('Not implemented');
   },
@@ -108,17 +103,14 @@ export const DelegationContextProvider: FC<{
 
   const bundle = clientAddress && onDelegationRoute ? query.data : undefined;
 
-  const refresh = useCallback(
-    async (_opts?: TDelegationRefreshOptions) => {
-      if (!clientAddress) {
-        return;
-      }
-      await queryClient.invalidateQueries({
-        queryKey: delegationQueryKeys.summary(clientAddress),
-      });
-    },
-    [clientAddress, queryClient],
-  );
+  const refresh = useCallback(async () => {
+    if (!clientAddress || !onDelegationRoute) {
+      return;
+    }
+    await queryClient.invalidateQueries({
+      queryKey: delegationQueryKeys.summary(clientAddress),
+    });
+  }, [clientAddress, onDelegationRoute, queryClient]);
 
   const addDelegation = async (data: { mix_id: number; amount: DecCoin }, tokenPool: TPoolOption, fee?: FeeDetails) => {
     try {

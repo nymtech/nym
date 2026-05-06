@@ -114,7 +114,7 @@ export const DelegationPage: FC = () => {
   const doMigrateNow = async () => {
     setShowVestingMigrationProgressModal(true);
     await migrateVestedDelegations();
-    await refreshDelegations(undefined);
+    await refreshDelegations();
     setShowVestingMigrationProgressModal(false);
   };
 
@@ -132,7 +132,7 @@ export const DelegationPage: FC = () => {
       });
     }
     prevConfirmationModalProps.current = confirmationModalProps;
-  }, [confirmationModalProps]);
+  }, [confirmationModalProps, refreshWithIntervalUpdate]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
     if (

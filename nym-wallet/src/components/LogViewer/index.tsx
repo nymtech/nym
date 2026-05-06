@@ -17,6 +17,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { useSnackbar } from 'notistack';
 import { helpLogToggleWindow } from 'src/requests/logging';
 import { Console } from 'src/utils/console';
 
@@ -96,6 +97,7 @@ interface RecordPayload {
 
 export const LogViewer: FC = () => {
   const theme = useTheme();
+  const { enqueueSnackbar } = useSnackbar();
   const unlisten = useRef<UnlistenFn | null>(null);
   const [messages, setMessages] = useState<RecordPayload[]>([]);
   const [messageCount, setMessageCount] = useState(0);
@@ -154,6 +156,7 @@ export const LogViewer: FC = () => {
       await writeText(chronological.map(formatLine).join('\n'));
     } catch (e) {
       Console.error(e);
+      enqueueSnackbar('Could not copy logs to the clipboard', { variant: 'error' });
     }
   };
 
@@ -164,6 +167,7 @@ export const LogViewer: FC = () => {
       await writeText(formatLine(latest));
     } catch (e) {
       Console.error(e);
+      enqueueSnackbar('Could not copy to the clipboard', { variant: 'error' });
     }
   };
 

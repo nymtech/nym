@@ -5,7 +5,10 @@
 //! an empty response; concrete implementations will be filled in as the
 //! corresponding tickets land.
 
-use crate::helpers::{ensure_address_holds_no_family_membership, normalise_family_name};
+use crate::helpers::{
+    ensure_address_holds_no_family_membership, ensure_node_is_bonded, ensure_node_not_in_family,
+    normalise_family_name,
+};
 use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{BankMsg, DepsMut, Env, Event, MessageInfo, Response};
 use node_families_contract_common::constants::events;
@@ -79,12 +82,7 @@ pub(crate) fn try_create_family(
     }
 
     // check if the sender already owns a family
-    if let Some((_, existing)) = storage
-        .families
-        .idx
-        .owner
-        .item(deps.storage, info.sender.clone())?
-    {
+    if let Some(existing) = storage.may_get_owned_family(deps.storage, &info.sender)? {
         return Err(NodeFamiliesContractError::SenderAlreadyOwnsAFamily {
             address: info.sender,
             family_id: existing.id,
@@ -146,14 +144,7 @@ pub(crate) fn try_disband_family(
 ) -> Result<Response, NodeFamiliesContractError> {
     let storage = NodeFamiliesStorage::new();
 
-    let (_, owned) = storage
-        .families
-        .idx
-        .owner
-        .item(deps.storage, info.sender.clone())?
-        .ok_or_else(|| NodeFamiliesContractError::SenderDoesntOwnAFamily {
-            address: info.sender.clone(),
-        })?;
+    let owned = storage.must_get_owned_family(deps.storage, &info.sender)?;
 
     if owned.members != 0 {
         return Err(NodeFamiliesContractError::FamilyNotEmpty {
@@ -169,30 +160,63 @@ pub(crate) fn try_disband_family(
         amount: vec![family.paid_fee.clone()],
     };
 
-    Ok(Response::new()
-        .add_message(refund)
-        .add_event(
-            Event::new(events::FAMILY_DISBAND_EVENT_NAME)
-                .add_attribute(
-                    events::FAMILY_DISBAND_EVENT_FAMILY_ID,
-                    family.id.to_string(),
-                )
-                .add_attribute(events::FAMILY_DISBAND_EVENT_OWNER_ADDRESS, &family.owner)
-                .add_attribute(
-                    events::FAMILY_DISBAND_EVENT_REFUNDED_FEE,
-                    family.paid_fee.to_string(),
-                ),
-        ))
+    Ok(Response::new().add_message(refund).add_event(
+        Event::new(events::FAMILY_DISBAND_EVENT_NAME)
+            .add_attribute(
+                events::FAMILY_DISBAND_EVENT_FAMILY_ID,
+                family.id.to_string(),
+            )
+            .add_attribute(events::FAMILY_DISBAND_EVENT_OWNER_ADDRESS, &family.owner)
+            .add_attribute(
+                events::FAMILY_DISBAND_EVENT_REFUNDED_FEE,
+                family.paid_fee.to_string(),
+            ),
+    ))
 }
 
+/// Issue a pending invitation for `node_id` to join the family owned by
+/// `info.sender`.
+///
+/// `validity_secs` overrides the configured `default_invitation_validity_secs`
+/// when supplied; a value of `Some(0)` is rejected with
+/// [`ZeroInvitationValidity`] since the invitation would already be expired
+/// the moment it landed in storage.
+///
+/// [`ZeroInvitationValidity`]: NodeFamiliesContractError::ZeroInvitationValidity
 pub(crate) fn try_invite_to_family(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     node_id: NodeId,
+    validity_secs: Option<u64>,
 ) -> Result<Response, NodeFamiliesContractError> {
-    let _ = (deps, env, info, node_id);
-    Ok(Response::default())
+    let storage = NodeFamiliesStorage::new();
+    let config = storage.config.load(deps.storage)?;
+
+    let validity = validity_secs.unwrap_or(config.default_invitation_validity_secs);
+    if validity == 0 {
+        return Err(NodeFamiliesContractError::ZeroInvitationValidity);
+    }
+
+    let owned = storage.must_get_owned_family(deps.storage, &info.sender)?;
+    ensure_node_is_bonded(&storage, deps.as_ref(), node_id)?;
+    ensure_node_not_in_family(&storage, deps.as_ref(), node_id)?;
+
+    let expires_at = env.block.time.seconds() + validity;
+    let invitation = storage.add_pending_invitation(deps.storage, owned.id, node_id, expires_at)?;
+
+    Ok(Response::new().add_event(
+        Event::new(events::FAMILY_INVITATION_EVENT_NAME)
+            .add_attribute(
+                events::FAMILY_INVITATION_EVENT_FAMILY_ID,
+                owned.id.to_string(),
+            )
+            .add_attribute(events::FAMILY_INVITATION_EVENT_NODE_ID, node_id.to_string())
+            .add_attribute(
+                events::FAMILY_INVITATION_EVENT_EXPIRES_AT,
+                invitation.expires_at.to_string(),
+            ),
+    ))
 }
 
 pub(crate) fn try_revoke_family_invitation(
@@ -262,6 +286,7 @@ mod tests {
             create_family_fee: coin(999, "unym"),
             family_name_length_limit: 1,
             family_description_length_limit: 2,
+            default_invitation_validity_secs: 60,
         }
     }
 
@@ -706,6 +731,170 @@ mod tests {
                 "second".to_string(),
                 "".to_string(),
             )?;
+            Ok(())
+        }
+    }
+
+    mod invite_to_family {
+        use super::*;
+        use crate::testing::NodeFamiliesContractTesterExt;
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+
+        #[test]
+        fn happy_path_persists_pending_invitation() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let node_id = tester.bond_dummy_nymnode()?;
+
+            let env = tester.env();
+            let info = message_info(&alice, &[]);
+            try_invite_to_family(tester.deps_mut(), env.clone(), info, node_id, None)?;
+
+            let storage = NodeFamiliesStorage::new();
+            let invitation = storage
+                .pending_family_invitations
+                .load(tester.deps().storage, (family.id, node_id))?;
+            assert_eq!(invitation.family_id, family.id);
+            assert_eq!(invitation.node_id, node_id);
+
+            let default_validity = storage
+                .config
+                .load(tester.deps().storage)?
+                .default_invitation_validity_secs;
+            assert_eq!(
+                invitation.expires_at,
+                env.block.time.seconds() + default_validity
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn custom_validity_overrides_default() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let node_id = tester.bond_dummy_nymnode()?;
+
+            let env = tester.env();
+            let info = message_info(&alice, &[]);
+            try_invite_to_family(tester.deps_mut(), env.clone(), info, node_id, Some(5))?;
+
+            let invitation = NodeFamiliesStorage::new()
+                .pending_family_invitations
+                .load(tester.deps().storage, (family.id, node_id))?;
+            assert_eq!(invitation.expires_at, env.block.time.seconds() + 5);
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_zero_validity() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            tester.make_family(&alice);
+            let node_id = tester.bond_dummy_nymnode()?;
+
+            let env = tester.env();
+            let info = message_info(&alice, &[]);
+            let err =
+                try_invite_to_family(tester.deps_mut(), env, info, node_id, Some(0)).unwrap_err();
+            assert_eq!(err, NodeFamiliesContractError::ZeroInvitationValidity);
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_when_sender_owns_no_family() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let node_id = tester.bond_dummy_nymnode()?;
+
+            let env = tester.env();
+            let info = message_info(&alice, &[]);
+            let err =
+                try_invite_to_family(tester.deps_mut(), env, info, node_id, None).unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::SenderDoesntOwnAFamily { address: alice }
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_when_node_is_not_bonded() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            tester.make_family(&alice);
+
+            let env = tester.env();
+            let info = message_info(&alice, &[]);
+            let err = try_invite_to_family(tester.deps_mut(), env, info, 999, None).unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::NodeDoesntExist { node_id: 999 }
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_when_node_is_already_in_a_family() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let alice_family = tester.make_family(&alice);
+            let bob = tester.addr_make("bob");
+            let bob_family = tester.make_family(&bob);
+
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.add_to_family(bob_family.id, node_id);
+
+            let env = tester.env();
+            let info = message_info(&alice, &[]);
+            let err =
+                try_invite_to_family(tester.deps_mut(), env, info, node_id, None).unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::NodeAlreadyInFamily {
+                    node_id,
+                    family_id: bob_family.id,
+                }
+            );
+            // alice's family is unchanged
+            assert!(NodeFamiliesStorage::new()
+                .pending_family_invitations
+                .may_load(tester.deps().storage, (alice_family.id, node_id))?
+                .is_none());
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_duplicate_pending_invitation() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let node_id = tester.bond_dummy_nymnode()?;
+
+            let env = tester.env();
+            try_invite_to_family(
+                tester.deps_mut(),
+                env.clone(),
+                message_info(&alice, &[]),
+                node_id,
+                None,
+            )?;
+            let err = try_invite_to_family(
+                tester.deps_mut(),
+                env,
+                message_info(&alice, &[]),
+                node_id,
+                None,
+            )
+            .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::PendingInvitationAlreadyExists {
+                    family_id: family.id,
+                    node_id,
+                }
+            );
             Ok(())
         }
     }

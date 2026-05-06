@@ -121,12 +121,20 @@ where
     Ts: Clone,
     NdId: Clone,
 {
+    // IMPORTANT NOTE : This fn can be not constant to allow e.g. flexible MTU
+    // However, every possible value must be able to accomodate the different overhead.
+    // If it doesn't, the pipeline becomes unusable
     fn packet_size(&self) -> usize;
 
     fn frame_size(&self) -> usize {
+        // SAFETY : While this CAN technically fail, it means that something is wrong in the code and it's pointless to continue anyway
+        #[allow(clippy::expect_used)]
         self.packet_size()
-            - <Self as Transport<Ts, Pkt, NdId>>::OVERHEAD_SIZE
-            - <Self as Framing<Ts, Opts, NdId>>::OVERHEAD_SIZE
+            .checked_sub(
+                <Self as Transport<Ts, Pkt, NdId>>::OVERHEAD_SIZE
+                    + <Self as Framing<Ts, Opts, NdId>>::OVERHEAD_SIZE,
+            )
+            .expect("packet_size smaller than transport + framing overhead")
     }
 
     fn wire_wrap(

@@ -81,7 +81,7 @@ class NodeSetupCLI:
             raise SystemExit(1)
         return str(port)
 
-    def _resolve_field(args, existing, arg_name, env_key, prompt, *, default=None, validator=None):
+    def _resolve_field(self, args, existing, arg_name, env_key, prompt, *, default=None, validator=None):
         cli_val = getattr(args, arg_name, None)
 
         if cli_val is not None:
@@ -610,9 +610,17 @@ class NodeSetupCLI:
         """Main function called by argparser command install running full node install flow"""
         self.ensure_env_values(args)
         # Pass uplink override to all helper scripts if provided
+        # NETWORK_DEVICE remains the backward-compatible override for both families.
+        uplink_updates = {}
         if getattr(args, "uplink_dev", None):
-            os.environ["UPLINK_DEV"] = args.uplink_dev
             os.environ["NETWORK_DEVICE"] = args.uplink_dev
+        if getattr(args, "uplink_dev_v4", None):
+           os.environ["NETWORK_DEVICE_V4"] = args.uplink_dev_v4
+        if getattr(args, "uplink_dev_v6", None):
+            os.environ["NETWORK_DEVICE_V6"] = args.uplink_dev_v6
+        if uplink_updates:
+            os.environ.update(uplink_updates)
+            self._upsert_env_vars(uplink_updates)
         self.run_script(self.prereqs_install_sh)
         self.run_script(self.node_install_sh)
         self.run_script(self.service_config_sh)
@@ -684,7 +692,20 @@ class ArgParser:
         )
 
         install_parser.add_argument("--nym-node-binary", help="URL for nym-node binary (autodetected if omitted)")
-        install_parser.add_argument("--uplink-dev", help="Override uplink interface used for NAT/FORWARD (e.g., 'eth0'; autodetected if omitted)")
+        install_parser.add_argument(
+            "--uplink-dev",
+            help="Backward-compatible override for both IPv4 and IPv6 uplinks, e.g. 'eth0'",
+        )
+
+        install_parser.add_argument(
+            "--uplink-dev-v4",
+            help="Override IPv4 uplink interface used for NAT/FORWARD, e.g. 'eth0'",
+        )
+
+        install_parser.add_argument(
+            "--uplink-dev-v6",
+            help="Override IPv6 uplink interface used for NAT/FORWARD, e.g. 'eth1'",
+        )
         
         # generic fallback
         install_parser.add_argument(

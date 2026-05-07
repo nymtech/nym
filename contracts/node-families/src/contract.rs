@@ -13,8 +13,8 @@ use crate::queries::{
 };
 use crate::storage::NodeFamiliesStorage;
 use crate::transactions::{
-    try_accept_family_invitation, try_create_family, try_disband_family, try_invite_to_family,
-    try_kick_from_family, try_leave_family, try_reject_family_invitation,
+    try_accept_family_invitation, try_create_family, try_disband_family, try_handle_node_unbonding,
+    try_invite_to_family, try_kick_from_family, try_leave_family, try_reject_family_invitation,
     try_revoke_family_invitation, try_update_config,
 };
 use cosmwasm_std::{
@@ -84,6 +84,9 @@ pub fn execute(
         }
         ExecuteMsg::LeaveFamily { node_id } => try_leave_family(deps, env, info, node_id),
         ExecuteMsg::KickFromFamily { node_id } => try_kick_from_family(deps, env, info, node_id),
+        ExecuteMsg::OnNymNodeUnbond { node_id } => {
+            try_handle_node_unbonding(deps, env, info, node_id)
+        }
     }
 }
 

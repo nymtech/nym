@@ -73,6 +73,13 @@ pub enum ExecuteMsg {
 
     /// Remove `node_id` from the family owned by the message sender.
     KickFromFamily { node_id: NodeId },
+
+    /// Cross-contract callback fired by the mixnet contract the moment
+    /// node with `node_id` initiates unbonding.
+    /// Removes the node from any family it currently
+    /// belongs to and rejects every pending invitation issued to it.
+    /// Sender must be the configured mixnet contract address.
+    OnNymNodeUnbond { node_id: NodeId },
 }
 
 /// Query messages accepted by the contract.

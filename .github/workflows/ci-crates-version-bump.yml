@@ -78,21 +78,22 @@ jobs:
           git commit -m "crates release: bump version to ${{ inputs.version }}"
           git push -u origin "$PR_BRANCH"
 
+          cat > /tmp/crates-version-bump-pr-body.md <<'EOF'
+          This PR was created by CI because direct pushes to the release branch are blocked by branch protection rules.
+
+          ## Summary
+          - Bump workspace crate versions to the requested release version.
+          - Update workspace dependency versions accordingly.
+
+          ## Notes
+          - Merge this PR to proceed with crates.io publishing.
+          EOF
+
           gh pr create \
             --base "$BASE_BRANCH" \
             --head "$PR_BRANCH" \
             --title "crates release: bump version to ${{ inputs.version }}" \
-            --body "$(cat <<'EOF'
-This PR was created by CI because direct pushes to the release branch are blocked by branch protection rules.
-
-## Summary
-- Bump workspace crate versions to the requested release version.
-- Update workspace dependency versions accordingly.
-
-## Notes
-- Merge this PR to proceed with crates.io publishing.
-EOF
-)"
+            --body-file /tmp/crates-version-bump-pr-body.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

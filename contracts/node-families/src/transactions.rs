@@ -331,6 +331,34 @@ pub(crate) fn try_kick_from_family(
     Ok(Response::default())
 }
 
+/// Cross-contract callback fired by the mixnet contract the moment `node_id`
+/// initiates unbonding. Unbonding is irreversible, so from the families
+/// contract's perspective the node is already effectively gone — we drop
+/// it from any family it currently belongs to and reject every pending
+/// invitation issued to it.
+///
+/// Future implementation must:
+/// - assert `info.sender == storage.mixnet_contract_address` (a new error
+///   variant + helper will be needed; the existing `ensure_*` helpers don't
+///   cover contract-to-contract auth);
+/// - call `storage.remove_family_member(env, node_id)` iff the node has a
+///   `family_members` record (skip the `NodeNotInFamily` error — an
+///   unbonding node that was never in a family is the common case);
+/// - sweep pending invitations for `node_id` (analogous to `disband_family`'s
+///   per-family sweep but keyed off the node multi-index), archiving each
+///   as a new terminal status — likely a new `FamilyInvitationStatus`
+///   variant such as `RejectedOnUnbond` so the archive distinguishes
+///   "node owner declined" from "node went away".
+pub(crate) fn try_handle_node_unbonding(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    node_id: NodeId,
+) -> Result<Response, NodeFamiliesContractError> {
+    let _ = (deps, env, info, node_id);
+    Ok(Response::default())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

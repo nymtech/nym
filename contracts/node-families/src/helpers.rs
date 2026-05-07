@@ -67,6 +67,31 @@ pub(crate) fn ensure_node_is_bonded(
     Ok(())
 }
 
+/// Ensure `address` is the controller of the bonded node `node_id` per the
+/// mixnet contract. Errors with [`SenderDoesntControlNode`] when `address`
+/// owns no bonded node, owns a node with a different id, or owns it but it
+/// has entered the unbonding state.
+///
+/// [`SenderDoesntControlNode`]: NodeFamiliesContractError::SenderDoesntControlNode
+pub(crate) fn ensure_sender_controls_node(
+    storage: &NodeFamiliesStorage,
+    deps: Deps,
+    address: &Addr,
+    node_id: NodeId,
+) -> Result<(), NodeFamiliesContractError> {
+    let mixnet_contract = storage.mixnet_contract_address.load(deps.storage)?;
+    match deps
+        .querier
+        .query_nymnode_ownership(&mixnet_contract, address)?
+    {
+        Some(bond) if bond.node_id == node_id && !bond.is_unbonding => Ok(()),
+        _ => Err(NodeFamiliesContractError::SenderDoesntControlNode {
+            address: address.clone(),
+            node_id,
+        }),
+    }
+}
+
 /// Ensure `node_id` is not currently a member of any family. Returns
 /// [`NodeAlreadyInFamily`] if it is.
 ///

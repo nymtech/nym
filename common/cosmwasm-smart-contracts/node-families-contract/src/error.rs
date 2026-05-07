@@ -94,6 +94,13 @@ pub enum NodeFamiliesContractError {
     #[error("address {address} does not currently own any family")]
     SenderDoesntOwnAFamily { address: Addr },
 
+    /// The transaction sender is not the controller of the bonded node
+    /// referenced by the message. Covers all of: sender controls no bonded
+    /// node, sender controls a different node id, and sender's node has
+    /// entered the unbonding state.
+    #[error("address {address} is not the controller of bonded node {node_id}")]
+    SenderDoesntControlNode { address: Addr, node_id: NodeId },
+
     /// A family with the requested (normalised) name already exists.
     #[error("a family with name {name:?} already exists (id {family_id})")]
     FamilyNameAlreadyTaken {

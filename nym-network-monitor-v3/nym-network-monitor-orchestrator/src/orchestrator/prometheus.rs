@@ -119,21 +119,10 @@ const AVG_PACKET_RTT: &[f64] = &[
 #[derive(Clone, Debug, EnumIter, Display, EnumProperty, EnumCount, Eq, Hash, PartialEq)]
 #[strum(serialize_all = "snake_case", prefix = "nym_network_monitor_")]
 pub enum PrometheusMetric {
-    #[strum(props(help = "The number of requests to assign a mix port to an agent"))]
-    MixPortRequests,
-
-    #[strum(props(help = "The number of failed requests to assign a mix port to an agent"))]
-    MixPortRequestsFailures,
-
     #[strum(props(
         help = "The number of requests to announce an agent to the network monitors contract"
     ))]
     AgentAnnounceRequests,
-
-    #[strum(props(
-        help = "The number of requests to announce an agent that was either malformed or unknown to the orchestrator"
-    ))]
-    BadAgentAnnouncementRequests,
 
     #[strum(props(
         help = "The number of duplicate requests to announce an agent to the network monitors contract (agent has already been announced before)"
@@ -276,10 +265,7 @@ impl PrometheusMetric {
         let help = self.help();
 
         match self {
-            PrometheusMetric::MixPortRequests => Metric::new_int_counter(&name, help),
-            PrometheusMetric::MixPortRequestsFailures => Metric::new_int_counter(&name, help),
             PrometheusMetric::AgentAnnounceRequests => Metric::new_int_counter(&name, help),
-            PrometheusMetric::BadAgentAnnouncementRequests => Metric::new_int_counter(&name, help),
             PrometheusMetric::AgentDuplicateAnnouncementRequests => {
                 Metric::new_int_counter(&name, help)
             }
@@ -439,7 +425,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(32, PrometheusMetric::COUNT)
+        assert_eq!(29, PrometheusMetric::COUNT)
     }
 
     #[test]

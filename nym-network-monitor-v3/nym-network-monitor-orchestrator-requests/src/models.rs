@@ -8,32 +8,9 @@ use nym_crypto::asymmetric::x25519::serde_helpers::{
     bs58_x25519_pubkey, option_bs58_x25519_pubkey,
 };
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::time::Duration;
 use time::OffsetDateTime;
-
-/// Request sent by an agent to obtain a unique mixnet port from the orchestrator.
-/// The orchestrator uses the agent's host IP and noise key to ensure no two agents
-/// on the same host are assigned the same port.
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentPortRequest {
-    /// Egress address of the agent node
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
-    pub agent_node_ip: IpAddr,
-
-    /// Base-58 encoded noise key of the agent.
-    #[serde(with = "bs58_x25519_pubkey")]
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
-    pub x25519_noise_key: x25519::PublicKey,
-}
-
-/// Response to an [`AgentPortRequest`], containing the port the agent should bind to.
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentPortRequestResponse {
-    pub available_mix_port: u16,
-}
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]

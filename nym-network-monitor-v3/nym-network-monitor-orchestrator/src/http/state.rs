@@ -7,7 +7,6 @@ use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::NewTestRun;
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::x25519;
-use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
 use nym_network_monitor_orchestrator_requests::models::{
     NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment, TestRunData,
     TestRunInProgressData, TestRunResult,
@@ -15,58 +14,22 @@ use nym_network_monitor_orchestrator_requests::models::{
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLock};
-use tracing::{error, info};
+use tracing::error;
 
 /// Thread-safe cache of all agents known to this orchestrator, keyed by host IP.
-/// Used to coordinate port assignments and validate announcements.
+/// Used to short-circuit the contract tx for already-announced agents.
 #[derive(Clone, Default)]
 pub(crate) struct KnownAgents {
     inner: Arc<Mutex<KnownAgentsInner>>,
 }
 
 impl KnownAgents {
-    /// Returns a mixnet port for the agent identified by `host_ip` and `agent_pubkey`.
-    /// If the agent was seen before, the previously assigned port is returned.
-    /// Otherwise the first available port in the range
-    /// `[DEFAULT_MIX_LISTENING_PORT, u16::MAX]` on that host is allocated.
-    pub(crate) async fn assign_agent_port(
-        &self,
-        host_ip: IpAddr,
-        agent_pubkey: x25519::PublicKey,
-    ) -> Option<u16> {
-        let mut guard = self.inner.lock().await;
-        let host_agents = guard.agents.entry(host_ip).or_insert_with(Vec::new);
-
-        // if this agent existed before, return the existing information
-        if let Some(existing_agent) = host_agents.iter().find(|a| a.noise_key == agent_pubkey) {
-            info!("reusing existing agent port for agent at {host_ip} with key {agent_pubkey}");
-            return Some(existing_agent.mixnet_port);
-        }
-
-        // find the first available port in the valid range
-        let occupied_ports: BTreeSet<u16> = host_agents.iter().map(|a| a.mixnet_port).collect();
-
-        let next_port =
-            (DEFAULT_MIX_LISTENING_PORT..=u16::MAX).find(|p| !occupied_ports.contains(p))?;
-
-        // insert agent information into the cache
-        host_agents.push(KnownAgent {
-            mixnet_port: next_port,
-            last_active_at: OffsetDateTime::now_utc(),
-            noise_key: agent_pubkey,
-            announced: false,
-        });
-        guard.publish_gauges();
-
-        Some(next_port)
-    }
-
     /// Looks up an agent by its full mixnet socket address (host IP + port).
     /// Returns `None` if no agent is registered at that address.
     pub(crate) async fn get_agent(&self, address: SocketAddr) -> Option<KnownAgent> {
@@ -79,43 +42,45 @@ impl KnownAgents {
             .copied()
     }
 
-    /// Validates and marks the agent at `mix_listener` as announced.
+    /// Records an announcement from the agent at `mix_listener`. The cache entry
+    /// is upserted: a missing entry is inserted, and if the cached noise key differs
+    /// from the announced one it is overwritten and the agent is treated as
+    /// not-yet-announced so the caller re-runs the contract tx with the new key.
     ///
-    /// Returns:
-    /// - `Err` if no agent with that address exists (orchestrator may have restarted).
-    /// - `Ok(true)` if the agent was already announced (caller should skip the contract tx).
-    /// - `Ok(false)` if the agent exists but hasn't been announced yet (caller should
-    ///   proceed with the contract tx and call [`mark_announced`] on success).
-    ///
-    /// Also verifies that the provided `noise_key` matches the one stored during port
-    /// assignment — returns `Err` on mismatch.
+    /// Returns the current `announced` flag: `true` means the agent was already
+    /// announced to the contract and the caller should skip the contract tx;
+    /// `false` means the caller should submit the tx and call [`Self::mark_announced`]
+    /// on success.
     pub(crate) async fn try_announce_agent(
         &self,
         mix_listener: SocketAddr,
         noise_key: x25519::PublicKey,
-    ) -> Result<bool, AgentAnnounceError> {
+    ) -> bool {
         let mut guard = self.inner.lock().await;
-        let host_agents = guard
-            .agents
-            .get_mut(&mix_listener.ip())
-            .ok_or(AgentAnnounceError::NotFound)?;
+        let host_agents = guard.agents.entry(mix_listener.ip()).or_default();
 
-        let agent = host_agents
+        if let Some(agent) = host_agents
             .iter_mut()
             .find(|agent| agent.mixnet_port == mix_listener.port())
-            .ok_or(AgentAnnounceError::NotFound)?;
-
-        if agent.noise_key != noise_key {
-            return Err(AgentAnnounceError::NoiseKeyMismatch);
+        {
+            agent.last_active_at = OffsetDateTime::now_utc();
+            if agent.noise_key == noise_key {
+                return agent.announced;
+            }
+            agent.noise_key = noise_key;
+            agent.announced = false;
+            guard.publish_gauges();
+            return false;
         }
 
-        agent.last_active_at = OffsetDateTime::now_utc();
-
-        if agent.announced {
-            return Ok(true);
-        }
-
-        Ok(false)
+        host_agents.push(KnownAgent {
+            mixnet_port: mix_listener.port(),
+            last_active_at: OffsetDateTime::now_utc(),
+            noise_key,
+            announced: false,
+        });
+        guard.publish_gauges();
+        false
     }
 
     /// Marks the agent at `mix_listener` as announced. Should be called after a
@@ -133,14 +98,6 @@ impl KnownAgents {
         }
         guard.publish_gauges();
     }
-}
-
-#[derive(Debug)]
-pub(crate) enum AgentAnnounceError {
-    /// No agent with the given socket address exists in the cache.
-    NotFound,
-    /// The noise key in the request doesn't match the one from port assignment.
-    NoiseKeyMismatch,
 }
 
 /// Rebuilds the agent cache from on-chain data. Used at orchestrator startup to
@@ -510,123 +467,5 @@ impl AppState {
             total,
             items: testruns.into_iter().map(Into::into).collect(),
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use nym_crypto::asymmetric::x25519;
-    use rand::rngs::OsRng;
-
-    fn random_pubkey() -> x25519::PublicKey {
-        *x25519::KeyPair::new(&mut OsRng).public_key()
-    }
-
-    const HOST: IpAddr = IpAddr::V4(std::net::Ipv4Addr::new(10, 0, 0, 1));
-    const HOST_B: IpAddr = IpAddr::V4(std::net::Ipv4Addr::new(10, 0, 0, 2));
-
-    #[tokio::test]
-    async fn first_agent_gets_default_port() {
-        let agents = KnownAgents::default();
-        let port = agents.assign_agent_port(HOST, random_pubkey()).await;
-        assert_eq!(port, Some(DEFAULT_MIX_LISTENING_PORT));
-    }
-
-    #[tokio::test]
-    async fn second_agent_same_host_gets_next_port() {
-        let agents = KnownAgents::default();
-        let key_a = random_pubkey();
-        let key_b = random_pubkey();
-
-        let port_a = agents.assign_agent_port(HOST, key_a).await.unwrap();
-        let port_b = agents.assign_agent_port(HOST, key_b).await.unwrap();
-
-        assert_eq!(port_a, DEFAULT_MIX_LISTENING_PORT);
-        assert_eq!(port_b, DEFAULT_MIX_LISTENING_PORT + 1);
-    }
-
-    #[tokio::test]
-    async fn same_key_returns_same_port() {
-        let agents = KnownAgents::default();
-        let key = random_pubkey();
-
-        let first = agents.assign_agent_port(HOST, key).await.unwrap();
-        let second = agents.assign_agent_port(HOST, key).await.unwrap();
-
-        assert_eq!(first, second);
-    }
-
-    #[tokio::test]
-    async fn different_hosts_get_independent_ports() {
-        let agents = KnownAgents::default();
-        let key_a = random_pubkey();
-        let key_b = random_pubkey();
-
-        let port_a = agents.assign_agent_port(HOST, key_a).await.unwrap();
-        let port_b = agents.assign_agent_port(HOST_B, key_b).await.unwrap();
-
-        assert_eq!(port_a, DEFAULT_MIX_LISTENING_PORT);
-        assert_eq!(port_b, DEFAULT_MIX_LISTENING_PORT);
-    }
-
-    #[tokio::test]
-    async fn try_announce_unknown_agent_returns_not_found() {
-        let agents = KnownAgents::default();
-        let addr: SocketAddr = "10.0.0.1:1789".parse().unwrap();
-
-        let result = agents.try_announce_agent(addr, random_pubkey()).await;
-        assert!(matches!(result, Err(AgentAnnounceError::NotFound)));
-    }
-
-    #[tokio::test]
-    async fn try_announce_wrong_key_returns_mismatch() {
-        let agents = KnownAgents::default();
-        let real_key = random_pubkey();
-        let wrong_key = random_pubkey();
-
-        let port = agents.assign_agent_port(HOST, real_key).await.unwrap();
-        let addr = SocketAddr::new(HOST, port);
-
-        let result = agents.try_announce_agent(addr, wrong_key).await;
-        assert!(matches!(result, Err(AgentAnnounceError::NoiseKeyMismatch)));
-    }
-
-    #[tokio::test]
-    async fn try_announce_returns_false_then_true_after_mark() {
-        let agents = KnownAgents::default();
-        let key = random_pubkey();
-
-        let port = agents.assign_agent_port(HOST, key).await.unwrap();
-        let addr = SocketAddr::new(HOST, port);
-
-        // first announce: not yet announced
-        let already = agents.try_announce_agent(addr, key).await.unwrap();
-        assert!(!already);
-
-        // mark as announced
-        agents.mark_announced(addr).await;
-
-        // second announce: already announced
-        let already = agents.try_announce_agent(addr, key).await.unwrap();
-        assert!(already);
-    }
-
-    #[tokio::test]
-    async fn port_reuse_after_gap() {
-        // Simulate: agent on default port is known, next port is assigned,
-        // then verify a third agent gets default+2
-        let agents = KnownAgents::default();
-        let key_a = random_pubkey();
-        let key_b = random_pubkey();
-        let key_c = random_pubkey();
-
-        let p1 = agents.assign_agent_port(HOST, key_a).await.unwrap();
-        let p2 = agents.assign_agent_port(HOST, key_b).await.unwrap();
-        let p3 = agents.assign_agent_port(HOST, key_c).await.unwrap();
-
-        assert_eq!(p1, DEFAULT_MIX_LISTENING_PORT);
-        assert_eq!(p2, DEFAULT_MIX_LISTENING_PORT + 1);
-        assert_eq!(p3, DEFAULT_MIX_LISTENING_PORT + 2);
     }
 }

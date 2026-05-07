@@ -54,7 +54,7 @@ impl NetworkMonitorAgent {
     pub(crate) async fn announce_agent(&self) -> anyhow::Result<()> {
         self.orchestrator_client
             .announce_agent(&AgentAnnounceRequest {
-                agent_mix_socket_address: self.tester_config.mixnet_address,
+                agent_mix_socket_address: self.tester_config.external_mixnet_address,
                 x25519_noise_key: *self.noise_key.public_key(),
                 // we're always using the latest noise version available
                 noise_version: LATEST_NOISE_VERSION.into(),
@@ -67,7 +67,7 @@ impl NetworkMonitorAgent {
     /// performs a stress test against the assigned node and submits the results.
     pub(crate) async fn run_stress_test(&self) -> anyhow::Result<()> {
         let request = TestRunAssignmentRequest {
-            agent_mix_socket_address: self.tester_config.mixnet_address,
+            agent_mix_socket_address: self.tester_config.external_mixnet_address,
             x25519_noise_key: *self.noise_key.public_key(),
         };
 

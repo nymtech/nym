@@ -33,14 +33,37 @@ jobs:
       - name: Install cargo-workspaces
         run: cargo install cargo-workspaces
 
+      - name: Preflight publish checks
+        run: |
+          python3 tools/internal/check_publish_preflight.py
+
       # `--publish-as-is` skips version bumping since that's done in a separate CI job.
       - name: Publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          cargo workspaces publish \
-            --publish-as-is \
-            --publish-interval ${{ inputs.publish_interval }}
+          set -euo pipefail
+
+          # publish "CORE" crates first so dependents can resolve ^<new_version> from crates.io
+          CORE_CRATES="nym-bin-common nym-ip-packet-requests"
+
+          for crate in $CORE_CRATES; do
+            echo "Publishing CORE crate: $crate"
+            cargo publish -p "$crate"
+            echo "Waiting ${{ inputs.publish_interval }}s for crates.io indexing..."
+            sleep "${{ inputs.publish_interval }}"
+          done
+
+          cargo workspaces plan 2>/dev/null | while read crate; do
+            if echo " $CORE_CRATES " | grep -q " $crate "; then
+              echo "Skipping already published CORE crate: $crate"
+              continue
+            fi
+            echo "Publishing $crate..."
+            cargo publish -p "$crate"
+            echo "Waiting ${{ inputs.publish_interval }}s before next publish..."
+            sleep "${{ inputs.publish_interval }}"
+          done
 
       - name: Show package versions
         run: cargo workspaces list --long

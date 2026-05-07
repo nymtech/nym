@@ -2,66 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::api::v1::error::ApiError;
-use crate::http::state::{AppState, KnownAgents};
+use crate::http::state::AppState;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use axum::extract::{ConnectInfo, State};
 use axum::routing::post;
 use axum::{Json, Router};
 use nym_http_api_common::middleware::bearer_auth::AuthLayer;
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentAnnounceRequest, AgentAnnounceResponse, AgentPortRequest, AgentPortRequestResponse,
-    TestRunAssignmentRequest, TestRunAssignmentResponse, TestRunResultSubmissionRequest,
-    TestRunSubmissionResponse,
+    AgentAnnounceRequest, AgentAnnounceResponse, TestRunAssignmentRequest,
+    TestRunAssignmentResponse, TestRunResultSubmissionRequest, TestRunSubmissionResponse,
 };
 use nym_network_monitor_orchestrator_requests::routes;
 use nym_validator_client::nyxd::contract_traits::NetworkMonitorsSigningClient;
 use std::net::SocketAddr;
 use tracing::{error, info};
-
-#[utoipa::path(
-    operation_id = "v1_agent_port_request",
-    tag = "Network Monitor Agent",
-    post,
-    request_body = AgentPortRequest,
-    path = "/port-request",
-    context_path = "/v1/agent",
-    security(("agents_token" = [])),
-    responses(
-        (status = 200, content(
-            (AgentPortRequestResponse = "application/json"),
-        )),
-        (status = 503, description = "no available ports on this host"),
-    )
-)]
-#[tracing::instrument(
-    level = "debug",
-    skip_all,
-    fields(
-        agent_pod = %addr
-    )
-)]
-async fn request_mix_port(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(agents): State<KnownAgents>,
-    Json(body): Json<AgentPortRequest>,
-) -> Result<Json<AgentPortRequestResponse>, ApiError> {
-    let pod_ip = addr.ip();
-    info!("received port request from pod at {pod_ip}: {body:?}");
-
-    PROMETHEUS_METRICS.inc(PrometheusMetric::MixPortRequests);
-
-    let available_mix_port = agents
-        .assign_agent_port(body.agent_node_ip, body.x25519_noise_key)
-        .await
-        .ok_or_else(|| {
-            PROMETHEUS_METRICS.inc(PrometheusMetric::MixPortRequestsFailures);
-            error!("no available ports for agent at {pod_ip}");
-            ApiError::NoPortsAvailable
-        })?;
-
-    info!("assigned port {available_mix_port} to agent at {pod_ip}");
-    Ok(Json(AgentPortRequestResponse { available_mix_port }))
-}
 
 #[utoipa::path(
     operation_id = "v1_agent_announce",
@@ -75,7 +29,6 @@ async fn request_mix_port(
         (status = 200, content(
             (AgentAnnounceResponse = "application/json"),
         )),
-        (status = 400, description = "agent not found (orchestrator may have restarted since port assignment) or provided noise key does not match the one used during port assignment"),
         (status = 500, description = "failed to announce agent to the network monitors contract"),
     )
 )]
@@ -96,14 +49,11 @@ async fn announce_agent(
 
     PROMETHEUS_METRICS.inc(PrometheusMetric::AgentAnnounceRequests);
 
-    // 1. validate the agent exists in the cache and the noise key matches
+    // 1. upsert the agent in the cache and learn whether it has already been announced
     let already_announced = state
         .agents
         .try_announce_agent(body.agent_mix_socket_address, body.x25519_noise_key)
-        .await
-        .inspect_err(|_| {
-            PROMETHEUS_METRICS.inc(PrometheusMetric::BadAgentAnnouncementRequests);
-        })?;
+        .await;
 
     // 2. if the agent was already announced, skip the contract tx
     if already_announced {
@@ -283,7 +233,6 @@ async fn submit_testrun_result(
 /// Builds the agent sub-router with all agent endpoints behind bearer-token auth.
 pub(super) fn routes(auth_layer: AuthLayer) -> Router<AppState> {
     Router::new()
-        .route(routes::v1::agent::PORT_REQUEST, post(request_mix_port))
         .route(routes::v1::agent::ANNOUNCE, post(announce_agent))
         .route(routes::v1::agent::REQUEST_TESTRUN, post(request_testrun))
         .route(

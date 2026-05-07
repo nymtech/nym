@@ -86,7 +86,7 @@ impl NodeStressTester {
             // Route: tested node → this agent (so packets come back to us).
             let route = [
                 tested_node.as_sphinx_node(),
-                as_sphinx_node(config.mixnet_address, sphinx_key.public_key()),
+                as_sphinx_node(config.external_mixnet_address, sphinx_key.public_key()),
             ];
             let delay = config.packet_delay;
             Some(create_test_sphinx_packet_header(route, delay)?)
@@ -134,7 +134,7 @@ impl NodeStressTester {
         shutdown_token: ShutdownToken,
     ) -> anyhow::Result<MixnetListener> {
         MixnetListener::new(
-            self.config.mixnet_address,
+            self.config.mixnet_bind_address,
             self.tested_node.address,
             self.noise_config(),
             received_sender,
@@ -163,7 +163,10 @@ impl NodeStressTester {
     /// Returns a sphinx node representation of this tester's own mixnet listener address,
     /// used as the final hop in the packet route so packets are delivered back here.
     fn as_sphinx_node(&self) -> nym_sphinx_types::Node {
-        as_sphinx_node(self.config.mixnet_address, *self.sphinx_key.public_key())
+        as_sphinx_node(
+            self.config.external_mixnet_address,
+            *self.sphinx_key.public_key(),
+        )
     }
 
     /// Builds the next test sphinx packet, incrementing the internal packet counter.

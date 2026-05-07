@@ -33,7 +33,10 @@ pub(crate) struct NodeTesterConfig {
     pub(crate) reuse_header: bool,
 
     /// Local socket address the agent binds its mixnet listener on to receive returning packets.
-    pub(crate) mixnet_address: SocketAddr,
+    pub(crate) mixnet_bind_address: SocketAddr,
+
+    /// The mixnet address announced in the contract, where the tested nodes will send their packets to.
+    pub(crate) external_mixnet_address: SocketAddr,
 }
 
 impl NodeTesterConfig {
@@ -68,7 +71,8 @@ mod tests {
             sending_batch_size: batch_size,
             target_rate,
             reuse_header: true,
-            mixnet_address: "127.0.0.1:1789".parse().unwrap(),
+            mixnet_bind_address: "127.0.0.1:1789".parse().unwrap(),
+            external_mixnet_address: "127.0.0.1:1789".parse().unwrap(),
         }
     }
 

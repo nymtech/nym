@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::models::{
-    AgentAnnounceRequest, AgentAnnounceResponse, AgentPortRequest, AgentPortRequestResponse,
-    TestRunAssignmentRequest, TestRunAssignmentResponse, TestRunResultSubmissionRequest,
-    TestRunSubmissionResponse,
+    AgentAnnounceRequest, AgentAnnounceResponse, TestRunAssignmentRequest,
+    TestRunAssignmentResponse, TestRunResultSubmissionRequest, TestRunSubmissionResponse,
 };
 use crate::routes::v1::agent::{
-    announce_absolute, port_request_absolute, request_testrun_absolute, submit_testrun_absolute,
+    announce_absolute, request_testrun_absolute, submit_testrun_absolute,
 };
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, HttpClientError, NO_PARAMS, Url, parse_response};
@@ -52,15 +51,6 @@ impl OrchestratorClient {
             .await?;
 
         parse_response(res, false).await
-    }
-
-    /// Requests a mixnet port assignment from the orchestrator for this agent.
-    /// The orchestrator ensures no two agents on the same host share a port.
-    pub async fn get_mix_port_assignment(
-        &self,
-        body: &AgentPortRequest,
-    ) -> Result<AgentPortRequestResponse, HttpClientError> {
-        self.post_with_auth(&port_request_absolute(), body).await
     }
 
     /// Announces this agent's details to the orchestrator, which forwards them

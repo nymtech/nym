@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::http::state::AgentAnnounceError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
@@ -9,14 +8,8 @@ use axum::response::{IntoResponse, Response};
 /// The `Display` message from each variant is used as the HTTP response body.
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum ApiError {
-    #[error("no available ports on this host")]
-    NoPortsAvailable,
-
     #[error("agent information not found")]
     AgentNotFound,
-
-    #[error("noise key does not match the one used during port assignment")]
-    NoiseKeyMismatch,
 
     #[error("failed to announce agent to the network monitors contract")]
     ContractFailure,
@@ -42,8 +35,7 @@ impl ApiError {
         use ApiError::*;
 
         match self {
-            NoPortsAvailable => StatusCode::SERVICE_UNAVAILABLE,
-            AgentNotFound | NoiseKeyMismatch | AgentNotAnnounced => StatusCode::BAD_REQUEST,
+            AgentNotFound | AgentNotAnnounced => StatusCode::BAD_REQUEST,
             TestRunNotFound | NymNodeNotFound => StatusCode::NOT_FOUND,
             ContractFailure | StorageFailure | MalformedStoredData => {
                 StatusCode::INTERNAL_SERVER_ERROR
@@ -55,14 +47,5 @@ impl ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         (self.status_code(), self.to_string()).into_response()
-    }
-}
-
-impl From<AgentAnnounceError> for ApiError {
-    fn from(err: AgentAnnounceError) -> Self {
-        match err {
-            AgentAnnounceError::NotFound => ApiError::AgentNotFound,
-            AgentAnnounceError::NoiseKeyMismatch => ApiError::NoiseKeyMismatch,
-        }
     }
 }

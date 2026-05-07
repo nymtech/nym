@@ -49,6 +49,10 @@ pub(crate) struct CommonArgs {
     /// Specifies the path to the noise key file used for establishing tunnel with the node being tested
     #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_NOISE_KEY_PATH_ARG)]
     pub(crate) noise_key_path: String,
+
+    /// Specifies the socket address the agent will bind to for receiving mixnet traffic.
+    #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_BIND_ADDRESS_ARG, default_value = "[::]:9000")]
+    bind_address: SocketAddr,
 }
 
 impl CommonArgs {
@@ -56,7 +60,7 @@ impl CommonArgs {
     /// `mixnet_address` is provided separately as it is command-specific.
     pub(crate) fn build_config(
         &self,
-        mixnet_address: SocketAddr,
+        external_address: SocketAddr,
     ) -> anyhow::Result<NodeTesterConfig> {
         if self.sending_duration.is_zero() {
             bail!("attempted to set sending duration to 0s")
@@ -77,7 +81,8 @@ impl CommonArgs {
             sending_batch_size: self.sending_batch_size.get(),
             target_rate: self.target_rate.get(),
             reuse_header: self.reuse_header,
-            mixnet_address,
+            mixnet_bind_address: self.bind_address,
+            external_mixnet_address: external_address,
         })
     }
 }

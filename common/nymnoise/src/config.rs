@@ -160,7 +160,14 @@ impl NoiseNetworkView {
     /// (releasing the lock) only after the swap completes, preventing torn writes from concurrent
     /// update calls.
     pub fn swap_view(&self, _permit: MutexGuard<'_, ()>, new: HashMap<IpAddr, NoiseNode>) {
-        self.inner.nodes.store(Arc::new(new));
+        // defensive: ensure stored keys are always canonical so lookups (which canonicalise)
+        // always match. callers should still canonicalise before assembling `new` to keep
+        // collision resolution deterministic.
+        let canonical = new
+            .into_iter()
+            .map(|(k, v)| (k.to_canonical(), v))
+            .collect();
+        self.inner.nodes.store(Arc::new(canonical));
     }
 
     pub fn all_nodes(&self) -> HashMap<IpAddr, NoiseNode> {
@@ -458,6 +465,49 @@ mod tests {
             assert_eq!(config.get_noise_key(SocketAddr::new(ip, 1000)), Some(key_a));
             assert_eq!(config.get_noise_key(SocketAddr::new(ip, 2000)), Some(key_b));
             assert!(config.supports_noise(ip));
+        }
+
+        // -- swap_view canonicalisation test --
+
+        // Regression: an agent registered via blockchain events flows through `swap_view` (called
+        // from `NetworkMonitorAgentsModule::new_agent` and from the periodic network refresher).
+        // If a non-canonical (IPv4-mapped IPv6) key reaches `swap_view`, lookups via
+        // `supports_noise` (which canonicalises) used to miss, producing the
+        // "can't speak Noise yet, falling back to TCP" warning despite the agent being correctly
+        // authorised in the routing filter.
+        #[tokio::test]
+        async fn swap_view_canonicalises_non_canonical_keys() {
+            let view = NoiseNetworkView::new_empty();
+            let v4 = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
+            let v6_mapped = IpAddr::V6(Ipv4Addr::new(1, 2, 3, 4).to_ipv6_mapped());
+
+            let mut nodes = HashMap::new();
+            // intentionally insert under the IPv4-mapped form — what a buggy caller might do
+            nodes.insert(
+                v6_mapped,
+                NoiseNode::NetworkMonitorAgent {
+                    nodes: vec![NetworkMonitorAgentNode {
+                        port: 1000,
+                        key: dummy_key(1),
+                    }],
+                },
+            );
+
+            let permit = view.get_update_permit().await;
+            view.swap_view(permit, nodes);
+
+            let config = NoiseConfig::new(
+                Arc::new(x25519::KeyPair::new(&mut deterministic_rng())),
+                view,
+                Duration::from_secs(5),
+            );
+
+            // lookup via either form must succeed
+            assert!(config.supports_noise(v4));
+            assert!(config.supports_noise(v6_mapped));
+            assert!(config
+                .get_noise_key(SocketAddr::new(v6_mapped, 1000))
+                .is_some());
         }
     }
 }

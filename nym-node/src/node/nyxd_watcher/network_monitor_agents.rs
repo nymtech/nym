@@ -87,7 +87,8 @@ impl NetworkMonitorAgentsModule {
         // add noise key to the known nodes
         let update_permit = self.noise_view.get_update_permit().await;
         let mut nodes = self.noise_view.all_nodes();
-        let ip = address.ip();
+        // canonicalise so lookups via supports_noise (which canonicalises) always match
+        let ip = address.ip().to_canonical();
         let port = address.port();
 
         match nodes.get_mut(&ip) {
@@ -116,7 +117,8 @@ impl NetworkMonitorAgentsModule {
     async fn revoked_agent(&mut self, address: SocketAddr) {
         debug!("revoking NM agent {address}");
 
-        let ip = address.ip();
+        // canonicalise to match the stored representation
+        let ip = address.ip().to_canonical();
 
         let update_permit = self.noise_view.get_update_permit().await;
         let mut nodes = self.noise_view.all_nodes();
@@ -227,5 +229,67 @@ impl MsgModule for NetworkMonitorAgentsModule {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_crypto::asymmetric::x25519;
+    use nym_test_utils::helpers::deterministic_rng;
+    use std::net::{IpAddr, Ipv4Addr};
+
+    fn module() -> NetworkMonitorAgentsModule {
+        NetworkMonitorAgentsModule::new(
+            "n1pefc2utwpy5w78p2kqdsfmpjxfwmn9d39k5mqa".parse().unwrap(),
+            RoutableNetworkMonitors::default(),
+            NoiseNetworkView::new_empty(),
+        )
+    }
+
+    // Regression: an agent registered via blockchain events must end up keyed in the noise map
+    // under the **canonical** IP form, so the responder's `supports_noise` (which canonicalises
+    // on lookup) finds it regardless of whether the inbound socket presents plain IPv4 or the
+    // v4-mapped IPv6 form. Before the fix, `new_agent` inserted `address.ip()` raw, leaving the
+    // map keyed on a non-canonical IPv4-mapped IPv6 address whenever the contract submission used
+    // that form, while the routing filter (which canonicalises on both sides) accepted the
+    // packet — producing the "can't speak Noise yet, falling back to TCP" warning.
+    #[tokio::test]
+    async fn new_agent_stores_under_canonical_ip() {
+        let mut module = module();
+        let pubkey = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut deterministic_rng()));
+        let bs58 = pubkey.to_base58_string();
+
+        let v4 = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
+        let v6_mapped = IpAddr::V6(Ipv4Addr::new(1, 2, 3, 4).to_ipv6_mapped());
+
+        // register agent using v4-mapped IPv6 form (the form that triggered the bug)
+        module
+            .new_agent(SocketAddr::new(v6_mapped, 39322), bs58, 1)
+            .await;
+
+        let stored = module.noise_view.all_nodes();
+        // the stored key must be canonical so canonical-form lookups succeed
+        assert!(
+            stored.contains_key(&v4),
+            "noise map must contain the canonical IPv4 key, got: {:?}",
+            stored.keys().collect::<Vec<_>>()
+        );
+    }
+
+    // Counterpart: same invariant when the contract submission already used plain IPv4 — the
+    // map should still be keyed on the canonical form (which for plain IPv4 is itself).
+    #[tokio::test]
+    async fn new_agent_stores_under_canonical_ip_for_plain_v4_input() {
+        let mut module = module();
+        let pubkey = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut deterministic_rng()));
+        let bs58 = pubkey.to_base58_string();
+
+        let v4 = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
+
+        module.new_agent(SocketAddr::new(v4, 39322), bs58, 1).await;
+
+        let stored = module.noise_view.all_nodes();
+        assert!(stored.contains_key(&v4));
     }
 }

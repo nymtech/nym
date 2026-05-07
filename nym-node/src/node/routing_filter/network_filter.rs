@@ -271,3 +271,36 @@ impl Resolution {
         matches!(self, Resolution::Accept)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::SocketAddr;
+
+    #[test]
+    fn test_canonical_address_init() {
+        let registered = "80.200.100.60".parse::<IpAddr>().unwrap();
+        let received = "[::ffff:80.200.100.60]:39322"
+            .parse::<SocketAddr>()
+            .unwrap();
+        let mut initial = HashSet::new();
+        initial.insert(registered);
+
+        let monitors = RoutableNetworkMonitors::new(initial);
+
+        assert!(monitors.is_known(&received.ip()))
+    }
+
+    #[test]
+    fn test_canonical_address_add() {
+        let registered = "80.200.100.60".parse::<IpAddr>().unwrap();
+        let received = "[::ffff:80.200.100.60]:39322"
+            .parse::<SocketAddr>()
+            .unwrap();
+
+        let monitors = RoutableNetworkMonitors::new(HashSet::new());
+        monitors.add_known(registered);
+
+        assert!(monitors.is_known(&received.ip()))
+    }
+}

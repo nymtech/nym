@@ -204,9 +204,10 @@ impl NetworkRefresher {
         //    by `NetworkMonitorAgentsModule` and are NOT available from nym-api. Dropping them
         //    here would leave agents unable to perform noise handshakes until their
         //    registration is renewed.
+        // Keys are canonicalised so the map matches what supports_noise/get_noise_key look up.
         for (ip, node) in current_nodes {
             if !node.is_nym_node() {
-                new_noise_nodes.insert(ip, node);
+                new_noise_nodes.insert(ip.to_canonical(), node);
             }
         }
 
@@ -218,7 +219,7 @@ impl NetworkRefresher {
             };
             let entry = NoiseNode::new_nym_node(noise_key);
             for ip_addr in &node.basic.ip_addresses {
-                new_noise_nodes.insert(*ip_addr, entry.clone());
+                new_noise_nodes.insert(ip_addr.to_canonical(), entry.clone());
             }
         }
         self.noise_view

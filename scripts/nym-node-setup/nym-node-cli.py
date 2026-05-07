@@ -610,14 +610,14 @@ class NodeSetupCLI:
         """Main function called by argparser command install running full node install flow"""
         self.ensure_env_values(args)
         # Pass uplink override to all helper scripts if provided
-        # NETWORK_DEVICE remains the backward-compatible override for both families.
+        # NETWORK_DEVICE remains the backward-compatible override for both families
         uplink_updates = {}
         if getattr(args, "uplink_dev", None):
-            os.environ["NETWORK_DEVICE"] = args.uplink_dev
+            uplink_updates["NETWORK_DEVICE"] = args.uplink_dev
         if getattr(args, "uplink_dev_v4", None):
-           os.environ["NETWORK_DEVICE_V4"] = args.uplink_dev_v4
+            uplink_updates["NETWORK_DEVICE_V4"] = args.uplink_dev_v4
         if getattr(args, "uplink_dev_v6", None):
-            os.environ["NETWORK_DEVICE_V6"] = args.uplink_dev_v6
+            uplink_updates["NETWORK_DEVICE_V6"] = args.uplink_dev_v6
         if uplink_updates:
             os.environ.update(uplink_updates)
             self._upsert_env_vars(uplink_updates)

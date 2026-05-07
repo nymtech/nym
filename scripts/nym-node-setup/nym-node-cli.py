@@ -30,7 +30,7 @@ class NodeSetupCLI:
         self.is_gwx = self.mode == "exit-gateway"
         if self.is_gwx:
             self.landing_page_html = self.fetch_script("landing-page.html")
-            self.nginx_proxy_wss_sh = self.fetch_script("nginx_proxy_wss_sh")
+            self.nginx_proxy_wss_sh = self.fetch_script("setup-nginx-proxy-wss.sh")
             self.tunnel_manager_sh = self.fetch_script("network_tunnel_manager.sh")
             self.quic_bridge_deployment_sh = self.fetch_script("quic_bridge_deployment.sh")
         else:
@@ -225,7 +225,7 @@ class NodeSetupCLI:
         scripts_urls = {
                 "nym-node-prereqs-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-prereqs-install.sh",
                 "nym-node-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-install.sh",
-                "setup-systemd-service-file.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-systemd-service-file.sh",
+                "setup-nginx-proxy-wss.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-nginx-proxy-wss.sh",
                 "start-node-systemd-service.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/start-node-systemd-service.sh",
                 "nginx_proxy_wss_sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-nginx-proxy-wss.sh",
                 "landing-page.html": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/landing-page.html",
@@ -317,8 +317,8 @@ class NodeSetupCLI:
         val = None
 
         # CLI argument
-        if args and getattr(args, "wireguard", None) is not None:
-            val = norm(getattr(args, "wireguard"))
+        if args and getattr(args, "wireguard_enabled", None) is not None:
+            val = norm(getattr(args, "wireguard_enabled"))
             print(f"[INFO] WireGuard mode provided via CLI: {val}")
 
         # Environment variable
@@ -629,7 +629,7 @@ class NodeSetupCLI:
         self.run_bonding_prompt()
         if self._check_gwx_mode():
             self.run_tunnel_manager_setup()
-            if self.check_wg_enabled():
+            if self.check_wg_enabled(args):
                 self.setup_test_wg_ip_tables()
                 self.quic_bridge_deploy()
 

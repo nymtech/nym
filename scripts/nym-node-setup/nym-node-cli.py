@@ -225,9 +225,9 @@ class NodeSetupCLI:
         scripts_urls = {
                 "nym-node-prereqs-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-prereqs-install.sh",
                 "nym-node-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-install.sh",
-                "setup-nginx-proxy-wss.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-nginx-proxy-wss.sh",
+                "setup-systemd-service-file.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-systemd-service-file.sh",
                 "start-node-systemd-service.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/start-node-systemd-service.sh",
-                "nginx_proxy_wss_sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-nginx-proxy-wss.sh",
+                "setup-nginx-proxy-wss.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-nginx-proxy-wss.sh",
                 "landing-page.html": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/landing-page.html",
                 "network_tunnel_manager.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/network-tunnel-manager.sh",
                 "quic_bridge_deployment.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/quic_bridge_deployment.sh"

@@ -16,7 +16,7 @@ use crate::support::helpers::{
     ensure_epoch_in_progress_state, ensure_no_existing_bond, ensure_operating_cost_within_range,
     ensure_profit_margin_within_range, validate_pledge,
 };
-use cosmwasm_std::{coin, wasm_execute, Addr, Coin, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{coin, wasm_execute, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_nym_node_bonding_event, new_pending_cost_params_update_event,

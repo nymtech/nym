@@ -93,4 +93,8 @@ pub mod events {
     pub const FAMILY_MEMBER_LEFT_EVENT_NAME: &str = "family_member_left";
     pub const FAMILY_MEMBER_LEFT_EVENT_FAMILY_ID: &str = "family_id";
     pub const FAMILY_MEMBER_LEFT_EVENT_NODE_ID: &str = "node_id";
+
+    pub const FAMILY_MEMBER_KICKED_EVENT_NAME: &str = "family_member_kicked";
+    pub const FAMILY_MEMBER_KICKED_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_MEMBER_KICKED_EVENT_NODE_ID: &str = "node_id";
 }

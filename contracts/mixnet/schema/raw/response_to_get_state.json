@@ -4,12 +4,21 @@
   "description": "The current state of the mixnet contract.",
   "type": "object",
   "required": [
+    "node_families_contract_address",
     "params",
     "rewarding_denom",
     "rewarding_validator_address",
     "vesting_contract_address"
   ],
   "properties": {
+    "node_families_contract_address": {
+      "description": "Address of the node families contract. It is called whenever nym-node unbonds so that it could be removed from any family it belongs to.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        }
+      ]
+    },
     "owner": {
       "description": "Address of the contract owner.",
       "default": null,

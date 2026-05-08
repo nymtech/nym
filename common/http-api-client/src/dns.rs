@@ -701,7 +701,7 @@ mod test {
             build_broken_resolver()?;
             let domain = "ifconfig.me";
             let result = resolver.resolve_str(domain).await;
-            assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
+            assert!(result.is_err_and(|e| e.is_timeout()));
 
             let duration = time_start.elapsed();
             assert!(duration < resolver.overall_dns_timeout + Duration::from_secs(1));

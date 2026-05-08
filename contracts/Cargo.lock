@@ -1411,6 +1411,7 @@ dependencies = [
  "cw-storage-plus",
  "cw2",
  "easy-addr",
+ "node-families-contract-common",
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",

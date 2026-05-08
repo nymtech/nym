@@ -84,6 +84,10 @@ impl TestableNymContract for MixnetContract {
         InstantiateMsg {
             rewarding_validator_address: deps.api.addr_make("rewarder").to_string(),
             vesting_contract_address: deps.api.addr_make("vesting-contract").to_string(),
+            node_families_contract_address: deps
+                .api
+                .addr_make("node-families-contract")
+                .to_string(),
             rewarding_denom: TEST_DENOM.to_string(),
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),

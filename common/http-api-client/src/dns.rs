@@ -738,7 +738,7 @@ mod test {
             // unsuccessful lookup - primary times out, and not in static table
             let domain = "non-existent.nymtech.net";
             let result = resolver.resolve_str(domain).await;
-            assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
+            assert!(result.is_err_and(|e| e.is_timeout()));
 
             Ok(())
         }

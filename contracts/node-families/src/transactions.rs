@@ -337,15 +337,44 @@ pub(crate) fn try_reject_family_invitation(
     ))
 }
 
+/// Remove `node_id` from whichever family it currently belongs to, at the
+/// request of the node's controller.
+///
+/// `info.sender` must be the bond controller of `node_id` per the mixnet
+/// contract — a node only leaves of its own accord. Errors with
+/// [`SenderDoesntControlNode`] if the sender doesn't control `node_id` (or
+/// the node is unbonding) and [`NodeNotInFamily`] if the node isn't currently
+/// a member of any family.
+///
+/// The mixnet-contract unbonding callback drops a node from its family
+/// independently (see [`try_handle_node_unbonding`]); this handler is the
+/// voluntary-leave path and is not the one fired on unbond.
+///
+/// [`SenderDoesntControlNode`]: NodeFamiliesContractError::SenderDoesntControlNode
+/// [`NodeNotInFamily`]: NodeFamiliesContractError::NodeNotInFamily
 pub(crate) fn try_leave_family(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     node_id: NodeId,
 ) -> Result<Response, NodeFamiliesContractError> {
-    // TODO: similar codepath will have to be called upon node unbonding
-    let _ = (deps, env, info, node_id);
-    Ok(Response::default())
+    let storage = NodeFamiliesStorage::new();
+
+    ensure_has_bonded_node(&storage, deps.as_ref(), &info.sender, node_id)?;
+
+    let family = storage.remove_family_member(deps.storage, &env, node_id)?;
+
+    Ok(Response::new().add_event(
+        Event::new(events::FAMILY_MEMBER_LEFT_EVENT_NAME)
+            .add_attribute(
+                events::FAMILY_MEMBER_LEFT_EVENT_FAMILY_ID,
+                family.id.to_string(),
+            )
+            .add_attribute(
+                events::FAMILY_MEMBER_LEFT_EVENT_NODE_ID,
+                node_id.to_string(),
+            ),
+    ))
 }
 
 pub(crate) fn try_kick_from_family(
@@ -1588,6 +1617,159 @@ mod tests {
                 archived.status,
                 FamilyInvitationStatus::Rejected { at } if at == env.block.time.seconds()
             ));
+            Ok(())
+        }
+    }
+
+    mod leave_family {
+        use super::*;
+        use crate::testing::NodeFamiliesContractTesterExt;
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+
+        #[test]
+        fn happy_path_drops_membership_and_archives_past_member() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+
+            let bob = tester.generate_account_with_balance();
+            let node_id = tester.bond_dummy_nymnode_for(&bob)?;
+            tester.add_to_family(family.id, node_id);
+
+            // sanity: family has the member, count is 1
+            let storage = NodeFamiliesStorage::new();
+            assert_eq!(
+                storage
+                    .families
+                    .load(tester.deps().storage, family.id)?
+                    .members,
+                1
+            );
+
+            let env = tester.env();
+            try_leave_family(
+                tester.deps_mut(),
+                env.clone(),
+                message_info(&bob, &[]),
+                node_id,
+            )?;
+
+            // membership gone
+            assert!(storage
+                .family_members
+                .may_load(tester.deps().storage, node_id)?
+                .is_none());
+
+            // family count decremented
+            let updated = storage.families.load(tester.deps().storage, family.id)?;
+            assert_eq!(updated.members, 0);
+
+            // archived as past member
+            let past = storage
+                .past_family_members
+                .load(tester.deps().storage, ((family.id, node_id), 0))?;
+            assert_eq!(past.family_id, family.id);
+            assert_eq!(past.node_id, node_id);
+            assert_eq!(past.removed_at, env.block.time.seconds());
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_when_sender_controls_no_bonded_node() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.add_to_family(family.id, node_id);
+
+            let mallory = tester.addr_make("mallory");
+            let env = tester.env();
+            let err = try_leave_family(
+                tester.deps_mut(),
+                env,
+                message_info(&mallory, &[]),
+                node_id,
+            )
+            .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::SenderDoesntControlNode {
+                    address: mallory,
+                    node_id,
+                }
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_when_sender_controls_a_different_node() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+
+            let bob = tester.generate_account_with_balance();
+            let bob_node = tester.bond_dummy_nymnode_for(&bob)?;
+            let other_node = tester.bond_dummy_nymnode()?;
+            tester.add_to_family(family.id, other_node);
+
+            let env = tester.env();
+            let err = try_leave_family(
+                tester.deps_mut(),
+                env,
+                message_info(&bob, &[]),
+                other_node,
+            )
+            .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::SenderDoesntControlNode {
+                    address: bob,
+                    node_id: other_node,
+                }
+            );
+            assert_ne!(bob_node, other_node);
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_when_sender_node_is_unbonding() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let bob = tester.generate_account_with_balance();
+            let node_id = tester.bond_dummy_nymnode_for(&bob)?;
+            tester.add_to_family(family.id, node_id);
+
+            tester.unbond_nymnode(node_id)?;
+
+            let env = tester.env();
+            let err =
+                try_leave_family(tester.deps_mut(), env, message_info(&bob, &[]), node_id)
+                    .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::SenderDoesntControlNode {
+                    address: bob,
+                    node_id,
+                }
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_when_node_is_not_in_any_family() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let bob = tester.generate_account_with_balance();
+            let node_id = tester.bond_dummy_nymnode_for(&bob)?;
+
+            let env = tester.env();
+            let err =
+                try_leave_family(tester.deps_mut(), env, message_info(&bob, &[]), node_id)
+                    .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::NodeNotInFamily { node_id }
+            );
             Ok(())
         }
     }

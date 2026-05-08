@@ -89,4 +89,8 @@ pub mod events {
     pub const FAMILY_INVITATION_REJECTED_EVENT_NAME: &str = "family_invitation_rejected";
     pub const FAMILY_INVITATION_REJECTED_EVENT_FAMILY_ID: &str = "family_id";
     pub const FAMILY_INVITATION_REJECTED_EVENT_NODE_ID: &str = "node_id";
+
+    pub const FAMILY_MEMBER_LEFT_EVENT_NAME: &str = "family_member_left";
+    pub const FAMILY_MEMBER_LEFT_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_MEMBER_LEFT_EVENT_NODE_ID: &str = "node_id";
 }

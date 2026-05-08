@@ -11,8 +11,10 @@
 
 use std::net::Ipv4Addr;
 
-use hickory_proto::op::{Message, Query};
-use hickory_proto::rr::{Name, RData, RecordType};
+use hickory_proto::{
+    op::{Message, Query},
+    rr::{Name, RData, RecordType},
+};
 use hickory_resolver::TokioResolver;
 use smolmix::Tunnel;
 use tracing::info;
@@ -27,7 +29,7 @@ async fn main() -> Result<(), BoxError> {
 
     // Clearnet baseline via hickory-resolver
     info!("Clearnet DNS lookup for '{domain}'...");
-    let resolver = TokioResolver::builder_tokio()?.build();
+    let resolver = TokioResolver::builder_tokio()?.build()?;
     let clearnet_start = tokio::time::Instant::now();
     let lookup = resolver.lookup_ip(domain).await?;
     let clearnet_ips: Vec<Ipv4Addr> = lookup
@@ -55,8 +57,8 @@ async fn main() -> Result<(), BoxError> {
 
     let udp = tunnel.udp_socket().await?;
 
-    let mut query = Message::new();
-    query.set_recursion_desired(true);
+    let mut query = Message::query();
+    query.metadata.recursion_desired = true;
     query.add_query(Query::query(Name::from_ascii(domain)?, RecordType::A));
     let query_bytes = query.to_vec()?;
 
@@ -73,9 +75,9 @@ async fn main() -> Result<(), BoxError> {
 
     let response = Message::from_vec(&buf[..n])?;
     let mixnet_ips: Vec<Ipv4Addr> = response
-        .answers()
+        .answers
         .iter()
-        .filter_map(|r| match r.data() {
+        .filter_map(|r| match r.data {
             RData::A(a) => Some(a.0),
             _ => None,
         })

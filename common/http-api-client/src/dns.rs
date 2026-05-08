@@ -56,7 +56,7 @@ use std::{
 use hickory_resolver::{
     TokioResolver,
     config::{CLOUDFLARE, NameServerConfig, QUAD9, ResolverConfig, ResolverOpts},
-    net::runtime::TokioRuntimeProvider,
+    net::{NetError, runtime::TokioRuntimeProvider},
 };
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
@@ -112,7 +112,7 @@ pub enum ResolveError {
     #[error("invalid name: {0}")]
     InvalidNameError(String),
     #[error("hickory-dns resolver error: {0}")]
-    ResolveError(#[from] hickory_resolver::net::NetError),
+    ResolveError(#[from] NetError),
     #[error("high level lookup timed out")]
     Timeout,
     #[error("hostname not found in static lookup table")]
@@ -122,7 +122,10 @@ pub enum ResolveError {
 impl ResolveError {
     /// Returns true if the error is a timeout.
     pub fn is_timeout(&self) -> bool {
-        matches!(self, ResolveError::Timeout | ResolveError::ResolveError(net::NetError::Timeout) )
+        matches!(
+            self,
+            ResolveError::Timeout | ResolveError::ResolveError(NetError::Timeout)
+        )
     }
 }
 

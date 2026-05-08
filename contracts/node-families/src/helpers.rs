@@ -109,3 +109,70 @@ pub(crate) fn ensure_node_not_in_family(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod normalise_family_name {
+        use super::*;
+
+        #[test]
+        fn empty_input_yields_empty() {
+            assert_eq!(normalise_family_name(""), "");
+        }
+
+        #[test]
+        fn already_canonical_is_unchanged() {
+            assert_eq!(normalise_family_name("foobar42"), "foobar42");
+        }
+
+        #[test]
+        fn lowercases_uppercase_letters() {
+            assert_eq!(normalise_family_name("FOOBAR"), "foobar");
+            assert_eq!(normalise_family_name("FooBar"), "foobar");
+        }
+
+        #[test]
+        fn strips_whitespace() {
+            assert_eq!(normalise_family_name("  foo bar  "), "foobar");
+            assert_eq!(normalise_family_name("foo\tbar\nbaz"), "foobarbaz");
+        }
+
+        #[test]
+        fn strips_punctuation_and_symbols() {
+            assert_eq!(normalise_family_name("foo-bar!"), "foobar");
+            assert_eq!(normalise_family_name("a.b_c@d"), "abcd");
+        }
+
+        #[test]
+        fn preserves_digits() {
+            assert_eq!(normalise_family_name("squad-2026"), "squad2026");
+            assert_eq!(normalise_family_name("0123456789"), "0123456789");
+        }
+
+        #[test]
+        fn drops_non_ascii_letters() {
+            // is_ascii_alphanumeric is strict — accented and non-Latin chars are dropped.
+            assert_eq!(normalise_family_name("café"), "caf");
+            assert_eq!(normalise_family_name("Ω-team"), "team");
+            assert_eq!(normalise_family_name("名前"), "");
+        }
+
+        #[test]
+        fn all_symbols_input_normalises_to_empty() {
+            // try_create_family relies on this to surface EmptyFamilyName.
+            assert_eq!(normalise_family_name("   "), "");
+            assert_eq!(normalise_family_name("!!!---"), "");
+        }
+
+        #[test]
+        fn distinct_inputs_collide_under_normalisation() {
+            // The collision behaviour the unique-name index depends on.
+            let canonical = normalise_family_name("Foo Bar");
+            assert_eq!(canonical, normalise_family_name("foobar"));
+            assert_eq!(canonical, normalise_family_name("FOO-BAR"));
+            assert_eq!(canonical, normalise_family_name("  f.o.o.b.a.r  "));
+        }
+    }
+}

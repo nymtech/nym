@@ -563,6 +563,63 @@ impl NodeFamiliesStorage<'_> {
     ///
     /// [`FamilyNotEmpty`]: NodeFamiliesContractError::FamilyNotEmpty
     /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    /// Apply the family-side cleanup triggered when `node_id` initiates
+    /// unbonding from the mixnet contract.
+    ///
+    /// Idempotent over the membership half: drops the node's [`FamilyMembership`]
+    /// record (decrementing the family's `members` count and archiving a
+    /// [`PastFamilyMember`]) iff such a record exists, otherwise leaves the
+    /// state untouched. Then sweeps every pending invitation addressed to
+    /// `node_id` (iterating via [`NodeFamilyInvitationIndex::node`]),
+    /// removing each from the pending map and archiving it as
+    /// [`FamilyInvitationStatus::Rejected`] at `env.block.time` — the
+    /// auto-cleared invitations share the `Rejected` terminal state with
+    /// invitations the node controller would have explicitly declined.
+    ///
+    /// The caller is responsible for verifying that the transaction sender
+    /// is the configured mixnet contract address — there is no node-side
+    /// authority for this path and storage cannot tell the difference between
+    /// the legitimate callback and an arbitrary execute call.
+    ///
+    /// Returns the number of pending invitations that were swept (useful for
+    /// event attributes / telemetry); the membership half is observable via
+    /// the archived `PastFamilyMember`.
+    pub(crate) fn handle_node_unbonding(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        node_id: NodeId,
+    ) -> Result<u64, NodeFamiliesContractError> {
+        if self.family_members.may_load(store, node_id)?.is_some() {
+            self.remove_family_member(store, env, node_id)?;
+        }
+
+        let now = env.block.time.seconds();
+        let pending: Vec<(FamilyMember, FamilyInvitation)> = self
+            .pending_family_invitations
+            .idx
+            .node
+            .prefix(node_id)
+            .range(store, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        let swept = pending.len() as u64;
+        for (key, invitation) in pending {
+            self.pending_family_invitations.remove(store, key)?;
+            let counter = self.next_past_invitation_counter(store, key)?;
+            self.past_family_invitations.save(
+                store,
+                (key, counter),
+                &PastFamilyInvitation {
+                    invitation,
+                    status: FamilyInvitationStatus::Rejected { at: now },
+                },
+            )?;
+        }
+
+        Ok(swept)
+    }
+
     pub(crate) fn disband_family(
         &self,
         store: &mut dyn Storage,

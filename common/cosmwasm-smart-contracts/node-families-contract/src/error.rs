@@ -42,6 +42,11 @@ pub enum NodeFamiliesContractError {
         family_id: NodeFamilyId,
     },
 
+    /// A cross-contract callback (e.g. `OnNymNodeUnbond`) was received from a
+    /// sender that is not the configured mixnet contract address.
+    #[error("address {sender} is not authorised to invoke the mixnet-contract callback")]
+    UnauthorisedMixnetCallback { sender: Addr },
+
     /// No pending invitation exists for the given `(family, node)` pair.
     #[error("no pending invitation for node {node_id} from family {family_id}")]
     InvitationNotFound {

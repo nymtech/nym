@@ -122,7 +122,7 @@ pub enum ResolveError {
 impl ResolveError {
     /// Returns true if the error is a timeout.
     pub fn is_timeout(&self) -> bool {
-        matches!(self, ResolveError::Timeout)
+        matches!(self, ResolveError::Timeout | ResolveError::ResolveError(net::NetError::Timeout) )
     }
 }
 

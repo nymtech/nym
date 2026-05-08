@@ -9,7 +9,9 @@ use nym_noise::upgrade_noise_responder;
 use nym_sphinx_framing::codec::NymCodec;
 use nym_task::ShutdownToken;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::net::TcpStream;
+use tokio::sync::Notify;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
 use tracing::{error, info, warn};
@@ -141,7 +143,8 @@ impl MixnetListener {
     /// Processes one connection at a time until the shutdown token is cancelled.
     /// Returns `self` so that the caller can inspect fields such as
     /// [`last_noise_handshake_duration`](Self::last_noise_handshake_duration) after the run.
-    pub(crate) async fn run(mut self) -> Self {
+    pub(crate) async fn run(mut self, on_start: Arc<Notify>) -> Self {
+        on_start.notify_waiters();
         // only handle a single connection at once
         // (we don't need more than that)
         loop {

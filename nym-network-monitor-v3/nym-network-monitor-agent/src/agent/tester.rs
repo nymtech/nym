@@ -23,6 +23,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::pin;
+use tokio::sync::Notify;
 use tokio::time::{Instant, sleep};
 use tracing::{debug, error, info, warn};
 
@@ -442,7 +443,14 @@ impl NodeStressTester {
         let listener = self
             .build_mixnet_listener(processor.sender(), shutdown_token.clone())
             .await?;
-        let listener_join = tokio::spawn(async move { listener.run().await });
+        let listener_on_start = Arc::new(Notify::new());
+        let listener_on_start_clone = listener_on_start.clone();
+
+        let listener_join =
+            tokio::spawn(async move { listener.run(listener_on_start_clone).await });
+
+        // wait for the listener task to properly begin
+        listener_on_start.notified().await;
 
         // 3. probe: send a single packet to confirm the node responds
         if !self

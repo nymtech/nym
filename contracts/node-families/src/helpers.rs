@@ -73,7 +73,7 @@ pub(crate) fn ensure_node_is_bonded(
 /// has entered the unbonding state.
 ///
 /// [`SenderDoesntControlNode`]: NodeFamiliesContractError::SenderDoesntControlNode
-pub(crate) fn ensure_sender_controls_node(
+pub(crate) fn ensure_has_bonded_node(
     storage: &NodeFamiliesStorage,
     deps: Deps,
     address: &Addr,

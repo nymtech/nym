@@ -55,8 +55,8 @@ use std::{
 
 use hickory_resolver::{
     TokioResolver,
-    config::{NameServerConfig, NameServerConfigGroup, ResolverConfig, ResolverOpts},
-    name_server::TokioConnectionProvider,
+    config::{CLOUDFLARE, NameServerConfig, QUAD9, ResolverConfig, ResolverOpts},
+    net::runtime::TokioRuntimeProvider,
 };
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
@@ -112,7 +112,7 @@ pub enum ResolveError {
     #[error("invalid name: {0}")]
     InvalidNameError(String),
     #[error("hickory-dns resolver error: {0}")]
-    ResolveError(#[from] hickory_resolver::ResolveError),
+    ResolveError(#[from] hickory_resolver::net::NetError),
     #[error("high level lookup timed out")]
     Timeout,
     #[error("hostname not found in static lookup table")]
@@ -166,18 +166,17 @@ impl Resolve for HickoryDnsResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let use_system = self.use_system.load(std::sync::atomic::Ordering::Relaxed);
         let use_shared = self.use_shared;
-        let resolver = if use_system {
-            match self
-                .system_resolver
+        let result = if use_system {
+            self.system_resolver
                 .get_or_try_init(|| HickoryDnsResolver::new_resolver_system(use_shared))
-            {
-                Ok(r) => r.clone(),
-                Err(e) => return Box::pin(return_err(e)),
-            }
         } else {
             self.state
-                .get_or_init(|| HickoryDnsResolver::new_resolver(use_shared))
-                .clone()
+                .get_or_try_init(|| HickoryDnsResolver::new_resolver(use_shared))
+        };
+
+        let resolver = match result {
+            Ok(r) => r.clone(),
+            Err(err) => return Box::pin(return_err(err)),
         };
 
         let maybe_static = self.static_base.clone();
@@ -228,7 +227,7 @@ async fn resolve(
         Ok(Ok(lookup)) => {
             // Shuffle so that successive connection attempts cycle through all
             // returned IPs rather than always hitting the same first address.
-            let mut ips: Vec<IpAddr> = lookup.into_iter().collect();
+            let mut ips = Vec::from_iter(lookup.iter());
             fastrand::shuffle(&mut ips);
             let addrs: Addrs = Box::new(ips.into_iter().map(|ip| SocketAddr::new(ip, 0)));
             return Ok(addrs);
@@ -277,7 +276,7 @@ impl HickoryDnsResolver {
                 .clone()
         } else {
             self.state
-                .get_or_init(|| HickoryDnsResolver::new_resolver(self.use_shared))
+                .get_or_try_init(|| HickoryDnsResolver::new_resolver(self.use_shared))?
                 .clone()
         };
 
@@ -300,11 +299,14 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver(use_shared: bool) -> TokioResolver {
+    fn new_resolver(use_shared: bool) -> Result<TokioResolver, ResolveError> {
         // using a closure here is slightly gross, but this makes sure that if the
         // lazy-init returns an error it can be handled by the client
         if use_shared {
-            SHARED_RESOLVER.state.get_or_init(new_resolver).clone()
+            SHARED_RESOLVER
+                .state
+                .get_or_try_init(new_resolver)
+                .map(|r| r.clone())
         } else {
             new_resolver()
         }
@@ -356,7 +358,7 @@ impl HickoryDnsResolver {
     /// Clear entries from the static table that would return entries during the pre-resolve stage.
     /// This means that all lookups will attempt to use the network resolver again before the static
     /// table is consulted.
-    ///  
+    ///
     /// Entries elevated to pre-resolve from fallback (added from default or using
     /// [`set_fallback`]`) will have their cache timeout cleared. Entries added directly to
     /// pre-resolve (using [`Self::set_static_preresolve`]) will be removed.
@@ -430,19 +432,6 @@ impl HickoryDnsResolver {
         default_nameserver_group().to_vec()
     }
 
-    /// Get the list of currently used nameserver configs.
-    pub fn active_name_servers(&self) -> Vec<NameServerConfig> {
-        if !self.use_shared {
-            return self
-                .state
-                .get()
-                .map(|r| r.config().name_servers().to_vec())
-                .unwrap_or(self.all_configured_name_servers());
-        }
-
-        SHARED_RESOLVER.active_name_servers()
-    }
-
     /// Do a trial resolution using each nameserver individually to test which are working and which
     /// fail to complete a lookup. This will always try the full set of default configured resolvers.
     pub async fn trial_nameservers(&self) {
@@ -466,35 +455,33 @@ impl HickoryDnsResolver {
 ///
 /// Caches successfully resolved addresses for 30 minutes to prevent continual use of remote lookup.
 /// This resolver is intended to be used for OUR API endpoints that do not rapidly rotate IPs.
-fn new_resolver() -> TokioResolver {
+fn new_resolver() -> Result<TokioResolver, ResolveError> {
     let name_servers = default_nameserver_group_ipv4_only();
 
     configure_and_build_resolver(name_servers)
 }
 
-fn configure_and_build_resolver<G>(name_servers: G) -> TokioResolver
-where
-    G: Into<NameServerConfigGroup>,
-{
+fn configure_and_build_resolver(
+    name_servers: Vec<NameServerConfig>,
+) -> Result<TokioResolver, ResolveError> {
     let options = HickoryDnsResolver::default_options();
-    let name_servers: NameServerConfigGroup = name_servers.into();
     info!("building new configured resolver");
     debug!("configuring resolver with {options:?}, {name_servers:?}");
 
     let config = ResolverConfig::from_parts(None, Vec::new(), name_servers);
     let mut resolver_builder =
-        TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
+        TokioResolver::builder_with_config(config, TokioRuntimeProvider::default());
 
     resolver_builder = resolver_builder.with_options(options);
 
-    resolver_builder.build()
+    Ok(resolver_builder.build()?)
 }
 
 fn filter_ipv4(nameservers: impl AsRef<[NameServerConfig]>) -> Vec<NameServerConfig> {
     nameservers
         .as_ref()
         .iter()
-        .filter(|ns| ns.socket_addr.is_ipv4())
+        .filter(|ns| ns.ip.is_ipv4())
         .cloned()
         .collect()
 }
@@ -504,27 +491,28 @@ fn filter_ipv6(nameservers: impl AsRef<[NameServerConfig]>) -> Vec<NameServerCon
     nameservers
         .as_ref()
         .iter()
-        .filter(|ns| ns.socket_addr.is_ipv6())
+        .filter(|ns| ns.ip.is_ipv6())
         .cloned()
         .collect()
 }
 
 #[allow(unused)]
-fn default_nameserver_group() -> NameServerConfigGroup {
-    let mut name_servers = NameServerConfigGroup::quad9_tls();
-    name_servers.merge(NameServerConfigGroup::quad9_https());
-    name_servers.merge(NameServerConfigGroup::cloudflare_tls());
-    name_servers.merge(NameServerConfigGroup::cloudflare_https());
-    name_servers
+fn default_nameserver_group() -> Vec<NameServerConfig> {
+    QUAD9
+        .tls()
+        .chain(QUAD9.https())
+        .chain(CLOUDFLARE.tls())
+        .chain(CLOUDFLARE.https())
+        .collect()
 }
 
-fn default_nameserver_group_ipv4_only() -> NameServerConfigGroup {
+fn default_nameserver_group_ipv4_only() -> Vec<NameServerConfig> {
     filter_ipv4(&default_nameserver_group() as &[NameServerConfig]).into()
 }
 
 #[allow(unused)]
-fn default_nameserver_group_ipv6_only() -> NameServerConfigGroup {
-    filter_ipv6(&default_nameserver_group() as &[NameServerConfig]).into()
+fn default_nameserver_group_ipv6_only() -> Vec<NameServerConfig> {
+    filter_ipv6(&default_nameserver_group()).into()
 }
 
 /// Create a new resolver with the default configuration, which reads from the system DNS config
@@ -539,7 +527,7 @@ fn new_resolver_system() -> Result<TokioResolver, ResolveError> {
 
     resolver_builder = resolver_builder.with_options(options);
 
-    Ok(resolver_builder.build())
+    Ok(resolver_builder.build()?)
 }
 
 fn new_default_static_fallback() -> StaticResolver {
@@ -566,7 +554,7 @@ async fn trial_nameservers_inner(
 async fn trial_lookup(name_server: NameServerConfig, query: &str) -> Result<(), ResolveError> {
     debug!("running ns trial {name_server:?} query={query}");
 
-    let resolver = configure_and_build_resolver(vec![name_server]);
+    let resolver = configure_and_build_resolver(vec![name_server])?;
 
     match tokio::time::timeout(DEFAULT_OVERALL_LOOKUP_TIMEOUT, resolver.ipv4_lookup(query)).await {
         Ok(Ok(_)) => Ok(()),
@@ -579,8 +567,10 @@ async fn trial_lookup(name_server: NameServerConfig, query: &str) -> Result<(), 
 mod test {
     use super::*;
     use itertools::Itertools;
-    use std::collections::HashMap;
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    use std::{
+        collections::HashMap,
+        net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    };
 
     /// IP addresses guaranteed to fail attempts to resolve
     ///
@@ -659,14 +649,15 @@ mod test {
         let mut ns_ips = GUARANTEED_BROKEN_IPS_1.to_vec();
         ns_ips.push(good_cf_ip);
 
-        let broken_ns_https = NameServerConfigGroup::from_ips_https(
-            &ns_ips,
-            443,
-            "cloudflare-dns.com".to_string(),
-            true,
-        );
+        let domain = Arc::<str>::from("cloudflare-dns.com");
+        let path = Arc::<str>::from("/dns-query");
+        let broken_ns_https = GUARANTEED_BROKEN_IPS_1
+            .iter()
+            .chain([&good_cf_ip])
+            .map(|ip| NameServerConfig::https(*ip, domain.clone(), Some(path.clone())))
+            .collect::<Vec<_>>();
 
-        let inner = configure_and_build_resolver(broken_ns_https);
+        let inner = configure_and_build_resolver(broken_ns_https.clone()).unwrap();
 
         // create a new resolver that won't mess with the shared resolver used by other tests
         let resolver = HickoryDnsResolver {
@@ -676,9 +667,8 @@ mod test {
             ..Default::default()
         };
 
-        let name_servers = resolver.state.get().unwrap().config().name_servers();
-        for (ns, result) in trial_nameservers_inner(name_servers).await {
-            if ns.socket_addr.ip() == good_cf_ip {
+        for (ns, result) in trial_nameservers_inner(&broken_ns_https).await {
+            if ns.ip == good_cf_ip {
                 assert!(result.is_ok())
             } else {
                 assert!(result.is_err())
@@ -694,21 +684,20 @@ mod test {
         fn build_broken_resolver() -> Result<TokioResolver, ResolveError> {
             info!("building new faulty resolver");
 
-            let mut broken_ns_group = NameServerConfigGroup::from_ips_tls(
-                GUARANTEED_BROKEN_IPS_1,
-                853,
-                "cloudflare-dns.com".to_string(),
-                true,
-            );
-            let broken_ns_https = NameServerConfigGroup::from_ips_https(
-                GUARANTEED_BROKEN_IPS_1,
-                443,
-                "cloudflare-dns.com".to_string(),
-                true,
-            );
-            broken_ns_group.merge(broken_ns_https);
+            let domain = Arc::<str>::from("cloudflare-dns.com");
+            let path = Arc::<str>::from("/dns-query");
+            let broken_ns_group = GUARANTEED_BROKEN_IPS_1
+                .iter()
+                .map(|ip| NameServerConfig::tls(*ip, domain.clone()))
+                .chain(
+                    GUARANTEED_BROKEN_IPS_1
+                        .iter()
+                        .map(|ip| NameServerConfig::https(*ip, domain.clone(), Some(path.clone())))
+                        .collect::<Vec<_>>(),
+                )
+                .collect::<Vec<_>>();
 
-            Ok(configure_and_build_resolver(broken_ns_group))
+            configure_and_build_resolver(broken_ns_group)
         }
 
         #[tokio::test]
@@ -766,20 +755,6 @@ mod test {
             assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
 
             Ok(())
-        }
-
-        #[test]
-        fn default_resolver_uses_ipv4_only_nameservers() {
-            let resolver = HickoryDnsResolver::thread_resolver();
-            resolver
-                .active_name_servers()
-                .iter()
-                .all(|cfg| cfg.socket_addr.is_ipv4());
-
-            SHARED_RESOLVER
-                .active_name_servers()
-                .iter()
-                .all(|cfg| cfg.socket_addr.is_ipv4());
         }
 
         #[tokio::test]

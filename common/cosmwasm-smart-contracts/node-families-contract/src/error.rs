@@ -32,6 +32,16 @@ pub enum NodeFamiliesContractError {
     #[error("node {node_id} is not currently a member of any family")]
     NodeNotInFamily { node_id: NodeId },
 
+    /// The given node is a member of a different family than the one the
+    /// caller is acting on. Distinct from [`NodeNotInFamily`] (which means the
+    /// node has no membership at all) — surfaces when, e.g., a family owner
+    /// tries to kick a node that belongs to someone else's family.
+    #[error("node {node_id} is not a member of family {family_id}")]
+    NodeNotMemberOfFamily {
+        node_id: NodeId,
+        family_id: NodeFamilyId,
+    },
+
     /// No pending invitation exists for the given `(family, node)` pair.
     #[error("no pending invitation for node {node_id} from family {family_id}")]
     InvitationNotFound {

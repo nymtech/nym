@@ -1166,21 +1166,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
 
 [[package]]
-name = "mixnet-vesting-integration-tests"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-std",
- "cw-multi-test",
- "nym-contracts-common",
- "nym-crypto",
- "nym-mixnet-contract",
- "nym-mixnet-contract-common",
- "nym-vesting-contract",
- "nym-vesting-contract-common",
- "rand_chacha",
-]
-
-[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

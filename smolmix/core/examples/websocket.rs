@@ -132,7 +132,7 @@ async fn main() -> Result<(), BoxError> {
 
     let request_duration = request_start.elapsed();
     let mixnet_text = mixnet_reply.into_text()?;
-    mixnet_ws.close(None).await?;
+    let _ = mixnet_ws.close(None).await;
 
     info!("Echo: \"{mixnet_text}\" ({:?})", request_duration);
 

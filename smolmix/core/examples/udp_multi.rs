@@ -71,8 +71,8 @@ async fn main() -> Result<(), BoxError> {
     for host in DNS_TARGETS {
         let start = std::time::Instant::now();
 
-        let mut query = Message::new();
-        query.set_recursion_desired(true);
+        let mut query = Message::query();
+        query.metadata.recursion_desired = true;
         query.add_query(Query::query(Name::from_ascii(host)?, RecordType::A));
         let query_bytes = query.to_vec()?;
 
@@ -87,9 +87,9 @@ async fn main() -> Result<(), BoxError> {
                 let rtt = start.elapsed();
                 let response = Message::from_vec(&buf[..n])?;
                 let ips: Vec<_> = response
-                    .answers()
+                    .answers
                     .iter()
-                    .filter_map(|r| match r.data() {
+                    .filter_map(|r| match r.data {
                         RData::A(a) => Some(a.0.to_string()),
                         _ => None,
                     })
@@ -157,8 +157,8 @@ async fn main() -> Result<(), BoxError> {
 
 /// Resolve a hostname to an IPv4 address via mixnet UDP DNS.
 async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr, BoxError> {
-    let mut query = Message::new();
-    query.set_recursion_desired(true);
+    let mut query = Message::query();
+    query.metadata.recursion_desired = true;
     query.add_query(Query::query(Name::from_ascii(host)?, RecordType::A));
     let query_bytes = query.to_vec()?;
 
@@ -170,9 +170,9 @@ async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr, BoxError> 
 
     let response = Message::from_vec(&buf[..n])?;
     let ip = response
-        .answers()
+        .answers
         .iter()
-        .find_map(|r| match r.data() {
+        .find_map(|r| match r.data {
             RData::A(a) => Some(a.0),
             _ => None,
         })

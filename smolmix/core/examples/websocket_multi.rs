@@ -116,9 +116,7 @@ async fn main() -> Result<(), BoxError> {
         let start = Instant::now();
 
         let result = tokio::time::timeout(CLEARNET_TIMEOUT, async {
-            clearnet_ws
-                .send(Message::Text(probe.clone().into()))
-                .await?;
+            clearnet_ws.send(Message::Text(probe.clone())).await?;
             clearnet_ws
                 .next()
                 .await
@@ -231,7 +229,7 @@ async fn main() -> Result<(), BoxError> {
         let start = Instant::now();
 
         let result = tokio::time::timeout(RECV_TIMEOUT, async {
-            ws.send(Message::Text(probe.clone().into())).await?;
+            ws.send(Message::Text(probe.clone())).await?;
             ws.next()
                 .await
                 .ok_or(tungstenite::Error::ConnectionClosed)?

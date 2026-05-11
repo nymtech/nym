@@ -129,6 +129,7 @@ async fn main() -> Result<(), BoxError> {
         let body = resp.into_body().collect().await?.to_bytes();
         let elapsed = start.elapsed();
         spinner.abort();
+        let _ = spinner.await;
 
         let speed = body.len() as f64 / elapsed.as_secs_f64();
         eprintln!(
@@ -151,8 +152,8 @@ async fn main() -> Result<(), BoxError> {
 
 /// Resolve a hostname to an IPv4 address via mixnet UDP DNS.
 async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr, BoxError> {
-    let mut query = Message::new();
-    query.set_recursion_desired(true);
+    let mut query = Message::query();
+    query.metadata.recursion_desired = true;
     query.add_query(Query::query(Name::from_ascii(host)?, RecordType::A));
     let query_bytes = query.to_vec()?;
 
@@ -164,9 +165,9 @@ async fn resolve_dns(tunnel: &Tunnel, host: &str) -> Result<Ipv4Addr, BoxError> 
 
     let response = Message::from_vec(&buf[..n])?;
     let ip = response
-        .answers()
+        .answers
         .iter()
-        .find_map(|r| match r.data() {
+        .find_map(|r| match r.data {
             RData::A(a) => Some(a.0),
             _ => None,
         })

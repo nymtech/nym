@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::write_api;
-use node_families_contract_common::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use nym_node_families_contract_common::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 fn main() {
     write_api! {

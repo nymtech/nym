@@ -1,5 +1,5 @@
 [package]
-name = "node-families-contract-common"
+name = "nym-node-families-contract-common"
 description = "Common crate for Nym's node families contract"
 version.workspace = true
 authors.workspace = true

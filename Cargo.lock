@@ -8576,6 +8576,7 @@ dependencies = [
  "flate2",
  "futures",
  "itertools 0.14.0",
+ "node-families-contract-common",
  "nym-api-requests",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",

@@ -33,14 +33,26 @@ nym-contracts-common = { workspace = true }
 node-families-contract-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 
+# Optional deps activated by the `testable-node-families-contract` feature so
+# downstream crates can pull in `crate::testing` for their own test harnesses.
+nym-contracts-common-testing = { workspace = true, optional = true }
+nym-mixnet-contract = { workspace = true, optional = true, features = ["testable-mixnet-contract"] }
+nym-crypto = { workspace = true, optional = true }
+
 [dev-dependencies]
 anyhow = { workspace = true }
-nym-crypto = { workspace = true, features = ["asymmetric"] }
-nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
-nym-contracts-common-testing = { workspace = true }
+# activate the `testable-node-families-contract` feature in tests (mirrors the
+# weird-but-effective workaround used by the mixnet contract)
+node-families = { path = ".", features = ["testable-node-families-contract"] }
 
 [features]
 schema-gen = ["node-families-contract-common/schema", "cosmwasm-schema"]
+testable-node-families-contract = [
+    "nym-contracts-common-testing",
+    "nym-mixnet-contract",
+    "nym-crypto",
+    "nym-crypto/asymmetric",
+]
 
 
 [lints]

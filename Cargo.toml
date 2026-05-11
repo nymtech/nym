@@ -349,7 +349,6 @@ serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
 sha2 = "0.10.3"
 si-scale = "0.2.3"
-smolmix = { version = "1.21.0", path = "smolmix/core" }
 smoltcp = "0.12"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"
@@ -518,6 +517,8 @@ nym-wasm-client-core = { version = "1.21.0", path = "common/wasm/client-core" }
 nym-wasm-storage = { version = "1.21.0", path = "common/wasm/storage" }
 nym-wasm-utils = { version = "1.21.0", path = "common/wasm/utils", default-features = false }
 nyxd-scraper-shared = { version = "1.21.0", path = "common/nyxd-scraper-shared" }
+
+smolmix = { version = "1.21.0", path = "smolmix/core" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork

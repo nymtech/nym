@@ -3,7 +3,17 @@
 
 //! CosmWasm entry points for the node families contract.
 
-use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response};
+use crate::queries::{
+    query_all_past_invitations_paged, query_all_pending_invitations_paged, query_families_paged,
+    query_family_by_id, query_family_by_name, query_family_by_owner, query_family_members_paged,
+    query_family_membership, query_past_invitations_for_family_paged,
+    query_past_invitations_for_node_paged, query_past_members_for_family_paged,
+    query_past_members_for_node_paged, query_pending_invitation,
+    query_pending_invitations_for_family_paged, query_pending_invitations_for_node_paged,
+};
+use cosmwasm_std::{
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+};
 use node_families_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NodeFamiliesContractError, QueryMsg,
 };
@@ -55,10 +65,100 @@ pub fn execute(
 /// wired up here as variants are added to [`QueryMsg`].
 #[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NodeFamiliesContractError> {
-    let _ = deps;
-    let _ = env;
-    let _ = msg;
-    Ok(Binary::default())
+    match msg {
+        QueryMsg::GetFamilyById { family_id } => {
+            Ok(to_json_binary(&query_family_by_id(deps, family_id)?)?)
+        }
+        QueryMsg::GetFamilyByOwner { owner } => {
+            Ok(to_json_binary(&query_family_by_owner(deps, owner)?)?)
+        }
+        QueryMsg::GetFamilyByName { name } => {
+            Ok(to_json_binary(&query_family_by_name(deps, name)?)?)
+        }
+        QueryMsg::GetFamilyMembership { node_id } => {
+            Ok(to_json_binary(&query_family_membership(deps, node_id)?)?)
+        }
+        QueryMsg::GetFamilyMembersPaged {
+            family_id,
+            start_after,
+            limit,
+        } => Ok(to_json_binary(&query_family_members_paged(
+            deps,
+            family_id,
+            start_after,
+            limit,
+        )?)?),
+        QueryMsg::GetPendingInvitation { family_id, node_id } => Ok(to_json_binary(
+            &query_pending_invitation(deps, env, family_id, node_id)?,
+        )?),
+        QueryMsg::GetPendingInvitationsForFamilyPaged {
+            family_id,
+            start_after,
+            limit,
+        } => Ok(to_json_binary(
+            &query_pending_invitations_for_family_paged(deps, env, family_id, start_after, limit)?,
+        )?),
+        QueryMsg::GetPendingInvitationsForNodePaged {
+            node_id,
+            start_after,
+            limit,
+        } => Ok(to_json_binary(&query_pending_invitations_for_node_paged(
+            deps,
+            env,
+            node_id,
+            start_after,
+            limit,
+        )?)?),
+        QueryMsg::GetAllPendingInvitationsPaged { start_after, limit } => Ok(to_json_binary(
+            &query_all_pending_invitations_paged(deps, env, start_after, limit)?,
+        )?),
+        QueryMsg::GetPastInvitationsForFamilyPaged {
+            family_id,
+            start_after,
+            limit,
+        } => Ok(to_json_binary(&query_past_invitations_for_family_paged(
+            deps,
+            family_id,
+            start_after,
+            limit,
+        )?)?),
+        QueryMsg::GetPastInvitationsForNodePaged {
+            node_id,
+            start_after,
+            limit,
+        } => Ok(to_json_binary(&query_past_invitations_for_node_paged(
+            deps,
+            node_id,
+            start_after,
+            limit,
+        )?)?),
+        QueryMsg::GetAllPastInvitationsPaged { start_after, limit } => Ok(to_json_binary(
+            &query_all_past_invitations_paged(deps, start_after, limit)?,
+        )?),
+        QueryMsg::GetPastMembersForFamilyPaged {
+            family_id,
+            start_after,
+            limit,
+        } => Ok(to_json_binary(&query_past_members_for_family_paged(
+            deps,
+            family_id,
+            start_after,
+            limit,
+        )?)?),
+        QueryMsg::GetPastMembersForNodePaged {
+            node_id,
+            start_after,
+            limit,
+        } => Ok(to_json_binary(&query_past_members_for_node_paged(
+            deps,
+            node_id,
+            start_after,
+            limit,
+        )?)?),
+        QueryMsg::GetFamiliesPaged { start_after, limit } => Ok(to_json_binary(
+            &query_families_paged(deps, start_after, limit)?,
+        )?),
+    }
 }
 
 /// Migration entry point.

@@ -6,7 +6,8 @@ use cosmwasm_std::Addr;
 use cw_storage_plus::{Index, IndexList, MultiIndex, UniqueIndex};
 use node_families_contract_common::constants::storage_keys;
 use node_families_contract_common::{
-    FamilyInvitation, NodeFamily, NodeFamilyId, PastFamilyInvitation, PastFamilyMember,
+    FamilyInvitation, FamilyMembership, NodeFamily, NodeFamilyId, PastFamilyInvitation,
+    PastFamilyMember,
 };
 use nym_mixnet_contract_common::NodeId;
 
@@ -40,6 +41,34 @@ impl NodeFamiliesIndex<'_> {
 impl IndexList<NodeFamily> for NodeFamiliesIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<NodeFamily>> + '_> {
         let v: Vec<&dyn Index<NodeFamily>> = vec![&self.owner, &self.name];
+        Box::new(v.into_iter())
+    }
+}
+
+/// Secondary indexes over current [`FamilyMembership`] records. The PK is
+/// `NodeId` (one family per node), and the family-id multi-index enables
+/// paginated listing of all nodes belonging to a given family.
+pub(crate) struct FamilyMembersIndex<'a> {
+    /// Multi-index: every node currently in a given family.
+    pub(crate) family: MultiIndex<'a, NodeFamilyId, FamilyMembership, NodeId>,
+}
+
+impl FamilyMembersIndex<'_> {
+    #[allow(clippy::new_without_default)]
+    pub(crate) fn new() -> Self {
+        FamilyMembersIndex {
+            family: MultiIndex::new(
+                |_pk, m| m.family_id,
+                storage_keys::NODE_FAMILY_MEMBERS,
+                storage_keys::NODE_FAMILY_MEMBERS_FAMILY_IDX_NAMESPACE,
+            ),
+        }
+    }
+}
+
+impl IndexList<FamilyMembership> for FamilyMembersIndex<'_> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<FamilyMembership>> + '_> {
+        let v: Vec<&dyn Index<FamilyMembership>> = vec![&self.family];
         Box::new(v.into_iter())
     }
 }

@@ -5,7 +5,7 @@
 #![allow(dead_code)]
 
 use crate::storage::storage_indexes::{
-    NodeFamiliesIndex, NodeFamilyInvitationIndex, PastFamilyInvitationsIndex,
+    FamilyMembersIndex, NodeFamiliesIndex, NodeFamilyInvitationIndex, PastFamilyInvitationsIndex,
     PastFamilyMembersIndex,
 };
 use cosmwasm_std::{Addr, Env, Order, StdResult, Storage};
@@ -13,11 +13,12 @@ use cw_controllers::Admin;
 use cw_storage_plus::{IndexedMap, Item, Map};
 use node_families_contract_common::constants::storage_keys;
 use node_families_contract_common::{
-    FamilyInvitation, FamilyInvitationStatus, NodeFamiliesContractError, NodeFamily, NodeFamilyId,
-    PastFamilyInvitation, PastFamilyMember,
+    FamilyInvitation, FamilyInvitationStatus, FamilyMembership, NodeFamiliesContractError,
+    NodeFamily, NodeFamilyId, PastFamilyInvitation, PastFamilyMember,
 };
 use nym_mixnet_contract_common::NodeId;
 
+pub(crate) mod retrieval_limits;
 mod storage_indexes;
 
 /// Composite primary key for the invitation / past-member maps:
@@ -48,9 +49,11 @@ pub struct NodeFamiliesStorage<'a> {
     /// callers normalise upstream if case-insensitive uniqueness is desired).
     pub(crate) families: IndexedMap<NodeFamilyId, NodeFamily, NodeFamiliesIndex<'a>>,
 
-    /// Mapping from a node id to the family it currently belongs to. A node
-    /// belongs to at most one family at a time, so this is a plain `Map`.
-    pub(crate) family_members: Map<NodeId, NodeFamilyId>,
+    /// Current family membership records, keyed by [`NodeId`]. A node
+    /// belongs to at most one family at a time, so the PK is the node id.
+    /// A `family` multi-index enables paginated listing of all nodes
+    /// belonging to a given family.
+    pub(crate) family_members: IndexedMap<NodeId, FamilyMembership, FamilyMembersIndex<'a>>,
 
     /// Currently outstanding family invitations, indexed by both family id
     /// and node id (a single node can simultaneously hold invitations from
@@ -97,7 +100,10 @@ impl NodeFamiliesStorage<'_> {
             mixnet_contract_address: Item::new(storage_keys::MIXNET_CONTRACT_ADDRESS),
             node_family_id_counter: Item::new(storage_keys::NODE_FAMILY_ID_COUNTER),
             families: IndexedMap::new(storage_keys::FAMILIES_NAMESPACE, NodeFamiliesIndex::new()),
-            family_members: Map::new(storage_keys::NODE_FAMILY_MEMBERS),
+            family_members: IndexedMap::new(
+                storage_keys::NODE_FAMILY_MEMBERS,
+                FamilyMembersIndex::new(),
+            ),
             pending_family_invitations: IndexedMap::new(
                 storage_keys::INVITATIONS_NAMESPACE,
                 NodeFamilyInvitationIndex::new(),
@@ -317,7 +323,14 @@ impl NodeFamiliesStorage<'_> {
 
         self.pending_family_invitations.remove(store, key)?;
 
-        self.family_members.save(store, node_id, &family_id)?;
+        self.family_members.save(
+            store,
+            node_id,
+            &FamilyMembership {
+                family_id,
+                joined_at: now,
+            },
+        )?;
 
         let mut family = self
             .families
@@ -469,9 +482,10 @@ impl NodeFamiliesStorage<'_> {
         let family_id = self
             .family_members
             .may_load(store, node_id)?
-            .ok_or(NodeFamiliesContractError::NodeNotInFamily { node_id })?;
+            .ok_or(NodeFamiliesContractError::NodeNotInFamily { node_id })?
+            .family_id;
 
-        self.family_members.remove(store, node_id);
+        self.family_members.remove(store, node_id)?;
 
         let mut family = self
             .families
@@ -798,7 +812,9 @@ mod tests {
             .may_load(tester.storage(), (f.id, 42))
             .unwrap()
             .is_none());
-        assert_eq!(s.family_members.load(tester.storage(), 42).unwrap(), f.id);
+        let membership = s.family_members.load(tester.storage(), 42).unwrap();
+        assert_eq!(membership.family_id, f.id);
+        assert_eq!(membership.joined_at, tester.env().block.time.seconds());
         assert_eq!(s.families.load(tester.storage(), f.id).unwrap().members, 1);
 
         let past = s

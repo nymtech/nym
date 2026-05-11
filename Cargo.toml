@@ -349,7 +349,6 @@ serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
 sha2 = "0.10.3"
 si-scale = "0.2.3"
-smolmix = { version = "1.20.4", path = "smolmix/core" }
 smoltcp = "0.12"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"
@@ -459,7 +458,7 @@ nym-id = { version = "1.20.4", path = "common/nym-id" }
 nym-ip-packet-client = { version = "1.20.4", path = "nym-ip-packet-client" }
 nym-ip-packet-requests = { version = "1.20.4", path = "common/ip-packet-requests" }
 nym-lp = { version = "1.20.4", path = "common/nym-lp" }
-nym-kkt = { version = "0.1.0", path = "common/nym-kkt" }
+nym-kkt = { version = "1.20.4", path = "common/nym-kkt" }
 nym-kkt-ciphersuite = { version = "1.20.4", path = "common/nym-kkt-ciphersuite" }
 nym-kkt-context = { version = "1.20.4", path = "common/nym-kkt-context" }
 nym-metrics = { version = "1.20.4", path = "common/nym-metrics" }
@@ -513,11 +512,12 @@ nym-wireguard-types = { version = "1.20.4", path = "common/wireguard-types" }
 nym-wireguard-private-metadata-shared = { version = "1.20.4", path = "common/wireguard-private-metadata/shared" }
 nym-wireguard-private-metadata-client = { version = "1.20.4", path = "common/wireguard-private-metadata/client" }
 nym-wireguard-private-metadata-server = { version = "1.20.4", path = "common/wireguard-private-metadata/server" }
-nym-sqlx-pool-guard = { version = "1.2.0", path = "nym-sqlx-pool-guard" }
+nym-sqlx-pool-guard = { version = "1.20.4", path = "nym-sqlx-pool-guard" }
 nym-wasm-client-core = { version = "1.20.4", path = "common/wasm/client-core" }
 nym-wasm-storage = { version = "1.20.4", path = "common/wasm/storage" }
 nym-wasm-utils = { version = "1.20.4", path = "common/wasm/utils", default-features = false }
 nyxd-scraper-shared = { version = "1.20.4", path = "common/nyxd-scraper-shared" }
+smolmix = { version = "1.20.4", path = "smolmix/core" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork

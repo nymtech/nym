@@ -28,7 +28,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 pub(crate) struct Config {
     pub(crate) reproducible_builds: bool,
@@ -92,6 +92,7 @@ impl LocalnetOrchestrator {
         Ok(nym_mixnet_contract_common::MigrateMsg {
             vesting_contract_address: Some(ctx.data.contracts.vesting.address()?.to_string()),
             unsafe_skip_state_updates: Some(true),
+            node_families_contract_address: None,
         })
     }
 
@@ -109,6 +110,7 @@ impl LocalnetOrchestrator {
         &self,
         ctx: &LocalnetContext<ContractsSetup>,
     ) -> anyhow::Result<nym_mixnet_contract_common::InstantiateMsg> {
+        error!("unimplemented node families contract instantiation");
         Ok(nym_mixnet_contract_common::InstantiateMsg {
             rewarding_validator_address: ctx
                 .data
@@ -124,6 +126,14 @@ impl LocalnetOrchestrator {
                 .address()
                 .to_string(),
             // PLACEHOLDER /\
+
+            // PLACEHOLDER \/
+            node_families_contract_address: ctx
+                .data
+                .auxiliary_accounts
+                .mixnet_rewarder
+                .address()
+                .to_string(),
             rewarding_denom: "unym".to_string(),
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),

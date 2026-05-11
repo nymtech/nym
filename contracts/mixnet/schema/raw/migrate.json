@@ -3,6 +3,12 @@
   "title": "MigrateMsg",
   "type": "object",
   "properties": {
+    "node_families_contract_address": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "unsafe_skip_state_updates": {
       "type": [
         "boolean",

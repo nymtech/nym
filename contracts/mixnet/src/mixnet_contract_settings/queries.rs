@@ -71,7 +71,7 @@ pub(crate) fn query_current_nym_node_version(
 pub(crate) mod tests {
     use super::*;
     use crate::support::tests::test_helpers;
-    use cosmwasm_std::{coin, Addr};
+    use cosmwasm_std::coin;
     use mixnet_contract_common::{ConfigScoreParams, DelegationsParams, OperatorsParams};
 
     #[test]
@@ -80,9 +80,10 @@ pub(crate) mod tests {
 
         #[allow(deprecated)]
         let dummy_state = ContractState {
-            owner: Some(Addr::unchecked("foomp")),
-            rewarding_validator_address: Addr::unchecked("monitor"),
-            vesting_contract_address: Addr::unchecked("foomp"),
+            owner: Some(deps.api.addr_make("foomp")),
+            rewarding_validator_address: deps.api.addr_make("monitor"),
+            vesting_contract_address: deps.api.addr_make("foomp"),
+            node_families_contract_address: deps.api.addr_make("bar"),
             rewarding_denom: "unym".to_string(),
             params: ContractStateParams {
                 delegations_params: DelegationsParams {

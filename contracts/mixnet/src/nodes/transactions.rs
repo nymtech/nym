@@ -16,7 +16,7 @@ use crate::support::helpers::{
     ensure_epoch_in_progress_state, ensure_no_existing_bond, ensure_operating_cost_within_range,
     ensure_profit_margin_within_range, validate_pledge,
 };
-use cosmwasm_std::{coin, Coin, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{coin, wasm_execute, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_nym_node_bonding_event, new_pending_cost_params_update_event,
@@ -28,6 +28,7 @@ use mixnet_contract_common::{
     NodeCostParams, NymNodeBondingPayload, NymNodeDetails, PendingEpochEventKind,
     PendingIntervalEventKind,
 };
+use node_families_contract_common::msg::ExecuteMsg as NodeFamiliesExecuteMsg;
 use nym_contracts_common::signing::{MessageSignature, SigningPurpose};
 use serde::Serialize;
 
@@ -147,13 +148,24 @@ pub(crate) fn try_remove_nym_node(
     };
     interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
-    Ok(
-        Response::new().add_event(new_pending_nym_node_unbonding_event(
+    // send message to the node families contract to remove this node from any family it might be a member of
+    let node_families_contract_addr =
+        mixnet_params_storage::node_families_contract_address(deps.storage)?;
+    let remove_from_family_exec = wasm_execute(
+        node_families_contract_addr,
+        &NodeFamiliesExecuteMsg::OnNymNodeUnbond {
+            node_id: existing_bond.node_id,
+        },
+        vec![],
+    )?;
+
+    Ok(Response::new()
+        .add_message(remove_from_family_exec)
+        .add_event(new_pending_nym_node_unbonding_event(
             &existing_bond.owner,
             existing_bond.identity(),
             existing_bond.node_id,
-        )),
-    )
+        )))
 }
 
 pub(crate) fn try_update_node_config(

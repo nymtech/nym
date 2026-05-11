@@ -429,30 +429,45 @@ pub(crate) fn try_kick_from_family(
 
 /// Cross-contract callback fired by the mixnet contract the moment `node_id`
 /// initiates unbonding. Unbonding is irreversible, so from the families
-/// contract's perspective the node is already effectively gone — we drop
-/// it from any family it currently belongs to and reject every pending
+/// contract's perspective the node is already effectively gone — drop it
+/// from any family it currently belongs to and clear every pending
 /// invitation issued to it.
 ///
-/// Future implementation must:
-/// - assert `info.sender == storage.mixnet_contract_address` (a new error
-///   variant + helper will be needed; the existing `ensure_*` helpers don't
-///   cover contract-to-contract auth);
-/// - call `storage.remove_family_member(env, node_id)` iff the node has a
-///   `family_members` record (skip the `NodeNotInFamily` error — an
-///   unbonding node that was never in a family is the common case);
-/// - sweep pending invitations for `node_id` (analogous to `disband_family`'s
-///   per-family sweep but keyed off the node multi-index), archiving each
-///   as a new terminal status — likely a new `FamilyInvitationStatus`
-///   variant such as `RejectedOnUnbond` so the archive distinguishes
-///   "node owner declined" from "node went away".
+/// Auth: `info.sender` must equal the configured `mixnet_contract_address`,
+/// since the mixnet contract is the only authority that can attest a node
+/// has unbonded. Errors with [`UnauthorisedMixnetCallback`] otherwise.
+///
+/// The membership half is idempotent — a node that initiates unbonding
+/// without ever joining a family is the common case and is not an error.
+/// Swept invitations are archived as
+/// [`FamilyInvitationStatus::Rejected`]: the auto-cleanup shares the
+/// `Rejected` terminal state with invitations that would have been
+/// explicitly declined by the node controller.
+///
+/// [`UnauthorisedMixnetCallback`]: NodeFamiliesContractError::UnauthorisedMixnetCallback
 pub(crate) fn try_handle_node_unbonding(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     node_id: NodeId,
 ) -> Result<Response, NodeFamiliesContractError> {
-    let _ = (deps, env, info, node_id);
-    Ok(Response::default())
+    let storage = NodeFamiliesStorage::new();
+
+    let mixnet_contract = storage.mixnet_contract_address.load(deps.storage)?;
+    if info.sender != mixnet_contract {
+        return Err(NodeFamiliesContractError::UnauthorisedMixnetCallback {
+            sender: info.sender,
+        });
+    }
+
+    storage.handle_node_unbonding(deps.storage, &env, node_id)?;
+
+    Ok(Response::new().add_event(
+        Event::new(events::NODE_UNBOND_CLEANUP_EVENT_NAME).add_attribute(
+            events::NODE_UNBOND_CLEANUP_EVENT_NODE_ID,
+            node_id.to_string(),
+        ),
+    ))
 }
 
 #[cfg(test)]
@@ -1907,10 +1922,12 @@ mod tests {
         }
 
         #[test]
-        fn owner_can_kick_unbonding_member() -> anyhow::Result<()> {
-            // Manual kick is a valid cleanup path before the unbonding callback
-            // fires — storage.remove_family_member doesn't gate on bond state
-            // and the owner is the authority here, not the node controller.
+        fn cannot_kick_member_already_cleared_by_unbond_callback() -> anyhow::Result<()> {
+            // The mixnet contract dispatches `OnNymNodeUnbond` to the families
+            // contract synchronously when a node initiates unbonding, so by
+            // the time `unbond_nymnode` returns the membership is already gone.
+            // A subsequent manual kick from the owner has nothing left to act
+            // on and surfaces `NodeNotInFamily`.
             let mut tester = init_contract_tester();
             let alice = tester.addr_make("alice");
             let family = tester.make_family(&alice);
@@ -1920,14 +1937,225 @@ mod tests {
             tester.add_to_family(family.id, node_id);
             tester.unbond_nymnode(node_id)?;
 
+            // sanity: the unbond callback already cleaned up the membership
+            let storage = NodeFamiliesStorage::new();
+            assert!(storage
+                .family_members
+                .may_load(tester.deps().storage, node_id)?
+                .is_none());
+
             let env = tester.env();
-            try_kick_from_family(tester.deps_mut(), env, message_info(&alice, &[]), node_id)?;
+            let err =
+                try_kick_from_family(tester.deps_mut(), env, message_info(&alice, &[]), node_id)
+                    .unwrap_err();
+            assert_eq!(err, NodeFamiliesContractError::NodeNotInFamily { node_id });
+            Ok(())
+        }
+    }
+
+    mod handle_node_unbonding {
+        use super::*;
+        use crate::testing::NodeFamiliesContractTesterExt;
+        use cosmwasm_std::Addr;
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use node_families_contract_common::FamilyInvitationStatus;
+
+        fn mixnet_addr(tester: &impl NodeFamiliesContractTesterExt) -> Addr {
+            NodeFamiliesStorage::new()
+                .mixnet_contract_address
+                .load(tester.deps().storage)
+                .unwrap()
+        }
+
+        #[test]
+        fn rejects_when_sender_is_not_the_mixnet_contract() {
+            let mut tester = init_contract_tester();
+            let mallory = tester.addr_make("mallory");
+            let env = tester.env();
+
+            let err =
+                try_handle_node_unbonding(tester.deps_mut(), env, message_info(&mallory, &[]), 42)
+                    .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::UnauthorisedMixnetCallback { sender: mallory }
+            );
+        }
+
+        #[test]
+        fn no_op_when_node_has_no_membership_and_no_invitations() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let env = tester.env();
+            let mixnet = mixnet_addr(&tester);
+
+            // node 42 has nothing in the contract — callback succeeds anyway
+            try_handle_node_unbonding(tester.deps_mut(), env, message_info(&mixnet, &[]), 42)?;
+            Ok(())
+        }
+
+        #[test]
+        fn drops_membership_when_node_is_a_member() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.add_to_family(family.id, node_id);
+
+            let env = tester.env();
+            let mixnet = mixnet_addr(&tester);
+            try_handle_node_unbonding(
+                tester.deps_mut(),
+                env.clone(),
+                message_info(&mixnet, &[]),
+                node_id,
+            )?;
 
             let storage = NodeFamiliesStorage::new();
             assert!(storage
                 .family_members
                 .may_load(tester.deps().storage, node_id)?
                 .is_none());
+            let updated = storage.families.load(tester.deps().storage, family.id)?;
+            assert_eq!(updated.members, 0);
+            let past = storage
+                .past_family_members
+                .load(tester.deps().storage, ((family.id, node_id), 0))?;
+            assert_eq!(past.removed_at, env.block.time.seconds());
+            Ok(())
+        }
+
+        #[test]
+        fn sweeps_pending_invitations_addressed_to_node() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let bob = tester.addr_make("bob");
+            let alice_family = tester.make_family(&alice);
+            let bob_family = tester.make_family(&bob);
+
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.invite_to_family(alice_family.id, node_id);
+            tester.invite_to_family(bob_family.id, node_id);
+
+            let env = tester.env();
+            let mixnet = mixnet_addr(&tester);
+            try_handle_node_unbonding(
+                tester.deps_mut(),
+                env.clone(),
+                message_info(&mixnet, &[]),
+                node_id,
+            )?;
+
+            let storage = NodeFamiliesStorage::new();
+            // both pending invitations are gone
+            assert!(storage
+                .pending_family_invitations
+                .may_load(tester.deps().storage, (alice_family.id, node_id))?
+                .is_none());
+            assert!(storage
+                .pending_family_invitations
+                .may_load(tester.deps().storage, (bob_family.id, node_id))?
+                .is_none());
+
+            // both archived as Rejected
+            for fam_id in [alice_family.id, bob_family.id] {
+                let past = storage
+                    .past_family_invitations
+                    .load(tester.deps().storage, ((fam_id, node_id), 0))?;
+                assert!(matches!(
+                    past.status,
+                    FamilyInvitationStatus::Rejected { at } if at == env.block.time.seconds()
+                ));
+            }
+            Ok(())
+        }
+
+        #[test]
+        fn handles_membership_and_invitation_sweep_together() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let bob = tester.addr_make("bob");
+            let alice_family = tester.make_family(&alice);
+            let bob_family = tester.make_family(&bob);
+
+            let node_id = tester.bond_dummy_nymnode()?;
+            // node is a member of alice's family AND has a pending invite from bob's
+            tester.add_to_family(alice_family.id, node_id);
+            tester.invite_to_family(bob_family.id, node_id);
+
+            let env = tester.env();
+            let mixnet = mixnet_addr(&tester);
+            try_handle_node_unbonding(
+                tester.deps_mut(),
+                env.clone(),
+                message_info(&mixnet, &[]),
+                node_id,
+            )?;
+
+            let storage = NodeFamiliesStorage::new();
+            // membership gone
+            assert!(storage
+                .family_members
+                .may_load(tester.deps().storage, node_id)?
+                .is_none());
+            assert_eq!(
+                storage
+                    .families
+                    .load(tester.deps().storage, alice_family.id)?
+                    .members,
+                0
+            );
+            // past member record stamped
+            let past_member = storage
+                .past_family_members
+                .load(tester.deps().storage, ((alice_family.id, node_id), 0))?;
+            assert_eq!(past_member.removed_at, env.block.time.seconds());
+
+            // pending invitation from bob's family is swept
+            assert!(storage
+                .pending_family_invitations
+                .may_load(tester.deps().storage, (bob_family.id, node_id))?
+                .is_none());
+            let archived = storage
+                .past_family_invitations
+                .load(tester.deps().storage, ((bob_family.id, node_id), 0))?;
+            assert!(matches!(
+                archived.status,
+                FamilyInvitationStatus::Rejected { at } if at == env.block.time.seconds()
+            ));
+            Ok(())
+        }
+
+        #[test]
+        fn unrelated_invitations_are_left_untouched() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let alice_family = tester.make_family(&alice);
+
+            let unbonding_node = tester.bond_dummy_nymnode()?;
+            let other_node = tester.bond_dummy_nymnode()?;
+            tester.invite_to_family(alice_family.id, unbonding_node);
+            tester.invite_to_family(alice_family.id, other_node);
+
+            let env = tester.env();
+            let mixnet = mixnet_addr(&tester);
+            try_handle_node_unbonding(
+                tester.deps_mut(),
+                env,
+                message_info(&mixnet, &[]),
+                unbonding_node,
+            )?;
+
+            let storage = NodeFamiliesStorage::new();
+            // unbonding node's invitation is gone
+            assert!(storage
+                .pending_family_invitations
+                .may_load(tester.deps().storage, (alice_family.id, unbonding_node))?
+                .is_none());
+            // the unrelated invitation is still pending
+            assert!(storage
+                .pending_family_invitations
+                .may_load(tester.deps().storage, (alice_family.id, other_node))?
+                .is_some());
             Ok(())
         }
     }

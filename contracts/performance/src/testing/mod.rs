@@ -4,15 +4,22 @@
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use cosmwasm_std::testing::{mock_env, MockApi};
-use cosmwasm_std::{Addr, ContractInfo, Deps, DepsMut, Env, QuerierWrapper, StdError, StdResult};
+use cosmwasm_std::{
+    coin, Addr, ContractInfo, Deps, DepsMut, Env, QuerierWrapper, StdError, StdResult,
+};
 use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
+use node_families_contract::testing::NodeFamiliesContract;
+use node_families_contract_common::{
+    Config as NodeFamiliesConfig, InstantiateMsg as NodeFamiliesInstantiateMsg,
+};
 use nym_contracts_common::Percent;
 use nym_contracts_common_testing::{
     addr, AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt,
     ChainOpts, CommonStorageKeys, ContractFn, ContractOpts, ContractStorageWrapper, ContractTester,
     ContractTesterBuilder, DenomExt, PermissionedFn, QueryFn, RandExt, TestableNymContract,
+    TEST_DENOM,
 };
-use nym_mixnet_contract_common::EpochId;
+use nym_mixnet_contract_common::{ContractState, EpochId};
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NodeId, NodePerformance, NodeResults,
@@ -67,6 +74,22 @@ impl TestableNymContract for PerformanceContract {
             .unwrap()
             .clone();
 
+        // The embedded mixnet's `try_remove_nym_node` always emits an
+        // `OnNymNodeUnbond` WasmMsg to the configured families contract;
+        // instantiate one alongside so that target exists and accepts the call.
+        // `init_contract_tester` patches the mixnet's stored families address
+        // to point at this instance after the build completes.
+        let builder =
+            builder.instantiate::<NodeFamiliesContract>(Some(NodeFamiliesInstantiateMsg {
+                config: NodeFamiliesConfig {
+                    create_family_fee: coin(100_000000, TEST_DENOM),
+                    family_name_length_limit: 20,
+                    family_description_length_limit: 200,
+                    default_invitation_validity_secs: 24 * 60 * 60,
+                },
+                mixnet_contract_address: mixnet_address.to_string(),
+            }));
+
         builder
             .instantiate::<Self>(Some(InstantiateMsg {
                 mixnet_contract_address: mixnet_address.to_string(),
@@ -76,9 +99,35 @@ impl TestableNymContract for PerformanceContract {
     }
 }
 
+/// Storage key the mixnet contract uses for its `ContractState` `Item`
+/// (mirrors `mixnet/src/constants.rs::CONTRACT_STATE_KEY`).
+const MIXNET_CONTRACT_STATE_STORAGE_KEY: &str = "state";
+
 pub fn init_contract_tester() -> ContractTester<PerformanceContract> {
-    PerformanceContract::init()
-        .with_common_storage_key(CommonStorageKeys::Admin, storage_keys::CONTRACT_ADMIN)
+    let mut tester = PerformanceContract::init()
+        .with_common_storage_key(CommonStorageKeys::Admin, storage_keys::CONTRACT_ADMIN);
+
+    // Chicken-and-egg: the mixnet contract was instantiated first with a
+    // placeholder `node_families_contract_address`. Now that the families
+    // contract exists, patch the mixnet's `ContractState` so its
+    // `OnNymNodeUnbond` dispatch lands on the real contract instead of the
+    // placeholder. In production this fixup happens via a contract migration;
+    // here we go straight to storage to avoid the cw2 version check that
+    // blocks migrating a freshly-instantiated contract.
+    let families_address = tester
+        .well_known_contracts
+        .get(NodeFamiliesContract::NAME)
+        .expect("families contract should have been instantiated")
+        .clone();
+    let mut mixnet_state: ContractState = tester
+        .read_from_mixnet_contract_storage(MIXNET_CONTRACT_STATE_STORAGE_KEY)
+        .expect("mixnet contract state should be loadable");
+    mixnet_state.node_families_contract_address = families_address;
+    tester
+        .write_to_mixnet_contract_storage_value(MIXNET_CONTRACT_STATE_STORAGE_KEY, &mixnet_state)
+        .expect("should be able to patch mixnet contract state");
+
+    tester
 }
 
 // we need to be able to test instantiation, but for that we require

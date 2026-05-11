@@ -5,7 +5,6 @@ pub mod contract;
 pub mod queued_migrations;
 pub mod storage;
 
-mod helpers;
 mod queries;
 mod transactions;
 

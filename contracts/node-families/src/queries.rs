@@ -61,7 +61,7 @@ pub fn query_family_by_name(
     let family = NodeFamiliesStorage::new()
         .families
         .idx
-        .name
+        .normalised_name
         .item(deps.storage, normalised_name)?
         .map(|(_, family)| family);
     Ok(NodeFamilyByNameResponse { name, family })
@@ -676,7 +676,11 @@ mod tests {
                     let res = query_family_by_name(tester.deps(), query_name.to_string()).unwrap();
                     assert_eq!(res.name, query_name);
                     assert_eq!(res.family, Some(f.clone()));
-                    assert_eq!(res.family.unwrap().name, normalise_family_name(family_name));
+                    let stored = res.family.unwrap();
+                    // user-submitted formatting is preserved on the record;
+                    // the normalised form is what enforces uniqueness.
+                    assert_eq!(stored.name, family_name);
+                    assert_eq!(stored.normalised_name, normalise_family_name(family_name));
                 }
             }
         }

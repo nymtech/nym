@@ -30,6 +30,7 @@ pub use gateway::{
     Gateway, GatewayBond, GatewayBondResponse, GatewayConfigUpdate, GatewayOwnershipResponse,
     PagedGatewayResponse,
 };
+pub use helpers::MixnetContractQuerier;
 pub use interval::{
     CurrentIntervalResponse, EpochId, EpochState, EpochStatus, Interval, IntervalId,
 };

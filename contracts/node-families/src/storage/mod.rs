@@ -8,12 +8,12 @@ use crate::storage::storage_indexes::{
     FamilyMembersIndex, NodeFamiliesIndex, NodeFamilyInvitationIndex, PastFamilyInvitationsIndex,
     PastFamilyMembersIndex,
 };
-use cosmwasm_std::{Addr, Env, Order, StdResult, Storage};
+use cosmwasm_std::{Addr, Coin, DepsMut, Env, Order, StdResult, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{IndexedMap, Item, Map};
 use node_families_contract_common::constants::storage_keys;
 use node_families_contract_common::{
-    FamilyInvitation, FamilyInvitationStatus, FamilyMembership, NodeFamiliesContractError,
+    Config, FamilyInvitation, FamilyInvitationStatus, FamilyMembership, NodeFamiliesContractError,
     NodeFamily, NodeFamilyId, PastFamilyInvitation, PastFamilyMember,
 };
 use nym_mixnet_contract_common::NodeId;
@@ -34,6 +34,10 @@ pub struct NodeFamiliesStorage<'a> {
     /// Admin of the contract; gates privileged operations.
     pub(crate) contract_admin: Admin,
 
+    /// Runtime configuration (fees, length limits) persisted at instantiation
+    /// and consulted by transaction handlers.
+    pub(crate) config: Item<Config>,
+
     /// Address of the mixnet contract; used to verify a node id refers to a
     /// real, registered node.
     pub(crate) mixnet_contract_address: Item<Addr>,
@@ -44,9 +48,10 @@ pub struct NodeFamiliesStorage<'a> {
     pub(crate) node_family_id_counter: Item<NodeFamilyId>,
 
     /// All existing families, keyed by id, with unique secondary indexes on
-    /// `owner` (one-family-per-owner-address) and on `name`
-    /// (family names are globally unique — compared by raw bytes, so
-    /// callers normalise upstream if case-insensitive uniqueness is desired).
+    /// `owner` (one-family-per-owner-address) and on `normalised_name`
+    /// (family names are globally unique under their normalised form, so
+    /// `"MyFamily"` and `"myfamily"` collide while the original `name` field
+    /// preserves the user-submitted formatting).
     pub(crate) families: IndexedMap<NodeFamilyId, NodeFamily, NodeFamiliesIndex<'a>>,
 
     /// Current family membership records, keyed by [`NodeId`]. A node
@@ -97,6 +102,7 @@ impl NodeFamiliesStorage<'_> {
     pub fn new() -> Self {
         NodeFamiliesStorage {
             contract_admin: Admin::new(storage_keys::CONTRACT_ADMIN),
+            config: Item::new(storage_keys::CONFIG),
             mixnet_contract_address: Item::new(storage_keys::MIXNET_CONTRACT_ADDRESS),
             node_family_id_counter: Item::new(storage_keys::NODE_FAMILY_ID_COUNTER),
             families: IndexedMap::new(storage_keys::FAMILIES_NAMESPACE, NodeFamiliesIndex::new()),
@@ -123,6 +129,24 @@ impl NodeFamiliesStorage<'_> {
                 storage_keys::PAST_INVITATIONS_COUNTER_NAMESPACE,
             ),
         }
+    }
+
+    /// One-time storage initialisation called from the contract's `instantiate`
+    /// entry point. Persists the runtime [`Config`] and mixnet contract
+    /// address, and sets `sender` as the contract admin.
+    pub(crate) fn initialise(
+        &self,
+        deps: DepsMut,
+        sender: Addr,
+        mixnet_contract_address: Addr,
+        config: Config,
+    ) -> Result<(), NodeFamiliesContractError> {
+        self.config.save(deps.storage, &config)?;
+        self.mixnet_contract_address
+            .save(deps.storage, &mixnet_contract_address)?;
+
+        self.contract_admin.set(deps, Some(sender))?;
+        Ok(())
     }
 
     /// Allocate the next [`NodeFamilyId`] and persist the bumped counter.
@@ -186,30 +210,35 @@ impl NodeFamiliesStorage<'_> {
     ///
     /// The caller (a transaction handler) is responsible for:
     /// - validating `name`, `description` and `owner`;
-    /// - normalising `name` (e.g. trim/lowercase) if case-insensitive
-    ///   uniqueness is desired — the storage layer compares raw bytes;
+    /// - computing `normalised_name` from `name` (e.g. via
+    ///   [`crate::helpers::normalise_family_name`]) — the unique-name index
+    ///   keys on this field, so it is what enforces global uniqueness;
     /// - ensuring `owner` does not already own a family **and** is not
     ///   currently a member of one.
     ///
     /// Returns the freshly persisted [`NodeFamily`]. The underlying
     /// `IndexedMap` enforces the one-family-per-owner and unique-name
-    /// invariants via unique indexes on `owner` and `name` as a
+    /// invariants via unique indexes on `owner` and `normalised_name` as a
     /// defence-in-depth check, so this call will fail if either is already
     /// taken — but the caller must not rely on it for the membership check.
     pub(crate) fn register_new_family(
         &self,
         store: &mut dyn Storage,
         env: &Env,
+        fee: Coin,
         owner: Addr,
         name: String,
+        normalised_name: String,
         description: String,
     ) -> Result<NodeFamily, NodeFamiliesContractError> {
         let id = self.next_family_id(store)?;
         let family = NodeFamily {
             id,
             name,
+            normalised_name,
             description,
             owner,
+            paid_fee: fee,
             members: 0,
             created_at: env.block.time.seconds(),
         };
@@ -511,10 +540,6 @@ impl NodeFamiliesStorage<'_> {
 
     /// Disband (delete) `family_id`.
     ///
-    /// Only succeeds when the family has **zero current members** — errors
-    /// with [`FamilyNotEmpty`] otherwise. The owner is responsible for
-    /// kicking any remaining members first.
-    ///
     /// Sweeps every still-pending invitation issued by the family
     /// (iterating via the `family` multi-index over
     /// [`Self::pending_family_invitations`]), removing each from the
@@ -525,8 +550,12 @@ impl NodeFamiliesStorage<'_> {
     /// of leftover invitations; if that becomes a concern, the owner can
     /// revoke them manually before disbanding.
     ///
-    /// The caller is responsible for verifying that the transaction sender
-    /// is the owner of `family_id`.
+    /// The caller (a transaction handler) is responsible for:
+    /// - verifying that the transaction sender is the owner of `family_id`;
+    /// - verifying that the family has zero current members (errors with
+    ///   [`FamilyNotEmpty`] are raised at the transaction layer, not here)
+    ///   — disbanding a family with members would otherwise leak orphaned
+    ///   `FamilyMembership` records pointing at a removed family.
     ///
     /// Errors with [`FamilyNotFound`] if `family_id` does not exist.
     /// Returns the disbanded [`NodeFamily`] (final snapshot) for use in
@@ -546,13 +575,6 @@ impl NodeFamiliesStorage<'_> {
             .families
             .may_load(store, family_id)?
             .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
-
-        if family.members != 0 {
-            return Err(NodeFamiliesContractError::FamilyNotEmpty {
-                family_id,
-                members: family.members,
-            });
-        }
 
         // collect first, then mutate — iterating an IndexedMap while modifying it is unsafe
         let pending: Vec<(FamilyMember, FamilyInvitation)> = self
@@ -579,6 +601,44 @@ impl NodeFamiliesStorage<'_> {
         self.families.remove(store, family_id)?;
 
         Ok(family)
+    }
+
+    // helpers
+
+    /// Look up the family owned by `owner` via the unique `owner` index.
+    ///
+    /// Returns `Ok(None)` if the address owns no family. The unique index
+    /// guarantees the lookup is `O(log n)` and that at most one family can
+    /// ever match.
+    pub(crate) fn may_get_owned_family(
+        &self,
+        storage: &dyn Storage,
+        owner: &Addr,
+    ) -> Result<Option<NodeFamily>, NodeFamiliesContractError> {
+        Ok(self
+            .families
+            .idx
+            .owner
+            .item(storage, owner.clone())?
+            .map(|(_, owned)| owned))
+    }
+
+    /// Like [`Self::may_get_owned_family`] but errors with
+    /// [`SenderDoesntOwnAFamily`] when the address doesn't own one — meant
+    /// for owner-gated execute paths (`disband`, `invite`, …) where the
+    /// absence of a family is itself an error.
+    ///
+    /// [`SenderDoesntOwnAFamily`]: NodeFamiliesContractError::SenderDoesntOwnAFamily
+    pub(crate) fn must_get_owned_family(
+        &self,
+        storage: &dyn Storage,
+        owner: &Addr,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        self.may_get_owned_family(storage, owner)?.ok_or_else(|| {
+            NodeFamiliesContractError::SenderDoesntOwnAFamily {
+                address: owner.clone(),
+            }
+        })
     }
 }
 
@@ -652,6 +712,7 @@ mod tests {
     fn register_new_family_persists_with_expected_fields() {
         let mut tester = init_contract_tester();
         let s = NodeFamiliesStorage::new();
+        let fee = tester.family_fee();
         let env = tester.env();
         let owner = tester.addr_make("alice");
 
@@ -659,7 +720,9 @@ mod tests {
             .register_new_family(
                 tester.storage_mut(),
                 &env,
+                fee,
                 owner.clone(),
+                "Fam!".into(),
                 "fam".into(),
                 "desc".into(),
             )
@@ -667,7 +730,8 @@ mod tests {
 
         assert_eq!(family.id, 1);
         assert_eq!(family.owner, owner);
-        assert_eq!(family.name, "fam");
+        assert_eq!(family.name, "Fam!");
+        assert_eq!(family.normalised_name, "fam");
         assert_eq!(family.description, "desc");
         assert_eq!(family.members, 0);
         assert_eq!(family.created_at, tester.env().block.time.seconds());
@@ -694,19 +758,30 @@ mod tests {
         let env = tester.env();
         let alice = tester.addr_make("alice");
         let bob = tester.addr_make("bob");
+        let fee = tester.family_fee();
 
         s.register_new_family(
             tester.storage_mut(),
             &env,
+            fee.clone(),
             alice,
+            "Shared".into(),
             "shared".into(),
             "".into(),
         )
         .unwrap();
 
-        // unique-index defence-in-depth check
-        let res =
-            s.register_new_family(tester.storage_mut(), &env, bob, "shared".into(), "".into());
+        // unique-index defence-in-depth check: same normalised_name even though
+        // the user-submitted `name` differs in casing/punctuation.
+        let res = s.register_new_family(
+            tester.storage_mut(),
+            &env,
+            fee,
+            bob,
+            "$$shared$$".into(),
+            "shared".into(),
+            "".into(),
+        );
         assert!(res.is_err());
     }
 
@@ -716,6 +791,7 @@ mod tests {
         let s = NodeFamiliesStorage::new();
         let env = tester.env();
         let alice = tester.addr_make("alice");
+        let fee = tester.family_fee();
 
         tester.make_family(&alice);
 
@@ -723,7 +799,9 @@ mod tests {
         let res = s.register_new_family(
             tester.storage_mut(),
             &env,
+            fee,
             alice,
+            "second".into(),
             "second".into(),
             "".into(),
         );
@@ -1108,25 +1186,6 @@ mod tests {
     }
 
     #[test]
-    fn disband_family_errors_when_not_empty() {
-        let mut tester = init_contract_tester();
-        let s = NodeFamiliesStorage::new();
-        let env = tester.env();
-        let alice = tester.addr_make("alice");
-        let f = tester.make_family(&alice);
-        tester.add_to_family(f.id, 42);
-
-        let res = s.disband_family(tester.storage_mut(), &env, f.id);
-        assert_eq!(
-            res.unwrap_err(),
-            NodeFamiliesContractError::FamilyNotEmpty {
-                family_id: f.id,
-                members: 1,
-            }
-        );
-    }
-
-    #[test]
     fn disband_family_errors_on_unknown_family() {
         let mut tester = init_contract_tester();
         let s = NodeFamiliesStorage::new();
@@ -1142,6 +1201,7 @@ mod tests {
     #[test]
     fn after_disband_owner_can_register_again_with_new_id() {
         let mut tester = init_contract_tester();
+        let fee = tester.family_fee();
         let s = NodeFamiliesStorage::new();
         let env = tester.env();
         let alice = tester.addr_make("alice");
@@ -1149,11 +1209,120 @@ mod tests {
         let f1 = tester.make_family(&alice);
         s.disband_family(tester.storage_mut(), &env, f1.id).unwrap();
         let f2 = s
-            .register_new_family(tester.storage_mut(), &env, alice, "2".into(), "".into())
+            .register_new_family(
+                tester.storage_mut(),
+                &env,
+                fee,
+                alice,
+                "2".into(),
+                "2".into(),
+                "".into(),
+            )
             .unwrap();
 
         // ids monotonically increase, never recycled
         assert_eq!(f1.id, 1);
         assert_eq!(f2.id, 2);
+    }
+
+    // ---- may_get_owned_family ----
+
+    #[test]
+    fn may_get_owned_family_returns_none_when_address_owns_nothing() {
+        let tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+
+        let res = s.may_get_owned_family(tester.storage(), &alice).unwrap();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn may_get_owned_family_returns_the_family_for_its_owner() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let res = s
+            .may_get_owned_family(tester.storage(), &alice)
+            .unwrap()
+            .unwrap();
+        assert_eq!(res, family);
+    }
+
+    #[test]
+    fn may_get_owned_family_does_not_leak_other_owners_family() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let bob = tester.addr_make("bob");
+        tester.make_family(&alice);
+
+        let res = s.may_get_owned_family(tester.storage(), &bob).unwrap();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn may_get_owned_family_returns_none_after_disband() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let env = tester.env();
+        s.disband_family(tester.storage_mut(), &env, family.id)
+            .unwrap();
+
+        let res = s.may_get_owned_family(tester.storage(), &alice).unwrap();
+        assert!(res.is_none());
+    }
+
+    // ---- must_get_owned_family ----
+
+    #[test]
+    fn must_get_owned_family_returns_the_family_for_its_owner() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let res = s.must_get_owned_family(tester.storage(), &alice).unwrap();
+        assert_eq!(res, family);
+    }
+
+    #[test]
+    fn must_get_owned_family_errors_when_address_owns_nothing() {
+        let tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+
+        let err = s
+            .must_get_owned_family(tester.storage(), &alice)
+            .unwrap_err();
+        assert_eq!(
+            err,
+            NodeFamiliesContractError::SenderDoesntOwnAFamily { address: alice }
+        );
+    }
+
+    #[test]
+    fn must_get_owned_family_errors_after_disband() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let env = tester.env();
+        s.disband_family(tester.storage_mut(), &env, family.id)
+            .unwrap();
+
+        let err = s
+            .must_get_owned_family(tester.storage(), &alice)
+            .unwrap_err();
+        assert_eq!(
+            err,
+            NodeFamiliesContractError::SenderDoesntOwnAFamily { address: alice }
+        );
     }
 }

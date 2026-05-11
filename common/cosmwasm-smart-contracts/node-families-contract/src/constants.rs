@@ -9,6 +9,10 @@
 pub mod storage_keys {
     /// `Item<Addr>`: address of the mixnet contract used to validate node existence.
     pub const MIXNET_CONTRACT_ADDRESS: &str = "mixnet-contract-address";
+
+    /// `Item<Config>`: runtime configuration (fees, length limits) set at instantiation.
+    pub const CONFIG: &str = "config";
+
     /// `Admin` (cw-controllers): admin allowed to perform privileged operations.
     pub const CONTRACT_ADMIN: &str = "contract-admin";
     /// `Item<NodeFamilyId>`: monotonically increasing id counter for new families.
@@ -56,4 +60,41 @@ pub mod storage_keys {
     /// disambiguate repeat past-membership entries (a node can join and leave
     /// the same family more than once).
     pub const PAST_FAMILY_MEMBER_COUNTER_NAMESPACE: &str = "past-family-member-counter";
+}
+
+pub mod events {
+    pub const FAMILY_CREATION_EVENT_NAME: &str = "family_creation";
+    pub const FAMILY_CREATION_EVENT_FAMILY_NAME: &str = "family_name";
+    pub const FAMILY_CREATION_EVENT_OWNER_ADDRESS: &str = "owner_address";
+    pub const FAMILY_CREATION_EVENT_FAMILY_ID: &str = "family_id";
+
+    pub const FAMILY_DISBAND_EVENT_NAME: &str = "family_disband";
+    pub const FAMILY_DISBAND_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_DISBAND_EVENT_OWNER_ADDRESS: &str = "owner_address";
+    pub const FAMILY_DISBAND_EVENT_REFUNDED_FEE: &str = "refunded_fee";
+
+    pub const FAMILY_INVITATION_EVENT_NAME: &str = "family_invitation";
+    pub const FAMILY_INVITATION_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_INVITATION_EVENT_NODE_ID: &str = "node_id";
+    pub const FAMILY_INVITATION_EVENT_EXPIRES_AT: &str = "expires_at";
+
+    pub const FAMILY_INVITATION_REVOKED_EVENT_NAME: &str = "family_invitation_revoked";
+    pub const FAMILY_INVITATION_REVOKED_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_INVITATION_REVOKED_EVENT_NODE_ID: &str = "node_id";
+
+    pub const FAMILY_INVITATION_ACCEPTED_EVENT_NAME: &str = "family_invitation_accepted";
+    pub const FAMILY_INVITATION_ACCEPTED_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_INVITATION_ACCEPTED_EVENT_NODE_ID: &str = "node_id";
+
+    pub const FAMILY_INVITATION_REJECTED_EVENT_NAME: &str = "family_invitation_rejected";
+    pub const FAMILY_INVITATION_REJECTED_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_INVITATION_REJECTED_EVENT_NODE_ID: &str = "node_id";
+
+    pub const FAMILY_MEMBER_LEFT_EVENT_NAME: &str = "family_member_left";
+    pub const FAMILY_MEMBER_LEFT_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_MEMBER_LEFT_EVENT_NODE_ID: &str = "node_id";
+
+    pub const FAMILY_MEMBER_KICKED_EVENT_NAME: &str = "family_member_kicked";
+    pub const FAMILY_MEMBER_KICKED_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_MEMBER_KICKED_EVENT_NODE_ID: &str = "node_id";
 }

@@ -132,6 +132,7 @@ mod tests {
     use crate::storage::retrieval_limits;
     use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
     use cosmwasm_std::from_json;
+    use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
     use nym_contracts_common_testing::{AdminExt, ContractOpts};
     use nym_performance_contract_common::RemoveEpochMeasurementsResponse;
 

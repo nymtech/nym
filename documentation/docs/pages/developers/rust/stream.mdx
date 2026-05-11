@@ -9,6 +9,7 @@ lastUpdated: "2026-03-15"
 # Stream Module
 
 import { Callout } from 'nextra/components'
+
 The Mixnet is fundamentally message-based: no persistent connections, no guaranteed ordering, no TCP. The default [message API](./mixnet) works at this level, sending individual payloads independently through Mix Nodes. This is effective for privacy but unlike how most networking code is structured.
 
 The **Stream module** bridges the gap by providing persistent, bidirectional byte channels that behave like TCP sockets. Each `MixnetStream` implements [`AsyncRead`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncRead.html) and [`AsyncWrite`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncWrite.html), so `tokio::io::copy`, codecs, `BufReader`/`BufWriter`, and any other async I/O consumer work without modification. **If you're coming from socket-based networking, start here.**

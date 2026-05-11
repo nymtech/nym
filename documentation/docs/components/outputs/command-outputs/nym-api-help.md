@@ -10,8 +10,8 @@ Commands:
 Options:
   -c, --config-env-file <CONFIG_ENV_FILE>  Path pointing to an env file that configures the Nym API [env:
                                            NYMAPI_CONFIG_ENV_FILE_ARG=]
-      --no-banner                          A no-op flag included for consistency with other binaries (and compatibility with
-                                           nymvisor, oops) [env: NYMAPI_NO_BANNER_ARG=]
+      --no-banner                          A no-op flag included for consistency with other binaries (and compatibility
+                                           with nymvisor, oops) [env: NYMAPI_NO_BANNER_ARG=]
   -h, --help                               Print help
   -V, --version                            Print version
 ```

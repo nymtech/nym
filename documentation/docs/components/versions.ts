@@ -22,10 +22,10 @@
  */
 
 // nym-sdk / nym-bin-common / nym-network-defaults — Rust SDK crates
-export const NYM_SDK_VERSION = "1.20.4";
+export const NYM_SDK_VERSION = "1.21.0";
 
 // smolmix standalone crate
-export const SMOLMIX_VERSION = "0.0.1";
+export const SMOLMIX_VERSION = "1.21.0";
 
 // blake3 exact pin (workaround for transitive digest conflict)
 export const BLAKE3_PIN = "=1.7.0";

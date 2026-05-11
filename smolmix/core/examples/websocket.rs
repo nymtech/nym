@@ -84,7 +84,7 @@ async fn main() -> Result<(), BoxError> {
 
     info!("Clearnet: \"{clearnet_text}\" in {clearnet_duration:?}");
 
-    // -- Mixnet path --
+    // Mixnet path
     // Exact same stack as clearnet, but over smolmix::TcpStream.
     // This is the key composability point: swap the TCP transport
     // and everything above it works unchanged.
@@ -139,13 +139,13 @@ async fn main() -> Result<(), BoxError> {
     // Results
     info!("Clearnet: \"{clearnet_text}\" in {clearnet_duration:?}");
     info!(
-        "Mixnet:   \"{mixnet_text}\" (setup {:?} + echo {:?} = {:?})",
+        "Mixnet: \"{mixnet_text}\" (setup {:?} + echo {:?} = {:?})",
         setup_duration,
         request_duration,
         setup_duration + request_duration
     );
     info!("Clearnet echo match: {}", clearnet_text == ECHO_MSG);
-    info!("Mixnet echo match:   {}", mixnet_text == ECHO_MSG);
+    info!("Mixnet echo match: {}", mixnet_text == ECHO_MSG);
 
     let total = setup_duration + request_duration;
     let slowdown = total.as_millis() as f64 / clearnet_duration.as_millis().max(1) as f64;

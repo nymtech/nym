@@ -109,7 +109,7 @@ async fn main() -> Result<(), BoxError> {
 
     // Results
     info!("Clearnet: {:?} ({:?})", clearnet_ips, clearnet_duration);
-    info!("Mixnet:   {:?} ({:?})", mixnet_ips, mixnet_duration);
+    info!("Mixnet: {:?} ({:?})", mixnet_ips, mixnet_duration);
 
     let ips_match = !mixnet_ips.is_empty() && mixnet_ips.iter().all(|ip| clearnet_ips.contains(ip));
     info!("IPs match: {ips_match}");

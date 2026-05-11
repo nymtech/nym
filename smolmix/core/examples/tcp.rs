@@ -138,14 +138,14 @@ async fn main() -> Result<(), BoxError> {
 
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
     info!(
-        "Mixnet:   {} (setup {:?} + request {:?} = {:?})",
+        "Mixnet: {} (setup {:?} + request {:?} = {:?})",
         mixnet_status,
         setup_duration,
         request_duration,
         setup_duration + request_duration
     );
     info!("Clearnet IP: {}", clearnet_ip.unwrap_or("?"));
-    info!("Mixnet IP:   {}", mixnet_ip.unwrap_or("?"));
+    info!("Mixnet IP: {}", mixnet_ip.unwrap_or("?"));
 
     let total = setup_duration + request_duration;
     let slowdown = total.as_millis() as f64 / clearnet_duration.as_millis().max(1) as f64;

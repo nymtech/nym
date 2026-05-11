@@ -82,7 +82,7 @@ pub(crate) struct Cli {
     #[arg(value_parser = parse_duration_std)]
     pub(crate) testruns_refresh_interval: Duration,
 
-    /// 2 hour safety net for test runs which include a port check
+    /// Safety net for stale in-progress testruns (whole seconds, es. 7200).
     #[clap(
         long,
         default_value = "7200",

@@ -48,8 +48,9 @@ pub(crate) async fn run_probe(
 
     // Run the probe, capturing all tracing output
     log_capture.start();
-    let probe_result = Box::pin(probe.probe_run_agent(credentials_args)).await?;
+    let probe_result_res = Box::pin(probe.probe_run_agent(credentials_args)).await;
     let probe_log = log_capture.stop_and_drain();
+    let probe_result = probe_result_res?;
 
     // Inspect the probe output for socks5 field
     match probe_result.outcome.socks5.as_ref() {

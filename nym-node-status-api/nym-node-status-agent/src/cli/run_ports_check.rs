@@ -55,14 +55,15 @@ pub(crate) async fn run_ports_check(
     let credentials_args = common::credential_args_from(testrun.ticket_materials);
 
     log_capture.start();
-    let port_check_result = nym_gateway_probe::Probe::run_ports_for_agent(
+    let port_check_result_res = nym_gateway_probe::Probe::run_ports_for_agent(
         gateway_identity_pubkey,
         network,
         &run_ports_config,
         credentials_args,
     )
-    .await?;
+    .await;
     let probe_log = log_capture.stop_and_drain();
+    let port_check_result = port_check_result_res?;
 
     submit_ports_check_results_to_servers(
         servers,

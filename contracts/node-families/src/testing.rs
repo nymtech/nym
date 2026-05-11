@@ -1,6 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// fine in test code
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::expect_used)]
+
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::helpers::normalise_family_name;
 use crate::storage::NodeFamiliesStorage;

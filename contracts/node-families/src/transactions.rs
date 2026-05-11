@@ -11,9 +11,9 @@ use crate::helpers::{
 };
 use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{BankMsg, DepsMut, Env, Event, MessageInfo, Response};
-use node_families_contract_common::constants::events;
-use node_families_contract_common::{Config, NodeFamiliesContractError, NodeFamilyId};
 use nym_mixnet_contract_common::NodeId;
+use nym_node_families_contract_common::constants::events;
+use nym_node_families_contract_common::{Config, NodeFamiliesContractError, NodeFamilyId};
 
 /// Replace the contract's runtime [`Config`]. Restricted to the contract admin.
 pub(crate) fn try_update_config(
@@ -1100,7 +1100,7 @@ mod tests {
     mod revoke_family_invitation {
         use super::*;
         use crate::testing::NodeFamiliesContractTesterExt;
-        use node_families_contract_common::FamilyInvitationStatus;
+        use nym_node_families_contract_common::FamilyInvitationStatus;
 
         #[test]
         fn happy_path_removes_pending_and_archives_revoked() -> anyhow::Result<()> {
@@ -1234,7 +1234,7 @@ mod tests {
         use super::*;
         use crate::testing::NodeFamiliesContractTesterExt;
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
-        use node_families_contract_common::FamilyInvitationStatus;
+        use nym_node_families_contract_common::FamilyInvitationStatus;
 
         #[test]
         fn happy_path_records_membership_and_archives_accepted() -> anyhow::Result<()> {
@@ -1481,7 +1481,7 @@ mod tests {
         use super::*;
         use crate::testing::NodeFamiliesContractTesterExt;
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
-        use node_families_contract_common::FamilyInvitationStatus;
+        use nym_node_families_contract_common::FamilyInvitationStatus;
 
         #[test]
         fn happy_path_removes_pending_and_archives_rejected() -> anyhow::Result<()> {
@@ -1958,7 +1958,7 @@ mod tests {
         use crate::testing::NodeFamiliesContractTesterExt;
         use cosmwasm_std::Addr;
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
-        use node_families_contract_common::FamilyInvitationStatus;
+        use nym_node_families_contract_common::FamilyInvitationStatus;
 
         fn mixnet_addr(tester: &impl NodeFamiliesContractTesterExt) -> Addr {
             NodeFamiliesStorage::new()

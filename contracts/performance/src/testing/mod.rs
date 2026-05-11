@@ -9,9 +9,6 @@ use cosmwasm_std::{
 };
 use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
 use node_families_contract::testing::NodeFamiliesContract;
-use node_families_contract_common::{
-    Config as NodeFamiliesConfig, InstantiateMsg as NodeFamiliesInstantiateMsg,
-};
 use nym_contracts_common::Percent;
 use nym_contracts_common_testing::{
     addr, AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt,
@@ -20,6 +17,9 @@ use nym_contracts_common_testing::{
     TEST_DENOM,
 };
 use nym_mixnet_contract_common::{ContractState, EpochId};
+use nym_node_families_contract_common::{
+    Config as NodeFamiliesConfig, InstantiateMsg as NodeFamiliesInstantiateMsg,
+};
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NodeId, NodePerformance, NodeResults,

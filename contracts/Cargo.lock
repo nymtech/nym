@@ -1177,28 +1177,13 @@ dependencies = [
  "cw-utils",
  "cw2",
  "node-families",
- "node-families-contract-common",
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
+ "nym-node-families-contract-common",
  "serde",
-]
-
-[[package]]
-name = "node-families-contract-common"
-version = "1.20.5"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "nym-contracts-common",
- "nym-mixnet-contract-common",
- "schemars",
- "serde",
- "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -1397,12 +1382,12 @@ dependencies = [
  "cw-storage-plus",
  "cw2",
  "easy-addr",
- "node-families-contract-common",
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
+ "nym-node-families-contract-common",
  "nym-vesting-contract-common",
  "rand",
  "rand_chacha",
@@ -1473,6 +1458,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-node-families-contract-common"
+version = "1.20.5"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-utils",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-pemstore"
 version = "1.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1494,12 +1494,12 @@ dependencies = [
  "cw-storage-plus",
  "cw2",
  "node-families",
- "node-families-contract-common",
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
+ "nym-node-families-contract-common",
  "nym-performance-contract-common",
  "serde",
 ]

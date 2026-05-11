@@ -30,7 +30,7 @@ cosmwasm-schema = { workspace = true, optional = true }
 cw-utils = { workspace = true }
 
 nym-contracts-common = { workspace = true }
-node-families-contract-common = { workspace = true }
+nym-node-families-contract-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 
 # Optional deps activated by the `testable-node-families-contract` feature so
@@ -46,7 +46,7 @@ anyhow = { workspace = true }
 node-families = { path = ".", features = ["testable-node-families-contract"] }
 
 [features]
-schema-gen = ["node-families-contract-common/schema", "cosmwasm-schema"]
+schema-gen = ["nym-node-families-contract-common/schema", "cosmwasm-schema"]
 testable-node-families-contract = [
     "nym-contracts-common-testing",
     "nym-mixnet-contract",

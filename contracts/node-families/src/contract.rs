@@ -4,8 +4,9 @@
 //! CosmWasm entry points for the node families contract.
 
 use crate::queries::{
-    query_all_past_invitations_paged, query_all_pending_invitations_paged, query_families_paged,
-    query_family_by_id, query_family_by_name, query_family_by_owner, query_family_members_paged,
+    query_all_family_members_paged, query_all_past_invitations_paged,
+    query_all_pending_invitations_paged, query_families_paged, query_family_by_id,
+    query_family_by_name, query_family_by_owner, query_family_members_paged,
     query_family_membership, query_past_invitations_for_family_paged,
     query_past_invitations_for_node_paged, query_past_members_for_family_paged,
     query_past_members_for_node_paged, query_pending_invitation,
@@ -20,10 +21,10 @@ use crate::transactions::{
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
-use node_families_contract_common::{
+use nym_contracts_common::set_build_information;
+use nym_node_families_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NodeFamiliesContractError, QueryMsg,
 };
-use nym_contracts_common::set_build_information;
 
 const CONTRACT_NAME: &str = "crate:nym-node-families-contract";
 
@@ -117,6 +118,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NodeFamilies
             start_after,
             limit,
         )?)?),
+        QueryMsg::GetAllFamilyMembersPaged { start_after, limit } => Ok(to_json_binary(
+            &query_all_family_members_paged(deps, start_after, limit)?,
+        )?),
         QueryMsg::GetPendingInvitation { family_id, node_id } => Ok(to_json_binary(
             &query_pending_invitation(deps, env, family_id, node_id)?,
         )?),
@@ -217,7 +221,7 @@ mod tests {
         use super::*;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
-        use node_families_contract_common::Config;
+        use nym_node_families_contract_common::Config;
 
         fn mock_config() -> Config {
             Config {

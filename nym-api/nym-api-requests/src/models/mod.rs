@@ -15,6 +15,7 @@ pub mod legacy;
 pub mod mixnet;
 pub mod network;
 pub mod network_monitor;
+pub mod node_families;
 pub mod node_status;
 pub mod schema_helpers;
 pub mod utility;

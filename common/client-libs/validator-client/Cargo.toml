@@ -26,7 +26,7 @@ nym-ecash-contract-common = { workspace = true }
 nym-multisig-contract-common = { workspace = true }
 nym-group-contract-common = { workspace = true }
 nym-performance-contract-common = { workspace = true }
-node-families-contract-common = { workspace = true }
+nym-node-families-contract-common = { workspace = true }
 nym-serde-helpers = { workspace = true, features = ["hex", "base64"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

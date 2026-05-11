@@ -5,10 +5,11 @@ use crate::helpers::normalise_family_name;
 use crate::storage::{retrieval_limits, NodeFamiliesStorage};
 use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::Bound;
-use node_families_contract_common::{
-    AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse, FamilyMemberRecord,
-    FamilyMembersPagedResponse, GlobalPastFamilyInvitationCursor, NodeFamiliesContractError,
-    NodeFamilyByNameResponse, NodeFamilyByOwnerResponse, NodeFamilyId,
+use nym_mixnet_contract_common::NodeId;
+use nym_node_families_contract_common::{
+    AllFamilyMembersPagedResponse, AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse,
+    FamilyMemberRecord, FamilyMembersPagedResponse, GlobalPastFamilyInvitationCursor,
+    NodeFamiliesContractError, NodeFamilyByNameResponse, NodeFamilyByOwnerResponse, NodeFamilyId,
     NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationCursor,
     PastFamilyInvitationForNodeCursor, PastFamilyInvitationsForNodePagedResponse,
     PastFamilyInvitationsPagedResponse, PastFamilyMemberCursor, PastFamilyMemberForNodeCursor,
@@ -17,7 +18,6 @@ use node_families_contract_common::{
     PendingFamilyInvitationsPagedResponse, PendingInvitationsForNodePagedResponse,
     PendingInvitationsPagedResponse,
 };
-use nym_mixnet_contract_common::NodeId;
 
 /// Resolve a single family by its id. Returns `family: None` if no family
 /// with that id exists.
@@ -147,6 +147,50 @@ pub fn query_family_members_paged(
 
     Ok(FamilyMembersPagedResponse {
         family_id,
+        members,
+        start_next_after,
+    })
+}
+
+/// Page through every current family member across all families, in ascending
+/// [`NodeId`] order. Each entry carries the [`FamilyMembership`](node_families_contract_common::FamilyMembership)
+/// record, which names the family the node belongs to.
+///
+/// Cost is O(page size) — full range scan over the primary `family_members`
+/// map without any prefix filter. Since each node belongs to at most one
+/// family, [`NodeId`] alone is sufficient as a pagination cursor.
+///
+/// `start_after` is exclusive — pass the previous page's `start_next_after`
+/// to fetch the next page; pass `None` to start from the lowest-id member.
+/// `limit` defaults to [`retrieval_limits::FAMILY_MEMBERS_DEFAULT_LIMIT`]
+/// and is clamped to [`retrieval_limits::FAMILY_MEMBERS_MAX_LIMIT`].
+pub fn query_all_family_members_paged(
+    deps: Deps,
+    start_after: Option<NodeId>,
+    limit: Option<u32>,
+) -> Result<AllFamilyMembersPagedResponse, NodeFamiliesContractError> {
+    let limit = limit
+        .unwrap_or(retrieval_limits::FAMILY_MEMBERS_DEFAULT_LIMIT)
+        .min(retrieval_limits::FAMILY_MEMBERS_MAX_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let storage = NodeFamiliesStorage::new();
+    let members = storage
+        .family_members
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| {
+            res.map(|(node_id, membership)| FamilyMemberRecord {
+                node_id,
+                membership,
+            })
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = members.last().map(|record| record.node_id);
+
+    Ok(AllFamilyMembersPagedResponse {
         members,
         start_next_after,
     })
@@ -1072,6 +1116,206 @@ mod tests {
     }
 
     #[cfg(test)]
+    mod all_family_members_paged {
+        use super::*;
+
+        #[test]
+        fn empty_when_no_families_exist() {
+            let tester = init_contract_tester();
+
+            let res = query_all_family_members_paged(tester.deps(), None, None).unwrap();
+            assert!(res.members.is_empty());
+            assert!(res.start_next_after.is_none());
+        }
+
+        #[test]
+        fn empty_when_families_have_no_members() {
+            let mut tester = init_contract_tester();
+            tester.add_dummy_family();
+            tester.add_dummy_family();
+
+            let res = query_all_family_members_paged(tester.deps(), None, None).unwrap();
+            assert!(res.members.is_empty());
+            assert!(res.start_next_after.is_none());
+        }
+
+        #[test]
+        fn returns_members_from_every_family() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            let f3 = tester.add_dummy_family();
+
+            tester.add_to_family(f1.id, 10);
+            tester.add_to_family(f2.id, 20);
+            tester.add_to_family(f3.id, 30);
+
+            let res = query_all_family_members_paged(tester.deps(), None, None).unwrap();
+            let pairs: Vec<_> = res
+                .members
+                .iter()
+                .map(|m| (m.node_id, m.membership.family_id))
+                .collect();
+            assert_eq!(pairs, vec![(10, f1.id), (20, f2.id), (30, f3.id)]);
+        }
+
+        #[test]
+        fn members_returned_in_ascending_node_id_order_across_families() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+
+            // interleaved so insertion order does not match the requested ordering
+            tester.add_to_family(f2.id, 30);
+            tester.add_to_family(f1.id, 10);
+            tester.add_to_family(f2.id, 20);
+            tester.add_to_family(f1.id, 40);
+
+            let res = query_all_family_members_paged(tester.deps(), None, None).unwrap();
+            let ids: Vec<_> = res.members.iter().map(|m| m.node_id).collect();
+            assert_eq!(ids, vec![10, 20, 30, 40]);
+        }
+
+        #[test]
+        fn member_record_carries_correct_family_and_joined_at() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+
+            tester.add_to_family(f1.id, 7);
+            tester.add_to_family(f2.id, 99);
+            let expected_joined_at = tester.env().block.time.seconds();
+
+            let res = query_all_family_members_paged(tester.deps(), None, None).unwrap();
+            let by_node: std::collections::HashMap<_, _> = res
+                .members
+                .into_iter()
+                .map(|m| (m.node_id, m.membership))
+                .collect();
+
+            let m7 = &by_node[&7];
+            assert_eq!(m7.family_id, f1.id);
+            assert_eq!(m7.joined_at, expected_joined_at);
+
+            let m99 = &by_node[&99];
+            assert_eq!(m99.family_id, f2.id);
+            assert_eq!(m99.joined_at, expected_joined_at);
+        }
+
+        #[test]
+        fn limit_caps_page_size() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            for n in [10, 11, 12] {
+                tester.add_to_family(f.id, n);
+            }
+
+            let res = query_all_family_members_paged(tester.deps(), None, Some(2)).unwrap();
+            let ids: Vec<_> = res.members.iter().map(|m| m.node_id).collect();
+            assert_eq!(ids, vec![10, 11]);
+            assert_eq!(res.start_next_after, Some(11));
+        }
+
+        #[test]
+        fn start_after_is_exclusive() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            for n in [10, 11, 12] {
+                tester.add_to_family(f.id, n);
+            }
+
+            let res = query_all_family_members_paged(tester.deps(), Some(10), None).unwrap();
+            let ids: Vec<_> = res.members.iter().map(|m| m.node_id).collect();
+            assert_eq!(ids, vec![11, 12]);
+            assert_eq!(res.start_next_after, Some(12));
+        }
+
+        #[test]
+        fn paginates_through_all_members_across_families() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+
+            tester.add_to_family(f1.id, 10);
+            tester.add_to_family(f2.id, 11);
+            tester.add_to_family(f1.id, 12);
+            tester.add_to_family(f2.id, 13);
+            tester.add_to_family(f1.id, 14);
+
+            let p1 = query_all_family_members_paged(tester.deps(), None, Some(2)).unwrap();
+            assert_eq!(
+                p1.members.iter().map(|m| m.node_id).collect::<Vec<_>>(),
+                vec![10, 11]
+            );
+            assert_eq!(p1.start_next_after, Some(11));
+
+            let p2 = query_all_family_members_paged(tester.deps(), p1.start_next_after, Some(2))
+                .unwrap();
+            assert_eq!(
+                p2.members.iter().map(|m| m.node_id).collect::<Vec<_>>(),
+                vec![12, 13]
+            );
+            assert_eq!(p2.start_next_after, Some(13));
+
+            let p3 = query_all_family_members_paged(tester.deps(), p2.start_next_after, Some(2))
+                .unwrap();
+            assert_eq!(
+                p3.members.iter().map(|m| m.node_id).collect::<Vec<_>>(),
+                vec![14]
+            );
+            assert_eq!(p3.start_next_after, Some(14));
+
+            let p4 = query_all_family_members_paged(tester.deps(), p3.start_next_after, Some(2))
+                .unwrap();
+            assert!(p4.members.is_empty());
+            assert!(p4.start_next_after.is_none());
+        }
+
+        #[test]
+        fn limit_is_clamped_to_max() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            let total = retrieval_limits::FAMILY_MEMBERS_MAX_LIMIT + 5;
+            tester.add_n_family_members(f.id, total);
+
+            let res = query_all_family_members_paged(tester.deps(), None, Some(u32::MAX)).unwrap();
+            assert_eq!(
+                res.members.len(),
+                retrieval_limits::FAMILY_MEMBERS_MAX_LIMIT as usize
+            );
+        }
+
+        #[test]
+        fn default_limit_applied_when_unspecified() {
+            let mut tester = init_contract_tester();
+            let f = tester.add_dummy_family();
+            let total = retrieval_limits::FAMILY_MEMBERS_DEFAULT_LIMIT + 5;
+            tester.add_n_family_members(f.id, total);
+
+            let res = query_all_family_members_paged(tester.deps(), None, None).unwrap();
+            assert_eq!(
+                res.members.len(),
+                retrieval_limits::FAMILY_MEMBERS_DEFAULT_LIMIT as usize
+            );
+        }
+
+        #[test]
+        fn excludes_node_after_it_leaves_family() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            tester.add_to_family(f1.id, 10);
+            tester.add_to_family(f2.id, 11);
+
+            tester.remove_from_family(10);
+
+            let res = query_all_family_members_paged(tester.deps(), None, None).unwrap();
+            let ids: Vec<_> = res.members.iter().map(|m| m.node_id).collect();
+            assert_eq!(ids, vec![11]);
+        }
+    }
+
+    #[cfg(test)]
     mod pending_invitations_for_family_paged {
         use super::*;
 
@@ -1380,7 +1624,7 @@ mod tests {
     #[cfg(test)]
     mod past_invitations_for_family_paged {
         use super::*;
-        use node_families_contract_common::FamilyInvitationStatus;
+        use nym_node_families_contract_common::FamilyInvitationStatus;
 
         #[test]
         fn empty_when_family_has_no_archive_entries() {
@@ -1803,7 +2047,7 @@ mod tests {
     #[cfg(test)]
     mod past_invitations_for_node_paged {
         use super::*;
-        use node_families_contract_common::FamilyInvitationStatus;
+        use nym_node_families_contract_common::FamilyInvitationStatus;
 
         #[test]
         fn empty_when_node_has_no_archive_entries() {

@@ -39,6 +39,8 @@ pub struct NymContracts {
     pub vesting_contract_address: Option<String>,
     #[serde(default)]
     pub performance_contract_address: Option<String>,
+    #[serde(default)]
+    pub node_families_contract_address: Option<String>,
     pub ecash_contract_address: Option<String>,
     pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
@@ -198,6 +200,9 @@ impl NymNetworkDetails {
                 vesting_contract_address: parse_optional_str(mainnet::VESTING_CONTRACT_ADDRESS),
                 performance_contract_address: parse_optional_str(
                     mainnet::PERFORMANCE_CONTRACT_ADDRESS,
+                ),
+                node_families_contract_address: parse_optional_str(
+                    mainnet::NODE_FAMILIES_CONTRACT_ADDRESS,
                 ),
                 ecash_contract_address: parse_optional_str(mainnet::ECASH_CONTRACT_ADDRESS),
                 group_contract_address: parse_optional_str(mainnet::GROUP_CONTRACT_ADDRESS),

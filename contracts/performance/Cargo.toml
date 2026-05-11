@@ -36,6 +36,13 @@ nym-contracts-common-testing = { workspace = true }
 nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 
+# Needed only by the test harness: the embedded mixnet contract dispatches an
+# `OnNymNodeUnbond` WasmMsg on `try_remove_nym_node` and the target must be a
+# real contract. We instantiate the families contract alongside so the call
+# lands somewhere that knows how to handle it.
+node-families = { path = "../node-families", features = ["testable-node-families-contract"] }
+node-families-contract-common = { workspace = true }
+
 [features]
 schema-gen = ["nym-performance-contract-common/schema", "cosmwasm-schema"]
 

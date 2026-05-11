@@ -4495,6 +4495,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
+name = "node-families-contract-common"
+version = "1.20.5"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-utils",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5124,6 +5139,7 @@ dependencies = [
  "flate2",
  "futures",
  "itertools 0.14.0",
+ "node-families-contract-common",
  "nym-api-requests",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",

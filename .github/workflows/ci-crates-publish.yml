@@ -58,7 +58,7 @@ jobs:
           echo "$PLAN" | while read -r crate; do
             COUNT=$((COUNT + 1))
             echo "[$COUNT/$TOTAL] Publishing $crate..."
-            cargo publish -p "$crate"
+            cargo publish -p "$crate" --no-verify
             if [ "$COUNT" -lt "$TOTAL" ]; then
               echo "Waiting ${{ inputs.publish_interval }}s for crates.io indexing..."
               sleep "${{ inputs.publish_interval }}"

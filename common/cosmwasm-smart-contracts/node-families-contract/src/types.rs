@@ -229,6 +229,18 @@ pub struct FamilyMembersPagedResponse {
     pub start_next_after: Option<NodeId>,
 }
 
+/// Response to [`QueryMsg::GetAllFamilyMembersPaged`](crate::QueryMsg::GetAllFamilyMembersPaged).
+#[cw_serde]
+pub struct AllFamilyMembersPagedResponse {
+    /// The members on this page, in ascending [`NodeId`] order across every
+    /// family.
+    pub members: Vec<FamilyMemberRecord>,
+
+    /// Cursor (last `node_id`) to pass as `start_after` on the next call,
+    /// or `None` if this page is empty (treat as end-of-list).
+    pub start_next_after: Option<NodeId>,
+}
+
 /// Response to [`QueryMsg::GetPendingInvitationsForFamilyPaged`](crate::QueryMsg::GetPendingInvitationsForFamilyPaged).
 #[cw_serde]
 pub struct PendingFamilyInvitationsPagedResponse {

@@ -10,11 +10,6 @@ use crate::helpers::normalise_family_name;
 use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{coin, Addr, Coin, Storage};
 use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
-use node_families_contract_common::constants::storage_keys;
-use node_families_contract_common::{
-    Config, ExecuteMsg, FamilyInvitation, InstantiateMsg, MigrateMsg, NodeFamiliesContractError,
-    NodeFamily, NodeFamilyId, QueryMsg,
-};
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
     CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
@@ -22,6 +17,11 @@ use nym_contracts_common_testing::{
 };
 use nym_mixnet_contract_common::ContractState;
 use nym_mixnet_contract_common::NodeId;
+use nym_node_families_contract_common::constants::storage_keys;
+use nym_node_families_contract_common::{
+    Config, ExecuteMsg, FamilyInvitation, InstantiateMsg, MigrateMsg, NodeFamiliesContractError,
+    NodeFamily, NodeFamilyId, QueryMsg,
+};
 
 pub struct NodeFamiliesContract;
 

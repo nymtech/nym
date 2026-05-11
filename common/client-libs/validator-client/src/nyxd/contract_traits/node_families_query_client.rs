@@ -9,12 +9,14 @@ use async_trait::async_trait;
 use cosmrs::AccountId;
 use serde::Deserialize;
 
-pub use node_families_contract_common::{
-    msg::QueryMsg as NodeFamiliesQueryMsg, AllPastFamilyInvitationsPagedResponse,
-    FamiliesPagedResponse, FamilyMemberRecord, FamilyMembersPagedResponse,
-    GlobalPastFamilyInvitationCursor, NodeFamily, NodeFamilyByNameResponse,
-    NodeFamilyByOwnerResponse, NodeFamilyId, NodeFamilyMembershipResponse, NodeFamilyResponse,
-    PastFamilyInvitation, PastFamilyInvitationCursor, PastFamilyInvitationForNodeCursor,
+use nym_mixnet_contract_common::NodeId;
+pub use nym_node_families_contract_common::{
+    msg::QueryMsg as NodeFamiliesQueryMsg, AllFamilyMembersPagedResponse,
+    AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse, FamilyMemberRecord,
+    FamilyMembersPagedResponse, GlobalPastFamilyInvitationCursor, NodeFamily,
+    NodeFamilyByNameResponse, NodeFamilyByOwnerResponse, NodeFamilyId,
+    NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitation,
+    PastFamilyInvitationCursor, PastFamilyInvitationForNodeCursor,
     PastFamilyInvitationsForNodePagedResponse, PastFamilyInvitationsPagedResponse,
     PastFamilyMember, PastFamilyMemberCursor, PastFamilyMemberForNodeCursor,
     PastFamilyMembersForNodePagedResponse, PastFamilyMembersPagedResponse,
@@ -22,7 +24,6 @@ pub use node_families_contract_common::{
     PendingFamilyInvitationsPagedResponse, PendingInvitationsForNodePagedResponse,
     PendingInvitationsPagedResponse,
 };
-use nym_mixnet_contract_common::NodeId;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -88,6 +89,18 @@ pub trait NodeFamiliesQueryClient {
     ) -> Result<FamilyMembersPagedResponse, NyxdError> {
         self.query_node_families_contract(NodeFamiliesQueryMsg::GetFamilyMembersPaged {
             family_id,
+            start_after,
+            limit,
+        })
+        .await
+    }
+
+    async fn get_all_family_members_paged(
+        &self,
+        start_after: Option<NodeId>,
+        limit: Option<u32>,
+    ) -> Result<AllFamilyMembersPagedResponse, NyxdError> {
+        self.query_node_families_contract(NodeFamiliesQueryMsg::GetAllFamilyMembersPaged {
             start_after,
             limit,
         })
@@ -226,11 +239,15 @@ pub trait PagedNodeFamiliesQueryClient: NodeFamiliesQueryClient {
         collect_paged!(self, get_families_paged, families)
     }
 
-    async fn get_all_family_members(
+    async fn get_all_family_members_for_family(
         &self,
         family_id: NodeFamilyId,
     ) -> Result<Vec<FamilyMemberRecord>, NyxdError> {
         collect_paged!(self, get_family_members_paged, members, family_id)
+    }
+
+    async fn get_all_family_members(&self) -> Result<Vec<FamilyMemberRecord>, NyxdError> {
+        collect_paged!(self, get_all_family_members_paged, members)
     }
 
     async fn get_all_pending_invitations_for_family(
@@ -334,7 +351,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
-    use node_families_contract_common::QueryMsg;
+    use nym_node_families_contract_common::QueryMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -364,6 +381,9 @@ mod tests {
                 limit,
             } => client
                 .get_family_members_paged(family_id, start_after, limit)
+                .ignore(),
+            NodeFamiliesQueryMsg::GetAllFamilyMembersPaged { start_after, limit } => client
+                .get_all_family_members_paged(start_after, limit)
                 .ignore(),
             NodeFamiliesQueryMsg::GetPendingInvitation { family_id, node_id } => {
                 client.get_pending_invitation(family_id, node_id).ignore()

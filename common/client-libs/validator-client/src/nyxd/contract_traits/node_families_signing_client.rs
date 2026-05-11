@@ -8,8 +8,10 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
-use node_families_contract_common::{Config, ExecuteMsg as NodeFamiliesExecuteMsg, NodeFamilyId};
 use nym_mixnet_contract_common::NodeId;
+use nym_node_families_contract_common::{
+    Config, ExecuteMsg as NodeFamiliesExecuteMsg, NodeFamilyId,
+};
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -207,7 +209,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
-    use node_families_contract_common::ExecuteMsg;
+    use nym_node_families_contract_common::ExecuteMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]

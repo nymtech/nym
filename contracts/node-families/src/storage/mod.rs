@@ -221,6 +221,7 @@ impl NodeFamiliesStorage<'_> {
     /// invariants via unique indexes on `owner` and `normalised_name` as a
     /// defence-in-depth check, so this call will fail if either is already
     /// taken — but the caller must not rely on it for the membership check.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn register_new_family(
         &self,
         store: &mut dyn Storage,

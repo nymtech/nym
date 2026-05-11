@@ -69,8 +69,12 @@ impl NsApiClient {
         }
 
         serde_json::from_str(&response_text)
-            .map(|testrun| {
-                tracing::info!("Received testrun assignment: {:?}", testrun);
+            .map(|testrun: TestrunAssignmentWithTickets| {
+                tracing::info!(
+                    testrun_id = testrun.assignment.testrun_id,
+                    gateway = %testrun.assignment.gateway_identity_key,
+                    "Received testrun assignment",
+                );
                 testrun
             })
             .map_err(|err| {
@@ -115,8 +119,12 @@ impl NsApiClient {
         }
 
         serde_json::from_str(&response_text)
-            .map(|testrun| {
-                tracing::info!("Received ports-check testrun assignment: {:?}", testrun);
+            .map(|testrun: TestrunAssignmentWithTickets| {
+                tracing::info!(
+                    testrun_id = testrun.assignment.testrun_id,
+                    gateway = %testrun.assignment.gateway_identity_key,
+                    "Received ports-check testrun assignment",
+                );
                 testrun
             })
             .map_err(|err| {

@@ -61,6 +61,9 @@ jobs:
           cd ${{ github.workspace }}/sdk/typescript/packages/sdk && typedoc --skipErrorChecking
           cd ${{ github.workspace }}/sdk/typescript/packages/mix-fetch && typedoc --skipErrorChecking
 
+      - name: Verify doc versions
+        run: ${{ github.workspace }}/documentation/scripts/verify-doc-versions.sh
+        working-directory: ${{ github.workspace }}
       - name: Install project dependencies
         run: pnpm i
       - name: Generate llms-full.txt

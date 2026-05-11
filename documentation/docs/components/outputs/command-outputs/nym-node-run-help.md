@@ -30,8 +30,8 @@ Options:
           NYMNODE_WRITE_CONFIG_CHANGES=]
       --bonding-information-output <BONDING_INFORMATION_OUTPUT>
           Specify output file for bonding information of this nym-node, i.e. its encoded keys. NOTE: the required bonding
-          information is still a subject to change and this argument should be treated only as a preview of future features
-          [env: NYMNODE_BONDING_INFORMATION_OUTPUT=]
+          information is still a subject to change and this argument should be treated only as a preview of future
+          features [env: NYMNODE_BONDING_INFORMATION_OUTPUT=]
   -o, --output <OUTPUT>
           Specify the output format of the bonding information (`text` or `json`) [env: NYMNODE_OUTPUT=] [default: text]
           [possible values: text, json]
@@ -43,8 +43,8 @@ Options:
           Optional hostname associated with this gateway that will be announced to the nym-api and subsequently to the
           clients [env: NYMNODE_HOSTNAME=]
       --location <LOCATION>
-          Optional **physical** location of this node's server. Either full country name (e.g. 'Poland'), two-letter alpha2
-          (e.g. 'PL'), three-letter alpha3 (e.g. 'POL') or three-digit numeric-3 (e.g. '616') can be provided [env:
+          Optional **physical** location of this node's server. Either full country name (e.g. 'Poland'), two-letter
+          alpha2 (e.g. 'PL'), three-letter alpha3 (e.g. 'POL') or three-digit numeric-3 (e.g. '616') can be provided [env:
           NYMNODE_LOCATION=]
       --http-bind-address <HTTP_BIND_ADDRESS>
           Socket address this node will use for binding its http API. default: `[::]:8080` [env:
@@ -55,8 +55,8 @@ Options:
           An optional bearer token for accessing certain http endpoints. Currently only used for prometheus metrics [env:
           NYMNODE_HTTP_ACCESS_TOKEN=]
       --expose-system-info <EXPOSE_SYSTEM_INFO>
-          Specify whether basic system information should be exposed. default: true [env: NYMNODE_HTTP_EXPOSE_SYSTEM_INFO=]
-          [possible values: true, false]
+          Specify whether basic system information should be exposed. default: true [env:
+          NYMNODE_HTTP_EXPOSE_SYSTEM_INFO=] [possible values: true, false]
       --expose-system-hardware <EXPOSE_SYSTEM_HARDWARE>
           Specify whether basic system hardware information should be exposed. default: true [env:
           NYMNODE_HTTP_EXPOSE_SYSTEM_HARDWARE=] [possible values: true, false]
@@ -67,8 +67,8 @@ Options:
           Address this node will bind to for listening for mixnet packets default: `[::]:1789` [env:
           NYMNODE_MIXNET_BIND_ADDRESS=]
       --mixnet-announce-port <MIXNET_ANNOUNCE_PORT>
-          If applicable, custom port announced in the self-described API that other clients and nodes will use. Useful when
-          the node is behind a proxy [env: NYMNODE_MIXNET_ANNOUNCE_PORT=]
+          If applicable, custom port announced in the self-described API that other clients and nodes will use. Useful
+          when the node is behind a proxy [env: NYMNODE_MIXNET_ANNOUNCE_PORT=]
       --nym-api-urls <NYM_API_URLS>
           Addresses to nym APIs from which the node gets the view of the network [env: NYMNODE_NYM_APIS=]
       --nyxd-urls <NYXD_URLS>
@@ -95,8 +95,8 @@ Options:
           Socket address this node will use for binding its verloc API. default: `[::]:1790` [env:
           NYMNODE_VERLOC_BIND_ADDRESS=]
       --verloc-announce-port <VERLOC_ANNOUNCE_PORT>
-          If applicable, custom port announced in the self-described API that other clients and nodes will use. Useful when
-          the node is behind a proxy [env: NYMNODE_VERLOC_ANNOUNCE_PORT=]
+          If applicable, custom port announced in the self-described API that other clients and nodes will use. Useful
+          when the node is behind a proxy [env: NYMNODE_VERLOC_ANNOUNCE_PORT=]
       --entry-bind-address <ENTRY_BIND_ADDRESS>
           Socket address this node will use for binding its client websocket API. default: `[::]:9000` [env:
           NYMNODE_ENTRY_BIND_ADDRESS=]
@@ -135,8 +135,8 @@ Options:
           Custom announced port for listening for the UDP LP data traffic. If unspecified, the value from the
           `lp_data_bind_address` will be used instead [env: NYMNODE_LP_DATA_ANNOUNCE_PORT=]
       --lp-use-mock-ecash <LP_USE_MOCK_ECASH>
-          Use mock ecash manager for LP testing. WARNING: Only use this for local testing! Never enable in production. When
-          enabled, the LP listener will accept any credential without blockchain verification [env:
+          Use mock ecash manager for LP testing. WARNING: Only use this for local testing! Never enable in production.
+          When enabled, the LP listener will accept any credential without blockchain verification [env:
           NYMNODE_LP_USE_MOCK_ECASH=] [possible values: true, false]
   -h, --help
           Print help

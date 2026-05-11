@@ -4,7 +4,6 @@ members = [
     "coconut-dkg",
     "ecash",
     "mixnet",
-    "mixnet-vesting-integration-tests",
     "nym-pool",
     "multisig/cw3-flex-multisig",
     "multisig/cw4-group",

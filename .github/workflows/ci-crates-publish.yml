@@ -37,35 +37,14 @@ jobs:
         run: |
           python3 tools/internal/check_publish_preflight.py
 
-      # Publish crates in dependency order. `cargo workspaces plan` returns
-      # the topological sort that `cargo publish` needs
+      # --publish-as-is skips version bumping since that's done in a separate CI job.
       - name: Publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          set -euo pipefail
-
-          PLAN=$(cargo workspaces plan --skip-published)
-          if [ -z "$PLAN" ]; then
-            echo "Nothing to publish (all crate versions already on crates.io)."
-            exit 0
-          fi
-
-          TOTAL=$(echo "$PLAN" | wc -l)
-          echo "Publishing $TOTAL crate(s) in dependency order..."
-
-          COUNT=0
-          echo "$PLAN" | while read -r crate; do
-            COUNT=$((COUNT + 1))
-            echo "[$COUNT/$TOTAL] Publishing $crate..."
-            cargo publish -p "$crate" --no-verify
-            if [ "$COUNT" -lt "$TOTAL" ]; then
-              echo "Waiting ${{ inputs.publish_interval }}s for crates.io indexing..."
-              sleep "${{ inputs.publish_interval }}"
-            fi
-          done
-
-          echo "All crates published."
+          cargo workspaces publish \
+            --publish-as-is \
+            --publish-interval ${{ inputs.publish_interval }}
 
       - name: Show package versions
         run: cargo workspaces list --long

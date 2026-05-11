@@ -54,11 +54,10 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = "1.20.4"
-nym-network-defaults = "1.20.4"
-nym-bin-common = { version = "1.20.4", features = ["basic_tracing"] }
+nym-sdk = "1.21.0"
+nym-network-defaults = "1.21.0"
+nym-bin-common = { version = "1.21.0", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
-blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 
 [[bin]]
 name = "proxy_server"

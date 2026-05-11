@@ -44,12 +44,7 @@ Add `smolmix` to your `Cargo.toml`:
 smolmix = "1.21.0"
 nym-bin-common = { version = "1.21.0", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-blake3 = "=1.7.0"  # required pin — see note below
 ```
-
-<Callout type="warning">
-**Temporary pin required.** You must pin [`blake3`](https://docs.rs/blake3) `= "=1.7.0"` to avoid a build failure caused by a transitive [`digest`](https://docs.rs/digest) version conflict. This will be resolved in a future release.
-</Callout>
 
 `tokio` is a transitive dependency of smolmix, but you need to enable `rt-multi-thread` (smolmix spawns multiple tasks internally) and `macros` (for `#[tokio::main]`).
 
@@ -63,7 +58,6 @@ For unreleased changes, import directly from the repository:
 
 ```toml
 smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
-blake3 = "=1.7.0"  # required pin — see note above
 ```
 
 ## When to use smolmix

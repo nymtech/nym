@@ -17,12 +17,7 @@ import { RUST_MSRV } from '../../../components/versions'
 ```toml
 [dependencies]
 nym-sdk = "1.21.0"
-blake3 = "=1.7.0"  # pin to avoid a transitive dependency conflict — see note below
 ```
-
-<Callout type="warning">
-**Temporary pin required.** You must pin `blake3 = "=1.7.0"` in your `Cargo.toml` to avoid a build failure caused by a transitive `digest` version conflict. This will be resolved in a future SDK release.
-</Callout>
 
 **Minimum Rust version:** {RUST_MSRV}+
 

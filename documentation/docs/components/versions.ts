@@ -27,8 +27,5 @@ export const NYM_SDK_VERSION = "1.21.0";
 // smolmix standalone crate
 export const SMOLMIX_VERSION = "1.21.0";
 
-// blake3 exact pin (workaround for transitive digest conflict)
-export const BLAKE3_PIN = "=1.7.0";
-
 // Minimum supported Rust version (matches workspace rust-version in root Cargo.toml)
 export const RUST_MSRV = "1.87";

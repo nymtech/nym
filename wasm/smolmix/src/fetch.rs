@@ -1,6 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 
-//! Fetch orchestrator — wires DNS → TCP → TLS → HTTP and handles JS interop.
+//! Fetch orchestrator. Wires DNS, TCP, TLS, HTTP and handles JS interop.
 //!
 //! Extracts `RequestInit` fields from JS via `js_sys::Reflect` (no serde/Tsify),
 //! then serialises the `HttpResponse` into a plain JS object for transfer across
@@ -19,8 +19,9 @@ use wasm_bindgen::JsValue;
 use crate::dns;
 use crate::error::FetchError;
 use crate::http::{self, HttpResponse};
+use crate::stream::PooledConn;
 use crate::tls;
-use crate::tunnel::{PooledConn, WasmTunnel};
+use crate::tunnel::WasmTunnel;
 
 /// Options extracted from a JS `RequestInit` object.
 struct FetchInit {
@@ -44,8 +45,14 @@ pub async fn fetch(
     url_str: &str,
     init: &JsValue,
 ) -> Result<JsValue, FetchError> {
-    let opts = parse_init(init)?;
+    let mut opts = parse_init(init)?;
     let mut url = Url::parse(url_str)?;
+    if !is_http_scheme(&url) {
+        return Err(FetchError::Http(format!(
+            "unsupported scheme '{}' (expected http or https)",
+            url.scheme()
+        )));
+    }
     let mut method = opts.method.clone();
     let mut body = opts.body.clone();
 
@@ -60,9 +67,9 @@ pub async fn fetch(
         let is_https = url.scheme() == "https";
 
         if redirect_count == 0 {
-            nym_wasm_utils::console_log!("[fetch] {} {} ({})", method, url.as_str(), url.scheme());
+            crate::util::debug_log!("[fetch] {} {} ({})", method, url.as_str(), url.scheme());
         } else {
-            nym_wasm_utils::console_log!(
+            crate::util::debug_log!(
                 "[fetch] redirect #{redirect_count} → {host}:{port} ({})",
                 url.scheme()
             );
@@ -71,28 +78,26 @@ pub async fn fetch(
         // Per-origin lock: concurrent requests to the same (host, port) queue
         // behind one connection instead of stampeding with parallel TCP+TLS
         // handshakes (which triggers server-side rate limiting / Cloudflare drops).
-        // Scoped to connection acquisition only — the HTTP exchange runs unlocked
+        // Scoped to connection acquisition only; the HTTP exchange runs unlocked
         // so multiple in-flight requests can share the same origin concurrently.
         let (conn, from_pool) = {
             let origin_lock = tunnel.origin_lock(&host, port);
-            nym_wasm_utils::console_log!("[fetch] acquiring origin lock for {host}:{port}...");
+            crate::util::debug_log!("[fetch] acquiring origin lock for {host}:{port}...");
             let _guard = origin_lock.lock().await;
-            nym_wasm_utils::console_log!("[fetch] origin lock ACQUIRED for {host}:{port}");
+            crate::util::debug_log!("[fetch] origin lock ACQUIRED for {host}:{port}");
 
             let result = match tunnel.take_pooled(&host, port) {
                 Some(c) => {
-                    nym_wasm_utils::console_log!("[fetch] pool HIT for {host}:{port}");
+                    crate::util::debug_log!("[fetch] pool HIT for {host}:{port}");
                     (c, true)
                 }
                 None => {
-                    nym_wasm_utils::console_log!(
-                        "[fetch] pool MISS for {host}:{port} — new connection"
-                    );
+                    crate::util::debug_log!("[fetch] pool MISS for {host}:{port}, new connection");
                     (new_connection(tunnel, &host, port, is_https).await?, false)
                 }
             };
 
-            nym_wasm_utils::console_log!("[fetch] origin lock RELEASED for {host}:{port}");
+            crate::util::debug_log!("[fetch] origin lock RELEASED for {host}:{port}");
             result
         };
 
@@ -102,21 +107,21 @@ pub async fn fetch(
         // closed the TCP connection while it sat idle. hyper surfaces this as
         // "operation was canceled" or a connection error on the first write.
         // When a pooled connection fails, discard it and retry once with a
-        // fresh connection. Only pooled connections get this grace — a fresh
+        // fresh connection. Only pooled connections get this grace; a fresh
         // connection failure is a real error.
         let http_result = http::request(conn, &method, &url, &opts.headers, body.as_deref()).await;
 
         let (response, reusable, conn) = match http_result {
             Ok(result) => result,
             Err(stale_err) if from_pool => {
-                nym_wasm_utils::console_log!(
+                crate::util::debug_log!(
                     "[fetch] pooled connection failed ({stale_err}), retrying with fresh connection"
                 );
                 let fresh = new_connection(tunnel, &host, port, is_https).await?;
                 match http::request(fresh, &method, &url, &opts.headers, body.as_deref()).await {
                     Ok(result) => result,
                     Err(e) => {
-                        nym_wasm_utils::console_error!(
+                        crate::util::debug_error!(
                             "[fetch] fresh connection also failed: {e} (pooled failed with: {stale_err})"
                         );
                         return Err(e);
@@ -126,7 +131,7 @@ pub async fn fetch(
             Err(e) => return Err(e),
         };
 
-        nym_wasm_utils::console_log!(
+        crate::util::debug_log!(
             "[fetch] {} {} ({} bytes, reusable={})",
             response.status,
             response.status_text,
@@ -136,7 +141,7 @@ pub async fn fetch(
 
         // 3. Return connection to pool if reusable
         if reusable {
-            nym_wasm_utils::console_log!("[fetch] returning connection to pool for {host}:{port}");
+            crate::util::debug_log!("[fetch] returning connection to pool for {host}:{port}");
             tunnel.return_to_pool(host, port, conn);
         }
 
@@ -148,12 +153,34 @@ pub async fn fetch(
                 .find(|(k, _)| k.eq_ignore_ascii_case("location"))
                 .map(|(_, v)| v.clone())
             {
-                nym_wasm_utils::console_log!("[fetch] {} → Location: {location}", response.status);
+                crate::util::debug_log!("[fetch] {} → Location: {location}", response.status);
 
-                // Resolve relative URLs against the current request URL
-                url = url.join(&location).map_err(|e| {
+                let prev_url = url.clone();
+                url = prev_url.join(&location).map_err(|e| {
                     FetchError::Http(format!("invalid redirect URL '{location}': {e}"))
                 })?;
+
+                // Reject non-HTTP schemes (javascript:, file:, data:, …) and
+                // any HTTPS to HTTP downgrade; these are the classic redirect
+                // exfiltration shapes.
+                if !is_http_scheme(&url) {
+                    return Err(FetchError::Http(format!(
+                        "redirect to unsupported scheme '{}' rejected",
+                        url.scheme()
+                    )));
+                }
+                if prev_url.scheme() == "https" && url.scheme() == "http" {
+                    return Err(FetchError::Http(
+                        "redirect from https to http rejected (would leak credentials)".into(),
+                    ));
+                }
+
+                // Strip credential-bearing headers on cross-origin redirects so
+                // Authorization / Cookie / Proxy-Authorization never follow a
+                // hop to a different origin. Same-origin redirects keep them.
+                if prev_url.origin() != url.origin() {
+                    strip_sensitive_headers(&mut opts.headers);
+                }
 
                 // 301/302/303: switch to GET and drop body (RFC 7231)
                 // 307/308: preserve method and body
@@ -166,7 +193,7 @@ pub async fn fetch(
             }
         }
 
-        // 5. Non-redirect — serialise and return
+        // 5. Non-redirect, serialise and return
         return serialise_response(&response);
     }
 
@@ -185,14 +212,14 @@ pub(crate) async fn new_connection(
     let ip = dns::resolve(tunnel, host).await?;
     let addr = SocketAddr::new(ip, port);
 
-    nym_wasm_utils::console_log!("[fetch] TCP connecting to {addr}...");
+    crate::util::debug_log!("[fetch] TCP connecting to {addr}...");
     let tcp = tunnel.tcp_connect(addr).await.map_err(FetchError::Io)?;
-    nym_wasm_utils::console_log!("[fetch] TCP connected to {addr}");
+    crate::util::debug_log!("[fetch] TCP connected to {addr}");
 
     if is_https {
-        nym_wasm_utils::console_log!("[fetch] TLS handshake with '{host}'...");
+        crate::util::debug_log!("[fetch] TLS handshake with '{host}'...");
         let tls_stream = tls::connect(tcp, host).await?;
-        nym_wasm_utils::console_log!("[fetch] TLS handshake complete with '{host}'");
+        crate::util::debug_log!("[fetch] TLS handshake complete with '{host}'");
         Ok(PooledConn::Tls(tls_stream))
     } else {
         Ok(PooledConn::Plain(tcp))
@@ -313,4 +340,15 @@ fn set_prop(obj: &Object, key: &str, val: &JsValue) -> Result<(), FetchError> {
     Reflect::set(obj, &JsValue::from_str(key), val)
         .map(|_| ())
         .map_err(|e| FetchError::Js(format!("failed to set '{key}': {e:?}")))
+}
+
+/// Whether the URL scheme is one we'll forward to.
+fn is_http_scheme(url: &Url) -> bool {
+    matches!(url.scheme(), "http" | "https")
+}
+
+/// Drop credential-bearing headers when a redirect crosses origins.
+fn strip_sensitive_headers(headers: &mut Vec<(String, String)>) {
+    const SENSITIVE: &[&str] = &["authorization", "cookie", "proxy-authorization"];
+    headers.retain(|(k, _)| !SENSITIVE.iter().any(|name| k.eq_ignore_ascii_case(name)));
 }

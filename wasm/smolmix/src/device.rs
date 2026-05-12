@@ -6,8 +6,6 @@
 //! into `tokio-smoltcp`. On wasm32 we drive smoltcp directly, so we need a sync
 //! `Device` impl instead. The bridge pushes incoming IP packets into `rx_queue`
 //! and pops outgoing packets from `tx_queue`.
-//!
-//! Reference: `smolmix/core/src/device.rs`
 
 use std::collections::VecDeque;
 

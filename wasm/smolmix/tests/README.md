@@ -22,7 +22,10 @@ npx playwright install
 
 ## Running Tests
 
-All tests require `IPR_ADDRESS` — the Nym address of an IPR exit node:
+Both suites use a hardcoded default IPR (see `internal-dev/index.html` and
+`internal-dev/headless.js`); no env var is required to run them. Override
+the default by exporting `IPR_ADDRESS` if you want to point at a different
+exit node:
 
 ```bash
 export IPR_ADDRESS="6B6iuWX4bQP4GVA4Yq7XmZencaaGw6BaPY6xJWYSwsbF.6g6LRx1fgU2Q2A4ZPKonYHtfBARh1GPMe1LtXk6vpRR8@q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1"
@@ -38,8 +41,6 @@ npx playwright test                          # all 6 projects
 ```
 
 Available projects: `smoke-chromium`, `smoke-firefox`, `smoke-webkit`, `suite-chromium`, `suite-firefox`, `suite-webkit`.
-
-Without `IPR_ADDRESS`, all tests skip with a message.
 
 ## Test Structure
 
@@ -91,3 +92,39 @@ URL parameters:
 
 - Smoke: 3 minutes (tunnel setup ~10s, connectivity check ~20s)
 - Suite: 10 minutes per config (mixnet round-trips are ~1-2s each)
+
+## Known Issues
+
+### Playwright Firefox hangs at IPR connect on Arch/Manjaro
+
+Playwright ships a forked Firefox build (Mozilla's "Juggler" patches) to enable
+remote control. On Arch-family hosts (Manjaro confirmed) this bundled Firefox
+hangs indefinitely at the IPR connect handshake step, in both headed and
+headless modes. The bug is unique to the playwright Firefox build; the same
+URL loads fine in the system Firefox installation.
+
+The smoke and suite tests reach `[ipr] sending connect handshake` and then
+stall until the playwright timeout fires. Topology fetches against
+`validator.nymtech.net` succeed; the gateway WSS connection or its message
+flow is where it dies. Adding `firefoxUserPrefs` for timer throttling, DoH,
+captive portal probes, and IndexedDB persistence does not help.
+
+You cannot point `executablePath` at the system Firefox; playwright's Firefox
+binary must speak the Juggler protocol, which mainline Firefox does not.
+
+**Workaround:** run chromium locally; skip firefox, or run it from a CI image
+whose playwright Firefox binary is built for that platform.
+
+```bash
+npx playwright test --project=smoke-chromium
+```
+
+### Playwright Webkit missing libraries on Arch/Manjaro
+
+Playwright bundles `libwebkit2gtk` and a chain of GTK/glib/icu/freetype deps
+expecting Ubuntu library layouts. On Arch-family hosts those library versions
+or paths differ and webkit fails to launch. Same class of bug as the Firefox
+hang, different symptom.
+
+**Workaround:** run webkit tests from a CI image (or container) with the
+Ubuntu-shaped library layout playwright expects.

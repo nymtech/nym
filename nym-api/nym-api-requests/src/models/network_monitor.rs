@@ -93,6 +93,12 @@ pub mod v3 {
     /// registered in the network-monitors contract.
     pub type StressTestBatchSubmission = SignedMessage<StressTestBatchSubmissionContent>;
 
+    /// Confirmation returned to an orchestrator after a successful submission.
+    /// Currently empty — exists to give the response an explicit type rather than
+    /// relying on `Json(())`.
+    #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+    pub struct StressTestBatchSubmissionResponse {}
+
     /// Single stress-test measurement for one node, produced by a network monitor orchestrator.
     #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
     pub struct StressTestResult {

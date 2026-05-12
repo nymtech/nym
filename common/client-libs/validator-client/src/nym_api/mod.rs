@@ -23,6 +23,7 @@ use nym_api_requests::models::{
     ChainBlocksStatusResponse, ChainStatusResponse, KeyRotationInfoResponse,
     NodePerformanceResponse, NodeRefreshBody, NymNodeDescriptionV1, NymNodeDescriptionV2,
     PerformanceHistoryResponse, RewardedSetResponse, SignerInformationResponse,
+    StressTestBatchSubmissionResponse,
 };
 use nym_api_requests::pagination::PaginatedResponse;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
@@ -1396,7 +1397,7 @@ pub trait NymApiClientExt: ApiClient {
     async fn submit_stress_testing_results(
         &self,
         request: &StressTestBatchSubmission,
-    ) -> Result<(), NymAPIError> {
+    ) -> Result<StressTestBatchSubmissionResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::V3_API_VERSION,

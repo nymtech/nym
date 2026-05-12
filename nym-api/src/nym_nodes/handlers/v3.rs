@@ -8,7 +8,7 @@ use axum::extract::{Path, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_api_requests::models::network_monitor::KnownNetworkMonitorResponse;
-use nym_api_requests::models::StressTestBatchSubmission;
+use nym_api_requests::models::{StressTestBatchSubmission, StressTestBatchSubmissionResponse};
 use nym_crypto::asymmetric::ed25519;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -39,7 +39,7 @@ use tracing::error;
 async fn batch_submit_stress_testing_results(
     State(state): State<AppState>,
     Json(body): Json<StressTestBatchSubmission>,
-) -> ApiResult<()> {
+) -> ApiResult<Json<StressTestBatchSubmissionResponse>> {
     // 1. check if the request is not stale
     // TODO: make the timeout configurable. currently we have an issue of no easy way of
     // propagating config values, but hardcoding it to 30s is fine for now
@@ -124,7 +124,7 @@ async fn batch_submit_stress_testing_results(
         .insert_nym_node_stress_testing_results(mixnode_results)
         .await?;
 
-    Ok(())
+    Ok(Json(StressTestBatchSubmissionResponse {}))
 }
 
 /// Report whether the given identity key is currently recognised by this nym-api as an

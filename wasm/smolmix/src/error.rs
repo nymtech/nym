@@ -1,5 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 
+use nym_wasm_utils::wasm_error;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -35,8 +36,8 @@ pub enum FetchError {
     Timeout,
 }
 
-impl From<FetchError> for wasm_bindgen::JsValue {
-    fn from(e: FetchError) -> Self {
-        wasm_bindgen::JsValue::from_str(&e.to_string())
-    }
-}
+// Generates `From<FetchError> for JsValue` (wraps in `js_sys::Error`, giving
+// DevTools a real Error with stack trace) and `From<FetchError> for Promise`
+// (rejecting). Matches the workspace convention used by every other wasm
+// crate (mix-fetch, client, node-tester, zknym-lib).
+wasm_error!(FetchError);

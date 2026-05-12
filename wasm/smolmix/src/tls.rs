@@ -3,8 +3,8 @@
 //! TLS connector using futures-rustls (futures::io traits, NOT tokio).
 //!
 //! The crypto provider is selected at compile time via feature flags:
-//! - `ring-crypto` (default): uses ring 0.17 — has experimental wasm32 support
-//! - `rustcrypto`: uses rustls-rustcrypto — pure Rust, guaranteed wasm32 compat
+//! - `ring-crypto` (default): uses ring 0.17, has experimental wasm32 support
+//! - `rustcrypto`: uses rustls-rustcrypto, pure Rust, guaranteed wasm32 compat
 //!
 //! Both produce identical `ClientConfig`; only the underlying crypto differs.
 
@@ -17,7 +17,7 @@ use rustls::ClientConfig;
 
 use crate::error::FetchError;
 
-/// Cached TLS client config — built once, reused for all connections.
+/// Cached TLS client config: built once, reused for all connections.
 static TLS_CONFIG: OnceLock<Arc<ClientConfig>> = OnceLock::new();
 
 // Ensure at least one crypto provider is selected at compile time.
@@ -27,7 +27,7 @@ compile_error!("enable either the 'ring-crypto' or 'rustcrypto' feature for TLS 
 /// Perform a TLS handshake over the given stream.
 ///
 /// Returns a TLS-wrapped stream that implements `futures::io::{AsyncRead, AsyncWrite}`.
-/// The stream type is generic — works with `WasmTcpStream` directly.
+/// The stream type is generic; works with `WasmTcpStream` directly.
 pub async fn connect<S>(
     stream: S,
     hostname: &str,
@@ -49,7 +49,7 @@ where
         .map_err(FetchError::Io);
 
     if let Err(e) = &result {
-        nym_wasm_utils::console_error!("[tls] handshake FAILED with '{hostname}': {e}");
+        crate::util::debug_error!("[tls] handshake FAILED with '{hostname}': {e}");
     }
 
     result
@@ -78,6 +78,11 @@ fn make_client_config() -> Result<Arc<ClientConfig>, FetchError> {
     // ALPN: advertise HTTP/1.1 so CDNs (GitHub, Cloudflare) that require
     // protocol negotiation don't abort the handshake with an EOF.
     config.alpn_protocols = vec![b"http/1.1".to_vec()];
+
+    // Disable session resumption: TLS session tickets and PSK identities are
+    // long-lived correlators a server can use to link separate mixnet circuits
+    // back to the same client, defeating per-request unlinkability.
+    config.resumption = rustls::client::Resumption::disabled();
 
     let config = Arc::new(config);
     Ok(TLS_CONFIG.get_or_init(|| config.clone()).clone())

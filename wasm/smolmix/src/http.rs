@@ -4,7 +4,7 @@
 //!
 //! hyper 1.6+ makes tokio optional. With `default-features = false` and
 //! `features = ["client", "http1"]`, it compiles on wasm32. The only glue
-//! needed is `FuturesIo<T>`: an adapter from `futures::io::{AsyncRead,
+//! needed is `HyperIoAdapter<T>`: an adapter from `futures::io::{AsyncRead,
 //! AsyncWrite}` to `hyper::rt::{Read, Write}`.
 //!
 //! The connection driver is spawned via `wasm_bindgen_futures::spawn_local`.
@@ -37,9 +37,9 @@ pub struct HttpResponse {
 /// hyper's `Read` trait hands us a `ReadBufCursor` backed by uninitialised
 /// memory. `futures::io::AsyncRead` requires an initialised `&mut [u8]`, so
 /// we zero the buffer first. This is a cheap memset per read call.
-struct FuturesIo<T>(T);
+struct HyperIoAdapter<T>(T);
 
-impl<T: AsyncRead + Unpin> hyper::rt::Read for FuturesIo<T> {
+impl<T: AsyncRead + Unpin> hyper::rt::Read for HyperIoAdapter<T> {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -61,7 +61,7 @@ impl<T: AsyncRead + Unpin> hyper::rt::Read for FuturesIo<T> {
     }
 }
 
-impl<T: AsyncWrite + Unpin> hyper::rt::Write for FuturesIo<T> {
+impl<T: AsyncWrite + Unpin> hyper::rt::Write for HyperIoAdapter<T> {
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -104,7 +104,7 @@ pub async fn request<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin + 'static,
 {
-    nym_wasm_utils::console_log!("[http] sending {method} request via hyper...");
+    crate::util::debug_log!("[http] sending {method} request via hyper...");
 
     // Build the HTTP request
     let path = match url.query() {
@@ -140,13 +140,14 @@ where
         .body(Full::new(body_bytes))
         .map_err(|e| FetchError::Http(format!("failed to build request: {e}")))?;
 
-    // Perform HTTP/1 handshake — hyper takes ownership of the IO
-    let (mut sender, conn) = http1::handshake(FuturesIo(stream))
+    // Perform HTTP/1 handshake; hyper takes ownership of the IO
+    let (mut sender, conn) = http1::handshake(HyperIoAdapter(stream))
         .await
         .map_err(FetchError::Hyper)?;
 
-    // Spawn the connection driver. When we drop `sender`, the connection
-    // completes and `without_shutdown()` returns the IO for reuse.
+    // Spawn the connection driver. The driver only completes once the
+    // request/response exchange is over AND the sender is dropped, at which
+    // point `without_shutdown()` returns the IO so we can pool it.
     let (parts_tx, parts_rx) = futures::channel::oneshot::channel();
     wasm_bindgen_futures::spawn_local(async move {
         let result = conn.without_shutdown().await;
@@ -184,17 +185,17 @@ where
         .and_then(|(_, v)| v.parse::<u64>().ok());
 
     match content_length {
-        Some(len) => nym_wasm_utils::console_log!(
-            "[http] {status} {status_text} — collecting body ({len} bytes)..."
+        Some(len) => crate::util::debug_log!(
+            "[http] {status} {status_text}; collecting body ({len} bytes)..."
         ),
-        None => nym_wasm_utils::console_log!(
-            "[http] {status} {status_text} — collecting body (chunked/unknown size)..."
+        None => crate::util::debug_log!(
+            "[http] {status} {status_text}; collecting body (chunked/unknown size)..."
         ),
     }
 
     // Dump response headers for diagnostics.
     for (k, v) in &response_headers {
-        nym_wasm_utils::console_log!("[http]   {k}: {v}");
+        crate::util::debug_log!("[http]   {k}: {v}");
     }
 
     // Read body frame-by-frame to log progress (large mixnet downloads
@@ -211,7 +212,7 @@ where
                     let chunk_len = data.len();
                     body_data.extend_from_slice(&data);
                     if body_data.len() >= next_log_at {
-                        nym_wasm_utils::console_log!(
+                        crate::util::debug_log!(
                             "[http] progress: {} / {expected} bytes (chunk={chunk_len})",
                             body_data.len(),
                         );
@@ -224,24 +225,24 @@ where
         }
     }
 
-    nym_wasm_utils::console_log!(
+    crate::util::debug_log!(
         "[http] body complete: {} bytes, reusable={reusable}",
         body_data.len()
     );
 
-    // Content preview — text for UTF-8-valid bodies, hex for binary
+    // Content preview: text for UTF-8-valid bodies, hex for binary
     if !body_data.is_empty() {
         let preview_len = body_data.len().min(200);
         let chunk = &body_data[..preview_len];
         let suffix = if body_data.len() > 200 { "..." } else { "" };
 
         if let Ok(text) = std::str::from_utf8(chunk) {
-            nym_wasm_utils::console_log!("[http] body: {text}{suffix}");
+            crate::util::debug_log!("[http] body: {text}{suffix}");
         } else {
-            nym_wasm_utils::console_log!(
+            crate::util::debug_log!(
                 "[http] body ({} bytes): {}",
                 body_data.len(),
-                crate::hex_preview(&body_data, 64)
+                crate::util::hex_preview(&body_data, 64)
             );
         }
     }

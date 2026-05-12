@@ -35,6 +35,17 @@
           <div style="margin-top: 4px">
             <label><input type="checkbox" id="opt-disable-cover" checked /> Disable cover traffic</label>
           </div>
+          <div style="margin-top: 4px">
+            <label>Open reply SURBs:
+              <input type="number" id="opt-open-surbs" value="5" min="1" max="50" style="width: 60px" />
+            </label>
+            <label style="margin-left: 8px">Data reply SURBs:
+              <input type="number" id="opt-data-surbs" value="2" min="1" max="50" style="width: 60px" />
+            </label>
+            <div style="font-size: 0.85em; color: #888; margin-top: 2px">
+              Optional. Larger pools raise inbound throughput; each outgoing Sphinx packet then carries more reply blocks.
+            </div>
+          </div>
         </div>
       </details>
       <div style="margin-top: 8px">
@@ -56,6 +67,18 @@
       </div>
       <p style="font-size: 0.85em; color: #666">
         Full pipeline: DNS + TCP + TLS (futures-rustls) + HTTP/1.1.
+      </p>
+
+      <hr />
+
+      <!-- DNS resolve -->
+      <h3>DNS Resolve</h3>
+      <div>
+        <input type="text" size="40" id="dns-host" value="example.com" />
+        <button id="btn-dns-resolve">Resolve</button>
+      </div>
+      <p style="font-size: 0.85em; color: #666">
+        UDP / IPR only (no TCP, TLS, or HTTP). Isolates the DNS path; useful when mixFetch misbehaves.
       </p>
 
       <hr />

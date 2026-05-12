@@ -14,6 +14,7 @@
 import initWasm, {
   setupMixTunnel as wasmSetup,
   mixFetch as wasmFetch,
+  mixResolve as wasmResolve,
   disconnectMixTunnel as wasmDisconnect,
   mixSocket as wasmMixSocket,
   wsSend as wasmWsSend,
@@ -36,6 +37,10 @@ const api = {
 
   async mixFetch(url, init) {
     return await wasmFetch(url, init || {});
+  },
+
+  async mixResolve(hostname) {
+    return await wasmResolve(hostname);
   },
 
   async disconnectMixTunnel() {

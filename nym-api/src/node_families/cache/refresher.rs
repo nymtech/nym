@@ -15,10 +15,13 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::error;
 
+/// Periodic refresher feeding the [`NodeFamiliesCacheData`] cache from the
+/// node-families contract, joined with mixnet-contract stake snapshots.
 pub struct NodeFamiliesDataProvider {
+    /// Nyxd client used for contract queries and block timestamp lookups.
     nyxd_client: Client,
 
-    // source of stake/delegation information of nodes:
+    /// Source of per-node stake/delegation information.
     mixnet_contract_cache: MixnetContractCache,
 }
 
@@ -46,11 +49,13 @@ impl NodeFamiliesDataProvider {
         }
     }
 
+    /// Approximate average member age, derived from a single timestamp lookup
+    /// at the mean bonding height. Height-weighted (not time-weighted) so the
+    /// chain RPC count stays O(1) per family instead of O(members).
     async fn average_node_age(&self, members: &[CachedFamilyMember]) -> Duration {
         let mut known_heights = 0;
         let mut running_total = 0;
 
-        // figure out average bonding heights of each node in the family
         for bonding_height in members.iter().filter_map(|m| m.bonding_height) {
             known_heights += 1;
             running_total += bonding_height;
@@ -60,7 +65,6 @@ impl NodeFamiliesDataProvider {
             return Duration::ZERO;
         }
 
-        // determine average node age
         let block_height = running_total / known_heights;
         let Ok(timestamp) = self.nyxd_client.block_timestamp(block_height as u32).await else {
             error!("failed to retrieve block timestamp for block height: {block_height}");
@@ -71,6 +75,9 @@ impl NodeFamiliesDataProvider {
         (OffsetDateTime::now_utc() - t).unsigned_abs()
     }
 
+    /// Pull the full families/members/pending-invitations snapshot from the
+    /// node-families contract and join it with the latest mixnet-contract node
+    /// information for stake/bonding data.
     async fn refresh(&self) -> Result<NodeFamiliesCacheData, NyxdError> {
         // retrieve the base data from the contract
         let raw_families = self.nyxd_client.get_all_families().await?;

@@ -1,7 +1,8 @@
 // Smoke test: verify the internal-dev harness loads WASM and connects
 // to the mixnet via an IPR.
 //
-// Env: IPR_ADDRESS (required, skips otherwise)
+// Env: IPR_ADDRESS (optional). Without it, the page's pre-filled default
+// (internal-dev/index.html `#ipr-address` value attribute) is used.
 
 import { test, expect } from "@playwright/test";
 
@@ -26,13 +27,6 @@ function waitForConsole(page, predicate, timeoutMs = 120_000) {
   });
 }
 
-test.beforeEach(({}, testInfo) => {
-  if (!IPR_ADDRESS) {
-    testInfo.skip();
-    console.log("Skipping: set IPR_ADDRESS env var to run smolmix tests");
-  }
-});
-
 test("WASM loads and tunnel connects to IPR", async ({ page }) => {
   const errors = [];
 
@@ -54,8 +48,11 @@ test("WASM loads and tunnel connects to IPR", async ({ page }) => {
   await page.goto("http://localhost:9001");
   await page.waitForSelector("#btn-setup");
 
-  // Fill IPR address and click setup.
-  await page.fill("#ipr-address", IPR_ADDRESS);
+  // The input is pre-filled with a working default; only override when the
+  // caller passed an explicit IPR_ADDRESS env var.
+  if (IPR_ADDRESS) {
+    await page.fill("#ipr-address", IPR_ADDRESS);
+  }
 
   // Race: tunnel ready OR fatal error — whichever comes first.
   const tunnelReady = waitForConsole(

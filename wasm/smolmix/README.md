@@ -58,39 +58,77 @@ Two WASM exports that mirror the browser's native networking surface:
 - Reactor (`reactor.rs`) - the smoltcp poll loop
 - Bridge (`bridge.rs`) - shuttles packets between the device and the mixnet
 - IPR (`ipr.rs`) - IP Packet Router protocol layer
-- WasmTcpStream / WasmUdpSocket (`tunnel.rs`) - `futures::io::AsyncRead + AsyncWrite` adapters over smoltcp sockets
+- WasmTcpStream / WasmUdpSocket / PooledConn (`stream.rs`) - `futures::io::AsyncRead + AsyncWrite` adapters over smoltcp sockets
+- WASM exports (`lib.rs`, `mixfetch.rs`, `mixsocket.rs`) - the surface JS calls into
+
+### Debug logging
+
+`debug_log!` and `debug_error!` (in `util.rs`) wrap `nym_wasm_utils::console_log!` /
+`console_error!` behind the `debug` cargo feature. Tunnel start/shutdown and the
+IPR connect handshake stay unconditional; everything else is silent in release.
+
+`make build-debug` enables the feature automatically (it builds with
+`--features rustcrypto,debug`). `make build-release-opt` leaves it off, so
+release artefacts ship no verbose logging.
 
 ## Build
 
 ```sh
-# Debug build
-make build-debug
-
-# Release build
-make build-release
-
-# Dev server (webpack, hot reload)
-cd internal-dev && npm run start
+make build              # plain release wasm-pack build
+make build-debug        # dev profile, verbose console logs on
+make build-release-opt  # release + wasm-opt -Oz
+make dev                # build-debug then start internal-dev webpack
 ```
 
-## TODO
-
-### Crate split
-
-The majority of this crate is transport infrastructure (tunnel, bridge,
-reactor, device, IPR, DNS, TCP, TLS). The public API surface is thin -
-just `mixFetch` and `mixSocket` with JS interop.
+## Summary diagram
 
 ```
-smolmix-wasm-core    tunnel, bridge, reactor, device, ipr,
-                     dns, tls, http, error
-                     (pure Rust, no wasm_bindgen exports)
+              JS caller
+                 |
+       +---------+---------+--------------+
+       v                   v              v
+  mixFetch            mixSocket       mixResolve
+  (mixfetch.rs)      (mixsocket.rs)   (mixdns.rs)
+       |                   |              |
+       v                   v              v
+  fetch::fetch       fetch::new_      dns::resolve
+                     connection +     (dns.rs)
+                     async_tungst.
+       \                   |              /
+        \                  v             /
+         '-> WasmTcpStream / WasmUdpSocket  (stream.rs)
+                            |
+                            v  smoltcp socket buffer
+                  +-------- smoltcp::Interface::poll() (reactor.rs)
+                  |
+                  v IP packet
+            WasmDevice.tx_queue  (device.rs)
+                  |
+                  v drained 5ms
+            bridge::start_bridge  (bridge.rs)
+                  |
+                  v
+            ipr::send_ip_packet  (ipr.rs)
+                  |
+                  v  LP-framed DataRequest
+            ClientInput::send  (upstream, nym-wasm-client-core)
+                  |
+                  v  Sphinx-packed
+            JSWebsocket::new  -> WebSocket::open -> web_sys::WebSocket::new
+                  (common/wasm/utils/src/websocket/mod.rs:58)
+                  |
+                  v
+            Single wss:// to chosen gateway
 
-smolmix-fetch        mixFetch + setupMixTunnel/disconnect
-                     (thin WASM wrapper over core)
-
-smolmix-socket       mixSocket + wsSend/wsClose
-                     (thin WASM wrapper over core)
-
-smolmix-wasm         re-exports both (convenience crate)
+  (Separately, at startup + on TopologyRefresher tick:)
+            nym_http_api_client::ClientBuilder
+              -> reqwest -> web_sys::fetch
+              (common/client-core/src/init/helpers.rs:155)
+              |
+              v
+            HTTPS GET https://validator.nymtech.net/...
 ```
+
+Everything else (TLS handshakes, HTTP/1.1 requests, WebSocket frames in
+`mixSocket`) is *content* travelling **inside** that single gateway WSS as
+Sphinx-packed bytes.

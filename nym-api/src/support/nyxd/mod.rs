@@ -206,6 +206,7 @@ impl Client {
         Ok(time)
     }
 
+    /// Tendermint block timestamp at the given height.
     pub(crate) async fn block_timestamp(&self, height: u32) -> Result<TendermintTime, NyxdError> {
         let time = nyxd_query!(self, get_block_timestamp(Some(height)).await?);
 

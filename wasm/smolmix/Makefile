@@ -4,7 +4,7 @@ build-rust:
 	wasm-pack build --target web --no-default-features --features rustcrypto
 
 build-debug:
-	wasm-pack build --debug --target web --no-default-features --features rustcrypto
+	wasm-pack build --debug --target web --no-default-features --features rustcrypto,debug
 
 build-release-opt:
 	wasm-pack build --target web --no-default-features --features rustcrypto
@@ -23,7 +23,8 @@ dev-build: build-debug
 
 # Playwright tests (headless browser).
 # Prereqs: make dev-build && cd tests && npm install && npx playwright install
-# Usage: IPR_ADDRESS=<addr> make test
+# IPR_ADDRESS env var is optional; tests fall back to the default in
+# internal-dev/index.html / internal-dev/headless.js when unset.
 test\:smoke:
 	cd tests && npx playwright test --project=smoke-chromium --project=smoke-firefox --project=smoke-webkit
 

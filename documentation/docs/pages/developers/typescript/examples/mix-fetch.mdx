@@ -14,7 +14,7 @@ An easy way to secure parts or all of your web app is to replace calls to [`fetc
 
 Things to be aware of:
 
-- **CA certificates** are bundled into the WASM binary at build time. They're updated with each SDK release — if you hit a certificate error, update to the latest `@nymproject/mix-fetch-full-fat` version.
+- **CA certificates** are bundled into the WASM binary at build time. They're updated with each SDK release, so if you hit a certificate error, update to the latest `@nymproject/mix-fetch-full-fat` version.
 - **HTTPS and WSS.** When serving your app over HTTPS, the mixnet connection must also use Secure WebSockets to avoid a [mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content) error. Set `forceTls: true` in your `SetupMixFetchOps` config (see below) and the SDK will automatically select a WSS-capable gateway.
 - `mixFetch` supports **concurrent requests** (up to 10) to the same or different URLs.
 
@@ -57,7 +57,7 @@ const mixFetchOptions: SetupMixFetchOps = {
 };
 ```
 
-`preferredGateway` is optional — if omitted, the SDK auto-selects a gateway. You can pin a specific one via [Harbourmaster](https://harbourmaster.nymtech.net/).
+`preferredGateway` is optional. If omitted, the SDK auto-selects a gateway. You can pin a specific one via [Harbourmaster](https://harbourmaster.nymtech.net/).
 
 ## Full Example
 

@@ -18,7 +18,7 @@
 //! - Creating a [`Tunnel`] and using its [`UdpSocket`](smolmix::UdpSocket)
 //! - The `send_to` / `recv_from` API matches [`tokio::net::UdpSocket`]
 //! - Constructing a raw DNS query with [`hickory_proto`] and parsing the
-//!   response — standard crates work unchanged over smolmix UDP
+//!   response. Standard crates work unchanged over smolmix UDP
 //! - The DNS server sees the IPR gateway's IP, not yours
 //!
 //! For a more complete UDP example (multiple lookups + NTP time sync), see
@@ -86,7 +86,7 @@ async fn main() -> Result<(), BoxError> {
     let query_bytes = query.to_vec()?;
 
     // Send the DNS query through the mixnet.
-    // UDP is connectionless — no handshake, just send_to / recv_from.
+    // UDP is connectionless: no handshake, just send_to / recv_from.
     info!("Sending DNS query via mixnet...");
     let mixnet_start = tokio::time::Instant::now();
     udp.send_to(&query_bytes, "1.1.1.1:53".parse()?).await?;

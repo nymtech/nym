@@ -4,7 +4,7 @@
 //! Demonstrates concurrent streams over the Mixnet.
 //!
 //! One sender opens streams to two receivers. Both receivers accept, read,
-//! and reply concurrently using `AsyncRead + AsyncWrite` — the same traits
+//! and reply concurrently using `AsyncRead + AsyncWrite`, the same traits
 //! as TCP sockets.
 //!
 //! ## What this demonstrates
@@ -12,10 +12,10 @@
 //! - `client.listener()` activates stream mode and returns a `MixnetListener`
 //! - `listener.accept()` blocks until a remote peer opens a stream
 //! - `client.open_stream(recipient, surbs)` opens an outbound stream
-//! - `MixnetStream` implements `AsyncRead + AsyncWrite` — standard tokio
+//! - `MixnetStream` implements `AsyncRead + AsyncWrite`. Standard tokio
 //!   I/O (`read`, `write_all`, `flush`) works unchanged
 //! - Multiple streams are multiplexed over a single client connection
-//! - Replies travel via SURBs — receivers never learn the sender's address
+//! - Replies travel via SURBs, so receivers never learn the sender's address
 //! - Streams deregister on `drop`; no close handshake is needed
 //!
 //! ```sh
@@ -32,7 +32,7 @@ const TIMEOUT: Duration = Duration::from_secs(60);
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Connect three ephemeral clients — one sender, two receivers.
+    // Connect three ephemeral clients: one sender, two receivers.
     let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
     println!("Sender address: {}", sender.nym_address());
 
@@ -90,7 +90,7 @@ async fn main() {
     stream_to_b.flush().await.unwrap();
 
     // Both receivers read and reply concurrently.
-    // Replies travel via SURBs — receivers never learn the sender's address.
+    // Replies travel via SURBs, so receivers never learn the sender's address.
     println!("\nBoth receivers reading and replying concurrently...");
     let reply_a = b"reply from A";
     let reply_b = b"reply from B";
@@ -163,7 +163,7 @@ async fn main() {
 
     println!("\nConcurrent round-trips successful!");
 
-    // Clean up — streams deregister from the router on drop.
+    // Clean up: streams deregister from the router on drop.
     // No close message is sent; the remote side sees EOF after idle timeout.
     drop(stream_to_a);
     drop(stream_to_b);

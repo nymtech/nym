@@ -1,13 +1,13 @@
 //! Anonymous replies using SURBs (Single Use Reply Blocks).
 //!
 //! Sends a message to self, extracts the `AnonymousSenderTag` from the
-//! incoming message, and replies using `send_reply()` — without knowing
+//! incoming message, and replies using `send_reply()` without knowing
 //! the sender's Nym address. The SDK bundles SURBs with every outgoing
 //! message by default, so the recipient can always reply anonymously.
 //!
 //! ## What this demonstrates
 //!
-//! - Every incoming message carries a `sender_tag` — an opaque
+//! - Every incoming message carries a `sender_tag`, an opaque
 //!   [`AnonymousSenderTag`] that enables replies without revealing the
 //!   sender's address
 //! - `send_reply()` consumes a SURB to route the reply back through the
@@ -52,7 +52,7 @@ async fn main() {
     // Receive the message.
     println!("Waiting for message\n");
     let mut message: Vec<ReconstructedMessage> = Vec::new();
-    // Filter empty messages — these are SURB replenishment requests.
+    // Filter empty messages: these are SURB replenishment requests.
     while let Some(new_message) = client.wait_for_messages().await {
         if new_message.is_empty() {
             continue;

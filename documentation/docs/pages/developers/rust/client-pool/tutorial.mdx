@@ -75,7 +75,7 @@ async fn main() {
         pool_bg.start().await.unwrap();
     });
 
-    println!("Pool started — waiting for clients to connect...");
+    println!("Pool started, waiting for clients to connect...");
     tokio::time::sleep(Duration::from_secs(15)).await;
 
     // Check how many are ready
@@ -177,7 +177,7 @@ RUST_LOG=info cargo run
 You'll see output like:
 
 ```
-Pool started — waiting for clients to connect...
+Pool started, waiting for clients to connect...
 Pool has 3 clients ready
 Task 1: got client 8gk4Y...@2xU4d... from pool
 Task 2: got client F3qR7...@9nK2m... from pool
@@ -237,7 +237,7 @@ async fn main() {
         pool_bg.start().await.unwrap();
     });
 
-    println!("Pool started — waiting for clients to connect...");
+    println!("Pool started, waiting for clients to connect...");
     tokio::time::sleep(Duration::from_secs(15)).await;
 
     let count = pool.get_client_count().await;

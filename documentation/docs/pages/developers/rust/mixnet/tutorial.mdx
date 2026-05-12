@@ -59,7 +59,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Sent — waiting for arrival...");
+    println!("Sent, waiting for arrival...");
 ```
 
 <Callout type="info">
@@ -114,7 +114,7 @@ RUST_LOG=info cargo run
 
 ```
 Connected: 8gk4Y...@2xU4d...
-Sent — waiting for arrival...
+Sent, waiting for arrival...
 Received: hello from the mixnet!
 Reply: hello back, anonymously!
 ```
@@ -143,12 +143,12 @@ async fn main() {
     let our_address = client.nym_address();
     println!("Address: {our_address}");
 
-    // Same API as before — send, receive, SURB reply.
+    // Same API as before: send, receive, SURB reply.
     client
         .send_plain_message(*our_address, "hello from persistent client!")
         .await
         .unwrap();
-    println!("Sent — waiting for arrival...");
+    println!("Sent, waiting for arrival...");
 
     let message = loop {
         if let Some(msgs) = client.wait_for_messages().await {
@@ -248,7 +248,7 @@ async fn main() {
         .send_plain_message(*our_address, "hello from the mixnet!")
         .await
         .unwrap();
-    println!("Sent — waiting for arrival...");
+    println!("Sent, waiting for arrival...");
 
     let message = loop {
         if let Some(msgs) = client.wait_for_messages().await {
@@ -304,7 +304,7 @@ async fn main() {
         .send_plain_message(*our_address, "hello from persistent client!")
         .await
         .unwrap();
-    println!("Sent — waiting for arrival...");
+    println!("Sent, waiting for arrival...");
 
     let message = loop {
         if let Some(msgs) = client.wait_for_messages().await {

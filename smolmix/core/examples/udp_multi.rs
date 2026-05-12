@@ -2,7 +2,7 @@
 
 //! Multiple DNS lookups + NTP time sync through the Nym mixnet.
 //!
-//! Resolves several hostnames and syncs the clock via NTP — all over
+//! Resolves several hostnames and syncs the clock via NTP, all over
 //! mixnet UDP. Demonstrates timeout handling, socket reuse, and raw
 //! protocol construction over smolmix's `UdpSocket`.
 //!
@@ -57,7 +57,7 @@ async fn main() -> Result<(), BoxError> {
     }
     let tunnel = builder.build().await?;
     println!(
-        "Tunnel ready — allocated IP: {}",
+        "Tunnel ready, allocated IP: {}",
         tunnel.allocated_ips().ipv4
     );
 

@@ -18,8 +18,8 @@ Two integration options are available, both delivered as packages bundled into y
 
 | Module | What it does | Links |
 |---|---|---|
-| **mixFetch** | Drop-in `fetch` replacement — HTTP(S) requests via Exit Gateways with an embedded CA store for browser-to-destination TLS over the Mixnet | [docs](/developers/typescript#mixfetch) · [example](/developers/typescript/playground/mixfetch) |
-| **WASM Client** | Sphinx packets and cover traffic in WASM, sent over WebSocket to the Entry Gateway — messaging mode only (text/binary payloads), runs in a web worker | [docs](/developers/typescript#mixnet-client) · [example](/developers/typescript/playground/traffic) |
+| **mixFetch** | Drop-in `fetch` replacement. Routes HTTP(S) requests via Exit Gateways with an embedded CA store for browser-to-destination TLS over the Mixnet | [docs](/developers/typescript#mixfetch) · [example](/developers/typescript/playground/mixfetch) |
+| **WASM Client** | Sphinx packets and cover traffic in WASM, sent over WebSocket to the Entry Gateway. Messaging mode only (text/binary payloads), runs in a web worker | [docs](/developers/typescript#mixnet-client) · [example](/developers/typescript/playground/traffic) |
 
 <Callout type="info">
 `mixFetch` currently supports a maximum of 10 concurrent in-flight requests. `mixFetchv2`, which will function as a general-purpose userspace IP stack, is in development.

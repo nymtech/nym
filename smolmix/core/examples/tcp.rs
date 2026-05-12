@@ -4,7 +4,7 @@
 //!
 //! Fetches Cloudflare's `/cdn-cgi/trace` over clearnet (reqwest) and through
 //! the mixnet (hyper over tokio-rustls over smolmix), then compares the exit
-//! IPs. The mixnet path should show a different IP — traffic exits through
+//! IPs. The mixnet path should show a different IP, since traffic exits through
 //! an IPR (Internet Packet Router) gateway, not your machine.
 //!
 //! ```text
@@ -18,11 +18,11 @@
 //! ## What this demonstrates
 //!
 //! - Creating a [`Tunnel`] and connecting TCP through the mixnet
-//! - Layering TLS ([`tokio_rustls`]) on a [`smolmix::TcpStream`] — it
+//! - Layering TLS ([`tokio_rustls`]) on a [`smolmix::TcpStream`]: it
 //!   implements `AsyncRead + AsyncWrite`, so standard crates work unchanged
 //! - Using [`hyper`]'s HTTP/1.1 client over a custom transport via
 //!   [`TokioIo`](hyper_util::rt::TokioIo)
-//! - The exit IP differs from clearnet — the remote server sees the IPR
+//! - The exit IP differs from clearnet. The remote server sees the IPR
 //!   gateway's IP, not yours
 //!
 //! ```sh
@@ -89,7 +89,7 @@ async fn main() -> Result<(), BoxError> {
 
     // TCP + TLS + HTTP handshakes through the mixnet.
     // tcp_connect() returns a TcpStream that implements AsyncRead + AsyncWrite.
-    // tokio-rustls accepts it directly — no adapters or trait shims needed.
+    // tokio-rustls accepts it directly, no adapters or trait shims needed.
     // TokioIo then bridges hyper's I/O traits with tokio's.
     let setup_start = tokio::time::Instant::now();
 
@@ -111,7 +111,7 @@ async fn main() -> Result<(), BoxError> {
     info!("Setup complete ({:?})", setup_duration);
 
     // Send request and read response.
-    // From here the code is identical to any hyper client — the mixnet
+    // From here the code is identical to any hyper client. The mixnet
     // transport is invisible to higher layers.
     let request_start = tokio::time::Instant::now();
 

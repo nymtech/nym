@@ -14,14 +14,14 @@
  *   pages/developers/rust/client-pool/tutorial.mdx
  *   public/llms.txt
  *
- * RUST_MSRV is imported directly by all pages that display the Rust version —
- * no manual file edits needed for MSRV bumps:
+ * RUST_MSRV is imported directly by all pages that display the Rust version,
+ * so no manual file edits are needed for MSRV bumps:
  *
  *   pages/developers/smolmix.mdx
  *   pages/developers/rust/importing.mdx
  */
 
-// nym-sdk / nym-bin-common / nym-network-defaults — Rust SDK crates
+// nym-sdk / nym-bin-common / nym-network-defaults (Rust SDK crates)
 export const NYM_SDK_VERSION = "1.21.0";
 
 // smolmix standalone crate

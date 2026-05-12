@@ -16,7 +16,7 @@
 //! ## What this demonstrates
 //!
 //! - Connection reuse: a single WebSocket handles both burst traffic and
-//!   idle probes — the setup cost is paid once
+//!   idle probes, since the setup cost is paid once
 //! - Per-message latency vs payload size over the mixnet
 //! - Idle timeout characterisation: clearnet baseline isolates whether
 //!   connection drops are server-side or mixnet-side
@@ -217,7 +217,7 @@ async fn main() -> Result<(), BoxError> {
     let avg_rtt = total_rtt / msg_count as u32;
     info!("  avg RTT: {}", fmt_secs(avg_rtt));
 
-    // Idle survival — wait, then probe
+    // Idle survival: wait, then probe
     info!("Starting idle survival phase...");
     let mut mixnet_idle: Vec<(u64, Option<Duration>)> = Vec::new();
 

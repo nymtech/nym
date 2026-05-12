@@ -4,7 +4,7 @@
 //!
 //! Sends a message to a public echo server via clearnet and via the mixnet,
 //! then compares responses and timing. The clearnet and mixnet paths use the
-//! *exact same* TLS + WebSocket stack — only the TCP transport differs.
+//! *exact same* TLS + WebSocket stack. Only the TCP transport differs.
 //!
 //! ```text
 //! tokio-tungstenite (WebSocket framing)
@@ -16,10 +16,10 @@
 //! ## What this demonstrates
 //!
 //! - Composability: [`tokio_tungstenite::client_async`] accepts any
-//!   `AsyncRead + AsyncWrite` stream — it doesn't know or care that
+//!   `AsyncRead + AsyncWrite` stream. It doesn't know or care that
 //!   TLS is backed by the mixnet rather than a kernel TCP socket
 //! - The same `tls_connector()` and WebSocket upgrade code works for both
-//!   clearnet and mixnet — you only swap the underlying TCP stream
+//!   clearnet and mixnet; you only swap the underlying TCP stream
 //! - The echo server sees the IPR gateway's IP, not yours
 //!
 //! ```sh
@@ -57,7 +57,7 @@ async fn main() -> Result<(), BoxError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    // Resolve hostname via clearnet DNS — you can resolve via the mixnet (see UDP example) but for this test it's not necessary
+    // Resolve hostname via clearnet DNS. You can resolve via the mixnet (see UDP example) but for this test it's not necessary
     let addr = tokio::net::lookup_host(format!("{WS_HOST}:443"))
         .await?
         .next()

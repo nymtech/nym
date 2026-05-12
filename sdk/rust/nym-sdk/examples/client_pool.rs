@@ -13,7 +13,7 @@
 //! - `pool.start()` runs a background loop that creates clients whenever
 //!   the pool drops below the reserve
 //! - `pool.get_mixnet_client()` pops a client; returns `None` if empty
-//! - Clients are consumed, not returned — the pool automatically creates
+//! - Clients are consumed, not returned. The pool automatically creates
 //!   replacements in the background
 //! - `pool.disconnect_pool()` shuts down all remaining clients
 //!

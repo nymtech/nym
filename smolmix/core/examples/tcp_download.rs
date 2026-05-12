@@ -3,7 +3,7 @@
 //! Multi-request HTTPS download through the Nym mixnet.
 //!
 //! Resolves a hostname via mixnet UDP DNS, then makes multiple HTTP/1.1
-//! requests over a single keep-alive TCP+TLS connection — all routed
+//! requests over a single keep-alive TCP+TLS connection, all routed
 //! through the mixnet. Demonstrates DNS resolution, connection reuse,
 //! and progress feedback.
 //!
@@ -67,7 +67,7 @@ async fn main() -> Result<(), BoxError> {
     }
     let tunnel = builder.build().await?;
     println!(
-        "Tunnel ready — allocated IP: {}",
+        "Tunnel ready, allocated IP: {}",
         tunnel.allocated_ips().ipv4
     );
 

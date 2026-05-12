@@ -73,7 +73,7 @@ smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
 ## Security model
 
 <Callout type="warning">
-Traffic is Sphinx-encrypted inside the mixnet, but between the exit gateway and the remote host it travels as **normal internet traffic**. Always encrypt the final hop with TLS ([`rustls`](https://docs.rs/rustls)), Noise Protocol ([`snow`](https://docs.rs/snow)), etc.
+Traffic is Sphinx-encrypted inside the mixnet. Past the Exit Gateway, it travels over the public internet to the destination, the same as any other server-initiated connection. Protect the payload at the application layer with TLS ([`rustls`](https://docs.rs/rustls)), Noise Protocol ([`snow`](https://docs.rs/snow)), or equivalent, just as you would on a direct connection.
 </Callout>
 
 ### What's protected

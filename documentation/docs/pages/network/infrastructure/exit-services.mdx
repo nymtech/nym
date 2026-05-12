@@ -32,7 +32,7 @@ Because it operates at the application layer, the NR:
 - Can enforce allow/deny lists on destination hosts and ports
 - Sees the destination hostname and port, but not the contents if TLS is used
 
-**Used by:** the [SDK's SOCKS client](/developers/rust/mixnet), [standalone SOCKS5 client](/developers/clients/socks5), and [mixFetch](/developers/typescript#mixfetch) (which wraps SOCKS requests in a browser-friendly `fetch` API).
+**Used by:** the [SDK's SOCKS client](/developers/rust/mixnet), [standalone SOCKS5 client](/developers/clients/socks5), and [mixFetch](/developers/mix-fetch) (which wraps SOCKS requests in a browser-friendly `fetch` API).
 
 ## IP Packet Router
 
@@ -56,7 +56,7 @@ Because it operates at the IP layer, the IPR:
 - Does not see contents if the client uses TLS or another encryption layer
 
 <Callout type="warning">
-In both services, traffic between the Exit Gateway and the destination travels as **normal internet traffic**. The mixnet protects sender anonymity (the destination sees the gateway's IP, not yours), but does not encrypt the final hop. Use TLS or another end-to-end encryption layer to protect payload confidentiality.
+In both services, traffic between the Exit Gateway and the destination travels over the public internet, exactly as it would from any other server. The mixnet protects sender anonymity (the destination sees the gateway's IP, not yours), but does not encrypt the payload past the gateway. Use TLS or another application-layer cipher to protect payload confidentiality, just as you would on a direct connection.
 </Callout>
 
 **Used by:** [NymVPN anonymous mode](/network/dvpn-mode/protocol) (5-hop mixnet routing to the IPR), and [`smolmix`](/developers/smolmix) (programmatic `TcpStream`/`UdpSocket` access to the IPR via the Rust SDK).

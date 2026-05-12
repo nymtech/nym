@@ -1,24 +1,22 @@
 {
-  "index": "Introduction",
+  "index": "Overview",
+  "integrations": "Choosing an Approach",
+  "concepts": "Key Concepts",
+
   "--": {
     "type": "separator",
-    "title": "Mixnet Integrations"
-  },
-  "integrations": "Overview - Start Here!",
-  "native": "Native Apps",
-  "browsers": "Browser Apps",
-  "concepts": "Nym-Specific Concepts for Integrations",
-  "-----": {
-    "type": "separator",
-    "title": "Standalone Crates"
+    "title": "Rust"
   },
   "smolmix": "smolmix",
+  "rust": "nym-sdk",
+
   "-": {
     "type": "separator",
-    "title": "SDKs"
+    "title": "TypeScript"
   },
-  "rust": "Rust SDK",
-  "typescript": "Typescript SDK",
+  "mix-fetch": "mix-fetch",
+  "typescript": "TypeScript SDK",
+
   "---": {
     "type": "separator",
     "title": "Extras"

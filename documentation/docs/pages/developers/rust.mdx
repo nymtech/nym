@@ -1,16 +1,29 @@
 ---
-title: "Nym Rust SDK: Privacy Apps for the Mixnet"
-description: "Rust SDK reference for building privacy applications on the Nym mixnet. Covers the Mixnet client, Stream multiplexing, Client Pool, and code examples."
+title: "nym-sdk: Rust SDK for the Nym Mixnet"
+description: "Rust SDK reference for building privacy applications on the Nym mixnet. Covers the Mixnet client, Stream multiplexing, Client Pool, FFI bindings, and code examples."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-03-13"
+lastUpdated: "2026-05-12"
 ---
 
-# Rust SDK
+# nym-sdk
 
 import { Callout } from 'nextra/components'
 
-All modules share a common `MixnetClient` that manages gateway connections, Sphinx packet encryption, routing, and cover traffic.
+`nym-sdk` is the Rust SDK for the Nym mixnet. All modules share a common `MixnetClient` that manages gateway connections, Sphinx encryption, and cover traffic.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Your Rust app (alice)                                       │
+│       └─ MixnetClient (Sphinx layering, cover traffic)       │
+│            └─ WebSocket to entry gateway                     │
+│                 └─ Nym mixnet (entry → 3 mix layers → exit)  │
+│                      └─ MixnetClient (bob)                   │
+│                           └─ Your Rust app (bob)             │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Both sides run a `MixnetClient`. Sphinx encryption protects every hop end-to-end; neither gateway nor any mix node can link sender to receiver.
 
 <Callout type="info">
 Full API reference: [**docs.rs/nym-sdk**](https://docs.rs/nym-sdk/latest/nym_sdk/)
@@ -20,12 +33,21 @@ For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For set
 
 ## Modules
 
-- **[Stream](./rust/stream)**: multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet. **If you're used to TCP sockets, start here.**
+| Module | What it does | Status |
+|---|---|---|
+| [**Stream**](./rust/stream) | Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet, the closest analogue to TCP sockets. | Recommended |
+| [**Mixnet**](./rust/mixnet) | Raw message payloads, independently routed, no connections or ordering. Full control over the communication model. | Stable |
+| [**Client Pool**](./rust/client-pool) | Keeps ready-to-use `MixnetClient` instances warm for bursty workloads. | Stable |
+| [**TcpProxy**](./rust/tcpproxy) | TCP socket proxying with session management and message ordering. | Deprecated |
+| [**FFI**](./rust/ffi) | Go and C/C++ bindings. | Stable |
 
-- **[Mixnet](./rust/mixnet)**: raw message payloads, independently routed, no connections or ordering. Use this when you want full control over the communication model.
+<Callout type="error">
+**TcpProxy is deprecated.** Use the [Stream module](./rust/stream) for new projects.
+</Callout>
 
-- **[Client Pool](./rust/client-pool)**: keeps ready-to-use `MixnetClient` instances warm for bursty workloads.
+## Proxy-mode crates
 
-- **[TcpProxy](./rust/tcpproxy)** *(deprecated)*: TCP socket proxying with session management and message ordering. Use Stream for new projects.
+For proxy-mode integrations (reaching third-party services through an Exit Gateway), see also:
 
-- **[FFI](./rust/ffi)**: Go and C/C++ bindings.
+- [**`smolmix`**](/developers/smolmix): `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Drop-in compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem.
+- [**SOCKS Client**](./rust/mixnet): SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester. Works with any SOCKS-capable application without code changes.

@@ -15,11 +15,11 @@
         "href": "/developers/integrations"
       },
       "rust": {
-        "title": "Rust SDK",
+        "title": "nym-sdk",
         "href": "/developers/rust"
       },
       "typescript": {
-        "title": "Typescript SDK",
+        "title": "TypeScript SDK",
         "href": "/developers/typescript"
       }
     }

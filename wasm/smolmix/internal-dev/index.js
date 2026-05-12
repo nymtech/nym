@@ -102,6 +102,16 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
   const disablePoisson = document.getElementById("opt-disable-poisson").checked;
   const disableCover = document.getElementById("opt-disable-cover").checked;
 
+  // Clamp to the same 1..50 range advertised by the inputs, in case a user
+  // pastes a wild value past HTML validation.
+  const clampSurbs = (n) => Math.min(50, Math.max(1, n));
+  const openReplySurbs = clampSurbs(
+    parseInt(document.getElementById("opt-open-surbs").value, 10) || 5
+  );
+  const dataReplySurbs = clampSurbs(
+    parseInt(document.getElementById("opt-data-surbs").value, 10) || 2
+  );
+
   display(
     `setupMixTunnel (clientId=${clientId}, IPR: ${iprAddress.slice(
       0,
@@ -117,6 +127,8 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
       forceTls,
       disablePoissonTraffic: disablePoisson,
       disableCoverTraffic: disableCover,
+      openReplySurbs,
+      dataReplySurbs,
     });
     display("setupMixTunnel OK — tunnel ready", "green");
     statusEl.textContent = "Connected";
@@ -168,6 +180,32 @@ async function doGet(url) {
 document.getElementById("btn-https").addEventListener("click", () => {
   doGet(document.getElementById("https-url").value.trim());
 });
+
+// DNS resolve
+
+document
+  .getElementById("btn-dns-resolve")
+  .addEventListener("click", async () => {
+    const hostname = document.getElementById("dns-host").value.trim();
+    if (!hostname) {
+      display("Hostname is required", "red");
+      return;
+    }
+
+    const btn = document.getElementById("btn-dns-resolve");
+    btn.disabled = true;
+    display(`[dns] resolve ${hostname}`);
+    const t0 = performance.now();
+    try {
+      const ip = await api.mixResolve(hostname);
+      const ms = (performance.now() - t0).toFixed(0);
+      display(`[dns] ${hostname} => ${ip} (${ms} ms)`, "green");
+    } catch (e) {
+      display(`[dns] resolve failed: ${e}`, "red");
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
 // POST
 

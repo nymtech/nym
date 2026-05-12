@@ -9,8 +9,6 @@
 //!
 //! **Incoming** (mixnet → smoltcp): receive `ReconstructedMessage` batches,
 //! LP-decode, parse IPR responses, unbundle IP packets, push to device rx.
-//!
-//! Reference: `smolmix/core/src/bridge.rs`
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
@@ -29,16 +27,16 @@ use crate::reactor::{ReactorNotify, SmoltcpStack};
 /// Limits how long the bridge spends in the serial send loop before
 /// returning to check for incoming messages. Remaining packets are
 /// picked up on the next tick.
-const MAX_TX_PER_TICK: usize = 8;
+const MAX_OUTGOING_PER_TICK: usize = 8;
 
 /// Start the bridge as a `spawn_local` background task.
 ///
 /// Each iteration:
 /// 1. Wait for an event (incoming message OR timer tick)
 /// 2. Drain all pending incoming messages (non-blocking)
-/// 3. Drain outgoing packets (capped at `MAX_TX_PER_TICK`)
+/// 3. Drain outgoing packets (capped at `MAX_OUTGOING_PER_TICK`)
 ///
-/// Incoming is processed first to prevent starvation — the timer can
+/// Incoming is processed first to prevent starvation; the timer can
 /// dominate `select!` if always ready.
 #[allow(clippy::too_many_arguments)]
 pub fn start_bridge(
@@ -50,6 +48,7 @@ pub fn start_bridge(
     seq: Arc<AtomicU32>,
     notify_reactor: ReactorNotify,
     shutdown: Arc<AtomicBool>,
+    data_surbs: u32,
 ) {
     spawn_local(async move {
         let mut tx_interval = wasmtimer::tokio::interval(Duration::from_millis(5));
@@ -64,7 +63,7 @@ pub fn start_bridge(
             futures::select! {
                 batch = msg_receiver.next().fuse() => {
                     let Some(messages) = batch else {
-                        nym_wasm_utils::console_error!(
+                        crate::util::debug_error!(
                             "[bridge] message channel closed"
                         );
                         break;
@@ -85,11 +84,11 @@ pub fn start_bridge(
             // Drain outgoing packets (capped to avoid starving incoming).
             let packets: Vec<Vec<u8>> = {
                 let mut s = stack.lock().unwrap();
-                s.device.drain_tx().take(MAX_TX_PER_TICK).collect()
+                s.device.drain_tx().take(MAX_OUTGOING_PER_TICK).collect()
             };
 
             if !packets.is_empty() {
-                nym_wasm_utils::console_log!("[bridge] ▲ tx");
+                crate::util::debug_log!("[bridge] ▲ tx");
             }
             for packet in packets {
                 let current_seq = seq.fetch_add(1, Ordering::Relaxed);
@@ -99,10 +98,11 @@ pub fn start_bridge(
                     stream_id,
                     current_seq,
                     &packet,
+                    data_surbs,
                 )
                 .await
                 {
-                    nym_wasm_utils::console_error!("[bridge] send error: {e}");
+                    crate::util::debug_error!("[bridge] send error: {e}");
                 }
             }
         }
@@ -129,13 +129,13 @@ fn process_incoming(
             }
             Ok(None) => {}
             Err(e) => {
-                nym_wasm_utils::console_error!("[bridge] incoming error: {e}");
+                crate::util::debug_error!("[bridge] incoming error: {e}");
             }
         }
     }
 
     if pushed > 0 {
-        nym_wasm_utils::console_log!("[bridge] ▼ rx");
+        crate::util::debug_log!("[bridge] ▼ rx");
         let _ = notify_reactor.unbounded_send(());
     }
 }

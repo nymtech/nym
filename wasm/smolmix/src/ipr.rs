@@ -10,8 +10,6 @@
 //! Outgoing: IP packet → bundle → DataRequest → to_bytes → LP frame → mixnet
 //! Incoming: mixnet → LP decode → IpPacketResponse → unbundle → IP packets
 //! ```
-//!
-//! Reference: `sdk/rust/nym-sdk/src/ipr_wrapper/ip_mix_stream.rs`
 
 use bytes::{Bytes, BytesMut};
 use futures::channel::mpsc;
@@ -32,16 +30,28 @@ use nym_wasm_client_core::ReconstructedMessage;
 
 use crate::error::FetchError;
 
-/// SURBs for the LP Open frame — higher than DATA so the IPR has a reply
-/// pool before data flows back.
-const OPEN_REPLY_SURBS: u32 = 5;
-
-/// SURBs per data message (replenishes reply pool).
+/// Reply-SURB counts attached to the LP Open and Data frames the tunnel
+/// sends to the IPR.
 ///
-/// Trade-off: fewer SURBs = smaller outgoing packets (faster sends),
-/// but limits download throughput (IPR can only reply with N packets).
-/// 2 fits in 1 Sphinx packet with minimal overhead.
-const DATA_REPLY_SURBS: u32 = 2;
+/// SURBs are single-use reply blocks attached to outbound anonymous messages
+/// so the IPR can reply without learning the sender. Higher counts cost
+/// outgoing bandwidth (each SURB lives in the Sphinx packet) but raise the
+/// reply throughput ceiling for the corresponding direction.
+#[derive(Clone, Copy)]
+pub struct SurbsConfig {
+    /// SURBs attached to the LP Open frame and the ConnectRequest. The IPR
+    /// needs a small reply pool before any data flows back. Default 5.
+    pub open: u32,
+    /// SURBs attached to each LP Data frame the bridge sends. Default 2;
+    /// fits in one Sphinx packet with minimal outgoing overhead.
+    pub data: u32,
+}
+
+impl Default for SurbsConfig {
+    fn default() -> Self {
+        Self { open: 5, data: 2 }
+    }
+}
 
 /// Timeout for the IPR connect handshake.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
@@ -58,16 +68,17 @@ pub async fn open_and_connect(
     receiver: &mut ReconstructedReceiver,
     ipr_address: &Recipient,
     stream_id: u64,
+    surbs: SurbsConfig,
 ) -> Result<IpPair, FetchError> {
     nym_wasm_utils::console_log!("[ipr] sending connect handshake (stream={stream_id:#018x})...");
 
-    // 1. Send LP Open frame (empty payload, seq=0) — establishes the stream
+    // 1. Send LP Open frame (empty payload, seq=0); establishes the stream
     let open_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Open, 0, &[]);
-    send_anonymous(client_input, ipr_address, open_frame, OPEN_REPLY_SURBS).await?;
+    send_to_ipr(client_input, ipr_address, open_frame, surbs.open).await?;
 
     // 2. Send v9 ConnectRequest as LP Data frame (seq=0).
     //
-    // Data frames start at seq=0 — the Open frame's seq field is NOT part
+    // Data frames start at seq=0; the Open frame's seq field is NOT part
     // of the Data sequence space.  The receiver's reorder buffer only tracks
     // Data frames and expects the first one at seq=0.  This matches native
     // MixnetStream, which initialises next_seq=0 independently of the Open.
@@ -76,7 +87,7 @@ pub async fn open_and_connect(
         .to_bytes()
         .map_err(|e| FetchError::Tunnel(format!("failed to serialise connect request: {e}")))?;
     let data_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Data, 0, &request_bytes);
-    send_anonymous(client_input, ipr_address, data_frame, DATA_REPLY_SURBS).await?;
+    send_to_ipr(client_input, ipr_address, data_frame, surbs.data).await?;
 
     // 3. Wait for ConnectSuccess response
     let ip_pair = wasmtimer::tokio::timeout(CONNECT_TIMEOUT, async {
@@ -125,6 +136,7 @@ pub async fn send_ip_packet(
     stream_id: u64,
     seq: u32,
     packet: &[u8],
+    data_surbs: u32,
 ) -> Result<(), FetchError> {
     let bundled = nym_ip_packet_requests::codec::MultiIpPacketCodec::bundle_one_packet(
         Bytes::copy_from_slice(packet),
@@ -138,7 +150,7 @@ pub async fn send_ip_packet(
 
     // LP-frame and send
     let frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Data, seq, &request_bytes);
-    send_anonymous(client_input, ipr_address, frame, DATA_REPLY_SURBS).await
+    send_to_ipr(client_input, ipr_address, frame, data_surbs).await
 }
 
 /// Parse an incoming ReconstructedMessage into individual IP packets.
@@ -166,7 +178,7 @@ pub fn parse_incoming(
             packets,
         )) => Ok(Some(packets.into_iter().map(|b| b.to_vec()).collect())),
         Some(nym_ip_packet_requests::response_helpers::MixnetMessageOutcome::Disconnect) => {
-            nym_wasm_utils::console_error!("[ipr] IPR sent DISCONNECT");
+            crate::util::debug_error!("[ipr] IPR sent DISCONNECT");
             Err(FetchError::Tunnel("IPR disconnected".into()))
         }
         None => Ok(None),
@@ -211,7 +223,7 @@ fn decode_lp_stream(data: &[u8]) -> Option<(SphinxStreamFrameAttributes, Bytes)>
 // Mixnet send helper
 
 /// Send an anonymous mixnet message to the IPR with reply SURBs.
-async fn send_anonymous(
+async fn send_to_ipr(
     client_input: &Arc<ClientInput>,
     recipient: &Recipient,
     data: Vec<u8>,

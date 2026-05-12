@@ -1,6 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 
-//! WASM mixnet tunnel — manages a smoltcp TCP/IP stack connected to the Nym
+//! WASM mixnet tunnel. Manages a smoltcp TCP/IP stack connected to the Nym
 //! mixnet via an IPR (IP Packet Router), running in a browser Web Worker.
 //!
 //! Data flow:
@@ -12,17 +12,15 @@
 use std::collections::HashMap;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
-use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll};
+use std::task::Poll;
 
 use futures::channel::mpsc;
-use futures::io::{AsyncRead, AsyncWrite};
-use smoltcp::iface::{Config, SocketHandle, SocketSet};
+use smoltcp::iface::{Config, SocketSet};
 use smoltcp::socket::tcp as smoltcp_tcp;
 use smoltcp::socket::udp as smoltcp_udp;
-use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, IpEndpoint, Ipv4Address};
+use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address};
 
 use nym_ip_packet_requests::IpPair;
 use nym_wasm_client_core::client::base_client::{BaseClientBuilder, ClientInput};
@@ -42,6 +40,7 @@ use crate::device::WasmDevice;
 use crate::error::FetchError;
 use crate::ipr;
 use crate::reactor::{self, smoltcp_now, ReactorNotify, SmoltcpStack, SocketKind, SocketWakers};
+use crate::stream::{to_smoltcp_endpoint, PooledConn, WasmTcpStream, WasmUdpSocket};
 
 /// Starting ephemeral port for TCP/UDP sockets.
 const EPHEMERAL_PORT_START: u16 = 49152;
@@ -57,6 +56,9 @@ pub struct TunnelOpts {
     pub disable_poisson_traffic: bool,
     /// Disable cover traffic loop (default: `false`).
     pub disable_cover_traffic: bool,
+    /// Reply-SURB counts for the LP Open frame and each Data frame the
+    /// bridge sends. See [`ipr::SurbsConfig`]. Defaults to open=5, data=2.
+    pub surbs: ipr::SurbsConfig,
 }
 
 /// The mixnet tunnel. Owns the smoltcp stack, base client, and connection pool.
@@ -84,23 +86,22 @@ pub struct WasmTunnel {
     _shutdown_handle: ShutdownTracker,
 }
 
-/// A pooled connection — TLS or plain TCP. Delegates `AsyncRead + AsyncWrite`.
-pub(crate) enum PooledConn {
-    Tls(futures_rustls::client::TlsStream<WasmTcpStream>),
-    Plain(WasmTcpStream),
+/// Handles the Nym base client hands back after `start_base()`.
+struct ClientHandles {
+    client_input: Arc<ClientInput>,
+    reconstructed_receiver: ipr::ReconstructedReceiver,
+    request_sender: ReceivedBufferRequestSender,
+    shutdown_handle: ShutdownTracker,
 }
 
-/// TCP stream over the WASM tunnel. Implements `futures::io::{AsyncRead, AsyncWrite}`.
-pub struct WasmTcpStream {
+/// Live smoltcp pieces returned by `init_network_stack`.
+///
+/// The reactor and bridge are already spawned by the time this returns;
+/// the values inside are what the `WasmTunnel` struct stores to drive them.
+struct NetworkStack {
     stack: Arc<Mutex<SmoltcpStack>>,
-    handle: SocketHandle,
-    notify: ReactorNotify,
-}
-
-/// UDP socket over the WASM tunnel. Used for DNS queries.
-pub struct WasmUdpSocket {
-    stack: Arc<Mutex<SmoltcpStack>>,
-    handle: SocketHandle,
+    seq: Arc<AtomicU32>,
+    shutdown: Arc<AtomicBool>,
     notify: ReactorNotify,
 }
 
@@ -110,11 +111,63 @@ impl WasmTunnel {
         let ipr_address = opts.ipr_address;
         nym_wasm_utils::console_log!("[smolmix] starting tunnel...");
 
-        // -- 1. Start the Nym base client --
-        let client_id = opts.client_id;
+        let ClientHandles {
+            client_input,
+            mut reconstructed_receiver,
+            request_sender,
+            shutdown_handle,
+        } = Self::start_nym_client(&opts).await?;
 
+        let stream_id: u64 = rand::random();
+        let allocated_ips = Self::ipr_handshake(
+            &client_input,
+            &mut reconstructed_receiver,
+            &ipr_address,
+            stream_id,
+            opts.surbs,
+        )
+        .await?;
+
+        let NetworkStack {
+            stack,
+            seq,
+            shutdown,
+            notify,
+        } = Self::init_network_stack(
+            allocated_ips,
+            client_input.clone(),
+            reconstructed_receiver,
+            ipr_address,
+            stream_id,
+            opts.surbs.data,
+        );
+
+        nym_wasm_utils::console_log!("[smolmix-wasm] tunnel ready");
+
+        Ok(Self {
+            stack,
+            client_input,
+            ipr_address,
+            stream_id,
+            seq,
+            notify,
+            shutdown,
+            next_port: AtomicU16::new(EPHEMERAL_PORT_START),
+            allocated_ips,
+            dns_cache: Mutex::new(HashMap::new()),
+            dns_lock: futures::lock::Mutex::new(()),
+            conn_pool: Mutex::new(HashMap::new()),
+            origin_locks: Mutex::new(HashMap::new()),
+            _request_sender: request_sender,
+            _shutdown_handle: shutdown_handle,
+        })
+    }
+
+    /// Configure storage, generate identity keys if needed, register a gateway,
+    /// and start the Nym base client. Returns the producer/consumer channels.
+    async fn start_nym_client(opts: &TunnelOpts) -> Result<ClientHandles, FetchError> {
         let mut config = new_base_client_config(
-            client_id.clone(),
+            opts.client_id.clone(),
             env!("CARGO_PKG_VERSION").to_string(),
             None, // nym_api: use default
             None, // nyxd: use default
@@ -123,14 +176,13 @@ impl WasmTunnel {
         .map_err(|e| FetchError::Tunnel(format!("config error: {e}")))?;
 
         config.debug.topology.ignore_egress_epoch_role = true;
-
         config
             .debug
             .traffic
             .disable_main_poisson_packet_distribution = opts.disable_poisson_traffic;
         config.debug.cover_traffic.disable_loop_cover_traffic_stream = opts.disable_cover_traffic;
 
-        let client_store = ClientStorage::new_async(&client_id, None)
+        let client_store = ClientStorage::new_async(&opts.client_id, None)
             .await
             .map_err(|e| FetchError::Tunnel(format!("storage error: {e}")))?;
 
@@ -167,7 +219,6 @@ impl WasmTunnel {
         }
 
         let storage = FullWasmClientStorage::new(&config, client_store);
-
         let base_builder =
             BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(config, storage, None);
 
@@ -178,9 +229,8 @@ impl WasmTunnel {
 
         let client_input = Arc::new(started_client.client_input.register_producer());
         let client_output = started_client.client_output.register_consumer();
-        let shutdown_handle = started_client.shutdown_handle;
 
-        let (reconstructed_sender, mut reconstructed_receiver) = mpsc::unbounded();
+        let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
         client_output
             .received_buffer_request_sender
             .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
@@ -188,26 +238,44 @@ impl WasmTunnel {
             ))
             .map_err(|_| FetchError::Tunnel("failed to register message receiver".into()))?;
 
-        let request_sender = client_output.received_buffer_request_sender;
+        Ok(ClientHandles {
+            client_input,
+            reconstructed_receiver,
+            request_sender: client_output.received_buffer_request_sender,
+            shutdown_handle: started_client.shutdown_handle,
+        })
+    }
 
-        // -- 3. Open LP stream + IPR connect handshake --
-        let stream_id: u64 = rand::random();
+    /// Open the LP stream + run the IPR v9 connect handshake. Returns the
+    /// IPs the IPR allocated for this tunnel.
+    async fn ipr_handshake(
+        client_input: &Arc<ClientInput>,
+        receiver: &mut ipr::ReconstructedReceiver,
+        ipr_address: &Recipient,
+        stream_id: u64,
+        surbs: ipr::SurbsConfig,
+    ) -> Result<IpPair, FetchError> {
         nym_wasm_utils::console_log!("[smolmix] connecting to IPR...");
-
-        let allocated_ips = ipr::open_and_connect(
-            &client_input,
-            &mut reconstructed_receiver,
-            &ipr_address,
-            stream_id,
-        )
-        .await?;
+        let allocated_ips =
+            ipr::open_and_connect(client_input, receiver, ipr_address, stream_id, surbs).await?;
         nym_wasm_utils::console_log!(
-            "[smolmix] IPR connected — IPv4: {}, IPv6: {}",
+            "[smolmix] IPR connected, IPv4: {}, IPv6: {}",
             allocated_ips.ipv4,
-            allocated_ips.ipv6
+            allocated_ips.ipv6,
         );
+        Ok(allocated_ips)
+    }
 
-        // -- 4. Configure smoltcp --
+    /// Build the smoltcp interface, spawn the reactor + bridge, and return
+    /// the shared handles the tunnel keeps to drive the stack.
+    fn init_network_stack(
+        allocated_ips: IpPair,
+        client_input: Arc<ClientInput>,
+        reconstructed_receiver: ipr::ReconstructedReceiver,
+        ipr_address: Recipient,
+        stream_id: u64,
+        data_surbs: u32,
+    ) -> NetworkStack {
         let mut device = WasmDevice::new();
         let iface_config = Config::new(HardwareAddress::Ip);
         let mut iface = smoltcp::iface::Interface::new(iface_config, &mut device, smoltcp_now());
@@ -217,17 +285,14 @@ impl WasmTunnel {
                 .push(IpCidr::new(IpAddress::from(allocated_ips.ipv4), 32))
                 .unwrap();
         });
-
         iface
             .routes_mut()
             .add_default_ipv4_route(Ipv4Address::UNSPECIFIED)
             .unwrap();
 
-        let sockets = SocketSet::new(Vec::new());
-
         let stack = Arc::new(Mutex::new(SmoltcpStack {
             iface,
-            sockets,
+            sockets: SocketSet::new(Vec::new()),
             device,
             wakers: Default::default(),
         }));
@@ -238,37 +303,24 @@ impl WasmTunnel {
         let (notify_tx, notify_rx) = mpsc::unbounded();
 
         reactor::start_reactor(stack.clone(), notify_rx, shutdown.clone());
-
         bridge::start_bridge(
             stack.clone(),
-            client_input.clone(),
+            client_input,
             reconstructed_receiver,
             ipr_address,
             stream_id,
             seq.clone(),
             notify_tx.clone(),
             shutdown.clone(),
+            data_surbs,
         );
 
-        nym_wasm_utils::console_log!("[smolmix-wasm] tunnel ready");
-
-        Ok(Self {
+        NetworkStack {
             stack,
-            client_input,
-            ipr_address,
-            stream_id,
             seq,
-            notify: notify_tx,
             shutdown,
-            next_port: AtomicU16::new(EPHEMERAL_PORT_START),
-            allocated_ips,
-            dns_cache: Mutex::new(HashMap::new()),
-            dns_lock: futures::lock::Mutex::new(()),
-            conn_pool: Mutex::new(HashMap::new()),
-            origin_locks: Mutex::new(HashMap::new()),
-            _request_sender: request_sender,
-            _shutdown_handle: shutdown_handle,
-        })
+            notify: notify_tx,
+        }
     }
 
     /// Allocate the next ephemeral port (wraps at range boundary).
@@ -332,9 +384,7 @@ impl WasmTunnel {
                     Poll::Ready(Ok(()))
                 }
                 smoltcp_tcp::State::Closed => {
-                    nym_wasm_utils::console_error!(
-                        "[tunnel] TCP state: Closed — connection failed"
-                    );
+                    crate::util::debug_error!("[tunnel] TCP state: Closed, connection failed");
                     Poll::Ready(Err(io::Error::new(
                         io::ErrorKind::ConnectionRefused,
                         "TCP connection failed",
@@ -399,7 +449,7 @@ impl WasmTunnel {
         self.allocated_ips
     }
 
-    /// DNS resolution cache — checked by `dns::resolve` before querying.
+    /// DNS resolution cache, checked by `dns::resolve` before querying.
     pub(crate) fn dns_cache(&self) -> &Mutex<HashMap<String, IpAddr>> {
         &self.dns_cache
     }
@@ -431,216 +481,4 @@ impl WasmTunnel {
     pub(crate) fn return_to_pool(&self, host: String, port: u16, conn: PooledConn) {
         self.conn_pool.lock().unwrap().insert((host, port), conn);
     }
-}
-
-// WasmTcpStream — futures::io::{AsyncRead, AsyncWrite}
-
-impl AsyncRead for WasmTcpStream {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        let mut s = self.stack.lock().unwrap();
-        let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(self.handle);
-
-        if socket.can_recv() {
-            let n = socket
-                .recv_slice(buf)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
-            nym_wasm_utils::console_log!("[tcp:read] Ready({n})");
-            // Notify reactor — recv_slice() frees rx buffer, needs a
-            // prompt window update ACK to keep the sender flowing.
-            let _ = self.notify.unbounded_send(());
-            Poll::Ready(Ok(n))
-        } else if !socket.may_recv() {
-            // Remote sent FIN — EOF. `may_recv()` is false for CloseWait,
-            // LastAck, Closed, TimeWait (unlike `is_open()` which misses CloseWait).
-            Poll::Ready(Ok(0))
-        } else {
-            nym_wasm_utils::console_log!(
-                "[tcp:read] Pending (state={:?}, buf={})",
-                socket.state(),
-                buf.len(),
-            );
-            s.wakers.get_mut(&self.handle).unwrap().read = Some(cx.waker().clone());
-            Poll::Pending
-        }
-    }
-}
-
-impl AsyncWrite for WasmTcpStream {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        let mut s = self.stack.lock().unwrap();
-        let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(self.handle);
-
-        if socket.can_send() {
-            let n = socket
-                .send_slice(buf)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
-            let _ = self.notify.unbounded_send(());
-            Poll::Ready(Ok(n))
-        } else if !socket.is_open() {
-            Poll::Ready(Err(io::Error::new(
-                io::ErrorKind::BrokenPipe,
-                "socket closed",
-            )))
-        } else {
-            s.wakers.get_mut(&self.handle).unwrap().write = Some(cx.waker().clone());
-            Poll::Pending
-        }
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        // smoltcp flushes on each poll — nothing extra to do.
-        let _ = self.notify.unbounded_send(());
-        Poll::Ready(Ok(()))
-    }
-
-    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let mut s = self.stack.lock().unwrap();
-        let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(self.handle);
-        socket.close();
-        let _ = self.notify.unbounded_send(());
-        Poll::Ready(Ok(()))
-    }
-}
-
-impl Unpin for WasmTcpStream {}
-
-impl Drop for WasmTcpStream {
-    fn drop(&mut self) {
-        let mut s = self.stack.lock().unwrap();
-        s.sockets
-            .get_mut::<smoltcp_tcp::Socket>(self.handle)
-            .abort();
-        s.sockets.remove(self.handle);
-        s.wakers.remove(&self.handle);
-    }
-}
-
-// PooledConn — AsyncRead + AsyncWrite delegation
-
-impl AsyncRead for PooledConn {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        match self.get_mut() {
-            PooledConn::Tls(s) => Pin::new(s).poll_read(cx, buf),
-            PooledConn::Plain(s) => Pin::new(s).poll_read(cx, buf),
-        }
-    }
-}
-
-impl AsyncWrite for PooledConn {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        match self.get_mut() {
-            PooledConn::Tls(s) => Pin::new(s).poll_write(cx, buf),
-            PooledConn::Plain(s) => Pin::new(s).poll_write(cx, buf),
-        }
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match self.get_mut() {
-            PooledConn::Tls(s) => Pin::new(s).poll_flush(cx),
-            PooledConn::Plain(s) => Pin::new(s).poll_flush(cx),
-        }
-    }
-
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match self.get_mut() {
-            PooledConn::Tls(s) => Pin::new(s).poll_close(cx),
-            PooledConn::Plain(s) => Pin::new(s).poll_close(cx),
-        }
-    }
-}
-
-impl Unpin for PooledConn {}
-
-// WasmUdpSocket — send_to / recv_from
-
-impl WasmUdpSocket {
-    /// Send a datagram to the given address.
-    pub async fn send_to(&self, buf: &[u8], target: SocketAddr) -> io::Result<usize> {
-        let endpoint = to_smoltcp_endpoint(target);
-        let stack = self.stack.clone();
-        let handle = self.handle;
-        let notify = self.notify.clone();
-
-        futures::future::poll_fn(move |cx| {
-            let mut s = stack.lock().unwrap();
-            let socket = s.sockets.get_mut::<smoltcp_udp::Socket>(handle);
-
-            if socket.can_send() {
-                socket
-                    .send_slice(buf, endpoint)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
-                let _ = notify.unbounded_send(());
-                Poll::Ready(Ok(buf.len()))
-            } else {
-                s.wakers.get_mut(&handle).unwrap().write = Some(cx.waker().clone());
-                Poll::Pending
-            }
-        })
-        .await
-    }
-
-    /// Receive a datagram, returning (bytes_read, source_address).
-    pub async fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
-        let stack = self.stack.clone();
-        let handle = self.handle;
-
-        futures::future::poll_fn(move |cx| {
-            let mut s = stack.lock().unwrap();
-            let socket = s.sockets.get_mut::<smoltcp_udp::Socket>(handle);
-
-            if socket.can_recv() {
-                let (n, meta) = socket
-                    .recv_slice(buf)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
-                let src = from_smoltcp_endpoint(meta.endpoint);
-                Poll::Ready(Ok((n, src)))
-            } else {
-                s.wakers.get_mut(&handle).unwrap().read = Some(cx.waker().clone());
-                Poll::Pending
-            }
-        })
-        .await
-    }
-}
-
-impl Drop for WasmUdpSocket {
-    fn drop(&mut self) {
-        let mut s = self.stack.lock().unwrap();
-        s.sockets.remove(self.handle);
-        s.wakers.remove(&self.handle);
-    }
-}
-
-// Address conversion helpers
-
-fn to_smoltcp_endpoint(addr: SocketAddr) -> IpEndpoint {
-    let ip = match addr.ip() {
-        IpAddr::V4(v4) => IpAddress::Ipv4(v4),
-        IpAddr::V6(v6) => IpAddress::Ipv6(v6),
-    };
-    IpEndpoint::new(ip, addr.port())
-}
-
-fn from_smoltcp_endpoint(ep: IpEndpoint) -> SocketAddr {
-    let ip = match ep.addr {
-        IpAddress::Ipv4(v4) => IpAddr::V4(v4),
-        IpAddress::Ipv6(v6) => IpAddr::V6(v6),
-    };
-    SocketAddr::new(ip, ep.port)
 }

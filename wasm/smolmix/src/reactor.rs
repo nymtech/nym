@@ -27,7 +27,7 @@ use wasm_bindgen_futures::spawn_local;
 
 use crate::device::WasmDevice;
 
-/// Poll interval — how often the reactor ticks even without notifications.
+/// Poll interval: how often the reactor ticks even without notifications.
 ///
 /// 5 ms matches the typical browser `setInterval` floor and gives smoltcp
 /// enough resolution for TCP retransmits and keepalives.
@@ -37,7 +37,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(5);
 ///
 /// Wrapped in `Arc<Mutex<>>` (not `Rc<RefCell<>>`) so that `WasmTunnel` can
 /// live in a `OnceLock` which requires `Send + Sync`. On wasm32 (single-threaded),
-/// `Mutex` is essentially a no-op lock — zero overhead vs `RefCell`.
+/// `Mutex` is essentially a no-op lock, zero overhead vs `RefCell`.
 pub struct SmoltcpStack {
     pub iface: Interface,
     pub sockets: SocketSet<'static>,
@@ -48,7 +48,7 @@ pub struct SmoltcpStack {
 /// Which smoltcp socket type a handle refers to.
 ///
 /// We track this because `SocketSet::get_mut::<T>(handle)` panics if the
-/// type doesn't match — there's no fallible `try_get`.
+/// type doesn't match (there's no fallible `try_get`).
 #[derive(Clone, Copy)]
 pub enum SocketKind {
     Tcp,
@@ -77,7 +77,7 @@ impl SocketWakers {
 
 /// Get the current smoltcp timestamp from `Date.now()`.
 ///
-/// smoltcp's `Instant` is just `i64` microseconds — not `std::time::Instant`.
+/// smoltcp's `Instant` is just `i64` microseconds, not `std::time::Instant`.
 /// We convert JS milliseconds (f64) to microseconds (i64).
 pub fn smoltcp_now() -> Instant {
     Instant::from_micros((js_sys::Date::now() * 1000.0) as i64)
@@ -158,12 +158,12 @@ fn wake_tcp_socket(stack: &mut SmoltcpStack, handle: SocketHandle) {
 
     // Wake read waker when data is available OR when no more data will
     // ever arrive. `may_recv()` is false for CloseWait, LastAck, Closed,
-    // TimeWait — all states where the remote has sent FIN. Without this,
+    // TimeWait, all states where the remote has sent FIN. Without this,
     // a read waker registered just before FIN arrives never fires and
     // the body.frame() future hangs forever.
     if can_recv || !may_recv {
         if let Some(w) = wakers.read.take() {
-            nym_wasm_utils::console_log!(
+            crate::util::debug_log!(
                 "[reactor] wake read (can_recv={can_recv}, may_recv={may_recv}, state={state:?})"
             );
             w.wake();

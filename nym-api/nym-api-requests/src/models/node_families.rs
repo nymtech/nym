@@ -109,3 +109,22 @@ pub struct NodeFamily {
     /// Outstanding invitations issued by the family owner.
     pub pending_invitations: Vec<PendingFamilyInvitation>,
 }
+
+/// Response wrapper for endpoints that look up a single family. `family` is
+/// `None` when the lookup did not match (rather than returning a 404).
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct NodeFamilyResponse {
+    pub family: Option<NodeFamily>,
+}
+
+/// Response wrapper for endpoints that look up the family a given node
+/// belongs to. `family` is `None` when the node is not currently a member of
+/// any cached family.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct NodeFamilyForNodeResponse {
+    /// The node the lookup was performed for.
+    pub node_id: NodeId,
+
+    /// The family this node belongs to, if any.
+    pub family: Option<NodeFamily>,
+}

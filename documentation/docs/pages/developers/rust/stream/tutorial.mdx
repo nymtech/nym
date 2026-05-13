@@ -12,7 +12,7 @@ import { Callout } from 'nextra/components'
 import { CodeVerified } from '../../../../components/code-verified'
 import { RUST_MSRV } from '../../../../components/versions'
 
-In this tutorial you'll build two programs: a server that listens for incoming streams and echoes back whatever it receives, and a client that opens a stream, sends data, and reads the echo. Both communicate through the Nym Mixnet using `AsyncRead` and `AsyncWrite`, just like TCP sockets.
+Two programs: a server that listens for incoming streams and echoes back what it receives, and a client that opens a stream, writes data, and reads the echo. Both communicate through the Nym Mixnet using `AsyncRead` and `AsyncWrite`, like a TCP socket pair.
 
 ## What you'll learn
 
@@ -114,7 +114,7 @@ async fn main() {
 ```
 
 <Callout type="info">
-**`listener()` can only be called once per client.** It takes exclusive ownership of the inbound message channel. A second call returns `Error::ListenerAlreadyTaken`.
+`listener()` can only be called once per client. It takes exclusive ownership of the inbound message channel; a second call returns `Error::ListenerAlreadyTaken`.
 </Callout>
 
 ## Step 3: Build the client
@@ -243,7 +243,7 @@ Stream 12345678 closed
 
 5. On arrival, the router reads the `LpFrameKind` to identify it as stream traffic, decodes the header, finds the matching stream by ID, and delivers the raw payload to `read()`.
 
-6. The inbound stream replies via **reply SURBs**, the same anonymous reply mechanism as the message API, applied transparently. The server never learns the client's Nym address.
+6. The inbound stream replies via reply SURBs, the same anonymous reply mechanism as the message API. The server never learns the client's Nym address.
 
 7. When a stream is dropped, it deregisters from the local router. No close message is sent over the wire, since a close could race ahead of in-flight data.
 

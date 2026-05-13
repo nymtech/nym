@@ -12,7 +12,7 @@ import { Callout } from 'nextra/components'
 import { CodeVerified } from '../../../../components/code-verified'
 import { RUST_MSRV } from '../../../../components/versions'
 
-In this tutorial you'll build a program that uses `ClientPool` to handle bursts of concurrent Mixnet operations without blocking on client creation. You'll see how the pool pre-creates clients in the background, how to pop them under load, and what happens when demand exceeds supply.
+A program that uses `ClientPool` to absorb bursts of concurrent Mixnet operations without paying client-creation latency on the hot path. The pool pre-creates clients in the background; tasks pop them under load; the tutorial also walks through what happens when demand outruns supply.
 
 ## What you'll learn
 

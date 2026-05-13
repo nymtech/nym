@@ -10,7 +10,7 @@ lastUpdated: "2026-03-15"
 
 import { Callout } from 'nextra/components'
 
-The `ClientPool` maintains a configurable number of connected ephemeral `MixnetClient` instances, ready for immediate use. This eliminates the connection latency that comes with creating a new client on each request: the gateway handshake, key generation, and topology fetch all happen ahead of time.
+The `ClientPool` keeps a configurable number of `MixnetClient` instances pre-connected in a background loop, so callers don't pay the gateway handshake, key generation, and topology fetch cost on the hot path.
 
 ## How it works
 
@@ -26,11 +26,11 @@ flowchart LR
     BG -->|"pool < reserve? create another"| P
 ```
 
-1. **Create** the pool with a target reserve size: `ClientPool::new(5)`
-2. **Start** the background loop: `pool.start()`. It immediately begins connecting clients
-3. **Pop** a client when needed: `pool.get_mixnet_client()` returns `Some(client)` or `None` if the pool is empty
-4. **Use** the client normally: send messages, open streams, etc.
-5. **Disconnect** the client when done. The background loop notices the pool is below reserve and creates a replacement
+1. Create the pool with a target reserve size: `ClientPool::new(5)`.
+2. Start the background loop: `pool.start()`. It immediately begins connecting clients.
+3. Pop a client when needed: `pool.get_mixnet_client()` returns `Some(client)` or `None` if the pool is empty.
+4. Use the client normally: send messages, open streams.
+5. Disconnect the client when done. The background loop notices the pool is below reserve and creates a replacement.
 
 Clients are **consumed, not returned**. The pool creates new ones to maintain the reserve. If the pool is empty, you can fall back to `MixnetClient::connect_new()` (slower, but keeps things working).
 

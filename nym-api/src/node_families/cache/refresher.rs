@@ -15,10 +15,6 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::error;
 
-/// Maximum number of `block_timestamp` lookups in flight in parallel during a
-/// single refresh tick.
-const BLOCK_TIMESTAMP_FETCH_CONCURRENCY: usize = 8;
-
 /// Periodic refresher feeding the [`NodeFamiliesCacheData`] cache from the
 /// node-families contract, joined with mixnet-contract stake snapshots.
 pub struct NodeFamiliesDataProvider {
@@ -32,6 +28,10 @@ pub struct NodeFamiliesDataProvider {
     /// previously-known block-height → block-time map (rehydrated from disk on
     /// startup) so we only RPC heights we haven't already seen.
     shared_cache: SharedCache<NodeFamiliesCacheData>,
+
+    /// Maximum number of `block_timestamp` lookups in flight in parallel during a
+    /// single refresh tick.
+    block_timestamp_fetch_concurrency: usize,
 }
 
 #[async_trait]
@@ -52,6 +52,7 @@ impl CacheItemProvider for NodeFamiliesDataProvider {
 
 impl NodeFamiliesDataProvider {
     pub(crate) fn new(
+        block_timestamp_fetch_concurrency: usize,
         nyxd_client: Client,
         mixnet_contract_cache: MixnetContractCache,
         shared_cache: SharedCache<NodeFamiliesCacheData>,
@@ -60,6 +61,7 @@ impl NodeFamiliesDataProvider {
             nyxd_client,
             mixnet_contract_cache,
             shared_cache,
+            block_timestamp_fetch_concurrency,
         }
     }
 
@@ -168,7 +170,7 @@ impl NodeFamiliesDataProvider {
                     }
                 }
             })
-            .buffer_unordered(BLOCK_TIMESTAMP_FETCH_CONCURRENCY)
+            .buffer_unordered(self.block_timestamp_fetch_concurrency)
             .filter_map(|x| async move { x })
             .collect()
             .await;

@@ -9,13 +9,10 @@ lastUpdated: "2026-03-15"
 # Stream Module
 
 import { Callout } from 'nextra/components'
-import { CratesPaused } from '../../../components/crates-paused'
-
-<CratesPaused />
 
 The Mixnet is fundamentally message-based: no persistent connections, no guaranteed ordering, no TCP. The default [message API](./mixnet) works at this level, sending individual payloads independently through Mix Nodes. This is effective for privacy but unlike how most networking code is structured.
 
-The **Stream module** bridges the gap by providing persistent, bidirectional byte channels that behave like TCP sockets. Each `MixnetStream` implements [`AsyncRead`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncRead.html) and [`AsyncWrite`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncWrite.html), so `tokio::io::copy`, codecs, `BufReader`/`BufWriter`, and any other async I/O consumer work without modification. **If you're coming from socket-based networking, start here.**
+The Stream module bridges the gap by providing persistent, bidirectional byte channels that behave like TCP sockets. Each `MixnetStream` implements [`AsyncRead`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncRead.html) and [`AsyncWrite`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncWrite.html), so `tokio::io::copy`, codecs, `BufReader`/`BufWriter`, and any other async I/O consumer work without modification.
 
 All streams are multiplexed over a single `MixnetClient`. A background router task reads a small header on each incoming message and dispatches the payload to the correct stream by ID, so multiple concurrent streams require no additional connections or gateways.
 
@@ -23,10 +20,10 @@ All streams are multiplexed over a single `MixnetClient`. A background router ta
 
 The two sides of a stream connection follow a client/server pattern:
 
-1. **Opener** calls `client.open_stream(recipient, surbs)`. This generates a random `StreamId`, registers the stream locally, and sends an `Open` message through the Mixnet.
-2. **Listener** calls `listener.accept()`, which blocks until an `Open` arrives, registers the new stream, and returns a `MixnetStream` ready for reading and writing.
+1. The opener calls `client.open_stream(recipient, surbs)`. This generates a random `StreamId`, registers the stream locally, and sends an `Open` message through the Mixnet.
+2. The listener calls `listener.accept()`, which blocks until an `Open` arrives, registers the new stream, and returns a `MixnetStream` ready for reading and writing.
 3. Both sides read and write using standard `AsyncRead`/`AsyncWrite`. Bytes are wrapped in a 16-byte LP frame header (stream ID, message type, sequence number), routed through the Mixnet, and demultiplexed on arrival.
-4. **Cleanup** happens on `drop`. The stream deregisters from the local router. No close message is sent over the wire, since a close could race ahead of in-flight data.
+4. On drop, the stream deregisters from the local router. No close message is sent over the wire, since a close could race ahead of in-flight data.
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
@@ -94,7 +91,7 @@ async fn main() {
         .expect("timed out")
         .expect("listener closed");
 
-    // Send data and read it back — just like a TCP socket
+    // Send data and read it back, just like a TCP socket
     outbound.write_all(b"hello from sender").await.unwrap();
     outbound.flush().await.unwrap();
 
@@ -139,7 +136,7 @@ The receiver replies via **reply SURBs** (Single Use Reply Blocks) and never lea
 | **Status** | Stable | New | Deprecated |
 
 <Callout type="warning">
-**Streams and messages are mutually exclusive.** Once you call `open_stream()` or `listener()`, the message-based API (`send_plain_message`, `wait_for_messages`) is permanently disabled on that client. This is a one-way transition: there is no switching back without disconnecting and reconnecting. See the [`stream_mode_guard.rs` example](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_mode_guard.rs) for details.
+Streams and messages are mutually exclusive. Once you call `open_stream()` or `listener()`, the message-based API (`send_plain_message`, `wait_for_messages`) is permanently disabled on that client. This is a one-way transition: no switching back without disconnecting and reconnecting. See the [`stream_mode_guard.rs` example](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_mode_guard.rs) for details.
 </Callout>
 
 ## Next steps

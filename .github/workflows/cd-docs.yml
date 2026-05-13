@@ -37,6 +37,9 @@ jobs:
           command: build
           args: --workspace --release
 
+      - name: Verify doc versions
+        run: ${{ github.workspace }}/documentation/scripts/verify-doc-versions.sh
+        working-directory: ${{ github.workspace }}
       - name: Install project dependencies
         run: pnpm i
       - name: Generate llms-full.txt

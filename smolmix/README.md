@@ -1,21 +1,20 @@
 # smolmix
 
 TCP/UDP tunnel over the Nym mixnet. Uses a userspace network stack (smoltcp)
-to provide real `TcpStream` and `UdpSocket` types that work transparently
-with the async Rust ecosystem — tokio-rustls, hyper, tokio-tungstenite,
-libp2p, and anything else built on `AsyncRead + AsyncWrite`.
+to provide real `TcpStream` and `UdpSocket` types that work with the async
+Rust ecosystem: tokio-rustls, hyper, tokio-tungstenite, libp2p, and anything
+else built on `AsyncRead + AsyncWrite`.
 
 ## Why IP, not messages
 
-The Nym SDK works at the **message layer**: you send and receive `Vec<u8>`
-payloads through the mixnet. Every protocol must be hand-adapted — you need
+The Nym SDK works at the message layer: you send and receive `Vec<u8>`
+payloads through the mixnet. Every protocol has to be hand-adapted, with
 custom framing, ordering, connection state, and flow control.
 
-`smolmix` operates at the **IP layer**. A userspace smoltcp stack manages
-real TCP state machines (retransmits, windowing, port allocation) and UDP
-datagram delivery, and the mixnet becomes a transparent transport underneath.
-Any protocol that works over TCP or UDP works over smolmix — with zero
-adaptation.
+`smolmix` operates at the IP layer. A userspace smoltcp stack manages real
+TCP state machines (retransmits, windowing, port allocation) and UDP
+datagram delivery, and the mixnet becomes the transport underneath. Any
+protocol that works over TCP or UDP works over smolmix without adaptation.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
@@ -44,11 +43,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 let tunnel = Tunnel::new().await?;
 
-// Raw TCP — works with any protocol
+// Raw TCP, works with any protocol
 let mut tcp = tunnel.tcp_connect("1.1.1.1:80".parse()?).await?;
 tcp.write_all(b"GET / HTTP/1.1\r\nHost: 1.1.1.1\r\nConnection: close\r\n\r\n").await?;
 
-// Raw UDP — datagrams over the mixnet
+// Raw UDP, datagrams over the mixnet
 let udp = tunnel.udp_socket().await?;
 udp.send_to(&packet, "1.1.1.1:53".parse()?).await?;
 ```

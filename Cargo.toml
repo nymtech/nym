@@ -148,6 +148,9 @@ members = [
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
     "smolmix/core",
+    "smolmix/dns",
+    "smolmix/tls",
+    "smolmix/hyper",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -349,7 +352,6 @@ serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
 sha2 = "0.10.3"
 si-scale = "0.2.3"
-smolmix = { version = "0.0.1", path = "smolmix/core" }
 smoltcp = "0.12"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"

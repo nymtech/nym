@@ -1,10 +1,11 @@
 [package]
 name = "smolmix-wasm"
 version = "0.0.1"
-authors.workspace = true
+authors = { workspace = true }
 edition = "2021"
-license.workspace = true
-repository.workspace = true
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = "1.85"
 publish = false
 keywords = ["nym", "fetch", "wasm", "mixnet", "privacy"]
 
@@ -20,9 +21,7 @@ wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 wasmtimer = { workspace = true }
 
-# DNS resolution: hickory-proto provides Message/Query/RData types without
-# pulling tokio (default-features = false strips the runtime adapters and
-# DNSSEC backends we don't need; we just need wire encoding/decoding).
+# DNS wire-format types (tokio-free with default-features = false).
 hickory-proto = { workspace = true, default-features = false }
 
 # TLS
@@ -37,12 +36,12 @@ http-body-util = { workspace = true }
 http = { workspace = true }
 
 # WebSocket (RFC 6455 client over futures::io streams)
-async-tungstenite = { version = "0.24", default-features = false, features = ["handshake"] }
+async-tungstenite = { workspace = true, features = ["handshake"] }
 
 # WASM utils (panic hook, console_log)
 nym-wasm-utils = { workspace = true }
 
-# Phase 2: Tunnel: smoltcp stack + Nym mixnet client + IPR protocol
+# Tunnel: smoltcp stack + Nym mixnet client + IPR protocol
 smoltcp = { workspace = true, features = ["std", "medium-ip", "proto-ipv4", "socket-tcp", "socket-udp"] }
 nym-wasm-client-core = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
@@ -51,8 +50,7 @@ bytes = { workspace = true }
 rand = { workspace = true }
 nym-bin-common = { workspace = true }
 
-# JS interop: `serde-wasm-bindgen` + `tsify` replace handrolled `Reflect::get`
-# plumbing for typed setup opts. Matches the wasm/mix-fetch pattern.
+# JS interop: typed `SetupOpts` deserialisation.
 serde = { workspace = true, features = ["derive"] }
 serde-wasm-bindgen = { workspace = true }
 tsify = { workspace = true, features = ["js"] }
@@ -60,27 +58,22 @@ tsify = { workspace = true, features = ["js"] }
 # Pure-Rust TLS crypto provider (ring doesn't compile on wasm32-unknown-unknown)
 rustls-rustcrypto = { workspace = true, optional = true }
 
-# getrandom needs the "js" feature on wasm32 to use crypto.getRandomValues().
+# crypto.getRandomValues() backend for the 0.2 line.
 [target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
 workspace = true
 features = ["js"]
 
-# getrandom 0.4 is pulled in transitively by hickory-proto via rand_core 0.10.
-# Feature names diverged in 0.4: the wasm32 backend is gated behind "wasm_js"
-# (was "js" in 0.2 / 0.3). Without this, the 0.4 line refuses to compile on
-# wasm32-unknown-unknown. Feature unification means this enables wasm_js for
-# every transitive dependent on the 0.4 line too.
+# The 0.4 line is pulled in transitively by hickory-proto via rand_core 0.10;
+# its wasm32 feature was renamed from "js" to "wasm_js".
 [target."cfg(target_arch = \"wasm32\")".dependencies.getrandom04]
-package = "getrandom"
-version = "0.4"
+workspace = true
 features = ["wasm_js"]
 
 [features]
 default = ["rustcrypto"]
 ring-crypto = ["rustls/ring", "futures-rustls/ring", "futures-rustls/tls12"]
 rustcrypto = ["dep:rustls-rustcrypto", "futures-rustls/tls12"]
-# Verbose debug logging via `console.log` / `console.error`. Off by default;
-# turn on in dev builds with `--features debug` to trace TCP/HTTP/WS internals.
+# Verbose `console.log` tracing (off by default).
 debug = []
 
 [package.metadata.wasm-pack.profile.release]

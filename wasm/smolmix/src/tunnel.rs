@@ -1,4 +1,5 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 //! WASM mixnet tunnel. Manages a smoltcp TCP/IP stack connected to the Nym
 //! mixnet via an IPR (IP Packet Router), running in a browser Web Worker.
@@ -94,10 +95,7 @@ struct ClientHandles {
     shutdown_handle: ShutdownTracker,
 }
 
-/// Live smoltcp pieces returned by `init_network_stack`.
-///
-/// The reactor and bridge are already spawned by the time this returns;
-/// the values inside are what the `WasmTunnel` struct stores to drive them.
+/// smoltcp handles returned by `init_network_stack` (reactor + bridge already spawned).
 struct NetworkStack {
     stack: Arc<Mutex<SmoltcpStack>>,
     seq: Arc<AtomicU32>,
@@ -258,8 +256,9 @@ impl WasmTunnel {
         nym_wasm_utils::console_log!("[smolmix] connecting to IPR...");
         let allocated_ips =
             ipr::open_and_connect(client_input, receiver, ipr_address, stream_id, surbs).await?;
-        nym_wasm_utils::console_log!(
-            "[smolmix] IPR connected, IPv4: {}, IPv6: {}",
+        nym_wasm_utils::console_log!("[smolmix] IPR connected");
+        crate::util::debug_log!(
+            "[smolmix] allocated IPv4: {}, IPv6: {}",
             allocated_ips.ipv4,
             allocated_ips.ipv6,
         );

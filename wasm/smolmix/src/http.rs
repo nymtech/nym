@@ -1,16 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-//! HTTP/1.1 client built on hyper 1.x (tokio-free).
-//!
-//! hyper 1.6+ makes tokio optional. With `default-features = false` and
-//! `features = ["client", "http1"]`, it compiles on wasm32. The only glue
-//! needed is `HyperIoAdapter<T>`: an adapter from `futures::io::{AsyncRead,
-//! AsyncWrite}` to `hyper::rt::{Read, Write}`.
-//!
-//! The connection driver is spawned via `wasm_bindgen_futures::spawn_local`.
-//! After the request/response exchange, the IO is recovered through
-//! `conn.without_shutdown()` so the underlying stream can be returned to
-//! the connection pool.
+//! HTTP/1.1 client on hyper 1.x (tokio-free).
 
 use std::io;
 use std::mem::MaybeUninit;
@@ -32,11 +23,8 @@ pub struct HttpResponse {
     pub body: Vec<u8>,
 }
 
-/// Adapter: `futures::io::{AsyncRead, AsyncWrite}` → `hyper::rt::{Read, Write}`.
-///
-/// hyper's `Read` trait hands us a `ReadBufCursor` backed by uninitialised
-/// memory. `futures::io::AsyncRead` requires an initialised `&mut [u8]`, so
-/// we zero the buffer first. This is a cheap memset per read call.
+/// `futures::io` to `hyper::rt` adapter. hyper hands us uninitialised memory;
+/// `futures::io::AsyncRead` needs `&mut [u8]`, so we zero before passing.
 struct HyperIoAdapter<T>(T);
 
 impl<T: AsyncRead + Unpin> hyper::rt::Read for HyperIoAdapter<T> {
@@ -45,13 +33,14 @@ impl<T: AsyncRead + Unpin> hyper::rt::Read for HyperIoAdapter<T> {
         cx: &mut Context<'_>,
         mut buf: hyper::rt::ReadBufCursor<'_>,
     ) -> Poll<io::Result<()>> {
-        // Safety: we initialise the buffer below before passing to poll_read.
+        // SAFETY: `init_slice` initialises every byte before the caller sees it.
         let uninit_slice = unsafe { buf.as_mut() };
-        // Zero the uninitialised memory so futures::io::AsyncRead is happy.
         let slice = init_slice(uninit_slice);
 
         match Pin::new(&mut self.get_mut().0).poll_read(cx, slice) {
             Poll::Ready(Ok(n)) => {
+                // SAFETY: poll_read wrote `n` initialised bytes into `slice`,
+                // which aliases the first `n` bytes of `buf`.
                 unsafe { buf.advance(n) };
                 Poll::Ready(Ok(()))
             }
@@ -89,11 +78,7 @@ fn init_slice(buf: &mut [MaybeUninit<u8>]) -> &mut [u8] {
 }
 
 /// Send an HTTP/1.1 request and read the complete response.
-///
-/// Takes ownership of the stream (hyper's handshake consumes it) and
-/// returns it as the third tuple element. The `bool` indicates whether
-/// the connection can be pooled (deterministic body boundary + no
-/// `Connection: close`).
+/// The returned `bool` is whether the stream is poolable.
 pub async fn request<S>(
     stream: S,
     method: &str,

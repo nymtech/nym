@@ -1,14 +1,14 @@
 build: build-rust
 
 build-rust:
-	wasm-pack build --target web --no-default-features --features rustcrypto
+	taskset -c 0-11 wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/smolmix --no-default-features --features rustcrypto
 
 build-debug:
-	wasm-pack build --debug --target web --no-default-features --features rustcrypto,debug
+	taskset -c 0-11 wasm-pack build --debug --scope nymproject --target web --out-dir ../../dist/wasm/smolmix --no-default-features --features rustcrypto,debug
 
 build-release-opt:
-	wasm-pack build --target web --no-default-features --features rustcrypto
-	wasm-opt -Oz -o pkg/smolmix_wasm_bg.wasm pkg/smolmix_wasm_bg.wasm
+	taskset -c 0-11 wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/smolmix --no-default-features --features rustcrypto
+	taskset -c 0-11 wasm-opt -Oz -o ../../dist/wasm/smolmix/smolmix_wasm_bg.wasm ../../dist/wasm/smolmix/smolmix_wasm_bg.wasm
 
 check-fmt:
 	cargo fmt --check

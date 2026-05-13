@@ -130,5 +130,5 @@ make dev                # build-debug then start internal-dev webpack
 ```
 
 Everything else (TLS handshakes, HTTP/1.1 requests, WebSocket frames in
-`mixSocket`) is *content* travelling **inside** that single gateway WSS as
+`mixSocket`) is content travelling inside that single gateway WSS as
 Sphinx-packed bytes.

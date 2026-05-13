@@ -8,6 +8,7 @@ use nym_api_requests::models::node_families::{
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_node_families_contract_common::{FamilyMemberRecord, NodeFamilyId};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::time::Duration;
 use time::OffsetDateTime;
 
@@ -88,7 +89,8 @@ pub(crate) struct CachedFamily {
     /// Owner address (cosmos `Addr` rendered as a string).
     pub(crate) owner: String,
 
-    /// Average age of members, approximated from the mean bonding height.
+    /// Time-weighted average age of members, computed from cached per-height
+    /// block timestamps.
     #[serde(with = "humantime_serde")]
     pub(crate) average_node_age: Duration,
 
@@ -109,10 +111,14 @@ pub(crate) struct CachedFamily {
 
 /// Full nym-api node-families cache snapshot — combined families-contract
 /// state plus mixnet-contract stake/bond information.
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub(crate) struct NodeFamiliesCacheData {
     /// Every family known to the contract, with members and pending invitations.
     pub(crate) families: Vec<CachedFamily>,
+
+    /// Persistent block-height → block-time cache used by the refresher when
+    /// computing per-member age. Survives restarts via the on-disk cache file.
+    pub(crate) block_timestamps: HashMap<u64, OffsetDateTime>,
 }
 
 /// Intermediate accumulator used while folding contract data into a

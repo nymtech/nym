@@ -82,7 +82,7 @@ pub struct NodeFamily {
     /// Owner address (cosmos `Addr` rendered as a string).
     pub owner: String,
 
-    /// Average age of members, approximated from the mean bonding height.
+    /// Time-weighted average age of members.
     #[serde(with = "humantime_serde")]
     pub average_node_age: Duration,
 

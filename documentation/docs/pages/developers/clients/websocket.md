@@ -20,7 +20,7 @@ cargo build --release -p nym-client
 
 The binary will be at `target/release/nym-client`.
 
-## Initialize and run
+## Initialise and run
 
 ```bash
 # Create a new client identity

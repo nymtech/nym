@@ -40,7 +40,7 @@ npm run dev
 npm install @nymproject/mix-fetch-full-fat @mui/material @emotion/react @emotion/styled
 ```
 
-The MUI packages are used by the example UI below. If you only need `mixFetch` itself, install just `@nymproject/mix-fetch-full-fat`.
+The MUI packages are used by the example UI below. If you only need `mixFetch` itself, install only `@nymproject/mix-fetch-full-fat`.
 
 ## Configuration
 
@@ -61,7 +61,7 @@ const mixFetchOptions: SetupMixFetchOps = {
 
 ## Full Example
 
-This example shows explicit initialization via `createMixFetch`, single URL fetch, and concurrent requests. Results appear both in the UI and in a visible log panel.
+This example shows explicit initialisation via `createMixFetch`, single URL fetch, and concurrent requests. Results appear both in the UI and in a visible log panel.
 
 <Callout type="info">
 For this example we use the `full-fat` version of the ESM SDK. If you use the unbundled ESM variant, make sure your [bundler configuration](/developers/typescript/bundling/bundling) copies the WASM and web worker files to the output bundle.
@@ -138,7 +138,7 @@ export const MixFetch = () => {
     setLogs((prev) => [...prev, { timestamp, message, level }]);
   };
 
-  // Initialize MixFetch explicitly via createMixFetch
+  // Initialise MixFetch explicitly via createMixFetch
   const handleStart = async () => {
     try {
       setStatus("starting");
@@ -155,7 +155,7 @@ export const MixFetch = () => {
     }
   };
 
-  // Single URL fetch — reuses the existing MixFetch singleton
+  // Single URL fetch (reuses the existing MixFetch singleton)
   const handleFetch = async () => {
     try {
       setBusy(true);
@@ -229,7 +229,7 @@ export const MixFetch = () => {
         </Stack>
       </Paper>
 
-      {/* Fetch controls — disabled until MixFetch is ready */}
+      {/* Fetch controls (disabled until MixFetch is ready) */}
       <Box sx={{ opacity: isReady ? 1 : 0.5, pointerEvents: isReady ? "auto" : "none" }}>
         {/* Single fetch */}
         <Stack direction="row">

@@ -3,7 +3,7 @@ import { Callout } from 'nextra/components'
 # Generating and using zk-nym anonymous credentials
 
 <Callout type="info">
-  zk-nyms are already used in production by [NymVPN](https://nymvpn.com) to unlink subscription payments from network activity. The entire credential lifecycle described on this page (key generation, issuance, spending) happens transparently within the NymVPN application. SDK integrations currently connect to the Mixnet without requiring credentials.
+  zk-nyms are already used in production by [NymVPN](https://nymvpn.com) to unlink subscription payments from network activity. The entire credential lifecycle described on this page (key generation, issuance, spending) happens inside the NymVPN application without user involvement. SDK integrations currently connect to the Mixnet without requiring credentials.
 </Callout>
 
 Generation of zk-nyms involves the following actors / pieces of infrastructure:
@@ -16,13 +16,13 @@ Generation happens in 3 distinct stages:
 - Issue credential
 - Generate unlinkable zk-nyms for Nym Network access
 
-From the Requester's perspective this happens transparently, producing an unlinkable, rerandomisable anonymous proof-of-payment credential (a zk-nym) that grants Mixnet access without linking usage to payment information. A single credential can be split into multiple smaller zk-nyms, so a Requester purchases bandwidth in bulk and spends it incrementally across different ingress Gateways as needed.
+From the Requester's perspective this happens without user involvement, producing an unlinkable, rerandomisable anonymous proof-of-payment credential (a zk-nym) that grants Mixnet access without linking usage to payment information. A single credential can be split into multiple smaller zk-nyms, so a Requester purchases bandwidth in bulk and spends it incrementally across different ingress Gateways as needed.
 
 ## Key Generation & Payment
-- First, a Cosmos [Bech32 address](https://docs.cosmos.network/sdk/latest/guides/reference/bech32#performance-address-caching) is created for the Requester. This is used to identify themselves when interacting with the OrderAPI via signed authentication tokens. **This is the only identity that the OrderAPI is able to see, and is not able to link this to the zk-nyms that will be generated.** This identity never leaves the Requester's device and there is no email or any personal details needed for signup. If a Requester is simply 'topping up' their subscription, the creation of the address is skipped as it already exists.
+- First, a Cosmos [Bech32 address](https://docs.cosmos.network/sdk/latest/guides/reference/bech32#performance-address-caching) is created for the Requester. This is used to identify themselves when interacting with the OrderAPI via signed authentication tokens. **This is the only identity the OrderAPI sees, and it cannot link this to the zk-nyms that will be generated.** This identity never leaves the Requester's device and there is no email or personal details needed for signup. If a Requester is 'topping up' their subscription, the creation of the address is skipped as it already exists.
 - The Requester also generates an ed25519 keypair: this is used to identify and authenticate them in the case of using zk-nyms across several devices as an individual user. However, **this is never used in the clear**: these keys are used as private attribute values within generated credentials which are verified via zero-knowledge and not publicly exposed.
 
-- The Requester can then interact with various payment backends to pay for their zk-nyms with crypto, fiat options, or natively with NYM tokens.
+- The Requester can then interact with payment backends to pay for their zk-nyms with crypto, fiat options, or natively with NYM tokens.
 - Payment options will trigger the OrderAPI. This will:
   - Create a swap for `<PAYMENT_AMOUNT>` to `NYM` tokens.
   - Deposit these tokens with the NymAPI Quorum via a CosmWasm smart contract deployed on the Nyx blockchain.

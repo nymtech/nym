@@ -1,6 +1,6 @@
 ---
-title: "mix-fetch: Drop-in fetch() Over the Nym Mixnet"
-description: "Package providing a drop-in fetch() replacement that routes HTTP(S) requests through the Nym mixnet via a Network Requester. Available for browsers and Node.js."
+title: "mix-fetch: fetch() Over the Nym Mixnet"
+description: "Package providing a fetch()-compatible API that routes HTTP(S) requests through the Nym mixnet via a Network Requester. Available for browsers and Node.js."
 schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-05-12"
@@ -10,14 +10,14 @@ import { Callout } from 'nextra/components'
 
 # mix-fetch
 
-`mix-fetch` is a drop-in replacement for [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) that routes HTTP(S) requests through the Nym mixnet. From the application's perspective the call signature is identical; underneath, the request is tunnelled through a WASM Nym client to a Network Requester (a Nym service provider, typically operated by an Exit Gateway), which decodes a SOCKS5-shaped connect request and opens a TCP connection to the destination. TLS runs end-to-end between the WASM bundle and the destination server.
+`mix-fetch` is a replacement for [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) that routes HTTP(S) requests through the Nym mixnet. The call signature is identical; underneath, the request is tunnelled through a WASM Nym client to a Network Requester (a Nym service provider, typically operated by an Exit Gateway), which decodes a SOCKS5-shaped connect request and opens a TCP connection to the destination. TLS runs end-to-end between the WASM bundle and the destination server.
 
 Available for browsers and Node.js, with the WASM core shared between both.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
 │  Your app (browser or Node.js)                                     │
-│    └─ mixFetch('https://...') (drop-in fetch())                    │
+│    └─ mixFetch('https://...') (fetch() replacement)                │
 │         └─ Go-WASM HTTP/TLS client (embedded Mozilla CA bundle)    │
 │              └─ Rust-WASM SOCKS5 framing + Nym mixnet transport    │
 │                   └─ WebSocket → entry gateway                     │
@@ -99,7 +99,7 @@ The first call bootstraps the WASM Nym client (gateway handshake, key generation
 |---|---|---|---|---|
 | **Runtime** | Browser, Node.js | Browser | Native (Rust) | Anywhere |
 | **Architecture** | Proxy (Network Requester → destination) | E2E (both sides Nym) | Proxy | Direct |
-| **API shape** | `fetch()` drop-in | Send/recv text or binary messages | `TcpStream` / `UdpSocket` | `fetch()` |
+| **API shape** | `fetch()` replacement | Send/recv text or binary messages | `TcpStream` / `UdpSocket` | `fetch()` |
 | **HTTP support** | Yes | No | Yes (via `hyper` over `TcpStream`) | Yes |
 | **Sender unlinkability** | Strong (mixnet) | Strong (mixnet) | Strong (mixnet) | None |
 | **Concurrency** | 10 per host | Unlimited | Unlimited | Unlimited |
@@ -121,9 +121,9 @@ Use HTTPS targets. Plaintext HTTP requests are visible to the Network Requester 
 
 ### Why mix-fetch ships its own CA store
 
-The browser's TLS stack and CA store aren't accessible from JavaScript or from a WASM SOCKS client; on Node, the TLS stack lives outside the Web Worker that hosts the mixnet client. `mix-fetch` therefore performs TLS itself, inside the WASM bundle, against the destination server. The bundle ships with an embedded Mozilla root CA list (refreshed from [curl.se's bundle](https://curl.se/docs/caextract.html), verified by SHA-256 in `wasm/mix-fetch/go-mix-conn/scripts/update-root-certs.sh`) and an in-WASM TLS implementation (Go's `crypto/tls`, configured at `wasm/mix-fetch/go-mix-conn/internal/sslhelpers/ssl_helper.go`). **The mixnet path sees encrypted TLS ciphertext, not plaintext.**
+The browser's TLS stack and CA store aren't accessible from JavaScript or from a WASM SOCKS client; on Node, the TLS stack lives outside the Web Worker that hosts the mixnet client. `mix-fetch` therefore performs TLS itself, inside the WASM bundle, against the destination server. The bundle ships with an embedded Mozilla root CA list (refreshed from [curl.se's bundle](https://curl.se/docs/caextract.html), verified by SHA-256 in `wasm/mix-fetch/go-mix-conn/scripts/update-root-certs.sh`) and an in-WASM TLS implementation (Go's `crypto/tls`, configured at `wasm/mix-fetch/go-mix-conn/internal/sslhelpers/ssl_helper.go`). The mixnet path sees encrypted TLS ciphertext, not plaintext.
 
-In effect, `mix-fetch` handles the TLS layer for you: HTTPS targets are protected end-to-end between the WASM bundle and the destination, just as if a browser had initiated the TLS handshake directly. Plaintext HTTP targets remain visible to the Network Requester and to any router beyond it. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe.
+`mix-fetch` handles the TLS layer for you: HTTPS targets are protected end-to-end between the WASM bundle and the destination, as if a browser had initiated the TLS handshake directly. Plaintext HTTP targets remain visible to the Network Requester and to any router beyond it. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe.
 
 ## API reference
 

@@ -6,7 +6,7 @@ section: "Network"
 lastUpdated: "2026-03-15"
 ---
 
-import { Callout } from 'nextra/components'
+import { LewesPending } from '../../../components/lewes-pending'
 
 # Acknowledgements
 
@@ -28,8 +28,6 @@ Acknowledgements operate hop-by-hop between adjacent nodes. They confirm that pa
 
 ## Implementation
 
-This is handled entirely by the Nym binaries. Developers and operators don't need to implement or configure acknowledgements; the system handles packet loss transparently.
+This is handled entirely by the Nym binaries. Developers and operators don't need to implement or configure acknowledgements; the system handles packet loss without any application involvement.
 
-<Callout type="warning" emoji="">
-**Lewes Protocol:** The upcoming Lewes release will introduce changes to how acknowledgements are handled. The current hop-by-hop ACK mechanism described above may be revised as part of broader protocol improvements. Details will be documented here once the changes are finalised.
-</Callout>
+<LewesPending variant="acks" />

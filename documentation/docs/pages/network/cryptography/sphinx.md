@@ -8,7 +8,7 @@ lastUpdated: "2026-03-15"
 
 # Sphinx
 
-Sphinx is the cryptographic packet format used for all mixnet traffic. It provides layered encryption where each hop can only decrypt its own routing information, ensuring that no single node knows both the source and destination of a packet.
+Sphinx is the cryptographic packet format used for all mixnet traffic. It provides layered encryption where each hop can only decrypt its own routing information, so no single node knows both the source and destination of a packet.
 
 ## How Sphinx works
 
@@ -20,7 +20,7 @@ At each hop, the node uses its private key to decrypt its layer, revealing the a
 
 All Sphinx packets have a fixed payload size of 2048 bytes. This uniformity is critical: if packets varied in size, nodes could infer their position in the route or correlate packets by size.
 
-The packet contains a header with encrypted routing information for each hop, HMACs to verify integrity at each layer, and the encrypted payload. The header uses a clever "onion" structure where processing at each hop reveals only the next hop's information while maintaining constant size through padding.
+The packet contains a header with encrypted routing information for each hop, HMACs to verify integrity at each layer, and the encrypted payload. The header uses an "onion" structure where processing at each hop reveals only the next hop's information while maintaining constant size through padding.
 
 ## Integrity verification
 

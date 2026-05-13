@@ -11,7 +11,7 @@ import { Callout } from 'nextra/components'
 # Message Queue
 
 <Callout type="info">
-    Although useful for understanding how the Nym Client works internally, this information is only of practical use if you are using the [`Mixnet`](/developers/rust/mixnet) module of the Rust SDK and interacting with the client at a low level. Most of this is abstracted away by the [`Stream`](/developers/rust/stream) module (`AsyncRead + AsyncWrite` channels) and the [`TcpProxy`](/developers/rust/tcpproxy) module (TCP tunnelling with message ordering).
+    Useful for understanding how the Nym Client works internally, but only of practical interest if you are using the [`Mixnet`](/developers/rust/mixnet) module of the Rust SDK and interacting with the client at a low level. The [`Stream`](/developers/rust/stream) module (`AsyncRead + AsyncWrite` channels) abstracts most of this away.
 </Callout>
 
 ## Sphinx Packet Streams
@@ -85,6 +85,6 @@ sequenceDiagram
 When passing a message to a client (however you do it, either piping messages from an app to a standalone client or via one of the `send` functions exposed by the SDKs), you are **putting that message into the queue** to be source encrypted and sent in the future, in order to ensure that traffic leaving the client does so in a manner that to an external observer is uniform / does not create any 'burst' or change in traffic timings that could aid traffic analysis.
 
 ## Note on Client Shutdown
-Accidentally dropping a client before your message has been sent is something that is possible and should be avoided (see the [troubleshooting guide](/developers/rust/mixnet/troubleshooting) for more on this) but is easy to avoid simply by remembering to:
+Accidentally dropping a client before your message has been sent is possible and should be avoided (see the [troubleshooting guide](/developers/rust/mixnet/troubleshooting) for more on this). To avoid it:
 - keep your client process alive, even if you are not expecting a reply to your message
-- (in the case of the SDKs) properly disconnecting your client in order to make sure that the message queue is flushed of Sphinx packets with actual payloads.
+- (with the SDKs) disconnect your client properly so that the message queue is flushed of Sphinx packets with real payloads.

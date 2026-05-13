@@ -11301,7 +11301,7 @@ dependencies = [
 
 [[package]]
 name = "smolmix"
-version = "0.0.1"
+version = "1.20.4"
 dependencies = [
  "futures",
  "hickory-proto",

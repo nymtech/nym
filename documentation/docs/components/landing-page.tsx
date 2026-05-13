@@ -287,28 +287,28 @@ const AnimationBlock = ({ type }: { type: string }) => {
 
 const sdks = [
   {
+    name: "Rust SDK",
+    description:
+      "Async Mixnet client with AsyncRead/AsyncWrite streams over the Mixnet.",
+    href: "/developers/rust",
+  },
+  {
     name: "smolmix",
     description:
       "TCP/UDP tunnel over the Mixnet. Userspace smoltcp stack exposing AsyncRead/AsyncWrite TcpStream and UdpSocket types.",
     href: "/developers/smolmix",
   },
   {
-    name: "nym-sdk",
+    name: "TypeScript SDK",
     description:
-      "Rust SDK with an async Mixnet client and AsyncRead/AsyncWrite streams over the Mixnet.",
-    href: "/developers/rust",
+      "Browser-side Mixnet Client for raw messaging via WebSocket, plus Nyx smart contract bindings.",
+    href: "/developers/typescript",
   },
   {
     name: "mix-fetch",
     description:
       "fetch()-compatible API that routes HTTP(S) requests through the Mixnet. Browsers and Node.js.",
     href: "/developers/mix-fetch",
-  },
-  {
-    name: "TypeScript SDK",
-    description:
-      "Browser-side Mixnet Client for raw messaging via WebSocket, plus Nyx smart contract bindings.",
-    href: "/developers/typescript",
   },
 ];
 
@@ -392,57 +392,53 @@ export const LandingPage = () => {
         ))}
       </div>
 
-      <div style={{ marginBottom: "3.5rem" }}>
-        <h2
-          className="landing-heading"
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "1.35rem",
-            fontWeight: 600,
-            marginBottom: "0.5rem",
-            border: "none",
-            padding: 0,
-          }}
-        >
-          Libraries
-        </h2>
-        <p
-          style={{
-            fontSize: "0.88rem",
-            color: "var(--textMuted)",
-            lineHeight: 1.6,
-            marginBottom: "1.5rem",
-          }}
-        >
-          Rust and TypeScript libraries for Mixnet integration.
-        </p>
-        <div
-          className="landing-sdk-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            border: "1px solid var(--border)",
-          }}
-        >
+      <div
+        className="landing-sdk-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "0",
+          marginBottom: "3.5rem",
+        }}
+      >
+        <div style={{ paddingRight: "2rem" }}>
+          <h2
+            className="landing-heading"
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "1.35rem",
+              fontWeight: 600,
+              marginBottom: "0.5rem",
+              border: "none",
+              padding: 0,
+            }}
+          >
+            Libraries
+          </h2>
+          <p
+            style={{
+              fontSize: "0.88rem",
+              color: "var(--textMuted)",
+              lineHeight: 1.6,
+            }}
+          >
+            Rust and TypeScript libraries for Mixnet integration.
+          </p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
           {sdks.map((sdk, i) => (
-            <Link
-              key={i}
-              href={sdk.href}
-              style={{ textDecoration: "none", display: "flex" }}
-            >
+            <Link key={i} href={sdk.href} style={{ textDecoration: "none" }}>
               <div
                 className="landing-card"
                 style={{
-                  padding: "1.2rem 1.4rem",
-                  borderBottom: i < 2 ? "1px solid var(--border)" : undefined,
-                  borderRight:
-                    i % 2 === 0 ? "1px solid var(--border)" : undefined,
+                  padding: "1rem 1.2rem",
+                  border: "1px solid var(--border)",
+                  marginTop: i > 0 ? "-1px" : undefined,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                   transition: "background-color 0.15s",
                   cursor: "pointer",
-                  flex: 1,
                 }}
               >
                 <div>
@@ -460,20 +456,13 @@ export const LandingPage = () => {
                     style={{
                       fontSize: "0.8rem",
                       color: "var(--textMuted)",
-                      lineHeight: 1.5,
                       margin: "0.25rem 0 0 0",
                     }}
                   >
                     {sdk.description}
                   </p>
                 </div>
-                <span
-                  style={{
-                    color: "var(--textMuted)",
-                    fontSize: "1rem",
-                    marginLeft: "0.75rem",
-                  }}
-                >
+                <span style={{ color: "var(--textMuted)", fontSize: "1rem" }}>
                   &rsaquo;
                 </span>
               </div>

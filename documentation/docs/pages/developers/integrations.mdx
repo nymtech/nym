@@ -18,7 +18,7 @@ Any application that integrates with Nym sends its traffic through the Mixnet vi
 |---|---|---|
 | **Rust** (native / desktop / CLI) | [`nym-sdk`](/developers/rust) (Stream, Mixnet, Client Pool) | [`smolmix` & connectors](/developers/smolmix) (TCP / UDP, plus DNS / TLS / HTTP via companion crates) · [`nym-sdk`](/developers/rust) SOCKS client |
 | **TypeScript** (browser) | [TypeScript SDK](/developers/typescript) (WASM Mixnet Client, messaging only) | [`mix-fetch`](/developers/mix-fetch) (HTTP) |
-| **Mobile** (iOS / Android) | _untested; see [Mobile note](#mobile-untested-ground) below_ | _untested; see [Mobile note](#mobile-untested-ground) below_ |
+| **Mobile** (iOS / Android) | via [`nym-vpn-client`](#mobile) (uniffi + cargo-swift / cargo-ndk) | via [`nym-vpn-client`](#mobile) (uniffi + cargo-swift / cargo-ndk) |
 
 ## Environment
 
@@ -27,16 +27,13 @@ Different runtimes have different transport constraints: a browser cannot open r
 - **Native / Desktop / CLI**: full access to system networking and persistent storage. Use [`nym-sdk`](/developers/rust) (the Rust SDK) for E2E messaging or byte streams, or the [`smolmix` family](/developers/smolmix) for socket-level (TCP/UDP), DNS, TLS, or HTTP access in proxy mode.
 - **Browser**: restricted to WebSockets, Web Transport, and `fetch`; HTTPS-only mixed-content rules; no filesystem access. Use [`mix-fetch`](/developers/mix-fetch) for HTTP(S) requests, or the [TypeScript SDK](/developers/typescript)'s WASM Mixnet Client for raw message passing.
 
-### Mobile (untested ground)
+### Mobile
 
-There is no first-party mobile SDK, and we have not yet shipped tested mobile builds. The Rust crates *should* cross-compile to mobile targets. This is the path we'd take if starting today:
+There is no first-party mobile SDK, but [`nym-vpn-client`](https://github.com/nymtech/nym-vpn-client) ships production iOS and Android apps built around the Nym stack and is the reference we'd point you at. The relevant pieces are `nym-vpn-core/crates/nym-vpn-lib-uniffi` ([`uniffi`](https://mozilla.github.io/uniffi-rs/) FFI wrapper), `nym-vpn-core/iOS.mk` ([`cargo-swift`](https://github.com/antoniusnaumann/cargo-swift) → XCFramework + SwiftPM), and `nym-vpn-core/Android.mk` ([`cargo-ndk`](https://github.com/bbqsrc/cargo-ndk) → `jniLibs/`, driven from Gradle).
 
-- Build [`nym-sdk`](/developers/rust) or [`smolmix`](/developers/smolmix/tunnel) (and any companion connectors you need) for the target triple (`aarch64-apple-ios`, `aarch64-linux-android`, etc.).
-- Generate FFI bindings with [`uniffi`](https://mozilla.github.io/uniffi-rs/) and call them from Swift or Kotlin. The existing [Rust SDK FFI](/developers/rust/ffi) (Go, C/C++) is a useful reference for the binding shape.
-- Run the tokio reactor on a dedicated background thread. iOS in particular has strong opinions about backgrounding and `libdispatch` interaction.
-- Plan for TLS / cert-store integration up front. On mobile you'll typically want to call out to platform TLS (`SecTrust` on iOS, Android `NetworkSecurityConfig`) rather than embed a CA bundle.
+Note that this stack is tuned for a VPN: it embeds [`webpki-roots`](https://crates.io/crates/webpki-roots) rather than deferring to platform TLS, ships only `aarch64-apple-ios` and two Android ABIs, and has no simulator build. Treat it as a working reference, not a turnkey template.
 
-If you try this and hit (or solve) blockers, we'd like to hear about it. Drop a note in the [Nym chat](https://nymtech.net/community) or open an issue on [GitHub](https://github.com/nymtech/nym).
+If you try this and hit (or solve) blockers, drop a note in the [Nym dev channel on Matrix](https://matrix.to/#/#dev:nymtech.chat) or open an issue on [GitHub](https://github.com/nymtech/nym).
 
 ## Architecture
 

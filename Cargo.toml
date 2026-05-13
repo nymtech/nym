@@ -514,10 +514,14 @@ nym-wireguard-private-metadata-shared = { version = "1.20.4", path = "common/wir
 nym-wireguard-private-metadata-client = { version = "1.20.4", path = "common/wireguard-private-metadata/client" }
 nym-wireguard-private-metadata-server = { version = "1.20.4", path = "common/wireguard-private-metadata/server" }
 nym-sqlx-pool-guard = { version = "1.2.0", path = "nym-sqlx-pool-guard" }
-nym-wasm-client-core = { version = "1.20.4", path = "common/wasm/client-core" }
-nym-wasm-storage = { version = "1.20.4", path = "common/wasm/storage" }
-nym-wasm-utils = { version = "1.20.4", path = "common/wasm/utils", default-features = false }
-nyxd-scraper-shared = { version = "1.20.4", path = "common/nyxd-scraper-shared" }
+nym-wasm-client-core = { version = "1.21.0", path = "common/wasm/client-core" }
+nym-wasm-storage = { version = "1.21.0", path = "common/wasm/storage" }
+nym-wasm-utils = { version = "1.21.0", path = "common/wasm/utils", default-features = false }
+nyxd-scraper-shared = { version = "1.21.0", path = "common/nyxd-scraper-shared" }
+smolmix = { version = "1.21.0", path = "smolmix/core" }
+smolmix-dns = { version = "1.21.0", path = "smolmix/dns" }
+smolmix-hyper = { version = "1.21.0", path = "smolmix/hyper" }
+smolmix-tls = { version = "1.21.0", path = "smolmix/tls" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork

@@ -1,0 +1,28 @@
+[package]
+name = "smolmix-dns"
+description = "DNS resolution through the Nym mixnet via hickory-resolver"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+publish = true
+
+[dependencies]
+smolmix = { workspace = true }
+hickory-proto = { workspace = true, features = ["tokio"] }
+hickory-resolver = { workspace = true, features = ["tokio"] }
+tokio-smoltcp = { workspace = true }
+
+[dev-dependencies]
+hickory-resolver = { workspace = true, features = ["tokio", "system-config"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tracing = { workspace = true }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+
+[[example]]
+name = "resolve"

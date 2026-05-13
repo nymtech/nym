@@ -12,6 +12,8 @@ use std::path::PathBuf;
 
 pub(crate) mod cache;
 pub(crate) mod handlers;
+#[cfg(test)]
+mod tests;
 
 pub(crate) fn build_refresher(
     config: &config::NodeFamiliesCache,

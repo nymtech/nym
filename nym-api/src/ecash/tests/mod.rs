@@ -5,25 +5,11 @@ use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
-use crate::mixnet_contract_cache::cache::MixnetContractCache;
-use crate::network::models::NetworkDetails;
-use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::node_status_api::handlers::unstable;
-use crate::node_status_api::NodeStatusCache;
-use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
-use crate::support::caching::refresher::RefreshRequester;
 use crate::support::config;
-use crate::support::http::state::chain_status::ChainStatusCache;
-use crate::support::http::state::contract_details::ContractDetailsCache;
-use crate::support::http::state::force_refresh::ForcedRefresh;
-use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
-use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
-use crate::support::http::state::AppState;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
-use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use async_trait::async_trait;
 use axum::Router;
 use axum_test::http::StatusCode;
@@ -79,8 +65,6 @@ use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
-use tempfile::{tempdir, TempDir};
 use time::Date;
 use tokio::sync::RwLock;
 
@@ -89,7 +73,8 @@ pub(crate) mod helpers;
 mod issued_ticketbooks;
 
 const TEST_COIN_DENOM: &str = "unym";
-const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub(crate) const TEST_REWARDING_VALIDATOR_ADDRESS: &str =
+    "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
 #[derive(Default, Debug)]
 struct InternalCounters {
@@ -1272,134 +1257,124 @@ struct TestFixture {
     chain_state: SharedFakeChain,
     epoch: Arc<AtomicU64>,
     ecash_clients: Arc<RwLock<HashMap<EpochId, Vec<EcashApiClient>>>>,
+}
 
-    _tmp_dir: TempDir,
+/// Test-only bundle returned by [`build_dummy_ecash_state`]. Carries the
+/// constructed [`EcashState`] plus the test handles the caller may want to
+/// poke at directly (chain state, registered ecash clients, epoch counter).
+pub(crate) struct DummyEcashBundle {
+    pub ecash_state: EcashState,
+    pub chain_state: SharedFakeChain,
+    pub ecash_clients: Arc<RwLock<HashMap<EpochId, Vec<EcashApiClient>>>>,
+    /// A real [`Client`] (not the [`DummyClient`]) suitable for the
+    /// `nyxd_client` field on [`AppState`]. Built from a global env-var dance
+    /// (see body), which is required because `AppState` is not generic.
+    pub real_client: Client,
+    pub epoch: Arc<AtomicU64>,
+}
+
+/// Build a self-contained [`EcashState`] suitable for handler tests. Pulls
+/// every dependency it needs (coconut keypair, identity, fake chain, dummy
+/// comm channel, etc.) from a deterministic RNG seed so callers get
+/// reproducible setups.
+pub(crate) async fn build_dummy_ecash_state(
+    config: &config::Config,
+    storage: NymApiStorage,
+    rng_seed: [u8; 32],
+) -> DummyEcashBundle {
+    let mut rng = crate::ecash::tests::fixtures::test_rng(rng_seed);
+    let coconut_keypair = ttp_keygen(1, 1).unwrap().remove(0);
+    let identity = ed25519::KeyPair::new(&mut rng);
+    let epoch = Arc::new(AtomicU64::new(1));
+    let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
+    let comm_channel = DummyCommunicationChannel::new_single_dummy(
+        coconut_keypair.verification_key().clone(),
+        address.clone(),
+    )
+    .with_epoch(epoch.clone());
+    let ecash_clients = comm_channel.clients_arc();
+
+    let staged_key_pair = crate::ecash::keys::KeyPair::new();
+    staged_key_pair
+        .set(KeyPairWithEpoch {
+            keys: coconut_keypair,
+            issued_for_epoch: 1,
+        })
+        .await;
+    staged_key_pair.validate();
+
+    let chain_state = SharedFakeChain::default();
+    let nyxd_client = DummyClient::new(address, chain_state.clone());
+
+    let ecash_contract = chain_state
+        .lock()
+        .unwrap()
+        .ecash_contract
+        .address
+        .clone()
+        .as_str()
+        .parse()
+        .unwrap();
+
+    let ecash_state = EcashState::new(
+        config,
+        ecash_contract,
+        nyxd_client,
+        identity,
+        staged_key_pair,
+        comm_channel,
+        storage,
+        &ShutdownManager::empty_mock(),
+    );
+
+    // ideally this would have been generic, but that's way too much work
+    // since then `AppState` would have had to be made generic
+    // also, this is such a disgusting workaround to make it 'work'. yuck
+    let mut dummy = NymNetworkDetails::new_empty();
+    dummy.endpoints = vec![ValidatorDetails::new(
+        "http://127.0.0.1:26657",
+        Some("http://why-do-we-even-need-api-url-set-here.wtf"),
+        None,
+    )];
+    dummy.export_to_env();
+    let real_client = Client::new(config).unwrap();
+
+    DummyEcashBundle {
+        ecash_state,
+        chain_state,
+        ecash_clients,
+        real_client,
+        epoch,
+    }
 }
 
 impl TestFixture {
-    fn build_app_state(
-        storage: NymApiStorage,
-        ecash_state: EcashState,
-        nyxd_client: Client,
-        tmp_dir: &TempDir,
-    ) -> AppState {
-        let mixnet_contract_paths = tmp_dir.path().join("mixnet_contract");
-        let node_annotations_paths = tmp_dir.path().join("node_annotations");
-
-        let mixnet_contract_cache_state =
-            MixnetContractCache::new(&mixnet_contract_paths, Duration::from_secs(42));
-        let mixnet_contract_cache =
-            MixnetContractCacheState::new(mixnet_contract_cache_state, RefreshRequester::default());
-
-        let node_status_cache_state =
-            NodeStatusCache::new(&node_annotations_paths, Duration::from_secs(42));
-        let node_annotations_cache =
-            NodeAnnotationsCache::new(node_status_cache_state, RefreshRequester::default());
-
-        AppState {
-            nyxd_client,
-            chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
-            ecash_signers_cache: Default::default(),
-            address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
-            forced_refresh: ForcedRefresh::new(true),
-            mixnet_contract_cache,
-            node_families_cache: SharedCache::<NodeFamiliesCacheData>::new(),
-            node_annotations_cache,
-            storage,
-            described_nodes_cache: SharedCache::<DescribedNodes>::new(),
-            network_details: NetworkDetails::new(
-                "localhost".to_string(),
-                NymNetworkDetails::new_empty(),
-            ),
-            node_info_cache: unstable::NodeInfoCache::default(),
-            contract_info_cache: ContractDetailsCache::new(Duration::from_secs(42)),
-            api_status: ApiStatusState::new(None),
-            ecash_state: Arc::new(ecash_state),
-        }
-    }
-
     async fn new() -> Self {
-        let mut rng = crate::ecash::tests::fixtures::test_rng([69u8; 32]);
-        let coconut_keypair = ttp_keygen(1, 1).unwrap().remove(0);
-        let identity = ed25519::KeyPair::new(&mut rng);
-        let epoch = Arc::new(AtomicU64::new(1));
-        let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
-        let comm_channel = DummyCommunicationChannel::new_single_dummy(
-            coconut_keypair.verification_key().clone(),
-            address.clone(),
-        )
-        .with_epoch(epoch.clone());
-        let ecash_clients = comm_channel.clients_arc();
-
-        // TODO: it's AWFUL to test with actual storage, we should somehow abstract it away
-        let tmp_dir = tempdir().unwrap();
-        let storage = NymApiStorage::init(tmp_dir.path().join("TESTING_STORAGE.db"))
-            .await
-            .unwrap();
-
-        let staged_key_pair = crate::ecash::keys::KeyPair::new();
-        staged_key_pair
-            .set(KeyPairWithEpoch {
-                keys: coconut_keypair,
-                issued_for_epoch: 1,
-            })
-            .await;
-        staged_key_pair.validate();
-
-        let chain_state = SharedFakeChain::default();
-        let nyxd_client = DummyClient::new(address, chain_state.clone());
-
-        let ecash_contract = chain_state
-            .lock()
-            .unwrap()
-            .ecash_contract
-            .address
-            .clone()
-            .as_str()
-            .parse()
-            .unwrap();
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
 
         let mut config = config::Config::new("test");
         config.ecash_signer.enabled = true;
 
-        let ecash_state = EcashState::new(
-            &config,
-            ecash_contract,
-            nyxd_client,
-            identity,
-            staged_key_pair,
-            comm_channel,
+        let bundle = build_dummy_ecash_state(&config, storage.clone(), [69u8; 32]).await;
+
+        let app_state = crate::support::http::state::test_helpers::build_app_state(
             storage.clone(),
-            &ShutdownManager::empty_mock(),
+            bundle.ecash_state,
+            bundle.real_client,
+            SharedCache::<NodeFamiliesCacheData>::new(),
         );
 
-        // ideally this would have been generic, but that's way too much work
-        // since then `AppState` would have had to be made generic
-        // also, this is such a disgusting workaround to make it 'work'. yuck
-        let mut dummy = NymNetworkDetails::new_empty();
-        dummy.endpoints = vec![ValidatorDetails::new(
-            "http://127.0.0.1:26657",
-            Some("http://why-do-we-even-need-api-url-set-here.wtf"),
-            None,
-        )];
-        dummy.export_to_env();
-        let another_fake_nyxd_client = Client::new(&config).unwrap();
-
         TestFixture {
-            axum: TestServer::new(Router::new().nest("/v1/ecash", ecash_routes()).with_state(
-                Self::build_app_state(
-                    storage.clone(),
-                    ecash_state,
-                    another_fake_nyxd_client,
-                    &tmp_dir,
-                ),
-            ))
+            axum: TestServer::new(
+                Router::new()
+                    .nest("/v1/ecash", ecash_routes())
+                    .with_state(app_state),
+            )
             .unwrap(),
             storage,
-            chain_state,
-            epoch,
-            ecash_clients,
-            _tmp_dir: tmp_dir,
+            chain_state: bundle.chain_state,
+            epoch: bundle.epoch,
+            ecash_clients: bundle.ecash_clients,
         }
     }
 
@@ -1575,11 +1550,8 @@ mod credential_tests {
 
         let nyxd_client = DummyClient::new(address.clone(), Default::default());
         let key_pair = ttp_keygen(1, 1).unwrap().remove(0);
-        let tmp_dir = tempdir().unwrap();
 
-        let storage = NymApiStorage::init(tmp_dir.path().join("storage.db"))
-            .await
-            .unwrap();
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
         let comm_channel = DummyCommunicationChannel::new_single_dummy(
             key_pair.verification_key().clone(),
             address,

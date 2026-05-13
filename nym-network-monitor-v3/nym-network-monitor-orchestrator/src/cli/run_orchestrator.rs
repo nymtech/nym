@@ -28,7 +28,7 @@ pub(crate) struct Args {
     metrics_and_results_token: String,
 
     /// How often each node should be stress-tested (e.g. `30m`, `1h`).
-    #[clap(long, env = NYM_NETWORK_MONITOR_TEST_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "12h")]
+    #[clap(long, env = NYM_NETWORK_MONITOR_TEST_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "2h")]
     test_interval: Duration,
 
     /// Maximum time a single test run is allowed to run before being considered timed out

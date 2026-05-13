@@ -285,7 +285,14 @@ const AnimationBlock = ({ type }: { type: string }) => {
   }
 };
 
-const sdks = [
+type Sdk = {
+  name: string;
+  description: string;
+  href: string;
+  children?: { name: string; href: string }[];
+};
+
+const sdks: Sdk[] = [
   {
     name: "Rust SDK",
     description:
@@ -293,10 +300,17 @@ const sdks = [
     href: "/developers/rust",
   },
   {
-    name: "smolmix",
+    name: "smolmix & connectors",
     description:
-      "TCP/UDP tunnel over the Mixnet. Userspace smoltcp stack exposing AsyncRead/AsyncWrite TcpStream and UdpSocket types.",
+      "Rust crate family for routing networking through the Mixnet: TCP/UDP tunnels, DNS, TLS, and HTTP. Pick the layer you need.",
     href: "/developers/smolmix",
+    children: [
+      { name: "smolmix-tunnel", href: "/developers/smolmix/tunnel" },
+      { name: "smolmix-dns", href: "/developers/smolmix/dns" },
+      { name: "smolmix-tls", href: "/developers/smolmix/tls" },
+      { name: "smolmix-hyper", href: "/developers/smolmix/hyper" },
+      { name: "Building on smolmix", href: "/developers/smolmix/extending" },
+    ],
   },
   {
     name: "TypeScript SDK",
@@ -427,46 +441,81 @@ export const LandingPage = () => {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
           {sdks.map((sdk, i) => (
-            <Link key={i} href={sdk.href} style={{ textDecoration: "none" }}>
-              <div
-                className="landing-card"
-                style={{
-                  padding: "1rem 1.2rem",
-                  border: "1px solid var(--border)",
-                  marginTop: i > 0 ? "-1px" : undefined,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  transition: "background-color 0.15s",
-                  cursor: "pointer",
-                }}
-              >
-                <div>
-                  <span
-                    className="landing-heading"
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "1rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {sdk.name}
+            <div
+              key={i}
+              style={{
+                border: "1px solid var(--border)",
+                marginTop: i > 0 ? "-1px" : undefined,
+              }}
+            >
+              <Link href={sdk.href} style={{ textDecoration: "none" }}>
+                <div
+                  className="landing-card"
+                  style={{
+                    padding: "1rem 1.2rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    transition: "background-color 0.15s",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div>
+                    <span
+                      className="landing-heading"
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "1rem",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {sdk.name}
+                    </span>
+                    <p
+                      style={{
+                        fontSize: "0.8rem",
+                        color: "var(--textMuted)",
+                        margin: "0.25rem 0 0 0",
+                      }}
+                    >
+                      {sdk.description}
+                    </p>
+                  </div>
+                  <span style={{ color: "var(--textMuted)", fontSize: "1rem" }}>
+                    &rsaquo;
                   </span>
-                  <p
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "var(--textMuted)",
-                      margin: "0.25rem 0 0 0",
-                    }}
-                  >
-                    {sdk.description}
-                  </p>
                 </div>
-                <span style={{ color: "var(--textMuted)", fontSize: "1rem" }}>
-                  &rsaquo;
-                </span>
-              </div>
-            </Link>
+              </Link>
+              {sdk.children && (
+                <div
+                  style={{
+                    padding: "0 1.2rem 0.8rem 1.2rem",
+                    display: "flex",
+                    gap: "0.4rem",
+                    flexWrap: "wrap",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "0.78rem",
+                  }}
+                >
+                  {sdk.children.map((c) => (
+                    <Link
+                      key={c.href}
+                      href={c.href}
+                      className="landing-chip"
+                      style={{
+                        color: "var(--textMuted)",
+                        textDecoration: "none",
+                        padding: "0.2rem 0.55rem",
+                        border: "1px solid var(--border)",
+                        transition: "background-color 0.15s",
+                      }}
+                    >
+                      {c.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </div>

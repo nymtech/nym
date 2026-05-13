@@ -1,6 +1,6 @@
 ---
 title: "dVPN Protocol Stack and Encryption"
-description: "Technical details of Nym dVPN mode's protocol layers: nested WireGuard tunnels, split-knowledge architecture, and packet format tradeoffs."
+description: "Technical details of Nym dVPN mode's protocol layers: nested WireGuard tunnels, split-knowledge architecture, and packet format trade-offs."
 schemaType: "TechArticle"
 section: "Network"
 lastUpdated: "2026-04-07"
@@ -8,11 +8,9 @@ lastUpdated: "2026-04-07"
 
 # dVPN Protocol
 
-import { Callout } from 'nextra/components'
+import { LewesPending } from '../../../components/lewes-pending'
 
-<Callout type="info">
-Cryptographic details on this page will be updated for the Lewes Protocol release. For the current algorithm overview, see the [Nym Trust Center: Cryptography](https://nym.com/trust-center/cryptography).
-</Callout>
+<LewesPending variant="cryptography" />
 
 This page covers the technical details of dVPN mode's protocol stack and encryption.
 
@@ -40,7 +38,7 @@ Both tunnels use standard WireGuard cryptography: Curve25519 for key exchange, C
 
 ## Packet format
 
-dVPN mode uses standard WireGuard packet framing: packets are not padded to a uniform size. Packet sizes may vary and could in principle leak information about content types (video streams have different size patterns than text messages). This is a deliberate tradeoff: uniform padding would add overhead and reduce throughput, which conflicts with dVPN mode's goal of low-latency, high-throughput connectivity. For uniform packet sizes, use [mixnet mode](/network/mixnet-mode), which wraps all traffic in fixed-size Sphinx packets.
+dVPN mode uses standard WireGuard packet framing: packets are not padded to a uniform size. Packet sizes may vary and could in principle leak information about content types (video streams have different size patterns than text messages). This is a deliberate trade-off: uniform padding would add overhead and reduce throughput, which conflicts with dVPN mode's goal of low-latency, high-throughput connectivity. For uniform packet sizes, use [mixnet mode](/network/mixnet-mode), which wraps all traffic in fixed-size Sphinx packets.
 
 ## Connection lifecycle
 

@@ -46,12 +46,12 @@ The second factor is whether you control both sides of the communication.
 
 ![](/images/developers/nym-arch-client-to-client.png)
 
-**Proxy**: only the client side runs Nym. Traffic exits the Mixnet at an Exit Gateway and continues to the destination over the public internet. The mixnet anonymises the sender; payload protection (TLS, Noise, etc.) is your application's job, just as on a direct connection. Appropriate when connecting to third-party services such as blockchain RPCs or external APIs.
+**Proxy**: only the client side runs Nym. Traffic exits the Mixnet at an Exit Gateway and continues to the destination over the public internet. The mixnet anonymises the sender; payload protection (TLS, Noise, etc.) is your application's job, as on a direct connection. Appropriate when connecting to third-party services such as blockchain RPCs or external APIs.
 
 ![](/images/developers/nym-arch-ip-routing.png)
 
 <Callout type="warning">
-Once traffic leaves the Exit Gateway, it travels over the public internet to the destination, exactly like any other server-initiated connection. The mixnet anonymises the sender but does not encrypt the payload past the gateway. Use TLS or another application-layer cipher just as you would on a direct connection. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe.
+Once traffic leaves the Exit Gateway, it travels over the public internet to the destination, exactly like any other server-initiated connection. The mixnet anonymises the sender but does not encrypt the payload past the gateway. Use TLS or another application-layer cipher as you would on a direct connection. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe.
 </Callout>
 
 **Browser apps**: both proxy and E2E modes work slightly differently in a browser setting. The Nym client runs as a WASM blob inside a Web Worker, and your application communicates with it via JS bindings rather than direct function calls. The mixnet behaviour is identical; the integration shape differs.

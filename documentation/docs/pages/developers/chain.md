@@ -13,11 +13,11 @@ There are two options for interacting with the blockchain to send tokens or inte
 * `nyxd` binary
 
 ## Nym-CLI tool (recommended in most cases)
-The `nym-cli` tool is a binary offering a simple interface for interacting with deployed smart contract (for instance, bonding and unbonding a Mix Node from the CLI), as well as creating and managing accounts and keypairs, sending tokens, and querying the blockchain.
+The `nym-cli` tool is a binary offering an interface for interacting with deployed smart contracts (e.g. bonding and unbonding a Mix Node from the CLI), creating and managing accounts and keypairs, sending tokens, and querying the blockchain.
 
-Instructions on how to do so can be found on the [`nym-cli` docs page](./tools/nym-cli)
+See the [`nym-cli` docs page](./tools/nym-cli) for instructions.
 
 ## Nyxd binary
-The `nyxd` binary, although more complex to compile and use, offers the full range of commands availiable to users of CosmosSDK chains. Use this if you are (e.g.) wanting to perform more granular queries about transactions from the CLI.
+The `nyxd` binary, although harder to compile and use, offers the full range of commands available to users of CosmosSDK chains. Use this when you need more granular queries about transactions from the CLI.
 
-You can use the instructions on how to do this on from the [`gaiad` docs page](https://hub.cosmos.network/main/delegators/delegator-guide-cli.html#querying-the-state).
+The [`gaiad` docs page](https://hub.cosmos.network/main/delegators/delegator-guide-cli.html#querying-the-state) covers how to do this.

@@ -4,7 +4,7 @@ The Nym native client exposes a websocket interface that your code connects to. 
 Once you have a websocket connection, interacting with the client involves piping messages down the socket and listening for incoming messages.
 
 ## Message Requests
-There are a number of message types that you can send up the websocket as defined [here](https://github.com/nymtech/nym/blob/master/clients/native/websocket-requests/src/responses.rs#L48).
+The message types you can send up the websocket are defined [here](https://github.com/nymtech/nym/blob/master/clients/native/websocket-requests/src/responses.rs#L48).
 
 ### Getting your own address
 When you start your app, it is best practice to ask the native client to tell you what your own address is (from the generated configuration files <!--add link -->. If you are running a service, you need to do this in order to know what address to give others. In a client-side piece of code you can also use this as a test to make sure your websocket connection is running smoothly. To do this, send:
@@ -26,7 +26,7 @@ You'll receive a response of the format:
 
 See [here](https://github.com/nymtech/nym/blob/93cc281abc2cc951023b51746fa6f2ead1f56c46/clients/native/examples/python-examples/websocket/textsend.py#L16C9-L16C9) for an example of this being used.
 
-> Note that all the pieces of native client example code begin with printing the selfAddress. Examples exist for Rust, Go, Javascript, and Python.
+> All native client example code begins with printing the selfAddress. Examples exist for Rust, Go, Javascript, and Python.
 
 ### Sending text
 If you want to send text information through the mixnet, format a message like this one and poke it into the websocket:
@@ -52,11 +52,11 @@ In some applications, e.g. where people are chatting with friends who they know,
 }
 ```
 
-**If that fits your security model, good. However, will probably be the case that you want to send anonymous replies using Single Use Reply Blocks (SURBs)**.
+If that fits your security model, good. Otherwise, send anonymous replies using Single Use Reply Blocks (SURBs).
 
-You can read more about SURBs [here](/network/mixnet-mode/anonymous-replies) but in short they are ways for the receiver of this message to anonymously reply to you - the sender - **without them having to know your client address**.
+More on SURBs in the [anonymous replies docs](/network/mixnet-mode/anonymous-replies). In short, they let the receiver of a message reply to you without needing to know your client address.
 
-Your client will send along a number of `replySurbs` to the recipient of the message. These are pre-addressed Sphinx packets that the recipient can write to the payload of (i.e. write response data to), but not view the final destination of. If the recipient is unable to fit the response data into the bucket of SURBs sent to it, it will use a SURB to request more SURBs be sent to it from your client.
+Your client will send some `replySurbs` along to the recipient of the message. These are pre-addressed Sphinx packets that the recipient can write response data into, but cannot see the final destination of. If the recipient cannot fit its response into the bucket of SURBs sent to it, it will use a SURB to request more SURBs from your client.
 
 ```json
 {
@@ -69,7 +69,7 @@ Your client will send along a number of `replySurbs` to the recipient of the mes
 
 See ['Replying to SURB Messages'](#replying-to-surb-messages) below for an example of how to deal with incoming messages that have SURBs attached.
 
-Deciding on the amount of SURBs to generate and send along with outgoing messages depends on the expected size of the reply. You might want to send a lot of SURBs in order to make sure you get your response as quickly as possible (but accept the minor additional latency when sending, as your client has to generate and encrypt the packets), or you might just send a few (e.g. 20) and then if your response requires more SURBs, send them along, accepting the additional latency in getting your response.
+How many SURBs to generate and send with outgoing messages depends on the expected size of the reply. Send many SURBs to get the response as quickly as possible (accepting minor additional latency at send time, since your client has to generate and encrypt the packets), or send a few (e.g. 20) and let the recipient request more if needed (accepting additional latency in receiving the response).
 
 ### Sending binary data
 You can also send bytes instead of JSON. For that you have to send a binary websocket frame containing a binary encoded

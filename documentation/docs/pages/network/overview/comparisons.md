@@ -24,7 +24,7 @@ Nym's mixnet mode goes further by adding timing obfuscation and cover traffic, w
 
 Nym's mixnet addresses this by adding random delays at each Mix Node to break timing correlations, cover traffic so observers can't tell when real communication is occurring, per-packet routing rather than Tor's per-session circuits (so there's no long-lived path to observe), and a blockchain-based topology instead of Tor's centralised directory authority.
 
-The tradeoff is latency: Tor is faster because it doesn't add mixing delays, so it may be a better fit for general browsing where timing protection isn't needed. Nym's mixnet is designed for threat models where the adversary can perform traffic analysis.
+The trade-off is latency: Tor is faster because it doesn't add mixing delays, so it may be a better fit for general browsing where timing protection isn't needed. Nym's mixnet is designed for threat models where the adversary can perform traffic analysis.
 
 ## Nym vs I2P
 

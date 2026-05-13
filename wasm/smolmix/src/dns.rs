@@ -1,11 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-//! DNS A/AAAA resolution over the WASM tunnel's UDP transport.
-//!
-//! Uses `hickory-proto` for wire-format construction and parsing (no tokio
-//! dep with `default-features = false`, just the protocol types). Queries
-//! go via the tunnel's UDP socket to a public resolver (8.8.8.8 primary,
-//! 1.1.1.1 fallback). Results are cached for the session.
+//! DNS A/AAAA resolution over the tunnel's UDP socket (8.8.8.8 with 1.1.1.1
+//! fallback). Wire format via `hickory-proto`; results cached per session.
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
@@ -24,12 +21,7 @@ const PRIMARY_DNS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8
 const FALLBACK_DNS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 53);
 const DNS_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// Resolve a hostname to an IP address via DNS over the mixnet tunnel.
-///
-/// - Cached results are returned immediately (no TTL, session-lived).
-/// - Literal IP addresses (e.g. "1.2.3.4") are returned without a query.
-/// - Tries A records first, then AAAA.
-/// - Falls back to 1.1.1.1 if 8.8.8.8 times out.
+/// Resolve a hostname to an IP through the mixnet tunnel.
 pub async fn resolve(tunnel: &WasmTunnel, hostname: &str) -> Result<IpAddr, FetchError> {
     if let Ok(ip) = hostname.parse::<IpAddr>() {
         return Ok(ip);
@@ -136,16 +128,11 @@ async fn query_record(
     parse_response(&response, hostname)
 }
 
-/// Build a DNS query packet and return its wire bytes plus the transaction
-/// ID we set, so the caller can verify the response.
-///
-/// hickory-proto's `Message::query()` auto-generates an ID, but we override
-/// it with `rand::random()` (wasm32 backend = `crypto.getRandomValues()`
-/// via `getrandom/js`) so we control the entropy source and keep the
-/// security-audit guarantee from item #5 of the audit.
+/// Build a DNS query and return its bytes plus transaction ID.
 fn build_query(hostname: &str, record_type: RecordType) -> Result<(Vec<u8>, u16), FetchError> {
     let mut msg = Message::query();
     msg.metadata.recursion_desired = true;
+    // Override the auto-generated ID with a CSPRNG value (getrandom/js).
     let id: u16 = rand::random();
     msg.metadata.id = id;
 

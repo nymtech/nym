@@ -1,4 +1,5 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 //! IPR (IP Packet Router) protocol layer for the WASM tunnel.
 //!
@@ -30,20 +31,10 @@ use nym_wasm_client_core::ReconstructedMessage;
 
 use crate::error::FetchError;
 
-/// Reply-SURB counts attached to the LP Open and Data frames the tunnel
-/// sends to the IPR.
-///
-/// SURBs are single-use reply blocks attached to outbound anonymous messages
-/// so the IPR can reply without learning the sender. Higher counts cost
-/// outgoing bandwidth (each SURB lives in the Sphinx packet) but raise the
-/// reply throughput ceiling for the corresponding direction.
+/// Reply-SURB counts for Open and Data frames. Defaults: open=5, data=2.
 #[derive(Clone, Copy)]
 pub struct SurbsConfig {
-    /// SURBs attached to the LP Open frame and the ConnectRequest. The IPR
-    /// needs a small reply pool before any data flows back. Default 5.
     pub open: u32,
-    /// SURBs attached to each LP Data frame the bridge sends. Default 2;
-    /// fits in one Sphinx packet with minimal outgoing overhead.
     pub data: u32,
 }
 
@@ -70,18 +61,15 @@ pub async fn open_and_connect(
     stream_id: u64,
     surbs: SurbsConfig,
 ) -> Result<IpPair, FetchError> {
-    nym_wasm_utils::console_log!("[ipr] sending connect handshake (stream={stream_id:#018x})...");
+    nym_wasm_utils::console_log!("[ipr] sending connect handshake...");
+    crate::util::debug_log!("[ipr] stream={stream_id:#018x}");
 
     // 1. Send LP Open frame (empty payload, seq=0); establishes the stream
     let open_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Open, 0, &[]);
     send_to_ipr(client_input, ipr_address, open_frame, surbs.open).await?;
 
     // 2. Send v9 ConnectRequest as LP Data frame (seq=0).
-    //
-    // Data frames start at seq=0; the Open frame's seq field is NOT part
-    // of the Data sequence space.  The receiver's reorder buffer only tracks
-    // Data frames and expects the first one at seq=0.  This matches native
-    // MixnetStream, which initialises next_seq=0 independently of the Open.
+    // Data frames have their own seq space; Open's seq field is independent.
     let (request, request_id) = v9::new_connect_request(None);
     let request_bytes = request
         .to_bytes()

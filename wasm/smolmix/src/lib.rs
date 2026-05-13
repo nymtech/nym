@@ -1,4 +1,5 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 //! smolmix-wasm: drop-in browser networking over the Nym mixnet.
 //!
@@ -107,25 +108,7 @@ pub fn main() {
     nym_wasm_utils::set_panic_hook();
 }
 
-/// Initialise the mixnet tunnel.
-///
-/// Must be called before `mixFetch` or `mixSocket`. The `opts` parameter accepts a JS object
-/// with fields:
-/// - `preferredIpr` (required): Nym address of the IPR exit node
-/// - `clientId` (optional): storage namespace; randomise per session for clean state
-/// - `forceTls` (optional, default `true`): use `wss://` for gateway connections
-/// - `disablePoissonTraffic` (optional, default `false`): disable dummy traffic
-/// - `disableCoverTraffic` (optional, default `false`): disable cover traffic loop
-/// - `openReplySurbs` (optional, default `5`): SURBs attached to the LP Open frame
-///   and the v9 ConnectRequest sent during the IPR handshake
-/// - `dataReplySurbs` (optional, default `2`): SURBs attached to each LP Data
-///   frame the bridge sends. Higher values raise download throughput at the
-///   cost of outgoing-packet overhead
-///
-/// # Errors
-///
-/// Returns a rejected Promise if the tunnel is already initialised, if
-/// `preferredIpr` is missing/invalid, or if the mixnet connection fails.
+/// Initialise the mixnet tunnel. See [`SetupOpts`] for the JS-side shape.
 #[wasm_bindgen(js_name = "setupMixTunnel")]
 #[cfg(target_arch = "wasm32")]
 pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {

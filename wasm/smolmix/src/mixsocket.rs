@@ -1,17 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-//! `mixSocket`: drop-in `WebSocket` over the Nym mixnet tunnel.
-//!
-//! Performs DNS → TCP → TLS → HTTP 101 upgrade via the same pipeline as
-//! `mixFetch`, then spawns a per-connection background task that bridges
-//! JS callbacks to `async-tungstenite`'s sink/stream halves.
-//!
-//! Two static maps anchor the lifetime of every active connection:
-//! - [`WS_HANDLES`] stores the command-channel sender keyed by handle id,
-//! - [`WS_NEXT_ID`] hands out monotonically increasing u32 ids.
-//!
-//! The JS side never holds a `WebSocket` object; it holds an integer handle
-//! and reaches the background task through `wsSend(id, data)` / `wsClose(id)`.
+//! WebSocket over the mixnet tunnel; JS holds an integer handle.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -40,20 +30,9 @@ enum WsCommand {
     Close(u16, String),
 }
 
-/// Open a WebSocket connection through the mixnet tunnel.
-///
-/// Performs DNS → TCP → TLS → HTTP 101 upgrade, then spawns a background
-/// recv loop that pushes events to the `on_event` callback:
-///
-/// ```js
-/// onEvent(handleId, "open",   protocol)   // upgrade complete
-/// onEvent(handleId, "text",   string)      // text message from server
-/// onEvent(handleId, "binary", Uint8Array)  // binary message from server
-/// onEvent(handleId, "close",  info)        // connection closed
-/// onEvent(handleId, "error",  message)     // unrecoverable error
-/// ```
-///
-/// Returns a Promise that resolves to the handle ID (u32).
+/// Open a WebSocket through the tunnel; resolves to a u32 handle.
+/// Events fire on `on_event(handleId, type, data)` with type one of
+/// `"open" | "text" | "binary" | "close" | "error"`.
 #[wasm_bindgen(js_name = "mixSocket")]
 pub fn mix_socket(url: String, protocols: JsValue, on_event: js_sys::Function) -> js_sys::Promise {
     future_to_promise(async move {
@@ -79,10 +58,12 @@ pub fn mix_socket(url: String, protocols: JsValue, on_event: js_sys::Function) -
 
             let mut request = url.into_client_request()?;
             if !protocol_list.is_empty() {
-                request.headers_mut().insert(
-                    "Sec-WebSocket-Protocol",
-                    protocol_list.join(", ").parse().unwrap(),
-                );
+                let header_value = protocol_list.join(", ").parse().map_err(|e| {
+                    FetchError::Http(format!("invalid Sec-WebSocket-Protocol value: {e}"))
+                })?;
+                request
+                    .headers_mut()
+                    .insert("Sec-WebSocket-Protocol", header_value);
             }
 
             // HTTP 101 upgrade; tungstenite handles key gen + accept verification

@@ -1,33 +1,39 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use super::CoinSchema;
 use cosmwasm_std::Coin;
 use nym_mixnet_contract_common::{NodeId, NodeRewarding};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use time::OffsetDateTime;
+use utoipa::ToSchema;
 
 /// Pending family invitation as exposed by the nym-api node-families endpoints.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PendingFamilyInvitation {
     /// Node the invitation is addressed to.
     pub node_id: NodeId,
 
     /// Block-time after which the invitation can no longer be accepted.
     #[serde(with = "time::serde::rfc3339")]
+    #[schema(value_type = String)]
     pub expires_at: OffsetDateTime,
 }
 
 /// Per-node stake snapshot derived from the mixnet contract's rewarding state.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct NodeStakeInformation {
     /// Operator bond + all delegations, with accrued rewards applied.
+    #[schema(value_type = CoinSchema)]
     pub stake: Coin,
 
     /// Operator pledge component of `stake`.
+    #[schema(value_type = CoinSchema)]
     pub bond: Coin,
 
     /// Delegations component of `stake`.
+    #[schema(value_type = CoinSchema)]
     pub delegations: Coin,
 
     /// Number of unique delegators backing this node.
@@ -53,12 +59,13 @@ impl From<&NodeRewarding> for NodeStakeInformation {
 }
 
 /// Family member view as exposed by the nym-api node-families endpoints.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct NodeFamilyMember {
     pub node_id: NodeId,
 
     /// Block-time at which the node joined the family.
     #[serde(with = "time::serde::rfc3339")]
+    #[schema(value_type = String)]
     pub joined_at: OffsetDateTime,
 
     /// Stake/bond/delegation snapshot; `None` if the node was not in the
@@ -68,7 +75,7 @@ pub struct NodeFamilyMember {
 
 /// Family view as exposed by the nym-api node-families endpoints, carrying
 /// current members, pending invitations and aggregated stats.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct NodeFamily {
     /// Unique family identifier assigned by the contract.
     pub id: u32,
@@ -84,13 +91,16 @@ pub struct NodeFamily {
 
     /// Time-weighted average age of members.
     #[serde(with = "humantime_serde")]
+    #[schema(value_type = String)]
     pub average_node_age: Duration,
 
     /// Sum of member stakes; `None` when no member has reportable stake.
+    #[schema(value_type = Option<CoinSchema>)]
     pub total_stake: Option<Coin>,
 
     /// Block-time the family was created.
     #[serde(with = "time::serde::rfc3339")]
+    #[schema(value_type = String)]
     pub created_at: OffsetDateTime,
 
     /// Current members of the family.

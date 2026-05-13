@@ -15,7 +15,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::{Instant, timeout};
 use tokio_util::codec::Framed;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
 /// Timing statistics collected over the lifetime of an [`EgressConnection`].
 pub(crate) struct EgressConnectionStatistics {
@@ -114,7 +114,7 @@ impl EgressConnection {
         self.connection_statistics
             .packet_batches_sending_duration
             .push(elapsed);
-        debug!(
+        trace!(
             "sent batch of {count} packets in {}",
             format_duration(elapsed)
         );

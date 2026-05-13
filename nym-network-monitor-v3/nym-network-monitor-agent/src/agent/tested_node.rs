@@ -11,6 +11,8 @@ use std::net::SocketAddr;
 /// Identity and addressing information for the node being tested in a stress-test run.
 #[derive(Debug)]
 pub(crate) struct TestedNodeDetails {
+    pub(crate) node_id: u32,
+
     /// TCP socket address of the node's mixnet listener, used for the egress connection.
     pub(crate) address: SocketAddr,
 
@@ -27,6 +29,7 @@ pub(crate) struct TestedNodeDetails {
 impl TestedNodeDetails {
     pub(crate) fn from_testrun_assignment(assignment: TestRunAssignment) -> Self {
         TestedNodeDetails {
+            node_id: assignment.node_id,
             address: assignment.node_address,
             noise_key: assignment.noise_key,
             key_rotation: SphinxKeyRotation::from_key_rotation_id(assignment.key_rotation_id),

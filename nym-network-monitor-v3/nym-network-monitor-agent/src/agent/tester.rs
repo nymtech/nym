@@ -75,15 +75,16 @@ impl NodeStressTester {
         noise_key: Arc<x25519::KeyPair>,
         tested_node: TestedNodeDetails,
     ) -> anyhow::Result<Self> {
-        info!("using the following tester config");
-        info!("{config:#?}");
+        debug!("using the following tester config");
+        debug!("{config:#?}");
 
-        info!("testing the following node");
-        info!("{tested_node:#?}");
+        debug!("testing the following node");
+        debug!("{tested_node:#?}");
 
         let sphinx_key = x25519::PrivateKey::new(&mut OsRng);
 
         let reusable_test_header = if config.reuse_header {
+            debug!("reusing sphinx header for tests");
             // Route: tested node → this agent (so packets come back to us).
             let route = [
                 tested_node.as_sphinx_node(),
@@ -92,6 +93,7 @@ impl NodeStressTester {
             let delay = config.packet_delay;
             Some(create_test_sphinx_packet_header(route, delay)?)
         } else {
+            debug!("new sphinx header will be generated for each new test packet");
             None
         };
 
@@ -252,14 +254,12 @@ impl NodeStressTester {
         processor: &mut MixnetPacketProcessor,
         result: &mut TestRunResult,
     ) -> anyhow::Result<bool> {
-        info!("sending initial packet");
         if !self.send_test_packet(egress, result).await? {
             return Ok(false);
         }
 
         match processor.next_packet().await {
             Ok(res) => {
-                info!("received {res}");
                 result.set_approximate_latency(self.packet_latency(res));
                 Ok(true)
             }
@@ -311,12 +311,6 @@ impl NodeStressTester {
         egress: &mut EgressConnection,
         result: &mut TestRunResult,
     ) -> anyhow::Result<bool> {
-        info!(
-            "beginning the proper load testing. going to send at rate {}/s for {}",
-            self.config.target_rate,
-            format_duration(self.config.sending_duration)
-        );
-
         // one batch every (sending_batch_size / target_rate) seconds keeps us at the target rate
         let batch_interval = self.config.batch_interval();
         let mut interval = tokio::time::interval(batch_interval);
@@ -409,7 +403,7 @@ impl NodeStressTester {
         result.set_packets_received(received_count);
         result.set_packets_statistics(LatencyDistribution::compute(&latencies));
 
-        info!(
+        debug!(
             sent = result.packets_sent,
             received = received_count,
             recv_pct = format!("{:.1}%", result.received_percentage()),
@@ -423,9 +417,15 @@ impl NodeStressTester {
     /// port). Node-level failures (no response, bloomfilter misconfiguration, etc.) are
     /// recorded inside the returned [`TestRunResult`] so the caller always gets partial data.
     pub(crate) async fn run_stress_test(&mut self) -> anyhow::Result<TestRunResult> {
+        info!(
+            "beginning stress test of node {} ({})",
+            self.tested_node.node_id, self.tested_node.address
+        );
+
         let mut result = TestRunResult::new(self.config.packet_delay);
 
         // 1. establish the egress connection — abort immediately if it fails
+        debug!("attempting to establish egress connection to the tested node");
         let mut egress = match self.establish_egress_connection().await {
             Ok(conn) => conn,
             Err(err) => {
@@ -438,6 +438,10 @@ impl NodeStressTester {
         };
 
         // 2. spawn the mixnet packet listener that forwards received packets to the processor
+        debug!(
+            "creating mixnet listener on {}",
+            self.config.mixnet_bind_address
+        );
         let mut processor = self.build_packet_processor();
         let shutdown_token = ShutdownToken::new();
         let listener = self
@@ -453,6 +457,7 @@ impl NodeStressTester {
         listener_on_start.notified().await;
 
         // 3. probe: send a single packet to confirm the node responds
+        debug!("sending initial node connectivity probe");
         if !self
             .send_connectivity_probe(&mut egress, &mut processor, &mut result)
             .await?
@@ -463,6 +468,7 @@ impl NodeStressTester {
         }
 
         // 4. probe: replay the packet to verify bloomfilter bypass is configured
+        debug!("sending bloomfilter probe");
         if self.config.reuse_header
             && !self
                 .send_bloomfilter_probe(&mut egress, &mut processor, &mut result)
@@ -480,13 +486,19 @@ impl NodeStressTester {
         }
 
         // 5. stress test: send packets at the target rate for the configured duration
+        debug!(
+            "beginning the proper load testing. going to send at rate {}/s for {}",
+            self.config.target_rate,
+            format_duration(self.config.sending_duration)
+        );
         self.send_load_test(&mut egress, &mut result).await?;
 
         // 6. collect and summarise results
+        debug!("waiting for final packets to arrive");
         self.collect_test_results(&mut processor, &mut result).await;
 
         // 7. shut down the listener and harvest its stats
-        info!("shutting down the mixnet listener");
+        debug!("shutting down the mixnet listener and finishing the test");
         shutdown_token.cancel();
         let mixnet_listener = listener_join.await?;
         let ingress_noise = mixnet_listener
@@ -496,6 +508,10 @@ impl NodeStressTester {
         result.set_ingress_noise_handshake(ingress_noise);
         result.set_egress_connection_statistics(egress.connection_statistics);
 
+        info!(
+            "finished stress test of node {} ({})",
+            self.tested_node.node_id, self.tested_node.address
+        );
         Ok(result)
     }
 }

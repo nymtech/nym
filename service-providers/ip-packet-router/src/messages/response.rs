@@ -130,11 +130,7 @@ impl VersionedResponse {
             ClientVersion::V6 => IpPacketResponseV6::try_from(self)?.to_bytes(),
             ClientVersion::V7 => IpPacketResponseV7::try_from(self)?.to_bytes(),
             ClientVersion::V8 => IpPacketResponseV8::try_from(self)?.to_bytes(),
-            ClientVersion::V9 => {
-                let mut resp = IpPacketResponseV8::try_from(self)?;
-                resp.version = nym_ip_packet_requests::v9::VERSION;
-                resp.to_bytes()
-            }
+            ClientVersion::V9 => IpPacketResponseV8::try_from(self)?.to_bytes(),
         }
         .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
     }

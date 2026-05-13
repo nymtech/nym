@@ -17,13 +17,16 @@ jobs:
       run: sudo apt-get install rsync
       continue-on-error: true
     - uses: rlespinasse/github-slug-action@v3.x
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4.2.0
+      with:
+        version: 9
     - uses: actions/setup-node@v4
       with:
         node-version: 20
-    - name: Setup yarn
-      run: npm install -g yarn
+        cache: pnpm
     - name: Build
-      run: yarn && yarn build && yarn build:ci:storybook
+      run: pnpm install && pnpm build && pnpm build:ci:storybook
     - name: Deploy branch to CI www (storybook)
       continue-on-error: true
       uses: easingthemes/ssh-deploy@main

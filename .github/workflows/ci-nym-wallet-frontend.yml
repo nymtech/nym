@@ -12,30 +12,34 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.2.0
+        with:
+          version: 9
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: nym-wallet/.nvmrc
-          cache: yarn
-          cache-dependency-path: yarn.lock
+          cache: pnpm
 
       - name: Install dependencies
-        run: yarn install --network-timeout 100000
+        run: pnpm install
 
       - name: Build TypeScript packages (wallet depends on @nymproject/types, etc.)
-        run: yarn build:types
+        run: pnpm build:types
 
       - name: Build @nymproject/mui-theme and @nymproject/react (wallet imports subpaths)
-        run: yarn build:packages
+        run: pnpm build:packages
 
       - name: Typecheck nym-wallet
-        run: yarn --cwd nym-wallet tsc
+        run: pnpm --filter @nymproject/nym-wallet-app tsc
 
       - name: Lint nym-wallet
-        run: yarn --cwd nym-wallet lint
+        run: pnpm --filter @nymproject/nym-wallet-app lint
 
-      - name: Yarn audit (workspace lockfile; informational)
-        run: yarn audit --level critical
+      - name: pnpm audit (workspace lockfile; informational)
+        run: pnpm audit --audit-level critical
         continue-on-error: true
 
       - name: Unit tests (nym-wallet)
-        run: yarn --cwd nym-wallet test
+        run: pnpm --filter @nymproject/nym-wallet-app test

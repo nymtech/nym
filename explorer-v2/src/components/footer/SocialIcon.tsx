@@ -1,9 +1,10 @@
 "use client";
+import type React from "react";
 import { icons } from "@/utils/getIconByName";
 import Image from "next/image";
 
 // import { useMainContext } from "@/context";
-export const SocialIcon = ({ channel }: { channel: string }): JSX.Element => {
+export const SocialIcon = ({ channel }: { channel: string }): React.JSX.Element => {
   // const { mode } = useMainContext();
   const modeType = "light";
 

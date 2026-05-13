@@ -8,7 +8,7 @@ use nym_api_requests::models::node_families::{
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_node_families_contract_common::{FamilyMemberRecord, NodeFamilyId};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 use time::OffsetDateTime;
 
@@ -113,8 +113,15 @@ pub(crate) struct CachedFamily {
 /// state plus mixnet-contract stake/bond information.
 #[derive(Default, Serialize, Deserialize)]
 pub(crate) struct NodeFamiliesCacheData {
-    /// Every family known to the contract, with members and pending invitations.
-    pub(crate) families: Vec<CachedFamily>,
+    /// Every family known to the contract, keyed by family id. `BTreeMap` so
+    /// iteration order is deterministic across refreshes (stable list
+    /// endpoint output, deterministic on-disk bincode).
+    pub(crate) families: BTreeMap<NodeFamilyId, CachedFamily>,
+
+    /// Secondary index: member node id → family id. Built alongside
+    /// `families` during refresh; lets `by-node` lookups avoid an O(families
+    /// × members) scan.
+    pub(crate) family_by_member: HashMap<NodeId, NodeFamilyId>,
 
     /// Persistent block-height → block-time cache used by the refresher when
     /// computing per-member age. Survives restarts via the on-disk cache file.

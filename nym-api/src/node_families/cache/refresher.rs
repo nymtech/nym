@@ -8,9 +8,10 @@ use crate::support::caching::refresher::CacheItemProvider;
 use crate::support::nyxd::Client;
 use async_trait::async_trait;
 use futures::{stream, StreamExt};
+use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nyxd::contract_traits::PagedNodeFamiliesQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::error;
@@ -95,6 +96,7 @@ impl NodeFamiliesDataProvider {
             .into_iter()
             .map(|family| (family.id, family.into()))
             .collect();
+        let mut family_by_member: HashMap<NodeId, _> = HashMap::new();
 
         // insert all member information into appropriate families
         for member_record in raw_members {
@@ -109,7 +111,8 @@ impl NodeFamiliesDataProvider {
             let node_info = nym_nodes.get(&node_id);
             family
                 .members
-                .push(CachedFamilyMember::new(member_record, node_info))
+                .push(CachedFamilyMember::new(member_record, node_info));
+            family_by_member.insert(node_id, family_id);
         }
 
         // insert all invitations into appropriate families
@@ -132,16 +135,18 @@ impl NodeFamiliesDataProvider {
 
         let block_timestamps = self.resolve_block_timestamps(&referenced_heights).await;
 
-        let family_details = families
+        let family_details: BTreeMap<_, _> = families
             .into_values()
             .map(|family| {
                 let average_node_age = average_node_age(&family.members, &block_timestamps);
-                family.build(average_node_age)
+                let built = family.build(average_node_age);
+                (built.id, built)
             })
             .collect();
 
         Ok(NodeFamiliesCacheData {
             families: family_details,
+            family_by_member,
             block_timestamps,
         })
     }

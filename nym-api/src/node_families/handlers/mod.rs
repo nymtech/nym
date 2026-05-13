@@ -23,8 +23,8 @@ const MAX_FAMILIES_PAGE_SIZE: u32 = 200;
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", get(get_families))
-        .route("/{family_id}", get(get_family_by_id))
-        .route("/by-node/{node_id}", get(get_family_for_node))
+        .route("/:family_id", get(get_family_by_id))
+        .route("/by-node/:node_id", get(get_family_for_node))
 }
 
 #[utoipa::path(

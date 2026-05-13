@@ -3,17 +3,18 @@ title: "Mixnet Tutorial: Send Your First Private Message"
 description: "Step-by-step Rust tutorial to connect to the Nym mixnet, send and receive messages, reply anonymously with SURBs, and persist client identity."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-03-26"
+lastUpdated: "2026-04-17"
 ---
 
 # Tutorial: Send Your First Private Message
 
 import { Callout } from 'nextra/components'
 import { CodeVerified } from '../../../../components/code-verified'
+import { RUST_MSRV } from '../../../../components/versions'
 
-By the end of this tutorial you'll have a working program that sends a Sphinx-encrypted message to itself through the Nym Mixnet, receives it, and replies anonymously using SURBs. The later sections cover persistent identity and concurrent send/receive.
+A program that sends a Sphinx-encrypted message to itself through the Nym Mixnet, receives it, and replies anonymously using SURBs. Later sections cover persistent identity and concurrent send/receive.
 
-**You'll need:** Rust 1.70+ and an internet connection (clients connect to the live Mixnet).
+Requires Rust {RUST_MSRV}+ and an internet connection (clients connect to the live Mixnet).
 
 <CodeVerified />
 
@@ -28,10 +29,9 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
-nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "97068b2", features = ["basic_tracing"] }
+nym-sdk = "1.21.0"
+nym-bin-common = { version = "1.21.0", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
-blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 ```
 
 ## Step 2: Connect and send
@@ -45,21 +45,21 @@ use nym_sdk::mixnet::{self, MixnetMessageSender};
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // connect_new() creates an ephemeral client — keys are generated in
+    // connect_new() creates an ephemeral client; keys are generated in
     // memory and discarded on disconnect.
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     let our_address = client.nym_address();
     println!("Connected: {our_address}");
 
     // The message is Sphinx-encrypted and mixed across 5 nodes.
-    // send_plain_message only blocks until the message is queued —
+    // send_plain_message only blocks until the message is queued;
     // encryption and mixing happen in background tasks.
     client
         .send_plain_message(*our_address, "hello from the mixnet!")
         .await
         .unwrap();
 
-    println!("Sent — waiting for arrival...");
+    println!("Sent, waiting for arrival...");
 ```
 
 <Callout type="info">
@@ -70,7 +70,7 @@ async fn main() {
 
 ```rust
     // wait_for_messages() returns the next batch of incoming messages.
-    // Filter empty messages — these are SURB replenishment requests.
+    // Filter empty messages: these are SURB replenishment requests.
     let message = loop {
         if let Some(msgs) = client.wait_for_messages().await {
             if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
@@ -89,7 +89,7 @@ Every message includes a `sender_tag`, an opaque `AnonymousSenderTag` that lets 
 ```rust
     let sender_tag = message.sender_tag.expect("should have sender tag");
 
-    // send_reply uses the SURB — the sender's address is never revealed.
+    // send_reply uses the SURB; the sender's address is never revealed.
     client.send_reply(sender_tag, "hello back, anonymously!").await.unwrap();
 
     let reply = loop {
@@ -114,7 +114,7 @@ RUST_LOG=info cargo run
 
 ```
 Connected: 8gk4Y...@2xU4d...
-Sent — waiting for arrival...
+Sent, waiting for arrival...
 Received: hello from the mixnet!
 Reply: hello back, anonymously!
 ```
@@ -140,21 +140,38 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Address: {}", client.nym_address());
+    let our_address = client.nym_address();
+    println!("Address: {our_address}");
 
-    // Same API as before — send, receive, reply.
+    // Same API as before: send, receive, SURB reply.
     client
-        .send_plain_message(*client.nym_address(), "persistent identity!")
+        .send_plain_message(*our_address, "hello from persistent client!")
         .await
         .unwrap();
+    println!("Sent, waiting for arrival...");
 
-    if let Some(msgs) = client.wait_for_messages().await {
-        for m in msgs.into_iter().filter(|m| !m.message.is_empty()) {
-            println!("Received: {}", String::from_utf8_lossy(&m.message));
+    let message = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
         }
-    }
+    };
+    println!("Received: {}", String::from_utf8_lossy(&message.message));
 
-    // Always disconnect for clean shutdown — background tasks need to be
+    let sender_tag = message.sender_tag.expect("should have sender tag");
+    client.send_reply(sender_tag, "anonymous reply!").await.unwrap();
+
+    let reply = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
+        }
+    };
+    println!("Reply: {}", String::from_utf8_lossy(&reply.message));
+
+    // Always disconnect for clean shutdown; background tasks need to be
     // stopped and state files flushed.
     client.disconnect().await;
 }
@@ -184,7 +201,7 @@ async fn main() {
     // split_sender() returns a clone-able MixnetClientSender.
     let sender = client.split_sender();
 
-    // Spawn a receiver — the original client implements futures::Stream.
+    // Spawn a receiver: the original client implements futures::Stream.
     let rx = tokio::spawn(async move {
         if let Some(msg) = client.next().await {
             println!("Received: {}", String::from_utf8_lossy(&msg.message));
@@ -231,7 +248,7 @@ async fn main() {
         .send_plain_message(*our_address, "hello from the mixnet!")
         .await
         .unwrap();
-    println!("Sent — waiting for arrival...");
+    println!("Sent, waiting for arrival...");
 
     let message = loop {
         if let Some(msgs) = client.wait_for_messages().await {
@@ -270,6 +287,7 @@ async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
     let paths = StoragePaths::new_from_dir("./my-client-data").unwrap();
+
     let mut client = mixnet::MixnetClientBuilder::new_with_default_storage(paths)
         .await
         .unwrap()
@@ -280,13 +298,13 @@ async fn main() {
         .unwrap();
 
     let our_address = client.nym_address();
-    println!("Connected: {our_address}");
+    println!("Address: {our_address}");
 
     client
-        .send_plain_message(*our_address, "hello from the mixnet!")
+        .send_plain_message(*our_address, "hello from persistent client!")
         .await
         .unwrap();
-    println!("Sent — waiting for arrival...");
+    println!("Sent, waiting for arrival...");
 
     let message = loop {
         if let Some(msgs) = client.wait_for_messages().await {
@@ -298,7 +316,7 @@ async fn main() {
     println!("Received: {}", String::from_utf8_lossy(&message.message));
 
     let sender_tag = message.sender_tag.expect("should have sender tag");
-    client.send_reply(sender_tag, "hello back, anonymously!").await.unwrap();
+    client.send_reply(sender_tag, "anonymous reply!").await.unwrap();
 
     let reply = loop {
         if let Some(msgs) = client.wait_for_messages().await {

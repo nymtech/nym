@@ -80,7 +80,7 @@ There is no switching back without disconnecting and creating a new client.
 ## Known limitations
 
 <Callout type="info">
-**Sequence-based reordering.** The Mixnet does not guarantee message ordering at the transport level, but each stream write includes a `sequence_num` in the LP frame header. The receiver maintains a per-stream reorder buffer (BTreeMap keyed by sequence number) that buffers out-of-order messages and drains them in sequence. This means protocols that depend on byte ordering (HTTP, TLS, protobuf) work correctly over streams.
+The Mixnet does not guarantee message ordering at the transport level, but each stream write includes a `sequence_num` in the LP frame header. The receiver maintains a per-stream reorder buffer (BTreeMap keyed by sequence number) that buffers out-of-order messages and drains them in sequence, so protocols that depend on byte ordering (HTTP, TLS, protobuf) work correctly over streams.
 
 - **Buffer cap:** 256 messages per stream. If the buffer fills (e.g. a large gap in sequence numbers), the receiver skips ahead to the lowest buffered sequence.
 - **Duplicates:** messages with a sequence number below the next expected are dropped.
@@ -89,4 +89,4 @@ There is no switching back without disconnecting and creating a new client.
 
 ## Internal details
 
-For the full implementation details (router task, `StreamMap`, `PollSender` usage, base-client type rationale), see the `ARCHITECTURE.md` file next to the module source code. This will also be available on [docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/) once crate publication resumes with the Lewes Protocol.
+For the full implementation details (router task, `StreamMap`, `PollSender` usage, base-client type rationale), see the `ARCHITECTURE.md` file next to the module source code, or the [docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/) API reference.

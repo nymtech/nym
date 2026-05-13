@@ -3,7 +3,18 @@
 //! Keys are generated on the first run, then loaded from disk on
 //! subsequent runs so the client keeps the same Nym address.
 //!
-//! Run with: cargo run --example builder_with_storage
+//! ## What this demonstrates
+//!
+//! - `StoragePaths::new_from_dir()` points to a directory for key material
+//! - `MixnetClientBuilder::new_with_default_storage()` builds a client that
+//!   persists its identity (ed25519 + x25519 keypairs) to disk
+//! - Run this example twice; the Nym address stays the same
+//! - Use this pattern for any real application; ephemeral clients
+//!   (`connect_new()`) are only for quick experiments
+//!
+//! ```sh
+//! cargo run --example builder_with_storage
+//! ```
 
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;

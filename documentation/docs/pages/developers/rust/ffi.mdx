@@ -19,7 +19,7 @@ ffi
 └── shared   # Shared Rust implementation
 ```
 
-Core logic lives in `shared/` and is imported into language-specific wrappers. The shared layer handles thread safety and ensures client operations run on blocking threads on the Rust side of the FFI boundary.
+Core logic lives in `shared/` and is imported into language-specific wrappers. The shared layer handles thread safety and runs client operations on blocking threads on the Rust side of the FFI boundary.
 
 ## What's exposed
 
@@ -36,7 +36,7 @@ The TcpProxy module is deprecated. For new projects, use the [Stream module](./s
 ## Quick example (Go)
 
 ```go
-// Initialize an ephemeral client
+// Initialise an ephemeral client
 bindings.InitEphemeral()
 
 // Get our Nym address

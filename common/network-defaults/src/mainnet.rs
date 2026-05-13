@@ -48,10 +48,6 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
         front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
     },
     ApiUrlConst {
-        url: "https://nym-frontdoor.vercel.app/api/",
-        front_hosts: Some(&["vercel.app", "vercel.com"]),
-    },
-    ApiUrlConst {
         url: "https://cdn1.media-platform.net/api/",
         front_hosts: None,
     },
@@ -73,10 +69,6 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
         front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
-    },
-    ApiUrlConst {
-        url: NYM_VPN_API,
-        front_hosts: Some(&["vercel.app", "vercel.com"]),
     },
 ];
 

@@ -8,6 +8,7 @@ use crate::ecash::state::EcashState;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::NodeStatusCache;
 use crate::status::ApiStatusState;
@@ -1302,6 +1303,7 @@ impl TestFixture {
             address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
             forced_refresh: ForcedRefresh::new(true),
             mixnet_contract_cache,
+            node_families_cache: SharedCache::<NodeFamiliesCacheData>::new(),
             node_annotations_cache,
             storage,
             described_nodes_cache: SharedCache::<DescribedNodes>::new(),

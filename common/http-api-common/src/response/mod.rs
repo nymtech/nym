@@ -132,6 +132,41 @@ where
 #[derive(Default, Debug, Serialize, Deserialize, Copy, Clone)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
+pub enum OutputV2 {
+    #[default]
+    Json,
+    Yaml,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Copy, Clone)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::IntoParams, utoipa::ToSchema))]
+#[serde(default)]
+pub struct OutputParamsV2 {
+    pub output: Option<OutputV2>,
+}
+
+impl OutputParamsV2 {
+    pub fn get_output(&self) -> OutputV2 {
+        self.output.unwrap_or_default()
+    }
+
+    pub fn to_response<T: Serialize>(self, data: T) -> FormattedResponse<T> {
+        self.get_output().to_response(data)
+    }
+}
+
+impl OutputV2 {
+    pub fn to_response<T: Serialize>(self, data: T) -> FormattedResponse<T> {
+        match self {
+            OutputV2::Json => FormattedResponse::Json(Json::from(data)),
+            OutputV2::Yaml => FormattedResponse::Yaml(Yaml::from(data)),
+        }
+    }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Copy, Clone)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum Output {
     #[default]
     Json,

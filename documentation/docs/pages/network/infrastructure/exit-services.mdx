@@ -22,8 +22,8 @@ Both services run on every Exit Gateway. Which one handles your traffic depends 
 The Network Requester is a SOCKS4/4a/5 proxy. Clients send SOCKS-formatted requests through the mixnet, and the NR makes the corresponding connection on their behalf: resolving hostnames, opening TCP connections, and relaying data.
 
 ```text
-Client → mixnet → Exit Gateway (NR) → SOCKS connect → destination
-                                    ← relay response ←
+Client → Entry Gateway → Mixnodes1..3 → Exit Gateway (NR) → SOCKS connect → destination
+                                                          ← relay response ←
 ```
 
 Because it operates at the application layer, the NR:
@@ -39,8 +39,8 @@ Because it operates at the application layer, the NR:
 The IP Packet Router operates at the IP layer. Instead of proxying individual connections, it allocates a virtual IP address to the client and routes raw IP packets between the client and the internet, functioning as a tunnel endpoint.
 
 ```text
-Client → mixnet → Exit Gateway (IPR) → raw IP packets → destination
-                                      ← raw IP packets ←
+Client → Entry Gateway → Mixnodes1..3 → Exit Gateway (IPR) → raw IP packets → destination
+                                                           ← raw IP packets ←
 ```
 
 On connection, the IPR:
@@ -51,7 +51,7 @@ On connection, the IPR:
 
 Because it operates at the IP layer, the IPR:
 - Does not resolve DNS; the client handles its own DNS (either via clearnet or by sending DNS queries as UDP packets through the tunnel)
-- Handles any IP protocol, not just TCP: UDP, ICMP, etc.
+- Handles any IP protocol: TCP, UDP, ICMP, etc.
 - Sees raw IP packets, including destination IPs and ports
 - Does not see contents if the client uses TLS or another encryption layer
 

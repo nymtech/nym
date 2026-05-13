@@ -7,7 +7,7 @@
   tasks:
     - name: Blacklist algif_aead (Copy Fail)
       copy:
-        dest: /etc/modprobe.d/disable-algif-aead.conf
+        dest: /etc/modprobe.d/disable-algif_aead.conf
         content: "install algif_aead /bin/false\n"
         owner: root
         group: root

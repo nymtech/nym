@@ -42,11 +42,11 @@ Add `smolmix` to your `Cargo.toml`:
 ```toml
 [dependencies]
 smolmix = "1.21.0"
-nym-bin-common = { version = "1.21.0", features = ["basic_tracing"] }
+nym-bin-common = { version = "1.20.4", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
-`tokio` is a transitive dependency of smolmix, but you need to enable `rt-multi-thread` (smolmix spawns multiple tasks internally) and `macros` (for `#[tokio::main]`).
+`tokio` is a transitive dependency of smolmix, but you need to enable `rt-multi-thread` (the default runtime spun up by `#[tokio::main]`) and `macros` (for the `#[tokio::main]` attribute itself).
 
 `nym-bin-common` is optional but recommended: it sets up [`tracing`](https://docs.rs/tracing) logging so you can see mixnet connection progress.
 
@@ -116,12 +116,10 @@ All examples accept `--ipr <ADDRESS>` to target a specific exit node (pass a `Re
 
 | Example | Source | What it demonstrates |
 |---|---|---|
-| UDP | [`udp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp.rs) | DNS lookup via [`hickory-proto`](https://docs.rs/hickory-proto), sending a raw UDP query to `1.1.1.1:53` through the mixnet |
+| UDP | [`udp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp.rs) | DNS lookup via [`hickory-proto`](https://docs.rs/hickory-proto), sending a raw UDP query to `1.1.1.1:53` through the mixnet. Runs a clearnet [`hickory-resolver`](https://docs.rs/hickory-resolver) lookup alongside it to compare resolved IPs and latency |
 | TCP | [`tcp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs) | HTTPS request via [`hyper`](https://docs.rs/hyper) + [`tokio-rustls`](https://docs.rs/tokio-rustls). Fetches Cloudflare's `/cdn-cgi/trace` to show that the exit IP differs from clearnet |
-| WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket.rs) | WebSocket echo via [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite) + [`tokio-rustls`](https://docs.rs/tokio-rustls). Full TCP → TLS → WebSocket stack composing over smolmix |
-| UDP multi | [`udp_multi.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp_multi.rs) | Multiple DNS lookups with timeout handling + NTP time sync, all over mixnet UDP |
+| WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket.rs) | WebSocket echo against `ws.postman-echo.com` via [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite) + [`tokio-rustls`](https://docs.rs/tokio-rustls). Runs the same stack over clearnet first, so the only thing that changes between runs is the underlying TCP stream |
 | TCP download | [`tcp_download.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp_download.rs) | DNS-over-mixnet + multi-request HTTP/1.1 download over a single keep-alive connection, the full real-world pattern |
-| WebSocket multi | [`websocket_multi.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket_multi.rs) | Burst echo (varying message sizes) + idle survival probes with clearnet baseline. Sustained multi-message WebSocket usage over the mixnet |
 
 ## Architecture
 

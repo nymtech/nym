@@ -40,10 +40,10 @@ impl BridgeShutdownHandle {
     ///
     /// Sends a one-shot signal that breaks the bridge event loop. The bridge
     /// then calls `IpMixStream::disconnect()` before returning. Consumes
-    /// `self` — can only be called once.
+    /// `self`, so can only be called once.
     ///
-    /// If this handle is dropped without calling `shutdown()`, the `Drop`
-    /// impl sends the signal automatically.
+    /// If the handle is dropped without calling `shutdown()`, the `Drop` impl
+    /// sends the signal anyway.
     pub(crate) fn shutdown(mut self) {
         if let Some(tx) = self.tx.take() {
             let _ = tx.send(());
@@ -65,9 +65,9 @@ impl NymIprBridge {
     /// Returns `(bridge, shutdown_handle)`.
     ///
     /// # Parameters
-    /// - `stream` — the connected `IpMixStream` (owns the mixnet client)
-    /// - `outgoing_rx` — receives raw IP packets from the smoltcp device
-    /// - `incoming_tx` — sends raw IP packets to the smoltcp device
+    /// - `stream`: the connected `IpMixStream` (owns the mixnet client)
+    /// - `outgoing_rx`: receives raw IP packets from the smoltcp device
+    /// - `incoming_tx`: sends raw IP packets to the smoltcp device
     pub(crate) fn new(
         stream: IpMixStream,
         outgoing_rx: mpsc::UnboundedReceiver<Vec<u8>>,
@@ -94,11 +94,12 @@ impl NymIprBridge {
     ///
     /// # Cancel safety
     ///
-    /// `IpMixStream::handle_incoming()` is **not** cancel-safe — its internal
-    /// `FramedRead` buffers partial frames, and it mutates connection state after
-    /// awaiting. In `tokio::select!`, the shutdown branch can cancel a pending
-    /// `handle_incoming()` call, potentially losing buffered data. This is
-    /// acceptable during shutdown but worth noting for future changes.
+    /// `IpMixStream::handle_incoming()` is **not** cancel-safe. Its internal
+    /// `FramedRead` buffers partial frames, and it mutates connection state
+    /// after awaiting. Inside `tokio::select!`, the shutdown branch can cancel
+    /// a pending `handle_incoming()` call and lose buffered data. That is
+    /// acceptable during shutdown, but worth knowing about before adding new
+    /// branches to the loop.
     pub(crate) async fn run(mut self) -> Result<(), SmolmixError> {
         info!("Starting bridge");
         let mut packets_sent: u64 = 0;

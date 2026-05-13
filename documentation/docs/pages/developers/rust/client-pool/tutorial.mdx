@@ -106,14 +106,14 @@ When you call `get_mixnet_client()`, the pool removes a client and returns it. T
                     c
                 }
                 None => {
-                    // Pool is empty — fall back to creating one on the fly.
+                    // Pool is empty; fall back to creating one on the fly.
                     // This is slower but keeps things working.
                     println!("Task {i}: pool empty, creating client on the fly...");
                     nym_sdk::mixnet::MixnetClient::connect_new().await.unwrap()
                 }
             };
 
-            // Do something with the client — here, send a message to ourselves
+            // Do something with the client. Here, send a message to ourselves.
             let addr = *client.nym_address();
             client
                 .send_plain_message(addr, format!("hello from task {i}"))
@@ -132,7 +132,7 @@ When you call `get_mixnet_client()`, the pool removes a client and returns it. T
                 }
             }
 
-            // Disconnect when done — the pool will create a replacement
+            // Disconnect when done; the pool will create a replacement.
             client.disconnect().await;
             println!("Task {i}: done");
         });

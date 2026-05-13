@@ -91,7 +91,7 @@ async fn main() {
         .expect("timed out")
         .expect("listener closed");
 
-    // Send data and read it back — just like a TCP socket
+    // Send data and read it back, just like a TCP socket
     outbound.write_all(b"hello from sender").await.unwrap();
     outbound.flush().await.unwrap();
 

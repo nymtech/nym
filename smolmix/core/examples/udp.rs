@@ -2,9 +2,10 @@
 
 //! DNS lookup through the Nym mixnet.
 //!
-//! Resolves `example.com` via clearnet (hickory-resolver) and via the mixnet
-//! (hickory-proto raw UDP query to Cloudflare `1.1.1.1`), then compares
-//! resolved IPs and timing.
+//! Resolves `example.com` twice: once via the system path with
+//! `hickory-resolver`, and once by sending a raw DNS query to Cloudflare's
+//! 1.1.1.1 over a `smolmix::UdpSocket`. The resolved IPs and timings are
+//! printed for comparison.
 //!
 //! ```text
 //! DNS query / response (application-layer UDP)
@@ -12,17 +13,6 @@
 //!        └─ smoltcp (userspace IP stack)
 //!             └─ Nym mixnet → IPR exit gateway → internet
 //! ```
-//!
-//! ## What this demonstrates
-//!
-//! - Creating a [`Tunnel`] and using its [`UdpSocket`](smolmix::UdpSocket)
-//! - The `send_to` / `recv_from` API matches [`tokio::net::UdpSocket`]
-//! - Constructing a raw DNS query with [`hickory_proto`] and parsing the
-//!   response. Standard crates work unchanged over smolmix UDP
-//! - The DNS server sees the IPR gateway's IP, not yours
-//!
-//! For a more complete UDP example (multiple lookups + NTP time sync), see
-//! `udp_multi.rs` in this directory.
 //!
 //! ```sh
 //! cargo run -p smolmix --example udp
@@ -47,7 +37,6 @@ async fn main() -> Result<(), BoxError> {
 
     let domain = "example.com";
 
-    // Clearnet baseline via hickory-resolver
     info!("Clearnet DNS lookup for '{domain}'...");
     let resolver = TokioResolver::builder_tokio()?.build()?;
     let clearnet_start = tokio::time::Instant::now();
@@ -62,10 +51,9 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {:?} in {:?}", clearnet_ips, clearnet_duration);
 
-    // We use hickory-proto (not hickory-resolver) because we want to send
-    // the raw UDP query through the tunnel ourselves, rather than relying
-    // on the system resolver which would go over clearnet.
-
+    // hickory-proto (not hickory-resolver) so the raw UDP query goes through
+    // the tunnel directly, instead of routing back to the system resolver
+    // and out over clearnet.
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -85,8 +73,7 @@ async fn main() -> Result<(), BoxError> {
     query.add_query(Query::query(Name::from_ascii(domain)?, RecordType::A));
     let query_bytes = query.to_vec()?;
 
-    // Send the DNS query through the mixnet.
-    // UDP is connectionless: no handshake, just send_to / recv_from.
+    // UDP has no handshake; just send_to + recv_from.
     info!("Sending DNS query via mixnet...");
     let mixnet_start = tokio::time::Instant::now();
     udp.send_to(&query_bytes, "1.1.1.1:53".parse()?).await?;
@@ -107,7 +94,6 @@ async fn main() -> Result<(), BoxError> {
         })
         .collect();
 
-    // Results
     info!("Clearnet: {:?} ({:?})", clearnet_ips, clearnet_duration);
     info!("Mixnet: {:?} ({:?})", mixnet_ips, mixnet_duration);
 

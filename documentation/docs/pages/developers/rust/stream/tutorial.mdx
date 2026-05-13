@@ -65,7 +65,7 @@ async fn main() {
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     println!("Echo server listening at: {}", client.nym_address());
 
-    // Create a listener — this activates stream mode.
+    // Create a listener; this activates stream mode.
     // From this point, message-based methods are disabled.
     let mut listener = client.listener().unwrap();
 
@@ -88,7 +88,7 @@ async fn main() {
 
             loop {
                 let n = match stream.read(&mut buf).await {
-                    Ok(0) => break,     // EOF — stream closed
+                    Ok(0) => break,     // EOF, stream closed
                     Ok(n) => n,
                     Err(e) => {
                         eprintln!("Stream {stream_id} read error: {e}");
@@ -151,13 +151,13 @@ async fn main() {
     println!("Stream opened: {}", stream.id());
 
     // Give the Open message time to traverse the mixnet and reach the server.
-    // open_stream() returns immediately after sending — it doesn't wait for
+    // open_stream() returns immediately after sending; it doesn't wait for
     // the server to accept. Writing too soon risks the data arriving before
     // the Open, which the server would drop.
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     // Send three payloads of different sizes and verify the echo.
-    // Random bytes show that streams are binary-safe — not just text.
+    // Random bytes show that streams are binary-safe, not just text.
     let sizes = [320, 25_000, 1280];
 
     for (i, &size) in sizes.iter().enumerate() {

@@ -1,11 +1,13 @@
 // Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 
-//! Multi-request HTTPS download through the Nym mixnet.
+//! Sequential HTTPS downloads of varying sizes through the Nym mixnet.
 //!
-//! Resolves a hostname via mixnet UDP DNS, then makes multiple HTTP/1.1
-//! requests over a single keep-alive TCP+TLS connection, all routed
-//! through the mixnet. Demonstrates DNS resolution, connection reuse,
-//! and progress feedback.
+//! Resolves `httpbin.org` over mixnet UDP DNS, then issues four GET
+//! `/bytes/{N}` requests over a single keep-alive HTTP/1.1 connection.
+//! All traffic, including the DNS lookup, stays inside the tunnel.
+//!
+//! Compare with `tcp.rs` for a single-request version with a clearnet
+//! baseline.
 //!
 //! ```text
 //! hyper (HTTP/1.1 client, keep-alive)
@@ -14,14 +16,6 @@
 //!             └─ smoltcp (userspace TCP/IP)
 //!                  └─ Nym mixnet → IPR exit gateway → internet
 //! ```
-//!
-//! ## What this demonstrates
-//!
-//! - DNS resolution via mixnet UDP (avoids clearnet DNS leaks)
-//! - TCP + TLS connection to the resolved IP
-//! - HTTP/1.1 keep-alive: multiple requests over one mixnet connection
-//!
-//! Compare with `tcp.rs` which does a single request with clearnet comparison.
 //!
 //! ```sh
 //! cargo run -p smolmix --example tcp_download
@@ -60,7 +54,6 @@ async fn main() -> Result<(), BoxError> {
         .position(|a| a == "--ipr")
         .and_then(|i| args.get(i + 1));
 
-    // Create the tunnel
     let mut builder = Tunnel::builder();
     if let Some(addr) = ipr_addr {
         builder = builder.ipr_address(addr.parse().expect("invalid IPR address"));
@@ -71,13 +64,11 @@ async fn main() -> Result<(), BoxError> {
         tunnel.allocated_ips().ipv4
     );
 
-    // DNS resolution via mixnet UDP
-    // We use hickory-proto to send a raw DNS query through the tunnel's
-    // UdpSocket, so even the DNS lookup is hidden from your ISP.
+    // hickory-proto sends the DNS query over the tunnel directly, so the
+    // lookup never touches the system resolver.
     let ip = resolve_dns(&tunnel, HOST).await?;
     println!("Resolved {HOST} → {ip} (via mixnet DNS)");
 
-    // TCP + TLS through the mixnet
     println!("Connecting to {HOST}:443...");
     let tcp = tunnel.tcp_connect((ip, 443).into()).await?;
     println!("TCP connected to {ip}:443 via mixnet");
@@ -92,14 +83,12 @@ async fn main() -> Result<(), BoxError> {
     let tls = connector.connect(domain, tcp).await?;
     println!("TLS established with {HOST}");
 
-    // HTTP/1.1 connection (reused for all requests)
     let io = TokioIo::new(tls);
     let (mut sender, conn) = http1::handshake(io).await?;
     tokio::spawn(conn);
 
-    // Multiple requests over the same connection
     let total = SIZES.len();
-    println!("\nSending {total} requests over one connection...\n");
+    println!("Sending {total} requests over one connection...");
     let overall = std::time::Instant::now();
     let mut total_bytes = 0usize;
 
@@ -142,7 +131,7 @@ async fn main() -> Result<(), BoxError> {
 
     let elapsed = overall.elapsed();
     println!(
-        "\nDone! {} in {total} requests over {elapsed:.1?}",
+        "Done: {} across {total} requests in {elapsed:.1?}",
         format_bytes(total_bytes as u64),
     );
 

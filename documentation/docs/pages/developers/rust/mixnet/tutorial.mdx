@@ -45,14 +45,14 @@ use nym_sdk::mixnet::{self, MixnetMessageSender};
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // connect_new() creates an ephemeral client — keys are generated in
+    // connect_new() creates an ephemeral client; keys are generated in
     // memory and discarded on disconnect.
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     let our_address = client.nym_address();
     println!("Connected: {our_address}");
 
     // The message is Sphinx-encrypted and mixed across 5 nodes.
-    // send_plain_message only blocks until the message is queued —
+    // send_plain_message only blocks until the message is queued;
     // encryption and mixing happen in background tasks.
     client
         .send_plain_message(*our_address, "hello from the mixnet!")
@@ -70,7 +70,7 @@ async fn main() {
 
 ```rust
     // wait_for_messages() returns the next batch of incoming messages.
-    // Filter empty messages — these are SURB replenishment requests.
+    // Filter empty messages: these are SURB replenishment requests.
     let message = loop {
         if let Some(msgs) = client.wait_for_messages().await {
             if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
@@ -89,7 +89,7 @@ Every message includes a `sender_tag`, an opaque `AnonymousSenderTag` that lets 
 ```rust
     let sender_tag = message.sender_tag.expect("should have sender tag");
 
-    // send_reply uses the SURB — the sender's address is never revealed.
+    // send_reply uses the SURB; the sender's address is never revealed.
     client.send_reply(sender_tag, "hello back, anonymously!").await.unwrap();
 
     let reply = loop {
@@ -171,7 +171,7 @@ async fn main() {
     };
     println!("Reply: {}", String::from_utf8_lossy(&reply.message));
 
-    // Always disconnect for clean shutdown — background tasks need to be
+    // Always disconnect for clean shutdown; background tasks need to be
     // stopped and state files flushed.
     client.disconnect().await;
 }
@@ -201,7 +201,7 @@ async fn main() {
     // split_sender() returns a clone-able MixnetClientSender.
     let sender = client.split_sender();
 
-    // Spawn a receiver — the original client implements futures::Stream.
+    // Spawn a receiver: the original client implements futures::Stream.
     let rx = tokio::spawn(async move {
         if let Some(msg) = client.next().await {
             println!("Received: {}", String::from_utf8_lossy(&msg.message));

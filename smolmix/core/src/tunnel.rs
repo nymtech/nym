@@ -4,9 +4,9 @@
 //!
 //! See the [crate-level docs](crate) for the full architecture diagram.
 //!
-//! The returned [`TcpStream`] implements `tokio::io::AsyncRead + AsyncWrite`, so it
-//! works transparently with the entire async Rust ecosystem: tokio-rustls for TLS,
-//! tokio-tungstenite for WebSockets, hyper for HTTP, etc.
+//! The returned [`TcpStream`] implements `tokio::io::AsyncRead + AsyncWrite`,
+//! so it composes with the rest of the async Rust ecosystem: tokio-rustls for
+//! TLS, tokio-tungstenite for WebSockets, hyper for HTTP, and so on.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -38,22 +38,22 @@ struct TunnelInner {
     /// open sockets concurrently without locking.
     net: Net,
     allocated_ips: IpPair,
-    /// Mutex only protects shutdown — called once, not on the hot path.
+    /// Mutex only protects shutdown, which is called once and not on the hot path.
     shutdown: Mutex<Option<ShutdownState>>,
 }
 
 /// A mixnet tunnel providing TCP and UDP socket access.
 ///
-/// `Tunnel` manages a smoltcp network stack connected to the Nym mixnet via an IPR
-/// (Internet Packet Router). It spawns a background bridge task and a network reactor,
-/// then provides familiar socket APIs on top.
-///
+/// `Tunnel` manages a smoltcp network stack connected to the Nym mixnet via an
+/// IPR (Internet Packet Router). On construction it spawns a background bridge
+/// task and a network reactor, then exposes TCP and UDP socket constructors.
 ///
 /// # Shutdown
 ///
-/// Call [`shutdown()`](Self::shutdown) for a clean disconnect. Rust has no async `Drop`,
-/// so dropping without calling `shutdown()` triggers a fire-and-forget cleanup via the
-/// oneshot channel — the bridge will still shut down, but the caller can't await it.
+/// Call [`shutdown()`](Self::shutdown) for a clean disconnect. Rust has no
+/// async `Drop`, so dropping without calling `shutdown()` falls back to a
+/// fire-and-forget cleanup via the oneshot channel: the bridge still shuts
+/// down, but the caller cannot await it.
 ///
 /// # Examples
 ///
@@ -64,13 +64,13 @@ struct TunnelInner {
 ///
 /// let tunnel = Tunnel::new().await?;
 ///
-/// // TCP — connect and use like any async stream
+/// // TCP: connect and use like any async stream
 /// let mut tcp = tunnel.tcp_connect("1.1.1.1:80".parse()?).await?;
 /// tcp.write_all(b"GET / HTTP/1.1\r\nHost: 1.1.1.1\r\nConnection: close\r\n\r\n").await?;
 /// let mut buf = Vec::new();
 /// tcp.read_to_end(&mut buf).await?;
 ///
-/// // UDP — datagrams over the mixnet
+/// // UDP: datagrams over the mixnet
 /// let udp = tunnel.udp_socket().await?;
 /// udp.send_to(b"hello", "1.1.1.1:9999".parse()?).await?;
 ///
@@ -85,7 +85,7 @@ struct TunnelInner {
 /// # }
 /// ```
 ///
-/// See also the repository examples: `tcp`, `udp`, `websocket`.
+/// See also the repository examples: `tcp`, `tcp_download`, `udp`, `websocket`.
 #[derive(Clone)]
 pub struct Tunnel {
     inner: Arc<TunnelInner>,
@@ -188,7 +188,7 @@ impl Tunnel {
     /// Create a tunnel from a pre-configured [`IpMixStream`].
     ///
     /// Use this for full control over the mixnet client (credentials, gateway
-    /// selection, storage, etc.) — configure the `IpMixStream` upstream and
+    /// selection, storage, etc.). Configure the `IpMixStream` upstream and
     /// pass it in directly.
     pub async fn from_stream(ipr_stream: IpMixStream) -> Result<Self, SmolmixError> {
         ipr_stream
@@ -197,15 +197,16 @@ impl Tunnel {
 
         let allocated_ips = *ipr_stream.allocated_ips();
 
-        // Wire up two channel pairs connecting the bridge (async mixnet I/O) to the
-        // async device adapter (which tokio-smoltcp polls for raw IP packets):
+        // Two channel pairs connect the bridge (async mixnet I/O) to the async
+        // device adapter (polled by tokio-smoltcp for raw IP packets):
         //
         //   outgoing: smoltcp → NymAsyncDevice.Sink → outgoing_tx → outgoing_rx → Bridge → mixnet
         //   incoming: mixnet → Bridge → incoming_tx → incoming_rx → NymAsyncDevice.Stream → smoltcp
         let (outgoing_tx, outgoing_rx) = mpsc::unbounded();
         let (incoming_tx, incoming_rx) = mpsc::unbounded();
 
-        // Bridge runs as a background task, shuttling packets between channels and IpMixStream.
+        // The bridge runs as a background task, shuttling packets between the
+        // channels and IpMixStream.
         let (bridge, bridge_shutdown) = NymIprBridge::new(ipr_stream, outgoing_rx, incoming_tx);
         let bridge_handle = tokio::spawn(bridge.run());
 
@@ -213,8 +214,8 @@ impl Tunnel {
         // tokio-smoltcp needs to drive the smoltcp Interface internally.
         let device = NymAsyncDevice::new(incoming_rx, outgoing_tx);
 
-        // Configure smoltcp: raw IP mode (no Ethernet), /32 for our allocated IP,
-        // default route via unspecified (the IPR handles actual routing).
+        // Configure smoltcp: raw IP mode (no Ethernet), /32 for the allocated IP,
+        // default route via unspecified (the IPR does the actual routing).
         let iface_config = Config::new(HardwareAddress::Ip);
         let net_config = NetConfig::new(
             iface_config,
@@ -222,7 +223,7 @@ impl Tunnel {
             vec![IpAddress::from(Ipv4Address::UNSPECIFIED)],
         );
 
-        // Net::new spawns the smoltcp reactor as a background task. From here on,
+        // Net::new spawns the smoltcp reactor as a background task. After this,
         // tcp_connect/udp_bind create sockets managed by that reactor.
         let net = Net::new(device, net_config);
 
@@ -243,8 +244,8 @@ impl Tunnel {
     /// Open a TCP connection to `addr` through the mixnet.
     ///
     /// The returned [`TcpStream`] implements `tokio::io::AsyncRead + AsyncWrite`,
-    /// so it works transparently with tokio-rustls, hyper, tokio-tungstenite, and
-    /// any other async I/O consumer.
+    /// so it composes with tokio-rustls, hyper, tokio-tungstenite, and any
+    /// other async I/O consumer.
     ///
     /// # Errors
     ///
@@ -268,7 +269,7 @@ impl Tunnel {
     /// # }
     /// ```
     ///
-    /// TLS via tokio-rustls (the stream is a drop-in for `tokio::net::TcpStream`):
+    /// TLS via tokio-rustls (the stream stands in for `tokio::net::TcpStream`):
     /// ```no_run
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let tunnel = smolmix::Tunnel::new().await?;
@@ -278,7 +279,7 @@ impl Tunnel {
     /// let tcp = tunnel.tcp_connect("93.184.216.34:443".parse()?).await?;
     /// # let connector: TlsConnector = todo!();
     /// let tls = connector.connect(ServerName::try_from("example.com")?.to_owned(), tcp).await?;
-    /// // `tls` implements AsyncRead + AsyncWrite — use with hyper, tungstenite, etc.
+    /// // `tls` implements AsyncRead + AsyncWrite, so hyper, tungstenite, etc. accept it.
     /// # Ok(())
     /// # }
     /// ```
@@ -330,9 +331,9 @@ impl Tunnel {
 
     /// The IPv4/IPv6 address pair allocated to this tunnel by the IPR.
     ///
-    /// Available immediately after construction. The IPv4 address is assigned as
-    /// a /32 on the tunnel's virtual interface — all traffic to/from external
-    /// hosts appears to originate from this IP at the exit gateway.
+    /// Available immediately after construction. The IPv4 address is assigned
+    /// as a /32 on the tunnel's virtual interface, so all traffic to and from
+    /// external hosts appears to originate from this IP at the exit gateway.
     pub fn allocated_ips(&self) -> IpPair {
         self.inner.allocated_ips
     }
@@ -342,14 +343,15 @@ impl Tunnel {
     /// Signals the bridge to disconnect from the mixnet and waits for it to finish.
     /// The smoltcp reactor stops when all `Tunnel` clones are dropped.
     ///
-    /// If the `Tunnel` is dropped without calling `shutdown()`, cleanup still happens:
-    /// dropping the `Arc<TunnelInner>` drops the oneshot sender inside `ShutdownState`,
-    /// which resolves the bridge's `shutdown_rx` and triggers its shutdown path. However,
-    /// the drop path is fire-and-forget — call `shutdown()` explicitly if you need to
-    /// wait for the mixnet disconnect to complete.
+    /// If the `Tunnel` is dropped without calling `shutdown()`, cleanup still
+    /// happens: dropping the `Arc<TunnelInner>` drops the oneshot sender inside
+    /// `ShutdownState`, which resolves the bridge's `shutdown_rx` and triggers
+    /// its shutdown path. The drop path is fire-and-forget, though, so call
+    /// `shutdown()` explicitly if you need to wait for the mixnet disconnect
+    /// to complete.
     ///
-    /// After shutdown, new socket operations (`tcp_connect`, `udp_socket`) will fail
-    /// with IO errors — the bridge channels are closed.
+    /// After shutdown, new socket operations (`tcp_connect`, `udp_socket`) fail
+    /// with IO errors, since the bridge channels are closed.
     pub async fn shutdown(&self) {
         let mut state = self.inner.shutdown.lock().await;
         if let Some(s) = state.take() {

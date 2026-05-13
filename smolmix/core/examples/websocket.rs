@@ -2,9 +2,9 @@
 
 //! WebSocket echo over the Nym mixnet.
 //!
-//! Sends a message to a public echo server via clearnet and via the mixnet,
-//! then compares responses and timing. The clearnet and mixnet paths use the
-//! *exact same* TLS + WebSocket stack. Only the TCP transport differs.
+//! Sends one message to a public echo server, first via clearnet and then
+//! via the mixnet. Both paths use the same TLS and WebSocket stack; only
+//! the underlying TCP stream changes.
 //!
 //! ```text
 //! tokio-tungstenite (WebSocket framing)
@@ -12,15 +12,6 @@
 //!        ├─ tokio::net::TcpStream  (clearnet)
 //!        └─ smolmix::TcpStream     (mixnet)
 //! ```
-//!
-//! ## What this demonstrates
-//!
-//! - Composability: [`tokio_tungstenite::client_async`] accepts any
-//!   `AsyncRead + AsyncWrite` stream. It doesn't know or care that
-//!   TLS is backed by the mixnet rather than a kernel TCP socket
-//! - The same `tls_connector()` and WebSocket upgrade code works for both
-//!   clearnet and mixnet; you only swap the underlying TCP stream
-//! - The echo server sees the IPR gateway's IP, not yours
 //!
 //! ```sh
 //! cargo run -p smolmix --example websocket
@@ -57,17 +48,16 @@ async fn main() -> Result<(), BoxError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    // Resolve hostname via clearnet DNS. You can resolve via the mixnet (see UDP example) but for this test it's not necessary
+    // Clearnet DNS is fine here; the UDP example shows mixnet-side DNS.
     let addr = tokio::net::lookup_host(format!("{WS_HOST}:443"))
         .await?
         .next()
         .ok_or("DNS resolution failed")?;
-    info!("Resolved {WS_HOST} -> {addr}");
+    info!("Resolved {WS_HOST} → {addr}");
 
     let connector = tls_connector();
     let domain = ServerName::try_from(WS_HOST)?.to_owned();
 
-    // Clearnet baseline: tokio TCP -> rustls -> tungstenite
     info!("Connecting via clearnet...");
     let clearnet_start = tokio::time::Instant::now();
 
@@ -84,11 +74,7 @@ async fn main() -> Result<(), BoxError> {
 
     info!("Clearnet: \"{clearnet_text}\" in {clearnet_duration:?}");
 
-    // Mixnet path
-    // Exact same stack as clearnet, but over smolmix::TcpStream.
-    // This is the key composability point: swap the TCP transport
-    // and everything above it works unchanged.
-
+    // TCP source is smolmix::TcpStream; everything above is the same.
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -102,11 +88,6 @@ async fn main() -> Result<(), BoxError> {
     let tunnel = builder.build().await?;
     info!("Allocated IP: {}", tunnel.allocated_ips().ipv4);
 
-    // TCP + TLS + WebSocket handshakes through the mixnet.
-    // Each layer only knows about the one directly below it:
-    //   tungstenite thinks it's talking to a normal TLS stream
-    //   rustls thinks it's talking to a normal TCP stream
-    //   smolmix handles the mixnet routing transparently
     let setup_start = tokio::time::Instant::now();
 
     info!("TCP connecting via mixnet...");
@@ -124,7 +105,6 @@ async fn main() -> Result<(), BoxError> {
     let setup_duration = setup_start.elapsed();
     info!("Setup complete ({:?})", setup_duration);
 
-    // Send a message and verify the echo.
     let request_start = tokio::time::Instant::now();
 
     mixnet_ws.send(Message::Text(ECHO_MSG.into())).await?;
@@ -136,7 +116,6 @@ async fn main() -> Result<(), BoxError> {
 
     info!("Echo: \"{mixnet_text}\" ({:?})", request_duration);
 
-    // Results
     info!("Clearnet: \"{clearnet_text}\" in {clearnet_duration:?}");
     info!(
         "Mixnet: \"{mixnet_text}\" (setup {:?} + echo {:?} = {:?})",

@@ -34,6 +34,8 @@ pub(crate) mod force_refresh;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_contract_cache;
 pub(crate) mod node_annotations_cache;
+#[cfg(test)]
+pub(crate) mod test_helpers;
 
 #[derive(Clone)]
 pub(crate) struct AppState {

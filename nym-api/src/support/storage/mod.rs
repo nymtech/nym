@@ -82,6 +82,33 @@ impl NymApiStorage {
             .max_connections(25)
             .acquire_timeout(Duration::from_secs(60));
 
+        Self::from_options(connect_opts, pool_opts).await
+    }
+
+    /// Build a [`NymApiStorage`] backed by an in-memory SQLite database. The
+    /// pool is pinned to a single connection so every query sees the same DB
+    /// (the standard "private :memory:" gotcha — multiple connections to
+    /// `:memory:` produce independent DBs unless shared-cache is used).
+    ///
+    /// Intended for tests; migrations run identically to the file-backed
+    /// constructor.
+    #[cfg(test)]
+    pub async fn init_in_memory() -> Result<Self, NymApiStorageError> {
+        let connect_opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(":memory:")
+            .create_if_missing(true);
+
+        let pool_opts = sqlx::sqlite::SqlitePoolOptions::new()
+            .min_connections(1)
+            .max_connections(1);
+
+        Self::from_options(connect_opts, pool_opts).await
+    }
+
+    async fn from_options(
+        connect_opts: sqlx::sqlite::SqliteConnectOptions,
+        pool_opts: sqlx::sqlite::SqlitePoolOptions,
+    ) -> Result<Self, NymApiStorageError> {
         let connection_pool = match pool_opts.connect_with(connect_opts).await {
             Ok(db) => db,
             Err(err) => {
@@ -97,12 +124,10 @@ impl NymApiStorage {
 
         info!("Database migration finished!");
 
-        let storage = NymApiStorage {
+        Ok(NymApiStorage {
             manager: StorageManager { connection_pool },
             db_id_cache: Arc::new(Default::default()),
-        };
-
-        Ok(storage)
+        })
     }
 
     pub(crate) async fn get_mixnode_database_id(

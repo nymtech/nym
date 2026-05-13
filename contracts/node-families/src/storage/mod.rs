@@ -11,12 +11,12 @@ use crate::storage::storage_indexes::{
 use cosmwasm_std::{Addr, Coin, DepsMut, Env, Order, StdResult, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{IndexedMap, Item, Map};
-use node_families_contract_common::constants::storage_keys;
-use node_families_contract_common::{
+use nym_mixnet_contract_common::NodeId;
+use nym_node_families_contract_common::constants::storage_keys;
+use nym_node_families_contract_common::{
     Config, FamilyInvitation, FamilyInvitationStatus, FamilyMembership, NodeFamiliesContractError,
     NodeFamily, NodeFamilyId, PastFamilyInvitation, PastFamilyMember,
 };
-use nym_mixnet_contract_common::NodeId;
 
 pub(crate) mod retrieval_limits;
 mod storage_indexes;

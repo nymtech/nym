@@ -77,7 +77,7 @@ nym-vesting-contract-common = "1.20.4"
 contracts-common = { version = "1.20.4", package = "nym-contracts-common" }
 mixnet-contract-common = { version = "1.20.4", package = "nym-mixnet-contract-common" }
 vesting-contract-common = { version = "1.20.4", package = "nym-vesting-contract-common" }
-node-families-contract-common = { version = "1.20.4", package = "node-families-contract-common" }
+nym-node-families-contract-common = { version = "1.20.4", package = "nym-node-families-contract-common" }
 
 # Internal contract workspace members (for cross-contract testing)
 cw3-flex-multisig = { version = "2.0.0", path = "multisig/cw3-flex-multisig" }
@@ -104,4 +104,4 @@ nym-contracts-common-testing = { path = "../common/cosmwasm-smart-contracts/cont
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
-node-families-contract-common = { path = "../common/cosmwasm-smart-contracts/node-families-contract" }
+nym-node-families-contract-common = { path = "../common/cosmwasm-smart-contracts/node-families-contract" }

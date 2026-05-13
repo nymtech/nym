@@ -104,6 +104,7 @@ nym-serde-helpers = { workspace = true, features = ["date"] }
 nym-ticketbooks-merkle = { workspace = true }
 nym-statistics-common = { workspace = true }
 nym-ecash-signer-check = { workspace = true }
+nym-node-families-contract-common = { workspace = true }
 
 
 [features]

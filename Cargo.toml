@@ -473,6 +473,7 @@ nym-noise-keys = { version = "1.20.4", path = "common/nymnoise/keys" }
 nym-nonexhaustive-delayqueue = { version = "1.20.4", path = "common/nonexhaustive-delayqueue" }
 nym-node-requests = { version = "1.20.4", path = "nym-node/nym-node-requests", default-features = false }
 nym-node-metrics = { version = "1.20.4", path = "nym-node/nym-node-metrics" }
+nym-node-families-contract-common = { version = "1.20.5", path = "common/cosmwasm-smart-contracts/node-families-contract" }
 nym-ordered-buffer = { version = "1.20.4", path = "common/socks5/ordered-buffer" }
 nym-outfox = { version = "1.20.4", path = "nym-outfox" }
 nym-registration-common = { version = "1.20.4", path = "common/registration" }

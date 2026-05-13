@@ -22,6 +22,10 @@ pub const VESTING_CONTRACT_ADDRESS: &str =
 pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
 
+// \/ TODO: this has to be updated once the contract is deployed
+pub const NODE_FAMILIES_CONTRACT_ADDRESS: &str = "";
+// /\ TODO: this has to be updated once the contract is deployed
+
 pub const ECASH_CONTRACT_ADDRESS: &str =
     "n1r7s6aksyc6pqardx88k3rkgfagwvj4z4zum9mmz2sfk3zm2mha0sd4dnun";
 pub const GROUP_CONTRACT_ADDRESS: &str =

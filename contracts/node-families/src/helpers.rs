@@ -3,8 +3,8 @@
 
 use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{Addr, Deps};
-use node_families_contract_common::NodeFamiliesContractError;
 use nym_mixnet_contract_common::{MixnetContractQuerier, NodeId};
+use nym_node_families_contract_common::NodeFamiliesContractError;
 
 /// Normalise a family name into the canonical form used as the unique-index key.
 ///

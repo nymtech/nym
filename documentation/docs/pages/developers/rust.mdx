@@ -49,5 +49,5 @@ For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For set
 
 For proxy-mode integrations (reaching third-party services through an Exit Gateway), see also:
 
-- [**`smolmix`**](/developers/smolmix): `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem.
+- [**`smolmix` & connectors**](/developers/smolmix): `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack, with companion crates ([`smolmix-dns`](/developers/smolmix/dns), [`smolmix-tls`](/developers/smolmix/tls), [`smolmix-hyper`](/developers/smolmix/hyper)) for DNS, TLS, and HTTP. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem.
 - [**SOCKS Client**](./rust/mixnet): SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester. Works with any SOCKS-capable application without code changes.

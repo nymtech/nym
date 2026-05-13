@@ -1,0 +1,39 @@
+# Once your distro ships the patched kernel,
+# you'll want to reverse everything - remove the blacklists and reboot:
+
+- name: Mitigate Copy Fail + Dirty Frag
+  hosts: all
+  become: true
+  tasks:
+    - name: Blacklist algif_aead (Copy Fail)
+      copy:
+        dest: /etc/modprobe.d/disable-algif-aead.conf
+        content: "install algif_aead /bin/false\n"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Blacklist esp4, esp6, rxrpc (Dirty Frag)
+      copy:
+        dest: /etc/modprobe.d/dirtyfrag.conf
+        content: |
+          install esp4 /bin/false
+          install esp6 /bin/false
+          install rxrpc /bin/false
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Unload all affected modules
+      modprobe:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - algif_aead
+        - esp4
+        - esp6
+        - rxrpc
+      ignore_errors: true
+
+    - name: Drop page cache to clear any contamination
+      shell: echo 3 > /proc/sys/vm/drop_caches

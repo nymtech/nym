@@ -1,130 +1,27 @@
 ---
-title: "smolmix: TCP/UDP Over the Nym Mixnet"
-description: "A userspace IP tunnel that provides standard TcpStream and UdpSocket types over the Nym mixnet. Compatible with the async tokio Rust ecosystem."
+title: "smolmix & connectors"
+description: "Rust crate family for routing networking through the Nym mixnet. TCP/UDP tunnels, DNS, TLS, and HTTP."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-04-29"
+lastUpdated: "2026-05-13"
 ---
 
-# smolmix
+# smolmix & connectors
 
-import { Callout } from 'nextra/components'
-import { RUST_MSRV } from '../../components/versions'
+A family of Rust crates for routing standard networking through the Nym mixnet. Each crate handles one concern, so you only pull in what you need.
 
-`smolmix` is a TCP/UDP tunnel over the Nym mixnet. It uses a userspace network stack [`smoltcp`](https://docs.rs/smoltcp/latest/smoltcp/) to provide `TcpStream` and `UdpSocket` types that work with the async [`tokio`](https://docs.rs/tokio) Rust ecosystem e.g. [`tokio-rustls`](https://docs.rs/tokio-rustls), [`hyper`](https://docs.rs/hyper), [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite), etc.
+| Crate | Use it for |
+|---|---|
+| [`smolmix`](/developers/smolmix/tunnel) | TCP/UDP tunnel. The base layer everything else builds on, exposing `TcpStream` and `UdpSocket` types compatible with the async tokio ecosystem. |
+| [`smolmix-dns`](/developers/smolmix/dns) | Tunneled hostname resolution. Pairs with `smolmix` to avoid leaking DNS queries to the local network. |
+| [`smolmix-tls`](/developers/smolmix/tls) | TLS over a `smolmix` `TcpStream`, with webpki root certificates pre-configured. |
+| [`smolmix-hyper`](/developers/smolmix/hyper) | Drop-in HTTP client wrapping `hyper-util`. Bundles DNS, TLS, and HTTP through the mixnet. |
+| [Building on smolmix](/developers/smolmix/extending) | Patterns for integrating libraries we don't ship a connector for (WebSocket, libp2p, custom protocols). |
 
-The `TcpStream` type implements tokio's `AsyncRead`/`AsyncWrite` traits and `UdpSocket` provides `send_to`/`recv_from` for datagrams.
+All crates share the workspace version (`1.21.0`). Full API on docs.rs: [`smolmix`](https://docs.rs/smolmix), [`smolmix-dns`](https://docs.rs/smolmix-dns), [`smolmix-tls`](https://docs.rs/smolmix-tls), [`smolmix-hyper`](https://docs.rs/smolmix-hyper).
 
-```text
-┌──────────────────────────────────────────────────────────────┐
-│  Your application (TLS, HTTP, WebSocket, DNS, etc.)          │
-│       └─ smolmix::TcpStream / UdpSocket                      │
-│            └─ smoltcp (userspace TCP/IP)                     │
-│                 └─ Nym mixnet → IPR exit gateway → internet  │
-└──────────────────────────────────────────────────────────────┘
-```
+## Picking the right layer
 
-Traffic exits the mixnet at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway. The exit IP is the gateway's, not yours.
+Most users want [`smolmix-hyper`](/developers/smolmix/hyper): a familiar HTTP client that quietly routes DNS, TCP, and TLS through the mixnet. Reach for the lower-level crates when you need something hyper doesn't cover, e.g. WebSocket, raw UDP, libp2p, or a custom protocol over TCP.
 
-## Runtime and platform support
-### Other runtimes
-`smolmix` currently requires `tokio`. The internal pipeline is tokio-based: the bridge task that shuttles packets to the mixnet, the Nym SDK's `MixnetClient`, and the [`tokio-smoltcp`](https://docs.rs/tokio-smoltcp) reactor that drives the userspace TCP/IP stack all run on the tokio runtime.
-
-This means `smolmix` is not directly compatible with alternative async runtimes like [`smol`](https://docs.rs/smol) or [`async-std`](https://docs.rs/async-std). If you need to use `smolmix` from another runtime, the [`async-compat`](https://docs.rs/async-compat) crate can bridge the gap.
-
-### Non-native `smolmix`
-A WASM version of `smolmix` is planned for a future release.
-
-## Installation
-
-Add `smolmix` to your `Cargo.toml`:
-
-```toml
-[dependencies]
-smolmix = "1.21.0"
-nym-bin-common = { version = "1.21.0", features = ["basic_tracing"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-```
-
-`tokio` is a transitive dependency of smolmix, but you need to enable `rt-multi-thread` (the default runtime spun up by `#[tokio::main]`) and `macros` (for the `#[tokio::main]` attribute itself).
-
-`nym-bin-common` is optional but recommended: it sets up [`tracing`](https://docs.rs/tracing) logging so you can see mixnet connection progress.
-
-**Minimum Rust version:** {RUST_MSRV}+
-
-### From Git
-
-For unreleased changes, import directly from the repository:
-
-```toml
-smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
-```
-
-## When to use smolmix
-
-| | smolmix | Stream module | mixFetch | SOCKS client |
-|---|---|---|---|---|
-| **Layer** | Transport (TCP/UDP) | Message (multiplexed streams) | HTTP | TCP (SOCKS proxy) |
-| **Controls both sides?** | No (proxy mode) | Yes (E2E) | No (proxy mode) | No (proxy mode) |
-| **API** | `TcpStream`, `UdpSocket` | `AsyncRead + AsyncWrite` | `fetch()` replacement | SOCKS4/5 protocol |
-| **Composability** | Full: TLS, HTTP, WebSocket, DNS, etc. stack on top | Byte streams only | HTTP(S) only | Application-dependent |
-| **Best for** | Reaching external services from Rust with standard networking | Peer-to-peer / E2E protocols between Nym clients | Browser HTTP requests | Legacy apps with SOCKS support |
-
-## Security model
-
-<Callout type="warning">
-Traffic is Sphinx-encrypted inside the mixnet. Past the Exit Gateway, it travels over the public internet to the destination, the same as any other server-initiated connection. Protect the payload at the application layer with TLS ([`rustls`](https://docs.rs/rustls)), Noise Protocol ([`snow`](https://docs.rs/snow)), or equivalent, as you would on a direct connection.
-</Callout>
-
-### What's protected
-
-| Segment | Mixnet encryption | What's visible |
-|---|---|---|
-| Your machine → mixnet entry | Sphinx (layered) | Entry gateway sees your IP but not the destination |
-| Inside the mixnet (entry + 3 mix layers + exit) | Sphinx (layered) | Each node only knows prev/next hop |
-| Exit gateway (IPR) | Sphinx removed, raw IP packet exposed | IPR sees destination IP + port. Payload depends on your application layer (see below). |
-| IPR → remote host | None (Sphinx is mixnet-only) | Remote host sees IPR's IP, not yours |
-
-The Sphinx encryption is the **mixnet transport layer**: it protects packets as they traverse the mix nodes. At the exit gateway, the Sphinx layers are stripped and the original IP packet is forwarded to the destination. This is analogous to how a Tor exit node or VPN endpoint unwraps its tunnel.
-
-What's inside that IP packet is up to you. If you connect with TLS (as in the [TCP example](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs)), the IPR sees encrypted TLS ciphertext going to a destination IP: it knows where but not what. If you send plaintext HTTP, the IPR can read the full request and response.
-
-### Trust boundaries
-
-- You trust the mixnet to provide unlinkability between sender and receiver. This is enforced cryptographically by the Sphinx packet format and mixing.
-- You trust the IPR exit gateway in the same way you trust a VPN exit or Tor exit node: it can inspect your raw IP packets. The difference is that the IPR doesn't know who is sending the traffic (the mixnet hides your identity).
-- **Application-layer encryption closes the gap.** TLS, Noise Protocol, or any authenticated encryption keeps the payload as ciphertext to the IPR. It can see destination IP and port, but not payload content.
-
-### Comparison with other privacy tools
-
-| | smolmix | Tor | VPN |
-|---|---|---|---|
-| **Exit node sees traffic?** | Yes (encrypt it) | Yes (encrypt it) | Yes (encrypt it) |
-| **Exit node knows sender?** | No (mixnet hides identity) | No (onion routing) | Yes (VPN provider knows) |
-| **Timing analysis resistance** | Strong (mixing, cover traffic) | Weak (low-latency) | None |
-| **UDP support** | Yes | No (TCP only) | Yes |
-
-## Examples
-
-Runnable examples in [`smolmix/core/examples/`](https://github.com/nymtech/nym/tree/develop/smolmix/core/examples). Each is self-contained; read the `//!` doc comments at the top of each file for a walkthrough.
-
-```sh
-cargo run -p smolmix --example <name>
-```
-
-All examples accept `--ipr <ADDRESS>` to target a specific exit node (pass a `Recipient` address to `Tunnel::builder().ipr_address()`).
-
-| Example | Source | What it demonstrates |
-|---|---|---|
-| UDP | [`udp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp.rs) | DNS lookup via [`hickory-proto`](https://docs.rs/hickory-proto), sending a raw UDP query to `1.1.1.1:53` through the mixnet. Runs a clearnet [`hickory-resolver`](https://docs.rs/hickory-resolver) lookup alongside it to compare resolved IPs and latency |
-| TCP | [`tcp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs) | HTTPS request via [`hyper`](https://docs.rs/hyper) + [`tokio-rustls`](https://docs.rs/tokio-rustls). Fetches Cloudflare's `/cdn-cgi/trace` to show that the exit IP differs from clearnet |
-| WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket.rs) | WebSocket echo against `ws.postman-echo.com` via [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite) + [`tokio-rustls`](https://docs.rs/tokio-rustls). Runs the same stack over clearnet first, so the only thing that changes between runs is the underlying TCP stream |
-| TCP download | [`tcp_download.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp_download.rs) | DNS-over-mixnet + multi-request HTTP/1.1 download over a single keep-alive connection, the full real-world pattern |
-
-## Architecture
-
-The internal stack (smoltcp reactor, device adapter, bridge task, packet flow) is documented in [`ARCHITECTURE.md`](https://github.com/nymtech/nym/blob/develop/smolmix/core/src/ARCHITECTURE.md). This is also the crate-level documentation on docs.rs.
-
-## API reference
-
-Full API documentation is available on [docs.rs/smolmix](https://docs.rs/smolmix).
+If you're integrating a library not listed above, the [Building on smolmix](/developers/smolmix/extending) guide shows the patterns: most tokio-native libraries plug into `smolmix::TcpStream` directly, with no glue.

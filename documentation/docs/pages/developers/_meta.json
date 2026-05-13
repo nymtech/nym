@@ -7,7 +7,7 @@
     "type": "separator",
     "title": "Rust"
   },
-  "smolmix": "smolmix",
+  "smolmix": "smolmix & connectors",
   "rust": "nym-sdk",
 
   "-": {

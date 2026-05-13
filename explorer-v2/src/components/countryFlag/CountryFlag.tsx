@@ -1,9 +1,10 @@
 import { Stack, Typography, useTheme } from "@mui/material";
 import Flag from "react-world-flags";
+import type React from "react";
 
 interface ICountryFlag {
   countryCode: string;
-  countryName?: string | JSX.Element;
+  countryName?: string | React.JSX.Element;
 }
 
 const CountryFlag = ({ countryCode, countryName }: ICountryFlag) => {

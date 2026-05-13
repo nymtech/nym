@@ -1,11 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-//! `mixResolve`: hostname-to-IP resolution over the Nym mixnet tunnel.
-//!
-//! The thinnest possible WASM export: pulls the global `TUNNEL` out of
-//! [`crate::TUNNEL`] and delegates to [`crate::dns::resolve`], which owns
-//! the UDP / IPR DNS pipeline. No TCP, no TLS, no HTTP: useful as an
-//! isolation diagnostic when `mixFetch` misbehaves.
+//! `mixResolve`: hostname lookup over the mixnet tunnel (UDP / IPR path only).
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;

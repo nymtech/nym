@@ -1,13 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-//! Socket adapters over the smoltcp stack: `WasmTcpStream`, `WasmUdpSocket`,
-//! and the `PooledConn` enum used by the fetch connection pool.
-//!
-//! These types implement `futures::io::{AsyncRead, AsyncWrite}` so they slot
-//! straight into `futures-rustls`, `hyper`, and `async-tungstenite` without
-//! any tokio adapter. All three hold a clone of the shared [`SmoltcpStack`]
-//! and a [`ReactorNotify`] sender so they can prompt the reactor to poll
-//! after each user-driven send/recv.
+//! `futures::io` socket adapters over the smoltcp stack.
 
 use std::io;
 use std::net::{IpAddr, SocketAddr};
@@ -42,8 +36,6 @@ pub struct WasmUdpSocket {
     pub(crate) handle: SocketHandle,
     pub(crate) notify: ReactorNotify,
 }
-
-// WasmTcpStream: futures::io::{AsyncRead, AsyncWrite}
 
 impl AsyncRead for WasmTcpStream {
     fn poll_read(
@@ -133,8 +125,6 @@ impl Drop for WasmTcpStream {
     }
 }
 
-// PooledConn: AsyncRead + AsyncWrite delegation
-
 impl AsyncRead for PooledConn {
     fn poll_read(
         self: Pin<&mut Self>,
@@ -176,8 +166,6 @@ impl AsyncWrite for PooledConn {
 }
 
 impl Unpin for PooledConn {}
-
-// WasmUdpSocket: send_to / recv_from
 
 impl WasmUdpSocket {
     /// Send a datagram to the given address.

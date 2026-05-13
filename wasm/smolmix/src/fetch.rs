@@ -1,13 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-//! Fetch orchestrator. Wires DNS, TCP, TLS, HTTP and handles JS interop.
-//!
-//! Extracts `RequestInit` fields from JS via `js_sys::Reflect` (no serde/Tsify),
-//! then serialises the `HttpResponse` into a plain JS object for transfer across
-//! the Comlink worker boundary.
-//!
-//! The TS layer reconstructs a native browser `Response` from this object:
-//! `new Response(body, { status, statusText, headers })`.
+//! Fetch orchestrator: DNS, TCP, TLS, HTTP plus the JS `RequestInit` shim.
 
 use std::net::SocketAddr;
 
@@ -34,12 +28,6 @@ struct FetchInit {
 const MAX_REDIRECTS: u8 = 5;
 
 /// Execute a fetch request through the mixnet tunnel.
-///
-/// Pool hit → reuse TCP+TLS session. Pool miss → DNS → TCP → TLS from scratch.
-/// Reusable connections are returned to the pool after the HTTP exchange.
-/// Follows redirects (301/302/303/307/308) up to `MAX_REDIRECTS` hops.
-///
-/// Returns `{ body: Uint8Array, status, statusText, headers }` for Comlink.
 pub async fn fetch(
     tunnel: &WasmTunnel,
     url_str: &str,
@@ -75,11 +63,7 @@ pub async fn fetch(
             );
         }
 
-        // Per-origin lock: concurrent requests to the same (host, port) queue
-        // behind one connection instead of stampeding with parallel TCP+TLS
-        // handshakes (which triggers server-side rate limiting / Cloudflare drops).
-        // Scoped to connection acquisition only; the HTTP exchange runs unlocked
-        // so multiple in-flight requests can share the same origin concurrently.
+        // Per-origin lock: serialise TCP+TLS handshake, release before HTTP.
         let (conn, from_pool) = {
             let origin_lock = tunnel.origin_lock(&host, port);
             crate::util::debug_log!("[fetch] acquiring origin lock for {host}:{port}...");
@@ -101,14 +85,7 @@ pub async fn fetch(
             result
         };
 
-        // 2. HTTP request + response (hyper takes ownership of stream, returns it)
-        //
-        // Retry-on-stale: pooled connections can go stale if the server or IPR
-        // closed the TCP connection while it sat idle. hyper surfaces this as
-        // "operation was canceled" or a connection error on the first write.
-        // When a pooled connection fails, discard it and retry once with a
-        // fresh connection. Only pooled connections get this grace; a fresh
-        // connection failure is a real error.
+        // Retry pooled connections once on first-write error; fresh-conn errors propagate.
         let http_result = http::request(conn, &method, &url, &opts.headers, body.as_deref()).await;
 
         let (response, reusable, conn) = match http_result {

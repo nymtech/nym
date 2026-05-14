@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! HTTP/1.1 client on hyper 1.x (tokio-free).
+//! HTTP/1.1 client on hyper 1.x.
 
 use std::io;
 use std::mem::MaybeUninit;

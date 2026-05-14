@@ -39,7 +39,7 @@ pub async fn get_entry_gateways(state: State<AppState>) -> HttpResult<Json<Vec<D
     Ok(Json(
         state
             .cache()
-            .get_entry_dvpn_gateways(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .get_entry_dvpn_gateways(&state.storage(), &MIN_SUPPORTED_VERSION)
             .await,
     ))
 }
@@ -60,7 +60,7 @@ pub async fn get_entry_gateway_countries(state: State<AppState>) -> HttpResult<J
     Ok(Json(
         state
             .cache()
-            .get_entry_dvpn_gateways(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .get_entry_dvpn_gateways(&state.storage(), &MIN_SUPPORTED_VERSION)
             .await
             .into_iter()
             .map(|gw| gw.location.two_letter_iso_country_code.to_string())
@@ -92,7 +92,7 @@ pub async fn get_entry_gateways_by_country(
     Ok(Json(
         state
             .cache()
-            .get_entry_dvpn_gateways(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .get_entry_dvpn_gateways(&state.storage(), &MIN_SUPPORTED_VERSION)
             .await
             .into_iter()
             .filter(|gw| gw.location.two_letter_iso_country_code.to_uppercase() == country.alpha2)

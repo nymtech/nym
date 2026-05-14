@@ -29,6 +29,7 @@ use utoipa::ToSchema;
 use crate::db::models::NymNodeDataDeHelper;
 use crate::node_scraper::models::BridgeInformation;
 
+use crate::monitor::geodata;
 pub(crate) use nym_node_status_client::models::TestrunAssignment;
 
 pub(crate) mod gw_probe;
@@ -48,6 +49,128 @@ pub struct Gateway {
     pub routing_score: f32,
     pub config_score: u32,
     pub bridges: Option<serde_json::Value>,
+}
+
+impl Gateway {
+    fn geo_location(&self) -> anyhow::Result<geodata::Location> {
+        self.explorer_pretty_bond
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("Missing explorer_pretty_bond"))
+            .and_then(|value| {
+                serde_json::from_value::<ExplorerPrettyBond>(value).map_err(From::from)
+            })
+            .map(|bond| bond.location)
+    }
+
+    pub(crate) fn location(&self) -> anyhow::Result<Location> {
+        let geolocation = self.geo_location()?;
+        Ok(Location {
+            latitude: geolocation.location.latitude,
+            longitude: geolocation.location.longitude,
+            two_letter_iso_country_code: geolocation.two_letter_iso_country_code,
+            org: geolocation.org,
+            city: geolocation.city,
+            region: geolocation.region,
+            postal: geolocation.postal,
+            timezone: geolocation.timezone,
+            asn: geolocation.asn.map(|a| {
+                let kind = if a.kind.eq_ignore_ascii_case("isp") {
+                    // we consider anything that is "ISP" from ipinfo to be residential
+                    AsnKind::Residential
+                } else {
+                    // everything else is considered "other"
+                    AsnKind::Other
+                };
+                Asn {
+                    asn: a.asn,
+                    domain: a.domain,
+                    kind,
+                    name: a.name,
+                    route: a.route,
+                }
+            }),
+        })
+    }
+
+    pub(crate) fn self_described(&self) -> anyhow::Result<NymNodeDataDeHelper> {
+        self.self_described
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("Missing self_described"))
+            .and_then(|value| {
+                serde_json::from_value::<NymNodeDataDeHelper>(value).map_err(From::from)
+            })
+    }
+
+    pub(crate) fn bridges(&self) -> Option<BridgeInformation> {
+        self.bridges.clone().and_then(|v| {
+            serde_json::from_value::<BridgeInformation>(v)
+                .inspect_err(|err| {
+                    error!(
+                        "Failed to deserialize bridges for gateway identity {}: {err}",
+                        self.gateway_identity_key
+                    );
+                })
+                .ok()
+        })
+    }
+
+    fn last_probe_result(&self) -> anyhow::Result<Option<LastProbeResult>> {
+        let Some(last_probe) = &self.last_probe_result else {
+            return Ok(None);
+        };
+        let probe =
+            LastProbeResult::deserialize_with_fallback(last_probe.clone()).inspect_err(|err| {
+                error!("Failed to deserialize probe result: {err}");
+            })?;
+
+        tracing::trace!("🌈 gateway probe parsed: {probe:?}");
+        Ok(Some(probe))
+    }
+
+    pub(crate) fn last_dvpn_probe_result(
+        &self,
+        socks5_score: Option<&ScoreValue>,
+    ) -> anyhow::Result<Option<DvpnProbeOutcome>> {
+        let Some(last_probe) = self.last_probe_result()? else {
+            return Ok(None);
+        };
+
+        let socks5_score = socks5_score.unwrap_or(&ScoreValue::Offline).to_owned();
+        let dvpn_probe_result =
+            DvpnProbeOutcome::from_raw_probe_outcome(last_probe.outcome(), socks5_score);
+
+        Ok(Some(dvpn_probe_result))
+    }
+
+    pub(crate) fn performance_v2(&self) -> anyhow::Result<Option<DVpnGatewayPerformance>> {
+        let Some(last_probe) = self.last_probe_result()? else {
+            return Ok(None);
+        };
+
+        let last_updated_utc = self.last_testrun_utc.clone().unwrap_or_default();
+
+        let network_monitor_performance_mixnet_mode = self.performance as f32 / 100f32;
+        let mixnet_score = calculate_mixnet_score(self);
+        let score = calc_gateway_visual_score(self, &last_probe);
+        let mut load = calculate_load(&last_probe);
+
+        // clamp the load value to offline, when the score is offline
+        if score == ScoreValue::Offline {
+            load = ScoreValue::Offline;
+        }
+
+        let performance_v2 = DVpnGatewayPerformance {
+            last_updated_utc: last_updated_utc.to_string(),
+            load,
+            score,
+            mixnet_score,
+
+            // the network monitor's measure is a good proxy for node uptime, it can be improved in the future
+            uptime_percentage_last_24_hours: network_monitor_performance_mixnet_mode,
+        };
+
+        Ok(Some(performance_v2))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -158,6 +281,42 @@ impl From<&LewesProtocolDetailsDataV1Validator> for LewesProtocolDetailsDataV1 {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct NodeFamilyInformation {
+    // family id
+    id: u32,
+
+    // family name
+    name: String,
+
+    // description
+    description: String,
+
+    // amount in unym
+    family_stake: u128,
+
+    // number of members
+    members: usize,
+}
+
+impl NodeFamilyInformation {
+    pub(crate) fn new(
+        id: u32,
+        name: String,
+        description: String,
+        family_stake: u128,
+        members: usize,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            description,
+            family_stake,
+            members,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct DVpnGateway {
     pub identity_key: String,
     pub name: String,
@@ -182,6 +341,8 @@ pub struct DVpnGateway {
     pub performance_v2: Option<DVpnGatewayPerformance>,
 
     pub lewes_protocol_details: Option<LewesProtocolDetailsV1>,
+
+    pub family_data: Option<NodeFamilyInformation>,
 
     pub build_information: BinaryBuildInformationOwned,
 }
@@ -208,73 +369,19 @@ impl DVpnGateway {
         gateway: Gateway,
         skimmed_node: &SkimmedNodeV1,
         socks5_score: Option<&ScoreValue>,
+        family_details: Option<NodeFamilyInformation>,
     ) -> anyhow::Result<Self> {
-        let location = gateway
-            .explorer_pretty_bond
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("Missing explorer_pretty_bond"))
-            .and_then(|value| {
-                serde_json::from_value::<ExplorerPrettyBond>(value).map_err(From::from)
-            })
-            .map(|bond| bond.location)?;
-
-        let self_described: NymNodeDataDeHelper = gateway
-            .self_described
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("Missing self_described"))
-            .and_then(|value| {
-                serde_json::from_value::<NymNodeDataDeHelper>(value).map_err(From::from)
-            })?;
+        let location = gateway.location()?;
+        let self_described = gateway.self_described()?;
 
         let last_updated_utc = gateway.last_testrun_utc.clone().unwrap_or_default();
         let performance = to_percent(gateway.performance);
-        let network_monitor_performance_mixnet_mode = gateway.performance as f32 / 100f32;
-        let bridges = gateway.bridges.clone().and_then(|v| {
-            serde_json::from_value(v)
-                .inspect_err(|err| {
-                    error!(
-                        "Failed to deserialize bridges for gateway identity {}: {err}",
-                        gateway.gateway_identity_key
-                    );
-                })
-                .ok()
-        });
+        let bridges = gateway.bridges();
 
         tracing::debug!("🌈 gateway probe result: {:?}", gateway.last_probe_result);
 
-        let (last_probe_result, performance_v2) = match gateway.last_probe_result {
-            Some(ref value) => {
-                let parsed = LastProbeResult::deserialize_with_fallback(value.clone())
-                    .inspect_err(|err| {
-                        error!("Failed to deserialize probe result: {err}");
-                    })?;
-
-                tracing::trace!("🌈 gateway probe parsed: {:?}", parsed);
-                let mixnet_score = calculate_mixnet_score(&gateway);
-                let score = calc_gateway_visual_score(&gateway, &parsed);
-                let mut load = calculate_load(&parsed);
-                let socks5_score = socks5_score.unwrap_or(&ScoreValue::Offline).to_owned();
-                let dvpn_probe_result =
-                    DvpnProbeOutcome::from_raw_probe_outcome(parsed.outcome(), socks5_score);
-
-                // clamp the load value to offline, when the score is offline
-                if score == ScoreValue::Offline {
-                    load = ScoreValue::Offline;
-                }
-
-                let performance_v2 = DVpnGatewayPerformance {
-                    last_updated_utc: last_updated_utc.to_string(),
-                    load,
-                    score,
-                    mixnet_score,
-
-                    // the network monitor's measure is a good proxy for node uptime, it can be improved in the future
-                    uptime_percentage_last_24_hours: network_monitor_performance_mixnet_mode,
-                };
-                (Some(dvpn_probe_result), Some(performance_v2))
-            }
-            None => (None, None),
-        };
+        let last_probe_result = gateway.last_dvpn_probe_result(socks5_score)?;
+        let performance_v2 = gateway.performance_v2()?;
 
         Ok(Self {
             identity_key: gateway.gateway_identity_key,
@@ -282,32 +389,7 @@ impl DVpnGateway {
             description: Some(gateway.description.details),
             ip_packet_router: self_described.ip_packet_router,
             authenticator: self_described.authenticator,
-            location: Location {
-                latitude: location.location.latitude,
-                longitude: location.location.longitude,
-                two_letter_iso_country_code: location.two_letter_iso_country_code,
-                org: location.org,
-                city: location.city,
-                region: location.region,
-                postal: location.postal,
-                timezone: location.timezone,
-                asn: location.asn.map(|a| {
-                    let kind = if a.kind.eq_ignore_ascii_case("isp") {
-                        // we consider anything that is "ISP" from ipinfo to be residential
-                        AsnKind::Residential
-                    } else {
-                        // everything else is considered "other"
-                        AsnKind::Other
-                    };
-                    Asn {
-                        asn: a.asn,
-                        domain: a.domain,
-                        kind,
-                        name: a.name,
-                        route: a.route,
-                    }
-                }),
-            },
+            location,
             last_probe: last_probe_result
                 .map(|res| DvpnGwProbe::from_outcome(res, last_updated_utc)),
             ip_addresses: skimmed_node.ip_addresses.clone(),
@@ -321,6 +403,7 @@ impl DVpnGateway {
                 .lewes_protocol
                 .as_ref()
                 .map(LewesProtocolDetailsV1::from),
+            family_data: family_details,
             build_information: self_described.build_information,
         })
     }
@@ -664,6 +747,7 @@ pub(crate) struct ExtendedNymNode {
     pub(crate) rewarding_details: Option<nym_mixnet_contract_common::NodeRewarding>,
     pub(crate) description: NodeDescription,
     pub(crate) geoip: Option<NodeGeoData>,
+    pub family_data: Option<NodeFamilyInformation>,
 }
 
 #[derive(Clone, Debug, utoipa::ToSchema, Deserialize, Serialize)]

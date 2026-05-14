@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n            gw.gateway_identity_key as \"gateway_identity_key!\",\n            gw.bonded as \"bonded: bool\",\n            gw.performance as \"performance!\",\n            gw.self_described as \"self_described?\",\n            gw.explorer_pretty_bond as \"explorer_pretty_bond?\",\n            gw.last_probe_result as \"last_probe_result?\",\n            gw.last_probe_log as \"last_probe_log?\",\n            gw.last_testrun_utc as \"last_testrun_utc?\",\n            gw.last_updated_utc as \"last_updated_utc!\",\n            gw.bridges as \"bridges?: serde_json::Value\",\n            COALESCE(gd.moniker, 'NA') as \"moniker!\",\n            COALESCE(gd.website, 'NA') as \"website!\",\n            COALESCE(gd.security_contact, 'NA') as \"security_contact!\",\n            COALESCE(gd.details, 'NA') as \"details!\"\n         FROM gateways gw\n         LEFT JOIN gateway_description gd\n         ON gw.gateway_identity_key = gd.gateway_identity_key\n         ORDER BY gw.gateway_identity_key",
+  "query": "SELECT\n                gw.gateway_identity_key as \"gateway_identity_key!\",\n                gw.bonded as \"bonded: bool\",\n                gw.performance as \"performance!\",\n                gw.self_described as \"self_described?\",\n                gw.explorer_pretty_bond as \"explorer_pretty_bond?\",\n                gw.last_probe_result as \"last_probe_result?\",\n                gw.last_probe_log as \"last_probe_log?\",\n                gw.last_testrun_utc as \"last_testrun_utc?\",\n                gw.last_updated_utc as \"last_updated_utc!\",\n                gw.bridges as \"bridges?: serde_json::Value\",\n                COALESCE(gd.moniker, 'NA') as \"moniker!\",\n                COALESCE(gd.website, 'NA') as \"website!\",\n                COALESCE(gd.security_contact, 'NA') as \"security_contact!\",\n                COALESCE(gd.details, 'NA') as \"details!\"\n             FROM gateways gw\n             LEFT JOIN gateway_description gd\n             ON gw.gateway_identity_key = gd.gateway_identity_key\n             ORDER BY gw.gateway_identity_key",
   "describe": {
     "columns": [
       {
@@ -94,5 +94,5 @@
       null
     ]
   },
-  "hash": "f25a4eb90c11957669cfad4800d7a0a384b672077abb123c3437962def194e8a"
+  "hash": "1668f5a5a0abc8a73454953c3f5b61d2afb1b37720f5756b9c6fb3aef55a3027"
 }

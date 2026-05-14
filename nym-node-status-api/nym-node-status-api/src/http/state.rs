@@ -15,9 +15,10 @@ use tokio::sync::RwLock;
 use tracing::{error, instrument, trace, warn};
 use utoipa::ToSchema;
 
-use super::models::SessionStats;
+use super::models::{NodeFamilyInformation, SessionStats};
 use crate::{
-    db::{DbPool, queries},
+    db,
+    db::DbPool,
     http::{
         error::{HttpError, HttpResult},
         models::{
@@ -30,6 +31,7 @@ use crate::{
 
 use crate::ticketbook_manager::state::TicketbookManagerState;
 pub(crate) use nym_validator_client::models::BinaryBuildInformationOwned;
+use nym_validator_client::nyxd::contract_traits::node_families_query_client::NodeFamilyId;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
@@ -71,6 +73,12 @@ impl AppState {
 
     pub(crate) fn db_pool(&self) -> &DbPool {
         &self.db_pool
+    }
+
+    /// Cheap `Storage` view over the same underlying pool. Use when the
+    /// callee expects a `&db::Storage` rather than a raw `DbPool`.
+    pub(crate) fn storage(&self) -> db::Storage {
+        db::Storage::from_pool(self.db_pool.clone())
     }
 
     pub(crate) fn cache(&self) -> &HttpCache {
@@ -225,7 +233,7 @@ impl HttpCache {
             .await
     }
 
-    pub async fn get_gateway_list(&self, db: &DbPool) -> Vec<Gateway> {
+    pub async fn get_gateway_list(&self, storage: &db::Storage) -> Vec<Gateway> {
         match self.gateways.get(GATEWAYS_LIST_KEY).await {
             Some(guard) => {
                 tracing::trace!("Fetching from cache...");
@@ -236,7 +244,7 @@ impl HttpCache {
                 // the key is missing so populate it
                 tracing::trace!("No gateways in cache, refreshing cache from DB...");
 
-                let gateways = match crate::db::queries::get_all_gateways(db).await {
+                let gateways = match storage.get_all_gateways().await {
                     Ok(gws) => {
                         tracing::info!("Successfully fetched {} gateways from database", gws.len());
                         if !gws.is_empty() {
@@ -282,148 +290,171 @@ impl HttpCache {
 
     pub async fn get_dvpn_gateway_list(
         &self,
-        db: &DbPool,
+        storage: &db::Storage,
         min_node_version: &Version,
     ) -> Vec<DVpnGateway> {
-        match self.dvpn_gateways.get(DVPN_GATEWAYS_LIST_KEY).await {
+        let gateways = match self.dvpn_gateways.get(DVPN_GATEWAYS_LIST_KEY).await {
             Some(guard) => {
                 tracing::trace!("Fetching from cache...");
-                let read_lock = guard.read().await;
-                read_lock.clone()
+                guard.read().await.clone()
             }
             None => {
                 tracing::info!("No gateways (dVPN) in cache, refreshing from DB...");
-
-                let gateways = self.get_gateway_list(db).await;
-                tracing::info!("Found {} gateways in database", gateways.len());
-
-                let started_with = gateways.len();
-                let skimmed_nodes = match crate::db::queries::get_described_bonded_nym_nodes(db)
-                    .await
-                {
-                    Ok(records) => {
-                        let mut nodes = HashMap::new();
-                        for dto in records {
-                            match SkimmedNodeV1::try_from(dto) {
-                                Ok(skimmed_node) => {
-                                    let key =
-                                        skimmed_node.ed25519_identity_pubkey.to_base58_string();
-                                    nodes.insert(key, skimmed_node);
-                                }
-                                Err(err) => {
-                                    error!(
-                                        "CRITICAL: Failed to convert NymNodeDto to SkimmedNode: {err}"
-                                    );
-                                    panic!(
-                                        "Cannot convert database record to SkimmedNode - this should never happen! Error: {err}"
-                                    );
-                                }
-                            }
-                        }
-                        nodes
-                    }
-                    Err(err) => {
-                        error!("CRITICAL: Failed to query nym_nodes from database: {err}");
-                        panic!(
-                            "Cannot read nym_nodes table - database connection issue? Error: {err}"
-                        );
-                    }
-                };
-
-                let socks5_scores = calculate_socks5_percentiles(&gateways);
-
-                let res_gws = gateways
-                    .iter()
-                    .filter(|gw| gw.bonded)
-                    .filter_map(|gw| match skimmed_nodes.get(&gw.gateway_identity_key) {
-                        Some(skimmed_node) => Some((gw, skimmed_node)),
-                        None => {
-                            error!(
-                                "CRITICAL: Gateway {} exists in gateways table but not in nym_nodes table! This should not happen.",
-                                gw.gateway_identity_key
-                            );
-                            None
-                        }
-                    })
-                    .filter_map(
-                        |(gw, skimmed_node)| match DVpnGateway::new(gw.clone(), skimmed_node, socks5_scores.get(&gw.gateway_identity_key)) {
-                            Ok(gw) => Some(gw),
-                            Err(err) => {
-                                error!(
-                                    "CRITICAL: Failed to create DVpnGateway for node_id={}, identity_key={}: {}",
-                                    skimmed_node.node_id,
-                                    skimmed_node.ed25519_identity_pubkey.to_base58_string(),
-                                    err
-                                );
-                                // Don't panic here as this might be due to missing fields, but log it loudly
-                                None
-                            }
-                        },
-                    )
-                    .filter(|gw| {
-                        let gw_version = &gw.build_information.build_version;
-                        if let Ok(gw_version) = Version::parse(gw_version) {
-                            &gw_version >= min_node_version
-                        } else {
-                            warn!("Failed to parse GW version {}", gw_version);
-                            false
-                        }
-                    })
-                    .filter(|gw| {
-                        // gateways must have a country
-                        if gw.location.two_letter_iso_country_code.len() == 2 {
-                            true
-                        } else {
-                            warn!(
-                                "Invalid country code: {}",
-                                gw.location.two_letter_iso_country_code
-                            );
-                            false
-                        }
-                    })
-                    // sort by country, then by identity key
-                    .sorted_by_key(|item| {
-                        (
-                            item.location.two_letter_iso_country_code.clone(),
-                            item.identity_key.clone(),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-
-                let bonded_count = gateways.iter().filter(|gw| gw.bonded).count();
-                tracing::info!(
-                    "DVpn gateway filtering: {} total gateways, {} bonded, {} nym_nodes, {} final DVpn gateways",
-                    started_with,
-                    bonded_count,
-                    skimmed_nodes.len(),
-                    res_gws.len()
-                );
-
-                if res_gws.is_empty() && started_with > 0 {
-                    tracing::error!(
-                        "CRITICAL: Started with {} gateways but got 0 DVpn gateways! Min version: {}",
-                        started_with,
-                        min_node_version
-                    );
-                } else {
-                    tracing::info!(
-                        "Successfully loaded {} DVpn gateways into cache",
-                        res_gws.len()
-                    );
-                    self.upsert_dvpn_gateway_list(res_gws.clone()).await;
+                let built = self.build_dvpn_gateway_list(storage).await;
+                if !built.is_empty() {
+                    self.upsert_dvpn_gateway_list(built.clone()).await;
                 }
+                built
+            }
+        };
 
-                res_gws
+        // version filter is applied at read time, not at cache-fill time, so
+        // requests with different `min_node_version` values do not poison each
+        // other's results.
+        gateways
+            .into_iter()
+            .filter(|gw| {
+                let gw_version = &gw.build_information.build_version;
+                match Version::parse(gw_version) {
+                    Ok(parsed) => &parsed >= min_node_version,
+                    Err(_) => {
+                        warn!("Failed to parse GW version {gw_version}");
+                        false
+                    }
+                }
+            })
+            .collect()
+    }
+
+    /// Rebuild the dVPN gateway list from DB. Does **not** apply any version
+    /// filter — that's done at read time.
+    async fn build_dvpn_gateway_list(&self, storage: &db::Storage) -> Vec<DVpnGateway> {
+        let gateways = self.get_gateway_list(storage).await;
+        tracing::info!("Found {} gateways in database", gateways.len());
+
+        let started_with = gateways.len();
+
+        let records = match storage.get_described_bonded_nym_nodes().await {
+            Ok(records) => records,
+            Err(err) => {
+                error!("CRITICAL: Failed to query nym_nodes from database: {err}");
+                panic!("Cannot read nym_nodes table - database connection issue? Error: {err}");
+            }
+        };
+
+        let mut skimmed_nodes = HashMap::new();
+        for dto in records {
+            match SkimmedNodeV1::try_from(dto) {
+                Ok(skimmed_node) => {
+                    let key = skimmed_node.ed25519_identity_pubkey.to_base58_string();
+                    skimmed_nodes.insert(key, skimmed_node);
+                }
+                Err(err) => {
+                    error!("CRITICAL: Failed to convert NymNodeDto to SkimmedNode: {err}");
+                    panic!(
+                        "Cannot convert database record to SkimmedNode - this should never happen! Error: {err}"
+                    );
+                }
             }
         }
+
+        let family_lookup = match load_family_lookup(storage).await {
+            Ok(lookup) => lookup,
+            Err(err) => {
+                error!("CRITICAL: Failed to load node-families lookup from database: {err}");
+                panic!(
+                    "Cannot read node_families tables - database connection issue? Error: {err}"
+                );
+            }
+        };
+
+        let socks5_scores = calculate_socks5_percentiles(&gateways);
+
+        let res_gws = gateways
+            .iter()
+            .filter(|gw| gw.bonded)
+            .filter_map(|gw| match skimmed_nodes.get(&gw.gateway_identity_key) {
+                Some(skimmed_node) => Some((gw, skimmed_node)),
+                None => {
+                    error!(
+                        "CRITICAL: Gateway {} exists in gateways table but not in nym_nodes table! This should not happen.",
+                        gw.gateway_identity_key
+                    );
+                    None
+                }
+            })
+            .filter_map(|(gw, skimmed_node)| {
+                let family = family_lookup.family_for_node(skimmed_node.node_id).cloned();
+                match DVpnGateway::new(
+                    gw.clone(),
+                    skimmed_node,
+                    socks5_scores.get(&gw.gateway_identity_key),
+                    family,
+                ) {
+                    Ok(gw) => Some(gw),
+                    Err(err) => {
+                        error!(
+                            "CRITICAL: Failed to create DVpnGateway for node_id={}, identity_key={}: {}",
+                            skimmed_node.node_id,
+                            skimmed_node.ed25519_identity_pubkey.to_base58_string(),
+                            err
+                        );
+                        // Don't panic here as this might be due to missing fields, but log it loudly
+                        None
+                    }
+                }
+            })
+            .filter(|gw| {
+                // gateways must have a country
+                if gw.location.two_letter_iso_country_code.len() == 2 {
+                    true
+                } else {
+                    warn!(
+                        "Invalid country code: {}",
+                        gw.location.two_letter_iso_country_code
+                    );
+                    false
+                }
+            })
+            // sort by country, then by identity key
+            .sorted_by_key(|item| {
+                (
+                    item.location.two_letter_iso_country_code.clone(),
+                    item.identity_key.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let bonded_count = gateways.iter().filter(|gw| gw.bonded).count();
+        tracing::info!(
+            "DVpn gateway filtering: {} total gateways, {} bonded, {} nym_nodes, {} final DVpn gateways",
+            started_with,
+            bonded_count,
+            skimmed_nodes.len(),
+            res_gws.len()
+        );
+
+        if res_gws.is_empty() && started_with > 0 {
+            tracing::error!(
+                "CRITICAL: Started with {} gateways but got 0 DVpn gateways!",
+                started_with
+            );
+        } else {
+            tracing::info!(
+                "Successfully loaded {} DVpn gateways into cache",
+                res_gws.len()
+            );
+        }
+
+        res_gws
     }
 
     pub async fn get_entry_dvpn_gateways(
         &self,
-        db: &DbPool,
+        storage: &db::Storage,
         min_node_version: &Version,
     ) -> Vec<DVpnGateway> {
-        self.get_dvpn_gateway_list(db, min_node_version)
+        self.get_dvpn_gateway_list(storage, min_node_version)
             .await
             .into_iter()
             .filter(DVpnGateway::can_route_entry)
@@ -432,17 +463,21 @@ impl HttpCache {
 
     pub async fn get_exit_dvpn_gateways(
         &self,
-        db: &DbPool,
+        storage: &db::Storage,
         min_node_version: &Version,
     ) -> Vec<DVpnGateway> {
-        self.get_dvpn_gateway_list(db, min_node_version)
+        self.get_dvpn_gateway_list(storage, min_node_version)
             .await
             .into_iter()
             .filter(DVpnGateway::can_route_exit)
             .collect()
     }
 
-    pub async fn get_gateway_ips(&self, db: &DbPool, min_node_version: &Version) -> Vec<String> {
+    pub async fn get_gateway_ips(
+        &self,
+        storage: &db::Storage,
+        min_node_version: &Version,
+    ) -> Vec<String> {
         match self.gateway_ips.get(DVPN_GATEWAY_IPS).await {
             Some(guard) => {
                 let read_lock = guard.read().await;
@@ -452,7 +487,7 @@ impl HttpCache {
                 trace!("No exit gateway IPs in cache, refreshing...");
 
                 let ips: Vec<String> = self
-                    .get_dvpn_gateway_list(db, min_node_version)
+                    .get_dvpn_gateway_list(storage, min_node_version)
                     .await
                     .into_iter()
                     .flat_map(|gw| gw.ip_addresses)
@@ -508,7 +543,7 @@ impl HttpCache {
 
     pub async fn get_nym_nodes_list(
         &self,
-        db: &DbPool,
+        storage: &db::Storage,
         node_geocache: NodeGeoCache,
     ) -> anyhow::Result<Vec<ExtendedNymNode>> {
         match self.nym_nodes.get(NYM_NODES_LIST_KEY).await {
@@ -520,7 +555,7 @@ impl HttpCache {
             None => {
                 tracing::trace!("No nym nodes in cache, refreshing cache from DB...");
 
-                let nym_nodes = aggregate_node_info_from_db(db, node_geocache).await?;
+                let nym_nodes = aggregate_node_info_from_db(storage, node_geocache).await?;
 
                 if nym_nodes.is_empty() {
                     tracing::warn!("Database contains 0 nym nodes");
@@ -650,13 +685,13 @@ impl HttpCache {
 
 #[instrument(level = "info", skip_all)]
 async fn aggregate_node_info_from_db(
-    pool: &DbPool,
+    storage: &db::Storage,
     node_geocache: NodeGeoCache,
 ) -> anyhow::Result<Vec<ExtendedNymNode>> {
-    let node_bond_info = queries::get_described_node_bond_info(pool).await?;
+    let node_bond_info = storage.get_described_node_bond_info().await?;
     tracing::debug!("Described nodes with bond info: {}", node_bond_info.len());
 
-    let skimmed_nodes = queries::get_all_nym_nodes(pool).await.map(|records| {
+    let skimmed_nodes = storage.get_all_nym_nodes().await.map(|records| {
         records
             .into_iter()
             .filter_map(|dto| SkimmedNodeV1::try_from(dto).ok())
@@ -665,10 +700,12 @@ async fn aggregate_node_info_from_db(
     })?;
     tracing::debug!("Skimmed nodes: {}", skimmed_nodes.len());
 
-    let described_nodes = queries::get_node_self_description(pool).await?;
+    let described_nodes = storage.get_node_self_description().await?;
     tracing::debug!("Described nodes: {}", described_nodes.len());
 
-    let node_descriptions = queries::get_bonded_node_description(pool).await?;
+    let node_descriptions = storage.get_bonded_node_description().await?;
+
+    let families = load_family_lookup(storage).await?;
 
     let mut parsed_nym_nodes = Vec::new();
     for (node_id, described_node) in described_nodes {
@@ -722,6 +759,8 @@ async fn aggregate_node_info_from_db(
             })
         };
 
+        let family_data = families.family_for_node(node_id).cloned();
+
         parsed_nym_nodes.push(ExtendedNymNode {
             node_id,
             identity_key,
@@ -737,6 +776,7 @@ async fn aggregate_node_info_from_db(
             rewarding_details: rewarding_details.to_owned(),
             description: node_description,
             geoip,
+            family_data,
         });
     }
 
@@ -761,4 +801,55 @@ impl BinaryInfo {
 #[derive(Serialize, ToSchema, Deserialize)]
 pub(crate) struct HealthInfo {
     pub(crate) uptime: i64,
+}
+
+struct LoadedNodeFamilies {
+    member_lookup: HashMap<NodeId, NodeFamilyId>,
+    family_lookup: HashMap<NodeFamilyId, NodeFamilyInformation>,
+}
+
+impl LoadedNodeFamilies {
+    /// Resolve the family `node_id` belongs to (if any) in one step.
+    fn family_for_node(&self, node_id: NodeId) -> Option<&NodeFamilyInformation> {
+        self.member_lookup
+            .get(&node_id)
+            .and_then(|fid| self.family_lookup.get(fid))
+    }
+}
+
+/// Load the families snapshot from DB and build two lookup maps:
+/// `node_id → family_id` for member→family resolution, and
+/// `family_id → NodeFamilyInformation` for hydrating gateway responses.
+async fn load_family_lookup(storage: &db::Storage) -> anyhow::Result<LoadedNodeFamilies> {
+    let families = storage.get_all_node_families().await?;
+    let members = storage.get_all_node_family_members().await?;
+
+    let mut family_by_node = HashMap::new();
+    for m in &members {
+        let node_id = m.node_id as NodeId;
+        let family_id = m.family_id as NodeFamilyId;
+        family_by_node.insert(node_id, family_id);
+    }
+
+    let mut family_by_id: HashMap<u32, NodeFamilyInformation> = HashMap::new();
+    for f in families {
+        let family_id = f.family_id as u32;
+        let family_stake = f.family_stake_unym.unwrap_or_default() as u128;
+        let members_count = f.members_count as usize;
+        family_by_id.insert(
+            family_id,
+            NodeFamilyInformation::new(
+                family_id,
+                f.name,
+                f.description,
+                family_stake,
+                members_count,
+            ),
+        );
+    }
+
+    Ok(LoadedNodeFamilies {
+        member_lookup: family_by_node,
+        family_lookup: family_by_id,
+    })
 }

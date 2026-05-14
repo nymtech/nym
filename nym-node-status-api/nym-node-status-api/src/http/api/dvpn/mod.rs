@@ -59,20 +59,22 @@ pub async fn dvpn_gateways(
         None => MIN_SUPPORTED_VERSION.clone(),
     };
 
+    let storage = state.storage();
     Ok(Json(
         state
             .cache()
-            .get_dvpn_gateway_list(state.db_pool(), &min_node_version)
+            .get_dvpn_gateway_list(&storage, &min_node_version)
             .await,
     ))
 }
 
 #[instrument(level = tracing::Level::INFO, skip(state))]
 pub async fn dvpn_gateway_ips(state: State<AppState>) -> HttpResult<Json<Vec<String>>> {
+    let storage = state.storage();
     Ok(Json(
         state
             .cache()
-            .get_gateway_ips(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .get_gateway_ips(&storage, &MIN_SUPPORTED_VERSION)
             .await,
     ))
 }

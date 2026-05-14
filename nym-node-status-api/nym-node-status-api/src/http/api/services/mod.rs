@@ -43,14 +43,14 @@ async fn mixnodes(
     Query(params): Query<ServicesQueryParams>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<Service>>> {
-    let db = state.db_pool();
+    let storage = state.storage();
     let cache = state.cache();
 
     let paths = ParseJsonPaths::new().map_err(|e| {
         tracing::error!("Invalidly configured ParseJsonPaths: {e}");
         HttpError::internal()
     })?;
-    let res = cache.get_gateway_list(db).await;
+    let res = cache.get_gateway_list(&storage).await;
     let services = gateway_list_to_services(&paths, res, params.clone());
 
     Ok(Json(PagedResult::paginate(

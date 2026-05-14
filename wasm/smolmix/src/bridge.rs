@@ -61,10 +61,7 @@ pub fn start_bridge(
 
             // Block until something happens (incoming message or timer tick).
             // `futures::select!` polls pseudo-randomly when both branches are
-            // ready, so textual order is not a priority guarantee. In practice
-            // incoming dominates because the timer only fires every 5 ms while
-            // mixnet batches arrive whenever the gateway delivers them, and
-            // the non-blocking drain below catches anything the select missed.
+            // ready, so textual order is not a priority guarantee.
             // TODO: consider `futures::select_biased!` if a sustained timer
             // burst ever shows up as incoming-side latency.
             futures::select! {

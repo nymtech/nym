@@ -14,7 +14,7 @@ use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::client::{NodeId, NymNodeDetails};
 use nym_validator_client::models::NymNodeDescriptionV2;
 use std::collections::HashMap;
-use tracing::{instrument, warn};
+use tracing::{error, instrument, warn};
 
 impl Storage {
     pub(crate) async fn get_all_nym_nodes(&self) -> anyhow::Result<Vec<NymNodeDto>> {
@@ -173,13 +173,18 @@ impl Storage {
             records
                 .into_iter()
                 .filter_map(|record| {
+                    let node_id = record.node_id;
                     record
                         .bond_info
                         // only return details for nodes which have details stored
                         .and_then(|bond_info| {
-                            serde_json::from_value::<NymNodeDetails>(bond_info).ok()
+                            serde_json::from_value::<NymNodeDetails>(bond_info)
+                                .inspect_err(|err| {
+                                    error!("malformed bond_info for node {node_id}: {err}")
+                                })
+                                .ok()
                         })
-                        .map(|res| (record.node_id as NodeId, res))
+                        .map(|res| (node_id as NodeId, res))
                 })
                 .collect::<HashMap<_, _>>()
         })

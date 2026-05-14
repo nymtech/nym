@@ -15,7 +15,7 @@ use tokio::sync::RwLock;
 use tracing::{error, instrument, trace, warn};
 use utoipa::ToSchema;
 
-use super::models::{NodeFamilyInformation, SessionStats};
+use super::models::{NodeFamilyInformation, NodeStakeInformation, SessionStats};
 use crate::{
     db,
     db::DbPool,
@@ -368,6 +368,16 @@ impl HttpCache {
             }
         };
 
+        let bond_info = match storage.get_described_node_bond_info().await {
+            Ok(map) => map,
+            Err(err) => {
+                error!("CRITICAL: Failed to load node bond info from database: {err}");
+                panic!(
+                    "Cannot read nym_nodes.bond_info column - database connection issue? Error: {err}"
+                );
+            }
+        };
+
         let socks5_scores = calculate_socks5_percentiles(&gateways);
 
         let res_gws = gateways
@@ -385,11 +395,15 @@ impl HttpCache {
             })
             .filter_map(|(gw, skimmed_node)| {
                 let family = family_lookup.family_for_node(skimmed_node.node_id).cloned();
+                let staking = bond_info
+                    .get(&skimmed_node.node_id)
+                    .map(|details| NodeStakeInformation::from(&details.rewarding_details));
                 match DVpnGateway::new(
                     gw.clone(),
                     skimmed_node,
                     socks5_scores.get(&gw.gateway_identity_key),
                     family,
+                    staking,
                 ) {
                     Ok(gw) => Some(gw),
                     Err(err) => {

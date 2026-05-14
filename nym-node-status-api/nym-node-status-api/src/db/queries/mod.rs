@@ -13,10 +13,7 @@ pub(crate) use gateways::{
     get_bonded_gateway_id_keys, get_or_create_gateway, select_gateway_identity,
 };
 pub(crate) use gateways_stats::{delete_old_records, get_sessions_stats, insert_session_records};
-pub(crate) use nym_nodes::{
-    get_all_nym_nodes, get_bonded_node_description, get_daily_stats, get_described_node_bond_info,
-    get_node_self_description,
-};
+pub(crate) use nym_nodes::get_daily_stats;
 pub(crate) use packet_stats::{
     batch_store_node_scraper_results, get_raw_node_stats, insert_daily_node_stats_uncommitted,
 };

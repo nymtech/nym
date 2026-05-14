@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date as \"expiration_date!: Date\"\n                FROM partial_blinded_wallet as t1\n                JOIN ecash_deposit_usage as t2\n                    on t1.corresponding_deposit = t2.deposit_id\n                JOIN blinded_shares as t3\n                    ON t2.request_uuid = t3.request_uuid\n                WHERE t3.id = ?;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "node_id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "blinded_signature",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "epoch_id",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "expiration_date!: Date",
+        "ordinal": 3,
+        "type_info": "Date"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e77ffab19b099b84470fe5611716a2e314787586a46cffd074abb67f2f4d109e"
+}

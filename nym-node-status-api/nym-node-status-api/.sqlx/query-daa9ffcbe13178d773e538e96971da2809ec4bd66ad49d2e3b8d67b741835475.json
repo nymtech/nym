@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM reply_surb_sender;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "daa9ffcbe13178d773e538e96971da2809ec4bd66ad49d2e3b8d67b741835475"
+}

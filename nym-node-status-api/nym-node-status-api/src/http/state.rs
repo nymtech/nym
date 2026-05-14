@@ -18,7 +18,7 @@ use utoipa::ToSchema;
 use super::models::{NodeFamilyInformation, SessionStats};
 use crate::{
     db,
-    db::{DbPool, queries},
+    db::DbPool,
     http::{
         error::{HttpError, HttpResult},
         models::{
@@ -384,10 +384,7 @@ impl HttpCache {
                 }
             })
             .filter_map(|(gw, skimmed_node)| {
-                let family = family_lookup.member_lookup
-                    .get(&skimmed_node.node_id)
-                    .and_then(|fid| family_lookup.family_lookup.get(fid))
-                    .cloned();
+                let family = family_lookup.family_for_node(skimmed_node.node_id).cloned();
                 match DVpnGateway::new(
                     gw.clone(),
                     skimmed_node,
@@ -546,7 +543,7 @@ impl HttpCache {
 
     pub async fn get_nym_nodes_list(
         &self,
-        db: &DbPool,
+        storage: &db::Storage,
         node_geocache: NodeGeoCache,
     ) -> anyhow::Result<Vec<ExtendedNymNode>> {
         match self.nym_nodes.get(NYM_NODES_LIST_KEY).await {
@@ -558,7 +555,7 @@ impl HttpCache {
             None => {
                 tracing::trace!("No nym nodes in cache, refreshing cache from DB...");
 
-                let nym_nodes = aggregate_node_info_from_db(db, node_geocache).await?;
+                let nym_nodes = aggregate_node_info_from_db(storage, node_geocache).await?;
 
                 if nym_nodes.is_empty() {
                     tracing::warn!("Database contains 0 nym nodes");
@@ -688,13 +685,13 @@ impl HttpCache {
 
 #[instrument(level = "info", skip_all)]
 async fn aggregate_node_info_from_db(
-    pool: &DbPool,
+    storage: &db::Storage,
     node_geocache: NodeGeoCache,
 ) -> anyhow::Result<Vec<ExtendedNymNode>> {
-    let node_bond_info = queries::get_described_node_bond_info(pool).await?;
+    let node_bond_info = storage.get_described_node_bond_info().await?;
     tracing::debug!("Described nodes with bond info: {}", node_bond_info.len());
 
-    let skimmed_nodes = queries::get_all_nym_nodes(pool).await.map(|records| {
+    let skimmed_nodes = storage.get_all_nym_nodes().await.map(|records| {
         records
             .into_iter()
             .filter_map(|dto| SkimmedNodeV1::try_from(dto).ok())
@@ -703,10 +700,12 @@ async fn aggregate_node_info_from_db(
     })?;
     tracing::debug!("Skimmed nodes: {}", skimmed_nodes.len());
 
-    let described_nodes = queries::get_node_self_description(pool).await?;
+    let described_nodes = storage.get_node_self_description().await?;
     tracing::debug!("Described nodes: {}", described_nodes.len());
 
-    let node_descriptions = queries::get_bonded_node_description(pool).await?;
+    let node_descriptions = storage.get_bonded_node_description().await?;
+
+    let families = load_family_lookup(storage).await?;
 
     let mut parsed_nym_nodes = Vec::new();
     for (node_id, described_node) in described_nodes {
@@ -760,6 +759,8 @@ async fn aggregate_node_info_from_db(
             })
         };
 
+        let family_data = families.family_for_node(node_id).cloned();
+
         parsed_nym_nodes.push(ExtendedNymNode {
             node_id,
             identity_key,
@@ -775,6 +776,7 @@ async fn aggregate_node_info_from_db(
             rewarding_details: rewarding_details.to_owned(),
             description: node_description,
             geoip,
+            family_data,
         });
     }
 
@@ -804,6 +806,15 @@ pub(crate) struct HealthInfo {
 struct LoadedNodeFamilies {
     member_lookup: HashMap<NodeId, NodeFamilyId>,
     family_lookup: HashMap<NodeFamilyId, NodeFamilyInformation>,
+}
+
+impl LoadedNodeFamilies {
+    /// Resolve the family `node_id` belongs to (if any) in one step.
+    fn family_for_node(&self, node_id: NodeId) -> Option<&NodeFamilyInformation> {
+        self.member_lookup
+            .get(&node_id)
+            .and_then(|fid| self.family_lookup.get(fid))
+    }
 }
 
 /// Load the families snapshot from DB and build two lookup maps:

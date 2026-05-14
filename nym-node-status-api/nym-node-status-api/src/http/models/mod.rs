@@ -9,7 +9,7 @@ use crate::{
     monitor::ExplorerPrettyBond,
 };
 use cosmwasm_std::{Addr, Coin, Decimal};
-use nym_mixnet_contract_common::CoinSchema;
+use nym_mixnet_contract_common::{CoinSchema, NodeRewarding};
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
     client::NodeId,
@@ -317,6 +317,30 @@ impl NodeFamilyInformation {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct NodeStakeInformation {
+    // delegations + bond
+    total_stake: u128,
+    total_delegations: u128,
+    total_bond: u128,
+    // number of delegations
+    delegations: usize,
+}
+
+impl From<&NodeRewarding> for NodeStakeInformation {
+    fn from(rewarding: &NodeRewarding) -> Self {
+        let denom = &rewarding.cost_params.interval_operating_cost.denom;
+        let total_bond = rewarding.operator_pledge_with_reward(denom).amount.u128();
+        let total_delegations = rewarding.delegations_with_reward(denom).amount.u128();
+        NodeStakeInformation {
+            total_stake: total_bond + total_delegations,
+            total_bond,
+            total_delegations,
+            delegations: rewarding.unique_delegations as usize,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct DVpnGateway {
     pub identity_key: String,
     pub name: String,
@@ -343,6 +367,7 @@ pub struct DVpnGateway {
     pub lewes_protocol_details: Option<LewesProtocolDetailsV1>,
 
     pub family_data: Option<NodeFamilyInformation>,
+    pub staking_data: Option<NodeStakeInformation>,
 
     pub build_information: BinaryBuildInformationOwned,
 }
@@ -370,6 +395,7 @@ impl DVpnGateway {
         skimmed_node: &SkimmedNodeV1,
         socks5_score: Option<&ScoreValue>,
         family_details: Option<NodeFamilyInformation>,
+        staking_details: Option<NodeStakeInformation>,
     ) -> anyhow::Result<Self> {
         let location = gateway.location()?;
         let self_described = gateway.self_described()?;
@@ -404,6 +430,7 @@ impl DVpnGateway {
                 .as_ref()
                 .map(LewesProtocolDetailsV1::from),
             family_data: family_details,
+            staking_data: staking_details,
             build_information: self_described.build_information,
         })
     }

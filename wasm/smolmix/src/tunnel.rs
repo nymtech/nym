@@ -40,7 +40,7 @@ use crate::bridge;
 use crate::device::WasmDevice;
 use crate::error::FetchError;
 use crate::ipr;
-use crate::reactor::{self, smoltcp_now, ReactorNotify, SmoltcpStack, SocketKind, SocketWakers};
+use crate::reactor::{self, smoltcp_now, ReactorNotify, SmoltcpStack};
 use crate::stream::{to_smoltcp_endpoint, PooledConn, WasmTcpStream, WasmUdpSocket};
 
 /// Starting ephemeral port for TCP/UDP sockets.
@@ -293,7 +293,6 @@ impl WasmTunnel {
             iface,
             sockets: SocketSet::new(Vec::new()),
             device,
-            wakers: Default::default(),
         }));
 
         // Bridge starts at seq=1 (ConnectRequest was Data seq=0).
@@ -323,22 +322,18 @@ impl WasmTunnel {
     }
 
     /// Allocate the next ephemeral port (wraps at range boundary).
+    ///
+    /// wasm32-unknown-unknown is single-threaded, so a plain load/store is
+    /// race-free; the atomic only exists to satisfy `Sync` on `WasmTunnel`.
     fn next_ephemeral_port(&self) -> u16 {
-        loop {
-            let current = self.next_port.load(Ordering::Relaxed);
-            let next = if current >= u16::MAX {
-                EPHEMERAL_PORT_START
-            } else {
-                current + 1
-            };
-            if self
-                .next_port
-                .compare_exchange(current, next, Ordering::Relaxed, Ordering::Relaxed)
-                .is_ok()
-            {
-                return current;
-            }
-        }
+        let current = self.next_port.load(Ordering::Relaxed);
+        let next = if current >= u16::MAX {
+            EPHEMERAL_PORT_START
+        } else {
+            current + 1
+        };
+        self.next_port.store(next, Ordering::Relaxed);
+        current
     }
 
     /// Open a TCP connection through the tunnel (SYN → established).
@@ -354,7 +349,6 @@ impl WasmTunnel {
         let handle = {
             let mut s = self.stack.lock().unwrap();
             let handle = s.sockets.add(socket);
-            s.wakers.insert(handle, SocketWakers::new(SocketKind::Tcp));
 
             let SmoltcpStack {
                 ref mut iface,
@@ -372,7 +366,10 @@ impl WasmTunnel {
         // Notify reactor to send the SYN.
         let _ = self.notify.unbounded_send(());
 
-        // Wait for the connection to be established.
+        // Wait for the connection to be established. smoltcp's `set_state`
+        // fires both rx and tx wakers on every state transition, so registering
+        // on the recv waker is enough to observe Established, CloseWait, and
+        // Closed alike.
         let stack = self.stack.clone();
         futures::future::poll_fn(move |cx| {
             let mut s = stack.lock().unwrap();
@@ -390,7 +387,7 @@ impl WasmTunnel {
                     )))
                 }
                 _ => {
-                    s.wakers.get_mut(&handle).unwrap().connect = Some(cx.waker().clone());
+                    socket.register_recv_waker(cx.waker());
                     Poll::Pending
                 }
             }
@@ -422,9 +419,7 @@ impl WasmTunnel {
 
         let handle = {
             let mut s = self.stack.lock().unwrap();
-            let handle = s.sockets.add(socket);
-            s.wakers.insert(handle, SocketWakers::new(SocketKind::Udp));
-            handle
+            s.sockets.add(socket)
         };
 
         Ok(WasmUdpSocket {
@@ -440,6 +435,9 @@ impl WasmTunnel {
     /// when the `ShutdownTracker` is dropped.
     pub async fn shutdown(&self) {
         self.shutdown.store(true, Ordering::Relaxed);
+        // Wake the reactor immediately so teardown doesn't sit out the
+        // current `poll_delay` sleep (up to `MAX_IDLE`).
+        let _ = self.notify.unbounded_send(());
         nym_wasm_utils::console_log!("[smolmix] tunnel shut down");
     }
 

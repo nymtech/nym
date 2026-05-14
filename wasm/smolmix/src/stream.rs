@@ -6,6 +6,7 @@
 use std::io;
 use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
@@ -16,6 +17,10 @@ use smoltcp::socket::udp as smoltcp_udp;
 use smoltcp::wire::{IpAddress, IpEndpoint};
 
 use crate::reactor::{ReactorNotify, SmoltcpStack};
+
+/// First port in the ephemeral range. Per IANA, 49152-65535 is the dynamic /
+/// private range with no IANA-assigned services, safe for client sockets.
+pub(crate) const EPHEMERAL_PORT_START: u16 = 49152;
 
 /// A pooled connection (TLS or plain TCP). Delegates `AsyncRead + AsyncWrite`.
 pub(crate) enum PooledConn {
@@ -224,6 +229,132 @@ impl Drop for WasmUdpSocket {
         let mut s = self.stack.lock().unwrap();
         s.sockets.remove(self.handle);
     }
+}
+
+// === Socket-creation helpers ===
+//
+// These are free functions rather than methods on `WasmTunnel` so the DNS
+// resolver provider in `dns.rs` can construct sockets without holding back a
+// reference to the whole tunnel. The tunnel's `tcp_connect` / `udp_socket`
+// methods now delegate to these.
+
+/// Construct a fresh `Arc<AtomicU16>` ephemeral port counter, seeded at
+/// [`EPHEMERAL_PORT_START`].
+pub(crate) fn new_port_counter() -> Arc<AtomicU16> {
+    Arc::new(AtomicU16::new(EPHEMERAL_PORT_START))
+}
+
+/// Allocate the next ephemeral port (wraps at `u16::MAX` back to
+/// [`EPHEMERAL_PORT_START`]). Single-threaded wasm32 means a plain
+/// load/store is race-free; the atomic exists for `Sync`.
+pub(crate) fn allocate_port(next_port: &Arc<AtomicU16>) -> u16 {
+    let current = next_port.load(Ordering::Relaxed);
+    let next = if current >= u16::MAX {
+        EPHEMERAL_PORT_START
+    } else {
+        current + 1
+    };
+    next_port.store(next, Ordering::Relaxed);
+    current
+}
+
+/// Open a TCP connection through the tunnel and wait for `Established`.
+///
+/// Used by `WasmTunnel::tcp_connect` and by the DNS resolver provider; both
+/// share one `next_port` counter via `Arc<AtomicU16>` so allocations don't
+/// collide.
+pub(crate) async fn tcp_connect(
+    stack: Arc<Mutex<SmoltcpStack>>,
+    notify: ReactorNotify,
+    next_port: &Arc<AtomicU16>,
+    addr: SocketAddr,
+) -> io::Result<WasmTcpStream> {
+    let remote = to_smoltcp_endpoint(addr);
+    let local_port = allocate_port(next_port);
+    let tcp_rx = smoltcp_tcp::SocketBuffer::new(vec![0; 65536]);
+    let tcp_tx = smoltcp_tcp::SocketBuffer::new(vec![0; 65536]);
+    let mut socket = smoltcp_tcp::Socket::new(tcp_rx, tcp_tx);
+    socket.set_keep_alive(Some(smoltcp::time::Duration::from_millis(10_000)));
+
+    let handle = {
+        let mut s = stack.lock().unwrap();
+        let handle = s.sockets.add(socket);
+        let SmoltcpStack {
+            ref mut iface,
+            ref mut sockets,
+            ..
+        } = *s;
+        sockets
+            .get_mut::<smoltcp_tcp::Socket>(handle)
+            .connect(iface.context(), remote, local_port)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, format!("{e:?}")))?;
+        handle
+    };
+
+    let _ = notify.unbounded_send(());
+
+    {
+        let stack = stack.clone();
+        futures::future::poll_fn(move |cx| {
+            let mut s = stack.lock().unwrap();
+            let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(handle);
+            match socket.state() {
+                smoltcp_tcp::State::Established | smoltcp_tcp::State::CloseWait => {
+                    Poll::Ready(Ok(()))
+                }
+                smoltcp_tcp::State::Closed => {
+                    crate::util::debug_error!("[stream] TCP state: Closed, connection failed");
+                    Poll::Ready(Err(io::Error::new(
+                        io::ErrorKind::ConnectionRefused,
+                        "TCP connection failed",
+                    )))
+                }
+                _ => {
+                    socket.register_recv_waker(cx.waker());
+                    Poll::Pending
+                }
+            }
+        })
+        .await?;
+    }
+
+    Ok(WasmTcpStream {
+        stack,
+        handle,
+        notify,
+    })
+}
+
+/// Create a UDP socket bound to a fresh ephemeral port.
+pub(crate) fn create_udp_socket(
+    stack: Arc<Mutex<SmoltcpStack>>,
+    notify: ReactorNotify,
+    next_port: &Arc<AtomicU16>,
+) -> io::Result<WasmUdpSocket> {
+    let local_port = allocate_port(next_port);
+    let udp_rx = smoltcp_udp::PacketBuffer::new(
+        vec![smoltcp_udp::PacketMetadata::EMPTY; 16],
+        vec![0; 65535],
+    );
+    let udp_tx = smoltcp_udp::PacketBuffer::new(
+        vec![smoltcp_udp::PacketMetadata::EMPTY; 16],
+        vec![0; 65535],
+    );
+    let mut socket = smoltcp_udp::Socket::new(udp_rx, udp_tx);
+    socket
+        .bind(local_port)
+        .map_err(|_| io::Error::new(io::ErrorKind::AddrInUse, "UDP bind failed"))?;
+
+    let handle = {
+        let mut s = stack.lock().unwrap();
+        s.sockets.add(socket)
+    };
+
+    Ok(WasmUdpSocket {
+        stack,
+        handle,
+        notify,
+    })
 }
 
 // Address conversion helpers

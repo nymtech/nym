@@ -231,15 +231,9 @@ impl Drop for WasmUdpSocket {
     }
 }
 
-// === Socket-creation helpers ===
-//
-// These are free functions rather than methods on `WasmTunnel` so the DNS
-// resolver provider in `dns.rs` can construct sockets without holding back a
-// reference to the whole tunnel. The tunnel's `tcp_connect` / `udp_socket`
-// methods now delegate to these.
-
 /// Construct a fresh `Arc<AtomicU16>` ephemeral port counter, seeded at
-/// [`EPHEMERAL_PORT_START`].
+/// [`EPHEMERAL_PORT_START`]. Shared via `Arc` so any caller that needs to
+/// allocate a socket can draw from the same range as the tunnel itself.
 pub(crate) fn new_port_counter() -> Arc<AtomicU16> {
     Arc::new(AtomicU16::new(EPHEMERAL_PORT_START))
 }

@@ -3,15 +3,16 @@ title: "Stream Tutorial: Build a Private Echo Server"
 description: "Step-by-step Rust tutorial to build an echo server and client communicating through the Nym mixnet using AsyncRead and AsyncWrite streams."
 schemaType: "HowTo"
 section: "Developers"
-lastUpdated: "2026-03-26"
+lastUpdated: "2026-04-17"
 ---
 
 # Tutorial: Build a Private Echo Server
 
 import { Callout } from 'nextra/components'
 import { CodeVerified } from '../../../../components/code-verified'
+import { RUST_MSRV } from '../../../../components/versions'
 
-In this tutorial you'll build two programs: a server that listens for incoming streams and echoes back whatever it receives, and a client that opens a stream, sends data, and reads the echo. Both communicate through the Nym Mixnet using `AsyncRead` and `AsyncWrite`, just like TCP sockets.
+Two programs: a server that listens for incoming streams and echoes back what it receives, and a client that opens a stream, writes data, and reads the echo. Both communicate through the Nym Mixnet using `AsyncRead` and `AsyncWrite`, like a TCP socket pair.
 
 ## What you'll learn
 
@@ -25,7 +26,7 @@ In this tutorial you'll build two programs: a server that listens for incoming s
 
 ## Prerequisites
 
-- Rust toolchain (1.70+)
+- Rust toolchain ({RUST_MSRV}+)
 - A working internet connection (clients connect to the live Nym Mixnet)
 
 ## Step 1: Set up the project
@@ -40,11 +41,10 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = { git = "https://github.com/nymtech/nym", rev = "97068b2" }
-nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "97068b2", features = ["basic_tracing"] }
+nym-sdk = "1.21.0"
+nym-bin-common = { version = "1.21.0", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
-blake3 = "=1.7.0"  # required pin — see https://nymtech.net/docs/developers/rust/importing
 ```
 
 ## Step 2: Build the echo server
@@ -65,7 +65,7 @@ async fn main() {
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     println!("Echo server listening at: {}", client.nym_address());
 
-    // Create a listener — this activates stream mode.
+    // Create a listener; this activates stream mode.
     // From this point, message-based methods are disabled.
     let mut listener = client.listener().unwrap();
 
@@ -88,7 +88,7 @@ async fn main() {
 
             loop {
                 let n = match stream.read(&mut buf).await {
-                    Ok(0) => break,     // EOF — stream closed
+                    Ok(0) => break,     // EOF, stream closed
                     Ok(n) => n,
                     Err(e) => {
                         eprintln!("Stream {stream_id} read error: {e}");
@@ -114,7 +114,7 @@ async fn main() {
 ```
 
 <Callout type="info">
-**`listener()` can only be called once per client.** It takes exclusive ownership of the inbound message channel. A second call returns `Error::ListenerAlreadyTaken`.
+`listener()` can only be called once per client. It takes exclusive ownership of the inbound message channel; a second call returns `Error::ListenerAlreadyTaken`.
 </Callout>
 
 ## Step 3: Build the client
@@ -151,13 +151,13 @@ async fn main() {
     println!("Stream opened: {}", stream.id());
 
     // Give the Open message time to traverse the mixnet and reach the server.
-    // open_stream() returns immediately after sending — it doesn't wait for
+    // open_stream() returns immediately after sending; it doesn't wait for
     // the server to accept. Writing too soon risks the data arriving before
     // the Open, which the server would drop.
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     // Send three payloads of different sizes and verify the echo.
-    // Random bytes show that streams are binary-safe — not just text.
+    // Random bytes show that streams are binary-safe, not just text.
     let sizes = [320, 25_000, 1280];
 
     for (i, &size) in sizes.iter().enumerate() {
@@ -243,7 +243,7 @@ Stream 12345678 closed
 
 5. On arrival, the router reads the `LpFrameKind` to identify it as stream traffic, decodes the header, finds the matching stream by ID, and delivers the raw payload to `read()`.
 
-6. The inbound stream replies via **reply SURBs**, the same anonymous reply mechanism as the message API, applied transparently. The server never learns the client's Nym address.
+6. The inbound stream replies via reply SURBs, the same anonymous reply mechanism as the message API. The server never learns the client's Nym address.
 
 7. When a stream is dropped, it deregisters from the local router. No close message is sent over the wire, since a close could race ahead of in-flight data.
 
@@ -279,7 +279,10 @@ async fn main() {
     loop {
         let mut stream = match listener.accept().await {
             Some(s) => s,
-            None => break,
+            None => {
+                println!("Listener closed");
+                break;
+            }
         };
 
         let stream_id = stream.id();
@@ -287,16 +290,27 @@ async fn main() {
 
         tokio::spawn(async move {
             let mut buf = vec![0u8; 32_000];
+
             loop {
                 let n = match stream.read(&mut buf).await {
-                    Ok(0) | Err(_) => break,
+                    Ok(0) => break,
                     Ok(n) => n,
+                    Err(e) => {
+                        eprintln!("Stream {stream_id} read error: {e}");
+                        break;
+                    }
                 };
-                if let Err(_) = stream.write_all(&buf[..n]).await {
+
+                let data = &buf[..n];
+                println!("Stream {stream_id} received {n} bytes");
+
+                if let Err(e) = stream.write_all(data).await {
+                    eprintln!("Stream {stream_id} write error: {e}");
                     break;
                 }
                 stream.flush().await.unwrap();
             }
+
             println!("Stream {stream_id} closed");
         });
     }

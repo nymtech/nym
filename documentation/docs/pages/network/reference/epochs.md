@@ -1,6 +1,6 @@
 ---
 title: "Epochs in the Nym Network"
-description: "How epochs organize time in the Nym Network: reward distribution, topology reshuffling, SURB validity windows, and future automatic role assignment."
+description: "How epochs organise time in the Nym Network: reward distribution, topology reshuffling, SURB validity windows, and future automatic role assignment."
 schemaType: "TechArticle"
 section: "Network"
 lastUpdated: "2026-03-15"
@@ -8,11 +8,11 @@ lastUpdated: "2026-03-15"
 
 # Epochs
 
-Time in the Nym Network is organized into epochs: discrete periods during which certain network operations occur. The current epoch length is one hour.
+Time in the Nym Network is organised into epochs: discrete periods during which certain network operations occur. The current epoch length is one hour.
 
 ## What happens at epoch boundaries
 
-**Reward distribution** calculates performance metrics for each node and distributes NYM token rewards based on routing reliability and uptime, ensuring that nodes successfully forwarding packets earn more than those with poor performance.
+**Reward distribution** calculates performance metrics for each node and distributes NYM token rewards based on routing reliability and uptime, so that nodes successfully forwarding packets earn more than those with poor performance.
 
 **Topology rerandomization** shuffles the arrangement of nodes in each layer. This prevents long-term route prediction attacks and limits the damage from any compromised nodes. Nodes may also enter or leave the active set based on uptime monitoring and stake changes.
 

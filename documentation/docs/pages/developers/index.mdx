@@ -1,27 +1,30 @@
 ---
-title: "Nym Developer Portal: SDKs & Tools"
-description: "Developer documentation for building privacy-enhanced applications on the Nym mixnet. Covers Rust SDK, TypeScript SDK, blockchain interaction & CLI tools."
+title: "Overview"
+description: "Developer documentation index for the Nym mixnet: Rust and TypeScript SDKs, smolmix, mix-fetch, chain interaction, and CLI tools."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-02-01"
+lastUpdated: "2026-05-12"
 ---
 
-# Developer Documentation
+# Overview
 
-Build applications that protect user metadata using the Nym Mixnet. This section covers SDK integration, blockchain interaction, and developer tools.
+This section covers the SDKs, standalone crates, blockchain interaction, and developer tools for building on the Nym mixnet.
 
-## Where to start
+## Start here
 
-**Choosing an integration approach:** read [Integrations](/developers/integrations) to understand the architectural trade-offs (native SDK vs proxy vs mixFetch), then pick your path:
+If you're new, read **[Choosing an Approach](/developers/integrations)** first. It maps your runtime (native vs browser vs mobile) and your architecture (end-to-end vs proxy) onto the right crate/library.
 
-- **[Rust SDK](/developers/rust):** full-featured SDK with message passing, `AsyncRead`/`AsyncWrite` streams, and client pooling. Start with the [Tour](/developers/rust/tour).
-- **[TypeScript SDK](/developers/typescript):** browser and Node.js SDK for mixFetch, Mixnet client, and smart contract interaction.
-- **[Standalone Clients](/developers/clients):** language-agnostic SOCKS5 and WebSocket proxies for piping traffic through the Mixnet without an SDK.
+## Crates/Libraries
 
-## Blockchain interaction
+| Crate/library | Language | Use it for |
+|---|---|---|
+| [`nym-sdk`](/developers/rust) | Rust | E2E messaging, `AsyncRead`/`AsyncWrite` streams, client pooling. Start with the [Tour](/developers/rust/tour). |
+| [`smolmix`](/developers/smolmix) | Rust | `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tungstenite`. |
+| [`mix-fetch`](/developers/mix-fetch) | TypeScript | `fetch()`-compatible API for browser HTTP(S) requests over the Mixnet. |
+| [TypeScript SDK](/developers/typescript) | TypeScript | Browser-side Mixnet Client (raw messaging) and Nyx Smart Contracts. |
+| [Standalone Clients](/developers/clients) | Language-agnostic | SOCKS5 and WebSocket binaries for piping traffic through the Mixnet without an SDK. |
 
-The Nym Network is coordinated by the [Nyx blockchain](/network/infrastructure/nyx). To query chain state, submit transactions, or interact with smart contracts, see [Chain Interaction](/developers/chain).
+## Other sections
 
-## API reference
-
-Auto-generated API specs for Nym infrastructure endpoints are in the [APIs section](/apis/introduction).
+- **[Chain interaction](/developers/chain)**: query Nyx state, submit transactions, and call Nym smart contracts.
+- **[APIs](/apis/introduction)**: auto-generated reference for Nym infrastructure HTTP endpoints.

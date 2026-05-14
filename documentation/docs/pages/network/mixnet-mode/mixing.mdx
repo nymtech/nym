@@ -8,7 +8,7 @@ lastUpdated: "2026-03-15"
 
 # Packet Mixing
 
-import { Callout } from 'nextra/components'
+import { LewesPending } from '../../../components/lewes-pending'
 
 Packet mixing breaks timing correlations by adding random delays at each Mix Node. It's the core mechanism that prevents traffic analysis.
 
@@ -50,9 +50,7 @@ With three Mix Node layers, each applying random delays, the overall effect is t
 
 These delays account for the additional latency of mixnet mode relative to dVPN mode.
 
-<Callout type="info">
-Updated latency measurements will be published after the Lewes Protocol release.
-</Callout>
+<LewesPending variant="latency" />
 
 ## Combined with cover traffic
 

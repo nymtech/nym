@@ -15,12 +15,9 @@ use std::io;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-use std::task::Poll;
 
 use futures::channel::mpsc;
 use smoltcp::iface::{Config, SocketSet};
-use smoltcp::socket::tcp as smoltcp_tcp;
-use smoltcp::socket::udp as smoltcp_udp;
 use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address};
 
 use nym_ip_packet_requests::IpPair;
@@ -41,10 +38,7 @@ use crate::device::WasmDevice;
 use crate::error::FetchError;
 use crate::ipr;
 use crate::reactor::{self, smoltcp_now, ReactorNotify, SmoltcpStack};
-use crate::stream::{to_smoltcp_endpoint, PooledConn, WasmTcpStream, WasmUdpSocket};
-
-/// Starting ephemeral port for TCP/UDP sockets.
-const EPHEMERAL_PORT_START: u16 = 49152;
+use crate::stream::{self, PooledConn, WasmTcpStream, WasmUdpSocket};
 
 /// Configuration for `setupMixTunnel(opts)`.
 pub struct TunnelOpts {
@@ -72,11 +66,14 @@ pub struct WasmTunnel {
     seq: Arc<AtomicU32>,
     notify: ReactorNotify,
     shutdown: Arc<AtomicBool>,
-    /// Ephemeral port counter for new sockets.
-    next_port: AtomicU16,
+    /// Ephemeral port counter; shared via `Arc` so socket-creation helpers
+    /// in `stream.rs` can allocate from the same range as the tunnel itself.
+    next_port: Arc<AtomicU16>,
     allocated_ips: IpPair,
+    /// Plain per-session DNS cache. No TTL respect (cache lives until tunnel
+    /// shutdown). See [`dns::resolve`] for usage.
     dns_cache: Mutex<HashMap<String, IpAddr>>,
-    /// Serialises DNS lookups so concurrent requests coalesce.
+    /// Serialises DNS lookups so concurrent callers coalesce on the cache.
     dns_lock: futures::lock::Mutex<()>,
     /// One idle connection per (host, port).
     conn_pool: Mutex<HashMap<(String, u16), PooledConn>>,
@@ -150,7 +147,7 @@ impl WasmTunnel {
             seq,
             notify,
             shutdown,
-            next_port: AtomicU16::new(EPHEMERAL_PORT_START),
+            next_port: stream::new_port_counter(),
             allocated_ips,
             dns_cache: Mutex::new(HashMap::new()),
             dns_lock: futures::lock::Mutex::new(()),
@@ -321,112 +318,20 @@ impl WasmTunnel {
         }
     }
 
-    /// Allocate the next ephemeral port (wraps at range boundary).
-    ///
-    /// wasm32-unknown-unknown is single-threaded, so a plain load/store is
-    /// race-free; the atomic only exists to satisfy `Sync` on `WasmTunnel`.
-    fn next_ephemeral_port(&self) -> u16 {
-        let current = self.next_port.load(Ordering::Relaxed);
-        let next = if current >= u16::MAX {
-            EPHEMERAL_PORT_START
-        } else {
-            current + 1
-        };
-        self.next_port.store(next, Ordering::Relaxed);
-        current
-    }
-
-    /// Open a TCP connection through the tunnel (SYN → established).
-    pub async fn tcp_connect(&self, addr: SocketAddr) -> Result<WasmTcpStream, io::Error> {
-        let remote = to_smoltcp_endpoint(addr);
-        let local_port = self.next_ephemeral_port();
-        let tcp_rx = smoltcp_tcp::SocketBuffer::new(vec![0; 65536]);
-        let tcp_tx = smoltcp_tcp::SocketBuffer::new(vec![0; 65536]);
-        let mut socket = smoltcp_tcp::Socket::new(tcp_rx, tcp_tx);
-        // Keepalive probes keep the entire tunnel path alive (gateway WS, mixnet, IPR).
-        socket.set_keep_alive(Some(smoltcp::time::Duration::from_millis(10_000)));
-
-        let handle = {
-            let mut s = self.stack.lock().unwrap();
-            let handle = s.sockets.add(socket);
-
-            let SmoltcpStack {
-                ref mut iface,
-                ref mut sockets,
-                ..
-            } = *s;
-            sockets
-                .get_mut::<smoltcp_tcp::Socket>(handle)
-                .connect(iface.context(), remote, local_port)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, format!("{e:?}")))?;
-
-            handle
-        };
-
-        // Notify reactor to send the SYN.
-        let _ = self.notify.unbounded_send(());
-
-        // Wait for the connection to be established. smoltcp's `set_state`
-        // fires both rx and tx wakers on every state transition, so registering
-        // on the recv waker is enough to observe Established, CloseWait, and
-        // Closed alike.
-        let stack = self.stack.clone();
-        futures::future::poll_fn(move |cx| {
-            let mut s = stack.lock().unwrap();
-            let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(handle);
-            let state = socket.state();
-            match state {
-                smoltcp_tcp::State::Established | smoltcp_tcp::State::CloseWait => {
-                    Poll::Ready(Ok(()))
-                }
-                smoltcp_tcp::State::Closed => {
-                    crate::util::debug_error!("[tunnel] TCP state: Closed, connection failed");
-                    Poll::Ready(Err(io::Error::new(
-                        io::ErrorKind::ConnectionRefused,
-                        "TCP connection failed",
-                    )))
-                }
-                _ => {
-                    socket.register_recv_waker(cx.waker());
-                    Poll::Pending
-                }
-            }
-        })
-        .await?;
-
-        Ok(WasmTcpStream {
-            stack: self.stack.clone(),
-            handle,
-            notify: self.notify.clone(),
-        })
+    /// Open a TCP connection through the tunnel (SYN -> established).
+    pub async fn tcp_connect(&self, addr: SocketAddr) -> io::Result<WasmTcpStream> {
+        stream::tcp_connect(
+            self.stack.clone(),
+            self.notify.clone(),
+            &self.next_port,
+            addr,
+        )
+        .await
     }
 
     /// Create a UDP socket bound to an ephemeral port.
-    pub async fn udp_socket(&self) -> Result<WasmUdpSocket, io::Error> {
-        let local_port = self.next_ephemeral_port();
-        let udp_rx = smoltcp_udp::PacketBuffer::new(
-            vec![smoltcp_udp::PacketMetadata::EMPTY; 16],
-            vec![0; 65535],
-        );
-        let udp_tx = smoltcp_udp::PacketBuffer::new(
-            vec![smoltcp_udp::PacketMetadata::EMPTY; 16],
-            vec![0; 65535],
-        );
-        let mut socket = smoltcp_udp::Socket::new(udp_rx, udp_tx);
-        socket
-            .bind(local_port)
-            .map_err(|_| io::Error::new(io::ErrorKind::AddrInUse, "UDP bind failed"))?;
-
-        let handle = {
-            let mut s = self.stack.lock().unwrap();
-            s.sockets.add(socket)
-        };
-
-        Ok(WasmUdpSocket {
-            stack: self.stack.clone(),
-            handle,
-            notify: self.notify.clone(),
-        })
+    pub async fn udp_socket(&self) -> io::Result<WasmUdpSocket> {
+        stream::create_udp_socket(self.stack.clone(), self.notify.clone(), &self.next_port)
     }
 
     /// Gracefully disconnect from the Nym mixnet.

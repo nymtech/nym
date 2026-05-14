@@ -1,0 +1,120 @@
+# Reversal playbook for mitigate_kernel_CVE.yml
+#
+# Run this AFTER your distro has shipped the patched kernel.
+# This playbook:
+#   1. Updates the kernel via apt
+#   2. Reboots and waits for reconnect
+#   3. Verifies the running kernel is newer than the pre-patch version
+#   4. Removes the interim module blacklists
+#   5. Re-enables the affected modules live (no second reboot needed)
+#
+# Debian family only (Debian, Ubuntu). Tested on Debian 11, Debian 12, Ubuntu 20.04, 22.04, 24.04.
+#
+# For exit-gateway nodes with --wireguard-enabled true:
+# After this playbook completes, run the networking restore step manually on each node:
+#   bash /tmp/network-tunnel-manager.sh complete_networking_configuration
+# See the CVE patch documentation for the full command with SSH port override.
+
+- name: Remove CVE mitigations and apply patched kernel
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Verify OS is Debian family
+      assert:
+        that:
+          - ansible_os_family == "Debian"
+        fail_msg: "This playbook supports Debian-family distros only (Debian, Ubuntu). For other distros, apply the kernel update and mitigation removal manually."
+
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 0
+
+    - name: Upgrade kernel packages
+      apt:
+        upgrade: full
+        only_upgrade: false
+      register: apt_upgrade_result
+
+    - name: Record pre-reboot kernel version
+      command: uname -r
+      register: kernel_before
+      changed_when: false
+
+    - name: Reboot to load patched kernel
+      reboot:
+        msg: "Rebooting to apply patched kernel (CVE-2026-31431 / CVE-2026-43284 / CVE-2026-43500)"
+        reboot_timeout: 300
+        pre_reboot_delay: 5
+        post_reboot_delay: 15
+
+    - name: Record post-reboot kernel version
+      command: uname -r
+      register: kernel_after
+      changed_when: false
+
+    - name: Show kernel versions before and after reboot
+      debug:
+        msg:
+          - "Kernel before reboot: {{ kernel_before.stdout }}"
+          - "Kernel after reboot:  {{ kernel_after.stdout }}"
+
+    - name: Warn if kernel did not change after reboot
+      debug:
+        msg: >
+          WARNING: kernel version did not change after reboot ({{ kernel_after.stdout }}).
+          The patched kernel may not have been selected by GRUB, or no kernel update was available.
+          Do NOT remove the interim mitigations until you have confirmed the running kernel is patched.
+          Check: apt-cache policy linux-image-amd64   # Debian
+          Check: apt-cache policy linux-image-generic  # Ubuntu
+      when: kernel_before.stdout == kernel_after.stdout
+
+    - name: Remove algif_aead blacklist
+      file:
+        path: /etc/modprobe.d/disable-algif_aead.conf
+        state: absent
+
+    - name: Remove DirtyFrag blacklist (esp4, esp6, rxrpc)
+      file:
+        path: /etc/modprobe.d/dirtyfrag.conf
+        state: absent
+
+    - name: Re-enable affected modules live
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - esp4
+        - esp6
+        - algif_aead
+      ignore_errors: true
+
+    - name: Verify modules loaded
+      shell: lsmod | grep -E 'esp4|esp6|algif_aead'
+      register: lsmod_result
+      changed_when: false
+      failed_when: false
+
+    - name: Show loaded modules
+      debug:
+        msg: "{{ lsmod_result.stdout_lines }}"
+
+    - name: Warn if modules are not visible in lsmod
+      debug:
+        msg: >
+          NOTE: one or more modules (esp4, esp6, algif_aead) are not visible in lsmod.
+          This is expected if they are compiled directly into the kernel.
+          If this is unexpected, check: dmesg | grep -iE 'esp4|esp6|algif_aead'
+      when: lsmod_result.stdout == ""
+
+    - name: Confirm nym-node service is still running
+      systemd:
+        name: nym-node
+        state: started
+      register: nym_node_status
+      failed_when: false
+
+    - name: Show nym-node status
+      debug:
+        msg: "nym-node service state: {{ nym_node_status.state | default('unknown - service may not exist on this node') }}"

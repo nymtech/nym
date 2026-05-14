@@ -53,14 +53,13 @@ pub struct Gateway {
 
 impl Gateway {
     fn geo_location(&self) -> anyhow::Result<geodata::Location> {
-        Ok(self
-            .explorer_pretty_bond
+        self.explorer_pretty_bond
             .clone()
             .ok_or_else(|| anyhow::anyhow!("Missing explorer_pretty_bond"))
             .and_then(|value| {
                 serde_json::from_value::<ExplorerPrettyBond>(value).map_err(From::from)
             })
-            .map(|bond| bond.location)?)
+            .map(|bond| bond.location)
     }
 
     pub(crate) fn location(&self) -> anyhow::Result<Location> {
@@ -94,13 +93,12 @@ impl Gateway {
     }
 
     pub(crate) fn self_described(&self) -> anyhow::Result<NymNodeDataDeHelper> {
-        Ok(self
-            .self_described
+        self.self_described
             .clone()
             .ok_or_else(|| anyhow::anyhow!("Missing self_described"))
             .and_then(|value| {
                 serde_json::from_value::<NymNodeDataDeHelper>(value).map_err(From::from)
-            })?)
+            })
     }
 
     pub(crate) fn bridges(&self) -> Option<BridgeInformation> {

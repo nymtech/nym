@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT * FROM custom_gateway_details WHERE gateway_id_bs58 = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "gateway_id_bs58",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "data",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "54f552a9dbe95236f946ac2b6615e03504afa58e345ae16a128629d8e76f0a11"
+}

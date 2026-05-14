@@ -749,6 +749,7 @@ pub(crate) struct ExtendedNymNode {
     pub(crate) rewarding_details: Option<nym_mixnet_contract_common::NodeRewarding>,
     pub(crate) description: NodeDescription,
     pub(crate) geoip: Option<NodeGeoData>,
+    pub family_data: Option<NodeFamilyInformation>,
 }
 
 #[derive(Clone, Debug, utoipa::ToSchema, Deserialize, Serialize)]

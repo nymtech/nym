@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM remote_gateway_details WHERE gateway_id_bs58 = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "1da6904e72b5abb9abf75affb13af7974d7795b4cbdba234273345fe161df233"
+}

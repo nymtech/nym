@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE ecash_deposit_usage\n                SET ticketbook_request_error = ?\n                WHERE deposit_id = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "e584253e3856355899537eb8fc152f2bfed2d918b894ec0f588e38dd5e8ad726"
+}

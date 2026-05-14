@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT flush_in_progress FROM status;",
+  "describe": {
+    "columns": [
+      {
+        "name": "flush_in_progress",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "62f471858c831ac762a0ecf60876067dbf82d0dc376ad3f0df835b77dfcc3c37"
+}

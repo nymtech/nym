@@ -65,7 +65,9 @@ impl AsyncRead for WasmTcpStream {
                 socket.state(),
                 buf.len(),
             );
-            s.wakers.get_mut(&self.handle).unwrap().read = Some(cx.waker().clone());
+            // smoltcp wakes this waker on any state change affecting `recv`,
+            // including FIN/CloseWait transitions that produce EOF.
+            socket.register_recv_waker(cx.waker());
             Poll::Pending
         }
     }
@@ -92,13 +94,14 @@ impl AsyncWrite for WasmTcpStream {
                 "socket closed",
             )))
         } else {
-            s.wakers.get_mut(&self.handle).unwrap().write = Some(cx.waker().clone());
+            socket.register_send_waker(cx.waker());
             Poll::Pending
         }
     }
 
     fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        // smoltcp flushes on each poll; nothing extra to do.
+        // Nudge the reactor so any queued tx data dispatches promptly rather
+        // than waiting for the next `poll_delay` deadline.
         let _ = self.notify.unbounded_send(());
         Poll::Ready(Ok(()))
     }
@@ -121,7 +124,6 @@ impl Drop for WasmTcpStream {
             .get_mut::<smoltcp_tcp::Socket>(self.handle)
             .abort();
         s.sockets.remove(self.handle);
-        s.wakers.remove(&self.handle);
     }
 }
 
@@ -186,7 +188,7 @@ impl WasmUdpSocket {
                 let _ = notify.unbounded_send(());
                 Poll::Ready(Ok(buf.len()))
             } else {
-                s.wakers.get_mut(&handle).unwrap().write = Some(cx.waker().clone());
+                socket.register_send_waker(cx.waker());
                 Poll::Pending
             }
         })
@@ -209,7 +211,7 @@ impl WasmUdpSocket {
                 let src = from_smoltcp_endpoint(meta.endpoint);
                 Poll::Ready(Ok((n, src)))
             } else {
-                s.wakers.get_mut(&handle).unwrap().read = Some(cx.waker().clone());
+                socket.register_recv_waker(cx.waker());
                 Poll::Pending
             }
         })
@@ -221,7 +223,6 @@ impl Drop for WasmUdpSocket {
     fn drop(&mut self) {
         let mut s = self.stack.lock().unwrap();
         s.sockets.remove(self.handle);
-        s.wakers.remove(&self.handle);
     }
 }
 

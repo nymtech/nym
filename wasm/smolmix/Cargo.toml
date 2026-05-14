@@ -42,7 +42,7 @@ async-tungstenite = { workspace = true, features = ["handshake"] }
 nym-wasm-utils = { workspace = true }
 
 # Tunnel: smoltcp stack + Nym mixnet client + IPR protocol
-smoltcp = { workspace = true, features = ["std", "medium-ip", "proto-ipv4", "socket-tcp", "socket-udp"] }
+smoltcp = { workspace = true, features = ["std", "medium-ip", "proto-ipv4", "socket-tcp", "socket-udp", "async"] }
 nym-wasm-client-core = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
 nym-lp = { workspace = true }

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT OR IGNORE INTO master_verification_key(epoch_id, serialised_key, serialization_revision) VALUES (?, ?, ?);\n                UPDATE master_verification_key\n                    SET\n                        serialised_key = ?,\n                        serialization_revision = ?\n                     WHERE epoch_id = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "a5b18e66d77ff802e274623605e15dcfcffb502ba8398caefd56c481f44eb84e"
+}

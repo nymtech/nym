@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                DELETE FROM blinded_shares WHERE created < ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "28681fcd8e2d4326f628681b8f2a317aabce063a650be362d3a8ed83cc7c3549"
+}

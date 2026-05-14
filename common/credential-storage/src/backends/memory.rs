@@ -230,8 +230,8 @@ impl MemoryEcachTicketbookManager {
                 expiration_date: t.ticketbook.expiration_date(),
                 ticketbook_type: t.ticketbook.ticketbook_type().to_string(),
                 epoch_id: t.ticketbook.epoch_id() as u32,
-                total_tickets: t.ticketbook.spent_tickets() as u32,
-                used_tickets: t.total_tickets,
+                total_tickets: t.total_tickets,
+                used_tickets: t.ticketbook.spent_tickets() as u32,
             })
             .collect()
     }
@@ -331,5 +331,341 @@ impl MemoryEcachTicketbookManager {
     pub(crate) async fn remove_emergency_credentials_of_type(&self, typ: &str) {
         let mut guard = self.inner.write().await;
         guard.emergency_credentials.remove(typ);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_compact_ecash::tests::helpers::generate_expiration_date_signatures;
+    use nym_compact_ecash::{issue, ttp_keygen};
+    use nym_credentials_interface::TicketType;
+    use nym_crypto::asymmetric::ed25519;
+    use nym_ecash_time::EcashTime;
+    use nym_test_utils::helpers::deterministic_rng;
+
+    fn mock_issuance(deposit_id: u32) -> IssuanceTicketBook {
+        let identifier = "foomp";
+        let mut rng = deterministic_rng();
+        let key = ed25519::PrivateKey::new(&mut rng);
+        let typ = TicketType::V1MixnetEntry;
+        IssuanceTicketBook::new(deposit_id, identifier, key, typ)
+    }
+
+    fn mock_ticketbook() -> anyhow::Result<IssuedTicketBook> {
+        let signing_keys = ttp_keygen(1, 1)?.remove(0);
+        let issuance = mock_issuance(42);
+        let expiration_date = issuance.expiration_date();
+
+        let sig_req = issuance.prepare_for_signing();
+        let _exp_date_sigs = generate_expiration_date_signatures(
+            sig_req.expiration_date.ecash_unix_timestamp(),
+            &[signing_keys.secret_key()],
+            &[signing_keys.verification_key()],
+            &signing_keys.verification_key(),
+            &[1],
+        )?;
+        let blind_sig = issue(
+            signing_keys.secret_key(),
+            sig_req.ecash_pub_key,
+            &sig_req.withdrawal_request,
+            expiration_date.ecash_unix_timestamp(),
+            issuance.ticketbook_type().encode(),
+        )?;
+
+        let partial_wallet =
+            issuance.unblind_signature(&signing_keys.verification_key(), &sig_req, blind_sig, 1)?;
+
+        let wallet = issuance.aggregate_signature_shares(
+            &signing_keys.verification_key(),
+            &[partial_wallet],
+            sig_req,
+        )?;
+
+        Ok(issuance.into_issued_ticketbook(wallet, 1))
+    }
+
+    fn mock_verification_key() -> VerificationKeyAuth {
+        ttp_keygen(1, 1).unwrap().remove(0).verification_key()
+    }
+
+    #[tokio::test]
+    async fn get_ticketbooks_info_empty() {
+        let manager = MemoryEcachTicketbookManager::new();
+        let info = manager.get_ticketbooks_info().await;
+        assert!(info.is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_ticketbooks_info_maps_inserted_ticketbook() -> anyhow::Result<()> {
+        let manager = MemoryEcachTicketbookManager::new();
+        let ticketbook = mock_ticketbook()?;
+        let total_tickets = 100;
+        let used_tickets = 25;
+
+        manager
+            .insert_new_ticketbook(&ticketbook, total_tickets, used_tickets)
+            .await;
+
+        let info = manager.get_ticketbooks_info().await;
+        assert_eq!(info.len(), 1);
+        let entry = &info[0];
+        assert_eq!(entry.id, 0);
+        assert_eq!(entry.expiration_date, ticketbook.expiration_date());
+        assert_eq!(
+            entry.ticketbook_type,
+            ticketbook.ticketbook_type().to_string()
+        );
+        assert_eq!(entry.epoch_id, ticketbook.epoch_id() as u32);
+        assert_eq!(entry.total_tickets, total_tickets);
+        assert_eq!(entry.used_tickets, used_tickets);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn contains_ticketbook_reflects_insertion() -> anyhow::Result<()> {
+        let manager = MemoryEcachTicketbookManager::new();
+        let ticketbook = mock_ticketbook()?;
+
+        assert!(!manager.contains_ticketbook(&ticketbook).await);
+
+        manager.insert_new_ticketbook(&ticketbook, 100, 0).await;
+
+        assert!(manager.contains_ticketbook(&ticketbook).await);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_new_ticketbook_assigns_incrementing_ids() -> anyhow::Result<()> {
+        let manager = MemoryEcachTicketbookManager::new();
+        let ticketbook = mock_ticketbook()?;
+
+        manager.insert_new_ticketbook(&ticketbook, 100, 0).await;
+        manager.insert_new_ticketbook(&ticketbook, 100, 0).await;
+
+        let mut ids: Vec<i64> = manager
+            .get_ticketbooks_info()
+            .await
+            .into_iter()
+            .map(|i| i.id)
+            .collect();
+        ids.sort();
+        assert_eq!(ids, vec![0, 1]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_next_unspent_ticketbook_updates_spent_and_exhausts() -> anyhow::Result<()> {
+        let manager = MemoryEcachTicketbookManager::new();
+        let ticketbook = mock_ticketbook()?;
+        let typ = ticketbook.ticketbook_type().to_string();
+
+        // total = 3, used = 0 — leaves 3 tickets available
+        manager.insert_new_ticketbook(&ticketbook, 3, 0).await;
+
+        let first = manager
+            .get_next_unspent_ticketbook_and_update(typ.clone(), 2)
+            .await;
+        assert!(first.is_some());
+        let first = first.unwrap();
+        assert_eq!(first.total_tickets, 3);
+        // returned ticketbook reflects state *before* the update
+        assert_eq!(first.ticketbook.spent_tickets(), 0);
+
+        // next withdrawal of 2 should be rejected (only 1 left)
+        let second = manager
+            .get_next_unspent_ticketbook_and_update(typ.clone(), 2)
+            .await;
+        assert!(second.is_none());
+
+        // but a withdrawal of 1 succeeds
+        let third = manager
+            .get_next_unspent_ticketbook_and_update(typ.clone(), 1)
+            .await;
+        assert!(third.is_some());
+
+        // and now nothing left
+        let fourth = manager.get_next_unspent_ticketbook_and_update(typ, 1).await;
+        assert!(fourth.is_none());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_next_unspent_ticketbook_filters_by_type() -> anyhow::Result<()> {
+        let manager = MemoryEcachTicketbookManager::new();
+        let ticketbook = mock_ticketbook()?;
+
+        manager.insert_new_ticketbook(&ticketbook, 5, 0).await;
+
+        let mismatched = manager
+            .get_next_unspent_ticketbook_and_update("nonexistent_type".to_string(), 1)
+            .await;
+        assert!(mismatched.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn revert_ticketbook_withdrawal_resets_spent_only_when_expected_matches(
+    ) -> anyhow::Result<()> {
+        let manager = MemoryEcachTicketbookManager::new();
+        let ticketbook = mock_ticketbook()?;
+        let typ = ticketbook.ticketbook_type().to_string();
+
+        manager.insert_new_ticketbook(&ticketbook, 10, 0).await;
+        manager
+            .get_next_unspent_ticketbook_and_update(typ.clone(), 4)
+            .await
+            .expect("should withdraw");
+
+        // stale expected_current_total_spent — should be rejected
+        assert!(!manager.revert_ticketbook_withdrawal(0, 4, 99).await);
+        // spent_tickets unchanged
+        let used_after_failed = manager.get_ticketbooks_info().await[0].used_tickets;
+        assert_eq!(used_after_failed, 4);
+
+        // matching expected — should succeed and restore
+        assert!(manager.revert_ticketbook_withdrawal(0, 4, 4).await);
+        let used_after_revert = manager.get_ticketbooks_info().await[0].used_tickets;
+        assert_eq!(used_after_revert, 0);
+
+        // unknown ticketbook_id is rejected
+        assert!(!manager.revert_ticketbook_withdrawal(999, 1, 0).await);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn pending_ticketbook_round_trip() {
+        let manager = MemoryEcachTicketbookManager::new();
+        let issuance = mock_issuance(7);
+        let deposit_id = issuance.deposit_id() as i64;
+
+        assert!(manager.get_pending_ticketbooks().await.is_empty());
+
+        manager.insert_pending_ticketbook(&issuance).await;
+
+        let pending = manager.get_pending_ticketbooks().await;
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].pending_id, deposit_id);
+        assert_eq!(
+            pending[0].pending_ticketbook.deposit_id(),
+            issuance.deposit_id()
+        );
+
+        manager.remove_pending_ticketbook(deposit_id).await;
+        assert!(manager.get_pending_ticketbooks().await.is_empty());
+
+        // removing a non-existent id is a no-op
+        manager.remove_pending_ticketbook(999).await;
+    }
+
+    #[tokio::test]
+    async fn emergency_credential_lifecycle() {
+        let manager = MemoryEcachTicketbookManager::new();
+
+        let cred_a = EmergencyCredentialContent {
+            typ: "type-a".to_string(),
+            content: vec![1, 2, 3],
+            expiration: None,
+        };
+        let cred_b = EmergencyCredentialContent {
+            typ: "type-a".to_string(),
+            content: vec![4, 5, 6],
+            expiration: None,
+        };
+        let cred_c = EmergencyCredentialContent {
+            typ: "type-b".to_string(),
+            content: vec![7, 8, 9],
+            expiration: None,
+        };
+
+        assert!(manager.get_emergency_credential("type-a").await.is_none());
+
+        manager.insert_emergency_credential(&cred_a).await;
+        manager.insert_emergency_credential(&cred_b).await;
+        manager.insert_emergency_credential(&cred_c).await;
+
+        // get returns the first inserted entry for the type
+        let first = manager.get_emergency_credential("type-a").await.unwrap();
+        assert_eq!(first.id, 0);
+        assert_eq!(first.data.content, vec![1, 2, 3]);
+
+        // remove by id drops only that entry; type-a now exposes cred_b
+        manager.remove_emergency_credential(0).await;
+        let after_remove = manager.get_emergency_credential("type-a").await.unwrap();
+        assert_eq!(after_remove.id, 1);
+        assert_eq!(after_remove.data.content, vec![4, 5, 6]);
+
+        // remove by type clears the bucket entirely
+        manager.remove_emergency_credentials_of_type("type-a").await;
+        assert!(manager.get_emergency_credential("type-a").await.is_none());
+
+        // unrelated type is untouched
+        assert!(manager.get_emergency_credential("type-b").await.is_some());
+    }
+
+    #[tokio::test]
+    async fn master_verification_key_round_trip() {
+        let manager = MemoryEcachTicketbookManager::new();
+        let key = mock_verification_key();
+        let epoch = EpochVerificationKey {
+            epoch_id: 7,
+            key: key.clone(),
+        };
+
+        assert!(manager.get_master_verification_key(7).await.is_none());
+
+        manager.insert_master_verification_key(&epoch).await;
+
+        assert_eq!(manager.get_master_verification_key(7).await, Some(key));
+        assert!(manager.get_master_verification_key(8).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn coin_index_signatures_round_trip() {
+        let manager = MemoryEcachTicketbookManager::new();
+        let sigs = AggregatedCoinIndicesSignatures {
+            epoch_id: 3,
+            signatures: vec![],
+        };
+
+        assert!(manager.get_coin_index_signatures(3).await.is_none());
+
+        manager.insert_coin_index_signatures(&sigs).await;
+
+        let retrieved = manager.get_coin_index_signatures(3).await;
+        assert!(retrieved.is_some());
+        assert!(retrieved.unwrap().is_empty());
+        assert!(manager.get_coin_index_signatures(4).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn expiration_date_signatures_round_trip() {
+        let manager = MemoryEcachTicketbookManager::new();
+        let date = nym_ecash_time::ecash_today().date();
+        let sigs = AggregatedExpirationDateSignatures {
+            epoch_id: 5,
+            expiration_date: date,
+            signatures: vec![],
+        };
+
+        assert!(manager
+            .get_expiration_date_signatures(date, 5)
+            .await
+            .is_none());
+
+        manager.insert_expiration_date_signatures(&sigs).await;
+
+        let retrieved = manager.get_expiration_date_signatures(date, 5).await;
+        assert!(retrieved.is_some());
+        assert!(retrieved.unwrap().is_empty());
+
+        // wrong epoch / wrong date → miss
+        assert!(manager
+            .get_expiration_date_signatures(date, 6)
+            .await
+            .is_none());
     }
 }

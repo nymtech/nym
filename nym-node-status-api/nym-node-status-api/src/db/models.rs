@@ -672,3 +672,48 @@ pub struct HostKeysDeHelper {
     #[serde(default)]
     pub x25519_versioned_noise: Option<VersionedNoiseKeyV1>,
 }
+
+// ---- node families ----
+
+// it's not dead code but clippy doesn't detect usage in sqlx macros
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub(crate) struct NodeFamilyInsertRecord {
+    pub family_id: i64,
+    pub name: String,
+    pub description: String,
+    pub owner: String,
+    pub family_stake_unym: Option<i64>,
+    /// Member count as reported by nym-api; stored denormalised so callers
+    /// don't have to aggregate over `node_family_members`.
+    pub members_count: i32,
+    pub created_at: i64,
+    pub last_updated_utc: i64,
+    pub members: Vec<NodeFamilyMemberInsertRecord>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub(crate) struct NodeFamilyMemberInsertRecord {
+    pub node_id: i64,
+    pub joined_at: i64,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, FromRow)]
+pub(crate) struct NodeFamilyDto {
+    pub family_id: i64,
+    pub name: String,
+    pub description: String,
+    pub owner: String,
+    pub family_stake_unym: Option<i64>,
+    pub members_count: i32,
+    pub created_at: i64,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, FromRow)]
+pub(crate) struct NodeFamilyMemberDto {
+    pub node_id: i64,
+    pub family_id: i64,
+}

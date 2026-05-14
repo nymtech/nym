@@ -7704,6 +7704,7 @@ dependencies = [
  "humantime",
  "itertools 0.14.0",
  "moka",
+ "nym-api-requests",
  "nym-bin-common",
  "nym-contracts-common",
  "nym-credential-proxy-lib",

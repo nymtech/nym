@@ -15,6 +15,7 @@ use nym_api_requests::ecash::models::{
     VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
+use nym_api_requests::models::node_families::NodeFamily;
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainBlocksStatusResponse,
     ChainStatusResponse, KeyRotationInfoResponse, NodePerformanceResponse, NodeRefreshBody,
@@ -387,6 +388,45 @@ pub trait NymApiClientExt: ApiClient {
         }
 
         Ok(bonds)
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
+    async fn get_node_families(
+        &self,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedResponse<NodeFamily>, NymAPIError> {
+        let mut params = Vec::new();
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+        self.get_json(
+            &[routes::V1_API_VERSION, routes::NODE_FAMILIES_ROUTES],
+            &params,
+        )
+        .await
+    }
+
+    async fn get_all_node_families(&self) -> Result<Vec<NodeFamily>, NymAPIError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut families = Vec::new();
+
+        loop {
+            let mut res = self.get_node_families(Some(page), None).await?;
+
+            families.append(&mut res.data);
+            if families.len() < res.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(families)
     }
 
     #[deprecated]

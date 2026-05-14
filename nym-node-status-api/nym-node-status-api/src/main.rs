@@ -17,7 +17,7 @@ mod db;
 mod http;
 mod logging;
 mod metrics_scraper;
-mod monitor;
+pub(crate) mod monitor;
 mod node_scraper;
 mod testruns;
 mod ticketbook_manager;

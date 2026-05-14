@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO node_families\n                    (family_id, name, description, owner, family_stake_unym, members_count, created_at, last_updated_utc)\n                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "07c80c1721b0197f81332a38b03e650db873b800b3acbe2a8920ca65d74ac060"
+}

@@ -1,4 +1,5 @@
 use crate::db::DbConnection;
+use crate::db::Storage;
 use crate::db::models::NymNodeDescriptionDeHelper;
 use crate::http::models::DailyStats;
 use crate::{
@@ -46,67 +47,64 @@ pub(crate) async fn get_all_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNo
     .map_err(From::from)
 }
 
-/// if a node doesn't expose its self-described endpoint, it can't route traffic
-/// - https://nym.com/docs/operators/nodes/nym-node/bonding
-///
-/// same if it's not bonded in the mixnet smart contract
-/// - https://nym.com/docs/operators/tokenomics/mixnet-rewards#rewarded-set-selection
-pub(crate) async fn get_described_bonded_nym_nodes(
-    pool: &DbPool,
-) -> anyhow::Result<Vec<NymNodeDto>> {
-    let mut conn = pool.acquire().await?;
+impl Storage {
+    /// if a node doesn't expose its self-described endpoint, it can't route traffic
+    /// - https://nym.com/docs/operators/nodes/nym-node/bonding
+    ///
+    /// same if it's not bonded in the mixnet smart contract
+    /// - https://nym.com/docs/operators/tokenomics/mixnet-rewards#rewarded-set-selection
+    pub(crate) async fn get_described_bonded_nym_nodes(&self) -> anyhow::Result<Vec<NymNodeDto>> {
+        sqlx::query_as!(
+            NymNodeDto,
+            r#"SELECT
+                node_id,
+                ed25519_identity_pubkey,
+                total_stake,
+                ip_addresses as "ip_addresses!: serde_json::Value",
+                mix_port,
+                x25519_sphinx_pubkey,
+                node_role as "node_role: serde_json::Value",
+                supported_roles as "supported_roles: serde_json::Value",
+                entry as "entry: serde_json::Value",
+                performance,
+                self_described as "self_described: serde_json::Value",
+                bond_info as "bond_info: serde_json::Value",
+                http_api_port
+            FROM
+                nym_nodes
+            WHERE
+                self_described IS NOT NULL
+            AND
+                bond_info IS NOT NULL
+            "#,
+        )
+        .fetch(&self.pool)
+        .try_collect::<Vec<NymNodeDto>>()
+        .await
+        .map_err(From::from)
+    }
 
-    sqlx::query_as!(
-        NymNodeDto,
-        r#"SELECT
-            node_id,
-            ed25519_identity_pubkey,
-            total_stake,
-            ip_addresses as "ip_addresses!: serde_json::Value",
-            mix_port,
-            x25519_sphinx_pubkey,
-            node_role as "node_role: serde_json::Value",
-            supported_roles as "supported_roles: serde_json::Value",
-            entry as "entry: serde_json::Value",
-            performance,
-            self_described as "self_described: serde_json::Value",
-            bond_info as "bond_info: serde_json::Value",
-            http_api_port
-        FROM
-            nym_nodes
-        WHERE
-            self_described IS NOT NULL
-        AND
-            bond_info IS NOT NULL
-        "#,
-    )
-    .fetch(&mut *conn)
-    .try_collect::<Vec<NymNodeDto>>()
-    .await
-    .map_err(From::from)
-}
+    #[instrument(level = "debug", skip_all, fields(node_records=node_records.len()))]
+    pub(crate) async fn update_nym_nodes(
+        &self,
+        node_records: Vec<NymNodeInsertRecord>,
+    ) -> anyhow::Result<usize> {
+        let mut tx = self.pool.begin().await?;
 
-#[instrument(level = "debug", skip_all, fields(node_records=node_records.len()))]
-pub(crate) async fn update_nym_nodes(
-    pool: &DbPool,
-    node_records: Vec<NymNodeInsertRecord>,
-) -> anyhow::Result<usize> {
-    let mut tx = pool.begin().await?;
-
-    sqlx::query!(
-        "UPDATE nym_nodes
+        sqlx::query!(
+            "UPDATE nym_nodes
         SET
             self_described = NULL,
             bond_info = NULL",
-    )
-    .execute(&mut *tx)
-    .await?;
+        )
+        .execute(&mut *tx)
+        .await?;
 
-    let inserted = node_records.len();
-    for record in node_records {
-        // https://www.sqlite.org/lang_upsert.html
-        sqlx::query!(
-            "INSERT INTO nym_nodes
+        let inserted = node_records.len();
+        for record in node_records {
+            // https://www.sqlite.org/lang_upsert.html
+            sqlx::query!(
+                "INSERT INTO nym_nodes
                 (node_id, ed25519_identity_pubkey,
                     total_stake,
                     ip_addresses, mix_port,
@@ -131,29 +129,30 @@ pub(crate) async fn update_nym_nodes(
                 last_updated_utc=excluded.last_updated_utc,
                 http_api_port=excluded.http_api_port
                 ;",
-            record.node_id,
-            record.ed25519_identity_pubkey,
-            record.total_stake,
-            record.ip_addresses,
-            record.mix_port,
-            record.x25519_sphinx_pubkey,
-            record.node_role,
-            record.supported_roles,
-            record.entry,
-            record.self_described,
-            record.bond_info,
-            record.performance,
-            record.last_updated_utc as i32,
-            record.http_api_port,
-        )
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to INSERT node_id={}: {}", record.node_id, e))?;
+                record.node_id,
+                record.ed25519_identity_pubkey,
+                record.total_stake,
+                record.ip_addresses,
+                record.mix_port,
+                record.x25519_sphinx_pubkey,
+                record.node_role,
+                record.supported_roles,
+                record.entry,
+                record.self_described,
+                record.bond_info,
+                record.performance,
+                record.last_updated_utc as i32,
+                record.http_api_port,
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to INSERT node_id={}: {}", record.node_id, e))?;
+        }
+
+        tx.commit().await?;
+
+        Ok(inserted)
     }
-
-    tx.commit().await?;
-
-    Ok(inserted)
 }
 
 pub(crate) async fn get_described_node_bond_info(

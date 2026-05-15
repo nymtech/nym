@@ -139,7 +139,7 @@
 //! ```
 #![warn(missing_docs)]
 
-use http::header::USER_AGENT;
+use http::header::{HeaderName, USER_AGENT};
 pub use inventory;
 pub use reqwest::{self, ClientBuilder as ReqwestClientBuilder, StatusCode};
 use std::error::Error;
@@ -1173,7 +1173,15 @@ impl ApiClientCore for Client {
             };
 
             match response {
-                Ok(resp) => return Ok(resp),
+                Ok(resp) => {
+                    // Check if the response includes a rate limit error from the vercel API
+                    if is_http_rate_limit_err(&resp) {
+                        // if we have multiple urls, update to the next
+                        self.maybe_rotate_hosts(Some(url.clone()));
+                    }
+
+                    return Ok(resp);
+                }
                 Err(err) => {
                     #[cfg(target_arch = "wasm32")]
                     let is_network_err = err.is_timeout();
@@ -1226,17 +1234,36 @@ impl ApiClientCore for Client {
     }
 }
 
+const VERCEL_CHALLENGE_HEADER: HeaderName = HeaderName::from_static("x-vercel-mitigated");
+const VERCEL_CHALLENGE_VALUE: &[u8] = b"challenge";
+const VERCEL_CONTENT_TYPE: &[u8] = b"text/html";
+
+/// Check for Rate Limit challenge response from the vercel API
+pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
+    let status = resp.status() == StatusCode::FORBIDDEN;
+    let header = resp
+        .headers()
+        .iter()
+        .any(|(h, v)| h == VERCEL_CHALLENGE_HEADER && v.as_bytes() == VERCEL_CHALLENGE_VALUE);
+    let content_type = resp
+        .headers()
+        .iter()
+        .any(|(h, v)| h == CONTENT_TYPE && v.as_bytes() == VERCEL_CONTENT_TYPE);
+
+    status && header && content_type
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 const MAX_ERR_SOURCE_ITERATIONS: usize = 4;
 
-/// This functions attempts to check the error returned by reqwest to see if
-/// rotating host informtion (for clients with mutliple hosts defined) could be
-/// helpful. This looks for situations where the error could plausibly be caused
-/// by a network adversary, or where rotating to an equival hostname might help.
+/// This functions attempts to check the error returned by reqwest to see if rotating host
+/// information (for clients with multiple hosts defined) could be helpful. This looks for
+/// situations where the error could plausibly be caused by a network adversary, or where rotating
+/// to an equivalent hostname might help.
 ///
-/// For example --> NetworkUnreachable will not be helped by rotating domains,
-/// but ConnectionReset might be caused by a network adversary blocking by SNI
-/// which could possibly benefit from rotating domains.
+/// For example --> NetworkUnreachable will not be helped by rotating domains, but ConnectionReset
+/// might be caused by a network adversary blocking by SNI which could possibly benefit from
+/// rotating domains.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn might_be_network_interference(err: &reqwest::Error) -> bool {
     if err.is_timeout() {

@@ -1,12 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload};
+use crate::{AddressedTimedData, PipelinePayload, TimedData, TimedPayload};
 
 /// Trait for applying framing to a timed payload.
 ///
 /// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
+/// - `Ts`: Timestamp type carried by the `PipelinePayload`.
+/// - `Opts` : Opts type carried by the `PipelinePayload`
+/// - `NdId` : Addressing type
 ///
 /// # Associated Types
 /// - `Frame`: Frame type produced by the framing operation.
@@ -16,12 +18,12 @@ use crate::{AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload};
 ///
 /// # Required Methods
 /// - `to_frame`: Splits the payload into a `Vec<TimedData<Ts, Self::Frame>>` of frames of the given size.
-pub trait Framing<Ts, NdId> {
+pub trait Framing<Ts, Opts, NdId> {
     type Frame;
     const OVERHEAD_SIZE: usize;
     fn to_frame(
-        &self,
-        payload: AddressedTimedPayload<Ts, NdId>,
+        &mut self,
+        payload: PipelinePayload<Ts, Opts, NdId>,
         frame_size: usize,
     ) -> Vec<AddressedTimedData<Ts, Self::Frame, NdId>>;
 }
@@ -99,6 +101,8 @@ pub trait TransportUnwrap<Ts, Pkt> {
 /// # Type Parameters
 /// - `Ts`: Timestamp type.
 /// - `Pkt`: Final transport packet type.
+/// - `Opts` : Option type
+/// - `NdId` : Addressing type
 ///
 /// Both [`Framing`] and [`Transport`] declare their own `type Frame`; this
 /// supertrait cross-constrains them so `to_frame`'s output feeds directly into
@@ -110,8 +114,9 @@ pub trait TransportUnwrap<Ts, Pkt> {
 /// # Provided Methods
 /// - `frame_size`: Derived from `packet_size` minus transport and framing overheads.
 /// - `wire_wrap`: Frames a payload and wraps each frame into a transport packet.
-pub trait WireWrappingPipeline<Ts, Pkt, NdId>:
-    Transport<Ts, Pkt, NdId> + Framing<Ts, NdId, Frame = <Self as Transport<Ts, Pkt, NdId>>::Frame>
+pub trait WireWrappingPipeline<Ts, Pkt, Opts, NdId>:
+    Transport<Ts, Pkt, NdId>
+    + Framing<Ts, Opts, NdId, Frame = <Self as Transport<Ts, Pkt, NdId>>::Frame>
 where
     Ts: Clone,
     NdId: Clone,
@@ -121,12 +126,12 @@ where
     fn frame_size(&self) -> usize {
         self.packet_size()
             - <Self as Transport<Ts, Pkt, NdId>>::OVERHEAD_SIZE
-            - <Self as Framing<Ts, NdId>>::OVERHEAD_SIZE
+            - <Self as Framing<Ts, Opts, NdId>>::OVERHEAD_SIZE
     }
 
     fn wire_wrap(
-        &self,
-        payload: AddressedTimedPayload<Ts, NdId>,
+        &mut self,
+        payload: PipelinePayload<Ts, Opts, NdId>,
     ) -> Vec<AddressedTimedData<Ts, Pkt, NdId>> {
         let frame_size = self.frame_size();
         self.to_frame(payload, frame_size)

@@ -7,15 +7,12 @@ use nym_lp::packet::{
 };
 
 use nym_lp_data::{
-    AddressedTimedData,
-    common::traits::{Framing, Transport},
-};
-use nym_lp_data::{
-    AddressedTimedPayload,
+    AddressedTimedData, PipelinePayload,
     clients::{
-        InputOptions, PipelinePayload,
+        InputOptions,
         traits::{Chunking, Obfuscation, Reliability, RoutingSecurity},
     },
+    common::traits::{Framing, Transport},
 };
 
 #[derive(Clone, Copy)]
@@ -61,7 +58,12 @@ where
         input
             .chunks(chunk_size)
             .map(|chunk| {
-                BasicPipelinePayload::new(timestamp.clone(), chunk.to_vec(), input_options)
+                BasicPipelinePayload::new(
+                    timestamp.clone(),
+                    chunk.to_vec(),
+                    input_options,
+                    input_options.next_hop(),
+                )
             })
             .collect()
     }
@@ -171,15 +173,15 @@ impl LpFraming {
     const FRAME_ATTRIBUTES: &[u8; 14] = b"0LpFrameAttrs0";
 }
 
-impl<Ts> Framing<Ts, u8> for LpFraming
+impl<Ts> Framing<Ts, BasicOptions, u8> for LpFraming
 where
     Ts: Clone,
 {
     type Frame = LpFrame;
     const OVERHEAD_SIZE: usize = LpFrameHeader::SIZE;
     fn to_frame(
-        &self,
-        input: AddressedTimedPayload<Ts, u8>,
+        &mut self,
+        input: PipelinePayload<Ts, BasicOptions, u8>,
         frame_size: usize,
     ) -> Vec<AddressedTimedData<Ts, LpFrame, u8>> {
         input
@@ -189,7 +191,7 @@ where
             .map(|frame_payload| {
                 let header = LpFrameHeader::new(LpFrameKind::Opaque, *Self::FRAME_ATTRIBUTES);
 
-                AddressedTimedData::new(
+                AddressedTimedData::new_addressed(
                     input.data.timestamp.clone(),
                     LpFrame {
                         header,
@@ -211,7 +213,7 @@ impl<Ts> Transport<Ts, LpPacket, u8> for LpTransport {
         &self,
         input: AddressedTimedData<Ts, Self::Frame, u8>,
     ) -> AddressedTimedData<Ts, LpPacket, u8> {
-        AddressedTimedData::new(
+        AddressedTimedData::new_addressed(
             input.data.timestamp,
             LpPacket::new(LpHeader::new(7, 7, 7), input.data.data),
             input.dst,

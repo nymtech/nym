@@ -1,7 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::clients::{InputOptions, PipelinePayload};
+use crate::PipelinePayload;
+use crate::clients::InputOptions;
 use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 use crate::{AddressedTimedData, TimedPayload};
 
@@ -42,10 +43,7 @@ where
 /// - `input`: Payload to encode with the reliability mechanism.
 /// # Returns
 /// - A vector of `TimedPayload` containing the reliability-encoded data and potential retransmissions.
-pub trait Reliability<Ts, Opts, NdId>
-where
-    Opts: InputOptions<NdId>,
-{
+pub trait Reliability<Ts, Opts, NdId> {
     const OVERHEAD_SIZE: usize;
     fn reliable_encode(
         &mut self,
@@ -59,10 +57,7 @@ where
 ///
 /// # Type Parameters
 /// - `Ts`: Timestamp type carried by the `TimedPayload`.
-pub trait Obfuscation<Ts, Opts, NdId>
-where
-    Opts: InputOptions<NdId>,
-{
+pub trait Obfuscation<Ts, Opts, NdId> {
     /// Obfuscate a given timed payload
     /// # Parameters
     /// - `input`: Optional payload to obfusctate
@@ -93,10 +88,7 @@ where
 /// - `nb_frames`: Number of transport frames that one encrypted payload expands
 ///   into; defaults to `1`.  Override when the encryption scheme (e.g. Sphinx)
 ///   produces multiple frames per input chunk.
-pub trait RoutingSecurity<Ts, Opts, NdId>
-where
-    Opts: InputOptions<NdId>,
-{
+pub trait RoutingSecurity<Ts, Opts, NdId> {
     const OVERHEAD_SIZE: usize;
     fn nb_frames(&self) -> usize {
         1
@@ -128,7 +120,7 @@ pub trait ClientWrappingPipeline<Ts, Pkt, Opts, NdId>:
     + Reliability<Ts, Opts, NdId>
     + Obfuscation<Ts, Opts, NdId>
     + RoutingSecurity<Ts, Opts, NdId>
-    + WireWrappingPipeline<Ts, Pkt, NdId>
+    + WireWrappingPipeline<Ts, Pkt, Opts, NdId>
 where
     Ts: Clone,
     NdId: Clone,
@@ -210,7 +202,7 @@ where
 
         chunks
             .into_iter()
-            .flat_map(|payload| self.wire_wrap(payload.into()))
+            .flat_map(|payload| self.wire_wrap(payload))
             .collect::<Vec<_>>()
     }
 }

@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload};
+use crate::{AddressedTimedData, PipelinePayload, TimedPayload};
 
 use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 
@@ -27,8 +27,8 @@ use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 /// - `process`: Unwraps the incoming packet via [`WireUnwrappingPipeline::wire_unwrap`],
 ///   passes the result to [`mix`], and re-wraps each output payload via
 ///   [`WireWrappingPipeline::wire_wrap`].
-pub trait MixnodeProcessingPipeline<Ts, Pkt, Mk, NdId>:
-    WireUnwrappingPipeline<Ts, Pkt, Mk> + WireWrappingPipeline<Ts, Pkt, NdId>
+pub trait MixnodeProcessingPipeline<Ts, Pkt, Opts, Mk, NdId>:
+    WireUnwrappingPipeline<Ts, Pkt, Mk> + WireWrappingPipeline<Ts, Pkt, Opts, NdId>
 where
     Ts: Clone,
     NdId: Clone,
@@ -38,18 +38,14 @@ where
         message_kind: Mk,
         payload: TimedPayload<Ts>,
         timestamp: Ts,
-    ) -> Vec<AddressedTimedPayload<Ts, NdId>>;
+    ) -> Vec<PipelinePayload<Ts, Opts, NdId>>;
 
     fn process(
         &mut self,
-        input: TimedData<Ts, Pkt>,
+        input: Pkt,
         timestamp: Ts,
     ) -> Result<Vec<AddressedTimedData<Ts, Pkt, NdId>>, Self::Error> {
-        let TimedData {
-            data: packet,
-            timestamp: ts,
-        } = input;
-        let Some((payload, kind)) = self.wire_unwrap(packet, ts)? else {
+        let Some((payload, kind)) = self.wire_unwrap(input, timestamp.clone())? else {
             return Ok(Vec::new());
         };
         let mixed = self.mix(kind, payload, timestamp);

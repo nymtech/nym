@@ -1,8 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::PipelinePayload;
 use crate::clients::traits::{Obfuscation, Reliability, RoutingSecurity};
-use crate::clients::{InputOptions, PipelinePayload};
 
 /// Marker trait for a no-op [`Reliability`] implementation.
 ///
@@ -13,7 +13,6 @@ pub trait NoOpReliability {}
 impl<T, Ts, Opts, NdId> Reliability<Ts, Opts, NdId> for T
 where
     T: NoOpReliability,
-    Opts: InputOptions<NdId>,
 {
     const OVERHEAD_SIZE: usize = 0;
     fn reliable_encode(
@@ -34,7 +33,6 @@ pub trait NoOpRoutingSecurity {}
 impl<T, Ts, Opts, NdId> RoutingSecurity<Ts, Opts, NdId> for T
 where
     T: NoOpRoutingSecurity,
-    Opts: InputOptions<NdId>,
 {
     const OVERHEAD_SIZE: usize = 0;
 
@@ -60,7 +58,6 @@ pub trait NoOpObfuscation {}
 impl<T, Ts, Opts, NdId> Obfuscation<Ts, Opts, NdId> for T
 where
     T: NoOpObfuscation,
-    Opts: InputOptions<NdId>,
 {
     fn obfuscate(
         &mut self,

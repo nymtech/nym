@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use nym_lp_data::{
-    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
+    AddressedTimedData, PipelinePayload, TimedData, TimedPayload,
     common::traits::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
@@ -15,6 +15,7 @@ use nym_lp_data::{
 };
 
 use crate::{
+    client::simple::SimpleInputOptions,
     node::{BaseNode, NodeId, ProcessingNode},
     packet::simple::{
         SimpleFrame, SimpleMessage, SimplePacket, SimpleWireUnwrapper, SimpleWireWrapper,
@@ -53,10 +54,10 @@ impl<Ts> SimpleNode<Ts> {
 impl<Ts: Clone> ProcessingNode<Ts, SimplePacket> for SimpleProcessingNode {
     fn process(
         &mut self,
-        input: TimedData<Ts, SimplePacket>,
+        input: SimplePacket,
         timestamp: Ts,
     ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimplePacket, NodeId>>> {
-        MixnodeProcessingPipeline::<Ts, SimplePacket, SimpleMessage, NodeId>::process(
+        MixnodeProcessingPipeline::<Ts, SimplePacket, SimpleInputOptions, SimpleMessage, NodeId>::process(
             self, input, timestamp,
         )
     }
@@ -87,7 +88,8 @@ impl SimpleProcessingNode {
     }
 }
 
-impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimplePacket, SimpleMessage, NodeId>
+impl<Ts: Clone>
+    MixnodeProcessingPipeline<Ts, SimplePacket, SimpleInputOptions, SimpleMessage, NodeId>
     for SimpleProcessingNode
 {
     /// Route the payload to the next node in the chain (`self.id + 1`).
@@ -99,18 +101,23 @@ impl<Ts: Clone> MixnodeProcessingPipeline<Ts, SimplePacket, SimpleMessage, NodeI
         _: SimpleMessage,
         payload: TimedPayload<Ts>,
         _timestamp: Ts,
-    ) -> Vec<AddressedTimedPayload<Ts, NodeId>> {
-        vec![(self.id + 1, payload).into()]
+    ) -> Vec<PipelinePayload<Ts, SimpleInputOptions, NodeId>> {
+        vec![PipelinePayload::new(
+            payload.timestamp,
+            payload.data,
+            SimpleInputOptions,
+            self.id + 1,
+        )]
     }
 }
 
 // Delegation of subtraits
-impl<Ts: Clone> Framing<Ts, NodeId> for SimpleProcessingNode {
+impl<Ts: Clone> Framing<Ts, SimpleInputOptions, NodeId> for SimpleProcessingNode {
     type Frame = SimpleFrame;
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_frame(
-        &self,
-        payload: AddressedTimedPayload<Ts, NodeId>,
+        &mut self,
+        payload: PipelinePayload<Ts, SimpleInputOptions, NodeId>,
         frame_size: usize,
     ) -> Vec<AddressedTimedData<Ts, SimpleFrame, NodeId>> {
         self.wrapper.to_frame(payload, frame_size)
@@ -128,9 +135,11 @@ impl<Ts: Clone> Transport<Ts, SimplePacket, NodeId> for SimpleProcessingNode {
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, SimplePacket, NodeId> for SimpleProcessingNode {
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimplePacket, SimpleInputOptions, NodeId>
+    for SimpleProcessingNode
+{
     fn packet_size(&self) -> usize {
-        <SimpleWireWrapper as WireWrappingPipeline<Ts, _, _>>::packet_size(&self.wrapper)
+        <SimpleWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(&self.wrapper)
     }
 }
 

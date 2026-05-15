@@ -7470,7 +7470,6 @@ dependencies = [
 name = "nym-lp-data"
 version = "1.21.5-rc.3"
 dependencies = [
- "anyhow",
  "thiserror 2.0.19",
  "nym-lp",
  "tracing",

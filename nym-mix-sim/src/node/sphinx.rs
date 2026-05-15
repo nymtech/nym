@@ -60,9 +60,12 @@ where
         input: TimedData<Ts, SimMixPacket>,
         timestamp: Ts,
     ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimMixPacket, NodeId>>> {
-        MixnodeProcessingPipeline::<Ts, SimMixPacket, SphinxMessage, NodeId>::process(
-            self, input, timestamp,
-        )
+        Ok(MixnodeProcessingPipeline::<
+            Ts,
+            SimMixPacket,
+            SphinxMessage,
+            NodeId,
+        >::process(self, input, timestamp)?)
     }
 }
 

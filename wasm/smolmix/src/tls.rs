@@ -3,27 +3,20 @@
 
 //! TLS connector using futures-rustls (futures::io traits, NOT tokio).
 //!
-//! The crypto provider is selected at compile time via feature flags:
-//! - `ring-crypto` (default): uses ring 0.17, has experimental wasm32 support
-//! - `rustcrypto`: uses rustls-rustcrypto, pure Rust, guaranteed wasm32 compat
+//! Crypto provider: rustls-rustcrypto (RustCrypto-backed pure-Rust primitives).
 //!
-//! Both produce identical `ClientConfig`; only the underlying crypto differs.
 
 use std::sync::{Arc, OnceLock};
 
 use futures::io::{AsyncRead, AsyncWrite};
 use futures_rustls::TlsConnector;
 use rustls::pki_types::ServerName;
-use rustls::ClientConfig;
+use rustls::{CipherSuite, ClientConfig};
 
 use crate::error::FetchError;
 
 /// Cached TLS client config: built once, reused for all connections.
 static TLS_CONFIG: OnceLock<Arc<ClientConfig>> = OnceLock::new();
-
-// Ensure at least one crypto provider is selected at compile time.
-#[cfg(not(any(feature = "ring-crypto", feature = "rustcrypto")))]
-compile_error!("enable either the 'ring-crypto' or 'rustcrypto' feature for TLS support");
 
 /// Perform a TLS handshake over the given stream.
 ///
@@ -65,7 +58,24 @@ fn make_client_config() -> Result<Arc<ClientConfig>, FetchError> {
         return Ok(config.clone());
     }
 
-    let provider = crypto_provider();
+    // Restrict cipher suites to only what is explicity implemented as
+    // per https://github.com/RustCrypto/rustls-rustcrypto#rustls-rustcrypto.
+    let mut provider = rustls_rustcrypto::provider();
+    provider.cipher_suites.retain(|s| {
+        matches!(
+            s.suite(),
+            CipherSuite::TLS13_AES_128_GCM_SHA256
+                | CipherSuite::TLS13_AES_256_GCM_SHA384
+                | CipherSuite::TLS13_CHACHA20_POLY1305_SHA256
+                | CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+                | CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+                | CipherSuite::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+                | CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+                | CipherSuite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+                | CipherSuite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+        )
+    });
+    let provider = Arc::new(provider);
 
     let mut root_store = rustls::RootCertStore::empty();
     root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
@@ -87,15 +97,4 @@ fn make_client_config() -> Result<Arc<ClientConfig>, FetchError> {
 
     let config = Arc::new(config);
     Ok(TLS_CONFIG.get_or_init(|| config.clone()).clone())
-}
-
-/// Select the crypto provider based on the enabled feature flag.
-///
-/// ring-crypto takes priority if both features are somehow enabled.
-fn crypto_provider() -> Arc<rustls::crypto::CryptoProvider> {
-    #[cfg(feature = "ring-crypto")]
-    return Arc::new(rustls::crypto::ring::default_provider());
-
-    #[cfg(all(feature = "rustcrypto", not(feature = "ring-crypto")))]
-    return Arc::new(rustls_rustcrypto::provider());
 }

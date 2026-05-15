@@ -24,11 +24,13 @@ wasmtimer = { workspace = true }
 # DNS wire-format types (tokio-free with default-features = false).
 hickory-proto = { workspace = true, default-features = false }
 
-# TLS
+# TLS: rustls-rustcrypto is the only viable provider on wasm32-unknown-unknown.
+# ring + aws-lc-rs both fail to compile (no OS entropy / no C toolchain in browser).
 rustls = { workspace = true, features = ["std"] }
 rustls-pki-types = { workspace = true, features = ["web"] }
-futures-rustls = { workspace = true }
+futures-rustls = { workspace = true, features = ["tls12"] }
 webpki-roots = { workspace = true }
+rustls-rustcrypto = { workspace = true }
 
 # HTTP/1.1 client (tokio-free; workspace declares default-features = false)
 hyper = { workspace = true, features = ["client", "http1"] }
@@ -55,9 +57,6 @@ serde = { workspace = true, features = ["derive"] }
 serde-wasm-bindgen = { workspace = true }
 tsify = { workspace = true, features = ["js"] }
 
-# Pure-Rust TLS crypto provider (ring doesn't compile on wasm32-unknown-unknown)
-rustls-rustcrypto = { workspace = true, optional = true }
-
 # crypto.getRandomValues() backend for the 0.2 line.
 [target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
 workspace = true
@@ -70,9 +69,6 @@ workspace = true
 features = ["wasm_js"]
 
 [features]
-default = ["rustcrypto"]
-ring-crypto = ["rustls/ring", "futures-rustls/ring", "futures-rustls/tls12"]
-rustcrypto = ["dep:rustls-rustcrypto", "futures-rustls/tls12"]
 # Verbose `console.log` tracing (off by default).
 debug = []
 

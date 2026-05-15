@@ -239,7 +239,6 @@ mod tests {
 
     /// Default rotation ids used by the mock state.
     const DEFAULT_ROTATION_ID: u32 = 0;
-    const SECONDARY_ROTATION_ID: u32 = 1;
 
     /// Maximum forward packet delay used in tests. Matches the production default
     /// closely enough that delay-clamping behavior is exercised realistically.
@@ -254,7 +253,6 @@ mod tests {
     /// - Metrics are fresh, no shutdown is signalled.
     fn mock_shared_state(rng: &mut DeterministicRng) -> SharedLpDataState {
         let primary = SphinxPrivateKey::new(rng, DEFAULT_ROTATION_ID);
-        let secondary = SphinxPrivateKey::new(rng, SECONDARY_ROTATION_ID);
 
         let primary_bloom_filter = RotationFilter::new(
             100,
@@ -264,24 +262,13 @@ mod tests {
         )
         .unwrap();
 
-        let secondary_bloom_filter = RotationFilter::new(
-            100,
-            ReplayProtectionDebug::DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE,
-            0,
-            SECONDARY_ROTATION_ID,
-        )
-        .unwrap();
-
         SharedLpDataState {
             lp_config: LpConfig::default(),
             processing_config: ProcessingConfig {
                 maximum_packet_delay: TEST_MAX_FORWARD_DELAY,
             },
-            sphinx_keys: ActiveSphinxKeys::new_loaded(primary, Some(secondary)),
-            replay_protection_filter: ReplayProtectionBloomfilters::new(
-                primary_bloom_filter,
-                Some(secondary_bloom_filter),
-            ),
+            sphinx_keys: ActiveSphinxKeys::new_loaded(primary, None),
+            replay_protection_filter: ReplayProtectionBloomfilters::new(primary_bloom_filter, None),
             message_reconstructor: MessageReconstructor::default(),
             metrics: NymNodeMetrics::default(),
             shutdown_token: ShutdownToken::new(),
@@ -473,7 +460,7 @@ mod tests {
 
         let inputs = fragment_into_lp_packets(
             &sphinx_bytes,
-            sphinx_mix_message(), // SW check that
+            sphinx_mix_message(),
             pipeline.frame_size(),
             &mut rng,
         );
@@ -524,7 +511,7 @@ mod tests {
 
         let inputs = fragment_into_lp_packets(
             &outfox_bytes,
-            outfox_mix_message(), // SW check that
+            outfox_mix_message(),
             pipeline.frame_size(),
             &mut rng,
         );
@@ -570,7 +557,7 @@ mod tests {
 
         let inputs = fragment_into_lp_packets(
             &sphinx_bytes,
-            sphinx_mix_message(), // SW check that
+            sphinx_mix_message(),
             pipeline.frame_size(),
             &mut rng,
         );
@@ -613,7 +600,7 @@ mod tests {
 
         let inputs = fragment_into_lp_packets(
             &sphinx_bytes,
-            sphinx_mix_message(), // SW check that
+            sphinx_mix_message(),
             pipeline.frame_size(),
             &mut rng,
         );
@@ -703,7 +690,7 @@ mod tests {
 
         let inputs = fragment_into_lp_packets(
             &sphinx_bytes,
-            sphinx_mix_message(), // SW check that
+            sphinx_mix_message(),
             pipeline.frame_size(),
             &mut rng,
         );
@@ -783,7 +770,7 @@ mod tests {
 
         let inputs = fragment_into_lp_packets(
             &sphinx_bytes,
-            sphinx_mix_message(), // SW check that
+            sphinx_mix_message(),
             pipeline.frame_size(),
             &mut rng,
         );

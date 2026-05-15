@@ -44,10 +44,6 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
         front_hosts: None,
     },
     ApiUrlConst {
-        url: "https://nym-frontdoor.vercel.app/api/",
-        front_hosts: Some(&["vercel.app", "vercel.com"]),
-    },
-    ApiUrlConst {
         url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
         front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
     },
@@ -68,7 +64,7 @@ pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str =
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: NYM_VPN_API,
-        front_hosts: Some(&["vercel.app", "vercel.com"]),
+        front_hosts: None,
     },
     ApiUrlConst {
         url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",

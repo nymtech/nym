@@ -386,8 +386,13 @@ impl FragmentHeader {
         {
             return Err(ChunkingError::MalformedHeaderError);
         }
+        // post-link requires total == current == u8::MAX so the constructor
+        // stays in lockstep with `try_from_bytes`'s deserialiser check.
         if let Some(nfid) = next_fragments_set_id
-            && (nfid <= 0 || current_fragment != total_fragments || nfid == id)
+            && (nfid <= 0
+                || current_fragment != u8::MAX
+                || total_fragments != u8::MAX
+                || nfid == id)
         {
             return Err(ChunkingError::MalformedHeaderError);
         }
@@ -1124,9 +1129,13 @@ mod fragment_header {
         }
 
         #[test]
-        fn can_only_be_post_linked_for_last_fragment() {
-            assert!(FragmentHeader::try_new(12345, 10, 10, None, Some(1234)).is_ok());
-            assert!(FragmentHeader::try_new(12345, u8::MAX, u8::MAX, None, Some(1234),).is_ok());
+        fn can_only_be_post_linked_for_last_fragment_of_full_set() {
+            // post-linking requires total == current == u8::MAX (a *full* set)
+            assert!(FragmentHeader::try_new(12345, u8::MAX, u8::MAX, None, Some(1234)).is_ok());
+            assert!(FragmentHeader::try_new(12345, 10, 10, None, Some(1234)).is_err());
+            assert!(
+                FragmentHeader::try_new(12345, u8::MAX - 1, u8::MAX - 1, None, Some(1234)).is_err()
+            );
             assert!(FragmentHeader::try_new(12345, 10, 2, Some(1234), None).is_err());
         }
 
@@ -1191,6 +1200,24 @@ mod fragment_header {
                 FragmentHeader::try_from_bytes(&header_bytes).unwrap();
             assert_eq!(fragmented_header, recovered_header);
             assert_eq!(LINKED_FRAGMENTED_HEADER_LEN, bytes_used);
+        }
+
+        #[test]
+        fn post_linked_with_non_max_total_is_rejected_by_constructor_and_deserialiser() {
+            // Regression: try_new used to accept post-linked headers where
+            // total/current != u8::MAX, but try_from_bytes rejects them, so
+            // such headers could never round-trip.
+            assert!(FragmentHeader::try_new(12345, 10, 10, None, Some(1234)).is_err());
+
+            // The deserialiser must still reject the corresponding bytes if
+            // some future change tries to emit them. Build the malformed bytes
+            // by hand from a valid post-linked header, then overwrite the
+            // total/current fragment counts.
+            let valid = FragmentHeader::try_new(12345, u8::MAX, u8::MAX, None, Some(1234)).unwrap();
+            let mut malformed = valid.to_bytes();
+            malformed[4] = 10; // total_fragments
+            malformed[5] = 10; // current_fragment
+            assert!(FragmentHeader::try_from_bytes(&malformed).is_err());
         }
     }
 }

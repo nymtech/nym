@@ -210,7 +210,7 @@ impl<Ts> Transport<Ts, LpPacket, u8> for LpTransport {
     type Frame = LpFrame;
     const OVERHEAD_SIZE: usize = LpHeader::SIZE;
     fn to_transport_packet(
-        &self,
+        &mut self,
         input: AddressedTimedData<Ts, Self::Frame, u8>,
     ) -> AddressedTimedData<Ts, LpPacket, u8> {
         AddressedTimedData::new_addressed(

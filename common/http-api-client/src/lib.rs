@@ -1173,7 +1173,16 @@ impl ApiClientCore for Client {
             };
 
             match response {
-                Ok(resp) => return Ok(resp),
+                Ok(resp) => {
+                    // Check if the response includes a rate limit error from the vercel API
+                    if is_http_rate_limit_err(&resp) {
+                        warn!("encountered vercel rate limit error for {}", url.as_str());
+                        // if we have multiple urls, update to the next
+                        self.maybe_rotate_hosts(Some(url.clone()));
+                    }
+
+                    return Ok(resp);
+                }
                 Err(err) => {
                     #[cfg(target_arch = "wasm32")]
                     let is_network_err = err.is_timeout();
@@ -1226,17 +1235,39 @@ impl ApiClientCore for Client {
     }
 }
 
+const VERCEL_CHALLENGE_HEADER: &str = "x-vercel-mitigated";
+const VERCEL_CHALLENGE_VALUE: &[u8] = b"challenge";
+
+/// Check for Rate Limit challenge response from the vercel API
+pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
+    let status = resp.status() == StatusCode::FORBIDDEN;
+    let header = resp
+        .headers()
+        .get(VERCEL_CHALLENGE_HEADER)
+        .is_some_and(|v| v.as_bytes() == VERCEL_CHALLENGE_VALUE);
+    let content_type = resp
+        .headers()
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<Mime>().ok())
+        .is_some_and(|mime_type| {
+            mime_type.type_() == mime::TEXT && mime_type.subtype() == mime::HTML
+        });
+
+    status && header && content_type
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 const MAX_ERR_SOURCE_ITERATIONS: usize = 4;
 
-/// This functions attempts to check the error returned by reqwest to see if
-/// rotating host informtion (for clients with mutliple hosts defined) could be
-/// helpful. This looks for situations where the error could plausibly be caused
-/// by a network adversary, or where rotating to an equival hostname might help.
+/// This functions attempts to check the error returned by reqwest to see if rotating host
+/// information (for clients with multiple hosts defined) could be helpful. This looks for
+/// situations where the error could plausibly be caused by a network adversary, or where rotating
+/// to an equivalent hostname might help.
 ///
-/// For example --> NetworkUnreachable will not be helped by rotating domains,
-/// but ConnectionReset might be caused by a network adversary blocking by SNI
-/// which could possibly benefit from rotating domains.
+/// For example --> NetworkUnreachable will not be helped by rotating domains, but ConnectionReset
+/// might be caused by a network adversary blocking by SNI which could possibly benefit from
+/// rotating domains.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn might_be_network_interference(err: &reqwest::Error) -> bool {
     if err.is_timeout() {
@@ -1697,6 +1728,13 @@ where
         decode_raw_response(&headers, full)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound { url: Box::new(url) })
+    } else if is_http_rate_limit_err(&res) {
+        Err(HttpClientError::EndpointFailure {
+            url: Box::new(url),
+            status,
+            headers: Box::new(HeaderMap::new()),
+            error: String::from("received vercel rate limit challenge response"),
+        })
     } else {
         let Ok(plaintext) = res.text().await else {
             return Err(HttpClientError::RequestFailure {

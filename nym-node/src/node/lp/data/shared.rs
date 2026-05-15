@@ -6,6 +6,7 @@ use crate::config::LpConfig;
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
+use nym_lp_data::fragmentation::reconstruction::MessageReconstructor;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::mixnet::PacketKind;
 use nym_sphinx_framing::processing::{
@@ -15,35 +16,19 @@ use nym_sphinx_params::SphinxKeyRotation;
 use nym_task::ShutdownToken;
 use std::net::IpAddr;
 use std::time::Duration;
+use std::time::Instant;
 use tracing::Span;
 use tracing::warn;
 
 #[derive(Clone, Copy)]
 pub(crate) struct ProcessingConfig {
     pub(crate) maximum_packet_delay: Duration,
-    // /// how long the task is willing to skip mutex acquisition before it will block the thread
-    // /// until it actually obtains it
-    // pub(crate) maximum_replay_detection_deferral: Duration,
-
-    // /// how many packets the task is willing to queue before it will block the thread
-    // /// until it obtains the mutex
-    // pub(crate) maximum_replay_detection_pending_packets: usize,
 }
 
 impl ProcessingConfig {
     pub(crate) fn new(config: &Config) -> Self {
         ProcessingConfig {
             maximum_packet_delay: config.mixnet.debug.maximum_forward_packet_delay,
-            // maximum_replay_detection_deferral: config
-            //     .mixnet
-            //     .replay_protection
-            //     .debug
-            //     .maximum_replay_detection_deferral,
-            // maximum_replay_detection_pending_packets: config
-            //     .mixnet
-            //     .replay_protection
-            //     .debug
-            //     .maximum_replay_detection_pending_packets,
         }
     }
 }
@@ -59,6 +44,8 @@ pub(crate) struct SharedLpDataState {
     pub sphinx_keys: ActiveSphinxKeys,
 
     pub replay_protection_filter: ReplayProtectionBloomfilters,
+
+    pub message_reconstructor: MessageReconstructor<Instant, Duration>,
 
     /// Metrics collection
     pub metrics: NymNodeMetrics,
@@ -86,6 +73,7 @@ impl SharedLpDataState {
             lp_config: config.lp,
             sphinx_keys,
             replay_protection_filter,
+            message_reconstructor: Default::default(),
             metrics,
             shutdown_token,
         }

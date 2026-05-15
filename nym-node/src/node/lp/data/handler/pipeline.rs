@@ -1,10 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    net::SocketAddr,
-    time::{Duration, Instant},
-};
+use std::{net::SocketAddr, sync::Arc, time::Instant};
 
 use nym_lp_data::{
     AddressedTimedData, PipelinePayload, TimedData, TimedPayload,
@@ -12,7 +9,7 @@ use nym_lp_data::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
     },
-    fragmentation::{fragment::fragment_payload, reconstruction::MessageReconstructor},
+    fragmentation::fragment::fragment_payload,
     mixnodes::traits::MixnodeProcessingPipeline,
     packet::{
         EncryptedLpPacket, LpFrame, LpHeader, LpPacket, MalformedLpPacketError,
@@ -27,19 +24,12 @@ use crate::node::lp::data::{
     shared::SharedLpDataState,
 };
 
-#[derive(Clone, Copy, Debug)]
-pub struct MixnodeDataPipelineConfig {
-    pub fragment_timeout: Duration,
-}
-
 pub struct MixnodeDataPipeline<R>
 where
     R: Rng,
 {
-    config: MixnodeDataPipelineConfig,
     /// Shared data state
-    state: SharedLpDataState,
-    fragment_reconstructor: MessageReconstructor<Instant, Duration>,
+    state: Arc<SharedLpDataState>,
     rng: R,
 }
 
@@ -47,13 +37,8 @@ impl<R> MixnodeDataPipeline<R>
 where
     R: Rng,
 {
-    pub fn new(state: SharedLpDataState, config: MixnodeDataPipelineConfig, rng: R) -> Self {
-        Self {
-            state,
-            config,
-            rng,
-            fragment_reconstructor: MessageReconstructor::new(config.fragment_timeout),
-        }
+    pub fn new(state: Arc<SharedLpDataState>, rng: R) -> Self {
+        Self { state, rng }
     }
 }
 
@@ -190,7 +175,8 @@ where
                 .inspect_err(|e| tracing::error!("Failed to recover a fragment : {e}"))
                 .ok()?;
             let (payload, metadata) = self
-                .fragment_reconstructor
+                .state
+                .message_reconstructor
                 .insert_new_fragment(fragment, frame.timestamp)?;
             let message_kind = metadata
                 .try_into()

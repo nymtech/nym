@@ -1,12 +1,17 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use tracing::{debug, trace, warn};
-
 use crate::fragmentation::fragment::{Fragment, FragmentHashKey, FragmentMetadata};
-use std::collections::HashMap;
+
+use dashmap::DashMap;
+use dashmap::mapref::entry::Entry;
 use std::fmt::Debug;
 use std::ops::Add;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tracing::{debug, trace, warn};
+
+pub const DEFAULT_FRAGMENT_TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
 /// Per-message buffer that collects every `Fragment` of a fragmented message
 /// and reassembles the original payload once they are all in.
@@ -129,7 +134,7 @@ where
     /// In-flight messages keyed on `(id, frame_kind)`. The frame kind is
     /// part of the key so that a random-id collision between two unrelated
     /// kinds cannot accidentally route fragments into the same buffer.
-    in_flight_messages: HashMap<FragmentHashKey, MessageBuffer<Ts>>,
+    in_flight_messages: Arc<DashMap<FragmentHashKey, MessageBuffer<Ts>>>,
 
     /// How long an incomplete message is allowed to sit before it is
     /// dropped on the next `cleanup_stale_buffers` pass.
@@ -149,34 +154,13 @@ where
         }
     }
 
-    /// Whether the message at `key` is present and has all of its fragments.
-    fn is_message_fully_received(&self, key: FragmentHashKey) -> bool {
-        self.in_flight_messages
-            .get(&key)
-            .map(|buf| buf.is_complete)
-            .unwrap_or(false)
-    }
-
-    /// Pop the buffer at `key` and reassemble its message bytes. The caller
-    /// must ensure `is_message_fully_received(key)` holds.
-    fn reconstruct_message(&mut self, key: FragmentHashKey) -> Vec<u8> {
-        debug_assert!(self.is_message_fully_received(key));
-
-        // SAFETY: the precondition above guarantees the entry exists, so
-        // `remove` returns `Some`. `is_message_fully_received` also implies
-        // the buffer's `is_complete` flag is set, which is the precondition
-        // `into_message` relies on.
-        #[allow(clippy::unwrap_used)]
-        self.in_flight_messages.remove(&key).unwrap().into_message()
-    }
-
     /// Insert `fragment` into the buffer for its message and, if it was the
     /// last outstanding fragment, return the reassembled message bytes
     /// alongside the original metadata.
     ///
     /// Stale incomplete messages are evicted on every call.
     pub fn insert_new_fragment(
-        &mut self,
+        &self,
         fragment: Fragment,
         timestamp: Ts,
     ) -> Option<(Vec<u8>, FragmentMetadata)> {
@@ -188,24 +172,34 @@ where
         // from any of the buffer's slots would be equivalent.
         let metadata = (fragment.frame_kind(), fragment.kind_metadata()).into();
 
-        let buf = self
-            .in_flight_messages
-            .entry(key)
-            .or_insert_with(|| MessageBuffer::new(total_fragments, timestamp.clone()));
-
-        buf.insert_fragment(fragment, timestamp.clone());
-        let maybe_message = if self.is_message_fully_received(key) {
-            Some((self.reconstruct_message(key), metadata))
-        } else {
-            None
+        let maybe_message = match self.in_flight_messages.entry(key) {
+            Entry::Occupied(mut entry) => {
+                entry.get_mut().insert_fragment(fragment, timestamp.clone());
+                entry
+                    .get()
+                    .is_complete
+                    .then(|| (entry.remove().into_message(), metadata))
+            }
+            Entry::Vacant(entry) => {
+                let mut buf = MessageBuffer::new(total_fragments, timestamp.clone());
+                buf.insert_fragment(fragment, timestamp.clone());
+                if buf.is_complete {
+                    Some((buf.into_message(), metadata))
+                } else {
+                    entry.insert(buf);
+                    None
+                }
+            }
         };
+
+        // This might be a bit slow, keep an eye on it
         self.cleanup_stale_buffers(timestamp.clone());
         maybe_message
     }
 
     /// Drop incomplete messages whose `last_fragment_timestamp` is older
     /// than `incomplete_message_timeout` ago.
-    pub fn cleanup_stale_buffers(&mut self, timestamp: Ts) {
+    pub fn cleanup_stale_buffers(&self, timestamp: Ts) {
         trace!("Cleaning up stale buffers");
         self.in_flight_messages.retain(|_, buf| {
             let keep = buf.last_fragment_timestamp.clone()
@@ -221,6 +215,12 @@ where
             }
             keep
         });
+    }
+}
+
+impl Default for MessageReconstructor<Instant, Duration> {
+    fn default() -> Self {
+        MessageReconstructor::new(DEFAULT_FRAGMENT_TIMEOUT_DURATION)
     }
 }
 
@@ -335,7 +335,7 @@ mod tests {
         let mut fragments = split(message, SPHINX, 64);
         assert_eq!(fragments.len(), 1);
 
-        let mut rec = MessageReconstructor::<u64, u64>::new(60);
+        let rec = MessageReconstructor::<u64, u64>::new(60);
         let out = rec.insert_new_fragment(fragments.pop().unwrap(), 0);
         let (bytes, metadata) = out.expect("single fragment must complete the message");
         assert_eq!(bytes, message);
@@ -348,7 +348,7 @@ mod tests {
         let fragments = split(&message, SPHINX, 16);
         assert!(fragments.len() > 1);
 
-        let mut rec = MessageReconstructor::<u64, u64>::new(60);
+        let rec = MessageReconstructor::<u64, u64>::new(60);
         let total = fragments.len();
         let mut completed = None;
         for (i, f) in fragments.into_iter().enumerate() {
@@ -371,7 +371,7 @@ mod tests {
         // Reverse arrival order.
         fragments.reverse();
 
-        let mut rec = MessageReconstructor::<u64, u64>::new(60);
+        let rec = MessageReconstructor::<u64, u64>::new(60);
         let mut last = None;
         for (i, f) in fragments.into_iter().enumerate() {
             last = rec.insert_new_fragment(f, i as u64);
@@ -384,7 +384,7 @@ mod tests {
     fn reconstructor_propagates_frame_kind() {
         let message = b"outfox bytes";
         let mut fragments = split(message, OUTFOX, 64);
-        let mut rec = MessageReconstructor::<u64, u64>::new(60);
+        let rec = MessageReconstructor::<u64, u64>::new(60);
         let (_, metadata) = rec
             .insert_new_fragment(fragments.pop().unwrap(), 0)
             .expect("complete");
@@ -403,7 +403,7 @@ mod tests {
             make_fragment(2, 2, 1, SPHINX, vec![0xb2]),
         ];
 
-        let mut rec = MessageReconstructor::<u64, u64>::new(60);
+        let rec = MessageReconstructor::<u64, u64>::new(60);
         // Interleave.
         assert!(rec.insert_new_fragment(a.remove(0), 0).is_none());
         assert!(rec.insert_new_fragment(b.remove(0), 1).is_none());
@@ -422,7 +422,7 @@ mod tests {
         let o1 = make_fragment(42, 2, 0, OUTFOX, vec![0x20]);
         let o2 = make_fragment(42, 2, 1, OUTFOX, vec![0x21]);
 
-        let mut rec = MessageReconstructor::<u64, u64>::new(60);
+        let rec = MessageReconstructor::<u64, u64>::new(60);
         assert!(rec.insert_new_fragment(s1, 0).is_none());
         assert!(rec.insert_new_fragment(o1, 1).is_none());
         let (s_msg, s_metadata) = rec.insert_new_fragment(s2, 2).unwrap();
@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn reconstructor_clears_buffer_after_emitting_message() {
         let f = make_fragment(99, 1, 0, SPHINX, vec![0xff]);
-        let mut rec = MessageReconstructor::<u64, u64>::new(60);
+        let rec = MessageReconstructor::<u64, u64>::new(60);
         let _ = rec.insert_new_fragment(f, 0).unwrap();
         assert!(
             rec.in_flight_messages.is_empty(),
@@ -450,7 +450,7 @@ mod tests {
     #[test]
     fn cleanup_evicts_buffers_older_than_timeout() {
         let f = make_fragment(1, 2, 0, SPHINX, vec![0]);
-        let mut rec = MessageReconstructor::<u64, u64>::new(10);
+        let rec = MessageReconstructor::<u64, u64>::new(10);
         // First (and only) fragment received at t=0; the message stays
         // incomplete.
         assert!(rec.insert_new_fragment(f, 0).is_none());
@@ -473,7 +473,7 @@ mod tests {
         let stale = make_fragment(1, 2, 0, SPHINX, vec![0]);
         let fresh = make_fragment(2, 1, 0, SPHINX, vec![0xff]);
 
-        let mut rec = MessageReconstructor::<u64, u64>::new(10);
+        let rec = MessageReconstructor::<u64, u64>::new(10);
         assert!(rec.insert_new_fragment(stale, 0).is_none());
         assert_eq!(rec.in_flight_messages.len(), 1);
 
@@ -489,7 +489,7 @@ mod tests {
         // A buffer that keeps receiving fragments must not be evicted
         // even if the absolute time exceeds the timeout, as long as the
         // gap between fragments stays under it.
-        let mut rec = MessageReconstructor::<u64, u64>::new(10);
+        let rec = MessageReconstructor::<u64, u64>::new(10);
 
         assert!(
             rec.insert_new_fragment(make_fragment(1, 3, 0, SPHINX, vec![0xa]), 0)

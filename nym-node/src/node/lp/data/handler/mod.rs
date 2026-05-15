@@ -15,14 +15,14 @@
 //! ```
 //!
 
-use crate::node::lp::data::handler::pipeline::{MixnodeDataPipeline, MixnodeDataPipelineConfig};
+use crate::node::lp::data::handler::pipeline::MixnodeDataPipeline;
 use crate::node::lp::data::shared::SharedLpDataState;
 use nym_lp_data::AddressedTimedData;
 use nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline;
 use nym_lp_data::packet::EncryptedLpPacket;
 use nym_metrics::inc;
 use rand::rngs::OsRng;
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 use std::time::Instant;
 use std::{net::SocketAddr, time::Duration};
 use tokio::sync::mpsc::error::TrySendError;
@@ -35,10 +35,12 @@ mod pipeline;
 mod processing;
 
 const PIPELINE_TICKING_DURATION: Duration = Duration::from_millis(1);
-const FRAGMENT_TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
 /// LP Data Handler for UDP data plane, act as a pipeline driver and buffer for delaying packet
 pub struct LpDataHandler {
+    /// Shared state
+    _shared_state: Arc<SharedLpDataState>,
+
     /// Channel to receive incoming data
     input_rx: mpsc::Receiver<EncryptedLpPacket>,
 
@@ -60,16 +62,12 @@ impl LpDataHandler {
         output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {
+        let shared_state = Arc::new(state);
         Self {
+            _shared_state: shared_state.clone(),
             input_rx,
             output_tx,
-            pipeline: MixnodeDataPipeline::new(
-                state,
-                MixnodeDataPipelineConfig {
-                    fragment_timeout: FRAGMENT_TIMEOUT_DURATION,
-                },
-                OsRng,
-            ),
+            pipeline: MixnodeDataPipeline::new(shared_state, OsRng),
             outgoing_pkt_buffer: Vec::new(),
             shutdown,
         }

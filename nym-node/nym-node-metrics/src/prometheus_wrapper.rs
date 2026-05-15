@@ -118,6 +118,105 @@ pub enum PrometheusMetric {
     #[strum(props(help = "The current rate of dropping egress forward hop sphinx packets"))]
     MixnetEgressForwardPacketsDroppedRate,
 
+    // # LP DATA PLANE
+    #[strum(props(help = "Total number of LP UDP datagrams received (sum across sources)"))]
+    MixnetLpPacketsReceived,
+
+    #[strum(props(help = "Total number of LP UDP datagrams forwarded (sum across destinations)"))]
+    MixnetLpPacketsForwarded,
+
+    #[strum(props(
+        help = "Total number of LP packets dropped by the routing filter (sum across destinations)"
+    ))]
+    MixnetLpRoutingFilterDropped,
+
+    #[strum(to_string = "mixnet_lp_messages_received_{kind}")]
+    #[strum(props(help = "The number of LP messages reassembled, by mix-message kind"))]
+    MixnetLpMessagesReceived { kind: PacketKind },
+
+    #[strum(to_string = "mixnet_lp_messages_processed_{kind}")]
+    #[strum(props(help = "The number of LP messages successfully processed, by mix-message kind"))]
+    MixnetLpMessagesProcessed { kind: PacketKind },
+
+    #[strum(props(help = "The number of malformed LP packets"))]
+    MixnetLpMalformedPackets,
+
+    #[strum(props(
+        help = "The number of LP forward-hop packets whose declared delay exceeded the maximum (clamped)"
+    ))]
+    MixnetLpExcessiveDelayPackets,
+
+    #[strum(props(help = "The number of replayed sphinx packets caught by the bloomfilter"))]
+    MixnetLpReplayedPackets,
+
+    #[strum(props(help = "The number of LP final-hop packets dropped"))]
+    MixnetLpFinalHopPacketsDropped,
+
+    #[strum(props(help = "The number of unclassified LP processing errors"))]
+    MixnetLpProcessingMiscErrors,
+
+    #[strum(props(
+        help = "The number of LP packets dropped because the listener->handler queue was full"
+    ))]
+    MixnetLpPipelineOverloadedDropped,
+
+    #[strum(props(
+        help = "The number of LP packets dropped because all worker queues were saturated"
+    ))]
+    MixnetLpWorkerPoolOverloadedDropped,
+
+    #[strum(props(
+        help = "The number of LP packets dropped because the handler->listener egress channel was full"
+    ))]
+    MixnetLpEgressOverloadedDropped,
+
+    #[strum(props(help = "The current rate of receiving LP UDP datagrams"))]
+    MixnetLpPacketsReceivedRate,
+
+    #[strum(props(help = "The current rate of forwarding LP UDP datagrams"))]
+    MixnetLpPacketsForwardedRate,
+
+    #[strum(props(help = "The current rate of LP packets dropped by the routing filter"))]
+    MixnetLpRoutingFilterDroppedRate,
+
+    #[strum(props(help = "The current rate of LP messages reassembled"))]
+    MixnetLpMessagesReceivedRate,
+
+    #[strum(props(help = "The current rate of LP messages successfully processed"))]
+    MixnetLpMessagesProcessedRate,
+
+    #[strum(props(help = "The current rate of malformed LP packets"))]
+    MixnetLpMalformedPacketsRate,
+
+    #[strum(props(
+        help = "The current rate of LP forward-hop packets exceeding the maximum delay"
+    ))]
+    MixnetLpExcessiveDelayPacketsRate,
+
+    #[strum(props(help = "The current rate of replayed sphinx packets"))]
+    MixnetLpReplayedPacketsRate,
+
+    #[strum(props(help = "The current rate of LP final-hop packets dropped"))]
+    MixnetLpFinalHopPacketsDroppedRate,
+
+    #[strum(props(help = "The current rate of unclassified LP processing errors"))]
+    MixnetLpProcessingMiscErrorsRate,
+
+    #[strum(props(
+        help = "The current rate of LP packets dropped because the pipeline queue was full"
+    ))]
+    MixnetLpPipelineOverloadedDroppedRate,
+
+    #[strum(props(
+        help = "The current rate of LP packets dropped because all worker queues were saturated"
+    ))]
+    MixnetLpWorkerPoolOverloadedDroppedRate,
+
+    #[strum(props(
+        help = "The current rate of LP packets dropped because the egress channel was full"
+    ))]
+    MixnetLpEgressOverloadedDroppedRate,
+
     // # ENTRY
     #[strum(props(help = "The number of unique users"))]
     EntryClientUniqueUsers,
@@ -230,6 +329,8 @@ impl PrometheusMetric {
             self,
             PrometheusMetric::EntryClientSessionsDurations { .. }
                 | PrometheusMetric::MixnetIngressPacketVersion { .. }
+                | PrometheusMetric::MixnetLpMessagesReceived { .. }
+                | PrometheusMetric::MixnetLpMessagesProcessed { .. }
         )
         // match self {
         //     PrometheusMetric::EntryClientSessionsDurations { .. } => true,
@@ -297,6 +398,68 @@ impl PrometheusMetric {
             }
             PrometheusMetric::MixnetEgressAckSendRate => Metric::new_float_gauge(&name, help),
             PrometheusMetric::MixnetEgressForwardPacketsDroppedRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpPacketsReceived => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetLpPacketsForwarded => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetLpRoutingFilterDropped => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetLpMessagesReceived { .. } => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpMessagesProcessed { .. } => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpMalformedPackets => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetLpExcessiveDelayPackets => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetLpReplayedPackets => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetLpFinalHopPacketsDropped => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetLpProcessingMiscErrors => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetLpPipelineOverloadedDropped => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpWorkerPoolOverloadedDropped => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpEgressOverloadedDropped => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpPacketsReceivedRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpPacketsForwardedRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpRoutingFilterDroppedRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpMessagesReceivedRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpMessagesProcessedRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpMalformedPacketsRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpExcessiveDelayPacketsRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpReplayedPacketsRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpFinalHopPacketsDroppedRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpProcessingMiscErrorsRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpPipelineOverloadedDroppedRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpWorkerPoolOverloadedDroppedRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpEgressOverloadedDroppedRate => {
                 Metric::new_float_gauge(&name, help)
             }
             PrometheusMetric::EntryClientUniqueUsers => Metric::new_int_gauge(&name, help),
@@ -446,7 +609,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(45, PrometheusMetric::COUNT)
+        assert_eq!(71, PrometheusMetric::COUNT)
     }
 
     #[test]

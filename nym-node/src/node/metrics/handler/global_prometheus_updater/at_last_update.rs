@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_node_metrics::NymNodeMetrics;
-use nym_node_metrics::mixnet::{EgressMixingStats, IngressMixingStats, MixingStats};
+use nym_node_metrics::mixnet::{EgressMixingStats, IngressMixingStats, LpMixingStats, MixingStats};
 use nym_node_metrics::wireguard::WireguardStats;
 use time::OffsetDateTime;
 
@@ -54,6 +54,7 @@ impl From<&NymNodeMetrics> for AtLastUpdate {
 struct LastMixnet {
     ingres: LastMixnetIngress,
     egress: LastMixnetEgress,
+    lp: LastLpMixnet,
 }
 
 impl LastMixnet {
@@ -61,6 +62,7 @@ impl LastMixnet {
         MixnetRateSinceUpdate {
             ingress: self.ingres.rates(&previous.ingres, time_delta_secs),
             egress: self.egress.rates(&previous.egress, time_delta_secs),
+            lp: self.lp.rates(&previous.lp, time_delta_secs),
         }
     }
 }
@@ -70,6 +72,7 @@ impl From<&MixingStats> for LastMixnet {
         LastMixnet {
             ingres: (&value.ingress).into(),
             egress: (&value.egress).into(),
+            lp: (&value.lp).into(),
         }
     }
 }
@@ -162,6 +165,88 @@ impl From<&EgressMixingStats> for LastMixnetEgress {
 }
 
 #[derive(Debug, Default)]
+struct LastLpMixnet {
+    packets_received: usize,
+    packets_forwarded: usize,
+    routing_filter_dropped: usize,
+    messages_received: usize,
+    messages_processed: usize,
+    malformed_packets: usize,
+    excessive_delay_packets: usize,
+    replayed_packets: usize,
+    final_hop_packets_dropped: usize,
+    processing_misc_errors: usize,
+    pipeline_overloaded_dropped: usize,
+    worker_pool_overloaded_dropped: usize,
+    egress_overloaded_dropped: usize,
+}
+
+impl LastLpMixnet {
+    fn rates(&self, previous: &Self, time_delta_secs: f64) -> LpMixnetRateSinceUpdate {
+        let per_sec = |current: usize, previous: usize| -> f64 {
+            (current - previous) as f64 / time_delta_secs
+        };
+
+        LpMixnetRateSinceUpdate {
+            packets_received_sec: per_sec(self.packets_received, previous.packets_received),
+            packets_forwarded_sec: per_sec(self.packets_forwarded, previous.packets_forwarded),
+            routing_filter_dropped_sec: per_sec(
+                self.routing_filter_dropped,
+                previous.routing_filter_dropped,
+            ),
+            messages_received_sec: per_sec(self.messages_received, previous.messages_received),
+            messages_processed_sec: per_sec(self.messages_processed, previous.messages_processed),
+            malformed_packets_sec: per_sec(self.malformed_packets, previous.malformed_packets),
+            excessive_delay_packets_sec: per_sec(
+                self.excessive_delay_packets,
+                previous.excessive_delay_packets,
+            ),
+            replayed_packets_sec: per_sec(self.replayed_packets, previous.replayed_packets),
+            final_hop_packets_dropped_sec: per_sec(
+                self.final_hop_packets_dropped,
+                previous.final_hop_packets_dropped,
+            ),
+            processing_misc_errors_sec: per_sec(
+                self.processing_misc_errors,
+                previous.processing_misc_errors,
+            ),
+            pipeline_overloaded_dropped_sec: per_sec(
+                self.pipeline_overloaded_dropped,
+                previous.pipeline_overloaded_dropped,
+            ),
+            worker_pool_overloaded_dropped_sec: per_sec(
+                self.worker_pool_overloaded_dropped,
+                previous.worker_pool_overloaded_dropped,
+            ),
+            egress_overloaded_dropped_sec: per_sec(
+                self.egress_overloaded_dropped,
+                previous.egress_overloaded_dropped,
+            ),
+        }
+    }
+}
+
+impl From<&LpMixingStats> for LastLpMixnet {
+    fn from(value: &LpMixingStats) -> Self {
+        LastLpMixnet {
+            packets_received: value.packets_received(),
+            packets_forwarded: value.packets_forwarded(),
+            routing_filter_dropped: value.routing_filter_dropped(),
+            messages_received: value.messages_received(),
+            messages_processed: value.messages_processed(),
+            malformed_packets: value.malformed_packets(),
+            excessive_delay_packets: value.excessive_delay_packets(),
+            replayed_packets: value.replayed_packets(),
+            final_hop_packets_dropped: value.final_hop_packets_dropped(),
+            processing_misc_errors: value.processing_misc_errors(),
+            pipeline_overloaded_dropped: value.pipeline_overloaded_dropped_packets(),
+            worker_pool_overloaded_dropped: value.worker_pool_overloaded_dropped_packets(),
+            egress_overloaded_dropped: value.egress_overloaded_dropped_packets(),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
 struct LastWireguard {
     bytes_tx: usize,
     bytes_rx: usize,
@@ -196,6 +281,7 @@ pub(crate) struct RateSinceUpdate {
 pub(crate) struct MixnetRateSinceUpdate {
     pub(crate) ingress: MixnetIngressRateSinceUpdate,
     pub(crate) egress: MixnetEgressRateSinceUpdate,
+    pub(crate) lp: LpMixnetRateSinceUpdate,
 }
 
 pub(crate) struct MixnetIngressRateSinceUpdate {
@@ -211,6 +297,22 @@ pub(crate) struct MixnetEgressRateSinceUpdate {
     pub(crate) forward_hop_packets_sent_sec: f64,
     pub(crate) ack_packets_sent_sec: f64,
     pub(crate) forward_hop_packets_dropped_sec: f64,
+}
+
+pub(crate) struct LpMixnetRateSinceUpdate {
+    pub(crate) packets_received_sec: f64,
+    pub(crate) packets_forwarded_sec: f64,
+    pub(crate) routing_filter_dropped_sec: f64,
+    pub(crate) messages_received_sec: f64,
+    pub(crate) messages_processed_sec: f64,
+    pub(crate) malformed_packets_sec: f64,
+    pub(crate) excessive_delay_packets_sec: f64,
+    pub(crate) replayed_packets_sec: f64,
+    pub(crate) final_hop_packets_dropped_sec: f64,
+    pub(crate) processing_misc_errors_sec: f64,
+    pub(crate) pipeline_overloaded_dropped_sec: f64,
+    pub(crate) worker_pool_overloaded_dropped_sec: f64,
+    pub(crate) egress_overloaded_dropped_sec: f64,
 }
 
 pub(crate) struct WireguardRateSinceUpdate {

@@ -68,7 +68,8 @@ where
             } => processing::outfox::process(&self.state, payload, key_rotation),
         };
 
-        self.state.update_metrics(&processing_result, message_kind);
+        self.state
+            .update_processing_metrics(&processing_result, message_kind);
 
         let packet_to_forward = match processing_result {
             Ok(packet) => packet,
@@ -85,10 +86,7 @@ where
                 next_hop = %next_hop,
                 "dropping packet: egress address does not belong to any known node"
             );
-            self.state
-                .metrics
-                .mixnet
-                .egress_dropped_forward_packet(next_hop);
+            self.state.routing_filter_dropped(next_hop);
             Vec::new()
         } else {
             vec![packet_to_forward.with_options(message_kind)]
@@ -201,10 +199,12 @@ where
             let message_kind = metadata
                 .try_into()
                 .inspect_err(|e| {
-                    tracing::warn!("{e}");
-                    self.state.malformed_packet();
+                    tracing::warn!(
+                        "Somehow got a non fragmented message kind from reconstruction buffer : {e}"
+                    );
                 })
                 .ok()?;
+            self.state.message_received(message_kind);
             Some((TimedPayload::new(frame.timestamp, payload), message_kind))
         } else {
             warn!("unimplemented yet");
@@ -234,6 +234,7 @@ mod tests {
         EncryptedLpPacket, LpFrame, LpHeader, LpPacket, OuterHeader, version,
     };
     use nym_node_metrics::NymNodeMetrics;
+    use nym_node_metrics::mixnet::PacketKind;
     use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_params::SphinxKeyRotation;
     use nym_sphinx_types::{
@@ -509,10 +510,14 @@ mod tests {
             "output fragment delay must match arrival + delay"
         );
         assert_eq!(
-            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            state
+                .metrics
+                .mixnet
+                .lp
+                .messages_processed_for(PacketKind::LpSphinx),
             1
         );
-        assert_eq!(state.metrics.mixnet.ingress.malformed_packets_received(), 0);
+        assert_eq!(state.metrics.mixnet.lp.malformed_packets(), 0);
     }
 
     #[test]
@@ -559,10 +564,14 @@ mod tests {
             "outfox output fragment should not have any delay"
         );
         assert_eq!(
-            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            state
+                .metrics
+                .mixnet
+                .lp
+                .messages_processed_for(PacketKind::LpOutfox),
             1
         );
-        assert_eq!(state.metrics.mixnet.ingress.malformed_packets_received(), 0);
+        assert_eq!(state.metrics.mixnet.lp.malformed_packets(), 0);
     }
 
     #[test]
@@ -595,11 +604,8 @@ mod tests {
             outputs.is_empty(),
             "final-hop packets must not be forwarded"
         );
-        assert_eq!(state.metrics.mixnet.ingress.final_hop_packets_dropped(), 1);
-        assert_eq!(
-            state.metrics.mixnet.ingress.forward_hop_packets_received(),
-            0
-        );
+        assert_eq!(state.metrics.mixnet.lp.final_hop_packets_dropped(), 1);
+        assert_eq!(state.metrics.mixnet.lp.messages_processed(), 0);
     }
 
     #[test]
@@ -640,16 +646,24 @@ mod tests {
             "first send should be forwarded in one fragment"
         );
         assert_eq!(
-            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            state
+                .metrics
+                .mixnet
+                .lp
+                .messages_processed_for(PacketKind::LpSphinx),
             1
         );
 
         let second = pipeline.process(replayed_packet, arrival).unwrap();
         assert!(second.is_empty(), "replay must not be forwarded");
-        assert_eq!(state.metrics.mixnet.ingress.replayed_packets_received(), 1);
-        // Forward counter must not advance on the replayed packet.
+        assert_eq!(state.metrics.mixnet.lp.replayed_packets(), 1);
+        // Processing counter must not advance on the replayed packet.
         assert_eq!(
-            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            state
+                .metrics
+                .mixnet
+                .lp
+                .messages_processed_for(PacketKind::LpSphinx),
             1
         );
     }
@@ -663,11 +677,8 @@ mod tests {
         let bad = EncryptedLpPacket::new(OuterHeader::new(0, 0), Vec::new());
         let result = pipeline.process(bad, Instant::now());
         assert!(result.is_err(), "malformed LP packet must surface an error");
-        assert_eq!(state.metrics.mixnet.ingress.malformed_packets_received(), 1);
-        assert_eq!(
-            state.metrics.mixnet.ingress.forward_hop_packets_received(),
-            0
-        );
+        assert_eq!(state.metrics.mixnet.lp.malformed_packets(), 1);
+        assert_eq!(state.metrics.mixnet.lp.messages_processed(), 0);
     }
 
     #[test]
@@ -688,7 +699,10 @@ mod tests {
             outputs.is_empty(),
             "garbage sphinx payload must yield no output"
         );
-        assert_eq!(state.metrics.mixnet.ingress.malformed_packets_received(), 1);
+        // Sphinx-level decode failures surface as a misc processing error,
+        // distinct from LP-decode malformed packets.
+        assert_eq!(state.metrics.mixnet.lp.processing_misc_errors(), 1);
+        assert_eq!(state.metrics.mixnet.lp.malformed_packets(), 0);
     }
 
     #[test]
@@ -764,7 +778,11 @@ mod tests {
         }
 
         assert_eq!(
-            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            state
+                .metrics
+                .mixnet
+                .lp
+                .messages_processed_for(PacketKind::LpSphinx),
             1
         );
     }
@@ -818,11 +836,15 @@ mod tests {
         );
 
         assert_eq!(
-            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            state
+                .metrics
+                .mixnet
+                .lp
+                .messages_processed_for(PacketKind::LpSphinx),
             1
         );
 
-        assert_eq!(state.metrics.mixnet.ingress.excessive_delay_packets(), 1);
+        assert_eq!(state.metrics.mixnet.lp.excessive_delay_packets(), 1);
     }
 
     #[test]
@@ -863,9 +885,23 @@ mod tests {
         assert!(outputs.is_empty(), "expected no output");
 
         assert_eq!(
-            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            state
+                .metrics
+                .mixnet
+                .lp
+                .messages_processed_for(PacketKind::LpSphinx),
             1
         );
-        assert_eq!(state.metrics.mixnet.egress.forward_hop_packets_dropped(), 1);
+        assert_eq!(state.metrics.mixnet.lp.routing_filter_dropped(), 1);
+        assert_eq!(
+            state
+                .metrics
+                .mixnet
+                .lp
+                .routing_filter_dropped_per_dst()
+                .get(&next_hop)
+                .map(|v| *v),
+            Some(1)
+        );
     }
 }

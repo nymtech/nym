@@ -141,7 +141,6 @@ impl LpDataHandler {
                             Err(e) => {
                                 warn!("LP data worker: error processing packet : {e}");
                                 inc!("lp_data_packet_errors");
-                                self.shared_state.malformed_packet();
                             },
                         }
 
@@ -161,7 +160,7 @@ impl LpDataHandler {
                             match e {
                                 TrySendError::Full(_) =>  {
                                     warn!("LP data handler: packet sending buffer is full, the node might be overloaded");
-                                    self.shared_state.overloaded_egress_dropped_packet();
+                                    self.shared_state.egress_overloaded_packet_dropped();
                                 },
                                 TrySendError::Closed(_) => {
                                     info!("LP data handler: outgoing channel is closed");
@@ -207,7 +206,7 @@ impl LpDataHandler {
         }
 
         warn!("LP data handler: all workers saturated, dropping packet");
-        self.shared_state.overloaded_ingress_dropped_packet();
+        self.shared_state.worker_pool_overloaded_packet_dropped();
         start
     }
 

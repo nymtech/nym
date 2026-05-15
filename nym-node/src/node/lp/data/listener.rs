@@ -70,6 +70,8 @@ impl LpDataListener {
                             if let Err(e) = socket.send_to(&payload.to_bytes(), dst_addr).await {
                                 warn!("LP data packet error to {dst_addr}: {e}");
                                 inc!("lp_data_packet_egress_errors");
+                            } else {
+                                self.shared_state.packet_forwarded(dst_addr);
                             }
                         }
                         None => {
@@ -83,13 +85,13 @@ impl LpDataListener {
                     match result {
                         Ok((len, src_addr)) => {
                             info!("received {len} bytes from {src_addr} on the LP Data endpoint");
-
+                            self.shared_state.packet_received(src_addr);
                             if let Ok(encrypted_packet) = EncryptedLpPacket::decode(&buf[..len]) {
                                 if let Err(e) = self.input_tx.try_send(encrypted_packet) {
                                     match e {
                                        TrySendError::Full(_) =>  {
                                             warn!("LP data listener: packet sending buffer is full, the node might be overloaded");
-                                            self.shared_state.overloaded_ingress_dropped_packet();
+                                            self.shared_state.pipeline_overloaded_packet_dropped();
                                         },
                                         TrySendError::Disconnected(_) => {
                                             warn!("LP data listener: incoming packet channel is closed");

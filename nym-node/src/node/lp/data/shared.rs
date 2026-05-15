@@ -16,7 +16,7 @@ use nym_node_metrics::mixnet::PacketKind;
 use nym_sphinx_framing::processing::PacketProcessingError;
 use nym_sphinx_params::SphinxKeyRotation;
 use nym_task::ShutdownToken;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::time::Duration;
 use std::time::Instant;
 use tracing::Span;
@@ -58,10 +58,8 @@ pub(crate) struct SharedLpDataState {
 
 fn message_kind_to_packet_kind(message_kind: MixMessage) -> PacketKind {
     match message_kind {
-        // sphinx version isn't currently surfaced from LP processing - use 0 as a placeholder
-        // matching the on-wire fixed sphinx version used by clients.
-        MixMessage::Sphinx { .. } => PacketKind::Sphinx(0),
-        MixMessage::Outfox { .. } => PacketKind::Outfox,
+        MixMessage::Sphinx { .. } => PacketKind::LpSphinx,
+        MixMessage::Outfox { .. } => PacketKind::LpOutfox,
     }
 }
 
@@ -122,49 +120,65 @@ impl SharedLpDataState {
     }
 
     pub(super) fn malformed_packet(&self) {
+        self.metrics.mixnet.lp_malformed_packet()
+    }
+
+    pub(super) fn message_received(&self, message_kind: MixMessage) {
         self.metrics
             .mixnet
-            .ingress_malformed_packet(Ipv4Addr::UNSPECIFIED.into())
+            .lp_message_received(message_kind_to_packet_kind(message_kind))
     }
 
-    pub(super) fn overloaded_egress_dropped_packet(&self) {
-        todo!()
+    pub(super) fn packet_forwarded(&self, dst: SocketAddr) {
+        self.metrics.mixnet.lp_packet_forwarded(dst)
     }
 
-    pub(super) fn overloaded_ingress_dropped_packet(&self) {
-        todo!()
+    pub(super) fn packet_received(&self, src: SocketAddr) {
+        self.metrics.mixnet.lp_packet_received(src)
+    }
+
+    pub(super) fn egress_overloaded_packet_dropped(&self) {
+        self.metrics
+            .mixnet
+            .lp_egress_overloaded_packets_dropped_packets()
+    }
+    pub(super) fn pipeline_overloaded_packet_dropped(&self) {
+        self.metrics.mixnet.lp_pipeline_overloaded_dropped_packets()
+    }
+
+    pub(super) fn worker_pool_overloaded_packet_dropped(&self) {
+        self.metrics
+            .mixnet
+            .lp_worker_pool_overloaded_dropped_packets()
     }
 
     pub(super) fn excessive_delay_packet(&self) {
-        self.metrics.mixnet.ingress_excessive_delay_packet()
+        self.metrics.mixnet.lp_excessive_delay_packet()
     }
 
-    pub(super) fn update_metrics(
+    pub(super) fn routing_filter_dropped(&self, dst: SocketAddr) {
+        self.metrics.mixnet.lp_routing_filter_dropped(dst)
+    }
+
+    pub(super) fn update_processing_metrics(
         &self,
         processing_result: &Result<AddressedTimedPayload<Instant, SocketAddr>, LpDataHandlerError>,
         message_kind: MixMessage,
     ) {
-        // Pipeline doesn't capture the source, how should we do those stats?
         match processing_result {
             Ok(_) => {
-                // LP nodes never deliver to a final hop - all successful processing forwards
-                self.metrics.mixnet.ingress_received_forward_packet(
-                    Ipv4Addr::UNSPECIFIED.into(),
-                    message_kind_to_packet_kind(message_kind),
-                );
+                self.metrics
+                    .mixnet
+                    .lp_processed_message(message_kind_to_packet_kind(message_kind));
             }
             Err(LpDataHandlerError::PacketProcessingError(PacketProcessingError::PacketReplay)) => {
-                self.metrics
-                    .mixnet
-                    .ingress_replayed_packet(Ipv4Addr::UNSPECIFIED.into());
+                self.metrics.mixnet.lp_processing_replayed_packet();
             }
             Err(LpDataHandlerError::FinalHop) => {
-                self.metrics
-                    .mixnet
-                    .ingress_dropped_final_hop_packet(Ipv4Addr::UNSPECIFIED.into());
+                self.metrics.mixnet.lp_processing_dropped_final_hop_packet();
             }
             Err(_) => {
-                self.malformed_packet();
+                self.metrics.mixnet.lp_processing_misc_error();
             }
         }
     }

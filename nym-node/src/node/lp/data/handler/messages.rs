@@ -5,6 +5,7 @@ use nym_lp_data::packet::frame::LpFrameKind;
 
 use crate::node::lp::error::LpHandlerError;
 
+#[derive(Debug, Clone, Copy)]
 pub enum MixMessage {
     Sphinx,
     Outfox,

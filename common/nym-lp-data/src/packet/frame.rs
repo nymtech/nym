@@ -128,7 +128,7 @@ impl LpFrame {
 }
 
 /// Represent kind of application data being sent in Transport mode
-#[derive(Clone, Copy, PartialEq, Eq, Debug, IntoPrimitive, FromPrimitive)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, IntoPrimitive, FromPrimitive, Hash)]
 #[repr(u16)]
 pub enum LpFrameKind {
     Opaque = 0,

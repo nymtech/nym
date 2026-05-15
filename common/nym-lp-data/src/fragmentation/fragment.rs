@@ -9,6 +9,16 @@ use crate::{
     },
 };
 
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+/// Key for reconstruction hashmap
+pub struct FragmentHashKey(u64, LpFrameKind);
+
+impl From<(u64, LpFrameKind)> for FragmentHashKey {
+    fn from(value: (u64, LpFrameKind)) -> Self {
+        FragmentHashKey(value.0, value.1)
+    }
+}
+
 #[derive(PartialEq, Clone, Debug)]
 pub struct FragmentHeader {
     /// ID associated to this particular `Fragment`.
@@ -116,6 +126,10 @@ impl Fragment {
 
     pub fn frame_kind(&self) -> LpFrameKind {
         self.frame_kind
+    }
+
+    pub fn hash_key(&self) -> FragmentHashKey {
+        (self.header.id, self.frame_kind).into()
     }
 
     /// Consumes `self` to obtain payload (i.e. part of original message) associated with this

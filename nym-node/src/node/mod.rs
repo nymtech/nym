@@ -508,13 +508,22 @@ impl NymNode {
         .await
     }
 
-    pub async fn build_lp_data_tasks(&self) -> Result<LpDataSetup, NymNodeError> {
-        LpDataSetup::new(
-            self.config.lp,
+    pub(crate) fn build_lp_data_tasks(
+        &self,
+        replay_protection_bloomfilter: ReplayProtectionBloomfilters,
+    ) -> Result<LpDataSetup, NymNodeError> {
+        let shared_state = lp::data::shared::SharedLpDataState::new(
+            self.config(),
+            self.active_sphinx_keys()?,
+            replay_protection_bloomfilter,
             self.metrics.clone(),
+            self.shutdown_token(),
+        );
+
+        LpDataSetup::new(
+            shared_state,
             self.shutdown_manager.shutdown_tracker().clone(),
         )
-        .await
     }
 
     pub(crate) async fn new(config: Config) -> Result<Self, NymNodeError> {
@@ -1393,7 +1402,7 @@ impl NymNode {
             .await?;
 
         // LP Data channel
-        let lp_data_tasks = self.build_lp_data_tasks().await?;
+        let lp_data_tasks = self.build_lp_data_tasks(bloomfilters_manager.bloomfilters())?;
         lp_data_tasks.start_tasks();
 
         let metrics_sender = self.setup_metrics_backend(

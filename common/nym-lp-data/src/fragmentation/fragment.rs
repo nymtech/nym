@@ -19,6 +19,24 @@ impl From<(u64, LpFrameKind)> for FragmentHashKey {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct FragmentMetadata(LpFrameKind, [u8; 4]);
+
+impl FragmentMetadata {
+    pub fn kind(&self) -> LpFrameKind {
+        self.0
+    }
+
+    pub fn metadata(&self) -> [u8; 4] {
+        self.1
+    }
+}
+impl From<(LpFrameKind, [u8; 4])> for FragmentMetadata {
+    fn from(value: (LpFrameKind, [u8; 4])) -> Self {
+        FragmentMetadata(value.0, value.1)
+    }
+}
+
 #[derive(PartialEq, Clone, Debug)]
 pub struct FragmentHeader {
     /// ID associated to this particular `Fragment`.
@@ -31,17 +49,18 @@ pub struct FragmentHeader {
     /// Index of this fragment, in (0..total_fragments)
     current_fragment: u8,
 
-    reserved: [u8; 4],
+    /// Additional metadata, parsing depends on the frame_kind of the fragment.
+    kind_metadata: [u8; 4],
 }
 
 impl FragmentHeader {
     // It's up to the caller to make sure values are valid
-    fn new(id: u64, total_fragments: u8, current_fragment: u8) -> Self {
+    fn new(id: u64, total_fragments: u8, current_fragment: u8, kind_metadata: [u8; 4]) -> Self {
         FragmentHeader {
             id,
             total_fragments,
             current_fragment,
-            reserved: [0; 4],
+            kind_metadata,
         }
     }
 }
@@ -52,7 +71,7 @@ impl From<FragmentHeader> for LpFrameAttributes {
         buf[0..8].copy_from_slice(&value.id.to_be_bytes());
         buf[8] = value.total_fragments;
         buf[9] = value.current_fragment;
-        buf[10..14].copy_from_slice(&value.reserved);
+        buf[10..14].copy_from_slice(&value.kind_metadata);
         buf
     }
 }
@@ -73,16 +92,16 @@ impl TryFrom<LpFrameAttributes> for FragmentHeader {
             total_fragments,
             current_fragment,
             #[allow(clippy::unwrap_used)]
-            reserved: value[10..14].try_into().unwrap(),
+            kind_metadata: value[10..14].try_into().unwrap(),
         })
     }
 }
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Fragment {
+    frame_kind: LpFrameKind,
     header: FragmentHeader,
     payload: Vec<u8>,
-    frame_kind: LpFrameKind,
 }
 
 impl Fragment {
@@ -92,9 +111,10 @@ impl Fragment {
         id: u64,
         total_fragments: u8,
         current_fragment: u8,
+        kind_metadata: [u8; 4],
         frame_kind: LpFrameKind,
     ) -> Self {
-        let header = FragmentHeader::new(id, total_fragments, current_fragment);
+        let header = FragmentHeader::new(id, total_fragments, current_fragment, kind_metadata);
         Fragment {
             header,
             payload: payload.to_vec(),
@@ -124,6 +144,10 @@ impl Fragment {
 
     pub fn frame_kind(&self) -> LpFrameKind {
         self.frame_kind
+    }
+
+    pub fn kind_metadata(&self) -> [u8; 4] {
+        self.header.kind_metadata
     }
 
     pub fn hash_key(&self) -> FragmentHashKey {
@@ -157,11 +181,11 @@ impl TryFrom<LpFrame> for Fragment {
 pub fn fragment_payload<R: rand::Rng>(
     rng: &mut R,
     message: &[u8],
-    frame_kind: LpFrameKind,
+    fragment_metadata: FragmentMetadata,
     fragment_payload_size: usize,
 ) -> Vec<Fragment> {
     debug_assert!(message.len() <= u8::MAX as usize * fragment_payload_size);
-    debug_assert!(frame_kind.is_fragmented());
+    debug_assert!(fragment_metadata.kind().is_fragmented());
 
     let id = rng.r#gen();
 
@@ -177,7 +201,8 @@ pub fn fragment_payload<R: rand::Rng>(
             id,
             num_fragments,
             i as u8,
-            frame_kind,
+            fragment_metadata.metadata(),
+            fragment_metadata.kind(),
         ))
     }
 

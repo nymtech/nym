@@ -191,4 +191,13 @@ impl<Ts, D, NdId> AddressedTimedData<Ts, D, NdId> {
             dst,
         }
     }
+
+    /// Convert a [`AddressedTimedData`] into a [`PipelineData`] with the provided options.
+    pub fn with_options<Opts>(self, opts: Opts) -> PipelineData<Ts, D, Opts, NdId> {
+        PipelineData {
+            data: self.data,
+            options: opts,
+            dst: self.dst,
+        }
+    }
 }

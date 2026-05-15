@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::SocketAddr,
     time::{Duration, Instant},
 };
 
@@ -19,53 +19,87 @@ use nym_lp_data::{
         frame::LpFrameHeader,
     },
 };
-use rand::rngs::OsRng;
+use rand::Rng;
 use tracing::warn;
 
-use crate::node::lp::data::handler::messages::MixMessage;
+use crate::node::lp::data::{
+    handler::{messages::MixMessage, processing},
+    shared::SharedLpDataState,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct MixnodeDataPipelineConfig {
     pub fragment_timeout: Duration,
 }
 
-pub struct MixnodeDataPipeline {
+pub struct MixnodeDataPipeline<R>
+where
+    R: Rng,
+{
     config: MixnodeDataPipelineConfig,
+    /// Shared data state
+    state: SharedLpDataState,
     fragment_reconstructor: MessageReconstructor<Instant, Duration>,
-    rng: OsRng,
+    rng: R,
 }
 
-impl MixnodeDataPipeline {
-    pub fn new(config: MixnodeDataPipelineConfig) -> Self {
+impl<R> MixnodeDataPipeline<R>
+where
+    R: Rng,
+{
+    pub fn new(state: SharedLpDataState, config: MixnodeDataPipelineConfig, rng: R) -> Self {
         Self {
+            state,
             config,
-            rng: OsRng,
+            rng,
             fragment_reconstructor: MessageReconstructor::new(config.fragment_timeout),
         }
     }
 }
 
 // Mixing logic
-impl MixnodeProcessingPipeline<Instant, EncryptedLpPacket, MixMessage, MixMessage, SocketAddr>
-    for MixnodeDataPipeline
+impl<R> MixnodeProcessingPipeline<Instant, EncryptedLpPacket, MixMessage, MixMessage, SocketAddr>
+    for MixnodeDataPipeline<R>
+where
+    R: Rng,
 {
     fn mix(
         &mut self,
         message_kind: MixMessage,
         payload: TimedPayload<Instant>,
-        timestamp: Instant,
+        _: Instant,
     ) -> Vec<PipelinePayload<Instant, MixMessage, SocketAddr>> {
-        println!("received a payload : {payload:?}");
-        vec![PipelinePayload::new(
-            timestamp,
-            payload.data,
-            message_kind,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9000),
-        )]
+        let processing_result = match message_kind {
+            MixMessage::Sphinx {
+                key_rotation,
+                reserved: _,
+            } => match processing::sphinx::process(&self.state, payload, key_rotation) {
+                Ok(packet) => packet,
+                Err(e) => {
+                    warn!("Error processing sphinx packet : {e}");
+                    return Vec::new();
+                }
+            },
+            MixMessage::Outfox {
+                key_rotation,
+                reserved: _,
+            } => match processing::outfox::process(&self.state, payload, key_rotation) {
+                Ok(packet) => packet,
+                Err(e) => {
+                    warn!("Error processing outfox packet : {e}");
+                    return Vec::new();
+                }
+            },
+        };
+
+        vec![processing_result.with_options(message_kind)]
     }
 }
 
-impl Framing<Instant, MixMessage, SocketAddr> for MixnodeDataPipeline {
+impl<R> Framing<Instant, MixMessage, SocketAddr> for MixnodeDataPipeline<R>
+where
+    R: Rng,
+{
     type Frame = LpFrame;
 
     const OVERHEAD_SIZE: usize = LpFrameHeader::SIZE;
@@ -92,7 +126,10 @@ impl Framing<Instant, MixMessage, SocketAddr> for MixnodeDataPipeline {
     }
 }
 
-impl Transport<Instant, EncryptedLpPacket, SocketAddr> for MixnodeDataPipeline {
+impl<R> Transport<Instant, EncryptedLpPacket, SocketAddr> for MixnodeDataPipeline<R>
+where
+    R: Rng,
+{
     type Frame = LpFrame;
 
     const OVERHEAD_SIZE: usize = LpHeader::SIZE;
@@ -106,15 +143,20 @@ impl Transport<Instant, EncryptedLpPacket, SocketAddr> for MixnodeDataPipeline {
     }
 }
 
-impl WireWrappingPipeline<Instant, EncryptedLpPacket, MixMessage, SocketAddr>
-    for MixnodeDataPipeline
+impl<R> WireWrappingPipeline<Instant, EncryptedLpPacket, MixMessage, SocketAddr>
+    for MixnodeDataPipeline<R>
+where
+    R: Rng,
 {
     fn packet_size(&self) -> usize {
         nym_lp_data::packet::MTU
     }
 }
 
-impl TransportUnwrap<Instant, EncryptedLpPacket> for MixnodeDataPipeline {
+impl<R> TransportUnwrap<Instant, EncryptedLpPacket> for MixnodeDataPipeline<R>
+where
+    R: Rng,
+{
     type Frame = LpFrame;
     type Error = MalformedLpPacketError;
 
@@ -132,7 +174,10 @@ impl TransportUnwrap<Instant, EncryptedLpPacket> for MixnodeDataPipeline {
     }
 }
 
-impl FramingUnwrap<Instant, MixMessage> for MixnodeDataPipeline {
+impl<R> FramingUnwrap<Instant, MixMessage> for MixnodeDataPipeline<R>
+where
+    R: Rng,
+{
     type Frame = LpFrame;
     fn frame_to_message(
         &mut self,
@@ -144,10 +189,10 @@ impl FramingUnwrap<Instant, MixMessage> for MixnodeDataPipeline {
                 .try_into()
                 .inspect_err(|e| tracing::error!("Failed to recover a fragment : {e}"))
                 .ok()?;
-            let (payload, frame_kind) = self
+            let (payload, metadata) = self
                 .fragment_reconstructor
                 .insert_new_fragment(fragment, frame.timestamp)?;
-            let message_kind = frame_kind
+            let message_kind = metadata
                 .try_into()
                 .inspect_err(|e| tracing::warn!("{e}"))
                 .ok()?;
@@ -159,4 +204,7 @@ impl FramingUnwrap<Instant, MixMessage> for MixnodeDataPipeline {
     }
 }
 
-impl WireUnwrappingPipeline<Instant, EncryptedLpPacket, MixMessage> for MixnodeDataPipeline {}
+impl<R> WireUnwrappingPipeline<Instant, EncryptedLpPacket, MixMessage> for MixnodeDataPipeline<R> where
+    R: Rng
+{
+}

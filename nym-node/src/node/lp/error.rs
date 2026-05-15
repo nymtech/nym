@@ -9,6 +9,8 @@ use nym_topology::NodeId;
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
+use crate::node::lp::data::handler::error::LpDataHandlerError;
+
 #[derive(Debug, Error)]
 pub enum LpHandlerError {
     #[error("failed to establish egress connection to {egress}: {reason}")]
@@ -40,6 +42,9 @@ pub enum LpHandlerError {
 
     #[error("received a malformed packet: {0}")]
     MalformedLpPacket(#[from] MalformedLpPacketError),
+
+    #[error(transparent)]
+    DataHandlerError(#[from] LpDataHandlerError),
 
     #[error("received payload type of an unexpected type: {typ:?}")]
     UnexpectedLpPayload { typ: LpFrameKind },

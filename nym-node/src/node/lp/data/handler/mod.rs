@@ -16,11 +16,12 @@
 //!
 
 use crate::node::lp::data::handler::pipeline::{MixnodeDataPipeline, MixnodeDataPipelineConfig};
-use crate::node::lp::state::SharedLpDataState;
+use crate::node::lp::data::shared::SharedLpDataState;
 use nym_lp_data::AddressedTimedData;
 use nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline;
 use nym_lp_data::packet::EncryptedLpPacket;
 use nym_metrics::inc;
+use rand::rngs::OsRng;
 use std::sync::mpsc;
 use std::time::Instant;
 use std::{net::SocketAddr, time::Duration};
@@ -28,24 +29,23 @@ use tokio::sync::mpsc::error::TrySendError;
 use tokio::time::interval;
 use tracing::*;
 
+pub mod error;
 mod messages;
 mod pipeline;
+mod processing;
 
 const PIPELINE_TICKING_DURATION: Duration = Duration::from_millis(1);
 const FRAGMENT_TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
-/// LP Data Handler for UDP data plane
+/// LP Data Handler for UDP data plane, act as a pipeline driver and buffer for delaying packet
 pub struct LpDataHandler {
-    /// Shared data state
-    state: SharedLpDataState,
-
     /// Channel to receive incoming data
     input_rx: mpsc::Receiver<EncryptedLpPacket>,
 
     /// Channel to send outgoing data
-    output_tx: tokio::sync::mpsc::Sender<(Vec<u8>, SocketAddr)>,
+    output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
 
-    pipeline: MixnodeDataPipeline,
+    pipeline: MixnodeDataPipeline<OsRng>,
     outgoing_pkt_buffer: Vec<AddressedTimedData<Instant, EncryptedLpPacket, SocketAddr>>,
 
     /// Shutdown token
@@ -54,19 +54,22 @@ pub struct LpDataHandler {
 
 impl LpDataHandler {
     /// Create a new LP data handler
-    pub fn new(
+    pub(crate) fn new(
         state: SharedLpDataState,
         input_rx: mpsc::Receiver<EncryptedLpPacket>,
-        output_tx: tokio::sync::mpsc::Sender<(Vec<u8>, SocketAddr)>,
+        output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {
         Self {
-            state,
             input_rx,
             output_tx,
-            pipeline: MixnodeDataPipeline::new(MixnodeDataPipelineConfig {
-                fragment_timeout: FRAGMENT_TIMEOUT_DURATION,
-            }),
+            pipeline: MixnodeDataPipeline::new(
+                state,
+                MixnodeDataPipelineConfig {
+                    fragment_timeout: FRAGMENT_TIMEOUT_DURATION,
+                },
+                OsRng,
+            ),
             outgoing_pkt_buffer: Vec::new(),
             shutdown,
         }
@@ -98,7 +101,7 @@ impl LpDataHandler {
 
                     }
                     for pkt in self.outgoing_pkt_buffer.extract_if(.., |p| p.data.timestamp <= std_timestamp) {
-                        if let Err(e) = self.output_tx.try_send((pkt.data.data.to_bytes(), pkt.dst)) {
+                        if let Err(e) = self.output_tx.try_send((pkt.data.data, pkt.dst)) {
                             match e {
                                 TrySendError::Full(_) =>  {
                                     warn!("LP data handler: packet sending buffer is full");

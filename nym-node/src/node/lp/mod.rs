@@ -82,7 +82,7 @@ use tracing::error;
 use crate::node::lp::directory::LpNodes;
 use crate::node::lp::state::{ActiveLpSessions, SharedLpNodeControlState};
 pub use nym_mixnet_client::forwarder::{MixForwardingReceiver, mix_forwarding_channels};
-pub use state::{SharedLpClientControlState, SharedLpDataState, SharedLpState};
+pub use state::{SharedLpClientControlState, SharedLpState};
 
 mod cleanup;
 pub mod control;

@@ -3,8 +3,7 @@
 
 use tracing::{debug, trace, warn};
 
-use crate::fragmentation::fragment::{Fragment, FragmentHashKey};
-use crate::packet::frame::LpFrameKind;
+use crate::fragmentation::fragment::{Fragment, FragmentHashKey, FragmentMetadata};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Add;
@@ -173,21 +172,21 @@ where
 
     /// Insert `fragment` into the buffer for its message and, if it was the
     /// last outstanding fragment, return the reassembled message bytes
-    /// alongside the original frame kind.
+    /// alongside the original metadata.
     ///
     /// Stale incomplete messages are evicted on every call.
     pub fn insert_new_fragment(
         &mut self,
         fragment: Fragment,
         timestamp: Ts,
-    ) -> Option<(Vec<u8>, LpFrameKind)> {
+    ) -> Option<(Vec<u8>, FragmentMetadata)> {
         let key = fragment.hash_key();
         let total_fragments = fragment.total_fragments();
 
         // Captured before insertion since `insert_fragment` consumes
         // `fragment`. The kind is also part of `key`, so reading it back
         // from any of the buffer's slots would be equivalent.
-        let frame_kind = fragment.frame_kind();
+        let metadata = (fragment.frame_kind(), fragment.kind_metadata()).into();
 
         let buf = self
             .in_flight_messages
@@ -196,7 +195,7 @@ where
 
         buf.insert_fragment(fragment, timestamp.clone());
         let maybe_message = if self.is_message_fully_received(key) {
-            Some((self.reconstruct_message(key), frame_kind))
+            Some((self.reconstruct_message(key), metadata))
         } else {
             None
         };
@@ -232,6 +231,7 @@ mod tests {
     use super::*;
     use crate::fragmentation::fragment::fragment_payload;
     use crate::packet::LpFrame;
+    use crate::packet::frame::LpFrameKind;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
 
@@ -258,7 +258,7 @@ mod tests {
 
     fn split(message: &[u8], kind: LpFrameKind, fragment_size: usize) -> Vec<Fragment> {
         let mut rng = StdRng::seed_from_u64(0xdead_beef);
-        fragment_payload(&mut rng, message, kind, fragment_size)
+        fragment_payload(&mut rng, message, (kind, [0; 4]).into(), fragment_size)
     }
 
     // ---------- MessageBuffer ----------
@@ -337,9 +337,9 @@ mod tests {
 
         let mut rec = MessageReconstructor::<u64, u64>::new(60);
         let out = rec.insert_new_fragment(fragments.pop().unwrap(), 0);
-        let (bytes, kind) = out.expect("single fragment must complete the message");
+        let (bytes, metadata) = out.expect("single fragment must complete the message");
         assert_eq!(bytes, message);
-        assert_eq!(kind, SPHINX);
+        assert_eq!(metadata.kind(), SPHINX);
     }
 
     #[test]
@@ -359,9 +359,9 @@ mod tests {
                 completed = out;
             }
         }
-        let (bytes, kind) = completed.expect("last fragment must complete the message");
+        let (bytes, metadata) = completed.expect("last fragment must complete the message");
         assert_eq!(bytes, message);
-        assert_eq!(kind, SPHINX);
+        assert_eq!(metadata.kind(), SPHINX);
     }
 
     #[test]
@@ -385,10 +385,10 @@ mod tests {
         let message = b"outfox bytes";
         let mut fragments = split(message, OUTFOX, 64);
         let mut rec = MessageReconstructor::<u64, u64>::new(60);
-        let (_, kind) = rec
+        let (_, metadata) = rec
             .insert_new_fragment(fragments.pop().unwrap(), 0)
             .expect("complete");
-        assert_eq!(kind, OUTFOX);
+        assert_eq!(metadata.kind(), OUTFOX);
     }
 
     #[test]
@@ -425,13 +425,13 @@ mod tests {
         let mut rec = MessageReconstructor::<u64, u64>::new(60);
         assert!(rec.insert_new_fragment(s1, 0).is_none());
         assert!(rec.insert_new_fragment(o1, 1).is_none());
-        let (s_msg, s_kind) = rec.insert_new_fragment(s2, 2).unwrap();
-        let (o_msg, o_kind) = rec.insert_new_fragment(o2, 3).unwrap();
+        let (s_msg, s_metadata) = rec.insert_new_fragment(s2, 2).unwrap();
+        let (o_msg, o_metadata) = rec.insert_new_fragment(o2, 3).unwrap();
 
         assert_eq!(s_msg, vec![0x10, 0x11]);
-        assert_eq!(s_kind, SPHINX);
+        assert_eq!(s_metadata.kind(), SPHINX);
         assert_eq!(o_msg, vec![0x20, 0x21]);
-        assert_eq!(o_kind, OUTFOX);
+        assert_eq!(o_metadata.kind(), OUTFOX);
     }
 
     #[test]

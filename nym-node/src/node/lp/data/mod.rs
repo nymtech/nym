@@ -5,10 +5,9 @@ use std::sync::mpsc;
 
 use crate::error::NymNodeError;
 use crate::node::lp::data::handler::LpDataHandler;
-use crate::node::lp::state::SharedLpDataState;
-use crate::{config::LpConfig, node::lp::data::listener::LpDataListener};
+use crate::node::lp::data::listener::LpDataListener;
+use crate::node::lp::data::shared::SharedLpDataState;
 
-use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
 use tracing::error;
 
@@ -20,38 +19,34 @@ const PACKET_BUFFER_SIZE: usize = 100;
 
 pub mod handler;
 mod listener;
-//mod sender;
+pub(crate) mod shared;
 
 pub struct LpDataSetup {
     listener: LpDataListener,
 
     handler: LpDataHandler,
 
-    //sender: LpDataSender,
     /// Shutdown coordination
     shutdown: ShutdownTracker,
 }
 
 impl LpDataSetup {
-    pub async fn new(
-        lp_config: LpConfig,
-        metrics: NymNodeMetrics,
+    pub(crate) fn new(
+        shared_state: SharedLpDataState,
         shutdown: ShutdownTracker,
     ) -> Result<Self, NymNodeError> {
-        let data_state = SharedLpDataState { metrics, lp_config };
-
         let (input_tx, input_rx) = mpsc::sync_channel(PACKET_BUFFER_SIZE);
         let (output_tx, output_rx) = tokio::sync::mpsc::channel(PACKET_BUFFER_SIZE);
 
         let listener = LpDataListener::new(
-            data_state.clone(),
+            shared_state.lp_config,
             input_tx,
             output_rx,
             shutdown.clone_shutdown_token(),
         );
 
         let handler = LpDataHandler::new(
-            data_state.clone(),
+            shared_state,
             input_rx,
             output_tx,
             shutdown.clone_shutdown_token(),

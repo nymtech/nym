@@ -49,16 +49,6 @@ pub struct SharedLpNodeControlState {
     pub shared: SharedLpState,
 }
 
-/// Shared state for LP data connections
-#[derive(Clone)]
-pub struct SharedLpDataState {
-    /// Metrics collection
-    pub metrics: NymNodeMetrics,
-
-    /// LP configuration (for timestamp validation, etc.)
-    pub lp_config: LpConfig,
-}
-
 /// Established sessions keyed by the receiver index
 ///
 /// Wrapped in TimestampedState for TTL-based cleanup of inactive sessions.

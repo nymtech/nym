@@ -271,6 +271,18 @@ impl ReplayProtectionBloomfilters {
 
         Ok(guard.batch_check_and_set(reply_tags))
     }
+
+    pub(crate) fn check_and_set(
+        &self,
+        rotation_id: u32,
+        replay_tag: &[u8; REPLAY_TAG_SIZE],
+    ) -> Result<bool, PoisonError<()>> {
+        let Ok(mut guard) = self.inner.lock() else {
+            return Err(PoisonError::new(()));
+        };
+
+        Ok(guard.check_and_set(rotation_id, replay_tag))
+    }
 }
 
 struct ReplayProtectionBloomfiltersInner {
@@ -288,37 +300,44 @@ struct ReplayProtectionBloomfiltersInner {
 }
 
 impl ReplayProtectionBloomfiltersInner {
+    fn get_filter_for_rotation_id(
+        &mut self,
+        rotation_id: u32,
+    ) -> Option<&mut Bloom<[u8; REPLAY_TAG_SIZE]>> {
+        // try to 'find' the relevant filter. we might be doing 3 reads here, but realistically it's
+        // going to be 'primary' most of the time and even if not, it's just few ns of overhead...
+        if self.primary.metadata.rotation_id == rotation_id {
+            Some(&mut self.primary.data)
+        } else if let Some(secondary) = &mut self.overlap {
+            // if let chaining won't be stable until 1.88 so we have to do the Option workaround
+            if secondary.metadata.rotation_id == rotation_id {
+                Some(&mut secondary.data)
+            } else {
+                None
+            }
+        } else if let Some(pre_announced) = &mut self.pre_announced {
+            if pre_announced.metadata.rotation_id == rotation_id {
+                Some(&mut pre_announced.data)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
     fn batch_check_and_set(
         &mut self,
         reply_tags: &HashMap<u32, Vec<&[u8; REPLAY_TAG_SIZE]>>,
     ) -> HashMap<u32, Vec<bool>> {
         let mut result = HashMap::with_capacity(reply_tags.len());
         for (&rotation_id, reply_tags) in reply_tags {
-            // try to 'find' the relevant filter. we might be doing 3 reads here, but realistically it's
-            // going to be 'primary' most of the time and even if not, it's just few ns of overhead...
-            let filter = if self.primary.metadata.rotation_id == rotation_id {
-                Some(&mut self.primary.data)
-            } else if let Some(secondary) = &mut self.overlap {
-                // if let chaining won't be stable until 1.88 so we have to do the Option workaround
-                if secondary.metadata.rotation_id == rotation_id {
-                    Some(&mut secondary.data)
-                } else {
-                    None
-                }
-            } else if let Some(pre_announced) = &mut self.pre_announced {
-                if pre_announced.metadata.rotation_id == rotation_id {
-                    Some(&mut pre_announced.data)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
+            let filter = self.get_filter_for_rotation_id(rotation_id);
 
             let Some(filter) = filter else {
                 // if we've received a packet from an unknown rotation, it most likely means it has been replayed
                 // from an older rotation, so mark it as such
-                result.insert(rotation_id, vec![false; reply_tags.len()]);
+                result.insert(rotation_id, vec![true; reply_tags.len()]);
                 continue;
             };
 
@@ -330,6 +349,18 @@ impl ReplayProtectionBloomfiltersInner {
         }
 
         result
+    }
+
+    fn check_and_set(&mut self, rotation_id: u32, replay_tag: &[u8; REPLAY_TAG_SIZE]) -> bool {
+        let filter = self.get_filter_for_rotation_id(rotation_id);
+
+        if let Some(filter) = filter {
+            filter.check_and_set(replay_tag)
+        } else {
+            // if we've received a packet from an unknown rotation, it most likely means it has been replayed
+            // from an older rotation, so mark it as such
+            true
+        }
     }
 }
 

@@ -5,16 +5,17 @@ use crate::config::Config;
 use crate::config::LpConfig;
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::active_keys::SphinxKeyGuard;
+use crate::node::lp::data::handler::error::LpDataHandlerError;
+use crate::node::lp::data::handler::messages::MixMessage;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
+use nym_lp_data::AddressedTimedPayload;
 use nym_lp_data::fragmentation::reconstruction::MessageReconstructor;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::mixnet::PacketKind;
-use nym_sphinx_framing::processing::{
-    MixPacketVersion, MixProcessingResult, PacketProcessingError,
-};
+use nym_sphinx_framing::processing::PacketProcessingError;
 use nym_sphinx_params::SphinxKeyRotation;
 use nym_task::ShutdownToken;
-use std::net::IpAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use std::time::Instant;
 use tracing::Span;
@@ -53,10 +54,12 @@ pub(crate) struct SharedLpDataState {
     pub shutdown_token: ShutdownToken,
 }
 
-fn convert_to_metrics_version(processed: MixPacketVersion) -> PacketKind {
-    match processed {
-        MixPacketVersion::Outfox => PacketKind::Outfox,
-        MixPacketVersion::Sphinx(sphinx_version) => PacketKind::Sphinx(sphinx_version.value()),
+fn message_kind_to_packet_kind(message_kind: MixMessage) -> PacketKind {
+    match message_kind {
+        // sphinx version isn't currently surfaced from LP processing - use 0 as a placeholder
+        // matching the on-wire fixed sphinx version used by clients.
+        MixMessage::Sphinx { .. } => PacketKind::Sphinx(0),
+        MixMessage::Outfox { .. } => PacketKind::Outfox,
     }
 }
 
@@ -114,45 +117,43 @@ impl SharedLpDataState {
         }
     }
 
-    pub(super) fn dropped_forward_packet(&self, source: IpAddr) {
-        self.metrics.mixnet.ingress_dropped_forward_packet(source)
+    pub(super) fn malformed_packet(&self) {
+        self.metrics
+            .mixnet
+            .ingress_malformed_packet(Ipv4Addr::UNSPECIFIED.into())
     }
 
-    pub(super) fn dropped_final_hop_packet(&self, source: IpAddr) {
-        self.metrics.mixnet.ingress_dropped_final_hop_packet(source)
+    pub(super) fn excessive_delay_packet(&self) {
+        self.metrics.mixnet.ingress_excessive_delay_packet()
     }
 
-    // pub(super) fn update_metrics(
-    //     &self,
-    //     processing_result: &Result<MixProcessingResult, PacketProcessingError>,
-    //     source: IpAddr,
-    // ) {
-    //     // let Ok(processing_result) = processing_result else {
-    //     //     self.metrics.mixnet.ingress_malformed_packet(source);
-    //     //     return;
-    //     // };
-
-    //     // let packet_version = convert_to_metrics_version(processing_result.packet_version);
-
-    //     // match processing_result.processing_data {
-    //     //     MixProcessingResultData::ForwardHop { delay, .. } => {
-    //     //         self.metrics
-    //     //             .mixnet
-    //     //             .ingress_received_forward_packet(source, packet_version);
-
-    //     //         // check if the delay wasn't excessive
-    //     //         if let Some(delay) = delay
-    //     //             && delay.to_duration() > self.processing_config.maximum_packet_delay
-    //     //         {
-    //     //             self.metrics.mixnet.ingress_excessive_delay_packet()
-    //     //         }
-    //     //     }
-    //     //     MixProcessingResultData::FinalHop { .. } => {
-    //     //         self.metrics
-    //     //             .mixnet
-    //     //             .ingress_received_final_hop_packet(source, packet_version);
-    //     //     }
-    //     // }
-    //     todo!()
-    // }
+    pub(super) fn update_metrics(
+        &self,
+        processing_result: &Result<AddressedTimedPayload<Instant, SocketAddr>, LpDataHandlerError>,
+        message_kind: MixMessage,
+    ) {
+        // Pipeline doesn't capture the source, how should we do those stats?
+        match processing_result {
+            Ok(_) => {
+                // LP nodes never deliver to a final hop - all successful processing forwards
+                self.metrics.mixnet.ingress_received_forward_packet(
+                    Ipv4Addr::UNSPECIFIED.into(),
+                    message_kind_to_packet_kind(message_kind),
+                );
+            }
+            Err(LpDataHandlerError::PacketProcessingError(PacketProcessingError::PacketReplay)) => {
+                self.metrics
+                    .mixnet
+                    .ingress_replayed_packet(Ipv4Addr::UNSPECIFIED.into());
+            }
+            Err(LpDataHandlerError::FinalHop) => {
+                self.metrics
+                    .mixnet
+                    .ingress_dropped_final_hop_packet(Ipv4Addr::UNSPECIFIED.into());
+            }
+            Err(_) => {
+                self.malformed_packet();
+            }
+        }
+    }
 }

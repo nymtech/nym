@@ -58,26 +58,22 @@ where
             MixMessage::Sphinx {
                 key_rotation,
                 reserved: _,
-            } => match processing::sphinx::process(&self.state, payload, key_rotation) {
-                Ok(packet) => packet,
-                Err(e) => {
-                    warn!("Error processing sphinx packet : {e}");
-                    return Vec::new();
-                }
-            },
+            } => processing::sphinx::process(&self.state, payload, key_rotation),
             MixMessage::Outfox {
                 key_rotation,
                 reserved: _,
-            } => match processing::outfox::process(&self.state, payload, key_rotation) {
-                Ok(packet) => packet,
-                Err(e) => {
-                    warn!("Error processing outfox packet : {e}");
-                    return Vec::new();
-                }
-            },
+            } => processing::outfox::process(&self.state, payload, key_rotation),
         };
 
-        vec![processing_result.with_options(message_kind)]
+        self.state.update_metrics(&processing_result, message_kind);
+
+        match processing_result {
+            Ok(packet) => vec![packet.with_options(message_kind)],
+            Err(e) => {
+                warn!("Error processing {message_kind:?} packet : {e}");
+                Vec::new()
+            }
+        }
     }
 }
 
@@ -151,7 +147,9 @@ where
         timestamp: Instant,
     ) -> Result<TimedData<Instant, Self::Frame>, Self::Error> {
         // Here be LP decryption. For now we do as is it's not encrypted
-        let lp_packet = LpPacket::decode(packet)?;
+        let lp_packet = LpPacket::decode(packet).inspect_err(|_| {
+            self.state.malformed_packet();
+        })?;
         Ok(TimedData {
             timestamp,
             data: lp_packet.into_frame(),
@@ -172,7 +170,10 @@ where
             let fragment = frame
                 .data
                 .try_into()
-                .inspect_err(|e| tracing::error!("Failed to recover a fragment : {e}"))
+                .inspect_err(|e| {
+                    tracing::error!("Failed to recover a fragment : {e}");
+                    self.state.malformed_packet();
+                })
                 .ok()?;
             let (payload, metadata) = self
                 .state
@@ -180,7 +181,10 @@ where
                 .insert_new_fragment(fragment, frame.timestamp)?;
             let message_kind = metadata
                 .try_into()
-                .inspect_err(|e| tracing::warn!("{e}"))
+                .inspect_err(|e| {
+                    tracing::warn!("{e}");
+                    self.state.malformed_packet();
+                })
                 .ok()?;
             Some((TimedPayload::new(frame.timestamp, payload), message_kind))
         } else {

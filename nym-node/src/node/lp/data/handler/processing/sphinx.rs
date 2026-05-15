@@ -62,16 +62,19 @@ pub(crate) fn process(
             next_hop_packet,
             next_hop_address,
             delay,
-        } => Ok(AddressedTimedPayload::new_addressed(
-            arrival_timestamp
-                + std::cmp::min(
-                    // Prevent excessively high delay that would DoS the nodes
-                    delay.to_duration(),
-                    shared_state.processing_config.maximum_packet_delay,
-                ),
-            next_hop_packet.to_bytes(),
-            NymNodeRoutingAddress::try_from(next_hop_address)?.into(),
-        )),
+        } => {
+            let mut delay = delay.to_duration();
+            // Prevent excessively high delay that would DoS the nodes
+            if delay > shared_state.processing_config.maximum_packet_delay {
+                shared_state.excessive_delay_packet();
+                delay = shared_state.processing_config.maximum_packet_delay;
+            }
+            Ok(AddressedTimedPayload::new_addressed(
+                arrival_timestamp + delay,
+                next_hop_packet.to_bytes(),
+                NymNodeRoutingAddress::try_from(next_hop_address)?.into(),
+            ))
+        }
         nym_sphinx_types::ProcessedPacketData::FinalHop { .. } => {
             warn!("Dropping final hop packet as it is no longer supported");
             Err(LpDataHandlerError::FinalHop)

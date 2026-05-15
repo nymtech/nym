@@ -30,7 +30,7 @@ use tokio::time::interval;
 use tracing::*;
 
 pub mod error;
-mod messages;
+pub(crate) mod messages;
 mod pipeline;
 mod processing;
 
@@ -39,7 +39,7 @@ const PIPELINE_TICKING_DURATION: Duration = Duration::from_millis(1);
 /// LP Data Handler for UDP data plane, act as a pipeline driver and buffer for delaying packet
 pub struct LpDataHandler {
     /// Shared state
-    _shared_state: Arc<SharedLpDataState>,
+    shared_state: Arc<SharedLpDataState>,
 
     /// Channel to receive incoming data
     input_rx: mpsc::Receiver<EncryptedLpPacket>,
@@ -64,7 +64,7 @@ impl LpDataHandler {
     ) -> Self {
         let shared_state = Arc::new(state);
         Self {
-            _shared_state: shared_state.clone(),
+            shared_state: shared_state.clone(),
             input_rx,
             output_tx,
             pipeline: MixnodeDataPipeline::new(shared_state, OsRng),
@@ -93,6 +93,7 @@ impl LpDataHandler {
                             Err(e) => {
                                 warn!("LP data handler: Error processing packet : {e}");
                                 inc!("lp_data_packet_errors");
+                                self.shared_state.malformed_packet();
                             }
 
                         }

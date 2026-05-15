@@ -74,6 +74,7 @@ members = [
     "common/nym-id",
     "common/nym-kcp",
     "common/nym-lp",
+    "common/nym-lp-data",
     "common/nym-kkt",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
@@ -130,6 +131,7 @@ members = [
     "nym-credential-proxy/nym-credential-proxy-requests",
     "nym-data-observatory",
     "nym-ip-packet-client",
+    "nym-mix-sim",
     "nym-network-monitor",
     "nym-node",
     "nym-node-status-api/nym-node-status-agent",
@@ -184,6 +186,7 @@ default-members = [
     "nym-authenticator-client",
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
+    "nym-mix-sim",
     "nym-node",
     "nym-statistics-api",
     "nym-validator-rewarder",
@@ -192,7 +195,7 @@ default-members = [
     "service-providers/network-requester",
     "tools/nymvisor",
     "nym-registration-client",
-    "tools/internal/localnet-orchestrator"
+    "tools/internal/localnet-orchestrator",
 ]
 
 exclude = ["contracts", "nym-wallet", "cpu-cycles"]
@@ -459,6 +462,7 @@ nym-id = { version = "1.20.4", path = "common/nym-id" }
 nym-ip-packet-client = { version = "1.20.4", path = "nym-ip-packet-client" }
 nym-ip-packet-requests = { version = "1.20.4", path = "common/ip-packet-requests" }
 nym-lp = { version = "1.20.4", path = "common/nym-lp" }
+nym-lp-data = { version = "1.20.4", path = "common/nym-lp-data" }
 nym-kkt = { version = "0.1.0", path = "common/nym-kkt" }
 nym-kkt-ciphersuite = { version = "1.20.4", path = "common/nym-kkt-ciphersuite" }
 nym-kkt-context = { version = "1.20.4", path = "common/nym-kkt-context" }

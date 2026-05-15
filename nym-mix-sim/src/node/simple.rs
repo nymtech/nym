@@ -146,6 +146,7 @@ impl<Ts> FramingUnwrap<Ts, SimpleMessage> for SimpleProcessingNode {
 
 impl<Ts: Clone> TransportUnwrap<Ts, SimplePacket> for SimpleProcessingNode {
     type Frame = SimpleFrame;
+    type Error = anyhow::Error;
     fn packet_to_frame(
         &self,
         packet: SimplePacket,

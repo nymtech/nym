@@ -77,17 +77,19 @@ pub trait Transport<Ts, Pkt, NdId> {
 ///
 /// # Associated Types
 /// - `Frame`: Frame type produced as output.
+/// - `Error`: Error type
 ///
 /// # Required Methods
 /// - `packet_to_frame`: Strips the transport layer from a packet, returning the inner frame
 ///   tagged with the given timestamp.
 pub trait TransportUnwrap<Ts, Pkt> {
     type Frame;
+    type Error;
     fn packet_to_frame(
         &self,
         packet: Pkt,
         timestamp: Ts,
-    ) -> anyhow::Result<TimedData<Ts, Self::Frame>>;
+    ) -> Result<TimedData<Ts, Self::Frame>, Self::Error>;
 }
 
 /// Supertrait combining [`Framing`] and [`Transport`] into a reusable wire-wrapping layer.
@@ -160,7 +162,7 @@ where
         &mut self,
         input: Pkt,
         timestamp: Ts,
-    ) -> anyhow::Result<Option<(TimedPayload<Ts>, Mk)>> {
+    ) -> Result<Option<(TimedPayload<Ts>, Mk)>, Self::Error> {
         let frame = self.packet_to_frame(input, timestamp)?;
         Ok(self.frame_to_message(frame))
     }

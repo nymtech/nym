@@ -82,7 +82,8 @@ where
     Pkt: Into<Vec<u8>>,
 {
     type Frame = Vec<u8>;
-    fn packet_to_frame(&self, packet: Pkt, timestamp: Ts) -> anyhow::Result<TimedPayload<Ts>> {
+    type Error = std::convert::Infallible;
+    fn packet_to_frame(&self, packet: Pkt, timestamp: Ts) -> Result<TimedPayload<Ts>, Self::Error> {
         Ok(TimedData {
             timestamp,
             data: packet.into(),

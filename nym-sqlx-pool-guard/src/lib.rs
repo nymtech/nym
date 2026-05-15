@@ -120,6 +120,24 @@ impl SqlitePoolGuard {
     }
 }
 
+impl Drop for SqlitePoolGuard {
+    fn drop(&mut self) {
+        if !self.connection_pool.is_closed() {
+            // When the guard is dropped without an explicit call to close() — for example,
+            // due to async task cancellation — the underlying pool must still be closed to
+            // promptly release OS file handles.  On Windows, an open file handle prevents
+            // rename/delete operations on the same file (ERROR_SHARING_VIOLATION, os error
+            // 32), which would break the next connection attempt's database recovery logic.
+            let pool = self.connection_pool.clone();
+            if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                handle.spawn(async move {
+                    pool.close().await;
+                });
+            }
+        }
+    }
+}
+
 impl Deref for SqlitePoolGuard {
     type Target = sqlx::SqlitePool;
 

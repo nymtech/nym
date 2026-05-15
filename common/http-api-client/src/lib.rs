@@ -139,7 +139,7 @@
 //! ```
 #![warn(missing_docs)]
 
-use http::header::{HeaderName, USER_AGENT};
+use http::header::USER_AGENT;
 pub use inventory;
 pub use reqwest::{self, ClientBuilder as ReqwestClientBuilder, StatusCode};
 use std::error::Error;
@@ -1176,6 +1176,7 @@ impl ApiClientCore for Client {
                 Ok(resp) => {
                     // Check if the response includes a rate limit error from the vercel API
                     if is_http_rate_limit_err(&resp) {
+                        warn!("encountered vercel rate limit error for {}", url.as_str());
                         // if we have multiple urls, update to the next
                         self.maybe_rotate_hosts(Some(url.clone()));
                     }
@@ -1234,21 +1235,22 @@ impl ApiClientCore for Client {
     }
 }
 
-const VERCEL_CHALLENGE_HEADER: HeaderName = HeaderName::from_static("x-vercel-mitigated");
+const VERCEL_CHALLENGE_HEADER: &str = "x-vercel-mitigated";
 const VERCEL_CHALLENGE_VALUE: &[u8] = b"challenge";
-const VERCEL_CONTENT_TYPE: &[u8] = b"text/html";
 
 /// Check for Rate Limit challenge response from the vercel API
 pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
     let status = resp.status() == StatusCode::FORBIDDEN;
     let header = resp
         .headers()
-        .iter()
-        .any(|(h, v)| h == VERCEL_CHALLENGE_HEADER && v.as_bytes() == VERCEL_CHALLENGE_VALUE);
+        .get(VERCEL_CHALLENGE_HEADER)
+        .is_some_and(|v| v.as_bytes() == VERCEL_CHALLENGE_VALUE);
     let content_type = resp
         .headers()
-        .iter()
-        .any(|(h, v)| h == CONTENT_TYPE && v.as_bytes() == VERCEL_CONTENT_TYPE);
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<Mime>().ok())
+        .is_some_and(|mime_type| mime_type == mime::TEXT_HTML_UTF_8);
 
     status && header && content_type
 }
@@ -1724,6 +1726,13 @@ where
         decode_raw_response(&headers, full)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound { url: Box::new(url) })
+    } else if is_http_rate_limit_err(&res) {
+        Err(HttpClientError::EndpointFailure {
+            url: Box::new(url),
+            status,
+            headers: Box::new(HeaderMap::new()),
+            error: String::from("received vercel rate limit challenge response"),
+        })
     } else {
         let Ok(plaintext) = res.text().await else {
             return Err(HttpClientError::RequestFailure {

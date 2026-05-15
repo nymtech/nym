@@ -8,6 +8,7 @@ use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use crate::node::lp::data::handler::error::LpDataHandlerError;
 use crate::node::lp::data::handler::messages::MixMessage;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
+use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use nym_lp_data::AddressedTimedPayload;
 use nym_lp_data::fragmentation::reconstruction::MessageReconstructor;
 use nym_node_metrics::NymNodeMetrics;
@@ -35,7 +36,6 @@ impl ProcessingConfig {
 }
 
 /// Shared state for LP data connections
-// explicitly do NOT derive clone as we want the childs to use CHILD shutdown tokens
 pub(crate) struct SharedLpDataState {
     /// LP configuration (for timestamp validation, etc.)
     pub lp_config: LpConfig,
@@ -47,6 +47,8 @@ pub(crate) struct SharedLpDataState {
     pub replay_protection_filter: ReplayProtectionBloomfilters,
 
     pub message_reconstructor: MessageReconstructor<Instant, Duration>,
+
+    pub routing_filter: NetworkRoutingFilter,
 
     /// Metrics collection
     pub metrics: NymNodeMetrics,
@@ -68,6 +70,7 @@ impl SharedLpDataState {
         config: &Config,
         sphinx_keys: ActiveSphinxKeys,
         replay_protection_filter: ReplayProtectionBloomfilters,
+        routing_filter: NetworkRoutingFilter,
         metrics: NymNodeMetrics,
         shutdown_token: ShutdownToken,
     ) -> Self {
@@ -77,6 +80,7 @@ impl SharedLpDataState {
             sphinx_keys,
             replay_protection_filter,
             message_reconstructor: Default::default(),
+            routing_filter,
             metrics,
             shutdown_token,
         }

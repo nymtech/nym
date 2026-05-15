@@ -38,6 +38,7 @@ use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
+use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::{
     CachedNetwork, CachedTopologyProvider, LocalGatewayNode, NetworkRefresher,
@@ -511,11 +512,13 @@ impl NymNode {
     pub(crate) fn build_lp_data_tasks(
         &self,
         replay_protection_bloomfilter: ReplayProtectionBloomfilters,
+        routing_filter: NetworkRoutingFilter,
     ) -> Result<LpDataSetup, NymNodeError> {
         let shared_state = lp::data::shared::SharedLpDataState::new(
             self.config(),
             self.active_sphinx_keys()?,
             replay_protection_bloomfilter,
+            routing_filter,
             self.metrics.clone(),
             self.shutdown_token(),
         );
@@ -1402,7 +1405,10 @@ impl NymNode {
             .await?;
 
         // LP Data channel
-        let lp_data_tasks = self.build_lp_data_tasks(bloomfilters_manager.bloomfilters())?;
+        let lp_data_tasks = self.build_lp_data_tasks(
+            bloomfilters_manager.bloomfilters(),
+            network_refresher.routing_filter(),
+        )?;
         lp_data_tasks.start_tasks();
 
         let metrics_sender = self.setup_metrics_backend(

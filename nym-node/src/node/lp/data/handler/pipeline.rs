@@ -19,9 +19,12 @@ use nym_lp_data::{
 use rand::Rng;
 use tracing::warn;
 
-use crate::node::lp::data::{
-    handler::{messages::MixMessage, processing},
-    shared::SharedLpDataState,
+use crate::node::{
+    lp::data::{
+        handler::{messages::MixMessage, processing},
+        shared::SharedLpDataState,
+    },
+    routing_filter::RoutingFilter,
 };
 
 pub struct MixnodeDataPipeline<R>
@@ -67,12 +70,28 @@ where
 
         self.state.update_metrics(&processing_result, message_kind);
 
-        match processing_result {
-            Ok(packet) => vec![packet.with_options(message_kind)],
+        let packet_to_forward = match processing_result {
+            Ok(packet) => packet,
             Err(e) => {
                 warn!("Error processing {message_kind:?} packet : {e}");
-                Vec::new()
+                return Vec::new();
             }
+        };
+
+        let next_hop = packet_to_forward.dst;
+        if !self.state.routing_filter.should_route(next_hop.ip()) {
+            warn!(
+                event = "packet.dropped.routing_filter",
+                next_hop = %next_hop,
+                "dropping packet: egress address does not belong to any known node"
+            );
+            self.state
+                .metrics
+                .mixnet
+                .egress_dropped_forward_packet(next_hop);
+            Vec::new()
+        } else {
+            vec![packet_to_forward.with_options(message_kind)]
         }
     }
 }
@@ -234,6 +253,7 @@ mod tests {
     use crate::node::replay_protection::bloomfilter::{
         ReplayProtectionBloomfilters, RotationFilter,
     };
+    use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 
     // ==================== Test Helpers ====================
 
@@ -270,6 +290,7 @@ mod tests {
             sphinx_keys: ActiveSphinxKeys::new_loaded(primary, None),
             replay_protection_filter: ReplayProtectionBloomfilters::new(primary_bloom_filter, None),
             message_reconstructor: MessageReconstructor::default(),
+            routing_filter: NetworkRoutingFilter::new_empty(true),
             metrics: NymNodeMetrics::default(),
             shutdown_token: ShutdownToken::new(),
         }
@@ -308,7 +329,8 @@ mod tests {
     ) -> Vec<u8> {
         let payload_size = final_packet_size.checked_sub(HEADER_SIZE).unwrap();
 
-        let first_hop_node = mock_mix_node("127.0.0.1:1234".parse().unwrap(), first_hop_key);
+        let first_hop_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8000);
+        let first_hop_node = mock_mix_node(first_hop_address, first_hop_key);
 
         let second_hop_key = PrivateKey::random_from_rng(rng);
         let second_hop_node = mock_mix_node(second_hop_address, (&second_hop_key).into());
@@ -337,7 +359,8 @@ mod tests {
     ) -> Vec<u8> {
         let payload_size = final_packet_size.checked_sub(HEADER_SIZE).unwrap();
 
-        let first_hop_node = mock_mix_node("127.0.0.1:1234".parse().unwrap(), first_hop_key);
+        let first_hop_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8000);
+        let first_hop_node = mock_mix_node(first_hop_address, first_hop_key);
 
         let route = [first_hop_node];
         let delays = [first_hop_delay];
@@ -369,7 +392,8 @@ mod tests {
             .checked_sub(OUTFOX_PACKET_OVERHEAD)
             .unwrap();
 
-        let first_hop_node = mock_mix_node("127.0.0.1:1234".parse().unwrap(), first_hop_key);
+        let first_hop_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8000);
+        let first_hop_node = mock_mix_node(first_hop_address, first_hop_key);
 
         let second_hop_key = PrivateKey::random_from_rng(&mut *rng);
         let second_hop_node = mock_mix_node(second_hop_address, (&second_hop_key).into());
@@ -583,8 +607,6 @@ mod tests {
         let (mut pipeline, state) = mock_pipeline();
 
         let mut rng = seeded_rng([52; 32]);
-
-        println!("Frame_size : {}", pipeline.frame_size());
 
         let next_hop = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 5000);
         let delay = Delay::new_from_millis(50);
@@ -801,5 +823,49 @@ mod tests {
         );
 
         assert_eq!(state.metrics.mixnet.ingress.excessive_delay_packets(), 1);
+    }
+
+    #[test]
+    fn process_out_of_network_sphinx_packet() {
+        let (mut pipeline, state) = mock_pipeline();
+
+        let mut rng = seeded_rng([52; 32]);
+
+        // Routing filters is in local mode so public address will fail
+        let next_hop = "1.1.1.1:1234".parse().unwrap();
+        let delay = Delay::new_from_millis(50);
+
+        // Packet fits exactly in one frame
+        let sphinx_bytes = build_sphinx_bytes(
+            state.sphinx_keys.primary().x25519_pubkey().into(),
+            delay,
+            next_hop,
+            pipeline.frame_size(),
+            &mut rng,
+        );
+
+        // Sanity check
+        assert_eq!(sphinx_bytes.len(), pipeline.frame_size());
+
+        let inputs = fragment_into_lp_packets(
+            &sphinx_bytes,
+            sphinx_mix_message(),
+            pipeline.frame_size(),
+            &mut rng,
+        );
+        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+
+        let input_packet = inputs[0].clone();
+
+        let arrival = Instant::now();
+        let outputs = pipeline.process(input_packet, arrival).unwrap();
+
+        assert!(outputs.is_empty(), "expected no output");
+
+        assert_eq!(
+            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            1
+        );
+        assert_eq!(state.metrics.mixnet.egress.forward_hop_packets_dropped(), 1);
     }
 }

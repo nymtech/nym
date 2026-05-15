@@ -1,0 +1,26 @@
+[package]
+name = "nym-lp-data"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow.workspace = true
+tracing.workspace = true
+
+
+[dev-dependencies]
+nym-client-core.workspace = true
+nym-lp.workspace = true
+nym-common.workspace = true
+
+
+[lints]
+workspace = true

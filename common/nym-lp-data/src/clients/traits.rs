@@ -145,12 +145,21 @@ where
         let mut chunk_size = self.frame_size();
 
         if input_options.routing_security() {
-            chunk_size =
-                chunk_size * self.nb_frames() - <Self as RoutingSecurity<_, _, _>>::OVERHEAD_SIZE;
+            // SAFETY : While this CAN technically fail, it means that something is wrong in the code and it's pointless to continue anyway
+            #[allow(clippy::expect_used)]
+            let pre_security_chunk_size = (chunk_size * self.nb_frames())
+                .checked_sub(<Self as RoutingSecurity<_, _, _>>::OVERHEAD_SIZE)
+                .expect("not enough room in a packet for routing security overhead");
+            chunk_size = pre_security_chunk_size;
         }
 
         if input_options.reliability() {
-            chunk_size -= <Self as Reliability<_, _, _>>::OVERHEAD_SIZE;
+            // SAFETY : While this CAN technically fail, it means that something is wrong in the code and it's pointless to continue anyway
+            #[allow(clippy::expect_used)]
+            let pre_reliability_chunk_size = chunk_size
+                .checked_sub(<Self as Reliability<_, _, _>>::OVERHEAD_SIZE)
+                .expect("not enough room in a packet for reliability overhead");
+            chunk_size = pre_reliability_chunk_size;
         }
 
         chunk_size

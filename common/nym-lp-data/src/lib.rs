@@ -37,6 +37,7 @@ pub type PipelinePayload<Ts, Opts, NdId> = PipelineData<Ts, Vec<u8>, Opts, NdId>
 /// pipeline.  It is produced by [`clients::traits::Chunking`] and propagated
 /// unchanged (or with the timestamp transformed) through every subsequent
 /// pipeline stage until the packet is sent on the wire.
+#[derive(Clone)]
 pub struct TimedData<Ts, D> {
     pub timestamp: Ts,
     pub data: D,
@@ -107,6 +108,7 @@ impl<Ts, D> TimedData<Ts, D> {
 /// [`Framing`]: crate::common::traits::Framing
 /// [`Transport`]: crate::common::traits::Transport
 /// [`InputOptions`]: crate::clients::InputOptions
+#[derive(Clone)]
 pub struct PipelineData<Ts, D, Opts, NdId> {
     pub data: TimedData<Ts, D>,
     pub options: Opts,

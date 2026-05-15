@@ -1250,7 +1250,9 @@ pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
         .get(CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<Mime>().ok())
-        .is_some_and(|mime_type| mime_type == mime::TEXT_HTML_UTF_8);
+        .is_some_and(|mime_type| {
+            mime_type.type_() == mime::TEXT && mime_type.subtype() == mime::HTML
+        });
 
     status && header && content_type
 }

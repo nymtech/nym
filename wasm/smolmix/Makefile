@@ -1,13 +1,13 @@
 build: build-rust
 
 build-rust:
-	taskset -c 0-11 wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/smolmix --no-default-features --features rustcrypto
+	taskset -c 0-11 wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/smolmix
 
 build-debug:
-	taskset -c 0-11 wasm-pack build --debug --scope nymproject --target web --out-dir ../../dist/wasm/smolmix --no-default-features --features rustcrypto,debug
+	taskset -c 0-11 wasm-pack build --debug --scope nymproject --target web --out-dir ../../dist/wasm/smolmix --features debug
 
 build-release-opt:
-	taskset -c 0-11 wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/smolmix --no-default-features --features rustcrypto
+	taskset -c 0-11 wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/smolmix
 	taskset -c 0-11 wasm-opt -Oz -o ../../dist/wasm/smolmix/smolmix_wasm_bg.wasm ../../dist/wasm/smolmix/smolmix_wasm_bg.wasm
 
 check-fmt:

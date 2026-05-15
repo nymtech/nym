@@ -1,0 +1,76 @@
+[package]
+name = "smolmix-wasm"
+version = "0.0.1"
+authors = { workspace = true }
+edition = "2021"
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = "1.85"
+publish = false
+keywords = ["nym", "fetch", "wasm", "mixnet", "privacy"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+futures = { workspace = true }
+js-sys = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+wasmtimer = { workspace = true }
+
+# DNS wire-format types (tokio-free with default-features = false).
+hickory-proto = { workspace = true, default-features = false }
+
+# TLS: rustls-rustcrypto is the only viable provider on wasm32-unknown-unknown.
+# ring + aws-lc-rs both fail to compile (no OS entropy / no C toolchain in browser).
+rustls = { workspace = true, features = ["std"] }
+rustls-pki-types = { workspace = true, features = ["web"] }
+futures-rustls = { workspace = true, features = ["tls12"] }
+webpki-roots = { workspace = true }
+rustls-rustcrypto = { workspace = true }
+
+# HTTP/1.1 client (tokio-free; workspace declares default-features = false)
+hyper = { workspace = true, features = ["client", "http1"] }
+http-body-util = { workspace = true }
+http = { workspace = true }
+
+# WebSocket (RFC 6455 client over futures::io streams)
+async-tungstenite = { workspace = true, features = ["handshake"] }
+
+# WASM utils (panic hook, console_log)
+nym-wasm-utils = { workspace = true }
+
+# Tunnel: smoltcp stack + Nym mixnet client + IPR protocol
+smoltcp = { workspace = true, features = ["std", "medium-ip", "proto-ipv4", "socket-tcp", "socket-udp", "async"] }
+nym-wasm-client-core = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+nym-lp = { workspace = true }
+bytes = { workspace = true }
+rand = { workspace = true }
+nym-bin-common = { workspace = true }
+
+# JS interop: typed `SetupOpts` deserialisation.
+serde = { workspace = true, features = ["derive"] }
+serde-wasm-bindgen = { workspace = true }
+tsify = { workspace = true, features = ["js"] }
+
+# crypto.getRandomValues() backend for the 0.2 line.
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
+workspace = true
+features = ["js"]
+
+# The 0.4 line is pulled in transitively by hickory-proto via rand_core 0.10;
+# its wasm32 feature was renamed from "js" to "wasm_js".
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom04]
+workspace = true
+features = ["wasm_js"]
+
+[features]
+# Verbose `console.log` tracing (off by default).
+debug = []
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

@@ -1,0 +1,331 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+//! Fetch orchestrator: DNS, TCP, TLS, HTTP plus the JS `RequestInit` shim.
+
+use std::net::SocketAddr;
+
+use js_sys::{Object, Reflect, Uint8Array};
+use url::Url;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::JsValue;
+
+use crate::dns;
+use crate::error::FetchError;
+use crate::http::{self, HttpResponse};
+use crate::stream::PooledConn;
+use crate::tls;
+use crate::tunnel::WasmTunnel;
+
+/// Options extracted from a JS `RequestInit` object.
+struct FetchInit {
+    method: String,
+    headers: Vec<(String, String)>,
+    body: Option<Vec<u8>>,
+}
+
+/// Maximum number of HTTP redirects to follow before giving up.
+const MAX_REDIRECTS: u8 = 5;
+
+/// Execute a fetch request through the mixnet tunnel.
+pub async fn fetch(
+    tunnel: &WasmTunnel,
+    url_str: &str,
+    init: &JsValue,
+) -> Result<JsValue, FetchError> {
+    let mut opts = parse_init(init)?;
+    let mut url = Url::parse(url_str)?;
+    if !is_http_scheme(&url) {
+        return Err(FetchError::Http(format!(
+            "unsupported scheme '{}' (expected http or https)",
+            url.scheme()
+        )));
+    }
+    let mut method = opts.method.clone();
+    let mut body = opts.body.clone();
+
+    for redirect_count in 0..=MAX_REDIRECTS {
+        let host = url
+            .host_str()
+            .ok_or_else(|| FetchError::Http("URL has no host".into()))?
+            .to_string();
+        let port = url
+            .port_or_known_default()
+            .ok_or_else(|| FetchError::Http("URL has no port and scheme is unknown".into()))?;
+        let is_https = url.scheme() == "https";
+
+        if redirect_count == 0 {
+            crate::util::debug_log!("[fetch] {} {} ({})", method, url.as_str(), url.scheme());
+        } else {
+            crate::util::debug_log!(
+                "[fetch] redirect #{redirect_count} → {host}:{port} ({})",
+                url.scheme()
+            );
+        }
+
+        // Per-origin lock: serialise TCP+TLS handshake, release before HTTP.
+        let (conn, from_pool) = {
+            let origin_lock = tunnel.origin_lock(&host, port);
+            crate::util::debug_log!("[fetch] acquiring origin lock for {host}:{port}...");
+            let _guard = origin_lock.lock().await;
+            crate::util::debug_log!("[fetch] origin lock ACQUIRED for {host}:{port}");
+
+            let result = match tunnel.take_pooled(&host, port) {
+                Some(c) => {
+                    crate::util::debug_log!("[fetch] pool HIT for {host}:{port}");
+                    (c, true)
+                }
+                None => {
+                    crate::util::debug_log!("[fetch] pool MISS for {host}:{port}, new connection");
+                    (new_connection(tunnel, &host, port, is_https).await?, false)
+                }
+            };
+
+            crate::util::debug_log!("[fetch] origin lock RELEASED for {host}:{port}");
+            result
+        };
+
+        // Retry pooled connections once on first-write error; fresh-conn errors propagate.
+        let http_result = http::request(conn, &method, &url, &opts.headers, body.as_deref()).await;
+
+        let (response, reusable, conn) = match http_result {
+            Ok(result) => result,
+            Err(stale_err) if from_pool => {
+                crate::util::debug_log!(
+                    "[fetch] pooled connection failed ({stale_err}), retrying with fresh connection"
+                );
+                let fresh = new_connection(tunnel, &host, port, is_https).await?;
+                match http::request(fresh, &method, &url, &opts.headers, body.as_deref()).await {
+                    Ok(result) => result,
+                    Err(e) => {
+                        crate::util::debug_error!(
+                            "[fetch] fresh connection also failed: {e} (pooled failed with: {stale_err})"
+                        );
+                        return Err(e);
+                    }
+                }
+            }
+            Err(e) => return Err(e),
+        };
+
+        crate::util::debug_log!(
+            "[fetch] {} {} ({} bytes, reusable={})",
+            response.status,
+            response.status_text,
+            response.body.len(),
+            reusable
+        );
+
+        // 3. Return connection to pool if reusable
+        if reusable {
+            crate::util::debug_log!("[fetch] returning connection to pool for {host}:{port}");
+            tunnel.return_to_pool(host, port, conn);
+        }
+
+        // 4. Follow redirects (3xx with Location header)
+        if (300..400).contains(&response.status) {
+            if let Some(location) = response
+                .headers
+                .iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case("location"))
+                .map(|(_, v)| v.clone())
+            {
+                crate::util::debug_log!("[fetch] {} → Location: {location}", response.status);
+
+                let prev_url = url.clone();
+                url = prev_url.join(&location).map_err(|e| {
+                    FetchError::Http(format!("invalid redirect URL '{location}': {e}"))
+                })?;
+
+                // Reject non-HTTP schemes (javascript:, file:, data:, …) and
+                // any HTTPS to HTTP downgrade; these are the classic redirect
+                // exfiltration shapes.
+                if !is_http_scheme(&url) {
+                    return Err(FetchError::Http(format!(
+                        "redirect to unsupported scheme '{}' rejected",
+                        url.scheme()
+                    )));
+                }
+                if prev_url.scheme() == "https" && url.scheme() == "http" {
+                    return Err(FetchError::Http(
+                        "redirect from https to http rejected (would leak credentials)".into(),
+                    ));
+                }
+
+                // Strip credential-bearing headers on cross-origin redirects so
+                // Authorization / Cookie / Proxy-Authorization never follow a
+                // hop to a different origin. Same-origin redirects keep them.
+                if prev_url.origin() != url.origin() {
+                    strip_sensitive_headers(&mut opts.headers);
+                }
+
+                // 301/302/303: switch to GET and drop body (RFC 7231)
+                // 307/308: preserve method and body
+                if matches!(response.status, 301 | 302 | 303) {
+                    method = "GET".into();
+                    body = None;
+                }
+
+                continue;
+            }
+        }
+
+        // 5. Non-redirect, serialise and return
+        return serialise_response(&response);
+    }
+
+    Err(FetchError::Http(format!(
+        "too many redirects (>{MAX_REDIRECTS})"
+    )))
+}
+
+/// Create a fresh connection: DNS resolve → TCP connect → optional TLS.
+pub(crate) async fn new_connection(
+    tunnel: &WasmTunnel,
+    host: &str,
+    port: u16,
+    is_https: bool,
+) -> Result<PooledConn, FetchError> {
+    let ip = dns::resolve(tunnel, host).await?;
+    let addr = SocketAddr::new(ip, port);
+
+    crate::util::debug_log!("[fetch] TCP connecting to {addr}...");
+    let tcp = tunnel.tcp_connect(addr).await.map_err(FetchError::Io)?;
+    crate::util::debug_log!("[fetch] TCP connected to {addr}");
+
+    if is_https {
+        crate::util::debug_log!("[fetch] TLS handshake with '{host}'...");
+        let tls_stream = tls::connect(tcp, host).await?;
+        crate::util::debug_log!("[fetch] TLS handshake complete with '{host}'");
+        Ok(PooledConn::Tls(tls_stream))
+    } else {
+        Ok(PooledConn::Plain(tcp))
+    }
+}
+
+// RequestInit extraction (via js_sys::Reflect, no serde)
+
+/// Extract method, headers, and body from a JS `RequestInit` object.
+fn parse_init(init: &JsValue) -> Result<FetchInit, FetchError> {
+    // Handle undefined/null init (bare GET request)
+    if init.is_undefined() || init.is_null() {
+        return Ok(FetchInit {
+            method: "GET".into(),
+            headers: Vec::new(),
+            body: None,
+        });
+    }
+
+    let method = Reflect::get(init, &JsValue::from_str("method"))
+        .ok()
+        .and_then(|v| v.as_string())
+        .unwrap_or_else(|| "GET".into());
+
+    let headers = extract_headers(init)?;
+    let body = extract_body(init)?;
+
+    Ok(FetchInit {
+        method,
+        headers,
+        body,
+    })
+}
+
+/// Extract headers from a plain JS object `{ "Header-Name": "value" }`.
+fn extract_headers(init: &JsValue) -> Result<Vec<(String, String)>, FetchError> {
+    let headers_val = match Reflect::get(init, &JsValue::from_str("headers")) {
+        Ok(v) if !v.is_undefined() && !v.is_null() => v,
+        _ => return Ok(Vec::new()),
+    };
+
+    let mut result = Vec::new();
+
+    if let Some(obj) = headers_val.dyn_ref::<Object>() {
+        let keys = Object::keys(obj);
+        for i in 0..keys.length() {
+            let key_val = keys.get(i);
+            if let Some(key) = key_val.as_string() {
+                if let Ok(val) = Reflect::get(obj, &key_val) {
+                    if let Some(val_str) = val.as_string() {
+                        result.push((key, val_str));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+/// Extract the request body. Supports string, Uint8Array, and ArrayBuffer.
+fn extract_body(init: &JsValue) -> Result<Option<Vec<u8>>, FetchError> {
+    let body_val = match Reflect::get(init, &JsValue::from_str("body")) {
+        Ok(v) if !v.is_undefined() && !v.is_null() => v,
+        _ => return Ok(None),
+    };
+
+    // String body → UTF-8 bytes
+    if let Some(s) = body_val.as_string() {
+        return Ok(Some(s.into_bytes()));
+    }
+
+    // Uint8Array → copy to Vec<u8>
+    if let Some(arr) = body_val.dyn_ref::<Uint8Array>() {
+        return Ok(Some(arr.to_vec()));
+    }
+
+    // ArrayBuffer → wrap in Uint8Array → copy to Vec<u8>
+    if let Some(buf) = body_val.dyn_ref::<js_sys::ArrayBuffer>() {
+        let arr = Uint8Array::new(buf);
+        return Ok(Some(arr.to_vec()));
+    }
+
+    Err(FetchError::Http(
+        "unsupported body type (expected string, Uint8Array, or ArrayBuffer)".into(),
+    ))
+}
+
+// Response serialisation (Rust → JS plain object)
+
+/// Serialise an `HttpResponse` into a plain JS object for Comlink transfer.
+///
+/// Shape: `{ body: Uint8Array, status: number, statusText: string, headers: object }`
+///
+/// The TS layer reconstructs a native browser `Response` from this:
+/// ```js
+/// new Response(raw.body, { status: raw.status, statusText: raw.statusText, headers })
+/// ```
+fn serialise_response(resp: &HttpResponse) -> Result<JsValue, FetchError> {
+    let obj = Object::new();
+    let body = Uint8Array::from(resp.body.as_slice());
+
+    set_prop(&obj, "body", &body)?;
+    set_prop(&obj, "status", &JsValue::from(resp.status))?;
+    set_prop(&obj, "statusText", &JsValue::from_str(&resp.status_text))?;
+
+    let headers_obj = Object::new();
+    for (k, v) in &resp.headers {
+        set_prop(&headers_obj, k, &JsValue::from_str(v))?;
+    }
+    set_prop(&obj, "headers", &headers_obj)?;
+
+    Ok(obj.into())
+}
+
+/// Helper: set a property on a JS object via `Reflect.set`.
+fn set_prop(obj: &Object, key: &str, val: &JsValue) -> Result<(), FetchError> {
+    Reflect::set(obj, &JsValue::from_str(key), val)
+        .map(|_| ())
+        .map_err(|e| FetchError::Js(format!("failed to set '{key}': {e:?}")))
+}
+
+/// Whether the URL scheme is one we'll forward to.
+fn is_http_scheme(url: &Url) -> bool {
+    matches!(url.scheme(), "http" | "https")
+}
+
+/// Drop credential-bearing headers when a redirect crosses origins.
+fn strip_sensitive_headers(headers: &mut Vec<(String, String)>) {
+    const SENSITIVE: &[&str] = &["authorization", "cookie", "proxy-authorization"];
+    headers.retain(|(k, _)| !SENSITIVE.iter().any(|name| k.eq_ignore_ascii_case(name)));
+}

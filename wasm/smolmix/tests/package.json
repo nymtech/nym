@@ -1,0 +1,16 @@
+{
+  "name": "smolmix-wasm-playwright-tests",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --project=smoke-chromium --project=smoke-firefox --project=smoke-webkit",
+    "test:suite": "playwright test --project=suite-chromium --project=suite-firefox --project=suite-webkit",
+    "test:chromium": "playwright test --project=smoke-chromium --project=suite-chromium",
+    "test:firefox": "playwright test --project=smoke-firefox --project=suite-firefox",
+    "test:webkit": "playwright test --project=smoke-webkit --project=suite-webkit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "serve": "^14.2.4"
+  }
+}

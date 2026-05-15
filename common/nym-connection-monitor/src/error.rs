@@ -25,6 +25,9 @@ pub enum Error {
 
     #[error("failed to create ipv4 packet")]
     Ipv4PacketCreationFailure,
+
+    #[error("packet length {length} exceeds the u16 IP header field")]
+    PacketLengthOverflow { length: usize },
 }
 
 // Result type based on our error type

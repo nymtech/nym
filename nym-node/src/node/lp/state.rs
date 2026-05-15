@@ -11,7 +11,6 @@ use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::LpTransportSession;
 use nym_lp::peer::LpLocalPeer;
 use nym_lp_data::packet::header::LpReceiverIndex;
-use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
@@ -53,15 +52,11 @@ pub struct SharedLpNodeControlState {
 /// Shared state for LP data connections
 #[derive(Clone)]
 pub struct SharedLpDataState {
-    /// Channel for forwarding Sphinx packets into the mixnet
-    ///
-    /// Used by the LP data handler (UDP:51264) to forward decrypted Sphinx packets
-    /// from LP clients into the mixnet for routing.
-    #[allow(dead_code)]
-    pub outbound_mix_sender: MixForwardingSender,
+    /// Metrics collection
+    pub metrics: NymNodeMetrics,
 
-    /// Common shared data
-    pub shared: SharedLpState,
+    /// LP configuration (for timestamp validation, etc.)
+    pub lp_config: LpConfig,
 }
 
 /// Established sessions keyed by the receiver index

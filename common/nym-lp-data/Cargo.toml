@@ -16,6 +16,7 @@ bytes.workspace = true
 num_enum.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
+rand.workspace = true
 
 nym-common.workspace = true
 

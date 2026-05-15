@@ -23,8 +23,7 @@ pub mod version {
 pub(crate) const UDP_HEADER_LEN: usize = 8;
 #[allow(dead_code)]
 pub(crate) const IP_HEADER_LEN: usize = 40; // v4 - 20, v6 - 40
-#[allow(dead_code)]
-pub(crate) const MTU: usize = 1500;
+pub const MTU: usize = 1500;
 #[allow(dead_code)]
 pub(crate) const UDP_OVERHEAD: usize = UDP_HEADER_LEN + IP_HEADER_LEN;
 #[allow(dead_code)]
@@ -66,6 +65,22 @@ impl EncryptedLpPacket {
     pub fn encode(&self, dst: &mut BytesMut) {
         self.outer_header.encode(dst);
         dst.put_slice(&self.ciphertext)
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = BytesMut::new();
+        self.encode(&mut buf);
+        buf.to_vec()
+    }
+
+    pub fn decode(src: &[u8]) -> Result<Self, MalformedLpPacketError> {
+        let outer_header = OuterHeader::parse(src)?;
+        let ciphertext = src[OuterHeader::SIZE..].to_vec();
+
+        Ok(Self {
+            outer_header,
+            ciphertext,
+        })
     }
 
     pub fn ciphertext(&self) -> &[u8] {
@@ -115,5 +130,29 @@ impl LpPacket {
     pub(crate) fn dbg_encode(&self, dst: &mut BytesMut) {
         self.header.dbg_encode(dst);
         self.frame.encode(dst)
+    }
+
+    // SW TMP, while we don't have any encryption
+    pub fn decode(packet: EncryptedLpPacket) -> Result<Self, MalformedLpPacketError> {
+        let plaintext = packet.ciphertext();
+        let inner_header = InnerHeader::parse(plaintext)?;
+        let payload = &plaintext[InnerHeader::SIZE..];
+        let frame = LpFrame::decode(payload)?;
+
+        Ok(Self::new(
+            LpHeader {
+                outer: packet.outer_header(),
+                inner: inner_header,
+            },
+            frame,
+        ))
+    }
+
+    // SW TMP, while we don't have any encryption
+    pub fn encode(self) -> EncryptedLpPacket {
+        let outer_header = self.header.outer;
+        let ciphertext = self.debug_bytes();
+
+        EncryptedLpPacket::new(outer_header, ciphertext)
     }
 }

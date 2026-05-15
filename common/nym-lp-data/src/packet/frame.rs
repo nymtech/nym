@@ -3,7 +3,7 @@
 
 use crate::packet::error::MalformedLpPacketError;
 use bytes::{BufMut, Bytes, BytesMut};
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{FromPrimitive, IntoPrimitive};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,7 +31,7 @@ impl LpFrameHeader {
 
     /// Encode directly into a BytesMut buffer
     pub fn encode(&self, dst: &mut BytesMut) {
-        dst.put_u16_le(self.kind as u16);
+        dst.put_u16_le(self.kind.into());
         dst.put_slice(&self.frame_attributes);
     }
 
@@ -41,8 +41,7 @@ impl LpFrameHeader {
         }
         let raw_kind = u16::from_le_bytes([src[0], src[1]]);
 
-        let kind = LpFrameKind::try_from(raw_kind)
-            .map_err(|_| MalformedLpPacketError::invalid_data_kind(raw_kind))?;
+        let kind = LpFrameKind::from(raw_kind);
 
         #[allow(clippy::unwrap_used)]
         let message_attributes = src[2..16].try_into().unwrap();
@@ -70,6 +69,17 @@ impl LpFrame {
     pub fn new(kind: LpFrameKind, content: impl Into<Bytes>) -> Self {
         Self {
             header: LpFrameHeader::new_no_attributes(kind),
+            content: content.into(),
+        }
+    }
+
+    pub fn new_with_attributes(
+        kind: LpFrameKind,
+        attrs: impl Into<LpFrameAttributes>,
+        content: impl Into<Bytes>,
+    ) -> Self {
+        Self {
+            header: LpFrameHeader::new(kind, attrs.into()),
             content: content.into(),
         }
     }
@@ -118,13 +128,28 @@ impl LpFrame {
 }
 
 /// Represent kind of application data being sent in Transport mode
-#[derive(Clone, Copy, PartialEq, Eq, Debug, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, IntoPrimitive, FromPrimitive)]
 #[repr(u16)]
 pub enum LpFrameKind {
     Opaque = 0,
     Registration = 1,
     Forward = 2,
     SphinxStream = 3,
+    FragmentedSphinxPacket = 4,
+    FragmentedOutfoxPacket = 5,
+
+    #[num_enum(catch_all)]
+    Unknown(u16),
+}
+
+impl LpFrameKind {
+    // Indicate if the frame attributes can be parsed as fragments attributess
+    pub fn is_fragmented(&self) -> bool {
+        matches!(
+            self,
+            Self::FragmentedSphinxPacket | Self::FragmentedOutfoxPacket
+        )
+    }
 }
 
 /// Message type within a `LpFrameKind::SphinxStream` frame.

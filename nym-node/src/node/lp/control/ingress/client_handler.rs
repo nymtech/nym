@@ -263,27 +263,14 @@ where
                 self.handle_forwarding_request(receiver_idx, forward_data)
                     .await
             }
-            LpFrameKind::Opaque => {
+            other => {
                 // Neither registration nor forwarding - unknown payload type
                 warn!(
                     "Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes",
                     bytes.len()
                 );
                 inc!("lp_errors_unknown_payload_type");
-                Err(LpHandlerError::UnexpectedLpPayload {
-                    typ: LpFrameKind::Opaque,
-                })
-            }
-            LpFrameKind::SphinxStream => {
-                // Neither registration nor forwarding - unknown payload type
-                warn!(
-                    "Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes",
-                    bytes.len()
-                );
-                inc!("lp_errors_unknown_payload_type");
-                Err(LpHandlerError::UnexpectedLpPayload {
-                    typ: LpFrameKind::SphinxStream,
-                })
+                Err(LpHandlerError::UnexpectedLpPayload { typ: other })
             }
         }
     }

@@ -22,6 +22,7 @@ use std::fmt::Debug;
 
 pub mod clients;
 pub mod common;
+pub mod fragmentation;
 pub mod mixnodes;
 pub mod packet;
 

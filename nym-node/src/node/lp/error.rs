@@ -50,9 +50,6 @@ pub enum LpHandlerError {
     #[error("missing KEM key hashes for node {node_id} connected from {node_ip}")]
     MissingNodeKEMKeyHashes { node_ip: IpAddr, node_id: NodeId },
 
-    #[error("data channel is not yet implemented")]
-    UnimplementedDataChannel,
-
     #[error("{ip_addr} does not correspond to any known LP node")]
     NotLpNode { ip_addr: IpAddr },
 

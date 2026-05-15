@@ -22,7 +22,8 @@ use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::controller::KeyRotationController;
 use crate::node::key_rotation::manager::SphinxKeyManager;
-use crate::node::lp::LpSetup;
+use crate::node::lp::LpControlSetup;
+use crate::node::lp::data::LpDataSetup;
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
 use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
@@ -488,22 +489,29 @@ impl NymNode {
         config.save()
     }
 
-    pub async fn build_lp_tasks(
+    pub async fn build_lp_control_tasks(
         &self,
         peer_registrator: Option<PeerRegistrator>,
-        mix_packet_sender: MixForwardingSender,
         network_nodes: LpNodes,
-    ) -> Result<LpSetup, NymNodeError> {
+    ) -> Result<LpControlSetup, NymNodeError> {
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), self.x25519_lp_keys.clone())
             .with_kem_keys(self.psq_kem_keys.clone());
 
-        LpSetup::new(
+        LpControlSetup::new(
             lp_peer,
             self.config.lp,
             self.metrics.clone(),
             peer_registrator,
             network_nodes,
-            mix_packet_sender,
+            self.shutdown_manager.shutdown_tracker().clone(),
+        )
+        .await
+    }
+
+    pub async fn build_lp_data_tasks(&self) -> Result<LpDataSetup, NymNodeError> {
+        LpDataSetup::new(
+            self.config.lp,
+            self.metrics.clone(),
             self.shutdown_manager.shutdown_tracker().clone(),
         )
         .await
@@ -708,7 +716,7 @@ impl NymNode {
             config.gateway,
             self.ed25519_identity_keys.clone(),
             self.entry_gateway.client_storage.clone(),
-            mix_packet_sender.clone(),
+            mix_packet_sender,
             metrics_sender,
             self.metrics.clone(),
             self.entry_gateway.mnemonic.clone(),
@@ -774,10 +782,10 @@ impl NymNode {
                 "starting the LP listener on {} (data handler on: {})",
                 self.config.lp.control_bind_address, self.config.lp.data_bind_address,
             );
-            let lp_tasks = self
-                .build_lp_tasks(wg_peer_registrator.clone(), mix_packet_sender, lp_nodes)
+            let lp_control_tasks = self
+                .build_lp_control_tasks(wg_peer_registrator.clone(), lp_nodes)
                 .await?;
-            lp_tasks.start_tasks();
+            lp_control_tasks.start_tasks();
         } else {
             info!("node not running in entry mode: the websocket and LP will remain closed");
         }
@@ -1383,6 +1391,10 @@ impl NymNode {
                 noise_config,
             )
             .await?;
+
+        // LP Data channel
+        let lp_data_tasks = self.build_lp_data_tasks().await?;
+        lp_data_tasks.start_tasks();
 
         let metrics_sender = self.setup_metrics_backend(
             active_clients_store.clone(),

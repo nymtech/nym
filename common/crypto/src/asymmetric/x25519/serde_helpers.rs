@@ -11,9 +11,7 @@ pub mod bs58_x25519_private_key {
         serializer.serialize_str(&key.to_base58_string())
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<PrivateKey, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<PrivateKey, D::Error> {
         let s = String::deserialize(deserializer)?;
         PrivateKey::from_base58_string(s).map_err(serde::de::Error::custom)
     }

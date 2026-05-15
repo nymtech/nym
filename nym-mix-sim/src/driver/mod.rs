@@ -7,8 +7,8 @@
 //! [`MixSimClient`]s and is the single entry point for running the simulation.
 //! It is responsible for:
 //!
-//! 1. **Bootstrapping** — building the shared [`Directory`] from pre-constructed
-//!    nodes and clients, then distributing it to every participant.
+//! 1. **Bootstrapping** — building the shared [`Directory`](crate::topology::directory::Directory)
+//!    from pre-constructed nodes and clients, then distributing it to every participant.
 //! 2. **Ticking** — advancing every node and client through the phases of a
 //!    simulation step (client tick → incoming → processing → outgoing).
 //! 3. **Driving** — either automatically (sleeping between ticks) or manually

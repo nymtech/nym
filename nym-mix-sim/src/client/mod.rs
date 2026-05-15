@@ -20,8 +20,7 @@ pub type ClientId = NodeId;
 /// Driver-facing interface for a simulated client.
 ///
 /// Erases `Fr`, `Pkt`, and `Mk` so that [`MixSimDriver`] only needs `Ts`.
-/// Implemented by [`SimpleClient<Ts, Fr, Pkt, Mk>`] and any other concrete
-/// client types.
+/// Implemented by [`simple::SimpleClient`] and any other concrete client types.
 ///
 /// [`MixSimDriver`]: crate::driver::MixSimDriver
 pub trait MixSimClient<Ts: Clone + PartialOrd + Debug + Send>: Send {
@@ -62,15 +61,22 @@ pub trait ProcessingClient<Ts, SndPkt, RcvPkt = SndPkt>: Send {
 /// and `recv_from_app` without duplicating that logic.  Packet types are
 /// method-level generics so `BaseClient` itself has no type parameters.
 pub struct BaseClient<Ts, Pc, SndPkt, RcvPkt = SndPkt> {
+    /// Identifier of this client within the topology.
     id: ClientId,
+    /// Socket bound to the mix-network address; sends to first-hop nodes and
+    /// receives final-hop packets.
     mix_socket: UdpSocket,
+    /// Socket bound to the app address; receives application payloads from
+    /// external CLIs (e.g. `mix-client`).
     app_socket: UdpSocket,
+    /// Shared routing table used to resolve next-hop [`NodeId`]s to addresses.
     directory: Arc<Directory>,
 
     /// Packets that have been processed and are waiting to be forwarded to their
     /// first-hop node, sorted (loosely) by scheduled send timestamp.
     outgoing_queue: Vec<AddressedTimedData<Ts, SndPkt, NodeId>>,
 
+    /// Concrete client-processing implementation invoked from each tick phase.
     processing_client: Pc,
 
     /// Phantom data to carry the `RcvPkt` type parameter without storing a value.

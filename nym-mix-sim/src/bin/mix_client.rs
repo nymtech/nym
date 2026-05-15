@@ -5,7 +5,7 @@
 //!
 //! Reads lines from stdin and, on each ENTER, sends the text as a raw payload
 //! to the app socket of the running client identified by `--src`.  The client
-//! wraps it into the active wire format (e.g. [`SimplePacket`] for the simple
+//! wraps it into the active wire format (e.g. a `SimplePacket` for the simple
 //! driver, an onion-encrypted Sphinx packet for the Sphinx drivers) and forwards
 //! it through the mix network to the destination client `--dst`.
 //!

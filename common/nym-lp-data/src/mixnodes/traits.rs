@@ -13,6 +13,7 @@ use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 /// # Type Parameters
 /// - `Ts`: Timestamp / tick-context type.
 /// - `Pkt`: Transport packet type; the same type is consumed and produced.
+/// - `Opts`: Per-message pipeline options carried into the re-wrapping side.
 /// - `Mk`: Message-kind marker returned by the unwrap side.
 /// - `NdId`: Identifier type for the next-hop destination.
 ///
@@ -21,12 +22,14 @@ use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 ///
 /// # Required Methods
 /// - `mix`: Given a reassembled payload and the current timestamp, return zero or more
-///   `(next_hop, payload)` pairs to be re-wrapped and forwarded.
+///   [`PipelinePayload`]s carrying their next-hop addresses to be re-wrapped and forwarded.
 ///
 /// # Provided Methods
 /// - `process`: Unwraps the incoming packet via [`WireUnwrappingPipeline::wire_unwrap`],
 ///   passes the result to [`mix`], and re-wraps each output payload via
 ///   [`WireWrappingPipeline::wire_wrap`].
+///
+/// [`mix`]: MixnodeProcessingPipeline::mix
 pub trait MixnodeProcessingPipeline<Ts, Pkt, Opts, Mk, NdId>:
     WireUnwrappingPipeline<Ts, Pkt, Mk> + WireWrappingPipeline<Ts, Pkt, Opts, NdId>
 where

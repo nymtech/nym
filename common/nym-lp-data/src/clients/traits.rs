@@ -9,15 +9,15 @@ use crate::{AddressedTimedData, TimedPayload};
 /// Trait for splitting an incoming payload into timestamped chunks.
 ///
 /// # Type Parameters
-/// - `Ts`: Timestamp type associated with each produced `TimedPayload`.
+/// - `Ts`: Timestamp type associated with each produced [`PipelinePayload`].
+/// - `Opts`: Per-message pipeline options (must implement [`InputOptions`]).
+/// - `NdId`: Addressing type for the next-hop destination.
 ///
-/// # Parameters
-/// - `input`: Raw payload to split into chunks.
-/// - `chunk_size`: Maximum size of each chunk in bytes.
-/// - `timestamp`: Timestamp to assign to the produced chunks.
-///
-/// # Returns
-/// - A vector of `TimedPayload`s representing the chunked payload.
+/// # Required Methods
+/// - `chunked`: Split `input` into chunks of at most `chunk_size` bytes, tagging
+///   each chunk with `timestamp` and `input_options`.  Returns one
+///   [`PipelinePayload`] per chunk, ready to be fed through the rest of the
+///   pipeline.
 pub trait Chunking<Ts, Opts, NdId>
 where
     Opts: InputOptions<NdId>,
@@ -31,18 +31,21 @@ where
     ) -> Vec<PipelinePayload<Ts, Opts, NdId>>;
 }
 
-/// Trait for applying reliability encoding to a timed payload.
+/// Trait for applying reliability encoding (e.g. SURB ACKs, retransmissions) to
+/// a timed payload.
 ///
 /// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
+/// - `Ts`: Timestamp type carried by the [`PipelinePayload`].
+/// - `Opts`: Per-message pipeline options.
+/// - `NdId`: Addressing type for the next-hop destination.
 ///
 /// # Associated Constants
 /// - `OVERHEAD_SIZE`: Number of additional bytes added by the reliability scheme.
 ///
-/// # Parameters
-/// - `input`: Payload to encode with the reliability mechanism.
-/// # Returns
-/// - A vector of `TimedPayload` containing the reliability-encoded data and potential retransmissions.
+/// # Required Methods
+/// - `reliable_encode`: Encode `input` with the reliability mechanism.  When
+///   `input` is `None`, the method is still called every tick so the layer can
+///   emit pending retransmissions or scheduled control packets.
 pub trait Reliability<Ts, Opts, NdId> {
     const OVERHEAD_SIZE: usize;
     fn reliable_encode(
@@ -52,20 +55,27 @@ pub trait Reliability<Ts, Opts, NdId> {
     ) -> Vec<PipelinePayload<Ts, Opts, NdId>>;
 }
 
-/// Trait for applying obfuscation to a timed payload.
-/// If obfuscation is used, `obfuscate` should be called at every `Ts` not just the ones with input
+/// Trait for applying obfuscation (cover traffic, traffic shaping) to a timed payload.
+///
+/// When obfuscation is enabled, `obfuscate` must be called on every tick — not
+/// only on ticks that carry input — so the layer can produce cover traffic on
+/// schedule even when the application has nothing to send.
 ///
 /// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
+/// - `Ts`: Timestamp type carried by the [`PipelinePayload`].
+/// - `Opts`: Per-message pipeline options.
+/// - `NdId`: Addressing type for the next-hop destination.
 pub trait Obfuscation<Ts, Opts, NdId> {
-    /// Obfuscate a given timed payload
+    /// Obfuscate `input` at the given `timestamp`.
+    ///
     /// # Parameters
-    /// - `input`: Optional payload to obfusctate
-    /// - `timestamp` : Current timestamp
+    /// - `input`: Payload to obfuscate, or `None` when the pipeline is ticking
+    ///   with no real message available.
+    /// - `timestamp`: Current timestamp.
     ///
     /// # Returns
-    /// - An `Vec<TimedPayload>`, result of the obfuscation algorithm
-    /// - The vector can be empty if there is nothing to return right away
+    /// A `Vec` of obfuscated payloads, possibly empty when no packet is due to be
+    /// emitted at this tick.
     fn obfuscate(
         &mut self,
         input: Option<PipelinePayload<Ts, Opts, NdId>>,
@@ -73,16 +83,18 @@ pub trait Obfuscation<Ts, Opts, NdId> {
     ) -> Vec<PipelinePayload<Ts, Opts, NdId>>;
 }
 
-/// Trait for applying routing-security encryption to a timed payload.
+/// Trait for applying routing-security encryption (e.g. Sphinx) to a timed payload.
 ///
 /// # Type Parameters
-/// - `Ts`: Timestamp type carried by the `TimedPayload`.
+/// - `Ts`: Timestamp type carried by the [`PipelinePayload`].
+/// - `Opts`: Per-message pipeline options.
+/// - `NdId`: Addressing type for the next-hop destination.
 ///
 /// # Associated Constants
 /// - `OVERHEAD_SIZE`: Number of additional bytes added by the encryption scheme.
 ///
 /// # Required Methods
-/// - `encrypt`: Encrypt the given payload, returning a new `TimedPayload`.
+/// - `encrypt`: Encrypt the given payload, returning a new [`PipelinePayload`].
 ///
 /// # Provided Methods
 /// - `nb_frames`: Number of transport frames that one encrypted payload expands
@@ -109,6 +121,8 @@ pub trait RoutingSecurity<Ts, Opts, NdId> {
 /// # Type Parameters
 /// - `Ts`: Timestamp type carried through the pipeline.
 /// - `Pkt`: Final transport packet type produced by transport.
+/// - `Opts`: Per-message pipeline options (must implement [`InputOptions`]).
+/// - `NdId`: Addressing type for the next-hop destination.
 ///
 /// # Provided Methods
 /// - `chunk_size`: Derived from `frame_size` (via [`WireWrappingPipeline`]) minus
@@ -210,14 +224,17 @@ where
 /// Dyn-compatible mirror of [`ClientWrappingPipeline`].
 ///
 /// All associated constants from the sub-traits are exposed as methods so the
-/// trait can be used as `dyn DynClientWrappingPipeline<Ts, Fr, Pkt>`, erasing the
-/// concrete pipeline type while keeping `Ts`, `Fr`, and `Pkt`.
+/// trait can be used as `dyn DynClientWrappingPipeline<Ts, Pkt, Opts, NdId>`,
+/// erasing the concrete pipeline type while keeping `Ts`, `Pkt`, `Opts`, and
+/// `NdId` visible.
 ///
 /// Implement [`ClientWrappingPipeline`] on your concrete type; the blanket impl
 /// below provides `DynClientWrappingPipeline` for free.
 pub trait DynClientWrappingPipeline<Ts, Pkt, Opts, NdId> {
+    /// On-wire size of an output packet in bytes.
     fn packet_size(&self) -> usize;
 
+    /// Run the full client wrapping pipeline; see [`ClientWrappingPipeline::process`].
     fn process(
         &mut self,
         input: Option<(Vec<u8>, Opts)>,
@@ -248,8 +265,8 @@ where
 /// Full client-side inbound pipeline.
 ///
 /// Combines the shared [`WireUnwrappingPipeline`] (transport + framing unwrap) with a
-/// blank [`process_unwrapped`] step that the implementor fills in (routing-security
-/// decrypt, reliability decode, chunk reassembly, etc.).
+/// blank [`process_unwrapped`](Self::process_unwrapped) step that the implementor
+/// fills in (routing-security decrypt, reliability decode, chunk reassembly, etc.).
 ///
 /// # Type Parameters
 /// - `Ts`: Timestamp type.

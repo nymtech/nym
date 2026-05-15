@@ -9,11 +9,11 @@ use nym_lp_data::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
     },
-    fragmentation::fragment::fragment_payload,
+    fragmentation::fragment::fragment_lp_message,
     mixnodes::traits::MixnodeProcessingPipeline,
     packet::{
         EncryptedLpPacket, LpFrame, LpHeader, LpPacket, MalformedLpPacketError,
-        frame::LpFrameHeader,
+        frame::{LpFrameHeader, LpFrameKind},
     },
 };
 use rand::Rng;
@@ -58,18 +58,15 @@ where
         _: Instant,
     ) -> Vec<PipelinePayload<Instant, MixMessage, SocketAddr>> {
         let processing_result = match message_kind {
-            MixMessage::Sphinx {
-                key_rotation,
-                reserved: _,
-            } => processing::sphinx::process(&self.state, payload, key_rotation),
-            MixMessage::Outfox {
-                key_rotation,
-                reserved: _,
-            } => processing::outfox::process(&self.state, payload, key_rotation),
+            MixMessage::Sphinx(metadata) => {
+                processing::sphinx::process(&self.state, payload, metadata)
+            }
+            MixMessage::Outfox(metadata) => {
+                processing::outfox::process(&self.state, payload, metadata)
+            }
         };
 
-        self.state
-            .update_processing_metrics(&processing_result, message_kind);
+        self.state.update_processing_metrics(&processing_result);
 
         let packet_to_forward = match processing_result {
             Ok(packet) => packet,
@@ -89,7 +86,7 @@ where
             self.state.routing_filter_dropped(next_hop);
             Vec::new()
         } else {
-            vec![packet_to_forward.with_options(message_kind)]
+            vec![packet_to_forward]
         }
     }
 }
@@ -107,19 +104,23 @@ where
         payload: PipelinePayload<Instant, MixMessage, SocketAddr>,
         frame_size: usize,
     ) -> Vec<AddressedTimedData<Instant, Self::Frame, SocketAddr>> {
-        let content = payload.data.data;
-        let fragments =
-            fragment_payload(&mut self.rng, &content, payload.options.into(), frame_size);
+        let frame = LpFrame {
+            header: payload.options.into(),
+            content: payload.data.data.into(),
+        };
 
-        fragments
+        let output_frames = if frame.len() > frame_size {
+            fragment_lp_message(&mut self.rng, frame, frame_size)
+                .into_iter()
+                .map(|f| f.into_lp_frame())
+                .collect()
+        } else {
+            vec![frame]
+        };
+
+        output_frames
             .into_iter()
-            .map(|f| {
-                AddressedTimedData::new_addressed(
-                    payload.data.timestamp,
-                    f.into_lp_frame(),
-                    payload.dst,
-                )
-            })
+            .map(|f| AddressedTimedData::new_addressed(payload.data.timestamp, f, payload.dst))
             .collect()
     }
 }
@@ -183,7 +184,7 @@ where
         &mut self,
         frame: TimedData<Instant, Self::Frame>,
     ) -> Option<(TimedPayload<Instant>, MixMessage)> {
-        if frame.data.kind().is_fragmented() {
+        let reassembled_frame = if frame.data.kind() == LpFrameKind::FragmentedData {
             let fragment = frame
                 .data
                 .try_into()
@@ -192,23 +193,44 @@ where
                     self.state.malformed_packet();
                 })
                 .ok()?;
-            let (payload, metadata) = self
+            let message = self
                 .state
                 .message_reconstructor
-                .insert_new_fragment(fragment, frame.timestamp)?;
-            let message_kind = metadata
-                .try_into()
+                .insert_new_fragment(fragment, frame.timestamp)?
                 .inspect_err(|e| {
-                    tracing::warn!(
-                        "Somehow got a non fragmented message kind from reconstruction buffer : {e}"
-                    );
+                    tracing::error!("Failed to recover a frame : {e}");
+                    self.state.malformed_packet();
                 })
                 .ok()?;
-            self.state.message_received(message_kind);
-            Some((TimedPayload::new(frame.timestamp, payload), message_kind))
+
+            TimedData::new(frame.timestamp, message)
         } else {
-            warn!("unimplemented yet");
-            None
+            frame
+        };
+
+        match reassembled_frame.data.kind() {
+            LpFrameKind::FragmentedData => {
+                warn!(
+                    "Fragmented data inside fragmented data, it shouldn't happen. Dropping the message"
+                );
+                None
+            }
+            _ => {
+                let message_kind = reassembled_frame
+                    .data
+                    .header
+                    .try_into()
+                    .inspect_err(|e| warn!("{e}"))
+                    .ok()?;
+                self.state.message_received(&message_kind);
+                Some((
+                    TimedPayload::new(
+                        reassembled_frame.timestamp,
+                        reassembled_frame.data.content.to_vec(),
+                    ),
+                    message_kind,
+                ))
+            }
         }
     }
 }
@@ -227,11 +249,11 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use nym_lp_data::common::traits::WireWrappingPipeline;
-    use nym_lp_data::fragmentation::fragment::{FragmentMetadata, fragment_payload};
+    use nym_lp_data::fragmentation::fragment::fragment_lp_message;
     use nym_lp_data::fragmentation::reconstruction::MessageReconstructor;
     use nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline;
     use nym_lp_data::packet::{
-        EncryptedLpPacket, LpFrame, LpHeader, LpPacket, OuterHeader, version,
+        EncryptedLpPacket, LpFrame, LpHeader, LpPacket, OuterHeader, frame::LpFrameHeader, version,
     };
     use nym_node_metrics::NymNodeMetrics;
     use nym_node_metrics::mixnet::PacketKind;
@@ -248,7 +270,7 @@ mod tests {
     use crate::config::{LpConfig, ReplayProtectionDebug};
     use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
     use crate::node::key_rotation::key::SphinxPrivateKey;
-    use crate::node::lp::data::handler::messages::MixMessage;
+    use crate::node::lp::data::handler::messages::{MixMessage, SphinxMixMessage};
     use crate::node::lp::data::handler::pipeline::MixnodeDataPipeline;
     use crate::node::lp::data::shared::{ProcessingConfig, SharedLpDataState};
     use crate::node::replay_protection::bloomfilter::{
@@ -427,37 +449,48 @@ mod tests {
         LpPacket::new(LpHeader::new(0, 0, version::CURRENT), frame).encode()
     }
 
-    /// Fragment `bytes` into `EncryptedLpPacket`s carrying the given mix-message
-    /// metadata. `fragment_payload_size` controls how the payload is split:
-    /// pass at least `bytes.len()` to get a single fragment, or smaller to force
-    /// multiple fragments.
+    /// Wrap `bytes` into an [`LpFrame`] using `message` as the header, then
+    /// either pass it through unfragmented (if it fits within `frame_size`)
+    /// or split it into fragments. Mirrors the pipeline's framing logic so
+    /// tests can build the exact packet sequence a peer would emit.
     fn fragment_into_lp_packets(
         bytes: &[u8],
         message: MixMessage,
-        fragment_payload_size: usize,
+        frame_size: usize,
         rng: &mut DeterministicRng,
     ) -> Vec<EncryptedLpPacket> {
-        let metadata: FragmentMetadata = message.into();
-        fragment_payload(rng, bytes, metadata, fragment_payload_size.max(1))
+        let frame = LpFrame {
+            header: message.into(),
+            content: bytes.to_vec().into(),
+        };
+
+        let frames = if frame.len() > frame_size {
+            fragment_lp_message(rng, frame, frame_size)
+                .into_iter()
+                .map(|f| f.into_lp_frame())
+                .collect()
+        } else {
+            vec![frame]
+        };
+
+        frames
             .into_iter()
-            .map(|f| lp_frame_to_encrypted_packet(f.into_lp_frame()))
+            .map(lp_frame_to_encrypted_packet)
             .collect()
     }
 
     /// Default sphinx mix-message metadata used by tests (rotation matching the
     /// even primary key in [`mock_shared_state`]).
     fn sphinx_mix_message() -> MixMessage {
-        MixMessage::Sphinx {
+        MixMessage::Sphinx(SphinxMixMessage {
             key_rotation: SphinxKeyRotation::EvenRotation,
-            reserved: [0u8; 3],
-        }
+        })
     }
 
     fn outfox_mix_message() -> MixMessage {
-        MixMessage::Outfox {
+        MixMessage::Outfox(SphinxMixMessage {
             key_rotation: SphinxKeyRotation::EvenRotation,
-            reserved: [0u8; 3],
-        }
+        })
     }
 
     // ==================== Tests ====================
@@ -476,12 +509,9 @@ mod tests {
             state.sphinx_keys.primary().x25519_pubkey().into(),
             delay,
             next_hop,
-            pipeline.frame_size(),
+            pipeline.frame_size() - LpFrameHeader::SIZE,
             &mut rng,
         );
-
-        // Sanity check
-        assert_eq!(sphinx_bytes.len(), pipeline.frame_size());
 
         let inputs = fragment_into_lp_packets(
             &sphinx_bytes,
@@ -489,25 +519,25 @@ mod tests {
             pipeline.frame_size(),
             &mut rng,
         );
-        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+        assert_eq!(inputs.len(), 1, "expected a single input frame");
 
         let input_packet = inputs[0].clone();
 
         let arrival = Instant::now();
         let outputs = pipeline.process(input_packet, arrival).unwrap();
 
-        assert_eq!(outputs.len(), 1, "expected exactly one output fragment");
+        assert_eq!(outputs.len(), 1, "expected exactly one output frame");
 
         let output_packet = outputs[0].clone();
 
         assert_eq!(
             output_packet.dst, next_hop,
-            "output fragment must target the next hop"
+            "output frame must target the next hop"
         );
         assert_eq!(
             output_packet.data.timestamp,
             arrival + delay.to_duration(),
-            "output fragment delay must match arrival + delay"
+            "output frame delay must match arrival + delay"
         );
         assert_eq!(
             state
@@ -531,12 +561,9 @@ mod tests {
         let outfox_bytes = build_outfox_bytes(
             state.sphinx_keys.primary().x25519_pubkey().into(),
             next_hop,
-            pipeline.frame_size(),
+            pipeline.frame_size() - LpFrameHeader::SIZE,
             &mut rng,
         );
-
-        // Sanity check
-        assert_eq!(outfox_bytes.len(), pipeline.frame_size());
 
         let inputs = fragment_into_lp_packets(
             &outfox_bytes,
@@ -544,24 +571,24 @@ mod tests {
             pipeline.frame_size(),
             &mut rng,
         );
-        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+        assert_eq!(inputs.len(), 1, "expected a single input frame");
 
         let input_packet = inputs[0].clone();
 
         let arrival = Instant::now();
         let outputs = pipeline.process(input_packet, arrival).unwrap();
 
-        assert_eq!(outputs.len(), 1, "expected exactly one output fragment");
+        assert_eq!(outputs.len(), 1, "expected exactly one output frame");
 
         let output_packet = outputs[0].clone();
 
         assert_eq!(
             output_packet.dst, next_hop,
-            "output fragment must target the next hop"
+            "output frame must target the next hop"
         );
         assert_eq!(
             output_packet.data.timestamp, arrival,
-            "outfox output fragment should not have any delay"
+            "outfox output frame should not have any delay"
         );
         assert_eq!(
             state
@@ -582,11 +609,8 @@ mod tests {
         let sphinx_bytes = build_final_hop_sphinx_bytes(
             state.sphinx_keys.primary().x25519_pubkey().into(),
             Delay::new_from_millis(50),
-            pipeline.frame_size(),
+            pipeline.frame_size() - LpFrameHeader::SIZE,
         );
-
-        // Sanity check
-        assert_eq!(sphinx_bytes.len(), pipeline.frame_size());
 
         let inputs = fragment_into_lp_packets(
             &sphinx_bytes,
@@ -594,7 +618,7 @@ mod tests {
             pipeline.frame_size(),
             &mut rng,
         );
-        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+        assert_eq!(inputs.len(), 1, "expected a single input frame");
 
         let input_packet = inputs[0].clone();
 
@@ -622,7 +646,7 @@ mod tests {
             state.sphinx_keys.primary().x25519_pubkey().into(),
             delay,
             next_hop,
-            pipeline.frame_size(),
+            pipeline.frame_size() - LpFrameHeader::SIZE,
             &mut rng,
         );
 
@@ -632,7 +656,7 @@ mod tests {
             pipeline.frame_size(),
             &mut rng,
         );
-        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+        assert_eq!(inputs.len(), 1, "expected a single input frame");
 
         let input_packet = inputs[0].clone();
         // This also replays the LP encryption. This is fine for now since there is none, but once LP has replay protection by itself, we should test sphinx replay here
@@ -643,7 +667,7 @@ mod tests {
         assert_eq!(
             first.len(),
             1,
-            "first send should be forwarded in one fragment"
+            "first send should be forwarded in one frame"
         );
         assert_eq!(
             state
@@ -688,9 +712,14 @@ mod tests {
         let (mut pipeline, state) = mock_pipeline();
         let mut rng = deterministic_rng();
 
-        let garbage = vec![0xAAu8; pipeline.frame_size()];
-        let inputs =
-            fragment_into_lp_packets(&garbage, sphinx_mix_message(), garbage.len(), &mut rng);
+        let garbage = vec![0xAAu8; pipeline.frame_size() - LpFrameHeader::SIZE];
+        let inputs = fragment_into_lp_packets(
+            &garbage,
+            sphinx_mix_message(),
+            pipeline.frame_size(),
+            &mut rng,
+        );
+        assert_eq!(inputs.len(), 1, "expected a single input frame");
 
         let outputs = pipeline
             .process(inputs.into_iter().next().unwrap(), Instant::now())
@@ -715,12 +744,13 @@ mod tests {
 
         let nb_fragments = 3;
 
-        // Packet fits exactly in one frame
+        // Sized so the wrapping LpFrame is exactly `nb_fragments * frame_size`
+        // bytes once serialized, which fragments into `nb_fragments` pieces.
         let sphinx_bytes = build_sphinx_bytes(
             state.sphinx_keys.primary().x25519_pubkey().into(),
             delay,
             next_hop,
-            nb_fragments * pipeline.frame_size(),
+            nb_fragments * pipeline.frame_size() - LpFrameHeader::SIZE,
             &mut rng,
         );
 
@@ -766,14 +796,14 @@ mod tests {
         for out_pkt in out {
             assert_eq!(
                 out_pkt.dst, next_hop,
-                "output fragment must target the next hop"
+                "output frame must target the next hop"
             );
 
             // All fragments should have a ts of the last arrival plus delay
             assert_eq!(
                 out_pkt.data.timestamp,
                 arrivals[nb_fragments - 1] + delay.to_duration(),
-                "output fragment delay must match arrival + delay"
+                "output frame delay must match arrival + delay"
             );
         }
 
@@ -801,12 +831,9 @@ mod tests {
             state.sphinx_keys.primary().x25519_pubkey().into(),
             huge_delay,
             next_hop,
-            pipeline.frame_size(),
+            pipeline.frame_size() - LpFrameHeader::SIZE,
             &mut rng,
         );
-
-        // Sanity check
-        assert_eq!(sphinx_bytes.len(), pipeline.frame_size());
 
         let inputs = fragment_into_lp_packets(
             &sphinx_bytes,
@@ -814,20 +841,20 @@ mod tests {
             pipeline.frame_size(),
             &mut rng,
         );
-        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+        assert_eq!(inputs.len(), 1, "expected a single input frame");
 
         let input_packet = inputs[0].clone();
 
         let arrival = Instant::now();
         let outputs = pipeline.process(input_packet, arrival).unwrap();
 
-        assert_eq!(outputs.len(), 1, "expected exactly one output fragment");
+        assert_eq!(outputs.len(), 1, "expected exactly one output frame");
 
         let output_packet = outputs[0].clone();
 
         assert_eq!(
             output_packet.dst, next_hop,
-            "output fragment must target the next hop"
+            "output frame must target the next hop"
         );
         assert_eq!(
             output_packet.data.timestamp,
@@ -862,12 +889,9 @@ mod tests {
             state.sphinx_keys.primary().x25519_pubkey().into(),
             delay,
             next_hop,
-            pipeline.frame_size(),
+            pipeline.frame_size() - LpFrameHeader::SIZE,
             &mut rng,
         );
-
-        // Sanity check
-        assert_eq!(sphinx_bytes.len(), pipeline.frame_size());
 
         let inputs = fragment_into_lp_packets(
             &sphinx_bytes,
@@ -875,7 +899,7 @@ mod tests {
             pipeline.frame_size(),
             &mut rng,
         );
-        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+        assert_eq!(inputs.len(), 1, "expected a single input frame");
 
         let input_packet = inputs[0].clone();
 

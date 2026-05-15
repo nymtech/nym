@@ -14,21 +14,12 @@ pub enum LpFrameKind {
     Registration = 1,
     Forward = 2,
     SphinxStream = 3,
-    FragmentedSphinxPacket = 4,
-    FragmentedOutfoxPacket = 5,
+    FragmentedData = 4,
+    SphinxPacket = 5,
+    OutfoxPacket = 6,
 
     #[num_enum(catch_all)]
     Unknown(u16),
-}
-
-impl LpFrameKind {
-    // Indicate if the frame attributes can be parsed as fragments attributess
-    pub fn is_fragmented(&self) -> bool {
-        matches!(
-            self,
-            Self::FragmentedSphinxPacket | Self::FragmentedOutfoxPacket
-        )
-    }
 }
 
 /// Raw 14-byte frame attributes field in every [`LpFrameHeader`].
@@ -88,12 +79,6 @@ pub struct LpFrame {
     pub content: Bytes,
 }
 
-impl AsRef<[u8]> for LpFrame {
-    fn as_ref(&self) -> &[u8] {
-        &self.content
-    }
-}
-
 impl LpFrame {
     pub fn new(kind: LpFrameKind, content: impl Into<Bytes>) -> Self {
         Self {
@@ -124,6 +109,12 @@ impl LpFrame {
         let content = src[LpFrameHeader::SIZE..].to_vec().into();
 
         Ok(Self { header, content })
+    }
+
+    pub fn to_bytes(self) -> Vec<u8> {
+        let mut bytes = BytesMut::new();
+        self.encode(&mut bytes);
+        bytes.freeze().to_vec()
     }
 
     pub fn kind(&self) -> LpFrameKind {

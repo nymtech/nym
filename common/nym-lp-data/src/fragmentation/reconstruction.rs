@@ -1,7 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::fragmentation::fragment::{Fragment, FragmentHashKey, FragmentMetadata};
+use crate::fragmentation::fragment::{Fragment, FragmentHashKey};
+use crate::packet::{LpFrame, MalformedLpPacketError};
 
 use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
@@ -155,22 +156,16 @@ where
     }
 
     /// Insert `fragment` into the buffer for its message and, if it was the
-    /// last outstanding fragment, return the reassembled message bytes
-    /// alongside the original metadata.
+    /// last outstanding fragment, return the reassembled LpFrame
     ///
     /// Stale incomplete messages are evicted on every call.
     pub fn insert_new_fragment(
         &self,
         fragment: Fragment,
         timestamp: Ts,
-    ) -> Option<(Vec<u8>, FragmentMetadata)> {
+    ) -> Option<Result<LpFrame, MalformedLpPacketError>> {
         let key = fragment.hash_key();
         let total_fragments = fragment.total_fragments();
-
-        // Captured before insertion since `insert_fragment` consumes
-        // `fragment`. The kind is also part of `key`, so reading it back
-        // from any of the buffer's slots would be equivalent.
-        let metadata = (fragment.frame_kind(), fragment.kind_metadata()).into();
 
         let maybe_message = match self.in_flight_messages.entry(key) {
             Entry::Occupied(mut entry) => {
@@ -178,13 +173,13 @@ where
                 entry
                     .get()
                     .is_complete
-                    .then(|| (entry.remove().into_message(), metadata))
+                    .then(|| LpFrame::decode(&entry.remove().into_message()))
             }
             Entry::Vacant(entry) => {
                 let mut buf = MessageBuffer::new(total_fragments, timestamp.clone());
                 buf.insert_fragment(fragment, timestamp.clone());
                 if buf.is_complete {
-                    Some((buf.into_message(), metadata))
+                    Some(LpFrame::decode(&buf.into_message()))
                 } else {
                     entry.insert(buf);
                     None
@@ -229,14 +224,14 @@ mod tests {
     #![allow(clippy::unwrap_used)]
 
     use super::*;
-    use crate::fragmentation::fragment::fragment_payload;
+    use crate::fragmentation::fragment::fragment_lp_message;
     use crate::packet::LpFrame;
     use crate::packet::frame::LpFrameKind;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
 
-    const SPHINX: LpFrameKind = LpFrameKind::FragmentedSphinxPacket;
-    const OUTFOX: LpFrameKind = LpFrameKind::FragmentedOutfoxPacket;
+    const SPHINX: LpFrameKind = LpFrameKind::SphinxPacket;
+    const OUTFOX: LpFrameKind = LpFrameKind::OutfoxPacket;
 
     /// Build a `Fragment` with explicit header values via the public
     /// `LpFrame` round-trip, so tests can craft duplicates, out-of-order
@@ -245,20 +240,21 @@ mod tests {
         id: u64,
         total_fragments: u8,
         current_fragment: u8,
-        kind: LpFrameKind,
+        inner_kind: LpFrameKind,
         payload: Vec<u8>,
     ) -> Fragment {
         let mut attrs = [0u8; 14];
         attrs[0..8].copy_from_slice(&id.to_be_bytes());
         attrs[8] = total_fragments;
         attrs[9] = current_fragment;
-        let frame = LpFrame::new_with_attributes(kind, attrs, payload);
+        attrs[10..12].copy_from_slice(&u16::to_be_bytes(inner_kind.into()));
+        let frame = LpFrame::new_with_attributes(LpFrameKind::FragmentedData, attrs, payload);
         Fragment::try_from(frame).unwrap()
     }
 
-    fn split(message: &[u8], kind: LpFrameKind, fragment_size: usize) -> Vec<Fragment> {
+    fn split(message: LpFrame, fragment_size: usize) -> Vec<Fragment> {
         let mut rng = StdRng::seed_from_u64(0xdead_beef);
-        fragment_payload(&mut rng, message, (kind, [0; 4]).into(), fragment_size)
+        fragment_lp_message(&mut rng, message, fragment_size)
     }
 
     // ---------- MessageBuffer ----------
@@ -331,64 +327,55 @@ mod tests {
 
     #[test]
     fn reconstructor_round_trip_single_fragment_message() {
-        let message = b"small";
-        let mut fragments = split(message, SPHINX, 64);
+        let message = LpFrame::new(SPHINX, b"small".as_slice());
+        let mut fragments = split(message.clone(), 64);
         assert_eq!(fragments.len(), 1);
 
         let rec = MessageReconstructor::<u64, u64>::new(60);
         let out = rec.insert_new_fragment(fragments.pop().unwrap(), 0);
-        let (bytes, metadata) = out.expect("single fragment must complete the message");
-        assert_eq!(bytes, message);
-        assert_eq!(metadata.kind(), SPHINX);
+        let recovered_frame = out
+            .expect("single fragment must complete the message")
+            .unwrap();
+        assert_eq!(recovered_frame, message);
     }
 
     #[test]
     fn reconstructor_round_trip_multi_fragment_message() {
-        let message: Vec<u8> = (0u8..=200).collect();
-        let fragments = split(&message, SPHINX, 16);
+        let message = LpFrame::new(SPHINX, (0u8..=200).collect::<Vec<_>>());
+        let fragments = split(message.clone(), 16);
         assert!(fragments.len() > 1);
 
         let rec = MessageReconstructor::<u64, u64>::new(60);
         let total = fragments.len();
-        let mut completed = None;
+        let mut out = None;
         for (i, f) in fragments.into_iter().enumerate() {
-            let out = rec.insert_new_fragment(f, i as u64);
+            out = rec.insert_new_fragment(f, i as u64);
             if i + 1 < total {
                 assert!(out.is_none(), "premature completion at fragment {i}");
-            } else {
-                completed = out;
             }
         }
-        let (bytes, metadata) = completed.expect("last fragment must complete the message");
-        assert_eq!(bytes, message);
-        assert_eq!(metadata.kind(), SPHINX);
+        let recovered_frame = out
+            .expect("last fragment must complete the message")
+            .unwrap();
+        assert_eq!(recovered_frame, message);
     }
 
     #[test]
     fn reconstructor_handles_out_of_order_arrival() {
-        let message: Vec<u8> = (0u8..50).collect();
-        let mut fragments = split(&message, SPHINX, 8);
+        let message = LpFrame::new(SPHINX, (0u8..=200).collect::<Vec<_>>());
+        let mut fragments = split(message.clone(), 18);
         // Reverse arrival order.
         fragments.reverse();
 
         let rec = MessageReconstructor::<u64, u64>::new(60);
-        let mut last = None;
+        let mut out = None;
         for (i, f) in fragments.into_iter().enumerate() {
-            last = rec.insert_new_fragment(f, i as u64);
+            out = rec.insert_new_fragment(f, i as u64);
         }
-        let (bytes, _) = last.expect("must complete after all fragments arrive");
-        assert_eq!(bytes, message);
-    }
-
-    #[test]
-    fn reconstructor_propagates_frame_kind() {
-        let message = b"outfox bytes";
-        let mut fragments = split(message, OUTFOX, 64);
-        let rec = MessageReconstructor::<u64, u64>::new(60);
-        let (_, metadata) = rec
-            .insert_new_fragment(fragments.pop().unwrap(), 0)
-            .expect("complete");
-        assert_eq!(metadata.kind(), OUTFOX);
+        let recovered_frame = out
+            .expect("last fragment must complete the message")
+            .unwrap();
+        assert_eq!(recovered_frame, message);
     }
 
     #[test]
@@ -407,11 +394,11 @@ mod tests {
         // Interleave.
         assert!(rec.insert_new_fragment(a.remove(0), 0).is_none());
         assert!(rec.insert_new_fragment(b.remove(0), 1).is_none());
-        let (msg_a, _) = rec.insert_new_fragment(a.remove(0), 2).unwrap();
-        let (msg_b, _) = rec.insert_new_fragment(b.remove(0), 3).unwrap();
+        let msg_a = rec.insert_new_fragment(a.remove(0), 2).unwrap().unwrap();
+        let msg_b = rec.insert_new_fragment(b.remove(0), 3).unwrap().unwrap();
 
-        assert_eq!(msg_a, vec![0xa1, 0xa2]);
-        assert_eq!(msg_b, vec![0xb1, 0xb2]);
+        assert_eq!(msg_a.content, vec![0xa1, 0xa2]);
+        assert_eq!(msg_b.content, vec![0xb1, 0xb2]);
     }
 
     #[test]
@@ -425,13 +412,13 @@ mod tests {
         let rec = MessageReconstructor::<u64, u64>::new(60);
         assert!(rec.insert_new_fragment(s1, 0).is_none());
         assert!(rec.insert_new_fragment(o1, 1).is_none());
-        let (s_msg, s_metadata) = rec.insert_new_fragment(s2, 2).unwrap();
-        let (o_msg, o_metadata) = rec.insert_new_fragment(o2, 3).unwrap();
+        let s_msg = rec.insert_new_fragment(s2, 2).unwrap().unwrap();
+        let o_msg = rec.insert_new_fragment(o2, 3).unwrap().unwrap();
 
-        assert_eq!(s_msg, vec![0x10, 0x11]);
-        assert_eq!(s_metadata.kind(), SPHINX);
-        assert_eq!(o_msg, vec![0x20, 0x21]);
-        assert_eq!(o_metadata.kind(), OUTFOX);
+        assert_eq!(s_msg.content, vec![0x10, 0x11]);
+        assert_eq!(s_msg.kind(), SPHINX);
+        assert_eq!(o_msg.content, vec![0x20, 0x21]);
+        assert_eq!(o_msg.kind(), OUTFOX);
     }
 
     #[test]
@@ -477,8 +464,8 @@ mod tests {
         assert!(rec.insert_new_fragment(stale, 0).is_none());
         assert_eq!(rec.in_flight_messages.len(), 1);
 
-        let (msg, _) = rec.insert_new_fragment(fresh, 1_000).unwrap();
-        assert_eq!(msg, vec![0xff]);
+        let msg = rec.insert_new_fragment(fresh, 1_000).unwrap().unwrap();
+        assert_eq!(msg.content, vec![0xff]);
         // `fresh` was a single-fragment message and is removed on emission;
         // the stale buffer must also be gone.
         assert!(rec.in_flight_messages.is_empty());
@@ -502,7 +489,7 @@ mod tests {
         // Absolute time is now 16 (> 10), but the gap from the previous
         // fragment (8) to now (16) is 8, still within the 10-tick timeout.
         let out = rec.insert_new_fragment(make_fragment(1, 3, 2, SPHINX, vec![0xc]), 16);
-        let (msg, _) = out.expect("buffer must still be alive");
-        assert_eq!(msg, vec![0xa, 0xb, 0xc]);
+        let msg = out.expect("buffer must still be alive").unwrap();
+        assert_eq!(msg.content, vec![0xa, 0xb, 0xc]);
     }
 }

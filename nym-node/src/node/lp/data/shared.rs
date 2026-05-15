@@ -9,7 +9,7 @@ use crate::node::lp::data::handler::error::LpDataHandlerError;
 use crate::node::lp::data::handler::messages::MixMessage;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
-use nym_lp_data::AddressedTimedPayload;
+use nym_lp_data::PipelinePayload;
 use nym_lp_data::fragmentation::reconstruction::MessageReconstructor;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::mixnet::PacketKind;
@@ -56,7 +56,7 @@ pub(crate) struct SharedLpDataState {
     pub shutdown_token: ShutdownToken,
 }
 
-fn message_kind_to_packet_kind(message_kind: MixMessage) -> PacketKind {
+fn message_kind_to_packet_kind(message_kind: &MixMessage) -> PacketKind {
     match message_kind {
         MixMessage::Sphinx { .. } => PacketKind::LpSphinx,
         MixMessage::Outfox { .. } => PacketKind::LpOutfox,
@@ -123,7 +123,7 @@ impl SharedLpDataState {
         self.metrics.mixnet.lp_malformed_packet()
     }
 
-    pub(super) fn message_received(&self, message_kind: MixMessage) {
+    pub(super) fn message_received(&self, message_kind: &MixMessage) {
         self.metrics
             .mixnet
             .lp_message_received(message_kind_to_packet_kind(message_kind))
@@ -162,14 +162,16 @@ impl SharedLpDataState {
 
     pub(super) fn update_processing_metrics(
         &self,
-        processing_result: &Result<AddressedTimedPayload<Instant, SocketAddr>, LpDataHandlerError>,
-        message_kind: MixMessage,
+        processing_result: &Result<
+            PipelinePayload<Instant, MixMessage, SocketAddr>,
+            LpDataHandlerError,
+        >,
     ) {
         match processing_result {
-            Ok(_) => {
+            Ok(packet) => {
                 self.metrics
                     .mixnet
-                    .lp_processed_message(message_kind_to_packet_kind(message_kind));
+                    .lp_processed_message(message_kind_to_packet_kind(&packet.options));
             }
             Err(LpDataHandlerError::PacketProcessingError(PacketProcessingError::PacketReplay)) => {
                 self.metrics.mixnet.lp_processing_replayed_packet();

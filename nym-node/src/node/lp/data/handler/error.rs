@@ -28,6 +28,9 @@ pub enum LpDataHandlerError {
     #[error("received payload type of an unexpected type: {typ:?}")]
     UnexpectedLpPayload { typ: LpFrameKind },
 
+    #[error("received an Lp Frame kind that we don't support: {typ:?}")]
+    UnsupportedLpFrameKind { typ: LpFrameKind },
+
     #[error("unwrapped a packet into a final hop packet. This is no longer supported")]
     FinalHop,
 

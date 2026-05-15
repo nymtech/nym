@@ -3,20 +3,25 @@
 
 use std::{net::SocketAddr, time::Instant};
 
-use nym_lp_data::{AddressedTimedPayload, TimedPayload};
+use nym_lp_data::{PipelinePayload, TimedPayload};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_framing::processing::PacketProcessingError;
-use nym_sphinx_params::SphinxKeyRotation;
 use nym_sphinx_types::SphinxPacket;
 use tracing::{error, warn};
 
-use crate::node::lp::data::{handler::error::LpDataHandlerError, shared::SharedLpDataState};
+use crate::node::lp::data::{
+    handler::{
+        error::LpDataHandlerError,
+        messages::{MixMessage, SphinxMixMessage},
+    },
+    shared::SharedLpDataState,
+};
 
 pub(crate) fn process(
     shared_state: &SharedLpDataState,
     sphinx_packet: TimedPayload<Instant>,
-    key_rotation: SphinxKeyRotation,
-) -> Result<AddressedTimedPayload<Instant, SocketAddr>, LpDataHandlerError> {
+    metadata: SphinxMixMessage,
+) -> Result<PipelinePayload<Instant, MixMessage, SocketAddr>, LpDataHandlerError> {
     let TimedPayload {
         data: sphinx_bytes,
         timestamp: arrival_timestamp,
@@ -25,7 +30,7 @@ pub(crate) fn process(
     let sphinx_packet = SphinxPacket::from_bytes(&sphinx_bytes)?;
 
     // Extracting shared_secret
-    let key = shared_state.resolve_rotation_key(key_rotation)?;
+    let key = shared_state.resolve_rotation_key(metadata.key_rotation)?;
     let rotation_id = key.rotation_id();
     let expanded_shared_secret = sphinx_packet
         .header
@@ -69,9 +74,10 @@ pub(crate) fn process(
                 shared_state.excessive_delay_packet();
                 delay = shared_state.processing_config.maximum_packet_delay;
             }
-            Ok(AddressedTimedPayload::new_addressed(
+            Ok(PipelinePayload::new(
                 arrival_timestamp + delay,
                 next_hop_packet.to_bytes(),
+                MixMessage::Sphinx(metadata),
                 NymNodeRoutingAddress::try_from(next_hop_address)?.into(),
             ))
         }

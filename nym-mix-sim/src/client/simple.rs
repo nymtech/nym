@@ -239,7 +239,9 @@ impl<Ts: Clone> TransportUnwrap<Ts, SimplePacket> for SimpleClientUnwrapping {
 
 impl<Ts: Clone> WireUnwrappingPipeline<Ts, SimplePacket, SimpleMessage> for SimpleClientUnwrapping {}
 
-impl<Ts: Clone> ClientUnwrappingPipeline<Ts, SimplePacket, SimpleMessage> for SimpleClientUnwrapping {
+impl<Ts: Clone> ClientUnwrappingPipeline<Ts, SimplePacket, SimpleMessage>
+    for SimpleClientUnwrapping
+{
     fn process_unwrapped(
         &mut self,
         payload: TimedPayload<Ts>,

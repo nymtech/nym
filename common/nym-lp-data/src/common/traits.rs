@@ -109,8 +109,7 @@ pub trait TransportUnwrap<Ts, Pkt> {
 /// - `frame_size`: Derived from `packet_size` minus transport and framing overheads.
 /// - `wire_wrap`: Frames a payload and wraps each frame into a transport packet.
 pub trait WireWrappingPipeline<Ts, Pkt, NdId>:
-    Transport<Ts, Pkt, NdId>
-    + Framing<Ts, NdId, Frame = <Self as Transport<Ts, Pkt, NdId>>::Frame>
+    Transport<Ts, Pkt, NdId> + Framing<Ts, NdId, Frame = <Self as Transport<Ts, Pkt, NdId>>::Frame>
 where
     Ts: Clone,
     NdId: Clone,
@@ -153,8 +152,7 @@ where
 /// - `wire_unwrap`: Strips the transport layer from a packet and attempts to reassemble
 ///   a payload, returning `Some((payload, kind))` when a complete message is available.
 pub trait WireUnwrappingPipeline<Ts, Pkt, Mk>:
-    TransportUnwrap<Ts, Pkt>
-    + FramingUnwrap<Ts, Mk, Frame = <Self as TransportUnwrap<Ts, Pkt>>::Frame>
+    TransportUnwrap<Ts, Pkt> + FramingUnwrap<Ts, Mk, Frame = <Self as TransportUnwrap<Ts, Pkt>>::Frame>
 where
     Ts: Clone,
 {

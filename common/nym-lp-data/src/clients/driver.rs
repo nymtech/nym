@@ -47,9 +47,7 @@ where
     /// Create a new driver wrapping `pipeline`.
     ///
     /// Internally allocates a zero-capacity `sync_channel` for input payloads.
-    pub fn new(
-        pipeline: impl DynClientWrappingPipeline<Ts, Pkt, Opts, NdId> + 'static,
-    ) -> Self {
+    pub fn new(pipeline: impl DynClientWrappingPipeline<Ts, Pkt, Opts, NdId> + 'static) -> Self {
         let (input_sender, input_receiver) = mpsc::sync_channel(0);
 
         Self {

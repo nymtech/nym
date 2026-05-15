@@ -84,7 +84,6 @@ async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()
     // (ERROR_SHARING_VIOLATION, os error 32), temporarily preventing the rename.  The
     // SqlitePoolGuard::drop() spawns an async close task for exactly this situation, so
     // we retry with a short delay to give that task time to complete.
-    let mut last_err = None;
     for attempt in 0..ARCHIVE_MAX_RETRY_ATTEMPTS {
         match tokio::fs::rename(db_path, &renamed).await {
             Ok(()) => return Ok(()),
@@ -96,22 +95,28 @@ async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()
                     ARCHIVE_MAX_RETRY_ATTEMPTS
                 );
                 tokio::time::sleep(ARCHIVE_RETRY_DELAY).await;
-                last_err = Some(e);
             }
             Err(e) => {
-                last_err = Some(e);
-                break;
+                error!(
+                    "Failed to rename corrupt database file: {} to {}",
+                    db_path.display(),
+                    renamed.display()
+                );
+                return Err(e);
             }
         }
     }
 
-    let err = last_err.unwrap_or_default();
+    // Reached only when every attempt was blocked by a file lock.
     error!(
-        "Failed to rename corrupt database file: {} to {}",
+        "Failed to rename corrupt database file after {} attempts: {} to {}",
+        ARCHIVE_MAX_RETRY_ATTEMPTS,
         db_path.display(),
         renamed.display()
     );
-    Err(err)
+    Err(io::Error::other(
+        "corrupt database archive blocked by persistent file lock",
+    ))
 }
 
 /// Returns `true` when the IO error indicates a temporary file lock held by another handle

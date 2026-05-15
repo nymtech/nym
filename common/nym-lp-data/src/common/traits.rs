@@ -66,7 +66,7 @@ pub trait Transport<Ts, Pkt, NdId> {
     type Frame;
     const OVERHEAD_SIZE: usize;
     fn to_transport_packet(
-        &self,
+        &mut self,
         frame: AddressedTimedData<Ts, Self::Frame, NdId>,
     ) -> AddressedTimedData<Ts, Pkt, NdId>;
 }
@@ -88,7 +88,7 @@ pub trait TransportUnwrap<Ts, Pkt> {
     type Frame;
     type Error;
     fn packet_to_frame(
-        &self,
+        &mut self,
         packet: Pkt,
         timestamp: Ts,
     ) -> Result<TimedData<Ts, Self::Frame>, Self::Error>;

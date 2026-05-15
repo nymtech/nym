@@ -1,4 +1,12 @@
-# Reversal playbook for mitigate_kernel_CVE.yml
+############################################################################################
+############################################################################################
+############################################################################################
+#### THIS PLAYBOOK IS NOT MEANT TO BE RUN YET, IT IS NOT REFERRED IN ANY DOCUMENTATION! ####
+############################################################################################
+############################################################################################
+############################################################################################
+#
+# Reversal playbook for mitigate_kernel_CVE.yml (CopyFail CVE-2026-31431 / DirtyFrag CVE-2026-43284 / CVE-2026-43500).
 #
 # Run this AFTER your distro has shipped the patched kernel.
 # This playbook:
@@ -11,9 +19,9 @@
 # Debian family only (Debian, Ubuntu). Tested on Debian 11, Debian 12, Ubuntu 20.04, 22.04, 24.04.
 #
 # For exit-gateway nodes with --wireguard-enabled true:
-# After this playbook completes, run the networking restore step manually on each node:
-#   bash /tmp/network-tunnel-manager.sh complete_networking_configuration
-# See the CVE patch documentation for the full command with SSH port override.
+# After this playbook completes, run the networking restore step on each node via:
+#   ansible-playbook deploy.yml -t ntm
+# See the CVE patch documentation for details.
 
 - name: Remove CVE mitigations and apply patched kernel
   hosts: all

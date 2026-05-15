@@ -1,10 +1,23 @@
-# Once your distro ships the patched kernel,
-# you'll want to reverse everything - remove the blacklists and reboot:
+# Mitigation playbook for CopyFail (CVE-2026-31431) and DirtyFrag (CVE-2026-43284 / CVE-2026-43500)
+# This playbook applies interim module blacklists only
+# Kernel patches are not yet available (May 2026)
+# Once patched kernels ship, use remove_kernel_CVE_mitigations.yml to reverse everything
+# This playbook is idempotent - safe to re-run if mitigations were already applied
 
 - name: Mitigate Copy Fail + Dirty Frag
   hosts: all
   become: true
   tasks:
+    - name: Check if algif_aead mitigation already exists
+      stat:
+        path: /etc/modprobe.d/disable-algif_aead.conf
+      register: algif_aead_conf
+
+    - name: Check if dirtyfrag mitigation already exists
+      stat:
+        path: /etc/modprobe.d/dirtyfrag.conf
+      register: dirtyfrag_conf
+
     - name: Blacklist algif_aead (Copy Fail)
       copy:
         dest: /etc/modprobe.d/disable-algif_aead.conf
@@ -12,6 +25,7 @@
         owner: root
         group: root
         mode: "0644"
+      when: not algif_aead_conf.stat.exists
 
     - name: Blacklist esp4, esp6, rxrpc (Dirty Frag)
       copy:
@@ -23,6 +37,7 @@
         owner: root
         group: root
         mode: "0644"
+      when: not dirtyfrag_conf.stat.exists
 
     - name: Unload all affected modules
       modprobe:

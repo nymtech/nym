@@ -7321,6 +7321,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-lp-data"
+version = "1.20.4"
+dependencies = [
+ "nym-lp",
+ "tracing",
+]
+
+[[package]]
 name = "nym-metrics"
 version = "1.20.4"
 dependencies = [
@@ -7328,6 +7336,27 @@ dependencies = [
  "lazy_static",
  "prometheus",
  "tracing",
+]
+
+[[package]]
+name = "nym-mix-sim"
+version = "1.20.4"
+dependencies = [
+ "anyhow",
+ "clap",
+ "nym-bin-common",
+ "nym-common",
+ "nym-crypto",
+ "nym-lp-data",
+ "nym-sphinx",
+ "rand 0.8.5",
+ "rand_distr",
+ "serde",
+ "serde_json",
+ "strum 0.28.0",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

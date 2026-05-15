@@ -48,7 +48,7 @@ impl Directory {
     /// Look up a client by its [`ClientId`].
     ///
     /// Returns `None` when `id` is not present in the directory
-    pub fn client(&self, id: NodeId) -> Option<&SocketAddr> {
+    pub fn client(&self, id: ClientId) -> Option<&SocketAddr> {
         self.clients.get(&id)
     }
 

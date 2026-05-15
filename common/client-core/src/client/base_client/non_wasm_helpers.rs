@@ -11,10 +11,16 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_validator_client::{QueryHttpRpcNyxdClient, nyxd};
-use std::{io, path::Path};
+use std::{io, path::Path, time::Duration};
 use time::OffsetDateTime;
 use tracing::{error, info, trace};
 use url::Url;
+
+/// Maximum rename retry attempts when the database file is temporarily locked.
+const ARCHIVE_MAX_RETRY_ATTEMPTS: u8 = 15;
+
+/// Delay between archive rename retry attempts.
+const ARCHIVE_RETRY_DELAY: Duration = Duration::from_millis(200);
 
 async fn setup_fresh_backend<P: AsRef<Path>>(
     db_path: P,
@@ -74,13 +80,53 @@ async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()
         };
     let renamed = db_path.with_extension(new_extension);
 
-    tokio::fs::rename(db_path, &renamed).await.inspect_err(|_| {
-        error!(
-            "Failed to rename corrupt database file: {} to {}",
-            db_path.display(),
-            renamed.display()
-        );
-    })
+    // On Windows, a previously cancelled connection may still hold a file handle open
+    // (ERROR_SHARING_VIOLATION, os error 32), temporarily preventing the rename.  The
+    // SqlitePoolGuard::drop() spawns an async close task for exactly this situation, so
+    // we retry with a short delay to give that task time to complete.
+    let mut last_err = None;
+    for attempt in 0..ARCHIVE_MAX_RETRY_ATTEMPTS {
+        match tokio::fs::rename(db_path, &renamed).await {
+            Ok(()) => return Ok(()),
+            Err(e) if is_file_locked_error(&e) && (attempt + 1) < ARCHIVE_MAX_RETRY_ATTEMPTS => {
+                trace!(
+                    "Database file is temporarily locked, retrying archive \
+                     (attempt {}/{}): {e}",
+                    attempt + 1,
+                    ARCHIVE_MAX_RETRY_ATTEMPTS
+                );
+                tokio::time::sleep(ARCHIVE_RETRY_DELAY).await;
+                last_err = Some(e);
+            }
+            Err(e) => {
+                last_err = Some(e);
+                break;
+            }
+        }
+    }
+
+    let err = last_err.unwrap();
+    error!(
+        "Failed to rename corrupt database file: {} to {}",
+        db_path.display(),
+        renamed.display()
+    );
+    Err(err)
+}
+
+/// Returns `true` when the IO error indicates a temporary file lock held by another handle
+/// within the same process.  Only meaningful on Windows; always `false` elsewhere.
+fn is_file_locked_error(e: &io::Error) -> bool {
+    #[cfg(windows)]
+    {
+        // ERROR_SHARING_VIOLATION = 32, ERROR_LOCK_VIOLATION = 33
+        matches!(e.raw_os_error(), Some(32) | Some(33))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = e;
+        false
+    }
 }
 
 pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(

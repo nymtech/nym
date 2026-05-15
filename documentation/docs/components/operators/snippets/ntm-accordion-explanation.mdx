@@ -5,8 +5,11 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) `complete_networking_configuration` runs four phases:
 
 1. **Tunnel setup** - deduplicates existing iptables rules, enables IPv4/IPv6 forwarding persistently via `/etc/sysctl.d/99-nym-forwarding.conf`, applies NAT MASQUERADE and FORWARD rules for both `nymtun0` and `nymwg`
+
 2. **Host firewall** - opens the required INPUT ports for all Nym services: TCP `22, 80, 443, 1789, 1790, 8080, 9000, 9001, 41264` and UDP `4443, 51822, 51264`
+
 3. **Exit policy** - creates the `NYM-EXIT` iptables chain, applies the full port allowlist, rate-limits SMTPS (TCP/465), applies the Spamhaus blocklist, adds a default REJECT at the end of the chain
+
 4. **Verification** - runs automated tests against all firewall rules and reports any issues
 
 All rules are saved to `/etc/iptables/rules.v4` and `/etc/iptables/rules.v6` via `iptables-persistent`, so they survive future reboots.

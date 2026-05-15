@@ -1,0 +1,104 @@
+---
+title: "smolmix-hyper: HTTP Client Over the Mixnet"
+description: "Make HTTP and HTTPS requests through the Nym mixnet using smolmix-hyper. Full hyper API with DNS, TCP, and TLS routed through the tunnel."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-04-28"
+---
+
+# smolmix-hyper
+
+import { Callout } from 'nextra/components'
+
+`smolmix-hyper` is the highest-level companion crate: a familiar HTTP client that routes DNS resolution, TCP connections, and TLS handshakes through the mixnet. This is what most users want: "fetch a URL anonymously".
+
+## Installation
+
+```toml
+[dependencies]
+smolmix = "1.21.0"
+smolmix-hyper = "1.21.0"
+```
+
+Both crates share the workspace version. Full API docs: [docs.rs/smolmix-hyper](https://docs.rs/smolmix-hyper).
+
+You also need a rustls crypto provider installed. Add this at the start of `main()`:
+
+```rust
+rustls::crypto::ring::default_provider()
+    .install_default()
+    .expect("Failed to install rustls crypto provider");
+```
+
+## GET request
+
+```rust
+use smolmix::Tunnel;
+use smolmix_hyper::{Client, Request, EmptyBody, BodyExt};
+use bytes::Bytes;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
+    let tunnel = Tunnel::new().await?;
+    let client = Client::new(&tunnel);
+
+    let req = Request::get("https://cloudflare.com/cdn-cgi/trace")
+        .header("Host", "cloudflare.com")
+        .body(EmptyBody::<Bytes>::new())?;
+
+    let resp = client.request(req).await?;
+    println!("Status: {}", resp.status());
+
+    let body = resp.into_body().collect().await?.to_bytes();
+    println!("{}", String::from_utf8_lossy(&body));
+
+    tunnel.shutdown().await;
+    Ok(())
+}
+```
+
+The `ip=` line in the response shows the IPR exit gateway's IP. Your real IP is hidden by the mixnet.
+
+## POST request
+
+The convenience `Client` wrapper uses `Empty<Bytes>` as its body type (suitable for GET). For POST/PUT, construct a client with a different body type using `SmolmixConnector` directly:
+
+```rust
+use http_body_util::Full;
+use hyper_util::{client::legacy, rt::TokioExecutor};
+use bytes::Bytes;
+use smolmix_hyper::SmolmixConnector;
+
+let tunnel = smolmix::Tunnel::new().await?;
+let connector = SmolmixConnector::new(&tunnel);
+let client = legacy::Client::builder(TokioExecutor::new())
+    .build::<_, Full<Bytes>>(connector);
+
+let body = Full::new(Bytes::from(r#"{"key": "value"}"#));
+let req = hyper::Request::post("https://httpbin.org/post")
+    .header("Host", "httpbin.org")
+    .header("Content-Type", "application/json")
+    .body(body)?;
+
+let resp = client.request(req).await?;
+```
+
+## Performance notes
+
+<Callout type="info">
+The first request takes several seconds (mixnet connection setup + multi-hop TCP handshake). Subsequent requests on the same client reuse the tunnel and are significantly faster. hyper-util's connection pooling also helps: HTTP keep-alive connections avoid repeated TCP/TLS setup.
+</Callout>
+
+## Examples
+
+```sh
+cargo run -p smolmix-hyper --example get
+cargo run -p smolmix-hyper --example post
+cargo run -p smolmix-hyper --example get -- --ipr <IPR_ADDRESS>
+```
+
+Source: [`hyper/examples/get.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/hyper/examples/get.rs), [`hyper/examples/post.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/hyper/examples/post.rs)

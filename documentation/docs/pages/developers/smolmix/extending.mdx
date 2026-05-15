@@ -1,0 +1,93 @@
+---
+title: "Building on smolmix"
+description: "How to build your own protocol adapters on top of smolmix. Patterns for WebSocket, libp2p, and any AsyncRead+AsyncWrite library."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-04-28"
+---
+
+# Building on smolmix
+
+import { Callout } from 'nextra/components'
+
+The published companion crates ([`smolmix-dns`](/developers/smolmix/dns), [`smolmix-tls`](/developers/smolmix/tls), [`smolmix-hyper`](/developers/smolmix/hyper)) cover the most common use cases. For other protocols, the same principle applies: if a library accepts `AsyncRead + AsyncWrite` (or can be adapted to it), it works over smolmix with minimal glue.
+
+## The pattern
+
+Every companion crate follows the same recipe:
+
+1. Find the library's I/O extension point (trait or type parameter)
+2. Bridge smolmix's `TcpStream` to whatever I/O trait the library expects
+3. Expose a thin wrapper that hides the bridging
+
+```text
+┌─────────────────────────────────────────────────────┐
+│  Library's extension point         I/O bridge       │
+├─────────────────────────────────────────────────────┤
+│  hickory RuntimeProvider     →  AsyncIoTokioAsStd   │
+│  tokio-rustls TlsConnector   →  (direct, same       │
+│                                  AsyncRead/Write)    │
+│  tower::Service<Uri>         →  TokioIo + pin enum  │
+│  tokio-tungstenite           →  (direct)            │
+│  libp2p Transport            →  tokio_util::compat  │
+└─────────────────────────────────────────────────────┘
+```
+
+Most tokio-native libraries need zero bridging: `smolmix::TcpStream` already implements `tokio::io::AsyncRead + AsyncWrite`. Libraries expecting `futures_io::AsyncRead + AsyncWrite` (like hickory and libp2p) need a one-line adapter.
+
+## Examples in the repository
+
+These self-contained examples demonstrate building protocol integration without a dedicated crate:
+
+| Pattern | Example | Lines of glue | What it demonstrates |
+|---|---|---:|---|
+| WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket.rs) | ~10 | Composing DNS + TCP + TLS + protocol upgrade. `tokio-tungstenite` accepts any `AsyncRead + AsyncWrite` directly. |
+| libp2p Transport | [`libp2p_ping.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/libp2p_ping.rs) | ~80 | Implementing libp2p's `Transport` trait. Dial-only (no listening). Uses `tokio_util::compat` to bridge tokio↔futures I/O. |
+
+Run them with:
+
+```sh
+cargo run -p smolmix --example websocket
+cargo run -p smolmix --example libp2p_ping
+```
+
+## WebSocket: the minimal case
+
+`tokio-tungstenite` takes any stream implementing `AsyncRead + AsyncWrite`. Since `smolmix-tls` returns a `TlsStream<TcpStream>` which implements those traits, no adapter is needed:
+
+```rust
+use smolmix::Tunnel;
+use smolmix_dns::Resolver;
+use smolmix_tls::connect;
+use tokio_tungstenite::client_async;
+
+let tunnel = Tunnel::new().await?;
+let resolver = Resolver::new(&tunnel);
+
+let addrs = resolver.resolve("echo.websocket.org", 443).await?;
+let tcp = tunnel.tcp_connect(addrs[0]).await?;
+let tls = connect(tcp, "echo.websocket.org").await?;
+
+let (mut ws, _) = client_async("wss://echo.websocket.org", tls).await?;
+// ws is a fully functional WebSocket connection over the mixnet
+```
+
+## libp2p: implementing a Transport
+
+libp2p requires a `Transport` trait implementation. The key insight: libp2p uses `futures_io::AsyncRead + AsyncWrite`, not tokio's version. The bridge is `tokio_util::compat::TokioAsyncReadCompatExt`:
+
+```rust
+use tokio_util::compat::TokioAsyncReadCompatExt;
+
+let tcp = tunnel.tcp_connect(addr).await?;
+let compat_stream = tcp.compat();  // tokio → futures_io bridge
+// Now pass compat_stream to libp2p's noise/yamux upgrade
+```
+
+See the full implementation in [`libp2p_ping.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/libp2p_ping.rs): it handles multiaddr parsing, DNS resolution through the tunnel, and the noise+yamux handshake.
+
+## When to publish a crate vs use an example
+
+<Callout type="info">
+Publish a companion crate when the integration involves non-obvious trait implementations or configuration that users would struggle to get right on their own (e.g. hickory's `RuntimeProvider`). Keep it as an example when the glue is straightforward copy-paste (e.g. WebSocket, where the library already accepts the right traits).
+</Callout>

@@ -19,7 +19,7 @@ If you're new, read **[Choosing an Approach](/developers/integrations)** first. 
 | Crate/library | Language | Use it for |
 |---|---|---|
 | [`nym-sdk`](/developers/rust) | Rust | E2E messaging, `AsyncRead`/`AsyncWrite` streams, client pooling. Start with the [Tour](/developers/rust/tour). |
-| [`smolmix`](/developers/smolmix) | Rust | `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tungstenite`. |
+| [`smolmix` & connectors](/developers/smolmix) | Rust | `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack, plus companion crates [`smolmix-dns`](/developers/smolmix/dns), [`smolmix-tls`](/developers/smolmix/tls), [`smolmix-hyper`](/developers/smolmix/hyper). |
 | [`mix-fetch`](/developers/mix-fetch) | TypeScript | `fetch()`-compatible API for browser HTTP(S) requests over the Mixnet. |
 | [TypeScript SDK](/developers/typescript) | TypeScript | Browser-side Mixnet Client (raw messaging) and Nyx Smart Contracts. |
 | [Standalone Clients](/developers/clients) | Language-agnostic | SOCKS5 and WebSocket binaries for piping traffic through the Mixnet without an SDK. |

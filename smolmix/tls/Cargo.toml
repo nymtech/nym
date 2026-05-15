@@ -1,0 +1,29 @@
+[package]
+name = "smolmix-tls"
+description = "TLS connector with webpki roots for smolmix tunneled connections"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+publish = true
+
+[dependencies]
+tokio-smoltcp = { workspace = true }
+tokio-rustls = { workspace = true }
+rustls = { workspace = true }
+webpki-roots = { workspace = true }
+
+[dev-dependencies]
+smolmix = { workspace = true }
+smolmix-dns = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net", "io-util"] }
+tracing = { workspace = true }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+
+[[example]]
+name = "connect"

@@ -16,7 +16,7 @@ Any application that integrates with Nym sends its traffic through the Mixnet vi
 
 |   | **End-to-end** (both sides run Nym) | **Proxy mode** (Nym → clearnet exit) |
 |---|---|---|
-| **Rust** (native / desktop / CLI) | [`nym-sdk`](/developers/rust) (Stream, Mixnet, Client Pool) | [`smolmix`](/developers/smolmix) (TCP / UDP) · [`nym-sdk`](/developers/rust) SOCKS client |
+| **Rust** (native / desktop / CLI) | [`nym-sdk`](/developers/rust) (Stream, Mixnet, Client Pool) | [`smolmix` & connectors](/developers/smolmix) (TCP / UDP, plus DNS / TLS / HTTP via companion crates) · [`nym-sdk`](/developers/rust) SOCKS client |
 | **TypeScript** (browser) | [TypeScript SDK](/developers/typescript) (WASM Mixnet Client, messaging only) | [`mix-fetch`](/developers/mix-fetch) (HTTP) |
 | **Mobile** (iOS / Android) | _untested; see [Mobile note](#mobile-untested-ground) below_ | _untested; see [Mobile note](#mobile-untested-ground) below_ |
 
@@ -24,14 +24,14 @@ Any application that integrates with Nym sends its traffic through the Mixnet vi
 
 Different runtimes have different transport constraints: a browser cannot open raw sockets or access the filesystem, while a desktop app can.
 
-- **Native / Desktop / CLI**: full access to system networking and persistent storage. Use [`nym-sdk`](/developers/rust) (the Rust SDK) for E2E messaging or byte streams, or [`smolmix`](/developers/smolmix) for TCP/UDP socket-shaped access in proxy mode.
+- **Native / Desktop / CLI**: full access to system networking and persistent storage. Use [`nym-sdk`](/developers/rust) (the Rust SDK) for E2E messaging or byte streams, or the [`smolmix` family](/developers/smolmix) for socket-level (TCP/UDP), DNS, TLS, or HTTP access in proxy mode.
 - **Browser**: restricted to WebSockets, Web Transport, and `fetch`; HTTPS-only mixed-content rules; no filesystem access. Use [`mix-fetch`](/developers/mix-fetch) for HTTP(S) requests, or the [TypeScript SDK](/developers/typescript)'s WASM Mixnet Client for raw message passing.
 
 ### Mobile (untested ground)
 
 There is no first-party mobile SDK, and we have not yet shipped tested mobile builds. The Rust crates *should* cross-compile to mobile targets. This is the path we'd take if starting today:
 
-- Build [`nym-sdk`](/developers/rust) or [`smolmix`](/developers/smolmix) for the target triple (`aarch64-apple-ios`, `aarch64-linux-android`, etc.).
+- Build [`nym-sdk`](/developers/rust) or [`smolmix`](/developers/smolmix/tunnel) (and any companion connectors you need) for the target triple (`aarch64-apple-ios`, `aarch64-linux-android`, etc.).
 - Generate FFI bindings with [`uniffi`](https://mozilla.github.io/uniffi-rs/) and call them from Swift or Kotlin. The existing [Rust SDK FFI](/developers/rust/ffi) (Go, C/C++) is a useful reference for the binding shape.
 - Run the tokio reactor on a dedicated background thread. iOS in particular has strong opinions about backgrounding and `libdispatch` interaction.
 - Plan for TLS / cert-store integration up front. On mobile you'll typically want to call out to platform TLS (`SecTrust` on iOS, Android `NetworkSecurityConfig`) rather than embed a CA bundle.
@@ -61,7 +61,9 @@ Once traffic leaves the Exit Gateway, it travels over the public internet to the
 ## Where to go next
 
 - **Rust, E2E messaging or byte streams**: [`nym-sdk`](/developers/rust)
-- **Rust, TCP/UDP socket replacements**: [`smolmix`](/developers/smolmix)
+- **Rust, TCP/UDP socket replacements**: [`smolmix`](/developers/smolmix/tunnel)
+- **Rust, HTTP(S) requests**: [`smolmix-hyper`](/developers/smolmix/hyper)
+- **Rust, hostname resolution / TLS without HTTP**: [`smolmix-dns`](/developers/smolmix/dns), [`smolmix-tls`](/developers/smolmix/tls)
 - **Browser, HTTP(S) requests**: [`mix-fetch`](/developers/mix-fetch)
 - **Browser, raw mixnet messaging or Nyx smart contracts**: [TypeScript SDK](/developers/typescript)
 - **Background on Sphinx, gateways, and the mixnet itself**: [Key Concepts](/developers/concepts)

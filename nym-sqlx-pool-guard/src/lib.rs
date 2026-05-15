@@ -56,7 +56,11 @@ impl SqlitePoolGuard {
         &self.database_path
     }
 
-    /// Close udnerlying sqlite pool and wait for files to be closed before returning.
+    /// Close the underlying sqlite pool and wait for OS file handles to be released.
+    ///
+    /// **Callers must invoke this method before dropping the guard.**  The `Drop` impl does
+    /// not perform async cleanup; it only logs a warning when the pool was not closed
+    /// beforehand.
     pub async fn close(&self) {
         // Avoid waiting for db files once the pool is marked closed to ensure that we don't wait on some other sqlite pool to close the database.
         if !self.connection_pool.is_closed() {
@@ -122,18 +126,16 @@ impl SqlitePoolGuard {
 
 impl Drop for SqlitePoolGuard {
     fn drop(&mut self) {
+        // Spawning async tasks from Drop is an anti-pattern: tasks may not execute during
+        // runtime shutdown, and there may be no runtime at all.  Callers are responsible
+        // for calling `close()` before dropping this guard.  Log a warning here so that
+        // missed explicit-close call sites are visible during development.
         if !self.connection_pool.is_closed() {
-            // When the guard is dropped without an explicit call to close() — for example,
-            // due to async task cancellation — the underlying pool must still be closed to
-            // promptly release OS file handles.  On Windows, an open file handle prevents
-            // rename/delete operations on the same file (ERROR_SHARING_VIOLATION, os error
-            // 32), which would break the next connection attempt's database recovery logic.
-            let pool = self.connection_pool.clone();
-            if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                handle.spawn(async move {
-                    pool.close().await;
-                });
-            }
+            tracing::warn!(
+                path = %self.database_path.display(),
+                "SqlitePoolGuard dropped without explicit close(); \
+                 OS file handles may not be released promptly"
+            );
         }
     }
 }

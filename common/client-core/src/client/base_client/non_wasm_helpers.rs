@@ -105,7 +105,7 @@ async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()
         }
     }
 
-    let err = last_err.unwrap();
+    let err = last_err.unwrap_or_default();
     error!(
         "Failed to rename corrupt database file: {} to {}",
         db_path.display(),

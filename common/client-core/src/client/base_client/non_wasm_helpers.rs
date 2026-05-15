@@ -80,10 +80,10 @@ async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()
         };
     let renamed = db_path.with_extension(new_extension);
 
-    // On Windows, a previously cancelled connection may still hold a file handle open
-    // (ERROR_SHARING_VIOLATION, os error 32), temporarily preventing the rename.  The
-    // SqlitePoolGuard::drop() spawns an async close task for exactly this situation, so
-    // we retry with a short delay to give that task time to complete.
+    // On Windows, sqlx may release its OS file handles asynchronously after
+    // pool.close() returns, briefly keeping the file locked
+    // (ERROR_SHARING_VIOLATION, os error 32).  Retry with a short delay to
+    // give the OS time to flush the remaining handles.
     for attempt in 0..ARCHIVE_MAX_RETRY_ATTEMPTS {
         match tokio::fs::rename(db_path, &renamed).await {
             Ok(()) => return Ok(()),

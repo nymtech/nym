@@ -53,7 +53,7 @@ impl Connection {
         let remote_source_address = "???".to_string(); // we don't know ip address of requester
         let connection_id = self.id;
         let return_address = self.return_address.clone();
-        let (stream, _) = ProxyRunner::new(
+        let proxy_result = ProxyRunner::new(
             stream,
             self.address.clone(),
             remote_source_address,
@@ -76,8 +76,15 @@ impl Connection {
                 socket_data.header.local_socket_closed,
             )
         })
-        .await
-        .into_inner();
+        .await;
+
+        let (stream, _) = match proxy_result {
+            Ok(runner) => runner.into_inner(),
+            Err(err) => {
+                log::error!("proxy runner for connection {connection_id} failed: {err}");
+                return;
+            }
+        };
         self.conn = Some(stream);
     }
 }

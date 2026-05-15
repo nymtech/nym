@@ -8,6 +8,7 @@ use nym_task::connections::LaneQueueLengths;
 use nym_task::ShutdownTracker;
 use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
+use tokio::task::JoinError;
 use tokio::{net::TcpStream, sync::Notify};
 
 mod inbound;
@@ -92,7 +93,7 @@ where
 
     // The `adapter_fn` is used to transform whatever was read into appropriate
     // request/response as required by entity running particular side of the proxy.
-    pub async fn run<F>(mut self, adapter_fn: F) -> Self
+    pub async fn run<F>(mut self, adapter_fn: F) -> Result<Self, JoinError>
     where
         F: Fn(SocketData) -> S + Send + Sync + 'static,
     {
@@ -148,16 +149,22 @@ where
         let (inbound_result, outbound_result) =
             futures::future::join(handle_inbound, handle_outbound).await;
 
-        if inbound_result.is_err() || outbound_result.is_err() {
-            panic!("TODO: some future error?")
-        }
-
-        let read_half = inbound_result.unwrap();
-        let (write_half, mix_receiver) = outbound_result.unwrap();
+        let read_half = inbound_result.inspect_err(|err| {
+            log::error!(
+                "inbound proxy task for connection {} failed: {err}",
+                self.connection_id
+            )
+        })?;
+        let (write_half, mix_receiver) = outbound_result.inspect_err(|err| {
+            log::error!(
+                "outbound proxy task for connection {} failed: {err}",
+                self.connection_id
+            )
+        })?;
 
         self.socket = Some(write_half.reunite(read_half).unwrap());
         self.mix_receiver = Some(mix_receiver);
-        self
+        Ok(self)
     }
 
     pub fn into_inner(mut self) -> (TcpStream, ConnectionReceiver) {

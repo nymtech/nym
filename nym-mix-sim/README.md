@@ -33,7 +33,7 @@ cargo run --bin mix-client -- --src 6 --dst 7
 
 Generates a `topology.json` file describing nodes and clients.
 
-```
+```bash
 cargo run --bin nym-mix-sim -- init-topology [OPTIONS]
 ```
 
@@ -49,7 +49,7 @@ Nodes are assigned sequential ports starting at `127.0.0.1:9000`. Clients get tw
 
 Starts the simulation loop.
 
-```
+```bash
 cargo run --bin nym-mix-sim -- run [OPTIONS]
 ```
 
@@ -65,7 +65,7 @@ cargo run --bin nym-mix-sim -- run [OPTIONS]
 
 Injects messages into a running simulation from stdin.
 
-```
+```bash
 cargo run --bin mix-client -- --src <ID> --dst <ID> [--topology <PATH>]
 ```
 

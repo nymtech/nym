@@ -10,9 +10,9 @@
 use std::sync::Arc;
 
 use nym_lp_data::{
-    AddressedTimedData, TimedPayload,
+    AddressedTimedData, PipelinePayload, TimedPayload,
     clients::{
-        InputOptions, PipelinePayload,
+        InputOptions,
         traits::{
             Chunking, ClientUnwrappingPipeline, ClientWrappingPipeline, Obfuscation, Reliability,
             RoutingSecurity,
@@ -187,7 +187,12 @@ impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> Chunking<Ts, SphinxInputOpt
         fragments
             .into_iter()
             .map(|fragment| {
-                SphinxPipelinePayload::new(timestamp.clone(), fragment.into_bytes(), options)
+                SphinxPipelinePayload::new(
+                    timestamp.clone(),
+                    fragment.into_bytes(),
+                    options,
+                    options.dst,
+                )
             })
             .collect()
     }
@@ -257,11 +262,15 @@ impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> RoutingSecurity<Ts, SphinxI
             .collect::<Vec<_>>();
 
         // Useful payload size is packet size - transport overhead - framing overhead - routing overhead
-        let plaintext_size =
-            <Self as WireWrappingPipeline<Ts, SimMixPacket, NodeId>>::packet_size(self)
-                - <Self as Framing<Ts, NodeId>>::OVERHEAD_SIZE
-                - <Self as Transport<Ts, SimMixPacket, NodeId>>::OVERHEAD_SIZE
-                - <Self as RoutingSecurity<Ts, _, _>>::OVERHEAD_SIZE;
+        let plaintext_size = <Self as WireWrappingPipeline<
+            Ts,
+            SimMixPacket,
+            SphinxInputOptions,
+            NodeId,
+        >>::packet_size(self)
+            - <Self as Framing<Ts, SphinxInputOptions, NodeId>>::OVERHEAD_SIZE
+            - <Self as Transport<Ts, SimMixPacket, NodeId>>::OVERHEAD_SIZE
+            - <Self as RoutingSecurity<Ts, _, _>>::OVERHEAD_SIZE;
 
         // Packet builder's size includes the payload overhead so we have to add it
         let packet_builder = SphinxPacketBuilder::new()
@@ -274,7 +283,12 @@ impl<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> RoutingSecurity<Ts, SphinxI
             .build_packet(input.data.data, &route, &destination, &delays)
             .unwrap();
 
-        SphinxPipelinePayload::new(input.data.timestamp, packet.to_bytes(), input.options)
+        SphinxPipelinePayload::new(
+            input.data.timestamp,
+            packet.to_bytes(),
+            input.options,
+            input.dst,
+        )
     }
 }
 

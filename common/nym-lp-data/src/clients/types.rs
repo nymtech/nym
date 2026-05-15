@@ -1,12 +1,12 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::clients::InputOptions;
 use crate::clients::traits::{
     Chunking, ClientWrappingPipeline, Obfuscation, Reliability, RoutingSecurity,
 };
-use crate::clients::{InputOptions, PipelinePayload};
 use crate::common::traits::{Framing, Transport, WireWrappingPipeline};
-use crate::{AddressedTimedData, AddressedTimedPayload};
+use crate::{AddressedTimedData, PipelinePayload};
 
 /// Generic composition struct that implements [`ClientWrappingPipeline`] by
 /// delegating each stage to a held component.
@@ -47,7 +47,6 @@ where
 
 impl<Ts, Opts, NdId, C, R, O, Rs, F, T> Reliability<Ts, Opts, NdId> for Pipeline<C, R, O, Rs, F, T>
 where
-    Opts: InputOptions<NdId>,
     R: Reliability<Ts, Opts, NdId>,
 {
     const OVERHEAD_SIZE: usize = R::OVERHEAD_SIZE;
@@ -63,7 +62,6 @@ where
 
 impl<Ts, Opts, NdId, C, R, O, Rs, F, T> Obfuscation<Ts, Opts, NdId> for Pipeline<C, R, O, Rs, F, T>
 where
-    Opts: InputOptions<NdId>,
     O: Obfuscation<Ts, Opts, NdId>,
 {
     fn obfuscate(
@@ -78,7 +76,6 @@ where
 impl<Ts, Opts, NdId, C, R, O, Rs, F, T> RoutingSecurity<Ts, Opts, NdId>
     for Pipeline<C, R, O, Rs, F, T>
 where
-    Opts: InputOptions<NdId>,
     Rs: RoutingSecurity<Ts, Opts, NdId>,
 {
     const OVERHEAD_SIZE: usize = Rs::OVERHEAD_SIZE;
@@ -95,16 +92,16 @@ where
     }
 }
 
-impl<Ts, NdId, C, R, O, Rs, F, T> Framing<Ts, NdId> for Pipeline<C, R, O, Rs, F, T>
+impl<Ts, Opts, NdId, C, R, O, Rs, F, T> Framing<Ts, Opts, NdId> for Pipeline<C, R, O, Rs, F, T>
 where
-    F: Framing<Ts, NdId>,
+    F: Framing<Ts, Opts, NdId>,
 {
     type Frame = F::Frame;
     const OVERHEAD_SIZE: usize = F::OVERHEAD_SIZE;
 
     fn to_frame(
-        &self,
-        payload: AddressedTimedPayload<Ts, NdId>,
+        &mut self,
+        payload: PipelinePayload<Ts, Opts, NdId>,
         frame_size: usize,
     ) -> Vec<AddressedTimedData<Ts, F::Frame, NdId>> {
         self.framing.to_frame(payload, frame_size)
@@ -126,12 +123,12 @@ where
     }
 }
 
-impl<Ts, Pkt, NdId, C, R, O, Rs, F, T> WireWrappingPipeline<Ts, Pkt, NdId>
+impl<Ts, Pkt, Opts, NdId, C, R, O, Rs, F, T> WireWrappingPipeline<Ts, Pkt, Opts, NdId>
     for Pipeline<C, R, O, Rs, F, T>
 where
     Ts: Clone,
     NdId: Clone,
-    F: Framing<Ts, NdId>,
+    F: Framing<Ts, Opts, NdId>,
     T: Transport<Ts, Pkt, NdId, Frame = F::Frame>,
 {
     fn packet_size(&self) -> usize {
@@ -149,7 +146,7 @@ where
     R: Reliability<Ts, Opts, NdId>,
     O: Obfuscation<Ts, Opts, NdId>,
     Rs: RoutingSecurity<Ts, Opts, NdId>,
-    F: Framing<Ts, NdId>,
+    F: Framing<Ts, Opts, NdId>,
     T: Transport<Ts, Pkt, NdId, Frame = F::Frame>,
 {
 }

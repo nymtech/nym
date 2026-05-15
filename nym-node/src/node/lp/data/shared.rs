@@ -127,6 +127,14 @@ impl SharedLpDataState {
             .ingress_malformed_packet(Ipv4Addr::UNSPECIFIED.into())
     }
 
+    pub(super) fn overloaded_egress_dropped_packet(&self) {
+        todo!()
+    }
+
+    pub(super) fn overloaded_ingress_dropped_packet(&self) {
+        todo!()
+    }
+
     pub(super) fn excessive_delay_packet(&self) {
         self.metrics.mixnet.ingress_excessive_delay_packet()
     }

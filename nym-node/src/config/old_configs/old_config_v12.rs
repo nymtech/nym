@@ -731,6 +731,7 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
                 session_ttl: old_cfg.gateway_tasks.lp.debug.session_ttl,
                 state_cleanup_interval: old_cfg.gateway_tasks.lp.debug.state_cleanup_interval,
                 max_concurrent_forwards: old_cfg.gateway_tasks.lp.debug.max_concurrent_forwards,
+                data_worker_count: LpDebug::default().data_worker_count,
             },
         },
         gateway_tasks: GatewayTasksConfig {

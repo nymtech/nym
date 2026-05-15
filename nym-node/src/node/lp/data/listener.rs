@@ -1,25 +1,26 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::LpConfig;
 use crate::error::NymNodeError;
 use crate::node::lp::data::MAX_UDP_PACKET_SIZE;
+use crate::node::lp::data::shared::SharedLpDataState;
 use nym_lp_data::packet::EncryptedLpPacket;
 use nym_metrics::inc;
 use std::net::SocketAddr;
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc, mpsc::TrySendError};
 use tokio::net::UdpSocket;
 use tracing::log::warn;
 use tracing::{error, info};
 
 /// LP UDP listener that accepts TCP connections on port 51264 (by default)
 pub(crate) struct LpDataListener {
-    /// Lp Config
-    config: LpConfig,
+    /// Shared state
+    shared_state: Arc<SharedLpDataState>,
 
     /// Channel to send incoming data to the processing pipeline
     input_tx: mpsc::SyncSender<EncryptedLpPacket>,
 
+    // This has to be a tokio channel, to be async and bounded
     /// Channel to receive outgoing data from the processling pipeline
     output_rx: tokio::sync::mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
 
@@ -29,13 +30,13 @@ pub(crate) struct LpDataListener {
 
 impl LpDataListener {
     pub fn new(
-        config: LpConfig,
+        shared_state: Arc<SharedLpDataState>,
         input_tx: mpsc::SyncSender<EncryptedLpPacket>,
         output_rx: tokio::sync::mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {
         Self {
-            config,
+            shared_state,
             input_tx,
             output_rx,
             shutdown,
@@ -43,7 +44,7 @@ impl LpDataListener {
     }
 
     pub async fn run(&mut self) -> Result<(), NymNodeError> {
-        let bind_address = self.config.data_bind_address;
+        let bind_address = self.shared_state.lp_config.data_bind_address;
         info!("Starting LP data listener on {bind_address}");
         let socket = UdpSocket::bind(bind_address).await.map_err(|source| {
             error!("Failed to bind LP data socket to {bind_address}: {source}");
@@ -84,9 +85,17 @@ impl LpDataListener {
                             info!("received {len} bytes from {src_addr} on the LP Data endpoint");
 
                             if let Ok(encrypted_packet) = EncryptedLpPacket::decode(&buf[..len]) {
-                                if let Err(e) = self.input_tx.send(encrypted_packet) {
-                                    warn!("LP incoming packet channel closed : {e}");
-                                    break;
+                                if let Err(e) = self.input_tx.try_send(encrypted_packet) {
+                                    match e {
+                                       TrySendError::Full(_) =>  {
+                                            warn!("LP data listener: packet sending buffer is full, the node might be overloaded");
+                                            self.shared_state.overloaded_ingress_dropped_packet();
+                                        },
+                                        TrySendError::Disconnected(_) => {
+                                            warn!("LP data listener: incoming packet channel is closed");
+                                            break;
+                                        },
+                                    }
                                 }
                             } else {
                                 warn!("Error reading LP packet from wire");

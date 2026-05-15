@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 
 use crate::error::NymNodeError;
 use crate::node::lp::data::handler::LpDataHandler;
@@ -15,7 +15,7 @@ use tracing::error;
 /// Sphinx packets are typically ~2KB, LP overhead is ~50 bytes, so 4KB is plenty
 const MAX_UDP_PACKET_SIZE: usize = 4096;
 
-const PACKET_BUFFER_SIZE: usize = 100;
+pub(crate) const PACKET_BUFFER_SIZE: usize = 100;
 
 pub mod handler;
 mod listener;
@@ -38,19 +38,16 @@ impl LpDataSetup {
         let (input_tx, input_rx) = mpsc::sync_channel(PACKET_BUFFER_SIZE);
         let (output_tx, output_rx) = tokio::sync::mpsc::channel(PACKET_BUFFER_SIZE);
 
+        let shared_state = Arc::new(shared_state);
+
         let listener = LpDataListener::new(
-            shared_state.lp_config,
+            shared_state.clone(),
             input_tx,
             output_rx,
             shutdown.clone_shutdown_token(),
         );
 
-        let handler = LpDataHandler::new(
-            shared_state,
-            input_rx,
-            output_tx,
-            shutdown.clone_shutdown_token(),
-        );
+        let handler = LpDataHandler::new(shared_state, input_rx, output_tx, &shutdown);
 
         Ok(LpDataSetup {
             listener,

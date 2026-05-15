@@ -88,6 +88,14 @@ pub struct LpDebug {
     /// When at capacity, new forward requests return an error, signaling the client
     /// to choose a different gateway.
     pub max_concurrent_forwards: usize,
+
+    /// Number of worker threads processing the LP data plane pipeline.
+    ///
+    /// Heavy per-packet work (sphinx/outfox decryption, replay-filter check,
+    /// fragmentation) is fanned out across this pool. Higher values improve
+    /// throughput on multi-core hosts at the cost of more contention on the
+    /// shared replay-protection mutex.
+    pub data_worker_count: usize,
 }
 
 impl LpConfig {
@@ -137,6 +145,9 @@ impl LpDebug {
 
     // Limits concurrent outbound connections to prevent fd exhaustion
     pub const DEFAULT_MAX_CONCURRENT_FORWARDS: usize = 1000;
+
+    // Default number of CPU-bound packet-processing workers.
+    pub const DEFAULT_DATA_WORKER_COUNT: usize = 4;
 }
 
 impl Default for LpDebug {
@@ -148,6 +159,7 @@ impl Default for LpDebug {
             session_ttl: Self::DEFAULT_SESSION_TTL,
             state_cleanup_interval: Self::DEFAULT_STATE_CLEANUP_INTERVAL,
             max_concurrent_forwards: Self::DEFAULT_MAX_CONCURRENT_FORWARDS,
+            data_worker_count: Self::DEFAULT_DATA_WORKER_COUNT,
         }
     }
 }

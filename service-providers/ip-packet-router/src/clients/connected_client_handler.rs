@@ -12,7 +12,7 @@ use nym_ip_packet_requests::{
     v8::response::IpPacketResponse as IpPacketResponseV8,
     v9,
 };
-use nym_lp::packet::frame::{
+use nym_lp_data::packet::frame::{
     LpFrame, LpFrameHeader, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
 use nym_sdk::mixnet::{

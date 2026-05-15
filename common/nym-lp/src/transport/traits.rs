@@ -1,10 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::packet::{EncryptedLpPacket, OuterHeader};
 use crate::transport::error::LpTransportError;
 use nym_kkt::context::KKTMode;
 use nym_kkt_ciphersuite::KEM;
+use nym_lp_data::packet::{EncryptedLpPacket, OuterHeader};
 use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;

@@ -1,11 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_lp::packet::frame::LpFrameKind;
-use nym_lp::peer_config::LpReceiverIndex;
+use nym_lp::LpError;
 use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
-use nym_lp::{LpError, packet::MalformedLpPacketError};
+use nym_lp_data::packet::{MalformedLpPacketError, frame::LpFrameKind, header::LpReceiverIndex};
 use nym_topology::NodeId;
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;

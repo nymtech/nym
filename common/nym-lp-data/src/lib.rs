@@ -23,6 +23,7 @@ use std::fmt::Debug;
 pub mod clients;
 pub mod common;
 pub mod mixnodes;
+pub mod packet;
 
 /// Convenience alias for [`TimedData`] when the payload is a raw byte buffer.
 pub type TimedPayload<Ts> = TimedData<Ts, Vec<u8>>;

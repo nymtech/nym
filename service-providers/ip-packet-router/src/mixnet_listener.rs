@@ -24,7 +24,7 @@ use crate::{
 use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_ip_packet_requests::{MAX_NON_STREAM_VERSION, SPHINX_STREAM_VERSION_THRESHOLD};
-use nym_lp::packet::frame::{LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes};
+use nym_lp_data::packet::frame::{LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes};
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownToken;
@@ -704,7 +704,7 @@ mod tests {
     #[test]
     fn test_lp_stream_frame_detected() {
         use bytes::BytesMut;
-        use nym_lp::packet::frame::{
+        use nym_lp_data::packet::frame::{
             LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
         };
 
@@ -713,7 +713,7 @@ mod tests {
             msg_type: SphinxStreamMsgType::Data,
             sequence_num: 42,
         };
-        let frame = nym_lp::packet::frame::LpFrame::new_stream(attrs, vec![8, 1, 0]); // fake IPR payload
+        let frame = nym_lp_data::packet::frame::LpFrame::new_stream(attrs, vec![8, 1, 0]); // fake IPR payload
         let mut buf = BytesMut::new();
         frame.encode(&mut buf);
 

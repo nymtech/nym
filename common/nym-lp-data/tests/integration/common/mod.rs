@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_lp::packet::{
+use nym_lp_data::packet::{
     LpFrame, LpHeader, LpPacket,
     frame::{LpFrameHeader, LpFrameKind},
 };

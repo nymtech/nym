@@ -10,7 +10,7 @@ use dashmap::mapref::one::RefMut;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::LpTransportSession;
 use nym_lp::peer::LpLocalPeer;
-use nym_lp::peer_config::LpReceiverIndex;
+use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use std::sync::Arc;

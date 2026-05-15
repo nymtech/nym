@@ -110,7 +110,9 @@ impl LpFrame {
         }
     }
 
-    pub(crate) fn len(&self) -> usize {
+    // is_empty in the sense len == 0 doesn't make sense in that case
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
         LpFrameHeader::SIZE + self.content.len()
     }
 }
@@ -165,6 +167,8 @@ impl SphinxStreamFrameAttributes {
     }
 
     pub fn parse(attrs: &LpFrameAttributes) -> Result<Self, MalformedLpPacketError> {
+        // SAFETY : 8 bytes slice into 8 bytes array
+        #[allow(clippy::unwrap_used)]
         let stream_id = u64::from_be_bytes(attrs[0..8].try_into().unwrap());
         let msg_type = match attrs[8] {
             0 => SphinxStreamMsgType::Open,
@@ -175,6 +179,8 @@ impl SphinxStreamFrameAttributes {
                 )));
             }
         };
+        // SAFETY : 4 bytes slice into 4 bytes array
+        #[allow(clippy::unwrap_used)]
         let sequence_num = u32::from_be_bytes(attrs[9..13].try_into().unwrap());
         Ok(Self {
             stream_id,

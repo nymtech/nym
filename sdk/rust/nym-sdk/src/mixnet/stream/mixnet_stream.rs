@@ -19,7 +19,7 @@ use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use tokio_util::sync::PollSender;
 
-use nym_lp::packet::frame::SphinxStreamMsgType;
+use nym_lp_data::packet::frame::SphinxStreamMsgType;
 
 use super::protocol::{encode_stream_message, StreamId};
 use super::StreamMap;

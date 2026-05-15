@@ -1,13 +1,13 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::packet::MalformedLpPacketError;
-use crate::peer_config::LpReceiverIndex;
 use crate::replay::ReplayError;
 use crate::transport::LpTransportError;
 use libcrux_psq::handshake::HandshakeError;
 use libcrux_psq::handshake::builders::BuilderError;
 use libcrux_psq::session::SessionError;
+use nym_lp_data::packet::MalformedLpPacketError;
+use nym_lp_data::packet::header::LpReceiverIndex;
 // use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_kkt::error::KKTError;
 use nym_kkt_ciphersuite::{HashFunction, KEM};

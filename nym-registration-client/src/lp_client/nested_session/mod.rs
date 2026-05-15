@@ -27,8 +27,8 @@ use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::packet::version;
-use nym_lp::packet::{EncryptedLpPacket, LpFrame};
+use nym_lp_data::packet::version;
+use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::LpHandshakeChannel;

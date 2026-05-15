@@ -8,7 +8,7 @@ use crate::node::wireguard::GatewayWireguardError;
 use defguard_wireguard_rs::key::Key;
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_crypto::asymmetric::x25519;
-use nym_lp::peer_config::LpReceiverIndex;
+use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_registration_common::{LpRegistrationResponse, WireguardRegistrationData};
 use nym_sdk::mixnet::Recipient;
 use nym_wireguard::ip_pool::IpPair;

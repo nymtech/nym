@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::packet::{EncryptedLpPacket, LpFrame};
     use crate::session::{LpAction, LpInput};
     use crate::{LpError, SessionManager, SessionsMock};
     use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
+    use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 
     // helpers to make tests smaller
     trait ActionExtract {

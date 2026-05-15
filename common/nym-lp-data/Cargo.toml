@@ -12,7 +12,12 @@ documentation.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bytes.workspace = true
+num_enum.workspace = true
 tracing.workspace = true
+thiserror.workspace = true
+
+nym-common.workspace = true
 
 
 [dev-dependencies]

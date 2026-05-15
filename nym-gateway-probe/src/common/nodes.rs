@@ -12,7 +12,7 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_http_api_client::UserAgent;
 use nym_kkt_ciphersuite::Ciphersuite;
 use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
-use nym_lp::packet::version;
+use nym_lp_data::packet::version;
 use nym_lp::peer::{DHPublicKey, LpRemotePeer};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::client::NymNodeApiClientExt;

@@ -33,7 +33,7 @@ use tracing::{debug, info, trace};
 
 use crate::topology::{GatewayInfo, SpeedtestTopology};
 use nym_ip_packet_requests::v8::request::IpPacketRequest;
-use nym_lp::packet::version;
+use nym_lp_data::packet::version;
 use nym_lp::peer::{DHKeyPair, LpRemotePeer};
 use nym_sphinx::forwarding::packet::MixPacket;
 

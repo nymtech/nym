@@ -4,10 +4,10 @@
 #![allow(dead_code)]
 
 use crate::LpClientError;
-use nym_lp::packet::frame::LpFrameKind;
-use nym_lp::packet::{ForwardPacketData, LpFrame};
 use nym_lp::peer::LpRemotePeer;
 use nym_lp::session::{LpAction, LpInput};
+use nym_lp_data::packet::frame::LpFrameKind;
+use nym_lp_data::packet::{ForwardPacketData, LpFrame};
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, NymNodeLPInformation,
 };

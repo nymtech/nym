@@ -6,11 +6,10 @@ use libcrux_psq::handshake::types::Authenticator;
 
 use nym_crypto::hkdf::blake3::derive_key_blake3_multi_input;
 use nym_kkt::keys::EncapsulationKey;
+use nym_lp_data::packet::header::LpReceiverIndex;
 use rand09::{self, CryptoRng, Rng};
 use tls_codec::Serialize;
 use zeroize::Zeroize;
-
-pub type LpReceiverIndex = u32;
 
 pub const MAX_HOPS: u8 = 16;
 pub const LP_PEER_CONFIG_SIZE: usize = 20;

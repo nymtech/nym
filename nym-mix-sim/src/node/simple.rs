@@ -128,7 +128,7 @@ impl<Ts: Clone> Transport<Ts, SimplePacket, NodeId> for SimpleProcessingNode {
     type Frame = SimpleFrame;
     const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Transport<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_transport_packet(
-        &self,
+        &mut self,
         frame: AddressedTimedData<Ts, SimpleFrame, NodeId>,
     ) -> AddressedTimedData<Ts, SimplePacket, NodeId> {
         self.wrapper.to_transport_packet(frame)
@@ -157,7 +157,7 @@ impl<Ts: Clone> TransportUnwrap<Ts, SimplePacket> for SimpleProcessingNode {
     type Frame = SimpleFrame;
     type Error = anyhow::Error;
     fn packet_to_frame(
-        &self,
+        &mut self,
         packet: SimplePacket,
         timestamp: Ts,
     ) -> anyhow::Result<TimedData<Ts, SimpleFrame>> {

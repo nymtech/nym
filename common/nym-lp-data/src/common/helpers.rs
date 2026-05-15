@@ -40,7 +40,7 @@ where
     type Frame = Vec<u8>;
     const OVERHEAD_SIZE: usize = 0;
     fn to_transport_packet(
-        &self,
+        &mut self,
         frame: AddressedTimedPayload<Ts, NdId>,
     ) -> AddressedTimedData<Ts, Pkt, NdId> {
         frame.data_transform(|data| data.into())
@@ -83,7 +83,11 @@ where
 {
     type Frame = Vec<u8>;
     type Error = std::convert::Infallible;
-    fn packet_to_frame(&self, packet: Pkt, timestamp: Ts) -> Result<TimedPayload<Ts>, Self::Error> {
+    fn packet_to_frame(
+        &mut self,
+        packet: Pkt,
+        timestamp: Ts,
+    ) -> Result<TimedPayload<Ts>, Self::Error> {
         Ok(TimedData {
             timestamp,
             data: packet.into(),

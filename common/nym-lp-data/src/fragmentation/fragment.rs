@@ -28,9 +28,7 @@ pub struct FragmentHeader {
     /// set was fully received as well as to perform bound checks.
     total_fragments: u8,
 
-    /// Since message is always fragmented into payloads of constant lengths
-    /// (apart from possibly the last one), there's no need to use offsets like ipv4/ipv6
-    /// and we can just simply enumerate the fragments to later reconstruct the message.
+    /// Index of this fragment, in (0..total_fragments)
     current_fragment: u8,
 
     reserved: [u8; 4],

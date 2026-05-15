@@ -56,12 +56,10 @@ impl LpDataSetup {
             output_tx,
             shutdown.clone_shutdown_token(),
         );
-        //let sender = LpDataSender::new(data_state, output_rx, shutdown.clone_shutdown_token());
 
         Ok(LpDataSetup {
             listener,
             handler,
-            //sender,
             shutdown,
         })
     }

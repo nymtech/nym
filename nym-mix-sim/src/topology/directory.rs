@@ -5,9 +5,9 @@
 //! addresses at send time.
 //!
 //! The [`Directory`] is built once during driver initialisation (after all UDP
-//! sockets have been bound) and then shared immutably across every [`Node`] via
-//! an [`Arc`]. This means routing lookups are lock-free and allocation-free after
-//! startup.
+//! sockets have been bound) and then shared immutably across every node via an
+//! [`Arc`](std::sync::Arc). This means routing lookups are lock-free and
+//! allocation-free after startup.
 
 use std::{collections::HashMap, net::SocketAddr};
 
@@ -52,18 +52,25 @@ impl Directory {
         self.clients.get(&id)
     }
 
-    /// Returns the node_id of every node in the network
+    /// Return the [`NodeId`] of every node currently in the directory.
     pub fn node_ids(&self) -> Vec<NodeId> {
         self.nodes.keys().copied().collect()
     }
 
-    /// Pick a random node
+    /// Pick a random node from the directory and return its [`NodeId`].
+    ///
+    /// Used by Sphinx clients to choose a first-hop node when the simulation has
+    /// no explicit gateway concept.
     pub fn random_next_hop(&self, rng: &mut impl rand::Rng) -> NodeId {
         // SAFETY: The directory always contains at least one node in a valid simulation.
         #[allow(clippy::unwrap_used)]
         *self.node_ids().choose(rng).unwrap()
     }
 
+    /// Sample `length` random hops (with replacement) for a Sphinx route.
+    ///
+    /// The same node may appear more than once in the returned vector; the
+    /// simulator does not enforce distinct hops.
     pub fn random_route(&self, length: usize, rng: &mut impl rand::Rng) -> Vec<DirectoryNode> {
         // SAFETY: The directory always contains at least one node in a valid simulation.
         #[allow(clippy::unwrap_used)]

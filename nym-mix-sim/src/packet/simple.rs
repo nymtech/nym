@@ -131,7 +131,7 @@ impl WirePacketFormat for SimplePacket {
     }
 }
 
-/// Intermediate frame type used by [`SimpleClientPipeline`].
+/// Intermediate frame type used by the simple client pipeline.
 ///
 /// A `SimpleFrame` wraps a chunk of payload bytes with a fixed 7-byte magic
 /// header (`b"0FRAME0"`).  It is produced by the [`Framing`] stage and

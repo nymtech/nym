@@ -21,6 +21,7 @@ pub mod directory;
 /// Per-node configuration stored in `topology.json`.
 #[derive(Serialize, Deserialize)]
 pub struct TopologyNode {
+    /// Unique identifier for this node within the topology.
     pub node_id: NodeId,
     /// UDP address on which the node listens for incoming packets.
     pub socket_address: SocketAddr,
@@ -55,7 +56,8 @@ pub struct TopologyClient {
     /// UDP address the client uses to talk to the mix network.
     pub mixnet_address: SocketAddr,
     /// UDP address where the client listens for messages from user applications
-    /// (e.g. the standalone `client` binary).  Not included in the [`Directory`].
+    /// (e.g. the standalone `client` binary).  Not included in the
+    /// [`Directory`](directory::Directory).
     pub app_address: SocketAddr,
 }
 
@@ -76,6 +78,8 @@ impl TopologyClient {
 /// Root topology file structure, deserialised from `topology.json`.
 #[derive(Serialize, Deserialize)]
 pub struct Topology {
+    /// Every mix node participating in the simulation.
     pub nodes: Vec<TopologyNode>,
+    /// Every simulated client with sockets bound to localhost.
     pub clients: Vec<TopologyClient>,
 }

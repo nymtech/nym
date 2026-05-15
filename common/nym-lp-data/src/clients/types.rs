@@ -19,12 +19,20 @@ use crate::{AddressedTimedData, PipelinePayload};
 /// - `F`: [`Framing`]
 /// - `T`: [`Transport`]
 pub struct Pipeline<C, R, O, Rs, F, T> {
+    /// On-wire size of an output packet in bytes; returned by
+    /// [`WireWrappingPipeline::packet_size`].
     pub packet_size: usize,
+    /// [`Chunking`] stage.
     pub chunking: C,
+    /// [`Reliability`] stage.
     pub reliability: R,
+    /// [`Obfuscation`] stage.
     pub obfuscation: O,
+    /// [`RoutingSecurity`] stage.
     pub security: Rs,
+    /// [`Framing`] stage.
     pub framing: F,
+    /// [`Transport`] stage.
     pub transport: T,
 }
 

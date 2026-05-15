@@ -69,8 +69,8 @@ impl<Ts: Clone> ProcessingNode<Ts, SimplePacket> for SimpleProcessingNode {
 ///
 /// Demonstrates the full pipeline: unwraps the incoming packet through the
 /// wire layer (transport → frame → payload), applies a routing decision in
-/// [`mix`] (forwards to `self.id + 1`), then re-wraps the outgoing payload
-/// (payload → frame → transport) before sending.
+/// [`MixnodeProcessingPipeline::mix`] (forwards to `self.id + 1`), then
+/// re-wraps the outgoing payload (payload → frame → transport) before sending.
 pub struct SimpleProcessingNode {
     id: NodeId,
     wrapper: SimpleWireWrapper,

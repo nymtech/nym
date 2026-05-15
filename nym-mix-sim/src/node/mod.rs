@@ -78,15 +78,26 @@ pub trait ProcessingNode<Ts, Pkt>: Send {
 /// [`SimplePacket`]: crate::packet::simple::SimplePacket
 /// [`SimMixPacket`]: crate::packet::sphinx::SimMixPacket
 pub struct BaseNode<Ts, Pkt, Pn> {
+    /// Identifier of this node within the topology.
     pub(crate) id: NodeId,
-    _reliability: u8, // Unused yet, can be used later for testing the reliability layer
+    /// Notional reliability percentage; not yet used by the simulator but kept
+    /// so future tests can drive the reliability layer.
+    _reliability: u8,
+    /// UDP address this node is bound to.
     pub(crate) socket_address: SocketAddr,
+    /// Non-blocking UDP socket used for both receive and send.
     socket: UdpSocket,
+    /// Shared routing table used to resolve next-hop [`NodeId`]s to addresses.
     directory: Arc<Directory>,
 
+    /// Inbound buffer: raw packets drained from the socket in `tick_incoming`,
+    /// ready to be fed through the mix pipeline in `tick_processing`.
     packets_to_process: Vec<Pkt>,
+    /// Outbound buffer: packets produced by the mix pipeline, each tagged with
+    /// the timestamp at which it should be released by `tick_outgoing`.
     processed_packets: Vec<AddressedTimedData<Ts, Pkt, NodeId>>,
 
+    /// Concrete mix-processing implementation invoked by `tick_processing`.
     processing_node: Pn,
 }
 

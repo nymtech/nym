@@ -12,8 +12,8 @@ use crate::clients::traits::DynClientWrappingPipeline;
 ///
 /// ## How it works
 ///
-/// 1. The caller submits raw byte payloads via [`PipelineDriver::input_sender`].
-/// 2. On each call to [`PipelineDriver::tick`], the driver reads one pending
+/// 1. The caller submits raw byte payloads via [`ClientWrappingPipelineDriver::input_sender`].
+/// 2. On each call to [`ClientWrappingPipelineDriver::tick`], the driver reads one pending
 ///    payload (only when both the packet buffer and the obfuscation buffer are
 ///    empty, to avoid adding extra latency on top of buffered data), runs it
 ///    through the pipeline, and appends the resulting timestamped packets to an

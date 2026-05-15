@@ -157,9 +157,13 @@ impl<Ts: Clone + GenerateDelay + PartialOrd + Send, R: Rng + Send>
 /// encryption, and a no-op wire wrapper (a Sphinx packet is already its own
 /// wire unit).
 pub struct SphinxClientWrappingPipeline<Ts: Clone + GenerateDelay + PartialOrd, R: Rng> {
+    /// Poisson cover traffic generator providing the [`Obfuscation`] stage.
     cover_traffic: PoissonCoverTraffic<Ts, R>,
+    /// SURB-ACK reliability layer providing the [`Reliability`] stage.
     reliability: SurbAcksReliability<R>,
+    /// Shared routing table; used to sample the 3-hop Sphinx route in `encrypt`.
     directory: Arc<Directory>,
+    /// RNG used for random route selection and Sphinx delay sampling.
     rng: R,
 }
 

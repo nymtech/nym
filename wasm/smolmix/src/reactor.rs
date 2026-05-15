@@ -7,8 +7,7 @@
 //! adaptive: `poll_delay()` reports smoltcp's next soft deadline, the loop
 //! sleeps until that deadline (capped by [`MAX_IDLE`]) or until a notification
 //! arrives. smoltcp's per-socket `register_recv_waker`/`register_send_waker`
-//! fire automatically on every state change, so this file no longer maintains
-//! its own waker map.
+//! fire automatically on every state change.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};

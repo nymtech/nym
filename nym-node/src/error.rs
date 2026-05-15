@@ -9,6 +9,7 @@ use nym_ip_packet_router::error::ClientCoreError;
 use nym_kkt::keys::storage_wrappers::MalformedStoredKeyError;
 use nym_validator_client::ValidatorClientError;
 use nym_validator_client::nyxd::error::NyxdError;
+use nyxd_scraper_shared::error::ScraperError;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
@@ -248,6 +249,12 @@ pub enum NymNodeError {
 
     #[error(transparent)]
     LpFailure(#[from] LpHandlerError),
+
+    #[error("no valid network monitors contract address configured")]
+    MissingNetworkMonitorsContractAddress,
+
+    #[error(transparent)]
+    ChainWatcherFailure(#[from] ScraperError),
 }
 
 impl From<EntryGatewayError> for NymNodeError {

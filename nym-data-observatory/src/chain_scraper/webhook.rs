@@ -28,42 +28,40 @@ impl WebhookModule {
 #[async_trait]
 impl TxModule for WebhookModule {
     async fn handle_tx(&mut self, tx: &ParsedTransactionResponse) -> Result<(), ScraperError> {
-        for (index, msg) in &tx.parsed_messages {
-            if let Some(parsed_message_type_url) = tx.parsed_message_urls.get(index) {
-                let payload = WebhookPayload {
-                    height: tx.height.value(),
-                    message_index: *index as u64,
-                    transaction_hash: tx.hash.to_string(),
-                    message: Some(msg.clone()),
-                };
+        for (index, msg) in &tx.decoded_messages {
+            let payload = WebhookPayload {
+                height: tx.tx_details.height().value(),
+                message_index: *index as u64,
+                transaction_hash: tx.tx_details.hash.to_string(),
+                message: Some(msg.decoded_content.clone()),
+            };
 
-                // println!(
-                //     "->>>>>>>>>>>>>>>>>>>>>>>>> {}",
-                //     serde_json::to_string(&payload).unwrap()
-                // );
+            // println!(
+            //     "->>>>>>>>>>>>>>>>>>>>>>>>> {}",
+            //     serde_json::to_string(&payload).unwrap()
+            // );
 
-                for webhook in self.webhooks.clone() {
-                    // if the webhook requires a type and the parsed message type doesn't match, skip
-                    if !webhook.config.watch_for_chain_message_types.is_empty()
-                        && !webhook
-                            .config
-                            .watch_for_chain_message_types
-                            .contains(parsed_message_type_url)
-                    {
-                        continue;
-                    }
-
-                    let payload = payload.clone();
-
-                    // TODO: some excellent advice from Andrew, for another day:
-                    //   - pass a cancellation token for shutdown
-                    //   - use TaskManager and limit number of webhooks to spawn at once
-                    tokio::spawn(async move {
-                        if let Err(e) = webhook.invoke_webhook(&payload).await {
-                            error!("webhook error: {}", e);
-                        }
-                    });
+            for webhook in self.webhooks.clone() {
+                // if the webhook requires a type and the parsed message type doesn't match, skip
+                if !webhook.config.watch_for_chain_message_types.is_empty()
+                    && !webhook
+                        .config
+                        .watch_for_chain_message_types
+                        .contains(&msg.type_url)
+                {
+                    continue;
                 }
+
+                let payload = payload.clone();
+
+                // TODO: some excellent advice from Andrew, for another day:
+                //   - pass a cancellation token for shutdown
+                //   - use TaskManager and limit number of webhooks to spawn at once
+                tokio::spawn(async move {
+                    if let Err(e) = webhook.invoke_webhook(&payload).await {
+                        error!("webhook error: {}", e);
+                    }
+                });
             }
         }
         Ok(())

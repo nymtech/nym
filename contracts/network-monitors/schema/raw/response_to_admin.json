@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AdminResponse",
+  "description": "Returned from Admin.query_admin()",
+  "type": "object",
+  "properties": {
+    "admin": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

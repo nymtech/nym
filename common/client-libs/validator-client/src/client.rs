@@ -104,6 +104,14 @@ impl TryFrom<NymNetworkDetails> for Config {
 }
 
 impl Config {
+    pub fn new(nyxd_url: Url, api_url: Url, nyxd_config: nyxd::Config) -> Self {
+        Config {
+            api_url,
+            nyxd_url,
+            nyxd_config,
+        }
+    }
+
     pub fn try_from_nym_network_details(
         details: &NymNetworkDetails,
     ) -> Result<Self, ValidatorClientError> {
@@ -113,6 +121,15 @@ impl Config {
             .filter_map(|d| d.api_url.as_ref())
             .map(|url| Url::parse(url))
             .collect::<Result<Vec<_>, _>>()?;
+
+        if let Some(nym_api_urls) = details.nym_api_urls.as_ref() {
+            api_url.extend(
+                nym_api_urls
+                    .iter()
+                    .map(|url| url.url.parse())
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
+        }
 
         if api_url.is_empty() {
             return Err(ValidatorClientError::NoAPIUrlAvailable);

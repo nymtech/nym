@@ -9,6 +9,7 @@ members = [
     "multisig/cw4-group",
     "vesting",
     "performance",
+    "network-monitors",
 ]
 
 [workspace.package]
@@ -18,6 +19,8 @@ homepage = "https://nymtech.net"
 documentation = "https://nymtech.net"
 edition = "2021"
 license = "Apache-2.0"
+rust-version = "1.86.0"
+readme = "../README.md"
 
 [profile.release]
 opt-level = 3
@@ -66,6 +69,7 @@ nym-ecash-contract-common = "1.20.4"
 nym-group-contract-common = "1.20.4"
 nym-mixnet-contract-common = "1.20.4"
 nym-multisig-contract-common = "1.20.4"
+nym-network-monitors-contract-common = "1.20.4"
 nym-network-defaults = { version = "1.20.4", default-features = false }
 nym-performance-contract-common = "1.20.4"
 nym-pool-contract-common = "1.20.4"
@@ -93,8 +97,6 @@ unimplemented = "deny"
 unreachable = "deny"
 
 # For local development, import via path instead of crates.io, e.g.
-# [patch.crates-io]
-# nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
-
 [patch.crates-io]
+nym-network-monitors-contract-common = { path = "../common/cosmwasm-smart-contracts/network-monitors-contract" }
 nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }

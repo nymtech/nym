@@ -15,6 +15,12 @@ pub enum Connection<C> {
     Noise(#[pin] Box<NoiseStream<C>>),
 }
 
+impl<C> Connection<C> {
+    pub fn is_noise(&self) -> bool {
+        matches!(self, Connection::Noise(_))
+    }
+}
+
 impl<C> AsyncRead for Connection<C>
 where
     C: AsyncRead + AsyncWrite + Unpin,

@@ -4950,7 +4950,6 @@ version = "1.20.4"
 dependencies = [
  "cargo_metadata 0.19.2",
  "dotenvy",
- "log",
  "regex",
  "schemars",
  "serde",
@@ -4958,6 +4957,18 @@ dependencies = [
  "tracing",
  "url",
  "utoipa",
+]
+
+[[package]]
+name = "nym-network-monitors-contract-common"
+version = "1.20.4"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -4972,6 +4983,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-kkt-ciphersuite",
+ "nym-network-defaults",
  "nym-noise-keys",
  "nym-upgrade-mode-check",
  "nym-wireguard-types",
@@ -5135,6 +5147,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
+ "nym-network-monitors-contract-common",
  "nym-performance-contract-common",
  "nym-serde-helpers",
  "nym-vesting-contract-common",

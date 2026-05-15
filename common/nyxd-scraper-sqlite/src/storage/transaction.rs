@@ -132,15 +132,15 @@ impl SqliteStorageTransaction {
 
         for chain_tx in txs {
             insert_transaction(
-                chain_tx.hash.to_string(),
-                chain_tx.height.into(),
-                chain_tx.index as i64,
-                chain_tx.tx_result.code.is_ok(),
-                chain_tx.tx.body.messages.len() as i64,
-                chain_tx.tx.body.memo.clone(),
-                chain_tx.tx_result.gas_wanted,
-                chain_tx.tx_result.gas_used,
-                chain_tx.tx_result.log.clone(),
+                chain_tx.tx_details.hash.to_string(),
+                chain_tx.tx_details.height().into(),
+                chain_tx.tx_details.index as i64,
+                chain_tx.tx_details.tx_result.code.is_ok(),
+                chain_tx.tx_details.tx.body.messages.len() as i64,
+                chain_tx.tx_details.tx.body.memo.clone(),
+                chain_tx.tx_details.tx_result.gas_wanted,
+                chain_tx.tx_details.tx_result.gas_used,
+                chain_tx.tx_details.tx_result.log.clone(),
                 self.0.as_mut(),
             )
             .await?;
@@ -156,12 +156,12 @@ impl SqliteStorageTransaction {
         debug!("persisting messages");
 
         for chain_tx in txs {
-            for (index, msg) in chain_tx.tx.body.messages.iter().enumerate() {
+            for (index, msg) in chain_tx.tx_details.tx.body.messages.iter().enumerate() {
                 insert_message(
-                    chain_tx.hash.to_string(),
+                    chain_tx.tx_details.hash.to_string(),
                     index as i64,
                     msg.type_url.clone(),
-                    chain_tx.height.into(),
+                    chain_tx.tx_details.height().into(),
                     self.0.as_mut(),
                 )
                 .await?

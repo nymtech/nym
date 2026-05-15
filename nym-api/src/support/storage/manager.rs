@@ -5,8 +5,9 @@ use crate::node_status_api::models::{HistoricalUptime as ApiHistoricalUptime, Up
 use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses};
 use crate::support::storage::models::{
     ActiveGateway, ActiveMixnode, GatewayDetails, HistoricalUptime, MixnodeDetails,
-    MonitorRunReport, MonitorRunScore, NodeStatus, RewardingReport, TestedGatewayStatus,
-    TestedMixnodeStatus, TestingRoute,
+    MonitorRunReport, MonitorRunScore, NodeStatus, NymNodeStressTestingResult,
+    RetrievedAverageStressTestResult, RewardingReport, TestedGatewayStatus, TestedMixnodeStatus,
+    TestingRoute,
 };
 use crate::support::storage::DbIdCache;
 use nym_mixnet_contract_common::{EpochId, IdentityKey, NodeId};
@@ -306,6 +307,42 @@ impl StorageManager {
         .fetch_one(&self.connection_pool)
         .await?;
         Ok(result.reliability)
+    }
+
+    /// Returns the rolling average stress-testing score for a single node over the given window.
+    ///
+    /// `was_reachable` is `MAX(was_reachable)` so it is `true` if **any** sample reported the
+    /// node reachable, and `false` only if every sample marked it unreachable — matching the
+    /// "false only when all entries are false" rule used by the consumers.
+    ///
+    /// `GROUP BY node_id` (rather than a bare aggregate) ensures that an empty selection yields
+    /// no row (so `fetch_optional` returns `None`) instead of a single all-NULL row that would
+    /// be indistinguishable from "node was never tested".
+    pub(super) async fn get_average_node_stress_test_score(
+        &self,
+        node_id: i64,
+        start_ts: OffsetDateTime,
+        end_ts: OffsetDateTime,
+    ) -> Result<Option<RetrievedAverageStressTestResult>, sqlx::Error> {
+        sqlx::query_as!(
+            RetrievedAverageStressTestResult,
+            r#"
+                SELECT
+                    node_id as "node_id!: NodeId",
+                    AVG(result) as "result!: f64",
+                    MAX(was_reachable) as "was_reachable!: bool"
+                FROM nym_node_stress_testing_result
+                WHERE node_id = ?
+                  AND test_timestamp >= ?
+                  AND test_timestamp <= ?
+                GROUP BY node_id
+            "#,
+            node_id,
+            start_ts,
+            end_ts,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 
     /// Gets all reliability statuses for gateway with particular id that were inserted
@@ -777,6 +814,38 @@ impl StorageManager {
             .bind(monitor_run_id)
             .fetch_all(&self.connection_pool)
             .await
+    }
+
+    /// Batch-insert the given stress-testing results into the `nym_node_stress_testing_result`
+    /// table. An empty input is a no-op rather than an invalid-SQL error, since an incoming
+    /// submission may legitimately contain no mixnode entries after filtering.
+    ///
+    /// Uses `INSERT OR IGNORE` so that a retried submission carrying the same
+    /// `(testrun_id, submitter_pubkey)` pair - expected under the orchestrator's at-least-once
+    /// delivery semantics - silently drops the duplicate rows rather than failing the batch.
+    pub(super) async fn insert_nym_node_stress_testing_results(
+        &self,
+        results: Vec<NymNodeStressTestingResult>,
+    ) -> Result<(), sqlx::Error> {
+        if results.is_empty() {
+            return Ok(());
+        }
+
+        let mut query_builder = sqlx::QueryBuilder::new(
+            "INSERT OR IGNORE INTO nym_node_stress_testing_result (testrun_id, submitter_pubkey, node_id, result, was_reachable, test_timestamp) ",
+        );
+
+        query_builder.push_values(results, |mut b, entry| {
+            b.push_bind(entry.testrun_id)
+                .push_bind(entry.submitter_pubkey)
+                .push_bind(entry.node_id)
+                .push_bind(entry.result)
+                .push_bind(entry.was_reachable)
+                .push_bind(entry.test_timestamp);
+        });
+
+        query_builder.build().execute(&self.connection_pool).await?;
+        Ok(())
     }
 
     /// Obtains number of network monitor test runs that have occurred within the specified interval.

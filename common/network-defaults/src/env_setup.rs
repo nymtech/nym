@@ -27,8 +27,12 @@ fn print_env_vars_with_keys_in_file<P: AsRef<Path> + Copy>(config_env_file: P) {
         .expect("Invalid path to environment configuration file");
     for item in items {
         let (key, val) = item.expect("Invalid item in environment configuration file");
-        log::debug!("{key}: {val}");
+        tracing::debug!("{key}: {val}");
     }
+}
+
+pub fn env_configured() -> bool {
+    std::env::var(var_names::CONFIGURED).is_ok()
 }
 
 pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
@@ -36,7 +40,7 @@ pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
         // if the configuration is not already set in the env vars
         Err(std::env::VarError::NotPresent) => {
             if let Some(config_env_file) = &config_env_file {
-                log::debug!(
+                tracing::debug!(
                     "Loading environment variables from {:?}",
                     config_env_file.as_ref()
                 );
@@ -47,12 +51,12 @@ pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
                 // if nothing is set, the use mainnet defaults
                 // if the user has not set `CONFIGURED`, then even if they set any of the env variables,
                 // overwrite them
-                log::debug!("Loading mainnet defaults");
+                tracing::debug!("Loading mainnet defaults");
                 crate::mainnet::export_to_env();
             }
         }
         Err(_) => {
-            log::debug!("Environment variables already set. Using them");
+            tracing::debug!("Environment variables already set. Using them");
             crate::mainnet::export_to_env()
         }
         _ => {

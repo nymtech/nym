@@ -24,6 +24,8 @@ use async_trait::async_trait;
 use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
 use cosmrs::tx::{Raw, SignDoc};
 use cosmwasm_std::Addr;
+use nym_contracts_common::build_information::CONTRACT_BUILD_INFO_STORAGE_KEY;
+use nym_contracts_common::ContractBuildInformation;
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
@@ -40,6 +42,7 @@ pub use crate::nyxd::{
     fee::Fee,
 };
 pub use crate::rpc::TendermintRpcClient;
+pub use bip39;
 pub use coin::Coin;
 pub use cosmrs::{
     bank::MsgSend,
@@ -70,14 +73,19 @@ pub use tendermint_rpc::{
     Paging, Request, Response, SimpleRequest,
 };
 
+pub use nym_ecash_contract_common;
+pub use nym_mixnet_contract_common;
+pub use nym_multisig_contract_common;
+pub use nym_network_monitors_contract_common;
+pub use nym_performance_contract_common;
+pub use nym_vesting_contract_common;
+
 #[cfg(feature = "http-client")]
 use crate::http_client;
 #[cfg(feature = "http-client")]
 use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
-use nym_contracts_common::build_information::CONTRACT_BUILD_INFO_STORAGE_KEY;
-use nym_contracts_common::ContractBuildInformation;
 
 pub mod coin;
 pub mod contract_traits;
@@ -262,6 +270,16 @@ impl<C, S> NyxdClient<C, S> {
         }
     }
 
+    pub fn clone_query_client(&self) -> NyxdClient<C>
+    where
+        C: Clone,
+    {
+        NyxdClient {
+            client: self.client.clone_query_client(),
+            config: self.config.clone(),
+        }
+    }
+
     pub fn current_config(&self) -> &Config {
         &self.config
     }
@@ -289,6 +307,10 @@ impl<C, S> NyxdClient<C, S> {
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
         self.config.simulated_gas_multiplier = multiplier;
     }
+
+    pub fn get_nym_contracts(&self) -> TypedNymContracts {
+        self.config.contracts.clone()
+    }
 }
 
 impl<C, S> NymContractsProvider for NyxdClient<C, S> {
@@ -302,6 +324,12 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
 
     fn performance_contract_address(&self) -> Option<&AccountId> {
         self.config.contracts.performance_contract_address.as_ref()
+    }
+    fn network_monitors_contract_address(&self) -> Option<&AccountId> {
+        self.config
+            .contracts
+            .network_monitors_contract_address
+            .as_ref()
     }
 
     fn ecash_contract_address(&self) -> Option<&AccountId> {

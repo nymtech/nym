@@ -14,7 +14,7 @@ use nym_mixnet_contract_common::{
 };
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{
-    AnnotationResponse, DisplayRole, GatewayCoreStatusResponse, GatewayStatusReportResponse,
+    AnnotationResponseV1, DisplayRole, GatewayCoreStatusResponse, GatewayStatusReportResponse,
     MixnodeCoreStatusResponse, MixnodeStatusResponse, StakeSaturationResponse,
 };
 use serde::{Deserialize, Serialize};
@@ -167,6 +167,6 @@ pub async fn get_nymnode_role(
 pub async fn get_nymnode_annotation(
     node_id: NodeId,
     state: tauri::State<'_, WalletState>,
-) -> Result<AnnotationResponse, BackendError> {
+) -> Result<AnnotationResponseV1, BackendError> {
     Ok(api_client!(state).get_node_annotation(node_id).await?)
 }

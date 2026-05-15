@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "description": "Change the admin",
+      "type": "object",
+      "required": [
+        "update_admin"
+      ],
+      "properties": {
+        "update_admin": {
+          "type": "object",
+          "required": [
+            "admin"
+          ],
+          "properties": {
+            "admin": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Authorise new network monitor orchestrator",
+      "type": "object",
+      "required": [
+        "authorise_network_monitor_orchestrator"
+      ],
+      "properties": {
+        "authorise_network_monitor_orchestrator": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Revoke network monitor orchestrator authorisation.",
+      "type": "object",
+      "required": [
+        "revoke_network_monitor_orchestrator"
+      ],
+      "properties": {
+        "revoke_network_monitor_orchestrator": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Authorise new network monitor (or renew authorisation) granting additional privileges when sending mixnet packets to Nym nodes.",
+      "type": "object",
+      "required": [
+        "authorise_network_monitor"
+      ],
+      "properties": {
+        "authorise_network_monitor": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string",
+              "format": "ip"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Revoke network monitor authorisation.",
+      "type": "object",
+      "required": [
+        "revoke_network_monitor"
+      ],
+      "properties": {
+        "revoke_network_monitor": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string",
+              "format": "ip"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Revoke all network monitor authorisations.",
+      "type": "string",
+      "enum": [
+        "revoke_all_network_monitors"
+      ]
+    }
+  ]
+}

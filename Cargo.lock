@@ -7324,7 +7324,6 @@ dependencies = [
 name = "nym-lp-data"
 version = "1.20.4"
 dependencies = [
- "anyhow",
  "nym-lp",
  "tracing",
 ]

@@ -44,7 +44,7 @@ where
         &mut self,
         input: TimedData<Ts, Pkt>,
         timestamp: Ts,
-    ) -> anyhow::Result<Vec<AddressedTimedData<Ts, Pkt, NdId>>> {
+    ) -> Result<Vec<AddressedTimedData<Ts, Pkt, NdId>>, Self::Error> {
         let TimedData {
             data: packet,
             timestamp: ts,

@@ -278,7 +278,7 @@ where
 {
     fn process_unwrapped(&mut self, payload: TimedPayload<Ts>, kind: Mk) -> Option<Vec<u8>>;
 
-    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> anyhow::Result<Option<Vec<u8>>> {
+    fn unwrap(&mut self, input: Pkt, timestamp: Ts) -> Result<Option<Vec<u8>>, Self::Error> {
         Ok(self
             .wire_unwrap(input, timestamp)?
             .and_then(|(payload, kind)| self.process_unwrapped(payload, kind)))

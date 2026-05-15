@@ -1,10 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_ip_packet_client::current::response::{
+use nym_ip_packet_requests::v8::response::{
     ControlResponse, DataResponse, InfoLevel, IpPacketResponse, IpPacketResponseData,
 };
-use nym_ip_packet_client::lp_stream;
 use nym_sdk::{
     DebugConfig, NymApiTopologyProvider, NymApiTopologyProviderConfig, NymNetworkDetails,
     TopologyProvider, mixnet::ReconstructedMessage,
@@ -33,10 +32,7 @@ pub fn mixnet_debug_config(
 }
 
 pub fn unpack_data_response(reconstructed_message: &ReconstructedMessage) -> Option<DataResponse> {
-    let payload =
-        lp_stream::maybe_unwrap_lp_stream_payload_from_reconstructed(reconstructed_message);
-
-    match IpPacketResponse::from_bytes(payload) {
+    match IpPacketResponse::from_reconstructed_message(reconstructed_message) {
         Ok(response) => match response.data {
             IpPacketResponseData::Data(data_response) => Some(data_response),
             IpPacketResponseData::Control(control) => match *control {

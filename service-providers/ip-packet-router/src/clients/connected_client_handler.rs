@@ -218,10 +218,7 @@ fn create_ip_packet_response(
         ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
         ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
         ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
-        ClientVersion::V9 => {
-            let resp = v9::new_ip_packet_response(packets);
-            resp.to_bytes()
-        }
+        ClientVersion::V9 => v9::new_ip_packet_response(packets).to_bytes(),
     }
 }
 

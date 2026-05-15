@@ -337,6 +337,8 @@ impl ReplyStorageBackend for Backend {
     }
 
     async fn stop_storage_session(self) -> Result<(), Self::StorageError> {
-        self.stop_client_use().await
+        let result = self.stop_client_use().await;
+        self.shutdown().await;
+        result
     }
 }

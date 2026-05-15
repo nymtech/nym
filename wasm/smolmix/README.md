@@ -68,8 +68,18 @@ Two WASM exports that mirror the browser's native networking surface:
 IPR connect handshake stay unconditional; everything else is silent in release.
 
 `make build-debug` enables the feature automatically (it builds with
-`--features rustcrypto,debug`). `make build-release-opt` leaves it off, so
-release artefacts ship no verbose logging.
+`--features debug`). `make build-release-opt` leaves it off, so release
+artefacts ship no verbose logging.
+
+### Cryptography
+
+TLS terminates inside the WASM client, so we need a pure-Rust rustls
+crypto provider. [`rustls-rustcrypto`](https://github.com/RustCrypto/rustls-rustcrypto) as
+the only viable option: the underlying RustCrypto AEADs were
+[audited by NCC Group in 2020](https://www.nccgroup.com/research/public-report-rustcrypto-aesgcm-and-chacha20pluspoly1305-implementation-review/)
+with no findings, while the rustls integration glue is `0.0.2-alpha`.
+`src/tls.rs` restricts negotiation to AEAD-only suites with forward-secret
+key exchange.
 
 ## Build
 

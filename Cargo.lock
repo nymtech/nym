@@ -11535,15 +11535,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
-name = "simple-dns"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c80e565e7dcc4f1ef247e2f395550d4cf7d777746d5988e7e4e3156b71077fc"
-dependencies = [
- "bitflags 2.9.1",
-]
-
-[[package]]
 name = "siphasher"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11639,6 +11630,7 @@ dependencies = [
  "serde-wasm-bindgen 0.6.5",
  "smoltcp",
  "thiserror 2.0.18",
+ "tsify",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",

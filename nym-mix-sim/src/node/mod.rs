@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use nym_lp_data::{AddressedTimedData, TimedData};
+use nym_lp_data::AddressedTimedData;
 
 use crate::{packet::WirePacketFormat, topology::directory::Directory};
 
@@ -29,9 +29,8 @@ pub type NodeId = u8;
 ///
 /// [`MixSimDriver`]: crate::driver::MixSimDriver
 pub trait MixSimNode<Ts: Clone + PartialOrd + Debug + Send>: Send {
-    /// **Phase 1** — drain the UDP socket into the inbound buffer, tagging each
-    /// received packet with `timestamp`.
-    fn tick_incoming(&mut self, timestamp: Ts);
+    /// **Phase 1** — drain the UDP socket into the inbound buffer
+    fn tick_incoming(&mut self);
 
     /// **Phase 2** — pass every buffered packet through the mix pipeline and
     /// move the results into the outbound queue.
@@ -60,7 +59,7 @@ pub trait MixSimNode<Ts: Clone + PartialOrd + Debug + Send>: Send {
 pub trait ProcessingNode<Ts, Pkt>: Send {
     fn process(
         &mut self,
-        input: TimedData<Ts, Pkt>,
+        input: Pkt,
         timestamp: Ts,
     ) -> anyhow::Result<Vec<AddressedTimedData<Ts, Pkt, NodeId>>>;
 }
@@ -85,7 +84,7 @@ pub struct BaseNode<Ts, Pkt, Pn> {
     socket: UdpSocket,
     directory: Arc<Directory>,
 
-    packets_to_process: Vec<TimedData<Ts, Pkt>>,
+    packets_to_process: Vec<Pkt>,
     processed_packets: Vec<AddressedTimedData<Ts, Pkt, NodeId>>,
 
     processing_node: Pn,
@@ -186,12 +185,10 @@ where
     Pkt: WirePacketFormat + Debug + Send,
     Pn: ProcessingNode<Ts, Pkt>,
 {
-    fn tick_incoming(&mut self, timestamp: Ts) {
+    fn tick_incoming(&mut self) {
         while let Some(maybe_packet) = self.recv_packet() {
             match maybe_packet {
-                Ok(packet) => self
-                    .packets_to_process
-                    .push(TimedData::new(timestamp.clone(), packet)),
+                Ok(packet) => self.packets_to_process.push(packet),
                 Err(e) => tracing::error!("[Node {}] Failed to deserialize packet : {e}", self.id),
             }
         }

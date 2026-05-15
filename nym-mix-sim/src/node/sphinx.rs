@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use nym_crypto::asymmetric::x25519;
 use nym_lp_data::{
-    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
+    AddressedTimedData, AddressedTimedPayload, TimedPayload,
     common::helpers::{NoOpWireUnwrapper, NoOpWireWrapper},
     mixnodes::traits::MixnodeProcessingPipeline,
 };
@@ -57,12 +57,13 @@ where
 {
     fn process(
         &mut self,
-        input: TimedData<Ts, SimMixPacket>,
+        input: SimMixPacket,
         timestamp: Ts,
     ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimMixPacket, NodeId>>> {
         Ok(MixnodeProcessingPipeline::<
             Ts,
             SimMixPacket,
+            (),
             SphinxMessage,
             NodeId,
         >::process(self, input, timestamp)?)
@@ -94,7 +95,8 @@ impl SphinxProcessingNode {
     }
 }
 
-impl<Ts> MixnodeProcessingPipeline<Ts, SimMixPacket, SphinxMessage, NodeId> for SphinxProcessingNode
+impl<Ts> MixnodeProcessingPipeline<Ts, SimMixPacket, (), SphinxMessage, NodeId>
+    for SphinxProcessingNode
 where
     Ts: AddDelay + Clone,
 {
@@ -123,7 +125,7 @@ where
                     next_hop_address,
                     delay,
                 } => {
-                    let timed_sphinx = AddressedTimedData::new(
+                    let timed_sphinx = AddressedTimedData::new_addressed(
                         timestamp.add_delay(delay),
                         next_hop_packet.to_bytes(),
                         next_hop_address.as_bytes()[0],
@@ -140,7 +142,7 @@ where
                         .inspect_err(|e| tracing::warn!("Impossible to recover plaintext : {e}"))
                     {
                         let (surb_ack_bytes, message) = SurbAck::extract_ack_and_message(plaintext);
-                        let mut packets_to_forward = vec![AddressedTimedData::new(
+                        let mut packets_to_forward = vec![AddressedTimedData::new_addressed(
                             timestamp.clone(),
                             message,
                             destination.as_bytes()[0],
@@ -151,7 +153,7 @@ where
                             )
                             .inspect_err(|e| tracing::warn!("Fail to deserialize SURB Ack : {e}"))
                         {
-                            packets_to_forward.push(AddressedTimedData::new(
+                            packets_to_forward.push(AddressedTimedData::new_addressed(
                                 timestamp,
                                 surb_ack.to_bytes(),
                                 next_hop,

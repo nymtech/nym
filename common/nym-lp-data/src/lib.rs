@@ -24,6 +24,11 @@ pub mod clients;
 pub mod common;
 pub mod mixnodes;
 
+/// Convenience alias for types where payload is a raw byte buffer.
+pub type TimedPayload<Ts> = TimedData<Ts, Vec<u8>>;
+pub type AddressedTimedPayload<Ts, NdId> = AddressedTimedData<Ts, Vec<u8>, NdId>;
+pub type PipelinePayload<Ts, Opts, NdId> = PipelineData<Ts, Vec<u8>, Opts, NdId>;
+
 /// A value of type `D` tagged with a timestamp of type `Ts`.
 ///
 /// `TimedData` threads timing information through every stage of the LP
@@ -80,28 +85,31 @@ impl<Ts, D> TimedData<Ts, D> {
     }
 }
 
-pub struct AddressedTimedData<Ts, D, NdId> {
-    pub dst: NdId,
+pub struct PipelineData<Ts, D, Opts, NdId> {
     pub data: TimedData<Ts, D>,
+    pub options: Opts,
+    pub dst: NdId,
 }
 
-impl<Ts, D, NdId> AddressedTimedData<Ts, D, NdId> {
-    pub fn new(timestamp: Ts, data: D, dst: NdId) -> Self {
-        AddressedTimedData {
-            dst,
+impl<Ts, D, Opts, NdId> PipelineData<Ts, D, Opts, NdId> {
+    pub fn new(timestamp: Ts, data: D, options: Opts, dst: NdId) -> Self {
+        PipelineData {
             data: TimedData::new(timestamp, data),
+            options,
+            dst,
         }
     }
 
     /// Apply `op` to the data component, leaving the timestamp unchanged.
     /// `Nd` can be a different type to allow type transform as well
-    pub fn data_transform<F, Nd>(self, op: F) -> AddressedTimedData<Ts, Nd, NdId>
+    pub fn data_transform<F, Nd>(self, op: F) -> PipelineData<Ts, Nd, Opts, NdId>
     where
         F: FnMut(D) -> Nd,
     {
-        AddressedTimedData {
-            dst: self.dst,
+        PipelineData {
             data: self.data.data_transform(op),
+            options: self.options,
+            dst: self.dst,
         }
     }
 
@@ -110,39 +118,46 @@ impl<Ts, D, NdId> AddressedTimedData<Ts, D, NdId> {
     where
         F: FnMut(Ts) -> Ts,
     {
-        AddressedTimedData {
-            dst: self.dst,
+        PipelineData {
             data: self.data.ts_transform(op),
+            options: self.options,
+            dst: self.dst,
+        }
+    }
+
+    /// Drop the pipeline options, producing a plain addressed payload.
+    pub fn into_addressed(self) -> AddressedTimedData<Ts, D, NdId> {
+        AddressedTimedData {
+            data: self.data,
+            options: (),
+            dst: self.dst,
         }
     }
 }
 
-impl<Ts, D, NdId> Debug for AddressedTimedData<Ts, D, NdId>
+impl<Ts, D, Opts, NdId> Debug for PipelineData<Ts, D, Opts, NdId>
 where
     D: Debug,
     Ts: Debug,
     NdId: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "AddressedTimedData {{")?;
+        writeln!(f, "PipelineData {{")?;
         writeln!(f, "    dst: {:#?}", &self.dst)?;
         writeln!(f, "    data: {:#?}", &self.data)?;
         write!(f, "}}")
     }
 }
 
-impl<Ts, D, NdId> From<(NdId, TimedData<Ts, D>)> for AddressedTimedData<Ts, D, NdId> {
-    fn from(value: (NdId, TimedData<Ts, D>)) -> Self {
+/// Convenience alis if options are not needed. Avoids code duplication
+pub type AddressedTimedData<Ts, D, NdId> = PipelineData<Ts, D, (), NdId>;
+
+impl<Ts, D, NdId> AddressedTimedData<Ts, D, NdId> {
+    pub fn new_addressed(timestamp: Ts, data: D, dst: NdId) -> Self {
         AddressedTimedData {
-            dst: value.0,
-            data: value.1,
+            data: TimedData::new(timestamp, data),
+            options: (),
+            dst,
         }
     }
 }
-
-/// Convenience alias for a [`TimedData`] whose payload is a raw byte buffer.
-///
-/// Used as the input and output type for most pipeline stages before the data
-/// is wrapped into a typed frame or packet.
-pub type TimedPayload<Ts> = TimedData<Ts, Vec<u8>>;
-pub type AddressedTimedPayload<Ts, NdId> = AddressedTimedData<Ts, Vec<u8>, NdId>;

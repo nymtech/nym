@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
+    AddressedTimedData, AddressedTimedPayload, PipelinePayload, TimedData, TimedPayload,
     common::traits::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
@@ -17,18 +17,18 @@ pub trait NoOpWireWrapper {
     const PACKET_SIZE: usize = 1500;
 }
 
-impl<T, Ts, NdId> Framing<Ts, NdId> for T
+impl<T, Ts, Opts, NdId> Framing<Ts, Opts, NdId> for T
 where
     T: NoOpWireWrapper,
 {
     type Frame = Vec<u8>;
     const OVERHEAD_SIZE: usize = 0;
     fn to_frame(
-        &self,
-        payload: AddressedTimedPayload<Ts, NdId>,
+        &mut self,
+        payload: PipelinePayload<Ts, Opts, NdId>,
         _: usize,
     ) -> Vec<AddressedTimedPayload<Ts, NdId>> {
-        vec![payload]
+        vec![payload.into_addressed()]
     }
 }
 
@@ -47,7 +47,7 @@ where
     }
 }
 
-impl<T, Ts, Pkt, NdId> WireWrappingPipeline<Ts, Pkt, NdId> for T
+impl<T, Ts, Pkt, Opts, NdId> WireWrappingPipeline<Ts, Pkt, Opts, NdId> for T
 where
     T: NoOpWireWrapper,
     Ts: Clone,

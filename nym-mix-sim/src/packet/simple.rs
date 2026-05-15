@@ -5,7 +5,7 @@ use std::fmt::Debug;
 
 use nym_common::debug::format_debug_bytes;
 use nym_lp_data::{
-    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
+    AddressedTimedData, PipelinePayload, TimedData, TimedPayload,
     common::traits::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
@@ -14,7 +14,7 @@ use nym_lp_data::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{node::NodeId, packet::WirePacketFormat};
+use crate::{client::simple::SimpleInputOptions, node::NodeId, packet::WirePacketFormat};
 
 /// A minimal, fixed-size packet used by the simulation.
 ///
@@ -190,12 +190,12 @@ pub struct SimpleMessage;
 /// pipeline that needs wire-wrapping by delegating to `SimpleWireWrapper`.
 pub struct SimpleWireWrapper;
 
-impl<Ts: Clone> Framing<Ts, NodeId> for SimpleWireWrapper {
+impl<Ts: Clone> Framing<Ts, SimpleInputOptions, NodeId> for SimpleWireWrapper {
     type Frame = SimpleFrame;
     const OVERHEAD_SIZE: usize = SimpleFrame::HEADER.len();
     fn to_frame(
-        &self,
-        payload: AddressedTimedPayload<Ts, NodeId>,
+        &mut self,
+        payload: PipelinePayload<Ts, SimpleInputOptions, NodeId>,
         frame_size: usize,
     ) -> Vec<AddressedTimedData<Ts, SimpleFrame, NodeId>> {
         payload
@@ -203,7 +203,7 @@ impl<Ts: Clone> Framing<Ts, NodeId> for SimpleWireWrapper {
             .data
             .chunks(frame_size)
             .map(|chunk| {
-                AddressedTimedData::new(
+                AddressedTimedData::new_addressed(
                     payload.data.timestamp.clone(),
                     SimpleFrame {
                         data: chunk.to_vec(),
@@ -230,7 +230,9 @@ impl<Ts: Clone> Transport<Ts, SimplePacket, NodeId> for SimpleWireWrapper {
     }
 }
 
-impl<Ts: Clone> WireWrappingPipeline<Ts, SimplePacket, NodeId> for SimpleWireWrapper {
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimplePacket, SimpleInputOptions, NodeId>
+    for SimpleWireWrapper
+{
     fn packet_size(&self) -> usize {
         SimplePacket::SIZE
     }

@@ -25,9 +25,9 @@
 use std::sync::Arc;
 
 use nym_lp_data::{
-    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
+    AddressedTimedData, PipelinePayload, TimedData, TimedPayload,
     clients::{
-        InputOptions, PipelinePayload,
+        InputOptions,
         helpers::{NoOpObfuscation, NoOpReliability, NoOpRoutingSecurity},
         traits::{Chunking, ClientUnwrappingPipeline, ClientWrappingPipeline},
     },
@@ -157,7 +157,14 @@ impl<Ts: Clone> Chunking<Ts, SimpleInputOptions, NodeId> for SimpleClientWrappin
 
         input
             .chunks(chunk_size)
-            .map(|chunk| SimplePipelinePayload::new(timestamp.clone(), chunk.to_vec(), options))
+            .map(|chunk| {
+                SimplePipelinePayload::new(
+                    timestamp.clone(),
+                    chunk.to_vec(),
+                    options,
+                    options.next_hop(),
+                )
+            })
             .collect()
     }
 }
@@ -167,12 +174,12 @@ impl NoOpObfuscation for SimpleClientWrappingPipeline {}
 impl NoOpRoutingSecurity for SimpleClientWrappingPipeline {}
 
 // Delegation to SimpleWireWrapper
-impl<Ts: Clone> Framing<Ts, NodeId> for SimpleClientWrappingPipeline {
+impl<Ts: Clone> Framing<Ts, SimpleInputOptions, NodeId> for SimpleClientWrappingPipeline {
     type Frame = SimpleFrame;
-    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _>>::OVERHEAD_SIZE;
+    const OVERHEAD_SIZE: usize = <SimpleWireWrapper as Framing<Ts, _, _>>::OVERHEAD_SIZE;
     fn to_frame(
-        &self,
-        payload: AddressedTimedPayload<Ts, NodeId>,
+        &mut self,
+        payload: PipelinePayload<Ts, SimpleInputOptions, NodeId>,
         frame_size: usize,
     ) -> Vec<AddressedTimedData<Ts, SimpleFrame, NodeId>> {
         self.0.to_frame(payload, frame_size)
@@ -192,9 +199,11 @@ impl<Ts: Clone> Transport<Ts, SimplePacket, NodeId> for SimpleClientWrappingPipe
 }
 
 // Delegation to SimpleWireWrapper
-impl<Ts: Clone> WireWrappingPipeline<Ts, SimplePacket, NodeId> for SimpleClientWrappingPipeline {
+impl<Ts: Clone> WireWrappingPipeline<Ts, SimplePacket, SimpleInputOptions, NodeId>
+    for SimpleClientWrappingPipeline
+{
     fn packet_size(&self) -> usize {
-        <SimpleWireWrapper as WireWrappingPipeline<Ts, _, _>>::packet_size(&self.0)
+        <SimpleWireWrapper as WireWrappingPipeline<Ts, _, _, _>>::packet_size(&self.0)
     }
 }
 

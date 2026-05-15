@@ -198,3 +198,621 @@ impl<R> WireUnwrappingPipeline<Instant, EncryptedLpPacket, MixMessage> for Mixno
     R: Rng
 {
 }
+
+// ================================================================================================================================================
+
+#[cfg(test)]
+mod tests {
+    use std::net::{Ipv4Addr, SocketAddr};
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    use nym_lp_data::common::traits::WireWrappingPipeline;
+    use nym_lp_data::fragmentation::fragment::{FragmentMetadata, fragment_payload};
+    use nym_lp_data::fragmentation::reconstruction::MessageReconstructor;
+    use nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline;
+    use nym_lp_data::packet::{
+        EncryptedLpPacket, LpFrame, LpHeader, LpPacket, OuterHeader, version,
+    };
+    use nym_node_metrics::NymNodeMetrics;
+    use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
+    use nym_sphinx_params::SphinxKeyRotation;
+    use nym_sphinx_types::{
+        DESTINATION_ADDRESS_LENGTH, Destination, DestinationAddressBytes, HEADER_SIZE,
+        IDENTIFIER_LENGTH, Node, OUTFOX_PACKET_OVERHEAD, OutfoxPacket, PrivateKey, PublicKey,
+        SphinxPacketBuilder, header::delays::Delay,
+    };
+    use nym_task::ShutdownToken;
+    use nym_test_utils::helpers::{DeterministicRng, deterministic_rng, seeded_rng};
+
+    use crate::config::{LpConfig, ReplayProtectionDebug};
+    use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
+    use crate::node::key_rotation::key::SphinxPrivateKey;
+    use crate::node::lp::data::handler::messages::MixMessage;
+    use crate::node::lp::data::handler::pipeline::MixnodeDataPipeline;
+    use crate::node::lp::data::shared::{ProcessingConfig, SharedLpDataState};
+    use crate::node::replay_protection::bloomfilter::{
+        ReplayProtectionBloomfilters, RotationFilter,
+    };
+
+    // ==================== Test Helpers ====================
+
+    /// Default rotation ids used by the mock state.
+    const DEFAULT_ROTATION_ID: u32 = 0;
+    const SECONDARY_ROTATION_ID: u32 = 1;
+
+    /// Maximum forward packet delay used in tests. Matches the production default
+    /// closely enough that delay-clamping behavior is exercised realistically.
+    const TEST_MAX_FORWARD_DELAY: Duration = Duration::from_secs(10);
+
+    /// Build a [`SharedLpDataState`] suitable for unit/integration tests of the
+    /// mixnode data pipeline.
+    ///
+    /// - The sphinx primary key is generated from `rng` so the keypair is
+    ///   reproducible across runs (given the same seed).
+    /// - The replay-protection bloomfilter is enabled with a small capacity.
+    /// - Metrics are fresh, no shutdown is signalled.
+    fn mock_shared_state(rng: &mut DeterministicRng) -> SharedLpDataState {
+        let primary = SphinxPrivateKey::new(rng, DEFAULT_ROTATION_ID);
+        let secondary = SphinxPrivateKey::new(rng, SECONDARY_ROTATION_ID);
+
+        let primary_bloom_filter = RotationFilter::new(
+            100,
+            ReplayProtectionDebug::DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE,
+            0,
+            DEFAULT_ROTATION_ID,
+        )
+        .unwrap();
+
+        let secondary_bloom_filter = RotationFilter::new(
+            100,
+            ReplayProtectionDebug::DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE,
+            0,
+            SECONDARY_ROTATION_ID,
+        )
+        .unwrap();
+
+        SharedLpDataState {
+            lp_config: LpConfig::default(),
+            processing_config: ProcessingConfig {
+                maximum_packet_delay: TEST_MAX_FORWARD_DELAY,
+            },
+            sphinx_keys: ActiveSphinxKeys::new_loaded(primary, Some(secondary)),
+            replay_protection_filter: ReplayProtectionBloomfilters::new(
+                primary_bloom_filter,
+                Some(secondary_bloom_filter),
+            ),
+            message_reconstructor: MessageReconstructor::default(),
+            metrics: NymNodeMetrics::default(),
+            shutdown_token: ShutdownToken::new(),
+        }
+    }
+
+    /// Build a [`MixnodeDataPipeline`] driven by a deterministic RNG.
+    ///
+    /// Returns the pipeline together with the shared state (so tests can
+    /// inspect metrics or trigger replays directly)
+    fn mock_pipeline() -> (
+        MixnodeDataPipeline<DeterministicRng>,
+        Arc<SharedLpDataState>,
+    ) {
+        let mut rng = deterministic_rng();
+        let state = Arc::new(mock_shared_state(&mut rng));
+        let pipeline = MixnodeDataPipeline::new(state.clone(), rng);
+        (pipeline, state)
+    }
+
+    /// Build a sphinx route node given a socket address and a private key
+    fn mock_mix_node(socket: SocketAddr, key: PublicKey) -> Node {
+        let addr_bytes = NymNodeRoutingAddress::from(socket).try_into().unwrap();
+        Node::new(addr_bytes, key)
+    }
+
+    /// Build a sphinx packet whose first hop's key is the provided one.
+    /// First hop forwards to `second_hop_address`, with a dummy key
+    /// The first-hop delay is `first_hop_delay`; second hop's is zero.
+    /// Unwrapping this packet will reveal a ForwardHop, with first_hop_delay and second_hop_address
+    fn build_sphinx_bytes(
+        first_hop_key: PublicKey,
+        first_hop_delay: Delay,
+        second_hop_address: SocketAddr,
+        final_packet_size: usize,
+        rng: &mut DeterministicRng,
+    ) -> Vec<u8> {
+        let payload_size = final_packet_size.checked_sub(HEADER_SIZE).unwrap();
+
+        let first_hop_node = mock_mix_node("127.0.0.1:1234".parse().unwrap(), first_hop_key);
+
+        let second_hop_key = PrivateKey::random_from_rng(rng);
+        let second_hop_node = mock_mix_node(second_hop_address, (&second_hop_key).into());
+
+        let route = [first_hop_node, second_hop_node];
+        let delays = [first_hop_delay, Delay::new_from_millis(0)];
+
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([0u8; DESTINATION_ADDRESS_LENGTH]),
+            [0u8; IDENTIFIER_LENGTH],
+        );
+
+        SphinxPacketBuilder::new()
+            .with_payload_size(payload_size)
+            .build_packet(b"Never gonna give you up", &route, &destination, &delays)
+            .unwrap()
+            .to_bytes()
+    }
+
+    /// Build a single-hop sphinx packet that the test mixnode will identify as
+    /// a final-hop packet (no further forwarding).
+    fn build_final_hop_sphinx_bytes(
+        first_hop_key: PublicKey,
+        first_hop_delay: Delay,
+        final_packet_size: usize,
+    ) -> Vec<u8> {
+        let payload_size = final_packet_size.checked_sub(HEADER_SIZE).unwrap();
+
+        let first_hop_node = mock_mix_node("127.0.0.1:1234".parse().unwrap(), first_hop_key);
+
+        let route = [first_hop_node];
+        let delays = [first_hop_delay];
+
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([0u8; DESTINATION_ADDRESS_LENGTH]),
+            [0u8; IDENTIFIER_LENGTH],
+        );
+
+        SphinxPacketBuilder::new()
+            .with_payload_size(payload_size)
+            .build_packet(b"Never gonna let you down", &route, &destination, &delays)
+            .unwrap()
+            .to_bytes()
+    }
+
+    /// Build an outfox packet whose first hop's key is the provided one.
+    /// First hop forwards to `second_hop_address`, with a dummy key
+    /// The first-hop delay is `first_hop_delay`; second hop's is zero.
+    /// The rest of the route is dummy an irrelevant
+    /// Unwrapping this packet will reveal a ForwardHop, with first_hop_delay and second_hop_address
+    fn build_outfox_bytes(
+        first_hop_key: PublicKey,
+        second_hop_address: SocketAddr,
+        final_packet_size: usize,
+        rng: &mut DeterministicRng,
+    ) -> Vec<u8> {
+        let payload_size = final_packet_size
+            .checked_sub(OUTFOX_PACKET_OVERHEAD)
+            .unwrap();
+
+        let first_hop_node = mock_mix_node("127.0.0.1:1234".parse().unwrap(), first_hop_key);
+
+        let second_hop_key = PrivateKey::random_from_rng(&mut *rng);
+        let second_hop_node = mock_mix_node(second_hop_address, (&second_hop_key).into());
+
+        let node3_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8001);
+        let node3_key = PrivateKey::random_from_rng(&mut *rng);
+        let node3 = mock_mix_node(node3_address, (&node3_key).into());
+
+        let node4_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8002);
+        let node4_key = PrivateKey::random_from_rng(&mut *rng);
+        let node4 = mock_mix_node(node4_address, (&node4_key).into());
+
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([0u8; DESTINATION_ADDRESS_LENGTH]),
+            [0u8; IDENTIFIER_LENGTH],
+        );
+
+        let route = [first_hop_node, second_hop_node, node3, node4];
+        let payload = b"Never gonna turn around".to_vec();
+
+        OutfoxPacket::build(&payload, &route, &destination, Some(payload_size))
+            .unwrap()
+            .to_bytes()
+            .unwrap()
+    }
+
+    /// Wrap an [`LpFrame`] into an [`EncryptedLpPacket`] that the pipeline can
+    /// decode.
+    fn lp_frame_to_encrypted_packet(frame: LpFrame) -> EncryptedLpPacket {
+        LpPacket::new(LpHeader::new(0, 0, version::CURRENT), frame).encode()
+    }
+
+    /// Fragment `bytes` into `EncryptedLpPacket`s carrying the given mix-message
+    /// metadata. `fragment_payload_size` controls how the payload is split:
+    /// pass at least `bytes.len()` to get a single fragment, or smaller to force
+    /// multiple fragments.
+    fn fragment_into_lp_packets(
+        bytes: &[u8],
+        message: MixMessage,
+        fragment_payload_size: usize,
+        rng: &mut DeterministicRng,
+    ) -> Vec<EncryptedLpPacket> {
+        let metadata: FragmentMetadata = message.into();
+        fragment_payload(rng, bytes, metadata, fragment_payload_size.max(1))
+            .into_iter()
+            .map(|f| lp_frame_to_encrypted_packet(f.into_lp_frame()))
+            .collect()
+    }
+
+    /// Default sphinx mix-message metadata used by tests (rotation matching the
+    /// even primary key in [`mock_shared_state`]).
+    fn sphinx_mix_message() -> MixMessage {
+        MixMessage::Sphinx {
+            key_rotation: SphinxKeyRotation::EvenRotation,
+            reserved: [0u8; 3],
+        }
+    }
+
+    fn outfox_mix_message() -> MixMessage {
+        MixMessage::Outfox {
+            key_rotation: SphinxKeyRotation::EvenRotation,
+            reserved: [0u8; 3],
+        }
+    }
+
+    // ==================== Tests ====================
+
+    #[test]
+    fn process_forwards_valid_sphinx_packet() {
+        let (mut pipeline, state) = mock_pipeline();
+
+        let mut rng = seeded_rng([52; 32]);
+
+        let next_hop = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 5000);
+        let delay = Delay::new_from_millis(50);
+
+        // Packet fits exactly in one frame
+        let sphinx_bytes = build_sphinx_bytes(
+            state.sphinx_keys.primary().x25519_pubkey().into(),
+            delay,
+            next_hop,
+            pipeline.frame_size(),
+            &mut rng,
+        );
+
+        // Sanity check
+        assert_eq!(sphinx_bytes.len(), pipeline.frame_size());
+
+        let inputs = fragment_into_lp_packets(
+            &sphinx_bytes,
+            sphinx_mix_message(), // SW check that
+            pipeline.frame_size(),
+            &mut rng,
+        );
+        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+
+        let input_packet = inputs[0].clone();
+
+        let arrival = Instant::now();
+        let outputs = pipeline.process(input_packet, arrival).unwrap();
+
+        assert_eq!(outputs.len(), 1, "expected exactly one output fragment");
+
+        let output_packet = outputs[0].clone();
+
+        assert_eq!(
+            output_packet.dst, next_hop,
+            "output fragment must target the next hop"
+        );
+        assert_eq!(
+            output_packet.data.timestamp,
+            arrival + delay.to_duration(),
+            "output fragment delay must match arrival + delay"
+        );
+        assert_eq!(
+            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            1
+        );
+        assert_eq!(state.metrics.mixnet.ingress.malformed_packets_received(), 0);
+    }
+
+    #[test]
+    fn process_forwards_valid_outfox_packet() {
+        let (mut pipeline, state) = mock_pipeline();
+        let mut rng = seeded_rng([52; 32]);
+
+        let next_hop = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 5000);
+
+        // Packet fits exactly in a frame
+        let outfox_bytes = build_outfox_bytes(
+            state.sphinx_keys.primary().x25519_pubkey().into(),
+            next_hop,
+            pipeline.frame_size(),
+            &mut rng,
+        );
+
+        // Sanity check
+        assert_eq!(outfox_bytes.len(), pipeline.frame_size());
+
+        let inputs = fragment_into_lp_packets(
+            &outfox_bytes,
+            outfox_mix_message(), // SW check that
+            pipeline.frame_size(),
+            &mut rng,
+        );
+        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+
+        let input_packet = inputs[0].clone();
+
+        let arrival = Instant::now();
+        let outputs = pipeline.process(input_packet, arrival).unwrap();
+
+        assert_eq!(outputs.len(), 1, "expected exactly one output fragment");
+
+        let output_packet = outputs[0].clone();
+
+        assert_eq!(
+            output_packet.dst, next_hop,
+            "output fragment must target the next hop"
+        );
+        assert_eq!(
+            output_packet.data.timestamp, arrival,
+            "outfox output fragment should not have any delay"
+        );
+        assert_eq!(
+            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            1
+        );
+        assert_eq!(state.metrics.mixnet.ingress.malformed_packets_received(), 0);
+    }
+
+    #[test]
+    fn process_drops_final_hop_packet() {
+        let (mut pipeline, state) = mock_pipeline();
+        let mut rng = seeded_rng([52; 32]);
+
+        let sphinx_bytes = build_final_hop_sphinx_bytes(
+            state.sphinx_keys.primary().x25519_pubkey().into(),
+            Delay::new_from_millis(50),
+            pipeline.frame_size(),
+        );
+
+        // Sanity check
+        assert_eq!(sphinx_bytes.len(), pipeline.frame_size());
+
+        let inputs = fragment_into_lp_packets(
+            &sphinx_bytes,
+            sphinx_mix_message(), // SW check that
+            pipeline.frame_size(),
+            &mut rng,
+        );
+        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+
+        let input_packet = inputs[0].clone();
+
+        let outputs = pipeline.process(input_packet, Instant::now()).unwrap();
+
+        assert!(
+            outputs.is_empty(),
+            "final-hop packets must not be forwarded"
+        );
+        assert_eq!(state.metrics.mixnet.ingress.final_hop_packets_dropped(), 1);
+        assert_eq!(
+            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            0
+        );
+    }
+
+    #[test]
+    fn process_drops_replayed_packet() {
+        let (mut pipeline, state) = mock_pipeline();
+
+        let mut rng = seeded_rng([52; 32]);
+
+        println!("Frame_size : {}", pipeline.frame_size());
+
+        let next_hop = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 5000);
+        let delay = Delay::new_from_millis(50);
+
+        // Packet fits exactly in one frame
+        let sphinx_bytes = build_sphinx_bytes(
+            state.sphinx_keys.primary().x25519_pubkey().into(),
+            delay,
+            next_hop,
+            pipeline.frame_size(),
+            &mut rng,
+        );
+
+        let inputs = fragment_into_lp_packets(
+            &sphinx_bytes,
+            sphinx_mix_message(), // SW check that
+            pipeline.frame_size(),
+            &mut rng,
+        );
+        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+
+        let input_packet = inputs[0].clone();
+        // This also replays the LP encryption. This is fine for now since there is none, but once LP has replay protection by itself, we should test sphinx replay here
+        let replayed_packet = inputs[0].clone();
+
+        let arrival = Instant::now();
+        let first = pipeline.process(input_packet, arrival).unwrap();
+        assert_eq!(
+            first.len(),
+            1,
+            "first send should be forwarded in one fragment"
+        );
+        assert_eq!(
+            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            1
+        );
+
+        let second = pipeline.process(replayed_packet, arrival).unwrap();
+        assert!(second.is_empty(), "replay must not be forwarded");
+        assert_eq!(state.metrics.mixnet.ingress.replayed_packets_received(), 1);
+        // Forward counter must not advance on the replayed packet.
+        assert_eq!(
+            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            1
+        );
+    }
+
+    #[test]
+    fn process_drops_malformed_lp_packet() {
+        let (mut pipeline, state) = mock_pipeline();
+
+        // Empty ciphertext: InnerHeader::parse fails with InsufficientData,
+        // which the pipeline reports as a malformed packet.
+        let bad = EncryptedLpPacket::new(OuterHeader::new(0, 0), Vec::new());
+        let result = pipeline.process(bad, Instant::now());
+        assert!(result.is_err(), "malformed LP packet must surface an error");
+        assert_eq!(state.metrics.mixnet.ingress.malformed_packets_received(), 1);
+        assert_eq!(
+            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            0
+        );
+    }
+
+    #[test]
+    fn process_drops_garbage_sphinx_payload() {
+        // A well-formed LP packet whose sphinx payload is garbage exercises the
+        // *processing* malformed path (not the LP-decode one).
+        let (mut pipeline, state) = mock_pipeline();
+        let mut rng = deterministic_rng();
+
+        let garbage = vec![0xAAu8; pipeline.frame_size()];
+        let inputs =
+            fragment_into_lp_packets(&garbage, sphinx_mix_message(), garbage.len(), &mut rng);
+
+        let outputs = pipeline
+            .process(inputs.into_iter().next().unwrap(), Instant::now())
+            .unwrap();
+        assert!(
+            outputs.is_empty(),
+            "garbage sphinx payload must yield no output"
+        );
+        assert_eq!(state.metrics.mixnet.ingress.malformed_packets_received(), 1);
+    }
+
+    #[test]
+    fn fragmented_message_reconstructs_across_frames() {
+        let (mut pipeline, state) = mock_pipeline();
+        let mut rng = deterministic_rng();
+
+        let next_hop = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 5000);
+        let delay = Delay::new_from_millis(50);
+
+        let nb_fragments = 3;
+
+        // Packet fits exactly in one frame
+        let sphinx_bytes = build_sphinx_bytes(
+            state.sphinx_keys.primary().x25519_pubkey().into(),
+            delay,
+            next_hop,
+            nb_fragments * pipeline.frame_size(),
+            &mut rng,
+        );
+
+        let inputs = fragment_into_lp_packets(
+            &sphinx_bytes,
+            sphinx_mix_message(), // SW check that
+            pipeline.frame_size(),
+            &mut rng,
+        );
+        assert_eq!(
+            inputs.len(),
+            nb_fragments,
+            "test setup should produce {nb_fragments} fragments",
+        );
+
+        let now = Instant::now();
+
+        // Simulate different arrival times
+        let arrivals = (0..nb_fragments as u32)
+            .map(|i| now + (Duration::from_millis(40) * i))
+            .collect::<Vec<_>>();
+
+        // Send all fragments but one
+        for i in 0..nb_fragments - 1 {
+            let out = pipeline.process(inputs[i].clone(), arrivals[i]).unwrap();
+            assert!(
+                out.is_empty(),
+                "fragment #{i} should not have produced output"
+            );
+        }
+
+        // Last fragments should reconstruct and forward
+        let out = pipeline
+            .process(inputs[nb_fragments - 1].clone(), arrivals[nb_fragments - 1])
+            .unwrap();
+
+        assert_eq!(
+            out.len(),
+            nb_fragments,
+            "last fragment should reconstruct the message and produce {nb_fragments} fragments"
+        );
+
+        for out_pkt in out {
+            assert_eq!(
+                out_pkt.dst, next_hop,
+                "output fragment must target the next hop"
+            );
+
+            // All fragments should have a ts of the last arrival plus delay
+            assert_eq!(
+                out_pkt.data.timestamp,
+                arrivals[nb_fragments - 1] + delay.to_duration(),
+                "output fragment delay must match arrival + delay"
+            );
+        }
+
+        assert_eq!(
+            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            1
+        );
+    }
+
+    #[test]
+    fn excessive_delay_is_clamped() {
+        let (mut pipeline, state) = mock_pipeline();
+        let mut rng = seeded_rng([52; 32]);
+
+        let next_hop = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 5000);
+        // 30s well exceeds TEST_MAX_FORWARD_DELAY (10s); the pipeline must clamp.
+        let huge_delay = Delay::new_from_millis(30_000);
+
+        // Packet fits exactly in one frame
+        let sphinx_bytes = build_sphinx_bytes(
+            state.sphinx_keys.primary().x25519_pubkey().into(),
+            huge_delay,
+            next_hop,
+            pipeline.frame_size(),
+            &mut rng,
+        );
+
+        // Sanity check
+        assert_eq!(sphinx_bytes.len(), pipeline.frame_size());
+
+        let inputs = fragment_into_lp_packets(
+            &sphinx_bytes,
+            sphinx_mix_message(), // SW check that
+            pipeline.frame_size(),
+            &mut rng,
+        );
+        assert_eq!(inputs.len(), 1, "expected a single input fragment");
+
+        let input_packet = inputs[0].clone();
+
+        let arrival = Instant::now();
+        let outputs = pipeline.process(input_packet, arrival).unwrap();
+
+        assert_eq!(outputs.len(), 1, "expected exactly one output fragment");
+
+        let output_packet = outputs[0].clone();
+
+        assert_eq!(
+            output_packet.dst, next_hop,
+            "output fragment must target the next hop"
+        );
+        assert_eq!(
+            output_packet.data.timestamp,
+            arrival + TEST_MAX_FORWARD_DELAY,
+            "delay must be clamped to TEST_MAX_FORWARD_DELAY"
+        );
+
+        assert_eq!(
+            state.metrics.mixnet.ingress.forward_hop_packets_received(),
+            1
+        );
+
+        assert_eq!(state.metrics.mixnet.ingress.excessive_delay_packets(), 1);
+    }
+}

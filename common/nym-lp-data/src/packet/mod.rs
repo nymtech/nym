@@ -150,8 +150,14 @@ impl LpPacket {
 
     // SW TMP, while we don't have any encryption
     pub fn encode(self) -> EncryptedLpPacket {
+        // Outer header gets serialized by EncryptedLpPacket so we need to not serialize it as part of LpPacket
         let outer_header = self.header.outer;
-        let ciphertext = self.debug_bytes();
+
+        // LpPacket bytes without outerheader
+        let mut bytes = BytesMut::new();
+        self.header.inner.encode(&mut bytes);
+        self.frame.encode(&mut bytes);
+        let ciphertext = bytes.freeze().to_vec();
 
         EncryptedLpPacket::new(outer_header, ciphertext)
     }

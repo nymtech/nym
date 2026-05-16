@@ -1,9 +1,49 @@
 use nym_connection_monitor::ConnectionStatusEvent;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 pub use super::bandwidth_helpers::{AttachedTicket, AttachedTicketMaterials};
 pub use super::socks5_test::HttpsConnectivityResult;
 pub use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PortsCheckSummary {
+    pub all_pass: bool,
+    pub error: Option<String>,
+    pub port_check_target: String,
+    pub failed_ports: Vec<String>,
+}
+
+impl PortsCheckSummary {
+    pub fn from_port_map(
+        can_register: bool,
+        port_check_target: impl Into<String>,
+        ports: &BTreeMap<String, bool>,
+    ) -> Self {
+        let failed_ports: Vec<String> = ports
+            .iter()
+            .filter_map(|(port, open)| if *open { None } else { Some(port.clone()) })
+            .collect();
+
+        let all_pass = can_register && failed_ports.is_empty() && !ports.is_empty();
+
+        Self {
+            all_pass,
+            error: None,
+            port_check_target: port_check_target.into(),
+            failed_ports,
+        }
+    }
+
+    pub fn probe_error(port_check_target: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            all_pass: false,
+            error: Some(message.into()),
+            port_check_target: port_check_target.into(),
+            failed_ports: vec![],
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProbeResult {
@@ -50,6 +90,10 @@ pub struct WgProbeResults {
     pub download_duration_milliseconds_v6: u64,
     pub downloaded_file_v6: String,
     pub download_error_v6: String,
+
+    /// Per-port exit-policy check
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port_check_results: Option<BTreeMap<String, bool>>,
 }
 
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
@@ -192,6 +236,29 @@ impl Socks5ProbeResults {
             can_connect_socks5,
             https_connectivity,
         }
+    }
+}
+
+/// Output of the `run-ports` subcommand — per-port TCP reachability through
+/// the WG exit tunnel, without the full probe outcome.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PortCheckResult {
+    pub gateway: String,
+    pub can_register: bool,
+    pub port_check_target: String,
+    /// port → open/closed (BTreeMap for deterministic bincode serialization in signed requests)
+    pub ports: BTreeMap<String, bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+impl PortCheckResult {
+    /// Returns the list of ports that were found **closed** on this gateway.
+    pub fn closed_ports(&self) -> Vec<u16> {
+        self.ports
+            .iter()
+            .filter_map(|(k, &open)| if !open { k.parse().ok() } else { None })
+            .collect()
     }
 }
 

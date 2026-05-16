@@ -4,6 +4,7 @@
 use crate::config::NetstackArgs;
 use anyhow::Context;
 use serde::Deserialize;
+use std::collections::BTreeMap;
 use std::ffi::{CStr, CString};
 
 mod sys {
@@ -13,6 +14,19 @@ mod sys {
         pub unsafe fn wgPing(req: *const c_char) -> *const c_char;
         pub unsafe fn wgFreePtr(ptr: *mut c_void);
     }
+}
+
+/// Port-check fields shared between `NetstackRequest` and `NetstackRequestGo`
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PortCheckConfig {
+    #[serde(rename = "port_check_target")]
+    pub target: String,
+    #[serde(rename = "port_check_ports")]
+    pub ports: Vec<u16>,
+    #[serde(rename = "port_check_only")]
+    pub only: bool,
+    #[serde(rename = "port_check_timeout_sec")]
+    pub timeout_sec: u64,
 }
 
 #[derive(serde::Serialize)]
@@ -25,6 +39,8 @@ pub struct NetstackRequest {
     v6_ping_config: PingConfig,
     download_timeout_sec: u64,
     awg_args: String,
+    #[serde(flatten)]
+    pub port_check: PortCheckConfig,
 }
 
 #[derive(serde::Serialize)]
@@ -76,6 +92,7 @@ impl NetstackRequest {
         download_timeout_sec: u64,
         awg_args: &str,
         netstack_args: NetstackArgs,
+        port_check_only: bool,
     ) -> Self {
         Self {
             private_key: private_key.to_string(),
@@ -86,6 +103,12 @@ impl NetstackRequest {
             v4_ping_config: PingConfig::from_netstack_args_v4(wg_ip4, &netstack_args),
             v6_ping_config: PingConfig::from_netstack_args_v6(wg_ip6, &netstack_args),
             download_timeout_sec,
+            port_check: PortCheckConfig {
+                target: netstack_args.port_check_target.clone(),
+                ports: netstack_args.port_check_ports.clone(),
+                only: port_check_only,
+                timeout_sec: netstack_args.port_check_timeout_sec,
+            },
         }
     }
 
@@ -116,6 +139,8 @@ pub struct NetstackRequestGo {
     recv_timeout_sec: u64,
     download_timeout_sec: u64,
     awg_args: String,
+    #[serde(flatten)]
+    pub port_check: PortCheckConfig,
 }
 
 impl NetstackRequestGo {
@@ -135,6 +160,7 @@ impl NetstackRequestGo {
             recv_timeout_sec: req.v4_ping_config.recv_timeout_sec,
             download_timeout_sec: req.download_timeout_sec,
             awg_args: req.awg_args.clone(),
+            port_check: req.port_check.clone(),
         }
     }
 
@@ -155,6 +181,7 @@ impl NetstackRequestGo {
             recv_timeout_sec: req.v6_ping_config.recv_timeout_sec,
             download_timeout_sec: req.download_timeout_sec,
             awg_args: req.awg_args.clone(),
+            port_check: req.port_check.clone(),
         }
     }
 }
@@ -173,6 +200,8 @@ pub struct NetstackResponse {
     pub downloaded_file_size_bytes: u64,
     pub download_duration_milliseconds: u64,
     pub download_error: String,
+    #[serde(default)]
+    pub port_check_results: Option<BTreeMap<String, bool>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]

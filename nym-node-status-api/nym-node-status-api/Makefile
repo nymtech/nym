@@ -39,6 +39,19 @@ test-db-wait: ## Wait for the PostgreSQL database to be healthy
 		sleep 1; \
 	done; \
 	echo " Database is healthy!"
+	@echo "Waiting for host port to be ready..."
+	@for i in $$(seq 1 30); do \
+		if pg_isready -h localhost -p 5433 -U testuser -d nym_node_status_api_test >/dev/null 2>&1; then \
+			echo " Host port is ready!"; \
+			break; \
+		fi; \
+		if [ $$i -eq 30 ]; then \
+			echo " Timed out waiting for host port"; \
+			exit 1; \
+		fi; \
+		echo -n "."; \
+		sleep 1; \
+	done
 
 .PHONY: test-db-down
 test-db-down: ## Stop and remove the test database

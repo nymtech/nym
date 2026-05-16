@@ -6,7 +6,7 @@ use std::{
 
 use ansi_term::Color::Yellow;
 use bytes::{Buf, BytesMut};
-use log::{debug, error, warn};
+use log::{debug, error, trace, warn};
 use std::thread;
 
 use crate::MAX_RTO;
@@ -499,27 +499,26 @@ impl KcpSession {
             self.snd_buf.len(),
             post_retain_sns
         );
-        // Corrected format string arguments for the removed count log
-        debug!(
-            "[ConvID: {}, Thread: {:?}] parse_una(una={}): Removed {} segment(s) from snd_buf ({} -> {}). Remaining sns: {:?}",
-            self.conv,
-            thread::current().id(),
-            una,
-            removed_count,
-            original_len,
-            self.snd_buf.len(),
-            post_retain_sns
-        );
 
-        if removed_count > 0 {
-            // Use trace level if no segments were removed but buffer wasn't empty
-            debug!(
+        if removed_count == 0 {
+            trace!(
                 "[ConvID: {}, Thread: {:?}] parse_una(una={}): No segments removed from snd_buf (len={}). Remaining sns: {:?}",
                 self.conv,
                 thread::current().id(),
                 una,
                 original_len,
                 self.snd_buf.iter().map(|s| s.sn).collect::<Vec<_>>()
+            );
+        } else {
+            debug!(
+                "[ConvID: {}, Thread: {:?}] parse_una(una={}): Removed {} segment(s) from snd_buf ({} -> {}). Remaining sns: {:?}",
+                self.conv,
+                thread::current().id(),
+                una,
+                removed_count,
+                original_len,
+                self.snd_buf.len(),
+                post_retain_sns
             );
         }
 

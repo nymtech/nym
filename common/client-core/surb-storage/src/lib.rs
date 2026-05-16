@@ -48,6 +48,7 @@ where
         debug!("Started PersistentReplyStorage");
         if let Err(err) = self.backend.start_storage_session().await {
             error!("failed to start the storage session - {err}");
+            self.backend.stop_storage_session().await.ok();
             return;
         }
 

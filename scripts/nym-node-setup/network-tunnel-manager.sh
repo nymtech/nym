@@ -949,8 +949,10 @@ apply_port_allowlist() {
     ["TeamSpeakVoice"]="9987"
     ["DashNetwork"]="9999"
     ["NDMP"]="10000"
-    ["TeamSpeakQuery"]="10011-10080"
-    ["TeamSpeakHTTPS"]="10443"
+    ["TeamSpeakQuery"]="10011"
+    ["TeamSpeakQuerySSH"]="10022"
+    ["TeamSpeakQueryHTTP"]="10080"
+    ["TeamSpeakQueryHTTPS"]="10443"
     ["OpenPGP"]="11371"
     ["MoneroMiningPools1"]="14444"
     ["Monero"]="18080-18081"
@@ -964,6 +966,7 @@ apply_port_allowlist() {
     # ["MongoDBDefault"]="27017" # Within Steam range
     ["Steam"]="27000-27050"
     ["WhatsAppRange"]="3478-3484"
+    ["TeamSpeakFileTransfer"]="30033"
     ["TeamSpeakTSDNS"]="41144"
     ["DiscordVoiceChat1"]="50000-65535"
     # ["ElectrumSSL"]="50002"    # Within DiscordVoiceChat1 range

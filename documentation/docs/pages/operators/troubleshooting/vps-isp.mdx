@@ -137,3 +137,50 @@ To find the right IP configuration, contact your VPS provider for support to fin
 On self-hosted machine it's a bit more tricky. In that case as an operator you must be sure that your ISP allows for public IPv4 and IPv6 and then it may be a bit of playing around to find the right configuration. One way may be to bind your binary with the `--host` flag to local address `127.0.0.1` and run `echo "$(curl -4 https://ifconfig.me)"` to get a public address which you use to bond your Mix Node to `nym-api` via Nym wallet.
 
 It's up to you as a node operator to ensure that your public and private IPs match up properly.
+
+### Outbound SMTP egress (mail relay through your exit gateway)
+
+Many hosters silently filter outbound TCP on ports 25, 465 and 587 at their network edge as a default anti-spam measure. When this happens, Nym mixnet users whose mail clients (Thunderbird, Apple Mail, Outlook etc.) try to relay outgoing email through your exit gateway will see indefinite hangs or "could not connect" errors, while everything else through your gateway works fine. The Nym exit policy explicitly allows ports 465 and 587 for legitimate mail submission, so honouring them is part of being a good exit gateway.
+
+#### Step 1: Test direct egress from your server
+
+SSH into your `nym-node` host and run:
+
+```sh
+python3 -c "
+import socket
+for h, p in [('smtp.gmail.com', 25), ('smtp.gmail.com', 465), ('smtp.gmail.com', 587)]:
+    s = socket.socket(); s.settimeout(5)
+    try:
+        s.connect((socket.gethostbyname(h), p)); print(f'{h}:{p} OPEN')
+    except Exception as e:
+        print(f'{h}:{p} {type(e).__name__}')
+    finally:
+        s.close()
+"
+```
+
+Possible outcomes:
+
+- **All three OPEN with no error**: your hoster does not filter SMTP, you are good. If users still report issues with your gateway, the cause is IP reputation at the receiving mail provider (see Step 3).
+- **One or more `TimeoutError`**: your hoster is silently dropping the SYN packets at their edge. Confirm with `tcpdump -i any -nn 'tcp port 587'` while running the test - you should see SYN leaving with no reply. Proceed to Step 2.
+- **`ConnectionRefusedError`**: rare for SMTP, usually means a local firewall on your side. Check your `iptables -L OUTPUT` rules.
+
+#### Step 2: Open a ticket with your hoster
+
+If Step 1 confirms hoster-level filtering, open a support ticket using the [SMTP unblock request template](../community-counsel/templates#request-to-unblock-outbound-smtp). Most providers grant the unblock within hours when given a clear use-case description. Some attach an anti-abuse condition: any spam complaints will trigger reapplication of the filter.
+
+#### Step 3: If direct egress works but mail still fails through Nym
+
+If your direct SSH-level test in Step 1 succeeds but mail clients routing through your exit still fail, the cause is most likely IP reputation at the receiving mail provider's anti-abuse layer. Receivers like Gmail, Microsoft, Yandex and Proton maintain internal blocklists separate from public RBLs (Spamhaus, SORBS, etc.) and may silently drop SYN packets to their mail infrastructure from IPs flagged in those internal lists. This often happens to IPs that previously sat behind a filter that allowed only outbound SMTP attempts to fail repeatedly.
+
+Verification: route a test connection from your server through Nym mixnet to multiple SMTP providers (Gmail, Fastmail, Yandex, Outlook) and compare responses. If only some respond with `220 ...` banners, you are in this category.
+
+Remediation options:
+1. Use [Gmail Postmaster Tools](https://postmaster.google.com/) and [Microsoft SNDS](https://sendersupport.olc.protection.outlook.com/snds/) to request delisting (requires owning a domain and proper DKIM/SPF setup).
+2. Request a fresh IP from your hoster and rebind your `nym-node` to it.
+3. Accept reduced mail-destination coverage and document the limitation for your users.
+
+#### Reference: testing the whole network
+
+Per-exit SMTP egress test results across the entire Nym network are tracked at [vvmmaann/nym-checker](https://github.com/vvmmaann/nym-checker) and can be referenced when diagnosing whether a specific exit is operator-side, hoster-side, or mail-receiver-side. The full investigation that produced these categories and the wording of the unblock template is documented in the forum post [Nym SMTP egress investigation](https://forum.nym.com/t/nym-smtp-egress-investigation/2288).

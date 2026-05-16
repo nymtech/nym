@@ -19,6 +19,7 @@ jobs:
       RUSTUP_PERMIT_COPY_RENAME: 1
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -58,7 +59,9 @@ jobs:
 
       - name: Update workspace dependencies
         run: |
-          sed -i '/path = /s/version = "${{ steps.current_version.outputs.version }}"/version = "${{ inputs.version }}"/g' Cargo.toml
+          # Match any semver version on lines with `path = `, not just the current workspace version.
+          # This catches entries whose version has drifted (e.g. nym-sqlx-pool-guard at 1.2.0).
+          sed -i '/path = /s/version = "[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*"/version = "${{ inputs.version }}"/g' Cargo.toml
 
       - name: Bump versions
         run: |
@@ -68,9 +71,33 @@ jobs:
 
       - name: Commit and push version bump
         run: |
+          set -euo pipefail
+          BASE_BRANCH="${GITHUB_REF_NAME}"
+          PR_BRANCH="ci/crates-version-bump-${{ inputs.version }}-${GITHUB_RUN_ID}"
+
+          git checkout -b "$PR_BRANCH"
           git add -A
           git commit -m "crates release: bump version to ${{ inputs.version }}"
-          git push
+          git push -u origin "$PR_BRANCH"
+
+          cat > /tmp/crates-version-bump-pr-body.md <<'EOF'
+          This PR was created by CI because direct pushes to the release branch are blocked by branch protection rules.
+
+          ## Summary
+          - Bump workspace crate versions to the requested release version.
+          - Update workspace dependency versions accordingly.
+
+          ## Notes
+          - Merge this PR to proceed with crates.io publishing.
+          EOF
+
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$PR_BRANCH" \
+            --title "crates release: bump version to ${{ inputs.version }}" \
+            --body-file /tmp/crates-version-bump-pr-body.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Show package versions
         run: cargo workspaces list --long

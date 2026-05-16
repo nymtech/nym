@@ -1,0 +1,19 @@
+name: ci-crates-preflight
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - '**/Cargo.toml'
+      - 'tools/internal/check_publish_preflight.py'
+      - '.github/workflows/ci-crates-preflight.yml'
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Preflight publish checks
+        run: python3 tools/internal/check_publish_preflight.py

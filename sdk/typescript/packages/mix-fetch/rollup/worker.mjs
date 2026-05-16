@@ -4,6 +4,7 @@ import { wasm } from '@rollup/plugin-wasm';
 import replace from '@rollup/plugin-replace';
 
 const extensions = ['.js', '.jsx', '.ts', '.tsx'];
+const isDebugEnabled = process.env.MIX_FETCH_DEBUG === 'true';
 
 /**
  * Configure worker output
@@ -23,7 +24,10 @@ export const getConfig = (opts) => ({
     resolve({ extensions }),
     // this is some nasty monkey patching that removes the WASM URL (because it is handled by the `wasm` plugin)
     replace({
-      values: { "input = new URL('mix_fetch_wasm_bg.wasm', import.meta.url);": 'input = undefined;' },
+      values: {
+        "input = new URL('mix_fetch_wasm_bg.wasm', import.meta.url);": 'input = undefined;',
+        'globalThis.__MIX_FETCH_DEBUG__': JSON.stringify(opts?.debug ?? isDebugEnabled),
+      },
       delimiters: ['', ''],
       preventAssignment: true,
     }),

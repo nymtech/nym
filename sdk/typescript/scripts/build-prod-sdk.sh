@@ -7,21 +7,21 @@ set -o pipefail
 rm -rf dist || true
 
 ##---------------------------------------------------------------------------
-## ✅ Run this script from the root of the repository using `yarn sdk:build`
+## ✅ Run this script from the root of the repository using `pnpm sdk:build`
 ##---------------------------------------------------------------------------
 
 # use wasm-pack to build packages
-yarn build:wasm
+pnpm build:wasm
 
 # enable dev mode and then install dev packages
-yarn dev:on
-yarn
+pnpm dev:on
+pnpm install
 
 # build the Typescript SDK packages
-yarn build:ci:sdk
+pnpm build:ci:sdk
 
 # build documentation
-#yarn docs:prod:build
+#pnpm docs:prod:build
 
 # turn dev mode off
-yarn dev:off
+pnpm dev:off

@@ -74,7 +74,7 @@ export const MockBondingContextProvider = ({
 }: {
   network?: Network;
   children?: React.ReactNode;
-}): JSX.Element => {
+}): React.JSX.Element => {
   const [isLoading, setIsLoading] = useState(true);
   const [feeLoading, setFeeLoading] = useState(false);
   const [fee, setFee] = useState<FeeDetails | undefined>();

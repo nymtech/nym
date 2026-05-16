@@ -41,7 +41,7 @@ const operatorCostHint = `This is your (operator) rewards including the PM and c
 const profitMarginHint =
   'PM is the percentage of the node rewards that you as the node operator take before rewards are distributed to the delegators.';
 
-export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }): JSX.Element => {
+export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }): React.JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const [intervalTime, setIntervalTime] = useState<string>();
   const [pendingUpdates, setPendingUpdates] = useState<NodeCostParams>();

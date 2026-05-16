@@ -1,0 +1,226 @@
+packages:
+  - 'ts-packages/*'
+  - 'nym-wallet'
+  - 'explorer-nextjs'
+  - 'explorer-v2'
+  - 'types'
+  - 'sdk/typescript/packages/mix-fetch/internal-dev'
+  - 'sdk/typescript/packages/react-components'
+  - 'sdk/typescript/packages/mui-theme'
+
+catalog:
+  # babel
+  "@babel/core": "^7.22.10"
+  "@babel/helper-simple-access": "^7.25.9"
+  "@babel/runtime": "^7.29.2"
+  "@babel/plugin-transform-async-to-generator": "^7.22.5"
+  "@babel/preset-env": "^7.22.10"
+  "@babel/preset-react": "^7.14.5"
+  "@babel/preset-typescript": "^7.22.5"
+
+  # emotion
+  "@emotion/cache": "^11.14.0"
+  "@emotion/hash": "^0.9.2"
+  "@emotion/is-prop-valid": "^1.4.0"
+  "@emotion/memoize": "^0.9.0"
+  "@emotion/react": "^11.13.5"
+  "@emotion/serialize": "^1.3.3"
+  "@emotion/sheet": "^1.4.0"
+  "@emotion/styled": "^11.13.5"
+  "@emotion/unitless": "^0.10.0"
+  "@emotion/use-insertion-effect-with-fallbacks": "^1.2.0"
+  "@emotion/utils": "^1.4.2"
+  "@emotion/weak-memoize": "^0.4.0"
+
+  # mui
+  "@mui/base": "5.0.0-beta.40"
+  "@mui/icons-material": "^5.2.0"
+  "@mui/lab": "5.0.0-alpha.170"
+  "@mui/material": "^5.2.2"
+  "@mui/private-theming": "^5.17.1"
+  "@mui/styles": "^5.18.0"
+  "@mui/system": "^5.18.0"
+  "@mui/utils": "^5.7.0"
+  "@mui/x-tree-view": "^7.11.1"
+
+  # tanstack
+  "@tanstack/react-query": "^5.64.2"
+  "@tanstack/query-core": "^5.64.2"
+
+  # tauri
+  "@tauri-apps/api": "^2.10.1"
+  "@tauri-apps/cli": "^2.10.1"
+  "@tauri-apps/plugin-clipboard-manager": "^2.3.2"
+  "@tauri-apps/plugin-opener": "^2.5.3"
+  "@tauri-apps/plugin-process": "^2.3.1"
+  "@tauri-apps/plugin-updater": "^2.10.1"
+  "@tauri-apps/tauri-forage": "^1.0.0-beta.2"
+
+  # types
+  "@types/big.js": "^6.1.6"
+  "@types/bs58": "^4.0.1"
+  "@types/flat": "^5.0.2"
+  "@types/jest": "^29.5.14"
+  "@types/lodash": "^4.17.21"
+  "@types/minimatch": "5.1.2"
+  "@types/qrcode.react": "^1.0.2"
+  "@types/react": "^19.2.14"
+  "@types/react-dom": "^19.2.3"
+  "@types/semver": "^7.3.8"
+  "@types/uuid": "^8.3.4"
+  "@types/ws": "^8.18.1"
+  "@types/zxcvbn": "^4.4.1"
+
+  # react ecosystem
+  "@popperjs/core": "^2.11.8"
+  "hoist-non-react-statics": "^3.3.2"
+  "prop-types": "^15.8.1"
+  "react": "^19.2.6"
+  "react-dom": "^19.2.6"
+  "react-error-boundary": "^3.1.3"
+  "react-hook-form": "^7.14.2"
+  "react-is": "^19.2.6"
+  "react-refresh": "^0.10.0"
+  "react-refresh-typescript": "^2.0.2"
+  "react-smooth": "^4.0.4"
+  "react-transition-group": "^4.4.5"
+  "scheduler": "^0.27.0"
+  "stylis": "^4.2.0"
+
+  # react router
+  "@remix-run/router": "^1.23.2"
+  "react-router": "^6.30.3"
+  "react-router-dom": "6"
+  "tiny-invariant": "^1.3.3"
+
+  # storybook
+  "@storybook/addon-actions": "^6.5.8"
+  "@storybook/addon-essentials": "^6.5.8"
+  "@storybook/addon-interactions": "^6.5.8"
+  "@storybook/addon-links": "^6.5.8"
+  "@storybook/builder-webpack5": "^6.5.8"
+  "@storybook/manager-webpack5": "^6.5.8"
+  "@storybook/react": "^6.5.15"
+  "@storybook/testing-library": "^0.0.9"
+
+  # testing
+  "@pmmmwh/react-refresh-webpack-plugin": "^0.5.4"
+  "@testing-library/dom": "^10.4.1"
+  "@testing-library/jest-dom": "^6.9.1"
+  "@testing-library/react": "^16.3.2"
+
+  # crypto / cosmjs
+  "@cosmjs/cosmwasm-stargate": "^0.32.4"
+  "@cosmjs/math": "^0.32.4"
+  "@cosmjs/stargate": "^0.32.4"
+  "axios": "^1.16.0"
+  "long": "^4.0.0"
+  "base-x": "^3.0.11"
+  "base64-js": "^1.5.1"
+  "bech32": "^1.1.4"
+  "bn.js": "^5.2.3"
+  "bs58": "^4.0.1"
+  "buffer": "^6.0.3"
+  "ieee754": "^1.2.1"
+  "safe-buffer": "^5.2.1"
+  "tweetnacl": "^1.0.3"
+  "tweetnacl-util": "^0.15.1"
+
+  # d3 / recharts
+  "d3-array": "^3.2.4"
+  "d3-color": "^3.1.0"
+  "d3-format": "^1.4.5"
+  "d3-interpolate": "^3.0.1"
+  "d3-path": "^3.1.0"
+  "d3-scale": "^4.0.2"
+  "d3-shape": "^3.2.0"
+  "d3-time": "^3.1.0"
+  "d3-time-format": "^3.0.0"
+  "decimal.js-light": "^2.5.1"
+  "eventemitter3": "^4.0.7"
+  "fast-equals": "^5.4.0"
+  "internmap": "^2.0.3"
+  "ramda": "^0.28.0"
+  "recharts": "^2.1.13"
+  "recharts-scale": "^0.4.5"
+  "victory-vendor": "^36.9.2"
+
+  # typescript-eslint (v5 line — nym-wallet pins v8 separately)
+  "@typescript-eslint/eslint-plugin": "^5.13.0"
+  "@typescript-eslint/parser": "^5.13.0"
+
+  # webpack helpers
+  "@svgr/webpack": "^6.1.1"
+  "babel-loader": "^8.3.0"
+  "clean-webpack-plugin": "^4.0.0"
+  "css-loader": "^6.8.1"
+  "css-minimizer-webpack-plugin": "^3.0.2"
+  "dotenv-webpack": "^7.0.3"
+  "favicons": "^7.0.2"
+  "favicons-webpack-plugin": "^5.0.2"
+  "file-loader": "^6.2.0"
+  "fork-ts-checker-webpack-plugin": "^7.2.1"
+  "html-webpack-plugin": "^5.5.3"
+  "mini-css-extract-plugin": "^2.7.6"
+  "style-loader": "^3.3.3"
+  "thread-loader": "^3.0.4"
+  "ts-loader": "^9.4.4"
+  "tsconfig-paths-webpack-plugin": "^3.5.2"
+  "url-loader": "^4.1.1"
+  "webpack": "^5.88.2"
+  "webpack-cli": "^4.8.0"
+  "webpack-dev-server": "^4.15.1"
+  "webpack-favicons": "^1.3.8"
+  "webpack-merge": "^5.9.0"
+
+  # eslint ecosystem
+  "eslint": "^9.26.0"
+  "eslint-config-airbnb": "^19.0.4"
+  "eslint-config-airbnb-typescript": "^16.1.0"
+  "eslint-config-prettier": "^8.5.0"
+  "eslint-import-resolver-root-import": "^1.0.4"
+  "eslint-plugin-import": "^2.25.4"
+  "eslint-plugin-jest": "^26.1.1"
+  "eslint-plugin-jsx-a11y": "^6.5.1"
+  "eslint-plugin-prettier": "^4.0.0"
+  "eslint-plugin-react": "^7.29.2"
+  "eslint-plugin-react-hooks": "^4.3.0"
+  "eslint-plugin-storybook": "^0.5.12"
+
+  # test
+  "jest": "^27.1.0"
+  "ts-jest": "^27.0.5"
+
+  # misc shared
+  "@hookform/resolvers": "^2.8.0"
+  "big.js": "^6.2.1"
+  "clipboard-copy": "^3.2.0"
+  "clsx": "^1.1.1"
+  "colornames": "^1.1.1"
+  "date-fns": "^2.28.0"
+  "dom-helpers": "^5.2.1"
+  "flat": "^5.0.2"
+  "glob": "^10.5.0"
+  "hex-rgb": "^4.3.0"
+  "joi": "^17.11.0"
+  "localforage": "^1.10.0"
+  "lodash": "^4.17.21"
+  "lodash.padend": "^4.6.1"
+  "lodash.trimstart": "^4.5.1"
+  "lodash.words": "^4.2.0"
+  "nanoclone": "^0.2.1"
+  "notistack": "^2.0.3"
+  "npm-run-all": "^4.1.5"
+  "prettier": "^2.8.7"
+  "property-expr": "^2.0.6"
+  "qr.js": "0.0.0"
+  "rgb-hex": "^3.0.0"
+  "rimraf": "^3.0.2"
+  "semver": "^6.3.0"
+  "string-to-color": "^2.2.2"
+  "toposort": "^2.0.2"
+  "tslib": "^2.8.1"
+  "use-clipboard-copy": "^0.2.0"
+  "uuid": "^8.3.2"
+  "yup": "^0.32.9"
+  "zxcvbn": "^4.4.2"

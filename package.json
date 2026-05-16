@@ -1,13 +1,14 @@
 {
   "name": "@nymproject/nymsphere",
   "version": "1.0.1",
+  "packageManager": "pnpm@9.15.0",
   "license": "Apache 2.0",
   "scripts": {
     "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run",
     "build": "run-s build:types build:packages",
     "build:ci": "run-s build:types build:packages build:wasm build:ci:sdk",
     "build:ci:sdk": "lerna run --scope '{@nymproject/sdk,@nymproject/node-tester,@nymproject/sdk-react,@nymproject/mix-fetch,@nymproject/nodejs-client,@nymproject/mix-fetch-node}' build --stream",
-    "build:ci:storybook": "yarn build && yarn dev:on && run-p build:playground && yarn build:ci:storybook:collect-artifacts ",
+    "build:ci:storybook": "pnpm build && pnpm dev:on && run-p build:playground && pnpm build:ci:storybook:collect-artifacts ",
     "build:ci:storybook:collect-artifacts": "mkdir -p ts-packages/dist && mv sdk/typescript/packages/react-components/storybook-static ts-packages/dist/storybook ",
     "build:packages": "run-s build:packages:theme build:packages:react",
     "build:packages:react": "lerna run --scope @nymproject/react build",
@@ -23,8 +24,8 @@
     "lint": "lerna run lint --stream",
     "lint:fix": "lerna run lint:fix --stream",
     "nuke": "npx rimraf **/node_modules node_modules",
-    "postbuild:ci": "yarn dev:off",
-    "prebuild:ci": "yarn dev:on && yarn",
+    "postbuild:ci": "pnpm dev:off",
+    "prebuild:ci": "pnpm dev:on && pnpm install",
     "scrub": "npx rimraf **/dist dist",
     "sdk:build": "./sdk/typescript/scripts/build-prod-sdk.sh",
     "sdk:publish": "./sdk/typescript/scripts/publish.sh",
@@ -46,31 +47,40 @@
     "tslog": "3.3.3"
   },
   "private": true,
-  "resolutions": {
-    "eslint": "8.57.1",
-    "@cosmjs/amino": "^0.32.4",
-    "@cosmjs/cosmwasm-stargate": "^0.32.4",
-    "@cosmjs/proto-signing": "^0.32.4",
-    "@cosmjs/stargate": "^0.32.4",
-    "@tauri-apps/api": "2.10.1",
-    "@types/minimatch": "5.1.2",
-    "@typescript-eslint/eslint-plugin": "5.62.0",
-    "@typescript-eslint/parser": "5.62.0",
-    "@typescript-eslint/scope-manager": "5.62.0",
-    "@typescript-eslint/type-utils": "5.62.0",
-    "@typescript-eslint/types": "5.62.0",
-    "@typescript-eslint/typescript-estree": "5.62.0",
-    "@typescript-eslint/utils": "5.62.0",
-    "cosmjs-types": "^0.9.0"
-  },
-  "workspaces": [
-    "ts-packages/*",
-    "nym-wallet",
-    "explorer-nextjs",
-    "explorer-v2",
-    "types",
-    "sdk/typescript/packages/mix-fetch/internal-dev",
-    "sdk/typescript/packages/react-components",
-    "sdk/typescript/packages/mui-theme"
-  ]
+  "pnpm": {
+    "packageExtensions": {
+      "@cosmos-kit/core@*": {
+        "dependencies": {
+          "axios": "*"
+        }
+      },
+      "@cosmos-kit/keplr-extension@*": {
+        "dependencies": {
+          "long": "*"
+        }
+      },
+      "@nivo/line@*": {
+        "dependencies": {
+          "lodash": "*"
+        }
+      }
+    },
+    "overrides": {
+      "eslint": "8.57.1",
+      "@cosmjs/amino": "^0.32.4",
+      "@cosmjs/cosmwasm-stargate": "^0.32.4",
+      "@cosmjs/proto-signing": "^0.32.4",
+      "@cosmjs/stargate": "^0.32.4",
+      "@tauri-apps/api": "2.10.1",
+      "@types/minimatch": "5.1.2",
+      "@typescript-eslint/eslint-plugin": "5.62.0",
+      "@typescript-eslint/parser": "5.62.0",
+      "@typescript-eslint/scope-manager": "5.62.0",
+      "@typescript-eslint/type-utils": "5.62.0",
+      "@typescript-eslint/types": "5.62.0",
+      "@typescript-eslint/typescript-estree": "5.62.0",
+      "@typescript-eslint/utils": "5.62.0",
+      "cosmjs-types": "^0.9.0"
+    }
+  }
 }

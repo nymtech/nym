@@ -4,25 +4,16 @@
 use crate::config::Config;
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::mixnet::SharedFinalHopData;
-use crate::node::mixnet::handler::ConnectionHandler;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
 use nym_node_metrics::NymNodeMetrics;
-use nym_node_metrics::mixnet::PacketKind;
 use nym_noise::config::NoiseConfig;
 use nym_sphinx_forwarding::packet::MixPacket;
-use nym_sphinx_framing::processing::{
-    MixPacketVersion, MixProcessingResult, MixProcessingResultData, PacketProcessingError,
-};
 use nym_sphinx_types::DestinationAddressBytes;
 use nym_task::ShutdownToken;
-use std::io;
-use std::net::{IpAddr, SocketAddr};
-use std::time::Duration;
-use tokio::net::TcpStream;
-use tokio::task::JoinHandle;
-use tokio::time::Instant;
+use std::net::IpAddr;
+use std::time::{Duration, Instant};
 use tracing::{debug, error};
 
 pub(crate) mod final_hop;
@@ -30,13 +21,11 @@ pub(crate) mod final_hop;
 #[derive(Clone, Copy)]
 pub(crate) struct ProcessingConfig {
     pub(crate) maximum_packet_delay: Duration,
-    /// how long the task is willing to skip mutex acquisition before it will block the thread
-    /// until it actually obtains it
-    pub(crate) maximum_replay_detection_deferral: Duration,
 
-    /// how many packets the task is willing to queue before it will block the thread
-    /// until it obtains the mutex
-    pub(crate) maximum_replay_detection_pending_packets: usize,
+    /// Channel capacity for the mixnet ingress channel. This determines the maximum number of
+    /// packets that can be queued waiting for ingest processing. Once the queue is full packets
+    /// will still be taken off the wire, but dropped as the node is too busy to handle them.
+    pub(crate) ingress_channel_maximum_capacity: usize,
 
     pub(crate) forward_hop_processing_enabled: bool,
     pub(crate) final_hop_processing_enabled: bool,
@@ -46,16 +35,11 @@ impl ProcessingConfig {
     pub(crate) fn new(config: &Config) -> Self {
         ProcessingConfig {
             maximum_packet_delay: config.mixnet.debug.maximum_forward_packet_delay,
-            maximum_replay_detection_deferral: config
+            ingress_channel_maximum_capacity: config
                 .mixnet
                 .replay_protection
                 .debug
-                .maximum_replay_detection_deferral,
-            maximum_replay_detection_pending_packets: config
-                .mixnet
-                .replay_protection
-                .debug
-                .maximum_replay_detection_pending_packets,
+                .ingress_channel_maximum_capacity,
             forward_hop_processing_enabled: config.modes.mixnode,
             final_hop_processing_enabled: config.modes.expects_final_hop_traffic()
                 || config.wireguard.enabled,
@@ -81,13 +65,6 @@ pub(crate) struct SharedData {
     pub(super) metrics: NymNodeMetrics,
 
     pub(super) shutdown_token: ShutdownToken,
-}
-
-fn convert_to_metrics_version(processed: MixPacketVersion) -> PacketKind {
-    match processed {
-        MixPacketVersion::Outfox => PacketKind::Outfox,
-        MixPacketVersion::Sphinx(sphinx_version) => PacketKind::Sphinx(sphinx_version.value()),
-    }
 }
 
 impl SharedData {
@@ -131,64 +108,11 @@ impl SharedData {
         self.metrics.mixnet.ingress_dropped_final_hop_packet(source)
     }
 
-    pub(super) fn update_metrics(
-        &self,
-        processing_result: &Result<MixProcessingResult, PacketProcessingError>,
-        source: IpAddr,
-    ) {
-        let Ok(processing_result) = processing_result else {
-            self.metrics.mixnet.ingress_malformed_packet(source);
-            return;
-        };
-
-        let packet_version = convert_to_metrics_version(processing_result.packet_version);
-
-        match processing_result.processing_data {
-            MixProcessingResultData::ForwardHop { delay, .. } => {
-                self.metrics
-                    .mixnet
-                    .ingress_received_forward_packet(source, packet_version);
-
-                // check if the delay wasn't excessive
-                if let Some(delay) = delay
-                    && delay.to_duration() > self.processing_config.maximum_packet_delay
-                {
-                    self.metrics.mixnet.ingress_excessive_delay_packet()
-                }
-            }
-            MixProcessingResultData::FinalHop { .. } => {
-                self.metrics
-                    .mixnet
-                    .ingress_received_final_hop_packet(source, packet_version);
-            }
-        }
-    }
-
-    pub(super) fn try_handle_connection(
-        &self,
-        accepted: io::Result<(TcpStream, SocketAddr)>,
-    ) -> Option<JoinHandle<()>> {
-        match accepted {
-            Ok((socket, remote_addr)) => {
-                debug!("accepted incoming mixnet connection from: {remote_addr}");
-                let mut handler = ConnectionHandler::new(self, remote_addr);
-                let join_handle =
-                    tokio::spawn(async move { handler.handle_connection(socket).await });
-                self.log_connected_clients();
-                Some(join_handle)
-            }
-            Err(err) => {
-                debug!("failed to accept incoming mixnet connection: {err}");
-                None
-            }
-        }
-    }
-
     pub(super) fn forward_mix_packet(&self, packet: MixPacket, delay_until: Option<Instant>) {
         let has_delay = delay_until.is_some();
         if self
             .mixnet_forwarder
-            .forward_packet(PacketToForward::new(packet, delay_until))
+            .forward_packet(PacketToForward::new(packet, delay_until.map(Into::into)))
             .is_err()
             && !self.shutdown_token.is_cancelled()
         {

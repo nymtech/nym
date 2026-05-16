@@ -657,13 +657,10 @@ pub struct ReplayProtectionDebug {
     /// Specifies whether this node should **NOT** use replay protection
     pub unsafe_disabled: bool,
 
-    /// How long the processing task is willing to skip mutex acquisition before it will block the thread
-    /// until it actually obtains it
-    pub maximum_replay_detection_deferral: Duration,
-
-    /// How many packets the processing task is willing to queue before it will block the thread
-    /// until it obtains the mutex
-    pub maximum_replay_detection_pending_packets: usize,
+    /// Channel capacity for the mixnet ingress channel. This determines the maximum number of
+    /// packets that can be queued waiting for ingest processing. Once the queue is full packets
+    /// will still be taken off the wire, but dropped as the node is too busy to handle them.
+    pub ingress_channel_maximum_capacity: usize,
 
     /// Probability of false positives, fraction between 0 and 1 or a number indicating 1-in-p
     pub false_positive_rate: f64,
@@ -689,9 +686,7 @@ pub struct ReplayProtectionDebug {
 }
 
 impl ReplayProtectionDebug {
-    pub const DEFAULT_MAXIMUM_REPLAY_DETECTION_DEFERRAL: Duration = Duration::from_millis(50);
-
-    pub const DEFAULT_MAXIMUM_REPLAY_DETECTION_PENDING_PACKETS: usize = 100;
+    pub const DEFAULT_INGRESS_CHANNEL_MAXIMUM_CAPACITY: usize = 2000;
 
     // 12% (completely arbitrary)
     pub const DEFAULT_BLOOMFILTER_SIZE_MULTIPLIER: f64 = 1.12;
@@ -755,9 +750,7 @@ impl Default for ReplayProtectionDebug {
     fn default() -> Self {
         ReplayProtectionDebug {
             unsafe_disabled: false,
-            maximum_replay_detection_deferral: Self::DEFAULT_MAXIMUM_REPLAY_DETECTION_DEFERRAL,
-            maximum_replay_detection_pending_packets:
-                Self::DEFAULT_MAXIMUM_REPLAY_DETECTION_PENDING_PACKETS,
+            ingress_channel_maximum_capacity: Self::DEFAULT_INGRESS_CHANNEL_MAXIMUM_CAPACITY,
             false_positive_rate: Self::DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE,
             initial_expected_packets_per_second: Self::DEFAULT_INITIAL_EXPECTED_PACKETS_PER_SECOND,
             bloomfilter_minimum_packets_per_second_size:
@@ -802,7 +795,7 @@ impl MixnetDebug {
     const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
     const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
     const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
-    const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
+    const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 }
 
 impl Default for MixnetDebug {

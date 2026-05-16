@@ -36,6 +36,8 @@ pub(crate) struct AppState {
     db_pool: DbPool,
     cache: HttpCache,
     agent_key_list: Vec<PublicKey>,
+    agent_region_map: HashMap<PublicKey, String>,
+    region_centroids: HashMap<String, RegionCentroid>,
     agent_max_count: i64,
     agent_request_freshness_requirement: time::Duration,
     node_geocache: NodeGeoCache,
@@ -50,6 +52,8 @@ impl AppState {
         db_pool: DbPool,
         cache_ttl: u64,
         agent_key_list: Vec<PublicKey>,
+        agent_region_map: HashMap<PublicKey, String>,
+        region_centroids: HashMap<String, RegionCentroid>,
         agent_max_count: i64,
         agent_request_freshness_requirement: time::Duration,
         node_geocache: NodeGeoCache,
@@ -60,6 +64,8 @@ impl AppState {
             db_pool,
             cache: HttpCache::new(cache_ttl).await,
             agent_key_list,
+            agent_region_map,
+            region_centroids,
             agent_max_count,
             agent_request_freshness_requirement,
             node_geocache,
@@ -83,6 +89,15 @@ impl AppState {
 
     pub(crate) fn agent_max_count(&self) -> i64 {
         self.agent_max_count
+    }
+
+    pub(crate) fn agent_region_and_centroid(
+        &self,
+        agent_pubkey: &PublicKey,
+    ) -> Option<(&str, RegionCentroid)> {
+        let region = self.agent_region_map.get(agent_pubkey)?;
+        let centroid = self.region_centroids.get(region)?;
+        Some((region.as_str(), *centroid))
     }
 
     pub(crate) fn node_geocache(&self) -> NodeGeoCache {
@@ -149,6 +164,12 @@ impl AppState {
         }
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RegionCentroid {
+    pub(crate) lat: f64,
+    pub(crate) lon: f64,
 }
 
 static GATEWAYS_LIST_KEY: &str = "gateways";

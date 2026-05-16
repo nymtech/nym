@@ -20,7 +20,7 @@ use tracing::{debug, error, trace, warn};
 #[derive(Clone)]
 pub(crate) struct SharedBandwidthStorageManager {
     inner: Arc<RwLock<BandwidthStorageManager>>,
-    allowed_ips: Vec<IpAddrMask>,
+    allowed_ips: Arc<RwLock<Vec<IpAddrMask>>>,
 }
 
 impl SharedBandwidthStorageManager {
@@ -28,15 +28,22 @@ impl SharedBandwidthStorageManager {
         inner: Arc<RwLock<BandwidthStorageManager>>,
         allowed_ips: Vec<IpAddrMask>,
     ) -> Self {
-        Self { inner, allowed_ips }
+        Self {
+            inner,
+            allowed_ips: Arc::new(RwLock::new(allowed_ips)),
+        }
     }
 
     pub(crate) fn inner(&self) -> &RwLock<BandwidthStorageManager> {
         &self.inner
     }
 
-    pub(crate) fn allowed_ips(&self) -> &[IpAddrMask] {
-        &self.allowed_ips
+    pub(crate) async fn allowed_ips(&self) -> Vec<IpAddrMask> {
+        self.allowed_ips.read().await.clone()
+    }
+
+    pub(crate) async fn set_allowed_ips(&self, allowed_ips: Vec<IpAddrMask>) {
+        *self.allowed_ips.write().await = allowed_ips;
     }
 }
 

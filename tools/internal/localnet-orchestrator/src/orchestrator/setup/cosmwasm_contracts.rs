@@ -134,6 +134,7 @@ impl LocalnetOrchestrator {
                 .mixnet_rewarder
                 .address()
                 .to_string(),
+            // PLACEHOLDER /\
             rewarding_denom: "unym".to_string(),
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),

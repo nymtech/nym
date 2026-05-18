@@ -539,31 +539,6 @@ impl NodeFamiliesStorage<'_> {
         Ok(family)
     }
 
-    /// Disband (delete) `family_id`.
-    ///
-    /// Sweeps every still-pending invitation issued by the family
-    /// (iterating via the `family` multi-index over
-    /// [`Self::pending_family_invitations`]), removing each from the
-    /// pending map and archiving it as
-    /// [`FamilyInvitationStatus::Revoked`] at `env.block.time` — disbanding
-    /// the family is treated as the family withdrawing all of its
-    /// outstanding invitations. Gas cost therefore scales with the number
-    /// of leftover invitations; if that becomes a concern, the owner can
-    /// revoke them manually before disbanding.
-    ///
-    /// The caller (a transaction handler) is responsible for:
-    /// - verifying that the transaction sender is the owner of `family_id`;
-    /// - verifying that the family has zero current members (errors with
-    ///   [`FamilyNotEmpty`] are raised at the transaction layer, not here)
-    ///   — disbanding a family with members would otherwise leak orphaned
-    ///   `FamilyMembership` records pointing at a removed family.
-    ///
-    /// Errors with [`FamilyNotFound`] if `family_id` does not exist.
-    /// Returns the disbanded [`NodeFamily`] (final snapshot) for use in
-    /// event attributes.
-    ///
-    /// [`FamilyNotEmpty`]: NodeFamiliesContractError::FamilyNotEmpty
-    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
     /// Apply the family-side cleanup triggered when `node_id` initiates
     /// unbonding from the mixnet contract.
     ///
@@ -621,6 +596,31 @@ impl NodeFamiliesStorage<'_> {
         Ok(swept)
     }
 
+    /// Disband (delete) `family_id`.
+    ///
+    /// Sweeps every still-pending invitation issued by the family
+    /// (iterating via the `family` multi-index over
+    /// [`Self::pending_family_invitations`]), removing each from the
+    /// pending map and archiving it as
+    /// [`FamilyInvitationStatus::Revoked`] at `env.block.time` — disbanding
+    /// the family is treated as the family withdrawing all of its
+    /// outstanding invitations. Gas cost therefore scales with the number
+    /// of leftover invitations; if that becomes a concern, the owner can
+    /// revoke them manually before disbanding.
+    ///
+    /// The caller (a transaction handler) is responsible for:
+    /// - verifying that the transaction sender is the owner of `family_id`;
+    /// - verifying that the family has zero current members (errors with
+    ///   [`FamilyNotEmpty`] are raised at the transaction layer, not here)
+    ///   — disbanding a family with members would otherwise leak orphaned
+    ///   `FamilyMembership` records pointing at a removed family.
+    ///
+    /// Errors with [`FamilyNotFound`] if `family_id` does not exist.
+    /// Returns the disbanded [`NodeFamily`] (final snapshot) for use in
+    /// event attributes.
+    ///
+    /// [`FamilyNotEmpty`]: NodeFamiliesContractError::FamilyNotEmpty
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
     pub(crate) fn disband_family(
         &self,
         store: &mut dyn Storage,

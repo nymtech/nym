@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{from_json, Binary, CustomQuery, QuerierWrapper, StdError, StdResult};
+use cosmwasm_std::{Binary, CustomQuery, QuerierWrapper, StdError, StdResult, from_json};
 use cw_storage_plus::{Key, Namespace, Path, PrimaryKey};
 use nym_mixnet_contract_common::{Interval, NymNodeBond};
 use nym_performance_contract_common::{EpochId, NodeId};

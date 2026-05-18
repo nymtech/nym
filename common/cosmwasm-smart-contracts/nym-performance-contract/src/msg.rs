@@ -8,7 +8,7 @@ use cosmwasm_schema::cw_serde;
 use crate::types::{
     EpochMeasurementsPagedResponse, EpochPerformancePagedResponse,
     FullHistoricalPerformancePagedResponse, LastSubmission, NetworkMonitorResponse,
-    NetworkMonitorsPagedResponse, NodeMeasurementsResponse, NodePerformancePagedResponse,
+    NetworkMonitorsPagedResponse, NodeMeasurementsPerKindResponse, NodePerformancePagedResponse,
     NodePerformanceResponse, RetiredNetworkMonitorsPagedResponse,
 };
 
@@ -34,6 +34,14 @@ pub enum ExecuteMsg {
         epoch: EpochId,
         data: Vec<NodePerformance>,
     },
+
+    /// Measurement kind needs to be defined by the admin before measurements of
+    /// that kind can be submitted.
+    DefineMeasurementKind { measurement_kind: String },
+
+    /// After this action is done, measurements of this kind aren't returned on the API anymore
+    /// New measurements of this kind cannot be submitted
+    RetireMeasurementKind { measurement_kind: String },
 
     /// Attempt to authorise new network monitor for submitting performance data
     AuthoriseNetworkMonitor { address: String },
@@ -69,9 +77,16 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 
-    /// Returns all submitted measurements for the particular node
+    /// Returns all measurements of a specific kind for the particular node
     #[cfg_attr(feature = "schema", returns(NodeMeasurementsResponse))]
-    NodeMeasurements { epoch_id: EpochId, node_id: NodeId },
+    NodeMeasurements {
+        epoch_id: EpochId,
+        node_id: NodeId,
+        kind: String,
+    },
+
+    #[cfg_attr(feature = "schema", returns(NodeMeasurementsResponse))]
+    AllNodeMeasurements { epoch_id: EpochId, node_id: NodeId },
 
     /// Returns (paged) measurements for particular epoch
     #[cfg_attr(feature = "schema", returns(EpochMeasurementsPagedResponse))]

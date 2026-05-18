@@ -14,7 +14,7 @@ pub use nym_performance_contract_common::{
     EpochMeasurementsPagedResponse, EpochNodePerformance, EpochPerformancePagedResponse,
     FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastSubmission,
     NetworkMonitorInformation, NetworkMonitorsPagedResponse, NodeId, NodeMeasurement,
-    NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
+    NodeMeasurementsPerKindResponse, NodePerformance, NodePerformancePagedResponse,
     NodePerformanceResponse, RetiredNetworkMonitor, RetiredNetworkMonitorsPagedResponse,
 };
 
@@ -60,7 +60,7 @@ pub trait PerformanceQueryClient {
         &self,
         epoch_id: EpochId,
         node_id: NodeId,
-    ) -> Result<NodeMeasurementsResponse, NyxdError> {
+    ) -> Result<NodeMeasurementsPerKindResponse, NyxdError> {
         self.query_performance_contract(PerformanceQueryMsg::NodeMeasurements { epoch_id, node_id })
             .await
     }

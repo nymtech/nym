@@ -14,8 +14,8 @@ use crate::http::{
 
 pub(crate) fn routes() -> Router<AppState> {
     Router::new().route("/", axum::routing::get(get_all_sessions))
-    // .route("/:node_id", axum::routing::get(get_node_sessions))
-    // .route("/:day", axum::routing::get(get_daily_sessions))
+    // .route("/{node_id}", axum::routing::get(get_node_sessions))
+    // .route("/{day}", axum::routing::get(get_daily_sessions))
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::IntoParams)]

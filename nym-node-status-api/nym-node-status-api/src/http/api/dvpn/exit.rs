@@ -18,7 +18,7 @@ pub(crate) fn routes() -> Router<AppState> {
             axum::routing::get(get_entry_gateway_countries),
         )
         .route(
-            "/exit/country/:two_letter_country_code",
+            "/exit/country/{two_letter_country_code}",
             axum::routing::get(get_exit_gateways_by_country),
         )
 }

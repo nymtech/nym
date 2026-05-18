@@ -1391,8 +1391,7 @@ impl TestFixture {
                     another_fake_nyxd_client,
                     &tmp_dir,
                 ),
-            ))
-            .unwrap(),
+            )),
             storage,
             chain_state,
             epoch,

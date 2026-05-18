@@ -18,7 +18,7 @@ pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(nym_nodes))
         .route(
-            "/:node_id/delegations",
+            "/{node_id}/delegations",
             axum::routing::get(node_delegations),
         )
 }

@@ -63,7 +63,7 @@ pub async fn dvpn_gateways(
     Ok(Json(
         state
             .cache()
-            .get_dvpn_gateway_list(&storage, &min_node_version)
+            .get_dvpn_gateway_list(storage, &min_node_version)
             .await,
     ))
 }
@@ -74,7 +74,7 @@ pub async fn dvpn_gateway_ips(state: State<AppState>) -> HttpResult<Json<Vec<Str
     Ok(Json(
         state
             .cache()
-            .get_gateway_ips(&storage, &MIN_SUPPORTED_VERSION)
+            .get_gateway_ips(storage, &MIN_SUPPORTED_VERSION)
             .await,
     ))
 }

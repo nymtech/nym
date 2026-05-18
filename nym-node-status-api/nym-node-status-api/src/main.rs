@@ -182,7 +182,7 @@ async fn main() -> anyhow::Result<()> {
 
     let shutdown_tracker = shutdown_manager.shutdown_tracker();
     http::server::start_http_api(
-        storage.pool_owned(),
+        storage,
         args.http_port,
         args.nym_http_cache_ttl,
         agent_key_list.to_owned(),

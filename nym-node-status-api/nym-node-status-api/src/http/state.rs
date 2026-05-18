@@ -35,7 +35,7 @@ use nym_validator_client::nyxd::contract_traits::node_families_query_client::Nod
 
 #[derive(Clone)]
 pub(crate) struct AppState {
-    db_pool: DbPool,
+    storage: db::Storage,
     cache: HttpCache,
     agent_key_list: Vec<PublicKey>,
     agent_max_count: i64,
@@ -49,7 +49,7 @@ pub(crate) struct AppState {
 impl AppState {
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn new(
-        db_pool: DbPool,
+        storage: db::Storage,
         cache_ttl: u64,
         agent_key_list: Vec<PublicKey>,
         agent_max_count: i64,
@@ -59,7 +59,7 @@ impl AppState {
         ticketbook_manager_state: TicketbookManagerState,
     ) -> Self {
         Self {
-            db_pool,
+            storage,
             cache: HttpCache::new(cache_ttl).await,
             agent_key_list,
             agent_max_count,
@@ -72,13 +72,11 @@ impl AppState {
     }
 
     pub(crate) fn db_pool(&self) -> &DbPool {
-        &self.db_pool
+        self.storage.pool()
     }
 
-    /// Cheap `Storage` view over the same underlying pool. Use when the
-    /// callee expects a `&db::Storage` rather than a raw `DbPool`.
-    pub(crate) fn storage(&self) -> db::Storage {
-        db::Storage::from_pool(self.db_pool.clone())
+    pub(crate) fn storage(&self) -> &db::Storage {
+        &self.storage
     }
 
     pub(crate) fn cache(&self) -> &HttpCache {

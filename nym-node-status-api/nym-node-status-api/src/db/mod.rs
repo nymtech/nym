@@ -80,6 +80,12 @@ impl Storage {
     /// `Clone`-cheap (shares the same underlying connection set), so this is
     /// effectively free.
     pub(crate) fn from_pool(pool: DbPool) -> Self {
+        pool.into()
+    }
+}
+
+impl From<DbPool> for Storage {
+    fn from(pool: DbPool) -> Self {
         Storage { pool }
     }
 }

@@ -50,7 +50,7 @@ async fn mixnodes(
         tracing::error!("Invalidly configured ParseJsonPaths: {e}");
         HttpError::internal()
     })?;
-    let res = cache.get_gateway_list(&storage).await;
+    let res = cache.get_gateway_list(storage).await;
     let services = gateway_list_to_services(&paths, res, params.clone());
 
     Ok(Json(PagedResult::paginate(

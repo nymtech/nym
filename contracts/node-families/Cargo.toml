@@ -41,9 +41,12 @@ nym-crypto = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-# activate the `testable-node-families-contract` feature in tests (mirrors the
-# weird-but-effective workaround used by the mixnet contract)
-node-families = { path = ".", features = ["testable-node-families-contract"] }
+# make the testing helpers available for this crate's own unit tests via
+# `cfg(test)`; downstream crates instead pull these in through the
+# `testable-node-families-contract` feature.
+nym-contracts-common-testing = { workspace = true }
+nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 [features]
 schema-gen = ["node-families-contract-common/schema", "cosmwasm-schema"]

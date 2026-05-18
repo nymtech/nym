@@ -1,7 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use async_trait::async_trait;
 use axum::extract::FromRequestParts;
 use axum::http::Request;
 use axum::http::request::Parts;
@@ -56,7 +55,6 @@ impl DummyConnectInfo {
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for DummyConnectInfo
 where
     S: Send + Sync,

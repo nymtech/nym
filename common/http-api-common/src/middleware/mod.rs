@@ -2,4 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod bearer_auth;
+pub mod client_ip;
 pub mod logging;
